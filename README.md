@@ -1,4 +1,8 @@
-# Getting Started with Create React App
+# Trend Request Form
+
+This project is designed to manage trend requests, allowing users to submit trends for approval or rejection. It includes an admin panel for managing these submissions.
+
+## Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
