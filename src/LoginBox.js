@@ -1,18 +1,19 @@
 import React, { useState } from 'react';
 import { Box, Button, FormControl, FormLabel, Input, VStack, useToast } from '@chakra-ui/react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
-const LoginBox = ({ onLogin }) => {
+const LoginBox = ({ login }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const { t } = useTranslation();
   const toast = useToast();
+  const navigate = useNavigate();
 
   const handleLogin = (e) => {
     e.preventDefault();
     // Here you would typically handle the login logic
-    if (username === 'admin' && password === 'admin') {
-      onLogin(username, password);
+    if (login(username, password)) {
       console.log('Login attempt:', { username, password });
       toast({
         title: t('Login Successful'),
@@ -21,6 +22,7 @@ const LoginBox = ({ onLogin }) => {
         duration: 3000,
         isClosable: true,
       });
+      navigate('/admin');
     } else {
       toast({
         title: t('Login Failed'),

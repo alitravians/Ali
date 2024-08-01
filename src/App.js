@@ -1,42 +1,65 @@
 import React, { useState } from 'react';
-import { ChakraProvider, Box, VStack, Heading, Flex, useColorModeValue } from '@chakra-ui/react';
-import { useTranslation } from 'react-i18next';
-import RegistrationForm from './RegistrationForm';
+import { ChakraProvider, Box, VStack, Heading, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import { I18nextProvider } from 'react-i18next';
+import i18n from './i18n';
 import ControlPanel from './ControlPanel';
-import TrendRequestForm from './TrendRequestForm';
-import NotificationSystem from './NotificationSystem';
-import LanguageToggle from './LanguageToggle';
 import LoginBox from './LoginBox';
+import LanguageToggle from './LanguageToggle';
+import MemberDropdownMenus from './MemberDropdownMenus';
+import RegistrationForm from './RegistrationForm';
+
+const adminAccounts = [
+  { username: 'admin', password: 'admin' },
+  { username: 'reem', password: 'admin' },
+  { username: 'Adam', password: 'admin' }
+];
 
 function App() {
-  const { showNotification } = NotificationSystem();
-  const { t } = useTranslation();
-  const bgColor = useColorModeValue('gray.50', 'gray.800');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
-  const handleLogin = (username, password) => {
-    if (username === 'admin' && password === 'admin') {
-      setIsLoggedIn(true);
-      showNotification('success', t('Login successful'));
-    } else {
-      showNotification('error', t('Invalid username or password'));
+  const login = (username, password) => {
+    const admin = adminAccounts.find(account => account.username === username && account.password === password);
+    if (admin) {
+      setIsAuthenticated(true);
+      setIsAdmin(true);
+      localStorage.setItem('isAuthenticated', 'true');
+      return true;
     }
+    return false;
+  };
+
+  const handleRegistration = (userData) => {
+    // Here you would typically send the registration data to your backend
+    console.log('Registration data:', userData);
+    // For now, we'll just log the user in automatically after registration
+    setIsAuthenticated(true);
+    setActiveTab(0);
+  };
+
+  const ProtectedRoute = ({ children }) => {
+    return isAuthenticated ? children : <Navigate to="/admin-login" replace />;
   };
 
   return (
     <ChakraProvider>
-      <Box textAlign="center" fontSize="xl" p={5} bg={bgColor} minHeight="100vh">
-        <Flex justifyContent="space-between" alignItems="center" mb={4}>
-          {!isLoggedIn && <LoginBox onLogin={handleLogin} />} {/* Only show LoginBox when not logged in */}
-          <LanguageToggle />
-        </Flex>
-        <VStack spacing={8}>
-          <Heading>{t('Trend Request App')}</Heading>
-          <TrendRequestForm showNotification={showNotification} />
-          {!isLoggedIn && <RegistrationForm />} {/* Only show RegistrationForm when not logged in */}
-          {isLoggedIn && <ControlPanel showNotification={showNotification} />} {/* Conditionally render ControlPanel */}
-        </VStack>
-      </Box>
+      <I18nextProvider i18n={i18n}>
+        <Router>
+          <Box p={5}>
+            <VStack spacing={5} align="stretch">
+              <LanguageToggle />
+              <Heading>Trend Request App</Heading>
+              <Routes>
+                <Route path="/" element={<MemberDropdownMenus />} />
+                <Route path="/admin-login" element={<LoginBox login={login} />} />
+                <Route path="/admin" element={<ProtectedRoute><ControlPanel /></ProtectedRoute>} />
+              </Routes>
+            </VStack>
+          </Box>
+        </Router>
+      </I18nextProvider>
     </ChakraProvider>
   );
 }

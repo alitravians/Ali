@@ -18,16 +18,22 @@ import {
   Input,
   Text,
   Textarea,
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
+  Tooltip,
 } from '@chakra-ui/react';
 import { useTranslation } from 'react-i18next';
 
 const ControlPanel = () => {
   const { t } = useTranslation();
-  const [selectedOption, setSelectedOption] = useState('memberList');
+  const [selectedOption, setSelectedOption] = useState('reviewTickets');
   const [trendRequests, setTrendRequests] = useState([
-    { id: 1, user: t('User1'), trend: t('Trend 1'), status: t('Pending') },
-    { id: 2, user: t('User2'), trend: t('Trend 2'), status: t('Pending') },
-    { id: 3, user: t('User3'), trend: t('Trend 3'), status: t('Pending') },
+    { id: 1, ticketCode: 'ABC123', name: 'User1', bigoId: 'BIGO1', email: 'user1@example.com', reason: 'Special event', preferredTime: '14:00', status: 'pending' },
+    { id: 2, ticketCode: 'DEF456', name: 'User2', bigoId: 'BIGO2', email: 'user2@example.com', reason: 'Product launch', preferredTime: '16:30', status: 'pending' },
+    { id: 3, ticketCode: 'GHI789', name: 'User3', bigoId: 'BIGO3', email: 'user3@example.com', reason: 'Charity stream', preferredTime: '20:00', status: 'pending' },
   ]);
   const [members, setMembers] = useState([
     { id: 1, name: 'User1', email: 'user1@example.com', suspended: false },
@@ -41,8 +47,25 @@ const ControlPanel = () => {
   const [agencyInfo, setAgencyInfo] = useState('');
   const [trendRequestInfo, setTrendRequestInfo] = useState('');
   const [agencyRules, setAgencyRules] = useState('');
+  const [pointsDeduction, setPointsDeduction] = useState(20);
+  const [isTicketSystemOpen, setIsTicketSystemOpen] = useState(true);
+  const [searchTicketCode, setSearchTicketCode] = useState('');
 
   const toast = useToast();
+
+  const fetchTrendRequests = async () => {
+    // Placeholder: Replace with actual API call
+    const mockRequests = [
+      { id: 1, ticketCode: 'ABC123', name: 'John Doe', bigoId: 'JD123', email: 'john@example.com', reason: 'Special event', preferredTime: '14:00', status: 'pending' },
+      { id: 2, ticketCode: 'DEF456', name: 'Jane Smith', bigoId: 'JS456', email: 'jane@example.com', reason: 'Product launch', preferredTime: '16:30', status: 'pending' },
+      { id: 3, ticketCode: 'GHI789', name: 'Alice Johnson', bigoId: 'AJ789', email: 'alice@example.com', reason: 'Charity stream', preferredTime: '20:00', status: 'pending' },
+    ];
+    setTrendRequests(mockRequests);
+  };
+
+  useEffect(() => {
+    fetchTrendRequests();
+  }, []);
 
   useEffect(() => {
     let timer;
@@ -67,17 +90,31 @@ const ControlPanel = () => {
     return () => clearInterval(timer);
   }, [maintenanceMode, reopenTime]);
 
-  const handleAction = (id, action) => {
+  const handleApprove = (id) => {
     setTrendRequests(prevRequests =>
       prevRequests.map(request =>
-        request.id === id ? { ...request, status: action } : request
+        request.id === id ? { ...request, status: 'approved' } : request
       )
     );
-
     toast({
-      title: t(`Trend Request ${action}`),
-      description: t(`The trend request has been ${action.toLowerCase()}.`),
-      status: action === t('Approved') ? 'success' : 'info',
+      title: t('Trend Request Approved'),
+      description: t('The trend request has been approved.'),
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleReject = (id, reason) => {
+    setTrendRequests(prevRequests =>
+      prevRequests.map(request =>
+        request.id === id ? { ...request, status: 'rejected', rejectionReason: reason } : request
+      )
+    );
+    toast({
+      title: t('Trend Request Rejected'),
+      description: t('The trend request has been rejected.'),
+      status: 'error',
       duration: 3000,
       isClosable: true,
     });
@@ -120,15 +157,82 @@ const ControlPanel = () => {
     });
   };
 
+  const handlePointsDeductionUpdate = async (newAmount) => {
+    try {
+      // API call to update points deduction amount
+      // const response = await fetch('/api/admin/settings', {
+      //   method: 'POST',
+      //   headers: { 'Content-Type': 'application/json' },
+      //   body: JSON.stringify({ pointsDeduction: newAmount })
+      // });
+      // if (response.ok) {
+      //   setPointsDeduction(newAmount);
+      //   toast({
+      //     title: t('Points Deduction Updated'),
+      //     status: 'success',
+      //     duration: 3000,
+      //     isClosable: true,
+      //   });
+      // }
+    } catch (error) {
+      console.error('Error updating points deduction:', error);
+      toast({
+        title: t('Error Updating Points Deduction'),
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleCloseTicketSystem = () => {
+    setIsTicketSystemOpen(false);
+    toast({
+      title: t('Ticket System Closed'),
+      description: t('The ticket system is now closed. No new requests can be submitted.'),
+      status: 'info',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleOpenTicketSystem = () => {
+    setIsTicketSystemOpen(true);
+    toast({
+      title: t('Ticket System Opened'),
+      description: t('The ticket system is now open. New requests can be submitted.'),
+      status: 'success',
+      duration: 3000,
+      isClosable: true,
+    });
+  };
+
+  const handleSearchTicket = () => {
+    const foundTicket = trendRequests.find(request => request.ticketCode === searchTicketCode);
+    if (foundTicket) {
+      setTrendRequests([foundTicket]);
+    } else {
+      toast({
+        title: t('Ticket Not Found'),
+        description: t('No ticket found with the provided code.'),
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
   return (
     <Box maxWidth="800px" margin="auto" mt={8}>
       <Heading mb={4}>{t('Admin Control Panel')}</Heading>
       <Select value={selectedOption} onChange={handleOptionChange} mb={4}>
-        <option value="memberList">{t('Member List')}</option>
-        <option value="websiteStatus">{t('Website Status')}</option>
-        <option value="websiteMenus">{t('Website Menus')}</option>
+        <option value="reviewTickets">{t('Review Tickets')}</option>
+        <option value="searchTicket">{t('Search by Ticket Number')}</option>
+        <option value="closeSystem">{t('Close Ticket System')}</option>
+        <option value="openSystem">{t('Open Ticket System')}</option>
+        <option value="manageMembers">{t('Manage Members')}</option>
       </Select>
-      {selectedOption === 'memberList' && (
+      {selectedOption === 'manageMembers' && (
         <Table variant="simple">
           <Thead>
             <Tr>
@@ -158,75 +262,77 @@ const ControlPanel = () => {
           </Tbody>
         </Table>
       )}
-      {selectedOption === 'websiteStatus' && (
-        <Box>
-          <FormControl display="flex" alignItems="center" mb={4}>
-            <FormLabel htmlFor="maintenance-mode" mb="0">
-              {t('Maintenance Mode')}
-            </FormLabel>
-            <Switch
-              id="maintenance-mode"
-              isChecked={maintenanceMode}
-              onChange={handleMaintenanceModeToggle}
-            />
-          </FormControl>
-          {maintenanceMode && (
-            <>
-              <FormControl mb={4}>
-                <FormLabel>{t('Reopen Time')}</FormLabel>
-                <Input
-                  type="datetime-local"
-                  value={reopenTime}
-                  onChange={(e) => setReopenTime(e.target.value)}
-                />
-              </FormControl>
-              <FormControl mb={4}>
-                <FormLabel>{t('Closure Reason')}</FormLabel>
-                <Input
-                  value={closureReason}
-                  onChange={(e) => setClosureReason(e.target.value)}
-                  placeholder={t('Enter reason for closure')}
-                />
-              </FormControl>
-              {countdown && (
-                <Text mb={4}>
-                  {t('Time remaining')}: {countdown}
-                </Text>
-              )}
-            </>
-          )}
-        </Box>
+      {selectedOption === 'closeSystem' && (
+        <Button onClick={handleCloseTicketSystem} colorScheme="red">
+          {t('Close Ticket System')}
+        </Button>
       )}
-      {selectedOption === 'websiteMenus' && (
+      {selectedOption === 'openSystem' && (
+        <Button onClick={handleOpenTicketSystem} colorScheme="green">
+          {t('Open Ticket System')}
+        </Button>
+      )}
+      {selectedOption === 'searchTicket' && (
         <Box>
-          <FormControl mb={4}>
-            <FormLabel>{t('Agency Information')}</FormLabel>
-            <Textarea
-              value={agencyInfo}
-              onChange={(e) => setAgencyInfo(e.target.value)}
-              placeholder={t('Enter information about the agency')}
-            />
-          </FormControl>
-          <FormControl mb={4}>
-            <FormLabel>{t('How to Request a Trend')}</FormLabel>
-            <Textarea
-              value={trendRequestInfo}
-              onChange={(e) => setTrendRequestInfo(e.target.value)}
-              placeholder={t('Enter information on how to request a trend')}
-            />
-          </FormControl>
-          <FormControl mb={4}>
-            <FormLabel>{t('General Agency Rules')}</FormLabel>
-            <Textarea
-              value={agencyRules}
-              onChange={(e) => setAgencyRules(e.target.value)}
-              placeholder={t('Enter general rules for the agency')}
-            />
-          </FormControl>
-          <Button colorScheme="blue" onClick={handleSaveWebsiteMenus}>
-            {t('Save Website Menus')}
+          <Input
+            placeholder={t('Enter ticket code')}
+            value={searchTicketCode}
+            onChange={(e) => setSearchTicketCode(e.target.value)}
+            mb={4}
+          />
+          <Button onClick={handleSearchTicket} colorScheme="blue">
+            {t('Search')}
           </Button>
         </Box>
+      )}
+      {selectedOption === 'reviewTickets' && (
+        <Table variant="simple">
+          <Thead>
+            <Tr>
+              <Th>{t('Ticket Code')}</Th>
+              <Th>{t('Name')}</Th>
+              <Th>{t('Bigo ID')}</Th>
+              <Th>{t('Email')}</Th>
+              <Th>{t('Reason')}</Th>
+              <Th>{t('Preferred Time')}</Th>
+              <Th>{t('Status')}</Th>
+              <Th>{t('Actions')}</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {trendRequests.map((request) => (
+              <Tr key={request.id}>
+                <Td>{request.ticketCode}</Td>
+                <Td>{request.name}</Td>
+                <Td>{request.bigoId}</Td>
+                <Td>{request.email}</Td>
+                <Td>{request.reason}</Td>
+                <Td>{request.preferredTime}</Td>
+                <Td>{t(request.status)}</Td>
+                <Td>
+                  {request.status === 'pending' && (
+                    <>
+                      <Button onClick={() => handleApprove(request.id)} colorScheme="green" size="sm" mr={2}>
+                        {t('Approve')}
+                      </Button>
+                      <Button onClick={() => {
+                        const reason = prompt(t('Enter rejection reason:'));
+                        if (reason) handleReject(request.id, reason);
+                      }} colorScheme="red" size="sm">
+                        {t('Reject')}
+                      </Button>
+                    </>
+                  )}
+                  {request.status === 'rejected' && (
+                    <Tooltip label={request.rejectionReason}>
+                      <Text color="red.500">{t('Rejected')}</Text>
+                    </Tooltip>
+                  )}
+                </Td>
+              </Tr>
+            ))}
+          </Tbody>
+        </Table>
       )}
     </Box>
   );
