@@ -24,7 +24,7 @@ import {
 } from '@chakra-ui/react';
 
 interface Submission {
-  id: number;
+  id: string;
   agencyName: string;
   agencyNumber: string;
   requestDate: string;
@@ -39,7 +39,7 @@ function AdminPanel() {
   const [rejectedSubmissions, setRejectedSubmissions] = useState<Submission[]>([]);
   const [pendingSubmissions, setPendingSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedSubmission, setSelectedSubmission] = useState<number | null>(null);
+  const [selectedSubmission, setSelectedSubmission] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [actionType, setActionType] = useState<'approve' | 'reject' | null>(null);
   const [reason, setReason] = useState('');
@@ -61,12 +61,12 @@ function AdminPanel() {
         setRejectedSubmissions(rejectedSubmissions);
         setPendingSubmissions(pendingSubmissions);
       } else {
-        throw new Error('Failed to fetch submissions');
+        throw new Error('فشل في جلب الطلبات');
       }
     } catch (error) {
-      console.error('Error fetching submissions:', error);
+      console.error('خطأ في جلب الطلبات:', error);
       toast({
-        title: 'Error fetching submissions',
+        title: 'خطأ في جلب الطلبات',
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -76,8 +76,12 @@ function AdminPanel() {
     }
   };
 
-  const handleApprove = async (id: number, reason: string) => {
+  const handleApprove = async (id: string, reason: string) => {
     try {
+      console.log('الموافقة على الطلب برقم:', id);
+      if (!id) {
+        throw new Error('رقم الطلب غير صالح');
+      }
       const response = await fetch(`http://localhost:3001/submissions/${id}/approve`, {
         method: 'POST',
         headers: {
@@ -86,36 +90,44 @@ function AdminPanel() {
         body: JSON.stringify({ reason }),
       });
 
-      if (response.ok) {
-        const approvedSubmission = pendingSubmissions.find(sub => sub.id === id);
-        if (approvedSubmission) {
-          approvedSubmission.status = 'approved';
-          approvedSubmission.reason = reason;
-          setApprovedSubmissions([...approvedSubmissions, approvedSubmission]);
-          setPendingSubmissions(pendingSubmissions.filter(sub => sub.id !== id));
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `فشل في الموافقة على الطلب. الحالة: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      const approvedSubmission = responseData.submission;
+
+      if (approvedSubmission) {
+        setApprovedSubmissions(prevApproved => [...prevApproved, approvedSubmission]);
+        setPendingSubmissions(prevPending => prevPending.filter(sub => sub.id !== id));
         toast({
-          title: 'Submission approved',
+          title: 'تمت الموافقة على الطلب',
           status: 'success',
           duration: 3000,
           isClosable: true,
         });
       } else {
-        throw new Error('Failed to approve submission');
+        throw new Error(`لم يتم العثور على الطلب الموافق عليه برقم ${id} في استجابة الخادم`);
       }
     } catch (error) {
-      console.error('Error approving submission:', error);
+      console.error('خطأ في الموافقة على الطلب:', error);
       toast({
-        title: 'Error approving submission',
+        title: 'خطأ في الموافقة على الطلب',
         status: 'error',
+        description: error instanceof Error ? error.message : 'حدث خطأ غير معروف',
         duration: 3000,
         isClosable: true,
       });
     }
   };
 
-  const handleReject = async (id: number, reason: string) => {
+  const handleReject = async (id: string, reason: string) => {
     try {
+      console.log('رفض الطلب برقم:', id);
+      if (!id) {
+        throw new Error('رقم الطلب غير صالح');
+      }
       const response = await fetch(`http://localhost:3001/submissions/${id}/reject`, {
         method: 'POST',
         headers: {
@@ -124,36 +136,40 @@ function AdminPanel() {
         body: JSON.stringify({ reason }),
       });
 
-      if (response.ok) {
-        const rejectedSubmission = pendingSubmissions.find(sub => sub.id === id);
-        if (rejectedSubmission) {
-          rejectedSubmission.status = 'rejected';
-          rejectedSubmission.reason = reason;
-          setPendingSubmissions(pendingSubmissions.filter(sub => sub.id !== id));
-          setRejectedSubmissions([...rejectedSubmissions, rejectedSubmission]);
-          toast({
-            title: 'Submission rejected',
-            status: 'success',
-            duration: 3000,
-            isClosable: true,
-          });
-        }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `فشل في رفض الطلب. الحالة: ${response.status}`);
+      }
+
+      const responseData = await response.json();
+      const rejectedSubmission = responseData.submission;
+
+      if (rejectedSubmission) {
+        setRejectedSubmissions(prevRejected => [...prevRejected, rejectedSubmission]);
+        setPendingSubmissions(prevPending => prevPending.filter(sub => sub.id !== id));
+        toast({
+          title: 'تم رفض الطلب',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
       } else {
-        throw new Error('Failed to reject submission');
+        console.warn(`لم يتم العثور على الطلب المرفوض برقم ${id} في استجابة الخادم`);
       }
     } catch (error) {
-      console.error('Error rejecting submission:', error);
+      console.error('خطأ في رفض الطلب:', error);
       toast({
-        title: 'Error rejecting submission',
+        title: 'خطأ في رفض الطلب',
         status: 'error',
+        description: error instanceof Error ? error.message : 'حدث خطأ غير معروف',
         duration: 3000,
         isClosable: true,
       });
     }
   };
 
-  const openModal = (index: number, action: 'approve' | 'reject') => {
-    setSelectedSubmission(index);
+  const openModal = (id: string, action: 'approve' | 'reject') => {
+    setSelectedSubmission(id);
     setActionType(action);
     setIsModalOpen(true);
   };
@@ -167,39 +183,42 @@ function AdminPanel() {
 
   const handleAction = () => {
     if (selectedSubmission !== null && actionType && reason) {
+      console.log(`معالجة ${actionType === 'approve' ? 'الموافقة' : 'الرفض'} للطلب رقم: ${selectedSubmission}`);
       if (actionType === 'approve') {
         handleApprove(selectedSubmission, reason);
       } else {
         handleReject(selectedSubmission, reason);
       }
       closeModal();
+    } else {
+      console.error('إجراء غير صالح: الطلب أو نوع الإجراء أو السبب مفقود');
     }
   };
 
   if (isLoading) {
-    return <Box>Loading...</Box>;
+    return <Box>جاري التحميل...</Box>;
   }
 
   return (
     <Box maxWidth="800px" margin="auto" mt={8}>
       <VStack spacing={6}>
-        <Heading as="h1" size="xl">Admin Panel</Heading>
+        <Heading as="h1" size="xl">لوحة الإدارة</Heading>
 
-        <Heading as="h2" size="lg">Approved Trends</Heading>
+        <Heading as="h2" size="lg">الاتجاهات الموافق عليها</Heading>
         <Table variant="simple" colorScheme="green">
           <Thead>
-            <Tr>
-              <Th>ID</Th>
-              <Th>Agency Name</Th>
-              <Th>Agency Number</Th>
-              <Th>Request Date/Time</Th>
-              <Th>Creator ID</Th>
-              <Th>Admin Message</Th>
+            <Tr key="approved-header">
+              <Th>الرقم التعريفي</Th>
+              <Th>اسم الوكالة</Th>
+              <Th>رقم الوكالة</Th>
+              <Th>تاريخ/وقت الطلب</Th>
+              <Th>معرف المنشئ</Th>
+              <Th>رسالة الإدارة</Th>
             </Tr>
           </Thead>
           <Tbody>
             {approvedSubmissions.map((submission) => (
-              <Tr key={submission.id}>
+              <Tr key={`approved-${submission.id}`}>
                 <Td>{submission.id}</Td>
                 <Td>{submission.agencyName}</Td>
                 <Td>{submission.agencyNumber}</Td>
@@ -211,21 +230,21 @@ function AdminPanel() {
           </Tbody>
         </Table>
 
-        <Heading as="h2" size="lg">Rejected Trends</Heading>
+        <Heading as="h2" size="lg">الاتجاهات المرفوضة</Heading>
         <Table variant="simple" colorScheme="red">
           <Thead>
-            <Tr>
-              <Th>ID</Th>
-              <Th>Agency Name</Th>
-              <Th>Agency Number</Th>
-              <Th>Request Date/Time</Th>
-              <Th>Creator ID</Th>
-              <Th>Admin Message</Th>
+            <Tr key="rejected-header">
+              <Th>الرقم التعريفي</Th>
+              <Th>اسم الوكالة</Th>
+              <Th>رقم الوكالة</Th>
+              <Th>تاريخ/وقت الطلب</Th>
+              <Th>معرف المنشئ</Th>
+              <Th>رسالة الإدارة</Th>
             </Tr>
           </Thead>
           <Tbody>
             {rejectedSubmissions.map((submission) => (
-              <Tr key={submission.id}>
+              <Tr key={`rejected-${submission.id}`}>
                 <Td>{submission.id}</Td>
                 <Td>{submission.agencyName}</Td>
                 <Td>{submission.agencyNumber}</Td>
@@ -237,21 +256,21 @@ function AdminPanel() {
           </Tbody>
         </Table>
 
-        <Heading as="h2" size="lg">Pending Trends</Heading>
+        <Heading as="h2" size="lg">الاتجاهات المعلقة</Heading>
         <Table variant="simple">
           <Thead>
-            <Tr>
-              <Th>ID</Th>
-              <Th>Agency Name</Th>
-              <Th>Agency Number</Th>
-              <Th>Request Date/Time</Th>
-              <Th>Creator ID</Th>
-              <Th>Actions</Th>
+            <Tr key="pending-header">
+              <Th>الرقم التعريفي</Th>
+              <Th>اسم الوكالة</Th>
+              <Th>رقم الوكالة</Th>
+              <Th>تاريخ/وقت الطلب</Th>
+              <Th>معرف المنشئ</Th>
+              <Th>الإجراءات</Th>
             </Tr>
           </Thead>
           <Tbody>
             {pendingSubmissions.map((submission: Submission) => (
-              <Tr key={submission.id}>
+              <Tr key={`pending-${submission.id}`}>
                 <Td>{submission.id}</Td>
                 <Td>{submission.agencyName}</Td>
                 <Td>{submission.agencyNumber}</Td>
@@ -264,14 +283,14 @@ function AdminPanel() {
                     mr={2}
                     onClick={() => openModal(submission.id, 'approve')}
                   >
-                    Approve
+                    موافقة
                   </Button>
                   <Button
                     colorScheme="red"
                     size="sm"
                     onClick={() => openModal(submission.id, 'reject')}
                   >
-                    Reject
+                    رفض
                   </Button>
                 </Td>
               </Tr>
@@ -282,23 +301,23 @@ function AdminPanel() {
       <Modal isOpen={isModalOpen} onClose={closeModal}>
         <ModalOverlay />
         <ModalContent>
-          <ModalHeader>{actionType === 'approve' ? 'Approve' : 'Reject'} Submission</ModalHeader>
+          <ModalHeader>{actionType === 'approve' ? 'الموافقة على' : 'رفض'} الطلب</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <FormControl isRequired>
-              <FormLabel>Reason</FormLabel>
+              <FormLabel>السبب</FormLabel>
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Enter reason for approval/rejection"
+                placeholder="أدخل سبب الموافقة/الرفض"
               />
             </FormControl>
           </ModalBody>
           <ModalFooter>
             <Button colorScheme="blue" mr={3} onClick={handleAction}>
-              Submit
+              إرسال
             </Button>
-            <Button variant="ghost" onClick={closeModal}>Cancel</Button>
+            <Button variant="ghost" onClick={closeModal}>إلغاء</Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
