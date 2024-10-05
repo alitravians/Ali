@@ -226,13 +226,11 @@ const AdminDashboard = ({ language }) => {
             </MenuItem>
           </MenuList>
         </Menu>
-        {showCountdown && (
-          <CountdownTimer
-            targetDate={new Date().getTime() + 24 * 60 * 60 * 1000} // 24 hours from now
-            message="Countdown finished!"
-            onClose={() => setShowCountdown(false)}
-          />
-        )}
+        <CountdownTimer
+          targetDate={new Date().getTime() + 24 * 60 * 60 * 1000} // 24 hours from now
+          message="Countdown finished!"
+          onClose={() => setShowCountdown(false)}
+        />
       </VStack>
     </Box>
   );
