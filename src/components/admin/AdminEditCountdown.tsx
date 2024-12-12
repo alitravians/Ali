@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Switch } from "../../components/ui/switch";
-import { Label } from "../../components/ui/label";
-import { getMaintenanceState, setMaintenanceState, isAdminAuthenticated } from '../../utils/localStorage';
-import type { MaintenanceState, CountdownSettings } from '../../types/maintenance';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { getMaintenanceState, setMaintenanceState, isAdminAuthenticated } from '@/utils/localStorage';
+import type { MaintenanceState, CountdownSettings } from '@/types/maintenance';
 
 export function AdminEditCountdown() {
   const navigate = useNavigate();
@@ -64,7 +64,7 @@ export function AdminEditCountdown() {
       setMaintenanceStateLocal(newState);
       setMaintenanceState(newState);
     }
-    import('../../utils/eventBus').then(({ eventBus }) => {
+    import('@/utils/eventBus').then(({ eventBus }) => {
       eventBus.emit('maintenanceStateChanged');
     });
     navigate('/admin/dashboard');
@@ -96,7 +96,7 @@ export function AdminEditCountdown() {
                       type="number"
                       min="0"
                       value={maintenanceState.countdown?.days ?? 0}
-                      onChange={(e) => handleInputChange('days', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('days', e.target.value)}
                       className="text-right"
                     />
                   </div>
@@ -107,7 +107,7 @@ export function AdminEditCountdown() {
                       min="0"
                       max="23"
                       value={maintenanceState.countdown?.hours ?? 0}
-                      onChange={(e) => handleInputChange('hours', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('hours', e.target.value)}
                       className="text-right"
                     />
                   </div>
@@ -118,7 +118,7 @@ export function AdminEditCountdown() {
                       min="0"
                       max="59"
                       value={maintenanceState.countdown?.minutes ?? 0}
-                      onChange={(e) => handleInputChange('minutes', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('minutes', e.target.value)}
                       className="text-right"
                     />
                   </div>
@@ -129,7 +129,7 @@ export function AdminEditCountdown() {
                       min="0"
                       max="59"
                       value={maintenanceState.countdown?.seconds ?? 0}
-                      onChange={(e) => handleInputChange('seconds', e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('seconds', e.target.value)}
                       className="text-right"
                     />
                   </div>
@@ -138,7 +138,7 @@ export function AdminEditCountdown() {
                   <label className="block text-sm mb-1">سبب العد التنازلي</label>
                   <Input
                     value={maintenanceState.countdown?.reason ?? ''}
-                    onChange={(e) => handleInputChange('reason', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('reason', e.target.value)}
                     className="text-right"
                     placeholder="أدخل السبب"
                   />
@@ -147,7 +147,7 @@ export function AdminEditCountdown() {
                   <label className="block text-sm mb-1">رسالة النهاية</label>
                   <Input
                     value={maintenanceState.countdown?.endMessage ?? ''}
-                    onChange={(e) => handleInputChange('endMessage', e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleInputChange('endMessage', e.target.value)}
                     className="text-right"
                     placeholder="الرسالة التي ستظهر عند انتهاء العد"
                   />

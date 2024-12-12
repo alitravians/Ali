@@ -58,7 +58,7 @@ export function AdminEditUpdates() {
           <label className="block text-sm font-medium mb-1">عنوان التحديث</label>
           <Input
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
             placeholder="أدخل عنوان التحديث"
             className="w-full"
           />
@@ -68,7 +68,7 @@ export function AdminEditUpdates() {
           <label className="block text-sm font-medium mb-1">محتوى التحديث</label>
           <Textarea
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setContent(e.target.value)}
             placeholder="أدخل محتوى التحديث"
             className="w-full h-32"
           />

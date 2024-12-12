@@ -129,7 +129,7 @@ export function AdminEditTeam() {
                 <Input
                   id="name"
                   value={newMember.name}
-                  onChange={(e) => setNewMember(prev => ({ ...prev, name: e.target.value }))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMember(prev => ({ ...prev, name: e.target.value }))}
                   placeholder="أدخل اسم العضو"
                   dir="rtl"
                 />
@@ -140,7 +140,7 @@ export function AdminEditTeam() {
                 <Input
                   id="role"
                   value={newMember.role}
-                  onChange={(e) => setNewMember(prev => ({ ...prev, role: e.target.value }))}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewMember(prev => ({ ...prev, role: e.target.value }))}
                   placeholder="أدخل صلاحية العضو"
                   dir="rtl"
                 />

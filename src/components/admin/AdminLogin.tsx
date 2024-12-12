@@ -11,10 +11,10 @@ export function AdminLogin() {
   const navigate = useNavigate();
 
   const handleLogin = () => {
-    if (password === '3131') {
+    if (password === import.meta.env.VITE_ADMIN_PASSWORD) {
       setAdminAuthenticated(password);
       if (isAdminAuthenticated()) {
-        navigate('/admin/dashboard');  // Changed from '/admin' to '/admin/dashboard'
+        navigate('/admin/dashboard');
       }
     } else {
       setError('كلمة المرور غير صحيحة');
@@ -40,7 +40,7 @@ export function AdminLogin() {
               type="password"
               placeholder="كلمة المرور"
               value={password}
-              onChange={(e) => {
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                 setPassword(e.target.value);
                 setError('');
               }}
