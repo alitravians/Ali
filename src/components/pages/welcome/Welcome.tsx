@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useEffect } from 'react';
 import { CountdownTimer } from '@/components/countdown/CountdownTimer';
 import { Card } from "@/components/ui/card";
@@ -63,24 +64,24 @@ export function Welcome() {
             <h2 className="text-2xl font-bold text-blue-600">روابط سريعة</h2>
             <ul className="list-disc list-inside space-y-3 text-lg text-gray-700 mr-4">
               <li>
-                <a href="/rules" className="text-blue-500 hover:text-blue-700">
+                <Link to="/rules" className="text-blue-500 hover:text-blue-700">
                   قوانين وكالة العاصي
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/join-moderators" className="text-blue-500 hover:text-blue-700">
+                <Link to="/join-moderators" className="text-blue-500 hover:text-blue-700">
                   طريقة الانضمام لفريق المشرفين
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/request-trend" className="text-blue-500 hover:text-blue-700">
+                <Link to="/request-trend" className="text-blue-500 hover:text-blue-700">
                   طريقة طلب الترند
-                </a>
+                </Link>
               </li>
               <li>
-                <a href="/team" className="text-blue-500 hover:text-blue-700">
+                <Link to="/team" className="text-blue-500 hover:text-blue-700">
                   فريق العمل
-                </a>
+                </Link>
               </li>
             </ul>
           </div>
