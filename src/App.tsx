@@ -39,7 +39,8 @@ function App() {
 
       {/* Admin routes */}
       <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
+      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin/dashboard" element={<ProtectedRoute><AdminLayout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
         <Route path="rules" element={<AdminEditRules />} />
         <Route path="join-moderators" element={<AdminEditModerators />} />

@@ -14,7 +14,7 @@ export function AdminLogin() {
     if (password === '3131') {
       setAdminAuthenticated(password);
       if (isAdminAuthenticated()) {
-        navigate('/admin');  // Changed from '/admin/dashboard' to '/admin' to match routes
+        navigate('/admin/dashboard');  // Changed from '/admin' to '/admin/dashboard'
       }
     } else {
       setError('كلمة المرور غير صحيحة');
