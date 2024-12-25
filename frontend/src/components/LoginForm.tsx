@@ -54,7 +54,6 @@ export const LoginForm: React.FC = () => {
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              required
             />
           </div>
           <div className="space-y-2">
@@ -64,7 +63,6 @@ export const LoginForm: React.FC = () => {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
             />
           </div>
           <Button type="submit" className="w-full" disabled={isLoading}>
