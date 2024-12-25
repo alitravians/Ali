@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Label } from './ui/label';
 import { Link } from 'react-router-dom';
 import { MessageCircle, Send, AlertCircle } from 'lucide-react';
+import { TutorialGuide } from './TutorialGuide';
 import { createTicket } from '../lib/api';
 
 export const VisitorSupportPage = () => {
@@ -64,7 +65,8 @@ export const VisitorSupportPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6 space-y-8">
+      <TutorialGuide />
       <Card className="max-w-2xl mx-auto">
         <CardHeader className="flex flex-row justify-between items-center">
           <div className="flex items-center gap-2">

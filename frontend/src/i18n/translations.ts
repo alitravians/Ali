@@ -98,6 +98,29 @@ export const translations = {
   },
   en: {
     direction: 'ltr',
+    tutorial: {
+      title: 'How to Submit a Support Request',
+      step1: {
+        title: 'Fill Your Information',
+        description: 'Start by entering your full name in the form'
+      },
+      step2: {
+        title: 'Enter Your Email',
+        description: 'Provide your email address for communication'
+      },
+      step3: {
+        title: 'Write Your Message',
+        description: 'Explain your issue or inquiry in detail'
+      },
+      step4: {
+        title: 'Submit Request',
+        description: 'Click the submit button to send your support request'
+      },
+      step5: {
+        title: 'Track Your Request',
+        description: 'You can track the status of your request and wait for our support team response'
+      }
+    },
     visitorSupport: {
       title: 'Submit Support Request',
       name: 'Name',
@@ -194,6 +217,29 @@ export const translations = {
   },
   fr: {
     direction: 'ltr',
+    tutorial: {
+      title: 'Comment Soumettre une Demande de Support',
+      step1: {
+        title: 'Remplissez Vos Informations',
+        description: 'Commencez par saisir votre nom complet dans le formulaire'
+      },
+      step2: {
+        title: 'Entrez Votre Email',
+        description: 'Fournissez votre adresse email pour la communication'
+      },
+      step3: {
+        title: 'Écrivez Votre Message',
+        description: 'Expliquez votre problème ou votre demande en détail'
+      },
+      step4: {
+        title: 'Envoyez la Demande',
+        description: 'Cliquez sur le bouton d\'envoi pour soumettre votre demande de support'
+      },
+      step5: {
+        title: 'Suivez Votre Demande',
+        description: 'Vous pouvez suivre l\'état de votre demande et attendre la réponse de notre équipe'
+      }
+    },
     visitorSupport: {
       title: 'Soumettre une demande de support',
       name: 'Nom',
@@ -285,6 +331,29 @@ export const translations = {
   },
   es: {
     direction: 'ltr',
+    tutorial: {
+      title: 'Cómo Enviar una Solicitud de Soporte',
+      step1: {
+        title: 'Complete su Información',
+        description: 'Comience ingresando su nombre completo en el formulario'
+      },
+      step2: {
+        title: 'Ingrese su Correo',
+        description: 'Proporcione su dirección de correo electrónico para la comunicación'
+      },
+      step3: {
+        title: 'Escriba su Mensaje',
+        description: 'Explique su problema o consulta en detalle'
+      },
+      step4: {
+        title: 'Enviar Solicitud',
+        description: 'Haga clic en el botón enviar para enviar su solicitud de soporte'
+      },
+      step5: {
+        title: 'Seguimiento de Solicitud',
+        description: 'Puede realizar un seguimiento del estado de su solicitud y esperar la respuesta de nuestro equipo'
+      }
+    },
     visitorSupport: {
       title: 'Enviar solicitud de soporte',
       name: 'Nombre',
@@ -377,6 +446,29 @@ export const translations = {
   },
   de: {
     direction: 'ltr',
+    tutorial: {
+      title: 'So Senden Sie eine Support-Anfrage',
+      step1: {
+        title: 'Füllen Sie Ihre Informationen aus',
+        description: 'Beginnen Sie mit der Eingabe Ihres vollständigen Namens im Formular'
+      },
+      step2: {
+        title: 'Geben Sie Ihre E-Mail ein',
+        description: 'Geben Sie Ihre E-Mail-Adresse für die Kommunikation an'
+      },
+      step3: {
+        title: 'Schreiben Sie Ihre Nachricht',
+        description: 'Erklären Sie Ihr Problem oder Ihre Anfrage im Detail'
+      },
+      step4: {
+        title: 'Anfrage Senden',
+        description: 'Klicken Sie auf die Schaltfläche Senden, um Ihre Support-Anfrage zu übermitteln'
+      },
+      step5: {
+        title: 'Verfolgen Sie Ihre Anfrage',
+        description: 'Sie können den Status Ihrer Anfrage verfolgen und auf die Antwort unseres Teams warten'
+      }
+    },
     visitorSupport: {
       title: 'Support-Anfrage einreichen',
       name: 'Name',
