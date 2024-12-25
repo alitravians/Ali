@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { LanguageProvider } from './contexts/LanguageContext';
 import { UserProvider } from './contexts/UserContext';
 import { useUser } from './contexts/UserContext';
@@ -48,10 +49,38 @@ function App() {
             <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
               <Routes>
                 <Route path="/" element={<LoginForm />} />
-                <Route path="/tickets" element={<TicketList />} />
-                <Route path="/tickets/new" element={<CreateTicket />} />
-                <Route path="/tickets/:id" element={<TicketDetail />} />
-                <Route path="/admin" element={<AdminPanel />} />
+                <Route
+                  path="/tickets"
+                  element={
+                    <ProtectedRoute>
+                      <TicketList />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tickets/new"
+                  element={
+                    <ProtectedRoute>
+                      <CreateTicket />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tickets/:id"
+                  element={
+                    <ProtectedRoute>
+                      <TicketDetail />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/admin"
+                  element={
+                    <ProtectedRoute adminOnly>
+                      <AdminPanel />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
             </main>
           </div>
