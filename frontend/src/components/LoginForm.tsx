@@ -47,7 +47,7 @@ export const LoginForm: React.FC = () => {
         <CardTitle>{t('login.title')}</CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div className="space-y-2">
             <label htmlFor="username">{t('login.username')}</label>
             <Input
