@@ -5,6 +5,7 @@ import { UserProvider } from './contexts/UserContext';
 import { useUser } from './contexts/UserContext';
 import { LanguageSelector } from './components/LanguageSelector';
 import { LoginForm } from './components/LoginForm';
+import { VisitorSupportPage } from './components/VisitorSupportPage';
 import { TicketList } from './components/TicketList';
 import { CreateTicket } from './components/CreateTicket';
 import { TicketDetail } from './components/TicketDetail';
@@ -48,7 +49,8 @@ function App() {
             <NavBar />
             <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
               <Routes>
-                <Route path="/" element={<LoginForm />} />
+                <Route path="/" element={<VisitorSupportPage />} />
+        <Route path="/login" element={<LoginForm />} />
                 <Route
                   path="/tickets"
                   element={

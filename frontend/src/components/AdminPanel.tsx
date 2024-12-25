@@ -6,7 +6,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { User, Ticket, updateTicketStatus, getUsers, getTickets, createUser } from '../lib/api';
+import { Alert, AlertDescription } from './ui/alert';
+import { Send } from 'lucide-react';
+import { User, Ticket, updateTicketStatus, getUsers, getTickets, createUser, sendMessage } from '../lib/api';
 
 export const AdminPanel: React.FC = () => {
   const { t } = useLanguage();
@@ -17,6 +19,27 @@ export const AdminPanel: React.FC = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [newUsername, setNewUsername] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [responses, setResponses] = useState<{[key: number]: string}>({});
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Get current user info
+    const getCurrentUser = async () => {
+      try {
+        const users = await getUsers();
+        const supervisor = users.find(u => u.role === 'supervisor');
+        if (supervisor) {
+          setCurrentUser(supervisor);
+        }
+      } catch (error) {
+        console.error('Failed to get current user:', error);
+      }
+    };
+    getCurrentUser();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -135,31 +158,92 @@ export const AdminPanel: React.FC = () => {
                           </CardHeader>
                           <CardContent>
                             <p>{ticket.description}</p>
-                            <div className="mt-4 flex justify-between items-center">
-                              <span>{t(`tickets.status.${ticket.status.toLowerCase()}`)}</span>
-                              <Select
-                                value={ticket.status}
-                                onValueChange={async (value: Ticket['status']) => {
-                                  try {
-                                    await updateTicketStatus(ticket.id, value);
-                                    setTickets(tickets.map(t => 
-                                      t.id === ticket.id ? { ...t, status: value } : t
-                                    ));
-                                  } catch (error) {
-                                    console.error('Failed to update ticket status:', error);
-                                  }
-                                }}
-                              >
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="open">{t('tickets.status.open')}</SelectItem>
-                                  <SelectItem value="in_progress">{t('tickets.status.in_progress')}</SelectItem>
-                                  <SelectItem value="resolved">{t('tickets.status.resolved')}</SelectItem>
-                                  <SelectItem value="closed">{t('tickets.status.closed')}</SelectItem>
-                                </SelectContent>
-                              </Select>
+                            <div className="space-y-4">
+                              <div className="flex justify-between items-center">
+                                <span>{t(`tickets.status.${ticket.status.toLowerCase()}`)}</span>
+                                <Select
+                                  value={ticket.status}
+                                  onValueChange={async (value: Ticket['status']) => {
+                                    try {
+                                      await updateTicketStatus(ticket.id, value);
+                                      setTickets(tickets.map(t => 
+                                        t.id === ticket.id ? { ...t, status: value } : t
+                                      ));
+                                    } catch (error) {
+                                      console.error('Failed to update ticket status:', error);
+                                      setError(t('tickets.responseError'));
+                                    }
+                                  }}
+                                >
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="open">{t('tickets.status.open')}</SelectItem>
+                                    <SelectItem value="in_progress">{t('tickets.status.in_progress')}</SelectItem>
+                                    <SelectItem value="resolved">{t('tickets.status.resolved')}</SelectItem>
+                                    <SelectItem value="closed">{t('tickets.status.closed')}</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              {ticket.status === 'open' && (
+                                <div className="space-y-2">
+                                  <Textarea
+                                    value={responses[ticket.id] || ''}
+                                    onChange={(e) => setResponses(prev => ({
+                                      ...prev,
+                                      [ticket.id]: e.target.value
+                                    }))}
+                                    placeholder={t('tickets.responsePlaceholder')}
+                                    className="min-h-[100px]"
+                                  />
+                                  <Button
+                                    onClick={async () => {
+                                      const ticketResponse = responses[ticket.id];
+                                      if (!ticketResponse?.trim() || !currentUser) {
+                                        setError(t('tickets.responseRequired'));
+                                        return;
+                                      }
+                                      setIsSubmitting(true);
+                                      setError('');
+                                      setSuccess('');
+                                      try {
+                                        await sendMessage(ticket.id, ticketResponse, currentUser.id);
+                                        await updateTicketStatus(ticket.id, 'resolved');
+                                        setSuccess(t('tickets.responseSuccess'));
+                                        setResponses(prev => ({
+                                          ...prev,
+                                          [ticket.id]: ''
+                                        }));
+                                        const updatedTickets = await getTickets();
+                                        setTickets(updatedTickets);
+                                      } catch (err) {
+                                        setError(t('tickets.responseError'));
+                                      } finally {
+                                        setIsSubmitting(false);
+                                      }
+                                    }}
+                                    disabled={isSubmitting}
+                                    className="w-full flex items-center justify-center gap-2"
+                                  >
+                                    <Send className="w-4 h-4" />
+                                    {t('tickets.sendResponse')}
+                                  </Button>
+                                </div>
+                              )}
+
+                              {error && (
+                                <Alert variant="destructive">
+                                  <AlertDescription>{error}</AlertDescription>
+                                </Alert>
+                              )}
+
+                              {success && (
+                                <Alert>
+                                  <AlertDescription>{success}</AlertDescription>
+                                </Alert>
+                              )}
                             </div>
                           </CardContent>
                         </Card>

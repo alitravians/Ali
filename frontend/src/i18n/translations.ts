@@ -1,6 +1,23 @@
 export const translations = {
   ar: {
     direction: 'rtl',
+    visitorSupport: {
+      title: 'إرسال طلب دعم فني',
+      name: 'الاسم',
+      email: 'البريد الإلكتروني',
+      message: 'الرسالة',
+      submit: 'إرسال',
+      submitting: 'جاري الإرسال...',
+      requestSubmittedSuccessfully: 'تم إرسال طلبك بنجاح. سيقوم فريق الدعم بالرد عليك قريباً.',
+      errorSubmittingRequest: 'حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.',
+      loginAsAdmin: 'تسجيل الدخول كمشرف',
+      nameValidation: 'يجب أن يكون الاسم بين 2 و 50 حرفاً',
+      emailValidation: 'يرجى إدخال بريد إلكتروني صحيح',
+      messageValidation: 'يجب أن تكون الرسالة بين 10 و 500 حرف',
+      namePlaceholder: 'أدخل اسمك',
+      emailPlaceholder: 'أدخل بريدك الإلكتروني',
+      messagePlaceholder: 'كيف يمكننا مساعدتك؟'
+    },
     common: {
       submit: 'إرسال',
       back: 'رجوع',
@@ -81,6 +98,17 @@ export const translations = {
   },
   en: {
     direction: 'ltr',
+    visitorSupport: {
+      title: 'Submit Support Request',
+      name: 'Name',
+      email: 'Email',
+      message: 'Message',
+      submit: 'Submit',
+      submitting: 'Submitting...',
+      requestSubmittedSuccessfully: 'Your request has been submitted successfully. Our support team will respond soon.',
+      errorSubmittingRequest: 'An error occurred while submitting your request. Please try again.',
+      loginAsAdmin: 'Login as Admin'
+    },
     common: {
       submit: 'Submit',
       back: 'Back',
@@ -99,6 +127,11 @@ export const translations = {
       create: 'Create New Ticket',
       title: 'Title',
       description: 'Description',
+      responsePlaceholder: 'Type your response here...',
+      responseRequired: 'Please enter a response before sending',
+      responseSuccess: 'Response sent successfully',
+      responseError: 'Failed to send response. Please try again.',
+      sendResponse: 'Send Response',
       status: {
         open: 'Open',
         in_progress: 'In Progress',
@@ -161,6 +194,17 @@ export const translations = {
   },
   fr: {
     direction: 'ltr',
+    visitorSupport: {
+      title: 'Soumettre une demande de support',
+      name: 'Nom',
+      email: 'Email',
+      message: 'Message',
+      submit: 'Envoyer',
+      submitting: 'Envoi en cours...',
+      requestSubmittedSuccessfully: 'Votre demande a été soumise avec succès. Notre équipe de support vous répondra bientôt.',
+      errorSubmittingRequest: 'Une erreur est survenue lors de l\'envoi de votre demande. Veuillez réessayer.',
+      loginAsAdmin: 'Connexion administrateur'
+    },
     common: {
       submit: 'Envoyer',
       back: 'Retour',
@@ -241,6 +285,17 @@ export const translations = {
   },
   es: {
     direction: 'ltr',
+    visitorSupport: {
+      title: 'Enviar solicitud de soporte',
+      name: 'Nombre',
+      email: 'Correo electrónico',
+      message: 'Mensaje',
+      submit: 'Enviar',
+      submitting: 'Enviando...',
+      requestSubmittedSuccessfully: 'Su solicitud ha sido enviada con éxito. Nuestro equipo de soporte responderá pronto.',
+      errorSubmittingRequest: 'Ocurrió un error al enviar su solicitud. Por favor, inténtelo de nuevo.',
+      loginAsAdmin: 'Iniciar sesión como administrador'
+    },
     common: {
       submit: 'Enviar',
       back: 'Volver',
@@ -322,6 +377,17 @@ export const translations = {
   },
   de: {
     direction: 'ltr',
+    visitorSupport: {
+      title: 'Support-Anfrage einreichen',
+      name: 'Name',
+      email: 'E-Mail',
+      message: 'Nachricht',
+      submit: 'Absenden',
+      submitting: 'Wird gesendet...',
+      requestSubmittedSuccessfully: 'Ihre Anfrage wurde erfolgreich übermittelt. Unser Support-Team wird sich in Kürze bei Ihnen melden.',
+      errorSubmittingRequest: 'Beim Senden Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
+      loginAsAdmin: 'Als Administrator anmelden'
+    },
     common: {
       submit: 'Absenden',
       back: 'Zurück',
