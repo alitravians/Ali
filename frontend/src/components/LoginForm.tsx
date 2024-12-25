@@ -6,23 +6,31 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { loginUser } from '../lib/api';
+import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 export const LoginForm: React.FC = () => {
   const { t } = useLanguage();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { setUser } = useUser();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsLoading(true);
+    setError(null);
     try {
       const user = await loginUser(username, password);
       setUser(user);
       navigate('/tickets');
     } catch (error) {
       console.error('Login failed:', error);
+      setError(t('login.errorInvalidCredentials'));
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -52,9 +60,15 @@ export const LoginForm: React.FC = () => {
               required
             />
           </div>
-          <Button type="submit" className="w-full">
-            {t('login.submit')}
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? t('common.loading') : t('login.submit')}
           </Button>
+          {error && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertTitle>{t('login.loginError')}</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
         </form>
       </CardContent>
     </Card>

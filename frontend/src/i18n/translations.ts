@@ -3,7 +3,8 @@ export const translations = {
     direction: 'rtl',
     common: {
       submit: 'إرسال',
-      back: 'رجوع'
+      back: 'رجوع',
+      loading: 'جاري التحميل...'
     },
     admin: {
       title: 'لوحة التحكم',
@@ -56,7 +57,9 @@ export const translations = {
       title: 'تسجيل الدخول',
       username: 'اسم المستخدم',
       password: 'كلمة المرور',
-      submit: 'دخول'
+      submit: 'دخول',
+      loginError: 'خطأ في تسجيل الدخول',
+      errorInvalidCredentials: 'اسم المستخدم أو كلمة المرور غير صحيحة'
     },
     tickets: {
       list: 'قائمة التذاكر',
@@ -80,13 +83,16 @@ export const translations = {
     direction: 'ltr',
     common: {
       submit: 'Submit',
-      back: 'Back'
+      back: 'Back',
+      loading: 'Loading...'
     },
     login: {
       title: 'Login',
       username: 'Username',
       password: 'Password',
-      submit: 'Submit'
+      submit: 'Submit',
+      loginError: 'Login Error',
+      errorInvalidCredentials: 'Invalid username or password'
     },
     tickets: {
       list: 'Tickets',
@@ -157,7 +163,8 @@ export const translations = {
     direction: 'ltr',
     common: {
       submit: 'Envoyer',
-      back: 'Retour'
+      back: 'Retour',
+      loading: 'Chargement...'
     },
     admin: {
       title: 'Panneau d\'administration',
@@ -210,7 +217,9 @@ export const translations = {
       title: 'Connexion',
       username: 'Nom d\'utilisateur',
       password: 'Mot de passe',
-      submit: 'Envoyer'
+      submit: 'Envoyer',
+      loginError: 'Erreur de connexion',
+      errorInvalidCredentials: 'Nom d\'utilisateur ou mot de passe invalide'
     },
     tickets: {
       list: 'Liste des tickets',
@@ -234,7 +243,8 @@ export const translations = {
     direction: 'ltr',
     common: {
       submit: 'Enviar',
-      back: 'Volver'
+      back: 'Volver',
+      loading: 'Cargando...'
     },
     admin: {
       title: 'Panel de Administración',
@@ -287,7 +297,9 @@ export const translations = {
       title: 'Iniciar sesión',
       username: 'Nombre de usuario',
       password: 'Contraseña',
-      submit: 'Enviar'
+      submit: 'Enviar',
+      loginError: 'Error de inicio de sesión',
+      errorInvalidCredentials: 'Nombre de usuario o contraseña inválidos'
     },
     tickets: {
       list: 'Lista de tickets',
@@ -311,7 +323,8 @@ export const translations = {
     direction: 'ltr',
     common: {
       submit: 'Absenden',
-      back: 'Zurück'
+      back: 'Zurück',
+      loading: 'Laden...'
     },
     admin: {
       title: 'Administrationsbereich',
@@ -364,7 +377,9 @@ export const translations = {
       title: 'Anmelden',
       username: 'Benutzername',
       password: 'Passwort',
-      submit: 'Absenden'
+      submit: 'Absenden',
+      loginError: 'Anmeldefehler',
+      errorInvalidCredentials: 'Ungültiger Benutzername oder Passwort'
     },
     tickets: {
       list: 'Tickets Liste',
