@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from datetime import datetime
-from .models import User, Ticket, TicketMessage, TicketReport, UserRole, TicketStatus
+from .models import User, Ticket, TicketMessage, TicketReport, UserRole, TicketStatus, VisitorInfo
 from .database import db
 
 app = FastAPI()
@@ -29,12 +29,26 @@ async def get_users():
     return db.get_users()
 
 @app.get("/tickets/", response_model=List[Ticket])
-async def get_tickets(lang: str = Query(default="en", description="Language code")):
+async def get_tickets(
+    lang: str = Query(default="en", description="Language code"),
+    type: str = Query(default="all", description="Filter by ticket type: all, visitor, user")
+):
     tickets = db.get_tickets()
+    filtered_tickets = []
+    
+    # Filter tickets based on type
+    for ticket in tickets:
+        if type == "visitor" and ticket.visitor_info:
+            filtered_tickets.append(ticket)
+        elif type == "user" and ticket.created_by and not ticket.visitor_info:
+            filtered_tickets.append(ticket)
+        elif type == "all":
+            filtered_tickets.append(ticket)
+    
+    # Apply translations if needed
     if lang != "en":
-        # Create translated copies of tickets
         translated_tickets = []
-        for ticket in tickets:
+        for ticket in filtered_tickets:
             if ticket.translations and lang in ticket.translations.title and lang in ticket.translations.description:
                 translated_ticket = Ticket(**ticket.dict())
                 translated_ticket.title = ticket.translations.title[lang]
@@ -43,7 +57,7 @@ async def get_tickets(lang: str = Query(default="en", description="Language code
             else:
                 translated_tickets.append(ticket)
         return translated_tickets
-    return tickets
+    return filtered_tickets
 
 class LoginCredentials(BaseModel):
     username: str
@@ -83,21 +97,27 @@ async def get_user(user_id: int):
 class CreateTicketRequest(BaseModel):
     title: str
     description: str
-    status: TicketStatus
-    created_at: datetime
-    created_by: int
+    status: TicketStatus = TicketStatus.OPEN
+    created_at: datetime = datetime.now()
+    created_by: Optional[int] = None
+    visitor_info: Optional[VisitorInfo] = None
 
 # Ticket endpoints
 @app.post("/tickets/", response_model=Ticket)
 async def create_ticket(ticket_request: CreateTicketRequest):
-    if not db.get_user(ticket_request.created_by):
-        raise HTTPException(status_code=404, detail="User not found")
+    if ticket_request.created_by:
+        if not db.get_user(ticket_request.created_by):
+            raise HTTPException(status_code=404, detail="User not found")
+    elif not ticket_request.visitor_info:
+        raise HTTPException(status_code=400, detail="Either created_by or visitor_info must be provided")
+    
     ticket = Ticket(
         title=ticket_request.title,
         description=ticket_request.description,
         status=ticket_request.status,
         created_at=ticket_request.created_at,
-        created_by=ticket_request.created_by
+        created_by=ticket_request.created_by,
+        visitor_info=ticket_request.visitor_info
     )
     return db.create_ticket(ticket)
 
@@ -180,3 +200,41 @@ async def create_report(report: TicketReport):
 @app.get("/reports/", response_model=List[TicketReport])
 async def get_reports():
     return db.get_reports()
+
+# Supervisor response endpoints
+class SupervisorResponse(BaseModel):
+    content: str
+    supervisor_id: int
+
+@app.post("/tickets/{ticket_id}/supervisor-response", response_model=TicketMessage)
+async def create_supervisor_response(ticket_id: int, response: SupervisorResponse):
+    supervisor = db.get_user(response.supervisor_id)
+    if not supervisor or supervisor.role not in [UserRole.ADMIN, UserRole.SUPERVISOR]:
+        raise HTTPException(status_code=403, detail="Only supervisors can respond to tickets")
+    
+    ticket = db.get_ticket(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    
+    # Create response message
+    message = TicketMessage(
+        ticket_id=ticket_id,
+        content=response.content,
+        sender_id=response.supervisor_id,
+        created_at=datetime.now()
+    )
+    
+    # Update ticket status to in progress if it's open
+    if ticket.status == TicketStatus.OPEN:
+        db.update_ticket_status(ticket_id, TicketStatus.IN_PROGRESS)
+    
+    return db.create_message(message)
+
+@app.get("/tickets/visitor/{email}", response_model=List[Ticket])
+async def get_visitor_tickets(email: str):
+    """Get all tickets submitted by a visitor with the given email"""
+    tickets = db.get_tickets()
+    return [
+        ticket for ticket in tickets 
+        if ticket.visitor_info and ticket.visitor_info.email == email
+    ]

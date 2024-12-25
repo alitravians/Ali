@@ -31,6 +31,10 @@ class TicketTranslation(BaseModel):
     title: dict[str, str] = {}
     description: dict[str, str] = {}
 
+class VisitorInfo(BaseModel):
+    name: str
+    email: str
+
 class Ticket(BaseModel):
     id: Optional[int] = None
     title: str
@@ -39,7 +43,8 @@ class Ticket(BaseModel):
     status: TicketStatus = TicketStatus.OPEN
     created_at: datetime = datetime.now()
     updated_at: datetime = datetime.now()
-    created_by: int  # User ID
+    created_by: Optional[int] = None  # User ID if created by authenticated user
+    visitor_info: Optional[VisitorInfo] = None  # Contact info if created by visitor
     assigned_to: Optional[int] = None  # Supervisor ID
 
 class TicketMessage(BaseModel):
