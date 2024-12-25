@@ -20,8 +20,15 @@ export const LoginForm: React.FC = () => {
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
     setError(null);
+
+    // Validate empty fields
+    if (!username.trim() || !password.trim()) {
+      setError(t('login.errorEmptyFields'));
+      return;
+    }
+
+    setIsLoading(true);
     try {
       const user = await loginUser(username, password);
       setUser(user);

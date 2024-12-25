@@ -299,7 +299,8 @@ export const translations = {
       password: 'Contraseña',
       submit: 'Enviar',
       loginError: 'Error de inicio de sesión',
-      errorInvalidCredentials: 'Nombre de usuario o contraseña inválidos'
+      errorInvalidCredentials: 'Nombre de usuario o contraseña inválidos',
+      errorEmptyFields: 'Por favor ingrese nombre de usuario y contraseña'
     },
     tickets: {
       list: 'Lista de tickets',
@@ -379,7 +380,8 @@ export const translations = {
       password: 'Passwort',
       submit: 'Absenden',
       loginError: 'Anmeldefehler',
-      errorInvalidCredentials: 'Ungültiger Benutzername oder Passwort'
+      errorInvalidCredentials: 'Ungültiger Benutzername oder Passwort',
+      errorEmptyFields: 'Bitte geben Sie Benutzername und Passwort ein'
     },
     tickets: {
       list: 'Tickets Liste',
