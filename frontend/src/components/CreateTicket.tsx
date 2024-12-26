@@ -22,7 +22,7 @@ export const CreateTicket: React.FC = () => {
       return;
     }
     try {
-      const ticket = await createTicket(title, description, user.id);
+      const ticket = await createTicket(title, description, undefined, user.id);
       navigate(`/tickets/${ticket.id}`);
     } catch (error) {
       console.error('Failed to create ticket:', error);
@@ -57,7 +57,7 @@ export const CreateTicket: React.FC = () => {
           </div>
           <div className="flex justify-end space-x-4">
             <Button type="button" variant="outline" onClick={() => navigate('/tickets')}>
-              Abbrechen
+              {t('common.cancel')}
             </Button>
             <Button type="submit">
               {t('common.submit')}

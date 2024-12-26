@@ -49,9 +49,9 @@ export const VisitorSupportPage = () => {
 
     try {
       await createTicket(
-        `Support Request from ${name} (${email})`,
+        `Support Request from ${name}`,
         message,
-        1 // Using admin user ID since we don't have visitor accounts
+        { name, email }
       );
       setSuccess(true);
       setName('');
@@ -66,7 +66,9 @@ export const VisitorSupportPage = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-8">
-      <TutorialGuide />
+      <div className="bg-primary/5 rounded-lg p-6 mb-8 shadow-lg">
+        <TutorialGuide />
+      </div>
       <Card className="max-w-2xl mx-auto">
         <CardHeader className="flex flex-row justify-between items-center">
           <div className="flex items-center gap-2">
@@ -86,7 +88,6 @@ export const VisitorSupportPage = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t('visitorSupport.namePlaceholder')}
-                required
                 disabled={isSubmitting}
               />
             </div>
@@ -98,7 +99,6 @@ export const VisitorSupportPage = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder={t('visitorSupport.emailPlaceholder')}
-                required
                 disabled={isSubmitting}
               />
             </div>
@@ -109,7 +109,6 @@ export const VisitorSupportPage = () => {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 placeholder={t('visitorSupport.messagePlaceholder')}
-                required
                 disabled={isSubmitting}
                 className="min-h-[150px]"
               />

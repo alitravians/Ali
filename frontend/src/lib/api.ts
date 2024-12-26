@@ -38,13 +38,24 @@ export const loginUser = async (username: string, password: string) => {
   return response.data;
 };
 
-export const createTicket = async (title: string, description: string, userId: number) => {
+export interface VisitorInfo {
+  name: string;
+  email: string;
+}
+
+export const createTicket = async (
+  title: string,
+  description: string,
+  visitorInfo?: VisitorInfo,
+  userId?: number
+) => {
   const response = await api.post('/tickets/', {
     title,
     description,
     status: 'open',
     created_at: new Date().toISOString(),
-    created_by: userId
+    created_by: userId,
+    visitor_info: visitorInfo
   });
   return response.data;
 };

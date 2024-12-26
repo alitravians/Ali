@@ -3,7 +3,7 @@ import { translations, Language } from '../i18n/translations';
 
 type LanguageContextType = {
   language: Language;
-  setLanguage: (lang: Language) => void;
+  setLanguage: (lang: Language) => void; // Kept for type compatibility but won't change language
   t: (key: string) => string;
   direction: 'ltr' | 'rtl';
 };
@@ -11,14 +11,11 @@ type LanguageContextType = {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>(() => {
-    const saved = localStorage.getItem('language');
-    return (saved as Language) || 'ar';
-  });
+  const [language] = useState<Language>('ar');
+  const setLanguage = () => {}; // No-op function since we're Arabic-only
 
   useEffect(() => {
     document.documentElement.dir = translations[language].direction;
-    localStorage.setItem('language', language);
   }, [language]);
 
   const t = (key: string): string => {

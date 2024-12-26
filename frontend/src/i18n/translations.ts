@@ -1,16 +1,151 @@
-export const translations = {
+export type Language = 'ar';
+
+export interface Translation {
+  direction: string;
+  visitorSupport: {
+    title: string;
+    loginAsAdmin: string;
+    name: string;
+    namePlaceholder: string;
+    email: string;
+    emailPlaceholder: string;
+    message: string;
+    messagePlaceholder: string;
+    submit: string;
+    submitting: string;
+    nameValidation: string;
+    emailValidation: string;
+    messageValidation: string;
+    errorSubmittingRequest: string;
+    requestSubmittedSuccessfully: string;
+  };
+  tutorial: {
+    title: string;
+    step1: {
+      title: string;
+      description: string;
+    };
+    step2: {
+      title: string;
+      description: string;
+    };
+    step3: {
+      title: string;
+      description: string;
+    };
+    step4: {
+      title: string;
+      description: string;
+    };
+    step5: {
+      title: string;
+      description: string;
+    };
+  };
+  visitor: {
+    title: string;
+    name: string;
+    email: string;
+    message: string;
+    submit: string;
+    submitting: string;
+    requestSubmittedSuccessfully: string;
+    errorSubmittingRequest: string;
+    nameValidation: string;
+    emailValidation: string;
+    messageValidation: string;
+    namePlaceholder: string;
+    emailPlaceholder: string;
+    messagePlaceholder: string;
+  };
+  common: {
+    submit: string;
+    back: string;
+    loading: string;
+    cancel: string;
+    close: string;
+    more: string;
+    previous: string;
+    next: string;
+    morePages: string;
+    toggleSidebar: string;
+  };
+  login: {
+    title: string;
+    username: string;
+    password: string;
+    submit: string;
+    loginError: string;
+    errorInvalidCredentials: string;
+  };
+  tickets: {
+    list: string;
+    create: string;
+    status: string;
+    subject: string;
+    description: string;
+    priority: string;
+    assignedTo: string;
+    createdAt: string;
+    updatedAt: string;
+    messages: {
+      title: string;
+    };
+  };
+}
+
+export const translations: { ar: Translation } = {
   ar: {
     direction: 'rtl',
     visitorSupport: {
-      title: 'إرسال طلب دعم فني',
+      title: 'نظام الدعم الفني',
+      loginAsAdmin: 'تسجيل الدخول كمشرف',
+      name: 'الاسم الكامل',
+      namePlaceholder: 'أدخل اسمك الكامل',
+      email: 'البريد الإلكتروني',
+      emailPlaceholder: 'أدخل بريدك الإلكتروني',
+      message: 'الرسالة',
+      messagePlaceholder: 'اكتب رسالتك هنا...',
+      submit: 'إرسال الطلب',
+      submitting: 'جاري الإرسال...',
+      nameValidation: 'يجب أن يكون الاسم بين 2 و 50 حرفاً',
+      emailValidation: 'يرجى إدخال بريد إلكتروني صحيح',
+      messageValidation: 'يجب أن تكون الرسالة بين 10 و 500 حرف',
+      errorSubmittingRequest: 'حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.',
+      requestSubmittedSuccessfully: 'تم إرسال طلبك بنجاح. سنتواصل معك قريباً.'
+    },
+    tutorial: {
+      title: 'كيفية استخدام نظام الدعم الفني',
+      step1: {
+        title: 'الخطوة الأولى: إدخال المعلومات الشخصية',
+        description: 'قم بإدخال اسمك الكامل في الحقل المخصص. تأكد من كتابة اسمك بشكل صحيح حتى نتمكن من التواصل معك بشكل مناسب.'
+      },
+      step2: {
+        title: 'الخطوة الثانية: إدخال البريد الإلكتروني',
+        description: 'أدخل عنوان بريدك الإلكتروني الذي تستخدمه بشكل منتظم. سنقوم بإرسال تحديثات حالة طلبك على هذا البريد.'
+      },
+      step3: {
+        title: 'الخطوة الثالثة: كتابة تفاصيل المشكلة',
+        description: 'اشرح المشكلة التي تواجهها بالتفصيل. كلما كان وصفك أكثر دقة، كلما تمكنا من مساعدتك بشكل أفضل وأسرع.'
+      },
+      step4: {
+        title: 'الخطوة الرابعة: إرسال الطلب',
+        description: 'بعد التأكد من صحة جميع المعلومات، انقر على زر "إرسال الطلب" لتقديم طلب الدعم الفني.'
+      },
+      step5: {
+        title: 'الخطوة الخامسة: متابعة حالة الطلب',
+        description: 'بعد إرسال طلبك، ستتمكن من متابعة حالته عبر رقم التذكرة الخاص بك. سنقوم بإخطارك عبر البريد الإلكتروني بأي تحديثات.'
+      }
+    },
+    visitor: {
+      title: 'طلب دعم فني',
       name: 'الاسم',
       email: 'البريد الإلكتروني',
       message: 'الرسالة',
       submit: 'إرسال',
       submitting: 'جاري الإرسال...',
-      requestSubmittedSuccessfully: 'تم إرسال طلبك بنجاح. سيقوم فريق الدعم بالرد عليك قريباً.',
-      errorSubmittingRequest: 'حدث خطأ أثناء إرسال الطلب. يرجى المحاولة مرة أخرى.',
-      loginAsAdmin: 'تسجيل الدخول كمشرف',
+      requestSubmittedSuccessfully: 'تم إرسال طلبك بنجاح. سيقوم فريق الدعم بالرد قريباً.',
+      errorSubmittingRequest: 'حدث خطأ أثناء إرسال طلبك. يرجى المحاولة مرة أخرى.',
       nameValidation: 'يجب أن يكون الاسم بين 2 و 50 حرفاً',
       emailValidation: 'يرجى إدخال بريد إلكتروني صحيح',
       messageValidation: 'يجب أن تكون الرسالة بين 10 و 500 حرف',
@@ -21,545 +156,38 @@ export const translations = {
     common: {
       submit: 'إرسال',
       back: 'رجوع',
-      loading: 'جاري التحميل...'
-    },
-    admin: {
-      title: 'لوحة التحكم',
-      tabs: {
-        users: 'المستخدمين',
-        tickets: 'التذاكر',
-        reports: 'البلاغات',
-        ads: 'الإعلانات',
-        moderators: 'المشرفين'
-      },
-      users: {
-        select: 'اختر مستخدم',
-        selectPlaceholder: 'اختر مستخدم...',
-        banDuration: 'مدة الحظر',
-        banReason: 'سبب الحظر',
-        banReasonPlaceholder: 'ادخل سبب الحظر...',
-        banButton: 'حظر المستخدم'
-      },
-      moderators: {
-        add: 'إضافة مشرف',
-        remove: 'إزالة مشرف',
-        permissions: 'الصلاحيات',
-        username: 'اسم المستخدم',
-        password: 'كلمة المرور',
-        create: 'إنشاء مشرف',
-        usernamePlaceholder: 'أدخل اسم المستخدم للمشرف',
-        passwordPlaceholder: 'أدخل كلمة المرور للمشرف'
-      },
-      ads: {
-        create: 'إنشاء إعلان',
-        title: 'عنوان الإعلان',
-        content: 'محتوى الإعلان',
-        duration: 'مدة العرض',
-        active: 'نشط',
-        inactive: 'غير نشط'
-      },
-      time: {
-        day: 'يوم',
-        days: 'أيام',
-        hours: 'ساعات'
-      },
-      reports: {
-        status: 'الحالة',
-        pending: 'قيد الانتظار',
-        resolved: 'تم الحل',
-        dismissed: 'مرفوض'
-      }
+      loading: 'جاري التحميل...',
+      cancel: 'إلغاء',
+      close: 'إغلاق',
+      more: 'المزيد',
+      previous: 'السابق',
+      next: 'التالي',
+      morePages: 'المزيد من الصفحات',
+      toggleSidebar: 'تبديل الشريط الجانبي'
     },
     login: {
       title: 'تسجيل الدخول',
       username: 'اسم المستخدم',
       password: 'كلمة المرور',
-      submit: 'دخول',
+      submit: 'تسجيل الدخول',
       loginError: 'خطأ في تسجيل الدخول',
       errorInvalidCredentials: 'اسم المستخدم أو كلمة المرور غير صحيحة'
     },
     tickets: {
-      list: 'قائمة التذاكر',
+      list: 'التذاكر',
       create: 'إنشاء تذكرة جديدة',
-      title: 'العنوان',
+      status: 'الحالة',
+      subject: 'الموضوع',
       description: 'الوصف',
-      status: {
-        open: 'مفتوحة',
-        in_progress: 'قيد المعالجة',
-        resolved: 'تم الحل',
-        closed: 'مغلقة'
+      priority: 'الأولوية',
+      assignedTo: 'مسند إلى',
+      createdAt: 'تاريخ الإنشاء',
+      updatedAt: 'آخر تحديث',
+      messages: {
+        title: 'الرسائل'
       }
-    },
-    messages: {
-      send: 'إرسال',
-      placeholder: 'اكتب رسالتك هنا',
-      title: 'الرسائل'
-    }
-  },
-  en: {
-    direction: 'ltr',
-    tutorial: {
-      title: 'How to Submit a Support Request',
-      step1: {
-        title: 'Fill Your Information',
-        description: 'Start by entering your full name in the form'
-      },
-      step2: {
-        title: 'Enter Your Email',
-        description: 'Provide your email address for communication'
-      },
-      step3: {
-        title: 'Write Your Message',
-        description: 'Explain your issue or inquiry in detail'
-      },
-      step4: {
-        title: 'Submit Request',
-        description: 'Click the submit button to send your support request'
-      },
-      step5: {
-        title: 'Track Your Request',
-        description: 'You can track the status of your request and wait for our support team response'
-      }
-    },
-    visitorSupport: {
-      title: 'Submit Support Request',
-      name: 'Name',
-      email: 'Email',
-      message: 'Message',
-      submit: 'Submit',
-      submitting: 'Submitting...',
-      requestSubmittedSuccessfully: 'Your request has been submitted successfully. Our support team will respond soon.',
-      errorSubmittingRequest: 'An error occurred while submitting your request. Please try again.',
-      loginAsAdmin: 'Login as Admin'
-    },
-    common: {
-      submit: 'Submit',
-      back: 'Back',
-      loading: 'Loading...'
-    },
-    login: {
-      title: 'Login',
-      username: 'Username',
-      password: 'Password',
-      submit: 'Submit',
-      loginError: 'Login Error',
-      errorInvalidCredentials: 'Invalid username or password'
-    },
-    tickets: {
-      list: 'Tickets',
-      create: 'Create New Ticket',
-      title: 'Title',
-      description: 'Description',
-      responsePlaceholder: 'Type your response here...',
-      responseRequired: 'Please enter a response before sending',
-      responseSuccess: 'Response sent successfully',
-      responseError: 'Failed to send response. Please try again.',
-      sendResponse: 'Send Response',
-      status: {
-        open: 'Open',
-        in_progress: 'In Progress',
-        resolved: 'Resolved',
-        closed: 'Closed'
-      }
-    },
-    messages: {
-      send: 'Send',
-      placeholder: 'Type your message here',
-      title: 'Messages'
-    },
-    admin: {
-      title: 'Admin Panel',
-      tabs: {
-        users: 'Users',
-        tickets: 'Tickets',
-        reports: 'Reports',
-        ads: 'Advertisements',
-        moderators: 'Moderators'
-      },
-      users: {
-        select: 'Select User',
-        selectPlaceholder: 'Select a user...',
-        banDuration: 'Ban Duration',
-        banReason: 'Ban Reason',
-        banReasonPlaceholder: 'Enter ban reason...',
-        banButton: 'Ban User'
-      },
-      moderators: {
-        add: 'Add Moderator',
-        remove: 'Remove Moderator',
-        permissions: 'Permissions',
-        username: 'Username',
-        password: 'Password',
-        create: 'Create Supervisor',
-        usernamePlaceholder: 'Enter supervisor username',
-        passwordPlaceholder: 'Enter supervisor password'
-      },
-      ads: {
-        create: 'Create Advertisement',
-        title: 'Advertisement Title',
-        content: 'Advertisement Content',
-        duration: 'Display Duration',
-        active: 'Active',
-        inactive: 'Inactive'
-      },
-      time: {
-        day: 'day',
-        days: 'days',
-        hours: 'hours'
-      },
-      reports: {
-        status: 'Status',
-        pending: 'Pending',
-        resolved: 'Resolved',
-        dismissed: 'Dismissed'
-      }
-    }
-  },
-  fr: {
-    direction: 'ltr',
-    tutorial: {
-      title: 'Comment Soumettre une Demande de Support',
-      step1: {
-        title: 'Remplissez Vos Informations',
-        description: 'Commencez par saisir votre nom complet dans le formulaire'
-      },
-      step2: {
-        title: 'Entrez Votre Email',
-        description: 'Fournissez votre adresse email pour la communication'
-      },
-      step3: {
-        title: 'Écrivez Votre Message',
-        description: 'Expliquez votre problème ou votre demande en détail'
-      },
-      step4: {
-        title: 'Envoyez la Demande',
-        description: 'Cliquez sur le bouton d\'envoi pour soumettre votre demande de support'
-      },
-      step5: {
-        title: 'Suivez Votre Demande',
-        description: 'Vous pouvez suivre l\'état de votre demande et attendre la réponse de notre équipe'
-      }
-    },
-    visitorSupport: {
-      title: 'Soumettre une demande de support',
-      name: 'Nom',
-      email: 'Email',
-      message: 'Message',
-      submit: 'Envoyer',
-      submitting: 'Envoi en cours...',
-      requestSubmittedSuccessfully: 'Votre demande a été soumise avec succès. Notre équipe de support vous répondra bientôt.',
-      errorSubmittingRequest: 'Une erreur est survenue lors de l\'envoi de votre demande. Veuillez réessayer.',
-      loginAsAdmin: 'Connexion administrateur'
-    },
-    common: {
-      submit: 'Envoyer',
-      back: 'Retour',
-      loading: 'Chargement...'
-    },
-    admin: {
-      title: 'Panneau d\'administration',
-      tabs: {
-        users: 'Utilisateurs',
-        tickets: 'Tickets',
-        reports: 'Rapports',
-        ads: 'Publicités',
-        moderators: 'Modérateurs'
-      },
-      users: {
-        select: 'Sélectionner un utilisateur',
-        selectPlaceholder: 'Sélectionner un utilisateur...',
-        banDuration: 'Durée du bannissement',
-        banReason: 'Raison du bannissement',
-        banReasonPlaceholder: 'Entrer la raison du bannissement...',
-        banButton: 'Bannir l\'utilisateur'
-      },
-      moderators: {
-        add: 'Ajouter un modérateur',
-        remove: 'Supprimer un modérateur',
-        permissions: 'Permissions',
-        username: 'Nom d\'utilisateur',
-        password: 'Mot de passe',
-        create: 'Créer un superviseur',
-        usernamePlaceholder: 'Entrez le nom d\'utilisateur du superviseur',
-        passwordPlaceholder: 'Entrez le mot de passe du superviseur'
-      },
-      ads: {
-        create: 'Créer une publicité',
-        title: 'Titre de la publicité',
-        content: 'Contenu de la publicité',
-        duration: 'Durée d\'affichage',
-        active: 'Active',
-        inactive: 'Inactive'
-      },
-      time: {
-        day: 'jour',
-        days: 'jours',
-        hours: 'heures'
-      },
-      reports: {
-        status: 'Statut',
-        pending: 'En attente',
-        resolved: 'Résolu',
-        dismissed: 'Rejeté'
-      }
-    },
-    login: {
-      title: 'Connexion',
-      username: 'Nom d\'utilisateur',
-      password: 'Mot de passe',
-      submit: 'Envoyer',
-      loginError: 'Erreur de connexion',
-      errorInvalidCredentials: 'Nom d\'utilisateur ou mot de passe invalide'
-    },
-    tickets: {
-      list: 'Liste des tickets',
-      create: 'Créer un nouveau ticket',
-      title: 'Titre',
-      description: 'Description',
-      status: {
-        open: 'Ouvert',
-        in_progress: 'En cours',
-        resolved: 'Résolu',
-        closed: 'Fermé'
-      }
-    },
-    messages: {
-      send: 'Envoyer',
-      placeholder: 'Écrivez votre message ici',
-      title: 'Messages'
-    }
-  },
-  es: {
-    direction: 'ltr',
-    tutorial: {
-      title: 'Cómo Enviar una Solicitud de Soporte',
-      step1: {
-        title: 'Complete su Información',
-        description: 'Comience ingresando su nombre completo en el formulario'
-      },
-      step2: {
-        title: 'Ingrese su Correo',
-        description: 'Proporcione su dirección de correo electrónico para la comunicación'
-      },
-      step3: {
-        title: 'Escriba su Mensaje',
-        description: 'Explique su problema o consulta en detalle'
-      },
-      step4: {
-        title: 'Enviar Solicitud',
-        description: 'Haga clic en el botón enviar para enviar su solicitud de soporte'
-      },
-      step5: {
-        title: 'Seguimiento de Solicitud',
-        description: 'Puede realizar un seguimiento del estado de su solicitud y esperar la respuesta de nuestro equipo'
-      }
-    },
-    visitorSupport: {
-      title: 'Enviar solicitud de soporte',
-      name: 'Nombre',
-      email: 'Correo electrónico',
-      message: 'Mensaje',
-      submit: 'Enviar',
-      submitting: 'Enviando...',
-      requestSubmittedSuccessfully: 'Su solicitud ha sido enviada con éxito. Nuestro equipo de soporte responderá pronto.',
-      errorSubmittingRequest: 'Ocurrió un error al enviar su solicitud. Por favor, inténtelo de nuevo.',
-      loginAsAdmin: 'Iniciar sesión como administrador'
-    },
-    common: {
-      submit: 'Enviar',
-      back: 'Volver',
-      loading: 'Cargando...'
-    },
-    admin: {
-      title: 'Panel de Administración',
-      tabs: {
-        users: 'Usuarios',
-        tickets: 'Tickets',
-        reports: 'Reportes',
-        ads: 'Anuncios',
-        moderators: 'Moderadores'
-      },
-      users: {
-        select: 'Seleccionar Usuario',
-        selectPlaceholder: 'Seleccionar un usuario...',
-        banDuration: 'Duración del Ban',
-        banReason: 'Razón del Ban',
-        banReasonPlaceholder: 'Ingrese la razón del ban...',
-        banButton: 'Banear Usuario'
-      },
-      moderators: {
-        add: 'Agregar Moderador',
-        remove: 'Eliminar Moderador',
-        permissions: 'Permisos',
-        username: 'Nombre de usuario',
-        password: 'Contraseña',
-        create: 'Crear Supervisor',
-        usernamePlaceholder: 'Ingrese nombre de usuario del supervisor',
-        passwordPlaceholder: 'Ingrese contraseña del supervisor'
-      },
-      ads: {
-        create: 'Crear Anuncio',
-        title: 'Título del Anuncio',
-        content: 'Contenido del Anuncio',
-        duration: 'Duración',
-        active: 'Activo',
-        inactive: 'Inactivo'
-      },
-      time: {
-        day: 'día',
-        days: 'días',
-        hours: 'horas'
-      },
-      reports: {
-        status: 'Estado',
-        pending: 'Pendiente',
-        resolved: 'Resuelto',
-        dismissed: 'Descartado'
-      }
-    },
-    login: {
-      title: 'Iniciar sesión',
-      username: 'Nombre de usuario',
-      password: 'Contraseña',
-      submit: 'Enviar',
-      loginError: 'Error de inicio de sesión',
-      errorInvalidCredentials: 'Nombre de usuario o contraseña inválidos',
-      errorEmptyFields: 'Por favor ingrese nombre de usuario y contraseña'
-    },
-    tickets: {
-      list: 'Lista de tickets',
-      create: 'Crear nuevo ticket',
-      title: 'Título',
-      description: 'Descripción',
-      status: {
-        open: 'Abierto',
-        in_progress: 'En progreso',
-        resolved: 'Resuelto',
-        closed: 'Cerrado'
-      }
-    },
-    messages: {
-      send: 'Enviar',
-      placeholder: 'Escribe tu mensaje aquí',
-      title: 'Mensajes'
-    }
-  },
-  de: {
-    direction: 'ltr',
-    tutorial: {
-      title: 'So Senden Sie eine Support-Anfrage',
-      step1: {
-        title: 'Füllen Sie Ihre Informationen aus',
-        description: 'Beginnen Sie mit der Eingabe Ihres vollständigen Namens im Formular'
-      },
-      step2: {
-        title: 'Geben Sie Ihre E-Mail ein',
-        description: 'Geben Sie Ihre E-Mail-Adresse für die Kommunikation an'
-      },
-      step3: {
-        title: 'Schreiben Sie Ihre Nachricht',
-        description: 'Erklären Sie Ihr Problem oder Ihre Anfrage im Detail'
-      },
-      step4: {
-        title: 'Anfrage Senden',
-        description: 'Klicken Sie auf die Schaltfläche Senden, um Ihre Support-Anfrage zu übermitteln'
-      },
-      step5: {
-        title: 'Verfolgen Sie Ihre Anfrage',
-        description: 'Sie können den Status Ihrer Anfrage verfolgen und auf die Antwort unseres Teams warten'
-      }
-    },
-    visitorSupport: {
-      title: 'Support-Anfrage einreichen',
-      name: 'Name',
-      email: 'E-Mail',
-      message: 'Nachricht',
-      submit: 'Absenden',
-      submitting: 'Wird gesendet...',
-      requestSubmittedSuccessfully: 'Ihre Anfrage wurde erfolgreich übermittelt. Unser Support-Team wird sich in Kürze bei Ihnen melden.',
-      errorSubmittingRequest: 'Beim Senden Ihrer Anfrage ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.',
-      loginAsAdmin: 'Als Administrator anmelden'
-    },
-    common: {
-      submit: 'Absenden',
-      back: 'Zurück',
-      loading: 'Laden...'
-    },
-    admin: {
-      title: 'Administrationsbereich',
-      tabs: {
-        users: 'Benutzer',
-        tickets: 'Tickets',
-        reports: 'Meldungen',
-        ads: 'Werbung',
-        moderators: 'Moderatoren'
-      },
-      users: {
-        select: 'Benutzer auswählen',
-        selectPlaceholder: 'Benutzer auswählen...',
-        banDuration: 'Sperrdauer',
-        banReason: 'Sperrgrund',
-        banReasonPlaceholder: 'Grund für die Sperre eingeben...',
-        banButton: 'Benutzer sperren'
-      },
-      moderators: {
-        add: 'Moderator hinzufügen',
-        remove: 'Moderator entfernen',
-        permissions: 'Berechtigungen',
-        username: 'Benutzername',
-        password: 'Passwort',
-        create: 'Supervisor erstellen',
-        usernamePlaceholder: 'Supervisor-Benutzername eingeben',
-        passwordPlaceholder: 'Supervisor-Passwort eingeben'
-      },
-      ads: {
-        create: 'Werbung erstellen',
-        title: 'Werbetitel',
-        content: 'Werbeinhalt',
-        duration: 'Anzeigedauer',
-        active: 'Aktiv',
-        inactive: 'Inaktiv'
-      },
-      time: {
-        day: 'Tag',
-        days: 'Tage',
-        hours: 'Stunden'
-      },
-      reports: {
-        status: 'Status',
-        pending: 'Ausstehend',
-        resolved: 'Gelöst',
-        dismissed: 'Abgelehnt'
-      }
-    },
-    login: {
-      title: 'Anmelden',
-      username: 'Benutzername',
-      password: 'Passwort',
-      submit: 'Absenden',
-      loginError: 'Anmeldefehler',
-      errorInvalidCredentials: 'Ungültiger Benutzername oder Passwort',
-      errorEmptyFields: 'Bitte geben Sie Benutzername und Passwort ein'
-    },
-    tickets: {
-      list: 'Tickets Liste',
-      create: 'Neues Ticket erstellen',
-      title: 'Titel',
-      description: 'Beschreibung',
-      status: {
-        open: 'Offen',
-        in_progress: 'In Bearbeitung',
-        resolved: 'Gelöst',
-        closed: 'Geschlossen'
-      }
-    },
-    messages: {
-      send: 'Senden',
-      placeholder: 'Schreiben Sie Ihre Nachricht hier',
-      title: 'Nachrichten'
     }
   }
 };
 
-export type Language = keyof typeof translations;
-export type TranslationKeys = keyof typeof translations.en;
+export const ar = translations.ar;
