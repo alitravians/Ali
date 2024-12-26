@@ -2,6 +2,30 @@ export type Language = 'ar';
 
 export interface Translation {
   direction: string;
+  team: {
+    title: string;
+    communityManager: string;
+    notices: {
+      noNews: string;
+    };
+    sections: {
+      generalManagement: string;
+      subAdministrator: string;
+      janitors: string;
+      support: string;
+    };
+    columns: {
+      name: string;
+      responsibility: string;
+      avatar: string;
+    };
+    roles: {
+      administrator: string;
+      general: string;
+      support: string;
+    };
+    noMembers: string;
+  };
   visitorSupport: {
     title: string;
     loginAsAdmin: string;
@@ -97,6 +121,30 @@ export interface Translation {
 export const translations: { ar: Translation } = {
   ar: {
     direction: 'rtl',
+    team: {
+      title: 'فريق العمل',
+      communityManager: 'مدير المجتمع',
+      notices: {
+        noNews: 'تحذيرات من مدير المجتمع: لا توجد أخبار جديدة',
+      },
+      sections: {
+        generalManagement: 'الإدارة العامة',
+        subAdministrator: 'نائب المدير',
+        janitors: 'المشرفين',
+        support: 'الدعم'
+      },
+      columns: {
+        name: 'الاسم',
+        responsibility: 'المسؤولية',
+        avatar: 'الصورة الرمزية'
+      },
+      roles: {
+        administrator: 'مدير',
+        general: 'عام',
+        support: 'دعم'
+      },
+      noMembers: 'لا يوجد أعضاء في هذا القسم'
+    },
     visitorSupport: {
       title: 'نظام الدعم الفني',
       loginAsAdmin: 'تسجيل الدخول كمشرف',
