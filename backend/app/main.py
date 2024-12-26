@@ -1,9 +1,20 @@
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
 from datetime import datetime
-from .models import User, Ticket, TicketMessage, TicketReport, UserRole, TicketStatus, VisitorInfo
-from .database import db
+from sqlalchemy.orm import Session
+from passlib.context import CryptContext
+from .models import (
+    User, Ticket, TicketMessage, TicketReport, UserRole, TicketStatus, VisitorInfo,
+    UserDB, TicketDB, TicketMessageDB, TicketReportDB
+)
+from .database import SQLAlchemyDB, get_db
+
+# Initialize database
+db = SQLAlchemyDB()
+
+# Password hashing context
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 app = FastAPI()
 
@@ -64,29 +75,49 @@ class LoginCredentials(BaseModel):
     password: str
 
 @app.post("/users/login", response_model=User)
-async def login(credentials: LoginCredentials):
-    user = db.get_user_by_username(credentials.username)
-    if not user:
-        # Create new user if they don't exist
-        user = db.create_user(
-            User(
-                username=credentials.username,
-                password=credentials.password,  # Note: In production, use proper password hashing
-                role=UserRole.MEMBER,
-                status=UserStatus.ACTIVE,
-                language="de"  # Default to German since that's their current language
-            )
-        )
-    elif user.password != credentials.password:  # Note: In production, use proper password hashing
+async def login(credentials: LoginCredentials, db_session: Session = Depends(get_db)):
+    user_db = db_session.query(UserDB).filter(UserDB.username == credentials.username).first()
+    if not user_db or not pwd_context.verify(credentials.password, user_db.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return user
+    # Convert SQLAlchemy model to Pydantic model for response
+    return User(
+        id=user_db.id,
+        username=user_db.username,
+        password=user_db.password,  # Note: In production, consider not returning the hashed password
+        role=user_db.role,
+        status=user_db.status,
+        language=user_db.language
+    )
 
 
 @app.post("/users/", response_model=User)
-async def create_user(user: User):
-    if db.get_user_by_username(user.username):
+async def create_user(user: User, db_session: Session = Depends(get_db)):
+    if db_session.query(UserDB).filter(UserDB.username == user.username).first():
         raise HTTPException(status_code=400, detail="Username already exists")
-    return db.create_user(user)
+    
+    # Hash the password before storing
+    hashed_password = pwd_context.hash(user.password)
+    user_db = UserDB(
+        username=user.username,
+        password=hashed_password,
+        role=user.role,
+        status=user.status,
+        language=user.language
+    )
+    
+    db_session.add(user_db)
+    db_session.commit()
+    db_session.refresh(user_db)
+    
+    # Convert back to Pydantic model for response
+    return User(
+        id=user_db.id,
+        username=user_db.username,
+        password=user_db.password,  # Note: In production, consider not returning the hashed password
+        role=user_db.role,
+        status=user_db.status,
+        language=user_db.language
+    )
 
 @app.get("/users/{user_id}", response_model=User)
 async def get_user(user_id: int):

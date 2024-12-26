@@ -218,7 +218,8 @@ export const AdminPanel: React.FC = () => {
                                         }));
                                         const updatedTickets = await getTickets();
                                         setTickets(updatedTickets);
-                                      } catch (err) {
+                                      } catch (error) {
+                                        console.error('Error sending response:', error);
                                         setError(t('tickets.responseError'));
                                       } finally {
                                         setIsSubmitting(false);

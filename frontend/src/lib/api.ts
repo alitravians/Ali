@@ -34,8 +34,18 @@ export interface TicketMessage {
 }
 
 export const loginUser = async (username: string, password: string) => {
-  const response = await api.post('/users/login', { username, password });
-  return response.data;
+  try {
+    const response = await api.post('/users/login', { username, password });
+    return response.data;
+  } catch (error) {
+    console.error('Login API error:', error);
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      const err = new Error('Invalid credentials');
+      err.name = 'AuthenticationError';
+      throw err;
+    }
+    throw new Error('Login failed');
+  }
 };
 
 export interface VisitorInfo {

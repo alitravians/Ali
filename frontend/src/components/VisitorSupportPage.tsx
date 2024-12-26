@@ -57,7 +57,8 @@ export const VisitorSupportPage = () => {
       setName('');
       setEmail('');
       setMessage('');
-    } catch (err) {
+    } catch (error) {
+      console.error('Error submitting request:', error);
       setError(t('visitorSupport.errorSubmittingRequest'));
     } finally {
       setIsSubmitting(false);

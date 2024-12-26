@@ -21,6 +21,7 @@ export const LoginForm: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setUser(null);  // Clear user state at start of login attempt
 
     // Validate empty fields
     if (!username.trim() || !password.trim()) {
@@ -30,12 +31,34 @@ export const LoginForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      const user = await loginUser(username, password);
-      setUser(user);
-      navigate('/tickets');
-    } catch (error) {
+      const response = await loginUser(username, password);
+      
+      // Validate user data structure
+      if (!response || !response.id || !response.username || !response.role) {
+        setError(t('login.generalError'));
+        setIsLoading(false);
+        return;
+      }
+
+      // Set user state after validation but before navigation
+      setUser(response);
+      setIsLoading(false);
+
+      // Only navigate after successful user state update
+      if (response.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/tickets');
+      }
+    } catch (error: unknown) {
       console.error('Login failed:', error);
-      setError(t('login.errorInvalidCredentials'));
+      setIsLoading(false);
+      
+      if (error instanceof Error && error.name === 'AuthenticationError') {
+        setError(t('login.errorInvalidCredentials'));
+      } else {
+        setError(t('login.generalError'));
+      }
     } finally {
       setIsLoading(false);
     }
