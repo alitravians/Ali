@@ -1,59 +1,40 @@
-import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Welcome from './components/pages/welcome/Welcome';
-import AdminLogin from './components/admin/AdminLogin';
-import AdminDashboard from './components/admin/AdminDashboard';
-import AdminEditCountdown from './components/admin/AdminEditCountdown';
-import AdminEditTeam from './components/admin/AdminEditTeam';
-import AdminEditUpdates from './components/admin/AdminEditUpdates';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AdminLoginDialog } from './components/AdminLoginDialog';
+import TrendRequestForm from './pages/TrendRequestForm';
+import AdminDashboard from './pages/AdminDashboard';
+import AcceptedRejectedTrends from './pages/AcceptedRejectedTrends';
 
 const isAdminAuthenticated = () => {
-  return localStorage.getItem('adminAuth') === import.meta.env.VITE_ADMIN_PASSWORD;
+  return !!localStorage.getItem('adminToken');
 };
 
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  return isAdminAuthenticated() ? children : <Navigate to="/admin/login" replace />;
+const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  return isAdminAuthenticated() ? children : <Navigate to="/" replace />;
 };
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Welcome />} />
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ProtectedRoute>
-              <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/edit-countdown"
-          element={
-            <ProtectedRoute>
-              <AdminEditCountdown />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/edit-team"
-          element={
-            <ProtectedRoute>
-              <AdminEditTeam />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/admin/edit-updates"
-          element={
-            <ProtectedRoute>
-              <AdminEditUpdates />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </Router>
+    <BrowserRouter>
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-end py-4">
+            <AdminLoginDialog />
+          </div>
+          <Routes>
+            <Route path="/" element={<TrendRequestForm />} />
+            <Route path="/trends" element={<AcceptedRejectedTrends />} />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <ProtectedRoute>
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+          </Routes>
+        </div>
+      </div>
+    </BrowserRouter>
   );
 }
 
