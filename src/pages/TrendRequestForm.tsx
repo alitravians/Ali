@@ -31,7 +31,7 @@ export default function TrendRequestForm() {
     setError(null);
 
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/trend-request`, {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/trend-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
