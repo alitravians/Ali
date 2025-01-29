@@ -1,0 +1,82 @@
+/* RTL Support */
+[dir="rtl"] .flex {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .text-left {
+  text-align: right;
+}
+
+[dir="rtl"] .text-right {
+  text-align: left;
+}
+
+[dir="rtl"] .ml-auto {
+  margin-left: unset;
+  margin-right: auto;
+}
+
+[dir="rtl"] .mr-auto {
+  margin-right: unset;
+  margin-left: auto;
+}
+
+[dir="rtl"] .space-x-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+[dir="rtl"] .space-x-2 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+/* RTL Dialog Styles */
+[dir="rtl"] .text-sm {
+  text-align: right;
+}
+
+[dir="rtl"] label {
+  text-align: right;
+}
+
+[dir="rtl"] .flex.justify-end {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] .space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 1rem;
+}
+
+[dir="rtl"] input {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .bg-red-50 {
+  text-align: right;
+}
+
+/* RTL Dialog Styles */
+[dir="rtl"] .absolute.top-4.right-4 {
+  right: unset;
+  left: 1rem;
+}
+
+[dir="rtl"] .flex.items-center.gap-3 {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .flex.items-center.gap-2 {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .flex.justify-end {
+  justify-content: flex-start;
+}
+
+[dir="rtl"] svg {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .animate-spin {
+  transform: scaleX(1);
+}
