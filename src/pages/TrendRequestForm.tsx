@@ -1,4 +1,4 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -31,7 +31,7 @@ export default function TrendRequestForm() {
     setError(null);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/trend-requests`, {
+      const response = await fetch(`${process.env.REACT_APP_API_URL}/trend-request`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
