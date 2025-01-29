@@ -1,17 +1,21 @@
-import * as React from "react"
+import { useState, FormEvent } from "react"
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from "react-router-dom"
 
+interface LoginResponse {
+  access_token: string;
+}
+
 export function AdminLoginDialog() {
   const { t } = useTranslation()
-  const [username, setUsername] = React.useState("")
-  const [password, setPassword] = React.useState("")
-  const [error, setError] = React.useState("")
-  const [isLoading, setIsLoading] = React.useState(false)
-  const [open, setOpen] = React.useState(false)
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [open, setOpen] = useState(false)
   const navigate = useNavigate()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
     setIsLoading(true)
@@ -32,7 +36,7 @@ export function AdminLoginDialog() {
       })
 
       if (response.ok) {
-        const data = await response.json()
+        const data = await response.json() as LoginResponse
         localStorage.setItem("adminToken", data.access_token)
         setOpen(false)
         navigate("/admin/dashboard")

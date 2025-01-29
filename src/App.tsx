@@ -3,12 +3,13 @@ import { AdminLoginDialog } from './components/AdminLoginDialog';
 import TrendRequestForm from './pages/TrendRequestForm';
 import AdminDashboard from './pages/AdminDashboard';
 import AcceptedRejectedTrends from './pages/AcceptedRejectedTrends';
+import { ReactElement } from 'react';
 
 const isAdminAuthenticated = () => {
   return !!localStorage.getItem('adminToken');
 };
 
-const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+const ProtectedRoute = ({ children }: { children: ReactElement }) => {
   return isAdminAuthenticated() ? children : <Navigate to="/" replace />;
 };
 
