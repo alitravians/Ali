@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
-import axios from 'axios';
 import { handleApiError } from '@/lib/errors';
+import api from '@/lib/api';
 
 interface SchoolRule {
   id: number;
@@ -26,11 +26,7 @@ export function RuleManagement() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/rules`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await api.get('/admin/rules');
       setRules(response.data);
     } catch (err) {
       const errorMessage = handleApiError(err, 'فشل في تحميل القوانين');

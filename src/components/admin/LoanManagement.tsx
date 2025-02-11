@@ -3,8 +3,8 @@ import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import axios from 'axios';
 import { handleApiError } from '@/lib/errors';
+import api from '@/lib/api';
 
 interface BookLoan {
   id: number;
@@ -30,11 +30,7 @@ export function LoanManagement() {
     try {
       setLoading(true);
       setError(null);
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/admin/loans`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
+      const response = await api.get('/admin/loans');
       setLoans(response.data);
     } catch (err) {
       const errorMessage = handleApiError(err, 'فشل في تحميل بيانات الاستعارات');
