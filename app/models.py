@@ -1,5 +1,5 @@
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Float, DateTime, ForeignKey, Enum, Boolean
 from sqlalchemy.orm import declarative_base, relationship
 import enum
 
@@ -88,5 +88,17 @@ class SchoolRule(Base):
     title = Column(String)
     description = Column(String)
     category = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class MaintenanceConfig(Base):
+    __tablename__ = "maintenance_config"
+    
+    id = Column(Integer, primary_key=True)
+    is_enabled = Column(Boolean, default=False)
+    message = Column(String, nullable=True)
+    start_time = Column(DateTime, nullable=True)
+    end_time = Column(DateTime, nullable=True)
+    allow_admin_access = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
