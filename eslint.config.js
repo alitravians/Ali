@@ -1,0 +1,1 @@
+module.exports = {\n  extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended'],\n  parser: '@typescript-eslint/parser',\n  plugins: ['@typescript-eslint', 'react-hooks'],\n  root: true,\n  rules: {\n    'react-hooks/rules-of-hooks': 'error',\n    'react-hooks/exhaustive-deps': 'warn'\n  }\n};

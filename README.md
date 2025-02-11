@@ -1,0 +1,1 @@
+# School Management System\n\nA comprehensive school management system with student, book, and loan management features.\n\n## Features\n\n- Student management\n- Book management\n- Loan tracking\n- Rules and regulations\n- Maintenance mode\n- Arabic interface
