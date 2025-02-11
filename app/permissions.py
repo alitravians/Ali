@@ -93,7 +93,17 @@ class PermissionChecker:
         
         return user
 
-def has_permission(permission: Permission) -> PermissionChecker:
+def has_permission(permission: str | Permission) -> PermissionChecker:
+    if isinstance(permission, str):
+        try:
+            # Convert string to Permission enum
+            permission_enum = Permission(permission)
+            return PermissionChecker([permission_enum])
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="صلاحية غير صالحة"
+            )
     return PermissionChecker([permission])
 
 def has_permissions(permissions: List[Permission]) -> PermissionChecker:

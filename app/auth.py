@@ -60,23 +60,32 @@ def create_refresh_token(data: dict) -> str:
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(
+def get_current_user(
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ) -> models.User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="لم نتمكن من التحقق من صحة بيانات الاعتماد",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
+        print(f"Attempting to decode token: {token[:10]}...")  # Debug logging
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"Token payload: {payload}")  # Debug logging
         username: str = payload.get("sub")
         if username is None:
+            print("No username in token payload")  # Debug logging
             raise credentials_exception
+        print(f"Looking up user: {username}")  # Debug logging
+        
+        # Get user from database
         user = db.query(models.User).filter(models.User.username == username).first()
         if user is None:
+            print("User not found in database")  # Debug logging
             raise credentials_exception
+        
+        print(f"Found user: {user.username} with role: {user.role}")  # Debug logging
         return user
     except JWTError as e:
         print(f"JWT Error: {str(e)}")  # Debug logging
@@ -85,7 +94,7 @@ async def get_current_user(
         print(f"Unexpected error in get_current_user: {str(e)}")  # Debug logging
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail=f"خطأ غير متوقع: {str(e)}"
         )
 
 def create_tokens(user_id: int, username: str, role: str) -> dict:

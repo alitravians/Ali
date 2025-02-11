@@ -83,3 +83,13 @@ class SchoolRule(SchoolRuleBase):
 
     class Config:
         from_attributes = True
+
+class MaintenanceConfigUpdate(BaseModel):
+    is_enabled: bool
+    message: Optional[str] = None
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    allow_admin_access: bool = True
+
+    class Config:
+        from_attributes = True

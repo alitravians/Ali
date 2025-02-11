@@ -1,8 +1,11 @@
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from . import models
 from .database import engine, SessionLocal
 from .routers import academic, library, rules, admin, auth, maintenance
+from .middleware import maintenance_middleware
 
 # Initialize test data
 def init_test_data():
@@ -95,6 +98,18 @@ def init_test_data():
             db.commit()
             print("Created test rule")  # Debug logging
             
+        # Create maintenance config if not exists
+        config = db.query(models.MaintenanceConfig).first()
+        if not config:
+            config = models.MaintenanceConfig(
+                is_enabled=0,
+                message="النظام تحت الصيانة حالياً",
+                allow_admin_access=1
+            )
+            db.add(config)
+            db.commit()
+            print("Created maintenance config")  # Debug logging
+            
     except Exception as e:
         print(f"Error in init_test_data: {str(e)}")  # Debug logging
         db.rollback()
@@ -103,11 +118,15 @@ def init_test_data():
         db.close()
 
 # Initialize database and test data on startup
-init_test_data()
+if not "pytest" in sys.modules:
+    init_test_data()
 
 app = FastAPI(title="School Management System")
 
-# Disable CORS. Do not remove this for full-stack development.
+# Add maintenance mode middleware first
+app.add_middleware(BaseHTTPMiddleware, dispatch=maintenance_middleware)
+
+# Add CORS middleware after maintenance middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Allows all origins
@@ -116,17 +135,13 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-# Add maintenance mode middleware
-from .middleware import maintenance_middleware
-app.middleware("http")(maintenance_middleware)
-
 # Include routers
+app.include_router(maintenance.router, tags=["maintenance"])  # Add maintenance router first
 app.include_router(auth.router)
 app.include_router(academic.router)
 app.include_router(library.router)
 app.include_router(rules.router)
 app.include_router(admin.router)
-app.include_router(maintenance.router, tags=["maintenance"])
 
 @app.get("/healthz")
 async def healthz():

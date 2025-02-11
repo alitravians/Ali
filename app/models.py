@@ -95,10 +95,29 @@ class MaintenanceConfig(Base):
     __tablename__ = "maintenance_config"
     
     id = Column(Integer, primary_key=True)
-    is_enabled = Column(Boolean, default=False)
+    is_enabled = Column(Integer, default=0)  # Using Integer for SQLite boolean
     message = Column(String, nullable=True)
     start_time = Column(DateTime, nullable=True)
     end_time = Column(DateTime, nullable=True)
-    allow_admin_access = Column(Boolean, default=True)
+    allow_admin_access = Column(Integer, default=1)  # Using Integer for SQLite boolean
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __init__(self, **kwargs):
+        if 'is_enabled' in kwargs:
+            kwargs['is_enabled'] = 1 if kwargs['is_enabled'] else 0
+        if 'allow_admin_access' in kwargs:
+            kwargs['allow_admin_access'] = 1 if kwargs['allow_admin_access'] else 0
+        super().__init__(**kwargs)
+
+class WelcomeConfig(Base):
+    __tablename__ = "welcome_config"
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String, nullable=False)
+    description = Column(String, nullable=False)
+    showStudents = Column(Boolean, default=True)
+    showLoans = Column(Boolean, default=True)
+    showRules = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
