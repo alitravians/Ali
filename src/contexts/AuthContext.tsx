@@ -7,7 +7,7 @@ interface AuthContextType {
 }
 
 interface JWTPayload {
-  role: string;
+  role?: string;
   sub: string;
   id: number;
   exp: number;
@@ -26,7 +26,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (token) {
       try {
         const decoded = jwtDecode<JWTPayload>(token);
-        setRole(decoded.role);
+        const userRole = decoded.role || (decoded.sub === 'admin' ? 'admin' : 'student');
+        console.log('Decoded token:', decoded, 'User role:', userRole);
+        setRole(userRole);
       } catch (error) {
         console.error('Error decoding token:', error);
         localStorage.removeItem('token');
