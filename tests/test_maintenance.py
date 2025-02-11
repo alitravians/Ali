@@ -149,4 +149,4 @@ def test_functionality():
     print("✓ Student access properly restricted after maintenance")
 
 if __name__ == "__main__":
-    test_maintenance_mode()
+    test_functionality()

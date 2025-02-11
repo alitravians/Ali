@@ -49,7 +49,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "role": data.get("role", "student")})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -90,13 +90,12 @@ async def get_current_user(
 
 def create_tokens(user_id: int, username: str, role: str) -> dict:
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    token_data = {"sub": username, "id": user_id, "role": role}
     access_token = create_access_token(
-        data={"sub": username, "id": user_id, "role": role},
+        data=token_data,
         expires_delta=access_token_expires
     )
-    refresh_token = create_refresh_token(
-        data={"sub": username, "id": user_id, "role": role}
-    )
+    refresh_token = create_refresh_token(data=token_data)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,

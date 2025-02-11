@@ -297,11 +297,18 @@ async def list_students(
     """List all students"""
     try:
         students = db.query(models.Student).all()
-        return students
+        return [StudentResponse(
+            id=student.id,
+            name=student.user.name,
+            admission_number=student.admission_number,
+            class_name=student.class_name,
+            grade_level=student.grade_level,
+            created_at=student.user.created_at
+        ) for student in students]
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="فشل في تحميل بيانات الطلاب"
         )
 
 @router.post("/students", response_model=StudentResponse)
