@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import { handleApiError } from '@/lib/errors';
 import { StudentManagement } from '../components/admin/StudentManagement';
 import { BookManagement } from '../components/admin/BookManagement';
 import { LoanManagement } from '../components/admin/LoanManagement';
@@ -47,8 +48,9 @@ export default function AdminDashboard() {
         is_enabled: !prev.is_enabled
       }));
     } catch (err) {
+      const errorMessage = handleApiError(err, 'فشل في تحديث حالة الصيانة');
+      setError(errorMessage);
       console.error('Error toggling maintenance mode:', err);
-      setError('فشل في تحديث حالة الصيانة');
     }
   };
 
@@ -91,7 +93,8 @@ export default function AdminDashboard() {
         );
         setStats(response.data);
       } catch (err) {
-        setError('Failed to load admin statistics');
+        const errorMessage = handleApiError(err, 'فشل في تحميل إحصائيات النظام');
+        setError(errorMessage);
         console.error('Error fetching admin stats:', err);
       } finally {
         setLoading(false);

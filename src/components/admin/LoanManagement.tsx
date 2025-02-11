@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
 import axios from 'axios';
+import { handleApiError } from '@/lib/errors';
 
 interface BookLoan {
   id: number;
@@ -33,7 +34,8 @@ export function LoanManagement() {
       });
       setLoans(response.data);
     } catch (err) {
-      setError('فشل في تحميل بيانات الاستعارات');
+      const errorMessage = handleApiError(err, 'فشل في تحميل بيانات الاستعارات');
+      setError(errorMessage);
       console.error('Error fetching loans:', err);
     } finally {
       setLoading(false);

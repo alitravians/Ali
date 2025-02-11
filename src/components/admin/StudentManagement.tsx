@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
 import axios from 'axios';
+import { handleApiError } from '@/lib/errors';
 
 interface Student {
   id: number;
@@ -31,7 +32,8 @@ export function StudentManagement() {
       });
       setStudents(response.data);
     } catch (err) {
-      setError('فشل في تحميل بيانات الطلاب');
+      const errorMessage = handleApiError(err, 'فشل في تحميل بيانات الطلاب');
+      setError(errorMessage);
       console.error('Error fetching students:', err);
     } finally {
       setLoading(false);

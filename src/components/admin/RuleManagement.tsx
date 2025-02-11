@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
 import axios from 'axios';
+import { handleApiError } from '@/lib/errors';
 
 interface SchoolRule {
   id: number;
@@ -32,7 +33,8 @@ export function RuleManagement() {
       });
       setRules(response.data);
     } catch (err) {
-      setError('فشل في تحميل القوانين');
+      const errorMessage = handleApiError(err, 'فشل في تحميل القوانين');
+      setError(errorMessage);
       console.error('Error fetching rules:', err);
     } finally {
       setLoading(false);
