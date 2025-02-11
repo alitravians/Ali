@@ -1,8 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
-import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useEffect } from 'react';
+import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
 import axios from 'axios';
 
 interface BookLoan {
