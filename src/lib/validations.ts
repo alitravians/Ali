@@ -97,7 +97,7 @@ export const handleApiError = (error: unknown): ApiError => {
 };
 
 export const formatValidationErrors = (errors: z.ZodError): ValidationError[] => {
-  return errors.errors.map(error => ({
+  return errors.errors.map((error: z.ZodIssue) => ({
     field: error.path.join('.'),
     message: error.message,
   }));
