@@ -10,10 +10,13 @@ RUN pip install poetry && \
 COPY pyproject.toml poetry.lock ./
 
 # Install dependencies
-RUN poetry install --no-dev
+RUN poetry install --no-dev --no-root
 
 # Copy application code
 COPY . .
+
+# Install the application
+RUN poetry install --no-dev
 
 # Run the application
 CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
