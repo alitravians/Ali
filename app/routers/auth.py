@@ -56,17 +56,20 @@ async def login(
                 )
             
             # Generate tokens
-            tokens = auth.create_tokens(user.id, user.username)
+            tokens = auth.create_tokens(user.id, user.username, user.role)
             logger.info(f"Login successful for user: {form_data.username}")
             return {
                 "access_token": tokens["access_token"],
                 "token_type": "bearer"
             }
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Password verification error: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error verifying password"
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
             )
     except HTTPException:
         raise

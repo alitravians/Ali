@@ -88,14 +88,14 @@ async def get_current_user(
             detail=str(e)
         )
 
-def create_tokens(user_id: int, username: str) -> dict:
+def create_tokens(user_id: int, username: str, role: str) -> dict:
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": username, "id": user_id},
+        data={"sub": username, "id": user_id, "role": role},
         expires_delta=access_token_expires
     )
     refresh_token = create_refresh_token(
-        data={"sub": username, "id": user_id}
+        data={"sub": username, "id": user_id, "role": role}
     )
     return {
         "access_token": access_token,
