@@ -116,6 +116,10 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
+# Add maintenance mode middleware
+from .middleware import maintenance_middleware
+app.middleware("http")(maintenance_middleware)
+
 # Include routers
 app.include_router(auth.router)
 app.include_router(academic.router)
