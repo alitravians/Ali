@@ -1,13 +1,10 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { loanSchema } from '@/lib/validations';
+import { loanSchema, type LoanFormValues } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { z } from 'zod';
-
-type LoanFormValues = z.infer<typeof loanSchema>;
+import { ControllerRenderProps } from 'react-hook-form';
 
 interface LoanFormProps {
   defaultValues?: Partial<LoanFormValues>;
@@ -41,7 +38,7 @@ export function LoanForm({ defaultValues, onSubmit, isLoading }: LoanFormProps) 
         <FormField
           control={form.control}
           name="book_id"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<LoanFormValues, "book_id"> }) => (
             <FormItem>
               <FormLabel>رقم الكتاب</FormLabel>
               <FormControl>
@@ -62,7 +59,7 @@ export function LoanForm({ defaultValues, onSubmit, isLoading }: LoanFormProps) 
         <FormField
           control={form.control}
           name="student_id"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<LoanFormValues, "student_id"> }) => (
             <FormItem>
               <FormLabel>رقم الطالب</FormLabel>
               <FormControl>
@@ -83,7 +80,7 @@ export function LoanForm({ defaultValues, onSubmit, isLoading }: LoanFormProps) 
         <FormField
           control={form.control}
           name="due_date"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<LoanFormValues, "due_date"> }) => (
             <FormItem>
               <FormLabel>تاريخ الاستحقاق</FormLabel>
               <FormControl>

@@ -1,13 +1,10 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { studentSchema } from '@/lib/validations';
+import { studentSchema, type StudentFormValues } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { z } from 'zod';
-
-type StudentFormValues = z.infer<typeof studentSchema>;
+import { ControllerRenderProps } from 'react-hook-form';
 
 interface StudentFormProps {
   defaultValues?: Partial<StudentFormValues>;
@@ -42,7 +39,7 @@ export function StudentForm({ defaultValues, onSubmit, isLoading }: StudentFormP
         <FormField
           control={form.control}
           name="name"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<StudentFormValues, "name"> }) => (
             <FormItem>
               <FormLabel>الاسم</FormLabel>
               <FormControl>
@@ -56,7 +53,7 @@ export function StudentForm({ defaultValues, onSubmit, isLoading }: StudentFormP
         <FormField
           control={form.control}
           name="admission_number"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<StudentFormValues, "admission_number"> }) => (
             <FormItem>
               <FormLabel>رقم القبول</FormLabel>
               <FormControl>
@@ -70,7 +67,7 @@ export function StudentForm({ defaultValues, onSubmit, isLoading }: StudentFormP
         <FormField
           control={form.control}
           name="class_name"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<StudentFormValues, "class_name"> }) => (
             <FormItem>
               <FormLabel>الصف</FormLabel>
               <FormControl>
@@ -84,7 +81,7 @@ export function StudentForm({ defaultValues, onSubmit, isLoading }: StudentFormP
         <FormField
           control={form.control}
           name="grade_level"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<StudentFormValues, "grade_level"> }) => (
             <FormItem>
               <FormLabel>المستوى</FormLabel>
               <FormControl>

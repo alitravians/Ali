@@ -1,13 +1,10 @@
-import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ruleSchema } from '@/lib/validations';
+import { ruleSchema, type RuleFormValues } from '@/lib/validations';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import type { z } from 'zod';
-
-type RuleFormValues = z.infer<typeof ruleSchema>;
+import { ControllerRenderProps } from 'react-hook-form';
 
 interface RuleFormProps {
   defaultValues?: Partial<RuleFormValues>;
@@ -41,7 +38,7 @@ export function RuleForm({ defaultValues, onSubmit, isLoading }: RuleFormProps) 
         <FormField
           control={form.control}
           name="title"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<RuleFormValues, "title"> }) => (
             <FormItem>
               <FormLabel>عنوان القانون</FormLabel>
               <FormControl>
@@ -55,7 +52,7 @@ export function RuleForm({ defaultValues, onSubmit, isLoading }: RuleFormProps) 
         <FormField
           control={form.control}
           name="description"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<RuleFormValues, "description"> }) => (
             <FormItem>
               <FormLabel>الوصف</FormLabel>
               <FormControl>
@@ -75,7 +72,7 @@ export function RuleForm({ defaultValues, onSubmit, isLoading }: RuleFormProps) 
         <FormField
           control={form.control}
           name="category"
-          render={({ field }) => (
+          render={({ field }: { field: ControllerRenderProps<RuleFormValues, "category"> }) => (
             <FormItem>
               <FormLabel>التصنيف</FormLabel>
               <FormControl>

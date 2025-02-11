@@ -1,12 +1,11 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui'
-import axios from 'axios'
+import api from '@/lib/api'
+import { handleApiError } from '@/lib/errors'
 
-interface MaintenanceStatus {
+interface MaintenanceConfig {
   is_enabled: boolean
   message: string | null
-  start_time: string | null
-  end_time: string | null
   allow_admin_access: boolean
 }
 
@@ -18,9 +17,7 @@ export function MaintenanceMode() {
   useEffect(() => {
     const checkMaintenance = async () => {
       try {
-        const response = await axios.get<MaintenanceStatus>(
-          `${import.meta.env.VITE_API_URL}/admin/maintenance/status`
-        )
+        const response = await api.get<MaintenanceConfig>('/maintenance/status')
         if (response.data.is_enabled) {
           setMessage(response.data.message || 'النظام تحت الصيانة حالياً')
           setIsOpen(true)
@@ -29,8 +26,9 @@ export function MaintenanceMode() {
           setIsOpen(false)
         }
       } catch (err) {
+        const errorMessage = handleApiError(err, 'فشل في التحقق من حالة الصيانة')
         console.error('Error checking maintenance status:', err)
-        setError('فشل في التحقق من حالة الصيانة')
+        setError(errorMessage)
       }
     }
     
