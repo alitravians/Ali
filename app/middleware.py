@@ -9,8 +9,8 @@ async def maintenance_middleware(request: Request, call_next):
     config = db.query(models.MaintenanceConfig).first()
     
     if config and config.is_enabled:
-        # Allow access to maintenance status endpoint
-        if request.url.path == "/api/admin/maintenance/status":
+        # Allow access to maintenance status endpoint and healthz
+        if request.url.path in ["/maintenance/status", "/healthz"]:
             return await call_next(request)
             
         # Check if admin access is allowed
