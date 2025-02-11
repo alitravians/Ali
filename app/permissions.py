@@ -26,6 +26,8 @@ class Permission(str, Enum):
     MANAGE_USERS = "manage_users"
     MANAGE_GRADES = "manage_grades"
     MANAGE_RULES = "manage_rules"
+    MANAGE_STUDENTS = "manage_students"
+    MANAGE_LOANS = "manage_loans"
     VIEW_ANALYTICS = "view_analytics"
 
 ROLE_PERMISSIONS = {
@@ -50,8 +52,10 @@ ROLE_PERMISSIONS = {
         Permission.MANAGE_USERS,
         Permission.MANAGE_GRADES,
         Permission.MANAGE_RULES,
-        Permission.VIEW_ANALYTICS,
+        Permission.MANAGE_STUDENTS,
+        Permission.MANAGE_LOANS,
         Permission.MANAGE_BOOKS,
+        Permission.VIEW_ANALYTICS,
         Permission.PROCESS_LOANS,
         Permission.TRACK_OVERDUE,
         Permission.GENERATE_REPORTS,
