@@ -14,6 +14,9 @@ primary_region = "iad"
 [deploy]
   release_command = "poetry install --no-dev"
 
+[processes]
+  app = "poetry run uvicorn app.main:app --host 0.0.0.0 --port 8080"
+
 [[services]]
   protocol = "tcp"
   internal_port = 8080
