@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import axios from 'axios';
 import { handleApiError } from '@/lib/errors';
 
@@ -80,46 +83,57 @@ export function BookManagement() {
             <Button className="bg-blue-500 hover:bg-blue-600 text-white">
               إضافة كتاب جديد
             </Button>
-            <Input
-              placeholder="بحث عن كتاب..."
-              className="w-64 text-right"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
+            {filteredBooks.length > 0 && (
+              <Input
+                placeholder="بحث عن كتاب..."
+                className="w-64 text-right"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            )}
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell className="text-right font-bold">العنوان</TableCell>
-                <TableCell className="text-right font-bold">المؤلف</TableCell>
-                <TableCell className="text-right font-bold">الرقم التسلسلي</TableCell>
-                <TableCell className="text-right font-bold">التصنيف</TableCell>
-                <TableCell className="text-right font-bold">النسخ المتوفرة</TableCell>
-                <TableCell className="text-right font-bold">الإجراءات</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredBooks.map((book) => (
-                <TableRow key={book.id}>
-                  <TableCell className="text-right">{book.title}</TableCell>
-                  <TableCell className="text-right">{book.author}</TableCell>
-                  <TableCell className="text-right">{book.isbn}</TableCell>
-                  <TableCell className="text-right">{book.category}</TableCell>
-                  <TableCell className="text-right">
-                    {book.available_copies}/{book.total_copies}
-                  </TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
-                      تعديل
-                    </Button>
-                    <Button variant="ghost" className="text-red-500 hover:text-red-600">
-                      حذف
-                    </Button>
-                  </TableCell>
+          {filteredBooks.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">لا يوجد كتب مسجلة</p>
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+                إضافة كتاب جديد
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell className="text-right font-bold">العنوان</TableCell>
+                  <TableCell className="text-right font-bold">المؤلف</TableCell>
+                  <TableCell className="text-right font-bold">الرقم التسلسلي</TableCell>
+                  <TableCell className="text-right font-bold">التصنيف</TableCell>
+                  <TableCell className="text-right font-bold">النسخ المتوفرة</TableCell>
+                  <TableCell className="text-right font-bold">الإجراءات</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredBooks.map((book) => (
+                  <TableRow key={book.id}>
+                    <TableCell className="text-right">{book.title}</TableCell>
+                    <TableCell className="text-right">{book.author}</TableCell>
+                    <TableCell className="text-right">{book.isbn}</TableCell>
+                    <TableCell className="text-right">{book.category}</TableCell>
+                    <TableCell className="text-right">
+                      {book.available_copies}/{book.total_copies}
+                    </TableCell>
+                    <TableCell className="space-x-2 text-right">
+                      <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
+                        تعديل
+                      </Button>
+                      <Button variant="ghost" className="text-red-500 hover:text-red-600">
+                        حذف
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </CardContent>
     </Card>

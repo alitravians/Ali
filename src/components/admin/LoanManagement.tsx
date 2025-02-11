@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import axios from 'axios';
 import { handleApiError } from '@/lib/errors';
 
@@ -105,50 +108,61 @@ export function LoanManagement() {
             <Button className="bg-blue-500 hover:bg-blue-600 text-white">
               تسجيل استعارة جديدة
             </Button>
-            <Input
-              placeholder="بحث عن استعارة..."
-              className="w-64 text-right"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
+            {filteredLoans.length > 0 && (
+              <Input
+                placeholder="بحث عن استعارة..."
+                className="w-64 text-right"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            )}
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell className="text-right font-bold">رقم الكتاب</TableCell>
-                <TableCell className="text-right font-bold">رقم الطالب</TableCell>
-                <TableCell className="text-right font-bold">تاريخ الاستعارة</TableCell>
-                <TableCell className="text-right font-bold">تاريخ الاستحقاق</TableCell>
-                <TableCell className="text-right font-bold">تاريخ الإرجاع</TableCell>
-                <TableCell className="text-right font-bold">الحالة</TableCell>
-                <TableCell className="text-right font-bold">الإجراءات</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredLoans.map((loan) => (
-                <TableRow key={loan.id}>
-                  <TableCell className="text-right">{loan.book_id}</TableCell>
-                  <TableCell className="text-right">{loan.student_id}</TableCell>
-                  <TableCell className="text-right">{new Date(loan.borrow_date).toLocaleDateString('ar')}</TableCell>
-                  <TableCell className="text-right">{new Date(loan.due_date).toLocaleDateString('ar')}</TableCell>
-                  <TableCell className="text-right">
-                    {loan.return_date ? new Date(loan.return_date).toLocaleDateString('ar') : '-'}
-                  </TableCell>
-                  <TableCell className={`text-right ${getStatusColor(loan.status)}`}>
-                    {getStatusText(loan.status)}
-                  </TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
-                      تعديل
-                    </Button>
-                    <Button variant="ghost" className="text-red-500 hover:text-red-600">
-                      حذف
-                    </Button>
-                  </TableCell>
+          {filteredLoans.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">لا يوجد استعارات مسجلة</p>
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+                تسجيل استعارة جديدة
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell className="text-right font-bold">رقم الكتاب</TableCell>
+                  <TableCell className="text-right font-bold">رقم الطالب</TableCell>
+                  <TableCell className="text-right font-bold">تاريخ الاستعارة</TableCell>
+                  <TableCell className="text-right font-bold">تاريخ الاستحقاق</TableCell>
+                  <TableCell className="text-right font-bold">تاريخ الإرجاع</TableCell>
+                  <TableCell className="text-right font-bold">الحالة</TableCell>
+                  <TableCell className="text-right font-bold">الإجراءات</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredLoans.map((loan) => (
+                  <TableRow key={loan.id}>
+                    <TableCell className="text-right">{loan.book_id}</TableCell>
+                    <TableCell className="text-right">{loan.student_id}</TableCell>
+                    <TableCell className="text-right">{new Date(loan.borrow_date).toLocaleDateString('ar')}</TableCell>
+                    <TableCell className="text-right">{new Date(loan.due_date).toLocaleDateString('ar')}</TableCell>
+                    <TableCell className="text-right">
+                      {loan.return_date ? new Date(loan.return_date).toLocaleDateString('ar') : '-'}
+                    </TableCell>
+                    <TableCell className={`text-right ${getStatusColor(loan.status)}`}>
+                      {getStatusText(loan.status)}
+                    </TableCell>
+                    <TableCell className="space-x-2 text-right">
+                      <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
+                        تعديل
+                      </Button>
+                      <Button variant="ghost" className="text-red-500 hover:text-red-600">
+                        حذف
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </CardContent>
     </Card>

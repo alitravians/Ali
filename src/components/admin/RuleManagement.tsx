@@ -78,48 +78,59 @@ export function RuleManagement() {
             <Button className="bg-blue-500 hover:bg-blue-600 text-white">
               إضافة قانون جديد
             </Button>
-            <Input
-              placeholder="بحث عن قانون..."
-              className="w-64 text-right"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
+            {filteredRules.length > 0 && (
+              <Input
+                placeholder="بحث عن قانون..."
+                className="w-64 text-right"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            )}
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell className="text-right font-bold">العنوان</TableCell>
-                <TableCell className="text-right font-bold">الوصف</TableCell>
-                <TableCell className="text-right font-bold">التصنيف</TableCell>
-                <TableCell className="text-right font-bold">تاريخ الإنشاء</TableCell>
-                <TableCell className="text-right font-bold">آخر تحديث</TableCell>
-                <TableCell className="text-right font-bold">الإجراءات</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRules.map((rule) => (
-                <TableRow key={rule.id}>
-                  <TableCell className="text-right">{rule.title}</TableCell>
-                  <TableCell className="text-right">{rule.description}</TableCell>
-                  <TableCell className="text-right">{rule.category}</TableCell>
-                  <TableCell className="text-right">
-                    {new Date(rule.created_at).toLocaleDateString('ar')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {new Date(rule.updated_at).toLocaleDateString('ar')}
-                  </TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
-                      تعديل
-                    </Button>
-                    <Button variant="ghost" className="text-red-500 hover:text-red-600">
-                      حذف
-                    </Button>
-                  </TableCell>
+          {filteredRules.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">لا يوجد قوانين مسجلة</p>
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+                إضافة قانون جديد
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell className="text-right font-bold">العنوان</TableCell>
+                  <TableCell className="text-right font-bold">الوصف</TableCell>
+                  <TableCell className="text-right font-bold">التصنيف</TableCell>
+                  <TableCell className="text-right font-bold">تاريخ الإنشاء</TableCell>
+                  <TableCell className="text-right font-bold">آخر تحديث</TableCell>
+                  <TableCell className="text-right font-bold">الإجراءات</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredRules.map((rule) => (
+                  <TableRow key={rule.id}>
+                    <TableCell className="text-right">{rule.title}</TableCell>
+                    <TableCell className="text-right">{rule.description}</TableCell>
+                    <TableCell className="text-right">{rule.category}</TableCell>
+                    <TableCell className="text-right">
+                      {new Date(rule.created_at).toLocaleDateString('ar')}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {new Date(rule.updated_at).toLocaleDateString('ar')}
+                    </TableCell>
+                    <TableCell className="space-x-2 text-right">
+                      <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
+                        تعديل
+                      </Button>
+                      <Button variant="ghost" className="text-red-500 hover:text-red-600">
+                        حذف
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </CardContent>
     </Card>

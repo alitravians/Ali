@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
-import { useAuth } from '../contexts/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/contexts/AuthContext';
 import axios from 'axios';
 import { handleApiError } from '@/lib/errors';
-import { StudentManagement } from '../components/admin/StudentManagement';
-import { BookManagement } from '../components/admin/BookManagement';
-import { LoanManagement } from '../components/admin/LoanManagement';
-import { RuleManagement } from '../components/admin/RuleManagement';
+import { StudentManagement } from '@/components/admin/StudentManagement';
+import { BookManagement } from '@/components/admin/BookManagement';
+import { LoanManagement } from '@/components/admin/LoanManagement';
+import { RuleManagement } from '@/components/admin/RuleManagement';
 
 interface SystemStats {
   total_students: number;

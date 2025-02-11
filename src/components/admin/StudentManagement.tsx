@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, CardHeader, CardContent, CardTitle, Table, TableHeader, TableBody, TableRow, TableCell, Button, Input } from '@/components/ui/index';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import { Table, TableHeader, TableBody, TableRow, TableCell } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import axios from 'axios';
 import { handleApiError } from '@/lib/errors';
 
@@ -77,42 +80,53 @@ export function StudentManagement() {
             <Button className="bg-blue-500 hover:bg-blue-600 text-white">
               إضافة طالب جديد
             </Button>
-            <Input
-              placeholder="بحث عن طالب..."
-              className="w-64 text-right"
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-            />
+            {filteredStudents.length > 0 && (
+              <Input
+                placeholder="بحث عن طالب..."
+                className="w-64 text-right"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+              />
+            )}
           </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableCell className="text-right font-bold">رقم القبول</TableCell>
-                <TableCell className="text-right font-bold">الاسم</TableCell>
-                <TableCell className="text-right font-bold">الصف</TableCell>
-                <TableCell className="text-right font-bold">المستوى</TableCell>
-                <TableCell className="text-right font-bold">الإجراءات</TableCell>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStudents.map((student) => (
-                <TableRow key={student.id}>
-                  <TableCell className="text-right">{student.admission_number}</TableCell>
-                  <TableCell className="text-right">{student.name}</TableCell>
-                  <TableCell className="text-right">{student.class_name}</TableCell>
-                  <TableCell className="text-right">{student.grade_level}</TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
-                      تعديل
-                    </Button>
-                    <Button variant="ghost" className="text-red-500 hover:text-red-600">
-                      حذف
-                    </Button>
-                  </TableCell>
+          {filteredStudents.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-gray-500 mb-4">لا يوجد طلاب مسجلين</p>
+              <Button className="bg-blue-500 hover:bg-blue-600 text-white">
+                إضافة طالب جديد
+              </Button>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableCell className="text-right font-bold">رقم القبول</TableCell>
+                  <TableCell className="text-right font-bold">الاسم</TableCell>
+                  <TableCell className="text-right font-bold">الصف</TableCell>
+                  <TableCell className="text-right font-bold">المستوى</TableCell>
+                  <TableCell className="text-right font-bold">الإجراءات</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filteredStudents.map((student) => (
+                  <TableRow key={student.id}>
+                    <TableCell className="text-right">{student.admission_number}</TableCell>
+                    <TableCell className="text-right">{student.name}</TableCell>
+                    <TableCell className="text-right">{student.class_name}</TableCell>
+                    <TableCell className="text-right">{student.grade_level}</TableCell>
+                    <TableCell className="space-x-2 text-right">
+                      <Button variant="ghost" className="text-blue-500 hover:text-blue-600">
+                        تعديل
+                      </Button>
+                      <Button variant="ghost" className="text-red-500 hover:text-red-600">
+                        حذف
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </div>
       </CardContent>
     </Card>
