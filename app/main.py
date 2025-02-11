@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from . import models
 from .database import engine, SessionLocal
-from .routers import academic, library, rules, admin, auth
+from .routers import academic, library, rules, admin, auth, maintenance
 
 # Initialize test data
 def init_test_data():
@@ -126,6 +126,7 @@ app.include_router(academic.router)
 app.include_router(library.router)
 app.include_router(rules.router)
 app.include_router(admin.router)
+app.include_router(maintenance.router, tags=["maintenance"])
 
 @app.get("/healthz")
 async def healthz():
