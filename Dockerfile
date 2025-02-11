@@ -15,8 +15,8 @@ RUN poetry install --no-dev --no-root
 # Copy application code
 COPY . .
 
-# Install the application
+# Install the application with all dependencies
 RUN poetry install --no-dev
 
-# Run the application
+# Run the application with uvicorn directly
 CMD ["poetry", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
