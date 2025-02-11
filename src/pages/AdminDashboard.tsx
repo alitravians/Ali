@@ -21,6 +21,58 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState<'overview' | 'students' | 'books' | 'loans' | 'rules'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [maintenanceConfig, setMaintenanceConfig] = useState({
+    is_enabled: false,
+    message: '',
+    allow_admin_access: true
+  });
+
+  const toggleMaintenance = async () => {
+    try {
+      await axios.put(
+        `${import.meta.env.VITE_API_URL}/admin/maintenance/config`,
+        {
+          is_enabled: !maintenanceConfig.is_enabled,
+          message: maintenanceConfig.message || 'النظام تحت الصيانة حالياً',
+          allow_admin_access: maintenanceConfig.allow_admin_access
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+          },
+        }
+      );
+      setMaintenanceConfig(prev => ({
+        ...prev,
+        is_enabled: !prev.is_enabled
+      }));
+    } catch (err) {
+      console.error('Error toggling maintenance mode:', err);
+      setError('فشل في تحديث حالة الصيانة');
+    }
+  };
+
+  useEffect(() => {
+    const fetchMaintenanceConfig = async () => {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_API_URL}/admin/maintenance/status`,
+          {
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        );
+        setMaintenanceConfig(response.data);
+      } catch (err) {
+        console.error('Error fetching maintenance config:', err);
+      }
+    };
+
+    if (isAdmin) {
+      fetchMaintenanceConfig();
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -152,6 +204,53 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{stats?.total_rules || 0}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>حالة النظام</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">وضع الصيانة:</span>
+                  <button
+                    onClick={toggleMaintenance}
+                    className={`px-4 py-2 rounded ${
+                      maintenanceConfig.is_enabled
+                        ? 'bg-red-500 hover:bg-red-600'
+                        : 'bg-green-500 hover:bg-green-600'
+                    } text-white`}
+                  >
+                    {maintenanceConfig.is_enabled ? 'إيقاف الصيانة' : 'تفعيل الصيانة'}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">السماح للمشرفين بالدخول:</span>
+                  <input
+                    type="checkbox"
+                    checked={maintenanceConfig.allow_admin_access}
+                    onChange={(e) => setMaintenanceConfig(prev => ({
+                      ...prev,
+                      allow_admin_access: e.target.checked
+                    }))}
+                    className="w-4 h-4"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <span className="font-bold block">رسالة الصيانة:</span>
+                  <textarea
+                    value={maintenanceConfig.message}
+                    onChange={(e) => setMaintenanceConfig(prev => ({
+                      ...prev,
+                      message: e.target.value
+                    }))}
+                    placeholder="النظام تحت الصيانة حالياً"
+                    className="w-full p-2 border rounded text-right"
+                    rows={3}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
