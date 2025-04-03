@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { useAuth } from './contexts/AuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
+import './styles/rtl.css';
 
 import Login from './components/auth/Login';
 import BannedPage from './components/auth/BannedPage';
@@ -16,6 +17,7 @@ import NotFound from './components/common/NotFound';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import AdminRoute from './components/common/AdminRoute';
 import MaintenancePage from './components/common/MaintenancePage';
+import LanguageSwitcher from './components/common/LanguageSwitcher';
 
 const App = () => {
   const { currentUser, userStatus, banInfo, freezeInfo } = useAuth();
@@ -70,6 +72,9 @@ const App = () => {
   return (
     <>
       <ToastContainer position="top-right" autoClose={3000} />
+      <div className="language-switcher-container">
+        <LanguageSwitcher />
+      </div>
       <Routes>
         <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
