@@ -1,0 +1,263 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../firebase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  limit, 
+  onSnapshot, 
+  addDoc, 
+  serverTimestamp,
+  doc,
+  getDoc
+} from 'firebase/firestore';
+import ChatMessage from './ChatMessage';
+import ReportModal from './ReportModal';
+import AnnouncementPopup from './AnnouncementPopup';
+import EmojiPicker from './EmojiPicker';
+import { FiSend, FiSmile } from 'react-icons/fi';
+import { toast } from 'react-toastify';
+
+const Chat = ({ chatSettings }) => {
+  const [messages, setMessages] = useState([]);
+  const [formValue, setFormValue] = useState('');
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportTarget, setReportTarget] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
+  const [currentAnnouncement, setCurrentAnnouncement] = useState(null);
+  const [showAnnouncement, setShowAnnouncement] = useState(false);
+
+  const messagesEndRef = useRef(null);
+  const { currentUser, userRole, userStatus, userCountry } = useAuth();
+  const { t } = useTranslation();
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, 'messages'),
+      orderBy('timestamp', 'desc'),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const messagesData = [];
+      querySnapshot.forEach((doc) => {
+        messagesData.push({ ...doc.data(), id: doc.id });
+      });
+      setMessages(messagesData.reverse());
+      scrollToBottom();
+    });
+
+    return unsubscribe;
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const q = query(
+      collection(db, 'announcements'),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      const announcementsData = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.isActive) {
+          announcementsData.push({ ...data, id: doc.id });
+        }
+      });
+      setAnnouncements(announcementsData);
+      
+      if (announcementsData.length > 0 && !showAnnouncement) {
+        setCurrentAnnouncement(announcementsData[0]);
+        setShowAnnouncement(true);
+      }
+    });
+
+    return unsubscribe;
+  }, [currentUser, showAnnouncement]);
+
+  const sendMessage = async (e) => {
+    e.preventDefault();
+
+    if (!formValue.trim()) return;
+
+    if (!chatSettings.isOpen) {
+      toast.error(t('chat.chatClosed'));
+      return;
+    }
+
+    if (userStatus !== 'active') {
+      toast.error(t('chat.cannotSendMessage'));
+      return;
+    }
+
+    try {
+      const isInappropriate = await checkContentWithAI(formValue);
+      if (isInappropriate) {
+        toast.error(t('chat.inappropriateContent'));
+        return;
+      }
+
+      let formattedMessage = formValue;
+      let isFormatted = false;
+
+      if ((userRole === 'admin' || userRole === 'moderator') && formValue.startsWith('$')) {
+        formattedMessage = formValue.substring(1);
+        isFormatted = true;
+      }
+
+      await addDoc(collection(db, 'messages'), {
+        content: formattedMessage,
+        sender: currentUser.uid,
+        senderName: currentUser.displayName,
+        senderRole: userRole,
+        senderCountry: userCountry,
+        timestamp: serverTimestamp(),
+        isDeleted: false,
+        isFormatted: isFormatted
+      });
+
+      setFormValue('');
+      setShowEmojiPicker(false);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error(t('chat.errorSendingMessage'));
+    }
+  };
+
+  const checkContentWithAI = async (content) => {
+    const inappropriateWords = ['badword1', 'badword2', 'badword3'];
+    return inappropriateWords.some(word => content.toLowerCase().includes(word));
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setFormValue(prev => prev + emoji.native);
+    setShowEmojiPicker(false);
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(e);
+    }
+  };
+
+  const openReportModal = (target) => {
+    setReportTarget(target);
+    setReportModalOpen(true);
+  };
+
+  const closeAnnouncement = () => {
+    setShowAnnouncement(false);
+    
+    const currentIndex = announcements.findIndex(a => a.id === currentAnnouncement.id);
+    if (currentIndex < announcements.length - 1) {
+      setCurrentAnnouncement(announcements[currentIndex + 1]);
+      setShowAnnouncement(true);
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      {/* Chat header */}
+      <div className="chat-header">
+        <h2>{t('app.title')}</h2>
+        <div className="user-info">
+          <span className="username">
+            {currentUser?.displayName}
+            {userRole === 'admin' && (
+              <span className="admin-badge">{t('chat.admin')}</span>
+            )}
+            {userRole === 'moderator' && (
+              <span className="moderator-badge">{t('chat.moderator')}</span>
+            )}
+          </span>
+          <span className="country">{userCountry}</span>
+        </div>
+      </div>
+
+      {/* Chat messages */}
+      <div className="chat-messages">
+        {messages.length === 0 ? (
+          <div className="empty-chat">{t('chat.emptyChat')}</div>
+        ) : (
+          messages.map(msg => (
+            <ChatMessage 
+              key={msg.id} 
+              message={msg} 
+              currentUser={currentUser}
+              onReportMessage={() => openReportModal({ type: 'message', id: msg.id })}
+              onReportUser={() => openReportModal({ type: 'user', id: msg.sender })}
+            />
+          ))
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Chat input */}
+      {chatSettings.isOpen ? (
+        <form onSubmit={sendMessage} className="chat-form">
+          <div className="chat-input-container">
+            <button 
+              type="button" 
+              className="emoji-button"
+              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            >
+              <FiSmile />
+            </button>
+            <textarea
+              className="chat-input"
+              value={formValue}
+              onChange={(e) => setFormValue(e.target.value)}
+              onKeyDown={handleKeyPress}
+              placeholder={t('chat.typeMessage')}
+            />
+            <button type="submit" className="send-button" disabled={!formValue.trim()}>
+              <FiSend />
+            </button>
+          </div>
+          
+          {showEmojiPicker && (
+            <div className="emoji-picker-container">
+              <EmojiPicker onEmojiSelect={handleEmojiSelect} />
+            </div>
+          )}
+        </form>
+      ) : (
+        <div className="chat-closed-message">
+          <p>{chatSettings.maintenanceMode ? t('chat.chatMaintenance') : t('chat.chatClosed')}</p>
+          {chatSettings.closedReason && <p>{chatSettings.closedReason}</p>}
+        </div>
+      )}
+
+      {/* Report modal */}
+      {reportModalOpen && (
+        <ReportModal 
+          target={reportTarget} 
+          onClose={() => setReportModalOpen(false)} 
+        />
+      )}
+
+      {/* Announcement popup */}
+      {showAnnouncement && currentAnnouncement && (
+        <AnnouncementPopup 
+          announcement={currentAnnouncement} 
+          onClose={closeAnnouncement} 
+        />
+      )}
+    </div>
+  );
+};
+
+export default Chat;
