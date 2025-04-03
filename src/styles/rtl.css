@@ -1,0 +1,144 @@
+/* RTL Support Styles */
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .form-group label {
+  text-align: right;
+}
+
+[dir="rtl"] .chat-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .user-info {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .message.sent {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+[dir="rtl"] .message.received {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+[dir="rtl"] .message-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .message-actions {
+  right: auto;
+  left: -30px;
+}
+
+[dir="rtl"] .message-options {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .chat-input-container {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .emoji-picker-container {
+  right: auto;
+  left: 20px;
+}
+
+[dir="rtl"] .admin-sidebar {
+  right: 0;
+  left: auto;
+}
+
+[dir="rtl"] .admin-content {
+  margin-right: 250px;
+  margin-left: 0;
+}
+
+[dir="rtl"] .section-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .filter-controls {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .action-buttons {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .popup-header {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .popup-close {
+  right: auto;
+  left: 15px;
+}
+
+[dir="rtl"] .popup-footer {
+  flex-direction: row-reverse;
+}
+
+[dir="rtl"] .form-check {
+  padding-right: 1.25rem;
+  padding-left: 0;
+}
+
+[dir="rtl"] .form-check-input {
+  margin-right: -1.25rem;
+  margin-left: 0;
+}
+
+[dir="rtl"] .dropdown-menu {
+  text-align: right;
+}
+
+[dir="rtl"] .dropdown-item {
+  text-align: right;
+}
+
+[dir="rtl"] .modal-header .close {
+  margin: -1rem auto -1rem -1rem;
+}
+
+[dir="rtl"] .alert-dismissible {
+  padding-right: 1.25rem;
+  padding-left: 4rem;
+}
+
+[dir="rtl"] .alert-dismissible .close {
+  right: auto;
+  left: 0;
+}
+
+/* Fix for emoji-mart in RTL */
+[dir="rtl"] .emoji-mart {
+  direction: ltr;
+}
+
+/* Fix for date-fns in RTL */
+[dir="rtl"] .message-time {
+  direction: ltr;
+  display: inline-block;
+}
+
+/* Mobile Responsive RTL */
+@media (max-width: 768px) {
+  [dir="rtl"] .admin-content {
+    margin-right: 0;
+  }
+  
+  [dir="rtl"] .admin-sidebar.open {
+    right: 0;
+    left: auto;
+  }
+  
+  [dir="rtl"] .sidebar-toggle {
+    right: 10px;
+    left: auto;
+  }
+}
