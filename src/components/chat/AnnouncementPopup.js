@@ -34,9 +34,25 @@ const AnnouncementPopup = ({ announcement, onClose }) => {
         return 'announcement-update';
       case 'maintenance':
         return 'announcement-maintenance';
+      case 'announcement':
+        return 'advertisement-announcement';
+      case 'promotion':
+        return 'advertisement-promotion';
+      case 'event':
+        return 'advertisement-event';
       default:
         return '';
     }
+  };
+  
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+  
+  const handleExtend = () => {
+    setTimeLeft(prev => prev + 60);
   };
   
   return (
@@ -44,13 +60,19 @@ const AnnouncementPopup = ({ announcement, onClose }) => {
       <div className={`popup announcement-popup ${getTypeClass()}`}>
         <div className="popup-header">
           <h2 className="popup-title">
-            {announcement.title || t(`announcement.${announcement.type}`)}
+            {announcement.name || announcement.title || t(`announcement.${announcement.type}`)}
           </h2>
-          <div className="announcement-timer">{timeLeft}s</div>
+          <div className="announcement-timer">{formatTime(timeLeft)}</div>
           <button className="popup-close" onClick={onClose}>&times;</button>
         </div>
         
         <div className="popup-body">
+          {announcement.imageUrl && (
+            <div className="announcement-image">
+              <img src={announcement.imageUrl} alt={announcement.name || announcement.title} />
+            </div>
+          )}
+          
           <div className="announcement-content">
             {announcement.content}
           </div>
@@ -59,6 +81,17 @@ const AnnouncementPopup = ({ announcement, onClose }) => {
             <div className="announcement-author">
               {t('announcement.by')}: {announcement.createdBy}
             </div>
+          )}
+        </div>
+        
+        <div className="popup-footer">
+          {announcement.isAdvertisement && (
+            <button 
+              className="btn btn-primary extend-button"
+              onClick={handleExtend}
+            >
+              {t('ad.extend')}
+            </button>
           )}
         </div>
       </div>

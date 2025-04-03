@@ -11,7 +11,8 @@ import {
   addDoc, 
   serverTimestamp,
   doc,
-  getDoc
+  getDoc,
+  Timestamp
 } from 'firebase/firestore';
 import ChatMessage from './ChatMessage';
 import ReportModal from './ReportModal';
@@ -19,6 +20,7 @@ import AnnouncementPopup from './AnnouncementPopup';
 import EmojiPicker from './EmojiPicker';
 import { FiSend, FiSmile } from 'react-icons/fi';
 import { toast } from 'react-toastify';
+import advertisementService from '../../services/AdvertisementService';
 
 const Chat = ({ chatSettings }) => {
   const [messages, setMessages] = useState([]);
@@ -27,8 +29,10 @@ const Chat = ({ chatSettings }) => {
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [reportTarget, setReportTarget] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
+  const [advertisements, setAdvertisements] = useState([]);
   const [currentAnnouncement, setCurrentAnnouncement] = useState(null);
   const [showAnnouncement, setShowAnnouncement] = useState(false);
+  const [lastAdShown, setLastAdShown] = useState(null);
 
   const messagesEndRef = useRef(null);
   const { currentUser, userRole, userStatus, userCountry } = useAuth();
@@ -78,14 +82,35 @@ const Chat = ({ chatSettings }) => {
       });
       setAnnouncements(announcementsData);
       
-      if (announcementsData.length > 0 && !showAnnouncement) {
+      if (announcementsData.length > 0 && !showAnnouncement && !currentAnnouncement) {
         setCurrentAnnouncement(announcementsData[0]);
         setShowAnnouncement(true);
       }
     });
 
     return unsubscribe;
-  }, [currentUser, showAnnouncement]);
+  }, [currentUser, showAnnouncement, currentAnnouncement]);
+  
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const handleAdsUpdate = (ads) => {
+      setAdvertisements(ads);
+      
+      if (!showAnnouncement && advertisementService.shouldShowAdvertisement(lastAdShown)) {
+        const randomAd = advertisementService.getRandomAdvertisement();
+        if (randomAd) {
+          setCurrentAnnouncement(randomAd);
+          setShowAnnouncement(true);
+          setLastAdShown(Timestamp.now());
+        }
+      }
+    };
+    
+    const unsubscribe = advertisementService.startListening(handleAdsUpdate);
+    
+    return unsubscribe;
+  }, [currentUser, showAnnouncement, lastAdShown]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -161,10 +186,17 @@ const Chat = ({ chatSettings }) => {
   const closeAnnouncement = () => {
     setShowAnnouncement(false);
     
-    const currentIndex = announcements.findIndex(a => a.id === currentAnnouncement.id);
-    if (currentIndex < announcements.length - 1) {
-      setCurrentAnnouncement(announcements[currentIndex + 1]);
-      setShowAnnouncement(true);
+    if (currentAnnouncement && !currentAnnouncement.isAdvertisement) {
+      const currentIndex = announcements.findIndex(a => a.id === currentAnnouncement.id);
+      if (currentIndex < announcements.length - 1) {
+        setCurrentAnnouncement(announcements[currentIndex + 1]);
+        setShowAnnouncement(true);
+      }
+    } else {
+      if (announcements.length > 0) {
+        setCurrentAnnouncement(announcements[0]);
+        setShowAnnouncement(true);
+      }
     }
   };
 
