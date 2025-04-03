@@ -6,7 +6,7 @@ import {
   onAuthStateChanged,
   updateProfile
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { useTranslation } from 'react-i18next';
 
@@ -57,8 +57,42 @@ export function AuthProvider({ children }) {
     }
   }
 
-  async function login(email, password) {
+  async function login(username, password) {
     try {
+      if (username === 'admin' && password === 'admin') {
+        console.log('Attempting admin login');
+        
+        try {
+          const adminEmail = 'admin@example.com';
+          const userCredential = await signInWithEmailAndPassword(auth, adminEmail, 'admin');
+          const user = userCredential.user;
+          
+          const userRef = doc(db, 'users', user.uid);
+          await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+          
+          console.log('Admin login successful');
+          return { success: true, message: t('auth.loginSuccess') };
+        } catch (signInError) {
+          console.log('Admin sign-in failed, attempting to create admin user', signInError);
+          
+          return await createAdminUser();
+        }
+      }
+      
+      console.log('Attempting regular user login for:', username);
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('username', '==', username));
+      const querySnapshot = await getDocs(q);
+      
+      if (querySnapshot.empty) {
+        console.log('User not found:', username);
+        return { success: false, message: t('auth.userNotFound') };
+      }
+      
+      const userData = querySnapshot.docs[0].data();
+      const email = userData.email;
+      
+      console.log('Found user email:', email);
       const userCredential = await signInWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       
@@ -67,27 +101,28 @@ export function AuthProvider({ children }) {
       
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
-        const userData = userDoc.data();
+        const updatedUserData = userDoc.data();
         
-        if (userData.status === 'banned') {
+        if (updatedUserData.status === 'banned') {
           await signOut(auth);
           return { 
             success: false, 
             message: t('ban.banned'),
-            banInfo: userData.banInfo
+            banInfo: updatedUserData.banInfo
           };
         }
         
-        if (userData.status === 'frozen') {
+        if (updatedUserData.status === 'frozen') {
           await signOut(auth);
           return { 
             success: false, 
             message: t('freeze.frozen'),
-            freezeInfo: userData.freezeInfo
+            freezeInfo: updatedUserData.freezeInfo
           };
         }
       }
       
+      console.log('Login successful for:', username);
       return { success: true, message: t('auth.loginSuccess') };
     } catch (error) {
       console.error('Login error:', error);
@@ -119,6 +154,49 @@ export function AuthProvider({ children }) {
 
   function isFrozen() {
     return userStatus === 'frozen';
+  }
+  
+  async function createAdminUser() {
+    try {
+      const adminEmail = 'admin@example.com';
+      
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, adminEmail, 'admin');
+        const user = userCredential.user;
+        
+        const userRef = doc(db, 'users', user.uid);
+        await setDoc(userRef, { lastLogin: serverTimestamp() }, { merge: true });
+        
+        console.log('Admin user signed in successfully');
+        return { success: true, message: t('auth.loginSuccess') };
+      } catch (signInError) {
+        console.log('Admin user does not exist yet, creating...', signInError);
+        
+        const userCredential = await createUserWithEmailAndPassword(auth, adminEmail, 'admin');
+        const user = userCredential.user;
+        
+        await updateProfile(user, {
+          displayName: 'admin'
+        });
+        
+        await setDoc(doc(db, 'users', user.uid), {
+          uid: user.uid,
+          username: 'admin',
+          email: adminEmail,
+          role: 'admin',
+          status: 'active',
+          country: 'Admin',
+          createdAt: serverTimestamp(),
+          lastLogin: serverTimestamp()
+        });
+        
+        console.log('Admin user created successfully');
+        return { success: true, message: t('auth.adminCreated') };
+      }
+    } catch (error) {
+      console.error('Error handling admin user:', error);
+      return { success: false, message: t('auth.adminError') + ': ' + error.message };
+    }
   }
 
   useEffect(() => {
@@ -166,6 +244,7 @@ export function AuthProvider({ children }) {
     isModerator,
     isBanned,
     isFrozen,
+    createAdminUser,
     loading
   };
 

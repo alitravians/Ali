@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "ali-chat-application"
-  }
+    "default": "ali-chat-app-1743651891"
+  },
+  "targets": {},
+  "etags": {}
 }

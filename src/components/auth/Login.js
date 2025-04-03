@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/LocalAuthContext';
 import { useTranslation } from 'react-i18next';
 import { changeLanguage } from '../../i18n';
 import TermsAndConditions from './TermsAndConditions';
@@ -9,9 +9,9 @@ import BannedPage from './BannedPage';
 import FrozenPage from './FrozenPage';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const [agreeToTerms, setAgreeToTerms] = useState(false);
   const [showTerms, setShowTerms] = useState(false);
@@ -47,19 +47,17 @@ const Login = () => {
         const result = await register(username, email, password);
         if (result.success) {
           setSuccess(result.message);
-          setTimeout(() => {
-            navigate('/chat');
-          }, 1500);
+          setLoading(false);
+          navigate('/chat');
         } else {
           setError(result.message);
         }
       } else {
-        const result = await login(email, password);
+        const result = await login(username, password);
         if (result.success) {
           setSuccess(result.message);
-          setTimeout(() => {
-            navigate('/chat');
-          }, 1500);
+          setLoading(false);
+          navigate('/chat');
         } else {
           if (result.banInfo) {
             setBanInfo(result.banInfo);
@@ -118,31 +116,33 @@ const Login = () => {
         {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">{t('auth.username')}</label>
+            <input
+              type="text"
+              id="username"
+              className="form-control"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              autoComplete="username"
+            />
+          </div>
+          
           {isRegistering && (
             <div className="form-group">
-              <label htmlFor="username">{t('auth.username')}</label>
+              <label htmlFor="email">{t('auth.email')}</label>
               <input
-                type="text"
-                id="username"
+                type="email"
+                id="email"
                 className="form-control"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="email"
               />
             </div>
           )}
-
-          <div className="form-group">
-            <label htmlFor="email">{t('auth.email')}</label>
-            <input
-              type="email"
-              id="email"
-              className="form-control"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
 
           <div className="form-group">
             <label htmlFor="password">{t('auth.password')}</label>

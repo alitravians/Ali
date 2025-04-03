@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { useAuth } from './contexts/AuthContext';
+import { useAuth } from './contexts/LocalAuthContext';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import './styles/rtl.css';

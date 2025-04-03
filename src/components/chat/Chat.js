@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../../contexts/LocalAuthContext';
 import { db } from '../../firebase';
 import { 
   collection, 
@@ -45,72 +45,104 @@ const Chat = ({ chatSettings }) => {
   useEffect(() => {
     if (!currentUser) return;
 
-    const q = query(
-      collection(db, 'messages'),
-      orderBy('timestamp', 'desc'),
-      limit(50)
-    );
+    try {
+      const q = query(
+        collection(db, 'messages'),
+        orderBy('timestamp', 'desc'),
+        limit(50)
+      );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const messagesData = [];
-      querySnapshot.forEach((doc) => {
-        messagesData.push({ ...doc.data(), id: doc.id });
-      });
-      setMessages(messagesData.reverse());
-      scrollToBottom();
-    });
+      const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
+          const messagesData = [];
+          querySnapshot.forEach((doc) => {
+            messagesData.push({ ...doc.data(), id: doc.id });
+          });
+          setMessages(messagesData.reverse());
+          scrollToBottom();
+        },
+        (error) => {
+          console.error("Error fetching messages:", error);
+          toast.error(t('chat.errorLoadingMessages') + ' (' + t('common.offlineMode') + ')');
+        }
+      );
 
-    return unsubscribe;
-  }, [currentUser]);
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error setting up messages listener:", error);
+      return () => {};
+    }
+  }, [currentUser, t]);
 
   useEffect(() => {
     if (!currentUser) return;
 
-    const q = query(
-      collection(db, 'announcements'),
-      orderBy('createdAt', 'desc'),
-      limit(5)
-    );
+    try {
+      const q = query(
+        collection(db, 'announcements'),
+        orderBy('createdAt', 'desc'),
+        limit(5)
+      );
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const announcementsData = [];
-      querySnapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.isActive) {
-          announcementsData.push({ ...data, id: doc.id });
+      const unsubscribe = onSnapshot(q, 
+        (querySnapshot) => {
+          const announcementsData = [];
+          querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.isActive) {
+              announcementsData.push({ ...data, id: doc.id });
+            }
+          });
+          setAnnouncements(announcementsData);
+          
+          if (announcementsData.length > 0 && !showAnnouncement && !currentAnnouncement) {
+            setCurrentAnnouncement(announcementsData[0]);
+            setShowAnnouncement(true);
+          }
+        },
+        (error) => {
+          console.error("Error fetching announcements:", error);
         }
-      });
-      setAnnouncements(announcementsData);
-      
-      if (announcementsData.length > 0 && !showAnnouncement && !currentAnnouncement) {
-        setCurrentAnnouncement(announcementsData[0]);
-        setShowAnnouncement(true);
-      }
-    });
+      );
 
-    return unsubscribe;
-  }, [currentUser, showAnnouncement, currentAnnouncement]);
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Error setting up announcements listener:", error);
+      return () => {};
+    }
+  }, [currentUser, showAnnouncement, currentAnnouncement, t]);
   
   useEffect(() => {
     if (!currentUser) return;
     
-    const handleAdsUpdate = (ads) => {
-      setAdvertisements(ads);
-      
-      if (!showAnnouncement && advertisementService.shouldShowAdvertisement(lastAdShown)) {
-        const randomAd = advertisementService.getRandomAdvertisement();
-        if (randomAd) {
-          setCurrentAnnouncement(randomAd);
-          setShowAnnouncement(true);
-          setLastAdShown(Timestamp.now());
+    try {
+      const handleAdsUpdate = (ads) => {
+        setAdvertisements(ads);
+        
+        if (!showAnnouncement && advertisementService.shouldShowAdvertisement(lastAdShown)) {
+          const randomAd = advertisementService.getRandomAdvertisement();
+          if (randomAd) {
+            setCurrentAnnouncement(randomAd);
+            setShowAnnouncement(true);
+            setLastAdShown(Timestamp.now());
+          }
         }
-      }
-    };
-    
-    const unsubscribe = advertisementService.startListening(handleAdsUpdate);
-    
-    return unsubscribe;
-  }, [currentUser, showAnnouncement, lastAdShown]);
+      };
+      
+      const unsubscribe = advertisementService.startListening(handleAdsUpdate);
+      
+      return () => {
+        try {
+          unsubscribe();
+        } catch (error) {
+          console.error("Error unsubscribing from advertisements:", error);
+        }
+      };
+    } catch (error) {
+      console.error("Error setting up advertisements listener:", error);
+      return () => {};
+    }
+  }, [currentUser, showAnnouncement, lastAdShown, t]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -157,7 +189,11 @@ const Chat = ({ chatSettings }) => {
       setShowEmojiPicker(false);
     } catch (error) {
       console.error('Error sending message:', error);
-      toast.error(t('chat.errorSendingMessage'));
+      if (error.code === 'unavailable' || error.code === 'permission-denied') {
+        toast.error(t('chat.errorSendingMessage') + ' (' + t('common.offlineMode') + ')');
+      } else {
+        toast.error(t('chat.errorSendingMessage'));
+      }
     }
   };
 
