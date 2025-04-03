@@ -14,6 +14,7 @@ import {
 } from 'firebase/firestore';
 import { FiUsers, FiMessageSquare, FiFlag, FiAlertTriangle } from 'react-icons/fi';
 import { Link } from 'react-router-dom';
+import { retryFirestoreOperation, handleFirestoreError } from '../../../utils/firebase-helpers';
 
 const Dashboard = () => {
   const [stats, setStats] = useState({
@@ -28,12 +29,45 @@ const Dashboard = () => {
   });
   const [recentReports, setRecentReports] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const { t } = useTranslation();
+
+  const calculateTodayMessages = async () => {
+    try {
+      const messagesRef = collection(db, 'messages');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayTimestamp = Timestamp.fromDate(today);
+      
+      const todayMessagesQuery = query(
+        messagesRef, 
+        where('timestamp', '>=', todayTimestamp)
+      );
+      
+      const todayMessagesSnapshot = await retryFirestoreOperation(() => 
+        getDocs(todayMessagesQuery)
+      );
+      
+      const todayMessages = todayMessagesSnapshot.size;
+      
+      setStats(prevStats => ({
+        ...prevStats,
+        todayMessages
+      }));
+    } catch (error) {
+      console.error('Error calculating today messages:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const chatSettingsDoc = await getDoc(doc(db, 'chatSettings', 'settings'));
+        console.log('Fetching dashboard data...');
+        
+        const chatSettingsDoc = await retryFirestoreOperation(async () => {
+          return await getDoc(doc(db, 'chatSettings', 'settings'));
+        });
+        
         let chatStatus = 'open';
         if (chatSettingsDoc.exists()) {
           const settings = chatSettingsDoc.data();
@@ -45,48 +79,42 @@ const Dashboard = () => {
         }
         
         const usersRef = collection(db, 'users');
-        const totalUsersSnapshot = await getDocs(usersRef);
-        const totalUsers = totalUsersSnapshot.size;
-        
-        const activeUsersQuery = query(usersRef, where('status', '==', 'active'));
-        const activeUsersSnapshot = await getDocs(activeUsersQuery);
-        const activeUsers = activeUsersSnapshot.size;
-        
-        const bannedUsersQuery = query(usersRef, where('status', '==', 'banned'));
-        const bannedUsersSnapshot = await getDocs(bannedUsersQuery);
-        const bannedUsers = bannedUsersSnapshot.size;
-        
         const messagesRef = collection(db, 'messages');
-        const totalMessagesSnapshot = await getDocs(messagesRef);
-        const totalMessages = totalMessagesSnapshot.size;
-        
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const todayTimestamp = Timestamp.fromDate(today);
-        
-        const todayMessagesQuery = query(
-          messagesRef, 
-          where('timestamp', '>=', todayTimestamp)
-        );
-        const todayMessagesSnapshot = await getDocs(todayMessagesQuery);
-        const todayMessages = todayMessagesSnapshot.size;
-        
         const reportsRef = collection(db, 'reports');
-        const pendingReportsQuery = query(reportsRef, where('status', '==', 'pending'));
-        const pendingReportsSnapshot = await getDocs(pendingReportsQuery);
-        const pendingReports = pendingReportsSnapshot.size;
-        
         const appealsRef = collection(db, 'banAppeals');
-        const pendingAppealsQuery = query(appealsRef, where('status', '==', 'pending'));
-        const pendingAppealsSnapshot = await getDocs(pendingAppealsQuery);
+        
+        console.log('Executing parallel Firestore queries...');
+        const [
+          totalUsersSnapshot,
+          activeUsersSnapshot,
+          bannedUsersSnapshot,
+          totalMessagesSnapshot,
+          pendingReportsSnapshot,
+          pendingAppealsSnapshot,
+          recentReportsSnapshot
+        ] = await Promise.all([
+          retryFirestoreOperation(() => getDocs(usersRef)),
+          retryFirestoreOperation(() => getDocs(query(usersRef, where('status', '==', 'active')))),
+          retryFirestoreOperation(() => getDocs(query(usersRef, where('status', '==', 'banned')))),
+          retryFirestoreOperation(() => getDocs(messagesRef)),
+          retryFirestoreOperation(() => getDocs(query(reportsRef, where('status', '==', 'pending')))),
+          retryFirestoreOperation(() => getDocs(query(appealsRef, where('status', '==', 'pending')))),
+          retryFirestoreOperation(() => getDocs(query(
+            reportsRef,
+            orderBy('timestamp', 'desc'),
+            limit(5)
+          )))
+        ]);
+        
+        console.log('All queries completed successfully');
+        
+        const totalUsers = totalUsersSnapshot.size;
+        const activeUsers = activeUsersSnapshot.size;
+        const bannedUsers = bannedUsersSnapshot.size;
+        const totalMessages = totalMessagesSnapshot.size;
+        const pendingReports = pendingReportsSnapshot.size;
         const pendingAppeals = pendingAppealsSnapshot.size;
         
-        const recentReportsQuery = query(
-          reportsRef,
-          orderBy('timestamp', 'desc'),
-          limit(5)
-        );
-        const recentReportsSnapshot = await getDocs(recentReportsQuery);
         const recentReportsData = [];
         recentReportsSnapshot.forEach((doc) => {
           recentReportsData.push({ ...doc.data(), id: doc.id });
@@ -97,22 +125,39 @@ const Dashboard = () => {
           activeUsers,
           bannedUsers,
           totalMessages,
-          todayMessages,
+          todayMessages: 0, // Will be calculated separately
           pendingReports,
           pendingAppeals,
           chatStatus
         });
         
         setRecentReports(recentReportsData);
+        setError(null);
+        
+        calculateTodayMessages();
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        handleFirestoreError(error, t('admin.dashboardLoadError'));
+        setError(error);
+        
+        setStats({
+          totalUsers: 0,
+          activeUsers: 0,
+          bannedUsers: 0,
+          totalMessages: 0,
+          todayMessages: 0,
+          pendingReports: 0,
+          pendingAppeals: 0,
+          chatStatus: 'open'
+        });
+        setRecentReports([]);
       } finally {
         setLoading(false);
       }
     };
     
     fetchDashboardData();
-  }, []);
+  }, [t]);
 
   const formatDate = (timestamp) => {
     if (!timestamp) return '';
@@ -122,6 +167,20 @@ const Dashboard = () => {
   if (loading) {
     return <div className="loading">{t('common.loading')}</div>;
   }
+  
+  const safeFormatDate = (timestamp) => {
+    try {
+      if (!timestamp) return '';
+      if (typeof timestamp.toDate !== 'function') {
+        console.error('Invalid timestamp format:', timestamp);
+        return '';
+      }
+      return timestamp.toDate().toLocaleString();
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return '';
+    }
+  };
 
   return (
     <div className="dashboard">
@@ -251,7 +310,7 @@ const Dashboard = () => {
                         {t(`report.${report.reason}`, report.reason)}
                       </div>
                       <div className="report-time">
-                        {formatDate(report.timestamp)}
+                        {safeFormatDate(report.timestamp)}
                       </div>
                     </div>
                     <div className="report-status">
