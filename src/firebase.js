@@ -4,12 +4,12 @@ import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyC4O4L7233xgo-ZuMEg9EeknMrFH1KY7II",
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "ali-chat-app-1743651891.firebaseapp.com",
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "ali-chat-app-1743651891",
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "ali-chat-app-1743651891.appspot.com",
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "950176966430",
-  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:950176966430:web:596018a702891cda9f4b0f"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 let app, auth, db;
