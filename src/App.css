@@ -36,3 +36,92 @@
     transform: rotate(360deg);
   }
 }
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  direction: rtl;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: #333;
+}
+
+.banned-container,
+.frozen-container,
+.not-found-container,
+.maintenance-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem;
+  text-align: center;
+}
+
+.banned-container h1,
+.frozen-container h1,
+.not-found-container h1,
+.maintenance-container h1 {
+  margin-bottom: 1rem;
+  color: #e74c3c;
+}
+
+.maintenance-countdown {
+  font-size: 1.5rem;
+  margin: 1rem 0;
+  font-weight: bold;
+}
+
+.appeal-form {
+  width: 100%;
+  max-width: 500px;
+  margin-top: 2rem;
+}
+
+.appeal-form textarea {
+  width: 100%;
+  min-height: 150px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.appeal-form button {
+  padding: 0.5rem 1rem;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.appeal-form button:hover {
+  background-color: #2980b9;
+}
+
+.appeal-form button:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
+
+.reason-container {
+  margin: 1rem 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border-right: 4px solid #e74c3c;
+}
+
+.countdown-container {
+  margin: 1rem 0;
+  font-weight: bold;
+}

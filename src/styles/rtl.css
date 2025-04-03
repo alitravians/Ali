@@ -1,0 +1,67 @@
+/* RTL (Right-to-Left) specific styles */
+html[dir="rtl"] body {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL overrides for specific components */
+html[dir="rtl"] .form-control {
+  text-align: right;
+}
+
+html[dir="rtl"] .dropdown-menu {
+  text-align: right;
+}
+
+html[dir="rtl"] .modal-header .close {
+  margin: -1rem auto -1rem -1rem;
+}
+
+html[dir="rtl"] .input-group > .input-group-append > .btn,
+html[dir="rtl"] .input-group > .input-group-append > .input-group-text,
+html[dir="rtl"] .input-group > .input-group-prepend:not(:first-child) > .btn,
+html[dir="rtl"] .input-group > .input-group-prepend:not(:first-child) > .input-group-text,
+html[dir="rtl"] .input-group > .input-group-prepend:first-child > .btn:not(:first-child),
+html[dir="rtl"] .input-group > .input-group-prepend:first-child > .input-group-text:not(:first-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-top-left-radius: 0.25rem;
+  border-bottom-left-radius: 0.25rem;
+}
+
+/* RTL for toast notifications */
+html[dir="rtl"] .Toastify__toast {
+  direction: rtl;
+  text-align: right;
+}
+
+/* RTL for chat messages */
+html[dir="rtl"] .chat-message {
+  text-align: right;
+}
+
+html[dir="rtl"] .chat-message-content {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+html[dir="rtl"] .chat-message-time {
+  text-align: left;
+}
+
+/* RTL for admin panel */
+html[dir="rtl"] .admin-sidebar {
+  right: 0;
+  left: auto;
+}
+
+html[dir="rtl"] .admin-content {
+  margin-right: 250px;
+  margin-left: 0;
+}
+
+@media (max-width: 768px) {
+  html[dir="rtl"] .admin-content {
+    margin-right: 0;
+  }
+}
