@@ -1,0 +1,65 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow authenticated users to read all documents
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Messages collection rules
+    match /messages/{messageId} {
+      allow create: if request.auth != null && 
+                     request.resource.data.sender == request.auth.uid;
+      allow update, delete: if request.auth != null && 
+                             (resource.data.sender == request.auth.uid || 
+                              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator']);
+    }
+    
+    // Users collection rules
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && 
+                     (request.auth.uid == userId || 
+                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      allow delete: if request.auth != null && 
+                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Reports collection rules
+    match /reports/{reportId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if request.auth != null && 
+                                   get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'];
+    }
+    
+    // Announcements collection rules
+    match /announcements/{announcementId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && 
+                                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'moderator'];
+    }
+    
+    // Chat settings rules
+    match /chatSettings/{settingId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Ban appeals rules
+    match /banAppeals/{appealId} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && 
+                           (resource.data.userId == request.auth.uid || 
+                            get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Advertisements rules
+    match /advertisements/{adId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+  }
+}
