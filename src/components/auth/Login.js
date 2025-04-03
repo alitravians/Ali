@@ -35,7 +35,7 @@ const Login = () => {
     setError('');
     setSuccess('');
     setLoading(true);
-
+    
     try {
       if (isRegistering) {
         if (!agreeToTerms) {
@@ -43,7 +43,7 @@ const Login = () => {
           setLoading(false);
           return;
         }
-
+        
         const result = await register(username, email, password);
         if (result.success) {
           setSuccess(result.message);
@@ -51,6 +51,7 @@ const Login = () => {
           navigate('/chat');
         } else {
           setError(result.message);
+          setLoading(false);
         }
       } else {
         const result = await login(username, password);
@@ -66,13 +67,14 @@ const Login = () => {
           } else {
             setError(result.message);
           }
+          setLoading(false);
         }
       }
     } catch (error) {
-      setError(error.message);
+      console.error('Authentication error:', error);
+      setError(error.message || t('auth.unknownError'));
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   if (banInfo) {

@@ -1,25 +1,29 @@
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      // Allow read access to all authenticated users
-      allow read: if request.auth != null;
-      
-      // Allow write access to admins and moderators
-      allow write: if request.auth != null && 
-                    (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
-                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator');
-    }
-    
-    // Allow users to upload profile pictures
-    match /profilePictures/{userId} {
-      allow write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // Allow admins to upload announcement images
-    match /announcements/{announcementId} {
-      allow write: if request.auth != null && 
-                    get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-  }
-}
+// NOTE: Firebase Storage requires a paid Blaze plan
+// This file is kept for reference but Storage is not used in this application
+// to comply with the requirement to use only free Firebase services
+
+// rules_version = '2';
+// service firebase.storage {
+//   match /b/{bucket}/o {
+//     match /{allPaths=**} {
+//       // Allow read access to all authenticated users
+//       allow read: if request.auth != null;
+//       
+//       // Allow write access to admins and moderators
+//       allow write: if request.auth != null && 
+//                     (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' || 
+//                      get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'moderator');
+//     }
+//     
+//     // Allow users to upload profile pictures
+//     match /profilePictures/{userId} {
+//       allow write: if request.auth != null && request.auth.uid == userId;
+//     }
+//     
+//     // Allow admins to upload announcement images
+//     match /announcements/{announcementId} {
+//       allow write: if request.auth != null && 
+//                     get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+//     }
+//   }
+// }

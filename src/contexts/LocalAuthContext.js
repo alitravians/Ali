@@ -100,7 +100,9 @@ export function AuthProvider({ children }) {
           const querySnapshot = await getDocs(q);
           
           if (querySnapshot.empty) {
-            return await createAdminUser();
+            console.log('Admin user not found, creating new admin user');
+            const result = await createAdminUser();
+            return result;
           } else {
             const adminData = querySnapshot.docs[0].data();
             const adminUser = {
@@ -134,7 +136,7 @@ export function AuthProvider({ children }) {
         } catch (error) {
           console.log('Firestore error during admin login, using offline fallback:', error);
           
-          const adminUid = 'admin_offline';
+          const adminUid = 'admin_offline_' + Date.now();
           const adminUser = {
             uid: adminUid,
             username: 'admin',
@@ -146,6 +148,7 @@ export function AuthProvider({ children }) {
           };
           
           localStorage.setItem('currentUser', JSON.stringify(adminUser));
+          localStorage.setItem(`password_${adminUid}`, 'admin');
           setCurrentUser(adminUser);
           setUserRole('admin');
           setUserStatus('active');
@@ -218,41 +221,60 @@ export function AuthProvider({ children }) {
       } catch (error) {
         console.error('Firestore error during user login:', error);
         
-        const storedUsers = Object.keys(localStorage)
-          .filter(key => key.startsWith('password_'))
-          .map(key => {
-            const uid = key.replace('password_', '');
-            const storedUser = localStorage.getItem('currentUser');
-            if (storedUser) {
-              try {
-                return JSON.parse(storedUser);
-              } catch (e) {
-                return null;
+        try {
+          const storedUsers = Object.keys(localStorage)
+            .filter(key => key.startsWith('password_'))
+            .map(key => {
+              const uid = key.replace('password_', '');
+              const storedUser = localStorage.getItem('currentUser');
+              if (storedUser) {
+                try {
+                  return JSON.parse(storedUser);
+                } catch (e) {
+                  return null;
+                }
               }
-            }
-            return null;
-          })
-          .filter(user => user && user.username === username);
-          
-        if (storedUsers.length > 0 && storedUsers[0].password === password) {
-          const userAuth = storedUsers[0];
-          
-          localStorage.setItem('currentUser', JSON.stringify(userAuth));
-          setCurrentUser(userAuth);
-          setUserRole(userAuth.role);
-          setUserStatus(userAuth.status);
-          setUserCountry(userAuth.country);
-          setBanInfo(userAuth.banInfo || null);
-          setFreezeInfo(userAuth.freezeInfo || null);
-          
-          console.log('Login successful using offline fallback for:', username);
-          return { success: true, message: t('auth.loginSuccess') + ' (' + t('common.offlineMode') + ')' };
+              return null;
+            })
+            .filter(user => user && user.username === username);
+            
+          if (storedUsers.length > 0 && storedUsers[0].password === password) {
+            const userAuth = storedUsers[0];
+            
+            localStorage.setItem('currentUser', JSON.stringify(userAuth));
+            setCurrentUser(userAuth);
+            setUserRole(userAuth.role);
+            setUserStatus(userAuth.status);
+            setUserCountry(userAuth.country);
+            setBanInfo(userAuth.banInfo || null);
+            setFreezeInfo(userAuth.freezeInfo || null);
+            
+            console.log('Login successful using offline fallback for:', username);
+            return { success: true, message: t('auth.loginSuccess') + ' (' + t('common.offlineMode') + ')' };
+          }
+        } catch (offlineError) {
+          console.error('Error during offline login fallback:', offlineError);
+        }
+        
+        if (error.code === 'auth/configuration-not-found') {
+          return { 
+            success: false, 
+            message: t('auth.configError') || 'Firebase configuration error. Please try again later.'
+          };
         }
         
         return { success: false, message: t('auth.loginError') + ': ' + error.message };
       }
     } catch (error) {
       console.error('Login error:', error);
+      
+      if (error.code === 'auth/configuration-not-found') {
+        return { 
+          success: false, 
+          message: t('auth.configError') || 'Firebase configuration error. Please try again later.'
+        };
+      }
+      
       return { success: false, message: t('auth.loginError') + ': ' + error.message };
     }
   }
@@ -307,7 +329,27 @@ export function AuthProvider({ children }) {
         lastLogin: new Date().toISOString()
       };
       
-      await setDoc(doc(db, 'users', uid), adminData);
+      try {
+        await setDoc(doc(db, 'users', uid), adminData);
+      } catch (firestoreError) {
+        console.error('Firestore error when creating admin user:', firestoreError);
+        
+        const adminAuth = {
+          ...adminData,
+          password: 'admin' // In a real app, never store passwords in localStorage
+        };
+        
+        localStorage.setItem('currentUser', JSON.stringify(adminAuth));
+        localStorage.setItem(`password_${uid}`, 'admin');
+        
+        setCurrentUser(adminAuth);
+        setUserRole('admin');
+        setUserStatus('active');
+        setUserCountry('Admin');
+        
+        console.log('Admin user created in offline mode due to Firestore error');
+        return { success: true, message: t('auth.adminCreated') + ' (' + t('common.offlineMode') + ')' };
+      }
       
       const adminAuth = {
         ...adminData,
@@ -326,6 +368,14 @@ export function AuthProvider({ children }) {
       return { success: true, message: t('auth.adminCreated') };
     } catch (error) {
       console.error('Error creating admin user:', error);
+      
+      if (error.code === 'auth/configuration-not-found') {
+        return { 
+          success: false, 
+          message: t('auth.configError') || 'Firebase configuration error. Please try again later.'
+        };
+      }
+      
       return { success: false, message: t('auth.adminError') + ': ' + error.message };
     }
   }

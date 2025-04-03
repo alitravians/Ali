@@ -3,7 +3,6 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, enableIndexedDbPersistence, CACHE_SIZE_UNLIMITED } from 'firebase/firestore';
 import { toast } from 'react-toastify';
 
-
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "FIREBASE_API_KEY_PLACEHOLDER",
   authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "FIREBASE_AUTH_DOMAIN_PLACEHOLDER",
@@ -20,6 +19,11 @@ try {
     projectId: firebaseConfig.projectId,
     authDomain: firebaseConfig.authDomain
   }));
+  
+  if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "FIREBASE_API_KEY_PLACEHOLDER" || 
+      !firebaseConfig.projectId || firebaseConfig.projectId === "FIREBASE_PROJECT_ID_PLACEHOLDER") {
+    throw new Error("Firebase configuration is not properly set. Check your environment variables or .env file.");
+  }
   
   app = initializeApp(firebaseConfig);
   
@@ -71,6 +75,8 @@ try {
     errorMessage += "Internal authentication error.";
   } else if (error.message && error.message.includes('network')) {
     errorMessage += "Network connection issue.";
+  } else if (error.message && error.message.includes('Firebase configuration')) {
+    errorMessage += error.message;
   } else {
     errorMessage += "Some features may not work properly.";
   }
