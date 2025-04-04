@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ar" dir="rtl">
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
@@ -7,37 +7,74 @@
     <meta name="theme-color" content="#000000" />
     <meta
       name="description"
-      content="Trend Request Form for submitting and managing trend requests"
+      content="تم إغلاق الموقع للأمور الأمنية"
     />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>Trend Request Form</title>
+    <title>إغلاق الموقع - Site Closure</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f8f9fa;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        direction: rtl;
+        text-align: right;
+        color: #333;
+      }
+      .container {
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        max-width: 600px;
+        width: 90%;
+      }
+      h1 {
+        color: #e74c3c;
+        margin-bottom: 20px;
+        font-size: 28px;
+      }
+      p {
+        font-size: 16px;
+        line-height: 1.6;
+        margin-bottom: 15px;
+      }
+      .icon {
+        text-align: center;
+        font-size: 64px;
+        margin-bottom: 20px;
+        color: #e74c3c;
+      }
+      .footer {
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #eee;
+        font-size: 14px;
+        color: #777;
+      }
+      @media (max-width: 480px) {
+        .container {
+          padding: 25px;
+        }
+        h1 {
+          font-size: 24px;
+        }
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
-
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
-
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
+    <div class="container">
+      <div class="icon">🔒</div>
+      <h1>تم إغلاق الموقع للأمور الأمنية</h1>
+      <p>نعتذر منكم، لقد تم إغلاق الموقع مؤقتاً لأسباب أمنية.</p>
+      <p>نعمل حالياً على تحسين أمان الموقع وسيتم إعادة فتحه قريباً بإذن الله.</p>
+      <p>نشكركم على تفهمكم وصبركم خلال هذه الفترة.</p>
+      <div class="footer">
+        <p>للتواصل والاستفسار: support@example.com</p>
+      </div>
+    </div>
   </body>
 </html>
