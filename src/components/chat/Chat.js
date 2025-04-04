@@ -200,6 +200,8 @@ const Chat = ({ chatSettings }) => {
       for (let attempt = 0; attempt < retryOptions.maxRetries; attempt++) {
         try {
           await sendMessageOperation();
+          setFormValue('');
+          setShowEmojiPicker(false);
           break; // نجاح العملية
         } catch (err) {
           console.error(`محاولة إرسال الرسالة رقم ${attempt + 1} فشلت:`, err);
@@ -209,9 +211,6 @@ const Chat = ({ chatSettings }) => {
           await new Promise(resolve => setTimeout(resolve, retryOptions.delayMs));
         }
       }
-
-      setFormValue('');
-      setShowEmojiPicker(false);
     } catch (error) {
       console.error('خطأ في إرسال الرسالة:', error);
       

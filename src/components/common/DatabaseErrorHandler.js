@@ -5,10 +5,8 @@ import { toast } from 'react-toastify';
 const DatabaseErrorHandler = ({ error, children, fallback }) => {
   const { t } = useTranslation();
   
-  if (error) {
-    console.error('Database connection error:', error);
-    
-    React.useEffect(() => {
+  React.useEffect(() => {
+    if (error) {
       if (error.code === 'permission-denied') {
         toast.error(t('errors.permissionDenied'));
       } else if (error.code === 'unavailable') {
@@ -18,7 +16,11 @@ const DatabaseErrorHandler = ({ error, children, fallback }) => {
       } else {
         toast.error(t('errors.databaseConnection'));
       }
-    }, [error, t]);
+    }
+  }, [error, t]);
+  
+  if (error) {
+    console.error('Database connection error:', error);
     
     if (fallback) {
       return fallback;
