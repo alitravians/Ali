@@ -124,6 +124,18 @@ export const saveGameProgress = (saveData: SaveData): boolean => {
     };
     
     localStorage.setItem('snakeGameSaveData', JSON.stringify(saveDataWithTimestamp));
+    
+    if (saveData.gameStatus) {
+      import('../services/apiService').then(({ updateGameStatus }) => {
+        updateGameStatus({
+          isOpen: saveData.gameStatus!.isOpen,
+          closureReason: saveData.gameStatus!.closureReason
+        });
+      }).catch(error => {
+        console.error('Failed to update game status on server:', error);
+      });
+    }
+    
     return true;
   } catch (error) {
     console.error('Failed to save game progress:', error);

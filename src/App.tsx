@@ -32,6 +32,7 @@ function App() {
   const [showSaveManager, setShowSaveManager] = useState(false);
   const [showUpdatesPage, setShowUpdatesPage] = useState(false);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [lastServerSync, setLastServerSync] = useState(0);
   
   useEffect(() => {
     initSoundSystem();
@@ -39,7 +40,17 @@ function App() {
     setSaveData(loadedData);
     setCurrentCity(loadedData.lastPlayed.city);
     setCurrentLevel(loadedData.lastPlayed.level);
+    
+    checkServerGameStatus();
   }, []);
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkServerGameStatus();
+    }, 5000); // Poll every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, [lastServerSync]);
   
   useEffect(() => {
     const success = saveGameProgress(saveData);
@@ -159,6 +170,26 @@ function App() {
     setShowAdminDashboard(true);
   };
   
+  const checkServerGameStatus = async () => {
+    try {
+      const { fetchGameStatus } = await import('./services/apiService');
+      const serverStatus = await fetchGameStatus();
+      
+      if (serverStatus && serverStatus.lastUpdated > lastServerSync) {
+        setSaveData(prevData => ({
+          ...prevData,
+          gameStatus: {
+            isOpen: serverStatus.isOpen,
+            closureReason: serverStatus.closureReason
+          }
+        }));
+        setLastServerSync(serverStatus.lastUpdated);
+      }
+    } catch (error) {
+      console.error('Failed to check server game status:', error);
+    }
+  };
+  
   const handleUpdateGameStatus = (isOpen: boolean, closureReason: string) => {
     const updatedSaveData = {
       ...saveData,
@@ -170,6 +201,7 @@ function App() {
     
     setSaveData(updatedSaveData);
     saveGameProgress(updatedSaveData);
+    setLastServerSync(Date.now()); // Update the last sync time
   };
   
   const handleUpdateAnnouncements = (announcements: any[]) => {
@@ -203,7 +235,21 @@ function App() {
             settings={settings}
             closureReason={saveData.gameStatus.closureReason || ''}
           />
-          <div className="fixed top-4 right-4 z-50">
+          <div className="fixed top-4 right-4 z-50 flex gap-2">
+            <button 
+              onClick={toggleLanguage}
+              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 shadow-lg border-2 border-white flex items-center gap-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                <path d="m5 8 6 6"></path>
+                <path d="m4 14 6-6 2-3"></path>
+                <path d="M2 5h12"></path>
+                <path d="M7 2h1"></path>
+                <path d="m22 22-5-10-5 10"></path>
+                <path d="M14 18h6"></path>
+              </svg>
+              {language === 'en' ? 'العربية' : 'English'}
+            </button>
             <button 
               onClick={() => setShowAdminDashboard(true)}
               className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-lg border-2 border-white"
