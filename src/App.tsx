@@ -4,6 +4,9 @@ import LevelSelection from './components/game/LevelSelection';
 import GameHeader from './components/game/GameHeader';
 import SaveManager from './components/game/SaveManager';
 import UpdatesPage from './components/game/UpdatesPage';
+import AdminDashboard from './components/admin/AdminDashboard';
+import AdminAccessButton from './components/admin/AdminAccessButton';
+import GameClosureMessage from './components/game/GameClosureMessage';
 import { GameSettings, SaveData } from './game/types';
 import { DEFAULT_SETTINGS, GAME_SPEED } from './game/constants';
 import { initSoundSystem, playSoundIfEnabled } from './game/soundSystem';
@@ -17,6 +20,7 @@ import {
   resetGameProgress
 } from './game/levelSystem';
 import { t, getDirection } from './game/localization';
+import { fetchGameStatus, updateGameStatus, API_POLL_INTERVAL } from './services/apiService';
 import './App.css';
 
 function App() {
@@ -28,6 +32,8 @@ function App() {
   const [showLevelSelection, setShowLevelSelection] = useState(false);
   const [showSaveManager, setShowSaveManager] = useState(false);
   const [showUpdatesPage, setShowUpdatesPage] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
   
   useEffect(() => {
     initSoundSystem();
@@ -35,6 +41,14 @@ function App() {
     setSaveData(loadedData);
     setCurrentCity(loadedData.lastPlayed.city);
     setCurrentLevel(loadedData.lastPlayed.level);
+    
+    checkServerGameStatus();
+    
+    const intervalId = setInterval(() => {
+      checkServerGameStatus();
+    }, API_POLL_INTERVAL);
+    
+    return () => clearInterval(intervalId);
   }, []);
   
   useEffect(() => {
@@ -43,6 +57,77 @@ function App() {
       console.error(t('saveLoadError', settings.language));
     }
   }, [saveData, settings.language]);
+  
+  const checkServerGameStatus = async () => {
+    try {
+      console.log('Checking server game status...');
+      const gameStatus = await fetchGameStatus();
+      
+      if (gameStatus) {
+        console.log('Server game status:', gameStatus.isOpen ? 'Open' : 'Closed');
+        
+        if (saveData.gameStatus?.isOpen !== gameStatus.isOpen || 
+            saveData.gameStatus?.closureReason !== gameStatus.closureReason) {
+          console.log('Game status changed, updating state');
+          
+          setSaveData(prev => ({
+            ...prev,
+            gameStatus: {
+              isOpen: gameStatus.isOpen,
+              closureReason: gameStatus.closureReason,
+              lastUpdated: gameStatus.lastUpdated || Date.now()
+            }
+          }));
+          
+          if (gameStatus.isOpen && !saveData.gameStatus?.isOpen) {
+            console.log('Game reopened, resetting game state');
+            setGameStarted(false);
+            setShowLevelSelection(false);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking game status:', error);
+    }
+  };
+  
+  const handleUpdateGameStatus = async (isOpen: boolean, closureReason: string) => {
+    try {
+      console.log('Updating game status:', isOpen ? 'Open' : 'Closed');
+      const success = await updateGameStatus(isOpen, closureReason);
+      
+      if (success) {
+        console.log('Game status updated successfully');
+        
+        setSaveData(prev => ({
+          ...prev,
+          gameStatus: {
+            isOpen,
+            closureReason,
+            lastUpdated: Date.now()
+          }
+        }));
+        
+        if (isOpen) {
+          console.log('Game reopened, resetting game state');
+          setGameStarted(false);
+          setShowLevelSelection(false);
+        }
+        
+        setTimeout(() => {
+          checkServerGameStatus();
+        }, 500);
+        
+        return true;
+      }
+      
+      console.error('Failed to update game status');
+      return false;
+    } catch (error) {
+      console.error('Error updating game status:', error);
+      return false;
+    }
+  };
   
   const handleLevelComplete = (score: number) => {
     const updatedSaveData = unlockNextLevel(saveData, currentCity, currentLevel, settings);
@@ -115,6 +200,11 @@ function App() {
     }
   };
   
+  const toggleDevice = () => {
+    setIsMobileView(!isMobileView);
+    playSoundIfEnabled('buttonClick', settings);
+  };
+  
   const currentCityData = saveData.cities.find(city => city.id === currentCity);
   const difficultyMultiplier = currentCityData ? currentCityData.difficultyMultiplier : 1.0;
   
@@ -142,9 +232,25 @@ function App() {
     setShowSaveManager(false);
     playSoundIfEnabled('buttonClick', settings);
   };
+  
+  const handleUpdateAnnouncements = (announcements: Array<{content: string, author: string, date: string, id: string, duration?: number}>) => {
+    setSaveData(prev => ({
+      ...prev,
+      announcements
+    }));
+  };
+  
+  const handleUpdateGameUpdates = (updates: Array<{content: string, date: string, id: string}>) => {
+    setSaveData(prev => ({
+      ...prev,
+      updates
+    }));
+  };
 
   const language = settings.language;
   const direction = getDirection(language);
+  
+  const isGameClosed = saveData.gameStatus && !saveData.gameStatus.isOpen;
   
   return (
     <div className={`container mx-auto px-4 py-8 ${direction}`}>
@@ -152,12 +258,20 @@ function App() {
         settings={settings}
         onToggleSound={toggleSound}
         onToggleLanguage={toggleLanguage}
+        onToggleDevice={toggleDevice}
         onChangeDifficulty={handleChangeDifficulty}
         onOpenSaveManager={() => setShowSaveManager(true)}
         onOpenUpdatesPage={() => setShowUpdatesPage(true)}
       />
       
-      {!gameStarted && !showLevelSelection ? (
+      {isGameClosed ? (
+        <GameClosureMessage 
+          settings={settings}
+          closureReason={saveData.gameStatus?.closureReason || ''}
+          onAdminAccessGranted={() => setShowAdminDashboard(true)}
+          onToggleLanguage={toggleLanguage}
+        />
+      ) : !gameStarted && !showLevelSelection ? (
         <div className="flex flex-col items-center justify-center">
           <p className="text-lg mb-4 text-center">
             {t('pressToStart', language)}
@@ -206,6 +320,13 @@ function App() {
         </p>
       </div>
       
+      <div className="fixed bottom-4 right-4">
+        <AdminAccessButton 
+          settings={settings}
+          onAccessGranted={() => setShowAdminDashboard(true)}
+        />
+      </div>
+      
       {showSaveManager && (
         <SaveManager 
           saveData={saveData}
@@ -219,6 +340,18 @@ function App() {
         <UpdatesPage
           language={language}
           onClose={() => setShowUpdatesPage(false)}
+        />
+      )}
+      
+      {showAdminDashboard && (
+        <AdminDashboard
+          isOpen={showAdminDashboard}
+          onClose={() => setShowAdminDashboard(false)}
+          settings={settings}
+          saveData={saveData}
+          onUpdateAnnouncements={handleUpdateAnnouncements}
+          onUpdateGameStatus={handleUpdateGameStatus}
+          onUpdateGameUpdates={handleUpdateGameUpdates}
         />
       )}
     </div>
