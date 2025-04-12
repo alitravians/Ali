@@ -1,6 +1,6 @@
 
 const API_ENDPOINT = '/api';
-const API_POLL_INTERVAL = 5000; // 5 seconds
+export const API_POLL_INTERVAL = 5000;
 
 export interface GameStatusResponse {
   isOpen: boolean;
