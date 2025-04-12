@@ -1,8 +1,8 @@
 {
   "gameStatus": {
-    "isOpen": true,
-    "closureReason": "",
-    "lastUpdated": 1744489971000
+    "isOpen": false,
+    "closureReason": "Game is under maintenance",
+    "lastUpdated": 1744492515792
   },
   "announcements": [],
   "updates": []

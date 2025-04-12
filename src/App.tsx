@@ -180,9 +180,31 @@ function App() {
     setShowAdminAccess(false);
   };
   
-  const handleUpdateGameStatus = (status: GameStatus) => {
-    setGameStatus(status);
-    localStorage.setItem('snakeGameStatus', JSON.stringify(status));
+  const handleUpdateGameStatus = async (status: GameStatus) => {
+    try {
+      const response = await fetch('/api/gameStatus', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(status),
+      });
+      
+      if (response.ok) {
+        const updatedStatus = await response.json();
+        setGameStatus(updatedStatus);
+        localStorage.setItem('snakeGameStatus', JSON.stringify(updatedStatus));
+        console.log('Game status updated successfully:', updatedStatus);
+      } else {
+        console.error('Failed to update game status on server');
+        setGameStatus(status);
+        localStorage.setItem('snakeGameStatus', JSON.stringify(status));
+      }
+    } catch (error) {
+      console.error('Error updating game status:', error);
+      setGameStatus(status);
+      localStorage.setItem('snakeGameStatus', JSON.stringify(status));
+    }
   };
   
   const handleUpdateAnnouncements = (newAnnouncements: Array<{content: string, author: string, date: string, id: string, duration?: number}>) => {
