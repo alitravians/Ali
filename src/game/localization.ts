@@ -78,7 +78,42 @@ type TranslationKeys =
   | 'multiplayerMode'
   | 'customizableSnake'
   | 'achievementSystem'
-  | 'leaderboards';
+  | 'leaderboards'
+  | 'updatesSaved'
+  | 'updateDeleted'
+  | 'selectUpdate'
+  | 'deleteUpdate'
+  | 'selectUpdatePlaceholder'
+  | 'updatesPagePlaceholder'
+  | 'saveUpdate'
+  | 'shareUpdate'
+  | 'pcMode'
+  | 'mobileMode'
+  | 'switchToMobile'
+  | 'switchToPC'
+  | 'adminDashboardDescription'
+  | 'announcements'
+  | 'gameControl'
+  | 'gameOpen'
+  | 'gameClosed'
+  | 'closureReason'
+  | 'enterClosureReason'
+  | 'openGame'
+  | 'closeGame'
+  | 'author'
+  | 'authorPlaceholder'
+  | 'duration'
+  | 'seconds'
+  | 'gameClosedWarning'
+  | 'adminDashboard'
+  | 'adminAccess'
+  | 'enterAccessCode'
+  | 'invalidAccessCode'
+  | 'submit'
+  | 'gameClosedTitle'
+  | 'gameClosedMessage'
+  | 'checkBackLater'
+  | 'latestUpdates';
 
 type Translations = {
   [key in TranslationKeys]: string;
@@ -162,11 +197,47 @@ const enTranslations: Translations = {
   multiplayerMode: 'Multiplayer Mode',
   customizableSnake: 'Customizable Snake',
   achievementSystem: 'Achievement System',
-  leaderboards: 'Leaderboards'
+  leaderboards: 'Leaderboards',
+  updatesSaved: 'Updates saved successfully',
+  updateDeleted: 'Update deleted successfully',
+  selectUpdate: 'Select Update',
+  deleteUpdate: 'Delete Update',
+  selectUpdatePlaceholder: 'Select an update to view or edit',
+  updatesPagePlaceholder: 'Enter update content here...',
+  saveUpdate: 'Save Update',
+  shareUpdate: 'Share Update',
+  pcMode: 'PC Mode',
+  mobileMode: 'Mobile Mode',
+  switchToMobile: 'Switch to Mobile Mode',
+  switchToPC: 'Switch to PC Mode',
+  adminDashboardDescription: 'Manage game settings, announcements, and updates',
+  announcements: 'Announcements',
+  gameControl: 'Game Control',
+  gameOpen: 'Game is Open',
+  gameClosed: 'Game is Closed',
+  closureReason: 'Closure Reason',
+  enterClosureReason: 'Enter reason for closing the game',
+  openGame: 'Open Game',
+  closeGame: 'Close Game',
+  author: 'Author',
+  authorPlaceholder: 'Enter author name',
+  duration: 'Duration (seconds)',
+  seconds: 'seconds',
+  gameClosedWarning: 'Players will not be able to access the game while it is closed.',
+  adminDashboard: 'Admin Dashboard',
+  adminAccess: 'Admin Access',
+  enterAccessCode: 'Enter access code',
+  invalidAccessCode: 'Invalid access code',
+  submit: 'Submit',
+  gameClosedTitle: 'Game Temporarily Unavailable',
+  gameClosedMessage: 'The game is currently closed for maintenance.',
+  checkBackLater: 'Please check back later. We apologize for the inconvenience.',
+  latestUpdates: 'Latest Updates'
 };
 
 const arTranslations: Translations = {
   startGame: 'ابدأ اللعبة',
+  latestUpdates: 'أحدث التحديثات',
   selectLevel: 'اختر المستوى',
   settings: 'الإعدادات',
   sound: 'الصوت',
@@ -243,7 +314,41 @@ const arTranslations: Translations = {
   multiplayerMode: 'وضع متعدد اللاعبين',
   customizableSnake: 'ثعبان قابل للتخصيص',
   achievementSystem: 'نظام الإنجازات',
-  leaderboards: 'لوحات المتصدرين'
+  leaderboards: 'لوحات المتصدرين',
+  updatesSaved: 'تم حفظ التحديثات بنجاح',
+  updateDeleted: 'تم حذف التحديث بنجاح',
+  selectUpdate: 'اختر التحديث',
+  deleteUpdate: 'حذف التحديث',
+  selectUpdatePlaceholder: 'اختر تحديثًا للعرض أو التعديل',
+  updatesPagePlaceholder: 'أدخل محتوى التحديث هنا...',
+  saveUpdate: 'حفظ التحديث',
+  shareUpdate: 'مشاركة التحديث',
+  pcMode: 'وضع الكمبيوتر',
+  mobileMode: 'وضع الجوال',
+  switchToMobile: 'التبديل إلى وضع الجوال',
+  switchToPC: 'التبديل إلى وضع الكمبيوتر',
+  adminDashboardDescription: 'إدارة إعدادات اللعبة والإعلانات والتحديثات',
+  announcements: 'الإعلانات',
+  gameControl: 'التحكم باللعبة',
+  gameOpen: 'اللعبة مفتوحة',
+  gameClosed: 'اللعبة مغلقة',
+  closureReason: 'سبب الإغلاق',
+  enterClosureReason: 'أدخل سبب إغلاق اللعبة',
+  openGame: 'فتح اللعبة',
+  closeGame: 'إغلاق اللعبة',
+  author: 'الكاتب',
+  authorPlaceholder: 'أدخل اسم الكاتب',
+  duration: 'المدة (بالثواني)',
+  seconds: 'ثواني',
+  gameClosedWarning: 'لن يتمكن اللاعبون من الوصول إلى اللعبة أثناء إغلاقها',
+  adminDashboard: 'لوحة تحكم الإدارة',
+  adminAccess: 'الوصول للإدارة',
+  enterAccessCode: 'أدخل رمز الوصول',
+  invalidAccessCode: 'رمز الوصول غير صحيح',
+  submit: 'إرسال',
+  gameClosedTitle: 'اللعبة غير متاحة مؤقتًا',
+  gameClosedMessage: 'اللعبة مغلقة حاليًا للصيانة.',
+  checkBackLater: 'يرجى التحقق لاحقًا. نعتذر عن الإزعاج.'
 };
 
 export const translations = {

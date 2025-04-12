@@ -4,6 +4,9 @@ import LevelSelection from './components/game/LevelSelection';
 import GameHeader from './components/game/GameHeader';
 import SaveManager from './components/game/SaveManager';
 import UpdatesPage from './components/game/UpdatesPage';
+import AdminDashboard from './components/admin/AdminDashboard';
+import AdminAccessButton from './components/admin/AdminAccessButton';
+import GameClosureMessage from './components/game/GameClosureMessage';
 import { GameSettings, SaveData } from './game/types';
 import { DEFAULT_SETTINGS, GAME_SPEED } from './game/constants';
 import { initSoundSystem, playSoundIfEnabled } from './game/soundSystem';
@@ -28,6 +31,7 @@ function App() {
   const [showLevelSelection, setShowLevelSelection] = useState(false);
   const [showSaveManager, setShowSaveManager] = useState(false);
   const [showUpdatesPage, setShowUpdatesPage] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   
   useEffect(() => {
     initSoundSystem();
@@ -115,6 +119,14 @@ function App() {
     }
   };
   
+  const toggleDevice = () => {
+    setSettings({
+      ...settings,
+      deviceMode: settings.deviceMode === 'pc' ? 'mobile' : 'pc'
+    });
+    playSoundIfEnabled('buttonClick', settings);
+  };
+  
   const currentCityData = saveData.cities.find(city => city.id === currentCity);
   const difficultyMultiplier = currentCityData ? currentCityData.difficultyMultiplier : 1.0;
   
@@ -142,6 +154,43 @@ function App() {
     setShowSaveManager(false);
     playSoundIfEnabled('buttonClick', settings);
   };
+  
+  const handleAdminAccess = () => {
+    setShowAdminDashboard(true);
+  };
+  
+  const handleUpdateGameStatus = (isOpen: boolean, closureReason: string) => {
+    const updatedSaveData = {
+      ...saveData,
+      gameStatus: {
+        isOpen,
+        closureReason
+      }
+    };
+    
+    setSaveData(updatedSaveData);
+    saveGameProgress(updatedSaveData);
+  };
+  
+  const handleUpdateAnnouncements = (announcements: any[]) => {
+    const updatedSaveData = {
+      ...saveData,
+      announcements
+    };
+    
+    setSaveData(updatedSaveData);
+    saveGameProgress(updatedSaveData);
+  };
+  
+  const handleUpdateGameUpdates = (updates: Array<{content: string, date: string, id: string}>) => {
+    const updatedSaveData = {
+      ...saveData,
+      updates
+    };
+    
+    setSaveData(updatedSaveData);
+    saveGameProgress(updatedSaveData);
+  };
 
   const language = settings.language;
   const direction = getDirection(language);
@@ -152,10 +201,18 @@ function App() {
         settings={settings}
         onToggleSound={toggleSound}
         onToggleLanguage={toggleLanguage}
+        onToggleDevice={toggleDevice}
         onChangeDifficulty={handleChangeDifficulty}
         onOpenSaveManager={() => setShowSaveManager(true)}
         onOpenUpdatesPage={() => setShowUpdatesPage(true)}
       />
+      
+      <div className="absolute top-4 right-4">
+        <AdminAccessButton 
+          settings={settings}
+          onAccessGranted={handleAdminAccess}
+        />
+      </div>
       
       {!gameStarted && !showLevelSelection ? (
         <div className="flex flex-col items-center justify-center">
@@ -220,6 +277,35 @@ function App() {
           language={language}
           onClose={() => setShowUpdatesPage(false)}
         />
+      )}
+      
+      {showAdminDashboard && (
+        <AdminDashboard
+          isOpen={showAdminDashboard}
+          onClose={() => setShowAdminDashboard(false)}
+          settings={settings}
+          saveData={saveData}
+          onUpdateAnnouncements={handleUpdateAnnouncements}
+          onUpdateGameStatus={handleUpdateGameStatus}
+          onUpdateGameUpdates={handleUpdateGameUpdates}
+        />
+      )}
+      
+      {saveData.gameStatus && !saveData.gameStatus.isOpen && (
+        <div className="fixed inset-0 z-50">
+          <div className="absolute top-4 right-4">
+            <button 
+              onClick={() => setShowAdminDashboard(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              {t('adminDashboard', language)}
+            </button>
+          </div>
+          <GameClosureMessage 
+            settings={settings}
+            closureReason={saveData.gameStatus.closureReason || ''}
+          />
+        </div>
       )}
     </div>
   );

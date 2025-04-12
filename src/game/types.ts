@@ -53,12 +53,14 @@ export type GameState = {
 };
 
 export type Language = 'en' | 'ar';
+export type DeviceMode = 'pc' | 'mobile';
 
 export type GameSettings = {
   language: Language;
   soundEnabled: boolean;
   musicEnabled: boolean;
   difficulty: 'easy' | 'normal' | 'hard';
+  deviceMode: DeviceMode;
 };
 
 export type SaveData = {
@@ -71,4 +73,20 @@ export type SaveData = {
     level: number;
   };
   timestamp?: number;
+  updates?: Array<{
+    content: string;
+    date: string;
+    id: string;
+  }>;
+  announcements?: Array<{
+    content: string;
+    author: string;
+    date: string;
+    id: string;
+    duration: number;
+  }>;
+  gameStatus?: {
+    isOpen: boolean;
+    closureReason: string;
+  };
 };

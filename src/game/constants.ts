@@ -82,7 +82,8 @@ export const DEFAULT_SETTINGS = {
   language: 'en' as const,
   soundEnabled: true,
   musicEnabled: true,
-  difficulty: 'normal' as const
+  difficulty: 'normal' as const,
+  deviceMode: 'pc' as const
 };
 
 export const INITIAL_SNAKE = [

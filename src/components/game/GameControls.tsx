@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { Direction } from '../../game/types';
+import React, { useEffect, useRef } from 'react';
+import { Direction, GameSettings } from '../../game/types';
 import { Button } from '../ui/button';
 import { 
   ArrowUp, 
@@ -18,6 +18,7 @@ interface GameControlsProps {
   isPaused: boolean;
   isGameOver: boolean;
   language: 'en' | 'ar';
+  settings?: GameSettings;
 }
 
 const GameControls: React.FC<GameControlsProps> = ({
@@ -26,7 +27,8 @@ const GameControls: React.FC<GameControlsProps> = ({
   onRestart,
   isPaused,
   isGameOver,
-  language
+  language,
+  settings
 }) => {
   const translations = {
     en: {
@@ -51,6 +53,9 @@ const GameControls: React.FC<GameControlsProps> = ({
 
   const t = translations[language];
   const isRtl = language === 'ar';
+
+  const touchSurfaceRef = useRef<HTMLDivElement>(null);
+  const isMobileMode = settings?.deviceMode === 'mobile';
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -94,6 +99,61 @@ const GameControls: React.FC<GameControlsProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [onDirectionChange, onPauseToggle, onRestart, isGameOver]);
+  
+  useEffect(() => {
+    const touchSurface = document.body; // Use the entire body as touch surface
+    if (!touchSurface) return;
+    
+    let startX: number;
+    let startY: number;
+    const minSwipeDistance = 30; // Minimum distance to consider as a swipe
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      if (isGameOver || isPaused) return;
+      
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (isGameOver || isPaused || !startX || !startY) return;
+      
+      const currentX = e.touches[0].clientX;
+      const currentY = e.touches[0].clientY;
+      
+      const diffX = startX - currentX;
+      const diffY = startY - currentY;
+      
+      if (Math.abs(diffX) < minSwipeDistance && Math.abs(diffY) < minSwipeDistance) return;
+      
+      if (Math.abs(diffX) > Math.abs(diffY)) {
+        if (diffX > 0) {
+          onDirectionChange('LEFT');
+        } else {
+          onDirectionChange('RIGHT');
+        }
+      } else {
+        if (diffY > 0) {
+          onDirectionChange('UP');
+        } else {
+          onDirectionChange('DOWN');
+        }
+      }
+      
+      startX = currentX;
+      startY = currentY;
+    };
+    
+    if (isMobileMode) {
+      touchSurface.addEventListener('touchstart', handleTouchStart, { passive: false });
+      touchSurface.addEventListener('touchmove', handleTouchMove, { passive: false });
+      
+      return () => {
+        touchSurface.removeEventListener('touchstart', handleTouchStart);
+        touchSurface.removeEventListener('touchmove', handleTouchMove);
+      };
+    }
+  }, [onDirectionChange, isGameOver, isPaused, isMobileMode]);
 
   return (
     <div className={`flex flex-col gap-4 ${isRtl ? 'rtl' : 'ltr'}`}>
@@ -174,10 +234,29 @@ const GameControls: React.FC<GameControlsProps> = ({
         </div>
       </div>
 
+      {/* Touch swipe surface for mobile */}
+      {isMobileMode && (
+        <div 
+          ref={touchSurfaceRef}
+          className="touch-surface-info bg-blue-50 p-3 rounded-md mt-2 text-center"
+        >
+          <p className="text-sm text-blue-700">
+            {language === 'en' 
+              ? 'Swipe on screen to control the snake' 
+              : 'اسحب على الشاشة للتحكم في الثعبان'}
+          </p>
+        </div>
+      )}
+
       {/* Keyboard controls info */}
       <div className="mt-4 text-sm text-gray-500 text-center">
         <p>{language === 'en' ? 'Use arrow keys or WASD to move' : 'استخدم مفاتيح الأسهم أو WASD للتحرك'}</p>
         <p>{language === 'en' ? 'Space to pause, R to restart' : 'مسافة للإيقاف المؤقت، R لإعادة التشغيل'}</p>
+        {isMobileMode && (
+          <p className="mt-2 text-blue-600 font-medium">
+            {language === 'en' ? 'Mobile mode active' : 'وضع الجوال نشط'}
+          </p>
+        )}
       </div>
     </div>
   );

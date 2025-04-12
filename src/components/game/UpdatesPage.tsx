@@ -1,19 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Language } from '../../game/types';
+import { Language, SaveData } from '../../game/types';
 import { t, isRTL } from '../../game/localization';
 import { X } from 'lucide-react';
+
+interface Update {
+  content: string;
+  date: string;
+  id: string;
+}
 
 interface UpdatesPageProps {
   language: Language;
   onClose: () => void;
+  updatesVersion?: number; // Add this prop to trigger re-renders when updates change
 }
 
-const UpdatesPage: React.FC<UpdatesPageProps> = ({ language, onClose }) => {
+const UpdatesPage: React.FC<UpdatesPageProps> = ({ language, onClose, updatesVersion = 0 }) => {
   const isRtl = isRTL(language);
+  const [dynamicUpdates, setDynamicUpdates] = useState<Update[]>([]);
 
-  const updates = [
+  useEffect(() => {
+    try {
+      const savedData = localStorage.getItem('gameData');
+      if (savedData) {
+        const parsedData = JSON.parse(savedData) as SaveData;
+        if (parsedData.updates && Array.isArray(parsedData.updates)) {
+          const sortedUpdates = [...parsedData.updates].sort((a, b) => {
+            return new Date(b.date).getTime() - new Date(a.date).getTime();
+          });
+          setDynamicUpdates(sortedUpdates);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load dynamic updates:', error);
+    }
+  }, [updatesVersion]);
+
+  const staticUpdates = [
     {
       version: '1.0.0',
       date: '2025-04-12',
@@ -65,7 +90,33 @@ const UpdatesPage: React.FC<UpdatesPageProps> = ({ language, onClose }) => {
           </div>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
-          {updates.map((update, index) => (
+          {/* Dynamic updates from admin panel */}
+          {dynamicUpdates.length > 0 && (
+            <div className="border-b pb-4 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">
+                  {t('latestUpdates', language) || 'Latest Updates'}
+                </h3>
+              </div>
+              <div className="space-y-4">
+                {dynamicUpdates.map((update) => (
+                  <div key={update.id} className="p-3 bg-gray-50 rounded-md">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-sm text-gray-500">
+                        {new Date(update.date).toLocaleDateString(
+                          language === 'en' ? 'en-US' : 'ar-SA'
+                        )}
+                      </span>
+                    </div>
+                    <p className="text-sm whitespace-pre-wrap">{update.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Static version updates */}
+          {staticUpdates.map((update, index) => (
             <div key={index} className="border-b pb-4 last:border-b-0">
               <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-semibold">

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GameSettings } from '../../game/types';
 import LanguageToggle from './LanguageToggle';
 import SoundToggle from './SoundToggle';
+import DeviceToggle from './DeviceToggle';
 import SettingsPanel from './SettingsPanel';
 import { Settings } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -11,6 +12,7 @@ interface GameHeaderProps {
   settings: GameSettings;
   onToggleSound: () => void;
   onToggleLanguage: () => void;
+  onToggleDevice: () => void;
   onChangeDifficulty: (difficulty: 'easy' | 'normal' | 'hard') => void;
   onOpenSaveManager?: () => void;
   onOpenUpdatesPage?: () => void;
@@ -20,6 +22,7 @@ const GameHeader: React.FC<GameHeaderProps> = ({
   settings,
   onToggleSound,
   onToggleLanguage,
+  onToggleDevice,
   onChangeDifficulty,
   onOpenSaveManager,
   onOpenUpdatesPage
@@ -36,6 +39,7 @@ const GameHeader: React.FC<GameHeaderProps> = ({
         <div className="flex gap-2 items-center">
           <SoundToggle settings={settings} onToggleSound={onToggleSound} />
           <LanguageToggle settings={settings} onToggleLanguage={onToggleLanguage} />
+          <DeviceToggle settings={settings} onToggleDevice={onToggleDevice} />
           <Button 
             variant="outline" 
             size="icon"
