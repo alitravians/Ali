@@ -216,12 +216,39 @@ function App() {
           ...prev,
           gameStatus: {
             isOpen,
-            closureReason
+            closureReason,
+            lastUpdated: Date.now()
           }
         }));
+        
+        const updatedSaveData = {
+          ...saveData,
+          gameStatus: { isOpen, closureReason, lastUpdated: Date.now() }
+        };
+        saveGameProgress(updatedSaveData);
+        
+        return true;
       }
+      return false;
     } catch (error) {
       console.error('Error updating game status:', error);
+      
+      const updatedSaveData = {
+        ...saveData,
+        gameStatus: { isOpen, closureReason, lastUpdated: Date.now() }
+      };
+      saveGameProgress(updatedSaveData);
+      
+      setSaveData(prev => ({
+        ...prev,
+        gameStatus: {
+          isOpen,
+          closureReason,
+          lastUpdated: Date.now()
+        }
+      }));
+      
+      return true;
     }
   };
   

@@ -4,13 +4,14 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '../../components/ui/card';
 import { Switch } from '../../components/ui/switch';
+import { Check, Loader2 } from 'lucide-react';
 import { GameSettings, GameStatus } from '../../game/types';
 import { t, isRTL } from '../../game/localization';
 
 interface GameControlPanelProps {
   settings: GameSettings;
   gameStatus: GameStatus;
-  onUpdateGameStatus: (isOpen: boolean, closureReason: string) => void;
+  onUpdateGameStatus: (isOpen: boolean, closureReason: string) => Promise<boolean>;
 }
 
 const GameControlPanel: React.FC<GameControlPanelProps> = ({
@@ -20,14 +21,33 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(gameStatus.isOpen);
   const [closureReason, setClosureReason] = useState(gameStatus.closureReason || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const isRtl = isRTL(settings.language);
   
   const handleToggleGameStatus = () => {
     setIsOpen(!isOpen);
+    setSaveSuccess(false);
   };
   
-  const handleSaveChanges = () => {
-    onUpdateGameStatus(isOpen, closureReason);
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    try {
+      const success = await onUpdateGameStatus(isOpen, closureReason);
+      
+      if (success) {
+        setSaveSuccess(true);
+        setTimeout(() => {
+          setSaveSuccess(false);
+        }, 3000);
+      }
+    } catch (error) {
+      console.error('Error saving game status:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   return (
@@ -75,10 +95,32 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
           </div>
         )}
       </CardContent>
-      <CardFooter>
-        <Button onClick={handleSaveChanges}>
-          {t('saveChanges', settings.language) || 'Save Changes'}
+      <CardFooter className="flex justify-between items-center">
+        <Button 
+          onClick={handleSaveChanges}
+          disabled={isSaving}
+          className={saveSuccess ? 'bg-green-600 hover:bg-green-700' : ''}
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {t('saving', settings.language) || 'Saving...'}
+            </>
+          ) : saveSuccess ? (
+            <>
+              <Check className="mr-2 h-4 w-4" />
+              {t('saved', settings.language) || 'Saved!'}
+            </>
+          ) : (
+            t('saveChanges', settings.language) || 'Save Changes'
+          )}
         </Button>
+        
+        {saveSuccess && (
+          <span className="text-sm text-green-600 animate-pulse">
+            {t('saveSuccess', settings.language) || 'Changes saved successfully!'}
+          </span>
+        )}
       </CardFooter>
     </Card>
   );
