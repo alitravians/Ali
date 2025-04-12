@@ -96,6 +96,8 @@ type TranslationKeys =
   | 'enterClosureReason'
   | 'closureReasonDescription'
   | 'saveChanges'
+  | 'saving'
+  | 'saved'
   | 'announcementsPanel'
   | 'announcementsPanelDescription'
   | 'enterNewAnnouncement'
@@ -221,6 +223,8 @@ const enTranslations: Translations = {
   enterClosureReason: 'Enter reason for game closure',
   closureReasonDescription: 'This message will be displayed to players when they try to access the game',
   saveChanges: 'Save Changes',
+  saving: 'Saving...',
+  saved: 'Saved!',
   announcementsPanel: 'Announcements Panel',
   announcementsPanelDescription: 'Manage game announcements',
   enterNewAnnouncement: 'Enter new announcement...',
@@ -343,6 +347,8 @@ const arTranslations: Translations = {
   enterClosureReason: 'أدخل سبب إغلاق اللعبة',
   closureReasonDescription: 'سيتم عرض هذه الرسالة للاعبين عندما يحاولون الوصول إلى اللعبة',
   saveChanges: 'حفظ التغييرات',
+  saving: 'جاري الحفظ...',
+  saved: 'تم الحفظ!',
   announcementsPanel: 'لوحة الإعلانات',
   announcementsPanelDescription: 'إدارة إعلانات اللعبة',
   enterNewAnnouncement: 'أدخل إعلانًا جديدًا...',

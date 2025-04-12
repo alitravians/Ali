@@ -13,7 +13,7 @@ interface AdminDashboardProps {
   settings: GameSettings;
   saveData: SaveData;
   onUpdateAnnouncements: (announcements: Array<{content: string, author: string, date: string, id: string, duration?: number}>) => void;
-  onUpdateGameStatus: (isOpen: boolean, closureReason: string) => void;
+  onUpdateGameStatus: (isOpen: boolean, closureReason: string) => Promise<boolean>;
   onUpdateGameUpdates: (updates: Array<{content: string, date: string, id: string}>) => void;
 }
 
