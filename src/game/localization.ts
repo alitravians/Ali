@@ -78,7 +78,44 @@ type TranslationKeys =
   | 'multiplayerMode'
   | 'customizableSnake'
   | 'achievementSystem'
-  | 'leaderboards';
+  | 'leaderboards'
+  | 'adminAccess'
+  | 'enterAdminCode'
+  | 'accessCode'
+  | 'invalidAccessCode'
+  | 'submit'
+  | 'adminDashboard'
+  | 'gameOpen'
+  | 'gameClosed'
+  | 'gameControl'
+  | 'closureReason'
+  | 'enterClosureReason'
+  | 'gameClosedWarning'
+  | 'openGame'
+  | 'closeGame'
+  | 'gameClosedTitle'
+  | 'gameClosedMessage'
+  | 'checkBackLater'
+  | 'toggleDevice'
+  | 'announcements'
+  | 'gameControlDescription'
+  | 'gameStatus'
+  | 'closureReasonDescription'
+  | 'saveChanges'
+  | 'updatesPanel'
+  | 'updatesPanelDescription'
+  | 'enterNewUpdate'
+  | 'addUpdate'
+  | 'currentUpdates'
+  | 'noUpdates'
+  | 'delete'
+  | 'announcementsPanel'
+  | 'announcementsPanelDescription'
+  | 'enterAuthorName'
+  | 'enterAnnouncementContent'
+  | 'addAnnouncement'
+  | 'currentAnnouncements'
+  | 'noAnnouncements';
 
 type Translations = {
   [key in TranslationKeys]: string;
@@ -162,7 +199,44 @@ const enTranslations: Translations = {
   multiplayerMode: 'Multiplayer Mode',
   customizableSnake: 'Customizable Snake',
   achievementSystem: 'Achievement System',
-  leaderboards: 'Leaderboards'
+  leaderboards: 'Leaderboards',
+  adminAccess: 'Admin Access',
+  enterAdminCode: 'Please enter the admin access code to continue',
+  accessCode: 'Access Code',
+  invalidAccessCode: 'Invalid access code',
+  submit: 'Submit',
+  adminDashboard: 'Admin Dashboard',
+  gameOpen: 'Game is Open',
+  gameClosed: 'Game is Closed',
+  gameControl: 'Game Control',
+  closureReason: 'Closure Reason',
+  enterClosureReason: 'Enter reason for closing the game',
+  gameClosedWarning: 'Players will not be able to play the game until it is reopened',
+  openGame: 'Open Game',
+  closeGame: 'Close Game',
+  gameClosedTitle: 'Game Closed',
+  gameClosedMessage: 'The game is currently closed for maintenance',
+  checkBackLater: 'Please check back later',
+  toggleDevice: 'Toggle Device View',
+  announcements: 'Announcements',
+  gameControlDescription: 'Control the game status and closure settings',
+  gameStatus: 'Game Status',
+  closureReasonDescription: 'This message will be displayed to players when they try to access the game',
+  saveChanges: 'Save Changes',
+  updatesPanel: 'Updates Panel',
+  updatesPanelDescription: 'Manage game updates and announcements',
+  enterNewUpdate: 'Enter new update content...',
+  addUpdate: 'Add Update',
+  currentUpdates: 'Current Updates',
+  noUpdates: 'No updates available',
+  delete: 'Delete',
+  announcementsPanel: 'Announcements Panel',
+  announcementsPanelDescription: 'Manage game announcements',
+  enterAuthorName: 'Enter author name...',
+  enterAnnouncementContent: 'Enter announcement content...',
+  addAnnouncement: 'Add Announcement',
+  currentAnnouncements: 'Current Announcements',
+  noAnnouncements: 'No announcements available'
 };
 
 const arTranslations: Translations = {
@@ -243,7 +317,44 @@ const arTranslations: Translations = {
   multiplayerMode: 'وضع متعدد اللاعبين',
   customizableSnake: 'ثعبان قابل للتخصيص',
   achievementSystem: 'نظام الإنجازات',
-  leaderboards: 'لوحات المتصدرين'
+  leaderboards: 'لوحات المتصدرين',
+  adminAccess: 'وصول المسؤول',
+  enterAdminCode: 'الرجاء إدخال رمز الوصول للمسؤول للمتابعة',
+  accessCode: 'رمز الوصول',
+  invalidAccessCode: 'رمز الوصول غير صالح',
+  submit: 'إرسال',
+  adminDashboard: 'لوحة تحكم المسؤول',
+  gameOpen: 'اللعبة مفتوحة',
+  gameClosed: 'اللعبة مغلقة',
+  gameControl: 'التحكم باللعبة',
+  closureReason: 'سبب الإغلاق',
+  enterClosureReason: 'أدخل سبب إغلاق اللعبة',
+  gameClosedWarning: 'لن يتمكن اللاعبون من لعب اللعبة حتى يتم إعادة فتحها',
+  openGame: 'فتح اللعبة',
+  closeGame: 'إغلاق اللعبة',
+  gameClosedTitle: 'اللعبة مغلقة',
+  gameClosedMessage: 'اللعبة مغلقة حاليًا للصيانة',
+  checkBackLater: 'يرجى التحقق لاحقًا',
+  toggleDevice: 'تبديل عرض الجهاز',
+  announcements: 'الإعلانات',
+  gameControlDescription: 'التحكم في حالة اللعبة وإعدادات الإغلاق',
+  gameStatus: 'حالة اللعبة',
+  closureReasonDescription: 'سيتم عرض هذه الرسالة للاعبين عند محاولة الوصول إلى اللعبة',
+  saveChanges: 'حفظ التغييرات',
+  updatesPanel: 'لوحة التحديثات',
+  updatesPanelDescription: 'إدارة تحديثات وإعلانات اللعبة',
+  enterNewUpdate: 'أدخل محتوى التحديث الجديد...',
+  addUpdate: 'إضافة تحديث',
+  currentUpdates: 'التحديثات الحالية',
+  noUpdates: 'لا توجد تحديثات متاحة',
+  delete: 'حذف',
+  announcementsPanel: 'لوحة الإعلانات',
+  announcementsPanelDescription: 'إدارة إعلانات اللعبة',
+  enterAuthorName: 'أدخل اسم المؤلف...',
+  enterAnnouncementContent: 'أدخل محتوى الإعلان...',
+  addAnnouncement: 'إضافة إعلان',
+  currentAnnouncements: 'الإعلانات الحالية',
+  noAnnouncements: 'لا توجد إعلانات متاحة'
 };
 
 export const translations = {

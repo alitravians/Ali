@@ -11,6 +11,7 @@ interface GameHeaderProps {
   settings: GameSettings;
   onToggleSound: () => void;
   onToggleLanguage: () => void;
+  onToggleDevice?: () => void;
   onChangeDifficulty: (difficulty: 'easy' | 'normal' | 'hard') => void;
   onOpenSaveManager?: () => void;
   onOpenUpdatesPage?: () => void;
