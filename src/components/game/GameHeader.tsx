@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { GameSettings } from '../../game/types';
 import LanguageToggle from './LanguageToggle';
+import DeviceToggle from './DeviceToggle';
 import SoundToggle from './SoundToggle';
 import SettingsPanel from './SettingsPanel';
 import { Settings } from 'lucide-react';
@@ -21,6 +22,7 @@ const GameHeader: React.FC<GameHeaderProps> = ({
   settings,
   onToggleSound,
   onToggleLanguage,
+  onToggleDevice,
   onChangeDifficulty,
   onOpenSaveManager,
   onOpenUpdatesPage
@@ -37,6 +39,7 @@ const GameHeader: React.FC<GameHeaderProps> = ({
         <div className="flex gap-2 items-center">
           <SoundToggle settings={settings} onToggleSound={onToggleSound} />
           <LanguageToggle settings={settings} onToggleLanguage={onToggleLanguage} />
+          {onToggleDevice && <DeviceToggle settings={settings} onToggleDevice={onToggleDevice} />}
           <Button 
             variant="outline" 
             size="icon"
