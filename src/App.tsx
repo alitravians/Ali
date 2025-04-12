@@ -292,20 +292,20 @@ function App() {
       )}
       
       {saveData.gameStatus && !saveData.gameStatus.isOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute top-4 right-4">
-            <button 
-              onClick={() => setShowAdminDashboard(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              {t('adminDashboard', language)}
-            </button>
-          </div>
+        <>
           <GameClosureMessage 
             settings={settings}
             closureReason={saveData.gameStatus.closureReason || ''}
           />
-        </div>
+          <div className="fixed top-4 right-4 z-50">
+            <button 
+              onClick={() => setShowAdminDashboard(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-lg border-2 border-white"
+            >
+              {t('adminDashboard', language)}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

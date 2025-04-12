@@ -56,10 +56,6 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
     
     setTimeout(() => {
       setSavedMessage('');
-      
-      if (!isOpen && onNavigateToAdmin) {
-        onNavigateToAdmin();
-      }
     }, 1500);
   };
   

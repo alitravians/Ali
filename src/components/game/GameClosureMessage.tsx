@@ -16,8 +16,8 @@ const GameClosureMessage: React.FC<GameClosureMessageProps> = ({
   const isRtl = isRTL(settings.language);
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70">
-      <Card className={`w-full max-w-md ${isRtl ? 'rtl' : 'ltr'}`}>
+    <div className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center">
+      <Card className={`w-full max-w-md pointer-events-auto ${isRtl ? 'rtl' : 'ltr'}`}>
         <CardHeader className="bg-red-50 border-b border-red-100">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-6 w-6 text-red-500" />
