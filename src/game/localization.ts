@@ -61,6 +61,7 @@ type TranslationKeys =
   | 'sixCityThemes'
   | 'progressiveDifficulty'
   | 'gameControlPanel'
+  | 'gameControlDescription'
   | 'bilingualSupport'
   | 'saveGameProgress'
   | 'soundSystem'
@@ -78,7 +79,47 @@ type TranslationKeys =
   | 'multiplayerMode'
   | 'customizableSnake'
   | 'achievementSystem'
-  | 'leaderboards';
+  | 'leaderboards'
+  | 'adminDashboard'
+  | 'adminAccessCode'
+  | 'adminAccess'
+  | 'invalidAccessCode'
+  | 'gameClosedTitle'
+  | 'gameClosedMessage'
+  | 'checkBackLater'
+  | 'gameControl'
+  | 'announcements'
+  | 'gameStatus'
+  | 'gameOpen'
+  | 'gameClosed'
+  | 'closureReason'
+  | 'enterClosureReason'
+  | 'closureReasonDescription'
+  | 'saveChanges'
+  | 'announcementsPanel'
+  | 'announcementsPanelDescription'
+  | 'enterNewAnnouncement'
+  | 'addAnnouncement'
+  | 'currentAnnouncements'
+  | 'noAnnouncements'
+  | 'delete'
+  | 'author'
+  | 'updatesPanel'
+  | 'updatesPanelDescription'
+  | 'enterNewUpdate'
+  | 'addUpdate'
+  | 'currentUpdates'
+  | 'noUpdates'
+  | 'toggleDevice'
+  | 'updateDeleted'
+  | 'selectUpdate'
+  | 'deleteUpdate'
+  | 'selectUpdatePlaceholder'
+  | 'updatesPagePlaceholder'
+  | 'authorPlaceholder'
+  | 'duration'
+  | 'saveUpdate'
+  | 'seconds';
 
 type Translations = {
   [key in TranslationKeys]: string;
@@ -145,6 +186,7 @@ const enTranslations: Translations = {
   sixCityThemes: '6 City Themes',
   progressiveDifficulty: 'Progressive Difficulty System',
   gameControlPanel: 'Game Control Panel',
+  gameControlDescription: 'Control the game status and closure settings',
   bilingualSupport: 'Bilingual Support (Arabic/English)',
   saveGameProgress: 'Save Game Progress',
   soundSystem: 'Sound System',
@@ -162,7 +204,47 @@ const enTranslations: Translations = {
   multiplayerMode: 'Multiplayer Mode',
   customizableSnake: 'Customizable Snake',
   achievementSystem: 'Achievement System',
-  leaderboards: 'Leaderboards'
+  leaderboards: 'Leaderboards',
+  adminDashboard: 'Admin Dashboard',
+  adminAccessCode: 'Enter Access Code',
+  adminAccess: 'Access',
+  invalidAccessCode: 'Invalid access code',
+  gameClosedTitle: 'Game Closed',
+  gameClosedMessage: 'The game is currently closed for maintenance.',
+  checkBackLater: 'Please check back later.',
+  gameControl: 'Game Control',
+  announcements: 'Announcements',
+  gameStatus: 'Game Status',
+  gameOpen: 'Game is currently open',
+  gameClosed: 'Game is currently closed',
+  closureReason: 'Closure Reason',
+  enterClosureReason: 'Enter reason for game closure',
+  closureReasonDescription: 'This message will be displayed to players when they try to access the game',
+  saveChanges: 'Save Changes',
+  announcementsPanel: 'Announcements Panel',
+  announcementsPanelDescription: 'Manage game announcements',
+  enterNewAnnouncement: 'Enter new announcement...',
+  addAnnouncement: 'Add Announcement',
+  currentAnnouncements: 'Current Announcements',
+  noAnnouncements: 'No announcements available',
+  delete: 'Delete',
+  author: 'Author',
+  updatesPanel: 'Updates Panel',
+  updatesPanelDescription: 'Manage game updates and announcements',
+  enterNewUpdate: 'Enter new update content...',
+  addUpdate: 'Add Update',
+  currentUpdates: 'Current Updates',
+  noUpdates: 'No updates available',
+  toggleDevice: 'Toggle Device Mode',
+  updateDeleted: 'Update deleted successfully',
+  selectUpdate: 'Select Update',
+  deleteUpdate: 'Delete Update',
+  selectUpdatePlaceholder: 'Select an update',
+  updatesPagePlaceholder: 'Enter update content...',
+  authorPlaceholder: 'Enter author name',
+  duration: 'Duration (seconds)',
+  saveUpdate: 'Save Update',
+  seconds: 'seconds'
 };
 
 const arTranslations: Translations = {
@@ -226,6 +308,7 @@ const arTranslations: Translations = {
   sixCityThemes: '6 سمات للمدن',
   progressiveDifficulty: 'نظام صعوبة تدريجي',
   gameControlPanel: 'لوحة تحكم اللعبة',
+  gameControlDescription: 'التحكم في حالة اللعبة وإعدادات الإغلاق',
   bilingualSupport: 'دعم ثنائي اللغة (العربية/الإنجليزية)',
   saveGameProgress: 'حفظ تقدم اللعبة',
   soundSystem: 'نظام الصوت',
@@ -243,7 +326,47 @@ const arTranslations: Translations = {
   multiplayerMode: 'وضع متعدد اللاعبين',
   customizableSnake: 'ثعبان قابل للتخصيص',
   achievementSystem: 'نظام الإنجازات',
-  leaderboards: 'لوحات المتصدرين'
+  leaderboards: 'لوحات المتصدرين',
+  adminDashboard: 'لوحة تحكم المسؤول',
+  adminAccessCode: 'أدخل رمز الوصول',
+  adminAccess: 'وصول',
+  invalidAccessCode: 'رمز الوصول غير صالح',
+  gameClosedTitle: 'اللعبة مغلقة',
+  gameClosedMessage: 'اللعبة مغلقة حاليًا للصيانة.',
+  checkBackLater: 'يرجى التحقق لاحقًا.',
+  gameControl: 'التحكم باللعبة',
+  announcements: 'الإعلانات',
+  gameStatus: 'حالة اللعبة',
+  gameOpen: 'اللعبة مفتوحة حاليًا',
+  gameClosed: 'اللعبة مغلقة حاليًا',
+  closureReason: 'سبب الإغلاق',
+  enterClosureReason: 'أدخل سبب إغلاق اللعبة',
+  closureReasonDescription: 'سيتم عرض هذه الرسالة للاعبين عندما يحاولون الوصول إلى اللعبة',
+  saveChanges: 'حفظ التغييرات',
+  announcementsPanel: 'لوحة الإعلانات',
+  announcementsPanelDescription: 'إدارة إعلانات اللعبة',
+  enterNewAnnouncement: 'أدخل إعلانًا جديدًا...',
+  addAnnouncement: 'إضافة إعلان',
+  currentAnnouncements: 'الإعلانات الحالية',
+  noAnnouncements: 'لا توجد إعلانات متاحة',
+  delete: 'حذف',
+  author: 'الكاتب',
+  updatesPanel: 'لوحة التحديثات',
+  updatesPanelDescription: 'إدارة تحديثات وإعلانات اللعبة',
+  enterNewUpdate: 'أدخل محتوى التحديث الجديد...',
+  addUpdate: 'إضافة تحديث',
+  currentUpdates: 'التحديثات الحالية',
+  noUpdates: 'لا توجد تحديثات متاحة',
+  toggleDevice: 'تبديل وضع الجهاز',
+  updateDeleted: 'تم حذف التحديث بنجاح',
+  selectUpdate: 'اختر التحديث',
+  deleteUpdate: 'حذف التحديث',
+  selectUpdatePlaceholder: 'اختر تحديثًا',
+  updatesPagePlaceholder: 'أدخل محتوى التحديث...',
+  authorPlaceholder: 'أدخل اسم الكاتب',
+  duration: 'المدة (بالثواني)',
+  saveUpdate: 'حفظ التحديث',
+  seconds: 'ثواني'
 };
 
 export const translations = {

@@ -11,6 +11,7 @@ interface GameHeaderProps {
   settings: GameSettings;
   onToggleSound: () => void;
   onToggleLanguage: () => void;
+  onToggleDevice: () => void;
   onChangeDifficulty: (difficulty: 'easy' | 'normal' | 'hard') => void;
   onOpenSaveManager?: () => void;
   onOpenUpdatesPage?: () => void;
@@ -20,6 +21,7 @@ const GameHeader: React.FC<GameHeaderProps> = ({
   settings,
   onToggleSound,
   onToggleLanguage,
+  onToggleDevice,
   onChangeDifficulty,
   onOpenSaveManager,
   onOpenUpdatesPage
@@ -36,6 +38,19 @@ const GameHeader: React.FC<GameHeaderProps> = ({
         <div className="flex gap-2 items-center">
           <SoundToggle settings={settings} onToggleSound={onToggleSound} />
           <LanguageToggle settings={settings} onToggleLanguage={onToggleLanguage} />
+          <Button 
+            variant="outline" 
+            size="icon"
+            onClick={onToggleDevice}
+            title={t('toggleDevice', settings.language)}
+          >
+            <span className="flex">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+                <path d="M12 18h.01" />
+              </svg>
+            </span>
+          </Button>
           <Button 
             variant="outline" 
             size="icon"

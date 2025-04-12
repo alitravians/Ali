@@ -61,6 +61,12 @@ export type GameSettings = {
   difficulty: 'easy' | 'normal' | 'hard';
 };
 
+export type GameStatus = {
+  isOpen: boolean;
+  closureReason: string;
+  lastUpdated?: number;
+};
+
 export type SaveData = {
   cities: City[];
   levels: Level[];
@@ -71,4 +77,17 @@ export type SaveData = {
     level: number;
   };
   timestamp?: number;
+  gameStatus?: GameStatus;
+  announcements?: Array<{
+    content: string;
+    author: string;
+    date: string;
+    id: string;
+    duration?: number;
+  }>;
+  updates?: Array<{
+    content: string;
+    date: string;
+    id: string;
+  }>;
 };
