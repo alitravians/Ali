@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import './App.css';
 import { GameSettings, GameStatus, Language, SaveData } from './game/types';
 import { t } from './game/localization';
@@ -13,7 +13,7 @@ import { playSoundIfEnabled } from './game/soundSystem';
 
 function App() {
   const [settings, setSettings] = useState<GameSettings>({
-    language: 'en',
+    language: 'ar', // Default to Arabic
     soundEnabled: true,
     musicEnabled: true,
     difficulty: 'normal'
@@ -30,79 +30,97 @@ function App() {
   const [saveData, setSaveData] = useState<SaveData | null>(null);
   const [announcements, setAnnouncements] = useState<Array<{content: string, author: string, date: string, id: string, duration?: number}>>([]);
   const [updates, setUpdates] = useState<Array<{content: string, date: string, id: string}>>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
+  const loadSavedData = () => {
+    try {
+      const savedData = localStorage.getItem('snakeGameSaveData');
+      if (savedData) {
+        setSaveData(JSON.parse(savedData));
+      }
+      
+      const savedAnnouncements = localStorage.getItem('snakeGameAnnouncements');
+      if (savedAnnouncements) {
+        setAnnouncements(JSON.parse(savedAnnouncements));
+      }
+      
+      const savedUpdates = localStorage.getItem('snakeGameUpdates');
+      if (savedUpdates) {
+        setUpdates(JSON.parse(savedUpdates));
+      }
+      
+      console.log('All saved data loaded successfully');
+    } catch (e) {
+      console.error('Error loading saved data:', e);
+      setError('Failed to load saved data');
+    }
+  };
+
   useEffect(() => {
-    const savedSettings = localStorage.getItem('snakeGameSettings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+    console.log('App initializing...');
+    
+    try {
+      const savedSettings = localStorage.getItem('snakeGameSettings');
+      if (savedSettings) {
+        setSettings(JSON.parse(savedSettings));
+        console.log('Settings loaded from localStorage');
+      }
+    } catch (e) {
+      console.error('Error loading settings:', e);
     }
     
     fetchGameStatus();
     
-    const savedData = localStorage.getItem('snakeGameSaveData');
-    if (savedData) {
-      setSaveData(JSON.parse(savedData));
-    }
-    
-    const savedAnnouncements = localStorage.getItem('snakeGameAnnouncements');
-    if (savedAnnouncements) {
-      setAnnouncements(JSON.parse(savedAnnouncements));
-    }
-    
-    const savedUpdates = localStorage.getItem('snakeGameUpdates');
-    if (savedUpdates) {
-      setUpdates(JSON.parse(savedUpdates));
-    }
+    loadSavedData();
     
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     setIsMobileView(isMobile);
+    console.log('Device type detected:', isMobile ? 'Mobile' : 'Desktop');
     
     const statusInterval = setInterval(() => {
       fetchGameStatus();
     }, 30000); // Check every 30 seconds
+    
+    setLoading(false);
     
     return () => {
       clearInterval(statusInterval);
     };
   }, []);
   
-  const fetchGameStatus = async () => {
+  const fetchGameStatus = useCallback(async () => {
     try {
+      console.log('Fetching game status...');
       const response = await fetch('/api/gameStatus');
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Game status received:', data);
         setGameStatus(data);
-        
         localStorage.setItem('snakeGameStatus', JSON.stringify(data));
       } else {
-        console.error('Failed to fetch game status');
-        
-        const savedStatus = localStorage.getItem('snakeGameStatus');
-        if (savedStatus) {
-          try {
-            setGameStatus(JSON.parse(savedStatus));
-          } catch (parseError) {
-            console.error('Error parsing saved game status:', parseError);
-            resetGameStatus();
-          }
-        } else {
-          resetGameStatus();
-        }
+        console.error('Failed to fetch game status:', response.status);
+        fallbackToLocalGameStatus();
       }
     } catch (error) {
       console.error('Error fetching game status:', error);
-      
-      const savedStatus = localStorage.getItem('snakeGameStatus');
-      if (savedStatus) {
-        try {
-          setGameStatus(JSON.parse(savedStatus));
-        } catch (parseError) {
-          console.error('Error parsing saved game status:', parseError);
-          resetGameStatus();
-        }
-      } else {
+      fallbackToLocalGameStatus();
+    }
+  }, []);
+  
+  const fallbackToLocalGameStatus = () => {
+    console.log('Using fallback game status from localStorage');
+    const savedStatus = localStorage.getItem('snakeGameStatus');
+    if (savedStatus) {
+      try {
+        setGameStatus(JSON.parse(savedStatus));
+      } catch (parseError) {
+        console.error('Error parsing saved game status:', parseError);
         resetGameStatus();
       }
+    } else {
+      resetGameStatus();
     }
   };
   
@@ -112,9 +130,9 @@ function App() {
       closureReason: '',
       lastUpdated: Date.now()
     };
+    console.log('Resetting game status to default:', defaultStatus);
     setGameStatus(defaultStatus);
     localStorage.setItem('snakeGameStatus', JSON.stringify(defaultStatus));
-    console.log('Game status reset to default values');
   };
   
   const toggleSound = () => {
@@ -182,6 +200,7 @@ function App() {
   
   const handleUpdateGameStatus = async (status: GameStatus) => {
     try {
+      console.log('Updating game status to:', status);
       const response = await fetch('/api/gameStatus', {
         method: 'POST',
         headers: {
@@ -192,9 +211,9 @@ function App() {
       
       if (response.ok) {
         const updatedStatus = await response.json();
+        console.log('Game status updated successfully:', updatedStatus);
         setGameStatus(updatedStatus);
         localStorage.setItem('snakeGameStatus', JSON.stringify(updatedStatus));
-        console.log('Game status updated successfully:', updatedStatus);
       } else {
         console.error('Failed to update game status on server');
         setGameStatus(status);
@@ -216,6 +235,41 @@ function App() {
     setUpdates(newUpdates);
     localStorage.setItem('snakeGameUpdates', JSON.stringify(newUpdates));
   };
+  
+  const handleUpdateSaveData = (newSaveData: SaveData) => {
+    setSaveData(newSaveData);
+    localStorage.setItem('snakeGameSaveData', JSON.stringify(newSaveData));
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-bold mb-4">
+            {t('loading', settings.language)}...
+          </h2>
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center text-red-600">
+          <h2 className="text-xl font-bold mb-4">{t('error', settings.language)}</h2>
+          <p>{error}</p>
+          <button 
+            className="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+            onClick={() => window.location.reload()}
+          >
+            {t('reload', settings.language)}
+          </button>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="App">
@@ -252,7 +306,7 @@ function App() {
               settings={settings}
               isMobileView={isMobileView}
               saveData={saveData}
-              onUpdateSaveData={setSaveData}
+              onUpdateSaveData={handleUpdateSaveData}
             />
           ) : (
             <GameClosureMessage 
@@ -261,7 +315,8 @@ function App() {
             />
           )}
           
-          <div className="fixed bottom-4 right-4 z-50">
+          {/* Admin access button with added CSS class for visibility */}
+          <div className="admin-button">
             <AdminAccessButton 
               settings={settings}
               onClick={handleAdminAccess}

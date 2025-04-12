@@ -45,17 +45,18 @@ const Game: React.FC<GameProps> = ({
         <h1 className="text-3xl font-bold mb-4">
           {t('gameTitle', settings.language)}
         </h1>
-        <p className="text-lg">
-          {settings.language === 'en' 
-            ? 'Game is currently being restored. Please check back soon.' 
-            : 'يتم استعادة اللعبة حاليًا. يرجى التحقق مرة أخرى قريبًا.'}
+        <p className="text-lg mb-6">
+          {t('selectLevel', settings.language)}
         </p>
       </div>
       
       <div className="flex justify-center">
         <button 
           className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
-          onClick={() => playSoundIfEnabled('buttonClick', settings)}
+          onClick={() => {
+            playSoundIfEnabled('buttonClick', settings);
+            console.log('Starting game with settings:', settings);
+          }}
         >
           {t('start', settings.language)}
         </button>

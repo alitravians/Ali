@@ -3,6 +3,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  position: relative;  /* Added position relative */
 }
 
 .game-container {
@@ -12,4 +13,12 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+}
+
+/* Add specific z-index for admin buttons */
+.admin-button {
+  z-index: 9999;
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
 }
