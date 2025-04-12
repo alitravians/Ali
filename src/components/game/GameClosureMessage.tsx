@@ -1,5 +1,4 @@
 import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { AlertTriangle } from 'lucide-react';
 import { GameSettings } from '../../game/types';
 import { t, isRTL } from '../../game/localization';
@@ -16,35 +15,41 @@ const GameClosureMessage: React.FC<GameClosureMessageProps> = ({
   const isRtl = isRTL(settings.language);
   
   return (
-    <div className="fixed inset-0 z-40 pointer-events-none flex items-center justify-center">
-      <Card className={`w-full max-w-md pointer-events-auto ${isRtl ? 'rtl' : 'ltr'}`}>
-        <CardHeader className="bg-red-50 border-b border-red-100">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-6 w-6 text-red-500" />
-            <CardTitle className="text-red-700">
-              {t('gameClosedTitle', settings.language)}
-            </CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6 space-y-4">
-          <p className="text-center text-lg font-medium">
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-white ${isRtl ? 'rtl' : 'ltr'}`}>
+      <div className="w-full max-w-2xl p-8 text-center">
+        <div className="mb-6">
+          <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h1 className="text-3xl font-bold text-red-600 mb-2">
+            {t('gameClosedTitle', settings.language)}
+          </h1>
+          <div className="h-1 w-24 bg-red-500 mx-auto mb-6"></div>
+          
+          <p className="text-xl font-medium text-gray-800 mb-6">
             {t('gameClosedMessage', settings.language)}
           </p>
           
           {closureReason && (
-            <div className="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-              <p className="text-gray-700 font-medium mb-1">
+            <div className="mt-6 p-6 bg-gray-50 rounded-lg border border-gray-200 shadow-sm">
+              <h2 className="text-lg font-semibold text-gray-700 mb-3">
                 {t('closureReason', settings.language)}:
-              </p>
-              <p className="text-gray-900">{closureReason}</p>
+              </h2>
+              <p className="text-lg text-gray-900">{closureReason}</p>
             </div>
           )}
           
-          <p className="text-sm text-gray-500 text-center mt-4">
+          <p className="text-gray-600 mt-8">
             {t('checkBackLater', settings.language)}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+        
+        <div className="mt-12">
+          <div className="flex items-center justify-center">
+            <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

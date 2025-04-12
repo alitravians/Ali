@@ -196,72 +196,91 @@ function App() {
   const direction = getDirection(language);
   
   return (
-    <div className={`container mx-auto px-4 py-8 ${direction}`}>
-      <GameHeader 
-        settings={settings}
-        onToggleSound={toggleSound}
-        onToggleLanguage={toggleLanguage}
-        onToggleDevice={toggleDevice}
-        onChangeDifficulty={handleChangeDifficulty}
-        onOpenSaveManager={() => setShowSaveManager(true)}
-        onOpenUpdatesPage={() => setShowUpdatesPage(true)}
-      />
-      
-      <div className="absolute top-4 right-4">
-        <AdminAccessButton 
-          settings={settings}
-          onAccessGranted={handleAdminAccess}
-        />
-      </div>
-      
-      {!gameStarted && !showLevelSelection ? (
-        <div className="flex flex-col items-center justify-center">
-          <p className="text-lg mb-4 text-center">
-            {t('pressToStart', language)}
-          </p>
-          <div className="flex gap-4">
+    <>
+      {saveData.gameStatus && !saveData.gameStatus.isOpen ? (
+        <div className="fixed inset-0 bg-white">
+          <GameClosureMessage 
+            settings={settings}
+            closureReason={saveData.gameStatus.closureReason || ''}
+          />
+          <div className="fixed top-4 right-4 z-50">
             <button 
-              onClick={startGame}
-              className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              onClick={() => setShowAdminDashboard(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-lg border-2 border-white"
             >
-              {t('startGame', language)}
-            </button>
-            <button 
-              onClick={() => setShowLevelSelection(true)}
-              className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-            >
-              {t('selectLevel', language)}
+              {t('adminDashboard', language)}
             </button>
           </div>
         </div>
-      ) : showLevelSelection ? (
-        <LevelSelection 
-          cities={saveData.cities}
-          levels={saveData.levels}
-          currentCity={currentCity}
-          currentLevel={currentLevel}
-          language={language}
-          highScores={saveData.highScores}
-          onSelectLevel={handleSelectLevel}
-        />
       ) : (
-        <Game 
-          cityId={currentCity}
-          levelId={currentLevel}
-          settings={settings}
-          highScore={currentHighScore}
-          gameSpeed={gameSpeed}
-          onLevelComplete={handleLevelComplete}
-          onGameOver={handleGameOver}
-          onUpdateHighScore={handleUpdateHighScore}
-        />
+        <div className={`container mx-auto px-4 py-8 ${direction}`}>
+          <GameHeader 
+            settings={settings}
+            onToggleSound={toggleSound}
+            onToggleLanguage={toggleLanguage}
+            onToggleDevice={toggleDevice}
+            onChangeDifficulty={handleChangeDifficulty}
+            onOpenSaveManager={() => setShowSaveManager(true)}
+            onOpenUpdatesPage={() => setShowUpdatesPage(true)}
+          />
+          
+          <div className="absolute top-4 right-4">
+            <AdminAccessButton 
+              settings={settings}
+              onAccessGranted={handleAdminAccess}
+            />
+          </div>
+          
+          {!gameStarted && !showLevelSelection ? (
+            <div className="flex flex-col items-center justify-center">
+              <p className="text-lg mb-4 text-center">
+                {t('pressToStart', language)}
+              </p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={startGame}
+                  className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                >
+                  {t('startGame', language)}
+                </button>
+                <button 
+                  onClick={() => setShowLevelSelection(true)}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  {t('selectLevel', language)}
+                </button>
+              </div>
+            </div>
+          ) : showLevelSelection ? (
+            <LevelSelection 
+              cities={saveData.cities}
+              levels={saveData.levels}
+              currentCity={currentCity}
+              currentLevel={currentLevel}
+              language={language}
+              highScores={saveData.highScores}
+              onSelectLevel={handleSelectLevel}
+            />
+          ) : (
+            <Game 
+              cityId={currentCity}
+              levelId={currentLevel}
+              settings={settings}
+              highScore={currentHighScore}
+              gameSpeed={gameSpeed}
+              onLevelComplete={handleLevelComplete}
+              onGameOver={handleGameOver}
+              onUpdateHighScore={handleUpdateHighScore}
+            />
+          )}
+          
+          <div className="mt-8 text-center text-sm text-gray-500">
+            <p>
+              {t('copyright', language)}
+            </p>
+          </div>
+        </div>
       )}
-      
-      <div className="mt-8 text-center text-sm text-gray-500">
-        <p>
-          {t('copyright', language)}
-        </p>
-      </div>
       
       {showSaveManager && (
         <SaveManager 
@@ -290,24 +309,7 @@ function App() {
           onUpdateGameUpdates={handleUpdateGameUpdates}
         />
       )}
-      
-      {saveData.gameStatus && !saveData.gameStatus.isOpen && (
-        <>
-          <GameClosureMessage 
-            settings={settings}
-            closureReason={saveData.gameStatus.closureReason || ''}
-          />
-          <div className="fixed top-4 right-4 z-50">
-            <button 
-              onClick={() => setShowAdminDashboard(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 shadow-lg border-2 border-white"
-            >
-              {t('adminDashboard', language)}
-            </button>
-          </div>
-        </>
-      )}
-    </div>
+    </>
   );
 }
 
