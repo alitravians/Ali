@@ -25,17 +25,12 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const isRtl = isRTL(settings.language);
   
-  const handleToggleGameStatus = () => {
-    setIsOpen(!isOpen);
-    setSaveSuccess(false);
-  };
-  
-  const handleSaveChanges = async () => {
+  const handleSaveChanges = async (saveIsOpen = isOpen, saveClosureReason = closureReason) => {
     setIsSaving(true);
     setSaveSuccess(false);
     
     try {
-      const success = await onUpdateGameStatus(isOpen, closureReason);
+      const success = await onUpdateGameStatus(saveIsOpen, saveClosureReason);
       
       if (success) {
         setSaveSuccess(true);
@@ -48,6 +43,13 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
     } finally {
       setIsSaving(false);
     }
+  };
+  
+  const handleToggleGameStatus = () => {
+    const newIsOpen = !isOpen;
+    setIsOpen(newIsOpen);
+    handleSaveChanges(newIsOpen, closureReason);
+    setSaveSuccess(false);
   };
   
   return (
@@ -97,7 +99,7 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
       </CardContent>
       <CardFooter className="flex justify-between items-center">
         <Button 
-          onClick={handleSaveChanges}
+          onClick={() => handleSaveChanges()}
           disabled={isSaving}
           className={saveSuccess ? 'bg-green-600 hover:bg-green-700' : ''}
         >

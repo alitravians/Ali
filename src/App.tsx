@@ -47,7 +47,7 @@ function App() {
   useEffect(() => {
     const interval = setInterval(() => {
       checkServerGameStatus();
-    }, 5000); // Poll every 5 seconds
+    }, 3000); // Poll every 3 seconds for faster updates
     
     return () => clearInterval(interval);
   }, [lastServerSync]);
@@ -67,11 +67,13 @@ function App() {
         
         if (saveData.gameStatus?.isOpen !== data.isOpen || 
             saveData.gameStatus?.closureReason !== data.closureReason) {
+          console.log('Game status changed, updating state');
           setSaveData(prev => ({
             ...prev,
             gameStatus: {
               isOpen: data.isOpen,
-              closureReason: data.closureReason
+              closureReason: data.closureReason,
+              lastUpdated: data.lastUpdated || Date.now()
             }
           }));
         }
