@@ -79,7 +79,14 @@ function App() {
         
         const savedStatus = localStorage.getItem('snakeGameStatus');
         if (savedStatus) {
-          setGameStatus(JSON.parse(savedStatus));
+          try {
+            setGameStatus(JSON.parse(savedStatus));
+          } catch (parseError) {
+            console.error('Error parsing saved game status:', parseError);
+            resetGameStatus();
+          }
+        } else {
+          resetGameStatus();
         }
       }
     } catch (error) {
@@ -87,9 +94,27 @@ function App() {
       
       const savedStatus = localStorage.getItem('snakeGameStatus');
       if (savedStatus) {
-        setGameStatus(JSON.parse(savedStatus));
+        try {
+          setGameStatus(JSON.parse(savedStatus));
+        } catch (parseError) {
+          console.error('Error parsing saved game status:', parseError);
+          resetGameStatus();
+        }
+      } else {
+        resetGameStatus();
       }
     }
+  };
+  
+  const resetGameStatus = () => {
+    const defaultStatus = {
+      isOpen: true,
+      closureReason: '',
+      lastUpdated: Date.now()
+    };
+    setGameStatus(defaultStatus);
+    localStorage.setItem('snakeGameStatus', JSON.stringify(defaultStatus));
+    console.log('Game status reset to default values');
   };
   
   const toggleSound = () => {
