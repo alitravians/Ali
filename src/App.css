@@ -3,7 +3,9 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  position: relative;  /* Added position relative */
+  position: relative;
+  background-color: #f5f7fa;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .game-container {
@@ -13,25 +15,156 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
-/* Add specific z-index for admin buttons */
+/* تحسين عرض زر المشرف - Admin Button Enhancement */
 .admin-button {
   z-index: 9999 !important;
   position: fixed !important;
-  bottom: 1rem !important;
-  right: 1rem !important;
-  background-color: rgba(255, 255, 255, 0.8) !important;
+  bottom: 1.5rem !important;
+  right: 1.5rem !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
   border-radius: 50% !important;
-  padding: 0.5rem !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+  padding: 0.75rem !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
   display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   align-items: center !important;
   justify-content: center !important;
+  pointer-events: auto !important;
+  transform: scale(1.2) !important;
+  transition: transform 0.3s ease, box-shadow 0.3s ease !important;
+}
+
+.admin-button:hover {
+  transform: scale(1.3) !important;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
 }
 
 .admin-button button {
   display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   align-items: center !important;
   justify-content: center !important;
+  pointer-events: auto !important;
+}
+
+/* Main Menu Styling */
+.main-menu-container {
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border-radius: 1.5rem;
+  padding: 2.5rem;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  max-width: 1200px;
+  margin: 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* Two-box layout styling */
+.main-menu-box {
+  background-color: white;
+  border-radius: 1.2rem;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  border: 5px solid;
+  margin-bottom: 1.5rem;
+  height: 100%;
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+}
+
+.main-menu-box:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 18px 35px rgba(0, 0, 0, 0.25);
+}
+
+.main-menu-box.start-game {
+  border-color: #3b82f6; /* blue-500 */
+}
+
+.main-menu-box.city-selection {
+  border-color: #8b5cf6; /* purple-500 */
+}
+
+.box-header {
+  padding: 1.2rem;
+  margin: 0;
+  text-align: center;
+  color: white;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.start-game .box-header {
+  background: linear-gradient(to right, #2563eb, #3b82f6); /* blue-600 to blue-500 */
+}
+
+.city-selection .box-header {
+  background: linear-gradient(to right, #7c3aed, #8b5cf6); /* purple-600 to purple-500 */
+}
+
+/* Hover effects for buttons */
+button {
+  transition: all 0.3s ease !important;
+}
+
+button:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Device toggle button styling */
+.device-toggle {
+  position: fixed !important;
+  top: 1.5rem !important;
+  right: 1.5rem !important;
+  z-index: 50 !important;
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-radius: 50% !important;
+  padding: 0.5rem !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Start Game Button Styling */
+.start-game-button {
+  background: linear-gradient(to right, #10b981, #059669) !important;
+  color: white !important;
+  font-size: 1.25rem !important;
+  font-weight: bold !important;
+  padding: 1rem 2rem !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3) !important;
+  transition: all 0.3s ease !important;
+  border: none !important;
+  width: 80% !important;
+  max-width: 300px !important;
+  margin: 1.5rem auto !important;
+  display: block !important;
+}
+
+.start-game-button:hover {
+  transform: translateY(-5px) !important;
+  box-shadow: 0 12px 25px rgba(16, 185, 129, 0.4) !important;
+}
+
+/* Game Title Styling */
+.game-title {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 2rem;
+  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }

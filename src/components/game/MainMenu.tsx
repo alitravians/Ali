@@ -23,45 +23,47 @@ const MainMenu: React.FC<MainMenuProps> = ({
   };
 
   return (
-    <div className="main-menu-container p-6 max-w-7xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4 text-neutral-800 dark:text-neutral-100">
-          {t('gameTitle', settings.language)}
-        </h1>
-      </div>
+    <div className="main-menu-container p-4 md:p-6 w-full max-w-6xl mx-auto">
+      <h1 className="game-title text-center mb-8">
+        {t('gameTitle', settings.language)}
+      </h1>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-        {/* بدء اللعبة - المربع الأول */}
-        <div className={`bg-white dark:bg-neutral-800 rounded-lg shadow-lg overflow-hidden border-2 ${settings.language === 'ar' ? 'md:order-1' : 'md:order-none'}`}>
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4 text-center text-blue-600 dark:text-blue-400">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+        {/* مربع بدء اللعبة - Start Game Box */}
+        <div className={`main-menu-box start-game ${settings.language === 'ar' ? 'md:order-1' : 'md:order-none'}`}>
+          <div className="box-header">
+            <h2>
               {t('startGame', settings.language)}
             </h2>
-            <div className="flex justify-center mt-6">
-              <button
-                onClick={handleStartGame}
-                className="bg-green-500 hover:bg-green-600 text-white font-bold py-4 px-8 rounded-lg text-xl transition-colors duration-300 w-full max-w-xs"
-              >
-                {t('start', settings.language)}
-              </button>
-            </div>
+          </div>
+          <div className="p-6 flex flex-col justify-center items-center h-full">
+            <button
+              onClick={handleStartGame}
+              className="start-game-button"
+            >
+              {t('start', settings.language)}
+            </button>
           </div>
         </div>
         
-        {/* اختيار المدن والمراحل - المربع الثاني */}
-        <div className={`bg-white dark:bg-neutral-800 rounded-lg shadow-lg overflow-hidden border-2 ${settings.language === 'ar' ? 'md:order-none' : 'md:order-1'}`}>
-          <div className="p-6">
-            <h2 className="text-2xl font-bold mb-4 text-center text-blue-600 dark:text-blue-400">
+        {/* مربع اختيار المدن والمراحل - City Selection Box */}
+        <div className={`main-menu-box city-selection ${settings.language === 'ar' ? 'md:order-none' : 'md:order-1'}`}>
+          <div className="box-header">
+            <h2>
               {t('selectCity', settings.language)}
             </h2>
-            {saveData && (
-              <LevelSelection
-                settings={settings}
-                cities={saveData.cities}
-                levels={saveData.levels}
-                onSelectLevel={onSelectLevel}
-              />
-            )}
+          </div>
+          <div className="p-6">
+            <div className="city-selection-container max-h-[400px] overflow-y-auto pr-2">
+              {saveData && (
+                <LevelSelection
+                  settings={settings}
+                  cities={saveData.cities}
+                  levels={saveData.levels}
+                  onSelectLevel={onSelectLevel}
+                />
+              )}
+            </div>
           </div>
         </div>
       </div>

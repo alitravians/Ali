@@ -50,6 +50,8 @@ export type GameState = {
   language?: Language;
   levelCompleted?: boolean;
   collisionType?: 'wall' | 'self' | 'obstacle';
+  firstTick?: boolean;
+  moveCount?: number; // عداد للحركات لتتبع فترة السماح الأولية
 };
 
 export type Language = 'en' | 'ar';

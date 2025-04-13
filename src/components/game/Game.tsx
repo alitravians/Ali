@@ -146,29 +146,6 @@ const Game: React.FC<GameProps> = ({
     const head = gameState.snake[0];
     console.log('Game initialization - Snake head position:', head);
     
-    const initialWallCollision = isWallCollision(head);
-    const initialSelfCollision = isSelfCollision(head, gameState.snake);
-    const initialObstacleCollision = isObstacleCollision(head, obstacles);
-    
-    console.log('Game initialization - Initial collision checks:', {
-      wall: initialWallCollision,
-      self: initialSelfCollision,
-      obstacle: initialObstacleCollision
-    });
-    
-    if (initialWallCollision || initialSelfCollision || initialObstacleCollision) {
-      console.warn('Initial collision detected! Adjusting snake position...');
-      
-      const adjustedSnake = [...gameState.snake];
-      adjustedSnake[0] = { x: Math.floor(getBoardSize().width / 2), y: Math.floor(getBoardSize().height / 2) };
-      
-      setGameState({
-        ...gameState,
-        snake: adjustedSnake
-      });
-      
-      console.log('Snake position adjusted to:', adjustedSnake[0]);
-    }
     
     let lastTime = 0;
     const gameSpeed = gameState.speed;
@@ -280,25 +257,55 @@ const Game: React.FC<GameProps> = ({
     
     if (level) {
       setObstacles(level.obstacles);
+      setRequiredScore(level.requiredScore);
     }
     
     const newGameState = createGameState(levelId, cityId, settings.language, level?.obstacles || []);
-    setGameState(newGameState);
+    
+    const safeSnake = [...newGameState.snake];
+    const boardSize = getBoardSize();
+    safeSnake[0] = { 
+      x: Math.floor(boardSize.width / 2), 
+      y: Math.floor(boardSize.height / 2) 
+    };
+    
+    setGameState({
+      ...newGameState,
+      snake: safeSnake,
+      firstTick: true // Explicitly set firstTick to true
+    });
+    
     setIsPlaying(true);
     setGameOver(false);
     setLevelCompleted(false);
     
     playSoundIfEnabled('buttonClick', settings);
+    
+    console.log('Game initialized with safe snake position:', safeSnake[0]);
   };
   
   const handleRestartGame = () => {
     const newGameState = createGameState(selectedLevel, selectedCity, settings.language);
-    setGameState(newGameState);
+    
+    const safeSnake = [...newGameState.snake];
+    const boardSize = getBoardSize();
+    safeSnake[0] = { 
+      x: Math.floor(boardSize.width / 2), 
+      y: Math.floor(boardSize.height / 2) 
+    };
+    
+    setGameState({
+      ...newGameState,
+      snake: safeSnake,
+      firstTick: true // Explicitly set firstTick to true
+    });
+    
     setIsPlaying(true);
     setGameOver(false);
     setLevelCompleted(false);
     
     playSoundIfEnabled('buttonClick', settings);
+    console.log('Game restarted with safe snake position:', safeSnake[0]);
   };
   
   const handleReturnToLevelSelection = () => {
@@ -322,12 +329,26 @@ const Game: React.FC<GameProps> = ({
     setSelectedLevel(nextLevelId);
     
     const newGameState = createGameState(nextLevelId, nextCityId, settings.language);
-    setGameState(newGameState);
+    
+    const safeSnake = [...newGameState.snake];
+    const boardSize = getBoardSize();
+    safeSnake[0] = { 
+      x: Math.floor(boardSize.width / 2), 
+      y: Math.floor(boardSize.height / 2) 
+    };
+    
+    setGameState({
+      ...newGameState,
+      snake: safeSnake,
+      firstTick: true // Explicitly set firstTick to true
+    });
+    
     setIsPlaying(true);
     setGameOver(false);
     setLevelCompleted(false);
     
     playSoundIfEnabled('buttonClick', settings);
+    console.log('Next level started with safe snake position:', safeSnake[0]);
   };
   
   if (isLoading) {

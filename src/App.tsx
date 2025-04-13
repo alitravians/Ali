@@ -5,11 +5,13 @@ import { t } from './game/localization';
 import GameHeader from './components/game/GameHeader';
 import Game from './components/game/Game';
 import MainMenu from './components/game/MainMenu';
+import LevelSelection from './components/game/LevelSelection';
 import UpdatesPage from './components/game/UpdatesPage';
 import AdminDashboard from './components/admin/AdminDashboard';
 import AdminAccessButton from './components/admin/AdminAccessButton';
 import AdminAccessPage from './components/admin/AdminAccessPage';
 import GameClosureMessage from './components/game/GameClosureMessage';
+import DeviceToggle from './components/game/DeviceToggle';
 import { playSoundIfEnabled } from './game/soundSystem';
 
 function App() {
@@ -391,29 +393,54 @@ function App() {
                   isMobileView={isMobileView}
                   saveData={saveData}
                   onUpdateSaveData={handleUpdateSaveData}
+                  onReturnToMainMenu={() => setShowGameComponent(false)}
                 />
               ) : (
-                <MainMenu 
-                  settings={settings}
-                  saveData={saveData}
-                  onStartGame={() => setShowGameComponent(true)}
-                  onSelectLevel={(cityId, levelId) => {
-                    if (saveData) {
-                      const level = saveData.levels.find(lvl => lvl.cityId === cityId && lvl.id === levelId);
-                      if (level && level.unlocked) {
+                <div className="main-menu-wrapper w-full max-w-7xl mx-auto px-4 py-6">
+                  <div className="text-center mb-8">
+                    <h1 className="text-4xl md:text-5xl font-bold mb-4 text-blue-800 dark:text-blue-300" 
+                        style={{ textShadow: '0 2px 4px rgba(0, 0, 0, 0.2)' }}>
+                      {t('gameTitle', settings.language)}
+                    </h1>
+                  </div>
+                  
+                  <MainMenu 
+                    settings={settings}
+                    saveData={saveData}
+                    onStartGame={() => {
+                      console.log('Starting new game from main menu');
+                      playSoundIfEnabled('buttonClick', settings);
+                      
+                      if (saveData) {
                         const updatedSaveData = {
                           ...saveData,
-                          lastPlayed: {
-                            city: cityId,
-                            level: levelId
-                          }
+                          timestamp: Date.now()
                         };
                         handleUpdateSaveData(updatedSaveData);
-                        setShowGameComponent(true);
                       }
-                    }
-                  }}
-                />
+                      
+                      setShowGameComponent(true);
+                    }}
+                    onSelectLevel={(cityId, levelId) => {
+                      console.log(`Selecting level: City ${cityId}, Level ${levelId}`);
+                      if (saveData) {
+                        const level = saveData.levels.find(lvl => lvl.cityId === cityId && lvl.id === levelId);
+                        if (level && level.unlocked) {
+                          const updatedSaveData = {
+                            ...saveData,
+                            lastPlayed: {
+                              city: cityId,
+                              level: levelId
+                            },
+                            timestamp: Date.now()
+                          };
+                          handleUpdateSaveData(updatedSaveData);
+                          setShowGameComponent(true);
+                        }
+                      }
+                    }}
+                  />
+                </div>
               )}
             </div>
           ) : (
@@ -423,11 +450,19 @@ function App() {
             />
           )}
           
-          {/* Admin access button with added CSS class for visibility */}
-          <div className="admin-button" style={{ zIndex: 9999, position: 'fixed', bottom: '1rem', right: '1rem' }}>
+          {/* تحسين أسلوب زر الوصول للمشرف لضمان الرؤية والتحديد */}
+          <div className="admin-button">
             <AdminAccessButton 
               settings={settings}
               onClick={handleAdminAccess}
+            />
+          </div>
+          
+          {/* زر تبديل وضع الجهاز - Device Toggle Button */}
+          <div className="device-toggle">
+            <DeviceToggle
+              settings={settings}
+              onToggleDevice={toggleDevice}
             />
           </div>
           
