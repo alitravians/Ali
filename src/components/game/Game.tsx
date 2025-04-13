@@ -61,7 +61,7 @@ const Game: React.FC<GameProps> = ({
     
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2000);
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [saveData, settings, onUpdateSaveData]);
@@ -127,9 +127,13 @@ const Game: React.FC<GameProps> = ({
         console.log('تغيير اتجاه الثعبان من', gameState.direction, 'إلى', newDirection);
         setGameState(prev => {
           if (!prev) return null;
+          
+          const nextDir = changeDirection(prev.direction, newDirection as Direction);
+          console.log('الاتجاه النهائي بعد التحقق:', nextDir);
+          
           return {
             ...prev,
-            nextDirection: changeDirection(prev.direction, newDirection as Direction)
+            nextDirection: nextDir
           };
         });
       }
@@ -142,7 +146,6 @@ const Game: React.FC<GameProps> = ({
     };
   }, [isPlaying, gameState]);
   
-  // Game loop function
   const gameLoop = useCallback((timestamp: number) => {
     if (!gameState) {
       console.log('Game loop called with null gameState');
@@ -155,24 +158,56 @@ const Game: React.FC<GameProps> = ({
     if (deltaTime >= gameSpeed) {
       lastTimeRef.current = timestamp;
       
-      const inGracePeriod = (gameState.moveCount || 0) < 10;
-      console.log('Move count:', gameState.moveCount, 'In grace period:', inGracePeriod);
+      const inGracePeriod = (gameState.moveCount || 0) < 100;
+      const isFirstMove = (gameState.moveCount || 0) < 20;
+      
+      console.log(`حالة اللعبة: الحركة رقم ${gameState.moveCount}, في فترة السماح: ${inGracePeriod}, الحركة الأولى: ${isFirstMove}`);
+      console.log(`رأس الثعبان: (${gameState.snake[0]?.x || 'N/A'}, ${gameState.snake[0]?.y || 'N/A'})`);
       
       let updatedGameState;
       
-      if (inGracePeriod) {
+      if (isFirstMove) {
+        console.log('في الحركات الأولى الحرجة - تجاهل جميع التصادمات تمامًا');
+        
+        updatedGameState = updateGameState(gameState, obstacles, requiredScore);
+        
+        updatedGameState = {
+          ...updatedGameState,
+          gameOver: false,
+          collisionType: undefined,
+          firstTick: false // تعيين firstTick إلى false بعد الحركة الأولى
+        };
+        
+        console.log('تم تحديث حالة اللعبة خلال الحركات الأولى:', 
+          `رأس الثعبان: (${updatedGameState.snake[0]?.x || 'N/A'}, ${updatedGameState.snake[0]?.y || 'N/A'}), ` +
+          `انتهاء اللعبة: ${updatedGameState.gameOver}, ` +
+          `الحركة رقم: ${updatedGameState.moveCount}`
+        );
+      }
+      else if (inGracePeriod) {
         console.log('في فترة السماح - استخدام updateGameState مع وضع الحماية');
         
         updatedGameState = updateGameState(gameState, obstacles, requiredScore);
         
         updatedGameState = {
           ...updatedGameState,
-          gameOver: false
+          gameOver: false,
+          collisionType: undefined
         };
+        
+        console.log('تم تحديث حالة اللعبة خلال فترة السماح:', 
+          `رأس الثعبان: (${updatedGameState.snake[0]?.x || 'N/A'}, ${updatedGameState.snake[0]?.y || 'N/A'}), ` +
+          `انتهاء اللعبة: ${updatedGameState.gameOver}, ` +
+          `الحركة رقم: ${updatedGameState.moveCount}`
+        );
       } else {
         updatedGameState = updateGameState(gameState, obstacles, requiredScore);
+        console.log('تم تحديث حالة اللعبة بعد فترة السماح:', 
+          `رأس الثعبان: (${updatedGameState.snake[0]?.x || 'N/A'}, ${updatedGameState.snake[0]?.y || 'N/A'}), ` +
+          `انتهاء اللعبة: ${updatedGameState.gameOver}, ` +
+          `الحركة رقم: ${updatedGameState.moveCount}`
+        );
       }
-      
       
       if (updatedGameState.gameOver) {
         console.log('انتهاء اللعبة بسبب:', updatedGameState.collisionType);
@@ -277,6 +312,17 @@ const Game: React.FC<GameProps> = ({
       return;
     }
     
+    if (gameState.gameOver && (gameState.moveCount || 0) < 10) {
+      console.log('تصحيح حالة انتهاء اللعبة المبكرة - Correcting early game over state');
+      setGameState({
+        ...gameState,
+        gameOver: false,
+        firstTick: true,
+        moveCount: 0
+      });
+      return;
+    }
+    
     if (gameState.paused) {
       console.log('Game loop not starting: game is paused');
       if (gameLoopRef.current) {
@@ -372,7 +418,7 @@ const Game: React.FC<GameProps> = ({
     let safeY = centerY;
     
     const hasObstacleInCenter = safeObstacles.some(
-      obstacle => Math.abs(obstacle.x - centerX) < 5 && Math.abs(obstacle.y - centerY) < 5
+      obstacle => Math.abs(obstacle.x - centerX) < 8 && Math.abs(obstacle.y - centerY) < 8
     );
     
     if (hasObstacleInCenter) {
@@ -383,14 +429,14 @@ const Game: React.FC<GameProps> = ({
     
     for (let i = 0; i < 3; i++) {
       safeSnake.push({
-        x: Math.max(5, Math.min(boardSize.width - 5, safeX - i)),
-        y: Math.max(5, Math.min(boardSize.height - 5, safeY))
+        x: Math.max(10, Math.min(boardSize.width - 10, safeX - i)),
+        y: Math.max(10, Math.min(boardSize.height - 10, safeY))
       });
     }
     
     const hasNearbyObstacle = safeObstacles.some(
       obstacle => safeSnake.some(
-        part => Math.abs(obstacle.x - part.x) < 3 && Math.abs(obstacle.y - part.y) < 3
+        part => Math.abs(obstacle.x - part.x) < 5 && Math.abs(obstacle.y - part.y) < 5
       )
     );
     
@@ -399,8 +445,8 @@ const Game: React.FC<GameProps> = ({
       const safeY2 = Math.floor(boardSize.height / 3);
       for (let i = 0; i < safeSnake.length; i++) {
         safeSnake[i] = {
-          x: Math.max(5, Math.min(boardSize.width - 5, boardSize.width / 3 - i)),
-          y: Math.max(5, Math.min(boardSize.height - 5, safeY2))
+          x: Math.max(10, Math.min(boardSize.width - 10, boardSize.width / 3 - i)),
+          y: Math.max(10, Math.min(boardSize.height - 10, safeY2))
         };
       }
     }
@@ -415,30 +461,29 @@ const Game: React.FC<GameProps> = ({
       direction: 'RIGHT',
       nextDirection: 'RIGHT',
       score: 0,
-      gameOver: false, // تأكيد أن اللعبة لم تنتهي عند البدء
+      gameOver: false, // تأكيد أن اللعبة لم تنتهي عند البدء - Ensure game is not over at start
       paused: false,
       currentCity: cityId,
       currentLevel: levelId,
       speed: 150 - (levelId * 5) - (cityId * 10),
       language: settings.language,
-      firstTick: true, // تعيين أول حركة لتفعيل فترة السماح
-      moveCount: 0 // عداد للحركات لتتبع فترة السماح الأولية
+      firstTick: true, // تعيين أول حركة لتفعيل فترة السماح - Set first tick to enable grace period
+      moveCount: 0 // عداد للحركات لتتبع فترة السماح الأولية - Counter for tracking initial grace period
     };
     
+    console.log('حالة اللعبة النهائية قبل البدء:', finalGameState);
     console.log('Final game state before setting:', finalGameState);
     
     setGameState(finalGameState);
-    setIsPlaying(true);
-    setGameOver(false);
-    setLevelCompleted(false);
+    
+    setTimeout(() => {
+      setIsPlaying(true);
+      console.log('Game started with isPlaying=true');
+    }, 100);
     
     playSoundIfEnabled('buttonClick', settings);
     
     console.log('Game initialized with safe snake position:', safeSnake[0]);
-    
-    setTimeout(() => {
-      console.log('Game state after initialization:', gameState);
-    }, 100);
   };
   
   const handleRestartGame = () => {
@@ -462,7 +507,7 @@ const Game: React.FC<GameProps> = ({
     let safeY = centerY;
     
     const hasObstacleInCenter = safeObstacles.some(
-      obstacle => Math.abs(obstacle.x - centerX) < 10 && Math.abs(obstacle.y - centerY) < 10
+      obstacle => Math.abs(obstacle.x - centerX) < 8 && Math.abs(obstacle.y - centerY) < 8
     );
     
     if (hasObstacleInCenter) {
@@ -478,6 +523,23 @@ const Game: React.FC<GameProps> = ({
       });
     }
     
+    const hasNearbyObstacle = safeObstacles.some(
+      obstacle => safeSnake.some(
+        part => Math.abs(obstacle.x - part.x) < 5 && Math.abs(obstacle.y - part.y) < 5
+      )
+    );
+    
+    if (hasNearbyObstacle) {
+      console.log('Obstacles found near snake, adjusting position');
+      const safeY2 = Math.floor(boardSize.height / 3);
+      for (let i = 0; i < safeSnake.length; i++) {
+        safeSnake[i] = {
+          x: Math.max(10, Math.min(boardSize.width - 10, boardSize.width / 3 - i)),
+          y: Math.max(10, Math.min(boardSize.height - 10, safeY2))
+        };
+      }
+    }
+    
     console.log('Creating safe snake at position:', safeSnake[0]);
     
     const safeFood = generateFood(safeSnake, safeObstacles);
@@ -488,16 +550,17 @@ const Game: React.FC<GameProps> = ({
       direction: 'RIGHT',
       nextDirection: 'RIGHT',
       score: 0,
-      gameOver: false,
+      gameOver: false, // تأكيد أن اللعبة لم تنتهي عند البدء - Ensure game is not over at start
       paused: false,
       currentCity: selectedCity,
       currentLevel: selectedLevel,
       speed: 150 - (selectedLevel * 5) - (selectedCity * 10),
       language: settings.language,
-      firstTick: true,
-      moveCount: 0
+      firstTick: true, // تعيين أول حركة لتفعيل فترة السماح - Set first tick to enable grace period
+      moveCount: 0 // عداد للحركات لتتبع فترة السماح الأولية - Counter for tracking initial grace period
     };
     
+    console.log('حالة اللعبة النهائية قبل البدء:', finalGameState);
     console.log('Final game state before setting:', finalGameState);
     
     setGameState(finalGameState);
@@ -661,15 +724,16 @@ const Game: React.FC<GameProps> = ({
       
       {gameState && (
         <div 
-          className="game-board border-2 border-gray-400 relative mx-auto"
+          className="game-board border-4 border-gray-600 rounded-md relative mx-auto shadow-xl"
           style={{
             width: `${getBoardSize().width * 20}px`,
             height: `${getBoardSize().height * 20}px`,
             backgroundColor: saveData?.cities.find(city => city.id === selectedCity)?.background || '#e0f2f1',
-            display: 'block', // تأكد من أن لوحة اللعبة مرئية
+            display: 'block', // تأكد من أن لوحة اللعبة مرئية - Ensure game board is visible
             visibility: 'visible',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
+            zIndex: 10
           }}
         >
           {/* Debug information */}
@@ -681,23 +745,26 @@ const Game: React.FC<GameProps> = ({
             Move Count: {gameState.moveCount || 0}
           </div>
           
-          {/* Snake - تحسين عرض الثعبان */}
+          {/* Snake - تحسين عرض الثعبان - Enhanced snake display */}
           {gameState.snake.map((part, index) => {
             console.log(`Rendering snake part ${index} at position:`, part);
             return (
               <div
                 key={`snake-${index}`}
-                className={`absolute ${index === 0 ? 'bg-red-600' : 'bg-green-600'} rounded-sm`}
+                className={`absolute ${index === 0 ? 'bg-red-600' : 'bg-green-600'} rounded-md`}
                 style={{
-                  width: '20px', // تعديل الحجم ليتطابق مع شبكة اللعبة
-                  height: '20px', // تعديل الحجم ليتطابق مع شبكة اللعبة
-                  left: `${part.x * 20}px`,
-                  top: `${part.y * 20}px`,
-                  zIndex: 50, // قيمة معقولة لـ z-index
+                  width: '18px', // تعديل الحجم ليتطابق مع شبكة اللعبة - Adjust size to match game grid
+                  height: '18px', // تعديل الحجم ليتطابق مع شبكة اللعبة - Adjust size to match game grid
+                  left: `${part.x * 20 + 1}px`, // إضافة هامش صغير - Add small margin
+                  top: `${part.y * 20 + 1}px`, // إضافة هامش صغير - Add small margin
+                  zIndex: 50, // قيمة معقولة لـ z-index - Reasonable z-index value
                   border: index === 0 ? '2px solid yellow' : '1px solid black',
                   boxShadow: index === 0 ? '0 0 8px rgba(255,0,0,0.7)' : '0 0 5px rgba(0,255,0,0.5)',
                   display: 'block',
-                  visibility: 'visible'
+                  visibility: 'visible',
+                  transform: 'translate3d(0,0,0)', // تحسين الأداء - Performance improvement
+                  transition: 'all 0.1s ease', // إضافة انتقال سلس - Add smooth transition
+                  pointerEvents: 'none'
                 }}
               />
             );

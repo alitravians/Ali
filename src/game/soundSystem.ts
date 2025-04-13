@@ -22,9 +22,14 @@ export const preloadSounds = (): void => {
   ];
   
   sounds.forEach(sound => {
-    const audio = new Audio(`/sounds/${sound}.mp3`);
-    audio.preload = 'auto';
-    audioCache[sound] = audio;
+    try {
+      const audio = new Audio(`./sounds/${sound}.mp3`);
+      audio.preload = 'auto';
+      audioCache[sound] = audio;
+      console.log(`Preloaded sound ${sound} successfully`);
+    } catch (error) {
+      console.error(`Error preloading sound ${sound}:`, error);
+    }
   });
 };
 
@@ -36,8 +41,9 @@ export const playSoundIfEnabled = (
   
   try {
     if (!audioCache[sound]) {
-      const audio = new Audio(`/sounds/${sound}.mp3`);
+      const audio = new Audio(`./sounds/${sound}.mp3`);
       audioCache[sound] = audio;
+      console.log(`Loaded sound ${sound} successfully`);
     }
     
     const audioToPlay = audioCache[sound].cloneNode() as HTMLAudioElement;
