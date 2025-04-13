@@ -49,6 +49,7 @@ export type GameState = {
   speed: number;
   language?: Language;
   levelCompleted?: boolean;
+  collisionType?: 'wall' | 'self' | 'obstacle';
 };
 
 export type Language = 'en' | 'ar';

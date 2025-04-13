@@ -4,6 +4,7 @@ import { GameSettings, GameStatus, Language, SaveData } from './game/types';
 import { t } from './game/localization';
 import GameHeader from './components/game/GameHeader';
 import Game from './components/game/Game';
+import MainMenu from './components/game/MainMenu';
 import UpdatesPage from './components/game/UpdatesPage';
 import AdminDashboard from './components/admin/AdminDashboard';
 import AdminAccessButton from './components/admin/AdminAccessButton';
@@ -22,6 +23,7 @@ function App() {
   const [showUpdatesPage, setShowUpdatesPage] = useState(false);
   const [showAdminAccess, setShowAdminAccess] = useState(false);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [showGameComponent, setShowGameComponent] = useState(false);
   const [gameStatus, setGameStatus] = useState<GameStatus>({
     isOpen: true,
     closureReason: ''
@@ -60,6 +62,54 @@ function App() {
   useEffect(() => {
     console.log('App initializing...');
     
+    const preloadSounds = async () => {
+      try {
+        console.log('Preloading sound files...');
+        const sounds = [
+          'buttonClick',
+          'eat',
+          'collision',
+          'gameOver',
+          'levelComplete',
+          'cityUnlock',
+          'move'
+        ];
+        
+        const audioElements: HTMLAudioElement[] = [];
+        
+        for (const sound of sounds) {
+          const audio = new Audio(`/sounds/${sound}.mp3`);
+          audio.load();
+          audioElements.push(audio);
+          
+          audio.addEventListener('canplaythrough', () => {
+            console.log(`Sound loaded successfully: ${sound}`);
+          });
+          
+          audio.addEventListener('error', (e) => {
+            console.error(`Error loading sound ${sound}:`, e);
+          });
+        }
+        
+        await Promise.all(
+          audioElements.map(audio => 
+            new Promise(resolve => {
+              if (audio.readyState >= 3) {
+                resolve(true);
+              } else {
+                audio.addEventListener('canplaythrough', () => resolve(true), { once: true });
+                audio.addEventListener('error', () => resolve(false), { once: true });
+              }
+            })
+          )
+        );
+        
+        console.log('All sounds preloaded successfully');
+      } catch (error) {
+        console.error('Error preloading sounds:', error);
+      }
+    };
+    
     try {
       const savedSettings = localStorage.getItem('snakeGameSettings');
       if (savedSettings) {
@@ -72,6 +122,8 @@ function App() {
     
     const loadInitialData = async () => {
       try {
+        await preloadSounds();
+        
         await fetchGameStatus();
         loadSavedData();
         
@@ -258,8 +310,17 @@ function App() {
   };
   
   const handleUpdateSaveData = (newSaveData: SaveData) => {
-    setSaveData(newSaveData);
-    localStorage.setItem('snakeGameSaveData', JSON.stringify(newSaveData));
+    console.log('Updating save data:', newSaveData);
+    
+    const updatedSaveData = {
+      ...newSaveData,
+      timestamp: Date.now()
+    };
+    
+    setSaveData(updatedSaveData);
+    localStorage.setItem('snakeGameSaveData', JSON.stringify(updatedSaveData));
+    
+    console.log('Save data updated successfully');
   };
   
   if (loading) {
@@ -323,12 +384,38 @@ function App() {
           />
           
           {gameStatus.isOpen ? (
-            <Game 
-              settings={settings}
-              isMobileView={isMobileView}
-              saveData={saveData}
-              onUpdateSaveData={handleUpdateSaveData}
-            />
+            <div className="game-container">
+              {showGameComponent ? (
+                <Game 
+                  settings={settings}
+                  isMobileView={isMobileView}
+                  saveData={saveData}
+                  onUpdateSaveData={handleUpdateSaveData}
+                />
+              ) : (
+                <MainMenu 
+                  settings={settings}
+                  saveData={saveData}
+                  onStartGame={() => setShowGameComponent(true)}
+                  onSelectLevel={(cityId, levelId) => {
+                    if (saveData) {
+                      const level = saveData.levels.find(lvl => lvl.cityId === cityId && lvl.id === levelId);
+                      if (level && level.unlocked) {
+                        const updatedSaveData = {
+                          ...saveData,
+                          lastPlayed: {
+                            city: cityId,
+                            level: levelId
+                          }
+                        };
+                        handleUpdateSaveData(updatedSaveData);
+                        setShowGameComponent(true);
+                      }
+                    }
+                  }}
+                />
+              )}
+            </div>
           ) : (
             <GameClosureMessage 
               settings={settings}
