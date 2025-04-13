@@ -1,9 +1,15 @@
 {
   "gameStatus": {
-    "isOpen": false,
-    "closureReason": "Testing game closure functionality",
+    "isOpen": true,
+    "closureReason": "",
     "lastUpdated": 1744495877563
   },
   "announcements": [],
-  "updates": []
+  "updates": [
+    {
+      "content": "Fixed admin button visibility and game control panel functionality",
+      "date": "April 12, 2025",
+      "id": "update-1744495877563"
+    }
+  ]
 }

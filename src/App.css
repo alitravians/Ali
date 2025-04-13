@@ -17,8 +17,21 @@
 
 /* Add specific z-index for admin buttons */
 .admin-button {
-  z-index: 9999;
-  position: fixed;
-  bottom: 1rem;
-  right: 1rem;
+  z-index: 9999 !important;
+  position: fixed !important;
+  bottom: 1rem !important;
+  right: 1rem !important;
+  background-color: rgba(255, 255, 255, 0.8) !important;
+  border-radius: 50% !important;
+  padding: 0.5rem !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.admin-button button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }

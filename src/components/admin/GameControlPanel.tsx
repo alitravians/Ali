@@ -30,6 +30,10 @@ const GameControlPanel: React.FC<GameControlPanelProps> = ({
     
     onUpdateGameStatus(newStatus);
     playSoundIfEnabled('buttonClick', settings);
+    
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
   
   return (

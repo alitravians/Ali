@@ -1,9 +1,17 @@
 import { Language } from './types';
 
 const translations: Record<string, Record<Language, string>> = {
+  gameTitle: {
+    en: 'Snake City Game',
+    ar: 'لعبة ثعبان المدينة'
+  },
   startGame: {
     en: 'Start Game',
     ar: 'ابدأ اللعبة'
+  },
+  start: {
+    en: 'Start',
+    ar: 'ابدأ'
   },
   selectLevel: {
     en: 'Select Level',
@@ -276,17 +284,39 @@ const translations: Record<string, Record<Language, string>> = {
   toggleDevice: {
     en: 'Toggle Device Mode',
     ar: 'تبديل وضع الجهاز'
+  },
+  selectCity: {
+    en: 'Select City',
+    ar: 'اختر المدينة'
+  },
+  theme: {
+    en: 'Theme',
+    ar: 'السمة'
+  },
+  difficultyMultiplier: {
+    en: 'Difficulty Multiplier',
+    ar: 'مضاعف الصعوبة'
+  },
+  locked: {
+    en: 'Locked',
+    ar: 'مغلق'
+  },
+  loading: {
+    en: 'Loading',
+    ar: 'جاري التحميل'
   }
 };
 
-export const t = (key: string, language: Language): string => {
+export function t(key: string, language: Language): string {
   if (!translations[key]) {
     console.warn(`Translation key not found: ${key}`);
     return key;
   }
   
   return translations[key][language] || translations[key]['en'] || key;
-};
+}
+
+export { translations };
 
 export const getDirection = (language: Language): string => {
   return language === 'ar' ? 'rtl' : 'ltr';

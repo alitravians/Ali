@@ -70,19 +70,27 @@ function App() {
       console.error('Error loading settings:', e);
     }
     
-    fetchGameStatus();
+    const loadInitialData = async () => {
+      try {
+        await fetchGameStatus();
+        loadSavedData();
+        
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        setIsMobileView(isMobile);
+        console.log('Device type detected:', isMobile ? 'Mobile' : 'Desktop');
+        
+        setLoading(false);
+      } catch (error) {
+        console.error('Error during initialization:', error);
+        setLoading(false);
+      }
+    };
     
-    loadSavedData();
-    
-    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    setIsMobileView(isMobile);
-    console.log('Device type detected:', isMobile ? 'Mobile' : 'Desktop');
+    loadInitialData();
     
     const statusInterval = setInterval(() => {
       fetchGameStatus();
     }, 30000); // Check every 30 seconds
-    
-    setLoading(false);
     
     return () => {
       clearInterval(statusInterval);
@@ -99,13 +107,16 @@ function App() {
         console.log('Game status received:', data);
         setGameStatus(data);
         localStorage.setItem('snakeGameStatus', JSON.stringify(data));
+        return data; // Return data for async handling
       } else {
         console.error('Failed to fetch game status:', response.status);
-        fallbackToLocalGameStatus();
+        const fallbackData = fallbackToLocalGameStatus();
+        return fallbackData; // Return fallback data
       }
     } catch (error) {
       console.error('Error fetching game status:', error);
-      fallbackToLocalGameStatus();
+      const fallbackData = fallbackToLocalGameStatus();
+      return fallbackData; // Return fallback data
     }
   }, []);
   
@@ -114,13 +125,15 @@ function App() {
     const savedStatus = localStorage.getItem('snakeGameStatus');
     if (savedStatus) {
       try {
-        setGameStatus(JSON.parse(savedStatus));
+        const parsedStatus = JSON.parse(savedStatus);
+        setGameStatus(parsedStatus);
+        return parsedStatus;
       } catch (parseError) {
         console.error('Error parsing saved game status:', parseError);
-        resetGameStatus();
+        return resetGameStatus();
       }
     } else {
-      resetGameStatus();
+      return resetGameStatus();
     }
   };
   
@@ -133,6 +146,7 @@ function App() {
     console.log('Resetting game status to default:', defaultStatus);
     setGameStatus(defaultStatus);
     localStorage.setItem('snakeGameStatus', JSON.stringify(defaultStatus));
+    return defaultStatus;
   };
   
   const toggleSound = () => {
@@ -214,6 +228,13 @@ function App() {
         console.log('Game status updated successfully:', updatedStatus);
         setGameStatus(updatedStatus);
         localStorage.setItem('snakeGameStatus', JSON.stringify(updatedStatus));
+        
+        if (isAdminAuthenticated) {
+          console.log('Admin authenticated, reloading to apply changes...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+        }
       } else {
         console.error('Failed to update game status on server');
         setGameStatus(status);
@@ -316,7 +337,7 @@ function App() {
           )}
           
           {/* Admin access button with added CSS class for visibility */}
-          <div className="admin-button">
+          <div className="admin-button" style={{ zIndex: 9999, position: 'fixed', bottom: '1rem', right: '1rem' }}>
             <AdminAccessButton 
               settings={settings}
               onClick={handleAdminAccess}
