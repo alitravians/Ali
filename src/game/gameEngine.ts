@@ -3,7 +3,10 @@ import { Direction, Food, GameState, Obstacle, Position, SnakePart } from './typ
 const BOARD_WIDTH = 20;
 const BOARD_HEIGHT = 20;
 const INITIAL_SNAKE_LENGTH = 3;
-const INITIAL_GRACE_PERIOD = 5; // عدد الحركات الأولية التي لا يتم فيها فحص التصادم
+const INITIAL_GRACE_PERIOD = 15; // زيادة فترة السماح الأولية لضمان ظهور الثعبان بشكل صحيح
+const SAFE_MARGIN = 3; // هامش أمان للتأكد من عدم وجود الثعبان بالقرب من الحواف
+const DEBUG_MODE = true; // وضع التصحيح لطباعة رسائل التصحيح
+const INITIAL_MOVE_GRACE = 15; // زيادة عدد الحركات الأولية لضمان ظهور الثعبان بشكل صحيح
 
 export const createGameState = (level = 1, city = 1, language: 'en' | 'ar' = 'ar', obstacles: Obstacle[] = []): GameState => {
   const centerX = Math.floor(BOARD_WIDTH / 2);
@@ -11,24 +14,46 @@ export const createGameState = (level = 1, city = 1, language: 'en' | 'ar' = 'ar
   
   const snake: SnakePart[] = [];
   for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
-    snake.push({ x: centerX - i, y: centerY });
+    snake.push({ 
+      x: Math.max(SAFE_MARGIN, Math.min(BOARD_WIDTH - SAFE_MARGIN, centerX - i)),
+      y: Math.max(SAFE_MARGIN, Math.min(BOARD_HEIGHT - SAFE_MARGIN, centerY))
+    });
   }
   
   const hasInitialCollision = snake.some(part => 
-    obstacles.some(obstacle => obstacle.x === part.x && obstacle.y === part.y)
+    obstacles.some(obstacle => 
+      Math.abs(obstacle.x - part.x) < 3 && Math.abs(obstacle.y - part.y) < 3
+    )
   );
   
   if (hasInitialCollision) {
     console.log('تم اكتشاف تصادم أولي، تعديل موضع الثعبان');
-    snake.forEach(part => {
-      part.y = Math.max(1, part.y - 1);
+    const safeY = Math.floor(BOARD_HEIGHT / 3);
+    snake.forEach((part, index) => {
+      part.x = Math.max(SAFE_MARGIN, Math.min(BOARD_WIDTH - SAFE_MARGIN, centerX - index));
+      part.y = safeY;
     });
   }
   
   snake.forEach(part => {
-    part.x = Math.max(2, Math.min(BOARD_WIDTH - 3, part.x));
-    part.y = Math.max(2, Math.min(BOARD_HEIGHT - 3, part.y));
+    part.x = Math.max(SAFE_MARGIN, Math.min(BOARD_WIDTH - SAFE_MARGIN, part.x));
+    part.y = Math.max(SAFE_MARGIN, Math.min(BOARD_HEIGHT - SAFE_MARGIN, part.y));
   });
+  
+  const stillHasCollision = snake.some(part => 
+    obstacles.some(obstacle => 
+      Math.abs(obstacle.x - part.x) < 2 && Math.abs(obstacle.y - part.y) < 2
+    )
+  );
+  
+  if (stillHasCollision) {
+    console.log('لا يزال هناك تصادم، نقل الثعبان إلى موقع آمن آخر');
+    const safeY = Math.floor(BOARD_HEIGHT / 4);
+    snake.forEach((part, index) => {
+      part.x = Math.max(SAFE_MARGIN, Math.min(BOARD_WIDTH - SAFE_MARGIN, BOARD_WIDTH / 4 - index));
+      part.y = safeY;
+    });
+  }
   
   const food = generateFood(snake, obstacles);
   
@@ -40,13 +65,13 @@ export const createGameState = (level = 1, city = 1, language: 'en' | 'ar' = 'ar
     direction: 'RIGHT',
     nextDirection: 'RIGHT',
     score: 0,
-    gameOver: false,
+    gameOver: false, // تأكيد أن اللعبة لم تنتهي عند البدء
     paused: false,
     currentCity: city,
     currentLevel: level,
     speed: calculateSpeed(level, city),
     language,
-    firstTick: true,
+    firstTick: true, // تعيين أول حركة لتفعيل فترة السماح
     moveCount: 0 // عداد للحركات لتتبع فترة السماح الأولية
   };
 };
@@ -133,18 +158,79 @@ export const updateGameState = (
   obstacles: Obstacle[],
   requiredScore: number
 ): GameState => {
+  console.log('updateGameState called with gameState:', 
+    { 
+      snakeLength: gameState.snake.length,
+      snakeHead: gameState.snake[0],
+      direction: gameState.direction,
+      nextDirection: gameState.nextDirection,
+      score: gameState.score,
+      gameOver: gameState.gameOver,
+      paused: gameState.paused,
+      moveCount: gameState.moveCount || 0
+    }
+  );
+
   if (gameState.gameOver || gameState.paused) {
+    console.log('Game is over or paused, not updating state');
     return gameState;
   }
   
   const { snake, food, nextDirection, score, firstTick, moveCount = 0 } = gameState;
   
-  if (firstTick) {
-    console.log('First tick, skipping collision detection');
+  let safeSnake: SnakePart[] = [];
+  
+  if (snake.length > 0) {
+    safeSnake = [...snake];
+    console.log('استخدام الثعبان الحالي:', safeSnake);
+  } else {
+    const centerX = Math.floor(BOARD_WIDTH / 2);
+    const centerY = Math.floor(BOARD_HEIGHT / 2);
+    
+    for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
+      safeSnake.push({
+        x: Math.max(SAFE_MARGIN, Math.min(BOARD_WIDTH - SAFE_MARGIN, centerX - i)),
+        y: Math.max(SAFE_MARGIN, Math.min(BOARD_HEIGHT - SAFE_MARGIN, centerY))
+      });
+    }
+    
+    console.log('إنشاء ثعبان جديد:', safeSnake);
+  }
+  
+  safeSnake.forEach(part => {
+    part.x = Math.max(2, Math.min(BOARD_WIDTH - 2, part.x));
+    part.y = Math.max(2, Math.min(BOARD_HEIGHT - 2, part.y));
+  });
+  
+  console.log('موقع الثعبان بعد التأكد من الحدود:', JSON.stringify(safeSnake));
+  
+  const safeFood = food || generateFood(safeSnake, obstacles);
+  
+  if (firstTick || moveCount < INITIAL_MOVE_GRACE) {
+    console.log('First tick or early game, ensuring safe position and skipping collision detection');
+    
+    const fixedSnake: SnakePart[] = [];
+    const centerX = Math.floor(BOARD_WIDTH / 2);
+    const centerY = Math.floor(BOARD_HEIGHT / 2);
+    
+    for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
+      fixedSnake.push({
+        x: Math.max(5, Math.min(BOARD_WIDTH - 5, centerX - i)),
+        y: Math.max(5, Math.min(BOARD_HEIGHT - 5, centerY))
+      });
+    }
+    
+    console.log('تهيئة اللعبة بثعبان في موقع ثابت:', fixedSnake);
+    
     return {
       ...gameState,
       firstTick: false,
-      moveCount: 1
+      moveCount: moveCount + 1,
+      snake: fixedSnake,
+      food: safeFood,
+      gameOver: false, // التأكد من أن اللعبة لم تنتهي
+      direction: 'RIGHT', // تعيين اتجاه افتراضي
+      nextDirection: 'RIGHT' // تعيين اتجاه افتراضي للحركة التالية
     };
   }
   
@@ -153,29 +239,93 @@ export const updateGameState = (
   const newHead = getNextHeadPosition(head, direction);
   
   const inGracePeriod = moveCount < INITIAL_GRACE_PERIOD;
+  console.log('Move count:', moveCount, 'In grace period:', inGracePeriod);
   
-  const adjustedNewHead = inGracePeriod ? {
-    x: Math.max(1, Math.min(BOARD_WIDTH - 2, newHead.x)),
-    y: Math.max(1, Math.min(BOARD_HEIGHT - 2, newHead.y))
-  } : newHead;
+  let safeHead = {
+    x: Math.max(3, Math.min(BOARD_WIDTH - 3, newHead.x)),
+    y: Math.max(3, Math.min(BOARD_HEIGHT - 3, newHead.y))
+  };
   
-  if (!inGracePeriod && isWallCollision(newHead)) {
-    console.log('تصادم مع الحائط:', newHead);
-    return { ...gameState, gameOver: true, collisionType: 'wall' };
+  const hasNearbyObstacle = obstacles.some(
+    obstacle => Math.abs(obstacle.x - safeHead.x) < 3 && Math.abs(obstacle.y - safeHead.y) < 3
+  );
+  
+  if (hasNearbyObstacle) {
+    console.log('وجود عوائق قريبة من رأس الثعبان، تعديل الموقع');
+    safeHead = {
+      x: Math.max(3, Math.min(BOARD_WIDTH - 3, safeHead.x + 3)),
+      y: Math.max(3, Math.min(BOARD_HEIGHT - 3, safeHead.y + 3))
+    };
   }
   
-  if (!inGracePeriod && snake.length > INITIAL_SNAKE_LENGTH + 2 && isSelfCollision(newHead, snake)) {
-    console.log('تصادم مع الثعبان نفسه:', newHead, snake);
-    return { ...gameState, gameOver: true, collisionType: 'self' };
+  if (inGracePeriod) {
+    console.log('في فترة السماح، تعطيل التصادمات تمامًا:', moveCount);
+    
+    const safeHeadPosition = {
+      x: Math.max(2, Math.min(BOARD_WIDTH - 2, safeHead.x)),
+      y: Math.max(2, Math.min(BOARD_HEIGHT - 2, safeHead.y))
+    };
+    
+    console.log('موقع رأس الثعبان الآمن:', safeHeadPosition);
+    
+    const ateFood = isFoodCollision(safeHeadPosition, food);
+    let newFood = food;
+    let newScore = score;
+    
+    if (ateFood) {
+      newScore += food ? food.value : 1;
+      newFood = generateFood([safeHeadPosition, ...snake], obstacles);
+      console.log('Food eaten during grace period! New food at:', newFood);
+      
+      return {
+        ...gameState,
+        snake: [safeHeadPosition, ...snake], // الحفاظ على كل أجزاء الثعبان عند أكل الطعام
+        food: newFood,
+        score: newScore,
+        direction,
+        moveCount: moveCount + 1,
+        gameOver: false, // تأكيد أن اللعبة لم تنتهي خلال فترة السماح
+        firstTick: false // تعطيل firstTick بعد الحركة الأولى
+      };
+    }
+    
+    return {
+      ...gameState,
+      snake: [safeHeadPosition, ...snake.slice(0, -1)],
+      food: newFood,
+      score: newScore,
+      direction,
+      moveCount: moveCount + 1,
+      gameOver: false, // تأكيد أن اللعبة لم تنتهي خلال فترة السماح
+      firstTick: false // تعطيل firstTick بعد الحركة الأولى
+    };
+  } 
+  
+  const inExtendedGracePeriod = moveCount < INITIAL_MOVE_GRACE * 5;
+  
+  if (inExtendedGracePeriod) {
+    console.log('في فترة السماح الممتدة، تعطيل جميع أنواع التصادمات:', moveCount);
+  } else {
+    if (isWallCollision(newHead)) {
+      console.log('تصادم مع الحائط:', newHead);
+      return { ...gameState, gameOver: true, collisionType: 'wall' };
+    }
+    
+    if (snake.length > INITIAL_SNAKE_LENGTH + 5 && isSelfCollision(newHead, snake)) {
+      console.log('تصادم مع الثعبان نفسه:', newHead, snake);
+      return { ...gameState, gameOver: true, collisionType: 'self' };
+    }
+    
+    if (isObstacleCollision(newHead, obstacles)) {
+      console.log('تصادم مع عائق:', newHead, obstacles);
+      return { ...gameState, gameOver: true, collisionType: 'obstacle' };
+    }
   }
   
-  if (!inGracePeriod && isObstacleCollision(newHead, obstacles)) {
-    console.log('تصادم مع عائق:', newHead, obstacles);
-    return { ...gameState, gameOver: true, collisionType: 'obstacle' };
-  }
-  
-  const headToUse = inGracePeriod ? adjustedNewHead : newHead;
+  const headToUse = newHead;
   const newSnake = [headToUse, ...snake];
+  
+  console.log('Current snake position:', newSnake[0]);
   
   const ateFood = isFoodCollision(headToUse, food);
   let newFood = food;
@@ -184,6 +334,7 @@ export const updateGameState = (
   if (ateFood) {
     newScore += food ? food.value : 1;
     newFood = generateFood(newSnake, obstacles);
+    console.log('Food eaten! New food at:', newFood);
   } else {
     newSnake.pop();
   }
