@@ -3,10 +3,9 @@ import { Direction, Food, GameState, Obstacle, Position, SnakePart } from './typ
 const BOARD_WIDTH = 20;
 const BOARD_HEIGHT = 20;
 const INITIAL_SNAKE_LENGTH = 3;
-const INITIAL_GRACE_PERIOD = 15; // زيادة فترة السماح الأولية لضمان ظهور الثعبان بشكل صحيح
-const SAFE_MARGIN = 3; // هامش أمان للتأكد من عدم وجود الثعبان بالقرب من الحواف
+const GRACE_PERIOD = 15; // فترة سماح موحدة لتجنب الاصطدام في بداية اللعبة
+const SAFE_MARGIN = 3; // هامش أمان للثعبان
 const DEBUG_MODE = true; // وضع التصحيح لطباعة رسائل التصحيح
-const INITIAL_MOVE_GRACE = 15; // زيادة عدد الحركات الأولية لضمان ظهور الثعبان بشكل صحيح
 
 export const createGameState = (level = 1, city = 1, language: 'en' | 'ar' = 'ar', obstacles: Obstacle[] = []): GameState => {
   const centerX = Math.floor(BOARD_WIDTH / 2);
@@ -206,8 +205,8 @@ export const updateGameState = (
   
   const safeFood = food || generateFood(safeSnake, obstacles);
   
-  if (firstTick || moveCount < INITIAL_MOVE_GRACE) {
-    console.log('First tick or early game, ensuring safe position and skipping collision detection');
+  if (firstTick || moveCount < GRACE_PERIOD) {
+    console.log('في فترة السماح الأولية:', moveCount);
     
     const fixedSnake: SnakePart[] = [];
     const centerX = Math.floor(BOARD_WIDTH / 2);
@@ -220,7 +219,7 @@ export const updateGameState = (
       });
     }
     
-    console.log('تهيئة اللعبة بثعبان في موقع ثابت:', fixedSnake);
+    console.log('تهيئة اللعبة بثعبان في موقع آمن:', fixedSnake);
     
     return {
       ...gameState,
@@ -228,9 +227,9 @@ export const updateGameState = (
       moveCount: moveCount + 1,
       snake: fixedSnake,
       food: safeFood,
-      gameOver: false, // التأكد من أن اللعبة لم تنتهي
-      direction: 'RIGHT', // تعيين اتجاه افتراضي
-      nextDirection: 'RIGHT' // تعيين اتجاه افتراضي للحركة التالية
+      gameOver: false,
+      direction: 'RIGHT',
+      nextDirection: 'RIGHT'
     };
   }
   
@@ -238,7 +237,7 @@ export const updateGameState = (
   const head = snake[0];
   const newHead = getNextHeadPosition(head, direction);
   
-  const inGracePeriod = moveCount < INITIAL_GRACE_PERIOD;
+  const inGracePeriod = moveCount < GRACE_PERIOD;
   console.log('Move count:', moveCount, 'In grace period:', inGracePeriod);
   
   let safeHead = {
@@ -251,7 +250,7 @@ export const updateGameState = (
   );
   
   if (hasNearbyObstacle) {
-    console.log('وجود عوائق قريبة من رأس الثعبان، تعديل الموقع');
+    console.log('تعديل موقع الثعبان لتفادي العوائق القريبة');
     safeHead = {
       x: Math.max(3, Math.min(BOARD_WIDTH - 3, safeHead.x + 3)),
       y: Math.max(3, Math.min(BOARD_HEIGHT - 3, safeHead.y + 3))
@@ -259,14 +258,14 @@ export const updateGameState = (
   }
   
   if (inGracePeriod) {
-    console.log('في فترة السماح، تعطيل التصادمات تمامًا:', moveCount);
+    console.log('في فترة السماح - تجاهل التصادمات:', moveCount);
     
     const safeHeadPosition = {
       x: Math.max(2, Math.min(BOARD_WIDTH - 2, safeHead.x)),
       y: Math.max(2, Math.min(BOARD_HEIGHT - 2, safeHead.y))
     };
     
-    console.log('موقع رأس الثعبان الآمن:', safeHeadPosition);
+    console.log('موقع رأس الثعبان بعد التعديل:', safeHeadPosition);
     
     const ateFood = isFoodCollision(safeHeadPosition, food);
     let newFood = food;
@@ -275,17 +274,17 @@ export const updateGameState = (
     if (ateFood) {
       newScore += food ? food.value : 1;
       newFood = generateFood([safeHeadPosition, ...snake], obstacles);
-      console.log('Food eaten during grace period! New food at:', newFood);
+      console.log('أكل الطعام! طعام جديد في:', newFood);
       
       return {
         ...gameState,
-        snake: [safeHeadPosition, ...snake], // الحفاظ على كل أجزاء الثعبان عند أكل الطعام
+        snake: [safeHeadPosition, ...snake],
         food: newFood,
         score: newScore,
         direction,
         moveCount: moveCount + 1,
-        gameOver: false, // تأكيد أن اللعبة لم تنتهي خلال فترة السماح
-        firstTick: false // تعطيل firstTick بعد الحركة الأولى
+        gameOver: false,
+        firstTick: false
       };
     }
     
@@ -296,16 +295,12 @@ export const updateGameState = (
       score: newScore,
       direction,
       moveCount: moveCount + 1,
-      gameOver: false, // تأكيد أن اللعبة لم تنتهي خلال فترة السماح
-      firstTick: false // تعطيل firstTick بعد الحركة الأولى
+      gameOver: false,
+      firstTick: false
     };
-  } 
+  }
   
-  const inExtendedGracePeriod = moveCount < INITIAL_MOVE_GRACE * 5;
-  
-  if (inExtendedGracePeriod) {
-    console.log('في فترة السماح الممتدة، تعطيل جميع أنواع التصادمات:', moveCount);
-  } else {
+  if (!inGracePeriod) {
     if (isWallCollision(newHead)) {
       console.log('تصادم مع الحائط:', newHead);
       return { ...gameState, gameOver: true, collisionType: 'wall' };

@@ -89,34 +89,42 @@ const Game: React.FC<GameProps> = ({
       
       let newDirection: Direction | null = null;
       
+      console.log('مفتاح مضغوط:', e.key);
+      
       switch (e.key) {
         case 'ArrowUp':
         case 'w':
         case 'W':
           newDirection = 'UP';
+          playSoundIfEnabled('move', settings); // إضافة صوت للحركة
           break;
         case 'ArrowDown':
         case 's':
         case 'S':
           newDirection = 'DOWN';
+          playSoundIfEnabled('move', settings);
           break;
         case 'ArrowLeft':
         case 'a':
         case 'A':
           newDirection = 'LEFT';
+          playSoundIfEnabled('move', settings);
           break;
         case 'ArrowRight':
         case 'd':
         case 'D':
           newDirection = 'RIGHT';
+          playSoundIfEnabled('move', settings);
           break;
         case 'p':
         case 'P':
           setGameState(prev => prev ? { ...prev, paused: !prev.paused } : null);
+          playSoundIfEnabled('buttonClick', settings);
           break;
       }
       
       if (newDirection && gameState) {
+        console.log('تغيير اتجاه الثعبان من', gameState.direction, 'إلى', newDirection);
         setGameState(prev => {
           if (!prev) return null;
           return {
@@ -153,45 +161,18 @@ const Game: React.FC<GameProps> = ({
       let updatedGameState;
       
       if (inGracePeriod) {
-        console.log('في فترة السماح، تعطيل التصادمات تمامًا:', gameState.moveCount);
+        console.log('في فترة السماح - استخدام updateGameState مع وضع الحماية');
         
-        const head = gameState.snake[0];
-        const direction = gameState.nextDirection;
-        
-        let newHead = { ...head };
-        if (direction === 'UP') newHead.y = Math.max(0, head.y - 1);
-        if (direction === 'DOWN') newHead.y = Math.min(getBoardSize().height - 1, head.y + 1);
-        if (direction === 'LEFT') newHead.x = Math.max(0, head.x - 1);
-        if (direction === 'RIGHT') newHead.x = Math.min(getBoardSize().width - 1, head.x + 1);
-        
-        const newSnake = [newHead, ...gameState.snake.slice(0, -1)];
+        updatedGameState = updateGameState(gameState, obstacles, requiredScore);
         
         updatedGameState = {
-          ...gameState,
-          snake: newSnake,
-          direction: gameState.nextDirection,
-          moveCount: (gameState.moveCount || 0) + 1,
+          ...updatedGameState,
           gameOver: false
         };
-        
-        if (gameState.food && newHead.x === gameState.food.x && newHead.y === gameState.food.y) {
-          updatedGameState.score += gameState.food.value || 1;
-          updatedGameState.snake = [newHead, ...gameState.snake];
-          updatedGameState.food = generateFood(updatedGameState.snake, obstacles);
-        }
       } else {
         updatedGameState = updateGameState(gameState, obstacles, requiredScore);
       }
       
-      if (inGracePeriod) {
-        console.log('تأكيد عدم انتهاء اللعبة خلال فترة السماح:', gameState.moveCount);
-        
-        updatedGameState = {
-          ...updatedGameState,
-          gameOver: false,
-          moveCount: (gameState.moveCount || 0) + 1
-        };
-      }
       
       if (updatedGameState.gameOver) {
         console.log('انتهاء اللعبة بسبب:', updatedGameState.collisionType);
@@ -313,13 +294,34 @@ const Game: React.FC<GameProps> = ({
     console.log('Game initialization - Snake head position:', head);
     
     if (gameState.gameOver) {
-      console.log('Forcing game to not be in game over state');
+      console.log('إعادة تهيئة اللعبة بعد انتهائها');
+      
+      const boardSize = getBoardSize();
+      const centerX = Math.floor(boardSize.width / 2);
+      const centerY = Math.floor(boardSize.height / 2);
+      
+      const safeSnake = createGameState(
+        selectedLevel, 
+        selectedCity, 
+        settings.language, 
+        obstacles
+      ).snake;
+      
+      console.log('تم إنشاء ثعبان جديد في موقع آمن:', safeSnake);
+      
       setGameState({
         ...gameState,
+        snake: safeSnake,
         gameOver: false,
         firstTick: true,
-        moveCount: 0
+        moveCount: 0,
+        direction: 'RIGHT',
+        nextDirection: 'RIGHT',
+        score: 0,
+        food: null // سيتم إنشاء طعام جديد في الدورة التالية
       });
+      
+      playSoundIfEnabled('buttonClick', settings);
       return;
     }
     
@@ -663,9 +665,11 @@ const Game: React.FC<GameProps> = ({
           style={{
             width: `${getBoardSize().width * 20}px`,
             height: `${getBoardSize().height * 20}px`,
-            backgroundColor: saveData?.cities.find(city => city.id === selectedCity)?.background || 'green',
-            display: 'block', // تأكد من أن اللوحة مرئية دائمًا
-            visibility: 'visible'
+            backgroundColor: saveData?.cities.find(city => city.id === selectedCity)?.background || '#e0f2f1',
+            display: 'block', // تأكد من أن لوحة اللعبة مرئية
+            visibility: 'visible',
+            position: 'relative',
+            overflow: 'hidden'
           }}
         >
           {/* Debug information */}
@@ -677,7 +681,7 @@ const Game: React.FC<GameProps> = ({
             Move Count: {gameState.moveCount || 0}
           </div>
           
-          {/* Snake - تحسين عرض الثعبان مع زيادة الوضوح */}
+          {/* Snake - تحسين عرض الثعبان */}
           {gameState.snake.map((part, index) => {
             console.log(`Rendering snake part ${index} at position:`, part);
             return (
@@ -685,13 +689,15 @@ const Game: React.FC<GameProps> = ({
                 key={`snake-${index}`}
                 className={`absolute ${index === 0 ? 'bg-red-600' : 'bg-green-600'} rounded-sm`}
                 style={{
-                  width: '30px', // زيادة حجم الثعبان للوضوح
-                  height: '30px', // زيادة حجم الثعبان للوضوح
+                  width: '20px', // تعديل الحجم ليتطابق مع شبكة اللعبة
+                  height: '20px', // تعديل الحجم ليتطابق مع شبكة اللعبة
                   left: `${part.x * 20}px`,
                   top: `${part.y * 20}px`,
-                  zIndex: 999, // زيادة z-index لضمان ظهور الثعبان فوق كل شيء
-                  border: index === 0 ? '3px solid yellow' : '2px solid black',
-                  boxShadow: index === 0 ? '0 0 15px rgba(255,0,0,0.9)' : '0 0 10px rgba(0,255,0,0.8)',
+                  zIndex: 50, // قيمة معقولة لـ z-index
+                  border: index === 0 ? '2px solid yellow' : '1px solid black',
+                  boxShadow: index === 0 ? '0 0 8px rgba(255,0,0,0.7)' : '0 0 5px rgba(0,255,0,0.5)',
+                  display: 'block',
+                  visibility: 'visible'
                 }}
               />
             );
@@ -721,7 +727,9 @@ const Game: React.FC<GameProps> = ({
                 height: '20px',
                 left: `${obstacle.x * 20}px`,
                 top: `${obstacle.y * 20}px`,
-                zIndex: 5
+                zIndex: 10,
+                display: 'block',
+                visibility: 'visible'
               }}
             />
           ))}
