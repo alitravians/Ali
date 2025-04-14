@@ -256,14 +256,14 @@ export const updateGameState = (
     score, 
     moveCount = 0, 
     firstTick, 
-    lastMoveTime = Date.now(),
+    lastMoveTime = Date.now() - 1000, // تعيين وقت سابق للسماح بالحركة الأولى - Set past time to allow first move
     speed,
     language
   } = gameState;
   
   // التحقق من وقت الحركة الأخيرة - Check last move time
   const now = Date.now();
-  const timeSinceLastMove = now - lastMoveTime;
+  const timeSinceLastMove = now - (lastMoveTime || now - 1000);
   
   // إذا كانت هذه أول حركة، قم بإعداد الثعبان الأولي - If this is first tick, set up initial snake
   if (firstTick) {
@@ -277,7 +277,9 @@ export const updateGameState = (
       food: newFood,
       firstTick: false,
       moveCount: 1,
-      lastMoveTime: now
+      lastMoveTime: now - speed, // تعيين وقت سابق للسماح بالحركة الفورية - Set past time to allow immediate movement
+      direction: nextDirection || INITIAL_DIRECTION,
+      nextDirection: nextDirection || INITIAL_DIRECTION
     };
   }
   

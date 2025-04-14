@@ -301,7 +301,10 @@ const Game: React.FC<GameProps> = ({
         snakeHead: gameState.snake[0],
         gameOver: gameState.gameOver,
         paused: gameState.paused,
-        moveCount: gameState.moveCount
+        moveCount: gameState.moveCount,
+        direction: gameState.direction,
+        nextDirection: gameState.nextDirection,
+        lastMoveTime: gameState.lastMoveTime
       } : null,
       gameOver,
       levelCompleted
