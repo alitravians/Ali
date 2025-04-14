@@ -15,15 +15,30 @@ import { playSoundIfEnabled } from './soundSystem';
 export const BOARD_WIDTH = 30;
 export const BOARD_HEIGHT = 20;
 export const INITIAL_SNAKE_LENGTH = 3;
-export const GRACE_PERIOD = 10; // عدد الحركات في فترة السماح - Moves in grace period
+export const GRACE_PERIOD = 20; // زيادة فترة السماح - Increased grace period
 export const SAFE_MARGIN = 5; // هامش الأمان للثعبان - Safety margin for snake
 export const DEBUG_MODE = true; // وضع التصحيح لطباعة رسائل التصحيح - Debug mode for debugging messages
 export const CELL_SIZE = 20; // حجم الخلية بالبكسل - Cell size in pixels
 export const MOVEMENT_DELAY = 150; // التأخير الافتراضي للحركة (مللي ثانية) - Default movement delay (ms)
+export const INITIAL_DIRECTION: Direction = 'RIGHT'; // الاتجاه الأولي للثعبان - Initial snake direction
+export const MIN_MOVEMENT_INTERVAL = 80; // الحد الأدنى للفاصل الزمني بين الحركات - Minimum interval between moves
 
 /**
- * إنشاء حالة اللعبة الأولية
- * Create initial game state
+ * تهيئة الثعبان الأولي - Initialize initial snake
+ */
+export const initializeSnake = (centerX: number, centerY: number): SnakePart[] => {
+  const snake: SnakePart[] = [];
+  for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
+    snake.push({ 
+      x: centerX - i,
+      y: centerY
+    });
+  }
+  return snake;
+};
+
+/**
+ * إنشاء حالة اللعبة الأولية - Create initial game state
  */
 export const createGameState = (
   level = 1, 
@@ -32,7 +47,7 @@ export const createGameState = (
   obstacles: Obstacle[] = []
 ): GameState => {
   if (DEBUG_MODE) {
-    console.log('إنشاء حالة اللعبة الأولية - Creating initial game state', { level, city, language });
+    console.log(`[${language}] إنشاء حالة اللعبة الأولية - Creating initial game state`, { level, city });
   }
   
   // تحديد موضع الثعبان في وسط اللوحة - Position snake in center of board
@@ -40,16 +55,10 @@ export const createGameState = (
   const centerY = Math.floor(BOARD_HEIGHT / 2);
   
   // إنشاء جسم الثعبان - Create snake body
-  const snake: SnakePart[] = [];
-  for (let i = 0; i < INITIAL_SNAKE_LENGTH; i++) {
-    snake.push({ 
-      x: centerX - i,
-      y: centerY
-    });
-  }
+  const snake = initializeSnake(centerX, centerY);
   
   if (DEBUG_MODE) {
-    console.log('الثعبان الأولي - Initial snake:', snake);
+    console.log(`[${language}] الثعبان الأولي - Initial snake:`, snake);
   }
   
   // التحقق من وجود عوائق في موضع الثعبان - Check for obstacles at snake position
@@ -63,9 +72,8 @@ export const createGameState = (
   let safeSnake = [...snake];
   if (hasInitialCollision) {
     if (DEBUG_MODE) {
-      console.log('تصادم أولي، تعديل موضع الثعبان - Initial collision, adjusting snake position');
+      console.log(`[${language}] تصادم أولي، تعديل موضع الثعبان - Initial collision, adjusting snake position`);
     }
-    
     
     const safeY = Math.floor(BOARD_HEIGHT / 3);
     
@@ -89,20 +97,16 @@ export const createGameState = (
   const food = generateFood(safeSnake, obstacles);
   
   if (DEBUG_MODE) {
-    console.log('حالة اللعبة المهيأة - Game state initialized:', { 
-      snake: safeSnake,
-      food,
-      level,
-      city
-    });
+    console.log(`[${language}] تم تهيئة الثعبان في الموضع - Snake initialized at position:`, safeSnake[0]);
+    console.log(`[${language}] تم توليد الطعام في الموضع - Food generated at position:`, food);
   }
   
   // إرجاع حالة اللعبة الأولية - Return initial game state
   return {
     snake: safeSnake,
     food,
-    direction: 'RIGHT',
-    nextDirection: 'RIGHT',
+    direction: INITIAL_DIRECTION,
+    nextDirection: INITIAL_DIRECTION,
     score: 0,
     gameOver: false,
     paused: false,
@@ -117,8 +121,7 @@ export const createGameState = (
 };
 
 /**
- * توليد طعام جديد في موقع عشوائي
- * Generate new food at random position
+ * توليد طعام جديد في موقع عشوائي - Generate new food at random position
  */
 export const generateFood = (snake: SnakePart[], obstacles: Obstacle[]): Food => {
   let position: Position;
@@ -153,8 +156,7 @@ export const generateFood = (snake: SnakePart[], obstacles: Obstacle[]): Food =>
 };
 
 /**
- * حساب سرعة اللعبة بناءً على المستوى والمدينة
- * Calculate game speed based on level and city
+ * حساب سرعة اللعبة بناءً على المستوى والمدينة - Calculate game speed based on level and city
  */
 export const calculateSpeed = (level: number, city: number): number => {
   const baseSpeed = 200; // السرعة الأساسية (مللي ثانية) - Base speed (ms)
@@ -166,8 +168,7 @@ export const calculateSpeed = (level: number, city: number): number => {
 };
 
 /**
- * التحقق من التصادم مع الجدران
- * Check for wall collision
+ * التحقق من التصادم مع الجدران - Check for wall collision
  */
 export const isWallCollision = (position: Position): boolean => {
   return (
@@ -179,8 +180,7 @@ export const isWallCollision = (position: Position): boolean => {
 };
 
 /**
- * التحقق من التصادم مع الثعبان نفسه
- * Check for self collision
+ * التحقق من التصادم مع الثعبان نفسه - Check for self collision
  */
 export const isSelfCollision = (head: Position, snake: SnakePart[]): boolean => {
   // التحقق فقط من الأجزاء بعد الرأس والرقبة - Only check parts after head and neck
@@ -188,16 +188,14 @@ export const isSelfCollision = (head: Position, snake: SnakePart[]): boolean => 
 };
 
 /**
- * التحقق من التصادم مع العوائق
- * Check for obstacle collision
+ * التحقق من التصادم مع العوائق - Check for obstacle collision
  */
 export const isObstacleCollision = (head: Position, obstacles: Obstacle[]): boolean => {
   return obstacles.some(obstacle => obstacle.x === head.x && obstacle.y === head.y);
 };
 
 /**
- * التحقق من التصادم مع الطعام
- * Check for food collision
+ * التحقق من التصادم مع الطعام - Check for food collision
  */
 export const isFoodCollision = (head: Position, food: Food | null): boolean => {
   if (!food) return false;
@@ -205,16 +203,14 @@ export const isFoodCollision = (head: Position, food: Food | null): boolean => {
 };
 
 /**
- * التحقق من اكتمال المستوى
- * Check if level is completed
+ * التحقق من اكتمال المستوى - Check if level is completed
  */
 export const isLevelCompleted = (score: number, requiredScore: number): boolean => {
   return score >= requiredScore;
 };
 
 /**
- * الحصول على موقع الرأس التالي بناءً على الاتجاه
- * Get next head position based on direction
+ * الحصول على موقع الرأس التالي بناءً على الاتجاه - Get next head position based on direction
  */
 export const getNextHeadPosition = (head: Position, direction: Direction): Position => {
   switch (direction) {
@@ -230,8 +226,16 @@ export const getNextHeadPosition = (head: Position, direction: Direction): Posit
 };
 
 /**
- * تحديث حالة اللعبة
- * Update game state
+ * التحقق مما إذا كان الوقت قد حان للتحرك - Check if it's time to move
+ */
+export const isTimeToMove = (lastMoveTime: number, speed: number): boolean => {
+  const now = Date.now();
+  const timeSinceLastMove = now - lastMoveTime;
+  return timeSinceLastMove >= Math.max(MIN_MOVEMENT_INTERVAL, speed);
+};
+
+/**
+ * تحديث حالة اللعبة - Update game state
  */
 export const updateGameState = (
   gameState: GameState,
@@ -239,22 +243,31 @@ export const updateGameState = (
   requiredScore: number,
   settings: any
 ): GameState => {
-  // إذا كانت اللعبة متوقفة مؤقتًا، أرجع الحالة كما هي - If game is paused, return state as is
-  if (gameState.paused) {
+  // إذا كانت اللعبة متوقفة مؤقتًا أو انتهت، أرجع الحالة كما هي - If game is paused or over, return state as is
+  if (gameState.paused || gameState.gameOver) {
     return gameState;
   }
   
-  // إذا انتهت اللعبة، أرجع الحالة كما هي - If game is over, return state as is
-  if (gameState.gameOver) {
-    return gameState;
-  }
+  const { 
+    snake, 
+    food, 
+    direction, 
+    nextDirection, 
+    score, 
+    moveCount = 0, 
+    firstTick, 
+    lastMoveTime = Date.now(),
+    speed,
+    language
+  } = gameState;
   
-  const { snake, food, direction, nextDirection, score, moveCount = 0, firstTick } = gameState;
-  const head = snake[0];
+  // التحقق من وقت الحركة الأخيرة - Check last move time
+  const now = Date.now();
+  const timeSinceLastMove = now - lastMoveTime;
   
   // إذا كانت هذه أول حركة، قم بإعداد الثعبان الأولي - If this is first tick, set up initial snake
   if (firstTick) {
-    if (DEBUG_MODE) console.log('أول تحديث للعبة - First game update');
+    if (DEBUG_MODE) console.log(`[${language}] أول تحديث للعبة - First game update`);
     
     // توليد طعام جديد إذا لم يكن موجوداً - Generate new food if not exists
     const newFood = food || generateFood(snake, obstacles);
@@ -264,9 +277,16 @@ export const updateGameState = (
       food: newFood,
       firstTick: false,
       moveCount: 1,
-      lastMoveTime: Date.now()
+      lastMoveTime: now
     };
   }
+  
+  // التحقق مما إذا كان الوقت قد حان للتحرك - Check if it's time to move
+  if (!isTimeToMove(lastMoveTime, speed)) {
+    return gameState; // لم يحن وقت الحركة بعد - Not time to move yet
+  }
+  
+  const head = snake[0];
   
   // في فترة السماح الأولية - In initial grace period
   const inGracePeriod = moveCount < GRACE_PERIOD;
@@ -275,7 +295,7 @@ export const updateGameState = (
   const newHead = getNextHeadPosition(head, nextDirection);
   
   if (DEBUG_MODE) {
-    console.log(`تحديث اللعبة: الحركة ${moveCount}, الاتجاه ${nextDirection}, الرأس التالي (${newHead.x},${newHead.y})`);
+    console.log(`[${language}] تحديث اللعبة: الحركة ${moveCount}, الاتجاه ${nextDirection}, الرأس التالي (${newHead.x},${newHead.y})`);
   }
   
   // التحقق من التصادمات - Check for collisions
@@ -284,7 +304,7 @@ export const updateGameState = (
   
   // التحقق من التصادم مع الجدران - Check wall collision
   if (!inGracePeriod && isWallCollision(newHead)) {
-    if (DEBUG_MODE) console.log(`تصادم مع الجدار عند (${newHead.x},${newHead.y})`);
+    if (DEBUG_MODE) console.log(`[${language}] تصادم مع الجدار عند (${newHead.x},${newHead.y})`);
     playSoundIfEnabled('collision', settings);
     gameOver = true;
     collisionType = 'wall';
@@ -292,7 +312,7 @@ export const updateGameState = (
   
   // التحقق من التصادم مع الثعبان نفسه - Check self collision
   if (!inGracePeriod && snake.length > 4 && isSelfCollision(newHead, snake)) {
-    if (DEBUG_MODE) console.log(`تصادم الثعبان مع نفسه عند (${newHead.x},${newHead.y})`);
+    if (DEBUG_MODE) console.log(`[${language}] تصادم الثعبان مع نفسه عند (${newHead.x},${newHead.y})`);
     playSoundIfEnabled('collision', settings);
     gameOver = true;
     collisionType = 'self';
@@ -300,7 +320,7 @@ export const updateGameState = (
   
   // التحقق من التصادم مع العوائق - Check obstacle collision
   if (!inGracePeriod && isObstacleCollision(newHead, obstacles)) {
-    if (DEBUG_MODE) console.log(`تصادم مع عائق عند (${newHead.x},${newHead.y})`);
+    if (DEBUG_MODE) console.log(`[${language}] تصادم مع عائق عند (${newHead.x},${newHead.y})`);
     playSoundIfEnabled('collision', settings);
     gameOver = true;
     collisionType = 'obstacle';
@@ -323,18 +343,22 @@ export const updateGameState = (
   let newFood = food;
   let newScore = score;
   
-  
   // إذا أكل الثعبان الطعام - If snake ate food
   if (ateFood) {
     newScore += food ? food.value : 1;
     newSnake.push(snake[snake.length - 1]); // إضافة ذيل جديد - Add new tail
     newFood = generateFood(newSnake, obstacles);
     playSoundIfEnabled('eat', settings);
-    if (DEBUG_MODE) console.log(`أكل الطعام! طعام جديد: (${newFood.x},${newFood.y})`);
+    if (DEBUG_MODE) console.log(`[${language}] أكل الطعام! طعام جديد: (${newFood.x},${newFood.y})`);
   }
   
   // التحقق من اكتمال المستوى - Check level completion
   const levelCompleted = isLevelCompleted(newScore, requiredScore);
+  
+  // تشغيل صوت الحركة - Play movement sound
+  if (!ateFood) {
+    playSoundIfEnabled('move', settings);
+  }
   
   // أرجع حالة اللعبة المحدثة - Return updated game state
   return {
@@ -345,14 +369,13 @@ export const updateGameState = (
     direction: nextDirection,
     levelCompleted,
     moveCount: moveCount + 1,
-    lastMoveTime: Date.now(),
+    lastMoveTime: now,
     gameOver: false
   };
 };
 
 /**
- * تغيير اتجاه الثعبان
- * Change snake direction
+ * تغيير اتجاه الثعبان - Change snake direction
  */
 export const changeDirection = (currentDirection: Direction, newDirection: Direction): Direction => {
   // منع الدوران 180 درجة - Prevent 180-degree turns
@@ -369,8 +392,7 @@ export const changeDirection = (currentDirection: Direction, newDirection: Direc
 };
 
 /**
- * الحصول على حجم لوحة اللعبة
- * Get board size
+ * الحصول على حجم لوحة اللعبة - Get board size
  */
 export const getBoardSize = (): { width: number; height: number } => {
   return { width: BOARD_WIDTH, height: BOARD_HEIGHT };
