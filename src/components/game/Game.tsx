@@ -11,7 +11,8 @@ import {
   generateFood,
   isWallCollision,
   isSelfCollision,
-  isObstacleCollision
+  isObstacleCollision,
+  initializeSnake
 } from '../../game/gameEngine';
 import { createDefaultSaveData } from '../../game/constants';
 
@@ -39,7 +40,7 @@ const Game: React.FC<GameProps> = ({
   const [requiredScore, setRequiredScore] = useState(5);
   const [gameOver, setGameOver] = useState(false);
   const [levelCompleted, setLevelCompleted] = useState(false);
-  const [showLevelSelection, setShowLevelSelection] = useState(true);
+  const [showLevelSelection, setShowLevelSelection] = useState(false);
   
   const gameLoopRef = useRef<number | null>(null);
   const lastTimeRef = useRef(0);
@@ -59,12 +60,35 @@ const Game: React.FC<GameProps> = ({
       }, 500);
     }
     
+    if (saveData) {
+      console.log('Initializing game state from saveData');
+      const level = saveData.levels.find(
+        lvl => lvl.cityId === selectedCity && lvl.id === selectedLevel
+      );
+      
+      if (level) {
+        setObstacles(level.obstacles);
+        setRequiredScore(level.requiredScore);
+        
+        const initialGameState = createGameState(
+          selectedLevel,
+          selectedCity,
+          settings.language,
+          level.obstacles
+        );
+        
+        console.log('Created initial game state:', initialGameState);
+        setGameState(initialGameState);
+        setIsPlaying(true);
+      }
+    }
+    
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 500);
 
     return () => clearTimeout(timer);
-  }, [saveData, settings, onUpdateSaveData]);
+  }, [saveData, settings, onUpdateSaveData, selectedCity, selectedLevel]);
   
   // Set obstacles and required score when level changes
   useEffect(() => {
@@ -152,9 +176,19 @@ const Game: React.FC<GameProps> = ({
   
   const gameLoop = useCallback((timestamp: number) => {
     if (!gameState) {
-      console.log('Game loop called with null gameState');
+      console.error('Game loop called with null gameState - حلقة اللعبة تم استدعاؤها بحالة لعبة فارغة');
       return;
     }
+    
+    console.log('=== GAME LOOP DEBUG INFO ===');
+    console.log(`Game state exists: ${!!gameState}`);
+    console.log(`Snake length: ${gameState.snake.length}`);
+    console.log(`Snake head: (${gameState.snake[0]?.x || 'N/A'}, ${gameState.snake[0]?.y || 'N/A'})`);
+    console.log(`Direction: ${gameState.direction}, Next Direction: ${gameState.nextDirection}`);
+    console.log(`Move count: ${gameState.moveCount || 0}`);
+    console.log(`Last move time: ${gameState.lastMoveTime || 'N/A'}`);
+    console.log(`Current timestamp: ${timestamp}`);
+    console.log('===========================');
     
     const deltaTime = timestamp - lastTimeRef.current;
     const gameSpeed = gameState?.speed || 150;
@@ -162,8 +196,8 @@ const Game: React.FC<GameProps> = ({
     if (deltaTime >= gameSpeed) {
       lastTimeRef.current = timestamp;
       
-      const inGracePeriod = (gameState.moveCount || 0) < 100;
-      const isFirstMove = (gameState.moveCount || 0) < 20;
+      const inGracePeriod = (gameState.moveCount || 0) < 200;
+      const isFirstMove = (gameState.moveCount || 0) < 50;
       
       console.log(`حالة اللعبة: الحركة رقم ${gameState.moveCount}, في فترة السماح: ${inGracePeriod}, الحركة الأولى: ${isFirstMove}`);
       console.log(`رأس الثعبان: (${gameState.snake[0]?.x || 'N/A'}, ${gameState.snake[0]?.y || 'N/A'})`);
@@ -297,15 +331,21 @@ const Game: React.FC<GameProps> = ({
     console.log('Game loop useEffect triggered with:', { 
       isPlaying, 
       gameState: gameState ? {
-        snakeLength: gameState.snake.length,
-        snakeHead: gameState.snake[0],
+        snakeLength: gameState.snake?.length || 0,
+        snakeHead: gameState.snake?.[0] || 'missing',
         gameOver: gameState.gameOver,
         paused: gameState.paused,
-        moveCount: gameState.moveCount
+        moveCount: gameState.moveCount || 0,
+        direction: gameState.direction,
+        nextDirection: gameState.nextDirection,
+        lastMoveTime: gameState.lastMoveTime || 'missing'
       } : null,
       gameOver,
-      levelCompleted
+      levelCompleted,
+      showLevelSelection
     });
+    
+    console.log('Game board visibility check - showLevelSelection:', showLevelSelection, 'isPlaying:', isPlaying);
     
     if (!isPlaying || !gameState) {
       console.log('Game loop not starting: isPlaying or gameState is falsy');
@@ -316,13 +356,37 @@ const Game: React.FC<GameProps> = ({
       return;
     }
     
+    if (!gameState.snake || gameState.snake.length === 0 || !gameState.snake[0]) {
+      console.log('تصحيح حالة الثعبان المفقود - Correcting missing snake state');
+      
+      const boardSize = getBoardSize();
+      const centerX = Math.floor(boardSize.width / 2);
+      const centerY = Math.floor(boardSize.height / 2);
+      
+      const newSnake = initializeSnake(centerX, centerY);
+      console.log('تم إنشاء ثعبان جديد - Created new snake:', newSnake);
+      
+      setGameState({
+        ...gameState,
+        snake: newSnake,
+        direction: 'RIGHT',
+        nextDirection: 'RIGHT',
+        firstTick: true,
+        moveCount: 0,
+        lastMoveTime: Date.now(),
+        gameOver: false
+      });
+      return;
+    }
+    
     if (gameState.gameOver && (gameState.moveCount || 0) < 10) {
       console.log('تصحيح حالة انتهاء اللعبة المبكرة - Correcting early game over state');
       setGameState({
         ...gameState,
         gameOver: false,
         firstTick: true,
-        moveCount: 0
+        moveCount: 0,
+        lastMoveTime: Date.now()
       });
       return;
     }
@@ -368,7 +432,8 @@ const Game: React.FC<GameProps> = ({
         direction: 'RIGHT',
         nextDirection: 'RIGHT',
         score: 0,
-        food: null // سيتم إنشاء طعام جديد في الدورة التالية
+        food: null, // سيتم إنشاء طعام جديد في الدورة التالية
+        lastMoveTime: Date.now()
       });
       
       playSoundIfEnabled('buttonClick', settings);
@@ -377,7 +442,18 @@ const Game: React.FC<GameProps> = ({
     
     setGameOver(false);
     
+    const updatedGameState = updateGameState(
+      gameState,
+      obstacles,
+      requiredScore,
+      settings
+    );
+    
+    console.log('Initial game state update:', updatedGameState);
+    setGameState(updatedGameState);
+    
     console.log('Starting game loop');
+    lastTimeRef.current = performance.now();
     gameLoopRef.current = requestAnimationFrame(gameLoop);
     
     return () => {
@@ -386,7 +462,7 @@ const Game: React.FC<GameProps> = ({
         gameLoopRef.current = null;
       }
     };
-  }, [isPlaying, gameState, gameLoop, obstacles, requiredScore]);
+  }, [isPlaying, gameState, gameLoop, obstacles, requiredScore, settings]);
   
   const handleSelectLevel = (cityId: number, levelId: number) => {
     console.log('handleSelectLevel called with cityId:', cityId, 'levelId:', levelId);
@@ -481,11 +557,9 @@ const Game: React.FC<GameProps> = ({
     
     setGameState(finalGameState);
     
-    setTimeout(() => {
-      setIsPlaying(true);
-      console.log('Game started with isPlaying=true');
-      console.log('تم بدء اللعبة بنجاح - Game started successfully');
-    }, 100);
+    setIsPlaying(true);
+    console.log('Game started with isPlaying=true');
+    console.log('تم بدء اللعبة بنجاح - Game started successfully');
     
     playSoundIfEnabled('buttonClick', settings);
     
@@ -572,11 +646,9 @@ const Game: React.FC<GameProps> = ({
     
     setGameState(finalGameState);
     
-    setTimeout(() => {
-      setIsPlaying(true);
-      console.log('Game started with isPlaying=true');
-      console.log('تم بدء اللعبة بنجاح - Game started successfully');
-    }, 100);
+    setIsPlaying(true);
+    console.log('Game started with isPlaying=true');
+    console.log('تم بدء اللعبة بنجاح - Game started successfully');
     
     playSoundIfEnabled('buttonClick', settings);
     console.log('Game restarted with safe snake position:', safeSnake[0]);
@@ -730,20 +802,25 @@ const Game: React.FC<GameProps> = ({
         </div>
       </div>
       
+      {/* Game Board Container - حاوية لوحة اللعبة */}
       {gameState && (
         <div 
-          className="game-board border-4 border-gray-600 rounded-md relative mx-auto shadow-xl"
+          className="game-board border-8 border-red-600 rounded-md mx-auto shadow-2xl"
           style={{
             width: `${getBoardSize().width * 20}px`,
             height: `${getBoardSize().height * 20}px`,
-            backgroundColor: saveData?.cities.find(city => city.id === selectedCity)?.background || '#e0f2f1',
-            display: 'block', // تأكد من أن لوحة اللعبة مرئية - Ensure game board is visible
+            backgroundColor: '#e0f2f1',
+            display: 'block',
             visibility: 'visible',
             position: 'relative',
-            overflow: 'hidden',
-            zIndex: 10
-          }}
-        >
+            overflow: 'visible',
+            zIndex: 10,
+            margin: '20px auto',
+            boxShadow: '0 0 50px rgba(255,0,0,0.9)',
+            opacity: 1,
+            minHeight: '400px',
+            maxWidth: '100%'
+          }}>
           {/* Debug information */}
           <div className="absolute top-0 left-0 bg-white p-2 text-xs z-50">
             Snake Length: {gameState.snake.length}
@@ -751,32 +828,104 @@ const Game: React.FC<GameProps> = ({
             Head Position: ({gameState.snake[0]?.x || 'N/A'}, {gameState.snake[0]?.y || 'N/A'})
             <br />
             Move Count: {gameState.moveCount || 0}
+            <br />
+            Last Move Time: {gameState.lastMoveTime ? new Date(gameState.lastMoveTime).toLocaleTimeString() : 'N/A'}
+            <br />
+            Game Over: {gameState.gameOver ? 'Yes' : 'No'}
           </div>
           
-          {/* Snake - تحسين عرض الثعبان - Enhanced snake display */}
+          {/* Snake - تحسين عرض الثعبان مع تأكيد الرؤية - Enhanced snake display with visibility confirmation */}
           {gameState.snake.map((part, index) => {
-            console.log(`Rendering snake part ${index} at position:`, part);
+            console.log(`Rendering snake part ${index} at (${part.x}, ${part.y})`);
             return (
               <div
                 key={`snake-${index}`}
                 className={`absolute ${index === 0 ? 'bg-red-600' : 'bg-green-600'} rounded-md`}
                 style={{
-                  width: '18px', // تعديل الحجم ليتطابق مع شبكة اللعبة - Adjust size to match game grid
-                  height: '18px', // تعديل الحجم ليتطابق مع شبكة اللعبة - Adjust size to match game grid
-                  left: `${part.x * 20 + 1}px`, // إضافة هامش صغير - Add small margin
-                  top: `${part.y * 20 + 1}px`, // إضافة هامش صغير - Add small margin
-                  zIndex: 50, // قيمة معقولة لـ z-index - Reasonable z-index value
-                  border: index === 0 ? '2px solid yellow' : '1px solid black',
-                  boxShadow: index === 0 ? '0 0 8px rgba(255,0,0,0.7)' : '0 0 5px rgba(0,255,0,0.5)',
+                  width: '24px', // زيادة الحجم أكثر لتحسين الرؤية - Further increased size for better visibility
+                  height: '24px', // زيادة الحجم أكثر لتحسين الرؤية - Further increased size for better visibility
+                  left: `${part.x * 20 - 2}px`, // تعديل الموضع لتعويض الحجم الزائد - Adjust position to compensate for increased size
+                  top: `${part.y * 20 - 2}px`, // تعديل الموضع لتعويض الحجم الزائد - Adjust position to compensate for increased size
+                  zIndex: 9999, // زيادة z-index أكثر للتأكد من أن الثعبان فوق جميع العناصر الأخرى - Further increase z-index
+                  border: index === 0 ? '4px solid yellow' : '3px solid black',
+                  boxShadow: index === 0 ? '0 0 15px rgba(255,0,0,1)' : '0 0 10px rgba(0,255,0,0.9)',
                   display: 'block',
                   visibility: 'visible',
-                  transform: 'translate3d(0,0,0)', // تحسين الأداء - Performance improvement
+                  transform: 'translate3d(0,0,0) scale(1.1)', // تحسين الأداء وزيادة الحجم - Performance improvement and size increase
                   transition: 'all 0.1s ease', // إضافة انتقال سلس - Add smooth transition
-                  pointerEvents: 'none'
+                  pointerEvents: 'none',
+                  position: 'absolute'
                 }}
               />
             );
           })}
+          
+          {/* Debug Snake Head Marker - علامة رأس الثعبان للتصحيح */}
+          {gameState.snake[0] && (
+            <div
+              className="absolute bg-yellow-500 rounded-full"
+              style={{
+                width: '30px',
+                height: '30px',
+                left: `${gameState.snake[0].x * 20 - 5}px`,
+                top: `${gameState.snake[0].y * 20 - 5}px`,
+                zIndex: 10000,
+                border: '4px solid black',
+                boxShadow: '0 0 20px rgba(255,255,0,1)',
+                display: 'block',
+                visibility: 'visible',
+                position: 'absolute',
+                opacity: 0.8,
+                pointerEvents: 'none'
+              }}
+            />
+          )}
+          
+          {/* Debug Markers - علامات التصحيح */}
+          <div 
+            className="absolute bg-blue-500 rounded-full" 
+            style={{ 
+              width: '10px', 
+              height: '10px', 
+              left: '0px', 
+              top: '0px', 
+              zIndex: 1000 
+            }} 
+            title="Top-Left Corner"
+          />
+          <div 
+            className="absolute bg-red-500 rounded-full" 
+            style={{ 
+              width: '10px', 
+              height: '10px', 
+              right: '0px', 
+              top: '0px', 
+              zIndex: 1000 
+            }} 
+            title="Top-Right Corner"
+          />
+          <div 
+            className="absolute bg-yellow-500 rounded-full" 
+            style={{ 
+              width: '10px', 
+              height: '10px', 
+              left: '0px', 
+              bottom: '0px', 
+              zIndex: 1000 
+            }} 
+            title="Bottom-Left Corner"
+          />
+          <div 
+            className="absolute bg-purple-500 rounded-full" 
+            style={{ 
+              width: '10px', 
+              height: '10px', 
+              right: '0px', 
+              bottom: '0px', 
+              zIndex: 1000 
+            }} 
+            title="Bottom-Right Corner"
+          />
           
           {/* Food */}
           {gameState.food && (

@@ -15,13 +15,13 @@ import { playSoundIfEnabled } from './soundSystem';
 export const BOARD_WIDTH = 30;
 export const BOARD_HEIGHT = 20;
 export const INITIAL_SNAKE_LENGTH = 3;
-export const GRACE_PERIOD = 20; // زيادة فترة السماح - Increased grace period
-export const SAFE_MARGIN = 5; // هامش الأمان للثعبان - Safety margin for snake
+export const GRACE_PERIOD = 200; // زيادة فترة السماح لتجنب التصادمات المبكرة - Increased grace period to avoid early collisions
+export const SAFE_MARGIN = 10; // زيادة هامش الأمان للثعبان - Increased safety margin for snake
 export const DEBUG_MODE = true; // وضع التصحيح لطباعة رسائل التصحيح - Debug mode for debugging messages
 export const CELL_SIZE = 20; // حجم الخلية بالبكسل - Cell size in pixels
-export const MOVEMENT_DELAY = 150; // التأخير الافتراضي للحركة (مللي ثانية) - Default movement delay (ms)
+export const MOVEMENT_DELAY = 200; // زيادة التأخير الافتراضي للحركة (مللي ثانية) - Increased default movement delay (ms)
 export const INITIAL_DIRECTION: Direction = 'RIGHT'; // الاتجاه الأولي للثعبان - Initial snake direction
-export const MIN_MOVEMENT_INTERVAL = 80; // الحد الأدنى للفاصل الزمني بين الحركات - Minimum interval between moves
+export const MIN_MOVEMENT_INTERVAL = 100; // زيادة الحد الأدنى للفاصل الزمني بين الحركات - Increased minimum interval between moves
 
 /**
  * تهيئة الثعبان الأولي - Initialize initial snake
@@ -213,6 +213,15 @@ export const isLevelCompleted = (score: number, requiredScore: number): boolean 
  * الحصول على موقع الرأس التالي بناءً على الاتجاه - Get next head position based on direction
  */
 export const getNextHeadPosition = (head: Position, direction: Direction): Position => {
+  if (!head || typeof head.x !== 'number' || typeof head.y !== 'number') {
+    console.error('Invalid head position:', head);
+    return { x: Math.floor(BOARD_WIDTH / 2), y: Math.floor(BOARD_HEIGHT / 2) };
+  }
+  
+  if (DEBUG_MODE) {
+    console.log(`Moving snake from (${head.x},${head.y}) in direction ${direction}`);
+  }
+  
   switch (direction) {
     case 'UP':
       return { x: head.x, y: head.y - 1 };
@@ -222,6 +231,9 @@ export const getNextHeadPosition = (head: Position, direction: Direction): Posit
       return { x: head.x - 1, y: head.y };
     case 'RIGHT':
       return { x: head.x + 1, y: head.y };
+    default:
+      console.warn(`Invalid direction: ${direction}, using current position`);
+      return { ...head };
   }
 };
 
@@ -265,6 +277,24 @@ export const updateGameState = (
   const now = Date.now();
   const timeSinceLastMove = now - lastMoveTime;
   
+  if (!snake || snake.length === 0 || !snake[0]) {
+    console.error(`[${language}] خطأ: الثعبان غير موجود أو غير صالح - Error: Snake is missing or invalid`, snake);
+    
+    const centerX = Math.floor(BOARD_WIDTH / 2);
+    const centerY = Math.floor(BOARD_HEIGHT / 2);
+    const newSnake = initializeSnake(centerX, centerY);
+    
+    return {
+      ...gameState,
+      snake: newSnake,
+      direction: INITIAL_DIRECTION,
+      nextDirection: INITIAL_DIRECTION,
+      firstTick: false,
+      moveCount: 0,
+      lastMoveTime: now
+    };
+  }
+  
   // إذا كانت هذه أول حركة، قم بإعداد الثعبان الأولي - If this is first tick, set up initial snake
   if (firstTick) {
     if (DEBUG_MODE) console.log(`[${language}] أول تحديث للعبة - First game update`);
@@ -272,8 +302,14 @@ export const updateGameState = (
     // توليد طعام جديد إذا لم يكن موجوداً - Generate new food if not exists
     const newFood = food || generateFood(snake, obstacles);
     
+    const newHead = getNextHeadPosition(snake[0], direction);
+    const newSnake = [newHead, ...snake.slice(0, -1)];
+    
+    console.log(`[${language}] تحريك الثعبان في أول تحديث من (${snake[0].x},${snake[0].y}) إلى (${newHead.x},${newHead.y})`);
+    
     return {
       ...gameState,
+      snake: newSnake,
       food: newFood,
       firstTick: false,
       moveCount: 1,
@@ -283,7 +319,10 @@ export const updateGameState = (
   
   // التحقق مما إذا كان الوقت قد حان للتحرك - Check if it's time to move
   if (!isTimeToMove(lastMoveTime, speed)) {
-    return gameState; // لم يحن وقت الحركة بعد - Not time to move yet
+    return {
+      ...gameState,
+      lastMoveTime: lastMoveTime // تأكيد على تحديث وقت آخر حركة - Ensure last move time is updated
+    }; // لم يحن وقت الحركة بعد - Not time to move yet
   }
   
   const head = snake[0];

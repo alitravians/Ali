@@ -80,7 +80,7 @@ function App() {
         const audioElements: HTMLAudioElement[] = [];
         
         for (const sound of sounds) {
-          const audio = new Audio(`/sounds/${sound}.mp3`);
+          const audio = new Audio(`./sounds/${sound}.mp3`);
           audio.load();
           audioElements.push(audio);
           
