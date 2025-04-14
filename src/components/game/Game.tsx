@@ -80,7 +80,6 @@ const Game: React.FC<GameProps> = ({
     }
   }, [selectedCity, selectedLevel, saveData]);
   
-  // Handle keyboard input
   useEffect(() => {
     if (!isPlaying || !gameState) return;
     
@@ -97,29 +96,34 @@ const Game: React.FC<GameProps> = ({
         case 'W':
           newDirection = 'UP';
           playSoundIfEnabled('move', settings); // إضافة صوت للحركة
+          e.preventDefault(); // منع التمرير الافتراضي - Prevent default scrolling
           break;
         case 'ArrowDown':
         case 's':
         case 'S':
           newDirection = 'DOWN';
           playSoundIfEnabled('move', settings);
+          e.preventDefault(); // منع التمرير الافتراضي - Prevent default scrolling
           break;
         case 'ArrowLeft':
         case 'a':
         case 'A':
           newDirection = 'LEFT';
           playSoundIfEnabled('move', settings);
+          e.preventDefault(); // منع التمرير الافتراضي - Prevent default scrolling
           break;
         case 'ArrowRight':
         case 'd':
         case 'D':
           newDirection = 'RIGHT';
           playSoundIfEnabled('move', settings);
+          e.preventDefault(); // منع التمرير الافتراضي - Prevent default scrolling
           break;
         case 'p':
         case 'P':
           setGameState(prev => prev ? { ...prev, paused: !prev.paused } : null);
           playSoundIfEnabled('buttonClick', settings);
+          e.preventDefault(); // منع التمرير الافتراضي - Prevent default scrolling
           break;
       }
       
@@ -144,7 +148,7 @@ const Game: React.FC<GameProps> = ({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isPlaying, gameState]);
+  }, [isPlaying, gameState, settings]);
   
   const gameLoop = useCallback((timestamp: number) => {
     if (!gameState) {
@@ -169,7 +173,7 @@ const Game: React.FC<GameProps> = ({
       if (isFirstMove) {
         console.log('في الحركات الأولى الحرجة - تجاهل جميع التصادمات تمامًا');
         
-        updatedGameState = updateGameState(gameState, obstacles, requiredScore);
+        updatedGameState = updateGameState(gameState, obstacles, requiredScore, settings);
         
         updatedGameState = {
           ...updatedGameState,
@@ -187,7 +191,7 @@ const Game: React.FC<GameProps> = ({
       else if (inGracePeriod) {
         console.log('في فترة السماح - استخدام updateGameState مع وضع الحماية');
         
-        updatedGameState = updateGameState(gameState, obstacles, requiredScore);
+        updatedGameState = updateGameState(gameState, obstacles, requiredScore, settings);
         
         updatedGameState = {
           ...updatedGameState,
@@ -201,7 +205,7 @@ const Game: React.FC<GameProps> = ({
           `الحركة رقم: ${updatedGameState.moveCount}`
         );
       } else {
-        updatedGameState = updateGameState(gameState, obstacles, requiredScore);
+        updatedGameState = updateGameState(gameState, obstacles, requiredScore, settings);
         console.log('تم تحديث حالة اللعبة بعد فترة السماح:', 
           `رأس الثعبان: (${updatedGameState.snake[0]?.x || 'N/A'}, ${updatedGameState.snake[0]?.y || 'N/A'}), ` +
           `انتهاء اللعبة: ${updatedGameState.gameOver}, ` +
