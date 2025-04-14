@@ -52,6 +52,7 @@ export type GameState = {
   collisionType?: 'wall' | 'self' | 'obstacle';
   firstTick?: boolean;
   moveCount?: number; // عداد للحركات لتتبع فترة السماح الأولية
+  lastMoveTime?: number; // وقت آخر حركة للثعبان - Time of last snake movement
 };
 
 export type Language = 'en' | 'ar';
