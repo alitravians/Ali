@@ -472,7 +472,8 @@ const Game: React.FC<GameProps> = ({
       speed: 150 - (levelId * 5) - (cityId * 10),
       language: settings.language,
       firstTick: true, // تعيين أول حركة لتفعيل فترة السماح - Set first tick to enable grace period
-      moveCount: 0 // عداد للحركات لتتبع فترة السماح الأولية - Counter for tracking initial grace period
+      moveCount: 0, // عداد للحركات لتتبع فترة السماح الأولية - Counter for tracking initial grace period
+      lastMoveTime: Date.now() // وقت آخر حركة للثعبان - Time of last snake movement
     };
     
     console.log('حالة اللعبة النهائية قبل البدء:', finalGameState);
@@ -483,6 +484,7 @@ const Game: React.FC<GameProps> = ({
     setTimeout(() => {
       setIsPlaying(true);
       console.log('Game started with isPlaying=true');
+      console.log('تم بدء اللعبة بنجاح - Game started successfully');
     }, 100);
     
     playSoundIfEnabled('buttonClick', settings);
@@ -561,7 +563,8 @@ const Game: React.FC<GameProps> = ({
       speed: 150 - (selectedLevel * 5) - (selectedCity * 10),
       language: settings.language,
       firstTick: true, // تعيين أول حركة لتفعيل فترة السماح - Set first tick to enable grace period
-      moveCount: 0 // عداد للحركات لتتبع فترة السماح الأولية - Counter for tracking initial grace period
+      moveCount: 0, // عداد للحركات لتتبع فترة السماح الأولية - Counter for tracking initial grace period
+      lastMoveTime: Date.now() // وقت آخر حركة للثعبان - Time of last snake movement
     };
     
     console.log('حالة اللعبة النهائية قبل البدء:', finalGameState);
@@ -572,6 +575,7 @@ const Game: React.FC<GameProps> = ({
     setTimeout(() => {
       setIsPlaying(true);
       console.log('Game started with isPlaying=true');
+      console.log('تم بدء اللعبة بنجاح - Game started successfully');
     }, 100);
     
     playSoundIfEnabled('buttonClick', settings);
