@@ -199,8 +199,6 @@ const AdminPanel = () => {
 
   const handleAddMember = () => {
     if (newMember.name && newMember.role && selectedSectionId) {
-      console.log('Adding member:', newMember, 'to section:', selectedSectionId);
-      
       const newTeamMember = {
         ...newMember,
         id: Date.now(),
@@ -216,7 +214,6 @@ const AdminPanel = () => {
               }
             : section
         );
-        console.log('AdminPanel - Updated teamSections after adding member:', updatedSections);
         return updatedSections;
       });
       

@@ -12,13 +12,10 @@ export const useTeam = () => {
 
 export const TeamProvider = ({ children }) => {
   const [teamSections, setTeamSections] = useState(() => {
-    console.log('TeamContext - Initializing with default sections');
-    
     const savedSections = localStorage.getItem('teamSections');
     if (savedSections) {
       try {
         const parsed = JSON.parse(savedSections);
-        console.log('TeamContext - Loaded from localStorage:', parsed);
         return parsed;
       } catch (error) {
         console.error('TeamContext - Error parsing localStorage data:', error);
@@ -88,21 +85,10 @@ export const TeamProvider = ({ children }) => {
     }
   ];
   });
-  
-  console.log('TeamProvider initialized with sections:', teamSections);
-
-  useEffect(() => {
-    console.log('TeamProvider state updated:', teamSections);
-    console.log('TeamProvider - Total sections:', teamSections.length);
-    teamSections.forEach((section, index) => {
-      console.log(`Section ${index + 1}: ${section.name} - ${section.members.length} members`);
-    });
-  }, [teamSections]);
 
   useEffect(() => {
     try {
       localStorage.setItem('teamSections', JSON.stringify(teamSections));
-      console.log('TeamContext - Saved to localStorage:', teamSections);
     } catch (error) {
       console.error('TeamContext - Error saving to localStorage:', error);
     }
