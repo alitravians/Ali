@@ -77,19 +77,19 @@ const TeamPage = () => {
             <table className="table">
               <thead>
                 <tr>
-                  <th>{t.avatar}</th>
                   <th>{t.name}</th>
                   <th>{t.role}</th>
+                  <th>{t.avatar}</th>
                 </tr>
               </thead>
               <tbody>
                 {section.members.map(member => (
                   <tr key={member.id}>
+                    <td>{member.name}</td>
+                    <td>{member.role}</td>
                     <td>
                       <img src={member.avatar} alt={member.name} className="avatar" />
                     </td>
-                    <td>{member.name}</td>
-                    <td>{member.role}</td>
                   </tr>
                 ))}
               </tbody>
