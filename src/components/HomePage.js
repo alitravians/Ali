@@ -1,17 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSite } from '../context/SiteContext';
 
 const HomePage = () => {
   const [language, setLanguage] = useState('ar');
-  const [siteData, setSiteData] = useState({
-    isClosed: false,
-    closureReason: '',
-    announcements: [],
-    sections: {
-      joining: 'محتوى كيفية الانضمام للوكالة',
-      trends: 'محتوى كيفية طلب ترند',
-      benefits: 'محتوى كيفية الاستفادة من البرنامج'
-    }
-  });
+  const { siteData } = useSite();
 
   const translations = {
     ar: {

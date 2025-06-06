@@ -1,20 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useTeam } from '../context/TeamContext';
+import { useSite } from '../context/SiteContext';
 
 const AdminPanel = () => {
   const [language, setLanguage] = useState('ar');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [accessCode, setAccessCode] = useState('');
-  const [siteData, setSiteData] = useState({
-    isClosed: false,
-    closureReason: '',
-    announcements: [],
-    sections: {
-      joining: 'محتوى كيفية الانضمام للوكالة',
-      trends: 'محتوى كيفية طلب ترند',
-      benefits: 'محتوى كيفية الاستفادة من البرنامج'
-    }
-  });
+  const { siteData, setSiteData } = useSite();
   const { teamSections, setTeamSections } = useTeam();
   
   console.log('AdminPanel - Current teamSections:', teamSections);
@@ -111,36 +103,43 @@ const AdminPanel = () => {
   };
 
   const handleSiteToggle = () => {
-    setSiteData(prev => ({
-      ...prev,
-      isClosed: !prev.isClosed
-    }));
+    const newSiteData = {
+      ...siteData,
+      isClosed: !siteData.isClosed
+    };
+    setSiteData(newSiteData);
   };
 
   const handleSectionUpdate = (section, value) => {
-    setSiteData(prev => ({
-      ...prev,
+    const newSiteData = {
+      ...siteData,
       sections: {
-        ...prev.sections,
+        ...siteData.sections,
         [section]: value
       }
-    }));
+    };
+    setSiteData(newSiteData);
   };
 
   const handleAddAnnouncement = () => {
+    console.log('handleAddAnnouncement called - newAnnouncement:', newAnnouncement);
     if (newAnnouncement.title && newAnnouncement.content) {
-      setSiteData(prev => ({
-        ...prev,
+      const newSiteData = {
+        ...siteData,
         announcements: [
-          ...prev.announcements,
+          ...siteData.announcements,
           {
             ...newAnnouncement,
             date: new Date().toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US'),
             id: Date.now()
           }
         ]
-      }));
+      };
+      console.log('Adding announcement - newSiteData:', newSiteData);
+      setSiteData(newSiteData);
       setNewAnnouncement({ title: '', content: '' });
+    } else {
+      console.log('Announcement validation failed - title:', newAnnouncement.title, 'content:', newAnnouncement.content);
     }
   };
 
