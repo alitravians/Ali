@@ -73,11 +73,34 @@ const HomePage = () => {
 
       <header className="card">
         <h1>{t.welcome}</h1>
-        <div style={{ marginTop: '20px' }}>
-          <a href="/admin" className="btn btn-primary" style={{ marginRight: '10px' }}>
+        <div className="button-grid" style={{ 
+          marginTop: '30px', 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '15px',
+          maxWidth: '600px',
+          margin: '30px auto 0'
+        }}>
+          <a href="/admin" className="btn btn-primary" style={{ 
+            padding: '12px 24px',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            textAlign: 'center',
+            fontWeight: '600',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
             {t.admin}
           </a>
-          <a href="/team" className="btn btn-success">
+          <a href="/team" className="btn btn-success" style={{ 
+            padding: '12px 24px',
+            borderRadius: '8px',
+            textDecoration: 'none',
+            textAlign: 'center',
+            fontWeight: '600',
+            transition: 'all 0.3s ease',
+            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+          }}>
             {t.team}
           </a>
         </div>
@@ -112,13 +135,7 @@ const HomePage = () => {
           <p>{siteData.sections.benefits}</p>
         </div>
 
-        <div className="card">
-          <h2>{t.team}</h2>
-          <p>عرض فريق العمل بشكل احترافي</p>
-          <a href="/team" className="btn btn-primary">
-            {language === 'ar' ? 'عرض الفريق' : 'View Team'}
-          </a>
-        </div>
+
       </div>
     </div>
   );
