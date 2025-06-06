@@ -171,14 +171,15 @@ const AdminPanel = () => {
   const handleAddSection = () => {
     if (newSection.name) {
       const newSectionId = Date.now();
-      setTeamSections(prev => [
-        ...prev,
+      const updatedSections = [
+        ...teamSections,
         {
           id: newSectionId,
           name: newSection.name,
           members: []
         }
-      ]);
+      ];
+      setTeamSections(updatedSections);
       setSelectedSectionId(newSectionId);
       setNewSection({ name: '' });
       console.log('AdminPanel - Created new section with ID:', newSectionId, 'and auto-selected it');
@@ -187,16 +188,14 @@ const AdminPanel = () => {
 
   const handleDeleteSection = (sectionId) => {
     if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذا القسم؟' : 'Are you sure you want to delete this section?')) {
-      setTeamSections(prev => {
-        const updatedSections = prev.filter(section => section.id !== sectionId);
-        console.log('AdminPanel - Deleted section, remaining sections:', updatedSections);
-        
-        if (selectedSectionId === sectionId && updatedSections.length > 0) {
-          setSelectedSectionId(updatedSections[0].id);
-        }
-        
-        return updatedSections;
-      });
+      const updatedSections = teamSections.filter(section => section.id !== sectionId);
+      console.log('AdminPanel - Deleted section, remaining sections:', updatedSections);
+      
+      if (selectedSectionId === sectionId && updatedSections.length > 0) {
+        setSelectedSectionId(updatedSections[0].id);
+      }
+      
+      setTeamSections(updatedSections);
     }
   };
 
@@ -209,60 +208,26 @@ const AdminPanel = () => {
         avatar: newMember.avatar || `https://via.placeholder.com/100x100/007bff/ffffff?text=${newMember.name.charAt(0)}`
       };
       
-      setTeamSections(prevSections => {
-        const updatedSections = prevSections.map(section => 
-          section.id === parseInt(selectedSectionId)
-            ? {
-                ...section,
-                members: [...section.members, newTeamMember]
-              }
-            : section
-        );
-        console.log('AdminPanel - Updated sections after adding member:', updatedSections);
-        return updatedSections;
-      });
+      const updatedSections = teamSections.map(section => 
+        section.id === parseInt(selectedSectionId)
+          ? {
+              ...section,
+              members: [...section.members, newTeamMember]
+            }
+          : section
+      );
+      console.log('AdminPanel - Updated sections after adding member:', updatedSections);
+      setTeamSections(updatedSections);
       
       const sectionName = teamSections.find(s => s.id === parseInt(selectedSectionId))?.name;
       
-      const verifySync = () => {
-        try {
-          const savedData = localStorage.getItem('teamSections');
-          const parsedData = JSON.parse(savedData);
-          const targetSection = parsedData.find(s => s.id === parseInt(selectedSectionId));
-          const memberExists = targetSection?.members.some(m => m.name === newMember.name);
-          
-          if (memberExists) {
-            console.log('✅ تم التحقق من المزامنة بنجاح');
-            return true;
-          } else {
-            console.warn('⚠️ فشل في التحقق من المزامنة');
-            return false;
-          }
-        } catch (error) {
-          console.error('❌ خطأ في التحقق من المزامنة:', error);
-          return false;
-        }
-      };
-      
       setTimeout(() => {
-        const syncSuccess = verifySync();
+        const shouldOpenTeamPage = confirm(language === 'ar' ? 
+          `✅ تم إضافة العضو "${newMember.name}" بنجاح إلى قسم "${sectionName}"\n\n🔄 هل تريد فتح صفحة الفريق للتحقق من التغييرات؟` : 
+          `✅ Member "${newMember.name}" added successfully to section "${sectionName}"\n\n🔄 Do you want to open the team page to verify the changes?`);
         
-        if (syncSuccess) {
-          const shouldOpenTeamPage = confirm(language === 'ar' ? 
-            `✅ تم إضافة العضو "${newMember.name}" بنجاح إلى قسم "${sectionName}"\n\n🔄 هل تريد فتح صفحة الفريق للتحقق من التغييرات؟\n\n💡 نصيحة: إذا لم تظهر التغييرات، قم بتحديث الصفحة أو مسح كاش المتصفح` : 
-            `✅ Member "${newMember.name}" added successfully to section "${sectionName}"\n\n🔄 Do you want to open the team page to verify the changes?\n\n💡 Tip: If changes don't appear, refresh the page or clear browser cache`);
-          
-          if (shouldOpenTeamPage) {
-            window.open('/team', '_blank');
-          }
-        } else {
-          const shouldRefresh = confirm(language === 'ar' ? 
-            `⚠️ تم إضافة العضو "${newMember.name}" ولكن قد تحتاج لتحديث الصفحة\n\n🔄 هل تريد تحديث الصفحة الآن لضمان ظهور التغييرات؟` : 
-            `⚠️ Member "${newMember.name}" was added but you may need to refresh\n\n🔄 Do you want to refresh the page now to ensure changes appear?`);
-          
-          if (shouldRefresh) {
-            window.location.reload();
-          }
+        if (shouldOpenTeamPage) {
+          window.open('/team', '_blank');
         }
       }, 500);
 

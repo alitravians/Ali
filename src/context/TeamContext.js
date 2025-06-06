@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { database } from '../firebase';
 
 const TeamContext = createContext();
 
@@ -11,18 +12,9 @@ export const useTeam = () => {
 };
 
 export const TeamProvider = ({ children }) => {
-  const [teamSections, setTeamSections] = useState(() => {
-    const savedSections = localStorage.getItem('teamSections');
-    if (savedSections) {
-      try {
-        const parsed = JSON.parse(savedSections);
-        return parsed;
-      } catch (error) {
-        console.error('TeamContext - Error parsing localStorage data:', error);
-      }
-    }
-    
-    return [
+  const [teamSections, setTeamSections] = useState([]);
+
+  const defaultSections = [
     {
       id: 1,
       name: 'الإدارة العامة',
@@ -84,18 +76,58 @@ export const TeamProvider = ({ children }) => {
       ]
     }
   ];
-  });
 
   useEffect(() => {
-    try {
-      localStorage.setItem('teamSections', JSON.stringify(teamSections));
-    } catch (error) {
-      console.error('TeamContext - Error saving to localStorage:', error);
-    }
-  }, [teamSections]);
+    const loadData = () => {
+      try {
+        const stored = localStorage.getItem('teamSections');
+        if (stored) {
+          const parsedData = JSON.parse(stored);
+          console.log('TeamContext - Loading from localStorage:', parsedData);
+          setTeamSections(parsedData);
+        } else {
+          console.log('TeamContext - No stored data, using defaults');
+          setTeamSections(defaultSections);
+          localStorage.setItem('teamSections', JSON.stringify(defaultSections));
+        }
+      } catch (error) {
+        console.error('TeamContext - Error loading data:', error);
+        setTeamSections(defaultSections);
+      }
+    };
+
+    loadData();
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'teamSections' && e.newValue) {
+        try {
+          const newData = JSON.parse(e.newValue);
+          console.log('TeamContext - Storage changed, updating:', newData);
+          setTeamSections(newData);
+        } catch (error) {
+          console.error('TeamContext - Error parsing storage change:', error);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  const updateTeamSections = (newSections) => {
+    console.log('TeamContext - Updating with:', newSections);
+    setTeamSections(newSections);
+    localStorage.setItem('teamSections', JSON.stringify(newSections));
+    
+    window.dispatchEvent(new StorageEvent('storage', {
+      key: 'teamSections',
+      newValue: JSON.stringify(newSections),
+      storageArea: localStorage
+    }));
+  };
 
   return (
-    <TeamContext.Provider value={{ teamSections, setTeamSections }}>
+    <TeamContext.Provider value={{ teamSections, setTeamSections: updateTeamSections }}>
       {children}
     </TeamContext.Provider>
   );
