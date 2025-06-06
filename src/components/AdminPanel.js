@@ -14,14 +14,37 @@ const AdminPanel = () => {
       benefits: 'محتوى كيفية الاستفادة من البرنامج'
     }
   });
-  const [teamMembers, setTeamMembers] = useState([
+  const [teamSections, setTeamSections] = useState([
     {
       id: 1,
-      name: 'أحمد محمد',
-      role: 'مدير عام',
-      avatar: 'https://via.placeholder.com/80x80/007bff/ffffff?text=AM'
+      name: 'الإدارة العامة',
+      members: [
+        {
+          id: 1,
+          name: 'أحمد محمد',
+          role: 'مدير عام',
+          avatar: 'https://via.placeholder.com/80x80/007bff/ffffff?text=AM'
+        }
+      ]
+    },
+    {
+      id: 2,
+      name: 'القسم التقني',
+      members: []
+    },
+    {
+      id: 3,
+      name: 'قسم التسويق',
+      members: []
+    },
+    {
+      id: 4,
+      name: 'قسم خدمة العملاء',
+      members: []
     }
   ]);
+  const [newSection, setNewSection] = useState({ name: '' });
+  const [selectedSectionId, setSelectedSectionId] = useState(1);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
   const [newMember, setNewMember] = useState({ name: '', role: '', avatar: '' });
 
@@ -40,6 +63,10 @@ const AdminPanel = () => {
       trends: 'كيفية طلب ترند',
       benefits: 'كيفية الاستفادة من البرنامج',
       teamManagement: 'إدارة الفريق',
+      sectionManagement: 'إدارة الأقسام',
+      addSection: 'إضافة قسم',
+      sectionName: 'اسم القسم',
+      selectSection: 'اختيار القسم',
       announcements: 'إدارة الإعلانات',
       addAnnouncement: 'إضافة إعلان',
       title: 'العنوان',
@@ -66,6 +93,10 @@ const AdminPanel = () => {
       trends: 'How to Request Trends',
       benefits: 'How to Benefit from the Program',
       teamManagement: 'Team Management',
+      sectionManagement: 'Section Management',
+      addSection: 'Add Section',
+      sectionName: 'Section Name',
+      selectSection: 'Select Section',
       announcements: 'Announcements Management',
       addAnnouncement: 'Add Announcement',
       title: 'Title',
@@ -158,16 +189,37 @@ const AdminPanel = () => {
     }
   };
 
-  const handleAddMember = () => {
-    if (newMember.name && newMember.role) {
-      setTeamMembers(prev => [
+  const handleAddSection = () => {
+    if (newSection.name) {
+      setTeamSections(prev => [
         ...prev,
         {
-          ...newMember,
           id: Date.now(),
-          avatar: newMember.avatar || `https://via.placeholder.com/100x100/007bff/ffffff?text=${newMember.name.charAt(0)}`
+          name: newSection.name,
+          members: []
         }
       ]);
+      setNewSection({ name: '' });
+    }
+  };
+
+  const handleAddMember = () => {
+    if (newMember.name && newMember.role && selectedSectionId) {
+      setTeamSections(prev => prev.map(section => 
+        section.id === selectedSectionId 
+          ? {
+              ...section,
+              members: [
+                ...section.members,
+                {
+                  ...newMember,
+                  id: Date.now(),
+                  avatar: newMember.avatar || `https://via.placeholder.com/100x100/007bff/ffffff?text=${newMember.name.charAt(0)}`
+                }
+              ]
+            }
+          : section
+      ));
       setNewMember({ name: '', role: '', avatar: '' });
     }
   };
@@ -311,7 +363,40 @@ const AdminPanel = () => {
       </div>
 
       <div className="card">
+        <h2>{t.sectionManagement}</h2>
+        
+        <div className="form-group">
+          <label className="form-label">{t.sectionName}</label>
+          <input
+            type="text"
+            className="form-input"
+            value={newSection.name}
+            onChange={(e) => setNewSection(prev => ({ ...prev, name: e.target.value }))}
+          />
+        </div>
+
+        <button onClick={handleAddSection} className="btn btn-primary">
+          {t.addSection}
+        </button>
+      </div>
+
+      <div className="card">
         <h2>{t.teamManagement}</h2>
+        
+        <div className="form-group">
+          <label className="form-label">{t.selectSection}</label>
+          <select 
+            className="form-input"
+            value={selectedSectionId}
+            onChange={(e) => setSelectedSectionId(parseInt(e.target.value))}
+          >
+            {teamSections.map(section => (
+              <option key={section.id} value={section.id}>
+                {section.name}
+              </option>
+            ))}
+          </select>
+        </div>
         
         <div className="form-group">
           <label className="form-label">{t.name}</label>
@@ -356,12 +441,26 @@ const AdminPanel = () => {
           {t.add}
         </button>
 
-        <div className="team-grid" style={{ marginTop: '20px' }}>
-          {teamMembers.map(member => (
-            <div key={member.id} className="team-member">
-              <img src={member.avatar} alt={member.name} className="avatar" />
-              <h3>{member.name}</h3>
-              <p>{member.role}</p>
+        <div style={{ marginTop: '20px' }}>
+          {teamSections.map(section => (
+            <div key={section.id} style={{ marginBottom: '20px' }}>
+              <h4 style={{ 
+                backgroundColor: '#f8f9fa', 
+                padding: '10px', 
+                borderRadius: '5px',
+                marginBottom: '10px'
+              }}>
+                {section.name}
+              </h4>
+              <div className="team-grid">
+                {section.members.map(member => (
+                  <div key={member.id} className="team-member">
+                    <img src={member.avatar} alt={member.name} className="avatar" />
+                    <h5>{member.name}</h5>
+                    <p>{member.role}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           ))}
         </div>
