@@ -170,15 +170,18 @@ const AdminPanel = () => {
 
   const handleAddSection = () => {
     if (newSection.name) {
+      const newSectionId = Date.now();
       setTeamSections(prev => [
         ...prev,
         {
-          id: Date.now(),
+          id: newSectionId,
           name: newSection.name,
           members: []
         }
       ]);
+      setSelectedSectionId(newSectionId);
       setNewSection({ name: '' });
+      console.log('AdminPanel - Created new section with ID:', newSectionId, 'and auto-selected it');
     }
   };
 
@@ -199,6 +202,7 @@ const AdminPanel = () => {
 
   const handleAddMember = () => {
     if (newMember.name && newMember.role && selectedSectionId) {
+      console.log('AdminPanel - Adding member to section ID:', selectedSectionId);
       const newTeamMember = {
         ...newMember,
         id: Date.now(),
@@ -214,6 +218,7 @@ const AdminPanel = () => {
               }
             : section
         );
+        console.log('AdminPanel - Updated sections after adding member:', updatedSections);
         return updatedSections;
       });
       
