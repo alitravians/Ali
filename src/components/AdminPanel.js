@@ -218,7 +218,24 @@ const AdminPanel = () => {
       });
       
       setNewMember({ name: '', role: '', avatar: '' });
-      alert(language === 'ar' ? 'تم إضافة العضو بنجاح' : 'Member added successfully');
+      const sectionName = teamSections.find(s => s.id === parseInt(selectedSectionId))?.name;
+      alert(language === 'ar' ? `تم إضافة العضو "${newMember.name}" بنجاح إلى قسم "${sectionName}"` : `Member "${newMember.name}" added successfully to section "${sectionName}"`);
+      
+      setTimeout(() => {
+        const memberElements = document.querySelectorAll('.team-member');
+        const lastMember = memberElements[memberElements.length - 1];
+        if (lastMember) {
+          lastMember.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          lastMember.style.backgroundColor = '#e3f2fd';
+          lastMember.style.border = '2px solid #2196f3';
+          lastMember.style.transition = 'all 0.3s ease';
+          
+          setTimeout(() => {
+            lastMember.style.backgroundColor = '';
+            lastMember.style.border = '';
+          }, 3000);
+        }
+      }, 100);
     } else {
       alert(language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
     }
@@ -383,6 +400,24 @@ const AdminPanel = () => {
       <div className="card">
         <h2>{t.teamManagement}</h2>
         
+        <div style={{ 
+          backgroundColor: '#fff3cd', 
+          border: '1px solid #ffeaa7', 
+          borderRadius: '8px', 
+          padding: '15px', 
+          marginBottom: '20px',
+          color: '#856404'
+        }}>
+          <strong>
+            {language === 'ar' ? '⚠️ ملاحظة مهمة:' : '⚠️ Important Note:'}
+          </strong>
+          <br />
+          {language === 'ar' 
+            ? 'البيانات المضافة تُحفظ محلياً في المتصفح الحالي فقط. لن تظهر البيانات في متصفحات أخرى أو بعد مسح بيانات المتصفح. هذا سلوك طبيعي للتطبيق.'
+            : 'Added data is saved locally in the current browser only. Data will not appear in other browsers or after clearing browser data. This is normal behavior for the application.'
+          }
+        </div>
+        
         <div className="form-group">
           <label className="form-label">{t.selectSection}</label>
           <select 
@@ -439,6 +474,14 @@ const AdminPanel = () => {
 
         <button onClick={handleAddMember} className="btn btn-primary">
           {t.add}
+        </button>
+        
+        <button 
+          onClick={() => window.open('/team', '_blank')} 
+          className="btn btn-success"
+          style={{ marginLeft: '10px' }}
+        >
+          {language === 'ar' ? 'عرض في لائحة الفريق' : 'View in Team Roster'}
         </button>
 
         <div style={{ marginTop: '20px' }}>
