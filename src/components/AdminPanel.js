@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTeam } from '../context/TeamContext';
 
 const AdminPanel = () => {
   const [language, setLanguage] = useState('ar');
@@ -14,35 +15,9 @@ const AdminPanel = () => {
       benefits: 'محتوى كيفية الاستفادة من البرنامج'
     }
   });
-  const [teamSections, setTeamSections] = useState([
-    {
-      id: 1,
-      name: 'الإدارة العامة',
-      members: [
-        {
-          id: 1,
-          name: 'أحمد محمد',
-          role: 'مدير عام',
-          avatar: 'https://via.placeholder.com/80x80/007bff/ffffff?text=AM'
-        }
-      ]
-    },
-    {
-      id: 2,
-      name: 'القسم التقني',
-      members: []
-    },
-    {
-      id: 3,
-      name: 'قسم التسويق',
-      members: []
-    },
-    {
-      id: 4,
-      name: 'قسم خدمة العملاء',
-      members: []
-    }
-  ]);
+  const { teamSections, setTeamSections } = useTeam();
+  
+  console.log('AdminPanel - Current teamSections:', teamSections);
   const [newSection, setNewSection] = useState({ name: '' });
   const [selectedSectionId, setSelectedSectionId] = useState(1);
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '' });
@@ -67,6 +42,7 @@ const AdminPanel = () => {
       addSection: 'إضافة قسم',
       sectionName: 'اسم القسم',
       selectSection: 'اختيار القسم',
+      deleteSection: 'حذف القسم',
       announcements: 'إدارة الإعلانات',
       addAnnouncement: 'إضافة إعلان',
       title: 'العنوان',
@@ -77,7 +53,8 @@ const AdminPanel = () => {
       role: 'الصلاحية',
       avatar: 'صورة الأفاتار',
       backToHome: 'العودة للرئيسية',
-      invalidCode: 'كود خاطئ'
+      invalidCode: 'كود خاطئ',
+      deleteSection: 'حذف القسم'
     },
     en: {
       adminPanel: 'Admin Control Panel',
@@ -97,6 +74,7 @@ const AdminPanel = () => {
       addSection: 'Add Section',
       sectionName: 'Section Name',
       selectSection: 'Select Section',
+      deleteSection: 'Delete Section',
       announcements: 'Announcements Management',
       addAnnouncement: 'Add Announcement',
       title: 'Title',
@@ -107,7 +85,8 @@ const AdminPanel = () => {
       role: 'Role',
       avatar: 'Avatar Image',
       backToHome: 'Back to Home',
-      invalidCode: 'Invalid Code'
+      invalidCode: 'Invalid Code',
+      deleteSection: 'Delete Section'
     }
   };
 
@@ -203,24 +182,48 @@ const AdminPanel = () => {
     }
   };
 
+  const handleDeleteSection = (sectionId) => {
+    if (window.confirm(language === 'ar' ? 'هل أنت متأكد من حذف هذا القسم؟' : 'Are you sure you want to delete this section?')) {
+      setTeamSections(prev => {
+        const updatedSections = prev.filter(section => section.id !== sectionId);
+        console.log('AdminPanel - Deleted section, remaining sections:', updatedSections);
+        
+        if (selectedSectionId === sectionId && updatedSections.length > 0) {
+          setSelectedSectionId(updatedSections[0].id);
+        }
+        
+        return updatedSections;
+      });
+    }
+  };
+
   const handleAddMember = () => {
     if (newMember.name && newMember.role && selectedSectionId) {
-      setTeamSections(prev => prev.map(section => 
-        section.id === selectedSectionId 
-          ? {
-              ...section,
-              members: [
-                ...section.members,
-                {
-                  ...newMember,
-                  id: Date.now(),
-                  avatar: newMember.avatar || `https://via.placeholder.com/100x100/007bff/ffffff?text=${newMember.name.charAt(0)}`
-                }
-              ]
-            }
-          : section
-      ));
+      console.log('Adding member:', newMember, 'to section:', selectedSectionId);
+      
+      const newTeamMember = {
+        ...newMember,
+        id: Date.now(),
+        avatar: newMember.avatar || `https://via.placeholder.com/100x100/007bff/ffffff?text=${newMember.name.charAt(0)}`
+      };
+      
+      setTeamSections(prevSections => {
+        const updatedSections = prevSections.map(section => 
+          section.id === parseInt(selectedSectionId)
+            ? {
+                ...section,
+                members: [...section.members, newTeamMember]
+              }
+            : section
+        );
+        console.log('AdminPanel - Updated teamSections after adding member:', updatedSections);
+        return updatedSections;
+      });
+      
       setNewMember({ name: '', role: '', avatar: '' });
+      alert(language === 'ar' ? 'تم إضافة العضو بنجاح' : 'Member added successfully');
+    } else {
+      alert(language === 'ar' ? 'يرجى ملء جميع الحقول المطلوبة' : 'Please fill all required fields');
     }
   };
 
@@ -242,7 +245,7 @@ const AdminPanel = () => {
               className="form-input"
               value={accessCode}
               onChange={(e) => setAccessCode(e.target.value)}
-              placeholder="3131"
+              placeholder=""
             />
           </div>
           <button onClick={handleLogin} className="btn btn-primary">
@@ -444,14 +447,30 @@ const AdminPanel = () => {
         <div style={{ marginTop: '20px' }}>
           {teamSections.map(section => (
             <div key={section.id} style={{ marginBottom: '20px' }}>
-              <h4 style={{ 
+              <div style={{ 
                 backgroundColor: '#f8f9fa', 
                 padding: '10px', 
                 borderRadius: '5px',
-                marginBottom: '10px'
+                marginBottom: '10px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
               }}>
-                {section.name}
-              </h4>
+                <h4 style={{ margin: 0 }}>
+                  {section.name}
+                </h4>
+                <button 
+                  onClick={() => handleDeleteSection(section.id)}
+                  className="btn btn-danger"
+                  style={{ 
+                    fontSize: '12px', 
+                    padding: '5px 10px',
+                    minWidth: 'auto'
+                  }}
+                >
+                  {t.deleteSection}
+                </button>
+              </div>
               <div className="team-grid">
                 {section.members.map(member => (
                   <div key={member.id} className="team-member">
