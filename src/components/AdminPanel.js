@@ -217,9 +217,51 @@ const AdminPanel = () => {
         return updatedSections;
       });
       
-      setNewMember({ name: '', role: '', avatar: '' });
       const sectionName = teamSections.find(s => s.id === parseInt(selectedSectionId))?.name;
-      alert(language === 'ar' ? `تم إضافة العضو "${newMember.name}" بنجاح إلى قسم "${sectionName}"` : `Member "${newMember.name}" added successfully to section "${sectionName}"`);
+      
+      const verifySync = () => {
+        try {
+          const savedData = localStorage.getItem('teamSections');
+          const parsedData = JSON.parse(savedData);
+          const targetSection = parsedData.find(s => s.id === parseInt(selectedSectionId));
+          const memberExists = targetSection?.members.some(m => m.name === newMember.name);
+          
+          if (memberExists) {
+            console.log('✅ تم التحقق من المزامنة بنجاح');
+            return true;
+          } else {
+            console.warn('⚠️ فشل في التحقق من المزامنة');
+            return false;
+          }
+        } catch (error) {
+          console.error('❌ خطأ في التحقق من المزامنة:', error);
+          return false;
+        }
+      };
+      
+      setTimeout(() => {
+        const syncSuccess = verifySync();
+        
+        if (syncSuccess) {
+          const shouldOpenTeamPage = confirm(language === 'ar' ? 
+            `✅ تم إضافة العضو "${newMember.name}" بنجاح إلى قسم "${sectionName}"\n\n🔄 هل تريد فتح صفحة الفريق للتحقق من التغييرات؟\n\n💡 نصيحة: إذا لم تظهر التغييرات، قم بتحديث الصفحة أو مسح كاش المتصفح` : 
+            `✅ Member "${newMember.name}" added successfully to section "${sectionName}"\n\n🔄 Do you want to open the team page to verify the changes?\n\n💡 Tip: If changes don't appear, refresh the page or clear browser cache`);
+          
+          if (shouldOpenTeamPage) {
+            window.open('/team', '_blank');
+          }
+        } else {
+          const shouldRefresh = confirm(language === 'ar' ? 
+            `⚠️ تم إضافة العضو "${newMember.name}" ولكن قد تحتاج لتحديث الصفحة\n\n🔄 هل تريد تحديث الصفحة الآن لضمان ظهور التغييرات؟` : 
+            `⚠️ Member "${newMember.name}" was added but you may need to refresh\n\n🔄 Do you want to refresh the page now to ensure changes appear?`);
+          
+          if (shouldRefresh) {
+            window.location.reload();
+          }
+        }
+      }, 500);
+
+      setNewMember({ name: '', role: '', avatar: '' });
       
       setTimeout(() => {
         const memberElements = document.querySelectorAll('.team-member');
@@ -401,21 +443,83 @@ const AdminPanel = () => {
         <h2>{t.teamManagement}</h2>
         
         <div style={{ 
-          backgroundColor: '#fff3cd', 
-          border: '1px solid #ffeaa7', 
+          backgroundColor: '#d1ecf1', 
+          border: '1px solid #bee5eb', 
           borderRadius: '8px', 
           padding: '15px', 
           marginBottom: '20px',
-          color: '#856404'
+          color: '#0c5460'
         }}>
           <strong>
-            {language === 'ar' ? '⚠️ ملاحظة مهمة:' : '⚠️ Important Note:'}
+            {language === 'ar' ? '📋 معلومات مهمة حول إدارة الفريق:' : '📋 Important Team Management Information:'}
           </strong>
-          <br />
-          {language === 'ar' 
-            ? 'البيانات المضافة تُحفظ محلياً في المتصفح الحالي فقط. لن تظهر البيانات في متصفحات أخرى أو بعد مسح بيانات المتصفح. هذا سلوك طبيعي للتطبيق.'
-            : 'Added data is saved locally in the current browser only. Data will not appear in other browsers or after clearing browser data. This is normal behavior for the application.'
-          }
+          <ul style={{ 
+            margin: '10px 0', 
+            paddingLeft: language === 'ar' ? '0' : '20px', 
+            paddingRight: language === 'ar' ? '20px' : '0',
+            listStyle: 'none'
+          }}>
+            <li style={{ marginBottom: '8px' }}>
+              {language === 'ar' ? 
+                '💾 البيانات محفوظة محلياً في هذا المتصفح فقط' :
+                '💾 Data is saved locally in this browser only'
+              }
+            </li>
+            <li style={{ marginBottom: '8px' }}>
+              {language === 'ar' ? 
+                '🔄 إذا لم تظهر التغييرات فوراً، قم بتحديث الصفحة أو مسح كاش المتصفح' :
+                '🔄 If changes don\'t appear immediately, refresh the page or clear browser cache'
+              }
+            </li>
+            <li style={{ marginBottom: '8px' }}>
+              {language === 'ar' ? 
+                '👥 تحقق من صفحة الفريق بعد إضافة أعضاء جدد للتأكد من ظهورهم' :
+                '👥 Check the team page after adding new members to verify they appear'
+              }
+            </li>
+            <li style={{ marginBottom: '8px' }}>
+              {language === 'ar' ? 
+                '⚡ استخدم أزرار التحديث والعرض أدناه للتحقق السريع من التغييرات' :
+                '⚡ Use the refresh and view buttons below for quick verification of changes'
+              }
+            </li>
+          </ul>
+          <div style={{ marginTop: '15px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={() => window.open('/team', '_blank')}
+              style={{
+                backgroundColor: '#17a2b8',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              {language === 'ar' ? '🔗 فتح صفحة الفريق' : '🔗 Open Team Page'}
+            </button>
+            <button 
+              onClick={() => {
+                if (confirm(language === 'ar' ? 
+                  'هل تريد تحديث هذه الصفحة لإعادة تحميل البيانات؟' : 
+                  'Do you want to refresh this page to reload data?')) {
+                  window.location.reload();
+                }
+              }}
+              style={{
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                fontSize: '12px'
+              }}
+            >
+              {language === 'ar' ? '🔄 تحديث الصفحة' : '🔄 Refresh Page'}
+            </button>
+          </div>
         </div>
         
         <div className="form-group">
@@ -472,17 +576,82 @@ const AdminPanel = () => {
           )}
         </div>
 
-        <button onClick={handleAddMember} className="btn btn-primary">
-          {t.add}
-        </button>
-        
-        <button 
-          onClick={() => window.open('/team', '_blank')} 
-          className="btn btn-success"
-          style={{ marginLeft: '10px' }}
-        >
-          {language === 'ar' ? 'عرض في لائحة الفريق' : 'View in Team Roster'}
-        </button>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
+          <button onClick={handleAddMember} className="btn btn-primary">
+            {t.add}
+          </button>
+          
+          <button 
+            onClick={() => window.open('/team', '_blank')} 
+            className="btn btn-success"
+          >
+            {language === 'ar' ? 'عرض في لائحة الفريق' : 'View in Team Roster'}
+          </button>
+          
+          <button 
+            onClick={() => {
+              const savedSections = localStorage.getItem('teamSections');
+              if (savedSections) {
+                try {
+                  const parsed = JSON.parse(savedSections);
+                  setTeamSections(parsed);
+                  alert(language === 'ar' ? 
+                    '✅ تم تحديث البيانات بنجاح من التخزين المحلي' : 
+                    '✅ Data refreshed successfully from local storage');
+                } catch (error) {
+                  alert(language === 'ar' ? 
+                    '❌ خطأ في تحديث البيانات من التخزين المحلي' : 
+                    '❌ Error refreshing data from local storage');
+                }
+              } else {
+                alert(language === 'ar' ? 
+                  '⚠️ لا توجد بيانات محفوظة في التخزين المحلي' : 
+                  '⚠️ No saved data found in local storage');
+              }
+            }}
+            className="btn"
+            style={{
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              padding: '10px 15px',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            {language === 'ar' ? '🔄 تحديث البيانات' : '🔄 Refresh Data'}
+          </button>
+          
+          <button 
+            onClick={() => {
+              try {
+                const savedData = localStorage.getItem('teamSections');
+                const parsedData = JSON.parse(savedData);
+                const totalMembers = parsedData.reduce((total, section) => total + section.members.length, 0);
+                const totalSections = parsedData.length;
+                
+                alert(language === 'ar' ? 
+                  `📊 حالة البيانات:\n• عدد الأقسام: ${totalSections}\n• إجمالي الأعضاء: ${totalMembers}\n• آخر تحديث: ${new Date().toLocaleString('ar-SA')}` : 
+                  `📊 Data Status:\n• Sections: ${totalSections}\n• Total Members: ${totalMembers}\n• Last Update: ${new Date().toLocaleString()}`);
+              } catch (error) {
+                alert(language === 'ar' ? 
+                  '❌ خطأ في فحص حالة البيانات' : 
+                  '❌ Error checking data status');
+              }
+            }}
+            className="btn"
+            style={{
+              backgroundColor: '#6c757d',
+              color: 'white',
+              border: 'none',
+              padding: '10px 15px',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            {language === 'ar' ? '📊 فحص البيانات' : '📊 Check Data'}
+          </button>
+        </div>
 
         <div style={{ marginTop: '20px' }}>
           {teamSections.map(section => (
