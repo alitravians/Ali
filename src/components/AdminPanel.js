@@ -48,7 +48,7 @@ const AdminPanel = () => {
       add: 'إضافة',
       name: 'الاسم',
       role: 'الصلاحية',
-      avatar: 'رابط الأفاتار',
+      avatar: 'صورة الأفاتار',
       backToHome: 'العودة للرئيسية',
       invalidCode: 'كود خاطئ'
     },
@@ -74,7 +74,7 @@ const AdminPanel = () => {
       add: 'Add',
       name: 'Name',
       role: 'Role',
-      avatar: 'Avatar URL',
+      avatar: 'Avatar Image',
       backToHome: 'Back to Home',
       invalidCode: 'Invalid Code'
     }
@@ -134,6 +134,30 @@ const AdminPanel = () => {
     }
   };
 
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = 100;
+          canvas.height = 100;
+          
+          ctx.drawImage(img, 0, 0, 100, 100);
+          
+          const resizedImageUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setNewMember(prev => ({...prev, avatar: resizedImageUrl}));
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddMember = () => {
     if (newMember.name && newMember.role) {
       setTeamMembers(prev => [
@@ -141,7 +165,7 @@ const AdminPanel = () => {
         {
           ...newMember,
           id: Date.now(),
-          avatar: newMember.avatar || `https://via.placeholder.com/80x80/007bff/ffffff?text=${newMember.name.charAt(0)}`
+          avatar: newMember.avatar || `https://via.placeholder.com/100x100/007bff/ffffff?text=${newMember.name.charAt(0)}`
         }
       ]);
       setNewMember({ name: '', role: '', avatar: '' });
@@ -312,11 +336,20 @@ const AdminPanel = () => {
         <div className="form-group">
           <label className="form-label">{t.avatar}</label>
           <input
-            type="url"
+            type="file"
+            accept="image/*"
+            onChange={handleAvatarUpload}
             className="form-input"
-            value={newMember.avatar}
-            onChange={(e) => setNewMember(prev => ({ ...prev, avatar: e.target.value }))}
           />
+          {newMember.avatar && (
+            <div style={{ marginTop: '10px' }}>
+              <img 
+                src={newMember.avatar} 
+                alt="Avatar Preview" 
+                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #ddd' }}
+              />
+            </div>
+          )}
         </div>
 
         <button onClick={handleAddMember} className="btn btn-primary">
