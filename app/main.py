@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from auth import authenticate_user, get_current_user, get_current_user_object, require_admin, require_moderator_or_admin
 from database import db
 from models import User, Message, BanRecord, Report, BanAppeal, Announcement
+from moderation import content_moderator, ViolationType
 
 app = FastAPI()
 
@@ -151,7 +152,7 @@ async def get_messages(limit: int = 100, current_user: str = Depends(get_current
 
 @app.post("/messages")
 async def send_message(request: MessageRequest, current_user: str = Depends(get_current_user)):
-    """Send new message"""
+    """Send new message with AI content moderation"""
     try:
         user = db.get_user_by_username(current_user)
         if not user:
@@ -162,6 +163,52 @@ async def send_message(request: MessageRequest, current_user: str = Depends(get_
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=f"User is muted until {user.mute_until}"
             )
+        
+        if user.status == "banned" and user.ban_until and user.ban_until > datetime.now():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"User is banned until {user.ban_until}"
+            )
+        
+        moderation_result = await content_moderator.moderate_content(request.content, user.id)
+        
+        if moderation_result.is_violation:
+            should_ban, ban_minutes = content_moderator.should_auto_ban(user.id, moderation_result.violation_type)
+            
+            if should_ban:
+                ban_until = datetime.now() + timedelta(minutes=ban_minutes)
+                db.update_user(
+                    user.id, 
+                    status="banned", 
+                    ban_until=ban_until, 
+                    ban_reason=f"تم الحظر التلقائي: {moderation_result.reason}"
+                )
+                
+                db.create_ban_record(
+                    user_id=user.id,
+                    reason=f"تم الحظر التلقائي: {moderation_result.reason}",
+                    duration_minutes=ban_minutes,
+                    banned_by="AI_MODERATOR"
+                )
+                
+                await manager.broadcast_message({
+                    "type": "user_auto_banned",
+                    "user_id": user.id,
+                    "username": user.username,
+                    "reason": moderation_result.reason,
+                    "ban_until": str(ban_until),
+                    "timestamp": str(datetime.now())
+                })
+                
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"تم حظرك تلقائياً حتى {ban_until.strftime('%Y-%m-%d %H:%M')} بسبب: {moderation_result.reason}"
+                )
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"تم رفض الرسالة: {moderation_result.reason}"
+                )
         
         message = db.create_message(
             user_id=user.id,
