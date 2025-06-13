@@ -25,7 +25,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     setError('')
 
     try {
-      const response = await fetch('http://localhost:8000/auth/login', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

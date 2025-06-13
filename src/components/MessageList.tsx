@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { ScrollArea } from './ui/scroll-area'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Badge } from './ui/badge'

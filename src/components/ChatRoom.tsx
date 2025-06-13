@@ -9,7 +9,7 @@ import AdminPanel from './AdminPanel'
 import ModeratorTools from './ModeratorTools'
 import AnnouncementBanner from './AnnouncementBanner'
 import BanAppealForm from './BanAppealForm'
-import { LogOut, Settings, Shield, Users } from 'lucide-react'
+import { LogOut, Settings, Shield } from 'lucide-react'
 
 interface ChatRoomProps {
   token: string
@@ -42,7 +42,7 @@ interface Announcement {
 
 export default function ChatRoom({ token, username, userRole, onLogout }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [users, setUsers] = useState<User[]>([])
+  const [users] = useState<User[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [connected, setConnected] = useState(false)
   const [isBanned, setIsBanned] = useState(false)
@@ -62,7 +62,7 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
 
   const loadMessages = async () => {
     try {
-      const response = await fetch('http://localhost:8000/messages', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -78,8 +78,9 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
   }
 
   const connectWebSocket = () => {
-    const protocol = 'ws:'
-    const wsUrl = `${protocol}//localhost:8000/ws/${username}`
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${apiUrl.replace(/^https?:\/\//, '')}/ws/${username}`
     
     wsRef.current = new WebSocket(wsUrl)
     
@@ -118,7 +119,7 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
 
   const sendMessage = async (content: string) => {
     try {
-      const response = await fetch('http://localhost:8000/messages', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

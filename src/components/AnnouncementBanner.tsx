@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Alert, AlertDescription } from './ui/alert'
 import { Button } from './ui/button'
 import { X, Megaphone } from 'lucide-react'
