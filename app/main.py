@@ -10,7 +10,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auth import authenticate_user, get_current_user, get_current_user_object, require_admin, require_moderator_or_admin
+from auth import authenticate_user, get_current_user, get_current_user_object, require_admin, require_moderator_or_admin, create_access_token, generate_user_id
 from database import db
 from models import User, Message, BanRecord, Report, BanAppeal, Announcement
 from moderation import content_moderator, ViolationType
@@ -165,6 +165,8 @@ async def healthz():
 
 class LoginRequest(BaseModel):
     username: str
+    login_type: str = "member"
+    admin_code: Optional[str] = None
 
 class LoginResponse(BaseModel):
     access_token: str
@@ -195,9 +197,9 @@ class AnnouncementRequest(BaseModel):
 
 @app.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
-    """Username-only authentication endpoint"""
+    """Enhanced authentication endpoint with admin code verification"""
     try:
-        access_token = authenticate_user(request.username)
+        access_token = authenticate_user(request.username, request.login_type, request.admin_code)
         user = db.get_user_by_username(request.username)
         
         return LoginResponse(
@@ -213,6 +215,122 @@ async def login(request: LoginRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication failed"
         )
+
+@app.get("/admin/settings")
+async def get_site_settings(current_user = Depends(require_admin)):
+    """Get site settings (admin only)"""
+    try:
+        settings = db.get_site_settings()
+        return {"settings": settings}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get site settings")
+
+@app.post("/admin/settings")
+async def update_site_settings(request: dict, current_user = Depends(require_admin)):
+    """Update site settings (admin only)"""
+    try:
+        maintenance_mode = request.get("maintenanceMode", False)
+        maintenance_message = request.get("maintenanceMessage", "")
+        profanity_filter = request.get("profanityFilter", True)
+        max_message_length = request.get("maxMessageLength", 500)
+        allow_guest_users = request.get("allowGuestUsers", False)
+        
+        updated_settings = db.update_site_settings(
+            maintenance_mode=maintenance_mode,
+            maintenance_message=maintenance_message,
+            profanity_filter=profanity_filter,
+            max_message_length=max_message_length,
+            allow_guest_users=allow_guest_users
+        )
+        
+        await manager.broadcast_message({
+            "type": "site_status_update",
+            "maintenance_mode": maintenance_mode,
+            "maintenance_message": maintenance_message,
+            "timestamp": str(datetime.now())
+        })
+        
+        return {"message": "Site settings updated successfully", "settings": updated_settings}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to update site settings")
+
+@app.get("/admin/analytics")
+async def get_analytics(current_user = Depends(require_admin)):
+    """Get site analytics (admin only)"""
+    try:
+        users = db.get_all_users()
+        messages = db.get_all_messages()
+        ban_records = db.get_all_ban_records()
+        
+        analytics = {
+            "total_users": len(users),
+            "active_users": len([u for u in users if u.status == "active"]),
+            "total_messages": len(messages),
+            "today_messages": len([m for m in messages if m.timestamp.date() == datetime.now().date()]),
+            "banned_users": len([u for u in users if u.status == "banned"]),
+            "muted_users": len([u for u in users if u.status == "muted"])
+        }
+        
+        return {"analytics": analytics}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get analytics")
+
+@app.get("/user/profile")
+async def get_user_profile(current_user: str = Depends(get_current_user)):
+    """Get current user profile information"""
+    try:
+        user = db.get_user_by_username(current_user)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {
+            "username": user.username,
+            "user_id": user.user_id,
+            "role": user.role,
+            "status": user.status,
+            "id_changed": user.id_changed
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to get user profile"
+        )
+
+@app.post("/auth/register")
+async def register(request: dict):
+    """Register new user with automatic 10-digit ID generation"""
+    try:
+        username = request.get("username", "").strip()
+        
+        if not username:
+            raise HTTPException(status_code=400, detail="Username is required")
+        
+        if len(username) < 3:
+            raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+        
+        existing_user = db.get_user_by_username(username)
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Username already exists")
+        
+        user_id = generate_user_id()
+        user = db.create_user(username=username, role="user", user_id=user_id)
+        
+        access_token = create_access_token(username=username)
+        
+        return {
+            "access_token": access_token,
+            "username": user.username,
+            "role": user.role,
+            "user_id": user.user_id,
+            "message": "Registration successful"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Registration failed")
 
 @app.get("/messages")
 async def get_messages(limit: int = 100, current_user: str = Depends(get_current_user)):
@@ -284,10 +402,19 @@ async def send_message(request: MessageRequest, current_user: str = Depends(get_
                     detail=f"تم رفض الرسالة: {moderation_result.reason}"
                 )
         
+        is_bold = False
+        content = request.content
+        if content.startswith('$') and user.role in ['moderator', 'admin']:
+            content = content[1:]  # Remove $ prefix
+            is_bold = True
+        elif content.startswith('$'):
+            content = content[1:]
+        
         message = db.create_message(
             user_id=user.id,
             username=user.username,
-            content=request.content
+            content=content,
+            is_bold=is_bold
         )
         
         await manager.broadcast_message({
@@ -295,7 +422,8 @@ async def send_message(request: MessageRequest, current_user: str = Depends(get_
             "id": message.id,
             "username": message.username,
             "message": message.content,
-            "timestamp": str(message.timestamp)
+            "timestamp": str(message.timestamp),
+            "is_bold": message.is_bold
         })
         
         return {"message": "Message sent successfully", "message_id": message.id}
@@ -331,22 +459,26 @@ async def delete_message(message_id: str, current_user = Depends(require_moderat
 
 @app.post("/users/{user_id}/mute")
 async def mute_user(user_id: str, request: MuteRequest, current_user = Depends(require_moderator_or_admin)):
-    """Mute user (moderator/admin only)"""
+    """Mute user by 10-digit user ID (moderator/admin only)"""
     try:
-        mute_until = datetime.now() + timedelta(minutes=request.duration_minutes)
-        user = db.update_user(user_id, status="muted", mute_until=mute_until)
-        
+        user = db.get_user_by_user_id(user_id)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
+        mute_until = datetime.now() + timedelta(minutes=request.duration_minutes)
+        updated_user = db.update_user(user.id, status="muted", mute_until=mute_until)
+        
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Failed to update user")
+        
         await manager.broadcast_moderation_action("user_muted", {
-            "user_id": user_id,
+            "user_id": user.user_id,  # Send 10-digit ID in broadcast
             "username": user.username,
             "muted_by": current_user.username,
             "mute_until": str(mute_until)
         })
         
-        return {"message": f"User muted until {mute_until}"}
+        return {"message": f"User {user.username} (ID: {user.user_id}) muted until {mute_until}"}
     except HTTPException:
         raise
     except Exception as e:
@@ -357,35 +489,40 @@ async def mute_user(user_id: str, request: MuteRequest, current_user = Depends(r
 
 @app.post("/users/{user_id}/ban")
 async def ban_user(user_id: str, request: BanRequest, current_user = Depends(require_moderator_or_admin)):
-    """Ban user (moderator/admin only)"""
+    """Ban user by 10-digit user ID (moderator/admin only)"""
     try:
+        user = db.get_user_by_user_id(user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
         ban_until = datetime.now() + timedelta(minutes=request.duration_minutes)
-        user = db.update_user(
-            user_id, 
+        updated_user = db.update_user(
+            user.id,  # Use internal ID for update
             status="banned", 
             ban_until=ban_until, 
             ban_reason=request.reason
         )
         
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="Failed to update user")
         
         db.create_ban_record(
-            user_id=user_id,
+            user_id=user.id,  # Use internal ID for ban record
             reason=request.reason,
             duration_minutes=request.duration_minutes,
             banned_by=current_user.username
         )
         
         await manager.broadcast_moderation_action("user_banned", {
-            "user_id": user_id,
+            "user_id": user.user_id,  # Send 10-digit ID in broadcast
             "username": user.username,
             "banned_by": current_user.username,
             "reason": request.reason,
+            "duration_minutes": request.duration_minutes,
             "ban_until": str(ban_until)
         })
         
-        return {"message": f"User banned until {ban_until}"}
+        return {"message": f"User {user.username} (ID: {user.user_id}) banned until {ban_until}"}
     except HTTPException:
         raise
     except Exception as e:
@@ -427,6 +564,38 @@ async def get_all_users(current_user = Depends(require_admin)):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve users"
+        )
+
+@app.post("/admin/users")
+async def create_admin_user(request: dict, current_user = Depends(require_admin)):
+    """Create a new admin user (admin only)"""
+    try:
+        username = request.get("username")
+        admin_code = request.get("admin_code")
+        
+        if not username or not admin_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username and admin code are required"
+            )
+        
+        existing_user = db.get_user_by_username(username)
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already exists"
+            )
+        
+        user_id = generate_user_id()
+        user = db.create_user(username=username, role="admin", user_id=user_id)
+        
+        return {"message": "Admin user created successfully", "username": username, "user_id": user_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create admin user"
         )
 
 @app.get("/admin/reports")

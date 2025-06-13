@@ -13,30 +13,54 @@ class InMemoryDatabase:
         self.reports: Dict[str, Report] = {}
         self.ban_appeals: Dict[str, BanAppeal] = {}
         self.announcements: Dict[str, Announcement] = {}
+        self.site_settings = {
+            "maintenance_mode": False,
+            "maintenance_message": "",
+            "profanity_filter": True,
+            "max_message_length": 500,
+            "allow_guest_users": False
+        }
         
         admin_id = str(uuid.uuid4())
+        admin_user_id = "1000000000"  # Fixed admin user ID
         self.users[admin_id] = User(
             id=admin_id,
+            user_id=admin_user_id,
             username="admin",
             role="admin",
             status="active"
         )
     
-    def create_user(self, username: str, role: str = "user") -> User:
+    def create_user(self, username: str, role: str = "user", user_id: str = None) -> User:
         with self._lock:
-            user_id = str(uuid.uuid4())
+            internal_id = str(uuid.uuid4())
+            if user_id is None:
+                import random
+                while True:
+                    user_id = ''.join([str(random.randint(0, 9)) for _ in range(10)])
+                    if not any(u.user_id == user_id for u in self.users.values()):
+                        break
+            
             user = User(
-                id=user_id,
+                id=internal_id,
+                user_id=user_id,
                 username=username,
                 role=role,
                 status="active"
             )
-            self.users[user_id] = user
+            self.users[internal_id] = user
             return user
     
     def get_user_by_id(self, user_id: str) -> Optional[User]:
         with self._lock:
             return self.users.get(user_id)
+    
+    def get_user_by_user_id(self, user_id: str) -> Optional[User]:
+        with self._lock:
+            for user in self.users.values():
+                if user.user_id == user_id:
+                    return user
+            return None
     
     def get_user_by_username(self, username: str) -> Optional[User]:
         with self._lock:
@@ -58,14 +82,36 @@ class InMemoryDatabase:
                 return self.users[user_id]
             return None
     
-    def create_message(self, user_id: str, username: str, content: str) -> Message:
+    def update_user_id(self, internal_id: str, new_user_id: str) -> Optional[User]:
+        """Update user's 10-digit ID (only allowed once per user)"""
+        with self._lock:
+            if internal_id in self.users:
+                user = self.users[internal_id]
+                if user.id_changed:
+                    return None  # User has already changed their ID once
+                
+                if any(u.user_id == new_user_id for u in self.users.values()):
+                    return None  # User ID already exists
+                
+                if not (new_user_id.isdigit() and len(new_user_id) == 10):
+                    return None  # Invalid format
+                
+                user_data = user.dict()
+                user_data['user_id'] = new_user_id
+                user_data['id_changed'] = True
+                self.users[internal_id] = User(**user_data)
+                return self.users[internal_id]
+            return None
+    
+    def create_message(self, user_id: str, username: str, content: str, is_bold: bool = False) -> Message:
         with self._lock:
             message_id = str(uuid.uuid4())
             message = Message(
                 id=message_id,
                 user_id=user_id,
                 username=username,
-                content=content
+                content=content,
+                is_bold=is_bold
             )
             self.messages[message_id] = message
             return message
@@ -190,5 +236,38 @@ class InMemoryDatabase:
                 del self.announcements[announcement_id]
                 return True
             return False
+    
+    def get_site_settings(self) -> dict:
+        with self._lock:
+            return self.site_settings.copy()
+    
+    def update_site_settings(self, **kwargs) -> dict:
+        with self._lock:
+            self.site_settings.update(kwargs)
+            return self.site_settings.copy()
+    
+    def get_analytics(self) -> dict:
+        """Get analytics data for admin dashboard"""
+        with self._lock:
+            total_users = len(self.users)
+            active_users = len([u for u in self.users.values() if u.status == "active"])
+            total_messages = len([m for m in self.messages.values() if not m.is_deleted])
+            
+            today = datetime.now().date()
+            today_messages = len([
+                m for m in self.messages.values() 
+                if not m.is_deleted and m.timestamp.date() == today
+            ])
+            
+            return {
+                "totalUsers": total_users,
+                "activeUsers": active_users,
+                "totalMessages": total_messages,
+                "todayMessages": today_messages,
+                "bannedUsers": len([u for u in self.users.values() if u.status == "banned"]),
+                "mutedUsers": len([u for u in self.users.values() if u.status == "muted"]),
+                "pendingReports": len([r for r in self.reports.values() if r.status == "pending"]),
+                "pendingAppeals": len([a for a in self.ban_appeals.values() if a.status == "pending"])
+            }
 
 db = InMemoryDatabase()

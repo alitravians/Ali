@@ -16,6 +16,7 @@ interface ChatRoomProps {
   username: string
   userRole: string
   onLogout: () => void
+  onMaintenanceUpdate?: (mode: boolean, message: string) => void
 }
 
 interface Message {
@@ -24,6 +25,7 @@ interface Message {
   username: string
   message: string
   timestamp: string
+  is_bold?: boolean
 }
 
 interface User {
@@ -40,17 +42,21 @@ interface Announcement {
   timestamp: string
 }
 
-export default function ChatRoom({ token, username, userRole, onLogout }: ChatRoomProps) {
+export default function ChatRoom({ token, username, userRole, onLogout, onMaintenanceUpdate }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [users] = useState<User[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [connected, setConnected] = useState(false)
   const [isBanned, setIsBanned] = useState(false)
   const [banReason, setBanReason] = useState('')
+  const [banDuration, setBanDuration] = useState<number>(0)
+  const [banUntil, setBanUntil] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
   const wsRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     loadMessages()
+    loadUserInfo()
     connectWebSocket()
     
     return () => {
@@ -62,7 +68,8 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
 
   const loadMessages = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/messages`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/messages`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -77,8 +84,26 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
     }
   }
 
+  const loadUserInfo = async () => {
+    try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/user/profile`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUserId(data.user_id || '')
+      }
+    } catch (error) {
+      console.error('Failed to load user info:', error)
+    }
+  }
+
   const connectWebSocket = () => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
     const protocol = apiUrl.startsWith('https') ? 'wss:' : 'ws:'
     const wsUrl = `${protocol}//${apiUrl.replace(/^https?:\/\//, '')}/ws/${username}`
     
@@ -100,9 +125,15 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
         setMessages(prev => prev.filter(msg => msg.id !== message.message_id))
       } else if (message.type === 'user_banned' && message.username === username) {
         setIsBanned(true)
-        setBanReason(message.reason)
+        setBanReason(message.reason || 'لم يتم تحديد السبب')
+        setBanDuration(message.duration_minutes || 0)
+        setBanUntil(message.ban_until || '')
       } else if (message.type === 'announcement') {
         setAnnouncements(prev => [message, ...prev])
+      } else if (message.type === 'site_status_update') {
+        if (onMaintenanceUpdate) {
+          onMaintenanceUpdate(message.maintenance_mode, message.maintenance_message)
+        }
       }
     }
     
@@ -119,7 +150,8 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
 
   const sendMessage = async (content: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/messages`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,6 +176,8 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
         <BanAppealForm 
           token={token}
           banReason={banReason}
+          banDuration={banDuration}
+          banUntil={banUntil}
           onLogout={onLogout}
         />
       </div>
@@ -165,6 +199,7 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">
               مرحباً، {username} ({userRole === 'admin' ? 'مدير' : userRole === 'moderator' ? 'مشرف' : 'مستخدم'})
+              {userId && <span className="text-xs text-gray-500">#{userId}</span>}
             </span>
             <Button variant="outline" size="sm" onClick={onLogout}>
               <LogOut className="w-4 h-4 ml-2" />

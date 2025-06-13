@@ -10,6 +10,7 @@ interface Message {
   username: string
   message: string
   timestamp: string
+  is_bold?: boolean
 }
 
 interface MessageListProps {
@@ -72,7 +73,7 @@ export default function MessageList({ messages, currentUser }: MessageListProps)
                   message.username === currentUser
                     ? 'bg-blue-500 text-white ml-auto'
                     : 'bg-gray-100 text-gray-900'
-                }`}
+                } ${message.is_bold ? 'font-bold text-black' : ''}`}
               >
                 {message.message}
               </div>

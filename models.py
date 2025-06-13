@@ -15,12 +15,14 @@ class UserStatus(str, Enum):
 
 class User(BaseModel):
     id: str
+    user_id: str  # 10-digit user ID
     username: str
     role: UserRole = UserRole.USER
     status: UserStatus = UserStatus.ACTIVE
     mute_until: Optional[datetime] = None
     ban_until: Optional[datetime] = None
     ban_reason: Optional[str] = None
+    id_changed: bool = False  # Track if user has changed their ID
     created_at: datetime = datetime.now()
 
 class Message(BaseModel):
@@ -30,6 +32,7 @@ class Message(BaseModel):
     content: str
     timestamp: datetime = datetime.now()
     is_deleted: bool = False
+    is_bold: bool = False  # For moderator $ formatting
 
 class BanRecord(BaseModel):
     id: str

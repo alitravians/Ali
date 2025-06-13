@@ -51,6 +51,9 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementContent, setAnnouncementContent] = useState('')
   
+  const [newAdminUsername, setNewAdminUsername] = useState('')
+  const [newAdminCode, setNewAdminCode] = useState('')
+  
   const [siteSettings, setSiteSettings] = useState({
     maintenanceMode: false,
     maintenanceMessage: '',
@@ -274,6 +277,47 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     }
   }
 
+  const createAdminUser = async () => {
+    if (!newAdminUsername.trim() || !newAdminCode.trim()) {
+      setError('يرجى ملء جميع حقول إنشاء المسؤول')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/admin/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          username: newAdminUsername.trim(),
+          admin_code: newAdminCode.trim()
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setSuccess(`تم إنشاء حساب المسؤول بنجاح: ${data.username} (ID: ${data.user_id})`)
+        setNewAdminUsername('')
+        setNewAdminCode('')
+        loadData()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'فشل في إنشاء حساب المسؤول')
+      }
+    } catch (err) {
+      setError('فشل في إنشاء حساب المسؤول')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error && (
@@ -414,57 +458,98 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         </TabsContent>
 
         <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>إدارة المستخدمين ({users.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="text-right">
-                      <div className="font-semibold">{user.username}</div>
-                      <div className="text-sm text-gray-500">
-                        تاريخ التسجيل: {new Date(user.created_at).toLocaleDateString('ar')}
-                      </div>
-                    </div>
-                    <div className="flex gap-2 items-center">
-                      <Badge className={getStatusColor(user.status)}>
-                        {getStatusText(user.status)}
-                      </Badge>
-                      <Badge variant="outline">
-                        {getRoleText(user.role)}
-                      </Badge>
-                      <div className="flex gap-1">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
-                          disabled={loading}
-                        >
-                          {user.role === 'admin' ? 'إلغاء الإدارة' : 'جعل مدير'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => updateUserRole(user.id, user.role === 'moderator' ? 'user' : 'moderator')}
-                          disabled={loading}
-                        >
-                          {user.role === 'moderator' ? 'إلغاء الإشراف' : 'جعل مشرف'}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>إضافة مسؤول جديد</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="newAdminUsername">اسم المستخدم</Label>
+                  <Input
+                    id="newAdminUsername"
+                    value={newAdminUsername}
+                    onChange={(e) => setNewAdminUsername(e.target.value)}
+                    placeholder="أدخل اسم المستخدم للمسؤول الجديد"
+                    className="arabic-input"
+                    dir="rtl"
+                  />
+                </div>
                 
-                {users.length === 0 && (
-                  <div className="text-center text-gray-500 py-4">
-                    لا يوجد مستخدمون
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                  <Label htmlFor="newAdminCode">كود الدخول</Label>
+                  <Input
+                    id="newAdminCode"
+                    value={newAdminCode}
+                    onChange={(e) => setNewAdminCode(e.target.value)}
+                    placeholder="أدخل كود الدخول للمسؤول الجديد"
+                    className="arabic-input"
+                    dir="rtl"
+                  />
+                </div>
+                
+                <Button 
+                  onClick={createAdminUser}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  {loading ? 'جاري الإنشاء...' : 'إنشاء مسؤول جديد'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>إدارة المستخدمين ({users.length})</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {users.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="text-right">
+                        <div className="font-semibold">{user.username}</div>
+                        <div className="text-sm text-gray-500">
+                          تاريخ التسجيل: {new Date(user.created_at).toLocaleDateString('ar')}
+                        </div>
+                      </div>
+                      <div className="flex gap-2 items-center">
+                        <Badge className={getStatusColor(user.status)}>
+                          {getStatusText(user.status)}
+                        </Badge>
+                        <Badge variant="outline">
+                          {getRoleText(user.role)}
+                        </Badge>
+                        <div className="flex gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
+                            disabled={loading}
+                          >
+                            {user.role === 'admin' ? 'إلغاء الإدارة' : 'جعل مدير'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateUserRole(user.id, user.role === 'moderator' ? 'user' : 'moderator')}
+                            disabled={loading}
+                          >
+                            {user.role === 'moderator' ? 'إلغاء الإشراف' : 'جعل مشرف'}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {users.length === 0 && (
+                    <div className="text-center text-gray-500 py-4">
+                      لا يوجد مستخدمون
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="reports">
