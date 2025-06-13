@@ -44,7 +44,7 @@ interface Announcement {
 
 export default function ChatRoom({ token, username, userRole, onLogout, onMaintenanceUpdate }: ChatRoomProps) {
   const [messages, setMessages] = useState<Message[]>([])
-  const [users] = useState<User[]>([])
+  const [users, setUsers] = useState<User[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [connected, setConnected] = useState(false)
   const [isBanned, setIsBanned] = useState(false)
@@ -57,6 +57,7 @@ export default function ChatRoom({ token, username, userRole, onLogout, onMainte
   useEffect(() => {
     loadMessages()
     loadUserInfo()
+    loadConnectedUsers()
     connectWebSocket()
     
     return () => {
@@ -81,6 +82,24 @@ export default function ChatRoom({ token, username, userRole, onLogout, onMainte
       }
     } catch (error) {
       console.error('Failed to load messages:', error)
+    }
+  }
+
+  const loadConnectedUsers = async () => {
+    try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/users/connected`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setUsers(data.users || [])
+      }
+    } catch (error) {
+      console.error('Failed to load connected users:', error)
     }
   }
 
@@ -113,9 +132,29 @@ export default function ChatRoom({ token, username, userRole, onLogout, onMainte
           const errorData = await response.json()
           if (errorData.detail && errorData.detail.includes('banned')) {
             setIsBanned(true)
-            setBanReason('تم حظرك من النظام')
-            setBanDuration(0)
-            setBanUntil('')
+            
+            const detail = errorData.detail
+            let reason = 'تم حظرك من النظام'
+            let duration = 0
+            let until = ''
+            
+            const reasonMatch = detail.match(/Reason: (.+)$/)
+            if (reasonMatch) {
+              reason = reasonMatch[1]
+            }
+            
+            const untilMatch = detail.match(/banned until ([^.]+)/)
+            if (untilMatch) {
+              until = untilMatch[1]
+              const banUntilDate = new Date(until)
+              const now = new Date()
+              const diffMs = banUntilDate.getTime() - now.getTime()
+              duration = Math.ceil(diffMs / (1000 * 60))
+            }
+            
+            setBanReason(reason)
+            setBanDuration(duration > 0 ? duration : 0)
+            setBanUntil(until)
           } else {
             onLogout()
           }
@@ -147,6 +186,7 @@ export default function ChatRoom({ token, username, userRole, onLogout, onMainte
         setMessages(prev => [message, ...prev])
       } else if (message.type === 'user_joined' || message.type === 'user_left') {
         console.log(message.message)
+        loadConnectedUsers()
       } else if (message.type === 'message_deleted') {
         setMessages(prev => prev.filter(msg => msg.id !== message.message_id))
       } else if (message.type === 'user_banned' && message.username === username) {
@@ -225,7 +265,7 @@ export default function ChatRoom({ token, username, userRole, onLogout, onMainte
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">
               مرحباً، {username} ({userRole === 'admin' ? 'مدير' : userRole === 'moderator' ? 'مشرف' : 'مستخدم'})
-              {userId && <span className="text-xs text-gray-500">#{userId}</span>}
+              {userId && <span className="text-xs font-mono bg-blue-100 text-blue-800 px-2 py-1 rounded border">ID: {userId}</span>}
             </span>
             <Button variant="outline" size="sm" onClick={onLogout}>
               <LogOut className="w-4 h-4 ml-2" />

@@ -35,17 +35,29 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket, username: str):
         """Handle new WebSocket connections"""
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        self.user_connections[username] = websocket
-        self.user_status[username] = "online"
-        
-        user = db.get_user_by_username(username)
-        user_info = {
-            "username": username,
-            "role": user.role if user else "user",
-            "status": user.status if user else "active"
-        }
+        try:
+            await websocket.accept()
+            self.active_connections.append(websocket)
+            self.user_connections[username] = websocket
+            self.user_status[username] = "online"
+            
+            user = db.get_user_by_username(username)
+            if not user:
+                from auth import generate_user_id
+                user_id = generate_user_id()
+                user = db.create_user(username=username, role="user", user_id=user_id)
+                print(f"Created WebSocket user: {username} with ID: {user_id}")
+            else:
+                print(f"Found existing user: {username} with ID: {user.user_id}")
+            
+            user_info = {
+                "username": username,
+                "role": user.role,
+                "status": user.status
+            }
+        except Exception as e:
+            print(f"Error in WebSocket connect: {e}")
+            raise
         
         await self.broadcast_message({
             "type": "user_joined",
@@ -563,6 +575,15 @@ async def submit_report(request: ReportRequest, current_user: str = Depends(get_
             detail="Failed to submit report"
         )
 
+@app.get("/users/connected")
+async def get_connected_users(current_user: str = Depends(get_current_user)):
+    """Get currently connected users"""
+    try:
+        connected_users = manager.get_online_users()
+        return {"users": connected_users}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to get connected users")
+
 @app.get("/admin/users")
 async def get_all_users(current_user = Depends(require_admin)):
     """Get all users (admin only)"""
@@ -729,31 +750,40 @@ async def respond_to_ban_appeal(appeal_id: str, request: dict, current_user = De
 @app.websocket("/ws/{username}")
 async def websocket_endpoint(websocket: WebSocket, username: str):
     """Enhanced WebSocket endpoint for real-time chat with typing indicators"""
-    await manager.connect(websocket, username)
     try:
+        await manager.connect(websocket, username)
         while True:
-            data = await websocket.receive_text()
-            message_data = json.loads(data)
-            message_type = message_data.get("type", "chat_message")
-            
-            if message_type == "typing_start":
-                await manager.handle_typing_indicator(username, True)
-            elif message_type == "typing_stop":
-                await manager.handle_typing_indicator(username, False)
-            elif message_type == "chat_message":
-                await manager.handle_typing_indicator(username, False)
+            try:
+                data = await websocket.receive_text()
+                message_data = json.loads(data)
+                message_type = message_data.get("type", "chat_message")
                 
-                await manager.broadcast_message({
-                    "type": "chat_message",
-                    "username": username,
-                    "message": message_data.get("message", ""),
-                    "timestamp": str(datetime.now())
-                })
-            elif message_type == "ping":
-                await manager.send_personal_message(json.dumps({
-                    "type": "pong",
-                    "timestamp": str(datetime.now())
-                }), websocket)
-            
-    except WebSocketDisconnect:
+                if message_type == "typing_start":
+                    await manager.handle_typing_indicator(username, True)
+                elif message_type == "typing_stop":
+                    await manager.handle_typing_indicator(username, False)
+                elif message_type == "chat_message":
+                    await manager.handle_typing_indicator(username, False)
+                    
+                    await manager.broadcast_message({
+                        "type": "chat_message",
+                        "username": username,
+                        "message": message_data.get("message", ""),
+                        "timestamp": str(datetime.now())
+                    })
+                elif message_type == "ping":
+                    await manager.send_personal_message(json.dumps({
+                        "type": "pong",
+                        "timestamp": str(datetime.now())
+                    }), websocket)
+                    
+            except WebSocketDisconnect:
+                break
+            except Exception as e:
+                print(f"Error in WebSocket message handling: {e}")
+                break
+                
+    except Exception as e:
+        print(f"Error in WebSocket endpoint: {e}")
+    finally:
         await manager.disconnect(websocket, username)

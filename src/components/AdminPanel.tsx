@@ -345,6 +345,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
     try {
       const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      console.log('Ban API URL:', apiUrl)
+      console.log('Full ban URL:', `${apiUrl}/users/${banUserId}/ban`)
       const response = await fetch(`${apiUrl}/users/${banUserId}/ban`, {
         method: 'POST',
         headers: {

@@ -35,7 +35,8 @@ export default function ModeratorTools({ token }: ModeratorToolsProps) {
     setSuccess('')
 
     try {
-      const response = await fetch(`/messages/${messageId}`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/messages/${messageId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -67,7 +68,8 @@ export default function ModeratorTools({ token }: ModeratorToolsProps) {
     setSuccess('')
 
     try {
-      const response = await fetch(`/users/${userId}/mute`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/users/${userId}/mute`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -103,7 +105,10 @@ export default function ModeratorTools({ token }: ModeratorToolsProps) {
     setSuccess('')
 
     try {
-      const response = await fetch(`/users/${userId}/ban`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      console.log('ModeratorTools Ban API URL:', apiUrl)
+      console.log('ModeratorTools Full ban URL:', `${apiUrl}/users/${userId}/ban`)
+      const response = await fetch(`${apiUrl}/users/${userId}/ban`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
