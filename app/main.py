@@ -30,19 +30,47 @@ class ConnectionManager:
     def __init__(self):
         self.active_connections: List[WebSocket] = []
         self.user_connections: Dict[str, WebSocket] = {}
+        self.user_status: Dict[str, str] = {}  # Track user online/offline status
+        self.typing_users: Dict[str, datetime] = {}  # Track who is typing
 
     async def connect(self, websocket: WebSocket, username: str):
         """Handle new WebSocket connections"""
         await websocket.accept()
         self.active_connections.append(websocket)
         self.user_connections[username] = websocket
+        self.user_status[username] = "online"
+        
+        user = db.get_user_by_username(username)
+        user_info = {
+            "username": username,
+            "role": user.role if user else "user",
+            "status": user.status if user else "active"
+        }
         
         await self.broadcast_message({
             "type": "user_joined",
             "username": username,
-            "message": f"{username} joined the chat",
+            "user_info": user_info,
+            "online_count": len(self.active_connections),
             "timestamp": str(datetime.now())
         })
+        
+        online_users = []
+        for online_username, status in self.user_status.items():
+            if status == "online":
+                online_user = db.get_user_by_username(online_username)
+                if online_user:
+                    online_users.append({
+                        "username": online_username,
+                        "role": online_user.role,
+                        "status": online_user.status
+                    })
+        
+        await self.send_personal_message(json.dumps({
+            "type": "online_users_list",
+            "users": online_users,
+            "timestamp": str(datetime.now())
+        }), websocket)
 
     async def disconnect(self, websocket: WebSocket, username: str):
         """Handle WebSocket disconnections"""
@@ -50,11 +78,15 @@ class ConnectionManager:
             self.active_connections.remove(websocket)
         if username in self.user_connections:
             del self.user_connections[username]
+        if username in self.user_status:
+            self.user_status[username] = "offline"
+        if username in self.typing_users:
+            del self.typing_users[username]
             
         await self.broadcast_message({
             "type": "user_left",
             "username": username,
-            "message": f"{username} left the chat",
+            "online_count": len(self.active_connections),
             "timestamp": str(datetime.now())
         })
 
@@ -80,6 +112,50 @@ class ConnectionManager:
         except Exception:
             if websocket in self.active_connections:
                 self.active_connections.remove(websocket)
+
+    async def handle_typing_indicator(self, username: str, is_typing: bool):
+        """Handle typing indicators"""
+        if is_typing:
+            self.typing_users[username] = datetime.now()
+        else:
+            if username in self.typing_users:
+                del self.typing_users[username]
+        
+        current_time = datetime.now()
+        expired_users = [
+            user for user, timestamp in self.typing_users.items()
+            if (current_time - timestamp).seconds > 10
+        ]
+        for user in expired_users:
+            del self.typing_users[user]
+        
+        await self.broadcast_message({
+            "type": "typing_update",
+            "typing_users": list(self.typing_users.keys()),
+            "timestamp": str(current_time)
+        })
+
+    def get_online_users(self) -> List[Dict]:
+        """Get list of currently online users"""
+        online_users = []
+        for username, status in self.user_status.items():
+            if status == "online":
+                user = db.get_user_by_username(username)
+                if user:
+                    online_users.append({
+                        "username": username,
+                        "role": user.role,
+                        "status": user.status
+                    })
+        return online_users
+
+    async def broadcast_moderation_action(self, action_type: str, data: dict):
+        """Broadcast real-time moderation actions"""
+        await self.broadcast_message({
+            "type": f"moderation_{action_type}",
+            "data": data,
+            "timestamp": str(datetime.now())
+        })
 
 manager = ConnectionManager()
 
@@ -191,13 +267,11 @@ async def send_message(request: MessageRequest, current_user: str = Depends(get_
                     banned_by="AI_MODERATOR"
                 )
                 
-                await manager.broadcast_message({
-                    "type": "user_auto_banned",
+                await manager.broadcast_moderation_action("user_auto_banned", {
                     "user_id": user.id,
                     "username": user.username,
                     "reason": moderation_result.reason,
-                    "ban_until": str(ban_until),
-                    "timestamp": str(datetime.now())
+                    "ban_until": str(ban_until)
                 })
                 
                 raise HTTPException(
@@ -241,11 +315,9 @@ async def delete_message(message_id: str, current_user = Depends(require_moderat
         if not success:
             raise HTTPException(status_code=404, detail="Message not found")
         
-        await manager.broadcast_message({
-            "type": "message_deleted",
+        await manager.broadcast_moderation_action("message_deleted", {
             "message_id": message_id,
-            "deleted_by": current_user.username,
-            "timestamp": str(datetime.now())
+            "deleted_by": current_user.username
         })
         
         return {"message": "Message deleted successfully"}
@@ -267,13 +339,11 @@ async def mute_user(user_id: str, request: MuteRequest, current_user = Depends(r
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        await manager.broadcast_message({
-            "type": "user_muted",
+        await manager.broadcast_moderation_action("user_muted", {
             "user_id": user_id,
             "username": user.username,
             "muted_by": current_user.username,
-            "mute_until": str(mute_until),
-            "timestamp": str(datetime.now())
+            "mute_until": str(mute_until)
         })
         
         return {"message": f"User muted until {mute_until}"}
@@ -307,14 +377,12 @@ async def ban_user(user_id: str, request: BanRequest, current_user = Depends(req
             banned_by=current_user.username
         )
         
-        await manager.broadcast_message({
-            "type": "user_banned",
+        await manager.broadcast_moderation_action("user_banned", {
             "user_id": user_id,
             "username": user.username,
             "banned_by": current_user.username,
             "reason": request.reason,
-            "ban_until": str(ban_until),
-            "timestamp": str(datetime.now())
+            "ban_until": str(ban_until)
         })
         
         return {"message": f"User banned until {ban_until}"}
@@ -437,19 +505,32 @@ async def create_announcement(request: AnnouncementRequest, current_user = Depen
 
 @app.websocket("/ws/{username}")
 async def websocket_endpoint(websocket: WebSocket, username: str):
-    """WebSocket endpoint for real-time chat"""
+    """Enhanced WebSocket endpoint for real-time chat with typing indicators"""
     await manager.connect(websocket, username)
     try:
         while True:
             data = await websocket.receive_text()
             message_data = json.loads(data)
+            message_type = message_data.get("type", "chat_message")
             
-            await manager.broadcast_message({
-                "type": "chat_message",
-                "username": username,
-                "message": message_data.get("message", ""),
-                "timestamp": str(datetime.now())
-            })
+            if message_type == "typing_start":
+                await manager.handle_typing_indicator(username, True)
+            elif message_type == "typing_stop":
+                await manager.handle_typing_indicator(username, False)
+            elif message_type == "chat_message":
+                await manager.handle_typing_indicator(username, False)
+                
+                await manager.broadcast_message({
+                    "type": "chat_message",
+                    "username": username,
+                    "message": message_data.get("message", ""),
+                    "timestamp": str(datetime.now())
+                })
+            elif message_type == "ping":
+                await manager.send_personal_message(json.dumps({
+                    "type": "pong",
+                    "timestamp": str(datetime.now())
+                }), websocket)
             
     except WebSocketDisconnect:
         await manager.disconnect(websocket, username)
