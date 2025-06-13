@@ -7,7 +7,7 @@ import { Label } from './ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Alert, AlertDescription } from './ui/alert'
 import { Badge } from './ui/badge'
-import { Trash2, MessageSquare, Users, AlertTriangle } from 'lucide-react'
+import { Trash2, MessageSquare, Users, AlertTriangle, Settings, BarChart3 } from 'lucide-react'
 import { arabicTranslations } from '../lib/arabic'
 
 interface AdminPanelProps {
@@ -50,6 +50,23 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementContent, setAnnouncementContent] = useState('')
+  
+  const [siteSettings, setSiteSettings] = useState({
+    maintenanceMode: false,
+    maintenanceMessage: '',
+    profanityFilter: true,
+    maxMessageLength: 500,
+    allowGuestUsers: false
+  })
+  
+  const [analytics, setAnalytics] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalMessages: 0,
+    todayMessages: 0,
+    bannedUsers: 0,
+    mutedUsers: 0
+  })
 
   useEffect(() => {
     loadData()
@@ -58,7 +75,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const loadData = async () => {
     setLoading(true)
     try {
-      const [usersRes, reportsRes, appealsRes] = await Promise.all([
+      const [usersRes, reportsRes, appealsRes, settingsRes, analyticsRes] = await Promise.all([
         fetch('/admin/users', {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -66,6 +83,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
         fetch('/admin/ban-appeals', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/admin/settings', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch('/admin/analytics', {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ])
@@ -83,6 +106,16 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       if (appealsRes.ok) {
         const appealsData = await appealsRes.json()
         setBanAppeals(appealsData.appeals || [])
+      }
+
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        setSiteSettings(settingsData.settings || siteSettings)
+      }
+
+      if (analyticsRes.ok) {
+        const analyticsData = await analyticsRes.json()
+        setAnalytics(analyticsData.analytics || analytics)
       }
     } catch (err) {
       setError('فشل في تحميل البيانات')
@@ -124,6 +157,86 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       }
     } catch (err) {
       setError('فشل في إنشاء الإعلان')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateUserRole = async (userId: string, newRole: string) => {
+    setLoading(true)
+    try {
+      const response = await fetch(`/admin/users/${userId}/role`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ role: newRole })
+      })
+
+      if (response.ok) {
+        setSuccess('تم تحديث دور المستخدم بنجاح')
+        loadData()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'فشل في تحديث دور المستخدم')
+      }
+    } catch (err) {
+      setError('فشل في تحديث دور المستخدم')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const updateSiteSettings = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/admin/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(siteSettings)
+      })
+
+      if (response.ok) {
+        setSuccess('تم تحديث إعدادات الموقع بنجاح')
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'فشل في تحديث الإعدادات')
+      }
+    } catch (err) {
+      setError('فشل في تحديث الإعدادات')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const respondToAppeal = async (appealId: string, response: string, approved: boolean) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/admin/ban-appeals/${appealId}/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          response: response,
+          approved: approved 
+        })
+      })
+
+      if (res.ok) {
+        setSuccess('تم الرد على طلب الاستئناف بنجاح')
+        loadData()
+      } else {
+        const errorData = await res.json()
+        setError(errorData.detail || 'فشل في الرد على الطلب')
+      }
+    } catch (err) {
+      setError('فشل في الرد على الطلب')
     } finally {
       setLoading(false)
     }
@@ -175,8 +288,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         </Alert>
       )}
 
-      <Tabs defaultValue="announcements" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="analytics" className="w-full">
+        <TabsList className="grid w-full grid-cols-6">
+          <TabsTrigger value="analytics">
+            <BarChart3 className="w-4 h-4 ml-2" />
+            إحصائيات
+          </TabsTrigger>
           <TabsTrigger value="announcements">
             <MessageSquare className="w-4 h-4 ml-2" />
             {arabicTranslations.announcements}
@@ -193,7 +310,69 @@ export default function AdminPanel({ token }: AdminPanelProps) {
             <Trash2 className="w-4 h-4 ml-2" />
             {arabicTranslations.appeals}
           </TabsTrigger>
+          <TabsTrigger value="settings">
+            <Settings className="w-4 h-4 ml-2" />
+            الإعدادات
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="analytics">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">إجمالي المستخدمين</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.totalUsers}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">المستخدمون النشطون</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{analytics.activeUsers}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">إجمالي الرسائل</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{analytics.totalMessages}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">رسائل اليوم</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">{analytics.todayMessages}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">المستخدمون المحظورون</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{analytics.bannedUsers}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-medium">المستخدمون المكتومون</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">{analytics.mutedUsers}</div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         <TabsContent value="announcements">
           <Card>
@@ -249,13 +428,31 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                         تاريخ التسجيل: {new Date(user.created_at).toLocaleDateString('ar')}
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 items-center">
                       <Badge className={getStatusColor(user.status)}>
                         {getStatusText(user.status)}
                       </Badge>
                       <Badge variant="outline">
                         {getRoleText(user.role)}
                       </Badge>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
+                          disabled={loading}
+                        >
+                          {user.role === 'admin' ? 'إلغاء الإدارة' : 'جعل مدير'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => updateUserRole(user.id, user.role === 'moderator' ? 'user' : 'moderator')}
+                          disabled={loading}
+                        >
+                          {user.role === 'moderator' ? 'إلغاء الإشراف' : 'جعل مشرف'}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -327,8 +524,27 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                       {appeal.admin_response && (
                         <>
                           <div className="font-semibold mb-1">رد الإدارة:</div>
-                          <div className="text-sm">{appeal.admin_response}</div>
+                          <div className="text-sm mb-2">{appeal.admin_response}</div>
                         </>
+                      )}
+                      {appeal.status === 'pending' && (
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => respondToAppeal(appeal.id, 'تم قبول طلب الاستئناف', true)}
+                            disabled={loading}
+                          >
+                            قبول
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => respondToAppeal(appeal.id, 'تم رفض طلب الاستئناف', false)}
+                            disabled={loading}
+                          >
+                            رفض
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -340,6 +556,79 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                   </div>
                 )}
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="settings">
+          <Card>
+            <CardHeader>
+              <CardTitle>إعدادات الموقع</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="maintenance">وضع الصيانة</Label>
+                <input
+                  id="maintenance"
+                  type="checkbox"
+                  checked={siteSettings.maintenanceMode}
+                  onChange={(e) => setSiteSettings({...siteSettings, maintenanceMode: e.target.checked})}
+                  className="rounded"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="maintenanceMsg">رسالة الصيانة</Label>
+                <Textarea
+                  id="maintenanceMsg"
+                  value={siteSettings.maintenanceMessage}
+                  onChange={(e) => setSiteSettings({...siteSettings, maintenanceMessage: e.target.value})}
+                  placeholder="أدخل رسالة الصيانة"
+                  className="arabic-input"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="profanity">مرشح الكلمات البذيئة</Label>
+                <input
+                  id="profanity"
+                  type="checkbox"
+                  checked={siteSettings.profanityFilter}
+                  onChange={(e) => setSiteSettings({...siteSettings, profanityFilter: e.target.checked})}
+                  className="rounded"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="maxLength">الحد الأقصى لطول الرسالة</Label>
+                <Input
+                  id="maxLength"
+                  type="number"
+                  value={siteSettings.maxMessageLength}
+                  onChange={(e) => setSiteSettings({...siteSettings, maxMessageLength: parseInt(e.target.value)})}
+                  min="50"
+                  max="2000"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <Label htmlFor="guests">السماح للضيوف</Label>
+                <input
+                  id="guests"
+                  type="checkbox"
+                  checked={siteSettings.allowGuestUsers}
+                  onChange={(e) => setSiteSettings({...siteSettings, allowGuestUsers: e.target.checked})}
+                  className="rounded"
+                />
+              </div>
+              
+              <Button 
+                onClick={updateSiteSettings}
+                disabled={loading}
+                className="w-full"
+              >
+                {loading ? arabicTranslations.loading : arabicTranslations.save}
+              </Button>
             </CardContent>
           </Card>
         </TabsContent>
