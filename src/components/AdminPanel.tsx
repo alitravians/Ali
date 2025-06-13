@@ -70,6 +70,12 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     bannedUsers: 0,
     mutedUsers: 0
   })
+  
+  const [banUserId, setBanUserId] = useState('')
+  const [banReason, setBanReason] = useState('')
+  const [banDuration, setBanDuration] = useState(60)
+  const [muteUserId, setMuteUserId] = useState('')
+  const [muteDuration, setMuteDuration] = useState(30)
 
   useEffect(() => {
     loadData()
@@ -138,7 +144,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     setSuccess('')
 
     try {
-      const response = await fetch('/admin/announcements', {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/admin/announcements`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -168,7 +175,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const updateUserRole = async (userId: string, newRole: string) => {
     setLoading(true)
     try {
-      const response = await fetch(`/admin/users/${userId}/role`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -194,8 +202,9 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const updateSiteSettings = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/admin/settings', {
-        method: 'PUT',
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/admin/settings`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
@@ -219,7 +228,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const respondToAppeal = async (appealId: string, response: string, approved: boolean) => {
     setLoading(true)
     try {
-      const res = await fetch(`/admin/ban-appeals/${appealId}/respond`, {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const res = await fetch(`${apiUrl}/admin/ban-appeals/${appealId}/respond`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -313,6 +323,96 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       }
     } catch (err) {
       setError('فشل في إنشاء حساب المسؤول')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const banUser = async () => {
+    if (!banUserId.trim() || !banReason.trim()) {
+      setError('يرجى ملء جميع حقول الحظر')
+      return
+    }
+
+    if (banUserId.length !== 10 || !banUserId.match(/^\d{10}$/)) {
+      setError('معرف المستخدم يجب أن يكون مكون من 10 أرقام')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/users/${banUserId}/ban`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          reason: banReason,
+          duration_minutes: banDuration
+        })
+      })
+
+      if (response.ok) {
+        setSuccess('تم حظر المستخدم بنجاح')
+        setBanUserId('')
+        setBanReason('')
+        setBanDuration(60)
+        loadData()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'فشل في حظر المستخدم')
+      }
+    } catch (err) {
+      setError('فشل في حظر المستخدم')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const muteUser = async () => {
+    if (!muteUserId.trim()) {
+      setError('يرجى إدخال معرف المستخدم')
+      return
+    }
+
+    if (muteUserId.length !== 10 || !muteUserId.match(/^\d{10}$/)) {
+      setError('معرف المستخدم يجب أن يكون مكون من 10 أرقام')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/users/${muteUserId}/mute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          duration_minutes: muteDuration
+        })
+      })
+
+      if (response.ok) {
+        setSuccess('تم كتم المستخدم بنجاح')
+        setMuteUserId('')
+        setMuteDuration(30)
+        loadData()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'فشل في كتم المستخدم')
+      }
+    } catch (err) {
+      setError('فشل في كتم المستخدم')
     } finally {
       setLoading(false)
     }
@@ -500,6 +600,81 @@ export default function AdminPanel({ token }: AdminPanelProps) {
 
             <Card>
               <CardHeader>
+                <CardTitle>حظر مستخدم بالمعرف</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="banUserId">معرف المستخدم (10 أرقام)</Label>
+                  <Input
+                    id="banUserId"
+                    value={banUserId}
+                    onChange={(e) => setBanUserId(e.target.value)}
+                    placeholder="أدخل معرف المستخدم المكون من 10 أرقام"
+                    className="arabic-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="banReason">سبب الحظر</Label>
+                  <Input
+                    id="banReason"
+                    value={banReason}
+                    onChange={(e) => setBanReason(e.target.value)}
+                    placeholder="أدخل سبب الحظر"
+                    className="arabic-input"
+                    dir="rtl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="banDuration">مدة الحظر (بالدقائق)</Label>
+                  <Input
+                    id="banDuration"
+                    type="number"
+                    value={banDuration}
+                    onChange={(e) => setBanDuration(parseInt(e.target.value))}
+                    min="1"
+                    max="43200"
+                  />
+                </div>
+                <Button onClick={banUser} disabled={loading} className="w-full">
+                  {loading ? 'جاري الحظر...' : 'حظر المستخدم'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>كتم مستخدم بالمعرف</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="muteUserId">معرف المستخدم (10 أرقام)</Label>
+                  <Input
+                    id="muteUserId"
+                    value={muteUserId}
+                    onChange={(e) => setMuteUserId(e.target.value)}
+                    placeholder="أدخل معرف المستخدم المكون من 10 أرقام"
+                    className="arabic-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="muteDuration">مدة الكتم (بالدقائق)</Label>
+                  <Input
+                    id="muteDuration"
+                    type="number"
+                    value={muteDuration}
+                    onChange={(e) => setMuteDuration(parseInt(e.target.value))}
+                    min="1"
+                    max="1440"
+                  />
+                </div>
+                <Button onClick={muteUser} disabled={loading} className="w-full">
+                  {loading ? 'جاري الكتم...' : 'كتم المستخدم'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
                 <CardTitle>إدارة المستخدمين ({users.length})</CardTitle>
               </CardHeader>
               <CardContent>
@@ -519,10 +694,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                         <Badge variant="outline">
                           {getRoleText(user.role)}
                         </Badge>
-                        <div className="flex gap-1">
+                        <div className="flex gap-2 flex-wrap">
                           <Button
                             size="sm"
                             variant="outline"
+                            className="min-w-[100px]"
                             onClick={() => updateUserRole(user.id, user.role === 'admin' ? 'user' : 'admin')}
                             disabled={loading}
                           >
@@ -531,6 +707,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                           <Button
                             size="sm"
                             variant="outline"
+                            className="min-w-[100px]"
                             onClick={() => updateUserRole(user.id, user.role === 'moderator' ? 'user' : 'moderator')}
                             disabled={loading}
                           >
@@ -613,9 +790,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                         </>
                       )}
                       {appeal.status === 'pending' && (
-                        <div className="flex gap-2 mt-2">
+                        <div className="flex gap-3 mt-3 justify-end">
                           <Button
                             size="sm"
+                            className="min-w-[80px]"
                             onClick={() => respondToAppeal(appeal.id, 'تم قبول طلب الاستئناف', true)}
                             disabled={loading}
                           >
@@ -624,6 +802,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
                           <Button
                             size="sm"
                             variant="destructive"
+                            className="min-w-[80px]"
                             onClick={() => respondToAppeal(appeal.id, 'تم رفض طلب الاستئناف', false)}
                             disabled={loading}
                           >

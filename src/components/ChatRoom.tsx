@@ -96,6 +96,32 @@ export default function ChatRoom({ token, username, userRole, onLogout, onMainte
       if (response.ok) {
         const data = await response.json()
         setUserId(data.user_id || '')
+        
+        if (data.status === 'banned' && data.ban_until) {
+          const banUntil = new Date(data.ban_until)
+          const now = new Date()
+          
+          if (banUntil > now) {
+            setIsBanned(true)
+            setBanReason(data.ban_reason || 'لم يتم تحديد السبب')
+            setBanDuration(data.ban_duration_minutes || 0)
+            setBanUntil(data.ban_until)
+          }
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        try {
+          const errorData = await response.json()
+          if (errorData.detail && errorData.detail.includes('banned')) {
+            setIsBanned(true)
+            setBanReason('تم حظرك من النظام')
+            setBanDuration(0)
+            setBanUntil('')
+          } else {
+            onLogout()
+          }
+        } catch {
+          onLogout()
+        }
       }
     } catch (error) {
       console.error('Failed to load user info:', error)

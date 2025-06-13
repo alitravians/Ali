@@ -283,13 +283,22 @@ async def get_user_profile(current_user: str = Depends(get_current_user)):
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
         
-        return {
+        response_data = {
             "username": user.username,
             "user_id": user.user_id,
             "role": user.role,
             "status": user.status,
             "id_changed": user.id_changed
         }
+        
+        if user.status == "banned" and user.ban_until:
+            response_data.update({
+                "ban_reason": user.ban_reason,
+                "ban_duration_minutes": user.ban_duration_minutes,
+                "ban_until": user.ban_until.isoformat() if user.ban_until else None
+            })
+        
+        return response_data
     except HTTPException:
         raise
     except Exception as e:
@@ -671,6 +680,51 @@ async def create_announcement(request: AnnouncementRequest, current_user = Depen
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create announcement"
         )
+
+@app.put("/admin/users/{user_id}/role")
+async def update_user_role(user_id: str, request: dict, current_user = Depends(require_admin)):
+    """Update user role (admin only)"""
+    try:
+        new_role = request.get("role")
+        if not new_role or new_role not in ["user", "moderator", "admin"]:
+            raise HTTPException(status_code=400, detail="Invalid role")
+        
+        updated_user = db.update_user(user_id, role=new_role)
+        if not updated_user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        return {"message": "User role updated successfully", "user": updated_user}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to update user role")
+
+@app.post("/admin/ban-appeals/{appeal_id}/respond")
+async def respond_to_ban_appeal(appeal_id: str, request: dict, current_user = Depends(require_admin)):
+    """Respond to ban appeal (admin only)"""
+    try:
+        response_text = request.get("response")
+        approved = request.get("approved", False)
+        
+        if not response_text:
+            raise HTTPException(status_code=400, detail="Response text is required")
+        
+        status = "approved" if approved else "rejected"
+        updated_appeal = db.update_ban_appeal(appeal_id, status, response_text)
+        
+        if not updated_appeal:
+            raise HTTPException(status_code=404, detail="Ban appeal not found")
+        
+        if approved:
+            user = db.get_user_by_id(updated_appeal.user_id)
+            if user:
+                db.update_user(user.id, status="active", ban_until=None, ban_reason=None)
+        
+        return {"message": "Ban appeal response submitted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to respond to ban appeal")
 
 @app.websocket("/ws/{username}")
 async def websocket_endpoint(websocket: WebSocket, username: str):
