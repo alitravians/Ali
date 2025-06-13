@@ -12,6 +12,7 @@ class UserStatus(str, Enum):
     ACTIVE = "active"
     MUTED = "muted"
     BANNED = "banned"
+    OFFLINE = "offline"
 
 class User(BaseModel):
     id: str

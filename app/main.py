@@ -91,9 +91,13 @@ class ConnectionManager:
         if username in self.user_connections:
             del self.user_connections[username]
         if username in self.user_status:
-            self.user_status[username] = "offline"
+            del self.user_status[username]
         if username in self.typing_users:
             del self.typing_users[username]
+        
+        user = db.get_user_by_username(username)
+        if user:
+            db.update_user(user.id, status="offline")
             
         await self.broadcast_message({
             "type": "user_left",
@@ -206,6 +210,11 @@ class BanAppealRequest(BaseModel):
 class AnnouncementRequest(BaseModel):
     title: str
     content: str
+
+class MessageReportRequest(BaseModel):
+    message_id: str
+    violation_type: str
+    reason: str
 
 @app.post("/auth/login", response_model=LoginResponse)
 async def login(request: LoginRequest):
@@ -374,9 +383,16 @@ async def send_message(request: MessageRequest, current_user: str = Depends(get_
             raise HTTPException(status_code=404, detail="User not found")
         
         if user.status == "muted" and user.mute_until and user.mute_until > datetime.now():
+            remaining_minutes = int((user.mute_until - datetime.now()).total_seconds() / 60)
+            mute_reason = getattr(user, 'mute_reason', None) or "مخالفة قواعد الدردشة"
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"User is muted until {user.mute_until}"
+                detail=json.dumps({
+                    "type": "muted",
+                    "reason": mute_reason,
+                    "duration_minutes": remaining_minutes,
+                    "message": f"تم كتمك لمدة {remaining_minutes} دقيقة. السبب: {mute_reason}"
+                })
             )
         
         if user.status == "banned" and user.ban_until and user.ban_until > datetime.now():
@@ -534,7 +550,8 @@ async def ban_user(user_id: str, request: BanRequest, current_user = Depends(req
             banned_by=current_user.username
         )
         
-        await manager.broadcast_moderation_action("user_banned", {
+        await manager.broadcast_message({
+            "type": "user_banned",
             "user_id": user.user_id,  # Send 10-digit ID in broadcast
             "username": user.username,
             "banned_by": current_user.username,
@@ -573,6 +590,23 @@ async def submit_report(request: ReportRequest, current_user: str = Depends(get_
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to submit report"
+        )
+
+@app.post("/reports/message")
+async def submit_message_report(request: MessageReportRequest):
+    """Submit message report (anonymous)"""
+    try:
+        report = db.create_report(
+            reporter_id="anonymous",
+            target_user_id=request.message_id,
+            reason=f"[{request.violation_type}] {request.reason}"
+        )
+        
+        return {"message": "تم إرسال البلاغ بنجاح", "report_id": report.id}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to submit message report"
         )
 
 @app.get("/users/connected")

@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ScrollArea } from './ui/scroll-area'
 import { Avatar, AvatarFallback } from './ui/avatar'
 import { Badge } from './ui/badge'
 import { formatArabicTime, arabicTranslations } from '../lib/arabic'
+import MessageReportModal from './MessageReportModal'
 
 interface Message {
   id?: string
@@ -20,6 +21,8 @@ interface MessageListProps {
 
 export default function MessageList({ messages, currentUser }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
+  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -43,13 +46,28 @@ export default function MessageList({ messages, currentUser }: MessageListProps)
     return arabicTranslations.user
   }
 
+  const handleMessageClick = (messageId: string, messageUsername: string) => {
+    if (messageUsername !== currentUser && messageId) {
+      setSelectedMessageId(messageId)
+      setIsReportModalOpen(true)
+    }
+  }
+
+  const handleCloseReportModal = () => {
+    setIsReportModalOpen(false)
+    setSelectedMessageId(null)
+  }
+
   return (
     <ScrollArea className="h-full p-4" ref={scrollRef}>
       <div className="space-y-4">
         {messages.map((message, index) => (
           <div
             key={message.id || index}
-            className={message.username === currentUser ? 'chat-message-rtl' : 'chat-message-ltr'}
+            className={`${message.username === currentUser ? 'chat-message-rtl' : 'chat-message-ltr'} ${
+              message.username !== currentUser ? 'cursor-pointer hover:bg-gray-50 rounded-lg p-2 transition-colors' : ''
+            }`}
+            onClick={() => handleMessageClick(message.id || `${index}`, message.username)}
           >
             <Avatar className="w-8 h-8">
               <AvatarFallback className={getRoleColor(message.username)}>
@@ -87,6 +105,14 @@ export default function MessageList({ messages, currentUser }: MessageListProps)
           </div>
         )}
       </div>
+      
+      {isReportModalOpen && selectedMessageId && (
+        <MessageReportModal
+          messageId={selectedMessageId}
+          isOpen={isReportModalOpen}
+          onClose={handleCloseReportModal}
+        />
+      )}
     </ScrollArea>
   )
 }
