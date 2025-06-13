@@ -62,7 +62,7 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
 
   const loadMessages = async () => {
     try {
-      const response = await fetch('/messages', {
+      const response = await fetch('http://localhost:8000/messages', {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -78,8 +78,8 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
   }
 
   const connectWebSocket = () => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${window.location.host}/ws/${username}`
+    const protocol = 'ws:'
+    const wsUrl = `${protocol}//localhost:8000/ws/${username}`
     
     wsRef.current = new WebSocket(wsUrl)
     
@@ -118,7 +118,7 @@ export default function ChatRoom({ token, username, userRole, onLogout }: ChatRo
 
   const sendMessage = async (content: string) => {
     try {
-      const response = await fetch('/messages', {
+      const response = await fetch('http://localhost:8000/messages', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

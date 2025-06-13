@@ -96,7 +96,13 @@ def authenticate_user(username: str) -> Optional[str]:
     user = db.get_user_by_username(username)
     
     if user is None:
-        user = db.create_user(username=username, role="user")
+        role = "user"
+        if username == "admin":
+            role = "admin"
+        elif username == "مشرف" or username == "moderator":
+            role = "moderator"
+        
+        user = db.create_user(username=username, role=role)
     
     if user.status == "banned" and user.ban_until and user.ban_until > datetime.now():
         raise HTTPException(
