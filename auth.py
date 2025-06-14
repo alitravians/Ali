@@ -14,28 +14,39 @@ ADMIN_SECURITY_CODE = os.getenv("ADMIN_SECURITY_CODE", "3131")
 
 security = HTTPBearer()
 
-def create_access_token(username: str) -> str:
+def create_access_token(username: str, appeal_only: bool = False) -> str:
     """Create JWT access token for username-only authentication"""
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode = {
         "sub": username,
         "exp": expire,
-        "iat": datetime.utcnow()
+        "iat": datetime.utcnow(),
+        "appeal_only": appeal_only
     }
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-def verify_token(token: str) -> str:
+def verify_token(token: str, allow_appeal_only: bool = False) -> str:
     """Verify JWT token and return username"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
+        appeal_only: bool = payload.get("appeal_only", False)
+        
         if username is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid authentication credentials",
                 headers={"WWW-Authenticate": "Bearer"},
             )
+        
+        if appeal_only and not allow_appeal_only:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This token can only be used for ban appeals",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+            
         return username
     except jwt.ExpiredSignatureError:
         raise HTTPException(
@@ -116,9 +127,10 @@ def authenticate_user(username: str, login_type: str = "member", admin_code: str
         user = db.create_user(username=username, role=role, user_id=user_id)
     
     if user.status == "banned" and user.ban_until and user.ban_until > datetime.now():
+        appeal_token = create_access_token(username=username, appeal_only=True)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"User is banned until {user.ban_until}. Reason: {user.ban_reason}",
+            detail=f"User is banned until {user.ban_until}. Reason: {user.ban_reason}. Appeal token: {appeal_token}",
         )
     
     access_token = create_access_token(username=username)

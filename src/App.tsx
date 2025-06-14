@@ -3,16 +3,19 @@ import LoginForm from './components/LoginForm'
 import RegistrationForm from './components/RegistrationForm'
 import ChatRoom from './components/ChatRoom'
 import MaintenancePage from './components/MaintenancePage'
+import BanAppealForm from './components/BanAppealForm'
 import './App.css'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [showRegistration, setShowRegistration] = useState(false)
+  const [showBanAppeal, setShowBanAppeal] = useState(false)
   const [token, setToken] = useState<string | null>(null)
   const [username, setUsername] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<string>('user')
   const [maintenanceMode, setMaintenanceMode] = useState(false)
   const [maintenanceMessage, setMaintenanceMessage] = useState('')
+  const [banInfo, setBanInfo] = useState<{reason: string, duration?: number, banUntil?: string} | null>(null)
 
   useEffect(() => {
     const savedToken = localStorage.getItem('chat_token')
@@ -51,6 +54,15 @@ function App() {
     setUserRole(role)
     setIsAuthenticated(true)
     setShowRegistration(false)
+    setShowBanAppeal(false)
+    setBanInfo(null)
+  }
+
+  const handleBanError = (banReason: string, banDuration?: number, banUntil?: string, userToken?: string) => {
+    setBanInfo({ reason: banReason, duration: banDuration, banUntil })
+    setToken(userToken || null)
+    setShowBanAppeal(true)
+    setShowRegistration(false)
   }
 
   const handleRegistrationSuccess = (token: string, username: string, role: string, userId: string) => {
@@ -71,6 +83,8 @@ function App() {
 
   const handleBackToLogin = () => {
     setShowRegistration(false)
+    setShowBanAppeal(false)
+    setBanInfo(null)
   }
 
   const handleLogout = () => {
@@ -81,6 +95,8 @@ function App() {
     setUsername(null)
     setUserRole('user')
     setIsAuthenticated(false)
+    setShowBanAppeal(false)
+    setBanInfo(null)
   }
 
   if (maintenanceMode && userRole !== 'admin') {
@@ -90,7 +106,15 @@ function App() {
   return (
     <div className="min-h-screen bg-background">
       {!isAuthenticated ? (
-        showRegistration ? (
+        showBanAppeal ? (
+          <BanAppealForm 
+            token={token || ''}
+            banReason={banInfo?.reason || ''}
+            banDuration={banInfo?.duration}
+            banUntil={banInfo?.banUntil}
+            onLogout={handleLogout}
+          />
+        ) : showRegistration ? (
           <RegistrationForm 
             onRegistrationSuccess={handleRegistrationSuccess}
             onBackToLogin={handleBackToLogin}
@@ -99,6 +123,7 @@ function App() {
           <LoginForm 
             onLogin={handleLogin} 
             onShowRegistration={handleShowRegistration}
+            onBanError={handleBanError}
           />
         )
       ) : (

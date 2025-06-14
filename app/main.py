@@ -10,7 +10,7 @@ import os
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from auth import authenticate_user, get_current_user, get_current_user_object, require_admin, require_moderator_or_admin, create_access_token, generate_user_id
+from auth import authenticate_user, get_current_user, get_current_user_object, require_admin, require_moderator_or_admin, create_access_token, generate_user_id, security
 from database import db
 from models import User, Message, BanRecord, Report, BanAppeal, Announcement
 from moderation import content_moderator, ViolationType
@@ -686,8 +686,23 @@ async def get_ban_appeals(current_user = Depends(require_admin)):
             detail="Failed to retrieve ban appeals"
         )
 
+def get_current_user_for_appeals(token: str = Depends(security)) -> str:
+    """Dependency for ban appeals - allows appeal-only tokens"""
+    from auth import verify_token
+    username = verify_token(token.credentials, allow_appeal_only=True)
+    
+    user = db.get_user_by_username(username)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    return username
+
 @app.post("/ban-appeals")
-async def submit_ban_appeal(request: BanAppealRequest, current_user: str = Depends(get_current_user)):
+async def submit_ban_appeal(request: BanAppealRequest, current_user: str = Depends(get_current_user_for_appeals)):
     """Submit ban appeal"""
     try:
         user = db.get_user_by_username(current_user)

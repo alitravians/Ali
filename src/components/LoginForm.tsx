@@ -9,9 +9,10 @@ import { Tabs, TabsList, TabsTrigger } from './ui/tabs'
 interface LoginFormProps {
   onLogin: (token: string, username: string, role: string) => void
   onShowRegistration: () => void
+  onBanError: (banReason: string, banDuration?: number, banUntil?: string, userToken?: string) => void
 }
 
-export default function LoginForm({ onLogin, onShowRegistration }: LoginFormProps) {
+export default function LoginForm({ onLogin, onShowRegistration, onBanError }: LoginFormProps) {
   const [username, setUsername] = useState('')
   const [adminCode, setAdminCode] = useState('')
   const [loading, setLoading] = useState(false)
@@ -48,7 +49,37 @@ export default function LoginForm({ onLogin, onShowRegistration }: LoginFormProp
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.detail || 'فشل في تسجيل الدخول')
+        const errorMessage = errorData.detail || 'فشل في تسجيل الدخول'
+        
+        if (errorMessage.includes('User is banned') || errorMessage.includes('محظور')) {
+          const banMatch = errorMessage.match(/until (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d+)/)
+          const reasonMatch = errorMessage.match(/Reason: (.+?)\. Appeal token: (.+)$/)
+          const fallbackReasonMatch = errorMessage.match(/Reason: (.+)$/)
+          
+          const banUntil = banMatch ? banMatch[1] : undefined
+          let banReason = 'لم يتم تحديد السبب'
+          let appealToken: string | undefined
+          
+          if (reasonMatch) {
+            banReason = reasonMatch[1]
+            appealToken = reasonMatch[2]
+          } else if (fallbackReasonMatch) {
+            banReason = fallbackReasonMatch[1]
+          }
+          
+          let banDuration: number | undefined
+          if (banUntil) {
+            const expiryDate = new Date(banUntil)
+            const now = new Date()
+            const diffMs = expiryDate.getTime() - now.getTime()
+            banDuration = Math.ceil(diffMs / (1000 * 60))
+          }
+          
+          onBanError(banReason, banDuration, banUntil, appealToken)
+          return
+        }
+        
+        throw new Error(errorMessage)
       }
 
       const data = await response.json()

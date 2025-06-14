@@ -5,6 +5,7 @@ import { Textarea } from './ui/textarea'
 import { Label } from './ui/label'
 import { Alert, AlertDescription } from './ui/alert'
 import { LogOut, AlertTriangle } from 'lucide-react'
+import { formatArabicDuration } from '../lib/arabic'
 
 interface BanAppealFormProps {
   token: string
@@ -33,6 +34,9 @@ export default function BanAppealForm({ token, banReason, banDuration, banUntil,
 
     try {
       const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      console.log('BanAppealForm: Submitting appeal to:', `${apiUrl}/ban-appeals`)
+      console.log('BanAppealForm: Token:', token ? 'Present' : 'Missing')
+      
       const response = await fetch(`${apiUrl}/ban-appeals`, {
         method: 'POST',
         headers: {
@@ -44,16 +48,22 @@ export default function BanAppealForm({ token, banReason, banDuration, banUntil,
         })
       })
 
+      console.log('BanAppealForm: Response status:', response.status)
+      
       if (response.ok) {
+        const responseData = await response.json()
+        console.log('BanAppealForm: Success response:', responseData)
         setSuccess('تم تقديم طلب الاستئناف بنجاح. سيتم مراجعته من قبل الإدارة.')
         setAppealSubmitted(true)
         setAppealReason('')
       } else {
         const errorData = await response.json()
+        console.log('BanAppealForm: Error response:', errorData)
         setError(errorData.detail || 'فشل في تقديم طلب الاستئناف')
       }
     } catch (err) {
-      setError('فشل في تقديم طلب الاستئناف')
+      console.error('BanAppealForm: Exception during appeal submission:', err)
+      setError('فشل في تقديم طلب الاستئناف - خطأ في الاتصال')
     } finally {
       setLoading(false)
     }
@@ -88,12 +98,12 @@ export default function BanAppealForm({ token, banReason, banDuration, banUntil,
             <div className="space-y-2 text-right">
               <div className="flex justify-between">
                 <span className="font-semibold text-red-700">السبب:</span>
-                <span className="text-red-600">{banReason}</span>
+                <span className="text-red-600">{banReason || 'لم يتم تحديد السبب'}</span>
               </div>
-              {banDuration && (
+              {banDuration && banDuration > 0 && (
                 <div className="flex justify-between">
                   <span className="font-semibold text-red-700">مدة الحظر:</span>
-                  <span className="text-red-600">{banDuration} دقيقة</span>
+                  <span className="text-red-600">{formatArabicDuration(banDuration)}</span>
                 </div>
               )}
               {banUntil && (

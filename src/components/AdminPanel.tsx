@@ -85,6 +85,9 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     setLoading(true)
     try {
       const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      console.log('AdminPanel: Loading data from API:', apiUrl)
+      console.log('AdminPanel: Token:', token ? 'Present' : 'Missing')
+      
       const [usersRes, reportsRes, appealsRes, settingsRes, analyticsRes] = await Promise.all([
         fetch(`${apiUrl}/admin/users`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -102,6 +105,14 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ])
+      
+      console.log('AdminPanel: API responses status:', {
+        users: usersRes.status,
+        reports: reportsRes.status,
+        appeals: appealsRes.status,
+        settings: settingsRes.status,
+        analytics: analyticsRes.status
+      })
 
       if (usersRes.ok) {
         const usersData = await usersRes.json()
@@ -230,6 +241,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     setLoading(true)
     try {
       const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      console.log('AdminPanel: Responding to appeal:', appealId, 'approved:', approved)
+      console.log('AdminPanel: API URL:', `${apiUrl}/admin/ban-appeals/${appealId}/respond`)
+      console.log('AdminPanel: Token:', token ? 'Present' : 'Missing')
+      
       const res = await fetch(`${apiUrl}/admin/ban-appeals/${appealId}/respond`, {
         method: 'POST',
         headers: {
@@ -242,15 +257,21 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         })
       })
 
+      console.log('AdminPanel: Response status:', res.status)
+
       if (res.ok) {
+        const responseData = await res.json()
+        console.log('AdminPanel: Success response:', responseData)
         setSuccess('تم الرد على طلب الاستئناف بنجاح')
         loadData()
       } else {
         const errorData = await res.json()
+        console.log('AdminPanel: Error response:', errorData)
         setError(errorData.detail || 'فشل في الرد على الطلب')
       }
     } catch (err) {
-      setError('فشل في الرد على الطلب')
+      console.error('AdminPanel: Exception during appeal response:', err)
+      setError('فشل في الرد على الطلب - خطأ في الاتصال')
     } finally {
       setLoading(false)
     }
