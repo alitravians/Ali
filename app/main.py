@@ -223,6 +223,17 @@ async def login(request: LoginRequest):
         access_token = authenticate_user(request.username, request.login_type, request.admin_code)
         user = db.get_user_by_username(request.username)
         
+        if user.status == "banned" and user.ban_until and user.ban_until > datetime.now():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "type": "banned",
+                    "ban_reason": user.ban_reason,
+                    "ban_until": user.ban_until.isoformat(),
+                    "ban_duration_minutes": user.ban_duration_minutes
+                }
+            )
+        
         return LoginResponse(
             access_token=access_token,
             token_type="bearer",
@@ -849,6 +860,11 @@ async def respond_to_ban_appeal(appeal_id: str, request: dict, current_user = De
             user = db.get_user_by_id(updated_appeal.user_id)
             if user:
                 db.update_user(user.id, status="active", ban_until=None, ban_reason=None)
+                
+                ban_records = db.get_ban_records_by_user(user.user_id)
+                for record in ban_records:
+                    if record.id in db.ban_records:
+                        del db.ban_records[record.id]
         
         return {"message": "Ban appeal response submitted successfully"}
     except HTTPException:
@@ -860,6 +876,11 @@ async def respond_to_ban_appeal(appeal_id: str, request: dict, current_user = De
 async def websocket_endpoint(websocket: WebSocket, username: str):
     """Enhanced WebSocket endpoint for real-time chat with typing indicators"""
     try:
+        user = db.get_user_by_username(username)
+        if user and user.status == "banned" and user.ban_until and user.ban_until > datetime.now():
+            await websocket.close(code=4003, reason="User is banned")
+            return
+            
         await manager.connect(websocket, username)
         while True:
             try:
