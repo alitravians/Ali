@@ -33,7 +33,8 @@ export default function RegistrationForm({ onRegistrationSuccess, onBackToLogin 
     setError('')
 
     try {
-      const response = await fetch(`http://localhost:8000/auth/register`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const response = await fetch(`${apiUrl}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
