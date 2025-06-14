@@ -99,10 +99,12 @@ export const arabicTranslations = {
   muting: 'جاري الكتم...',
   banning: 'جاري الحظر...',
   
+  analytics: 'إحصائيات',
   announcements: 'الإعلانات',
   users: 'المستخدمون',
   reports: 'البلاغات',
   appeals: 'طلبات الاستئناف',
+  settings: 'الإعدادات',
   createAnnouncement: 'إنشاء إعلان جديد',
   announcementTitle: 'عنوان الإعلان',
   announcementContent: 'محتوى الإعلان',

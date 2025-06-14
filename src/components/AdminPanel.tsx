@@ -439,7 +439,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="analytics">
             <BarChart3 className="w-4 h-4 ml-2" />
-            إحصائيات
+            {arabicTranslations.analytics}
           </TabsTrigger>
           <TabsTrigger value="announcements">
             <MessageSquare className="w-4 h-4 ml-2" />
@@ -459,7 +459,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 ml-2" />
-            الإعدادات
+            {arabicTranslations.settings}
           </TabsTrigger>
         </TabsList>
 

@@ -1,9 +1,8 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Button } from './ui/button'
 import { Card, CardContent } from './ui/card'
 import { Alert, AlertDescription } from './ui/alert'
-import { arabicTranslations } from '../lib/arabic'
 
 interface MessageReportModalProps {
   messageId: string
