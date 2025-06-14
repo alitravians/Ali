@@ -84,20 +84,21 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const loadData = async () => {
     setLoading(true)
     try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
       const [usersRes, reportsRes, appealsRes, settingsRes, analyticsRes] = await Promise.all([
-        fetch('/admin/users', {
+        fetch(`${apiUrl}/admin/users`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/admin/reports', {
+        fetch(`${apiUrl}/admin/reports`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/admin/ban-appeals', {
+        fetch(`${apiUrl}/admin/ban-appeals`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/admin/settings', {
+        fetch(`${apiUrl}/admin/settings`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
-        fetch('/admin/analytics', {
+        fetch(`${apiUrl}/admin/analytics`, {
           headers: { 'Authorization': `Bearer ${token}` }
         })
       ])
