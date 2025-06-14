@@ -7,7 +7,7 @@ import { Label } from './ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Alert, AlertDescription } from './ui/alert'
 import { Badge } from './ui/badge'
-import { Trash2, MessageSquare, Users, AlertTriangle, Settings, BarChart3 } from 'lucide-react'
+import { Trash2, MessageSquare, Users, AlertTriangle, Settings, BarChart3, UserX } from 'lucide-react'
 import { arabicTranslations } from '../lib/arabic'
 
 interface AdminPanelProps {
@@ -76,6 +76,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
   const [banDuration, setBanDuration] = useState(60)
   const [muteUserId, setMuteUserId] = useState('')
   const [muteDuration, setMuteDuration] = useState(30)
+  const [bannedUsers, setBannedUsers] = useState<any[]>([])
+  const [unbanUserId, setUnbanUserId] = useState('')
 
   useEffect(() => {
     loadData()
@@ -88,7 +90,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       console.log('AdminPanel: Loading data from API:', apiUrl)
       console.log('AdminPanel: Token:', token ? 'Present' : 'Missing')
       
-      const [usersRes, reportsRes, appealsRes, settingsRes, analyticsRes] = await Promise.all([
+      const [usersRes, reportsRes, appealsRes, settingsRes, analyticsRes, bannedUsersRes] = await Promise.all([
         fetch(`${apiUrl}/admin/users`, {
           headers: { 'Authorization': `Bearer ${token}` }
         }),
@@ -103,6 +105,9 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         }),
         fetch(`${apiUrl}/admin/analytics`, {
           headers: { 'Authorization': `Bearer ${token}` }
+        }),
+        fetch(`${apiUrl}/admin/banned-users`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         })
       ])
       
@@ -111,7 +116,8 @@ export default function AdminPanel({ token }: AdminPanelProps) {
         reports: reportsRes.status,
         appeals: appealsRes.status,
         settings: settingsRes.status,
-        analytics: analyticsRes.status
+        analytics: analyticsRes.status,
+        bannedUsers: bannedUsersRes.status
       })
 
       if (usersRes.ok) {
@@ -137,6 +143,11 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       if (analyticsRes.ok) {
         const analyticsData = await analyticsRes.json()
         setAnalytics(analyticsData.analytics || analytics)
+      }
+
+      if (bannedUsersRes.ok) {
+        const bannedUsersData = await bannedUsersRes.json()
+        setBannedUsers(bannedUsersData.banned_users || [])
       }
     } catch (err) {
       setError('فشل في تحميل البيانات')
@@ -442,6 +453,46 @@ export default function AdminPanel({ token }: AdminPanelProps) {
     }
   }
 
+  const unbanUser = async () => {
+    if (!unbanUserId.trim()) {
+      setError('يرجى إدخال معرف المستخدم')
+      return
+    }
+
+    if (unbanUserId.length !== 10 || !unbanUserId.match(/^\d{10}$/)) {
+      setError('معرف المستخدم يجب أن يكون مكون من 10 أرقام')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+    setSuccess('')
+
+    try {
+      const apiUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+      const response = await fetch(`${apiUrl}/users/${unbanUserId}/unban`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        setSuccess('تم فك الحظر عن المستخدم بنجاح')
+        setUnbanUserId('')
+        loadData()
+      } else {
+        const errorData = await response.json()
+        setError(errorData.detail || 'فشل في فك الحظر عن المستخدم')
+      }
+    } catch (err) {
+      setError('فشل في فك الحظر عن المستخدم')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error && (
@@ -457,7 +508,7 @@ export default function AdminPanel({ token }: AdminPanelProps) {
       )}
 
       <Tabs defaultValue="analytics" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="analytics">
             <BarChart3 className="w-4 h-4 ml-2" />
             {arabicTranslations.analytics}
@@ -477,6 +528,10 @@ export default function AdminPanel({ token }: AdminPanelProps) {
           <TabsTrigger value="appeals">
             <Trash2 className="w-4 h-4 ml-2" />
             {arabicTranslations.appeals}
+          </TabsTrigger>
+          <TabsTrigger value="banned">
+            <UserX className="w-4 h-4 ml-2" />
+            المحظورون
           </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="w-4 h-4 ml-2" />
@@ -919,6 +974,86 @@ export default function AdminPanel({ token }: AdminPanelProps) {
               </Button>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="banned">
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>فك الحظر عن مستخدم</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="unbanUserId">معرف المستخدم (10 أرقام)</Label>
+                  <Input
+                    id="unbanUserId"
+                    type="text"
+                    value={unbanUserId}
+                    onChange={(e) => setUnbanUserId(e.target.value)}
+                    placeholder="أدخل معرف المستخدم المحظور"
+                    className="text-right"
+                    dir="rtl"
+                    maxLength={10}
+                  />
+                </div>
+                <Button 
+                  onClick={unbanUser}
+                  disabled={loading}
+                  className="w-full"
+                >
+                  {loading ? 'جاري فك الحظر...' : 'فك الحظر'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>قائمة المستخدمين المحظورين</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {bannedUsers.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    لا يوجد مستخدمون محظورون حالياً
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {bannedUsers.map((user) => (
+                      <div key={user.user_id} className="border rounded-lg p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div className="space-y-2 flex-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="destructive">محظور</Badge>
+                              <span className="font-medium">{user.username}</span>
+                            </div>
+                            <div className="text-sm text-gray-600">
+                              <div>معرف المستخدم: <span className="font-mono">{user.user_id}</span></div>
+                              <div>سبب الحظر: <span className="text-red-600">{user.ban_reason || 'غير محدد'}</span></div>
+                              <div>مدة الحظر: <span className="text-orange-600">{user.ban_duration_minutes || 'غير محدد'} دقيقة</span></div>
+                              {user.ban_until && (
+                                <div>ينتهي الحظر: <span className="text-blue-600">{new Date(user.ban_until).toLocaleString('ar-SA')}</span></div>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setUnbanUserId(user.user_id)
+                              unbanUser()
+                            }}
+                            disabled={loading}
+                            className="text-green-600 hover:text-green-700"
+                          >
+                            فك الحظر
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

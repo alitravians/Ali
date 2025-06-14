@@ -569,6 +569,66 @@ async def ban_user(user_id: str, request: BanRequest, current_user = Depends(req
             detail="Failed to ban user"
         )
 
+@app.post("/users/{user_id}/unban")
+async def unban_user(user_id: str, current_user = Depends(require_moderator_or_admin)):
+    """Unban user by 10-digit user ID (moderator/admin only)"""
+    try:
+        user = db.get_user_by_user_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        if user.status != "banned":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is not currently banned"
+            )
+        
+        db.update_user(user.id, 
+                      status="active", 
+                      ban_until=None, 
+                      ban_reason=None,
+                      ban_duration_minutes=None)
+        
+        await manager.broadcast_message({
+            "type": "user_unbanned",
+            "user_id": user.user_id,
+            "username": user.username,
+            "unbanned_by": current_user.username
+        })
+        
+        return {"message": "User unbanned successfully"}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to unban user"
+        )
+
+@app.get("/admin/banned-users")
+async def get_banned_users(current_user = Depends(require_moderator_or_admin)):
+    """Get list of banned users (moderator/admin only)"""
+    try:
+        users = db.get_all_users()
+        banned_users = [
+            {
+                "user_id": user.user_id,
+                "username": user.username,
+                "ban_reason": user.ban_reason,
+                "ban_until": user.ban_until.isoformat() if user.ban_until else None,
+                "ban_duration_minutes": user.ban_duration_minutes
+            }
+            for user in users if user.status == "banned"
+        ]
+        return {"banned_users": banned_users}
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve banned users"
+        )
+
 @app.post("/reports")
 async def submit_report(request: ReportRequest, current_user: str = Depends(get_current_user)):
     """Submit user report"""
