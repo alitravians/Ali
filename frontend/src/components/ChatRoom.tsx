@@ -216,9 +216,15 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
       return
     }
 
+    let processedMessage = messageInput.trim()
+    
+    if ((user?.role === 'admin' || user?.role === 'moderator') && processedMessage.startsWith('$')) {
+      processedMessage = `<strong>${processedMessage.substring(1)}</strong>`
+    }
+
     ws.send(JSON.stringify({
       type: 'message',
-      content: messageInput.trim()
+      content: processedMessage
     }))
 
     setMessageInput('')
@@ -266,6 +272,12 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
     if (!selectedMessage || !reportCategory || !reportReason.trim()) return
 
     try {
+      console.log('Submitting report:', {
+        message_id: selectedMessage.message_id,
+        category: reportCategory,
+        reason: reportReason.trim()
+      })
+      
       const response = await fetch(`${API_URL}/reports`, {
         method: 'POST',
         headers: {
@@ -279,17 +291,34 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
         })
       })
 
+      console.log('Report response status:', response.status)
+      
       if (response.ok) {
+        const result = await response.json()
+        console.log('Report submitted successfully:', result)
         alert('تم إرسال البلاغ بنجاح')
         setShowReportDialog(false)
         setSelectedMessage(null)
         setReportCategory('')
         setReportReason('')
+        
+        const notification = {
+          title: 'تم إرسال البلاغ',
+          content: `تم إرسال بلاغك عن رسالة المستخدم ${selectedMessage.username} بنجاح وسيتم مراجعته من قبل الإدارة.`,
+          is_read: false,
+          created_at: new Date().toISOString(),
+          notification_id: Date.now().toString()
+        };
+        
+        setNotifications(prev => [notification, ...prev]);
+        setUnreadNotifications(prev => prev + 1);
       } else {
         const error = await response.json()
+        console.error('Report submission failed:', error)
         alert(error.detail || 'فشل في إرسال البلاغ')
       }
     } catch (error) {
+      console.error('Error submitting report:', error)
       alert('حدث خطأ في إرسال البلاغ')
     }
   }

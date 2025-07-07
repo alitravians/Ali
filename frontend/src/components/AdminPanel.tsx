@@ -19,7 +19,8 @@ import {
   Ban, 
   Volume2, 
   Megaphone,
-  ArrowRight
+  ArrowRight,
+  UserPlus
 } from 'lucide-react'
 
 interface AdminPanelProps {
@@ -108,8 +109,9 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   const [showChangeIdDialog, setShowChangeIdDialog] = useState(false)
   const [selectedUserForId, setSelectedUserForId] = useState<UserInfo | null>(null)
   const [newUserId, setNewUserId] = useState('')
-  const [moderatorDialog, setModeratorDialog] = useState(false)
-  const [selectedUserForModerator, setSelectedUserForModerator] = useState<UserInfo | null>(null)
+  const [showModeratorBanDialog, setShowModeratorBanDialog] = useState(false)
+  const [moderatorBanDuration, setModeratorBanDuration] = useState('60')
+  const [moderatorBanReason, setModeratorBanReason] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -164,20 +166,24 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
 
   const fetchReports = async () => {
     try {
+      console.log('Fetching reports with token:', token ? 'Token exists' : 'No token')
       const response = await fetch(`${API_URL}/admin/reports`, {
         headers: { Authorization: `Bearer ${token}` }
       })
+      console.log('Reports response status:', response.status)
       if (response.ok) {
         const data = await response.json()
-        console.log('Fetched reports:', data)
-        setReports(data)
+        console.log('Reports data received:', data)
+        setReports(data || [])
       } else {
         console.error('Failed to fetch reports:', response.status, response.statusText)
         const errorData = await response.json().catch(() => ({}))
         console.error('Error details:', errorData)
+        setReports([])
       }
     } catch (error) {
       console.error('Error fetching reports:', error)
+      setReports([])
     }
   }
 
@@ -252,15 +258,16 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       
       if (response.ok) {
         const result = await response.json()
+        console.log('Mute response:', result)
         alert(result.message || 'تم كتم المستخدم بنجاح')
         setShowMuteDialog(false)
         setMuteDuration('30')
         setMuteReason('')
         fetchUsers()
       } else {
-        const error = await response.json()
-        const errorMessage = typeof error === 'string' ? error : (error.detail || error.message || 'فشل في كتم المستخدم')
-        alert(errorMessage)
+        const error = await response.json().catch(() => ({ detail: 'فشل في كتم المستخدم' }))
+        console.error('Mute error:', error)
+        alert(error.detail || error.message || 'فشل في كتم المستخدم')
       }
     } catch (error) {
       console.error('Error muting user:', error)
@@ -305,6 +312,11 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   const handleChangeUserId = async () => {
     if (!selectedUserForId || !newUserId.trim()) return
     
+    if (!/^\d{10}$/.test(newUserId.trim())) {
+      alert('المعرف الجديد يجب أن يكون 10 أرقام فقط')
+      return
+    }
+    
     try {
       const response = await fetch(`${API_URL}/admin/users/change-id`, {
         method: 'POST',
@@ -323,6 +335,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         alert(result.message || 'تم تغيير معرف المستخدم بنجاح')
         setShowChangeIdDialog(false)
         setNewUserId('')
+        setSelectedUserForId(null)
         fetchUsers()
       } else {
         const error = await response.json()
@@ -420,26 +433,23 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
     }
   }
 
-  const handlePromoteToModerator = async () => {
-    if (!selectedUserForModerator) return
-    
+  const handlePromoteToModerator = async (user: any) => {
     try {
-      const response = await fetch(`${API_URL}/admin/users/promote-moderator`, {
+      const response = await fetch(`${API_URL}/admin/users/promote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: selectedUserForModerator.user_id
+          user_id: user.user_id,
+          role: 'moderator'
         })
       })
       
       if (response.ok) {
         const result = await response.json()
         alert(result.message || 'تم ترقية المستخدم إلى مشرف بنجاح')
-        setModeratorDialog(false)
-        setSelectedUserForModerator(null)
         fetchUsers()
       } else {
         const error = await response.json()
@@ -492,6 +502,35 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const handleModeratorBan = async (userId: string, durationMinutes: number, reason: string) => {
+    try {
+      const response = await fetch(`${API_URL}/moderator/users/ban`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: userId,
+          duration_minutes: durationMinutes,
+          reason: reason
+        })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        alert(result.message || 'تم حظر المستخدم بنجاح')
+        fetchUsers()
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في حظر المستخدم')
+      }
+    } catch (error) {
+      console.error('Error banning user:', error)
+      alert('حدث خطأ في حظر المستخدم')
+    }
   }
 
 
@@ -688,47 +727,66 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                             </Button>
                           ) : (
                             <>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => {
-                                  setSelectedUser(userInfo)
-                                  setShowBanDialog(true)
-                                }}
-                              >
-                                <Ban className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedUser(userInfo)
-                                  setShowMuteDialog(true)
-                                }}
-                              >
-                                <Volume2 className="h-3 w-3" />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => {
-                                  setSelectedUserForId(userInfo)
-                                  setShowChangeIdDialog(true)
-                                }}
-                              >
-                                تغيير المعرف
-                              </Button>
-                              {userInfo.role === 'user' && (
-                                <Button 
-                                  variant="outline" 
+                              {user?.role === 'admin' && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setSelectedUser(userInfo)
+                                      setShowBanDialog(true)
+                                    }}
+                                  >
+                                    <Ban className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedUser(userInfo)
+                                      setShowMuteDialog(true)
+                                    }}
+                                  >
+                                    <Volume2 className="h-3 w-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedUserForId(userInfo)
+                                      setShowChangeIdDialog(true)
+                                    }}
+                                  >
+                                    تغيير المعرف
+                                  </Button>
+                                  {userInfo.role === 'user' && (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm"
+                                      onClick={() => handlePromoteToModerator(userInfo)}
+                                    >
+                                      <UserPlus className="h-3 w-3 ml-1" />
+                                      ترقية لمشرف
+                                    </Button>
+                                  )}
+                                </>
+                              )}
+                              {user?.role === 'moderator' && userInfo.role === 'user' && (
+                                <Button
                                   size="sm"
+                                  variant="destructive"
                                   onClick={() => {
-                                    setSelectedUserForModerator(userInfo)
-                                    setModeratorDialog(true)
+                                    setSelectedUser(userInfo)
+                                    setShowModeratorBanDialog(true)
                                   }}
                                 >
-                                  ترقية لمشرف
+                                  حظر مؤقت
                                 </Button>
+                              )}
+                              {userInfo.role === 'moderator' && (
+                                <Badge variant="secondary" className="text-xs">
+                                  مشرف
+                                </Badge>
                               )}
                             </>
                           )}
@@ -1049,7 +1107,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       </Dialog>
 
       <Dialog open={showChangeIdDialog} onOpenChange={setShowChangeIdDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md" dir="rtl">
           <DialogHeader>
             <DialogTitle>تغيير معرف المستخدم</DialogTitle>
             <DialogDescription>
@@ -1059,57 +1117,37 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           <div className="space-y-4">
             <div>
               <Label>المعرف الحالي</Label>
-              <Input value={selectedUserForId?.user_id || ''} disabled />
+              <Input value={selectedUserForId?.user_id || ''} disabled className="text-right" dir="rtl" />
             </div>
             <div>
               <Label>المعرف الجديد</Label>
               <Input
                 value={newUserId}
-                onChange={(e) => setNewUserId(e.target.value)}
+                onChange={(e) => setNewUserId(e.target.value.replace(/\D/g, ''))}
                 placeholder="أدخل المعرف الجديد (10 أرقام)"
                 maxLength={10}
+                className="text-right"
+                dir="rtl"
               />
+              <p className="text-xs text-gray-500 mt-1">يجب أن يكون المعرف 10 أرقام فقط</p>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowChangeIdDialog(false)}>
-              إلغاء
-            </Button>
-            <Button onClick={handleChangeUserId} disabled={!newUserId.trim()}>
+          <DialogFooter className="flex-row-reverse">
+            <Button onClick={handleChangeUserId} disabled={!newUserId.trim() || newUserId.length !== 10}>
               تغيير المعرف
+            </Button>
+            <Button variant="outline" onClick={() => {
+              setShowChangeIdDialog(false)
+              setNewUserId('')
+              setSelectedUserForId(null)
+            }}>
+              إلغاء
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Promote to Moderator Dialog */}
-      {moderatorDialog && selectedUserForModerator && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
-            <h3 className="text-lg font-semibold mb-4">ترقية إلى مشرف</h3>
-            
-            <p className="mb-4">
-              هل تريد ترقية المستخدم <strong>{selectedUserForModerator.username}</strong> 
-              (المعرف: {selectedUserForModerator.user_id}) إلى مشرف؟
-            </p>
-            
-            <div className="flex justify-end space-x-2 space-x-reverse">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setModeratorDialog(false)
-                  setSelectedUserForModerator(null)
-                }}
-              >
-                إلغاء
-              </Button>
-              <Button onClick={handlePromoteToModerator}>
-                ترقية
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Promote to Moderator Dialog removed - using direct promotion */}
 
       {/* Report Response Dialog */}
       {showReportDialog && selectedReport && (
@@ -1118,7 +1156,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
             <h3 className="text-xl font-bold mb-4">الرد على البلاغ</h3>
             <p className="mb-4">
               المستخدم المبلغ: {selectedReport.reporter_id}<br />
-              نوع البلاغ: {selectedReport.category}<br />
+              نوع البلاغ: {getCategoryText(selectedReport.category)}<br />
               سبب البلاغ: {selectedReport.reason}
             </p>
             <div className="mb-4">
@@ -1144,7 +1182,11 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
             </div>
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setShowReportDialog(false)}
+                onClick={() => {
+                  setShowReportDialog(false)
+                  setReportResponse('')
+                  setReportAction('resolved')
+                }}
                 className="px-4 py-2 bg-gray-300 rounded"
               >
                 إلغاء
@@ -1152,8 +1194,73 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
               <button
                 onClick={handleReportResponse}
                 className="px-4 py-2 bg-blue-500 text-white rounded"
+                disabled={!reportResponse.trim()}
               >
                 إرسال
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Moderator Ban Dialog */}
+      {showModeratorBanDialog && selectedUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 rtl">
+            <h3 className="text-xl font-bold mb-4">حظر مؤقت (مشرف)</h3>
+            <p className="mb-4">
+              حظر المستخدم: {selectedUser.username} ({selectedUser.user_id})
+            </p>
+            <div className="mb-4">
+              <label className="block mb-2">مدة الحظر (بالدقائق):</label>
+              <select
+                value={moderatorBanDuration}
+                onChange={(e) => setModeratorBanDuration(e.target.value)}
+                className="w-full p-2 border rounded"
+              >
+                <option value="30">30 دقيقة</option>
+                <option value="60">ساعة واحدة</option>
+                <option value="120">ساعتان</option>
+                <option value="180">3 ساعات</option>
+                <option value="360">6 ساعات</option>
+                <option value="720">12 ساعة</option>
+                <option value="1440">24 ساعة</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">سبب الحظر:</label>
+              <textarea
+                value={moderatorBanReason}
+                onChange={(e) => setModeratorBanReason(e.target.value)}
+                className="w-full p-2 border rounded"
+                rows={3}
+                placeholder="أدخل سبب الحظر"
+              ></textarea>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => {
+                  setShowModeratorBanDialog(false)
+                  setModeratorBanReason('')
+                  setModeratorBanDuration('60')
+                }}
+                className="px-4 py-2 bg-gray-300 rounded"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={() => {
+                  if (selectedUser) {
+                    handleModeratorBan(selectedUser.user_id, parseInt(moderatorBanDuration), moderatorBanReason)
+                    setShowModeratorBanDialog(false)
+                    setModeratorBanReason('')
+                    setModeratorBanDuration('60')
+                  }
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded"
+                disabled={!moderatorBanReason.trim()}
+              >
+                حظر
               </button>
             </div>
           </div>
