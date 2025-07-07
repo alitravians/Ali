@@ -146,12 +146,13 @@ class InMemoryDatabase:
             
             return ban_record
     
-    def mute_user(self, user_id: str, duration_minutes: int = 30):
+    def mute_user(self, user_id: str, duration_minutes: int = 30, reason: str = None):
         with self.lock:
-            if user_id in self.users:
-                muted_until = datetime.now() + timedelta(minutes=duration_minutes)
-                self.users[user_id].status = UserStatus.MUTED
-                self.users[user_id].muted_until = muted_until
+            user = self.get_user_by_id(user_id)
+            if user:
+                user.muted_until = datetime.now() + timedelta(minutes=duration_minutes)
+                user.mute_reason = reason or "مكتوم من قبل الإدارة"
+                user.status = UserStatus.MUTED
     
     def unban_user(self, user_id: str):
         with self.lock:
@@ -180,6 +181,25 @@ class InMemoryDatabase:
     def get_reports(self) -> List[Report]:
         with self.lock:
             return list(self.reports.values())
+    
+    def get_all_reports(self):
+        with self.lock:
+            return list(self.reports.values())
+    
+    def update_report_status(self, report_id: str, status: ReportStatus, reviewed_by: str):
+        with self.lock:
+            for report in self.reports.values():
+                if report.report_id == report_id:
+                    report.status = status
+                    report.reviewed_by = reviewed_by
+                    report.reviewed_at = datetime.now()
+                    break
+    
+    def promote_user_to_moderator(self, user_id: str):
+        with self.lock:
+            user = self.get_user_by_id(user_id)
+            if user:
+                user.role = UserRole.MODERATOR
     
     def create_appeal(self, user_id: str, reason: str) -> BanAppeal:
         with self.lock:

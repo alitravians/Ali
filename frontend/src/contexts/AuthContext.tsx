@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { storageManager } from '../utils/storage'
 
 interface User {
   user_id: string
@@ -37,36 +38,47 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('chat_token')
-    const savedUser = localStorage.getItem('chat_user')
-    
-    if (savedToken && savedUser) {
-      try {
-        const parsedUser = JSON.parse(savedUser)
-        setToken(savedToken)
-        setUser(parsedUser)
+    const initializeAuth = async () => {
+      await storageManager.initDB()
+      
+      const token = storageManager.getSecureItem('token') || localStorage.getItem('chat_token')
+      const userData = storageManager.getSecureItem('user') || localStorage.getItem('chat_user')
+      
+      if (token && userData) {
+        setToken(token)
+        setUser(typeof userData === 'string' ? JSON.parse(userData) : userData)
         setIsAuthenticated(true)
-      } catch (error) {
-        localStorage.removeItem('chat_token')
-        localStorage.removeItem('chat_user')
+        
+        await storageManager.syncData()
       }
     }
+    
+    initializeAuth()
   }, [])
 
-  const login = (newToken: string, newUser: User) => {
+  const login = async (newToken: string, newUser: User) => {
+    localStorage.setItem('chat_token', newToken)
+    localStorage.setItem('chat_user', JSON.stringify(newUser))
+    
+    storageManager.setSecureItem('token', newToken)
+    storageManager.setSecureItem('user', newUser)
+    
+    await storageManager.storeInIndexedDB('users', newUser)
+    
     setToken(newToken)
     setUser(newUser)
     setIsAuthenticated(true)
-    localStorage.setItem('chat_token', newToken)
-    localStorage.setItem('chat_user', JSON.stringify(newUser))
   }
 
   const logout = () => {
+    localStorage.removeItem('chat_token')
+    localStorage.removeItem('chat_user')
+    
+    storageManager.clearCache()
+    
     setToken(null)
     setUser(null)
     setIsAuthenticated(false)
-    localStorage.removeItem('chat_token')
-    localStorage.removeItem('chat_user')
   }
 
   return (

@@ -126,5 +126,17 @@ class ConnectionManager:
             }
         }
         await self.send_personal_message(json.dumps(ban_data), user_id)
+    
+    async def notify_mute_status(self, user_id: str, duration_minutes: int, reason: str = None):
+        if user_id in self.active_connections:
+            await self.active_connections[user_id].send_text(json.dumps({
+                "type": "mute_status",
+                "data": {
+                    "is_muted": True,
+                    "duration_minutes": duration_minutes,
+                    "reason": reason or "غير محدد",
+                    "message": f"تم كتم حسابك لمدة {duration_minutes} دقيقة. السبب: {reason or 'غير محدد'}"
+                }
+            }))
 
 manager = ConnectionManager()

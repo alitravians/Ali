@@ -262,17 +262,16 @@ async def mute_user(
     if not user:
         raise HTTPException(status_code=404, detail="المستخدم غير موجود")
     
-    mute_until = datetime.now() + timedelta(minutes=request.duration_minutes)
-    db.update_user_status(request.user_id, UserStatus.MUTED, mute_until)
+    db.mute_user(request.user_id, request.duration_minutes, request.reason)
     
     db.create_notification(
         user_id=request.user_id,
         title="تم كتم حسابك",
         content=f"تم كتم حسابك لمدة {request.duration_minutes} دقيقة. السبب: {request.reason or 'غير محدد'}",
-        type="mute"
+        notification_type="mute"
     )
     
-    await manager.notify_status_change(request.user_id)
+    await manager.notify_mute_status(request.user_id, request.duration_minutes, request.reason)
     
     return {"message": "تم كتم المستخدم بنجاح"}
 
@@ -337,7 +336,7 @@ async def respond_to_report(
         user_id=report.reporter_id,
         title="رد على بلاغك",
         content=response,
-        type="report_response"
+        notification_type="report_response"
     )
     
     return {"message": "تم الرد على البلاغ بنجاح"}
@@ -377,7 +376,7 @@ async def respond_to_appeal(
         user_id=appeal.user_id,
         title="رد على اعتراضك",
         content=request.response,
-        type="appeal_response"
+        notification_type="appeal_response"
     )
     
     if request.action == "approve":
@@ -424,7 +423,7 @@ async def change_user_id(
         user_id=request.new_user_id,
         title="تغيير معرف المستخدم",
         content=f"تم تغيير معرف المستخدم الخاص بك من {request.old_user_id} إلى {request.new_user_id}",
-        type="id_change"
+        notification_type="id_change"
     )
     
     await manager.notify_status_change(request.new_user_id)
@@ -506,7 +505,93 @@ async def promote_to_moderator(
         user_id=user_id,
         title="ترقية إلى مشرف",
         content="تمت ترقيتك إلى مشرف في نظام الدردشة. يمكنك الآن استخدام ميزات المشرفين.",
-        type="role_change"
+        notification_type="role_change"
     )
     
     return {"message": "تم ترقية المستخدم إلى مشرف بنجاح"}
+
+@app.post("/auth/refresh")
+async def refresh_token(current_user: User = Depends(get_current_user)):
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": current_user.user_id, "username": current_user.username, "role": current_user.role},
+        expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+@app.post("/admin/users/change-id")
+async def change_user_id(
+    request: dict,
+    admin_user: User = Depends(get_admin_user)
+):
+    old_user_id = request.get("old_user_id")
+    new_user_id = request.get("new_user_id")
+    
+    if not old_user_id or not new_user_id:
+        raise HTTPException(status_code=400, detail="جميع الحقول مطلوبة")
+    
+    if db.get_user_by_id(new_user_id):
+        raise HTTPException(status_code=400, detail="المعرف الجديد موجود بالفعل")
+    
+    user = db.get_user_by_id(old_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    db.change_user_id(old_user_id, new_user_id)
+    
+    return {"message": "تم تغيير معرف المستخدم بنجاح"}
+
+@app.post("/admin/users/promote-moderator")
+async def promote_to_moderator(
+    request: dict,
+    admin_user: User = Depends(get_admin_user)
+):
+    user_id = request.get("user_id")
+    
+    if not user_id:
+        raise HTTPException(status_code=400, detail="معرف المستخدم مطلوب")
+    
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    if user.role != UserRole.USER:
+        raise HTTPException(status_code=400, detail="المستخدم ليس عضو عادي")
+    
+    db.promote_user_to_moderator(user_id)
+    
+    db.create_notification(
+        user_id=user_id,
+        title="ترقية إلى مشرف",
+        content="تمت ترقيتك إلى مشرف في نظام الدردشة. يمكنك الآن استخدام ميزات المشرفين.",
+        notification_type="role_change"
+    )
+    
+    return {"message": "تم ترقية المستخدم إلى مشرف بنجاح"}
+
+@app.get("/notifications/{user_id}")
+async def get_user_notifications(
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.user_id != user_id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بالوصول")
+    
+    notifications = db.get_user_notifications(user_id)
+    return notifications
+
+@app.post("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    notification = db.get_notification_by_id(notification_id)
+    if not notification:
+        raise HTTPException(status_code=404, detail="الإشعار غير موجود")
+    
+    if notification["user_id"] != current_user.user_id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بالوصول")
+    
+    db.mark_notification_read(notification_id)
+    
+    return {"message": "تم تحديث حالة الإشعار"}
