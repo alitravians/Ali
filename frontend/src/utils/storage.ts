@@ -12,7 +12,7 @@ export class StorageManager {
   }
 
   async initDB(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       const request = indexedDB.open(this.dbName, this.dbVersion);
       
       request.onerror = () => {
@@ -100,7 +100,7 @@ export class StorageManager {
       return;
     }
     
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       try {
         const transaction = this.db!.transaction([storeName], 'readwrite');
         const store = transaction.objectStore(storeName);
@@ -125,7 +125,7 @@ export class StorageManager {
       return this.getSecureItem(`idb_${storeName}_${key}`);
     }
     
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       try {
         const transaction = this.db!.transaction([storeName], 'readonly');
         const store = transaction.objectStore(storeName);

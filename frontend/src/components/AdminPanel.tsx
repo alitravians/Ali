@@ -259,7 +259,8 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         fetchUsers()
       } else {
         const error = await response.json()
-        alert(error.detail || 'فشل في كتم المستخدم')
+        const errorMessage = typeof error === 'string' ? error : (error.detail || error.message || 'فشل في كتم المستخدم')
+        alert(errorMessage)
       }
     } catch (error) {
       console.error('Error muting user:', error)

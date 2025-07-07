@@ -357,6 +357,22 @@ class SQLiteDatabase:
             
             self.update_user_status(user_id, UserStatus.ACTIVE, ban_reason=None, banned_until=None)
     
+    def mute_user(self, user_id: str, duration_minutes: int, reason: str):
+        with self.lock:
+            muted_until = datetime.now() + timedelta(minutes=duration_minutes)
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""UPDATE users SET muted_until = ? WHERE user_id = ?""",
+                             (muted_until.isoformat(), user_id))
+                conn.commit()
+            
+            self.create_notification(
+                user_id=user_id,
+                title="تم كتمك",
+                content=f"تم كتمك لمدة {duration_minutes} دقيقة. السبب: {reason}",
+                notification_type="mute"
+            )
+    
     def get_active_bans(self) -> List[BanRecord]:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
