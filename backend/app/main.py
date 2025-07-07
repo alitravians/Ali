@@ -273,7 +273,7 @@ async def mute_user(
     
     await manager.notify_mute_status(request.user_id, request.duration_minutes, request.reason)
     
-    return {"message": "تم كتم المستخدم بنجاح"}
+    return {"message": "تم كتم المستخدم بنجاح", "success": True}
 
 @app.post("/admin/users/unban")
 async def unban_user(
@@ -305,7 +305,9 @@ async def delete_message(
 
 @app.get("/admin/reports", response_model=List[Report])
 async def get_reports(admin_user: User = Depends(get_admin_user)):
-    return db.get_all_reports()
+    reports = db.get_all_reports()
+    print(f"Fetching reports for admin: {len(reports)} reports found")
+    return reports
 
 @app.post("/admin/reports/respond")
 async def respond_to_report(
@@ -329,17 +331,22 @@ async def respond_to_report(
     if not report:
         raise HTTPException(status_code=404, detail="البلاغ غير موجود")
     
-    status = ReportStatus.RESOLVED if action == "resolved" else ReportStatus.REVIEWED
-    db.update_report_status(report_id, status, admin_user.user_id)
-    
-    db.create_notification(
-        user_id=report.reporter_id,
-        title="رد على بلاغك",
-        content=response,
-        notification_type="report_response"
-    )
-    
-    return {"message": "تم الرد على البلاغ بنجاح"}
+    try:
+        status = ReportStatus.RESOLVED if action == "resolved" else ReportStatus.REVIEWED
+        db.update_report_status(report_id, status, admin_user.user_id)
+        
+        db.create_notification(
+            user_id=report.reporter_id,
+            title="رد على بلاغك",
+            content=response,
+            notification_type="report_response"
+        )
+        
+        print(f"Report {report_id} responded to successfully by admin {admin_user.user_id}")
+        return {"message": "تم الرد على البلاغ بنجاح", "success": True}
+    except Exception as e:
+        print(f"Error responding to report {report_id}: {e}")
+        raise HTTPException(status_code=500, detail="فشل في الرد على البلاغ")
 
 @app.get("/admin/appeals", response_model=List[BanAppeal])
 async def get_appeals(admin_user: User = Depends(get_admin_user)):
@@ -417,18 +424,23 @@ async def change_user_id(
     if existing_user:
         raise HTTPException(status_code=400, detail="المعرف الجديد مستخدم بالفعل")
     
-    db.change_user_id(request.old_user_id, request.new_user_id)
-    
-    db.create_notification(
-        user_id=request.new_user_id,
-        title="تغيير معرف المستخدم",
-        content=f"تم تغيير معرف المستخدم الخاص بك من {request.old_user_id} إلى {request.new_user_id}",
-        notification_type="id_change"
-    )
-    
-    await manager.notify_status_change(request.new_user_id)
-    
-    return {"message": "تم تغيير معرف المستخدم بنجاح"}
+    try:
+        db.change_user_id(request.old_user_id, request.new_user_id)
+        
+        db.create_notification(
+            user_id=request.new_user_id,
+            title="تغيير معرف المستخدم",
+            content=f"تم تغيير معرف المستخدم الخاص بك من {request.old_user_id} إلى {request.new_user_id}",
+            notification_type="id_change"
+        )
+        
+        await manager.notify_status_change(request.new_user_id)
+        
+        print(f"User ID changed successfully: {request.old_user_id} -> {request.new_user_id}")
+        return {"message": "تم تغيير معرف المستخدم بنجاح", "success": True}
+    except Exception as e:
+        print(f"Error changing user ID: {e}")
+        raise HTTPException(status_code=500, detail="فشل في تغيير المعرف")
 
 @app.post("/moderator/users/ban")
 async def moderator_ban_user(
@@ -493,22 +505,27 @@ async def promote_to_moderator(
     if user.role != UserRole.USER:
         raise HTTPException(status_code=400, detail="يمكن ترقية المستخدمين العاديين فقط")
     
-    with db.lock:
-        with sqlite3.connect(db.db_path) as conn:
-            cursor = conn.cursor()
-            cursor.execute("UPDATE users SET role = ? WHERE user_id = ?", ("moderator", user_id))
-            conn.commit()
-    
-    await manager.notify_status_change(user_id)
-    
-    db.create_notification(
-        user_id=user_id,
-        title="ترقية إلى مشرف",
-        content="تمت ترقيتك إلى مشرف في نظام الدردشة. يمكنك الآن استخدام ميزات المشرفين.",
-        notification_type="role_change"
-    )
-    
-    return {"message": "تم ترقية المستخدم إلى مشرف بنجاح"}
+    try:
+        with db.lock:
+            with sqlite3.connect(db.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET role = ? WHERE user_id = ?", ("moderator", user_id))
+                conn.commit()
+        
+        await manager.notify_status_change(user_id)
+        
+        db.create_notification(
+            user_id=user_id,
+            title="ترقية إلى مشرف",
+            content="تمت ترقيتك إلى مشرف في نظام الدردشة. يمكنك الآن استخدام ميزات المشرفين.",
+            notification_type="role_change"
+        )
+        
+        print(f"User {user_id} promoted to moderator by admin {admin_user.user_id}")
+        return {"message": "تم ترقية المستخدم إلى مشرف بنجاح", "success": True}
+    except Exception as e:
+        print(f"Error promoting user {user_id} to moderator: {e}")
+        raise HTTPException(status_code=500, detail="فشل في ترقية المستخدم")
 
 @app.post("/auth/refresh")
 async def refresh_token(current_user: User = Depends(get_current_user)):

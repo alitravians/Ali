@@ -52,10 +52,10 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null)
   const [reportCategory, setReportCategory] = useState('')
   const [reportReason, setReportReason] = useState('')
-  const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [notifications, setNotifications] = useState<any[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
+  const [notifications, setNotifications] = useState<any[]>([])
   const [unreadNotifications, setUnreadNotifications] = useState(0)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -114,6 +114,19 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
           }
         } else if (data.type === 'notification') {
           setNotifications(prev => [...prev, data.data])
+          setUnreadNotifications(prev => prev + 1)
+        } else if (data.type === 'mute_status') {
+          if (data.data.is_muted) {
+            alert(data.data.message)
+            setNotifications(prev => [...prev, {
+              notification_id: Date.now().toString(),
+              title: 'تم كتم حسابك',
+              content: data.data.message,
+              created_at: new Date().toISOString(),
+              is_read: false
+            }])
+            setUnreadNotifications(prev => prev + 1)
+          }
         }
       }
 

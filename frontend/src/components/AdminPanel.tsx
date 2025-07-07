@@ -163,12 +163,21 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   }
 
   const fetchReports = async () => {
-    const response = await fetch(`${API_URL}/admin/reports`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      setReports(data)
+    try {
+      const response = await fetch(`${API_URL}/admin/reports`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Fetched reports:', data)
+        setReports(data)
+      } else {
+        console.error('Failed to fetch reports:', response.status, response.statusText)
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error details:', errorData)
+      }
+    } catch (error) {
+      console.error('Error fetching reports:', error)
     }
   }
 
@@ -225,7 +234,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   }
 
   const handleMuteUser = async () => {
-    if (!selectedUser) return
+    if (!selectedUser || !muteReason.trim()) return
     
     try {
       const response = await fetch(`${API_URL}/admin/users/mute`, {
@@ -242,7 +251,8 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       })
       
       if (response.ok) {
-        alert('تم كتم المستخدم بنجاح')
+        const result = await response.json()
+        alert(result.message || 'تم كتم المستخدم بنجاح')
         setShowMuteDialog(false)
         setMuteDuration('30')
         setMuteReason('')
@@ -252,6 +262,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         alert(error.detail || 'فشل في كتم المستخدم')
       }
     } catch (error) {
+      console.error('Error muting user:', error)
       alert('حدث خطأ في كتم المستخدم')
     }
   }
@@ -274,45 +285,51 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       })
       
       if (response.ok) {
-        alert('تم الرد على البلاغ بنجاح')
+        const result = await response.json()
+        alert(result.message || 'تم الرد على البلاغ بنجاح')
         setShowReportDialog(false)
         setReportResponse('')
+        setReportAction('resolve')
         fetchReports()
       } else {
         const error = await response.json()
         alert(error.detail || 'فشل في الرد على البلاغ')
       }
     } catch (error) {
+      console.error('Error responding to report:', error)
       alert('حدث خطأ في الرد على البلاغ')
     }
   }
   
   const handleChangeUserId = async () => {
     if (!selectedUserForId || !newUserId.trim()) return
+    
     try {
-      const response = await fetch(`${API_URL}/admin/users/mute`, {
+      const response = await fetch(`${API_URL}/admin/users/change-id`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: selectedUser?.user_id,
-          duration_minutes: parseInt(muteDuration)
+          old_user_id: selectedUserForId.user_id,
+          new_user_id: newUserId.trim()
         })
       })
-
+      
       if (response.ok) {
-        alert('تم كتم المستخدم بنجاح')
-        setShowMuteDialog(false)
-        setMuteDuration('30')
+        const result = await response.json()
+        alert(result.message || 'تم تغيير معرف المستخدم بنجاح')
+        setShowChangeIdDialog(false)
+        setNewUserId('')
         fetchUsers()
       } else {
         const error = await response.json()
-        alert(error.detail || 'فشل في كتم المستخدم')
+        alert(error.detail || 'فشل في تغيير المعرف')
       }
     } catch (error) {
-      alert('حدث خطأ في كتم المستخدم')
+      console.error('Error changing user ID:', error)
+      alert('حدث خطأ في تغيير معرف المستخدم')
     }
   }
 
@@ -418,7 +435,8 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       })
       
       if (response.ok) {
-        alert('تم ترقية المستخدم إلى مشرف بنجاح')
+        const result = await response.json()
+        alert(result.message || 'تم ترقية المستخدم إلى مشرف بنجاح')
         setModeratorDialog(false)
         setSelectedUserForModerator(null)
         fetchUsers()
@@ -427,8 +445,8 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         alert(error.detail || 'فشل في ترقية المستخدم')
       }
     } catch (error) {
-      console.error('Error promoting user:', error)
-      alert('حدث خطأ أثناء ترقية المستخدم')
+      console.error('Error promoting user to moderator:', error)
+      alert('حدث خطأ في ترقية المستخدم')
     }
   }
 
