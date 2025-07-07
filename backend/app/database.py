@@ -257,5 +257,75 @@ class InMemoryDatabase:
                 "pending_appeals": len([a for a in self.appeals.values() if a.status == AppealStatus.PENDING]),
                 "active_bans": len([b for b in self.ban_records.values() if b.is_active])
             }
+    
+    def change_user_id(self, old_user_id: str, new_user_id: str) -> bool:
+        with self.lock:
+            if old_user_id not in self.users or new_user_id in self.users:
+                return False
+            
+            user = self.users[old_user_id]
+            user.user_id = new_user_id
+            self.users[new_user_id] = user
+            del self.users[old_user_id]
+            
+            for message in self.messages:
+                if message.user_id == old_user_id:
+                    message.user_id = new_user_id
+            
+            for ban_record in self.ban_records.values():
+                if ban_record.user_id == old_user_id:
+                    ban_record.user_id = new_user_id
+            
+            for report in self.reports.values():
+                if report.reporter_id == old_user_id:
+                    report.reporter_id = new_user_id
+                if report.reported_user_id == old_user_id:
+                    report.reported_user_id = new_user_id
+            
+            for appeal in self.appeals.values():
+                if appeal.user_id == old_user_id:
+                    appeal.user_id = new_user_id
+            
+            if old_user_id in self.active_connections:
+                self.active_connections[new_user_id] = self.active_connections[old_user_id]
+                del self.active_connections[old_user_id]
+            
+            return True
+    
+    def create_notification(self, user_id: str, title: str, content: str, notification_type: str):
+        with self.lock:
+            if not hasattr(self, 'notifications'):
+                self.notifications = {}
+            
+            notification = {
+                "notification_id": self.generate_id(),
+                "user_id": user_id,
+                "title": title,
+                "content": content,
+                "type": notification_type,
+                "created_at": datetime.now(),
+                "is_read": False
+            }
+            self.notifications[notification["notification_id"]] = notification
+            return notification
+    
+    def get_user_notifications(self, user_id: str):
+        with self.lock:
+            if not hasattr(self, 'notifications'):
+                self.notifications = {}
+            
+            return [n for n in self.notifications.values() if n["user_id"] == user_id]
+    
+    def mark_notification_read(self, notification_id: str, user_id: str) -> bool:
+        with self.lock:
+            if not hasattr(self, 'notifications'):
+                self.notifications = {}
+            
+            if notification_id in self.notifications:
+                notification = self.notifications[notification_id]
+                if notification["user_id"] == user_id:
+                    notification["is_read"] = True
+                    return True
+            return False
 
 db = InMemoryDatabase()

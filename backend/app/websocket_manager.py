@@ -92,5 +92,39 @@ class ConnectionManager:
             "data": {"message_id": message_id}
         }
         await self.broadcast(json.dumps(delete_data))
+    
+    async def notify_status_change(self, user_id: str, action: str, data: dict = None):
+        status_data = {
+            "type": "status_change",
+            "data": {
+                "action": action,
+                "user_id": user_id,
+                **(data or {})
+            }
+        }
+        await self.send_personal_message(json.dumps(status_data), user_id)
+    
+    async def notify_appeal_response(self, user_id: str, action: str, admin_response: str):
+        appeal_data = {
+            "type": "appeal_response",
+            "data": {
+                "action": action,
+                "admin_response": admin_response,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+        await self.send_personal_message(json.dumps(appeal_data), user_id)
+    
+    async def notify_ban_status(self, user_id: str, banned: bool, reason: str = None, duration: str = None):
+        ban_data = {
+            "type": "ban_notification",
+            "data": {
+                "banned": banned,
+                "reason": reason,
+                "duration": duration,
+                "timestamp": datetime.now().isoformat()
+            }
+        }
+        await self.send_personal_message(json.dumps(ban_data), user_id)
 
 manager = ConnectionManager()

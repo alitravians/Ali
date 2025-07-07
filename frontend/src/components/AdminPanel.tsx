@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Textarea } from './ui/textarea'
+import { Label } from './ui/label'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   Users, 
@@ -99,6 +100,9 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   const [appealAction, setAppealAction] = useState('')
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementContent, setAnnouncementContent] = useState('')
+  const [showChangeIdDialog, setShowChangeIdDialog] = useState(false)
+  const [selectedUserForId, setSelectedUserForId] = useState<UserInfo | null>(null)
+  const [newUserId, setNewUserId] = useState('')
 
   useEffect(() => {
     fetchData()
@@ -326,6 +330,36 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       }
     } catch (error) {
       alert('حدث خطأ في إنشاء الإعلان')
+    }
+  }
+
+  const handleChangeUserId = async () => {
+    if (!selectedUserForId || !newUserId.trim()) return
+
+    try {
+      const response = await fetch(`${API_URL}/admin/users/change-id`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          old_user_id: selectedUserForId.user_id,
+          new_user_id: newUserId.trim()
+        })
+      })
+
+      if (response.ok) {
+        alert('تم تغيير المعرف بنجاح')
+        setShowChangeIdDialog(false)
+        setNewUserId('')
+        fetchUsers()
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في تغيير المعرف')
+      }
+    } catch (error) {
+      alert('حدث خطأ في تغيير المعرف')
     }
   }
 
@@ -584,6 +618,16 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                                 }}
                               >
                                 <Volume2 className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedUserForId(userInfo)
+                                  setShowChangeIdDialog(true)
+                                }}
+                              >
+                                تغيير المعرف
                               </Button>
                             </>
                           )}
@@ -869,6 +913,40 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
             </Button>
             <Button variant="outline" onClick={() => setShowAnnouncementDialog(false)}>
               إلغاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showChangeIdDialog} onOpenChange={setShowChangeIdDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>تغيير معرف المستخدم</DialogTitle>
+            <DialogDescription>
+              تغيير معرف المستخدم: {selectedUserForId?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>المعرف الحالي</Label>
+              <Input value={selectedUserForId?.user_id || ''} disabled />
+            </div>
+            <div>
+              <Label>المعرف الجديد</Label>
+              <Input
+                value={newUserId}
+                onChange={(e) => setNewUserId(e.target.value)}
+                placeholder="أدخل المعرف الجديد (10 أرقام)"
+                maxLength={10}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowChangeIdDialog(false)}>
+              إلغاء
+            </Button>
+            <Button onClick={handleChangeUserId} disabled={!newUserId.trim()}>
+              تغيير المعرف
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -226,6 +226,9 @@ async def ban_user(
         duration_hours=request.duration_hours
     )
     
+    duration_text = f"{request.duration_hours} ساعة" if request.duration_hours else "دائم"
+    await manager.notify_ban_status(request.user_id, True, request.reason, duration_text)
+    
     return {"message": "تم حظر المستخدم بنجاح", "ban_id": ban_record.ban_id}
 
 @app.post("/admin/users/mute")
@@ -242,14 +245,18 @@ async def mute_user(
 
 @app.post("/admin/users/unban")
 async def unban_user(
-    user_id: str,
+    request: UnbanUserRequest,
     admin_user: User = Depends(get_admin_user)
 ):
-    user = db.get_user_by_id(user_id)
+    user = db.get_user_by_id(request.user_id)
     if not user:
         raise HTTPException(status_code=404, detail="المستخدم غير موجود")
     
-    db.unban_user(user_id)
+    db.unban_user(request.user_id)
+    
+    await manager.notify_status_change(request.user_id, "unbanned")
+    await manager.notify_ban_status(request.user_id, False)
+    
     return {"message": "تم إلغاء حظر المستخدم بنجاح"}
 
 @app.delete("/admin/messages/{message_id}")
@@ -277,12 +284,26 @@ async def respond_to_appeal(
     request: AppealResponse,
     admin_user: User = Depends(get_admin_user)
 ):
+    appeal = db.appeals.get(request.appeal_id)
+    if not appeal:
+        raise HTTPException(status_code=404, detail="الاعتراض غير موجود")
+    
     db.respond_to_appeal(
         appeal_id=request.appeal_id,
         admin_id=admin_user.user_id,
         action=request.action,
         response=request.response
     )
+    
+    await manager.notify_appeal_response(
+        appeal.user_id, 
+        request.action, 
+        request.response
+    )
+    
+    if request.action == "approve":
+        await manager.notify_status_change(appeal.user_id, "unbanned")
+        await manager.notify_ban_status(appeal.user_id, False)
     
     action_text = "قبول" if request.action == "approve" else "رفض"
     return {"message": f"تم {action_text} الاعتراض بنجاح"}
@@ -304,3 +325,64 @@ async def create_announcement(
 @app.get("/admin/announcements", response_model=List[Announcement])
 async def get_all_announcements(admin_user: User = Depends(get_admin_user)):
     return list(db.announcements.values())
+
+@app.post("/admin/users/change-id")
+async def change_user_id(
+    request: ChangeUserIdRequest,
+    admin_user: User = Depends(get_admin_user)
+):
+    if request.new_user_id in db.users:
+        raise HTTPException(status_code=400, detail="المعرف الجديد موجود بالفعل")
+    
+    success = db.change_user_id(request.old_user_id, request.new_user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    return {"message": "تم تغيير المعرف بنجاح"}
+
+@app.post("/moderator/users/ban")
+async def moderator_ban_user(
+    request: ModeratorBanRequest,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.role not in [UserRole.ADMIN, UserRole.MODERATOR]:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بهذا الإجراء")
+    
+    user = db.get_user_by_id(request.user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    duration_hours = request.duration_minutes / 60
+    ban_record = db.ban_user(
+        user_id=request.user_id,
+        banned_by=current_user.user_id,
+        reason=request.reason,
+        duration_hours=duration_hours
+    )
+    
+    duration_text = f"{request.duration_minutes} دقيقة"
+    await manager.notify_ban_status(request.user_id, True, request.reason, duration_text)
+    
+    return {"message": "تم حظر المستخدم بنجاح", "ban_id": ban_record.ban_id}
+
+@app.get("/notifications/{user_id}")
+async def get_user_notifications(
+    user_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    if current_user.user_id != user_id and current_user.role != UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="غير مصرح لك بعرض هذه الإشعارات")
+    
+    notifications = db.get_user_notifications(user_id)
+    return notifications
+
+@app.post("/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    current_user: User = Depends(get_current_user)
+):
+    success = db.mark_notification_read(notification_id, current_user.user_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="الإشعار غير موجود")
+    
+    return {"message": "تم تحديد الإشعار كمقروء"}

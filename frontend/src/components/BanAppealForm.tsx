@@ -120,12 +120,12 @@ export default function BanAppealForm({ onBack }: BanAppealFormProps) {
                         return 'انتهت مدة الحظر';
                       }
                       
-                      const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
                       const diffMinutes = Math.ceil(diffMs / (1000 * 60));
+                      const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+                      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
                       
-                      if (diffHours >= 24) {
-                        const days = Math.ceil(diffHours / 24);
-                        return `${days} ${days === 1 ? 'يوم' : days <= 10 ? 'أيام' : 'يوماً'} متبقية`;
+                      if (diffDays >= 1) {
+                        return `${diffDays} ${diffDays === 1 ? 'يوم' : diffDays <= 10 ? 'أيام' : 'يوماً'} متبقية`;
                       } else if (diffHours >= 1) {
                         return `${diffHours} ${diffHours === 1 ? 'ساعة' : diffHours <= 10 ? 'ساعات' : 'ساعة'} متبقية`;
                       } else {

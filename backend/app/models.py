@@ -113,6 +113,27 @@ class MuteUserRequest(BaseModel):
     user_id: str
     duration_minutes: int = 30
 
+class UnbanUserRequest(BaseModel):
+    user_id: str
+
+class ModeratorBanRequest(BaseModel):
+    user_id: str
+    reason: str
+    duration_minutes: int
+
+class ChangeUserIdRequest(BaseModel):
+    old_user_id: str
+    new_user_id: str
+
+class Notification(BaseModel):
+    notification_id: str
+    user_id: str
+    title: str
+    content: str
+    type: str
+    created_at: datetime = Field(default_factory=datetime.now)
+    is_read: bool = False
+
 class ReportRequest(BaseModel):
     message_id: str
     category: ReportCategory

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from './ui/textarea'
 import { useAuth } from '../contexts/AuthContext'
 import { MessageCircle, Users, Send, LogOut, Megaphone, Settings } from 'lucide-react'
+import NotificationSystem from './NotificationSystem'
 
 interface ChatRoomProps {
   onShowAdminPanel?: () => void
@@ -83,6 +84,21 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
           setAnnouncements(prev => [data.data, ...prev])
         } else if (data.type === 'message_deleted') {
           setMessages(prev => prev.filter(msg => msg.message_id !== data.data.message_id))
+        } else if (data.type === 'status_change') {
+          window.location.reload()
+        } else if (data.type === 'appeal_response') {
+          alert(`رد الإدارة: ${data.data.admin_response}`)
+          if (data.data.action === 'approve') {
+            window.location.reload()
+          }
+        } else if (data.type === 'ban_notification') {
+          if (data.data.banned) {
+            alert(`تم حظرك من الدردشة. السبب: ${data.data.reason}. المدة: ${data.data.duration}`)
+            window.location.reload()
+          } else {
+            alert('تم رفع الحظر عنك. يمكنك الآن المشاركة في الدردشة.')
+            window.location.reload()
+          }
         }
       }
 
@@ -244,6 +260,7 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span>{isConnected ? 'متصل' : 'غير متصل'}</span>
             </div>
+            <NotificationSystem />
             {onShowAdminPanel && (
               <Button variant="outline" size="sm" onClick={onShowAdminPanel}>
                 <Settings className="h-4 w-4 ml-2" />
@@ -302,7 +319,17 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
                           {formatTime(message.timestamp)}
                         </span>
                       </div>
-                      <p className="text-sm">{message.content}</p>
+                      <p className={`text-sm ${
+                        message.content.startsWith('$') && 
+                        onlineUsers.find(u => u.user_id === message.user_id)?.role === 'admin'
+                          ? 'font-bold text-black' 
+                          : ''
+                      }`}>
+                        {message.content.startsWith('$') && 
+                         onlineUsers.find(u => u.user_id === message.user_id)?.role === 'admin'
+                          ? message.content.substring(1)
+                          : message.content}
+                      </p>
                       {message.user_id !== user?.user_id && (
                         <div className="mt-1 text-xs opacity-60">
                           اضغط للإبلاغ
