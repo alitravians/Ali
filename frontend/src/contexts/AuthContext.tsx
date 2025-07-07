@@ -55,8 +55,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             cleanToken = JSON.parse(rawToken)
           }
           
-          if (!cleanToken.startsWith('eyJ')) {
-            console.error('Invalid JWT token format')
+          if (cleanToken && typeof cleanToken === 'string' && cleanToken.includes('eyJ')) {
+            if (cleanToken.startsWith('eyJ')) {
+              console.log('AuthContext: Valid JWT token found')
+            } else {
+              try {
+                cleanToken = atob(cleanToken)
+                console.log('AuthContext: Decoded Base64 token:', cleanToken)
+              } catch (e) {
+                console.error('Failed to decode Base64 token:', e)
+                throw new Error('Invalid token format')
+              }
+            }
+          } else {
+            console.error('Invalid JWT token format - no eyJ found')
             throw new Error('Invalid token format')
           }
           
