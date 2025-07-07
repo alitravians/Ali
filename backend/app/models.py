@@ -112,6 +112,7 @@ class BanUserRequest(BaseModel):
 class MuteUserRequest(BaseModel):
     user_id: str
     duration_minutes: int = 30
+    reason: Optional[str] = None
 
 class UnbanUserRequest(BaseModel):
     user_id: str

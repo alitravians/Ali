@@ -90,19 +90,26 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   const [showMuteDialog, setShowMuteDialog] = useState(false)
   const [showAppealDialog, setShowAppealDialog] = useState(false)
   const [showAnnouncementDialog, setShowAnnouncementDialog] = useState(false)
+  const [showReportDialog, setShowReportDialog] = useState(false)
   
   const [selectedUser, setSelectedUser] = useState<UserInfo | null>(null)
   const [selectedAppeal, setSelectedAppeal] = useState<Appeal | null>(null)
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [banReason, setBanReason] = useState('')
   const [banDuration, setBanDuration] = useState('')
   const [muteDuration, setMuteDuration] = useState('30')
+  const [muteReason, setMuteReason] = useState('')
   const [appealResponse, setAppealResponse] = useState('')
   const [appealAction, setAppealAction] = useState('')
+  const [reportResponse, setReportResponse] = useState('')
+  const [reportAction, setReportAction] = useState('resolved')
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementContent, setAnnouncementContent] = useState('')
   const [showChangeIdDialog, setShowChangeIdDialog] = useState(false)
   const [selectedUserForId, setSelectedUserForId] = useState<UserInfo | null>(null)
   const [newUserId, setNewUserId] = useState('')
+  const [moderatorDialog, setModeratorDialog] = useState(false)
+  const [selectedUserForModerator, setSelectedUserForModerator] = useState<UserInfo | null>(null)
 
   useEffect(() => {
     fetchData()
@@ -196,7 +203,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: selectedUser.user_id,
+          user_id: selectedUser?.user_id,
           reason: banReason.trim(),
           duration_hours: banDuration ? parseInt(banDuration) : null
         })
@@ -219,7 +226,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
 
   const handleMuteUser = async () => {
     if (!selectedUser) return
-
+    
     try {
       const response = await fetch(`${API_URL}/admin/users/mute`, {
         method: 'POST',
@@ -228,7 +235,69 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: selectedUser.user_id,
+          user_id: selectedUser?.user_id,
+          duration_minutes: parseInt(muteDuration),
+          reason: muteReason
+        })
+      })
+      
+      if (response.ok) {
+        alert('تم كتم المستخدم بنجاح')
+        setShowMuteDialog(false)
+        setMuteDuration('30')
+        setMuteReason('')
+        fetchUsers()
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في كتم المستخدم')
+      }
+    } catch (error) {
+      alert('حدث خطأ في كتم المستخدم')
+    }
+  }
+  
+  const handleReportResponse = async () => {
+    if (!selectedReport || !reportResponse.trim()) return
+    
+    try {
+      const response = await fetch(`${API_URL}/admin/reports/respond`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          report_id: selectedReport.report_id,
+          action: reportAction,
+          response: reportResponse.trim()
+        })
+      })
+      
+      if (response.ok) {
+        alert('تم الرد على البلاغ بنجاح')
+        setShowReportDialog(false)
+        setReportResponse('')
+        fetchReports()
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في الرد على البلاغ')
+      }
+    } catch (error) {
+      alert('حدث خطأ في الرد على البلاغ')
+    }
+  }
+  
+  const handleChangeUserId = async () => {
+    if (!selectedUserForId || !newUserId.trim()) return
+    try {
+      const response = await fetch(`${API_URL}/admin/users/mute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: selectedUser?.user_id,
           duration_minutes: parseInt(muteDuration)
         })
       })
@@ -333,33 +402,33 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
     }
   }
 
-  const handleChangeUserId = async () => {
-    if (!selectedUserForId || !newUserId.trim()) return
-
+  const handlePromoteToModerator = async () => {
+    if (!selectedUserForModerator) return
+    
     try {
-      const response = await fetch(`${API_URL}/admin/users/change-id`, {
+      const response = await fetch(`${API_URL}/admin/users/promote-moderator`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          old_user_id: selectedUserForId.user_id,
-          new_user_id: newUserId.trim()
+          user_id: selectedUserForModerator.user_id
         })
       })
-
+      
       if (response.ok) {
-        alert('تم تغيير المعرف بنجاح')
-        setShowChangeIdDialog(false)
-        setNewUserId('')
+        alert('تم ترقية المستخدم إلى مشرف بنجاح')
+        setModeratorDialog(false)
+        setSelectedUserForModerator(null)
         fetchUsers()
       } else {
         const error = await response.json()
-        alert(error.detail || 'فشل في تغيير المعرف')
+        alert(error.detail || 'فشل في ترقية المستخدم')
       }
     } catch (error) {
-      alert('حدث خطأ في تغيير المعرف')
+      console.error('Error promoting user:', error)
+      alert('حدث خطأ أثناء ترقية المستخدم')
     }
   }
 
@@ -404,6 +473,33 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       hour: '2-digit',
       minute: '2-digit'
     })
+  }
+
+  const handleUserAction = (user: UserInfo, action: string) => {
+    setSelectedUser(user)
+    
+    switch (action) {
+      case 'ban':
+        setShowBanDialog(true)
+        break
+      case 'unban':
+        handleUnbanUser(user.user_id)
+        break
+      case 'mute':
+        setShowMuteDialog(true)
+        break
+      case 'changeId':
+        setSelectedUserForId(user)
+        setNewUserId('')
+        setShowChangeIdDialog(true)
+        break
+      case 'promote':
+        setSelectedUserForModerator(user)
+        setModeratorDialog(true)
+        break
+      default:
+        break
+    }
   }
 
   return (
@@ -629,6 +725,18 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                               >
                                 تغيير المعرف
                               </Button>
+                              {userInfo.role === 'user' && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedUserForModerator(userInfo)
+                                    setModeratorDialog(true)
+                                  }}
+                                >
+                                  ترقية لمشرف
+                                </Button>
+                              )}
                             </>
                           )}
                         </div>
@@ -655,6 +763,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                     <TableHead className="text-right">السبب</TableHead>
                     <TableHead className="text-right">الحالة</TableHead>
                     <TableHead className="text-right">التاريخ</TableHead>
+                    <TableHead className="text-right">الإجراءات</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -675,6 +784,22 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                       </TableCell>
                       <TableCell className="text-sm text-gray-500">
                         {formatDate(report.created_at)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex space-x-2 space-x-reverse">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedReport(report)
+                              setReportResponse('')
+                              setReportAction('resolved')
+                              setShowReportDialog(true)
+                            }}
+                          >
+                            مراجعة
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -805,6 +930,18 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                   <SelectItem value="1440">24 ساعة</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium">سبب الكتم</label>
+              <Textarea
+                value={muteReason}
+                onChange={(e) => setMuteReason(e.target.value)}
+                placeholder="اكتب سبب الكتم..."
+                className="text-right"
+                dir="rtl"
+                rows={3}
+              />
             </div>
           </div>
 
@@ -951,6 +1088,84 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Promote to Moderator Dialog */}
+      {moderatorDialog && selectedUserForModerator && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold mb-4">ترقية إلى مشرف</h3>
+            
+            <p className="mb-4">
+              هل تريد ترقية المستخدم <strong>{selectedUserForModerator.username}</strong> 
+              (المعرف: {selectedUserForModerator.user_id}) إلى مشرف؟
+            </p>
+            
+            <div className="flex justify-end space-x-2 space-x-reverse">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setModeratorDialog(false)
+                  setSelectedUserForModerator(null)
+                }}
+              >
+                إلغاء
+              </Button>
+              <Button onClick={handlePromoteToModerator}>
+                ترقية
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Report Response Dialog */}
+      {showReportDialog && selectedReport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg w-96 rtl">
+            <h3 className="text-xl font-bold mb-4">الرد على البلاغ</h3>
+            <p className="mb-4">
+              المستخدم المبلغ: {selectedReport.reporter_id}<br />
+              نوع البلاغ: {selectedReport.category}<br />
+              سبب البلاغ: {selectedReport.reason}
+            </p>
+            <div className="mb-4">
+              <label className="block mb-2">إجراء:</label>
+              <select
+                value={reportAction}
+                onChange={(e) => setReportAction(e.target.value)}
+                className="w-full p-2 border rounded"
+              >
+                <option value="resolved">تم التعامل مع البلاغ بنجاح</option>
+                <option value="reviewed">لم يتم العثور على انتهاكات</option>
+              </select>
+            </div>
+            <div className="mb-4">
+              <label className="block mb-2">الرد:</label>
+              <textarea
+                value={reportResponse}
+                onChange={(e) => setReportResponse(e.target.value)}
+                className="w-full p-2 border rounded"
+                rows={4}
+                placeholder="أدخل الرد على البلاغ"
+              ></textarea>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowReportDialog(false)}
+                className="px-4 py-2 bg-gray-300 rounded"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleReportResponse}
+                className="px-4 py-2 bg-blue-500 text-white rounded"
+              >
+                إرسال
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

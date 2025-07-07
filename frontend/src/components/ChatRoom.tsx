@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Textarea } from './ui/textarea'
 import { useAuth } from '../contexts/AuthContext'
-import { MessageCircle, Users, Send, LogOut, Megaphone, Settings } from 'lucide-react'
+import { MessageCircle, Users, Send, LogOut, Megaphone, Settings, Bell } from 'lucide-react'
 import NotificationSystem from './NotificationSystem'
 
 interface ChatRoomProps {
@@ -53,6 +53,9 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
   const [reportCategory, setReportCategory] = useState('')
   const [reportReason, setReportReason] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -62,6 +65,12 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
     scrollToBottom()
   }, [messages])
 
+  useEffect(() => {
+    if (user?.status === 'banned') {
+      window.location.href = '/appeal';
+    }
+  }, [user]);
+  
   useEffect(() => {
     if (!user || !token) return
 
@@ -91,6 +100,10 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
           if (data.data.action === 'approve') {
             window.location.reload()
           }
+        } else if (data.type === 'ban_status') {
+          if (data.data.is_banned) {
+            window.location.href = '/appeal'
+          }
         } else if (data.type === 'ban_notification') {
           if (data.data.banned) {
             alert(`تم حظرك من الدردشة. السبب: ${data.data.reason}. المدة: ${data.data.duration}`)
@@ -99,6 +112,8 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
             alert('تم رفع الحظر عنك. يمكنك الآن المشاركة في الدردشة.')
             window.location.reload()
           }
+        } else if (data.type === 'notification') {
+          setNotifications(prev => [...prev, data.data])
         }
       }
 
@@ -131,6 +146,9 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
   useEffect(() => {
     fetchInitialData()
   }, [])
+  
+  
+  
 
   const fetchInitialData = async () => {
     try {
@@ -179,6 +197,32 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
       sendMessage()
     }
   }
+  
+  const handleMarkNotificationRead = async (notificationId: string) => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch(`${API_URL}/notifications/${notificationId}/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        setNotifications(prev => 
+          prev.map(n => 
+            n.notification_id === notificationId 
+              ? { ...n, is_read: true } 
+              : n
+          )
+        );
+        setUnreadNotifications(prev => Math.max(0, prev - 1));
+      }
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
+  };
 
   const handleReportMessage = (message: Message) => {
     setSelectedMessage(message)
@@ -260,6 +304,48 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span>{isConnected ? 'متصل' : 'غير متصل'}</span>
             </div>
+            {/* Notification Icon */}
+            <div className="relative">
+              <button
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="p-2 rounded-full hover:bg-gray-200"
+              >
+                <Bell className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                    {unreadNotifications}
+                  </span>
+                )}
+              </button>
+              
+              {/* Notification Panel */}
+              {showNotifications && (
+                <div className="absolute left-0 mt-2 w-80 bg-white rounded-md shadow-lg z-10 rtl">
+                  <div className="p-2 border-b">
+                    <h3 className="font-bold">الإشعارات</h3>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-center text-gray-500">لا توجد إشعارات</div>
+                    ) : (
+                      notifications.map((notification: any) => (
+                        <div 
+                          key={notification.notification_id} 
+                          className={`p-3 border-b hover:bg-gray-100 ${!notification.is_read ? 'bg-blue-50' : ''}`}
+                          onClick={() => handleMarkNotificationRead(notification.notification_id)}
+                        >
+                          <div className="font-bold">{notification.title}</div>
+                          <div>{notification.content}</div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {new Date(notification.created_at).toLocaleString('ar-SA')}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <NotificationSystem />
             {onShowAdminPanel && (
               <Button variant="outline" size="sm" onClick={onShowAdminPanel}>
@@ -319,17 +405,11 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
                           {formatTime(message.timestamp)}
                         </span>
                       </div>
-                      <p className={`text-sm ${
-                        message.content.startsWith('$') && 
-                        onlineUsers.find(u => u.user_id === message.user_id)?.role === 'admin'
-                          ? 'font-bold text-black' 
-                          : ''
-                      }`}>
-                        {message.content.startsWith('$') && 
-                         onlineUsers.find(u => u.user_id === message.user_id)?.role === 'admin'
-                          ? message.content.substring(1)
-                          : message.content}
-                      </p>
+                      <div 
+                        className="message-text" 
+                        onClick={() => message.user_id !== user?.user_id && handleReportMessage(message)}
+                        dangerouslySetInnerHTML={{ __html: message.content }}
+                      ></div>
                       {message.user_id !== user?.user_id && (
                         <div className="mt-1 text-xs opacity-60">
                           اضغط للإبلاغ

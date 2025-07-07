@@ -112,8 +112,13 @@ export default function BanAppealForm({ onBack }: BanAppealFormProps) {
                   )}
                   {user?.banned_until && (
                     <div><strong>مدة الحظر:</strong> {(() => {
+                      if (!user.banned_until) return 'غير محدد';
+                      
                       const banDate = new Date(user.banned_until);
                       const now = new Date();
+                      
+                      if (isNaN(banDate.getTime())) return 'غير محدد';
+                      
                       const diffMs = banDate.getTime() - now.getTime();
                       
                       if (diffMs <= 0) {
