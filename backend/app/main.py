@@ -24,6 +24,15 @@ app.add_middleware(
 async def healthz():
     return {"status": "ok"}
 
+@app.get("/debug/users")
+async def debug_get_all_users():
+    """Debug endpoint to see all users in database - no auth required"""
+    try:
+        users = db.get_all_users()
+        return {"users": [{"user_id": u.user_id, "username": u.username, "role": u.role, "status": u.status} for u in users]}
+    except Exception as e:
+        return {"error": str(e), "users": []}
+
 @app.post("/auth/register", response_model=AuthResponse)
 async def register(request: RegisterRequest):
     if len(request.username.strip()) < 3:
