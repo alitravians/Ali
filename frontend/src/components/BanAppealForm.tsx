@@ -107,6 +107,32 @@ export default function BanAppealForm({ onBack }: BanAppealFormProps) {
                   <div><strong>المستخدم:</strong> {user?.username}</div>
                   <div><strong>المعرف:</strong> {user?.user_id}</div>
                   <div><strong>الحالة:</strong> محظور</div>
+                  {user?.ban_reason && (
+                    <div><strong>سبب الحظر:</strong> {user.ban_reason}</div>
+                  )}
+                  {user?.banned_until && (
+                    <div><strong>مدة الحظر:</strong> {(() => {
+                      const banDate = new Date(user.banned_until);
+                      const now = new Date();
+                      const diffMs = banDate.getTime() - now.getTime();
+                      
+                      if (diffMs <= 0) {
+                        return 'انتهت مدة الحظر';
+                      }
+                      
+                      const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+                      const diffMinutes = Math.ceil(diffMs / (1000 * 60));
+                      
+                      if (diffHours >= 24) {
+                        const days = Math.ceil(diffHours / 24);
+                        return `${days} ${days === 1 ? 'يوم' : days <= 10 ? 'أيام' : 'يوماً'} متبقية`;
+                      } else if (diffHours >= 1) {
+                        return `${diffHours} ${diffHours === 1 ? 'ساعة' : diffHours <= 10 ? 'ساعات' : 'ساعة'} متبقية`;
+                      } else {
+                        return `${diffMinutes} ${diffMinutes === 1 ? 'دقيقة' : diffMinutes <= 10 ? 'دقائق' : 'دقيقة'} متبقية`;
+                      }
+                    })()}</div>
+                  )}
                 </div>
               </AlertDescription>
             </Alert>

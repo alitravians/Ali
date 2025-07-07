@@ -9,10 +9,13 @@ import './App.css'
 function AppContent() {
   const { user, isAuthenticated, logout } = useAuth()
   const [showBanAppeal, setShowBanAppeal] = useState(false)
+  const [showAdminPanel, setShowAdminPanel] = useState(false)
 
   useEffect(() => {
     if (user?.status === 'banned') {
       setShowBanAppeal(true)
+    } else {
+      setShowBanAppeal(false)
     }
   }, [user])
 
@@ -24,11 +27,11 @@ function AppContent() {
     return <BanAppealForm onBack={() => logout()} />
   }
 
-  if (user?.role === 'admin') {
-    return <AdminPanel />
+  if (showAdminPanel && user?.role === 'admin') {
+    return <AdminPanel onBackToChat={() => setShowAdminPanel(false)} />
   }
 
-  return <ChatRoom />
+  return <ChatRoom onShowAdminPanel={user?.role === 'admin' ? () => setShowAdminPanel(true) : undefined} />
 }
 
 function App() {

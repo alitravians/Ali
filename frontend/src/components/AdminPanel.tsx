@@ -17,8 +17,13 @@ import {
   LogOut, 
   Ban, 
   Volume2, 
-  Megaphone
+  Megaphone,
+  ArrowRight
 } from 'lucide-react'
+
+interface AdminPanelProps {
+  onBackToChat?: () => void
+}
 
 const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000'
 
@@ -70,7 +75,7 @@ interface Announcement {
   is_active: boolean
 }
 
-export default function AdminPanel() {
+export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   const { user, token, logout } = useAuth()
   const [activeTab, setActiveTab] = useState('statistics')
   const [statistics, setStatistics] = useState<Statistics | null>(null)
@@ -377,10 +382,26 @@ export default function AdminPanel() {
             <p className="text-sm text-gray-500">مرحباً {user?.username} - المدير العام</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={logout}>
-          <LogOut className="h-4 w-4 ml-2" />
-          خروج
-        </Button>
+        <div className="flex items-center space-x-2 space-x-reverse">
+          {onBackToChat && (
+            <Button variant="outline" size="sm" onClick={onBackToChat}>
+              <ArrowRight className="h-4 w-4 ml-2" />
+              العودة للدردشة
+            </Button>
+          )}
+          <div className="flex items-center space-x-2 space-x-reverse">
+            {onBackToChat && (
+              <Button variant="outline" size="sm" onClick={onBackToChat}>
+                <ArrowRight className="h-4 w-4 ml-2" />
+                العودة للدردشة
+              </Button>
+            )}
+            <Button variant="outline" size="sm" onClick={logout}>
+              <LogOut className="h-4 w-4 ml-2" />
+              خروج
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="p-6">

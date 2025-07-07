@@ -5,6 +5,8 @@ interface User {
   username: string
   role: string
   status?: string
+  ban_reason?: string
+  banned_until?: string
 }
 
 interface AuthContextType {

@@ -46,7 +46,10 @@ export default function LoginForm() {
       login(data.access_token, {
         user_id: data.user_id,
         username: data.username,
-        role: data.role
+        role: data.role,
+        status: data.status || 'active',
+        ban_reason: data.ban_reason,
+        banned_until: data.banned_until
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل في تسجيل الدخول')
@@ -86,7 +89,10 @@ export default function LoginForm() {
       login(data.access_token, {
         user_id: data.user_id,
         username: data.username,
-        role: data.role
+        role: data.role,
+        status: data.status || 'active',
+        ban_reason: data.ban_reason,
+        banned_until: data.banned_until
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل في تسجيل الدخول')
@@ -128,7 +134,10 @@ export default function LoginForm() {
       login(data.access_token, {
         user_id: data.user_id,
         username: data.username,
-        role: data.role
+        role: data.role,
+        status: data.status || 'active',
+        ban_reason: data.ban_reason,
+        banned_until: data.banned_until
       })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'فشل في التسجيل')

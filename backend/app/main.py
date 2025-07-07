@@ -51,7 +51,10 @@ async def register(request: RegisterRequest):
         access_token=access_token,
         user_id=user.user_id,
         username=user.username,
-        role=user.role
+        role=user.role.value,
+        status=user.status.value,
+        ban_reason=user.ban_reason,
+        banned_until=user.banned_until.isoformat() if user.banned_until else None
     )
 
 @app.post("/auth/login", response_model=AuthResponse)
@@ -64,12 +67,20 @@ async def login(request: LoginRequest):
         )
     
     if user.status == UserStatus.BANNED:
-        ban_info = ""
-        if user.banned_until:
-            ban_info = f" حتى {user.banned_until.strftime('%Y-%m-%d %H:%M')}"
-        raise HTTPException(
-            status_code=403,
-            detail=f"تم حظر حسابك. السبب: {user.ban_reason}{ban_info}"
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.user_id, "username": user.username, "role": user.role},
+            expires_delta=access_token_expires
+        )
+        
+        return AuthResponse(
+            access_token=access_token,
+            user_id=user.user_id,
+            username=user.username,
+            role=user.role.value,
+            status=user.status.value,
+            ban_reason=user.ban_reason,
+            banned_until=user.banned_until.isoformat() if user.banned_until else None
         )
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
@@ -82,7 +93,10 @@ async def login(request: LoginRequest):
         access_token=access_token,
         user_id=user.user_id,
         username=user.username,
-        role=user.role
+        role=user.role.value,
+        status=user.status.value,
+        ban_reason=user.ban_reason,
+        banned_until=user.banned_until.isoformat() if user.banned_until else None
     )
 
 @app.post("/auth/admin-login", response_model=AuthResponse)
@@ -104,7 +118,10 @@ async def admin_login(request: AdminLoginRequest):
         access_token=access_token,
         user_id=user.user_id,
         username=user.username,
-        role=user.role
+        role=user.role.value,
+        status=user.status.value,
+        ban_reason=user.ban_reason,
+        banned_until=user.banned_until.isoformat() if user.banned_until else None
     )
 
 @app.websocket("/ws/{user_id}")

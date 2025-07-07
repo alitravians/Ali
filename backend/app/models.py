@@ -136,6 +136,9 @@ class AuthResponse(BaseModel):
     user_id: str
     username: str
     role: str
+    status: str
+    ban_reason: Optional[str] = None
+    banned_until: Optional[str] = None
 
 class UserInfo(BaseModel):
     user_id: str

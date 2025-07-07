@@ -7,7 +7,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select'
 import { Textarea } from './ui/textarea'
 import { useAuth } from '../contexts/AuthContext'
-import { MessageCircle, Users, Send, LogOut, Megaphone } from 'lucide-react'
+import { MessageCircle, Users, Send, LogOut, Megaphone, Settings } from 'lucide-react'
+
+interface ChatRoomProps {
+  onShowAdminPanel?: () => void
+}
 
 const API_URL = import.meta.env?.VITE_API_URL || 'http://localhost:8000'
 const WS_URL = API_URL.replace('http', 'ws')
@@ -35,7 +39,7 @@ interface Announcement {
   created_at: string
 }
 
-export default function ChatRoom() {
+export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
   const { user, token, logout } = useAuth()
   const [messages, setMessages] = useState<Message[]>([])
   const [onlineUsers, setOnlineUsers] = useState<UserInfo[]>([])
@@ -240,6 +244,12 @@ export default function ChatRoom() {
               <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
               <span>{isConnected ? 'متصل' : 'غير متصل'}</span>
             </div>
+            {onShowAdminPanel && (
+              <Button variant="outline" size="sm" onClick={onShowAdminPanel}>
+                <Settings className="h-4 w-4 ml-2" />
+                لوحة الإدارة
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={logout}>
               <LogOut className="h-4 w-4 ml-2" />
               خروج
