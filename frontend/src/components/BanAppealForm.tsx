@@ -126,15 +126,18 @@ export default function BanAppealForm({ onBack }: BanAppealFormProps) {
                       }
                       
                       const diffMinutes = Math.ceil(diffMs / (1000 * 60));
-                      const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
-                      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                      const diffHours = Math.floor(diffMinutes / 60);
+                      const diffDays = Math.floor(diffHours / 24);
                       
                       if (diffDays >= 1) {
-                        return `${diffDays} ${diffDays === 1 ? 'يوم' : diffDays <= 10 ? 'أيام' : 'يوماً'} متبقية`;
+                        const remainingHours = diffHours % 24;
+                        const remainingMinutes = diffMinutes % 60;
+                        return `${diffDays} يوم و ${remainingHours} ساعة و ${remainingMinutes} دقيقة متبقية`;
                       } else if (diffHours >= 1) {
-                        return `${diffHours} ${diffHours === 1 ? 'ساعة' : diffHours <= 10 ? 'ساعات' : 'ساعة'} متبقية`;
+                        const remainingMinutes = diffMinutes % 60;
+                        return `${diffHours} ساعة و ${remainingMinutes} دقيقة متبقية`;
                       } else {
-                        return `${diffMinutes} ${diffMinutes === 1 ? 'دقيقة' : diffMinutes <= 10 ? 'دقائق' : 'دقيقة'} متبقية`;
+                        return `${diffMinutes} دقيقة متبقية`;
                       }
                     })()}</div>
                   )}

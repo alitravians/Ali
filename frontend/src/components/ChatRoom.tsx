@@ -219,13 +219,22 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
     let processedMessage = messageInput.trim()
     
     if ((user?.role === 'admin' || user?.role === 'moderator') && processedMessage.startsWith('$')) {
-      processedMessage = `<strong>${processedMessage.substring(1)}</strong>`
+      processedMessage = processedMessage.substring(1)
+      
+      ws.send(JSON.stringify({
+        type: 'message',
+        content: processedMessage,
+        is_bold: true,
+        role: user.role
+      }))
+      
+      console.log('Sending bold admin/moderator message:', processedMessage)
+    } else {
+      ws.send(JSON.stringify({
+        type: 'message',
+        content: processedMessage
+      }))
     }
-
-    ws.send(JSON.stringify({
-      type: 'message',
-      content: processedMessage
-    }))
 
     setMessageInput('')
   }
