@@ -365,13 +365,13 @@ class SQLiteDatabase:
                 cursor.execute("""UPDATE users SET muted_until = ? WHERE user_id = ?""",
                              (muted_until.isoformat(), user_id))
                 conn.commit()
-            
-            self.create_notification(
-                user_id=user_id,
-                title="تم كتمك",
-                content=f"تم كتمك لمدة {duration_minutes} دقيقة. السبب: {reason}",
-                notification_type="mute"
-            )
+        
+        self.create_notification(
+            user_id=user_id,
+            title="تم كتمك",
+            content=f"تم كتمك لمدة {duration_minutes} دقيقة. السبب: {reason}",
+            notification_type="mute"
+        )
     
     def get_active_bans(self) -> List[BanRecord]:
         with sqlite3.connect(self.db_path) as conn:

@@ -28,6 +28,9 @@ export default function LoginForm() {
     setLoading(true)
     setError('')
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
     try {
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
@@ -35,7 +38,10 @@ export default function LoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username: username.trim() }),
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -43,7 +49,7 @@ export default function LoginForm() {
       }
 
       const data = await response.json()
-      login(data.access_token, {
+      await login(data.access_token, {
         user_id: data.user_id,
         username: data.username,
         role: data.role,
@@ -52,7 +58,12 @@ export default function LoginForm() {
         banned_until: data.banned_until
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل في تسجيل الدخول')
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى')
+      } else {
+        setError(err instanceof Error ? err.message : 'فشل في تسجيل الدخول')
+      }
     } finally {
       setLoading(false)
     }
@@ -60,6 +71,8 @@ export default function LoginForm() {
 
   const handleAdminLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    console.log('Admin login started')
+    
     if (!username.trim() || !accessCode.trim()) {
       setError('يرجى إدخال جميع البيانات المطلوبة')
       return
@@ -67,9 +80,13 @@ export default function LoginForm() {
 
     setLoading(true)
     setError('')
+    console.log('Making fetch request to:', `${API_URL}/auth/admin/login`)
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
     try {
-      const response = await fetch(`${API_URL}/auth/admin-login`, {
+      const response = await fetch(`${API_URL}/auth/admin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +95,11 @@ export default function LoginForm() {
           username: username.trim(),
           access_code: accessCode.trim()
         }),
+        signal: controller.signal
       })
+      
+      clearTimeout(timeoutId)
+      console.log('Fetch response received:', response.status)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -86,7 +107,10 @@ export default function LoginForm() {
       }
 
       const data = await response.json()
-      login(data.access_token, {
+      console.log('Response data:', data)
+      console.log('Calling login function...')
+      
+      await login(data.access_token, {
         user_id: data.user_id,
         username: data.username,
         role: data.role,
@@ -94,9 +118,18 @@ export default function LoginForm() {
         ban_reason: data.ban_reason,
         banned_until: data.banned_until
       })
+      
+      console.log('Login function completed')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل في تسجيل الدخول')
+      clearTimeout(timeoutId)
+      console.error('Admin login error:', err)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى')
+      } else {
+        setError(err instanceof Error ? err.message : 'فشل في تسجيل الدخول')
+      }
     } finally {
+      console.log('Setting loading to false')
       setLoading(false)
     }
   }
@@ -116,6 +149,9 @@ export default function LoginForm() {
     setLoading(true)
     setError('')
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
     try {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
@@ -123,7 +159,10 @@ export default function LoginForm() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ username: username.trim() }),
+        signal: controller.signal
       })
+
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorData = await response.json()
@@ -131,7 +170,7 @@ export default function LoginForm() {
       }
 
       const data = await response.json()
-      login(data.access_token, {
+      await login(data.access_token, {
         user_id: data.user_id,
         username: data.username,
         role: data.role,
@@ -140,7 +179,12 @@ export default function LoginForm() {
         banned_until: data.banned_until
       })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'فشل في التسجيل')
+      clearTimeout(timeoutId)
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى')
+      } else {
+        setError(err instanceof Error ? err.message : 'فشل في التسجيل')
+      }
     } finally {
       setLoading(false)
     }

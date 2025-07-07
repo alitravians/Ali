@@ -155,12 +155,25 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   }
 
   const fetchUsers = async () => {
-    const response = await fetch(`${API_URL}/admin/users`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    if (response.ok) {
-      const data = await response.json()
-      setUsers(data)
+    try {
+      console.log('Fetching users with token:', token ? 'Token exists' : 'No token')
+      const response = await fetch(`${API_URL}/admin/users`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      console.log('Users response status:', response.status)
+      if (response.ok) {
+        const data = await response.json()
+        console.log('Users data received:', data)
+        setUsers(data || [])
+      } else {
+        console.error('Failed to fetch users:', response.status, response.statusText)
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Error details:', errorData)
+        setUsers([])
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error)
+      setUsers([])
     }
   }
 
@@ -240,7 +253,11 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   }
 
   const handleMuteUser = async () => {
-    if (!selectedUser || !muteReason.trim()) return
+    console.log('handleMuteUser called with:', { selectedUser: selectedUser?.username, muteReason, muteDuration })
+    if (!selectedUser || !muteReason.trim()) {
+      console.log('handleMuteUser validation failed:', { selectedUser: !!selectedUser, muteReason: muteReason.trim() })
+      return
+    }
     
     try {
       const response = await fetch(`${API_URL}/admin/users/mute`, {
@@ -250,7 +267,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: selectedUser?.user_id,
+          user_id: String(selectedUser?.user_id),
           duration_minutes: parseInt(muteDuration),
           reason: muteReason
         })
@@ -259,7 +276,8 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
       if (response.ok) {
         const result = await response.json()
         console.log('Mute response:', result)
-        alert(result.message || 'تم كتم المستخدم بنجاح')
+        const message = typeof result === 'string' ? result : (result?.message || result?.detail || 'تم كتم المستخدم بنجاح')
+        alert(message)
         setShowMuteDialog(false)
         setMuteDuration('30')
         setMuteReason('')
@@ -732,9 +750,11 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                                   <Button
                                     size="sm"
                                     variant="destructive"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setSelectedUser(userInfo)
                                       setShowBanDialog(true)
+                                      console.log('Ban button clicked for:', userInfo.username)
                                     }}
                                   >
                                     <Ban className="h-3 w-3" />
@@ -742,9 +762,11 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setSelectedUser(userInfo)
                                       setShowMuteDialog(true)
+                                      console.log('Mute button clicked for:', userInfo.username)
                                     }}
                                   >
                                     <Volume2 className="h-3 w-3" />
@@ -752,9 +774,11 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation()
                                       setSelectedUserForId(userInfo)
                                       setShowChangeIdDialog(true)
+                                      console.log('Change ID button clicked for:', userInfo.username)
                                     }}
                                   >
                                     تغيير المعرف
@@ -997,7 +1021,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           </div>
 
           <DialogFooter className="flex-row-reverse">
-            <Button onClick={handleMuteUser} variant="outline">
+            <Button onClick={handleMuteUser} variant="outline" disabled={!muteReason.trim()}>
               كتم المستخدم
             </Button>
             <Button variant="outline" onClick={() => setShowMuteDialog(false)}>

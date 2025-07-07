@@ -1,7 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, status
+from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, status, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from datetime import timedelta
 import json
+import logging
 from typing import List
 import sqlite3
 
@@ -11,6 +14,13 @@ from .auth import *
 from .websocket_manager import manager
 
 app = FastAPI(title="Advanced Chat System", version="1.0.0")
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    exc_str = f'{exc}'.replace('\n', ' ').replace('   ', ' ')
+    logging.error(f"Validation error for {request.method} {request.url}: {exc_str}")
+    content = {'status_code': 422, 'message': exc_str, 'data': None}
+    return JSONResponse(content=content, status_code=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 app.add_middleware(
     CORSMiddleware,

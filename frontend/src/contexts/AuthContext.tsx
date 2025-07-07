@@ -41,44 +41,45 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       await storageManager.initDB()
       
-      let token = storageManager.getSecureItem('token') || localStorage.getItem('chat_token')
-      const userData = storageManager.getSecureItem('user') || localStorage.getItem('chat_user')
+      let rawToken = localStorage.getItem('chat_token')
+      const rawUserData = localStorage.getItem('chat_user')
       
-      console.log('AuthContext: Raw token from storage:', token)
-      console.log('AuthContext: Raw userData from storage:', userData)
+      console.log('AuthContext: Raw token from storage:', rawToken)
+      console.log('AuthContext: Raw userData from storage:', rawUserData)
       
-      if (token && userData) {
+      if (rawToken && rawUserData) {
         try {
-          let cleanToken = token
+          let cleanToken = rawToken
           
-          if (typeof cleanToken === 'string') {
-            if (cleanToken.startsWith('"') && cleanToken.endsWith('"')) {
-              cleanToken = cleanToken.slice(1, -1)
-            }
-            
-            if (!cleanToken.startsWith('eyJ')) {
-              cleanToken = atob(cleanToken)
-              if (cleanToken.startsWith('"') && cleanToken.endsWith('"')) {
-                cleanToken = cleanToken.slice(1, -1)
-              }
-            }
+          if (rawToken.startsWith('"') && rawToken.endsWith('"')) {
+            cleanToken = JSON.parse(rawToken)
+          }
+          
+          if (!cleanToken.startsWith('eyJ')) {
+            console.error('Invalid JWT token format')
+            throw new Error('Invalid token format')
           }
           
           console.log('AuthContext: Processed token:', cleanToken)
           
-          const parsedUser = typeof userData === 'string' ? JSON.parse(userData) : userData
+          const parsedUser = JSON.parse(rawUserData)
           console.log('AuthContext: Parsed user:', parsedUser)
           
           setToken(cleanToken)
           setUser(parsedUser)
           setIsAuthenticated(true)
           
+          storageManager.setSecureItem('token', cleanToken)
+          storageManager.setSecureItem('user', parsedUser)
           await storageManager.syncData()
         } catch (error) {
           console.error('Token processing failed:', error)
           localStorage.removeItem('chat_token')
           localStorage.removeItem('chat_user')
           storageManager.clearCache()
+          setToken(null)
+          setUser(null)
+          setIsAuthenticated(false)
         }
       }
     }
@@ -93,11 +94,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     storageManager.setSecureItem('token', newToken)
     storageManager.setSecureItem('user', newUser)
     
-    await storageManager.storeInIndexedDB('users', newUser)
-    
     setToken(newToken)
     setUser(newUser)
     setIsAuthenticated(true)
+    
+    try {
+      await storageManager.storeInIndexedDB('users', newUser)
+    } catch (error) {
+      console.warn('IndexedDB storage failed, but login completed:', error)
+    }
   }
 
   const logout = () => {
