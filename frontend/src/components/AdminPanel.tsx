@@ -475,32 +475,6 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
     })
   }
 
-  const handleUserAction = (user: UserInfo, action: string) => {
-    setSelectedUser(user)
-    
-    switch (action) {
-      case 'ban':
-        setShowBanDialog(true)
-        break
-      case 'unban':
-        handleUnbanUser(user.user_id)
-        break
-      case 'mute':
-        setShowMuteDialog(true)
-        break
-      case 'changeId':
-        setSelectedUserForId(user)
-        setNewUserId('')
-        setShowChangeIdDialog(true)
-        break
-      case 'promote':
-        setSelectedUserForModerator(user)
-        setModeratorDialog(true)
-        break
-      default:
-        break
-    }
-  }
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">

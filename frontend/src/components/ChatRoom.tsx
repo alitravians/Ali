@@ -147,9 +147,29 @@ export default function ChatRoom({ onShowAdminPanel }: ChatRoomProps) {
     fetchInitialData()
   }, [])
   
-  
-  
-
+  useEffect(() => {
+    if (!token || !user) return;
+    
+    const fetchNotifications = async () => {
+      try {
+        const response = await fetch(`${API_URL}/notifications/${user.user_id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setNotifications(data);
+          setUnreadNotifications(data.filter((n: any) => !n.is_read).length);
+        }
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+    
+    fetchNotifications();
+  }, [token, user]);
   const fetchInitialData = async () => {
     try {
       const [messagesRes, announcementsRes] = await Promise.all([

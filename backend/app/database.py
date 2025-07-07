@@ -328,4 +328,5 @@ class InMemoryDatabase:
                     return True
             return False
 
-db = InMemoryDatabase()
+from .sqlite_database import SQLiteDatabase
+db = SQLiteDatabase()
