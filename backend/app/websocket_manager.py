@@ -35,7 +35,8 @@ class ConnectionManager:
     
     async def broadcast(self, message: str):
         disconnected_users = []
-        for user_id, connection in self.active_connections.items():
+        connections_copy = list(self.active_connections.items())
+        for user_id, connection in connections_copy:
             try:
                 await connection.send_text(message)
             except:
