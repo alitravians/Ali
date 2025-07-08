@@ -536,20 +536,30 @@ class SQLiteDatabase:
             conn.commit()
 
     def create_appeal(self, user_id: str, ban_id: str, reason: str) -> BanAppeal:
+        appeal_id = str(uuid.uuid4())
+        created_at = datetime.now()
+        
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("""INSERT INTO appeals 
+                    (appeal_id, user_id, ban_id, reason, status, created_at) 
+                    VALUES (?, ?, ?, ?, ?, ?)""",
+                    (appeal_id, user_id, ban_id, reason, 'pending', created_at.isoformat()))
+                conn.commit()
+                print(f"Appeal created successfully: {appeal_id}")
+        except Exception as e:
+            print(f"Error creating appeal: {e}")
+            raise
+        
         appeal = BanAppeal(
-            appeal_id=str(uuid.uuid4()),
+            appeal_id=appeal_id,
             user_id=user_id,
             ban_id=ban_id,
-            reason=reason
+            reason=reason,
+            status=AppealStatus.PENDING,
+            created_at=created_at
         )
-        
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""INSERT INTO appeals 
-                (appeal_id, user_id, ban_id, reason, status, created_at) 
-                VALUES (?, ?, ?, ?, ?, ?)""",
-                (appeal.appeal_id, user_id, ban_id, reason, 'pending', appeal.created_at.isoformat()))
-            conn.commit()
         
         return appeal
     
