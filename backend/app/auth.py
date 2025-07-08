@@ -75,6 +75,14 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             if user is None:
                 raise credentials_exception
         
+        if user and user.banned_until:
+            try:
+                banned_until = datetime.fromisoformat(user.banned_until.replace('Z', '+00:00'))
+                if datetime.now() > banned_until:
+                    print(f"Ban expired for user {user.user_id} but not auto-unbanning during authentication")
+            except Exception as e:
+                print(f"Error checking ban expiration: {e}")
+        
         return user
         
     except Exception as e:
@@ -90,11 +98,20 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 def authenticate_user(username: str, password: str = None) -> Optional[User]:
+    print(f"DEBUG: authenticate_user called with username: '{username}'")
     user = db.get_user_by_username(username)
+    print(f"DEBUG: get_user_by_username returned: {user}")
+    if user:
+        print(f"DEBUG: User found - ID: {user.user_id}, Status: {user.status}, Role: {user.role}")
+    else:
+        print(f"DEBUG: No user found for username: '{username}'")
+    
     if not user:
         return None
     if password and not verify_password(password, user.password_hash):
+        print(f"DEBUG: Password verification failed for user: {username}")
         return None
+    print(f"DEBUG: authenticate_user returning user: {user.user_id}")
     return user
 
 def authenticate_admin(username: str, access_code: str) -> Optional[User]:

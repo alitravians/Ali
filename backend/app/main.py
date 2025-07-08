@@ -242,12 +242,22 @@ async def create_appeal(
     request: AppealRequest,
     current_user: User = Depends(get_current_user)
 ):
-    if current_user.status != UserStatus.BANNED:
-        raise HTTPException(status_code=400, detail="لا يمكن تقديم اعتراض إلا للمستخدمين المحظورين")
-    
     active_ban = db.get_user_ban(current_user.user_id)
     if not active_ban:
         raise HTTPException(status_code=400, detail="لا يوجد حظر نشط لتقديم اعتراض عليه")
+    
+    if active_ban.banned_until:
+        try:
+            banned_until = active_ban.banned_until
+            if datetime.now() > banned_until:
+                print(f"Ban expired for user {current_user.user_id}, auto-unbanning")
+                db.unban_user(current_user.user_id)
+                raise HTTPException(status_code=400, detail="انتهت مدة الحظر تلقائياً")
+        except Exception as e:
+            print(f"Error checking ban expiration in appeals: {e}")
+    
+    if current_user.status != UserStatus.BANNED:
+        raise HTTPException(status_code=400, detail="لا يمكن تقديم اعتراض إلا للمستخدمين المحظورين")
     
     appeal = db.create_appeal(current_user.user_id, active_ban.ban_id, request.reason)
     return {"message": "تم تقديم الاعتراض بنجاح", "appeal_id": appeal.appeal_id}

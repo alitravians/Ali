@@ -221,24 +221,33 @@ class SQLiteDatabase:
         return None
     
     def get_user_by_username(self, username: str) -> Optional[User]:
+        print(f"DEBUG: get_user_by_username called with: '{username}'")
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
             row = cursor.fetchone()
+            print(f"DEBUG: Database query returned row: {row}")
             
             if row:
-                return User(
-                    user_id=row[0],
-                    username=row[1],
-                    password_hash=row[2],
-                    role=UserRole(row[3]),
-                    status=UserStatus(row[4]),
-                    created_at=datetime.fromisoformat(row[5]) if row[5] else datetime.now(),
-                    muted_until=datetime.fromisoformat(row[6]) if row[6] else None,
-                    banned_until=datetime.fromisoformat(row[7]) if row[7] else None,
-                    ban_reason=row[8],
-                    last_seen=datetime.fromisoformat(row[9]) if row[9] else datetime.now()
-                )
+                try:
+                    user = User(
+                        user_id=row[0],
+                        username=row[1],
+                        password_hash=row[2],
+                        role=UserRole(row[3]),
+                        status=UserStatus(row[4]),
+                        created_at=datetime.fromisoformat(row[5]) if row[5] else datetime.now(),
+                        muted_until=datetime.fromisoformat(row[6]) if row[6] else None,
+                        banned_until=datetime.fromisoformat(row[7]) if row[7] else None,
+                        ban_reason=row[8],
+                        last_seen=datetime.fromisoformat(row[9]) if row[9] else datetime.now()
+                    )
+                    print(f"DEBUG: Successfully created User object: {user.user_id}")
+                    return user
+                except Exception as e:
+                    print(f"DEBUG: Error creating User object: {e}")
+                    return None
+        print(f"DEBUG: No row found for username: '{username}'")
         return None
     
     def update_user_status(self, user_id: str, status: UserStatus, 
@@ -537,9 +546,9 @@ class SQLiteDatabase:
         with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""INSERT INTO appeals 
-                (appeal_id, user_id, ban_id, reason) 
-                VALUES (?, ?, ?, ?)""",
-                (appeal.appeal_id, user_id, ban_id, reason))
+                (appeal_id, user_id, ban_id, reason, status, created_at) 
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (appeal.appeal_id, user_id, ban_id, reason, 'pending', appeal.created_at.isoformat()))
             conn.commit()
         
         return appeal
@@ -566,25 +575,35 @@ class SQLiteDatabase:
             ]
     
     def get_all_appeals(self) -> List[BanAppeal]:
-        with self.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM appeals")
-            rows = cursor.fetchall()
-            
-            return [
-                BanAppeal(
-                    appeal_id=row[0],
-                    user_id=row[1],
-                    ban_id=row[2],
-                    reason=row[3],
-                    status=AppealStatus(row[4]),
-                    created_at=datetime.fromisoformat(row[5]),
-                    reviewed_by=row[6],
-                    reviewed_at=datetime.fromisoformat(row[7]) if row[7] else None,
-                    admin_response=row[8]
-                )
-                for row in rows
-            ]
+        try:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT * FROM appeals")
+                rows = cursor.fetchall()
+                
+                appeals = []
+                for row in rows:
+                    try:
+                        appeal = BanAppeal(
+                            appeal_id=row[0],
+                            user_id=row[1],
+                            ban_id=row[2],
+                            reason=row[3],
+                            status=AppealStatus(row[4]),
+                            created_at=datetime.fromisoformat(row[5]),
+                            reviewed_by=row[6],
+                            reviewed_at=datetime.fromisoformat(row[7]) if row[7] else None,
+                            admin_response=row[8]
+                        )
+                        appeals.append(appeal)
+                    except Exception as e:
+                        print(f"Error processing appeal row {row}: {e}")
+                        continue
+                
+                return appeals
+        except Exception as e:
+            print(f"Error in get_all_appeals: {e}")
+            return []
     
     def get_user_appeal(self, user_id: str) -> Optional[BanAppeal]:
         with self.get_connection() as conn:
