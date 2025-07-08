@@ -27,14 +27,19 @@ app.add_middleware(
     allow_origins=[
         "https://moderated-chat-app-e7ydou0v.devinapps.com",
         "http://localhost:5173",
+        "http://localhost:5176",
         "http://localhost:3000",
         "*"
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
     allow_headers=["*"],
     expose_headers=["*"]
 )
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "message": "Backend is running"}
 
 @app.get("/healthz")
 async def healthz():
@@ -163,15 +168,26 @@ async def websocket_endpoint(websocket: WebSocket, user_id: str):
                 if user:
                     if user.role in [UserRole.ADMIN, UserRole.MODERATOR] or user.status == UserStatus.ACTIVE:
                         content = message_data["content"]
-                        if user.role in [UserRole.ADMIN, UserRole.MODERATOR] and content.startswith("$"):
-                            content = content[1:]  # Remove $ symbol
-                            content = f"<strong>{content}</strong>"  # Apply bold formatting
+                        is_admin_bold = message_data.get("is_admin_bold", False)
+                        print(f"DEBUG: User {user.username} (role: {user.role}) sent message: '{content}', is_admin_bold: {is_admin_bold}")
+                        
+                        if user.role in [UserRole.ADMIN, UserRole.MODERATOR]:
+                            if content.startswith("$"):
+                                print(f"DEBUG: Admin/Moderator message with $ detected, processing...")
+                                content = content[1:]  # Remove $ symbol
+                                content = f"<strong>{content}</strong>"  # Apply bold formatting
+                                print(f"DEBUG: Processed content from $ symbol: '{content}'")
+                            elif is_admin_bold:
+                                print(f"DEBUG: Admin/Moderator message with is_admin_bold flag, processing...")
+                                content = f"<strong>{content}</strong>"  # Apply bold formatting
+                                print(f"DEBUG: Processed content from flag: '{content}'")
                             
                         message = db.add_message(
                             user_id=user_id,
                             username=user.username,
                             content=content
                         )
+                        print(f"DEBUG: Message saved to DB with content: '{message.content}'")
                         await manager.broadcast_message(message)
             
             elif message_data["type"] == "ping":
@@ -568,6 +584,17 @@ async def refresh_token(current_user: User = Depends(get_current_user)):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
+@app.get("/auth/status")
+async def get_user_status(current_user: User = Depends(get_current_user)):
+    return {
+        "user_id": current_user.user_id,
+        "username": current_user.username,
+        "role": current_user.role.value,
+        "status": current_user.status.value,
+        "ban_reason": current_user.ban_reason,
+        "banned_until": current_user.banned_until.isoformat() if current_user.banned_until else None
+    }
+
 @app.delete("/admin/announcements/{announcement_id}")
 async def delete_announcement(
     announcement_id: str,
@@ -577,6 +604,20 @@ async def delete_announcement(
     if not success:
         raise HTTPException(status_code=404, detail="الإعلان غير موجود")
     return {"message": "تم حذف الإعلان بنجاح"}
+
+@app.put("/admin/announcements/{announcement_id}")
+async def update_announcement(
+    announcement_id: str,
+    request: dict,
+    admin_user: User = Depends(get_admin_user)
+):
+    duration_hours = request.get("duration_hours")
+    font_color = request.get("font_color", "#000000")
+    
+    success = db.update_announcement(announcement_id, duration_hours, font_color)
+    if not success:
+        raise HTTPException(status_code=404, detail="الإعلان غير موجود")
+    return {"message": "تم تحديث الإعلان بنجاح"}
 
 @app.post("/admin/users/badge")
 async def assign_user_badge(

@@ -41,8 +41,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const initializeAuth = async () => {
       await storageManager.initDB()
       
-      let rawToken = localStorage.getItem('chat_token')
-      const rawUserData = localStorage.getItem('chat_user')
+      let rawToken = localStorage.getItem('token') || localStorage.getItem('chat_token')
+      const rawUserData = localStorage.getItem('userData') || localStorage.getItem('chat_user')
       
       console.log('AuthContext: Raw token from storage:', rawToken)
       console.log('AuthContext: Raw userData from storage:', rawUserData)
@@ -55,31 +55,66 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             cleanToken = JSON.parse(rawToken)
           }
           
-          if (cleanToken && typeof cleanToken === 'string' && cleanToken.includes('eyJ')) {
+          if (cleanToken && typeof cleanToken === 'string') {
+            if (!cleanToken.startsWith('eyJ')) {
+              try {
+                cleanToken = atob(cleanToken)
+                console.log('AuthContext: Decoded base64 token')
+              } catch (e) {
+                console.log('AuthContext: Token is not base64 encoded, using as-is')
+              }
+            }
+            
             if (cleanToken.startsWith('eyJ')) {
               console.log('AuthContext: Valid JWT token found')
             } else {
-              try {
-                cleanToken = atob(cleanToken)
-                console.log('AuthContext: Decoded Base64 token:', cleanToken)
-              } catch (e) {
-                console.error('Failed to decode Base64 token:', e)
-                throw new Error('Invalid token format')
-              }
+              console.log('AuthContext: Token format may be non-standard, proceeding anyway')
             }
-          } else {
-            console.error('Invalid JWT token format - no eyJ found')
-            throw new Error('Invalid token format')
           }
           
           console.log('AuthContext: Processed token:', cleanToken)
           
-          const parsedUser = JSON.parse(rawUserData)
+          let parsedUser
+          if (typeof rawUserData === 'string') {
+            if (rawUserData.startsWith('"') && rawUserData.endsWith('"')) {
+              parsedUser = JSON.parse(JSON.parse(rawUserData))
+            } else {
+              parsedUser = JSON.parse(rawUserData)
+            }
+          } else {
+            parsedUser = rawUserData
+          }
           console.log('AuthContext: Parsed user:', parsedUser)
+          
+          try {
+            const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://still-fire-2018.fly.dev'
+            const statusResponse = await fetch(`${API_BASE_URL}/auth/status`, {
+              headers: {
+                'Authorization': `Bearer ${cleanToken}`,
+                'Content-Type': 'application/json'
+              }
+            })
+            
+            if (statusResponse.ok) {
+              const currentStatus = await statusResponse.json()
+              parsedUser = {
+                ...parsedUser,
+                status: currentStatus.status,
+                ban_reason: currentStatus.ban_reason,
+                banned_until: currentStatus.banned_until
+              }
+              console.log('AuthContext: Updated user status from server:', parsedUser)
+            }
+          } catch (statusError) {
+            console.warn('AuthContext: Could not check user status with server:', statusError)
+          }
           
           setToken(cleanToken)
           setUser(parsedUser)
           setIsAuthenticated(true)
+          
+          localStorage.setItem('token', cleanToken)
+          localStorage.setItem('userData', JSON.stringify(parsedUser))
           
           storageManager.setSecureItem('token', cleanToken)
           storageManager.setSecureItem('user', parsedUser)
@@ -88,6 +123,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.error('Token processing failed:', error)
           localStorage.removeItem('chat_token')
           localStorage.removeItem('chat_user')
+          localStorage.removeItem('token')
+          localStorage.removeItem('userData')
           storageManager.clearCache()
           setToken(null)
           setUser(null)
@@ -96,10 +133,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
     
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'token' || e.key === 'userData') {
+        console.log('AuthContext: localStorage changed externally, reinitializing...')
+        initializeAuth()
+      }
+    }
+    
+    window.addEventListener('storage', handleStorageChange)
     initializeAuth()
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   const login = async (newToken: string, newUser: User) => {
+    localStorage.setItem('token', newToken)
+    localStorage.setItem('userData', JSON.stringify(newUser))
+    
     localStorage.setItem('chat_token', JSON.stringify(newToken))
     localStorage.setItem('chat_user', JSON.stringify(newUser))
     
@@ -110,16 +162,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(newUser)
     setIsAuthenticated(true)
     
-    try {
-      await storageManager.storeInIndexedDB('users', newUser)
-    } catch (error) {
+    storageManager.storeInIndexedDB('users', newUser).catch(error => {
       console.warn('IndexedDB storage failed, but login completed:', error)
-    }
+    })
   }
 
   const logout = () => {
     localStorage.removeItem('chat_token')
     localStorage.removeItem('chat_user')
+    localStorage.removeItem('token')
+    localStorage.removeItem('userData')
     
     storageManager.clearCache()
     
