@@ -897,26 +897,27 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                                     تغيير المعرف
                                   </Button>
                                   {userInfo.role === 'user' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedUserForBadge(userInfo)
-                            setShowBadgeDialog(true)
-                          }}
-                        >
-                          <Award className="h-4 w-4 ml-1" />
-                          إضافة شارة
-                        </Button>
-
-                                    <Button 
-                                      variant="outline" 
-                                      size="sm"
-                                      onClick={() => handlePromoteToModerator(userInfo)}
-                                    >
-                                      <UserPlus className="h-3 w-3 ml-1" />
-                                      ترقية لمشرف
-                                    </Button>
+                                    <>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedUserForBadge(userInfo)
+                                          setShowBadgeDialog(true)
+                                        }}
+                                      >
+                                        <Award className="h-4 w-4 ml-1" />
+                                        إضافة شارة
+                                      </Button>
+                                      <Button 
+                                        variant="outline" 
+                                        size="sm"
+                                        onClick={() => handlePromoteToModerator(userInfo)}
+                                      >
+                                        <UserPlus className="h-3 w-3 ml-1" />
+                                        ترقية لمشرف
+                                      </Button>
+                                    </>
                                   )}
                                 </>
                               )}
