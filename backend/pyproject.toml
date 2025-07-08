@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "app"
+name = "chat-backend"
 version = "0.1.0"
-description = ""
+description = "Advanced Arabic Chat System Backend"
 authors = ["Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>"]
 readme = "README.md"
 
