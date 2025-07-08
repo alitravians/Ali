@@ -14,6 +14,39 @@ body {
   overflow-wrap: break-word;
 }
 
+.message-text strong,
+div.message-text strong,
+.chat-message strong,
+[class*="message"] strong,
+div[class*="message"] strong {
+  font-weight: 900 !important;
+  color: #FFFF00 !important;
+  text-shadow: 2px 2px 4px rgba(0,0,0,1) !important;
+  font-family: 'Noto Sans Arabic', sans-serif !important;
+  background-color: rgba(0,0,0,0.3) !important;
+  padding: 2px 4px !important;
+  border-radius: 4px !important;
+  display: inline !important;
+  border: 1px solid #FFFF00 !important;
+}
+
+/* More specific targeting for admin messages - override Tailwind classes */
+.bg-blue-500 .message-text strong,
+.text-white .message-text strong,
+div[class*="bg-blue-500"] strong,
+div[class*="text-white"] strong {
+  font-weight: 900 !important;
+  color: #FFFF00 !important;
+  text-shadow: 3px 3px 6px rgba(0,0,0,1) !important;
+  font-family: 'Noto Sans Arabic', sans-serif !important;
+  background-color: rgba(0,0,0,0.4) !important;
+  padding: 3px 5px !important;
+  border-radius: 5px !important;
+  display: inline !important;
+  border: 2px solid #FFFF00 !important;
+  font-size: 1.05em !important;
+}
+
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
