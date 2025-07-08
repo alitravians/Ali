@@ -100,6 +100,12 @@ def authenticate_user(username: str, password: str = None) -> Optional[User]:
 def authenticate_admin(username: str, access_code: str) -> Optional[User]:
     if access_code != ADMIN_ACCESS_CODE:
         return None
+    
+    if username == "admin":
+        user = db.get_user_by_username(username)
+        if user and user.role == UserRole.ADMIN:
+            return user
+    
     user = db.get_user_by_username(username)
     if not user or user.role != UserRole.ADMIN:
         return None

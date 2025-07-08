@@ -7,16 +7,51 @@ from .models import *
 import random
 import string
 import os
+from contextlib import contextmanager
+
+thread_local = threading.local()
 
 class SQLiteDatabase:
     def __init__(self, db_path: str = "chat_system.db"):
         self.db_path = db_path
-        self.lock = threading.Lock()
         self._init_database()
         self._create_default_admin()
     
+    @contextmanager
+    def get_connection(self):
+        """Thread-local database connection context manager"""
+        if hasattr(thread_local, 'connection') and thread_local.connection:
+            yield thread_local.connection
+            return
+        
+        conn = None
+        try:
+            conn = sqlite3.connect(
+                self.db_path, 
+                timeout=30.0,
+                check_same_thread=False
+            )
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA temp_store=MEMORY")
+            conn.execute("PRAGMA cache_size=10000")
+            conn.execute("PRAGMA locking_mode=NORMAL")
+            conn.execute("PRAGMA busy_timeout=30000")
+            
+            thread_local.connection = conn
+            yield conn
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            raise e
+        finally:
+            if conn:
+                conn.close()
+            if hasattr(thread_local, 'connection'):
+                thread_local.connection = None
+    
     def _init_database(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             conn.execute('''CREATE TABLE IF NOT EXISTS users (
                 user_id TEXT PRIMARY KEY,
                 username TEXT UNIQUE NOT NULL,
@@ -27,7 +62,8 @@ class SQLiteDatabase:
                 muted_until TIMESTAMP,
                 banned_until TIMESTAMP,
                 ban_reason TEXT,
-                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                badge_path TEXT
             )''')
             
             conn.execute('''CREATE TABLE IF NOT EXISTS messages (
@@ -105,6 +141,19 @@ class SQLiteDatabase:
                 FOREIGN KEY (user_id) REFERENCES users (user_id)
             )''')
             
+            conn.execute('''CREATE TABLE IF NOT EXISTS maintenance_mode (
+                id INTEGER PRIMARY KEY,
+                is_enabled BOOLEAN DEFAULT FALSE,
+                reason TEXT DEFAULT 'صيانة النظام',
+                enabled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                enabled_by TEXT
+            )''')
+            
+            try:
+                conn.execute("ALTER TABLE users ADD COLUMN badge_path TEXT")
+            except:
+                pass
+            
             conn.commit()
     
     def _create_default_admin(self):
@@ -124,35 +173,34 @@ class SQLiteDatabase:
     def generate_user_id(self) -> str:
         while True:
             user_id = ''.join(random.choices(string.digits, k=10))
-            with sqlite3.connect(self.db_path) as conn:
+            with self.get_connection() as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
                 if not cursor.fetchone():
                     return user_id
     
     def create_user(self, username: str, password_hash: str = None) -> User:
-        with self.lock:
-            user_id = self.generate_user_id()
-            user = User(
-                user_id=user_id,
-                username=username,
-                password_hash=password_hash or "",
-                role=UserRole.USER,
-                status=UserStatus.ACTIVE
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO users 
-                    (user_id, username, password_hash, role, status) 
-                    VALUES (?, ?, ?, ?, ?)""",
-                    (user_id, username, password_hash or "", "user", "active"))
-                conn.commit()
-            
-            return user
+        user_id = self.generate_user_id()
+        user = User(
+            user_id=user_id,
+            username=username,
+            password_hash=password_hash or "",
+            role=UserRole.USER,
+            status=UserStatus.ACTIVE
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO users 
+                (user_id, username, password_hash, role, status) 
+                VALUES (?, ?, ?, ?, ?)""",
+                (user_id, username, password_hash or "", "user", "active"))
+            conn.commit()
+        
+        return user
     
     def get_user_by_id(self, user_id: str) -> Optional[User]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
             row = cursor.fetchone()
@@ -173,7 +221,7 @@ class SQLiteDatabase:
         return None
     
     def get_user_by_username(self, username: str) -> Optional[User]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
             row = cursor.fetchone()
@@ -196,37 +244,34 @@ class SQLiteDatabase:
     def update_user_status(self, user_id: str, status: UserStatus, 
                           muted_until: datetime = None, banned_until: datetime = None, 
                           ban_reason: str = None):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE users SET 
-                    status = ?, muted_until = ?, banned_until = ?, ban_reason = ?
-                    WHERE user_id = ?""",
-                    (status.value, 
-                     muted_until.isoformat() if muted_until else None,
-                     banned_until.isoformat() if banned_until else None,
-                     ban_reason, user_id))
-                conn.commit()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE users SET 
+                status = ?, muted_until = ?, banned_until = ?, ban_reason = ?
+                WHERE user_id = ?""",
+                (status.value, 
+                 muted_until.isoformat() if muted_until else None,
+                 banned_until.isoformat() if banned_until else None,
+                 ban_reason, user_id))
+            conn.commit()
     
     def set_user_online(self, user_id: str):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("UPDATE users SET last_seen = ? WHERE user_id = ?",
-                             (datetime.now().isoformat(), user_id))
-                conn.commit()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET last_seen = ? WHERE user_id = ?",
+                         (datetime.now().isoformat(), user_id))
+            conn.commit()
     
     def set_user_offline(self, user_id: str):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("UPDATE users SET last_seen = ? WHERE user_id = ?",
-                             (datetime.now().isoformat(), user_id))
-                conn.commit()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET last_seen = ? WHERE user_id = ?",
+                         (datetime.now().isoformat(), user_id))
+            conn.commit()
     
     def get_online_users(self) -> List[UserInfo]:
         online_threshold = datetime.now() - timedelta(minutes=5)
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users WHERE last_seen > ?", 
                          (online_threshold.isoformat(),))
@@ -246,7 +291,7 @@ class SQLiteDatabase:
     
     def get_all_users(self) -> List[UserInfo]:
         online_threshold = datetime.now() - timedelta(minutes=5)
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM users")
             rows = cursor.fetchall()
@@ -264,27 +309,26 @@ class SQLiteDatabase:
             ]
 
     def add_message(self, user_id: str, username: str, content: str) -> Message:
-        with self.lock:
-            message = Message(
-                message_id=str(uuid.uuid4()),
-                user_id=user_id,
-                username=username,
-                content=content,
-                timestamp=datetime.now()
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO messages 
-                    (message_id, user_id, username, content, timestamp) 
-                    VALUES (?, ?, ?, ?, ?)""",
-                    (message.message_id, user_id, username, content, message.timestamp.isoformat()))
-                conn.commit()
-            
-            return message
+        message = Message(
+            message_id=str(uuid.uuid4()),
+            user_id=user_id,
+            username=username,
+            content=content,
+            timestamp=datetime.now()
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO messages 
+                (message_id, user_id, username, content, timestamp) 
+                VALUES (?, ?, ?, ?, ?)""",
+                (message.message_id, user_id, username, content, message.timestamp.isoformat()))
+            conn.commit()
+        
+        return message
     
     def get_messages(self, limit: int = 100) -> List[Message]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""SELECT * FROM messages WHERE is_deleted = FALSE 
                            ORDER BY timestamp DESC LIMIT ?""", (limit,))
@@ -305,69 +349,64 @@ class SQLiteDatabase:
             return list(reversed(messages))
     
     def delete_message(self, message_id: str, deleted_by: str) -> bool:
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE messages SET is_deleted = TRUE, deleted_by = ? 
-                               WHERE message_id = ?""", (deleted_by, message_id))
-                conn.commit()
-                return cursor.rowcount > 0
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE messages SET is_deleted = TRUE, deleted_by = ? 
+                           WHERE message_id = ?""", (deleted_by, message_id))
+            conn.commit()
+            return cursor.rowcount > 0
     
     def clear_all_messages(self, deleted_by: str) -> int:
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE messages SET is_deleted = TRUE, deleted_by = ? 
-                               WHERE is_deleted = FALSE""", (deleted_by,))
-                conn.commit()
-                return cursor.rowcount
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE messages SET is_deleted = TRUE, deleted_by = ? 
+                           WHERE is_deleted = FALSE""", (deleted_by,))
+            conn.commit()
+            return cursor.rowcount
 
     def ban_user(self, user_id: str, banned_by: str, reason: str, 
                  banned_until: datetime = None) -> BanRecord:
-        with self.lock:
-            ban_record = BanRecord(
-                ban_id=str(uuid.uuid4()),
-                user_id=user_id,
-                banned_by=banned_by,
-                reason=reason,
-                banned_until=banned_until
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO ban_records 
-                    (ban_id, user_id, banned_by, reason, banned_until) 
-                    VALUES (?, ?, ?, ?, ?)""",
-                    (ban_record.ban_id, user_id, banned_by, reason,
-                     banned_until.isoformat() if banned_until else None))
-                conn.commit()
-            
-            self.update_user_status(
-                user_id, 
-                UserStatus.BANNED, 
-                banned_until=banned_until,
-                ban_reason=reason
-            )
-            return ban_record
+        ban_record = BanRecord(
+            ban_id=str(uuid.uuid4()),
+            user_id=user_id,
+            banned_by=banned_by,
+            reason=reason,
+            banned_until=banned_until
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO ban_records 
+                (ban_id, user_id, banned_by, reason, banned_until) 
+                VALUES (?, ?, ?, ?, ?)""",
+                (ban_record.ban_id, user_id, banned_by, reason,
+                 banned_until.isoformat() if banned_until else None))
+            conn.commit()
+        
+        self.update_user_status(
+            user_id, 
+            UserStatus.BANNED, 
+            banned_until=banned_until,
+            ban_reason=reason
+        )
+        return ban_record
     
     def unban_user(self, user_id: str):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("UPDATE ban_records SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE",
-                             (user_id,))
-                conn.commit()
-            
-            self.update_user_status(user_id, UserStatus.ACTIVE, ban_reason=None, banned_until=None)
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE ban_records SET is_active = FALSE WHERE user_id = ? AND is_active = TRUE",
+                         (user_id,))
+            conn.commit()
+        
+        self.update_user_status(user_id, UserStatus.ACTIVE, ban_reason=None, banned_until=None)
     
     def mute_user(self, user_id: str, duration_minutes: int, reason: str):
-        with self.lock:
-            muted_until = datetime.now() + timedelta(minutes=duration_minutes)
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE users SET muted_until = ? WHERE user_id = ?""",
-                             (muted_until.isoformat(), user_id))
-                conn.commit()
+        muted_until = datetime.now() + timedelta(minutes=duration_minutes)
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE users SET muted_until = ? WHERE user_id = ?""",
+                         (muted_until.isoformat(), user_id))
+            conn.commit()
         
         self.create_notification(
             user_id=user_id,
@@ -377,7 +416,7 @@ class SQLiteDatabase:
         )
     
     def get_active_bans(self) -> List[BanRecord]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM ban_records WHERE is_active = TRUE")
             rows = cursor.fetchall()
@@ -396,7 +435,7 @@ class SQLiteDatabase:
             ]
     
     def get_user_ban(self, user_id: str) -> Optional[BanRecord]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM ban_records WHERE user_id = ? AND is_active = TRUE", (user_id,))
             row = cursor.fetchone()
@@ -415,29 +454,28 @@ class SQLiteDatabase:
 
     def create_report(self, reporter_id: str, reported_message_id: str, 
                      reported_user_id: str, category: ReportCategory, reason: str) -> Report:
-        with self.lock:
-            report = Report(
-                report_id=str(uuid.uuid4()),
-                reporter_id=reporter_id,
-                reported_message_id=reported_message_id,
-                reported_user_id=reported_user_id,
-                category=category,
-                reason=reason
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO reports 
-                    (report_id, reporter_id, reported_message_id, reported_user_id, category, reason) 
-                    VALUES (?, ?, ?, ?, ?, ?)""",
-                    (report.report_id, reporter_id, reported_message_id, reported_user_id, 
-                     category.value, reason))
-                conn.commit()
-            
-            return report
+        report = Report(
+            report_id=str(uuid.uuid4()),
+            reporter_id=reporter_id,
+            reported_message_id=reported_message_id,
+            reported_user_id=reported_user_id,
+            category=category,
+            reason=reason
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO reports 
+                (report_id, reporter_id, reported_message_id, reported_user_id, category, reason) 
+                VALUES (?, ?, ?, ?, ?, ?)""",
+                (report.report_id, reporter_id, reported_message_id, reported_user_id, 
+                 category.value, reason))
+            conn.commit()
+        
+        return report
     
     def get_pending_reports(self) -> List[Report]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM reports WHERE status = 'pending'")
             rows = cursor.fetchall()
@@ -459,7 +497,7 @@ class SQLiteDatabase:
             ]
     
     def get_all_reports(self) -> List[Report]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM reports")
             rows = cursor.fetchall()
@@ -481,35 +519,33 @@ class SQLiteDatabase:
             ]
     
     def update_report_status(self, report_id: str, status: ReportStatus, reviewed_by: str):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE reports SET status = ?, reviewed_by = ?, reviewed_at = ? 
-                               WHERE report_id = ?""",
-                             (status.value, reviewed_by, datetime.now().isoformat(), report_id))
-                conn.commit()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE reports SET status = ?, reviewed_by = ?, reviewed_at = ? 
+                           WHERE report_id = ?""",
+                         (status.value, reviewed_by, datetime.now().isoformat(), report_id))
+            conn.commit()
 
     def create_appeal(self, user_id: str, ban_id: str, reason: str) -> BanAppeal:
-        with self.lock:
-            appeal = BanAppeal(
-                appeal_id=str(uuid.uuid4()),
-                user_id=user_id,
-                ban_id=ban_id,
-                reason=reason
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO appeals 
-                    (appeal_id, user_id, ban_id, reason) 
-                    VALUES (?, ?, ?, ?)""",
-                    (appeal.appeal_id, user_id, ban_id, reason))
-                conn.commit()
-            
-            return appeal
+        appeal = BanAppeal(
+            appeal_id=str(uuid.uuid4()),
+            user_id=user_id,
+            ban_id=ban_id,
+            reason=reason
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO appeals 
+                (appeal_id, user_id, ban_id, reason) 
+                VALUES (?, ?, ?, ?)""",
+                (appeal.appeal_id, user_id, ban_id, reason))
+            conn.commit()
+        
+        return appeal
     
     def get_pending_appeals(self) -> List[BanAppeal]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM appeals WHERE status = 'pending'")
             rows = cursor.fetchall()
@@ -530,7 +566,7 @@ class SQLiteDatabase:
             ]
     
     def get_all_appeals(self) -> List[BanAppeal]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM appeals")
             rows = cursor.fetchall()
@@ -551,7 +587,7 @@ class SQLiteDatabase:
             ]
     
     def get_user_appeal(self, user_id: str) -> Optional[BanAppeal]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM appeals WHERE user_id = ? AND status = 'pending'", (user_id,))
             row = cursor.fetchone()
@@ -572,58 +608,56 @@ class SQLiteDatabase:
     
     def update_appeal_status(self, appeal_id: str, status: AppealStatus, 
                            reviewed_by: str, response: str = None):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE appeals SET status = ?, reviewed_by = ?, 
-                               reviewed_at = ?, admin_response = ? WHERE appeal_id = ?""",
-                             (status.value, reviewed_by, datetime.now().isoformat(), response, appeal_id))
-                conn.commit()
-                
-                if status == AppealStatus.APPROVED:
-                    cursor.execute("SELECT user_id FROM appeals WHERE appeal_id = ?", (appeal_id,))
-                    user_row = cursor.fetchone()
-                    if user_row:
-                        self.unban_user(user_row[0])
-                
-                cursor.execute("SELECT * FROM appeals WHERE appeal_id = ?", (appeal_id,))
-                row = cursor.fetchone()
-                
-                if row:
-                    return BanAppeal(
-                        appeal_id=row[0],
-                        user_id=row[1],
-                        ban_id=row[2],
-                        reason=row[3],
-                        status=AppealStatus(row[4]),
-                        created_at=datetime.fromisoformat(row[5]),
-                        reviewed_by=row[6],
-                        reviewed_at=datetime.fromisoformat(row[7]) if row[7] else None,
-                        admin_response=row[8]
-                    )
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE appeals SET status = ?, reviewed_by = ?, 
+                           reviewed_at = ?, admin_response = ? WHERE appeal_id = ?""",
+                         (status.value, reviewed_by, datetime.now().isoformat(), response, appeal_id))
+            conn.commit()
+            
+            if status == AppealStatus.APPROVED:
+                cursor.execute("SELECT user_id FROM appeals WHERE appeal_id = ?", (appeal_id,))
+                user_row = cursor.fetchone()
+                if user_row:
+                    self.unban_user(user_row[0])
+            
+            cursor.execute("SELECT * FROM appeals WHERE appeal_id = ?", (appeal_id,))
+            row = cursor.fetchone()
+            
+            if row:
+                return BanAppeal(
+                    appeal_id=row[0],
+                    user_id=row[1],
+                    ban_id=row[2],
+                    reason=row[3],
+                    status=AppealStatus(row[4]),
+                    created_at=datetime.fromisoformat(row[5]),
+                    reviewed_by=row[6],
+                    reviewed_at=datetime.fromisoformat(row[7]) if row[7] else None,
+                    admin_response=row[8]
+                )
         return None
 
     def create_announcement(self, title: str, content: str, created_by: str, duration_hours: int = None, font_color: str = "#000000") -> Announcement:
-        with self.lock:
-            announcement = Announcement(
-                announcement_id=str(uuid.uuid4()),
-                title=title,
-                content=content,
-                created_by=created_by
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO announcements 
-                    (announcement_id, title, content, created_by) 
-                    VALUES (?, ?, ?, ?)""",
-                    (announcement.announcement_id, title, content, created_by))
-                conn.commit()
-            
-            return announcement
+        announcement = Announcement(
+            announcement_id=str(uuid.uuid4()),
+            title=title,
+            content=content,
+            created_by=created_by
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO announcements 
+                (announcement_id, title, content, created_by) 
+                VALUES (?, ?, ?, ?)""",
+                (announcement.announcement_id, title, content, created_by))
+            conn.commit()
+        
+        return announcement
     
     def get_active_announcements(self) -> List[Announcement]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM announcements WHERE is_active = TRUE")
             rows = cursor.fetchall()
@@ -641,7 +675,7 @@ class SQLiteDatabase:
             ]
     
     def get_all_announcements(self) -> List[Announcement]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM announcements")
             rows = cursor.fetchall()
@@ -659,35 +693,78 @@ class SQLiteDatabase:
             ]
     
     def deactivate_announcement(self, announcement_id: str):
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("UPDATE announcements SET is_active = FALSE WHERE announcement_id = ?",
-                             (announcement_id,))
-                conn.commit()
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE announcements SET is_active = FALSE WHERE announcement_id = ?",
+                         (announcement_id,))
+            conn.commit()
+    
+    def delete_announcement(self, announcement_id: str) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM announcements WHERE announcement_id = ?", (announcement_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def update_announcement(self, announcement_id: str, duration_hours: int = None, font_color: str = "#000000") -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE announcements SET font_color = ? WHERE announcement_id = ?", 
+                         (font_color, announcement_id))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def assign_user_badge(self, user_id: str, badge_path: str) -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE users SET badge_path = ? WHERE user_id = ?", (badge_path, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
+    
+    def set_maintenance_mode(self, is_enabled: bool, reason: str = "صيانة النظام", enabled_by: str = "admin") -> bool:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM maintenance_mode")
+            cursor.execute("INSERT INTO maintenance_mode (is_enabled, reason, enabled_by) VALUES (?, ?, ?)", 
+                         (is_enabled, reason, enabled_by))
+            conn.commit()
+            return True
+    
+    def get_maintenance_mode(self) -> dict:
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT is_enabled, reason, enabled_at, enabled_by FROM maintenance_mode ORDER BY id DESC LIMIT 1")
+            result = cursor.fetchone()
+            if result:
+                return {
+                    "is_enabled": bool(result[0]),
+                    "reason": result[1],
+                    "enabled_at": result[2],
+                    "enabled_by": result[3]
+                }
+            return {"is_enabled": False, "reason": "صيانة النظام", "enabled_at": None, "enabled_by": None}
 
     def create_notification(self, user_id: str, title: str, content: str, notification_type: str) -> Notification:
-        with self.lock:
-            notification = Notification(
-                notification_id=str(uuid.uuid4()),
-                user_id=user_id,
-                title=title,
-                content=content,
-                type=notification_type
-            )
-            
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""INSERT INTO notifications 
-                    (notification_id, user_id, title, content, type) 
-                    VALUES (?, ?, ?, ?, ?)""",
-                    (notification.notification_id, user_id, title, content, notification_type))
-                conn.commit()
-            
-            return notification
+        notification = Notification(
+            notification_id=str(uuid.uuid4()),
+            user_id=user_id,
+            title=title,
+            content=content,
+            type=notification_type
+        )
+        
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""INSERT INTO notifications 
+                (notification_id, user_id, title, content, notification_type) 
+                VALUES (?, ?, ?, ?, ?)""",
+                (notification.notification_id, user_id, title, content, notification_type))
+            conn.commit()
+        
+        return notification
     
     def get_user_notifications(self, user_id: str) -> List[Notification]:
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM notifications WHERE user_id = ? ORDER BY created_at DESC", (user_id,))
             rows = cursor.fetchall()
@@ -706,41 +783,39 @@ class SQLiteDatabase:
             ]
     
     def mark_notification_read(self, notification_id: str, user_id: str) -> bool:
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                cursor.execute("""UPDATE notifications SET is_read = TRUE 
-                               WHERE notification_id = ? AND user_id = ?""",
-                             (notification_id, user_id))
-                conn.commit()
-                return cursor.rowcount > 0
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""UPDATE notifications SET is_read = TRUE 
+                           WHERE notification_id = ? AND user_id = ?""",
+                         (notification_id, user_id))
+            conn.commit()
+            return cursor.rowcount > 0
     
     def change_user_id(self, old_user_id: str, new_user_id: str) -> bool:
-        with self.lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.cursor()
-                
-                cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (new_user_id,))
-                if cursor.fetchone():
-                    return False
-                
-                cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (old_user_id,))
-                if not cursor.fetchone():
-                    return False
-                
-                cursor.execute("UPDATE users SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
-                cursor.execute("UPDATE messages SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
-                cursor.execute("UPDATE ban_records SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
-                cursor.execute("UPDATE reports SET reporter_id = ? WHERE reporter_id = ?", (new_user_id, old_user_id))
-                cursor.execute("UPDATE reports SET reported_user_id = ? WHERE reported_user_id = ?", (new_user_id, old_user_id))
-                cursor.execute("UPDATE appeals SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
-                cursor.execute("UPDATE notifications SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
-                
-                conn.commit()
-                return True
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (new_user_id,))
+            if cursor.fetchone():
+                return False
+            
+            cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (old_user_id,))
+            if not cursor.fetchone():
+                return False
+            
+            cursor.execute("UPDATE users SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
+            cursor.execute("UPDATE messages SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
+            cursor.execute("UPDATE ban_records SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
+            cursor.execute("UPDATE reports SET reporter_id = ? WHERE reporter_id = ?", (new_user_id, old_user_id))
+            cursor.execute("UPDATE reports SET reported_user_id = ? WHERE reported_user_id = ?", (new_user_id, old_user_id))
+            cursor.execute("UPDATE appeals SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
+            cursor.execute("UPDATE notifications SET user_id = ? WHERE user_id = ?", (new_user_id, old_user_id))
+            
+            conn.commit()
+            return True
     
     def get_statistics(self):
-        with sqlite3.connect(self.db_path) as conn:
+        with self.get_connection() as conn:
             cursor = conn.cursor()
             
             cursor.execute("SELECT COUNT(*) FROM users")

@@ -24,6 +24,7 @@ import {
   Award,
   Settings,
   Upload,
+  Trash2,
 } from 'lucide-react'
 
 interface AdminPanelProps {
@@ -78,6 +79,8 @@ interface Announcement {
   created_by: string
   created_at: string
   is_active: boolean
+  font_color?: string
+  duration_hours?: number
 }
 
 export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
@@ -232,39 +235,76 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   }
 
   const handleBanUser = async () => {
-    if (!selectedUser || !banReason.trim()) return
+    if (!selectedUser || !banReason.trim()) {
+      console.log('Ban validation failed:', { selectedUser: !!selectedUser, banReason: banReason.trim() })
+      return
+    }
 
     try {
-      console.log('Attempting to ban user:', selectedUser.user_id, 'Reason:', banReason)
-      const response = await fetch(`${API_URL}/admin/users/ban`, {
+      console.log('=== BAN USER DEBUG START ===')
+      console.log('Selected user:', selectedUser)
+      console.log('Ban reason:', banReason)
+      console.log('Ban duration:', banDuration)
+      console.log('Token exists:', !!token)
+      console.log('API_URL:', API_URL)
+      
+      const requestBody = {
+        user_id: selectedUser.user_id,
+        reason: banReason.trim(),
+        duration_hours: banDuration ? parseInt(banDuration) : null
+      }
+      console.log('Request body:', JSON.stringify(requestBody, null, 2))
+      
+      const fetchUrl = `${API_URL}/admin/users/ban`
+      console.log('Fetch URL:', fetchUrl)
+      
+      console.log('About to make fetch request...')
+      const response = await fetch(fetchUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          user_id: selectedUser?.user_id,
-          reason: banReason.trim(),
-          duration_hours: banDuration ? parseInt(banDuration) : null
-        })
+        body: JSON.stringify(requestBody)
       })
+      console.log('Fetch request completed')
 
       console.log('Ban response status:', response.status)
+      console.log('Ban response ok:', response.ok)
+      console.log('Ban response headers:', Object.fromEntries(response.headers.entries()))
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('Ban failed with status:', response.status, 'Response:', errorText)
+        alert(`فشل في حظر المستخدم: ${response.status} - ${errorText}`)
+        return
+      }
+      
       const responseData = await response.json()
       console.log('Ban response data:', responseData)
+      console.log('=== BAN USER DEBUG END ===')
 
-      if (response.ok) {
-        alert('تم حظر المستخدم بنجاح')
-        setShowBanDialog(false)
-        setBanReason('')
-        setBanDuration('')
-        fetchUsers()
-      } else {
-        alert(responseData.detail || 'فشل في حظر المستخدم')
-      }
+      alert('تم حظر المستخدم بنجاح')
+      setShowBanDialog(false)
+      setBanReason('')
+      setBanDuration('')
+      fetchUsers()
     } catch (error) {
+      console.error('=== BAN ERROR ===')
       console.error('Ban error:', error)
-      alert('حدث خطأ في حظر المستخدم')
+      console.error('Error type:', typeof error)
+      if (error instanceof Error) {
+        console.error('Error name:', error.name)
+        console.error('Error message:', error.message)
+        console.error('Error stack:', error.stack)
+      }
+      console.error('=== BAN ERROR END ===')
+      
+      if (error instanceof Error) {
+        alert('حدث خطأ في حظر المستخدم: ' + error.message)
+      } else {
+        alert('حدث خطأ غير متوقع في حظر المستخدم')
+      }
     }
   }
 
@@ -797,7 +837,24 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-gray-700">{announcement.content}</p>
+                    <p className="text-gray-700" style={{ color: announcement.font_color || '#000000' }}>
+                      {announcement.content}
+                    </p>
+                    {announcement.duration_hours && (
+                      <p className="text-sm text-gray-500 mt-2">
+                        مدة العرض: {announcement.duration_hours} ساعة
+                      </p>
+                    )}
+                    <div className="flex justify-end mt-4">
+                      <Button 
+                        onClick={() => handleDeleteAnnouncement(announcement.announcement_id)}
+                        variant="destructive"
+                        size="sm"
+                      >
+                        <Trash2 className="h-4 w-4 ml-2" />
+                        حذف الإعلان
+                      </Button>
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -1069,40 +1126,46 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">سبب الحظر</label>
-              <Textarea
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
-                placeholder="اكتب سبب الحظر..."
-                className="text-right"
-                dir="rtl"
-                rows={3}
-              />
+          <form id="ban-form" onSubmit={(e) => {
+            e.preventDefault()
+            handleBanUser()
+          }}>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">سبب الحظر</label>
+                <Textarea
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  placeholder="اكتب سبب الحظر..."
+                  className="text-right"
+                  dir="rtl"
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium">مدة الحظر (بالساعات)</label>
+                <Input
+                  type="number"
+                  value={banDuration}
+                  onChange={(e) => setBanDuration(e.target.value)}
+                  placeholder="اتركه فارغاً للحظر الدائم"
+                  className="text-right"
+                  dir="rtl"
+                />
+              </div>
             </div>
 
-            <div>
-              <label className="text-sm font-medium">مدة الحظر (بالساعات)</label>
-              <Input
-                type="number"
-                value={banDuration}
-                onChange={(e) => setBanDuration(e.target.value)}
-                placeholder="اتركه فارغاً للحظر الدائم"
-                className="text-right"
-                dir="rtl"
-              />
-            </div>
-          </div>
-
-          <DialogFooter className="flex-row-reverse">
-            <Button onClick={handleBanUser} disabled={!banReason.trim()} variant="destructive">
-              حظر المستخدم
-            </Button>
-            <Button variant="outline" onClick={() => setShowBanDialog(false)}>
-              إلغاء
-            </Button>
-          </DialogFooter>
+            <DialogFooter className="flex-row-reverse mt-4">
+              <Button type="submit" form="ban-form" disabled={!banReason.trim()} variant="destructive">
+                حظر المستخدم
+              </Button>
+              <Button type="button" variant="outline" onClick={() => setShowBanDialog(false)}>
+                إلغاء
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
 

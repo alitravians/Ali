@@ -85,16 +85,17 @@ export default function LoginForm() {
 
     setLoading(true)
     setError('')
-    console.log('Making fetch request to:', `${API_URL}/auth/admin/login`)
 
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
 
     try {
+      console.log('Making fetch request to:', `${API_URL}/auth/admin/login`)
       const response = await fetch(`${API_URL}/auth/admin/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
         },
         body: JSON.stringify({
           username: username.trim(),
