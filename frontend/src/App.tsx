@@ -19,12 +19,12 @@ function AppContent() {
     }
   }, [user])
 
-  if (!isAuthenticated) {
-    return <LoginForm />
-  }
-
   if (showBanAppeal && user?.status === 'banned') {
     return <BanAppealForm onBack={() => logout()} />
+  }
+
+  if (!isAuthenticated) {
+    return <LoginForm />
   }
 
   if (showAdminPanel && user?.role === 'admin') {
