@@ -88,6 +88,9 @@ class SQLiteDatabase:
                 created_by TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 is_active BOOLEAN DEFAULT TRUE,
+                duration_hours INTEGER,
+                font_color TEXT DEFAULT '#000000',
+                expires_at TIMESTAMP,
                 FOREIGN KEY (created_by) REFERENCES users (user_id)
             )''')
             
@@ -600,7 +603,7 @@ class SQLiteDatabase:
                     )
         return None
 
-    def create_announcement(self, title: str, content: str, created_by: str) -> Announcement:
+    def create_announcement(self, title: str, content: str, created_by: str, duration_hours: int = None, font_color: str = "#000000") -> Announcement:
         with self.lock:
             announcement = Announcement(
                 announcement_id=str(uuid.uuid4()),

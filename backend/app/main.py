@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, status, Request
+from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, Form, File, UploadFile, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -267,6 +267,13 @@ async def ban_user(
     duration_text = f"{request.duration_hours} ساعة" if request.duration_hours else "دائم"
     await manager.notify_ban_status(request.user_id, True, request.reason, duration_text)
     
+    db.create_notification(
+        user_id=request.user_id,
+        title="تم حظر حسابك",
+        content=f"تم حظر حسابك. السبب: {request.reason}. المدة: {duration_text}",
+        notification_type="ban_notification"
+    )
+    
     return {"message": "تم حظر المستخدم بنجاح", "ban_id": ban_record.ban_id}
 
 @app.post("/admin/users/mute")
@@ -288,6 +295,13 @@ async def mute_user(
     )
     
     await manager.notify_mute_status(request.user_id, request.duration_minutes, request.reason)
+    
+    db.create_notification(
+        user_id=request.user_id,
+        title="تم كتم حسابك",
+        content=f"تم كتم حسابك لمدة {request.duration_minutes} دقيقة. السبب: {request.reason}",
+        notification_type="mute_notification"
+    )
     
     return {"message": "تم كتم المستخدم بنجاح", "success": True}
 
@@ -417,7 +431,9 @@ async def create_announcement(
     announcement = db.create_announcement(
         title=request.title,
         content=request.content,
-        created_by=admin_user.user_id
+        created_by=admin_user.user_id,
+        duration_hours=request.duration_hours,
+        font_color=request.font_color
     )
     
     await manager.broadcast_announcement(announcement)
@@ -528,7 +544,7 @@ async def promote_to_moderator(
                 cursor.execute("UPDATE users SET role = ? WHERE user_id = ?", ("moderator", user_id))
                 conn.commit()
         
-        await manager.notify_status_change(user_id)
+        await manager.notify_status_change(user_id, "promoted_to_moderator")
         
         db.create_notification(
             user_id=user_id,
@@ -551,3 +567,127 @@ async def refresh_token(current_user: User = Depends(get_current_user)):
         expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+@app.delete("/admin/announcements/{announcement_id}")
+async def delete_announcement(
+    announcement_id: str,
+    admin_user: User = Depends(get_admin_user)
+):
+    success = db.delete_announcement(announcement_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="الإعلان غير موجود")
+    return {"message": "تم حذف الإعلان بنجاح"}
+
+@app.post("/admin/users/badge")
+async def assign_user_badge(
+    user_id: str = Form(...),
+    badge_image: UploadFile = File(...),
+    admin_user: User = Depends(get_admin_user)
+):
+    if not user_id or not badge_image:
+        raise HTTPException(status_code=400, detail="معرف المستخدم والشارة مطلوبان")
+    
+    user = db.get_user_by_id(user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="المستخدم غير موجود")
+    
+    try:
+        import os
+        from PIL import Image
+        import io
+        
+        badge_dir = "static/badges"
+        os.makedirs(badge_dir, exist_ok=True)
+        
+        image_data = await badge_image.read()
+        image = Image.open(io.BytesIO(image_data))
+        image = image.resize((50, 50), Image.Resampling.LANCZOS)
+        
+        badge_filename = f"{user_id}_badge.png"
+        badge_path = os.path.join(badge_dir, badge_filename)
+        image.save(badge_path, "PNG")
+        
+        with db.lock:
+            with sqlite3.connect(db.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("UPDATE users SET badge_path = ? WHERE user_id = ?", (badge_path, user_id))
+                conn.commit()
+        
+        db.create_notification(
+            user_id=user_id,
+            title="تم منحك شارة جديدة",
+            content="تم إضافة شارة مميزة لحسابك",
+            notification_type="badge_assigned"
+        )
+        
+        await manager.notify_status_change(user_id, "badge_assigned")
+        
+        return {"message": "تم تعيين الشارة بنجاح", "badge_path": badge_path}
+    except Exception as e:
+        print(f"Error assigning badge: {e}")
+        raise HTTPException(status_code=500, detail="فشل في تعيين الشارة")
+
+@app.post("/admin/maintenance/toggle")
+async def toggle_maintenance_mode(
+    request: dict,
+    admin_user: User = Depends(get_admin_user)
+):
+    is_maintenance = request.get("is_maintenance", False)
+    reason = request.get("reason", "صيانة النظام")
+    
+    try:
+        with db.lock:
+            with sqlite3.connect(db.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS maintenance_mode (
+                        id INTEGER PRIMARY KEY,
+                        is_enabled BOOLEAN,
+                        reason TEXT,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("DELETE FROM maintenance_mode")
+                cursor.execute("INSERT INTO maintenance_mode (is_enabled, reason) VALUES (?, ?)", 
+                             (is_maintenance, reason))
+                conn.commit()
+        
+        if is_maintenance:
+            await manager.broadcast(json.dumps({
+                "type": "maintenance_mode",
+                "data": {
+                    "enabled": True,
+                    "reason": reason,
+                    "message": f"تم إغلاق الدردشة للصيانة. السبب: {reason}"
+                }
+            }))
+        else:
+            await manager.broadcast(json.dumps({
+                "type": "maintenance_mode",
+                "data": {
+                    "enabled": False,
+                    "message": "تم إعادة فتح الدردشة"
+                }
+            }))
+        
+        return {"message": "تم تحديث وضع الصيانة بنجاح"}
+    except Exception as e:
+        print(f"Error toggling maintenance mode: {e}")
+        raise HTTPException(status_code=500, detail="فشل في تحديث وضع الصيانة")
+
+@app.get("/maintenance/status")
+async def get_maintenance_status():
+    try:
+        with db.lock:
+            with sqlite3.connect(db.db_path) as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT is_enabled, reason FROM maintenance_mode ORDER BY updated_at DESC LIMIT 1")
+                result = cursor.fetchone()
+                
+                if result:
+                    return {"is_maintenance": bool(result[0]), "reason": result[1]}
+                else:
+                    return {"is_maintenance": False, "reason": None}
+    except Exception as e:
+        print(f"Error getting maintenance status: {e}")
+        return {"is_maintenance": False, "reason": None}

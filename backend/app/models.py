@@ -89,6 +89,9 @@ class Announcement(BaseModel):
     created_by: str
     created_at: datetime = Field(default_factory=datetime.now)
     is_active: bool = True
+    duration_hours: Optional[int] = None
+    font_color: str = "#000000"
+    expires_at: Optional[datetime] = None
 
 class LoginRequest(BaseModel):
     username: str
@@ -151,6 +154,8 @@ class AppealResponse(BaseModel):
 class AnnouncementRequest(BaseModel):
     title: str
     content: str
+    duration_hours: Optional[int] = None
+    font_color: str = "#000000"
 
 class AuthResponse(BaseModel):
     access_token: str

@@ -20,7 +20,10 @@ import {
   Volume2, 
   Megaphone,
   ArrowRight,
-  UserPlus
+  UserPlus,
+  Award,
+  Settings,
+  Upload,
 } from 'lucide-react'
 
 interface AdminPanelProps {
@@ -106,6 +109,14 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
   const [reportAction, setReportAction] = useState('resolved')
   const [announcementTitle, setAnnouncementTitle] = useState('')
   const [announcementContent, setAnnouncementContent] = useState('')
+  const [announcementDuration, setAnnouncementDuration] = useState('')
+  const [announcementColor, setAnnouncementColor] = useState('#000000')
+  const [showBadgeDialog, setShowBadgeDialog] = useState(false)
+  const [selectedUserForBadge, setSelectedUserForBadge] = useState<any>(null)
+  const [badgeImage, setBadgeImage] = useState<File | null>(null)
+  const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false)
+  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [maintenanceReason, setMaintenanceReason] = useState('')
   const [showChangeIdDialog, setShowChangeIdDialog] = useState(false)
   const [selectedUserForId, setSelectedUserForId] = useState<UserInfo | null>(null)
   const [newUserId, setNewUserId] = useState('')
@@ -224,6 +235,7 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
     if (!selectedUser || !banReason.trim()) return
 
     try {
+      console.log('Attempting to ban user:', selectedUser.user_id, 'Reason:', banReason)
       const response = await fetch(`${API_URL}/admin/users/ban`, {
         method: 'POST',
         headers: {
@@ -237,6 +249,10 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         })
       })
 
+      console.log('Ban response status:', response.status)
+      const responseData = await response.json()
+      console.log('Ban response data:', responseData)
+
       if (response.ok) {
         alert('تم حظر المستخدم بنجاح')
         setShowBanDialog(false)
@@ -244,10 +260,10 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         setBanDuration('')
         fetchUsers()
       } else {
-        const error = await response.json()
-        alert(error.detail || 'فشل في حظر المستخدم')
+        alert(responseData.detail || 'فشل في حظر المستخدم')
       }
     } catch (error) {
+      console.error('Ban error:', error)
       alert('حدث خطأ في حظر المستخدم')
     }
   }
@@ -432,7 +448,9 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         },
         body: JSON.stringify({
           title: announcementTitle.trim(),
-          content: announcementContent.trim()
+          content: announcementContent.trim(),
+          duration_hours: announcementDuration ? parseInt(announcementDuration) : null,
+          font_color: announcementColor
         })
       })
 
@@ -441,6 +459,8 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
         setShowAnnouncementDialog(false)
         setAnnouncementTitle('')
         setAnnouncementContent('')
+        setAnnouncementDuration('')
+        setAnnouncementColor('#000000')
         fetchAnnouncements()
       } else {
         const error = await response.json()
@@ -451,17 +471,98 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
     }
   }
 
-  const handlePromoteToModerator = async (user: any) => {
+  const handleDeleteAnnouncement = async (announcementId: string) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الإعلان؟')) return
+
     try {
-      const response = await fetch(`${API_URL}/admin/users/promote`, {
+      const response = await fetch(`${API_URL}/admin/announcements/${announcementId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      })
+
+      if (response.ok) {
+        alert('تم حذف الإعلان بنجاح')
+        fetchAnnouncements()
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في حذف الإعلان')
+      }
+    } catch (error) {
+      alert('حدث خطأ في حذف الإعلان')
+    }
+  }
+
+  const handleAssignBadge = async () => {
+    if (!selectedUserForBadge || !badgeImage) return
+
+    try {
+      const formData = new FormData()
+      formData.append('user_id', selectedUserForBadge.user_id)
+      formData.append('badge_image', badgeImage)
+
+      const response = await fetch(`${API_URL}/admin/users/badge`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (response.ok) {
+        alert('تم تعيين الشارة بنجاح')
+        setShowBadgeDialog(false)
+        setBadgeImage(null)
+        setSelectedUserForBadge(null)
+        fetchUsers()
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في تعيين الشارة')
+      }
+    } catch (error) {
+      alert('حدث خطأ في تعيين الشارة')
+    }
+  }
+
+  const handleToggleMaintenanceMode = async () => {
+    try {
+      const response = await fetch(`${API_URL}/admin/maintenance/toggle`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
-          user_id: user.user_id,
-          role: 'moderator'
+          is_maintenance: !maintenanceMode,
+          reason: maintenanceReason.trim() || 'صيانة النظام'
+        })
+      })
+
+      if (response.ok) {
+        setMaintenanceMode(!maintenanceMode)
+        alert(`تم ${!maintenanceMode ? 'تفعيل' : 'إلغاء'} وضع الصيانة بنجاح`)
+        setShowMaintenanceDialog(false)
+        setMaintenanceReason('')
+      } else {
+        const error = await response.json()
+        alert(error.detail || 'فشل في تحديث وضع الصيانة')
+      }
+    } catch (error) {
+      alert('حدث خطأ في تحديث وضع الصيانة')
+    }
+  }
+
+  const handlePromoteToModerator = async (user: any) => {
+    try {
+      const response = await fetch(`${API_URL}/admin/users/promote-moderator`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: user.user_id
         })
       })
       
@@ -654,6 +755,18 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                 <CardContent>
                   <div className="text-2xl font-bold">{statistics?.active_bans || 0}</div>
                 </CardContent>
+          <Button onClick={() => setShowAnnouncementDialog(true)}>
+            <Megaphone className="h-4 w-4 ml-2" />
+            إضافة إعلان
+          </Button>
+          <Button 
+            onClick={() => setShowMaintenanceDialog(true)}
+            variant={maintenanceMode ? "destructive" : "outline"}
+          >
+            <Settings className="h-4 w-4 ml-2" />
+            {maintenanceMode ? 'إلغاء الصيانة' : 'وضع الصيانة'}
+          </Button>
+
               </Card>
             </div>
           </TabsContent>
@@ -784,6 +897,18 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                                     تغيير المعرف
                                   </Button>
                                   {userInfo.role === 'user' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedUserForBadge(userInfo)
+                            setShowBadgeDialog(true)
+                          }}
+                        >
+                          <Award className="h-4 w-4 ml-1" />
+                          إضافة شارة
+                        </Button>
+
                                     <Button 
                                       variant="outline" 
                                       size="sm"
@@ -1117,6 +1242,50 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
                 rows={4}
               />
             </div>
+
+            <div>
+              <label className="text-sm font-medium">مدة الإعلان (بالساعات)</label>
+              <Input
+                type="number"
+                value={announcementDuration}
+                onChange={(e) => setAnnouncementDuration(e.target.value)}
+                placeholder="اتركه فارغاً للإعلان الدائم"
+                className="text-right"
+                dir="rtl"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">لون الخط</label>
+              <Input
+                type="color"
+                value={announcementColor}
+                onChange={(e) => setAnnouncementColor(e.target.value)}
+                className="h-10"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">مدة الإعلان (بالساعات)</label>
+              <Input
+                type="number"
+                value={announcementDuration}
+                onChange={(e) => setAnnouncementDuration(e.target.value)}
+                placeholder="اتركه فارغاً للإعلان الدائم"
+                className="text-right"
+                dir="rtl"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium">لون الخط</label>
+              <Input
+                type="color"
+                value={announcementColor}
+                onChange={(e) => setAnnouncementColor(e.target.value)}
+                className="h-10"
+              />
+            </div>
           </div>
 
           <DialogFooter className="flex-row-reverse">
@@ -1290,6 +1459,88 @@ export default function AdminPanel({ onBackToChat }: AdminPanelProps) {
           </div>
         </div>
       )}
+
+      <Dialog open={showBadgeDialog} onOpenChange={setShowBadgeDialog}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>إضافة شارة للمستخدم</DialogTitle>
+            <DialogDescription>
+              إضافة شارة للمستخدم {selectedUserForBadge?.username} ({selectedUserForBadge?.user_id})
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">رفع صورة الشارة (50x50 بكسل)</label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setBadgeImage(e.target.files?.[0] || null)}
+                className="text-right"
+                dir="rtl"
+              />
+              {badgeImage && (
+                <div className="mt-2">
+                  <img 
+                    src={URL.createObjectURL(badgeImage)} 
+                    alt="معاينة الشارة" 
+                    className="w-12 h-12 object-cover border rounded"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex-row-reverse">
+            <Button onClick={handleAssignBadge} disabled={!badgeImage}>
+              <Upload className="h-4 w-4 ml-2" />
+              تعيين الشارة
+            </Button>
+            <Button variant="outline" onClick={() => setShowBadgeDialog(false)}>
+              إلغاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showMaintenanceDialog} onOpenChange={setShowMaintenanceDialog}>
+        <DialogContent className="sm:max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>إدارة وضع الصيانة</DialogTitle>
+            <DialogDescription>
+              {maintenanceMode ? 'إلغاء وضع الصيانة' : 'تفعيل وضع الصيانة للدردشة'}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium">سبب الصيانة</label>
+              <Textarea
+                value={maintenanceReason}
+                onChange={(e) => setMaintenanceReason(e.target.value)}
+                placeholder="اكتب سبب الصيانة..."
+                className="text-right"
+                dir="rtl"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex-row-reverse">
+            <Button 
+              onClick={handleToggleMaintenanceMode}
+              variant={maintenanceMode ? "outline" : "destructive"}
+            >
+              <Settings className="h-4 w-4 ml-2" />
+              {maintenanceMode ? 'إلغاء الصيانة' : 'تفعيل الصيانة'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowMaintenanceDialog(false)}>
+              إلغاء
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }

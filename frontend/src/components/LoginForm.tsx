@@ -78,6 +78,11 @@ export default function LoginForm() {
       return
     }
 
+    if (accessCode.trim() !== '3131') {
+      setError('كود الوصول غير صحيح. يجب إدخال الكود 3131')
+      return
+    }
+
     setLoading(true)
     setError('')
     console.log('Making fetch request to:', `${API_URL}/auth/admin/login`)
