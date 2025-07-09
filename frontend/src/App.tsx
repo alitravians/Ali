@@ -28,12 +28,35 @@ function App() {
       setCurrentWrestler((prev) => (prev + 1) % wrestlers.length)
     }, 4000)
 
-    if (johnCenaAudioRef.current && bretHartAudioRef.current) {
-      johnCenaAudioRef.current.volume = 0.4
-      bretHartAudioRef.current.volume = 0.3
-      johnCenaAudioRef.current.play().catch(console.log)
-      bretHartAudioRef.current.play().catch(console.log)
+    const playAudio = () => {
+      if (johnCenaAudioRef.current && bretHartAudioRef.current) {
+        johnCenaAudioRef.current.volume = 0.4
+        bretHartAudioRef.current.volume = 0.3
+        johnCenaAudioRef.current.play().catch(() => {
+          document.addEventListener('click', () => {
+            johnCenaAudioRef.current?.play().catch(console.log)
+          }, { once: true })
+        })
+        bretHartAudioRef.current.play().catch(() => {
+          document.addEventListener('click', () => {
+            bretHartAudioRef.current?.play().catch(console.log)
+          }, { once: true })
+        })
+        
+        setTimeout(() => {
+          if (johnCenaAudioRef.current) {
+            johnCenaAudioRef.current.pause()
+            johnCenaAudioRef.current.currentTime = 0
+          }
+          if (bretHartAudioRef.current) {
+            bretHartAudioRef.current.pause()
+            bretHartAudioRef.current.currentTime = 0
+          }
+        }, 20000) // 20 seconds
+      }
     }
+
+    setTimeout(playAudio, 1000)
 
     return () => {
       clearInterval(effectInterval)
@@ -43,22 +66,16 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black relative overflow-hidden flex items-center justify-center" dir="rtl">
-      {/* Wrestling Arena Background with John Cena and Bret Hart */}
+      {/* Wrestling Arena Background with John Cena and Bret Hart Combined */}
       <div className="absolute inset-0">
-        {/* John Cena side - Left */}
-        <div className="absolute top-0 left-0 w-1/2 h-full opacity-40 bg-cover bg-center bg-no-repeat transform scale-110" 
-             style={{backgroundImage: "url('https://wallpapercave.com/wp/wp2834567.jpg')"}}>
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-600/50 to-transparent"></div>
-        </div>
-        
-        {/* Bret Hart side - Right */}
-        <div className="absolute top-0 right-0 w-1/2 h-full opacity-40 bg-cover bg-center bg-no-repeat transform scale-110" 
-             style={{backgroundImage: "url('https://i.pinimg.com/originals/b5/2a/3d/b52a3d8f4a8f4a8f4a8f4a8f4a8f4a8f.jpg')"}}>
-          <div className="absolute inset-0 bg-gradient-to-l from-pink-600/50 to-transparent"></div>
+        {/* Single Combined John Cena and Bret Hart Background */}
+        <div className="absolute inset-0 opacity-60 bg-cover bg-center bg-no-repeat" 
+             style={{backgroundImage: "url('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRk5PGsD9qkw75AS3VOo2UzQXTy6eQden0LQw&s')"}}>
+          <div className="absolute inset-0 bg-gradient-to-br from-blue-600/40 via-purple-600/30 to-pink-600/40"></div>
         </div>
         
         {/* Wrestling ring center overlay */}
-        <div className="absolute inset-0 bg-gradient-radial from-transparent via-black/50 to-black/80"></div>
+        <div className="absolute inset-0 bg-gradient-radial from-transparent via-black/40 to-black/70"></div>
         
         {/* Arena lighting effects */}
         <div className="absolute top-0 left-1/4 w-32 h-32 bg-blue-400/30 rounded-full blur-3xl animate-pulse"></div>
@@ -218,15 +235,15 @@ function App() {
       </div>
 
       {/* John Cena Theme Music */}
-      <audio ref={johnCenaAudioRef} loop autoPlay>
+      <audio ref={johnCenaAudioRef} loop preload="auto">
+        <source src="https://archive.org/download/JohnCenaTHEMEDOWNLOAD/John%20Cena%20THEME%20%26%20DOWNLOAD.mp3" type="audio/mpeg" />
         <source src="https://www.myinstants.com/media/sounds/john-cena-theme-song.mp3" type="audio/mpeg" />
-        <source src="https://archive.org/download/JohnCenaThemeSong/John_Cena_Theme_Song.mp3" type="audio/mpeg" />
       </audio>
 
       {/* Bret Hart Theme Music */}
-      <audio ref={bretHartAudioRef} loop autoPlay>
+      <audio ref={bretHartAudioRef} loop preload="auto">
+        <source src="https://archive.org/download/Wrestling-Music-2/15%20Bret%20Hart.mp3" type="audio/mpeg" />
         <source src="https://www.myinstants.com/media/sounds/bret-hart-theme.mp3" type="audio/mpeg" />
-        <source src="https://archive.org/download/BretHartTheme/Bret_Hart_Theme.mp3" type="audio/mpeg" />
       </audio>
     </div>
   )
