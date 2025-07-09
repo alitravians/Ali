@@ -31,7 +31,7 @@ function App() {
 
           <div className="mt-10 pt-8 border-t border-white/20">
             <p className="text-sm text-white/60">
-              تم تطوير هذا النظام بواسطة Devin AI
+              تم تطوير النظام بواسطة Boon
             </p>
             <p className="text-xs text-white/50 mt-2">
               جميع الحقوق محفوظة © 2025
