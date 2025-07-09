@@ -5,8 +5,7 @@ function App() {
   const [isVisible, setIsVisible] = useState(false)
   const [currentEffect, setCurrentEffect] = useState(0)
   const [currentWrestler, setCurrentWrestler] = useState(0)
-  const johnCenaAudioRef = useRef<HTMLAudioElement>(null)
-  const bretHartAudioRef = useRef<HTMLAudioElement>(null)
+  const mergedAudioRef = useRef<HTMLAudioElement>(null)
   
   const effects = [
     'animate-pulse',
@@ -29,30 +28,13 @@ function App() {
     }, 4000)
 
     const playAudio = () => {
-      if (johnCenaAudioRef.current && bretHartAudioRef.current) {
-        johnCenaAudioRef.current.volume = 0.4
-        bretHartAudioRef.current.volume = 0.3
-        johnCenaAudioRef.current.play().catch(() => {
+      if (mergedAudioRef.current) {
+        mergedAudioRef.current.volume = 0.5
+        mergedAudioRef.current.play().catch(() => {
           document.addEventListener('click', () => {
-            johnCenaAudioRef.current?.play().catch(console.log)
+            mergedAudioRef.current?.play().catch(console.log)
           }, { once: true })
         })
-        bretHartAudioRef.current.play().catch(() => {
-          document.addEventListener('click', () => {
-            bretHartAudioRef.current?.play().catch(console.log)
-          }, { once: true })
-        })
-        
-        setTimeout(() => {
-          if (johnCenaAudioRef.current) {
-            johnCenaAudioRef.current.pause()
-            johnCenaAudioRef.current.currentTime = 0
-          }
-          if (bretHartAudioRef.current) {
-            bretHartAudioRef.current.pause()
-            bretHartAudioRef.current.currentTime = 0
-          }
-        }, 20000) // 20 seconds
       }
     }
 
@@ -234,16 +216,9 @@ function App() {
         ))}
       </div>
 
-      {/* John Cena Theme Music */}
-      <audio ref={johnCenaAudioRef} loop preload="auto">
-        <source src="https://archive.org/download/JohnCenaTHEMEDOWNLOAD/John%20Cena%20THEME%20%26%20DOWNLOAD.mp3" type="audio/mpeg" />
-        <source src="https://www.myinstants.com/media/sounds/john-cena-theme-song.mp3" type="audio/mpeg" />
-      </audio>
-
-      {/* Bret Hart Theme Music */}
-      <audio ref={bretHartAudioRef} loop preload="auto">
-        <source src="https://archive.org/download/Wrestling-Music-2/15%20Bret%20Hart.mp3" type="audio/mpeg" />
-        <source src="https://www.myinstants.com/media/sounds/bret-hart-theme.mp3" type="audio/mpeg" />
+      {/* Merged Wrestling Theme Music (John Cena + Bret Hart) */}
+      <audio ref={mergedAudioRef} loop preload="auto">
+        <source src="/merged_wrestling_theme.mp3" type="audio/mpeg" />
       </audio>
     </div>
   )
