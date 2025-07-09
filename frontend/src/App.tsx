@@ -1,26 +1,53 @@
 import './App.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 function App() {
   const [currentGradient, setCurrentGradient] = useState(0)
+  const [currentParticleColor, setCurrentParticleColor] = useState(0)
+  const audioRef = useRef<HTMLAudioElement>(null)
   
   const gradients = [
-    'from-purple-900 via-blue-900 to-indigo-900',
-    'from-indigo-900 via-purple-900 to-pink-900',
-    'from-blue-900 via-indigo-900 to-purple-900',
-    'from-pink-900 via-purple-900 to-blue-900',
-    'from-gray-900 via-purple-900 to-indigo-900'
+    'from-rose-500 via-pink-500 to-purple-600',
+    'from-blue-500 via-purple-500 to-pink-500',
+    'from-green-400 via-blue-500 to-purple-600',
+    'from-yellow-400 via-orange-500 to-red-500',
+    'from-indigo-500 via-purple-500 to-pink-500',
+    'from-teal-400 via-blue-500 to-indigo-600',
+    'from-orange-400 via-red-500 to-pink-500'
+  ]
+
+  const particleColors = [
+    'bg-white/20',
+    'bg-yellow-300/30',
+    'bg-pink-300/30',
+    'bg-blue-300/30',
+    'bg-green-300/30',
+    'bg-purple-300/30',
+    'bg-red-300/30'
   ]
 
   useEffect(() => {
-    const interval = setInterval(() => {
+    const gradientInterval = setInterval(() => {
       setCurrentGradient((prev) => (prev + 1) % gradients.length)
-    }, 3000)
-    return () => clearInterval(interval)
+    }, 2000)
+    
+    const particleInterval = setInterval(() => {
+      setCurrentParticleColor((prev) => (prev + 1) % particleColors.length)
+    }, 1500)
+
+    if (audioRef.current) {
+      audioRef.current.volume = 0.3
+      audioRef.current.play().catch(console.log)
+    }
+
+    return () => {
+      clearInterval(gradientInterval)
+      clearInterval(particleInterval)
+    }
   }, [])
 
   return (
-    <div className={`min-h-screen bg-gradient-to-br ${gradients[currentGradient]} flex items-center justify-center transition-all duration-3000 ease-in-out relative overflow-hidden`} dir="rtl">
+    <div className={`min-h-screen bg-gradient-to-br ${gradients[currentGradient]} flex items-center justify-center transition-all duration-2000 ease-in-out relative overflow-hidden`} dir="rtl">
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-white/5 rounded-full blur-3xl animate-pulse"></div>
@@ -102,6 +129,27 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* Animated particles with changing colors */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(15)].map((_, i) => (
+          <div
+            key={i}
+            className={`absolute w-2 h-2 ${particleColors[currentParticleColor]} rounded-full animate-bounce`}
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 2}s`,
+              animationDuration: `${2 + Math.random() * 3}s`
+            }}
+          />
+        ))}
+      </div>
+
+      {/* Background Music - Sad Piano Melody */}
+      <audio ref={audioRef} loop autoPlay>
+        <source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.wav" type="audio/wav" />
+      </audio>
     </div>
   )
 }
