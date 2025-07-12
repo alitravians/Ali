@@ -1,5 +1,5 @@
 import './App.css'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 function App() {
   const [isVisible, setIsVisible] = useState(false)
@@ -7,6 +7,7 @@ function App() {
   const [matrixRain, setMatrixRain] = useState<Array<{id: number, x: number, chars: string[]}>>([])
   const [screenFlicker, setScreenFlicker] = useState(false)
   const [hackingMessages, setHackingMessages] = useState<string[]>([])
+  const scaryAudioRef = useRef<HTMLAudioElement>(null)
   
   const glitchTexts = [
     'تم اختراق الموقع',
@@ -60,10 +61,30 @@ function App() {
       })
     }, 1500)
 
+    const playAudio = () => {
+      if (scaryAudioRef.current) {
+        scaryAudioRef.current.volume = 0.3
+        scaryAudioRef.current.loop = true
+        scaryAudioRef.current.play().catch(error => {
+          console.log('Audio autoplay failed:', error)
+          const playOnClick = () => {
+            if (scaryAudioRef.current) {
+              scaryAudioRef.current.play()
+              document.removeEventListener('click', playOnClick)
+            }
+          }
+          document.addEventListener('click', playOnClick)
+        })
+      }
+    }
+
+    const audioTimeout = setTimeout(playAudio, 1000)
+
     return () => {
       clearInterval(glitchInterval)
       clearInterval(flickerInterval)
       clearInterval(messageInterval)
+      clearTimeout(audioTimeout)
     }
   }, [])
 
@@ -272,6 +293,17 @@ function App() {
           </div>
         ))}
       </div>
+
+      {/* Scary Audio */}
+      <audio
+        ref={scaryAudioRef}
+        preload="auto"
+        style={{ display: 'none' }}
+      >
+        <source src="/scary_hacker_alarm.wav" type="audio/wav" />
+        <source src="/scary_beep.wav" type="audio/wav" />
+        Your browser does not support the audio element.
+      </audio>
     </div>
   )
 }
