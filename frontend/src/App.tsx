@@ -300,8 +300,8 @@ function App() {
         preload="auto"
         style={{ display: 'none' }}
       >
-        <source src="/scary_hacker_alarm.wav" type="audio/wav" />
-        <source src="/scary_beep.wav" type="audio/wav" />
+        <source src="/horror_siren.wav" type="audio/wav" />
+        <source src="/creepy_beep.wav" type="audio/wav" />
         Your browser does not support the audio element.
       </audio>
     </div>
