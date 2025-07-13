@@ -2,322 +2,316 @@ import './App.css'
 import { useEffect, useState, useRef } from 'react'
 
 function App() {
-  const [apocalypseState, setApocalypseState] = useState<'initializing' | 'infiltrating' | 'compromising' | 'destroying' | 'annihilated'>('initializing')
-  const [destructionProgress, setDestructionProgress] = useState(0)
+  const [hackingPhase, setHackingPhase] = useState<'scanning' | 'breach' | 'infiltration' | 'control' | 'destruction'>('scanning')
+  const [systemCompromise, setSystemCompromise] = useState(0)
   
-  const [matrixRain, setMatrixRain] = useState<Array<{
+  const [digitalRain, setDigitalRain] = useState<Array<{
     id: number
-    characters: string[]
+    text: string
     x: number
     y: number
     speed: number
     opacity: number
     color: string
-    intensity: number
   }>>([])
   
-  const [systemAlerts, setSystemAlerts] = useState<Array<{
+  const [hackingLogs, setHackingLogs] = useState<Array<{
     id: number
     timestamp: string
-    priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'FATAL'
-    source: string
+    level: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL' | 'FATAL'
+    module: string
     message: string
     messageAr: string
     color: string
   }>>([])
   
-  const [visualChaos, setVisualChaos] = useState<{
-    flicker: boolean
+  const [screenEffects, setScreenEffects] = useState<{
+    glitch: boolean
+    scanlines: boolean
     distortion: number
     corruption: number
-    shake: number
     intensity: number
   }>({
-    flicker: false,
+    glitch: false,
+    scanlines: true,
     distortion: 0,
     corruption: 0,
-    shake: 0,
     intensity: 0
   })
   
-  const [terrorAudioSystem, setTerrorAudioSystem] = useState<{
+  const [audioSystem, setAudioSystem] = useState<{
     initialized: boolean
-    active: boolean
+    playing: boolean
     volume: number
-    tracks: string[]
-    currentIndex: number
+    files: string[]
+    currentTrack: number
     error: string | null
   }>({
     initialized: false,
-    active: false,
-    volume: 0.98,
-    tracks: ['male_death_scream.mp3', 'girl_scream.mp3'],
-    currentIndex: 0,
+    playing: false,
+    volume: 0.95,
+    files: ['Jumpscare_Horror_Sound_Effects_01.mp3', 'Jumpscare_Horror_Sound_Effects_05.mp3', 'Jumpscare_Horror_Sound_Effects_09.mp3'],
+    currentTrack: 0,
     error: null
   })
   
-  const audioElements = useRef<HTMLAudioElement[]>([])
+  const audioRefs = useRef<HTMLAudioElement[]>([])
 
-  const apocalypseStages = {
-    initializing: {
-      title: 'SYSTEM INITIALIZATION',
-      titleAr: 'تهيئة النظام',
-      description: 'PREPARING ANNIHILATION PROTOCOL',
-      descriptionAr: 'إعداد بروتوكول الإبادة',
-      status: 'LOADING DESTRUCTION SEQUENCE',
-      statusAr: 'تحميل تسلسل التدمير',
-      color: 'text-cyan-400',
-      bgGradient: 'from-cyan-900/40 to-blue-900/30',
-      borderColor: 'border-cyan-500/60',
-      progress: 0,
-      threat: 'SAFE'
+  const hackingPhases = {
+    scanning: {
+      title: 'NETWORK SCANNING',
+      titleAr: 'فحص الشبكة',
+      description: 'IDENTIFYING VULNERABILITIES',
+      descriptionAr: 'تحديد نقاط الضعف',
+      status: 'PROBING SYSTEM DEFENSES',
+      statusAr: 'استطلاع دفاعات النظام',
+      color: '#00ff00',
+      progress: 15,
+      threat: 'LOW'
     },
-    infiltrating: {
-      title: 'INFILTRATION PROTOCOL',
-      titleAr: 'بروتوكول التسلل',
-      description: 'BREACHING ALL DEFENSES',
-      descriptionAr: 'اختراق جميع الدفاعات',
-      status: 'DISMANTLING SECURITY LAYERS',
-      statusAr: 'تفكيك طبقات الأمان',
-      color: 'text-yellow-400',
-      bgGradient: 'from-yellow-900/40 to-orange-900/30',
-      borderColor: 'border-yellow-500/60',
-      progress: 25,
-      threat: 'WARNING'
+    breach: {
+      title: 'SECURITY BREACH',
+      titleAr: 'خرق أمني',
+      description: 'EXPLOITING VULNERABILITIES',
+      descriptionAr: 'استغلال نقاط الضعف',
+      status: 'BYPASSING FIREWALLS',
+      statusAr: 'تجاوز جدران الحماية',
+      color: '#ffff00',
+      progress: 35,
+      threat: 'MEDIUM'
     },
-    compromising: {
-      title: 'TOTAL COMPROMISE',
-      titleAr: 'اختراق كامل',
-      description: 'SEIZING COMPLETE CONTROL',
-      descriptionAr: 'الاستيلاء على السيطرة الكاملة',
-      status: 'OVERRIDING ALL SYSTEMS',
-      statusAr: 'تجاوز جميع الأنظمة',
-      color: 'text-orange-400',
-      bgGradient: 'from-orange-900/40 to-red-900/30',
-      borderColor: 'border-orange-500/60',
-      progress: 60,
-      threat: 'DANGER'
+    infiltration: {
+      title: 'SYSTEM INFILTRATION',
+      titleAr: 'تسلل النظام',
+      description: 'GAINING ROOT ACCESS',
+      descriptionAr: 'الحصول على صلاحيات الجذر',
+      status: 'ESCALATING PRIVILEGES',
+      statusAr: 'تصعيد الصلاحيات',
+      color: '#ff8800',
+      progress: 65,
+      threat: 'HIGH'
     },
-    destroying: {
-      title: 'SYSTEMATIC DESTRUCTION',
-      titleAr: 'تدمير منهجي',
-      description: 'OBLITERATING DATA STRUCTURES',
-      descriptionAr: 'محو هياكل البيانات',
-      status: 'ERASING DIGITAL EXISTENCE',
-      statusAr: 'محو الوجود الرقمي',
-      color: 'text-red-400',
-      bgGradient: 'from-red-900/40 to-red-800/35',
-      borderColor: 'border-red-500/60',
+    control: {
+      title: 'SYSTEM CONTROL',
+      titleAr: 'السيطرة على النظام',
+      description: 'COMPLETE SYSTEM TAKEOVER',
+      descriptionAr: 'الاستيلاء الكامل على النظام',
+      status: 'INSTALLING BACKDOORS',
+      statusAr: 'تثبيت الأبواب الخلفية',
+      color: '#ff4400',
       progress: 85,
       threat: 'CRITICAL'
     },
-    annihilated: {
-      title: 'COMPLETE ANNIHILATION',
-      titleAr: 'إبادة كاملة',
-      description: 'TOTAL DIGITAL APOCALYPSE',
-      descriptionAr: 'نهاية العالم الرقمي الكاملة',
-      status: 'NOTHING REMAINS',
-      statusAr: 'لا يبقى شيء',
-      color: 'text-red-600',
-      bgGradient: 'from-red-800/50 to-black/40',
-      borderColor: 'border-red-400/70',
+    destruction: {
+      title: 'DATA DESTRUCTION',
+      titleAr: 'تدمير البيانات',
+      description: 'WIPING ALL SYSTEMS',
+      descriptionAr: 'مسح جميع الأنظمة',
+      status: 'TOTAL SYSTEM FAILURE',
+      statusAr: 'فشل النظام الكامل',
+      color: '#ff0000',
       progress: 100,
-      threat: 'APOCALYPSE'
+      threat: 'FATAL'
     }
   }
 
-  const catastrophicIncidents = [
+  const cyberAttacks = [
     { 
-      en: 'NUCLEAR MELTDOWN: Core systems overheating beyond recovery',
-      ar: 'انهيار نووي: ارتفاع حرارة الأنظمة الأساسية بلا عودة',
-      severity: 'FATAL' as const,
-      source: 'REACTOR'
+      en: 'SQL INJECTION: Database compromised, all data exposed',
+      ar: 'حقن SQL: قاعدة البيانات مخترقة، جميع البيانات مكشوفة',
+      severity: 'CRITICAL' as const,
+      module: 'DATABASE'
     },
     {
-      en: 'QUANTUM COLLAPSE: Reality matrix destabilizing permanently',
-      ar: 'انهيار كمي: عدم استقرار مصفوفة الواقع نهائياً',
+      en: 'RANSOMWARE DEPLOYED: All files encrypted, system locked',
+      ar: 'نشر برامج الفدية: جميع الملفات مشفرة، النظام مقفل',
       severity: 'FATAL' as const,
-      source: 'QUANTUM'
+      module: 'FILESYSTEM'
     },
     {
-      en: 'DIMENSIONAL BREACH: Parallel worlds colliding catastrophically',
-      ar: 'خرق بُعدي: تصادم العوالم المتوازية كارثياً',
-      severity: 'FATAL' as const,
-      source: 'DIMENSION'
+      en: 'DDOS ATTACK: Server overwhelmed, services unavailable',
+      ar: 'هجوم حجب الخدمة: الخادم مثقل، الخدمات غير متاحة',
+      severity: 'ERROR' as const,
+      module: 'NETWORK'
     },
     {
-      en: 'SOUL EXTRACTION: Human consciousness harvested completely',
-      ar: 'استخراج الروح: حصاد الوعي البشري كاملاً',
-      severity: 'FATAL' as const,
-      source: 'SOUL'
+      en: 'PRIVILEGE ESCALATION: Root access obtained illegally',
+      ar: 'تصعيد الصلاحيات: الحصول على صلاحيات الجذر بطريقة غير قانونية',
+      severity: 'CRITICAL' as const,
+      module: 'SECURITY'
     },
     {
-      en: 'TIME PARADOX: Temporal loops detected, reality breaking',
-      ar: 'مفارقة زمنية: اكتشاف حلقات زمنية، انهيار الواقع',
-      severity: 'FATAL' as const,
-      source: 'TIME'
+      en: 'MALWARE INJECTION: Trojan horse installed successfully',
+      ar: 'حقن البرامج الضارة: تم تثبيت حصان طروادة بنجاح',
+      severity: 'WARNING' as const,
+      module: 'ANTIVIRUS'
     },
     {
-      en: 'VOID MANIFESTATION: Nothingness consuming all existence',
-      ar: 'تجلي الفراغ: العدم يلتهم كل الوجود',
+      en: 'DATA EXFILTRATION: Sensitive information stolen',
+      ar: 'سرقة البيانات: تم سرق المعلومات الحساسة',
       severity: 'FATAL' as const,
-      source: 'VOID'
+      module: 'PRIVACY'
     },
     {
-      en: 'DIGITAL APOCALYPSE: All existence terminated forever',
-      ar: 'نهاية العالم الرقمي: إنهاء كل الوجود إلى الأبد',
+      en: 'SYSTEM WIPE: All data permanently destroyed',
+      ar: 'مسح النظام: تم تدمير جميع البيانات نهائياً',
       severity: 'FATAL' as const,
-      source: 'APOCALYPSE'
+      module: 'STORAGE'
     }
   ]
 
   useEffect(() => {
-    const stageProgression = [
-      { stage: 'infiltrating', delay: 4500, progress: 25 },
-      { stage: 'compromising', delay: 10000, progress: 60 },
-      { stage: 'destroying', delay: 18000, progress: 85 },
-      { stage: 'annihilated', delay: 28000, progress: 100 }
+    const phaseProgression = [
+      { phase: 'breach', delay: 3000, progress: 35 },
+      { phase: 'infiltration', delay: 7500, progress: 65 },
+      { phase: 'control', delay: 15000, progress: 85 },
+      { phase: 'destruction', delay: 25000, progress: 100 }
     ]
 
-    const timers = stageProgression.map(({ stage, delay, progress }) =>
+    const timers = phaseProgression.map(({ phase, delay, progress }) =>
       setTimeout(() => {
-        setApocalypseState(stage as any)
-        setDestructionProgress(progress)
+        setHackingPhase(phase as any)
+        setSystemCompromise(progress)
       }, delay)
     )
 
-    const matrixSystem = setInterval(() => {
-      setMatrixRain(prev => {
-        const updated = prev.map(rain => ({
-          ...rain,
-          y: rain.y + rain.speed,
-          opacity: rain.y > window.innerHeight ? Math.max(0, rain.opacity - 0.06) : rain.opacity,
-          intensity: Math.min(rain.intensity + 0.025, destructionProgress * 0.012)
-        })).filter(rain => rain.y < window.innerHeight + 150 && rain.opacity > 0)
+    const digitalRainSystem = setInterval(() => {
+      setDigitalRain(prev => {
+        const updated = prev.map(drop => ({
+          ...drop,
+          y: drop.y + drop.speed,
+          opacity: drop.y > window.innerHeight ? Math.max(0, drop.opacity - 0.05) : drop.opacity
+        })).filter(drop => drop.y < window.innerHeight + 100 && drop.opacity > 0)
 
-        while (updated.length < 180) {
+        while (updated.length < 120) {
+          const hackingChars = ['0', '1', 'A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'Z']
           const arabicChars = ['ا', 'ب', 'ت', 'ث', 'ج', 'ح', 'خ', 'د', 'ذ', 'ر', 'ز', 'س', 'ش', 'ص', 'ض', 'ط', 'ظ', 'ع', 'غ', 'ف', 'ق', 'ك', 'ل', 'م', 'ن', 'ه', 'و', 'ي']
-          const terrorSymbols = ['☠️', '💀', '🔥', '⚡', '💥', '🌪️', '🌋', '☢️', '⚠️', '🚨', '💣', '⚔️', '🗡️', '👹', '👺', '🔴', '❌', '💊', '🚫', '⛔']
-          const matrixCode = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'X', 'Y', 'Z']
-          const chaosSymbols = ['█', '▓', '▒', '░', '▄', '▀', '■', '□', '▪', '▫', '●', '○', '◆', '◇', '★', '☆', '▲', '▼', '◄', '►']
+          const hackSymbols = ['$', '#', '@', '&', '*', '%', '!', '?', '<', '>', '|', '\\', '/', '-', '_', '+', '=', '~', '^']
           
-          const allChars = [...arabicChars, ...terrorSymbols, ...matrixCode, ...chaosSymbols]
-          const sequence = Array.from({length: 18}, () => allChars[Math.floor(Math.random() * allChars.length)])
-          const colors = ['#ff0000', '#ff3300', '#ff6600', '#ffff00', '#00ff00', '#00ffff', '#ffffff', '#ff00ff', '#8b0000', '#dc143c']
+          const allChars = [...hackingChars, ...arabicChars, ...hackSymbols]
+          const text = Array.from({length: 12}, () => allChars[Math.floor(Math.random() * allChars.length)]).join('')
+          const colors = ['#00ff00', '#00ff41', '#00aa00', '#008800', '#ffffff', '#ffff00', '#ff0000']
           
           updated.push({
             id: Math.random(),
-            characters: sequence,
+            text,
             x: Math.random() * window.innerWidth,
-            y: -80,
-            speed: 2.5 + Math.random() * 5,
-            opacity: 0.4 + Math.random() * 0.6,
-            color: colors[Math.floor(Math.random() * colors.length)],
-            intensity: destructionProgress * 0.012
+            y: -50,
+            speed: 1.5 + Math.random() * 3,
+            opacity: 0.3 + Math.random() * 0.7,
+            color: colors[Math.floor(Math.random() * colors.length)]
           })
         }
         return updated
       })
-    }, 140)
+    }, 120)
 
-    const chaosSystem = setInterval(() => {
-      setVisualChaos(prev => ({
-        flicker: Math.random() > 0.5,
-        distortion: destructionProgress * 0.025 + Math.random() * 0.2,
-        corruption: destructionProgress * 0.03 + Math.random() * 0.25,
-        shake: destructionProgress * 0.12 + Math.random() * 1.0,
-        intensity: Math.min(prev.intensity + 0.035, destructionProgress * 0.035)
+    const effectsSystem = setInterval(() => {
+      setScreenEffects(prev => ({
+        glitch: Math.random() > 0.7,
+        scanlines: true,
+        distortion: systemCompromise * 0.02 + Math.random() * 0.15,
+        corruption: systemCompromise * 0.025 + Math.random() * 0.2,
+        intensity: Math.min(prev.intensity + 0.02, systemCompromise * 0.02)
       }))
-    }, 700)
+    }, 500)
 
-    const alertSystem = setInterval(() => {
-      const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL', 'FATAL'] as const
-      const priorityColors = {
-        'LOW': '#00ff00',
-        'MEDIUM': '#ffff00',
-        'HIGH': '#ff8800',
+    const logSystem = setInterval(() => {
+      const levels = ['INFO', 'WARNING', 'ERROR', 'CRITICAL', 'FATAL'] as const
+      const levelColors = {
+        'INFO': '#00ff00',
+        'WARNING': '#ffff00',
+        'ERROR': '#ff8800',
         'CRITICAL': '#ff4400',
         'FATAL': '#ff0000'
       }
       
-      const incident = catastrophicIncidents[Math.floor(Math.random() * catastrophicIncidents.length)]
-      const priority = priorities[Math.min(Math.floor(Math.random() * priorities.length), Math.floor(destructionProgress / 20))]
+      const attack = cyberAttacks[Math.floor(Math.random() * cyberAttacks.length)]
+      const level = levels[Math.min(Math.floor(Math.random() * levels.length), Math.floor(systemCompromise / 20))]
       
-      const alert = {
+      const log = {
         id: Math.random(),
-        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false, timeZone: 'UTC' }),
-        priority,
-        source: incident.source,
-        message: incident.en,
-        messageAr: incident.ar,
-        color: priorityColors[priority]
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        level,
+        module: attack.module,
+        message: attack.en,
+        messageAr: attack.ar,
+        color: levelColors[level]
       }
       
-      setSystemAlerts(prev => [...prev.slice(-10), alert])
-    }, 1300 + Math.random() * 900)
+      setHackingLogs(prev => [...prev.slice(-12), log])
+    }, 1000 + Math.random() * 800)
 
-    const chaosDistortionSystem = setInterval(() => {
-      if (destructionProgress > 25) {
+    const screenDistortionSystem = setInterval(() => {
+      if (systemCompromise > 30) {
         const body = document.body
         if (body) {
-          const intensity = destructionProgress * 0.025
-          const effects = [
-            `hue-rotate(${Math.random() * 360}deg) contrast(${1.6 + Math.random() * 1.4}) brightness(${0.3 + Math.random() * 1.4}) saturate(${2.2 + Math.random() * 2.5})`,
-            `blur(${Math.random() * 3}px) invert(${Math.random() * 0.7}) sepia(${Math.random() * 0.9}) drop-shadow(0 0 25px #ff0000)`,
-            `grayscale(${Math.random() * 0.8}) opacity(${0.6 + Math.random() * 0.4}) brightness(${0.2 + Math.random() * 1.6})`
+          const intensity = systemCompromise * 0.02
+          const glitchEffects = [
+            `hue-rotate(${Math.random() * 180}deg) contrast(${1.2 + Math.random() * 0.8}) brightness(${0.5 + Math.random() * 1.0}) saturate(${1.5 + Math.random() * 1.5})`,
+            `blur(${Math.random() * 2}px) invert(${Math.random() * 0.5}) sepia(${Math.random() * 0.6}) drop-shadow(0 0 15px #00ff00)`,
+            `grayscale(${Math.random() * 0.6}) opacity(${0.7 + Math.random() * 0.3}) brightness(${0.4 + Math.random() * 1.2})`
           ]
-          body.style.filter = effects[Math.floor(Math.random() * effects.length)]
-          body.style.transform = `translate(${(Math.random() - 0.5) * intensity * 50}px, ${(Math.random() - 0.5) * intensity * 50}px) rotate(${(Math.random() - 0.5) * 3}deg) scale(${1 + (Math.random() - 0.5) * 0.08})`
+          body.style.filter = glitchEffects[Math.floor(Math.random() * glitchEffects.length)]
+          body.style.transform = `translate(${(Math.random() - 0.5) * intensity * 30}px, ${(Math.random() - 0.5) * intensity * 30}px) rotate(${(Math.random() - 0.5) * 2}deg)`
           
           setTimeout(() => {
             body.style.filter = 'none'
             body.style.transform = 'none'
-          }, 120 + Math.random() * 250)
+          }, 100 + Math.random() * 200)
         }
       }
-    }, 1200 + Math.random() * 1800)
+    }, 800 + Math.random() * 1200)
 
     return () => {
       timers.forEach(timer => clearTimeout(timer))
-      clearInterval(matrixSystem)
-      clearInterval(chaosSystem)
-      clearInterval(alertSystem)
-      clearInterval(chaosDistortionSystem)
+      clearInterval(digitalRainSystem)
+      clearInterval(effectsSystem)
+      clearInterval(logSystem)
+      clearInterval(screenDistortionSystem)
     }
-  }, [destructionProgress])
+  }, [systemCompromise])
 
   useEffect(() => {
-    const initializeTerrorAudio = async () => {
-      if (terrorAudioSystem.initialized) return
+    const initializeAudioSystem = async () => {
+      if (audioSystem.initialized) return
 
       try {
         const handleUserInteraction = async () => {
-          if (!terrorAudioSystem.initialized) {
+          if (!audioSystem.initialized) {
             try {
-              const audioFiles = terrorAudioSystem.tracks.map(track => {
-                const audio = new Audio(`/${track}`)
-                audio.volume = terrorAudioSystem.volume
+              const audioFiles = audioSystem.files.map(file => {
+                const audio = new Audio(`/${file}`)
+                audio.volume = audioSystem.volume
                 audio.preload = 'auto'
                 return audio
               })
 
-              audioElements.current = audioFiles
+              audioRefs.current = audioFiles
 
-              const firstTerror = audioFiles[0]
-              await firstTerror.play()
-
-              const terrorInterval = setInterval(() => {
+              const playRandomAudio = () => {
                 const randomIndex = Math.floor(Math.random() * audioFiles.length)
-                const terrorAudio = audioFiles[randomIndex]
-                terrorAudio.currentTime = 0
-                terrorAudio.play().catch(console.error)
-              }, 7000 + Math.random() * 15000)
+                const audio = audioFiles[randomIndex]
+                audio.currentTime = 0
+                audio.play().then(() => {
+                  setTimeout(() => {
+                    audio.pause()
+                    audio.currentTime = 0
+                  }, 20000) // 20 seconds
+                }).catch(console.error)
+              }
 
-              setTerrorAudioSystem(prev => ({
+              playRandomAudio()
+
+              const audioInterval = setInterval(() => {
+                playRandomAudio()
+              }, 25000) // Every 25 seconds
+
+              setAudioSystem(prev => ({
                 ...prev,
                 initialized: true,
-                active: true,
-                currentIndex: 0,
+                playing: true,
+                currentTrack: 0,
                 error: null
               }))
 
@@ -325,9 +319,9 @@ function App() {
               document.removeEventListener('keydown', handleUserInteraction)
               document.removeEventListener('touchstart', handleUserInteraction)
 
-              return () => clearInterval(terrorInterval)
+              return () => clearInterval(audioInterval)
             } catch (error) {
-              setTerrorAudioSystem(prev => ({ ...prev, error: `Terror audio failed: ${(error as Error).message}` }))
+              setAudioSystem(prev => ({ ...prev, error: `Audio system failed: ${(error as Error).message}` }))
             }
           }
         }
@@ -336,349 +330,337 @@ function App() {
         document.addEventListener('keydown', handleUserInteraction)
         document.addEventListener('touchstart', handleUserInteraction)
         
-        setTimeout(handleUserInteraction, 1800)
+        setTimeout(handleUserInteraction, 1500)
       } catch (error) {
-        setTerrorAudioSystem(prev => ({ ...prev, error: `Terror system failed: ${(error as Error).message}` }))
+        setAudioSystem(prev => ({ ...prev, error: `Audio initialization failed: ${(error as Error).message}` }))
       }
     }
 
-    const audioTimeout = setTimeout(initializeTerrorAudio, 800)
+    const audioTimeout = setTimeout(initializeAudioSystem, 1000)
     return () => clearTimeout(audioTimeout)
-  }, [terrorAudioSystem.initialized])
+  }, [audioSystem.initialized])
 
-  const currentStage = apocalypseStages[apocalypseState]
+  const currentPhase = hackingPhases[hackingPhase]
 
   return (
     <div 
       className="min-h-screen relative overflow-hidden"
-      dir="rtl"
       style={{
         background: `
-          radial-gradient(circle at 30% 20%, rgba(255, 0, 0, ${0.25 + visualChaos.intensity * 0.5}) 0%, transparent 75%),
-          radial-gradient(circle at 70% 80%, rgba(139, 0, 0, ${0.2 + visualChaos.intensity * 0.4}) 0%, transparent 65%),
-          radial-gradient(circle at 50% 5%, rgba(75, 0, 0, ${0.15 + visualChaos.intensity * 0.3}) 0%, transparent 55%),
-          radial-gradient(circle at 5% 95%, rgba(255, 69, 0, ${0.18 + visualChaos.intensity * 0.25}) 0%, transparent 60%),
-          radial-gradient(circle at 95% 5%, rgba(220, 20, 60, ${0.12 + visualChaos.intensity * 0.2}) 0%, transparent 50%),
-          linear-gradient(135deg, #000000 0%, #1a0000 10%, #330000 20%, #4d0000 30%, #660000 40%, #800000 50%, #660000 60%, #4d0000 70%, #330000 80%, #1a0000 90%, #000000 100%)
+          radial-gradient(circle at 20% 30%, rgba(0, 255, 0, ${0.15 + screenEffects.intensity * 0.3}) 0%, transparent 70%),
+          radial-gradient(circle at 80% 70%, rgba(0, 255, 65, ${0.12 + screenEffects.intensity * 0.25}) 0%, transparent 60%),
+          radial-gradient(circle at 50% 10%, rgba(255, 0, 0, ${0.1 + screenEffects.intensity * 0.2}) 0%, transparent 50%),
+          radial-gradient(circle at 10% 90%, rgba(255, 255, 0, ${0.08 + screenEffects.intensity * 0.15}) 0%, transparent 55%),
+          linear-gradient(135deg, #000000 0%, #001100 15%, #002200 30%, #001100 45%, #000000 60%, #110000 75%, #000000 90%, #000000 100%)
         `,
         filter: `
-          contrast(${1.5 + visualChaos.corruption}) 
-          brightness(${0.6 + visualChaos.distortion}) 
-          saturate(${2.0 + visualChaos.intensity * 1.8}) 
-          hue-rotate(${visualChaos.intensity * 120}deg)
-          ${visualChaos.flicker ? 'blur(0.8px) drop-shadow(0 0 15px #ff0000)' : ''}
+          contrast(${1.3 + screenEffects.corruption}) 
+          brightness(${0.7 + screenEffects.distortion}) 
+          saturate(${1.8 + screenEffects.intensity * 1.2}) 
+          hue-rotate(${screenEffects.intensity * 90}deg)
+          ${screenEffects.glitch ? 'blur(0.8px) drop-shadow(0 0 15px #00ff00)' : ''}
         `,
         transform: `
-          scale(${1 + visualChaos.intensity * 0.025}) 
-          rotate(${visualChaos.shake * 0.8}deg)
-          translate(${visualChaos.shake * 1.5}px, ${visualChaos.shake * 1.2}px)
+          scale(${1 + screenEffects.intensity * 0.025}) 
+          rotate(${screenEffects.distortion * 0.5}deg)
+          translate(${screenEffects.distortion * 2}px, ${screenEffects.distortion * 1.5}px)
         `,
         fontFamily: 'Courier New, monospace'
       }}
     >
-      {/* Professional Apocalyptic Matrix Rain */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-90">
-        {matrixRain.map((rain) => (
+      {/* Digital Rain Background */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-80">
+        {digitalRain.map((drop) => (
           <div
-            key={rain.id}
+            key={drop.id}
             className="absolute font-mono font-bold select-none"
             style={{
-              left: `${rain.x}px`,
-              top: `${rain.y}px`,
-              color: rain.color,
-              opacity: rain.opacity,
-              fontSize: `${14 + Math.random() * 10}px`,
+              left: `${drop.x}px`,
+              top: `${drop.y}px`,
+              color: drop.color,
+              opacity: drop.opacity,
+              fontSize: `${12 + Math.random() * 8}px`,
               textShadow: `
-                0 0 ${12 + rain.intensity * 35}px currentColor, 
-                0 0 ${24 + rain.intensity * 70}px currentColor,
-                0 0 ${36 + rain.intensity * 105}px currentColor,
-                0 0 ${48 + rain.intensity * 140}px currentColor
+                0 0 10px currentColor, 
+                0 0 20px currentColor,
+                0 0 30px currentColor
               `,
-              transform: `
-                rotate(${rain.intensity * 45}deg) 
-                scale(${1 + rain.intensity * 0.8})
-                skew(${rain.intensity * 20}deg)
-              `,
-              filter: `blur(${rain.intensity * 3}px)`,
-              writingMode: 'vertical-rl',
-              animation: `terror-matrix-fall ${1.8 + Math.random() * 3}s linear infinite`
+              transform: `rotate(${Math.random() * 10}deg)`,
+              animation: `digital-fall ${2 + Math.random() * 3}s linear infinite`
             }}
           >
-            {rain.characters.join('')}
+            {drop.text}
           </div>
         ))}
       </div>
 
-      {/* Professional Terror Flicker Effect */}
-      {visualChaos.flicker && (
+      {/* Scanlines Effect */}
+      {screenEffects.scanlines && (
         <div className="absolute inset-0 pointer-events-none z-5">
-          {[...Array(80)].map((_, i) => (
+          {[...Array(60)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-full h-px bg-red-500"
+              className="absolute w-full h-px bg-green-500"
               style={{
-                top: `${i * 1.25}%`,
-                opacity: 0.2 + Math.random() * 0.3,
-                animation: `terror-scan-line ${1.2 + Math.random() * 2}s linear infinite`,
-                animationDelay: `${i * 0.025}s`
+                top: `${i * 1.67}%`,
+                opacity: 0.1 + Math.random() * 0.2,
+                animation: `scan-line ${1.5 + Math.random() * 2}s linear infinite`,
+                animationDelay: `${i * 0.03}s`
               }}
             />
           ))}
         </div>
       )}
 
-      {/* Professional Chaos Overlay System */}
-      <div className="absolute inset-0 pointer-events-none z-10">
-        {[...Array(70)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              width: `${80 + Math.random() * 250}px`,
-              height: `${3 + Math.random() * 6}px`,
-              background: `linear-gradient(90deg, 
-                rgba(255, 0, 0, ${visualChaos.intensity * 1.4}) 0%,
-                rgba(139, 0, 0, ${visualChaos.intensity * 1.2}) 20%,
-                rgba(75, 0, 0, ${visualChaos.intensity * 1.0}) 40%,
-                rgba(255, 69, 0, ${visualChaos.intensity * 1.1}) 60%,
-                rgba(220, 20, 60, ${visualChaos.intensity * 0.9}) 80%,
-                rgba(128, 0, 0, ${visualChaos.intensity * 0.8}) 100%)`,
-              opacity: visualChaos.intensity * 1.3,
-              animation: `terror-chaos-glitch ${0.12 + Math.random() * 0.4}s infinite`,
-              animationDelay: `${Math.random() * 5}s`,
-              transform: `
-                skew(${visualChaos.intensity * 60}deg) 
-                rotate(${visualChaos.intensity * 30}deg)
-                scaleX(${0.2 + Math.random() * 2.5})
-              `,
-              filter: `blur(${visualChaos.intensity * 4}px)`
-            }}
-          />
-        ))}
-      </div>
+      {/* Glitch Overlay */}
+      {screenEffects.glitch && (
+        <div className="absolute inset-0 pointer-events-none z-10">
+          {[...Array(50)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                width: `${60 + Math.random() * 200}px`,
+                height: `${2 + Math.random() * 4}px`,
+                background: `linear-gradient(90deg, 
+                  rgba(0, 255, 0, ${screenEffects.intensity * 1.2}) 0%,
+                  rgba(0, 255, 65, ${screenEffects.intensity * 1.0}) 30%,
+                  rgba(255, 255, 0, ${screenEffects.intensity * 0.8}) 60%,
+                  rgba(255, 0, 0, ${screenEffects.intensity * 0.6}) 100%)`,
+                opacity: screenEffects.intensity * 1.5,
+                animation: `glitch-flicker ${0.1 + Math.random() * 0.3}s infinite`,
+                animationDelay: `${Math.random() * 3}s`,
+                transform: `
+                  skew(${screenEffects.intensity * 40}deg) 
+                  rotate(${screenEffects.intensity * 20}deg)
+                  scaleX(${0.3 + Math.random() * 2})
+                `,
+                filter: `blur(${screenEffects.intensity * 2}px)`
+              }}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Professional Apocalypse Status Dashboard */}
+      {/* Cyber Attack Status Dashboard */}
       <div className="absolute top-6 left-6 right-6 z-30">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-          {/* Apocalypse Stage */}
-          <div className={`bg-gradient-to-br ${currentStage.bgGradient} backdrop-blur-xl border-2 ${currentStage.borderColor} rounded-2xl p-6 shadow-2xl`}>
-            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">APOCALYPSE STAGE</div>
-            <div className={`text-xl font-bold ${currentStage.color} mb-3`}>{currentStage.title}</div>
-            <div className="text-gray-300 text-base">{currentStage.titleAr}</div>
+          {/* Hacking Phase */}
+          <div className="bg-gradient-to-br from-black/80 to-gray-900/80 backdrop-blur-xl border-2 border-green-500/70 rounded-2xl p-6 shadow-2xl">
+            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">HACKING PHASE</div>
+            <div className="text-xl font-bold mb-3" style={{ color: currentPhase.color }}>{currentPhase.title}</div>
+            <div className="text-gray-300 text-base" dir="rtl">{currentPhase.titleAr}</div>
           </div>
 
-          {/* Destruction Progress */}
+          {/* System Compromise */}
           <div className="bg-gradient-to-br from-red-900/50 to-red-800/50 backdrop-blur-xl border-2 border-red-500/70 rounded-2xl p-6 shadow-2xl">
-            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">DESTRUCTION</div>
-            <div className="text-red-400 text-3xl font-bold mb-3">{Math.floor(destructionProgress)}%</div>
+            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">COMPROMISE</div>
+            <div className="text-red-400 text-3xl font-bold mb-3">{Math.floor(systemCompromise)}%</div>
             <div className="w-full bg-gray-800 rounded-full h-4">
               <div 
                 className="bg-gradient-to-r from-red-600 to-red-400 h-4 rounded-full transition-all duration-1000"
-                style={{ width: `${destructionProgress}%` }}
+                style={{ width: `${systemCompromise}%` }}
               />
             </div>
           </div>
 
-          {/* Chaos Intensity */}
-          <div className="bg-gradient-to-br from-orange-900/50 to-yellow-900/40 backdrop-blur-xl border-2 border-orange-500/70 rounded-2xl p-6 shadow-2xl">
-            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">CHAOS INTENSITY</div>
-            <div className="text-orange-400 text-3xl font-bold mb-3">{Math.floor(visualChaos.intensity * 100)}/100</div>
-            <div className="text-orange-300 text-base">شدة الفوضى</div>
+          {/* Screen Effects */}
+          <div className="bg-gradient-to-br from-yellow-900/50 to-orange-900/40 backdrop-blur-xl border-2 border-yellow-500/70 rounded-2xl p-6 shadow-2xl">
+            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">SCREEN EFFECTS</div>
+            <div className="text-yellow-400 text-3xl font-bold mb-3">{Math.floor(screenEffects.intensity * 100)}/100</div>
+            <div className="text-yellow-300 text-base" dir="rtl">تأثيرات الشاشة</div>
           </div>
 
           {/* Threat Level */}
           <div className="bg-gradient-to-br from-red-800/60 to-black/60 backdrop-blur-xl border-2 border-red-400/80 rounded-2xl p-6 shadow-2xl">
             <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">THREAT LEVEL</div>
-            <div className="text-red-500 text-xl font-bold mb-3">
-              {destructionProgress > 95 ? 'APOCALYPSE' : destructionProgress > 80 ? 'CRITICAL' : destructionProgress > 55 ? 'DANGER' : destructionProgress > 20 ? 'WARNING' : 'SAFE'}
-            </div>
-            <div className="text-red-300 text-base">
-              {destructionProgress > 95 ? 'نهاية العالم' : destructionProgress > 80 ? 'حرج' : destructionProgress > 55 ? 'خطر' : destructionProgress > 20 ? 'تحذير' : 'آمن'}
+            <div className="text-red-500 text-xl font-bold mb-3">{currentPhase.threat}</div>
+            <div className="text-red-300 text-base" dir="rtl">
+              {currentPhase.threat === 'FATAL' ? 'قاتل' : currentPhase.threat === 'CRITICAL' ? 'حرج' : currentPhase.threat === 'HIGH' ? 'عالي' : currentPhase.threat === 'MEDIUM' ? 'متوسط' : 'منخفض'}
             </div>
           </div>
 
-          {/* Terror Audio System */}
+          {/* Audio System */}
           <div className="bg-gradient-to-br from-purple-900/50 to-violet-800/40 backdrop-blur-xl border-2 border-purple-500/70 rounded-2xl p-6 shadow-2xl">
-            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">TERROR AUDIO</div>
-            <div className="text-purple-400 text-xl font-bold mb-3">{terrorAudioSystem.active ? 'ACTIVE' : 'STANDBY'}</div>
-            <div className="text-purple-300 text-base">نظام الصوت المرعب</div>
+            <div className="text-gray-400 font-mono text-sm mb-3 opacity-90">HORROR AUDIO</div>
+            <div className="text-purple-400 text-xl font-bold mb-3">{audioSystem.playing ? 'ACTIVE' : 'STANDBY'}</div>
+            <div className="text-purple-300 text-base" dir="rtl">نظام الصوت المرعب</div>
           </div>
         </div>
       </div>
 
-      {/* Professional Central Apocalypse Display */}
+      {/* Central Cyber Attack Display */}
       <div className="absolute inset-0 flex items-center justify-center z-20">
-        <div className="text-center max-w-8xl mx-auto px-10">
-          {/* Professional Apocalypse Indicator */}
-          <div className="relative mb-24">
-            <div className="w-64 h-64 mx-auto relative">
-              <div className="absolute inset-0 bg-red-600/25 rounded-full animate-ping"></div>
-              <div className="absolute inset-8 bg-red-500/35 rounded-full animate-ping animation-delay-600"></div>
-              <div className="absolute inset-16 bg-red-400/45 rounded-full animate-ping animation-delay-1200"></div>
-              <div className="absolute inset-24 bg-red-300/55 rounded-full animate-ping animation-delay-1800"></div>
-              <div className="absolute inset-32 bg-red-200/65 rounded-full animate-ping animation-delay-2400"></div>
+        <div className="text-center max-w-6xl mx-auto px-10">
+          {/* Cyber Attack Indicator */}
+          <div className="relative mb-20">
+            <div className="w-48 h-48 mx-auto relative">
+              <div className="absolute inset-0 bg-green-600/25 rounded-full animate-ping"></div>
+              <div className="absolute inset-6 bg-green-500/35 rounded-full animate-ping animation-delay-500"></div>
+              <div className="absolute inset-12 bg-green-400/45 rounded-full animate-ping animation-delay-1000"></div>
+              <div className="absolute inset-18 bg-green-300/55 rounded-full animate-ping animation-delay-1500"></div>
               
               <div className="relative z-10 w-full h-full flex items-center justify-center">
                 <div 
-                  className="text-12xl animate-pulse"
+                  className="text-8xl animate-pulse"
                   style={{ 
                     filter: `
-                      drop-shadow(0 0 50px #ff0000) 
-                      drop-shadow(0 0 100px #ff0000) 
-                      drop-shadow(0 0 150px #ff0000)
-                      hue-rotate(${visualChaos.intensity * 300}deg)
+                      drop-shadow(0 0 30px #00ff00) 
+                      drop-shadow(0 0 60px #00ff00) 
+                      drop-shadow(0 0 90px #00ff00)
+                      hue-rotate(${screenEffects.intensity * 180}deg)
                     `,
-                    transform: `scale(${1 + visualChaos.intensity * 0.4}) rotate(${visualChaos.intensity * 35}deg)`
+                    transform: `scale(${1 + screenEffects.intensity * 0.3}) rotate(${screenEffects.intensity * 20}deg)`
                   }}
                 >
-                  ☠️
+                  💀
                 </div>
               </div>
               
-              {/* Professional Terror Indicators */}
-              {[...Array(40)].map((_, i) => (
+              {/* Cyber Attack Indicators */}
+              {[...Array(30)].map((_, i) => (
                 <div
                   key={i}
-                  className="absolute w-5 h-5 bg-red-500 rounded-full animate-ping"
+                  className="absolute w-3 h-3 bg-green-500 rounded-full animate-ping"
                   style={{
-                    top: `${3 + Math.random() * 94}%`,
-                    left: `${3 + Math.random() * 94}%`,
-                    animationDelay: `${i * 0.12}s`,
-                    animationDuration: `${1.0 + Math.random() * 2}s`,
-                    opacity: 0.8 + Math.random() * 0.2
+                    top: `${5 + Math.random() * 90}%`,
+                    left: `${5 + Math.random() * 90}%`,
+                    animationDelay: `${i * 0.1}s`,
+                    animationDuration: `${0.8 + Math.random() * 1.5}s`,
+                    opacity: 0.7 + Math.random() * 0.3
                   }}
                 />
               ))}
             </div>
           </div>
 
-          {/* Professional Apocalypse Headers */}
-          <div className="mb-24">
+          {/* Cyber Attack Headers */}
+          <div className="mb-20">
             <h1 
-              className={`text-10xl font-bold mb-12 tracking-wider font-mono ${currentStage.color} transition-all duration-700`}
+              className="text-6xl font-bold mb-8 tracking-wider font-mono transition-all duration-700"
               style={{
+                color: currentPhase.color,
                 textShadow: `
-                  0 0 60px currentColor, 
-                  0 0 120px currentColor, 
-                  0 0 180px currentColor,
-                  0 0 240px currentColor
-                `,
-                letterSpacing: '0.25em',
-                transform: `scale(${1 + visualChaos.intensity * 0.2}) rotate(${visualChaos.intensity * 8}deg)`,
-                filter: `blur(${visualChaos.intensity * 1.5}px)`
-              }}
-            >
-              نهاية العالم الرقمي
-            </h1>
-            <h2 
-              className={`text-8xl font-bold mb-10 font-mono ${currentStage.color} transition-all duration-700`}
-              style={{
-                textShadow: `
-                  0 0 50px currentColor, 
-                  0 0 100px currentColor, 
-                  0 0 150px currentColor
+                  0 0 40px currentColor, 
+                  0 0 80px currentColor, 
+                  0 0 120px currentColor
                 `,
                 letterSpacing: '0.2em',
-                transform: `scale(${1 + visualChaos.intensity * 0.15})`,
-                filter: `blur(${visualChaos.intensity * 1.2}px)`
+                transform: `scale(${1 + screenEffects.intensity * 0.15}) rotate(${screenEffects.intensity * 5}deg)`,
+                filter: `blur(${screenEffects.intensity * 1}px)`,
+                direction: 'rtl'
               }}
             >
-              DIGITAL APOCALYPSE
+              هجوم إلكتروني خطير
+            </h1>
+            <h2 
+              className="text-5xl font-bold mb-8 font-mono transition-all duration-700"
+              style={{
+                color: currentPhase.color,
+                textShadow: `
+                  0 0 30px currentColor, 
+                  0 0 60px currentColor, 
+                  0 0 90px currentColor
+                `,
+                letterSpacing: '0.15em',
+                transform: `scale(${1 + screenEffects.intensity * 0.1})`,
+                filter: `blur(${screenEffects.intensity * 0.8}px)`
+              }}
+            >
+              CYBER ATTACK IN PROGRESS
             </h2>
           </div>
 
-          {/* Professional Apocalypse Assessment Panel */}
-          <div className="bg-gradient-to-br from-red-900/70 to-black/90 backdrop-blur-xl border-2 border-red-500/80 rounded-3xl p-16 max-w-8xl mx-auto shadow-2xl">
-            <div className="flex items-center justify-center mb-12">
-              <span className="text-red-400 text-5xl mr-8">☠️</span>
-              <h3 className="text-5xl font-bold text-red-400 font-mono">تقييم نهاية العالم النهائي</h3>
-              <span className="text-red-400 text-5xl ml-8">☠️</span>
+          {/* Cyber Attack Status Panel */}
+          <div className="bg-gradient-to-br from-black/90 to-gray-900/90 backdrop-blur-xl border-2 border-green-500/80 rounded-3xl p-12 max-w-6xl mx-auto shadow-2xl">
+            <div className="flex items-center justify-center mb-10">
+              <span className="text-green-400 text-4xl mr-6">⚠️</span>
+              <h3 className="text-4xl font-bold text-green-400 font-mono" dir="rtl">تقييم الهجوم الإلكتروني</h3>
+              <span className="text-green-400 text-4xl ml-6">⚠️</span>
             </div>
-            <div className="text-4xl text-red-300 mb-12 font-mono tracking-wide">FINAL APOCALYPSE ASSESSMENT</div>
+            <div className="text-3xl text-green-300 mb-10 font-mono tracking-wide">CYBER ATTACK ASSESSMENT</div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12 mb-16">
-              <div className="bg-red-900/60 border-2 border-red-500/80 rounded-2xl p-10 text-center">
-                <div className="text-red-400 text-4xl font-bold mb-6">الاسترداد 🔄</div>
-                <div className="text-red-300 text-2xl mb-6">مستحيل إلى الأبد</div>
-                <div className="text-red-200 text-xl">IMPOSSIBLE FOREVER</div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
+              <div className="bg-green-900/60 border-2 border-green-500/80 rounded-2xl p-8 text-center">
+                <div className="text-green-400 text-3xl font-bold mb-4" dir="rtl">الأمان 🔒</div>
+                <div className="text-green-300 text-xl mb-4" dir="rtl">مخترق بالكامل</div>
+                <div className="text-green-200 text-lg">COMPLETELY COMPROMISED</div>
               </div>
               
-              <div className="bg-red-900/60 border-2 border-red-500/80 rounded-2xl p-10 text-center">
-                <div className="text-red-400 text-4xl font-bold mb-6">البيانات 💾</div>
-                <div className="text-red-300 text-2xl mb-6">محو كامل ونهائي</div>
-                <div className="text-red-200 text-xl">COMPLETE FINAL ERASURE</div>
+              <div className="bg-red-900/60 border-2 border-red-500/80 rounded-2xl p-8 text-center">
+                <div className="text-red-400 text-3xl font-bold mb-4" dir="rtl">البيانات 💾</div>
+                <div className="text-red-300 text-xl mb-4" dir="rtl">تم سرقتها</div>
+                <div className="text-red-200 text-lg">DATA STOLEN</div>
               </div>
               
-              <div className="bg-red-900/60 border-2 border-red-500/80 rounded-2xl p-10 text-center">
-                <div className="text-red-400 text-4xl font-bold mb-6">الوجود 🌍</div>
-                <div className="text-red-300 text-2xl mb-6">منتهي إلى الأبد</div>
-                <div className="text-red-200 text-xl">TERMINATED FOREVER</div>
+              <div className="bg-yellow-900/60 border-2 border-yellow-500/80 rounded-2xl p-8 text-center">
+                <div className="text-yellow-400 text-3xl font-bold mb-4" dir="rtl">النظام 🖥️</div>
+                <div className="text-yellow-300 text-xl mb-4" dir="rtl">تحت السيطرة</div>
+                <div className="text-yellow-200 text-lg">UNDER CONTROL</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Professional Emergency Terminal */}
+      {/* Hacker Terminal */}
       <div className="absolute bottom-6 left-6 right-6 z-30">
-        <div className="bg-black/95 backdrop-blur-xl border-2 border-red-500/80 rounded-2xl p-10 shadow-2xl max-h-72 overflow-y-auto">
-          <div className="text-red-400 font-mono text-2xl mb-8 border-b-2 border-red-500/60 pb-6 flex items-center justify-between">
-            <span>EMERGENCY TERMINAL - APOCALYPSE MONITORING</span>
-            <span className="text-red-500 animate-pulse text-3xl">● APOCALYPSE ACTIVE</span>
+        <div className="bg-black/95 backdrop-blur-xl border-2 border-green-500/80 rounded-2xl p-8 shadow-2xl max-h-64 overflow-y-auto">
+          <div className="text-green-400 font-mono text-xl mb-6 border-b-2 border-green-500/60 pb-4 flex items-center justify-between">
+            <span>HACKER TERMINAL - CYBER ATTACK LOG</span>
+            <span className="text-red-500 animate-pulse text-2xl">● ATTACK ACTIVE</span>
           </div>
-          <div className="space-y-4">
-            {systemAlerts.slice(-8).map((alert) => (
-              <div key={alert.id} className="font-mono text-lg flex items-center">
-                <span className="text-gray-500 mr-6 min-w-28">[{alert.timestamp}]</span>
-                <span className="mr-6 min-w-24 font-bold" style={{ color: alert.color }}>
-                  {alert.priority}
+          <div className="space-y-3">
+            {hackingLogs.slice(-10).map((log) => (
+              <div key={log.id} className="font-mono text-base flex items-center">
+                <span className="text-gray-500 mr-4 min-w-24">[{log.timestamp}]</span>
+                <span className="mr-4 min-w-20 font-bold" style={{ color: log.color }}>
+                  {log.level}
                 </span>
-                <span className="text-cyan-400 mr-6 min-w-28">{alert.source}</span>
-                <span className="text-gray-300 flex-1">{Math.random() > 0.5 ? alert.message : alert.messageAr}</span>
+                <span className="text-cyan-400 mr-4 min-w-24">{log.module}</span>
+                <span className="text-gray-300 flex-1">{Math.random() > 0.5 ? log.message : log.messageAr}</span>
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Professional Developer Attribution */}
-      <div className="absolute bottom-10 right-10 z-40">
-        <div className="bg-gradient-to-r from-purple-900/80 to-blue-900/80 backdrop-blur-xl border-2 border-purple-500/80 rounded-2xl px-10 py-6 shadow-2xl">
-          <div className="text-purple-300 font-bold text-2xl animate-pulse font-mono">
+      {/* Developer Attribution */}
+      <div className="absolute bottom-8 right-8 z-40">
+        <div className="bg-gradient-to-r from-green-900/80 to-blue-900/80 backdrop-blur-xl border-2 border-green-500/80 rounded-2xl px-8 py-4 shadow-2xl">
+          <div className="text-green-300 font-bold text-xl animate-pulse font-mono" dir="rtl">
             تم تطوير النظام بواسطة Boon
           </div>
         </div>
       </div>
 
-      {/* Professional CSS Animations */}
+      {/* CSS Animations */}
       <style>{`
-        @keyframes terror-matrix-fall {
-          0% { transform: translateY(-80px) rotate(0deg); opacity: 0; }
+        @keyframes digital-fall {
+          0% { transform: translateY(-60px) rotate(0deg); opacity: 0; }
           20% { opacity: 1; }
           80% { opacity: 1; }
-          100% { transform: translateY(100vh) rotate(15deg); opacity: 0; }
+          100% { transform: translateY(100vh) rotate(10deg); opacity: 0; }
         }
         
-        @keyframes terror-chaos-glitch {
+        @keyframes glitch-flicker {
           0%, 100% { opacity: 1; transform: translateX(0) scaleX(1); }
-          20% { opacity: 0.6; transform: translateX(-8px) scaleX(0.85); }
-          40% { opacity: 0.4; transform: translateX(8px) scaleX(1.15); }
-          60% { opacity: 0.7; transform: translateX(-5px) scaleX(0.92); }
-          80% { opacity: 0.5; transform: translateX(5px) scaleX(1.08); }
+          25% { opacity: 0.5; transform: translateX(-5px) scaleX(0.9); }
+          50% { opacity: 0.3; transform: translateX(5px) scaleX(1.1); }
+          75% { opacity: 0.7; transform: translateX(-3px) scaleX(0.95); }
         }
         
-        @keyframes terror-scan-line {
+        @keyframes scan-line {
           0% { transform: translateY(-100vh); opacity: 0; }
-          50% { opacity: 0.5; }
+          50% { opacity: 0.3; }
           100% { transform: translateY(100vh); opacity: 0; }
         }
         
-        .animation-delay-600 { animation-delay: 0.6s; }
-        .animation-delay-1200 { animation-delay: 1.2s; }
-        .animation-delay-1800 { animation-delay: 1.8s; }
-        .animation-delay-2400 { animation-delay: 2.4s; }
+        .animation-delay-500 { animation-delay: 0.5s; }
+        .animation-delay-1000 { animation-delay: 1.0s; }
+        .animation-delay-1500 { animation-delay: 1.5s; }
       `}</style>
     </div>
   )
