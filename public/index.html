@@ -1,79 +1,211 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="تم إغلاق الموقع للأمور الأمنية"
+    <meta name="description" content="Bilingual Who Wants to Be a Millionaire experience with Firebase authentication and admin controls." />
+    <title>Millionaire Challenge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Tajawal:wght@400;600;700&display=swap"
+      rel="stylesheet"
     />
-    <title>إغلاق الموقع - Site Closure</title>
-    <style>
-      body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: #f8f9fa;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 100vh;
-        direction: rtl;
-        text-align: right;
-        color: #333;
-      }
-      .container {
-        background-color: white;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        padding: 40px;
-        max-width: 600px;
-        width: 90%;
-      }
-      h1 {
-        color: #e74c3c;
-        margin-bottom: 20px;
-        font-size: 28px;
-      }
-      p {
-        font-size: 16px;
-        line-height: 1.6;
-        margin-bottom: 15px;
-      }
-      .icon {
-        text-align: center;
-        font-size: 64px;
-        margin-bottom: 20px;
-        color: #e74c3c;
-      }
-      .footer {
-        margin-top: 30px;
-        padding-top: 20px;
-        border-top: 1px solid #eee;
-        font-size: 14px;
-        color: #777;
-      }
-      @media (max-width: 480px) {
-        .container {
-          padding: 25px;
-        }
-        h1 {
-          font-size: 24px;
-        }
-      }
-    </style>
+    <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="container">
-      <div class="icon">🔒</div>
-      <h1>تم إغلاق الموقع للأمور الأمنية</h1>
-      <p>نعتذر منكم، لقد تم إغلاق الموقع مؤقتاً لأسباب أمنية.</p>
-      <p>نعمل حالياً على تحسين أمان الموقع وسيتم إعادة فتحه قريباً بإذن الله.</p>
-      <p>نشكركم على تفهمكم وصبركم خلال هذه الفترة.</p>
-      <div class="footer">
-        <p>للتواصل والاستفسار: support@example.com</p>
+    <div class="toast" id="toast"></div>
+    <header>
+      <h1 data-i18n="app.title">Millionaire Challenge</h1>
+      <p data-i18n="app.subtitle">Rise through the prize ladder and claim the million!</p>
+      <div class="language-toggle">
+        <button id="lang-en" class="active">English</button>
+        <button id="lang-ar">العربية</button>
       </div>
-    </div>
+    </header>
+    <main>
+      <section id="auth-section" class="card">
+        <h2 data-i18n="auth.heading">Join the game</h2>
+        <p data-i18n="auth.description">
+          Create an account or sign in to sync your progress across devices.
+        </p>
+        <div class="auth-forms">
+          <form id="register-form">
+            <h3 data-i18n="auth.registerTitle">Register</h3>
+            <div class="form-control">
+              <label for="register-name" data-i18n="auth.displayName">Display name</label>
+              <input id="register-name" name="displayName" required />
+            </div>
+            <div class="form-control">
+              <label for="register-email" data-i18n="auth.email">Email</label>
+              <input id="register-email" name="email" type="email" required />
+            </div>
+            <div class="form-control">
+              <label for="register-password" data-i18n="auth.password">Password</label>
+              <input
+                id="register-password"
+                name="password"
+                type="password"
+                minlength="6"
+                required
+              />
+            </div>
+            <button type="submit" data-i18n="auth.register">Create account</button>
+          </form>
+          <form id="login-form">
+            <h3 data-i18n="auth.loginTitle">Login</h3>
+            <div class="form-control">
+              <label for="login-email" data-i18n="auth.email">Email</label>
+              <input id="login-email" name="email" type="email" required />
+            </div>
+            <div class="form-control">
+              <label for="login-password" data-i18n="auth.password">Password</label>
+              <input id="login-password" name="password" type="password" required />
+            </div>
+            <button type="submit" data-i18n="auth.login">Sign in</button>
+          </form>
+        </div>
+      </section>
+
+      <section id="menu-section" class="card hidden">
+        <div class="status-banner">
+          <div>
+            <span data-i18n="menu.welcome">Welcome back</span>
+            <strong id="player-name"></strong>
+          </div>
+          <button id="logout-btn" class="secondary" data-i18n="menu.logout">Logout</button>
+        </div>
+        <div id="menu-actions">
+          <button id="start-game-btn" data-i18n="menu.start">Start new game</button>
+          <button id="resume-game-btn" class="secondary hidden" data-i18n="menu.resume">
+            Resume last session
+          </button>
+          <button id="open-admin-btn" class="secondary hidden" data-i18n="menu.admin">
+            Open administration panel
+          </button>
+        </div>
+        <p id="game-availability" class="notice hidden" data-i18n="menu.closed">
+          The game is currently closed. Please check back soon.
+        </p>
+      </section>
+
+      <section id="game-section" class="card hidden">
+        <div class="status-banner">
+          <div>
+            <span data-i18n="game.questionCounter">Question</span>
+            <strong id="question-counter">1 / 15</strong>
+          </div>
+          <div>
+            <span data-i18n="game.currentPrize">Guaranteed prize</span>
+            <strong id="current-prize">$0</strong>
+          </div>
+        </div>
+        <div class="lifelines">
+          <button id="lifeline-5050" data-i18n="game.lifelines.fifty">50 : 50</button>
+          <button id="lifeline-audience" data-i18n="game.lifelines.audience">Ask the audience</button>
+          <button id="lifeline-phone" data-i18n="game.lifelines.phone">Phone a friend</button>
+        </div>
+        <div id="game-area">
+          <div class="question-box">
+            <div class="question-text" id="question-text">–</div>
+          </div>
+          <div class="answers" id="answers"></div>
+        </div>
+        <div class="card">
+          <h3 data-i18n="game.ladderTitle">Prize ladder</h3>
+          <div class="ladder" id="ladder"></div>
+          <button id="walk-away-btn" class="secondary" data-i18n="game.walkAway">
+            Walk away
+          </button>
+        </div>
+      </section>
+
+      <section id="admin-section" class="card hidden">
+        <div class="status-banner">
+          <h2 data-i18n="admin.heading">Question management</h2>
+          <button type="button" id="back-to-menu" class="secondary" data-i18n="admin.back">
+            Back to menu
+          </button>
+        </div>
+        <p data-i18n="admin.description">
+          Create, edit, and remove questions to curate the Millionaire experience.
+        </p>
+        <div class="admin-control-card">
+          <div class="admin-control-info">
+            <h3 data-i18n="admin.gameStatus.title">Game availability</h3>
+            <p data-i18n="admin.gameStatus.description">
+              Toggle whether the Millionaire experience is open to players.
+            </p>
+            <span
+              id="game-status-indicator"
+              class="status-pill"
+              data-status="open"
+              data-i18n="admin.gameStatus.statusOpen"
+            >
+              Open to players
+            </span>
+            <p id="game-status-meta" class="status-meta"></p>
+          </div>
+          <button type="button" id="toggle-game-status">Close game</button>
+        </div>
+        <form id="question-form">
+          <input type="hidden" id="question-id" />
+          <div class="form-control">
+            <label for="question-level" data-i18n="admin.level">Question level (1-15)</label>
+            <input id="question-level" type="number" min="1" max="15" required />
+          </div>
+          <div class="form-control">
+            <label for="question-difficulty" data-i18n="admin.difficulty">Difficulty</label>
+            <select id="question-difficulty">
+              <option value="easy" data-i18n="admin.difficulties.easy">Easy</option>
+              <option value="medium" data-i18n="admin.difficulties.medium">Medium</option>
+              <option value="hard" data-i18n="admin.difficulties.hard">Hard</option>
+            </select>
+          </div>
+          <div class="form-control">
+            <label for="question-en" data-i18n="admin.questionEn">Question (English)</label>
+            <textarea id="question-en" rows="2" required></textarea>
+          </div>
+          <div class="form-control">
+            <label for="question-ar" data-i18n="admin.questionAr">Question (Arabic)</label>
+            <textarea id="question-ar" rows="2" required></textarea>
+          </div>
+          <div class="form-control">
+            <label data-i18n="admin.answersEn">Answers (English)</label>
+            <div>
+              <input data-option-en="0" placeholder="Answer A" required />
+              <input data-option-en="1" placeholder="Answer B" required />
+              <input data-option-en="2" placeholder="Answer C" required />
+              <input data-option-en="3" placeholder="Answer D" required />
+            </div>
+          </div>
+          <div class="form-control">
+            <label data-i18n="admin.answersAr">Answers (Arabic)</label>
+            <div>
+              <input data-option-ar="0" placeholder="الإجابة أ" required />
+              <input data-option-ar="1" placeholder="الإجابة ب" required />
+              <input data-option-ar="2" placeholder="الإجابة ج" required />
+              <input data-option-ar="3" placeholder="الإجابة د" required />
+            </div>
+          </div>
+          <div class="form-control">
+            <label for="correct-index" data-i18n="admin.correct">Correct answer index</label>
+            <select id="correct-index">
+              <option value="0">A</option>
+              <option value="1">B</option>
+              <option value="2">C</option>
+              <option value="3">D</option>
+            </select>
+          </div>
+          <button type="submit" data-i18n="admin.saveQuestion">Save question</button>
+          <button type="button" id="reset-form" class="secondary" data-i18n="admin.reset">
+            Reset form
+          </button>
+        </form>
+        <div class="admin-list" id="question-list"></div>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
