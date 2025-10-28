@@ -90,14 +90,28 @@ class BansRepository:
         ban_data['created_at'] = datetime.utcnow().isoformat()
         return firebase_db.set(f"bans/{user_id}", ban_data)
     
+    def create(self, user_id: str, ban_data: Dict) -> bool:
+        """Create a ban (alias for set)"""
+        return self.set(user_id, ban_data)
+    
     def delete(self, user_id: str) -> bool:
         """Remove a ban"""
         return firebase_db.delete(f"bans/{user_id}")
     
-    def list_all(self) -> Dict[str, Dict]:
+    def list_all(self) -> List[Dict]:
         """List all bans"""
         bans = firebase_db.get("bans")
-        return bans if bans else {}
+        if not bans:
+            return []
+        
+        ban_list = []
+        for key, ban in bans.items():
+            ban['id'] = key
+            ban['user_id'] = key  # Ensure user_id is set
+            ban_list.append(ban)
+        
+        ban_list.sort(key=lambda x: x.get('created_at', ''))
+        return ban_list
 
 
 class MutesRepository:
@@ -112,18 +126,36 @@ class MutesRepository:
         mute_data['created_at'] = datetime.utcnow().isoformat()
         return firebase_db.set(f"mutes/{user_id}", mute_data)
     
+    def create(self, user_id: str, mute_data: Dict) -> bool:
+        """Create a mute (alias for set)"""
+        return self.set(user_id, mute_data)
+    
     def delete(self, user_id: str) -> bool:
         """Remove a mute"""
         return firebase_db.delete(f"mutes/{user_id}")
     
-    def list_all(self) -> Dict[str, Dict]:
+    def list_all(self) -> List[Dict]:
         """List all mutes"""
         mutes = firebase_db.get("mutes")
-        return mutes if mutes else {}
+        if not mutes:
+            return []
+        
+        mute_list = []
+        for key, mute in mutes.items():
+            mute['id'] = key
+            mute['user_id'] = key  # Ensure user_id is set
+            mute_list.append(mute)
+        
+        mute_list.sort(key=lambda x: x.get('created_at', ''))
+        return mute_list
 
 
 class AppealsRepository:
     """Manages ban appeals in Firebase"""
+    
+    def get(self, appeal_id: str) -> Optional[Dict]:
+        """Get appeal by appeal_id"""
+        return firebase_db.get(f"appeals/{appeal_id}")
     
     def list_all(self) -> List[Dict]:
         """List all appeals"""
@@ -149,6 +181,10 @@ class AppealsRepository:
         appeal_data['created_at'] = datetime.utcnow().isoformat()
         return firebase_db.push("appeals", appeal_data)
     
+    def update(self, appeal_id: str, data: Dict) -> bool:
+        """Update appeal data"""
+        return firebase_db.update(f"appeals/{appeal_id}", data)
+    
     def update_status(self, appeal_id: str, status: str, response: Optional[str] = None) -> bool:
         """Update appeal status"""
         update_data = {"status": status}
@@ -159,6 +195,10 @@ class AppealsRepository:
 
 class ReportsRepository:
     """Manages message reports in Firebase"""
+    
+    def get(self, report_id: str) -> Optional[Dict]:
+        """Get report by report_id"""
+        return firebase_db.get(f"reports/{report_id}")
     
     def list_all(self) -> List[Dict]:
         """List all reports"""
@@ -179,6 +219,10 @@ class ReportsRepository:
         report_data['created_at'] = datetime.utcnow().isoformat()
         return firebase_db.push("reports", report_data)
     
+    def update(self, report_id: str, data: Dict) -> bool:
+        """Update report data"""
+        return firebase_db.update(f"reports/{report_id}", data)
+    
     def update_status(self, report_id: str, status: str) -> bool:
         """Update report status"""
         return firebase_db.update(f"reports/{report_id}", {"status": status})
@@ -186,6 +230,10 @@ class ReportsRepository:
 
 class FilesRepository:
     """Manages pending files in Firebase"""
+    
+    def get(self, file_id: str) -> Optional[Dict]:
+        """Get file by file_id"""
+        return firebase_db.get(f"files/pending/{file_id}")
     
     def list_pending(self) -> List[Dict]:
         """List all pending files"""
@@ -205,6 +253,10 @@ class FilesRepository:
         """Create a new pending file"""
         file_data['created_at'] = datetime.utcnow().isoformat()
         return firebase_db.push("files/pending", file_data)
+    
+    def update(self, file_id: str, data: Dict) -> bool:
+        """Update file data"""
+        return firebase_db.update(f"files/pending/{file_id}", data)
     
     def delete(self, file_id: str) -> bool:
         """Delete a pending file"""
