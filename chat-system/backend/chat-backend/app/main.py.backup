@@ -1,0 +1,480 @@
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional, Dict
+from datetime import datetime, timedelta
+import json
+import uuid
+import hashlib
+from jose import JWTError, jwt
+import os
+from .repositories import (
+    users_repo, messages_repo, bans_repo, mutes_repo,
+    appeals_repo, reports_repo, files_repo, announcements_repo, settings_repo
+)
+
+app = FastAPI()
+
+# Disable CORS. Do not remove this for full-stack development.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
+)
+
+SECRET_KEY = "your-secret-key-change-in-production"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except:
+                pass
+
+manager = ConnectionManager()
+
+class UserRegister(BaseModel):
+    username: str
+    password: str
+    email: str
+    bigo_name: str
+    user_id: str
+
+class UserLogin(BaseModel):
+    username: str
+    password: Optional[str] = None
+
+class AdminLogin(BaseModel):
+    username: str
+    access_code: str
+
+class Message(BaseModel):
+    content: str
+    user_id: str
+    username: str
+    role: str
+
+class BanUser(BaseModel):
+    user_id: str
+    duration_minutes: int
+    reason: str
+
+class MuteUser(BaseModel):
+    user_id: str
+    duration_minutes: int
+    reason: str
+
+class ReportMessage(BaseModel):
+    message_id: str
+    reporter_id: str
+    category: str
+    reason: str
+
+class BanAppeal(BaseModel):
+    user_id: str
+    appeal_text: str
+
+class AppealResponse(BaseModel):
+    appeal_id: str
+    response: str
+    action: str
+
+class Announcement(BaseModel):
+    content: str
+    created_by: str
+
+class ChatSettings(BaseModel):
+    is_open: bool
+    close_message: str
+
+def hash_password(password: str) -> str:
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+
+def create_access_token(data: dict):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def generate_user_id() -> str:
+    return str(uuid.uuid4().int)[:10]
+
+@app.get("/healthz")
+async def healthz():
+    return {"status": "ok"}
+
+@app.post("/api/register")
+async def register(user: UserRegister):
+    if users_repo.get_by_username(user.username):
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    user_id = generate_user_id()
+    user_data = {
+        "username": user.username,
+        "password": hash_password(user.password),
+        "email": user.email,
+        "bigo_name": user.bigo_name,
+        "user_id": user_id,
+        "role": "user",
+        "created_at": datetime.utcnow().isoformat()
+    }
+    users_repo.create(user.username, user_data)
+    
+    return {
+        "message": "User registered successfully",
+        "user_id": user_id,
+        "username": user.username
+    }
+
+@app.post("/api/login")
+async def login(user: UserLogin):
+    if user.username not in users_db:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    stored_user = users_db[user.username]
+    
+    if stored_user["user_id"] in bans_db:
+        ban = bans_db[stored_user["user_id"]]
+        if datetime.fromisoformat(ban["expires_at"]) > datetime.utcnow():
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "type": "banned",
+                    "reason": ban["reason"],
+                    "expires_at": ban["expires_at"],
+                    "duration_minutes": ban["duration_minutes"]
+                }
+            )
+        else:
+            del bans_db[stored_user["user_id"]]
+    
+    if user.password and not verify_password(user.password, stored_user["password"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_access_token({"sub": user.username, "role": stored_user["role"]})
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "username": stored_user["username"],
+            "user_id": stored_user["user_id"],
+            "role": stored_user["role"]
+        }
+    }
+
+@app.post("/api/admin/login")
+async def admin_login(admin: AdminLogin):
+    if admin.access_code != "3131":
+        raise HTTPException(status_code=401, detail="Invalid access code")
+    
+    if admin.username not in users_db:
+        user_id = generate_user_id()
+        users_db[admin.username] = {
+            "username": admin.username,
+            "password": hash_password("admin"),
+            "email": "admin@chat.com",
+            "bigo_name": "Admin",
+            "user_id": user_id,
+            "role": "admin",
+            "created_at": datetime.utcnow().isoformat()
+        }
+    else:
+        users_db[admin.username]["role"] = "admin"
+    
+    stored_user = users_db[admin.username]
+    token = create_access_token({"sub": admin.username, "role": "admin"})
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "username": stored_user["username"],
+            "user_id": stored_user["user_id"],
+            "role": "admin"
+        }
+    }
+
+@app.get("/api/messages")
+async def get_messages():
+    return {"messages": messages_db}
+
+@app.post("/api/messages")
+async def send_message(message: Message):
+    if message.user_id in mutes_db:
+        mute = mutes_db[message.user_id]
+        if datetime.fromisoformat(mute["expires_at"]) > datetime.utcnow():
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "type": "muted",
+                    "reason": mute["reason"],
+                    "expires_at": mute["expires_at"]
+                }
+            )
+        else:
+            del mutes_db[message.user_id]
+    
+    if not chat_settings["is_open"] and message.role != "admin":
+        raise HTTPException(status_code=403, detail="Chat is currently closed")
+    
+    msg_id = str(uuid.uuid4())
+    new_message = {
+        "id": msg_id,
+        "content": message.content,
+        "user_id": message.user_id,
+        "username": message.username,
+        "role": message.role,
+        "timestamp": datetime.utcnow().isoformat()
+    }
+    
+    messages_db.append(new_message)
+    await manager.broadcast({"type": "new_message", "message": new_message})
+    
+    return {"message": "Message sent", "data": new_message}
+
+@app.delete("/api/messages/{message_id}")
+async def delete_message(message_id: str):
+    global messages_db
+    messages_db = [m for m in messages_db if m["id"] != message_id]
+    await manager.broadcast({"type": "message_deleted", "message_id": message_id})
+    return {"message": "Message deleted"}
+
+@app.delete("/api/messages")
+async def clear_messages():
+    global messages_db
+    messages_db = []
+    await manager.broadcast({"type": "messages_cleared"})
+    return {"message": "All messages cleared"}
+
+@app.post("/api/admin/ban")
+async def ban_user(ban: BanUser):
+    expires_at = datetime.utcnow() + timedelta(minutes=ban.duration_minutes)
+    bans_db[ban.user_id] = {
+        "user_id": ban.user_id,
+        "reason": ban.reason,
+        "duration_minutes": ban.duration_minutes,
+        "expires_at": expires_at.isoformat(),
+        "banned_at": datetime.utcnow().isoformat()
+    }
+    
+    await manager.broadcast({
+        "type": "user_banned",
+        "user_id": ban.user_id,
+        "reason": ban.reason,
+        "expires_at": expires_at.isoformat()
+    })
+    
+    return {"message": "User banned successfully"}
+
+@app.post("/api/admin/unban/{user_id}")
+async def unban_user(user_id: str):
+    if user_id in bans_db:
+        del bans_db[user_id]
+        await manager.broadcast({"type": "user_unbanned", "user_id": user_id})
+    return {"message": "User unbanned successfully"}
+
+@app.get("/api/admin/bans")
+async def get_bans():
+    active_bans = []
+    for user_id, ban in list(bans_db.items()):
+        if datetime.fromisoformat(ban["expires_at"]) > datetime.utcnow():
+            remaining = datetime.fromisoformat(ban["expires_at"]) - datetime.utcnow()
+            ban["remaining_minutes"] = int(remaining.total_seconds() / 60)
+            active_bans.append(ban)
+        else:
+            del bans_db[user_id]
+    return {"bans": active_bans}
+
+@app.post("/api/admin/mute")
+async def mute_user(mute: MuteUser):
+    expires_at = datetime.utcnow() + timedelta(minutes=mute.duration_minutes)
+    mutes_db[mute.user_id] = {
+        "user_id": mute.user_id,
+        "reason": mute.reason,
+        "duration_minutes": mute.duration_minutes,
+        "expires_at": expires_at.isoformat(),
+        "muted_at": datetime.utcnow().isoformat()
+    }
+    
+    await manager.broadcast({
+        "type": "user_muted",
+        "user_id": mute.user_id,
+        "reason": mute.reason,
+        "expires_at": expires_at.isoformat()
+    })
+    
+    return {"message": "User muted successfully"}
+
+@app.post("/api/reports")
+async def report_message(report: ReportMessage):
+    report_id = str(uuid.uuid4())
+    new_report = {
+        "id": report_id,
+        "message_id": report.message_id,
+        "reporter_id": report.reporter_id,
+        "category": report.category,
+        "reason": report.reason,
+        "status": "pending",
+        "created_at": datetime.utcnow().isoformat()
+    }
+    reports_db.append(new_report)
+    return {"message": "Report submitted", "report_id": report_id}
+
+@app.get("/api/admin/reports")
+async def get_reports():
+    return {"reports": reports_db}
+
+@app.post("/api/admin/reports/{report_id}/resolve")
+async def resolve_report(report_id: str):
+    for report in reports_db:
+        if report["id"] == report_id:
+            report["status"] = "resolved"
+            return {"message": "Report resolved"}
+    raise HTTPException(status_code=404, detail="Report not found")
+
+@app.post("/api/appeals")
+async def submit_appeal(appeal: BanAppeal):
+    actual_user_id = appeal.user_id
+    if appeal.user_id in users_db:
+        actual_user_id = users_db[appeal.user_id]["user_id"]
+    
+    if actual_user_id not in bans_db:
+        raise HTTPException(status_code=400, detail="User is not banned")
+    
+    appeal_id = str(uuid.uuid4())
+    new_appeal = {
+        "id": appeal_id,
+        "user_id": actual_user_id,
+        "appeal_text": appeal.appeal_text,
+        "status": "pending",
+        "response": None,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    appeals_db.append(new_appeal)
+    return {"message": "Appeal submitted", "appeal_id": appeal_id}
+
+@app.get("/api/appeals/{user_id}")
+async def get_user_appeals(user_id: str):
+    actual_user_id = user_id
+    if user_id in users_db:
+        actual_user_id = users_db[user_id]["user_id"]
+    user_appeals = [a for a in appeals_db if a["user_id"] == actual_user_id]
+    return {"appeals": user_appeals}
+
+@app.get("/api/admin/appeals")
+async def get_all_appeals():
+    return {"appeals": appeals_db}
+
+@app.post("/api/admin/appeals/respond")
+async def respond_to_appeal(response: AppealResponse):
+    for appeal in appeals_db:
+        if appeal["id"] == response.appeal_id:
+            appeal["status"] = "resolved"
+            appeal["response"] = response.response
+            appeal["action"] = response.action
+            
+            if response.action == "accept":
+                if appeal["user_id"] in bans_db:
+                    del bans_db[appeal["user_id"]]
+                    await manager.broadcast({
+                        "type": "user_unbanned",
+                        "user_id": appeal["user_id"]
+                    })
+            
+            return {"message": "Appeal responded"}
+    raise HTTPException(status_code=404, detail="Appeal not found")
+
+@app.post("/api/admin/announcements")
+async def create_announcement(announcement: Announcement):
+    ann_id = str(uuid.uuid4())
+    new_announcement = {
+        "id": ann_id,
+        "content": announcement.content,
+        "created_by": announcement.created_by,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    announcements_db.append(new_announcement)
+    await manager.broadcast({"type": "new_announcement", "announcement": new_announcement})
+    return {"message": "Announcement created", "announcement": new_announcement}
+
+@app.get("/api/announcements")
+async def get_announcements():
+    return {"announcements": announcements_db}
+
+@app.post("/api/admin/chat/settings")
+async def update_chat_settings(settings: ChatSettings):
+    chat_settings["is_open"] = settings.is_open
+    chat_settings["close_message"] = settings.close_message
+    await manager.broadcast({"type": "chat_settings_updated", "settings": chat_settings})
+    return {"message": "Chat settings updated", "settings": chat_settings}
+
+@app.get("/api/chat/settings")
+async def get_chat_settings():
+    return {"settings": chat_settings}
+
+@app.post("/api/files/upload")
+async def upload_file(file: UploadFile = File(...), user_id: str = ""):
+    file_id = str(uuid.uuid4())
+    pending_file = {
+        "id": file_id,
+        "filename": file.filename,
+        "user_id": user_id,
+        "status": "pending",
+        "uploaded_at": datetime.utcnow().isoformat()
+    }
+    pending_files_db.append(pending_file)
+    return {"message": "File uploaded, awaiting approval", "file_id": file_id}
+
+@app.get("/api/admin/files")
+async def get_pending_files():
+    return {"files": [f for f in pending_files_db if f["status"] == "pending"]}
+
+@app.post("/api/admin/files/{file_id}/approve")
+async def approve_file(file_id: str):
+    for file in pending_files_db:
+        if file["id"] == file_id:
+            file["status"] = "approved"
+            await manager.broadcast({"type": "file_approved", "file": file})
+            return {"message": "File approved"}
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.post("/api/admin/files/{file_id}/reject")
+async def reject_file(file_id: str):
+    for file in pending_files_db:
+        if file["id"] == file_id:
+            file["status"] = "rejected"
+            return {"message": "File rejected"}
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+@app.get("/api/users")
+async def get_users():
+    return {"users": [{"username": u["username"], "user_id": u["user_id"], "role": u["role"]} for u in users_db.values()]}
