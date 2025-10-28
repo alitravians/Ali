@@ -306,7 +306,13 @@ async def unban_user(user_id: str):
 async def get_bans():
     all_bans = bans_repo.list_all()
     active_bans = []
-    for user_id, ban in all_bans.items():
+    
+    if isinstance(all_bans, dict):
+        items = all_bans.items()
+    else:
+        items = [(b.get("user_id") or b.get("id"), b) for b in all_bans]
+    
+    for user_id, ban in items:
         if datetime.fromisoformat(ban["expires_at"]) > datetime.utcnow():
             remaining = datetime.fromisoformat(ban["expires_at"]) - datetime.utcnow()
             ban["remaining_minutes"] = int(remaining.total_seconds() / 60)
@@ -335,6 +341,30 @@ async def mute_user(mute: MuteUser):
     })
     
     return {"message": "User muted successfully"}
+
+@app.get("/api/admin/mutes")
+async def get_mutes():
+    all_mutes = mutes_repo.list_all()
+    active_mutes = []
+    
+    if isinstance(all_mutes, dict):
+        items = all_mutes.items()
+    else:
+        items = [(m.get("user_id") or m.get("id"), m) for m in all_mutes]
+    
+    for user_id, mute in items:
+        if datetime.fromisoformat(mute["expires_at"]) > datetime.utcnow():
+            remaining = datetime.fromisoformat(mute["expires_at"]) - datetime.utcnow()
+            mute["remaining_minutes"] = int(remaining.total_seconds() / 60)
+            active_mutes.append(mute)
+        else:
+            mutes_repo.delete(user_id)
+    return {"mutes": active_mutes}
+
+@app.post("/api/admin/unmute/{user_id}")
+async def unmute_user(user_id: str):
+    mutes_repo.delete(user_id)
+    return {"message": "User unmuted successfully"}
 
 @app.post("/api/reports")
 async def report_message(report: ReportMessage):

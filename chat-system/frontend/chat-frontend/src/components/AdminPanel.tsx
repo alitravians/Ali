@@ -14,6 +14,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState<any[]>([]);
   const [bans, setBans] = useState<any[]>([]);
+  const [mutes, setMutes] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [appeals, setAppeals] = useState<any[]>([]);
   const [pendingFiles, setPendingFiles] = useState<any[]>([]);
@@ -130,6 +131,9 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       } else if (activeTab === 'bans') {
         const response = await axios.get(`${apiUrl}/api/admin/bans`);
         setBans(response.data.bans);
+      } else if (activeTab === 'mutes') {
+        const response = await axios.get(`${apiUrl}/api/admin/mutes`);
+        setMutes(response.data.mutes);
       } else if (activeTab === 'reports') {
         const response = await axios.get(`${apiUrl}/api/admin/reports`);
         setReports(response.data.reports);
@@ -196,8 +200,19 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       setMuteUserId('');
       setMuteDuration('');
       setMuteReason('');
+      loadData();
     } catch (err) {
       alert('Failed to mute user');
+    }
+  };
+
+  const handleUnmuteUser = async (userId: string) => {
+    try {
+      await axios.post(`${apiUrl}/api/admin/unmute/${userId}`);
+      alert('User unmuted successfully');
+      loadData();
+    } catch (err) {
+      alert('Failed to unmute user');
     }
   };
 
@@ -397,6 +412,20 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
                 onChange={(e) => setMuteReason(e.target.value)}
               />
               <button onClick={handleMuteUser}>{t.mute}</button>
+            </div>
+
+            <h3>{t.mutes}</h3>
+            <div className="mutes-list">
+              {mutes.map(mute => (
+                <div key={mute.user_id} className="mute-item">
+                  <div>
+                    <strong>{t.userId}:</strong> {mute.user_id}<br />
+                    <strong>{t.reason}:</strong> {mute.reason}<br />
+                    <strong>{t.remainingTime}:</strong> {mute.remaining_minutes} {t.minutes}
+                  </div>
+                  <button onClick={() => handleUnmuteUser(mute.user_id)}>{t.unban}</button>
+                </div>
+              ))}
             </div>
           </div>
         )}
