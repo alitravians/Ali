@@ -96,7 +96,9 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
       }
     } catch (err: any) {
       if (err.response?.status === 403 && err.response?.data?.detail?.type === 'banned') {
-        onBanned({ ...err.response.data.detail, username });
+        const banData = { ...err.response.data.detail, username };
+        localStorage.setItem('banInfo', JSON.stringify(banData));
+        onBanned(banData);
       } else {
         setError(err.response?.data?.detail || 'Login failed');
       }

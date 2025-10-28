@@ -653,113 +653,329 @@ body {
   margin-bottom: 20px;
 }
 
+/* Ban Appeal Page - Professional Modern Design */
 .ban-appeal-page {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .ban-appeal-container {
   background: white;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 40px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 700px;
   width: 100%;
+  animation: slideIn 0.5s ease-out;
 }
 
-.ban-info {
-  background: #fee;
-  border-left: 4px solid #e74c3c;
-  padding: 20px;
-  border-radius: 8px;
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Ban Info Card */
+.ban-info-card {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+  border-radius: 16px;
+  padding: 30px;
   margin-bottom: 30px;
+  color: white;
+  box-shadow: 0 8px 24px rgba(238, 90, 111, 0.3);
 }
 
-.ban-info h2 {
-  color: #e74c3c;
-  font-size: 24px;
-  margin-bottom: 15px;
+.ban-header h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 20px;
+  text-align: center;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.ban-details p {
-  color: #c33;
-  margin: 8px 0;
+.ban-details {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  font-size: 16px;
+  opacity: 0.95;
+}
+
+.detail-value {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.remaining-time {
+  color: #fff;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 16px;
+  border-radius: 20px;
   font-size: 16px;
 }
 
-.appeal-form {
+/* Progress Bar */
+.progress-bar-container {
+  margin-top: 20px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #ffd89b 0%, #19547b 100%);
+  transition: width 1s ease;
+  border-radius: 10px;
+}
+
+/* Appeal Form Card */
+.appeal-form-card {
+  background: #f8f9fa;
+  border-radius: 16px;
+  padding: 30px;
   margin-bottom: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.appeal-form h3 {
-  font-size: 20px;
+.appeal-form-card h3 {
+  font-size: 22px;
   color: #2c3e50;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
+  font-weight: 700;
 }
 
-.appeal-form textarea {
+.appeal-textarea {
   width: 100%;
-  padding: 12px;
+  padding: 16px;
   border: 2px solid #e9ecef;
-  border-radius: 8px;
-  font-size: 14px;
+  border-radius: 12px;
+  font-size: 15px;
   font-family: inherit;
-  margin-bottom: 15px;
+  margin-bottom: 20px;
   resize: vertical;
+  transition: all 0.3s ease;
+  min-height: 120px;
 }
 
-.appeal-form button {
+.appeal-textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.submit-appeal-btn {
   width: 100%;
-  padding: 14px;
-  background: #4a90e2;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
 
-.success-message {
+.submit-appeal-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.submit-appeal-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Success Toast */
+.success-toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+  padding: 16px 32px;
+  border-radius: 50px;
+  box-shadow: 0 8px 24px rgba(17, 153, 142, 0.4);
+  font-weight: 600;
+  font-size: 16px;
+  z-index: 1000;
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* Appeals List Card */
+.appeals-list-card {
+  background: #f8f9fa;
+  border-radius: 16px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.appeals-list-card h3 {
+  font-size: 22px;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  font-weight: 700;
+}
+
+.no-appeals {
+  text-align: center;
+  color: #6c757d;
+  padding: 40px 20px;
+  font-size: 16px;
+}
+
+.appeals-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.appeal-item-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+}
+
+.appeal-item-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.appeal-status-badge {
+  margin-bottom: 16px;
+}
+
+.appeal-status-badge span {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.status-accepted {
   background: #d4edda;
   color: #155724;
-  padding: 15px;
+}
+
+.status-rejected {
+  background: #f8d7da;
+  color: #721c24;
+}
+
+.status-resolved {
+  background: #d1ecf1;
+  color: #0c5460;
+}
+
+.appeal-content {
+  margin-bottom: 16px;
+}
+
+.appeal-label {
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+
+.appeal-text {
+  color: #212529;
+  line-height: 1.6;
+  font-size: 15px;
+}
+
+.appeal-response {
+  background: #e9ecef;
   border-radius: 8px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: 600;
+  padding: 16px;
+  margin-top: 16px;
 }
 
-.appeals-list {
-  margin-bottom: 30px;
+.response-label {
+  font-weight: 700;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 14px;
 }
 
-.appeals-list h3 {
-  font-size: 20px;
-  color: #2c3e50;
-  margin-bottom: 15px;
+.response-text {
+  color: #212529;
+  line-height: 1.6;
+  font-size: 15px;
 }
 
-.appeals-list .appeal-item {
-  background: #f8f9fa;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 10px;
-}
-
+/* Back Button */
 .back-btn {
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   background: #6c757d;
   color: white;
   border: none;
-  border-radius: 8px;
-  font-weight: 600;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(108, 117, 125, 0.3);
+}
+
+.back-btn:hover {
+  background: #5a6268;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(108, 117, 125, 0.4);
 }
 
 @media (max-width: 768px) {

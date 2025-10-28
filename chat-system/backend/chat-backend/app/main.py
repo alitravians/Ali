@@ -2,7 +2,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depe
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import uuid
 import hashlib
@@ -154,13 +154,16 @@ async def login(user: UserLogin):
     ban = bans_repo.get(stored_user["user_id"])
     if ban:
         if datetime.fromisoformat(ban["expires_at"]) > datetime.utcnow():
+            remaining = datetime.fromisoformat(ban["expires_at"]) - datetime.utcnow()
+            remaining_minutes = max(0, int(remaining.total_seconds() / 60))
             raise HTTPException(
                 status_code=403,
                 detail={
                     "type": "banned",
                     "reason": ban["reason"],
                     "expires_at": ban["expires_at"],
-                    "duration_minutes": ban["duration_minutes"]
+                    "duration_minutes": ban["duration_minutes"],
+                    "remaining_minutes": remaining_minutes
                 }
             )
         else:
@@ -301,6 +304,26 @@ async def unban_user(user_id: str):
     bans_repo.delete(user_id)
     await manager.broadcast({"type": "user_unbanned", "user_id": user_id})
     return {"message": "User unbanned successfully"}
+
+@app.get("/api/ban/{user_id}")
+async def get_user_ban(user_id: str):
+    ban = bans_repo.get(user_id)
+    if not ban:
+        raise HTTPException(status_code=404, detail="No active ban found")
+    
+    if datetime.fromisoformat(ban["expires_at"]) <= datetime.utcnow():
+        bans_repo.delete(user_id)
+        raise HTTPException(status_code=404, detail="Ban has expired")
+    
+    remaining = datetime.fromisoformat(ban["expires_at"]) - datetime.utcnow()
+    ban["remaining_minutes"] = max(0, int(remaining.total_seconds() / 60))
+    
+    return {
+        "reason": ban["reason"],
+        "duration_minutes": ban["duration_minutes"],
+        "expires_at": ban["expires_at"],
+        "remaining_minutes": ban["remaining_minutes"]
+    }
 
 @app.get("/api/admin/bans")
 async def get_bans():
