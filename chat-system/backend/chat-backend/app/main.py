@@ -240,11 +240,20 @@ async def send_message(message: Message):
     if not settings.get("is_open", True) and message.role != "admin":
         raise HTTPException(status_code=403, detail="Chat is currently closed")
     
+    content = message.content
+    is_admin_bold = False
+    if message.role in ["admin", "moderator"] and content.startswith("$"):
+        is_admin_bold = True
+        content = content[1:]  # Strip the $ prefix
+    elif content.startswith("$"):
+        content = content[1:]
+    
     new_message = {
-        "content": message.content,
+        "content": content,
         "user_id": message.user_id,
         "username": message.username,
         "role": message.role,
+        "is_admin_bold": is_admin_bold,
         "timestamp": datetime.utcnow().isoformat()
     }
     

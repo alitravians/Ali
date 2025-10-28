@@ -262,6 +262,17 @@ body {
   border-left: 4px solid #e74c3c;
 }
 
+.admin-bold-message .message-content {
+  color: white;
+  font-weight: 700;
+}
+
+.admin-bold-message .username,
+.admin-bold-message .timestamp,
+.admin-bold-message .user-id {
+  color: white;
+}
+
 .message-header {
   display: flex;
   justify-content: space-between;

@@ -139,14 +139,8 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
     if (!newMessage.trim()) return;
 
     try {
-      let messageContent = newMessage;
-      
-      if (user.role === 'admin' && newMessage.startsWith('$')) {
-        messageContent = newMessage.substring(1);
-      }
-
       await axios.post(`${apiUrl}/api/messages`, {
-        content: messageContent,
+        content: newMessage,
         user_id: user.user_id,
         username: user.username,
         role: user.role
@@ -199,9 +193,7 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
   };
 
   const renderMessage = (msg: any) => {
-    const isAdminMessage = msg.role === 'admin' && msg.content.startsWith('$');
-    const messageContent = isAdminMessage ? msg.content.substring(1) : msg.content;
-    const messageClass = isAdminMessage ? 'admin-bold-message' : '';
+    const messageClass = msg.is_admin_bold ? 'admin-bold-message' : '';
 
     return (
       <div key={msg.id} className={`message ${messageClass}`} onClick={() => handleReportMessage(msg.id)}>
@@ -214,7 +206,7 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
           </span>
           <span className="timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</span>
         </div>
-        <div className="message-content">{messageContent}</div>
+        <div className="message-content">{msg.content}</div>
       </div>
     );
   };
