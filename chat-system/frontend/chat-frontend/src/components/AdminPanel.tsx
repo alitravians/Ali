@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import AIScanner from './AIScanner';
 
 interface AdminPanelProps {
   user: any;
@@ -44,6 +45,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       messages: 'الرسائل',
       chatSettings: 'إعدادات الدردشة',
       announcements: 'الإعلانات',
+      aiScanner: 'الماسح الذكي',
       backToChat: 'العودة للدردشة',
       logout: 'تسجيل الخروج',
       banUser: 'حظر مستخدم',
@@ -85,6 +87,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       messages: 'Messages',
       chatSettings: 'Chat Settings',
       announcements: 'Announcements',
+      aiScanner: 'AI Scanner',
       backToChat: 'Back to Chat',
       logout: 'Logout',
       banUser: 'Ban User',
@@ -332,6 +335,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
         <button className={activeTab === 'messages' ? 'active' : ''} onClick={() => setActiveTab('messages')}>{t.messages}</button>
         <button className={activeTab === 'chatSettings' ? 'active' : ''} onClick={() => setActiveTab('chatSettings')}>{t.chatSettings}</button>
         <button className={activeTab === 'announcements' ? 'active' : ''} onClick={() => setActiveTab('announcements')}>{t.announcements}</button>
+        <button className={activeTab === 'aiScanner' ? 'active' : ''} onClick={() => setActiveTab('aiScanner')}>{t.aiScanner}</button>
       </div>
 
       <div className="admin-content">
@@ -557,6 +561,14 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
               <button onClick={handleCreateAnnouncement}>{t.create}</button>
             </div>
           </div>
+        )}
+
+        {activeTab === 'aiScanner' && (
+          <AIScanner 
+            language={language} 
+            apiUrl={apiUrl}
+            onBack={() => setActiveTab('users')}
+          />
         )}
       </div>
     </div>

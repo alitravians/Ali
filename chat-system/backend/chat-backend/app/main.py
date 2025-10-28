@@ -548,3 +548,266 @@ async def websocket_endpoint(websocket: WebSocket):
 async def get_users():
     all_users = users_repo.list_all()
     return {"users": [{"username": u["username"], "user_id": u["user_id"], "role": u["role"]} for u in all_users.values()]}
+
+import asyncio
+import traceback
+from .firebase_config import firebase_api
+
+diagnostic_runs = {}
+recent_errors = []
+
+class DiagnosticRun(BaseModel):
+    run_id: Optional[str] = None
+
+async def run_diagnostic_check(check_name: str, check_func, weight: int, run_id: str):
+    """Run a single diagnostic check and update progress"""
+    try:
+        start_time = datetime.utcnow()
+        result = await check_func()
+        end_time = datetime.utcnow()
+        duration = (end_time - start_time).total_seconds()
+        
+        return {
+            "check": check_name,
+            "status": "success" if result["status"] == "pass" else "warning" if result["status"] == "warning" else "error",
+            "message": result["message"],
+            "details": result.get("details", {}),
+            "duration": duration,
+            "weight": weight
+        }
+    except Exception as e:
+        return {
+            "check": check_name,
+            "status": "error",
+            "message": f"Check failed: {str(e)}",
+            "details": {"error": str(e), "traceback": traceback.format_exc()},
+            "duration": 0,
+            "weight": weight
+        }
+
+async def check_firebase_connectivity():
+    """Check Firebase read/write connectivity"""
+    try:
+        test_key = f"diagnostics/healthcheck/{uuid.uuid4()}"
+        test_data = {"test": "data", "timestamp": datetime.utcnow().isoformat()}
+        
+        write_result = firebase_api.set(test_key, test_data)
+        if not write_result:
+            return {"status": "error", "message": "Firebase write failed"}
+        
+        read_result = firebase_api.get(test_key)
+        if not read_result or read_result.get("test") != "data":
+            return {"status": "error", "message": "Firebase read failed"}
+        
+        firebase_api.delete(test_key)
+        
+        return {"status": "pass", "message": "Firebase connectivity OK", "details": {"read": "OK", "write": "OK", "delete": "OK"}}
+    except Exception as e:
+        return {"status": "error", "message": f"Firebase connectivity failed: {str(e)}"}
+
+async def check_endpoint_health(endpoint: str, expected_status: int = 200):
+    """Check if an endpoint is responding"""
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            response = await client.get(f"http://localhost:8000{endpoint}", timeout=5.0)
+            if response.status_code == expected_status:
+                return {"status": "pass", "message": f"Endpoint {endpoint} OK", "details": {"status_code": response.status_code}}
+            else:
+                return {"status": "warning", "message": f"Endpoint {endpoint} returned {response.status_code}", "details": {"status_code": response.status_code}}
+    except Exception as e:
+        return {"status": "error", "message": f"Endpoint {endpoint} failed: {str(e)}"}
+
+async def check_environment_variables():
+    """Check if required environment variables are set"""
+    required_vars = ["FIREBASE_DATABASE_URL", "FIREBASE_API_KEY"]
+    missing = []
+    present = []
+    
+    for var in required_vars:
+        if os.getenv(var):
+            present.append(var)
+        else:
+            missing.append(var)
+    
+    if missing:
+        return {"status": "warning", "message": f"Missing environment variables: {', '.join(missing)}", "details": {"missing": missing, "present": present}}
+    return {"status": "pass", "message": "All environment variables present", "details": {"present": present}}
+
+async def check_database_integrity():
+    """Check database structure and data integrity"""
+    try:
+        issues = []
+        
+        try:
+            users_repo.list_all()
+        except Exception as e:
+            issues.append(f"Users repository error: {str(e)}")
+        
+        try:
+            messages_repo.list_all()
+        except Exception as e:
+            issues.append(f"Messages repository error: {str(e)}")
+        
+        try:
+            bans_repo.list_all()
+        except Exception as e:
+            issues.append(f"Bans repository error: {str(e)}")
+        
+        if issues:
+            return {"status": "error", "message": "Database integrity issues found", "details": {"issues": issues}}
+        
+        return {"status": "pass", "message": "Database integrity OK", "details": {"repositories_checked": 3}}
+    except Exception as e:
+        return {"status": "error", "message": f"Database integrity check failed: {str(e)}"}
+
+async def check_recent_errors():
+    """Check for recent errors in the system"""
+    if recent_errors:
+        return {"status": "warning", "message": f"Found {len(recent_errors)} recent errors", "details": {"errors": recent_errors[-5:]}}
+    return {"status": "pass", "message": "No recent errors", "details": {"error_count": 0}}
+
+async def run_full_diagnostic_scan(run_id: str):
+    """Run all diagnostic checks"""
+    checks = [
+        ("Firebase Connectivity", check_firebase_connectivity, 15),
+        ("Environment Variables", check_environment_variables, 10),
+        ("Database Integrity", check_database_integrity, 15),
+        ("Healthz Endpoint", lambda: check_endpoint_health("/healthz"), 10),
+        ("Messages Endpoint", lambda: check_endpoint_health("/api/messages"), 10),
+        ("Announcements Endpoint", lambda: check_endpoint_health("/api/announcements"), 10),
+        ("Chat Settings Endpoint", lambda: check_endpoint_health("/api/chat/settings"), 10),
+        ("Recent Errors", check_recent_errors, 10),
+    ]
+    
+    results = []
+    total_weight = sum(c[2] for c in checks)
+    current_progress = 0
+    
+    diagnostic_runs[run_id]["status"] = "running"
+    diagnostic_runs[run_id]["progress"] = 0
+    diagnostic_runs[run_id]["checks"] = []
+    
+    for check_name, check_func, weight in checks:
+        diagnostic_runs[run_id]["current_check"] = check_name
+        
+        result = await run_diagnostic_check(check_name, check_func, weight, run_id)
+        results.append(result)
+        diagnostic_runs[run_id]["checks"].append(result)
+        
+        current_progress += weight
+        progress_percent = int((current_progress / total_weight) * 100)
+        diagnostic_runs[run_id]["progress"] = progress_percent
+        
+        await asyncio.sleep(0.2)
+    
+    passed = sum(1 for r in results if r["status"] == "success")
+    warnings = sum(1 for r in results if r["status"] == "warning")
+    errors = sum(1 for r in results if r["status"] == "error")
+    
+    summary = {
+        "total_checks": len(results),
+        "passed": passed,
+        "warnings": warnings,
+        "errors": errors,
+        "overall_status": "healthy" if errors == 0 else "issues_found"
+    }
+    
+    diagnostic_runs[run_id]["status"] = "completed"
+    diagnostic_runs[run_id]["progress"] = 100
+    diagnostic_runs[run_id]["summary"] = summary
+    diagnostic_runs[run_id]["completed_at"] = datetime.utcnow().isoformat()
+    
+    report_text = generate_report_text(run_id, results, summary)
+    diagnostic_runs[run_id]["report_text"] = report_text
+    
+    return results
+
+def generate_report_text(run_id: str, results: list, summary: dict) -> str:
+    """Generate a text report of the diagnostic scan"""
+    run = diagnostic_runs[run_id]
+    
+    lines = []
+    lines.append("=" * 80)
+    lines.append("CHAT SYSTEM - AI DIAGNOSTIC SCAN REPORT")
+    lines.append("=" * 80)
+    lines.append(f"Run ID: {run_id}")
+    lines.append(f"Started: {run['started_at']}")
+    lines.append(f"Completed: {run.get('completed_at', 'N/A')}")
+    lines.append(f"Duration: {(datetime.fromisoformat(run.get('completed_at', run['started_at'])) - datetime.fromisoformat(run['started_at'])).total_seconds():.2f}s")
+    lines.append("")
+    lines.append("SUMMARY")
+    lines.append("-" * 80)
+    lines.append(f"Total Checks: {summary['total_checks']}")
+    lines.append(f"Passed: {summary['passed']} ✓")
+    lines.append(f"Warnings: {summary['warnings']} ⚠")
+    lines.append(f"Errors: {summary['errors']} ✗")
+    lines.append(f"Overall Status: {summary['overall_status'].upper()}")
+    lines.append("")
+    lines.append("DETAILED RESULTS")
+    lines.append("-" * 80)
+    
+    for result in results:
+        status_icon = "✓" if result["status"] == "success" else "⚠" if result["status"] == "warning" else "✗"
+        lines.append(f"\n[{status_icon}] {result['check']}")
+        lines.append(f"    Status: {result['status'].upper()}")
+        lines.append(f"    Message: {result['message']}")
+        lines.append(f"    Duration: {result['duration']:.3f}s")
+        
+        if result.get("details"):
+            lines.append(f"    Details:")
+            for key, value in result["details"].items():
+                lines.append(f"      - {key}: {value}")
+    
+    lines.append("")
+    lines.append("=" * 80)
+    lines.append("END OF REPORT")
+    lines.append("=" * 80)
+    
+    return "\n".join(lines)
+
+@app.post("/api/diagnostics/scan")
+async def start_diagnostic_scan():
+    """Start a new diagnostic scan"""
+    run_id = str(uuid.uuid4())
+    
+    diagnostic_runs[run_id] = {
+        "run_id": run_id,
+        "status": "starting",
+        "progress": 0,
+        "started_at": datetime.utcnow().isoformat(),
+        "checks": [],
+        "current_check": None
+    }
+    
+    asyncio.create_task(run_full_diagnostic_scan(run_id))
+    
+    return {"run_id": run_id, "message": "Diagnostic scan started"}
+
+@app.get("/api/diagnostics/run/{run_id}")
+async def get_diagnostic_run(run_id: str):
+    """Get the status and results of a diagnostic run"""
+    if run_id not in diagnostic_runs:
+        raise HTTPException(status_code=404, detail="Diagnostic run not found")
+    
+    return diagnostic_runs[run_id]
+
+@app.get("/api/diagnostics/run/{run_id}/report.txt")
+async def get_diagnostic_report_text(run_id: str):
+    """Get the text report of a diagnostic run"""
+    if run_id not in diagnostic_runs:
+        raise HTTPException(status_code=404, detail="Diagnostic run not found")
+    
+    run = diagnostic_runs[run_id]
+    if run["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Diagnostic run not completed yet")
+    
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(content=run.get("report_text", "Report not available"), media_type="text/plain")
+
+@app.get("/api/diagnostics/runs")
+async def get_diagnostic_runs():
+    """Get all diagnostic runs"""
+    runs_list = list(diagnostic_runs.values())
+    runs_list.sort(key=lambda x: x["started_at"], reverse=True)
+    return {"runs": runs_list[:10]}  # Return last 10 runs

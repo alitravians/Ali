@@ -67,3 +67,4 @@ class FirebaseDB:
             return False
 
 firebase_db = FirebaseDB()
+firebase_api = firebase_db
