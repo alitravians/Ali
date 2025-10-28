@@ -208,7 +208,6 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
                 onChange={(e) => setAccessCode(e.target.value)}
                 onKeyDown={handleKeyDown}
                 required
-                placeholder="3131"
               />
             </div>
           )}
