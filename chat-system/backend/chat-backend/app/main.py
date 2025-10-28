@@ -619,7 +619,19 @@ async def check_endpoint_health(endpoint: str, expected_status: int = 200):
         return {"status": "error", "message": f"Endpoint {endpoint} failed: {str(e)}"}
 
 async def check_environment_variables():
-    """Check if required environment variables are set"""
+    """Check if Firebase configuration is properly set up"""
+    from .firebase_config import FIREBASE_DB_URL
+    
+    if FIREBASE_DB_URL and FIREBASE_DB_URL.startswith("https://"):
+        return {
+            "status": "pass", 
+            "message": "Firebase configuration OK (using firebase_config.py)", 
+            "details": {
+                "config_source": "firebase_config.py",
+                "database_url_configured": True
+            }
+        }
+    
     required_vars = ["FIREBASE_DATABASE_URL", "FIREBASE_API_KEY"]
     missing = []
     present = []
@@ -631,8 +643,24 @@ async def check_environment_variables():
             missing.append(var)
     
     if missing:
-        return {"status": "warning", "message": f"Missing environment variables: {', '.join(missing)}", "details": {"missing": missing, "present": present}}
-    return {"status": "pass", "message": "All environment variables present", "details": {"present": present}}
+        return {
+            "status": "warning", 
+            "message": f"Firebase not configured via firebase_config.py or environment variables", 
+            "details": {
+                "missing_env_vars": missing, 
+                "present_env_vars": present,
+                "config_source": "none"
+            }
+        }
+    
+    return {
+        "status": "pass", 
+        "message": "Firebase configuration OK (using environment variables)", 
+        "details": {
+            "config_source": "environment_variables",
+            "present_env_vars": present
+        }
+    }
 
 async def check_database_integrity():
     """Check database structure and data integrity"""
