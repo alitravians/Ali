@@ -193,10 +193,10 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
   };
 
   const renderMessage = (msg: any) => {
-    const messageClass = msg.is_admin_bold ? 'admin-bold-message' : '';
+    const contentClass = msg.is_admin_bold ? 'admin-bold-text' : '';
 
     return (
-      <div key={msg.id} className={`message ${messageClass}`} onClick={() => handleReportMessage(msg.id)}>
+      <div key={msg.id} className="message" onClick={() => handleReportMessage(msg.id)}>
         <div className="message-header">
           <span className="username">
             {msg.username}
@@ -206,7 +206,7 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
           </span>
           <span className="timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</span>
         </div>
-        <div className="message-content">{msg.content}</div>
+        <div className={`message-content ${contentClass}`}>{msg.content}</div>
       </div>
     );
   };

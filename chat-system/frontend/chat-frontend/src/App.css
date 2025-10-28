@@ -322,6 +322,11 @@ body {
   line-height: 1.6;
 }
 
+.message-content.admin-bold-text {
+  color: #000;
+  font-weight: 700;
+}
+
 .message-input-container {
   padding: 20px;
   background: white;
