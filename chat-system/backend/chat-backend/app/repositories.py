@@ -32,6 +32,10 @@ class UsersRepository:
         users = firebase_db.get("users")
         return users if users else {}
     
+    def update(self, username: str, data: Dict) -> bool:
+        """Update user data (partial update)"""
+        return firebase_db.update(f"users/{username}", data)
+    
     def delete(self, username: str) -> bool:
         """Delete a user"""
         user = self.get_by_username(username)
