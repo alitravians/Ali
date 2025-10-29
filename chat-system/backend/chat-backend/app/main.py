@@ -1101,7 +1101,7 @@ async def check_chat_settings_functionality():
             if settings:
                 checks.append("Settings retrieval: OK")
                 
-                if "chat_open" in settings:
+                if "is_open" in settings:
                     checks.append("Chat open/close toggle: Configured")
                 else:
                     issues.append("Chat open/close setting missing from settings structure")
@@ -1180,7 +1180,7 @@ async def check_appeals_system():
         try:
             import httpx
             async with httpx.AsyncClient() as client:
-                response = await client.get("http://localhost:8000/api/appeals", timeout=5.0)
+                response = await client.get("http://localhost:8000/api/admin/appeals", timeout=5.0)
                 if response.status_code == 200:
                     checks.append("Appeals API endpoint: Working")
                 else:
@@ -1247,7 +1247,7 @@ async def check_bans_system():
         try:
             import httpx
             async with httpx.AsyncClient() as client:
-                response = await client.get("http://localhost:8000/api/bans", timeout=5.0)
+                response = await client.get("http://localhost:8000/api/admin/bans", timeout=5.0)
                 if response.status_code == 200:
                     checks.append("Bans API endpoint: Working")
                 else:
@@ -1314,7 +1314,7 @@ async def check_mutes_system():
         try:
             import httpx
             async with httpx.AsyncClient() as client:
-                response = await client.get("http://localhost:8000/api/mutes", timeout=5.0)
+                response = await client.get("http://localhost:8000/api/admin/mutes", timeout=5.0)
                 if response.status_code == 200:
                     checks.append("Mutes API endpoint: Working")
                 else:
