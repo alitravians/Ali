@@ -719,16 +719,318 @@ async def check_recent_errors():
         return {"status": "warning", "message": f"Found {len(recent_errors)} recent errors", "details": {"errors": recent_errors[-5:]}}
     return {"status": "pass", "message": "No recent errors", "details": {"error_count": 0}}
 
+async def check_all_api_endpoints():
+    """Check all API endpoints systematically"""
+    endpoints_to_check = [
+        ("/healthz", 200),
+        ("/api/messages", 200),
+        ("/api/announcements", 200),
+        ("/api/chat/settings", 200),
+        ("/api/users", 200),
+        ("/api/bans", 200),
+        ("/api/mutes", 200),
+        ("/api/reports", 200),
+        ("/api/appeals", 200),
+        ("/api/files/pending", 200),
+    ]
+    
+    issues = []
+    working = []
+    
+    for endpoint, expected_status in endpoints_to_check:
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get(f"http://localhost:8000{endpoint}", timeout=5.0)
+                if response.status_code == expected_status:
+                    working.append(endpoint)
+                else:
+                    issues.append(f"{endpoint}: Expected {expected_status}, got {response.status_code}")
+        except Exception as e:
+            issues.append(f"{endpoint}: {str(e)}")
+    
+    if issues:
+        return {
+            "status": "error" if len(issues) > len(working) else "warning",
+            "message": f"Found {len(issues)} endpoint issues out of {len(endpoints_to_check)} checked",
+            "details": {
+                "working_endpoints": working,
+                "failed_endpoints": issues,
+                "severity": "high" if len(issues) > len(working) else "medium",
+                "solution": "Check backend logs for errors. Verify all repository methods are working correctly."
+            }
+        }
+    
+    return {
+        "status": "pass",
+        "message": f"All {len(endpoints_to_check)} API endpoints responding correctly",
+        "details": {"endpoints_checked": len(endpoints_to_check), "all_working": working}
+    }
+
+async def check_websocket_connectivity():
+    """Check WebSocket connection capability"""
+    try:
+        if manager and hasattr(manager, 'active_connections'):
+            return {
+                "status": "pass",
+                "message": "WebSocket manager initialized correctly",
+                "details": {
+                    "active_connections": len(manager.active_connections),
+                    "manager_status": "ready"
+                }
+            }
+        else:
+            return {
+                "status": "error",
+                "message": "WebSocket manager not properly initialized",
+                "details": {
+                    "severity": "high",
+                    "solution": "Check ConnectionManager class initialization in main.py"
+                }
+            }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"WebSocket check failed: {str(e)}",
+            "details": {
+                "severity": "high",
+                "solution": "Verify ConnectionManager class and WebSocket endpoint configuration"
+            }
+        }
+
+async def check_firebase_security():
+    """Check Firebase security configuration"""
+    try:
+        from .firebase_config import FIREBASE_DB_URL, FIREBASE_API_KEY
+        
+        issues = []
+        warnings = []
+        
+        if not FIREBASE_DB_URL or not FIREBASE_DB_URL.startswith("https://"):
+            issues.append("Firebase Database URL not properly configured")
+        
+        if not FIREBASE_API_KEY or len(FIREBASE_API_KEY) < 20:
+            warnings.append("Firebase API Key may not be properly configured")
+        
+        try:
+            test_read = firebase_api.get("users")
+            if test_read is not None:
+                warnings.append("Firebase security rules may be too permissive (public read access)")
+        except:
+            pass
+        
+        if issues:
+            return {
+                "status": "error",
+                "message": "Firebase security configuration has critical issues",
+                "details": {
+                    "issues": issues,
+                    "warnings": warnings,
+                    "severity": "critical",
+                    "solution": "Update firebase_config.py with correct credentials and review Firebase security rules"
+                }
+            }
+        elif warnings:
+            return {
+                "status": "warning",
+                "message": "Firebase security configuration has warnings",
+                "details": {
+                    "warnings": warnings,
+                    "severity": "medium",
+                    "solution": "Review Firebase security rules at console.firebase.google.com"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Firebase security configuration OK",
+            "details": {"database_url": "configured", "api_key": "configured"}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Firebase security check failed: {str(e)}",
+            "details": {
+                "severity": "high",
+                "solution": "Check firebase_config.py file and ensure all credentials are set"
+            }
+        }
+
+async def check_frontend_backend_integration():
+    """Check integration points between frontend and backend"""
+    try:
+        integration_points = []
+        issues = []
+        
+        try:
+            users_repo.list_all()
+            integration_points.append("Users repository: OK")
+        except Exception as e:
+            issues.append(f"Users repository: {str(e)}")
+        
+        try:
+            messages_repo.list_all()
+            integration_points.append("Messages repository: OK")
+        except Exception as e:
+            issues.append(f"Messages repository: {str(e)}")
+        
+        try:
+            announcements_repo.list_all()
+            integration_points.append("Announcements repository: OK")
+        except Exception as e:
+            issues.append(f"Announcements repository: {str(e)}")
+        
+        try:
+            settings_repo.get()
+            integration_points.append("Settings repository: OK")
+        except Exception as e:
+            issues.append(f"Settings repository: {str(e)}")
+        
+        if issues:
+            return {
+                "status": "error",
+                "message": f"Found {len(issues)} integration issues",
+                "details": {
+                    "working": integration_points,
+                    "issues": issues,
+                    "severity": "high",
+                    "solution": "Check repository implementations in repositories.py and Firebase connectivity"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "All frontend-backend integration points working",
+            "details": {"integration_points": integration_points}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Integration check failed: {str(e)}",
+            "details": {
+                "severity": "critical",
+                "solution": "Check repositories.py and ensure all repository classes are properly initialized"
+            }
+        }
+
+async def check_authentication_system():
+    """Check authentication and authorization system"""
+    try:
+        issues = []
+        checks = []
+        
+        if SECRET_KEY == "your-secret-key-change-in-production":
+            issues.append("JWT secret key is using default value (security risk)")
+        else:
+            checks.append("JWT secret key: Configured")
+        
+        try:
+            test_hash = hash_password("test123")
+            if verify_password("test123", test_hash):
+                checks.append("Password hashing: Working")
+            else:
+                issues.append("Password verification not working correctly")
+        except Exception as e:
+            issues.append(f"Password hashing error: {str(e)}")
+        
+        try:
+            test_token = create_access_token({"sub": "test_user"})
+            if test_token and len(test_token) > 20:
+                checks.append("JWT token creation: Working")
+            else:
+                issues.append("JWT token creation producing invalid tokens")
+        except Exception as e:
+            issues.append(f"JWT token creation error: {str(e)}")
+        
+        if issues:
+            return {
+                "status": "warning" if len(checks) > len(issues) else "error",
+                "message": f"Authentication system has {len(issues)} issues",
+                "details": {
+                    "working": checks,
+                    "issues": issues,
+                    "severity": "high" if any("security" in i.lower() for i in issues) else "medium",
+                    "solution": "Update SECRET_KEY in main.py and verify password hashing functions"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Authentication system working correctly",
+            "details": {"checks_passed": checks}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Authentication check failed: {str(e)}",
+            "details": {
+                "severity": "critical",
+                "solution": "Check authentication functions in main.py"
+            }
+        }
+
+async def check_performance_metrics():
+    """Check system performance metrics"""
+    try:
+        import time
+        metrics = {}
+        
+        start = time.time()
+        try:
+            firebase_api.get("users")
+            metrics["firebase_read_time"] = time.time() - start
+        except:
+            metrics["firebase_read_time"] = -1
+        
+        start = time.time()
+        try:
+            messages_repo.list_all()
+            metrics["messages_query_time"] = time.time() - start
+        except:
+            metrics["messages_query_time"] = -1
+        
+        issues = []
+        if metrics.get("firebase_read_time", 0) > 2.0:
+            issues.append("Firebase read time is slow (>2s)")
+        if metrics.get("messages_query_time", 0) > 1.0:
+            issues.append("Messages query time is slow (>1s)")
+        
+        if issues:
+            return {
+                "status": "warning",
+                "message": "Performance issues detected",
+                "details": {
+                    "metrics": metrics,
+                    "issues": issues,
+                    "severity": "medium",
+                    "solution": "Consider optimizing database queries and checking network connectivity to Firebase"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Performance metrics within acceptable range",
+            "details": {"metrics": metrics}
+        }
+    except Exception as e:
+        return {
+            "status": "warning",
+            "message": f"Performance check failed: {str(e)}",
+            "details": {"severity": "low"}
+        }
+
 async def run_full_diagnostic_scan(run_id: str):
     """Run all diagnostic checks"""
     checks = [
-        ("Firebase Connectivity", check_firebase_connectivity, 15),
-        ("Environment Variables", check_environment_variables, 10),
-        ("Database Integrity", check_database_integrity, 15),
-        ("Healthz Endpoint", lambda: check_endpoint_health("/healthz"), 10),
-        ("Messages Endpoint", lambda: check_endpoint_health("/api/messages"), 10),
-        ("Announcements Endpoint", lambda: check_endpoint_health("/api/announcements"), 10),
-        ("Chat Settings Endpoint", lambda: check_endpoint_health("/api/chat/settings"), 10),
+        ("Firebase Connectivity", check_firebase_connectivity, 10),
+        ("Firebase Security Configuration", check_firebase_security, 10),
+        ("Environment Variables", check_environment_variables, 8),
+        ("Database Integrity", check_database_integrity, 10),
+        ("All API Endpoints", check_all_api_endpoints, 12),
+        ("WebSocket Connectivity", check_websocket_connectivity, 8),
+        ("Frontend-Backend Integration", check_frontend_backend_integration, 12),
+        ("Authentication System", check_authentication_system, 10),
+        ("Performance Metrics", check_performance_metrics, 10),
         ("Recent Errors", check_recent_errors, 10),
     ]
     
@@ -782,13 +1084,14 @@ def generate_report_text(run_id: str, results: list, summary: dict) -> str:
     lines = []
     lines.append("=" * 80)
     lines.append("CHAT SYSTEM - AI DIAGNOSTIC SCAN REPORT")
+    lines.append("نظام الدردشة - تقرير المسح التشخيصي بالذكاء الاصطناعي")
     lines.append("=" * 80)
     lines.append(f"Run ID: {run_id}")
     lines.append(f"Started: {run['started_at']}")
     lines.append(f"Completed: {run.get('completed_at', 'N/A')}")
     lines.append(f"Duration: {(datetime.fromisoformat(run.get('completed_at', run['started_at'])) - datetime.fromisoformat(run['started_at'])).total_seconds():.2f}s")
     lines.append("")
-    lines.append("SUMMARY")
+    lines.append("SUMMARY / الملخص")
     lines.append("-" * 80)
     lines.append(f"Total Checks: {summary['total_checks']}")
     lines.append(f"Passed: {summary['passed']} ✓")
@@ -796,7 +1099,39 @@ def generate_report_text(run_id: str, results: list, summary: dict) -> str:
     lines.append(f"Errors: {summary['errors']} ✗")
     lines.append(f"Overall Status: {summary['overall_status'].upper()}")
     lines.append("")
-    lines.append("DETAILED RESULTS")
+    
+    if summary['errors'] > 0 or summary['warnings'] > 0:
+        lines.append("AI ANALYSIS / التحليل بالذكاء الاصطناعي")
+        lines.append("-" * 80)
+        
+        critical_issues = [r for r in results if r.get("details", {}).get("severity") == "critical"]
+        high_issues = [r for r in results if r.get("details", {}).get("severity") == "high"]
+        medium_issues = [r for r in results if r.get("details", {}).get("severity") == "medium"]
+        
+        if critical_issues:
+            lines.append("\n🔴 CRITICAL ISSUES (مشاكل حرجة):")
+            for issue in critical_issues:
+                lines.append(f"  - {issue['check']}: {issue['message']}")
+                if issue.get("details", {}).get("solution"):
+                    lines.append(f"    Solution: {issue['details']['solution']}")
+        
+        if high_issues:
+            lines.append("\n🟠 HIGH PRIORITY ISSUES (مشاكل ذات أولوية عالية):")
+            for issue in high_issues:
+                lines.append(f"  - {issue['check']}: {issue['message']}")
+                if issue.get("details", {}).get("solution"):
+                    lines.append(f"    Solution: {issue['details']['solution']}")
+        
+        if medium_issues:
+            lines.append("\n🟡 MEDIUM PRIORITY ISSUES (مشاكل ذات أولوية متوسطة):")
+            for issue in medium_issues:
+                lines.append(f"  - {issue['check']}: {issue['message']}")
+                if issue.get("details", {}).get("solution"):
+                    lines.append(f"    Solution: {issue['details']['solution']}")
+        
+        lines.append("")
+    
+    lines.append("DETAILED RESULTS / النتائج التفصيلية")
     lines.append("-" * 80)
     
     for result in results:
@@ -807,13 +1142,28 @@ def generate_report_text(run_id: str, results: list, summary: dict) -> str:
         lines.append(f"    Duration: {result['duration']:.3f}s")
         
         if result.get("details"):
+            severity = result["details"].get("severity")
+            if severity:
+                lines.append(f"    Severity: {severity.upper()}")
+            
+            solution = result["details"].get("solution")
+            if solution:
+                lines.append(f"    Recommended Solution:")
+                lines.append(f"      {solution}")
+            
             lines.append(f"    Details:")
             for key, value in result["details"].items():
-                lines.append(f"      - {key}: {value}")
+                if key not in ["severity", "solution"]:
+                    if isinstance(value, list):
+                        lines.append(f"      - {key}:")
+                        for item in value[:5]:
+                            lines.append(f"          * {item}")
+                    else:
+                        lines.append(f"      - {key}: {value}")
     
     lines.append("")
     lines.append("=" * 80)
-    lines.append("END OF REPORT")
+    lines.append("END OF REPORT / نهاية التقرير")
     lines.append("=" * 80)
     
     return "\n".join(lines)

@@ -73,6 +73,16 @@ const AIScanner = ({ language, apiUrl, onBack }: AIScannerProps) => {
       completedAt: 'انتهى في',
       scanCompleted: 'اكتمل المسح!',
       description: 'نظام مسح ذكي شامل يفحص جميع جوانب الموقع ويكتشف الأخطاء تلقائياً',
+      aiAnalysis: 'التحليل بالذكاء الاصطناعي',
+      severity: 'مستوى الخطورة',
+      solution: 'الحل المقترح',
+      critical: 'حرج',
+      high: 'عالي',
+      medium: 'متوسط',
+      low: 'منخفض',
+      path: 'المسار',
+      issueType: 'نوع المشكلة',
+      recommendation: 'التوصية',
     },
     en: {
       title: 'AI Error Scanner',
@@ -107,6 +117,16 @@ const AIScanner = ({ language, apiUrl, onBack }: AIScannerProps) => {
       completedAt: 'Completed At',
       scanCompleted: 'Scan Completed!',
       description: 'Comprehensive AI-powered scanning system that checks all aspects of the site and automatically detects errors',
+      aiAnalysis: 'AI Analysis',
+      severity: 'Severity Level',
+      solution: 'Recommended Solution',
+      critical: 'Critical',
+      high: 'High',
+      medium: 'Medium',
+      low: 'Low',
+      path: 'Path',
+      issueType: 'Issue Type',
+      recommendation: 'Recommendation',
     }
   };
 
@@ -300,24 +320,74 @@ const AIScanner = ({ language, apiUrl, onBack }: AIScannerProps) => {
               <div className="checks-section">
                 <h3>{t.results}</h3>
                 <div className="checks-list">
-                  {displayRun.checks.map((check, index) => (
-                    <div key={index} className={`check-item ${getStatusClass(check.status)}`}>
-                      <div className="check-header">
-                        <span className="check-name">{check.check}</span>
-                        <span className={`check-status ${getStatusClass(check.status)}`}>
-                          {getStatusText(check.status)}
-                        </span>
-                      </div>
-                      <div className="check-message">{check.message}</div>
-                      <div className="check-duration">{t.duration}: {check.duration.toFixed(3)}s</div>
-                      {check.details && Object.keys(check.details).length > 0 && (
-                        <div className="check-details">
-                          <strong>{t.details}:</strong>
-                          <pre>{JSON.stringify(check.details, null, 2)}</pre>
+                  {displayRun.checks.map((check, index) => {
+                    const severity = check.details?.severity;
+                    const solution = check.details?.solution;
+                    const hasCriticalIssue = severity === 'critical' || severity === 'high';
+                    
+                    return (
+                      <div key={index} className={`check-item ${getStatusClass(check.status)} ${hasCriticalIssue ? 'critical-issue' : ''}`}>
+                        <div className="check-header">
+                          <span className="check-name">{check.check}</span>
+                          <span className={`check-status ${getStatusClass(check.status)}`}>
+                            {getStatusText(check.status)}
+                          </span>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                        <div className="check-message">{check.message}</div>
+                        
+                        {severity && (
+                          <div className={`check-severity severity-${severity}`}>
+                            <strong>{t.severity}:</strong> 
+                            <span className="severity-badge">
+                              {severity === 'critical' ? '🔴 ' + t.critical :
+                               severity === 'high' ? '🟠 ' + t.high :
+                               severity === 'medium' ? '🟡 ' + t.medium :
+                               '🟢 ' + t.low}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {solution && (
+                          <div className="check-solution">
+                            <strong>{t.solution}:</strong>
+                            <div className="solution-text">{solution}</div>
+                          </div>
+                        )}
+                        
+                        <div className="check-duration">{t.duration}: {check.duration.toFixed(3)}s</div>
+                        
+                        {check.details && Object.keys(check.details).length > 0 && (
+                          <div className="check-details">
+                            <strong>{t.details}:</strong>
+                            <div className="details-content">
+                              {Object.entries(check.details).map(([key, value]) => {
+                                if (key === 'severity' || key === 'solution') return null;
+                                
+                                if (Array.isArray(value)) {
+                                  return (
+                                    <div key={key} className="detail-item">
+                                      <strong>{key}:</strong>
+                                      <ul>
+                                        {value.slice(0, 5).map((item, i) => (
+                                          <li key={i}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  );
+                                }
+                                
+                                return (
+                                  <div key={key} className="detail-item">
+                                    <strong>{key}:</strong> {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
