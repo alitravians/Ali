@@ -558,83 +558,225 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
         )}
 
         {activeTab === 'bans' && (
-          <div className="bans-section">
-            <h3>{t.banUser}</h3>
-            <div className="ban-form">
-              <input
-                type="text"
-                placeholder={t.userId}
-                value={banUserId}
-                onChange={(e) => setBanUserId(e.target.value)}
-              />
-              <input
-                type="number"
-                placeholder={t.duration}
-                value={banDuration}
-                onChange={(e) => setBanDuration(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder={t.reason}
-                value={banReason}
-                onChange={(e) => setBanReason(e.target.value)}
-              />
-              <button onClick={handleBanUser}>{t.ban}</button>
+          <div className="bans-section-enhanced">
+            <div className="bans-header">
+              <h3>🚫 {t.banUser}</h3>
+              <p className="bans-subtitle">إدارة المستخدمين المحظورين ومدة الحظر</p>
             </div>
 
-            <h3>{t.bans}</h3>
-            <div className="bans-list">
-              {bans.map(ban => (
-                <div key={ban.user_id} className="ban-item">
-                  <div>
-                    <strong>{t.userId}:</strong> {ban.user_id}<br />
-                    <strong>{t.reason}:</strong> {ban.reason}<br />
-                    <strong>{t.remainingTime}:</strong> {ban.remaining_minutes} {t.minutes}
+            <div className="ban-form-card">
+              <div className="form-card-header">
+                <span className="form-icon">➕</span>
+                <h4>حظر مستخدم جديد</h4>
+              </div>
+              <div className="form-card-body">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>معرف المستخدم</label>
+                    <input
+                      type="text"
+                      placeholder="أدخل معرف المستخدم..."
+                      value={banUserId}
+                      onChange={(e) => setBanUserId(e.target.value)}
+                      className="form-input"
+                    />
                   </div>
-                  <button onClick={() => handleUnbanUser(ban.user_id)}>{t.unban}</button>
+                  <div className="form-group">
+                    <label>المدة (بالدقائق)</label>
+                    <input
+                      type="number"
+                      placeholder="مثال: 30"
+                      value={banDuration}
+                      onChange={(e) => setBanDuration(e.target.value)}
+                      className="form-input"
+                      min="1"
+                    />
+                  </div>
+                  <div className="form-group full-width">
+                    <label>سبب الحظر</label>
+                    <input
+                      type="text"
+                      placeholder="مثال: مخالفة قواعد الدردشة..."
+                      value={banReason}
+                      onChange={(e) => setBanReason(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
                 </div>
-              ))}
+                <button className="btn-submit-ban" onClick={handleBanUser}>
+                  <span className="btn-icon">🚫</span>
+                  {t.ban}
+                </button>
+              </div>
+            </div>
+
+            <div className="bans-list-section">
+              <h4 className="section-title">
+                <span className="title-icon">📋</span>
+                المستخدمون المحظورون ({bans.length})
+              </h4>
+              
+              {bans.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">✅</div>
+                  <p>لا يوجد مستخدمون محظورون حالياً</p>
+                </div>
+              ) : (
+                <div className="bans-grid">
+                  {bans.map(ban => (
+                    <div key={ban.user_id} className="ban-card">
+                      <div className="ban-card-header">
+                        <div className="ban-user-info">
+                          <span className="ban-icon">🚫</span>
+                          <div>
+                            <strong>{ban.user_id}</strong>
+                            <span className="ban-time">
+                              ⏱️ {ban.remaining_minutes} {t.minutes} متبقية
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ban-card-body">
+                        <div className="ban-reason-section">
+                          <label>السبب:</label>
+                          <p>{ban.reason}</p>
+                        </div>
+                        <div className="ban-progress">
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-fill"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, (ban.remaining_minutes / 60) * 100))}%`
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="ban-card-footer">
+                        <button 
+                          className="btn-unban"
+                          onClick={() => handleUnbanUser(ban.user_id)}
+                        >
+                          <span className="btn-icon">✅</span>
+                          {t.unban}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {activeTab === 'mutes' && (
-          <div className="mutes-section">
-            <h3>{t.muteUser}</h3>
-            <div className="mute-form">
-              <input
-                type="text"
-                placeholder={t.userId}
-                value={muteUserId}
-                onChange={(e) => setMuteUserId(e.target.value)}
-              />
-              <input
-                type="number"
-                placeholder={t.duration}
-                value={muteDuration}
-                onChange={(e) => setMuteDuration(e.target.value)}
-              />
-              <input
-                type="text"
-                placeholder={t.reason}
-                value={muteReason}
-                onChange={(e) => setMuteReason(e.target.value)}
-              />
-              <button onClick={handleMuteUser}>{t.mute}</button>
+          <div className="mutes-section-enhanced">
+            <div className="mutes-header">
+              <h3>🔇 {t.muteUser}</h3>
+              <p className="mutes-subtitle">إدارة المستخدمين المكتومين ومنعهم من الإرسال</p>
             </div>
 
-            <h3>{t.mutes}</h3>
-            <div className="mutes-list">
-              {mutes.map(mute => (
-                <div key={mute.user_id} className="mute-item">
-                  <div>
-                    <strong>{t.userId}:</strong> {mute.user_id}<br />
-                    <strong>{t.reason}:</strong> {mute.reason}<br />
-                    <strong>{t.remainingTime}:</strong> {mute.remaining_minutes} {t.minutes}
+            <div className="mute-form-card">
+              <div className="form-card-header">
+                <span className="form-icon">➕</span>
+                <h4>كتم مستخدم جديد</h4>
+              </div>
+              <div className="form-card-body">
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>معرف المستخدم</label>
+                    <input
+                      type="text"
+                      placeholder="أدخل معرف المستخدم..."
+                      value={muteUserId}
+                      onChange={(e) => setMuteUserId(e.target.value)}
+                      className="form-input"
+                    />
                   </div>
-                  <button onClick={() => handleUnmuteUser(mute.user_id)}>{t.unban}</button>
+                  <div className="form-group">
+                    <label>المدة (بالدقائق)</label>
+                    <input
+                      type="number"
+                      placeholder="مثال: 15"
+                      value={muteDuration}
+                      onChange={(e) => setMuteDuration(e.target.value)}
+                      className="form-input"
+                      min="1"
+                    />
+                  </div>
+                  <div className="form-group full-width">
+                    <label>سبب الكتم</label>
+                    <input
+                      type="text"
+                      placeholder="مثال: إرسال رسائل مزعجة..."
+                      value={muteReason}
+                      onChange={(e) => setMuteReason(e.target.value)}
+                      className="form-input"
+                    />
+                  </div>
                 </div>
-              ))}
+                <button className="btn-submit-mute" onClick={handleMuteUser}>
+                  <span className="btn-icon">🔇</span>
+                  {t.mute}
+                </button>
+              </div>
+            </div>
+
+            <div className="mutes-list-section">
+              <h4 className="section-title">
+                <span className="title-icon">📋</span>
+                المستخدمون المكتومون ({mutes.length})
+              </h4>
+              
+              {mutes.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-icon">✅</div>
+                  <p>لا يوجد مستخدمون مكتومون حالياً</p>
+                </div>
+              ) : (
+                <div className="mutes-grid">
+                  {mutes.map(mute => (
+                    <div key={mute.user_id} className="mute-card">
+                      <div className="mute-card-header">
+                        <div className="mute-user-info">
+                          <span className="mute-icon">🔇</span>
+                          <div>
+                            <strong>{mute.user_id}</strong>
+                            <span className="mute-time">
+                              ⏱️ {mute.remaining_minutes} {t.minutes} متبقية
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mute-card-body">
+                        <div className="mute-reason-section">
+                          <label>السبب:</label>
+                          <p>{mute.reason}</p>
+                        </div>
+                        <div className="mute-progress">
+                          <div className="progress-bar">
+                            <div 
+                              className="progress-fill mute"
+                              style={{
+                                width: `${Math.max(0, Math.min(100, (mute.remaining_minutes / 30) * 100))}%`
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mute-card-footer">
+                        <button 
+                          className="btn-unmute"
+                          onClick={() => handleUnmuteUser(mute.user_id)}
+                        >
+                          <span className="btn-icon">🔊</span>
+                          إلغاء الكتم
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -724,10 +866,10 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
                   <div key={report.id} className={`report-card ${report.status}`}>
                     <div className="report-card-header">
                       <span className={`category-badge ${report.category}`}>
-                        {t[report.category] || report.category}
+                        {(t as any)[report.category] || report.category}
                       </span>
                       <span className={`status-badge ${report.status}`}>
-                        {t[report.status] || report.status}
+                        {(t as any)[report.status] || report.status}
                       </span>
                     </div>
                     <div className="report-card-body">
@@ -803,13 +945,13 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
                     <div className="detail-row">
                       <span className="detail-label">{t.category}:</span>
                       <span className={`category-badge ${selectedReport.category}`}>
-                        {t[selectedReport.category] || selectedReport.category}
+                        {(t as any)[selectedReport.category] || selectedReport.category}
                       </span>
                     </div>
                     <div className="detail-row">
                       <span className="detail-label">{t.status}:</span>
                       <span className={`status-badge ${selectedReport.status}`}>
-                        {t[selectedReport.status] || selectedReport.status}
+                        {(t as any)[selectedReport.status] || selectedReport.status}
                       </span>
                     </div>
                     <div className="detail-row">
@@ -904,36 +1046,97 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
         )}
 
         {activeTab === 'appeals' && (
-          <div className="appeals-section">
-            <h3>{t.appeals}</h3>
-            <div className="appeals-list">
-              {appeals.map(appeal => (
-                <div key={appeal.id} className="appeal-item">
-                  <div>
-                    <strong>{t.userId}:</strong> {appeal.user_id}<br />
-                    <strong>Appeal:</strong> {appeal.appeal_text}<br />
-                    <strong>Status:</strong> {appeal.status}
-                  </div>
-                  {appeal.status === 'pending' && (
-                    <div className="appeal-actions">
-                      <input
-                        type="text"
-                        placeholder={t.response}
-                        id={`response-${appeal.id}`}
-                      />
-                      <button onClick={() => {
-                        const input = document.getElementById(`response-${appeal.id}`) as HTMLInputElement;
-                        handleRespondToAppeal(appeal.id, 'accept', input.value);
-                      }}>{t.approve}</button>
-                      <button onClick={() => {
-                        const input = document.getElementById(`response-${appeal.id}`) as HTMLInputElement;
-                        handleRespondToAppeal(appeal.id, 'reject', input.value);
-                      }}>{t.reject}</button>
-                    </div>
-                  )}
-                </div>
-              ))}
+          <div className="appeals-section-enhanced">
+            <div className="appeals-header">
+              <h3>📋 {t.appeals}</h3>
+              <p className="appeals-subtitle">مراجعة والرد على طلبات الاعتراض على الحظر</p>
             </div>
+
+            {appeals.length === 0 ? (
+              <div className="empty-state">
+                <div className="empty-icon">📭</div>
+                <p>لا توجد طلبات اعتراض</p>
+              </div>
+            ) : (
+              <div className="appeals-grid">
+                {appeals.map(appeal => (
+                  <div key={appeal.id} className={`appeal-card ${appeal.status}`}>
+                    <div className="appeal-card-header">
+                      <div className="appeal-user-info">
+                        <span className="user-icon">👤</span>
+                        <div>
+                          <strong>{appeal.user_id}</strong>
+                          <span className="appeal-date">
+                            {new Date(appeal.created_at || Date.now()).toLocaleString('ar-SA')}
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`appeal-status-badge ${appeal.status}`}>
+                        {appeal.status === 'pending' ? '⏳ قيد المراجعة' :
+                         appeal.status === 'accepted' ? '✅ مقبول' : '❌ مرفوض'}
+                      </span>
+                    </div>
+
+                    <div className="appeal-card-body">
+                      <div className="appeal-text-section">
+                        <label>نص الاعتراض:</label>
+                        <p className="appeal-text">{appeal.appeal_text}</p>
+                      </div>
+
+                      {appeal.admin_response && (
+                        <div className="admin-response-section">
+                          <label>رد المشرف:</label>
+                          <p className="admin-response">{appeal.admin_response}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {appeal.status === 'pending' && (
+                      <div className="appeal-card-footer">
+                        <div className="response-input-group">
+                          <textarea
+                            placeholder="اكتب ردك على الطلب..."
+                            id={`response-${appeal.id}`}
+                            rows={2}
+                            className="appeal-response-input"
+                          />
+                        </div>
+                        <div className="appeal-actions-group">
+                          <button 
+                            className="btn-accept-appeal"
+                            onClick={() => {
+                              const input = document.getElementById(`response-${appeal.id}`) as HTMLInputElement;
+                              if (!input.value.trim()) {
+                                alert('الرجاء كتابة رد قبل القبول');
+                                return;
+                              }
+                              handleRespondToAppeal(appeal.id, 'accept', input.value);
+                            }}
+                          >
+                            <span className="btn-icon">✅</span>
+                            {t.approve}
+                          </button>
+                          <button 
+                            className="btn-reject-appeal"
+                            onClick={() => {
+                              const input = document.getElementById(`response-${appeal.id}`) as HTMLInputElement;
+                              if (!input.value.trim()) {
+                                alert('الرجاء كتابة سبب الرفض');
+                                return;
+                              }
+                              handleRespondToAppeal(appeal.id, 'reject', input.value);
+                            }}
+                          >
+                            <span className="btn-icon">❌</span>
+                            {t.reject}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -975,24 +1178,67 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
         )}
 
         {activeTab === 'chatSettings' && (
-          <div className="chat-settings-section">
-            <h3>{t.chatSettings}</h3>
-            <div className="settings-form">
-              <label>
-                <input
-                  type="checkbox"
-                  checked={chatOpen}
-                  onChange={(e) => setChatOpen(e.target.checked)}
-                />
-                {t.chatStatus}: {chatOpen ? t.open : t.closed}
-              </label>
-              <input
-                type="text"
-                placeholder={t.closeMessageLabel}
-                value={closeMessage}
-                onChange={(e) => setCloseMessage(e.target.value)}
-              />
-              <button onClick={handleUpdateChatSettings}>{t.updateSettings}</button>
+          <div className="chat-settings-section-enhanced">
+            <div className="settings-header">
+              <h3>⚙️ {t.chatSettings}</h3>
+              <p className="settings-subtitle">إدارة حالة الدردشة والإعدادات العامة</p>
+            </div>
+
+            <div className="settings-cards">
+              <div className="setting-card status-card">
+                <div className="card-header">
+                  <div className="card-icon">
+                    {chatOpen ? '🟢' : '🔴'}
+                  </div>
+                  <div className="card-title">
+                    <h4>{t.chatStatus}</h4>
+                    <span className={`status-badge ${chatOpen ? 'open' : 'closed'}`}>
+                      {chatOpen ? t.open : t.closed}
+                    </span>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <div className="toggle-container">
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={chatOpen}
+                        onChange={(e) => setChatOpen(e.target.checked)}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <span className="toggle-label">
+                      {chatOpen ? 'الدردشة مفتوحة للجميع' : 'الدردشة مغلقة حالياً'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="setting-card message-card">
+                <div className="card-header">
+                  <div className="card-icon">💬</div>
+                  <div className="card-title">
+                    <h4>{t.closeMessageLabel}</h4>
+                    <span className="card-subtitle">الرسالة التي تظهر عند إغلاق الدردشة</span>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <textarea
+                    className="close-message-input"
+                    placeholder="مثال: الدردشة مغلقة مؤقتاً للصيانة..."
+                    value={closeMessage}
+                    onChange={(e) => setCloseMessage(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="settings-actions">
+              <button className="btn-save-settings" onClick={handleUpdateChatSettings}>
+                <span className="btn-icon">💾</span>
+                {t.updateSettings}
+              </button>
             </div>
           </div>
         )}
