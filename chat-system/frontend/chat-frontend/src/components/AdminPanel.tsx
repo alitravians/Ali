@@ -30,6 +30,11 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
   const [muteReason, setMuteReason] = useState('');
   
   const [announcementText, setAnnouncementText] = useState('');
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<any>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [announcementToDelete, setAnnouncementToDelete] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(true);
   const [closeMessage, setCloseMessage] = useState('');
 
@@ -64,6 +69,14 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       createAnnouncement: 'إنشاء إعلان',
       announcementText: 'نص الإعلان',
       create: 'إنشاء',
+      existingAnnouncements: 'الإعلانات الحالية',
+      edit: 'تعديل',
+      editAnnouncement: 'تعديل الإعلان',
+      save: 'حفظ',
+      cancel: 'إلغاء',
+      confirmDelete: 'تأكيد الحذف',
+      confirmDeleteMessage: 'هل أنت متأكد من حذف هذا الإعلان؟',
+      noAnnouncements: 'لا توجد إعلانات',
       chatStatus: 'حالة الدردشة',
       open: 'مفتوحة',
       closed: 'مغلقة',
@@ -106,6 +119,14 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       createAnnouncement: 'Create Announcement',
       announcementText: 'Announcement Text',
       create: 'Create',
+      existingAnnouncements: 'Existing Announcements',
+      edit: 'Edit',
+      editAnnouncement: 'Edit Announcement',
+      save: 'Save',
+      cancel: 'Cancel',
+      confirmDelete: 'Confirm Delete',
+      confirmDeleteMessage: 'Are you sure you want to delete this announcement?',
+      noAnnouncements: 'No announcements',
       chatStatus: 'Chat Status',
       open: 'Open',
       closed: 'Closed',
@@ -153,6 +174,9 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
         const response = await axios.get(`${apiUrl}/api/chat/settings`);
         setChatOpen(response.data.settings.is_open);
         setCloseMessage(response.data.settings.close_message);
+      } else if (activeTab === 'announcements') {
+        const response = await axios.get(`${apiUrl}/api/announcements`);
+        setAnnouncements(response.data.announcements);
       }
     } catch (err) {
       console.error('Failed to load data', err);
@@ -297,9 +321,63 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
 
       alert('Announcement created');
       setAnnouncementText('');
+      loadData();
     } catch (err) {
       alert('Failed to create announcement');
     }
+  };
+
+  const handleEditAnnouncement = (announcement: any) => {
+    setEditingAnnouncement(announcement);
+    setShowEditModal(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingAnnouncement || !editingAnnouncement.content) return;
+
+    try {
+      await axios.put(`${apiUrl}/api/admin/announcements/${editingAnnouncement.id}`, {
+        content: editingAnnouncement.content,
+        created_by: user.username
+      });
+
+      alert('Announcement updated');
+      setShowEditModal(false);
+      setEditingAnnouncement(null);
+      loadData();
+    } catch (err) {
+      alert('Failed to update announcement');
+    }
+  };
+
+  const handleDeleteAnnouncement = (announcementId: string) => {
+    setAnnouncementToDelete(announcementId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!announcementToDelete) return;
+
+    try {
+      await axios.delete(`${apiUrl}/api/admin/announcements/${announcementToDelete}`);
+
+      alert('Announcement deleted');
+      setShowDeleteConfirm(false);
+      setAnnouncementToDelete(null);
+      loadData();
+    } catch (err) {
+      alert('Failed to delete announcement');
+    }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setAnnouncementToDelete(null);
+  };
+
+  const cancelEdit = () => {
+    setShowEditModal(false);
+    setEditingAnnouncement(null);
   };
 
   const handleUpdateChatSettings = async () => {
@@ -560,6 +638,62 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
               />
               <button onClick={handleCreateAnnouncement}>{t.create}</button>
             </div>
+
+            <h3 style={{ marginTop: '30px' }}>{t.existingAnnouncements}</h3>
+            <div className="announcements-list">
+              {announcements.length === 0 ? (
+                <p>{t.noAnnouncements}</p>
+              ) : (
+                announcements.map(announcement => (
+                  <div key={announcement.id} className="announcement-item">
+                    <div className="announcement-content">
+                      <p>{announcement.content}</p>
+                      <small>
+                        {t.create}: {announcement.created_by} - {new Date(announcement.created_at).toLocaleString()}
+                      </small>
+                    </div>
+                    <div className="announcement-actions">
+                      <button onClick={() => handleEditAnnouncement(announcement)} className="edit-btn">
+                        {t.edit}
+                      </button>
+                      <button onClick={() => handleDeleteAnnouncement(announcement.id)} className="delete-btn">
+                        {t.delete}
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {showEditModal && editingAnnouncement && (
+              <div className="modal-overlay" onClick={cancelEdit}>
+                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                  <h3>{t.editAnnouncement}</h3>
+                  <textarea
+                    value={editingAnnouncement.content}
+                    onChange={(e) => setEditingAnnouncement({...editingAnnouncement, content: e.target.value})}
+                    rows={4}
+                  />
+                  <div className="modal-actions">
+                    <button onClick={handleSaveEdit} className="save-btn">{t.save}</button>
+                    <button onClick={cancelEdit} className="cancel-btn">{t.cancel}</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {showDeleteConfirm && (
+              <div className="modal-overlay" onClick={cancelDelete}>
+                <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                  <h3>{t.confirmDelete}</h3>
+                  <p>{t.confirmDeleteMessage}</p>
+                  <div className="modal-actions">
+                    <button onClick={confirmDelete} className="delete-btn">{t.delete}</button>
+                    <button onClick={cancelDelete} className="cancel-btn">{t.cancel}</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

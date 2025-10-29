@@ -484,6 +484,30 @@ async def create_announcement(announcement: Announcement):
 async def get_announcements():
     return {"announcements": announcements_repo.list_all()}
 
+@app.put("/api/admin/announcements/{announcement_id}")
+async def update_announcement(announcement_id: str, announcement: Announcement):
+    updated_data = {
+        "content": announcement.content,
+    }
+    success = announcements_repo.update(announcement_id, updated_data)
+    if success:
+        updated_announcement = {
+            "id": announcement_id,
+            "content": announcement.content,
+            "created_by": announcement.created_by,
+        }
+        await manager.broadcast({"type": "announcement_updated", "announcement": updated_announcement})
+        return {"message": "Announcement updated", "announcement": updated_announcement}
+    return {"error": "Failed to update announcement"}
+
+@app.delete("/api/admin/announcements/{announcement_id}")
+async def delete_announcement(announcement_id: str):
+    success = announcements_repo.delete(announcement_id)
+    if success:
+        await manager.broadcast({"type": "announcement_deleted", "id": announcement_id})
+        return {"message": "Announcement deleted"}
+    return {"error": "Failed to delete announcement"}
+
 @app.post("/api/admin/chat/settings")
 async def update_chat_settings(settings: ChatSettings):
     settings_data = {

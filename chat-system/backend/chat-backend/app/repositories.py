@@ -277,13 +277,22 @@ class AnnouncementsRepository:
             announcement['id'] = key
             announcement_list.append(announcement)
         
-        announcement_list.sort(key=lambda x: x.get('created_at', ''))
+        announcement_list.sort(key=lambda x: x.get('created_at', ''), reverse=True)
         return announcement_list
     
     def create(self, announcement_data: Dict) -> Optional[str]:
         """Create a new announcement"""
         announcement_data['created_at'] = datetime.utcnow().isoformat()
         return firebase_db.push("announcements", announcement_data)
+    
+    def update(self, announcement_id: str, data: Dict) -> bool:
+        """Update announcement data"""
+        data['updated_at'] = datetime.utcnow().isoformat()
+        return firebase_db.update(f"announcements/{announcement_id}", data)
+    
+    def delete(self, announcement_id: str) -> bool:
+        """Delete an announcement"""
+        return firebase_db.delete(f"announcements/{announcement_id}")
 
 
 class SettingsRepository:

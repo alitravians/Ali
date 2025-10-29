@@ -95,6 +95,12 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
         setMessages([]);
       } else if (data.type === 'new_announcement') {
         setAnnouncements(prev => [...prev, data.announcement]);
+      } else if (data.type === 'announcement_updated') {
+        setAnnouncements(prev => prev.map(ann => 
+          ann.id === data.announcement.id ? data.announcement : ann
+        ));
+      } else if (data.type === 'announcement_deleted') {
+        setAnnouncements(prev => prev.filter(ann => ann.id !== data.id));
       } else if (data.type === 'chat_settings_updated') {
         setChatSettings(data.settings);
       } else if (data.type === 'user_muted' && data.user_id === user.user_id) {
