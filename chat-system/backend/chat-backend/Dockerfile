@@ -2,6 +2,10 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Cache-busting argument to force fresh builds
+ARG BUILD_ID=1
+RUN echo "Build ID: $BUILD_ID"
+
 # Install poetry
 RUN pip install poetry
 

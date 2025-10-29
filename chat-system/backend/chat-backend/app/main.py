@@ -24,7 +24,8 @@ app.add_middleware(
     allow_headers=["*"],  # Allows all headers
 )
 
-SECRET_KEY = "your-secret-key-change-in-production"
+import os
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -795,11 +796,11 @@ async def check_all_api_endpoints():
         ("/api/announcements", 200),
         ("/api/chat/settings", 200),
         ("/api/users", 200),
-        ("/api/bans", 200),
-        ("/api/mutes", 200),
-        ("/api/reports", 200),
-        ("/api/appeals", 200),
-        ("/api/files/pending", 200),
+        ("/api/admin/bans", 200),
+        ("/api/admin/mutes", 200),
+        ("/api/admin/reports", 200),
+        ("/api/admin/appeals", 200),
+        ("/api/admin/files", 200),
     ]
     
     issues = []
@@ -869,7 +870,8 @@ async def check_websocket_connectivity():
 async def check_firebase_security():
     """Check Firebase security configuration"""
     try:
-        from .firebase_config import FIREBASE_DB_URL, FIREBASE_API_KEY
+        from .firebase_config import FIREBASE_DB_URL
+        import os
         
         issues = []
         warnings = []
@@ -877,8 +879,9 @@ async def check_firebase_security():
         if not FIREBASE_DB_URL or not FIREBASE_DB_URL.startswith("https://"):
             issues.append("Firebase Database URL not properly configured")
         
-        if not FIREBASE_API_KEY or len(FIREBASE_API_KEY) < 20:
-            warnings.append("Firebase API Key may not be properly configured")
+        firebase_creds_env = os.getenv("FIREBASE_CREDENTIALS")
+        if not firebase_creds_env:
+            warnings.append("Firebase credentials not found in environment variables")
         
         try:
             test_read = firebase_api.get("users")
@@ -912,7 +915,7 @@ async def check_firebase_security():
         return {
             "status": "pass",
             "message": "Firebase security configuration OK",
-            "details": {"database_url": "configured", "api_key": "configured"}
+            "details": {"database_url": "configured", "credentials": "configured"}
         }
     except Exception as e:
         return {
