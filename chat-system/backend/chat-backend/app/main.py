@@ -410,9 +410,77 @@ async def get_reports():
 async def resolve_report(report_id: str):
     report = reports_repo.get(report_id)
     if report:
-        reports_repo.update(report_id, {"status": "resolved"})
+        reports_repo.update(report_id, {"status": "resolved", "resolved_at": datetime.utcnow().isoformat()})
         return {"message": "Report resolved"}
     raise HTTPException(status_code=404, detail="Report not found")
+
+@app.post("/api/admin/reports/{report_id}/reject")
+async def reject_report(report_id: str):
+    report = reports_repo.get(report_id)
+    if report:
+        reports_repo.update(report_id, {"status": "rejected", "resolved_at": datetime.utcnow().isoformat()})
+        return {"message": "Report rejected"}
+    raise HTTPException(status_code=404, detail="Report not found")
+
+@app.post("/api/admin/reports/{report_id}/ban-user")
+async def ban_user_from_report(report_id: str, duration: int = 30):
+    report = reports_repo.get(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    message = messages_repo.get(report["message_id"])
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+    
+    user_id = message["user_id"]
+    ban_until = datetime.utcnow() + timedelta(minutes=duration)
+    ban_data = {
+        "user_id": user_id,
+        "banned_until": ban_until.isoformat(),
+        "reason": f"Reported message: {report['category']} - {report['reason']}",
+        "banned_at": datetime.utcnow().isoformat()
+    }
+    bans_repo.create(ban_data)
+    reports_repo.update(report_id, {"status": "resolved", "action_taken": "user_banned", "resolved_at": datetime.utcnow().isoformat()})
+    
+    return {"message": f"User {user_id} banned for {duration} minutes"}
+
+@app.post("/api/admin/reports/{report_id}/delete-message")
+async def delete_message_from_report(report_id: str):
+    report = reports_repo.get(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    
+    message_id = report["message_id"]
+    message = messages_repo.get(message_id)
+    if message:
+        messages_repo.delete(message_id)
+        reports_repo.update(report_id, {"status": "resolved", "action_taken": "message_deleted", "resolved_at": datetime.utcnow().isoformat()})
+        await manager.broadcast({"type": "message_deleted", "message_id": message_id})
+        return {"message": "Message deleted"}
+    raise HTTPException(status_code=404, detail="Message not found")
+
+@app.get("/api/admin/reports/statistics")
+async def get_report_statistics():
+    all_reports = reports_repo.list_all()
+    
+    total = len(all_reports)
+    pending = len([r for r in all_reports if r.get("status") == "pending"])
+    resolved = len([r for r in all_reports if r.get("status") == "resolved"])
+    rejected = len([r for r in all_reports if r.get("status") == "rejected"])
+    
+    categories = {}
+    for report in all_reports:
+        category = report.get("category", "other")
+        categories[category] = categories.get(category, 0) + 1
+    
+    return {
+        "total": total,
+        "pending": pending,
+        "resolved": resolved,
+        "rejected": rejected,
+        "by_category": categories
+    }
 
 @app.post("/api/appeals")
 async def submit_appeal(appeal: BanAppeal):
