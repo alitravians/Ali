@@ -1087,6 +1087,267 @@ async def check_performance_metrics():
             "details": {"severity": "low"}
         }
 
+async def check_chat_settings_functionality():
+    """Check Chat Settings admin panel functionality"""
+    try:
+        issues = []
+        checks = []
+        
+        try:
+            settings = settings_repo.get()
+            if settings:
+                checks.append("Settings retrieval: OK")
+                
+                if "chat_open" in settings:
+                    checks.append("Chat open/close toggle: Configured")
+                else:
+                    issues.append("Chat open/close setting missing from settings structure")
+                
+                if "close_message" in settings:
+                    checks.append("Close message field: Configured")
+                else:
+                    issues.append("Close message field missing from settings structure")
+            else:
+                issues.append("Settings repository returned empty data")
+        except Exception as e:
+            issues.append(f"Settings retrieval error: {str(e)}")
+        
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get("http://localhost:8000/api/chat/settings", timeout=5.0)
+                if response.status_code == 200:
+                    checks.append("Chat settings API endpoint: Working")
+                else:
+                    issues.append(f"Chat settings endpoint returned status {response.status_code}")
+        except Exception as e:
+            issues.append(f"Chat settings endpoint error: {str(e)}")
+        
+        if issues:
+            return {
+                "status": "error" if len(issues) > len(checks) else "warning",
+                "message": f"Chat Settings has {len(issues)} issues",
+                "details": {
+                    "working": checks,
+                    "issues": issues,
+                    "severity": "high" if len(issues) > len(checks) else "medium",
+                    "solution": "Check settings_repo in repositories.py and verify chat settings API endpoints in main.py",
+                    "path": "AdminPanel.tsx (Chat Settings section), main.py (/api/chat/settings)"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Chat Settings functionality working correctly",
+            "details": {"checks_passed": checks}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Chat Settings check failed: {str(e)}",
+            "details": {
+                "severity": "high",
+                "solution": "Check AdminPanel.tsx Chat Settings section and settings repository implementation",
+                "path": "frontend/src/components/AdminPanel.tsx, backend/app/repositories.py"
+            }
+        }
+
+async def check_appeals_system():
+    """Check Appeals admin panel functionality"""
+    try:
+        issues = []
+        checks = []
+        
+        try:
+            appeals = appeals_repo.list_all()
+            checks.append(f"Appeals retrieval: OK ({len(appeals)} appeals)")
+            
+            if appeals:
+                sample_appeal = appeals[0]
+                required_fields = ["id", "user_id", "appeal_text", "status"]
+                missing_fields = [f for f in required_fields if f not in sample_appeal]
+                
+                if missing_fields:
+                    issues.append(f"Appeals missing required fields: {', '.join(missing_fields)}")
+                else:
+                    checks.append("Appeals data structure: Valid")
+        except Exception as e:
+            issues.append(f"Appeals retrieval error: {str(e)}")
+        
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get("http://localhost:8000/api/appeals", timeout=5.0)
+                if response.status_code == 200:
+                    checks.append("Appeals API endpoint: Working")
+                else:
+                    issues.append(f"Appeals endpoint returned status {response.status_code}")
+        except Exception as e:
+            issues.append(f"Appeals endpoint error: {str(e)}")
+        
+        if issues:
+            return {
+                "status": "error" if len(issues) > len(checks) else "warning",
+                "message": f"Appeals System has {len(issues)} issues",
+                "details": {
+                    "working": checks,
+                    "issues": issues,
+                    "severity": "high" if len(issues) > len(checks) else "medium",
+                    "solution": "Check appeals_repo in repositories.py and verify appeals API endpoints. Ensure appeal response functionality is working.",
+                    "path": "AdminPanel.tsx (Appeals section), main.py (/api/appeals)"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Appeals System working correctly",
+            "details": {"checks_passed": checks}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Appeals System check failed: {str(e)}",
+            "details": {
+                "severity": "high",
+                "solution": "Check AdminPanel.tsx Appeals section and appeals repository implementation",
+                "path": "frontend/src/components/AdminPanel.tsx, backend/app/repositories.py"
+            }
+        }
+
+async def check_bans_system():
+    """Check Bans admin panel functionality"""
+    try:
+        issues = []
+        checks = []
+        
+        try:
+            bans = bans_repo.list_all()
+            checks.append(f"Bans retrieval: OK ({len(bans)} active bans)")
+            
+            if bans:
+                sample_ban = bans[0]
+                required_fields = ["user_id", "reason", "banned_until"]
+                missing_fields = [f for f in required_fields if f not in sample_ban]
+                
+                if missing_fields:
+                    issues.append(f"Bans missing required fields: {', '.join(missing_fields)}")
+                else:
+                    checks.append("Bans data structure: Valid")
+                    
+                if "remaining_minutes" in sample_ban:
+                    checks.append("Ban duration calculation: Working")
+                else:
+                    issues.append("Ban remaining_minutes field not being calculated")
+        except Exception as e:
+            issues.append(f"Bans retrieval error: {str(e)}")
+        
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get("http://localhost:8000/api/bans", timeout=5.0)
+                if response.status_code == 200:
+                    checks.append("Bans API endpoint: Working")
+                else:
+                    issues.append(f"Bans endpoint returned status {response.status_code}")
+        except Exception as e:
+            issues.append(f"Bans endpoint error: {str(e)}")
+        
+        if issues:
+            return {
+                "status": "error" if len(issues) > len(checks) else "warning",
+                "message": f"Bans System has {len(issues)} issues",
+                "details": {
+                    "working": checks,
+                    "issues": issues,
+                    "severity": "high" if len(issues) > len(checks) else "medium",
+                    "solution": "Check bans_repo in repositories.py and verify ban/unban API endpoints. Ensure ban duration calculations are correct.",
+                    "path": "AdminPanel.tsx (Bans section), main.py (/api/bans)"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Bans System working correctly",
+            "details": {"checks_passed": checks}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Bans System check failed: {str(e)}",
+            "details": {
+                "severity": "high",
+                "solution": "Check AdminPanel.tsx Bans section and bans repository implementation",
+                "path": "frontend/src/components/AdminPanel.tsx, backend/app/repositories.py"
+            }
+        }
+
+async def check_mutes_system():
+    """Check Mutes admin panel functionality"""
+    try:
+        issues = []
+        checks = []
+        
+        try:
+            mutes = mutes_repo.list_all()
+            checks.append(f"Mutes retrieval: OK ({len(mutes)} active mutes)")
+            
+            if mutes:
+                sample_mute = mutes[0]
+                required_fields = ["user_id", "reason", "muted_until"]
+                missing_fields = [f for f in required_fields if f not in sample_mute]
+                
+                if missing_fields:
+                    issues.append(f"Mutes missing required fields: {', '.join(missing_fields)}")
+                else:
+                    checks.append("Mutes data structure: Valid")
+                    
+                if "remaining_minutes" in sample_mute:
+                    checks.append("Mute duration calculation: Working")
+                else:
+                    issues.append("Mute remaining_minutes field not being calculated")
+        except Exception as e:
+            issues.append(f"Mutes retrieval error: {str(e)}")
+        
+        try:
+            import httpx
+            async with httpx.AsyncClient() as client:
+                response = await client.get("http://localhost:8000/api/mutes", timeout=5.0)
+                if response.status_code == 200:
+                    checks.append("Mutes API endpoint: Working")
+                else:
+                    issues.append(f"Mutes endpoint returned status {response.status_code}")
+        except Exception as e:
+            issues.append(f"Mutes endpoint error: {str(e)}")
+        
+        if issues:
+            return {
+                "status": "error" if len(issues) > len(checks) else "warning",
+                "message": f"Mutes System has {len(issues)} issues",
+                "details": {
+                    "working": checks,
+                    "issues": issues,
+                    "severity": "high" if len(issues) > len(checks) else "medium",
+                    "solution": "Check mutes_repo in repositories.py and verify mute/unmute API endpoints. Ensure mute duration calculations are correct.",
+                    "path": "AdminPanel.tsx (Mutes section), main.py (/api/mutes)"
+                }
+            }
+        
+        return {
+            "status": "pass",
+            "message": "Mutes System working correctly",
+            "details": {"checks_passed": checks}
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Mutes System check failed: {str(e)}",
+            "details": {
+                "severity": "high",
+                "solution": "Check AdminPanel.tsx Mutes section and mutes repository implementation",
+                "path": "frontend/src/components/AdminPanel.tsx, backend/app/repositories.py"
+            }
+        }
+
 async def run_full_diagnostic_scan(run_id: str):
     """Run all diagnostic checks"""
     checks = [
@@ -1100,6 +1361,10 @@ async def run_full_diagnostic_scan(run_id: str):
         ("Authentication System", check_authentication_system, 10),
         ("Performance Metrics", check_performance_metrics, 10),
         ("Recent Errors", check_recent_errors, 10),
+        ("Chat Settings System", check_chat_settings_functionality, 10),
+        ("Appeals System", check_appeals_system, 10),
+        ("Bans System", check_bans_system, 10),
+        ("Mutes System", check_mutes_system, 10),
     ]
     
     results = []
