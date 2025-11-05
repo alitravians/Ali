@@ -12,7 +12,7 @@ function BannerCard({ challenge }) {
   const showScores = Number(challenge.score1 || 0) > 0 || Number(challenge.score2 || 0) > 0;
 
   return (
-    <div className="w-full max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl relative">
+    <div className="w-full max-w-3xl mx-auto rounded-2xl overflow-hidden shadow-2xl relative">
       <div 
         className="relative overflow-hidden"
         style={{
@@ -22,7 +22,8 @@ function BannerCard({ challenge }) {
           backgroundRepeat: 'no-repeat',
           backgroundColor: '#0a0a0a',
           aspectRatio: '1000 / 511',
-          minHeight: '300px'
+          minHeight: '250px',
+          maxHeight: '400px'
         }}
       >
         <div className="absolute top-4 left-0 right-0 text-center z-10">
@@ -41,43 +42,43 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute left-[22%] bottom-[12%] z-10 flex flex-col items-center gap-3" style={{ transform: 'translateX(-50%)' }}>
+        <div className="absolute left-[22%] bottom-[25%] z-10 flex flex-col items-center gap-2" style={{ transform: 'translateX(-50%)' }}>
           <img
             src={challenge.opponent1Avatar || '/default-avatar.png'}
             alt={challenge.opponent1}
-            className="w-[50px] h-[50px] rounded-full object-cover ring-4 ring-orange-500 shadow-2xl"
+            className="w-[100px] h-[100px] rounded-full object-cover ring-4 ring-orange-500 shadow-2xl"
           />
           <div className="text-center">
-            <h3 className="text-3xl font-black text-orange-400 mb-1 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+            <h3 className="text-2xl font-black text-orange-400 mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
               textShadow: '0 0 20px rgba(255,150,50,0.8), 0 2px 8px rgba(0,0,0,0.8)'
             }}>
               {challenge.opponent1}
             </h3>
             {challenge.opponent1PlatformId && (
-              <p className="text-base text-orange-200 font-bold drop-shadow-lg">
+              <p className="text-sm text-orange-200 font-bold drop-shadow-lg">
                 ID: {challenge.opponent1PlatformId}
               </p>
             )}
           </div>
         </div>
 
-        <div className="absolute left-1/2 top-1/2 z-10 flex flex-col items-center gap-2" style={{ transform: 'translate(-50%, -50%)' }}>
-          <div className="relative text-8xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]" style={{
-            WebkitTextStroke: '3px rgba(0,0,0,0.5)',
+        <div className="absolute left-1/2 top-[35%] z-10 flex flex-col items-center gap-2" style={{ transform: 'translate(-50%, -50%)' }}>
+          <div className="relative text-6xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,0.5)]" style={{
+            WebkitTextStroke: '2px rgba(0,0,0,0.5)',
             textShadow: '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,255,255,0.4)'
           }}>
             VS
           </div>
           {!challenge.result && showScores && (
-            <div className="flex items-center gap-4 bg-black/60 backdrop-blur-sm px-8 py-3 rounded-2xl border-2 border-white/20">
+            <div className="flex items-center gap-3 bg-black/60 backdrop-blur-sm px-6 py-2 rounded-xl border-2 border-white/20">
               <div className="text-center">
-                <div className="text-4xl font-bold text-orange-400">
+                <div className="text-3xl font-bold text-orange-400">
                   {challenge.score1 !== undefined ? challenge.score1 : 0}
                 </div>
               </div>
-              <div className="text-3xl font-bold text-white/50">-</div>
+              <div className="text-2xl font-bold text-white/50">-</div>
               <div className="text-center">
-                <div className="text-4xl font-bold text-blue-400">
+                <div className="text-3xl font-bold text-blue-400">
                   {challenge.score2 !== undefined ? challenge.score2 : 0}
                 </div>
               </div>
@@ -85,20 +86,20 @@ function BannerCard({ challenge }) {
           )}
         </div>
 
-        <div className="absolute right-[22%] bottom-[12%] z-10 flex flex-col items-center gap-3" style={{ transform: 'translateX(50%)' }}>
+        <div className="absolute right-[22%] bottom-[25%] z-10 flex flex-col items-center gap-2" style={{ transform: 'translateX(50%)' }}>
           <img
             src={challenge.opponent2Avatar || '/default-avatar.png'}
             alt={challenge.opponent2}
-            className="w-[50px] h-[50px] rounded-full object-cover ring-4 ring-blue-500 shadow-2xl"
+            className="w-[100px] h-[100px] rounded-full object-cover ring-4 ring-blue-500 shadow-2xl"
           />
           <div className="text-center">
-            <h3 className="text-3xl font-black text-cyan-400 mb-1 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+            <h3 className="text-2xl font-black text-cyan-400 mb-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
               textShadow: '0 0 20px rgba(50,200,255,0.8), 0 2px 8px rgba(0,0,0,0.8)'
             }}>
               {challenge.opponent2}
             </h3>
             {challenge.opponent2PlatformId && (
-              <p className="text-base text-cyan-200 font-bold drop-shadow-lg">
+              <p className="text-sm text-cyan-200 font-bold drop-shadow-lg">
                 ID: {challenge.opponent2PlatformId}
               </p>
             )}
