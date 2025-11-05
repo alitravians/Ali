@@ -61,25 +61,25 @@ function HomePage({ onNavigate }) {
   ];
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-20">
       {/* Hero Section */}
-      <section className="text-center space-y-6 py-12">
-        <h1 className="text-5xl md:text-7xl font-bold text-gray-800 mb-4">
+      <section className="text-center space-y-8 py-16 bg-gradient-to-b from-blue-50 to-white rounded-3xl shadow-sm p-12">
+        <h1 className="text-5xl md:text-7xl font-bold text-gray-900 mb-6">
           {t('welcome')}
         </h1>
-        <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto">
+        <p className="text-xl md:text-2xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
           {t('welcomeMessage')}
         </p>
-        <div className="flex flex-wrap gap-4 justify-center mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 max-w-2xl mx-auto mt-10">
           <button
             onClick={() => onNavigate('submit')}
-            className="px-8 py-4 bg-purple-600 hover:bg-purple-700 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+            className="w-full px-10 py-5 bg-blue-600 hover:bg-blue-700 text-white text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
           >
             ابدأ تحدي جديد
           </button>
           <button
             onClick={() => onNavigate('registry')}
-            className="px-8 py-4 bg-white hover:bg-gray-50 text-purple-600 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-purple-600"
+            className="w-full px-10 py-5 bg-white hover:bg-gray-50 text-blue-600 text-lg font-bold rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all border-2 border-blue-600"
           >
             عرض التحديات
           </button>
@@ -87,18 +87,18 @@ function HomePage({ onNavigate }) {
       </section>
 
       {/* How It Works Section */}
-      <section className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 text-center mb-12">
+      <section className="bg-white rounded-3xl shadow-lg p-10 md:p-14">
+        <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-16">
           كيف يعمل الموقع؟
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {steps.map((step) => (
-            <div key={step.number} className="text-center space-y-4">
-              <div className="w-16 h-16 bg-purple-600 text-white text-2xl font-bold rounded-full flex items-center justify-center mx-auto shadow-lg">
+            <div key={step.number} className="text-center space-y-5">
+              <div className="w-20 h-20 bg-blue-600 text-white text-3xl font-bold rounded-full flex items-center justify-center mx-auto shadow-md">
                 {step.number}
               </div>
-              <h3 className="text-xl font-bold text-gray-800">{step.title}</h3>
-              <p className="text-gray-600">{step.description}</p>
+              <h3 className="text-2xl font-bold text-gray-900">{step.title}</h3>
+              <p className="text-gray-600 text-lg leading-relaxed">{step.description}</p>
             </div>
           ))}
         </div>
@@ -106,22 +106,22 @@ function HomePage({ onNavigate }) {
 
       {/* Features Grid */}
       <section>
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-800 text-center mb-12">
+        <h2 className="text-4xl md:text-5xl font-bold text-gray-900 text-center mb-16">
           الخدمات المتاحة
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id)}
-                className={`${item.color} p-8 rounded-2xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 text-white`}
+                className={`${item.color} p-10 rounded-2xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 text-white h-full`}
               >
-                <div className="flex flex-col items-center space-y-4">
-                  <Icon size={56} strokeWidth={2} />
+                <div className="flex flex-col items-center space-y-5">
+                  <Icon size={64} strokeWidth={2} />
                   <h3 className="text-2xl font-bold">{item.title}</h3>
-                  <p className="text-sm opacity-90">{item.description}</p>
+                  <p className="text-base opacity-95">{item.description}</p>
                 </div>
               </button>
             );
@@ -130,10 +130,11 @@ function HomePage({ onNavigate }) {
       </section>
 
       {/* Footer */}
-      <footer className="bg-white rounded-2xl shadow-xl p-8 text-center">
-        <p className="text-gray-600">
+      <footer className="bg-gradient-to-t from-gray-50 to-white rounded-2xl shadow-sm p-10 text-center">
+        <p className="text-gray-700 text-lg">
           © 2025 أرض التحديات - جميع الحقوق محفوظة
         </p>
+        <p className="text-xs text-gray-500 mt-2">v2025-11-05.2</p>
       </footer>
     </div>
   );
