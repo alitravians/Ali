@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { database } from '../utils/firebase';
 import { ref, onValue, push, set, remove, update } from 'firebase/database';
-import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2 } from 'lucide-react';
+import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload } from 'lucide-react';
+import { uploadImageToCloudinary } from '../utils/uploadImage';
 
 function AdminPanel({ onNavigate, onLogout }) {
   const { t } = useLanguage();
@@ -21,6 +22,14 @@ function AdminPanel({ onNavigate, onLogout }) {
     avatar2: '',
     dateTime: ''
   });
+  const [avatarFiles, setAvatarFiles] = useState({
+    file1: null,
+    file2: null,
+    preview1: null,
+    preview2: null
+  });
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('adminAuth');
@@ -94,11 +103,90 @@ function AdminPanel({ onNavigate, onLogout }) {
     onLogout();
   };
 
+  const handleAvatarFileChange = (fileNumber, event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+    if (!validTypes.includes(file.type)) {
+      setUploadError('نوع الملف غير مدعوم. يرجى اختيار صورة بصيغة JPG أو PNG أو WEBP');
+      return;
+    }
+
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+      setUploadError('حجم الملف كبير جداً. الحد الأقصى 5 ميجابايت');
+      return;
+    }
+
+    setUploadError('');
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (fileNumber === 1) {
+        setAvatarFiles(prev => ({ ...prev, file1: file, preview1: reader.result }));
+      } else {
+        setAvatarFiles(prev => ({ ...prev, file2: file, preview2: reader.result }));
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleAddOpponent = async (e) => {
     e.preventDefault();
-    const opponentsRef = ref(database, 'opponents');
-    await push(opponentsRef, opponentForm);
-    setOpponentForm({ name1: '', name2: '', avatar1: '', avatar2: '', dateTime: '' });
+    setIsUploading(true);
+    setUploadError('');
+
+    try {
+      const opponentsRef = ref(database, 'opponents');
+      const newOpponentRef = push(opponentsRef);
+      const opponentKey = newOpponentRef.key;
+
+      let avatar1Url = opponentForm.avatar1;
+      let avatar2Url = opponentForm.avatar2;
+
+      if (avatarFiles.file1) {
+        try {
+          avatar1Url = await uploadImageToCloudinary(
+            avatarFiles.file1,
+            `${opponentKey}_first`
+          );
+        } catch (error) {
+          setUploadError(`خطأ في رفع صورة الخصم الأول: ${error.message}`);
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      if (avatarFiles.file2) {
+        try {
+          avatar2Url = await uploadImageToCloudinary(
+            avatarFiles.file2,
+            `${opponentKey}_second`
+          );
+        } catch (error) {
+          setUploadError(`خطأ في رفع صورة الخصم الثاني: ${error.message}`);
+          setIsUploading(false);
+          return;
+        }
+      }
+
+      await set(newOpponentRef, {
+        name1: opponentForm.name1,
+        name2: opponentForm.name2,
+        avatar1: avatar1Url,
+        avatar2: avatar2Url,
+        dateTime: opponentForm.dateTime
+      });
+
+      setOpponentForm({ name1: '', name2: '', avatar1: '', avatar2: '', dateTime: '' });
+      setAvatarFiles({ file1: null, file2: null, preview1: null, preview2: null });
+      setIsUploading(false);
+    } catch (error) {
+      console.error('Error adding opponent:', error);
+      setUploadError('حدث خطأ أثناء إضافة الخصم. يرجى المحاولة مرة أخرى');
+      setIsUploading(false);
+    }
   };
 
   const handleDeleteOpponent = async (id) => {
@@ -254,6 +342,11 @@ function AdminPanel({ onNavigate, onLogout }) {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white">إدارة الخصوم</h2>
             <form onSubmit={handleAddOpponent} className="space-y-4 bg-slate-700 p-6 rounded-lg">
+              {uploadError && (
+                <div className="p-3 bg-red-600 text-white rounded-lg">
+                  {uploadError}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
                   type="text"
@@ -271,20 +364,53 @@ function AdminPanel({ onNavigate, onLogout }) {
                   required
                   className="px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
-                <input
-                  type="url"
-                  placeholder="رابط صورة الخصم الأول"
-                  value={opponentForm.avatar1}
-                  onChange={(e) => setOpponentForm({ ...opponentForm, avatar1: e.target.value })}
-                  className="px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
-                <input
-                  type="url"
-                  placeholder="رابط صورة الخصم الثاني"
-                  value={opponentForm.avatar2}
-                  onChange={(e) => setOpponentForm({ ...opponentForm, avatar2: e.target.value })}
-                  className="px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+                
+                <div className="space-y-2">
+                  <label className="block text-white font-bold text-sm">صورة الخصم الأول</label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer transition-colors">
+                      <Upload size={20} />
+                      <span>{avatarFiles.file1 ? avatarFiles.file1.name : 'اختر صورة من الجهاز'}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/jpg"
+                        onChange={(e) => handleAvatarFileChange(1, e)}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatarFiles.preview1 && (
+                      <img
+                        src={avatarFiles.preview1}
+                        alt="معاينة"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-purple-500"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-white font-bold text-sm">صورة الخصم الثاني</label>
+                  <div className="flex items-center gap-3">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer transition-colors">
+                      <Upload size={20} />
+                      <span>{avatarFiles.file2 ? avatarFiles.file2.name : 'اختر صورة من الجهاز'}</span>
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/jpg"
+                        onChange={(e) => handleAvatarFileChange(2, e)}
+                        className="hidden"
+                      />
+                    </label>
+                    {avatarFiles.preview2 && (
+                      <img
+                        src={avatarFiles.preview2}
+                        alt="معاينة"
+                        className="w-12 h-12 rounded-full object-cover border-2 border-purple-500"
+                      />
+                    )}
+                  </div>
+                </div>
+
                 <input
                   type="datetime-local"
                   value={opponentForm.dateTime}
@@ -295,9 +421,14 @@ function AdminPanel({ onNavigate, onLogout }) {
               </div>
               <button
                 type="submit"
-                className="w-full px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
+                disabled={isUploading}
+                className={`w-full px-6 py-3 font-bold rounded-lg transition-colors ${
+                  isUploading
+                    ? 'bg-gray-600 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700'
+                } text-white`}
               >
-                إضافة خصم
+                {isUploading ? 'جاري الرفع...' : 'إضافة خصم'}
               </button>
             </form>
 
