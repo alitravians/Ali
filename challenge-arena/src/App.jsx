@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from './contexts/LanguageContext';
 import { database } from './utils/firebase';
 import { ref, onValue } from 'firebase/database';
-import { Globe, AlertCircle } from 'lucide-react';
+import { Globe, AlertCircle, Power } from 'lucide-react';
 import LoadingScreen from './components/LoadingScreen';
 import UpdateNotification from './components/UpdateNotification';
 import HomePage from './pages/HomePage';
@@ -66,36 +66,70 @@ function App() {
 
   if (!siteSettings.isOpen && currentPage !== 'admin') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
-        <div className="max-w-2xl w-full">
-          <div className="bg-slate-800 rounded-xl p-8 shadow-2xl text-center space-y-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 relative overflow-hidden flex items-center justify-center p-4">
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/30 via-slate-900/50 to-slate-950"></div>
+        <div className="absolute top-20 left-20 w-96 h-96 bg-red-500/20 rounded-full filter blur-3xl opacity-30 animate-float pointer-events-none"></div>
+        <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl opacity-30 animate-float pointer-events-none" style={{animationDelay: '2s'}}></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-500/10 rounded-full filter blur-3xl opacity-20 animate-pulse-slow pointer-events-none"></div>
+        
+        <div className="max-w-3xl w-full relative z-10">
+          <div className="bg-gradient-to-br from-slate-800/90 via-slate-900/90 to-slate-800/90 backdrop-blur-xl rounded-2xl p-12 shadow-2xl border border-white/10 text-center space-y-8">
+            {/* Icon with Gradient Background */}
             <div className="flex justify-center">
-              <div className="p-4 bg-red-600 rounded-full">
-                <AlertCircle size={64} className="text-white" />
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
+                <div className="relative p-6 bg-gradient-to-br from-red-600 to-orange-600 rounded-full shadow-2xl">
+                  <AlertCircle size={80} className="text-white" strokeWidth={2.5} />
+                </div>
               </div>
             </div>
-            <h1 className="text-4xl font-bold text-white">
-              {language === 'ar' ? 'الموقع مغلق مؤقتاً' : 'Site Temporarily Closed'}
-            </h1>
+            
+            {/* Title with Gradient */}
+            <div className="space-y-3">
+              <h1 className="text-5xl font-bold bg-gradient-to-r from-red-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient">
+                {language === 'ar' ? 'الموقع مغلق مؤقتاً' : 'Site Temporarily Closed'}
+              </h1>
+              <div className="h-1 w-32 mx-auto bg-gradient-to-r from-transparent via-orange-500 to-transparent rounded-full"></div>
+            </div>
+            
+            {/* Closure Reason */}
             {siteSettings.closureReason && (
-              <div className="bg-slate-700 p-6 rounded-lg">
-                <p className="text-xl text-white">{siteSettings.closureReason}</p>
+              <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-sm p-8 rounded-xl border border-white/5 shadow-inner">
+                <p className="text-2xl text-white leading-relaxed font-medium">
+                  {siteSettings.closureReason}
+                </p>
               </div>
             )}
-            <div className="flex gap-4 justify-center">
+            
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <button
                 onClick={() => navigateTo('admin')}
-                className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors"
+                className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 transform"
               >
-                {t('adminPanel')}
+                <span className="relative z-10 flex items-center justify-center gap-2">
+                  <Power size={20} />
+                  {t('adminPanel')}
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-500 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity blur"></div>
               </button>
               <button
                 onClick={toggleLanguage}
-                className="flex items-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                className="group relative px-8 py-4 bg-slate-700/50 hover:bg-slate-600/50 backdrop-blur-sm text-white font-bold rounded-xl transition-all border border-white/10 hover:border-white/20 hover:scale-105 transform"
               >
-                <Globe size={20} />
-                {language === 'ar' ? 'EN' : 'عربي'}
+                <span className="flex items-center justify-center gap-2">
+                  <Globe size={20} />
+                  {language === 'ar' ? 'EN' : 'عربي'}
+                </span>
               </button>
+            </div>
+            
+            {/* Footer Message */}
+            <div className="pt-6 border-t border-white/5">
+              <p className="text-slate-400 text-sm">
+                {language === 'ar' ? 'نعتذر عن الإزعاج، سنعود قريباً' : 'Sorry for the inconvenience, we will be back soon'}
+              </p>
             </div>
           </div>
         </div>
