@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { database } from '../utils/firebase';
 import { ref, onValue, push, set, remove, update } from 'firebase/database';
-import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload, Sparkles } from 'lucide-react';
+import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload, Sparkles, RefreshCw, Database } from 'lucide-react';
 import { uploadImageToCloudinary } from '../utils/uploadImage';
 import BannerCard from '../components/BannerCard';
+import { versionManager } from '../utils/versionManager';
 
 function AdminPanel({ onNavigate, onLogout }) {
   const { t } = useLanguage();
@@ -316,6 +317,16 @@ function AdminPanel({ onNavigate, onLogout }) {
     const settingsRef = ref(database, 'siteSettings');
     await set(settingsRef, siteSettings);
     alert('تم حفظ الإعدادات');
+  };
+
+  const handleClearCache = () => {
+    if (confirm('هل أنت متأكد من حذف الذاكرة المؤقتة؟ سيتم تحديث الموقع تلقائياً.')) {
+      versionManager.clearCacheAndReload();
+    }
+  };
+
+  const handleForceRefresh = () => {
+    versionManager.softRefresh();
   };
 
   const handleGenerateBanner = async (e) => {
@@ -922,6 +933,57 @@ function AdminPanel({ onNavigate, onLogout }) {
               >
                 حفظ الإعدادات
               </button>
+            </div>
+
+            {/* Cache Management Section */}
+            <div className="space-y-4 bg-gradient-to-br from-slate-700 to-slate-800 p-6 rounded-xl border-2 border-cyan-500/30 shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-gradient-to-br from-cyan-500 to-blue-500 rounded-lg">
+                  <Database size={24} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">إدارة الذاكرة المؤقتة</h3>
+                  <p className="text-sm text-gray-300">تحديث وتنظيف الموقع بشكل احترافي</p>
+                </div>
+              </div>
+
+              <div className="bg-slate-600/50 p-4 rounded-lg space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-white font-medium">الإصدار الحالي:</span>
+                  <span className="px-3 py-1 bg-cyan-500 text-white font-bold rounded-lg text-sm">
+                    {versionManager.getCurrentVersion()}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-white font-medium">حالة الكاش:</span>
+                  <span className="text-gray-300 text-sm">
+                    {versionManager.needsUpdate() ? 'يحتاج تحديث' : 'محدث'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  onClick={handleClearCache}
+                  className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-500 hover:to-red-500 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
+                >
+                  <RefreshCw size={20} />
+                  حذف الكاش الكامل
+                </button>
+                <button
+                  onClick={handleForceRefresh}
+                  className="flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
+                >
+                  <Sparkles size={20} />
+                  تحديث سريع
+                </button>
+              </div>
+
+              <div className="bg-blue-500/10 border border-blue-500/30 p-4 rounded-lg">
+                <p className="text-sm text-blue-200 leading-relaxed">
+                  <strong className="text-blue-100">💡 نصيحة:</strong> استخدم "حذف الكاش الكامل" عند نشر تحديثات جديدة لضمان رؤية المستخدمين للتغييرات. "التحديث السريع" يحدث الصفحة فقط.
+                </p>
+              </div>
             </div>
           </div>
         )}

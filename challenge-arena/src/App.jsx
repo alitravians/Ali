@@ -4,6 +4,7 @@ import { database } from './utils/firebase';
 import { ref, onValue } from 'firebase/database';
 import { Globe, AlertCircle } from 'lucide-react';
 import LoadingScreen from './components/LoadingScreen';
+import UpdateNotification from './components/UpdateNotification';
 import HomePage from './pages/HomePage';
 import ChallengeRegistry from './pages/ChallengeRegistry';
 import SubmitChallenge from './pages/SubmitChallenge';
@@ -11,6 +12,7 @@ import CheckStatus from './pages/CheckStatus';
 import HowToBook from './pages/HowToBook';
 import LiveChallenge from './pages/LiveChallenge';
 import AdminPanel from './pages/AdminPanel';
+import { versionManager } from './utils/versionManager';
 
 function App() {
   const { language, toggleLanguage, t } = useLanguage();
@@ -108,6 +110,9 @@ function App() {
 
   return (
     <div className={`min-h-screen relative overflow-hidden ${isHome ? 'bg-gradient-to-b from-slate-50 to-white' : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'}`}>
+      {/* Update Notification */}
+      <UpdateNotification />
+      
       {!isHome && (
         <>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900/50 to-slate-950"></div>
