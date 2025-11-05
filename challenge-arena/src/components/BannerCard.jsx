@@ -25,20 +25,30 @@ function BannerCard({ challenge }) {
           height: '176px'
         }}
       >
-        <div className="absolute top-2 left-0 right-0 text-center z-10">
-          <div className="inline-flex items-center gap-2 bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full">
-            <span className="text-xs font-bold text-white">
-              {formatTime(challenge.dateTime)}
-            </span>
-            {challenge.roundType && (
-              <>
-                <span className="text-white text-xs">•</span>
-                <span className="text-xs font-bold text-yellow-400">
-                  {challenge.roundType}
-                </span>
-              </>
-            )}
-          </div>
+        <div className="absolute top-[8%] left-1/2 z-10 flex items-center gap-2" style={{ transform: 'translateX(-50%)' }}>
+          <span className="text-sm font-black drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+            background: 'linear-gradient(90deg, #fb923c 0%, #60a5fa 100%)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text',
+            textShadow: '0 0 10px rgba(255,255,255,0.5)'
+          }}>
+            {formatTime(challenge.dateTime)}
+          </span>
+          {challenge.roundType && (
+            <>
+              <span className="text-sm font-bold text-white/70">•</span>
+              <span className="text-sm font-black drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+                background: 'linear-gradient(90deg, #fbbf24 0%, #a78bfa 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                textShadow: '0 0 10px rgba(255,255,255,0.5)'
+              }}>
+                {challenge.roundType}
+              </span>
+            </>
+          )}
         </div>
 
         <div className="absolute left-[22%] bottom-[20%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(-50%)' }}>
