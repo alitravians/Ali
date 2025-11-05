@@ -4,6 +4,20 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  safelist: [
+    'bg-gradient-to-b',
+    'from-slate-50',
+    'to-white',
+    'bg-white',
+    'bg-gradient-to-br',
+    'from-slate-950',
+    'via-slate-900',
+    'to-slate-950',
+    'bg-slate-950',
+    'text-slate-700',
+    'text-slate-900',
+    'hover:bg-gray-50',
+  ],
   theme: {
     extend: {
       animation: {

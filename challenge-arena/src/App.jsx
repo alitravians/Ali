@@ -24,6 +24,7 @@ function App() {
   useEffect(() => {
     const savedPage = localStorage.getItem('currentPage') || 'home';
     setCurrentPage(savedPage);
+    versionManager.initialize();
   }, []);
 
   useEffect(() => {
@@ -109,7 +110,7 @@ function App() {
   const isHome = currentPage === 'home';
 
   return (
-    <div className={`min-h-screen relative overflow-hidden ${isHome ? 'bg-gradient-to-b from-slate-50 to-white' : 'bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'}`}>
+    <div className={`min-h-screen relative overflow-hidden ${isHome ? 'bg-white bg-gradient-to-b from-slate-50 to-white' : 'bg-slate-950 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950'}`}>
       {/* Update Notification */}
       <UpdateNotification />
       
