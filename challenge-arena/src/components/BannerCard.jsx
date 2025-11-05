@@ -60,7 +60,7 @@ function BannerCard({ challenge }) {
               {challenge.opponent1}
             </h3>
             {challenge.opponent1PlatformId && (
-              <p className="text-[10px] text-white/80 font-bold drop-shadow-lg">
+              <p className="text-[11px] text-white/80 font-bold drop-shadow-lg">
                 ID: {challenge.opponent1PlatformId}
               </p>
             )}
@@ -105,7 +105,7 @@ function BannerCard({ challenge }) {
               {challenge.opponent2}
             </h3>
             {challenge.opponent2PlatformId && (
-              <p className="text-[10px] text-white/80 font-bold drop-shadow-lg">
+              <p className="text-[11px] text-white/80 font-bold drop-shadow-lg">
                 ID: {challenge.opponent2PlatformId}
               </p>
             )}
