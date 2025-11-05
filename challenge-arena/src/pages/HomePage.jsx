@@ -137,7 +137,12 @@ function HomePage({ onNavigate }) {
         <p className="text-slate-700">
           © 2025 أرض التحديات - جميع الحقوق محفوظة
         </p>
-        <p className="text-xs text-slate-500 mt-2">v2025-11-05</p>
+        <p className="text-xs text-slate-500 mt-2">
+          تم التطوير بواسطة{' '}
+          <span className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-x inline-block animate-pulse">
+            Boon
+          </span>
+        </p>
       </footer>
     </div>
   );
