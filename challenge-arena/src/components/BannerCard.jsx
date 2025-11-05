@@ -26,7 +26,7 @@ function BannerCard({ challenge }) {
         }}
       >
 
-        <div className="absolute z-10" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
+        <div className="absolute z-[5]" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
           <div className="flex flex-col items-center gap-1">
             <div
               className="relative w-full rounded-full overflow-hidden ring-2 ring-orange-500 shadow-2xl"
@@ -58,7 +58,7 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute z-10" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
+        <div className="absolute z-[5]" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
           <div className="flex flex-col items-center gap-1">
             <div
               className="relative w-full rounded-full overflow-hidden ring-2 ring-blue-500 shadow-2xl"
@@ -90,7 +90,7 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute left-1/2 top-1/2 z-10 flex flex-col items-center gap-1" style={{ transform: 'translate(-50%, -50%)' }}>
+        <div className="absolute left-1/2 top-1/2 z-20 flex flex-col items-center gap-1" style={{ transform: 'translate(-50%, -50%)' }}>
           <div className="relative text-3xl font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" style={{
             WebkitTextStroke: '1px rgba(0,0,0,0.5)',
             textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)'
@@ -114,7 +114,7 @@ function BannerCard({ challenge }) {
           )}
         </div>
 
-        <div className="absolute bottom-[4%] left-1/2 z-10" style={{ transform: 'translateX(-50%)' }}>
+        <div className="absolute bottom-[4%] left-1/2 z-20" style={{ transform: 'translateX(-50%)' }}>
           <div className="relative rounded-full p-[1px]" style={{
             background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
           }}>
@@ -135,7 +135,7 @@ function BannerCard({ challenge }) {
         </div>
 
         {challenge.result && (
-          <div className="absolute bottom-10 left-0 right-0 text-center z-10">
+          <div className="absolute bottom-10 left-0 right-0 text-center z-20">
             <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-1 rounded-full">
               <p className="text-xs font-bold text-gray-900">
                 🏆 الفائز: {challenge.result}
