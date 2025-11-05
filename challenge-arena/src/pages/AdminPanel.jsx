@@ -50,6 +50,8 @@ function AdminPanel({ onNavigate, onLogout }) {
     score2: 0
   });
 
+  const [editingChallenge, setEditingChallenge] = useState(null);
+
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('adminAuth');
     if (savedAuth === 'true') {
@@ -277,6 +279,37 @@ function AdminPanel({ onNavigate, onLogout }) {
   const handleUpdateResult = async (id, result) => {
     const challengeRef = ref(database, `approvedChallenges/${id}`);
     await update(challengeRef, { result });
+  };
+
+  const handleEditChallenge = (challenge) => {
+    setEditingChallenge(challenge);
+  };
+
+  const handleSaveEditChallenge = async () => {
+    if (!editingChallenge) return;
+    
+    const challengeRef = ref(database, `approvedChallenges/${editingChallenge.id}`);
+    await update(challengeRef, {
+      opponent1: editingChallenge.opponent1,
+      opponent2: editingChallenge.opponent2,
+      opponent1PlatformId: editingChallenge.opponent1PlatformId,
+      opponent2PlatformId: editingChallenge.opponent2PlatformId,
+      roundType: editingChallenge.roundType,
+      score1: parseInt(editingChallenge.score1) || 0,
+      score2: parseInt(editingChallenge.score2) || 0,
+      dateTime: editingChallenge.dateTime
+    });
+    
+    setEditingChallenge(null);
+    alert('تم تحديث التحدي بنجاح ✅');
+  };
+
+  const handleDeleteChallenge = async (id) => {
+    if (confirm('هل أنت متأكد من حذف هذا التحدي؟')) {
+      const challengeRef = ref(database, `approvedChallenges/${id}`);
+      await remove(challengeRef);
+      alert('تم حذف التحدي بنجاح ✅');
+    }
   };
 
   const handleSiteSettings = async () => {
@@ -717,22 +750,129 @@ function AdminPanel({ onNavigate, onLogout }) {
             <div className="space-y-8">
               {approvedChallenges.map((challenge) => (
                 <div key={challenge.id} className="space-y-4">
-                  <BannerCard challenge={challenge} />
-                  {!challenge.result && (
-                    <div className="flex gap-4 max-w-5xl mx-auto">
-                      <button
-                        onClick={() => handleUpdateResult(challenge.id, challenge.opponent1)}
-                        className="flex-1 px-6 py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
-                      >
-                        {challenge.opponent1} فاز 🏆
-                      </button>
-                      <button
-                        onClick={() => handleUpdateResult(challenge.id, challenge.opponent2)}
-                        className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
-                      >
-                        {challenge.opponent2} فاز 🏆
-                      </button>
+                  {editingChallenge?.id === challenge.id ? (
+                    <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow-2xl p-8 space-y-6">
+                      <h3 className="text-2xl font-bold text-gray-800 mb-4">تعديل التحدي</h3>
+                      <div className="grid grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-gray-700 font-bold mb-2">اسم الخصم الأول</label>
+                          <input
+                            type="text"
+                            value={editingChallenge.opponent1}
+                            onChange={(e) => setEditingChallenge({...editingChallenge, opponent1: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-orange-300 rounded-xl focus:outline-none focus:border-orange-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-700 font-bold mb-2">اسم الخصم الثاني</label>
+                          <input
+                            type="text"
+                            value={editingChallenge.opponent2}
+                            onChange={(e) => setEditingChallenge({...editingChallenge, opponent2: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-blue-300 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-700 font-bold mb-2">معرف المنصة - الخصم الأول</label>
+                          <input
+                            type="text"
+                            value={editingChallenge.opponent1PlatformId || ''}
+                            onChange={(e) => setEditingChallenge({...editingChallenge, opponent1PlatformId: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-orange-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-700 font-bold mb-2">معرف المنصة - الخصم الثاني</label>
+                          <input
+                            type="text"
+                            value={editingChallenge.opponent2PlatformId || ''}
+                            onChange={(e) => setEditingChallenge({...editingChallenge, opponent2PlatformId: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-gray-700 font-bold mb-2">نوع الجولة</label>
+                          <input
+                            type="text"
+                            value={editingChallenge.roundType || ''}
+                            onChange={(e) => setEditingChallenge({...editingChallenge, roundType: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-purple-500"
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-gray-700 font-bold mb-2">النتيجة 1</label>
+                            <input
+                              type="number"
+                              value={editingChallenge.score1 || 0}
+                              onChange={(e) => setEditingChallenge({...editingChallenge, score1: e.target.value})}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-orange-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-gray-700 font-bold mb-2">النتيجة 2</label>
+                            <input
+                              type="number"
+                              value={editingChallenge.score2 || 0}
+                              onChange={(e) => setEditingChallenge({...editingChallenge, score2: e.target.value})}
+                              className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-4">
+                        <button
+                          onClick={handleSaveEditChallenge}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-xl transition-all shadow-lg"
+                        >
+                          حفظ التعديلات ✓
+                        </button>
+                        <button
+                          onClick={() => setEditingChallenge(null)}
+                          className="flex-1 px-6 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold rounded-xl transition-all shadow-lg"
+                        >
+                          إلغاء
+                        </button>
+                      </div>
                     </div>
+                  ) : (
+                    <>
+                      <BannerCard challenge={challenge} />
+                      <div className="max-w-5xl mx-auto space-y-4">
+                        <div className="flex gap-4">
+                          <button
+                            onClick={() => handleEditChallenge(challenge)}
+                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white font-bold rounded-xl transition-all shadow-lg"
+                          >
+                            <Edit size={20} />
+                            تعديل التحدي
+                          </button>
+                          <button
+                            onClick={() => handleDeleteChallenge(challenge.id)}
+                            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white font-bold rounded-xl transition-all shadow-lg"
+                          >
+                            <Trash2 size={20} />
+                            حذف التحدي
+                          </button>
+                        </div>
+                        {!challenge.result && (
+                          <div className="flex gap-4">
+                            <button
+                              onClick={() => handleUpdateResult(challenge.id, challenge.opponent1)}
+                              className="flex-1 px-6 py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
+                            >
+                              {challenge.opponent1} فاز 🏆
+                            </button>
+                            <button
+                              onClick={() => handleUpdateResult(challenge.id, challenge.opponent2)}
+                              className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
+                            >
+                              {challenge.opponent2} فاز 🏆
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               ))}
