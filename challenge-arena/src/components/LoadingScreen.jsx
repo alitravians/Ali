@@ -7,15 +7,21 @@ function LoadingScreen({ onLoadingComplete }) {
     const interval = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => onLoadingComplete(), 500);
           return 100;
         }
         return prev + 2;
       });
     }, 30);
 
-    return () => clearInterval(interval);
+    const maxTimeout = setTimeout(() => {
+      clearInterval(interval);
+      onLoadingComplete();
+    }, 3500);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(maxTimeout);
+    };
   }, [onLoadingComplete]);
 
   return (
