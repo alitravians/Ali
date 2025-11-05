@@ -392,24 +392,24 @@ function AdminPanel({ onNavigate, onLogout }) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => onNavigate('home')}
-            className="p-2 bg-white hover:bg-gray-100 text-gray-700 rounded-lg transition-colors shadow-md"
+            className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all shadow-lg border border-white/10 backdrop-blur-sm"
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-3xl font-bold text-gray-800">{t('adminPanel')}</h1>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('adminPanel')}</h1>
         </div>
 
-        <div className="max-w-md mx-auto bg-white rounded-2xl p-8 shadow-xl">
+        <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10">
           <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Users size={40} className="text-purple-600" />
+            <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50">
+              <Users size={40} className="text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">تسجيل دخول الإدارة</h2>
-            <p className="text-gray-600">أدخل رمز الإدارة للوصول إلى لوحة التحكم</p>
+            <h2 className="text-2xl font-bold text-white mb-2">تسجيل دخول الإدارة</h2>
+            <p className="text-gray-300">أدخل رمز الإدارة للوصول إلى لوحة التحكم</p>
           </div>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-gray-800 font-bold mb-2">
+              <label className="block text-white font-bold mb-2">
                 {t('adminCode')}
               </label>
               <input
@@ -417,13 +417,13 @@ function AdminPanel({ onNavigate, onLogout }) {
                 value={adminCode}
                 onChange={(e) => setAdminCode(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-gray-50 text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
                 placeholder="أدخل رمز الإدارة"
               />
             </div>
             <button
               type="submit"
-              className="w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
+              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-500/50 transform hover:scale-105"
             >
               {t('login')}
             </button>
@@ -435,23 +435,23 @@ function AdminPanel({ onNavigate, onLogout }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-xl p-6">
+      <div className="bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-white/10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <button
               onClick={() => onNavigate('home')}
-              className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+              className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all border border-white/10"
             >
               <ArrowLeft size={24} />
             </button>
             <div>
-              <h1 className="text-3xl font-bold text-gray-800">{t('adminPanel')}</h1>
-              <p className="text-gray-600 text-sm">إدارة كاملة للموقع والتحديات</p>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('adminPanel')}</h1>
+              <p className="text-gray-300 text-sm">إدارة كاملة للموقع والتحديات</p>
             </div>
           </div>
           <button
             onClick={handleLogout}
-            className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-md font-bold"
+            className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white rounded-xl transition-all shadow-lg shadow-red-500/50 font-bold"
           >
             تسجيل الخروج
           </button>
@@ -463,8 +463,8 @@ function AdminPanel({ onNavigate, onLogout }) {
           onClick={() => setActiveTab('opponents')}
           className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
             activeTab === 'opponents'
-              ? 'bg-purple-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white shadow-purple-500/50'
+              : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
           }`}
         >
           <Users size={32} />
@@ -474,8 +474,8 @@ function AdminPanel({ onNavigate, onLogout }) {
           onClick={() => setActiveTab('requests')}
           className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
             activeTab === 'requests'
-              ? 'bg-blue-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
+              ? 'bg-gradient-to-br from-cyan-600 to-cyan-500 text-white shadow-cyan-500/50'
+              : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
           }`}
         >
           <Image size={32} />
