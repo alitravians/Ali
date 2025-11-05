@@ -21,8 +21,13 @@ function AdminPanel({ onNavigate, onLogout }) {
     name2: '',
     avatar1: '',
     avatar2: '',
+    platformId1: '',
+    platformId2: '',
+    roundType: '',
     date: '',
-    time: ''
+    time: '',
+    score1: 0,
+    score2: 0
   });
   const [avatarFiles, setAvatarFiles] = useState({
     file1: null,
@@ -192,12 +197,46 @@ function AdminPanel({ onNavigate, onLogout }) {
         name2: opponentForm.name2,
         avatar1: avatar1Url,
         avatar2: avatar2Url,
-        dateTime: dateTime
+        platformId1: opponentForm.platformId1,
+        platformId2: opponentForm.platformId2,
+        roundType: opponentForm.roundType,
+        dateTime: dateTime,
+        score1: parseInt(opponentForm.score1) || 0,
+        score2: parseInt(opponentForm.score2) || 0
       });
 
-      setOpponentForm({ name1: '', name2: '', avatar1: '', avatar2: '', date: '', time: '' });
+      const challengesRef = ref(database, 'approvedChallenges');
+      await push(challengesRef, {
+        opponent1: opponentForm.name1,
+        opponent2: opponentForm.name2,
+        opponent1Avatar: avatar1Url,
+        opponent2Avatar: avatar2Url,
+        opponent1PlatformId: opponentForm.platformId1,
+        opponent2PlatformId: opponentForm.platformId2,
+        roundType: opponentForm.roundType,
+        dateTime: dateTime,
+        score1: parseInt(opponentForm.score1) || 0,
+        score2: parseInt(opponentForm.score2) || 0,
+        status: 'approved',
+        createdAt: new Date().toISOString()
+      });
+
+      setOpponentForm({ 
+        name1: '', 
+        name2: '', 
+        avatar1: '', 
+        avatar2: '', 
+        platformId1: '',
+        platformId2: '',
+        roundType: '',
+        date: '', 
+        time: '',
+        score1: 0,
+        score2: 0
+      });
       setAvatarFiles({ file1: null, file2: null, preview1: null, preview2: null });
       setIsUploading(false);
+      alert('تم إضافة الخصم وتوليد البنر تلقائياً ✅');
     } catch (error) {
       console.error('Error adding opponent:', error);
       setUploadError('حدث خطأ أثناء إضافة الخصم. يرجى المحاولة مرة أخرى');
@@ -386,7 +425,7 @@ function AdminPanel({ onNavigate, onLogout }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <button
           onClick={() => setActiveTab('opponents')}
           className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
@@ -397,17 +436,6 @@ function AdminPanel({ onNavigate, onLogout }) {
         >
           <Users size={32} />
           <span className="text-center">{t('manageOpponents')}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('generateBanner')}
-          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
-            activeTab === 'generateBanner'
-              ? 'bg-pink-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          <Sparkles size={32} />
-          <span className="text-center">توليد البنرات</span>
         </button>
         <button
           onClick={() => setActiveTab('requests')}
@@ -519,6 +547,39 @@ function AdminPanel({ onNavigate, onLogout }) {
                 </div>
 
                 <div className="space-y-2">
+                  <label className="block text-gray-800 font-bold text-sm">أدي الخصم الأول (Platform ID)</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: 964666912"
+                    value={opponentForm.platformId1}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, platformId1: e.target.value })}
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-gray-800 font-bold text-sm">أدي الخصم الثاني (Platform ID)</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: 1057920970"
+                    value={opponentForm.platformId2}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, platformId2: e.target.value })}
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-gray-800 font-bold text-sm">نوع الجولة</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: الجولة 1"
+                    value={opponentForm.roundType}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, roundType: e.target.value })}
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <label className="block text-gray-800 font-bold text-sm">تاريخ التحدي</label>
                   <input
                     type="date"
@@ -541,6 +602,28 @@ function AdminPanel({ onNavigate, onLogout }) {
                     className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
+
+                <div className="space-y-2">
+                  <label className="block text-gray-800 font-bold text-sm">النتيجة - الخصم الأول</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={opponentForm.score1}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, score1: e.target.value })}
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-gray-800 font-bold text-sm">النتيجة - الخصم الثاني</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={opponentForm.score2}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, score2: e.target.value })}
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  />
+                </div>
               </div>
               <button
                 type="submit"
@@ -551,7 +634,7 @@ function AdminPanel({ onNavigate, onLogout }) {
                     : 'bg-green-600 hover:bg-green-700 transform hover:scale-105'
                 } text-white`}
               >
-                {isUploading ? 'جاري الرفع...' : 'إضافة خصم'}
+                {isUploading ? 'جاري الرفع...' : 'إضافة خصم وتوليد البنر تلقائياً'}
               </button>
             </form>
 
@@ -575,144 +658,6 @@ function AdminPanel({ onNavigate, onLogout }) {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {activeTab === 'generateBanner' && (
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">توليد البنرات</h2>
-            
-            <form onSubmit={handleGenerateBanner} className="space-y-6 bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">الخصم الأول</label>
-                  <select
-                    value={bannerForm.opponent1Id}
-                    onChange={(e) => setBannerForm({ ...bannerForm, opponent1Id: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  >
-                    <option value="">اختر الخصم الأول</option>
-                    {opponents.map((opp) => (
-                      <option key={opp.id} value={opp.id}>
-                        {opp.name1}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">الخصم الثاني</label>
-                  <select
-                    value={bannerForm.opponent2Id}
-                    onChange={(e) => setBannerForm({ ...bannerForm, opponent2Id: e.target.value })}
-                    required
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  >
-                    <option value="">اختر الخصم الثاني</option>
-                    {opponents.map((opp) => (
-                      <option key={opp.id} value={opp.id}>
-                        {opp.name2}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">أدي الخصم الأول (Platform ID)</label>
-                  <input
-                    type="text"
-                    placeholder="مثال: 964666912"
-                    value={bannerForm.opponent1PlatformId}
-                    onChange={(e) => setBannerForm({ ...bannerForm, opponent1PlatformId: e.target.value })}
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">أدي الخصم الثاني (Platform ID)</label>
-                  <input
-                    type="text"
-                    placeholder="مثال: 1057920970"
-                    value={bannerForm.opponent2PlatformId}
-                    onChange={(e) => setBannerForm({ ...bannerForm, opponent2PlatformId: e.target.value })}
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">نوع الجولة</label>
-                  <input
-                    type="text"
-                    placeholder="مثال: الجولة 1"
-                    value={bannerForm.roundType}
-                    onChange={(e) => setBannerForm({ ...bannerForm, roundType: e.target.value })}
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">تاريخ التحدي</label>
-                  <input
-                    type="date"
-                    value={bannerForm.date}
-                    onChange={(e) => setBannerForm({ ...bannerForm, date: e.target.value })}
-                    required
-                    dir="ltr"
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">وقت التحدي</label>
-                  <input
-                    type="time"
-                    value={bannerForm.time}
-                    onChange={(e) => setBannerForm({ ...bannerForm, time: e.target.value })}
-                    required
-                    dir="ltr"
-                    step="60"
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">النتيجة - الخصم الأول</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={bannerForm.score1}
-                    onChange={(e) => setBannerForm({ ...bannerForm, score1: e.target.value })}
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-gray-800 font-bold text-sm">النتيجة - الخصم الثاني</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={bannerForm.score2}
-                    onChange={(e) => setBannerForm({ ...bannerForm, score2: e.target.value })}
-                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full px-6 py-4 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
-              >
-                توليد البنر
-              </button>
-            </form>
-
-            {getPreviewBanner() && (
-              <div className="space-y-4">
-                <h3 className="text-2xl font-bold text-gray-800">معاينة البنر</h3>
-                <BannerCard challenge={getPreviewBanner()} />
-              </div>
-            )}
           </div>
         )}
 
@@ -768,40 +713,34 @@ function AdminPanel({ onNavigate, onLogout }) {
 
         {activeTab === 'results' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">إدارة نتائج التحديات</h2>
-            <div className="space-y-4">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">إدارة نتائج التحديات</h2>
+            <div className="space-y-8">
               {approvedChallenges.map((challenge) => (
-                <div key={challenge.id} className="bg-slate-700 p-6 rounded-lg space-y-4">
-                  <div>
-                    <p className="text-white font-bold text-lg">
-                      {challenge.opponent1} VS {challenge.opponent2}
-                    </p>
-                    <p className="text-gray-400">
-                      {new Date(challenge.dateTime).toLocaleString('ar-EG')}
-                    </p>
-                  </div>
-                  {challenge.result ? (
-                    <div className="p-3 bg-green-600 rounded-lg">
-                      <p className="text-white font-bold">الفائز: {challenge.result}</p>
-                    </div>
-                  ) : (
-                    <div className="flex gap-4">
+                <div key={challenge.id} className="space-y-4">
+                  <BannerCard challenge={challenge} />
+                  {!challenge.result && (
+                    <div className="flex gap-4 max-w-5xl mx-auto">
                       <button
                         onClick={() => handleUpdateResult(challenge.id, challenge.opponent1)}
-                        className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors"
+                        className="flex-1 px-6 py-4 bg-gradient-to-r from-orange-600 to-red-600 hover:from-orange-700 hover:to-red-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
                       >
-                        {challenge.opponent1} فاز
+                        {challenge.opponent1} فاز 🏆
                       </button>
                       <button
                         onClick={() => handleUpdateResult(challenge.id, challenge.opponent2)}
-                        className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                        className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
                       >
-                        {challenge.opponent2} فاز
+                        {challenge.opponent2} فاز 🏆
                       </button>
                     </div>
                   )}
                 </div>
               ))}
+              {approvedChallenges.length === 0 && (
+                <div className="text-center py-12 bg-white rounded-2xl shadow-xl">
+                  <p className="text-gray-600 text-xl">لا توجد تحديات معتمدة حالياً</p>
+                </div>
+              )}
             </div>
           </div>
         )}
