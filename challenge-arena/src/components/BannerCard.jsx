@@ -26,18 +26,18 @@ function BannerCard({ challenge }) {
         }}
       >
 
-        <div className="absolute z-10 flex flex-col items-center gap-1" style={{ left: '30%', top: '58%', transform: 'translate(-50%, -50%)' }}>
+        <div className="absolute z-10 flex flex-col items-center gap-1" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)' }}>
           <img
             src={challenge.opponent1Avatar || '/default-avatar.png'}
             alt={challenge.opponent1}
-            className="rounded-full object-cover ring-2 sm:ring-3 md:ring-4 ring-orange-500 shadow-2xl"
+            className="rounded-full object-cover ring-1 ring-orange-500 shadow-2xl"
             style={{ 
-              width: '24%', 
-              height: '24%', 
-              minWidth: '72px', 
-              minHeight: '72px', 
-              maxWidth: '220px', 
-              maxHeight: '220px', 
+              width: '28.5%', 
+              height: '28.5%', 
+              minWidth: '56px', 
+              minHeight: '56px', 
+              maxWidth: '280px', 
+              maxHeight: '280px', 
               objectPosition: '50% 35%' 
             }}
           />
@@ -57,18 +57,18 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute z-10 flex flex-col items-center gap-1" style={{ left: '70%', top: '58%', transform: 'translate(-50%, -50%)' }}>
+        <div className="absolute z-10 flex flex-col items-center gap-1" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)' }}>
           <img
             src={challenge.opponent2Avatar || '/default-avatar.png'}
             alt={challenge.opponent2}
-            className="rounded-full object-cover ring-2 sm:ring-3 md:ring-4 ring-blue-500 shadow-2xl"
+            className="rounded-full object-cover ring-1 ring-blue-500 shadow-2xl"
             style={{ 
-              width: '24%', 
-              height: '24%', 
-              minWidth: '72px', 
-              minHeight: '72px', 
-              maxWidth: '220px', 
-              maxHeight: '220px', 
+              width: '28.5%', 
+              height: '28.5%', 
+              minWidth: '56px', 
+              minHeight: '56px', 
+              maxWidth: '280px', 
+              maxHeight: '280px', 
               objectPosition: '50% 35%' 
             }}
           />
