@@ -26,65 +26,57 @@ function BannerCard({ challenge }) {
         }}
       >
 
-        <div className="absolute z-10 flex flex-col items-center gap-1" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)' }}>
-          <img
-            src={challenge.opponent1Avatar || '/default-avatar.png'}
-            alt={challenge.opponent1}
-            className="rounded-full object-cover ring-1 ring-orange-500 shadow-2xl"
-            style={{ 
-              width: '28.5%', 
-              height: '28.5%', 
-              minWidth: '56px', 
-              minHeight: '56px', 
-              maxWidth: '280px', 
-              maxHeight: '280px', 
-              objectPosition: '50% 35%' 
-            }}
-          />
-          <div className="text-center">
-            <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
-            }}>
-              {challenge.opponent1}
-            </h3>
-            {challenge.opponent1PlatformId && (
-              <p className="text-[10px] sm:text-[11px] text-white font-bold drop-shadow-lg" style={{
-                textShadow: '0 0 10px rgba(255,255,255,0.9), 0 2px 4px rgba(0,0,0,0.8)'
+        <div className="absolute z-10" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
+          <div className="flex flex-col items-center gap-1">
+            <div className="relative w-full rounded-full overflow-hidden ring-2 ring-orange-500 shadow-2xl" style={{ aspectRatio: '1 / 1' }}>
+              <img
+                src={challenge.opponent1Avatar || '/default-avatar.png'}
+                alt={challenge.opponent1}
+                className="absolute inset-0 w-full h-full object-cover block"
+                style={{ objectPosition: '50% 50%' }}
+              />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
               }}>
-                ID: {challenge.opponent1PlatformId}
-              </p>
-            )}
+                {challenge.opponent1}
+              </h3>
+              {challenge.opponent1PlatformId && (
+                <p className="text-[10px] sm:text-[11px] text-white font-bold drop-shadow-lg" style={{
+                  textShadow: '0 0 10px rgba(255,255,255,0.9), 0 2px 4px rgba(0,0,0,0.8)'
+                }}>
+                  ID: {challenge.opponent1PlatformId}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="absolute z-10 flex flex-col items-center gap-1" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)' }}>
-          <img
-            src={challenge.opponent2Avatar || '/default-avatar.png'}
-            alt={challenge.opponent2}
-            className="rounded-full object-cover ring-1 ring-blue-500 shadow-2xl"
-            style={{ 
-              width: '28.5%', 
-              height: '28.5%', 
-              minWidth: '56px', 
-              minHeight: '56px', 
-              maxWidth: '280px', 
-              maxHeight: '280px', 
-              objectPosition: '50% 35%' 
-            }}
-          />
-          <div className="text-center">
-            <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
-            }}>
-              {challenge.opponent2}
-            </h3>
-            {challenge.opponent2PlatformId && (
-              <p className="text-[10px] sm:text-[11px] text-white font-bold drop-shadow-lg" style={{
-                textShadow: '0 0 10px rgba(255,255,255,0.9), 0 2px 4px rgba(0,0,0,0.8)'
+        <div className="absolute z-10" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
+          <div className="flex flex-col items-center gap-1">
+            <div className="relative w-full rounded-full overflow-hidden ring-2 ring-blue-500 shadow-2xl" style={{ aspectRatio: '1 / 1' }}>
+              <img
+                src={challenge.opponent2Avatar || '/default-avatar.png'}
+                alt={challenge.opponent2}
+                className="absolute inset-0 w-full h-full object-cover block"
+                style={{ objectPosition: '50% 50%' }}
+              />
+            </div>
+            <div className="text-center">
+              <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
               }}>
-                ID: {challenge.opponent2PlatformId}
-              </p>
-            )}
+                {challenge.opponent2}
+              </h3>
+              {challenge.opponent2PlatformId && (
+                <p className="text-[10px] sm:text-[11px] text-white font-bold drop-shadow-lg" style={{
+                  textShadow: '0 0 10px rgba(255,255,255,0.9), 0 2px 4px rgba(0,0,0,0.8)'
+                }}>
+                  ID: {challenge.opponent2PlatformId}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
