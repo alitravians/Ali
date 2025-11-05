@@ -99,31 +99,31 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 animate-gradient relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-900/20 via-purple-900/20 to-pink-900/20 animate-gradient"></div>
-      <div className="absolute top-20 left-20 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float"></div>
-      <div className="absolute top-40 right-20 w-72 h-72 bg-blue-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style={{animationDelay: '2s'}}></div>
-      <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-pink-500 rounded-full mix-blend-multiply filter blur-xl opacity-20 animate-float" style={{animationDelay: '4s'}}></div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-purple-50 relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-100/30 via-purple-100/30 to-pink-100/30 pointer-events-none"></div>
+      <div className="absolute top-20 left-20 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-float pointer-events-none"></div>
+      <div className="absolute top-40 right-20 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-float pointer-events-none" style={{animationDelay: '2s'}}></div>
+      <div className="absolute bottom-20 left-1/2 w-72 h-72 bg-pink-400 rounded-full mix-blend-multiply filter blur-xl opacity-10 animate-float pointer-events-none" style={{animationDelay: '4s'}}></div>
       <div className="relative z-10">
-      <nav className="bg-slate-800 bg-opacity-90 backdrop-blur-sm shadow-lg sticky top-0 z-50">
+      <nav className="bg-white bg-opacity-95 backdrop-blur-sm shadow-md sticky top-0 z-50 border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
           <div className="flex justify-between items-center">
             <button
               onClick={() => navigateTo('home')}
-              className="text-2xl font-bold text-white hover:text-purple-400 transition-colors"
+              className="text-2xl font-bold text-gray-800 hover:text-purple-600 transition-colors"
             >
               {t('siteName')}
             </button>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => navigateTo('admin')}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors shadow-sm"
               >
                 {t('adminPanel')}
               </button>
               <button
                 onClick={toggleLanguage}
-                className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
               >
                 <Globe size={20} />
                 {language === 'ar' ? 'EN' : 'عربي'}
