@@ -18,7 +18,7 @@ function BannerCard({ challenge }) {
         style={{
           backgroundImage: 'url(/banner-default.jpg)',
           backgroundSize: 'cover',
-          backgroundPosition: 'center center',
+          backgroundPosition: 'center bottom',
           backgroundRepeat: 'no-repeat',
           backgroundColor: '#0a0a0a',
           width: '560px',
@@ -41,7 +41,7 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute left-[22%] bottom-[15%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(-50%)' }}>
+        <div className="absolute left-[22%] bottom-[20%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(-50%)' }}>
           <img
             src={challenge.opponent1Avatar || '/default-avatar.png'}
             alt={challenge.opponent1}
@@ -85,7 +85,7 @@ function BannerCard({ challenge }) {
           )}
         </div>
 
-        <div className="absolute right-[22%] bottom-[15%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(50%)' }}>
+        <div className="absolute right-[22%] bottom-[20%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(50%)' }}>
           <img
             src={challenge.opponent2Avatar || '/default-avatar.png'}
             alt={challenge.opponent2}
