@@ -28,13 +28,18 @@ function BannerCard({ challenge }) {
 
         <div className="absolute z-10" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
           <div className="flex flex-col items-center gap-1">
-            <div className="relative w-full rounded-full overflow-hidden ring-2 ring-orange-500 shadow-2xl" style={{ aspectRatio: '1 / 1' }}>
-              <img
-                src={challenge.opponent1Avatar || '/default-avatar.png'}
-                alt={challenge.opponent1}
-                className="absolute inset-0 w-full h-full object-cover block"
-                style={{ objectPosition: '50% 50%' }}
-              />
+            <div
+              className="relative w-full rounded-full overflow-hidden ring-2 ring-orange-500 shadow-2xl"
+              style={{
+                aspectRatio: '1 / 1',
+                backgroundImage: `url(${challenge.opponent1Avatar || '/default-avatar.png'})`,
+                backgroundSize: 'cover',
+                backgroundPosition: '50% 50%'
+              }}
+              role="img"
+              aria-label={challenge.opponent1}
+            >
+              <span className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 14px rgba(0,0,0,0.25), 0 0 22px 6px rgba(251,146,60,0.35)' }} />
             </div>
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
@@ -55,13 +60,18 @@ function BannerCard({ challenge }) {
 
         <div className="absolute z-10" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
           <div className="flex flex-col items-center gap-1">
-            <div className="relative w-full rounded-full overflow-hidden ring-2 ring-blue-500 shadow-2xl" style={{ aspectRatio: '1 / 1' }}>
-              <img
-                src={challenge.opponent2Avatar || '/default-avatar.png'}
-                alt={challenge.opponent2}
-                className="absolute inset-0 w-full h-full object-cover block"
-                style={{ objectPosition: '50% 50%' }}
-              />
+            <div
+              className="relative w-full rounded-full overflow-hidden ring-2 ring-blue-500 shadow-2xl"
+              style={{
+                aspectRatio: '1 / 1',
+                backgroundImage: `url(${challenge.opponent2Avatar || '/default-avatar.png'})`,
+                backgroundSize: 'cover',
+                backgroundPosition: '50% 50%'
+              }}
+              role="img"
+              aria-label={challenge.opponent2}
+            >
+              <span className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 14px rgba(0,0,0,0.25), 0 0 22px 6px rgba(59,130,246,0.35)' }} />
             </div>
             <div className="text-center">
               <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
