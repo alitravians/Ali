@@ -25,30 +25,24 @@ function BannerCard({ challenge }) {
           height: '176px'
         }}
       >
-        <div className="absolute top-[8%] left-1/2 z-10 flex items-center gap-2" style={{ transform: 'translateX(-50%)' }}>
-          <span className="text-sm font-black drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-            background: 'linear-gradient(90deg, #fb923c 0%, #60a5fa 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            textShadow: '0 0 10px rgba(255,255,255,0.5)'
+        <div className="absolute top-[8%] left-1/2 z-10" style={{ transform: 'translateX(-50%)' }}>
+          <div className="relative rounded-full p-[1px]" style={{
+            background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
           }}>
-            {formatTime(challenge.dateTime)}
-          </span>
-          {challenge.roundType && (
-            <>
-              <span className="text-sm font-bold text-white/70">•</span>
-              <span className="text-sm font-black drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-                background: 'linear-gradient(90deg, #fbbf24 0%, #a78bfa 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-                textShadow: '0 0 10px rgba(255,255,255,0.5)'
-              }}>
-                {challenge.roundType}
+            <div className="rounded-full bg-black/60 backdrop-blur-sm px-3 py-1 flex items-center gap-2 border border-white/10">
+              <span className="text-xs font-semibold text-white">
+                {formatTime(challenge.dateTime)}
               </span>
-            </>
-          )}
+              {challenge.roundType && (
+                <>
+                  <span className="text-white/50 text-xs">•</span>
+                  <span className="text-xs font-semibold text-white">
+                    {challenge.roundType}
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="absolute left-[22%] bottom-[20%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(-50%)' }}>
