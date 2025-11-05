@@ -93,3 +93,19 @@ body {
     0 0 12px rgba(139, 92, 246, 0.6),
     0 0 16px rgba(236, 72, 153, 0.6);
 }
+
+.dev-credit {
+  font-weight: 800;
+  font-size: clamp(0.95rem, 1.8vw, 1.125rem);
+  letter-spacing: 0.02em;
+  background-image: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+  background-size: 200% 200%;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  will-change: background-position;
+  animation: gradient-x 8s linear infinite;
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.55),
+    0 0 6px rgba(139, 92, 246, 0.35),
+    0 0 10px rgba(236, 72, 153, 0.25);
+}

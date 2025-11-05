@@ -140,12 +140,12 @@ function HomePage({ onNavigate }) {
         <p className="text-xs text-slate-500 mt-2">
           تم التطوير بواسطة{' '}
           <span 
-            className="font-extrabold bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-gradient-x inline-block text-glow"
+            className="dev-credit"
             style={{
               WebkitBackgroundClip: 'text',
               backgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              fontSize: '0.875rem'
+              WebkitTextStroke: '0.3px rgba(255,255,255,0.35)'
             }}
           >
             Boon
