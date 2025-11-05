@@ -93,30 +93,28 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        {!challenge.result && (
-          <div className="absolute bottom-2 left-1/2 z-10" style={{ transform: 'translateX(-50%)' }}>
-            <div className="relative rounded-full p-[1px]" style={{
-              background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
-            }}>
-              <div className="rounded-full bg-black/60 backdrop-blur-sm px-3 py-1 flex items-center gap-2 border border-white/10">
-                <span className="text-xs font-semibold text-white">
-                  {formatTime(challenge.dateTime)}
-                </span>
-                {challenge.roundType && (
-                  <>
-                    <span className="text-white/50 text-xs">•</span>
-                    <span className="text-xs font-semibold text-white">
-                      {challenge.roundType}
-                    </span>
-                  </>
-                )}
-              </div>
+        <div className="absolute bottom-2 left-1/2 z-10" style={{ transform: 'translateX(-50%)' }}>
+          <div className="relative rounded-full p-[1px]" style={{
+            background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
+          }}>
+            <div className="rounded-full bg-black/60 backdrop-blur-sm px-3 py-1 flex items-center gap-2 border border-white/10">
+              <span className="text-xs font-semibold text-white">
+                {formatTime(challenge.dateTime)} ✓
+              </span>
+              {challenge.roundType && (
+                <>
+                  <span className="text-white/50 text-xs">•</span>
+                  <span className="text-xs font-semibold text-white">
+                    {challenge.roundType}
+                  </span>
+                </>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {challenge.result && (
-          <div className="absolute bottom-2 left-0 right-0 text-center z-10">
+          <div className="absolute bottom-10 left-0 right-0 text-center z-10">
             <div className="inline-block bg-gradient-to-r from-yellow-400 to-orange-500 px-4 py-1 rounded-full">
               <p className="text-xs font-bold text-gray-900">
                 🏆 الفائز: {challenge.result}
