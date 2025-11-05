@@ -66,70 +66,83 @@ function App() {
 
   if (!siteSettings.isOpen && currentPage !== 'admin') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 relative overflow-hidden flex items-center justify-center p-4">
-        {/* Animated Background Elements */}
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-900/30 via-slate-900/50 to-slate-950"></div>
-        <div className="absolute top-20 left-20 w-96 h-96 bg-red-500/20 rounded-full filter blur-3xl opacity-30 animate-float pointer-events-none"></div>
-        <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/20 rounded-full filter blur-3xl opacity-30 animate-float pointer-events-none" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-orange-500/10 rounded-full filter blur-3xl opacity-20 animate-pulse-slow pointer-events-none"></div>
+      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
+        {/* Full Background with Gradient Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"></div>
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/70 to-slate-950/90"></div>
         
+        {/* Subtle Pattern Overlay */}
+        <div className="absolute inset-0 opacity-10" style={{
+          backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)',
+          backgroundSize: '32px 32px'
+        }}></div>
+        
+        {/* Brand Watermark */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-5">
+          <img 
+            src="/closure-bg.jpg" 
+            alt="" 
+            className="w-96 h-96 object-contain"
+          />
+        </div>
+        
+        {/* Main Content Card */}
         <div className="max-w-3xl w-full relative z-10">
-          <div className="bg-gradient-to-br from-slate-800/90 via-slate-900/90 to-slate-800/90 backdrop-blur-xl rounded-2xl p-12 shadow-2xl border border-white/10 text-center space-y-8">
-            {/* Icon with Gradient Background */}
-            <div className="flex justify-center">
-              <div className="relative">
-                <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-orange-500 rounded-full blur-xl opacity-50 animate-pulse"></div>
-                <div className="relative p-6 bg-gradient-to-br from-red-600 to-orange-600 rounded-full shadow-2xl">
-                  <AlertCircle size={80} className="text-white" strokeWidth={2.5} />
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+            {/* Card Header with Icon */}
+            <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-b border-white/10 px-8 md:px-12 py-10 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-blue-500 rounded-full blur-2xl opacity-40"></div>
+                  <div className="relative p-5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full shadow-xl">
+                    <AlertCircle size={64} className="text-white" strokeWidth={2.5} />
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            {/* Title with Gradient */}
-            <div className="space-y-3">
-              <h1 className="text-5xl font-bold bg-gradient-to-r from-red-400 via-orange-400 to-red-400 bg-clip-text text-transparent animate-gradient">
+              <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3">
                 {language === 'ar' ? 'الموقع مغلق مؤقتاً' : 'Site Temporarily Closed'}
               </h1>
-              <div className="h-1 w-32 mx-auto bg-gradient-to-r from-transparent via-orange-500 to-transparent rounded-full"></div>
+              <div className="h-1 w-24 mx-auto bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
             </div>
             
-            {/* Closure Reason */}
-            {siteSettings.closureReason && (
-              <div className="bg-gradient-to-br from-slate-700/50 to-slate-800/50 backdrop-blur-sm p-8 rounded-xl border border-white/5 shadow-inner">
-                <p className="text-2xl text-white leading-relaxed font-medium">
-                  {siteSettings.closureReason}
+            {/* Card Body with Closure Reason */}
+            <div className="px-8 md:px-12 py-10 space-y-8">
+              {siteSettings.closureReason && (
+                <div className="bg-slate-800/40 backdrop-blur-sm rounded-xl p-8 border border-white/5">
+                  <p className="text-xl md:text-2xl text-slate-100 leading-relaxed text-center font-medium">
+                    {siteSettings.closureReason}
+                  </p>
+                </div>
+              )}
+              
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
+                <button
+                  onClick={() => navigateTo('admin')}
+                  className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transform"
+                >
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    <Power size={20} />
+                    {t('adminPanel')}
+                  </span>
+                </button>
+                <button
+                  onClick={toggleLanguage}
+                  className="px-8 py-4 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white font-bold rounded-xl transition-all border border-white/10 hover:border-white/20 hover:scale-105 transform"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <Globe size={20} />
+                    {language === 'ar' ? 'EN' : 'عربي'}
+                  </span>
+                </button>
+              </div>
+              
+              {/* Footer Message */}
+              <div className="pt-6 border-t border-white/5 text-center">
+                <p className="text-slate-300 text-sm leading-relaxed">
+                  {language === 'ar' ? 'نعتذر عن الإزعاج، سنعود قريباً' : 'Sorry for the inconvenience, we will be back soon'}
                 </p>
               </div>
-            )}
-            
-            {/* Buttons */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-              <button
-                onClick={() => navigateTo('admin')}
-                className="group relative px-8 py-4 bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 hover:scale-105 transform"
-              >
-                <span className="relative z-10 flex items-center justify-center gap-2">
-                  <Power size={20} />
-                  {t('adminPanel')}
-                </span>
-                <div className="absolute inset-0 bg-gradient-to-r from-purple-400 to-purple-500 rounded-xl opacity-0 group-hover:opacity-20 transition-opacity blur"></div>
-              </button>
-              <button
-                onClick={toggleLanguage}
-                className="group relative px-8 py-4 bg-slate-700/50 hover:bg-slate-600/50 backdrop-blur-sm text-white font-bold rounded-xl transition-all border border-white/10 hover:border-white/20 hover:scale-105 transform"
-              >
-                <span className="flex items-center justify-center gap-2">
-                  <Globe size={20} />
-                  {language === 'ar' ? 'EN' : 'عربي'}
-                </span>
-              </button>
-            </div>
-            
-            {/* Footer Message */}
-            <div className="pt-6 border-t border-white/5">
-              <p className="text-slate-400 text-sm">
-                {language === 'ar' ? 'نعتذر عن الإزعاج، سنعود قريباً' : 'Sorry for the inconvenience, we will be back soon'}
-              </p>
             </div>
           </div>
         </div>
