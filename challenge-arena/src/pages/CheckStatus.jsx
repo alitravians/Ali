@@ -2,16 +2,14 @@ import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { database } from '../utils/firebase';
 import { ref, get, query, orderByChild, equalTo } from 'firebase/database';
-import { ArrowLeft, Search, Clock, CheckCircle, XCircle, AlertCircle, Eye } from 'lucide-react';
-import BannerCard from '../components/BannerCard';
+import { ArrowLeft, Search, Clock, CheckCircle, XCircle, AlertCircle, Calendar, Users, Loader } from 'lucide-react';
 
 function CheckStatus({ onNavigate }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [trackingCode, setTrackingCode] = useState('');
   const [request, setRequest] = useState(null);
   const [searching, setSearching] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const [showBanner, setShowBanner] = useState(false);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -96,235 +94,196 @@ function CheckStatus({ onNavigate }) {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => onNavigate('home')}
-          className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all shadow-lg border border-white/10 backdrop-blur-sm"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('checkStatus')}</h1>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={() => onNavigate('home')}
+            className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 backdrop-blur-sm"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
+            {language === 'ar' ? 'مراجعة حالة الطلب' : 'Check Request Status'}
+          </h1>
+        </div>
 
-      <div className="max-w-2xl mx-auto bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10">
-        <form onSubmit={handleSearch} className="space-y-6">
-          <div>
-            <label className="block text-white font-bold mb-2">
-              {t('trackingCode')}
-            </label>
-            <input
-              type="text"
-              value={trackingCode}
-              onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
-              required
-              className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
-              placeholder="أدخل كود المراجعة"
-            />
+        {/* Search Card */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden mb-8">
+          <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-b border-white/10 px-8 py-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-500/20 rounded-lg">
+                <Search size={24} className="text-blue-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">
+                {language === 'ar' ? 'أدخل كود المراجعة' : 'Enter Tracking Code'}
+              </h2>
+            </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={searching}
-            className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-purple-500/50 disabled:opacity-50"
-          >
-            <Search size={20} />
-            {searching ? 'جاري البحث...' : t('checkStatus')}
-          </button>
-        </form>
+          <form onSubmit={handleSearch} className="px-8 py-8 space-y-6">
+            <div className="space-y-3">
+              <label className="block text-white font-semibold">
+                {language === 'ar' ? 'كود المراجعة' : 'Tracking Code'}
+                <span className="text-red-400 mr-1">*</span>
+              </label>
+              <input
+                type="text"
+                value={trackingCode}
+                onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+                required
+                maxLength={8}
+                className="w-full px-6 py-4 bg-white/10 text-white text-center text-2xl font-bold tracking-widest border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm placeholder-slate-400 transition-all uppercase"
+                placeholder={language === 'ar' ? 'XXXXXXXX' : 'XXXXXXXX'}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={searching}
+              className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-lg rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+            >
+              {searching ? (
+                <>
+                  <Loader size={24} className="animate-spin" />
+                  {language === 'ar' ? 'جاري البحث...' : 'Searching...'}
+                </>
+              ) : (
+                <>
+                  <Search size={24} />
+                  {language === 'ar' ? 'بحث' : 'Search'}
+                </>
+              )}
+            </button>
+          </form>
+        </div>
 
         {notFound && (
-          <div className="mt-6 p-4 bg-red-500/20 border-2 border-red-500/50 rounded-xl text-center backdrop-blur-sm">
-            <p className="text-red-300 font-bold">لم يتم العثور على طلب بهذا الكود</p>
+          <div className="bg-red-500/10 backdrop-blur-xl rounded-2xl border-2 border-red-500/30 p-8 text-center">
+            <XCircle size={64} className="text-red-400 mx-auto mb-4" />
+            <p className="text-red-300 font-bold text-xl">
+              {language === 'ar' ? 'لم يتم العثور على طلب بهذا الكود' : 'No request found with this code'}
+            </p>
+            <p className="text-red-200 mt-2">
+              {language === 'ar' ? 'تأكد من إدخال الكود بشكل صحيح' : 'Please verify the code is entered correctly'}
+            </p>
           </div>
         )}
 
         {request && (
-          <div className="mt-6 space-y-6">
-            {/* Status Header with Icon */}
-            <div className={`p-8 ${getStatusColor(request.status)} rounded-2xl text-center shadow-2xl`}>
-              <div className="flex flex-col items-center gap-4">
-                {getStatusIcon(request.status)}
-                <div>
-                  <p className="text-white font-bold text-3xl mb-2">
-                    {getStatusText(request.status)}
-                  </p>
-                  {getEstimatedTime(request.status, request.submittedAt) && (
-                    <p className="text-white/80 text-sm">
-                      {getEstimatedTime(request.status, request.submittedAt)}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Visual Timeline */}
-            <div className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border-2 border-white/10">
-              <h3 className="text-white font-bold text-xl mb-6 text-center">مراحل الطلب</h3>
-              <div className="relative">
-                {/* Timeline Line */}
-                <div className="absolute right-1/2 top-0 bottom-0 w-1 bg-white/20 transform translate-x-1/2"></div>
-                
-                {/* Timeline Steps */}
-                <div className="space-y-8">
-                  {/* Step 1: Submitted */}
-                  <div className="relative flex items-center gap-4">
-                    <div className="flex-1 text-left">
-                      <p className="text-white font-bold">تم التقديم</p>
-                      <p className="text-gray-400 text-sm">
-                        {new Date(request.submittedAt).toLocaleString('ar-EG')}
-                      </p>
-                    </div>
-                    <div className="relative z-10 w-12 h-12 bg-green-600 rounded-full flex items-center justify-center shadow-lg">
-                      <CheckCircle size={24} className="text-white" />
-                    </div>
-                    <div className="flex-1"></div>
-                  </div>
-
-                  {/* Step 2: Under Review */}
-                  <div className="relative flex items-center gap-4">
-                    <div className="flex-1"></div>
-                    <div className={`relative z-10 w-12 h-12 ${request.status === 'pending' ? 'bg-red-600 animate-pulse' : 'bg-green-600'} rounded-full flex items-center justify-center shadow-lg`}>
-                      {request.status === 'pending' ? (
-                        <Clock size={24} className="text-white" />
-                      ) : (
-                        <CheckCircle size={24} className="text-white" />
-                      )}
-                    </div>
-                    <div className="flex-1 text-right">
-                      <p className="text-white font-bold">قيد المراجعة</p>
-                      <p className="text-gray-400 text-sm">
-                        {request.status === 'pending' ? 'جاري المراجعة...' : 'تمت المراجعة'}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Step 3: Final Decision */}
-                  <div className="relative flex items-center gap-4">
-                    <div className="flex-1 text-left">
-                      <p className="text-white font-bold">
-                        {request.status === 'approved' ? 'تمت الموافقة' : request.status === 'rejected' ? 'مرفوض' : 'في انتظار القرار'}
-                      </p>
-                      <p className="text-gray-400 text-sm">
-                        {request.status === 'approved' || request.status === 'rejected' ? 'اكتمل' : 'قريباً'}
-                      </p>
-                    </div>
-                    <div className={`relative z-10 w-12 h-12 ${
-                      request.status === 'approved' ? 'bg-green-600' : 
-                      request.status === 'rejected' ? 'bg-red-600' : 
-                      'bg-gray-600'
-                    } rounded-full flex items-center justify-center shadow-lg`}>
-                      {request.status === 'approved' ? (
-                        <CheckCircle size={24} className="text-white" />
-                      ) : request.status === 'rejected' ? (
-                        <XCircle size={24} className="text-white" />
-                      ) : (
-                        <AlertCircle size={24} className="text-white" />
-                      )}
-                    </div>
-                    <div className="flex-1"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Challenge Details */}
-            <div className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border-2 border-white/10 space-y-4">
-              <h3 className="text-white font-bold text-xl mb-4">تفاصيل التحدي</h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 bg-gradient-to-r from-orange-500/10 to-orange-600/10 rounded-xl border border-orange-500/30">
-                  <p className="text-orange-400 font-semibold mb-2">الخصم الأول</p>
-                  <p className="text-white font-bold text-lg">{request.opponent1}</p>
-                  {request.opponent1PlatformId && (
-                    <p className="text-gray-400 text-sm mt-1">ID: {request.opponent1PlatformId}</p>
-                  )}
-                  {request.opponent1Avatar && request.opponent1Avatar !== '/default-avatar.png' && (
-                    <img 
-                      src={request.opponent1Avatar} 
-                      alt={request.opponent1}
-                      className="w-16 h-16 rounded-full mt-2 border-2 border-orange-500 object-cover"
-                    />
-                  )}
-                </div>
-
-                <div className="p-4 bg-gradient-to-r from-cyan-500/10 to-cyan-600/10 rounded-xl border border-cyan-500/30">
-                  <p className="text-cyan-400 font-semibold mb-2">الخصم الثاني</p>
-                  <p className="text-white font-bold text-lg">{request.opponent2}</p>
-                  {request.opponent2PlatformId && (
-                    <p className="text-gray-400 text-sm mt-1">ID: {request.opponent2PlatformId}</p>
-                  )}
-                  {request.opponent2Avatar && request.opponent2Avatar !== '/default-avatar.png' && (
-                    <img 
-                      src={request.opponent2Avatar} 
-                      alt={request.opponent2}
-                      className="w-16 h-16 rounded-full mt-2 border-2 border-cyan-500 object-cover"
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                  <span className="text-gray-400 font-semibold">نوع الجولة:</span>
-                  <span className="text-white font-bold">{request.roundType || 'BO1'}</span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                  <span className="text-gray-400 font-semibold">التاريخ والوقت:</span>
-                  <span className="text-white font-bold">
-                    {new Date(request.dateTime).toLocaleString('ar-EG')}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg">
-                <span className="text-gray-400 font-semibold">كود التتبع:</span>
-                <span className="text-purple-400 font-bold">{request.trackingCode}</span>
-              </div>
-            </div>
-
-            {/* Banner Preview */}
-            {request.opponent1 && request.opponent2 && request.dateTime && (
-              <div className="bg-white/5 backdrop-blur-sm p-6 rounded-2xl border-2 border-white/10">
-                <button
-                  type="button"
-                  onClick={() => setShowBanner(!showBanner)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold rounded-xl transition-all shadow-lg mb-4"
-                >
-                  <Eye size={20} />
-                  {showBanner ? 'إخفاء معاينة البنر' : 'معاينة البنر'}
-                </button>
-                
-                {showBanner && (
+          <div className="space-y-6">
+            {/* Status Card */}
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+              <div className={`${getStatusColor(request.status)} p-8 text-center`}>
+                <div className="flex flex-col items-center gap-4">
+                  {getStatusIcon(request.status)}
                   <div>
-                    <h3 className="text-white font-bold mb-4 text-center">معاينة البنر</h3>
-                    <BannerCard challenge={request} />
+                    <p className="text-white font-bold text-3xl mb-2">
+                      {getStatusText(request.status)}
+                    </p>
+                    {getEstimatedTime(request.status, request.submittedAt) && (
+                      <p className="text-white/80 text-sm">
+                        {getEstimatedTime(request.status, request.submittedAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Challenge Details */}
+              <div className="p-8 space-y-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-500/20 rounded-lg">
+                    <Users size={24} className="text-blue-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white">
+                    {language === 'ar' ? 'معلومات اللاعبين' : 'Players Information'}
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="p-6 bg-gradient-to-br from-blue-500/10 to-blue-600/10 rounded-xl border border-blue-500/30">
+                    <p className="text-blue-400 font-semibold mb-2">
+                      {language === 'ar' ? 'اللاعب الأول' : 'Player 1'}
+                    </p>
+                    <p className="text-white font-bold text-xl">{request.playerName || request.opponent1}</p>
+                  </div>
+
+                  <div className="p-6 bg-gradient-to-br from-cyan-500/10 to-cyan-600/10 rounded-xl border border-cyan-500/30">
+                    <p className="text-cyan-400 font-semibold mb-2">
+                      {language === 'ar' ? 'اللاعب الثاني' : 'Player 2'}
+                    </p>
+                    <p className="text-white font-bold text-xl">{request.opponentName || request.opponent2}</p>
+                  </div>
+                </div>
+
+                <div className="border-t border-white/10 pt-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-2 bg-purple-500/20 rounded-lg">
+                      <Calendar size={24} className="text-purple-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-white">
+                      {language === 'ar' ? 'تفاصيل الموعد' : 'Schedule Details'}
+                    </h3>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="p-4 bg-white/5 rounded-xl">
+                      <p className="text-slate-400 text-sm mb-1">
+                        {language === 'ar' ? 'التاريخ والوقت' : 'Date & Time'}
+                      </p>
+                      <p className="text-white font-bold">
+                        {new Date(request.dateTime).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
+                      </p>
+                    </div>
+
+                    <div className="p-4 bg-white/5 rounded-xl">
+                      <p className="text-slate-400 text-sm mb-1">
+                        {language === 'ar' ? 'كود التتبع' : 'Tracking Code'}
+                      </p>
+                      <p className="text-blue-400 font-bold text-lg tracking-wider">{request.trackingCode}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-white/5 rounded-xl">
+                  <p className="text-slate-400 text-sm mb-1">
+                    {language === 'ar' ? 'تاريخ التقديم' : 'Submitted At'}
+                  </p>
+                  <p className="text-white font-semibold">
+                    {new Date(request.submittedAt).toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US')}
+                  </p>
+                </div>
+
+                {/* Status Messages */}
+                {request.status === 'approved' && (
+                  <div className="bg-green-500/10 border-2 border-green-500/30 p-6 rounded-xl text-center">
+                    <CheckCircle size={48} className="text-green-400 mx-auto mb-4" />
+                    <p className="text-green-300 font-bold text-lg">
+                      {language === 'ar' ? 'تم الموافقة على طلبك!' : 'Your request has been approved!'}
+                    </p>
+                  </div>
+                )}
+
+                {request.status === 'rejected' && (
+                  <div className="bg-red-500/10 border-2 border-red-500/30 p-6 rounded-xl">
+                    <XCircle size={48} className="text-red-400 mx-auto mb-4" />
+                    <p className="text-red-300 font-bold text-lg mb-2 text-center">
+                      {language === 'ar' ? 'تم رفض الطلب' : 'Request Rejected'}
+                    </p>
+                    {request.rejectionReason && (
+                      <div className="mt-4 p-4 bg-red-500/10 rounded-xl">
+                        <p className="text-red-300 font-bold mb-2">
+                          {language === 'ar' ? 'سبب الرفض:' : 'Rejection Reason:'}
+                        </p>
+                        <p className="text-red-200">{request.rejectionReason}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
-            )}
-
-            {/* Status Messages */}
-            {request.status === 'approved' && (
-              <div className="bg-green-500/20 border-2 border-green-500/50 p-6 rounded-2xl text-center backdrop-blur-sm">
-                <CheckCircle size={48} className="text-green-400 mx-auto mb-4" />
-                <p className="text-green-300 font-bold text-lg mb-2">تم الموافقة على طلبك!</p>
-                <p className="text-green-200">يمكنك متابعة التحدي في صفحة العرض المباشر</p>
-              </div>
-            )}
-
-            {request.status === 'rejected' && (
-              <div className="bg-red-500/20 border-2 border-red-500/50 p-6 rounded-2xl backdrop-blur-sm">
-                <XCircle size={48} className="text-red-400 mx-auto mb-4" />
-                <p className="text-red-300 font-bold text-lg mb-2">تم رفض الطلب</p>
-                {request.rejectionReason && (
-                  <div className="mt-4 p-4 bg-red-500/10 rounded-xl">
-                    <p className="text-red-300 font-bold mb-2">سبب الرفض:</p>
-                    <p className="text-red-200">{request.rejectionReason}</p>
-                  </div>
-                )}
-              </div>
-            )}
+            </div>
           </div>
         )}
       </div>

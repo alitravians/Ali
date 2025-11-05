@@ -399,128 +399,138 @@ function AdminPanel({ onNavigate, onLogout }) {
 
   if (!isAuthenticated) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => onNavigate('home')}
-            className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all shadow-lg border border-white/10 backdrop-blur-sm"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('adminPanel')}</h1>
-        </div>
-
-        <div className="max-w-md mx-auto bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10">
-          <div className="text-center mb-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-purple-500/50">
-              <Users size={40} className="text-white" />
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-2">تسجيل دخول الإدارة</h2>
-            <p className="text-gray-300">أدخل رمز الإدارة للوصول إلى لوحة التحكم</p>
-          </div>
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div>
-              <label className="block text-white font-bold mb-2">
-                {t('adminCode')}
-              </label>
-              <input
-                type="password"
-                value={adminCode}
-                onChange={(e) => setAdminCode(e.target.value)}
-                required
-                className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
-                placeholder="أدخل رمز الإدارة"
-              />
-            </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
+        <div className="max-w-md mx-auto">
+          <div className="flex items-center gap-4 mb-8">
             <button
-              type="submit"
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold rounded-xl transition-all shadow-lg shadow-purple-500/50 transform hover:scale-105"
+              onClick={() => onNavigate('home')}
+              className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 backdrop-blur-sm"
             >
-              {t('login')}
+              <ArrowLeft size={24} />
             </button>
-          </form>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">لوحة التحكم</h1>
+          </div>
+
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-b border-white/10 px-8 py-8 text-center">
+              <div className="flex justify-center mb-4">
+                <div className="p-4 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full shadow-xl">
+                  <Users size={48} className="text-white" strokeWidth={2.5} />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2">تسجيل دخول الإدارة</h2>
+              <p className="text-slate-300">أدخل رمز الإدارة للوصول إلى لوحة التحكم</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="px-8 py-8 space-y-6">
+              <div className="space-y-3">
+                <label className="block text-white font-semibold">
+                  رمز الإدارة
+                  <span className="text-red-400 mr-1">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={adminCode}
+                  onChange={(e) => setAdminCode(e.target.value)}
+                  required
+                  className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm placeholder-slate-400 transition-all"
+                  placeholder="أدخل رمز الإدارة"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-lg rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-blue-500/50"
+              >
+                دخول
+              </button>
+            </form>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl p-6 border border-white/10">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => onNavigate('home')}
-              className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all border border-white/10"
-            >
-              <ArrowLeft size={24} />
-            </button>
-            <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('adminPanel')}</h1>
-              <p className="text-gray-300 text-sm">إدارة كاملة للموقع والتحديات</p>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl p-6 border border-white/10">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => onNavigate('home')}
+                className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold text-white">لوحة التحكم</h1>
+                <p className="text-slate-300 text-sm mt-1">إدارة كاملة للموقع والتحديات</p>
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white rounded-xl transition-all shadow-lg shadow-red-500/30 font-bold"
+            >
+              تسجيل الخروج
+            </button>
           </div>
+        </div>
+
+        {/* Navigation Tabs */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <button
-            onClick={handleLogout}
-            className="px-6 py-3 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white rounded-xl transition-all shadow-lg shadow-red-500/50 font-bold"
+            onClick={() => setActiveTab('opponents')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'opponents'
+                ? 'bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-blue-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
           >
-            تسجيل الخروج
+            <Users size={32} />
+            <span className="text-center text-sm md:text-base">إدارة الخصوم</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('requests')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'requests'
+                ? 'bg-gradient-to-br from-cyan-600 to-cyan-500 text-white shadow-cyan-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Image size={32} />
+            <span className="text-center text-sm md:text-base">طلبات التحديات</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('results')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'results'
+                ? 'bg-gradient-to-br from-green-600 to-green-500 text-white shadow-green-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Trophy size={32} />
+            <span className="text-center text-sm md:text-base">إدارة النتائج</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'settings'
+                ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white shadow-purple-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Power size={32} />
+            <span className="text-center text-sm md:text-base">التحكم بالموقع</span>
           </button>
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <button
-          onClick={() => setActiveTab('opponents')}
-          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
-            activeTab === 'opponents'
-              ? 'bg-gradient-to-br from-purple-600 to-purple-500 text-white shadow-purple-500/50'
-              : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
-          }`}
-        >
-          <Users size={32} />
-          <span className="text-center">{t('manageOpponents')}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('requests')}
-          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
-            activeTab === 'requests'
-              ? 'bg-gradient-to-br from-cyan-600 to-cyan-500 text-white shadow-cyan-500/50'
-              : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
-          }`}
-        >
-          <Image size={32} />
-          <span className="text-center">طلبات التحديات</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('results')}
-          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
-            activeTab === 'results'
-              ? 'bg-green-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          <Trophy size={32} />
-          <span className="text-center">{t('resultsManagement')}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
-            activeTab === 'settings'
-              ? 'bg-orange-600 text-white'
-              : 'bg-white text-gray-700 hover:bg-gray-50'
-          }`}
-        >
-          <Power size={32} />
-          <span className="text-center">{t('siteControl')}</span>
-        </button>
-      </div>
-
-      <div className="bg-white rounded-2xl p-8 shadow-xl">
+        {/* Content Area */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 md:p-8 shadow-2xl border border-white/10">
         {activeTab === 'opponents' && (
           <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6">إدارة الخصوم</h2>
-            <form onSubmit={handleAddOpponent} className="space-y-4 bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
+            <h2 className="text-2xl font-bold text-white mb-6">إدارة الخصوم</h2>
+            <form onSubmit={handleAddOpponent} className="space-y-4 bg-white/5 p-6 rounded-xl border border-white/10">
               {uploadError && (
                 <div className="p-4 bg-red-50 text-red-700 rounded-xl border-2 border-red-200">
                   {uploadError}
@@ -987,6 +997,7 @@ function AdminPanel({ onNavigate, onLogout }) {
             </div>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

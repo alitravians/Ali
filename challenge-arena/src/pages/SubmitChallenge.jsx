@@ -2,30 +2,20 @@ import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { database } from '../utils/firebase';
 import { ref, push } from 'firebase/database';
-import { ArrowLeft, Send, Upload, Eye, CheckCircle, Loader } from 'lucide-react';
-import { uploadImageToCloudinary } from '../utils/uploadImage';
-import BannerCard from '../components/BannerCard';
+import { ArrowLeft, Send, Loader, Calendar, Clock, Users, Trophy, CheckCircle2, Copy, Check } from 'lucide-react';
 
 function SubmitChallenge({ onNavigate }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [formData, setFormData] = useState({
-    opponent1: '',
-    opponent2: '',
-    opponent1PlatformId: '',
-    opponent2PlatformId: '',
+    playerName: '',
+    opponentName: '',
     date: '',
-    time: '',
-    roundType: 'BO1'
+    time: ''
   });
-  const [opponent1Avatar, setOpponent1Avatar] = useState(null);
-  const [opponent2Avatar, setOpponent2Avatar] = useState(null);
-  const [opponent1AvatarPreview, setOpponent1AvatarPreview] = useState('');
-  const [opponent2AvatarPreview, setOpponent2AvatarPreview] = useState('');
   const [uploading, setUploading] = useState(false);
-  const [showPreview, setShowPreview] = useState(false);
   const [trackingCode, setTrackingCode] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [currentStep, setCurrentStep] = useState(1);
+  const [copied, setCopied] = useState(false);
 
   const generateTrackingCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -34,22 +24,6 @@ function SubmitChallenge({ onNavigate }) {
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return code;
-  };
-
-  const handleAvatarChange = (opponent, file) => {
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        if (opponent === 1) {
-          setOpponent1Avatar(file);
-          setOpponent1AvatarPreview(reader.result);
-        } else {
-          setOpponent2Avatar(file);
-          setOpponent2AvatarPreview(reader.result);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const handleSubmit = async (e) => {
@@ -62,34 +36,17 @@ function SubmitChallenge({ onNavigate }) {
     const dateTime = `${formData.date}T${formData.time}:00`;
     
     try {
-      let opponent1AvatarUrl = '/default-avatar.png';
-      let opponent2AvatarUrl = '/default-avatar.png';
-
-      if (opponent1Avatar) {
-        try {
-          opponent1AvatarUrl = await uploadImageToCloudinary(opponent1Avatar, `opponent1_${code}`);
-        } catch (error) {
-          console.error('Error uploading opponent 1 avatar:', error);
-        }
-      }
-
-      if (opponent2Avatar) {
-        try {
-          opponent2AvatarUrl = await uploadImageToCloudinary(opponent2Avatar, `opponent2_${code}`);
-        } catch (error) {
-          console.error('Error uploading opponent 2 avatar:', error);
-        }
-      }
-
       await push(requestsRef, {
-        opponent1: formData.opponent1,
-        opponent2: formData.opponent2,
-        opponent1PlatformId: formData.opponent1PlatformId,
-        opponent2PlatformId: formData.opponent2PlatformId,
-        opponent1Avatar: opponent1AvatarUrl,
-        opponent2Avatar: opponent2AvatarUrl,
+        playerName: formData.playerName,
+        opponentName: formData.opponentName,
+        opponent1: formData.playerName,
+        opponent2: formData.opponentName,
+        opponent1PlatformId: formData.playerName,
+        opponent2PlatformId: formData.opponentName,
+        opponent1Avatar: '/default-avatar.png',
+        opponent2Avatar: '/default-avatar.png',
         dateTime: dateTime,
-        roundType: formData.roundType,
+        roundType: 'BO1',
         trackingCode: code,
         status: 'pending',
         submittedAt: new Date().toISOString()
@@ -98,21 +55,14 @@ function SubmitChallenge({ onNavigate }) {
       setTrackingCode(code);
       setSubmitted(true);
       setFormData({ 
-        opponent1: '', 
-        opponent2: '', 
-        opponent1PlatformId: '',
-        opponent2PlatformId: '',
+        playerName: '', 
+        opponentName: '', 
         date: '', 
-        time: '',
-        roundType: 'BO1'
+        time: ''
       });
-      setOpponent1Avatar(null);
-      setOpponent2Avatar(null);
-      setOpponent1AvatarPreview('');
-      setOpponent2AvatarPreview('');
     } catch (error) {
       console.error('Error submitting challenge:', error);
-      alert('حدث خطأ أثناء إرسال الطلب');
+      alert(language === 'ar' ? 'حدث خطأ أثناء إرسال الطلب' : 'Error submitting request');
     } finally {
       setUploading(false);
     }
@@ -125,48 +75,96 @@ function SubmitChallenge({ onNavigate }) {
     });
   };
 
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(trackingCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   if (submitted) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => onNavigate('home')}
-            className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all shadow-lg border border-white/10 backdrop-blur-sm"
-          >
-            <ArrowLeft size={24} />
-          </button>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('submitChallenge')}</h1>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
+        <div className="max-w-2xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-8">
+            <button
+              onClick={() => onNavigate('home')}
+              className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 backdrop-blur-sm"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <h1 className="text-2xl md:text-3xl font-bold text-white">
+              {language === 'ar' ? 'التقدم بطلب تحدي رسمي' : 'Submit Official Challenge Request'}
+            </h1>
+          </div>
 
-        <div className="max-w-2xl mx-auto bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10">
-          <div className="text-center space-y-6">
-            <div className="w-20 h-20 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-500/50">
-              <div className="text-white text-5xl">✓</div>
+          {/* Success Card */}
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+            {/* Success Header */}
+            <div className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 border-b border-white/10 px-8 py-10 text-center">
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-green-500 rounded-full blur-2xl opacity-40"></div>
+                  <div className="relative p-5 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full shadow-xl">
+                    <CheckCircle2 size={64} className="text-white" strokeWidth={2.5} />
+                  </div>
+                </div>
+              </div>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-3">
+                {language === 'ar' ? 'تم إرسال طلبك بنجاح!' : 'Request Submitted Successfully!'}
+              </h2>
+              <div className="h-1 w-24 mx-auto bg-gradient-to-r from-green-500 to-emerald-500 rounded-full"></div>
             </div>
-            <h2 className="text-3xl font-bold text-white">تم إرسال طلبك بنجاح!</h2>
-            <div className="bg-gradient-to-r from-purple-600/20 to-purple-500/20 p-6 rounded-xl border-2 border-purple-500/50 backdrop-blur-sm">
-              <p className="text-gray-300 mb-2 font-semibold">كود المراجعة الخاص بك:</p>
-              <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">{trackingCode}</p>
-            </div>
-            <p className="text-gray-300">
-              احتفظ بهذا الكود لمراجعة حالة طلبك
-            </p>
-            <div className="flex gap-4 justify-center flex-wrap">
-              <button
-                onClick={() => {
-                  setSubmitted(false);
-                  setTrackingCode('');
-                }}
-                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white rounded-xl transition-all shadow-lg shadow-purple-500/50"
-              >
-                تقديم طلب جديد
-              </button>
-              <button
-                onClick={() => onNavigate('status')}
-                className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-cyan-500 hover:from-cyan-500 hover:to-cyan-400 text-white rounded-xl transition-all shadow-lg shadow-cyan-500/50"
-              >
-                التحقق من الحالة
-              </button>
+
+            {/* Success Body */}
+            <div className="px-8 py-10 space-y-8">
+              {/* Tracking Code */}
+              <div className="bg-gradient-to-br from-blue-600/20 to-cyan-600/20 backdrop-blur-sm rounded-xl p-8 border border-blue-500/30">
+                <p className="text-slate-300 text-center mb-4 font-semibold">
+                  {language === 'ar' ? 'كود المراجعة الخاص بك:' : 'Your Tracking Code:'}
+                </p>
+                <div className="flex items-center justify-center gap-4">
+                  <p className="text-3xl md:text-4xl font-bold text-white tracking-wider">
+                    {trackingCode}
+                  </p>
+                  <button
+                    onClick={copyToClipboard}
+                    className="p-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/20"
+                    title={language === 'ar' ? 'نسخ' : 'Copy'}
+                  >
+                    {copied ? <Check size={20} /> : <Copy size={20} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Info Message */}
+              <div className="bg-slate-800/40 backdrop-blur-sm rounded-xl p-6 border border-white/5 text-center">
+                <p className="text-slate-300 leading-relaxed">
+                  {language === 'ar' 
+                    ? 'احتفظ بهذا الكود لمراجعة حالة طلبك. سيتم مراجعة طلبك من قبل الإدارة وسيتم إشعارك بالنتيجة.'
+                    : 'Keep this code to check your request status. Your request will be reviewed by administration and you will be notified of the result.'}
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <button
+                  onClick={() => onNavigate('status')}
+                  className="flex-1 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transform"
+                >
+                  {language === 'ar' ? 'التحقق من الحالة' : 'Check Status'}
+                </button>
+                <button
+                  onClick={() => {
+                    setSubmitted(false);
+                    setTrackingCode('');
+                    setCopied(false);
+                  }}
+                  className="flex-1 px-8 py-4 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white font-bold rounded-xl transition-all border border-white/10 hover:border-white/20 hover:scale-105 transform"
+                >
+                  {language === 'ar' ? 'تقديم طلب جديد' : 'Submit New Request'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -175,261 +173,176 @@ function SubmitChallenge({ onNavigate }) {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => onNavigate('home')}
-          className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all shadow-lg border border-white/10 backdrop-blur-sm"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('submitChallenge')}</h1>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <button
+            onClick={() => onNavigate('home')}
+            className="p-3 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-all border border-white/10 backdrop-blur-sm"
+          >
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">
+            {language === 'ar' ? 'التقدم بطلب تحدي رسمي' : 'Submit Official Challenge Request'}
+          </h1>
+        </div>
 
-      <div className="max-w-4xl mx-auto space-y-6">
-        {/* Banner Preview Toggle */}
-        {formData.opponent1 && formData.opponent2 && formData.date && formData.time && (
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-6 shadow-2xl border border-white/10">
-            <button
-              type="button"
-              onClick={() => setShowPreview(!showPreview)}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white font-bold rounded-xl transition-all shadow-lg"
-            >
-              <Eye size={20} />
-              {showPreview ? 'إخفاء المعاينة' : 'معاينة البنر'}
-            </button>
-            
-            {showPreview && (
-              <div className="mt-6">
-                <h3 className="text-white font-bold mb-4 text-center">معاينة البنر</h3>
-                <BannerCard
-                  challenge={{
-                    opponent1: formData.opponent1,
-                    opponent2: formData.opponent2,
-                    opponent1PlatformId: formData.opponent1PlatformId,
-                    opponent2PlatformId: formData.opponent2PlatformId,
-                    opponent1Avatar: opponent1AvatarPreview || '/default-avatar.png',
-                    opponent2Avatar: opponent2AvatarPreview || '/default-avatar.png',
-                    dateTime: `${formData.date}T${formData.time}:00`,
-                    roundType: formData.roundType,
-                    status: 'pending'
-                  }}
-                />
+        {/* Form Card */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
+          {/* Form Header */}
+          <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-b border-white/10 px-8 py-8 text-center">
+            <div className="flex justify-center mb-4">
+              <div className="p-4 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full shadow-xl">
+                <Trophy size={48} className="text-white" strokeWidth={2.5} />
               </div>
-            )}
+            </div>
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
+              {language === 'ar' ? 'احجز تحديك الرسمي' : 'Book Your Official Challenge'}
+            </h2>
+            <p className="text-slate-300">
+              {language === 'ar' 
+                ? 'املأ البيانات التالية لحجز موعد تحديك الرسمي'
+                : 'Fill in the following details to book your official challenge'}
+            </p>
           </div>
-        )}
 
-        <div className="bg-white/5 backdrop-blur-xl rounded-3xl p-8 shadow-2xl border border-white/10">
-          <form onSubmit={handleSubmit} className="space-y-8">
-            {/* Opponent 1 Section */}
-            <div className="space-y-4 p-6 bg-gradient-to-r from-orange-500/10 to-orange-600/10 rounded-2xl border-2 border-orange-500/30">
-              <h3 className="text-xl font-bold text-orange-400 flex items-center gap-2">
-                <span className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center text-white text-sm">1</span>
-                الخصم الأول
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white font-bold mb-2">
-                    اسم الخصم *
-                  </label>
-                  <input
-                    type="text"
-                    name="opponent1"
-                    value={formData.opponent1}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
-                    placeholder="أدخل اسم الخصم الأول"
-                  />
+          {/* Form Body */}
+          <form onSubmit={handleSubmit} className="px-8 py-10 space-y-8">
+            {/* Players Section */}
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <Users size={24} className="text-blue-400" />
                 </div>
-
-                <div>
-                  <label className="block text-white font-bold mb-2">
-                    معرف المنصة (اختياري)
-                  </label>
-                  <input
-                    type="text"
-                    name="opponent1PlatformId"
-                    value={formData.opponent1PlatformId}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
-                    placeholder="مثال: Player#1234"
-                  />
-                </div>
+                <h3 className="text-xl font-bold text-white">
+                  {language === 'ar' ? 'معلومات اللاعبين' : 'Players Information'}
+                </h3>
               </div>
 
-              <div>
-                <label className="block text-white font-bold mb-2">
-                  صورة الخصم (اختياري)
-                </label>
-                <div className="flex items-center gap-4">
-                  {opponent1AvatarPreview && (
-                    <img
-                      src={opponent1AvatarPreview}
-                      alt="معاينة"
-                      className="w-20 h-20 rounded-full object-cover border-4 border-orange-500 shadow-lg"
-                    />
-                  )}
-                  <label className="flex-1 cursor-pointer">
-                    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 text-white border-2 border-dashed border-white/30 rounded-xl transition-all">
-                      <Upload size={20} />
-                      <span>{opponent1Avatar ? 'تغيير الصورة' : 'رفع صورة'}</span>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleAvatarChange(1, e.target.files[0])}
-                      className="hidden"
-                    />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Player Name */}
+                <div className="space-y-2">
+                  <label className="block text-white font-semibold">
+                    {language === 'ar' ? 'اسم الايدي الخاص بك' : 'Your ID Name'}
+                    <span className="text-red-400 mr-1">*</span>
                   </label>
+                  <input
+                    type="text"
+                    name="playerName"
+                    value={formData.playerName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent backdrop-blur-sm placeholder-slate-400 transition-all"
+                    placeholder={language === 'ar' ? 'أدخل اسم الايدي الخاص بك' : 'Enter your ID name'}
+                  />
+                </div>
+
+                {/* Opponent Name */}
+                <div className="space-y-2">
+                  <label className="block text-white font-semibold">
+                    {language === 'ar' ? 'اسم الايدي للخصم' : 'Opponent ID Name'}
+                    <span className="text-red-400 mr-1">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="opponentName"
+                    value={formData.opponentName}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent backdrop-blur-sm placeholder-slate-400 transition-all"
+                    placeholder={language === 'ar' ? 'أدخل اسم الايدي للخصم' : 'Enter opponent ID name'}
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Opponent 2 Section */}
-            <div className="space-y-4 p-6 bg-gradient-to-r from-cyan-500/10 to-cyan-600/10 rounded-2xl border-2 border-cyan-500/30">
-              <h3 className="text-xl font-bold text-cyan-400 flex items-center gap-2">
-                <span className="w-8 h-8 bg-cyan-500 rounded-full flex items-center justify-center text-white text-sm">2</span>
-                الخصم الثاني
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white font-bold mb-2">
-                    اسم الخصم *
-                  </label>
-                  <input
-                    type="text"
-                    name="opponent2"
-                    value={formData.opponent2}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
-                    placeholder="أدخل اسم الخصم الثاني"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-white font-bold mb-2">
-                    معرف المنصة (اختياري)
-                  </label>
-                  <input
-                    type="text"
-                    name="opponent2PlatformId"
-                    value={formData.opponent2PlatformId}
-                    onChange={handleChange}
-                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent backdrop-blur-sm placeholder-gray-400"
-                    placeholder="مثال: Player#5678"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-white font-bold mb-2">
-                  صورة الخصم (اختياري)
-                </label>
-                <div className="flex items-center gap-4">
-                  {opponent2AvatarPreview && (
-                    <img
-                      src={opponent2AvatarPreview}
-                      alt="معاينة"
-                      className="w-20 h-20 rounded-full object-cover border-4 border-cyan-500 shadow-lg"
-                    />
-                  )}
-                  <label className="flex-1 cursor-pointer">
-                    <div className="flex items-center justify-center gap-2 px-4 py-3 bg-white/10 hover:bg-white/20 text-white border-2 border-dashed border-white/30 rounded-xl transition-all">
-                      <Upload size={20} />
-                      <span>{opponent2Avatar ? 'تغيير الصورة' : 'رفع صورة'}</span>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handleAvatarChange(2, e.target.files[0])}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              </div>
-            </div>
+            {/* Divider */}
+            <div className="border-t border-white/10"></div>
 
             {/* Challenge Details Section */}
-            <div className="space-y-4 p-6 bg-gradient-to-r from-purple-500/10 to-purple-600/10 rounded-2xl border-2 border-purple-500/30">
-              <h3 className="text-xl font-bold text-purple-400 flex items-center gap-2">
-                <span className="w-8 h-8 bg-purple-500 rounded-full flex items-center justify-center text-white text-sm">3</span>
-                تفاصيل التحدي
-              </h3>
-
-              <div>
-                <label className="block text-white font-bold mb-2">
-                  نوع الجولة *
-                </label>
-                <select
-                  name="roundType"
-                  value={formData.roundType}
-                  onChange={handleChange}
-                  required
-                  className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
-                >
-                  <option value="BO1" className="bg-gray-900">Best of 1 (BO1)</option>
-                  <option value="BO3" className="bg-gray-900">Best of 3 (BO3)</option>
-                  <option value="BO5" className="bg-gray-900">Best of 5 (BO5)</option>
-                  <option value="BO7" className="bg-gray-900">Best of 7 (BO7)</option>
-                </select>
+            <div className="space-y-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Calendar size={24} className="text-purple-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white">
+                  {language === 'ar' ? 'تفاصيل التحدي' : 'Challenge Details'}
+                </h3>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-white font-bold mb-2">
-                    تاريخ التحدي *
+              {/* Date and Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Date */}
+                <div className="space-y-2">
+                  <label className="block text-white font-semibold">
+                    {language === 'ar' ? 'تاريخ التحدي' : 'Challenge Date'}
+                    <span className="text-red-400 mr-1">*</span>
                   </label>
-                  <input
-                    type="date"
-                    name="date"
-                    value={formData.date}
-                    onChange={handleChange}
-                    required
-                    dir="ltr"
-                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      type="date"
+                      name="date"
+                      value={formData.date}
+                      onChange={handleChange}
+                      required
+                      min={new Date().toISOString().split('T')[0]}
+                      dir="ltr"
+                      className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-white font-bold mb-2">
-                    وقت التحدي *
+
+                {/* Time */}
+                <div className="space-y-2">
+                  <label className="block text-white font-semibold">
+                    {language === 'ar' ? 'وقت التحدي' : 'Challenge Time'}
+                    <span className="text-red-400 mr-1">*</span>
                   </label>
-                  <input
-                    type="time"
-                    name="time"
-                    value={formData.time}
-                    onChange={handleChange}
-                    required
-                    dir="ltr"
-                    step="60"
-                    className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm"
-                  />
+                  <div className="relative">
+                    <input
+                      type="time"
+                      name="time"
+                      value={formData.time}
+                      onChange={handleChange}
+                      required
+                      dir="ltr"
+                      step="60"
+                      className="w-full px-4 py-3 bg-white/10 text-white border-2 border-white/20 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent backdrop-blur-sm transition-all"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={uploading}
-              className="w-full flex items-center justify-center gap-2 px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-500 hover:to-orange-400 text-white font-bold rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-orange-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-lg rounded-xl transition-all transform hover:scale-105 shadow-lg shadow-blue-500/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-none"
             >
               {uploading ? (
                 <>
-                  <Loader size={20} className="animate-spin" />
-                  جاري الإرسال...
+                  <Loader size={24} className="animate-spin" />
+                  {language === 'ar' ? 'جاري الإرسال...' : 'Submitting...'}
                 </>
               ) : (
                 <>
-                  <Send size={20} />
-                  {t('submit')}
+                  <Send size={24} />
+                  {language === 'ar' ? 'إرسال الطلب' : 'Submit Request'}
                 </>
               )}
             </button>
           </form>
+        </div>
+
+        {/* Info Footer */}
+        <div className="mt-6 bg-white/5 backdrop-blur-xl rounded-xl p-6 border border-white/10">
+          <p className="text-slate-300 text-center text-sm leading-relaxed">
+            {language === 'ar'
+              ? 'سيتم مراجعة طلبك من قبل الإدارة خلال 24 ساعة. ستحصل على كود مراجعة لمتابعة حالة طلبك.'
+              : 'Your request will be reviewed by administration within 24 hours. You will receive a tracking code to follow up on your request status.'}
+          </p>
         </div>
       </div>
     </div>
