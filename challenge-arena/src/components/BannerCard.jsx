@@ -11,10 +11,14 @@ function BannerCard({ challenge }) {
 
   return (
     <div className="w-full max-w-5xl mx-auto rounded-3xl overflow-hidden shadow-2xl relative">
-      <div className="relative bg-gradient-to-r from-red-950 via-gray-900 to-blue-950 px-8 py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_80%,rgba(255,100,50,0.3)_0%,transparent_50%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_80%,rgba(50,150,255,0.3)_0%,transparent_50%)]"></div>
-        
+      <div 
+        className="relative px-8 py-16 overflow-hidden min-h-[280px]"
+        style={{
+          backgroundImage: 'url(/banner-default.jpg)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      >
         <div className="absolute top-4 left-0 right-0 text-center z-10">
           <div className="inline-flex items-center gap-4 bg-black/40 backdrop-blur-sm px-6 py-2 rounded-full">
             <span className="text-xl font-bold text-white">
