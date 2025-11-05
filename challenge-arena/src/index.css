@@ -86,3 +86,10 @@ body {
   background-size: 200% 200%;
   animation: gradient-x 3s ease infinite;
 }
+
+.text-glow {
+  text-shadow: 
+    0 0 8px rgba(59, 130, 246, 0.6),
+    0 0 12px rgba(139, 92, 246, 0.6),
+    0 0 16px rgba(236, 72, 153, 0.6);
+}
