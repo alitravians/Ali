@@ -54,13 +54,13 @@ function BannerCard({ challenge }) {
             style={{ objectPosition: '50% 35%' }}
           />
           <div className="text-center">
-            <h3 className="text-sm font-black text-orange-400 mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-              textShadow: '0 0 10px rgba(255,150,50,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+            <h3 className="text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
             }}>
               {challenge.opponent1}
             </h3>
             {challenge.opponent1PlatformId && (
-              <p className="text-[10px] text-orange-200 font-bold drop-shadow-lg">
+              <p className="text-[10px] text-white/80 font-bold drop-shadow-lg">
                 ID: {challenge.opponent1PlatformId}
               </p>
             )}
@@ -99,13 +99,13 @@ function BannerCard({ challenge }) {
             style={{ objectPosition: '50% 35%' }}
           />
           <div className="text-center">
-            <h3 className="text-sm font-black text-cyan-400 mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-              textShadow: '0 0 10px rgba(50,200,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+            <h3 className="text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
             }}>
               {challenge.opponent2}
             </h3>
             {challenge.opponent2PlatformId && (
-              <p className="text-[10px] text-cyan-200 font-bold drop-shadow-lg">
+              <p className="text-[10px] text-white/80 font-bold drop-shadow-lg">
                 ID: {challenge.opponent2PlatformId}
               </p>
             )}
