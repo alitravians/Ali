@@ -18,37 +18,59 @@ function BannerCard({ challenge }) {
         style={{
           backgroundImage: 'url(/banner-default.jpg)',
           backgroundSize: 'cover',
-          backgroundPosition: 'center bottom',
+          backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
-          backgroundColor: '#0a0a0a',
           width: '100%',
           maxWidth: '560px',
-          height: '176px'
+          paddingBottom: '61.39%'
         }}
       >
 
-        <div className="absolute left-[22%] bottom-[18%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(-50%)' }}>
-          <img
-            src={challenge.opponent1Avatar || '/default-avatar.png'}
-            alt={challenge.opponent1}
-            className="w-[60px] h-[60px] rounded-full object-cover ring-2 ring-orange-500 shadow-2xl"
-            style={{ objectPosition: '50% 35%' }}
-          />
-          <div className="text-center">
-            <h3 className="text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
-            }}>
-              {challenge.opponent1}
-            </h3>
-            {challenge.opponent1PlatformId && (
-              <p className="text-[11px] text-white/80 font-bold drop-shadow-lg">
-                ID: {challenge.opponent1PlatformId}
-              </p>
-            )}
+        <div className="absolute inset-x-0 bottom-[12%] flex items-end justify-between px-6 z-10">
+          <div className="flex flex-col items-center gap-1">
+            <img
+              src={challenge.opponent1Avatar || '/default-avatar.png'}
+              alt={challenge.opponent1}
+              className="w-[68px] h-[68px] md:w-[68px] md:h-[68px] rounded-full object-cover ring-2 ring-orange-500 shadow-2xl"
+              style={{ objectPosition: '50% 35%' }}
+            />
+            <div className="text-center">
+              <h3 className="text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+              }}>
+                {challenge.opponent1}
+              </h3>
+              {challenge.opponent1PlatformId && (
+                <p className="text-[11px] text-white/80 font-bold drop-shadow-lg">
+                  ID: {challenge.opponent1PlatformId}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="flex flex-col items-center gap-1">
+            <img
+              src={challenge.opponent2Avatar || '/default-avatar.png'}
+              alt={challenge.opponent2}
+              className="w-[68px] h-[68px] md:w-[68px] md:h-[68px] rounded-full object-cover ring-2 ring-blue-500 shadow-2xl"
+              style={{ objectPosition: '50% 35%' }}
+            />
+            <div className="text-center">
+              <h3 className="text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
+                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+              }}>
+                {challenge.opponent2}
+              </h3>
+              {challenge.opponent2PlatformId && (
+                <p className="text-[11px] text-white/80 font-bold drop-shadow-lg">
+                  ID: {challenge.opponent2PlatformId}
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="absolute left-1/2 top-[40%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translate(-50%, -50%)' }}>
+        <div className="absolute left-1/2 top-1/2 z-10 flex flex-col items-center gap-1" style={{ transform: 'translate(-50%, -50%)' }}>
           <div className="relative text-3xl font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" style={{
             WebkitTextStroke: '1px rgba(0,0,0,0.5)',
             textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)'
@@ -72,28 +94,7 @@ function BannerCard({ challenge }) {
           )}
         </div>
 
-        <div className="absolute left-[78%] bottom-[18%] z-10 flex flex-col items-center gap-1" style={{ transform: 'translateX(-50%)' }}>
-          <img
-            src={challenge.opponent2Avatar || '/default-avatar.png'}
-            alt={challenge.opponent2}
-            className="w-[60px] h-[60px] rounded-full object-cover ring-2 ring-blue-500 shadow-2xl"
-            style={{ objectPosition: '50% 35%' }}
-          />
-          <div className="text-center">
-            <h3 className="text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
-            }}>
-              {challenge.opponent2}
-            </h3>
-            {challenge.opponent2PlatformId && (
-              <p className="text-[11px] text-white/80 font-bold drop-shadow-lg">
-                ID: {challenge.opponent2PlatformId}
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="absolute bottom-2 left-1/2 z-10" style={{ transform: 'translateX(-50%)' }}>
+        <div className="absolute bottom-[4%] left-1/2 z-10" style={{ transform: 'translateX(-50%)' }}>
           <div className="relative rounded-full p-[1px]" style={{
             background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
           }}>
