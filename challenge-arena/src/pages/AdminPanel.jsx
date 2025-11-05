@@ -20,7 +20,8 @@ function AdminPanel({ onNavigate, onLogout }) {
     name2: '',
     avatar1: '',
     avatar2: '',
-    dateTime: ''
+    date: '',
+    time: ''
   });
   const [avatarFiles, setAvatarFiles] = useState({
     file1: null,
@@ -171,15 +172,17 @@ function AdminPanel({ onNavigate, onLogout }) {
         }
       }
 
+      const dateTime = `${opponentForm.date}T${opponentForm.time}:00`;
+
       await set(newOpponentRef, {
         name1: opponentForm.name1,
         name2: opponentForm.name2,
         avatar1: avatar1Url,
         avatar2: avatar2Url,
-        dateTime: opponentForm.dateTime
+        dateTime: dateTime
       });
 
-      setOpponentForm({ name1: '', name2: '', avatar1: '', avatar2: '', dateTime: '' });
+      setOpponentForm({ name1: '', name2: '', avatar1: '', avatar2: '', date: '', time: '' });
       setAvatarFiles({ file1: null, file2: null, preview1: null, preview2: null });
       setIsUploading(false);
     } catch (error) {
@@ -411,13 +414,29 @@ function AdminPanel({ onNavigate, onLogout }) {
                   </div>
                 </div>
 
-                <input
-                  type="datetime-local"
-                  value={opponentForm.dateTime}
-                  onChange={(e) => setOpponentForm({ ...opponentForm, dateTime: e.target.value })}
-                  required
-                  className="px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                />
+                <div className="space-y-2">
+                  <label className="block text-white font-bold text-sm">تاريخ التحدي</label>
+                  <input
+                    type="date"
+                    value={opponentForm.date}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, date: e.target.value })}
+                    required
+                    dir="ltr"
+                    className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-white font-bold text-sm">وقت التحدي</label>
+                  <input
+                    type="time"
+                    value={opponentForm.time}
+                    onChange={(e) => setOpponentForm({ ...opponentForm, time: e.target.value })}
+                    required
+                    dir="ltr"
+                    step="60"
+                    className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
               </div>
               <button
                 type="submit"

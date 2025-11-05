@@ -9,7 +9,8 @@ function SubmitChallenge({ onNavigate }) {
   const [formData, setFormData] = useState({
     opponent1: '',
     opponent2: '',
-    dateTime: ''
+    date: '',
+    time: ''
   });
   const [trackingCode, setTrackingCode] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -29,9 +30,13 @@ function SubmitChallenge({ onNavigate }) {
     const code = generateTrackingCode();
     const requestsRef = ref(database, 'challengeRequests');
     
+    const dateTime = `${formData.date}T${formData.time}:00`;
+    
     try {
       await push(requestsRef, {
-        ...formData,
+        opponent1: formData.opponent1,
+        opponent2: formData.opponent2,
+        dateTime: dateTime,
         trackingCode: code,
         status: 'pending',
         submittedAt: new Date().toISOString()
@@ -39,7 +44,7 @@ function SubmitChallenge({ onNavigate }) {
       
       setTrackingCode(code);
       setSubmitted(true);
-      setFormData({ opponent1: '', opponent2: '', dateTime: '' });
+      setFormData({ opponent1: '', opponent2: '', date: '', time: '' });
     } catch (error) {
       console.error('Error submitting challenge:', error);
       alert('حدث خطأ أثناء إرسال الطلب');
@@ -144,18 +149,36 @@ function SubmitChallenge({ onNavigate }) {
             />
           </div>
 
-          <div>
-            <label className="block text-white font-bold mb-2">
-              {t('challengeDateTime')}
-            </label>
-            <input
-              type="datetime-local"
-              name="dateTime"
-              value={formData.dateTime}
-              onChange={handleChange}
-              required
-              className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-white font-bold mb-2">
+                تاريخ التحدي
+              </label>
+              <input
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                required
+                dir="ltr"
+                className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
+            <div>
+              <label className="block text-white font-bold mb-2">
+                وقت التحدي
+              </label>
+              <input
+                type="time"
+                name="time"
+                value={formData.time}
+                onChange={handleChange}
+                required
+                dir="ltr"
+                step="60"
+                className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+              />
+            </div>
           </div>
 
           <button

@@ -43,27 +43,31 @@ function HomePage({ onNavigate }) {
   ];
 
   return (
-    <div className="space-y-8">
-      <div className="text-center space-y-4">
-        <h1 className="text-5xl font-bold text-white mb-4">
+    <div className="space-y-8 relative">
+      <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow"></div>
+      <div className="absolute top-20 right-1/4 w-64 h-64 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style={{animationDelay: '1s'}}></div>
+      <div className="absolute bottom-0 left-1/2 w-64 h-64 bg-pink-400 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse-slow" style={{animationDelay: '2s'}}></div>
+      
+      <div className="relative z-10 text-center space-y-4">
+        <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 animate-float">
           {t('welcome')}
         </h1>
-        <p className="text-xl text-gray-300">
+        <p className="text-xl md:text-2xl text-gray-300">
           {t('welcomeMessage')}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
+      <div className="relative z-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-12">
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
             <button
               key={item.id}
               onClick={() => onNavigate(item.id)}
-              className={`bg-gradient-to-br ${item.color} p-6 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 text-white`}
+              className={`bg-gradient-to-br ${item.color} p-6 rounded-xl shadow-lg hover:shadow-2xl transform hover:scale-105 transition-all duration-300 text-white backdrop-blur-sm bg-opacity-90`}
             >
               <div className="flex flex-col items-center space-y-4">
-                <Icon size={48} />
+                <Icon size={48} className="animate-pulse-slow" />
                 <h3 className="text-xl font-bold">{item.title}</h3>
                 <p className="text-sm opacity-90">{item.description}</p>
               </div>
