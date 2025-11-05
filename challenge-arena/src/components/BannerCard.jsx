@@ -56,7 +56,7 @@ function BannerCard({ challenge }) {
             VS
           </div>
           {!challenge.result && showScores && (
-            <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/20">
+            <div className="flex items-center gap-2 bg-slate-900/40 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/20">
               <div className="text-center">
                 <div className="text-lg font-bold text-orange-400">
                   {challenge.score1 !== undefined ? challenge.score1 : 0}
@@ -97,7 +97,7 @@ function BannerCard({ challenge }) {
           <div className="relative rounded-full p-[1px]" style={{
             background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
           }}>
-            <div className="rounded-full bg-black/60 backdrop-blur-sm px-3 py-1 flex items-center gap-2 border border-white/10">
+            <div className="rounded-full bg-slate-900/40 backdrop-blur-sm px-3 py-1 flex items-center gap-2 border border-white/10">
               <span className="text-xs font-semibold text-white">
                 {formatTime(challenge.dateTime)} ✓
               </span>

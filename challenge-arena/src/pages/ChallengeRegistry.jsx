@@ -26,26 +26,36 @@ function ChallengeRegistry({ onNavigate }) {
   }, []);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <button
-          onClick={() => onNavigate('home')}
-          className="p-2 bg-white/5 hover:bg-white/10 text-white rounded-lg transition-all shadow-lg border border-white/10 backdrop-blur-sm"
-        >
-          <ArrowLeft size={24} />
-        </button>
-        <h1 className="text-3xl font-bold bg-gradient-to-r from-orange-500 to-cyan-500 bg-clip-text text-transparent">{t('challengeRegistry')}</h1>
+    <div className="space-y-8">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-lg p-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2 tracking-tight">{t('challengeRegistry')}</h1>
+            <p className="text-slate-600 text-lg">عرض جميع التحديات المعتمدة</p>
+          </div>
+          <button
+            onClick={() => onNavigate('home')}
+            className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transform hover:-translate-y-0.5 duration-200 font-semibold"
+          >
+            <ArrowLeft size={20} />
+            العودة للرئيسية
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8">
         {challenges.length === 0 ? (
-          <div className="text-center py-12 bg-white/5 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/10">
-            <p className="text-gray-300 text-xl">لا توجد تحديات معتمدة حالياً</p>
+          <div className="text-center py-16 bg-white rounded-3xl shadow-xl border border-slate-200">
+            <p className="text-slate-600 text-xl">لا توجد تحديات معتمدة حالياً</p>
           </div>
         ) : (
-          challenges.map((challenge) => (
-            <BannerCard key={challenge.id} challenge={challenge} />
-          ))
+          <div className="grid grid-cols-1 gap-8">
+            {challenges.map((challenge) => (
+              <div key={challenge.id} className="bg-white rounded-2xl border border-slate-200 shadow-lg p-6 hover:shadow-xl transition-shadow">
+                <BannerCard challenge={challenge} />
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
