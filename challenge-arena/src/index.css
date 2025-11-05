@@ -70,6 +70,15 @@ body {
   }
 }
 
+@keyframes boon-float {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -2px, 0);
+  }
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
@@ -95,6 +104,7 @@ body {
 }
 
 .dev-credit {
+  display: inline-block;
   font-weight: 800;
   font-size: clamp(0.95rem, 1.8vw, 1.125rem);
   letter-spacing: 0.02em;
@@ -102,10 +112,16 @@ body {
   background-size: 200% 200%;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  will-change: background-position;
-  animation: gradient-x 8s linear infinite;
+  will-change: background-position, transform;
+  animation: gradient-x 8s linear infinite, boon-float 6s ease-in-out infinite;
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.55),
     0 0 6px rgba(139, 92, 246, 0.35),
     0 0 10px rgba(236, 72, 153, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dev-credit {
+    animation: gradient-x 8s linear infinite;
+  }
 }
