@@ -239,17 +239,24 @@ function AdminPanel({ onNavigate, onLogout }) {
         <div className="flex items-center gap-4">
           <button
             onClick={() => onNavigate('home')}
-            className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            className="p-2 bg-white hover:bg-gray-100 text-gray-700 rounded-lg transition-colors shadow-md"
           >
             <ArrowLeft size={24} />
           </button>
-          <h1 className="text-3xl font-bold text-white">{t('adminPanel')}</h1>
+          <h1 className="text-3xl font-bold text-gray-800">{t('adminPanel')}</h1>
         </div>
 
-        <div className="max-w-md mx-auto bg-slate-800 rounded-xl p-8 shadow-lg">
+        <div className="max-w-md mx-auto bg-white rounded-2xl p-8 shadow-xl">
+          <div className="text-center mb-6">
+            <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Users size={40} className="text-purple-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">تسجيل دخول الإدارة</h2>
+            <p className="text-gray-600">أدخل رمز الإدارة للوصول إلى لوحة التحكم</p>
+          </div>
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-white font-bold mb-2">
+              <label className="block text-gray-800 font-bold mb-2">
                 {t('adminCode')}
               </label>
               <input
@@ -257,13 +264,13 @@ function AdminPanel({ onNavigate, onLogout }) {
                 value={adminCode}
                 onChange={(e) => setAdminCode(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-slate-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                className="w-full px-4 py-3 bg-gray-50 text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 placeholder="أدخل رمز الإدارة"
               />
             </div>
             <button
               type="submit"
-              className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold rounded-lg transition-all"
+              className="w-full px-6 py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
             >
               {t('login')}
             </button>
@@ -275,78 +282,83 @@ function AdminPanel({ onNavigate, onLogout }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => onNavigate('home')}
+              className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+            >
+              <ArrowLeft size={24} />
+            </button>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-800">{t('adminPanel')}</h1>
+              <p className="text-gray-600 text-sm">إدارة كاملة للموقع والتحديات</p>
+            </div>
+          </div>
           <button
-            onClick={() => onNavigate('home')}
-            className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+            onClick={handleLogout}
+            className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition-colors shadow-md font-bold"
           >
-            <ArrowLeft size={24} />
+            تسجيل الخروج
           </button>
-          <h1 className="text-3xl font-bold text-white">{t('adminPanel')}</h1>
         </div>
-        <button
-          onClick={handleLogout}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-        >
-          تسجيل الخروج
-        </button>
       </div>
 
-      <div className="flex gap-4 flex-wrap">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <button
           onClick={() => setActiveTab('opponents')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-colors ${
+          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
             activeTab === 'opponents'
               ? 'bg-purple-600 text-white'
-              : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          <Users size={20} />
-          {t('manageOpponents')}
+          <Users size={32} />
+          <span className="text-center">{t('manageOpponents')}</span>
         </button>
         <button
           onClick={() => setActiveTab('requests')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-colors ${
+          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
             activeTab === 'requests'
-              ? 'bg-purple-600 text-white'
-              : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          <Image size={20} />
-          طلبات التحديات
+          <Image size={32} />
+          <span className="text-center">طلبات التحديات</span>
         </button>
         <button
           onClick={() => setActiveTab('results')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-colors ${
+          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
             activeTab === 'results'
-              ? 'bg-purple-600 text-white'
-              : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+              ? 'bg-green-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          <Trophy size={20} />
-          {t('resultsManagement')}
+          <Trophy size={32} />
+          <span className="text-center">{t('resultsManagement')}</span>
         </button>
         <button
           onClick={() => setActiveTab('settings')}
-          className={`flex items-center gap-2 px-6 py-3 rounded-lg font-bold transition-colors ${
+          className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
             activeTab === 'settings'
-              ? 'bg-purple-600 text-white'
-              : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+              ? 'bg-orange-600 text-white'
+              : 'bg-white text-gray-700 hover:bg-gray-50'
           }`}
         >
-          <Power size={20} />
-          {t('siteControl')}
+          <Power size={32} />
+          <span className="text-center">{t('siteControl')}</span>
         </button>
       </div>
 
-      <div className="bg-slate-800 rounded-xl p-6 shadow-lg">
+      <div className="bg-white rounded-2xl p-8 shadow-xl">
         {activeTab === 'opponents' && (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white">إدارة الخصوم</h2>
-            <form onSubmit={handleAddOpponent} className="space-y-4 bg-slate-700 p-6 rounded-lg">
+            <h2 className="text-3xl font-bold text-gray-800 mb-6">إدارة الخصوم</h2>
+            <form onSubmit={handleAddOpponent} className="space-y-4 bg-gray-50 p-6 rounded-xl border-2 border-gray-200">
               {uploadError && (
-                <div className="p-3 bg-red-600 text-white rounded-lg">
+                <div className="p-4 bg-red-50 text-red-700 rounded-xl border-2 border-red-200">
                   {uploadError}
                 </div>
               )}
@@ -357,7 +369,7 @@ function AdminPanel({ onNavigate, onLogout }) {
                   value={opponentForm.name1}
                   onChange={(e) => setOpponentForm({ ...opponentForm, name1: e.target.value })}
                   required
-                  className="px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 <input
                   type="text"
@@ -365,13 +377,13 @@ function AdminPanel({ onNavigate, onLogout }) {
                   value={opponentForm.name2}
                   onChange={(e) => setOpponentForm({ ...opponentForm, name2: e.target.value })}
                   required
-                  className="px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 />
                 
                 <div className="space-y-2">
-                  <label className="block text-white font-bold text-sm">صورة الخصم الأول</label>
+                  <label className="block text-gray-800 font-bold text-sm">صورة الخصم الأول</label>
                   <div className="flex items-center gap-3">
-                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer transition-colors">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 rounded-xl cursor-pointer transition-colors">
                       <Upload size={20} />
                       <span>{avatarFiles.file1 ? avatarFiles.file1.name : 'اختر صورة من الجهاز'}</span>
                       <input
@@ -392,9 +404,9 @@ function AdminPanel({ onNavigate, onLogout }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-white font-bold text-sm">صورة الخصم الثاني</label>
+                  <label className="block text-gray-800 font-bold text-sm">صورة الخصم الثاني</label>
                   <div className="flex items-center gap-3">
-                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-slate-600 hover:bg-slate-500 text-white rounded-lg cursor-pointer transition-colors">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-white hover:bg-gray-50 text-gray-700 border-2 border-gray-200 rounded-xl cursor-pointer transition-colors">
                       <Upload size={20} />
                       <span>{avatarFiles.file2 ? avatarFiles.file2.name : 'اختر صورة من الجهاز'}</span>
                       <input
@@ -415,18 +427,18 @@ function AdminPanel({ onNavigate, onLogout }) {
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-white font-bold text-sm">تاريخ التحدي</label>
+                  <label className="block text-gray-800 font-bold text-sm">تاريخ التحدي</label>
                   <input
                     type="date"
                     value={opponentForm.date}
                     onChange={(e) => setOpponentForm({ ...opponentForm, date: e.target.value })}
                     required
                     dir="ltr"
-                    className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="block text-white font-bold text-sm">وقت التحدي</label>
+                  <label className="block text-gray-800 font-bold text-sm">وقت التحدي</label>
                   <input
                     type="time"
                     value={opponentForm.time}
@@ -434,17 +446,17 @@ function AdminPanel({ onNavigate, onLogout }) {
                     required
                     dir="ltr"
                     step="60"
-                    className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
               </div>
               <button
                 type="submit"
                 disabled={isUploading}
-                className={`w-full px-6 py-3 font-bold rounded-lg transition-colors ${
+                className={`w-full px-6 py-4 font-bold rounded-xl transition-all shadow-lg ${
                   isUploading
-                    ? 'bg-gray-600 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-700'
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-700 transform hover:scale-105'
                 } text-white`}
               >
                 {isUploading ? 'جاري الرفع...' : 'إضافة خصم'}

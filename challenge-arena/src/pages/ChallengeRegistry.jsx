@@ -29,62 +29,62 @@ function ChallengeRegistry({ onNavigate }) {
       <div className="flex items-center gap-4">
         <button
           onClick={() => onNavigate('home')}
-          className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+          className="p-2 bg-white hover:bg-gray-100 text-gray-700 rounded-lg transition-colors shadow-md"
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-3xl font-bold text-white">{t('challengeRegistry')}</h1>
+        <h1 className="text-3xl font-bold text-gray-800">{t('challengeRegistry')}</h1>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {challenges.length === 0 ? (
-          <div className="col-span-full text-center py-12">
-            <p className="text-gray-400 text-xl">لا توجد تحديات معتمدة حالياً</p>
+          <div className="col-span-full text-center py-12 bg-white rounded-2xl shadow-xl">
+            <p className="text-gray-600 text-xl">لا توجد تحديات معتمدة حالياً</p>
           </div>
         ) : (
           challenges.map((challenge) => (
             <div
               key={challenge.id}
-              className="bg-slate-800 rounded-xl p-6 shadow-lg hover:shadow-2xl transition-all"
+              className="bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:scale-105"
             >
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-4">
+              <div className="flex justify-between items-start mb-6">
+                <div className="flex items-center gap-3">
                   <img
                     src={challenge.opponent1Avatar || '/default-avatar.png'}
                     alt={challenge.opponent1}
-                    className="w-12 h-12 rounded-full border-4 border-orange-500"
+                    className="w-16 h-16 rounded-full border-4 border-orange-500 shadow-lg"
                   />
                   <div>
-                    <p className="text-white font-bold">{challenge.opponent1}</p>
+                    <p className="text-gray-800 font-bold text-lg">{challenge.opponent1}</p>
                   </div>
                 </div>
-                <div className="text-yellow-400 text-2xl font-bold">VS</div>
-                <div className="flex items-center gap-4">
+                <div className="text-purple-600 text-3xl font-bold">VS</div>
+                <div className="flex items-center gap-3">
                   <div className={direction === 'rtl' ? 'text-right' : 'text-left'}>
-                    <p className="text-white font-bold">{challenge.opponent2}</p>
+                    <p className="text-gray-800 font-bold text-lg">{challenge.opponent2}</p>
                   </div>
                   <img
                     src={challenge.opponent2Avatar || '/default-avatar.png'}
                     alt={challenge.opponent2}
-                    className="w-12 h-12 rounded-full border-4 border-purple-500"
+                    className="w-16 h-16 rounded-full border-4 border-purple-500 shadow-lg"
                   />
                 </div>
               </div>
 
-              <div className="space-y-2 text-gray-300">
+              <div className="space-y-3 text-gray-600 bg-gray-50 p-4 rounded-xl">
                 <div className="flex items-center gap-2">
-                  <Calendar size={16} />
-                  <span>{new Date(challenge.dateTime).toLocaleDateString('ar-EG')}</span>
+                  <Calendar size={18} className="text-purple-600" />
+                  <span className="font-semibold">{new Date(challenge.dateTime).toLocaleDateString('ar-EG')}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Clock size={16} />
-                  <span>{new Date(challenge.dateTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
+                  <Clock size={18} className="text-purple-600" />
+                  <span className="font-semibold">{new Date(challenge.dateTime).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
                 </div>
               </div>
 
               {challenge.result && (
-                <div className="mt-4 p-3 bg-green-600 rounded-lg">
-                  <p className="text-white font-bold text-center">
+                <div className="mt-4 p-4 bg-green-50 border-2 border-green-200 rounded-xl">
+                  <p className="text-green-700 font-bold text-center text-lg">
                     {t('winner')}: {challenge.result}
                   </p>
                 </div>

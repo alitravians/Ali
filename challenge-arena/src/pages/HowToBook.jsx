@@ -37,16 +37,16 @@ function HowToBook({ onNavigate }) {
       <div className="flex items-center gap-4">
         <button
           onClick={() => onNavigate('home')}
-          className="p-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+          className="p-2 bg-white hover:bg-gray-100 text-gray-700 rounded-lg transition-colors shadow-md"
         >
           <ArrowLeft size={24} />
         </button>
-        <h1 className="text-3xl font-bold text-white">{t('howToBook')}</h1>
+        <h1 className="text-3xl font-bold text-gray-800">{t('howToBook')}</h1>
       </div>
 
       <div className="max-w-4xl mx-auto space-y-6">
-        <div className="bg-slate-800 rounded-xl p-8 shadow-lg">
-          <h2 className="text-2xl font-bold text-white mb-6 text-center">
+        <div className="bg-white rounded-2xl p-8 shadow-xl">
+          <h2 className="text-3xl font-bold text-gray-800 mb-8 text-center">
             خطوات حجز التحدي
           </h2>
 
@@ -54,46 +54,61 @@ function HowToBook({ onNavigate }) {
             {steps.map((step) => (
               <div
                 key={step.number}
-                className="flex gap-4 p-6 bg-slate-700 rounded-lg hover:bg-slate-600 transition-colors"
+                className="flex gap-4 p-6 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all transform hover:scale-105 border-2 border-gray-200"
               >
                 <div className="flex-shrink-0">
-                  <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-xl">{step.number}</span>
+                  <div className="w-14 h-14 bg-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                    <span className="text-white font-bold text-2xl">{step.number}</span>
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
-                  <p className="text-gray-300">{step.description}</p>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">{step.title}</h3>
+                  <p className="text-gray-600">{step.description}</p>
                 </div>
                 <div className="flex-shrink-0">
-                  <CheckCircle className="text-green-500" size={24} />
+                  <CheckCircle className="text-green-600" size={28} />
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl p-6 shadow-lg">
-          <h3 className="text-xl font-bold text-white mb-4">ملاحظات هامة:</h3>
-          <ul className="space-y-2 text-white">
-            <li>• يجب تقديم الطلب قبل موعد التحدي بوقت كافٍ</li>
-            <li>• تأكد من صحة جميع البيانات المدخلة</li>
-            <li>• احتفظ بكود المراجعة في مكان آمن</li>
-            <li>• يمكنك متابعة حالة طلبك في أي وقت</li>
-            <li>• النتائج النهائية يتم اعتمادها من قبل الإدارة فقط</li>
+        <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-2xl p-8 shadow-xl">
+          <h3 className="text-2xl font-bold text-white mb-6">ملاحظات هامة:</h3>
+          <ul className="space-y-3 text-white text-lg">
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-300">•</span>
+              <span>يجب تقديم الطلب قبل موعد التحدي بوقت كافٍ</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-300">•</span>
+              <span>تأكد من صحة جميع البيانات المدخلة</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-300">•</span>
+              <span>احتفظ بكود المراجعة في مكان آمن</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-300">•</span>
+              <span>يمكنك متابعة حالة طلبك في أي وقت</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-yellow-300">•</span>
+              <span>النتائج النهائية يتم اعتمادها من قبل الإدارة فقط</span>
+            </li>
           </ul>
         </div>
 
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center flex-wrap">
           <button
             onClick={() => onNavigate('submit')}
-            className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg transition-colors"
+            className="px-8 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
           >
             قدم طلب تحدي الآن
           </button>
           <button
             onClick={() => onNavigate('status')}
-            className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition-colors"
+            className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl transition-all shadow-lg transform hover:scale-105"
           >
             تحقق من حالة طلبك
           </button>

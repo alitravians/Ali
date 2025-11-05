@@ -3,6 +3,7 @@ import { useLanguage } from './contexts/LanguageContext';
 import { database } from './utils/firebase';
 import { ref, onValue } from 'firebase/database';
 import { Globe, AlertCircle } from 'lucide-react';
+import LoadingScreen from './components/LoadingScreen';
 import HomePage from './pages/HomePage';
 import ChallengeRegistry from './pages/ChallengeRegistry';
 import SubmitChallenge from './pages/SubmitChallenge';
@@ -13,6 +14,7 @@ import AdminPanel from './pages/AdminPanel';
 
 function App() {
   const { language, toggleLanguage, t } = useLanguage();
+  const [isLoading, setIsLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState('home');
   const [isAdmin, setIsAdmin] = useState(false);
   const [siteSettings, setSiteSettings] = useState({ isOpen: true, closureReason: '' });
@@ -96,6 +98,10 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  if (isLoading) {
+    return <LoadingScreen onLoadingComplete={() => setIsLoading(false)} />;
   }
 
   return (
