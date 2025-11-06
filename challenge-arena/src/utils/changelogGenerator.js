@@ -38,11 +38,15 @@ const KEYWORD_TRANSLATIONS = {
  * @param {string} repo - Repository name
  * @param {string} since - ISO date string to fetch commits since
  * @param {string} path - Optional path filter (e.g., 'challenge-arena')
+ * @param {string} branch - Optional branch name (sha parameter)
  * @returns {Promise<Array>} Array of commit objects
  */
-export async function fetchGitHubCommits(owner, repo, since, path = null) {
+export async function fetchGitHubCommits(owner, repo, since, path = null, branch = null) {
   try {
     let url = `https://api.github.com/repos/${owner}/${repo}/commits?since=${since}`;
+    if (branch) {
+      url += `&sha=${branch}`;
+    }
     if (path) {
       url += `&path=${path}`;
     }
@@ -187,12 +191,13 @@ function generateEnglishChangelog(groupedCommits, version) {
  * @param {string} options.repo - GitHub repo name
  * @param {string} options.since - ISO date to fetch commits since
  * @param {string} options.path - Optional path filter
+ * @param {string} options.branch - Optional branch name
  * @param {string} options.version - Version number for the changelog
  * @returns {Promise<Object>} Generated changelog in Arabic and English
  */
-export async function generateChangelog({ owner, repo, since, path, version }) {
+export async function generateChangelog({ owner, repo, since, path, branch, version }) {
   try {
-    const commits = await fetchGitHubCommits(owner, repo, since, path);
+    const commits = await fetchGitHubCommits(owner, repo, since, path, branch);
     
     if (!commits || commits.length === 0) {
       return {

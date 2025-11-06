@@ -103,6 +103,7 @@ function AdminPanel({ onNavigate, onLogout }) {
     owner: 'alitravians',
     repo: 'Ali',
     path: 'challenge-arena',
+    branch: 'challenge-arena-implementation',
     version: versionManager.getCurrentVersion()
   });
 
@@ -671,6 +672,7 @@ function AdminPanel({ onNavigate, onLogout }) {
         repo: aiGeneratorState.repo,
         since: since,
         path: aiGeneratorState.path,
+        branch: aiGeneratorState.branch,
         version: aiGeneratorState.version
       });
       
@@ -1724,7 +1726,17 @@ function AdminPanel({ onNavigate, onLogout }) {
                     value={aiGeneratorState.version}
                     onChange={(e) => setAiGeneratorState(prev => ({ ...prev, version: e.target.value }))}
                     className="w-full px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="2025.11.06.4"
+                    placeholder="2025.11.06.5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">الفرع (Branch)</label>
+                  <input
+                    type="text"
+                    value={aiGeneratorState.branch}
+                    onChange={(e) => setAiGeneratorState(prev => ({ ...prev, branch: e.target.value }))}
+                    className="w-full px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="challenge-arena-implementation"
                   />
                 </div>
                 <div>
