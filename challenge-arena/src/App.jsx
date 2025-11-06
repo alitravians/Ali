@@ -18,6 +18,7 @@ import Tournaments from './pages/Tournaments';
 import Leaderboard from './pages/Leaderboard';
 import Rules from './pages/Rules';
 import Contact from './pages/Contact';
+import Updates from './pages/Updates';
 import { versionManager } from './utils/versionManager';
 
 function App() {
@@ -106,6 +107,7 @@ function App() {
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/rules" element={<Rules />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/updates" element={<Updates />} />
           </Routes>
         </main>
         
