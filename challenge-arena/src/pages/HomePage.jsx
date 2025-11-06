@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Trophy, FileText, Search, BookOpen, ArrowLeft, CheckCircle, Smartphone, Monitor } from 'lucide-react';
+import { Trophy, FileText, Search, BookOpen, ArrowLeft, CheckCircle, Smartphone, Monitor, Award, ScrollText, Megaphone } from 'lucide-react';
 
 function HomePage({ onNavigate }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [mobileView, setMobileView] = useState(false);
 
   const menuItems = [
@@ -34,6 +34,34 @@ function HomePage({ onNavigate }) {
       icon: BookOpen,
       description: 'تعرف على كيفية حجز التحديات',
       color: 'bg-purple-500 hover:bg-purple-600'
+    },
+    {
+      id: 'tournaments',
+      title: language === 'ar' ? 'البطولات' : 'Tournaments',
+      icon: Trophy,
+      description: 'عرض البطولات والمسابقات',
+      color: 'bg-yellow-500 hover:bg-yellow-600'
+    },
+    {
+      id: 'leaderboard',
+      title: language === 'ar' ? 'المتصدرون' : 'Leaderboard',
+      icon: Award,
+      description: 'عرض قائمة المتصدرين',
+      color: 'bg-emerald-500 hover:bg-emerald-600'
+    },
+    {
+      id: 'rules',
+      title: language === 'ar' ? 'القواعد' : 'Rules',
+      icon: ScrollText,
+      description: 'قواعد وشروط التحديات',
+      color: 'bg-indigo-500 hover:bg-indigo-600'
+    },
+    {
+      id: 'updates',
+      title: t('updates'),
+      icon: Megaphone,
+      description: 'آخر التحديثات والأخبار',
+      color: 'bg-cyan-600 hover:bg-cyan-700'
     }
   ];
 
@@ -131,7 +159,7 @@ function HomePage({ onNavigate }) {
         <h2 className="text-3xl md:text-4xl font-bold text-slate-900 text-center mb-12">
           الخدمات المتاحة
         </h2>
-        <div className={`grid ${mobileView ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-6`}>
+        <div className={`grid ${mobileView ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3 lg:grid-cols-4'} gap-6`}>
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
