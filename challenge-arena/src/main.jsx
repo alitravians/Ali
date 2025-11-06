@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { LanguageProvider } from './contexts/LanguageContext'
-import LoadingScreenBigo from './components/LoadingScreenBigo'
+import LoadingScreenBigoPro from './components/LoadingScreenBigoPro'
 import './index.css'
 
 if ('serviceWorker' in navigator) {
@@ -20,7 +20,7 @@ if ('serviceWorker' in navigator) {
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <LoadingScreenBigo />
+    <LoadingScreenBigoPro />
     <BrowserRouter>
       <LanguageProvider>
         <App />
