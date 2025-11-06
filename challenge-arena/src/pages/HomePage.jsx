@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { Trophy, FileText, Search, BookOpen, ArrowLeft, CheckCircle, Smartphone, Monitor, Award, ScrollText, Megaphone } from 'lucide-react';
+import UpdatesSection from '../components/UpdatesSection';
+import { useUpdates } from '../hooks/useUpdates';
 
 function HomePage({ onNavigate }) {
   const { t, language } = useLanguage();
   const [mobileView, setMobileView] = useState(false);
+  const updates = useUpdates();
 
   const menuItems = [
     {
@@ -153,6 +156,11 @@ function HomePage({ onNavigate }) {
           ))}
         </div>
       </section>
+
+      {/* Updates Section */}
+      {updates.length > 0 && (
+        <UpdatesSection items={updates} />
+      )}
 
       {/* Features Grid */}
       <section>
