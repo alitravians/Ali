@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { database } from '../utils/firebase';
 import { ref, onValue, push, set, remove, update } from 'firebase/database';
-import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload, Sparkles, RefreshCw, Database, Layout } from 'lucide-react';
+import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload, Sparkles, RefreshCw, Database, Layout, Wand2, Loader2 } from 'lucide-react';
 import { uploadImageToCloudinary } from '../utils/uploadImage';
 import BannerCard from '../components/BannerCard';
 import BannerLayoutEditor from '../components/BannerLayoutEditor';
 import BannerImageManager from '../components/BannerImageManager';
 import { useBannerSettings } from '../hooks/useBannerSettings';
 import { versionManager } from '../utils/versionManager';
+import { generateChangelog, getLastUpdateDate } from '../utils/changelogGenerator';
 
 function AdminPanel({ onNavigate, onLogout }) {
   const { t } = useLanguage();
@@ -94,6 +95,16 @@ function AdminPanel({ onNavigate, onLogout }) {
   const [updates, setUpdates] = useState([]);
   const [updateForm, setUpdateForm] = useState({ date: '', textAr: '', textEn: '' });
   const [editingUpdate, setEditingUpdate] = useState(null);
+  
+  const [aiGeneratorState, setAiGeneratorState] = useState({
+    isGenerating: false,
+    error: null,
+    preview: null,
+    owner: 'alitravians',
+    repo: 'Ali',
+    path: 'challenge-arena',
+    version: versionManager.getCurrentVersion()
+  });
 
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('adminAuth');
@@ -647,6 +658,58 @@ function AdminPanel({ onNavigate, onLogout }) {
       await remove(updateRef);
       alert('تم حذف التحديث بنجاح ✅');
     }
+  };
+
+  const handleGenerateAIChangelog = async () => {
+    setAiGeneratorState(prev => ({ ...prev, isGenerating: true, error: null, preview: null }));
+    
+    try {
+      const since = getLastUpdateDate(updates);
+      
+      const changelog = await generateChangelog({
+        owner: aiGeneratorState.owner,
+        repo: aiGeneratorState.repo,
+        since: since,
+        path: aiGeneratorState.path,
+        version: aiGeneratorState.version
+      });
+      
+      setAiGeneratorState(prev => ({
+        ...prev,
+        isGenerating: false,
+        preview: changelog
+      }));
+    } catch (error) {
+      setAiGeneratorState(prev => ({
+        ...prev,
+        isGenerating: false,
+        error: error.message || 'فشل توليد التحديثات. يرجى المحاولة مرة أخرى.'
+      }));
+    }
+  };
+
+  const handleApplyAIChangelog = (mode = 'replace') => {
+    if (!aiGeneratorState.preview) return;
+    
+    const now = new Date();
+    const formattedDate = now.toISOString().slice(0, 16); // Format for datetime-local input
+    
+    if (mode === 'replace') {
+      setUpdateForm({
+        date: formattedDate,
+        textAr: aiGeneratorState.preview.textAr,
+        textEn: aiGeneratorState.preview.textEn
+      });
+    } else if (mode === 'prepend') {
+      setUpdateForm(prev => ({
+        date: formattedDate,
+        textAr: aiGeneratorState.preview.textAr + '\n\n' + prev.textAr,
+        textEn: aiGeneratorState.preview.textEn + '\n\n' + prev.textEn
+      }));
+    }
+    
+    setAiGeneratorState(prev => ({ ...prev, preview: null }));
+    alert('تم تطبيق التحديثات المولدة! يمكنك تعديلها قبل الحفظ.');
   };
 
   if (!isAuthenticated) {
@@ -1642,6 +1705,105 @@ function AdminPanel({ onNavigate, onLogout }) {
         {activeTab === 'updates' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-white mb-6">إدارة التحديثات</h2>
+            
+            <div className="bg-gradient-to-br from-purple-600/20 to-pink-600/20 p-6 rounded-xl border border-purple-500/30 space-y-4">
+              <div className="flex items-center gap-3 mb-4">
+                <Wand2 className="text-purple-400" size={28} />
+                <h3 className="text-xl font-bold text-white">🤖 توليد التحديثات بالذكاء الاصطناعي</h3>
+              </div>
+              
+              <p className="text-gray-300 text-sm">
+                يقوم النظام بتحليل آخر التغييرات في المشروع (Git Commits) وتوليد سجل تحديثات احترافي تلقائياً
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">رقم الإصدار</label>
+                  <input
+                    type="text"
+                    value={aiGeneratorState.version}
+                    onChange={(e) => setAiGeneratorState(prev => ({ ...prev, version: e.target.value }))}
+                    className="w-full px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="2025.11.06.4"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-gray-300 mb-2">مسار المشروع</label>
+                  <input
+                    type="text"
+                    value={aiGeneratorState.path}
+                    onChange={(e) => setAiGeneratorState(prev => ({ ...prev, path: e.target.value }))}
+                    className="w-full px-4 py-2 bg-white/10 text-white border border-white/20 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    placeholder="challenge-arena"
+                  />
+                </div>
+              </div>
+              
+              <button
+                onClick={handleGenerateAIChangelog}
+                disabled={aiGeneratorState.isGenerating}
+                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {aiGeneratorState.isGenerating ? (
+                  <>
+                    <Loader2 className="animate-spin" size={20} />
+                    جاري التوليد...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={20} />
+                    توليد التحديثات تلقائياً
+                  </>
+                )}
+              </button>
+              
+              {aiGeneratorState.error && (
+                <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-4">
+                  <p className="text-red-200 text-sm">{aiGeneratorState.error}</p>
+                </div>
+              )}
+              
+              {aiGeneratorState.preview && (
+                <div className="bg-white/10 border border-white/20 rounded-lg p-4 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-lg font-bold text-white">معاينة التحديثات المولدة</h4>
+                    <span className="text-sm text-gray-400">
+                      {aiGeneratorState.preview.commitCount} تغيير
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">العربية:</label>
+                      <div className="bg-slate-800 p-3 rounded-lg text-white text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
+                        {aiGeneratorState.preview.textAr}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-400 mb-1">English:</label>
+                      <div className="bg-slate-800 p-3 rounded-lg text-white text-sm whitespace-pre-wrap max-h-40 overflow-y-auto">
+                        {aiGeneratorState.preview.textEn}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => handleApplyAIChangelog('replace')}
+                      className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold transition-all"
+                    >
+                      استبدال النص الحالي
+                    </button>
+                    <button
+                      onClick={() => handleApplyAIChangelog('prepend')}
+                      className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold transition-all"
+                    >
+                      إضافة أعلى النص
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             
             {editingUpdate ? (
               <div className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
