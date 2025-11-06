@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { Trophy, FileText, Search, BookOpen, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Trophy, FileText, Search, BookOpen, ArrowLeft, CheckCircle, Smartphone, Monitor } from 'lucide-react';
 
 function HomePage({ onNavigate }) {
   const { t } = useLanguage();
+  const [mobileView, setMobileView] = useState(false);
 
   const menuItems = [
     {
@@ -54,15 +56,39 @@ function HomePage({ onNavigate }) {
   ];
 
   return (
-    <div className="space-y-16">
+    <div className={`space-y-16 ${mobileView ? 'max-w-md mx-auto' : ''}`}>
+      {/* Mobile View Toggle Button */}
+      <div className="flex justify-center mb-4">
+        <button
+          onClick={() => setMobileView(!mobileView)}
+          className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold shadow-lg transform hover:scale-105 transition-all ${
+            mobileView
+              ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white hover:from-blue-500 hover:to-blue-400'
+              : 'bg-gradient-to-r from-green-600 to-green-500 text-white hover:from-green-500 hover:to-green-400'
+          }`}
+        >
+          {mobileView ? (
+            <>
+              <Monitor size={24} />
+              <span>عرض سطح المكتب</span>
+            </>
+          ) : (
+            <>
+              <Smartphone size={24} />
+              <span>عرض الهاتف</span>
+            </>
+          )}
+        </button>
+      </div>
+
       {/* Hero Section */}
       <section className="text-center space-y-6 py-16 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-orange-500/10 via-transparent to-cyan-500/10 rounded-3xl blur-3xl"></div>
         <div className="relative z-10">
-          <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-orange-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent mb-4 animate-glow">
+          <h1 className={`${mobileView ? 'text-4xl' : 'text-5xl md:text-7xl'} font-bold bg-gradient-to-r from-orange-500 via-purple-500 to-cyan-500 bg-clip-text text-transparent mb-4 animate-glow`}>
             {t('welcome')}
           </h1>
-          <p className="text-xl md:text-2xl text-slate-700 max-w-3xl mx-auto">
+          <p className={`${mobileView ? 'text-lg' : 'text-xl md:text-2xl'} text-slate-700 max-w-3xl mx-auto`}>
             {t('welcomeMessage')}
           </p>
           <div className="flex flex-wrap gap-4 justify-center mt-8">
@@ -87,7 +113,7 @@ function HomePage({ onNavigate }) {
         <h2 className="text-3xl md:text-4xl font-bold text-slate-900 text-center mb-12">
           كيف يعمل الموقع؟
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className={`grid ${mobileView ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-3'} gap-8`}>
           {steps.map((step) => (
             <div key={step.number} className="text-center space-y-4">
               <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-500 text-white text-2xl font-bold rounded-full flex items-center justify-center mx-auto shadow-lg">
@@ -105,7 +131,7 @@ function HomePage({ onNavigate }) {
         <h2 className="text-3xl md:text-4xl font-bold text-slate-900 text-center mb-12">
           الخدمات المتاحة
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className={`grid ${mobileView ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'} gap-6`}>
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
