@@ -5,6 +5,7 @@ import { ref, onValue } from 'firebase/database';
 import { Globe, AlertCircle, Power } from 'lucide-react';
 import LoadingScreen from './components/LoadingScreen';
 import UpdateNotification from './components/UpdateNotification';
+import MaintenancePage from './components/MaintenancePage';
 import HomePage from './pages/HomePage';
 import ChallengeRegistry from './pages/ChallengeRegistry';
 import SubmitChallenge from './pages/SubmitChallenge';
@@ -19,6 +20,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('home');
   const [isAdmin, setIsAdmin] = useState(false);
   const [siteSettings, setSiteSettings] = useState({ isOpen: true, closureReason: '' });
+  const [maintenanceSettings, setMaintenanceSettings] = useState(null);
 
   useEffect(() => {
     const savedPage = localStorage.getItem('currentPage') || 'home';
@@ -36,6 +38,17 @@ function App() {
     const unsubscribe = onValue(settingsRef, (snapshot) => {
       if (snapshot.exists()) {
         setSiteSettings(snapshot.val());
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const maintenanceRef = ref(database, 'siteSettings/maintenance');
+    const unsubscribe = onValue(maintenanceRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setMaintenanceSettings(snapshot.val());
       }
     });
 
@@ -68,87 +81,13 @@ function App() {
 
   if (!siteSettings.isOpen && currentPage !== 'admin') {
     return (
-      <div className="min-h-screen relative overflow-hidden flex items-center justify-center p-4">
-        {/* Full Background with Gradient Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900"></div>
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-900/70 to-slate-950/90"></div>
-        
-        {/* Subtle Pattern Overlay */}
-        <div className="absolute inset-0 opacity-10" style={{
-          backgroundImage: 'radial-gradient(circle at 2px 2px, rgba(255,255,255,0.15) 1px, transparent 0)',
-          backgroundSize: '32px 32px'
-        }}></div>
-        
-        {/* Brand Watermark */}
-        <div className="absolute inset-0 flex items-center justify-center opacity-5">
-          <img 
-            src="/closure-bg.jpg" 
-            alt="" 
-            className="w-96 h-96 object-contain"
-          />
-        </div>
-        
-        {/* Main Content Card */}
-        <div className="max-w-3xl w-full relative z-10">
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/10 overflow-hidden">
-            {/* Card Header with Icon */}
-            <div className="bg-gradient-to-r from-blue-600/20 to-cyan-600/20 border-b border-white/10 px-8 md:px-12 py-10 text-center">
-              <div className="flex justify-center mb-6">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-blue-500 rounded-full blur-2xl opacity-40"></div>
-                  <div className="relative p-5 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full shadow-xl">
-                    <AlertCircle size={64} className="text-white" strokeWidth={2.5} />
-                  </div>
-                </div>
-              </div>
-              <h1 className="text-4xl md:text-5xl font-extrabold text-white mb-3">
-                {language === 'ar' ? 'الموقع مغلق مؤقتاً' : 'Site Temporarily Closed'}
-              </h1>
-              <div className="h-1 w-24 mx-auto bg-gradient-to-r from-blue-500 to-cyan-500 rounded-full"></div>
-            </div>
-            
-            {/* Card Body with Closure Reason */}
-            <div className="px-8 md:px-12 py-10 space-y-8">
-              {siteSettings.closureReason && (
-                <div className="bg-slate-800/40 backdrop-blur-sm rounded-xl p-8 border border-white/5">
-                  <p className="text-xl md:text-2xl text-slate-100 leading-relaxed text-center font-medium">
-                    {siteSettings.closureReason}
-                  </p>
-                </div>
-              )}
-              
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-                <button
-                  onClick={() => navigateTo('admin')}
-                  className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold rounded-xl transition-all shadow-lg shadow-blue-500/30 hover:shadow-blue-500/50 hover:scale-105 transform"
-                >
-                  <span className="relative z-10 flex items-center justify-center gap-2">
-                    <Power size={20} />
-                    {t('adminPanel')}
-                  </span>
-                </button>
-                <button
-                  onClick={toggleLanguage}
-                  className="px-8 py-4 bg-white/5 hover:bg-white/10 backdrop-blur-sm text-white font-bold rounded-xl transition-all border border-white/10 hover:border-white/20 hover:scale-105 transform"
-                >
-                  <span className="flex items-center justify-center gap-2">
-                    <Globe size={20} />
-                    {language === 'ar' ? 'EN' : 'عربي'}
-                  </span>
-                </button>
-              </div>
-              
-              {/* Footer Message */}
-              <div className="pt-6 border-t border-white/5 text-center">
-                <p className="text-slate-300 text-sm leading-relaxed">
-                  {language === 'ar' ? 'نعتذر عن الإزعاج، سنعود قريباً' : 'Sorry for the inconvenience, we will be back soon'}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <MaintenancePage 
+        settings={{
+          ...maintenanceSettings,
+          closureReason: siteSettings.closureReason
+        }}
+        onNavigateToAdmin={() => navigateTo('admin')}
+      />
     );
   }
 

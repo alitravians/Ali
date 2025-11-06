@@ -19,8 +19,23 @@ function AdminPanel({ onNavigate, onLogout }) {
   const [requests, setRequests] = useState([]);
   const [approvedChallenges, setApprovedChallenges] = useState([]);
   const [siteSettings, setSiteSettings] = useState({ isOpen: true, closureReason: '' });
+  const [maintenanceSettings, setMaintenanceSettings] = useState({
+    agencyName: 'أرض التحديات',
+    logoEmoji: '⭐',
+    tagline: 'نُعيد ضبط التجربة — تحديثات جودة وأداء',
+    until: '',
+    theme: {
+      glow1: '#60a5fa',
+      glow2: '#22d3ee',
+      glow3: '#a78bfa',
+      ink: '#e6e9ef',
+      muted: '#9aa3b2',
+      bg: '#0b0f1a',
+      bg2: '#101628'
+    }
+  });
   
-  const { 
+  const {
     settings: bannerSettings, 
     getActivePreset, 
     setActivePreset, 
@@ -78,6 +93,7 @@ function AdminPanel({ onNavigate, onLogout }) {
     const requestsRef = ref(database, 'challengeRequests');
     const challengesRef = ref(database, 'approvedChallenges');
     const settingsRef = ref(database, 'siteSettings');
+    const maintenanceRef = ref(database, 'siteSettings/maintenance');
 
     const unsubscribe1 = onValue(opponentsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -112,11 +128,18 @@ function AdminPanel({ onNavigate, onLogout }) {
       }
     });
 
+    const unsubscribe5 = onValue(maintenanceRef, (snapshot) => {
+      if (snapshot.exists()) {
+        setMaintenanceSettings(snapshot.val());
+      }
+    });
+
     return () => {
       unsubscribe1();
       unsubscribe2();
       unsubscribe3();
       unsubscribe4();
+      unsubscribe5();
     };
   }, [isAuthenticated]);
 
@@ -328,6 +351,12 @@ function AdminPanel({ onNavigate, onLogout }) {
     const settingsRef = ref(database, 'siteSettings');
     await set(settingsRef, siteSettings);
     alert('تم حفظ الإعدادات');
+  };
+
+  const handleMaintenanceSettings = async () => {
+    const maintenanceRef = ref(database, 'siteSettings/maintenance');
+    await set(maintenanceRef, maintenanceSettings);
+    alert('تم حفظ إعدادات صفحة الصيانة بنجاح!');
   };
 
   const handleClearCache = () => {
@@ -1024,6 +1053,154 @@ function AdminPanel({ onNavigate, onLogout }) {
                 className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg transition-colors"
               >
                 حفظ الإعدادات
+              </button>
+            </div>
+
+            {/* Maintenance Page Customization Section */}
+            <div className="space-y-4 bg-gradient-to-br from-slate-700 to-slate-800 p-6 rounded-xl border-2 border-purple-500/30 shadow-xl">
+              <h3 className="text-xl font-bold text-white mb-4">تخصيص صفحة الصيانة</h3>
+              
+              {/* Identity Settings */}
+              <div className="space-y-3">
+                <label className="block text-white font-bold text-sm">اسم الموقع:</label>
+                <input
+                  type="text"
+                  value={maintenanceSettings.agencyName}
+                  onChange={(e) => setMaintenanceSettings({ ...maintenanceSettings, agencyName: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="أرض التحديات"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-white font-bold text-sm">رمز الشعار (Emoji):</label>
+                <input
+                  type="text"
+                  value={maintenanceSettings.logoEmoji}
+                  onChange={(e) => setMaintenanceSettings({ ...maintenanceSettings, logoEmoji: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="⭐"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-white font-bold text-sm">الرسالة التوضيحية:</label>
+                <input
+                  type="text"
+                  value={maintenanceSettings.tagline}
+                  onChange={(e) => setMaintenanceSettings({ ...maintenanceSettings, tagline: e.target.value })}
+                  className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="نُعيد ضبط التجربة — تحديثات جودة وأداء"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-white font-bold text-sm">وقت العودة المتوقع (اختياري):</label>
+                <input
+                  type="datetime-local"
+                  value={maintenanceSettings.until}
+                  onChange={(e) => setMaintenanceSettings({ ...maintenanceSettings, until: e.target.value ? new Date(e.target.value).toISOString() : '' })}
+                  className="w-full px-4 py-3 bg-slate-600 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+                <p className="text-xs text-gray-400">سيظهر عداد تنازلي إذا تم تحديد وقت العودة</p>
+              </div>
+
+              {/* Theme Colors */}
+              <div className="pt-4 border-t border-white/10">
+                <h4 className="text-lg font-bold text-white mb-3">ألوان التصميم:</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Glow 1:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.glow1}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, glow1: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Glow 2:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.glow2}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, glow2: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Glow 3:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.glow3}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, glow3: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Text Color:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.ink}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, ink: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Muted Text:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.muted}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, muted: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Background 1:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.bg}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, bg: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-white text-xs">Background 2:</label>
+                    <input
+                      type="color"
+                      value={maintenanceSettings.theme.bg2}
+                      onChange={(e) => setMaintenanceSettings({ 
+                        ...maintenanceSettings, 
+                        theme: { ...maintenanceSettings.theme, bg2: e.target.value }
+                      })}
+                      className="w-full h-10 rounded cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleMaintenanceSettings}
+                className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-lg transition-all shadow-lg"
+              >
+                حفظ إعدادات صفحة الصيانة
               </button>
             </div>
 
