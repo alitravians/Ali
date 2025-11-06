@@ -1,7 +1,7 @@
 import { useBannerSettings } from '../hooks/useBannerSettings';
 
 function BannerCard({ challenge, customLayout }) {
-  const { getChallengeLayout } = useBannerSettings();
+  const { getChallengeLayout, getActiveBannerUrl } = useBannerSettings();
   
   const formatTime = (dateTime) => {
     const date = new Date(dateTime);
@@ -26,12 +26,14 @@ function BannerCard({ challenge, customLayout }) {
     description: { enabled: false, left: 50, top: 75, width: 60, align: 'center' }
   };
 
+  const bannerUrl = getActiveBannerUrl();
+
   return (
     <div className="w-full mx-auto overflow-hidden shadow-2xl relative" style={{ maxWidth: '560px' }}>
       <div 
         className="relative overflow-hidden"
         style={{
-          backgroundImage: 'url(/banner-default.jpg)',
+          backgroundImage: `url(${bannerUrl})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',

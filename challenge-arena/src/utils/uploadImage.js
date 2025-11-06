@@ -53,6 +53,61 @@ export async function uploadImageToCloudinary(file, publicId) {
 }
 
 /**
+ * Upload banner image to Cloudinary (no resize)
+ * @param {File} file - Banner image file to upload
+ * @param {string} publicId - Public ID for the banner
+ * @returns {Promise<{secureUrl: string, publicId: string}>} - Cloudinary URLs
+ */
+export async function uploadBannerImage(file, publicId) {
+  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+  const folder = import.meta.env.VITE_CLOUDINARY_BANNERS_FOLDER || 'banners';
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error('Cloudinary configuration is missing');
+  }
+
+  const validTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  if (!validTypes.includes(file.type)) {
+    throw new Error('نوع الملف غير مدعوم. يرجى اختيار صورة بصيغة JPG أو PNG أو WEBP');
+  }
+
+  const maxSize = 15 * 1024 * 1024; // 15MB for banners
+  if (file.size > maxSize) {
+    throw new Error('حجم الملف كبير جداً. الحد الأقصى 15 ميجابايت');
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', uploadPreset);
+  formData.append('folder', folder);
+  formData.append('public_id', publicId);
+
+  try {
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('فشل رفع الصورة. يرجى المحاولة مرة أخرى');
+    }
+
+    const data = await response.json();
+    return {
+      secureUrl: data.secure_url,
+      publicId: data.public_id
+    };
+  } catch (error) {
+    console.error('Upload error:', error);
+    throw new Error('حدث خطأ أثناء رفع الصورة. يرجى التحقق من الاتصال بالإنترنت');
+  }
+}
+
+/**
  * Resize image to specified dimensions
  * @param {File} file - Image file to resize
  * @param {number} maxWidth - Maximum width

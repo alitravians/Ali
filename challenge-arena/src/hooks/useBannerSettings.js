@@ -89,7 +89,21 @@ export function useBannerSettings() {
           const initialSettings = {
             global: {
               activePresetId: 'default',
-              presets: DEFAULT_PRESETS
+              presets: DEFAULT_PRESETS,
+              activeBannerId: 'default',
+              banners: {
+                byId: {
+                  default: {
+                    id: 'default',
+                    name: 'افتراضي',
+                    imageUrl: '/banner-default.jpg',
+                    publicId: null,
+                    createdAt: Date.now(),
+                    archived: false
+                  }
+                },
+                order: ['default']
+              }
             },
             perChallenge: {}
           };
@@ -189,12 +203,173 @@ export function useBannerSettings() {
     const defaultSettings = {
       global: {
         activePresetId: 'default',
-        presets: DEFAULT_PRESETS
+        presets: DEFAULT_PRESETS,
+        activeBannerId: 'default',
+        banners: {
+          byId: {
+            default: {
+              id: 'default',
+              name: 'افتراضي',
+              imageUrl: '/banner-default.jpg',
+              publicId: null,
+              createdAt: Date.now(),
+              archived: false
+            }
+          },
+          order: ['default']
+        }
       },
       perChallenge: {}
     };
     
     return await saveSettings(defaultSettings);
+  };
+
+  const getActiveBanner = () => {
+    if (!settings?.global?.banners?.byId) return null;
+    
+    const activeBannerId = settings.global.activeBannerId || 'default';
+    const banner = settings.global.banners.byId[activeBannerId];
+    
+    if (banner && !banner.archived) {
+      return banner;
+    }
+    
+    const order = settings.global.banners.order || [];
+    for (const id of order) {
+      const b = settings.global.banners.byId[id];
+      if (b && !b.archived) {
+        return b;
+      }
+    }
+    
+    return null;
+  };
+
+  const getActiveBannerUrl = () => {
+    const banner = getActiveBanner();
+    return banner?.imageUrl || '/banner-default.jpg';
+  };
+
+  const listBanners = (includeArchived = false) => {
+    if (!settings?.global?.banners?.byId) return [];
+    
+    const order = settings.global.banners.order || [];
+    const byId = settings.global.banners.byId;
+    
+    return order
+      .map(id => byId[id])
+      .filter(b => b && (includeArchived || !b.archived));
+  };
+
+  const addBanner = async (name, imageUrl, publicId) => {
+    if (!settings) return { success: false, error: 'Settings not loaded' };
+    
+    const bannerId = 'b_' + Date.now();
+    const newBanner = {
+      id: bannerId,
+      name,
+      imageUrl,
+      publicId,
+      createdAt: Date.now(),
+      archived: false
+    };
+    
+    const newSettings = {
+      ...settings,
+      global: {
+        ...settings.global,
+        activeBannerId: bannerId,
+        banners: {
+          byId: {
+            ...(settings.global.banners?.byId || {}),
+            [bannerId]: newBanner
+          },
+          order: [...(settings.global.banners?.order || []), bannerId]
+        }
+      }
+    };
+    
+    return await saveSettings(newSettings);
+  };
+
+  const setActiveBanner = async (bannerId) => {
+    if (!settings) return { success: false, error: 'Settings not loaded' };
+    
+    const newSettings = {
+      ...settings,
+      global: {
+        ...settings.global,
+        activeBannerId: bannerId
+      }
+    };
+    
+    return await saveSettings(newSettings);
+  };
+
+  const renameBanner = async (bannerId, name) => {
+    if (!settings) return { success: false, error: 'Settings not loaded' };
+    
+    const banner = settings.global.banners?.byId?.[bannerId];
+    if (!banner) return { success: false, error: 'Banner not found' };
+    
+    const newSettings = {
+      ...settings,
+      global: {
+        ...settings.global,
+        banners: {
+          ...settings.global.banners,
+          byId: {
+            ...settings.global.banners.byId,
+            [bannerId]: {
+              ...banner,
+              name
+            }
+          }
+        }
+      }
+    };
+    
+    return await saveSettings(newSettings);
+  };
+
+  const archiveBanner = async (bannerId, archived = true) => {
+    if (!settings) return { success: false, error: 'Settings not loaded' };
+    
+    const banner = settings.global.banners?.byId?.[bannerId];
+    if (!banner) return { success: false, error: 'Banner not found' };
+    
+    let newActiveBannerId = settings.global.activeBannerId;
+    
+    if (archived && bannerId === settings.global.activeBannerId) {
+      const order = settings.global.banners.order || [];
+      for (const id of order) {
+        if (id !== bannerId && !settings.global.banners.byId[id]?.archived) {
+          newActiveBannerId = id;
+          break;
+        }
+      }
+    }
+    
+    const newSettings = {
+      ...settings,
+      global: {
+        ...settings.global,
+        activeBannerId: newActiveBannerId,
+        banners: {
+          ...settings.global.banners,
+          byId: {
+            ...settings.global.banners.byId,
+            [bannerId]: {
+              ...banner,
+              archived
+            }
+          }
+        }
+      }
+    };
+    
+    return await saveSettings(newSettings);
   };
 
   return {
@@ -207,6 +382,13 @@ export function useBannerSettings() {
     saveCustomPreset,
     saveSettings,
     resetToDefaults,
-    DEFAULT_PRESETS
+    DEFAULT_PRESETS,
+    getActiveBanner,
+    getActiveBannerUrl,
+    listBanners,
+    addBanner,
+    setActiveBanner,
+    renameBanner,
+    archiveBanner
   };
 }

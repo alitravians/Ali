@@ -6,6 +6,7 @@ import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload,
 import { uploadImageToCloudinary } from '../utils/uploadImage';
 import BannerCard from '../components/BannerCard';
 import BannerLayoutEditor from '../components/BannerLayoutEditor';
+import BannerImageManager from '../components/BannerImageManager';
 import { useBannerSettings } from '../hooks/useBannerSettings';
 import { versionManager } from '../utils/versionManager';
 
@@ -531,7 +532,7 @@ function AdminPanel({ onNavigate, onLogout }) {
             }`}
           >
             <Layout size={32} />
-            <span className="text-center text-sm md:text-base">تصميم البنر</span>
+            <span className="text-center text-sm md:text-base">تعديل البنرات و اضافة بنرات جديدة</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -928,10 +929,20 @@ function AdminPanel({ onNavigate, onLogout }) {
         )}
 
         {activeTab === 'bannerLayout' && (
-          <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-white mb-6">تخصيص تصميم البنر</h2>
-            {bannerSettings ? (
-              <BannerLayoutEditor
+          <div className="space-y-8">
+            <h2 className="text-3xl font-bold text-white mb-6">تعديل البنرات و اضافة بنرات جديدة</h2>
+            
+            {/* Banner Image Management Section */}
+            <div>
+              <h3 className="text-2xl font-bold text-white mb-4">إدارة البنرات</h3>
+              <BannerImageManager />
+            </div>
+
+            {/* Banner Layout Editor Section */}
+            <div>
+              <h3 className="text-2xl font-bold text-white mb-4">تخصيص تصميم البنر</h3>
+              {bannerSettings ? (
+                <BannerLayoutEditor
                 initialLayout={getActivePreset()?.base || DEFAULT_PRESETS.default.base}
                 onSave={async (newLayout) => {
                   const activePresetId = bannerSettings?.global?.activePresetId || 'default';
@@ -968,11 +979,12 @@ function AdminPanel({ onNavigate, onLogout }) {
                 }}
                 challenges={approvedChallenges}
               />
-            ) : (
-              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10 text-center">
-                <p className="text-white text-lg">جاري تحميل إعدادات البنر...</p>
-              </div>
-            )}
+              ) : (
+                <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10 text-center">
+                  <p className="text-white text-lg">جاري تحميل إعدادات البنر...</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
