@@ -2,7 +2,7 @@ export const translations = {
   ar: {
     siteName: "أرض التحديات",
     welcome: "مرحباً بكم في أرض التحديات",
-    welcomeMessage: "منصة التحديات الرسمية - تابع التحديات المباشرة وقدم طلبك للمشاركة",
+    welcomeMessage: "منصة التحديات الرسمية - قدم طلبك للمشاركة وتابع النتائج",
     challengeRegistry: "سجل التحديات",
     submitChallenge: "التقدم بطلب تحدي رسمي",
     checkStatus: "مراجعة حالة الطلب",
@@ -44,7 +44,7 @@ export const translations = {
   en: {
     siteName: "Challenge Arena",
     welcome: "Welcome to Challenge Arena",
-    welcomeMessage: "Official Challenge Platform - Follow live challenges and submit your participation request",
+    welcomeMessage: "Official Challenge Platform - Submit your participation request and follow results",
     challengeRegistry: "Challenge Registry",
     submitChallenge: "Submit Official Challenge Request",
     checkStatus: "Check Request Status",

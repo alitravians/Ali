@@ -10,7 +10,6 @@ import ChallengeRegistry from './pages/ChallengeRegistry';
 import SubmitChallenge from './pages/SubmitChallenge';
 import CheckStatus from './pages/CheckStatus';
 import HowToBook from './pages/HowToBook';
-import LiveChallenge from './pages/LiveChallenge';
 import AdminPanel from './pages/AdminPanel';
 import { versionManager } from './utils/versionManager';
 
@@ -23,7 +22,12 @@ function App() {
 
   useEffect(() => {
     const savedPage = localStorage.getItem('currentPage') || 'home';
-    setCurrentPage(savedPage);
+    if (savedPage === 'live') {
+      setCurrentPage('home');
+      localStorage.setItem('currentPage', 'home');
+    } else {
+      setCurrentPage(savedPage);
+    }
     versionManager.initialize();
   }, []);
 
@@ -55,8 +59,6 @@ function App() {
         return <CheckStatus onNavigate={navigateTo} />;
       case 'howto':
         return <HowToBook onNavigate={navigateTo} />;
-      case 'live':
-        return <LiveChallenge onNavigate={navigateTo} />;
       case 'admin':
         return <AdminPanel onNavigate={navigateTo} onLogout={() => { setIsAdmin(false); navigateTo('home'); }} />;
       default:

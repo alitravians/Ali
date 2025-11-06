@@ -1,5 +1,5 @@
 import { useLanguage } from '../contexts/LanguageContext';
-import { Trophy, FileText, Search, BookOpen, Tv, ArrowLeft, CheckCircle } from 'lucide-react';
+import { Trophy, FileText, Search, BookOpen, ArrowLeft, CheckCircle } from 'lucide-react';
 
 function HomePage({ onNavigate }) {
   const { t } = useLanguage();
@@ -32,13 +32,6 @@ function HomePage({ onNavigate }) {
       icon: BookOpen,
       description: 'تعرف على كيفية حجز التحديات',
       color: 'bg-purple-500 hover:bg-purple-600'
-    },
-    {
-      id: 'live',
-      title: t('liveChallenge'),
-      icon: Tv,
-      description: 'شاهد التحديات المباشرة',
-      color: 'bg-red-500 hover:bg-red-600'
     }
   ];
 
@@ -55,8 +48,8 @@ function HomePage({ onNavigate }) {
     },
     {
       number: '3',
-      title: 'شاهد التحدي',
-      description: 'تابع التحدي المباشر في الوقت المحدد'
+      title: 'استلم النتيجة',
+      description: 'تابع النتيجة النهائية من سجل التحديات'
     }
   ];
 
