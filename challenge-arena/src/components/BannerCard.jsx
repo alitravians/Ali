@@ -1,4 +1,8 @@
-function BannerCard({ challenge }) {
+import { useBannerSettings } from '../hooks/useBannerSettings';
+
+function BannerCard({ challenge, customLayout }) {
+  const { getChallengeLayout } = useBannerSettings();
+  
   const formatTime = (dateTime) => {
     const date = new Date(dateTime);
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -10,6 +14,17 @@ function BannerCard({ challenge }) {
   };
 
   const showScores = Number(challenge.score1 || 0) > 0 || Number(challenge.score2 || 0) > 0;
+  
+  const layout = customLayout || getChallengeLayout(challenge?.id)?.base || {
+    opponent1: { left: 30, top: 57.5, size: 29 },
+    opponent2: { left: 70, top: 57.5, size: 29 },
+    vs: { left: 50, top: 50, fontSize: 3 },
+    score: { left: 50, top: 62, show: true },
+    timeBadge: { left: 50, top: 96 },
+    nameAlign: 'center',
+    nameFontSize: 0.75,
+    description: { enabled: false, left: 50, top: 75, width: 60, align: 'center' }
+  };
 
   return (
     <div className="w-full mx-auto overflow-hidden shadow-2xl relative" style={{ maxWidth: '560px' }}>
@@ -26,7 +41,14 @@ function BannerCard({ challenge }) {
         }}
       >
 
-        <div className="absolute z-[5]" style={{ left: '30%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
+        <div className="absolute z-[5]" style={{ 
+          left: `${layout.opponent1.left}%`, 
+          top: `${layout.opponent1.top}%`, 
+          transform: 'translate(-50%, -50%)', 
+          width: `${layout.opponent1.size}%`, 
+          minWidth: '80px', 
+          maxWidth: '300px' 
+        }}>
           <div className="flex flex-col items-center gap-1">
             <div
               className="relative w-full rounded-full overflow-hidden ring-2 ring-orange-500 shadow-2xl"
@@ -41,9 +63,10 @@ function BannerCard({ challenge }) {
             >
               <span className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 14px rgba(0,0,0,0.25), 0 0 22px 6px rgba(251,146,60,0.35)' }} />
             </div>
-            <div className="text-center">
+            <div className="text-center" style={{ textAlign: layout.nameAlign }}>
               <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)',
+                fontSize: `${layout.nameFontSize}rem`
               }}>
                 {challenge.opponent1}
               </h3>
@@ -58,7 +81,14 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute z-[5]" style={{ left: '70%', top: '57.5%', transform: 'translate(-50%, -50%)', width: '29%', minWidth: '80px', maxWidth: '300px' }}>
+        <div className="absolute z-[5]" style={{ 
+          left: `${layout.opponent2.left}%`, 
+          top: `${layout.opponent2.top}%`, 
+          transform: 'translate(-50%, -50%)', 
+          width: `${layout.opponent2.size}%`, 
+          minWidth: '80px', 
+          maxWidth: '300px' 
+        }}>
           <div className="flex flex-col items-center gap-1">
             <div
               className="relative w-full rounded-full overflow-hidden ring-2 ring-blue-500 shadow-2xl"
@@ -73,9 +103,10 @@ function BannerCard({ challenge }) {
             >
               <span className="pointer-events-none absolute inset-0 rounded-full" style={{ boxShadow: 'inset 0 0 14px rgba(0,0,0,0.25), 0 0 22px 6px rgba(59,130,246,0.35)' }} />
             </div>
-            <div className="text-center">
+            <div className="text-center" style={{ textAlign: layout.nameAlign }}>
               <h3 className="text-xs sm:text-sm font-black text-white mb-0 drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]" style={{
-                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)'
+                textShadow: '0 0 10px rgba(255,255,255,0.8), 0 2px 4px rgba(0,0,0,0.8)',
+                fontSize: `${layout.nameFontSize}rem`
               }}>
                 {challenge.opponent2}
               </h3>
@@ -90,14 +121,19 @@ function BannerCard({ challenge }) {
           </div>
         </div>
 
-        <div className="absolute left-1/2 top-1/2 z-20 flex flex-col items-center gap-1" style={{ transform: 'translate(-50%, -50%)' }}>
-          <div className="relative text-3xl font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" style={{
+        <div className="absolute z-20 flex flex-col items-center gap-1" style={{ 
+          left: `${layout.vs.left}%`, 
+          top: `${layout.vs.top}%`, 
+          transform: 'translate(-50%, -50%)' 
+        }}>
+          <div className="relative font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.5)]" style={{
             WebkitTextStroke: '1px rgba(0,0,0,0.5)',
-            textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)'
+            textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(255,255,255,0.4)',
+            fontSize: `${layout.vs.fontSize}rem`
           }}>
             VS
           </div>
-          {!challenge.result && showScores && (
+          {!challenge.result && showScores && layout.score.show && (
             <div className="flex items-center gap-2 bg-slate-900/40 backdrop-blur-sm px-3 py-1 rounded-lg border border-white/20">
               <div className="text-center">
                 <div className="text-lg font-bold text-orange-400">
@@ -114,7 +150,11 @@ function BannerCard({ challenge }) {
           )}
         </div>
 
-        <div className="absolute bottom-[4%] left-1/2 z-20" style={{ transform: 'translateX(-50%)' }}>
+        <div className="absolute z-20" style={{ 
+          left: `${layout.timeBadge.left}%`, 
+          top: `${layout.timeBadge.top}%`, 
+          transform: 'translate(-50%, -50%)' 
+        }}>
           <div className="relative rounded-full p-[1px]" style={{
             background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.6) 0%, rgba(96, 165, 250, 0.6) 100%)'
           }}>
@@ -133,6 +173,20 @@ function BannerCard({ challenge }) {
             </div>
           </div>
         </div>
+
+        {layout.description?.enabled && challenge.description && (
+          <div className="absolute z-10" style={{
+            left: `${layout.description.left}%`,
+            top: `${layout.description.top}%`,
+            width: `${layout.description.width}%`,
+            transform: 'translateX(-50%)',
+            textAlign: layout.description.align
+          }}>
+            <p className="text-xs text-white font-semibold bg-black/50 backdrop-blur-sm px-3 py-2 rounded-lg">
+              {challenge.description}
+            </p>
+          </div>
+        )}
 
       </div>
 

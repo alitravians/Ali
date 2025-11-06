@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { database } from '../utils/firebase';
 import { ref, onValue, push, set, remove, update } from 'firebase/database';
-import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload, Sparkles, RefreshCw, Database } from 'lucide-react';
+import { ArrowLeft, Users, Image, Power, Trophy, X, Check, Edit, Trash2, Upload, Sparkles, RefreshCw, Database, Layout } from 'lucide-react';
 import { uploadImageToCloudinary } from '../utils/uploadImage';
 import BannerCard from '../components/BannerCard';
+import BannerLayoutEditor from '../components/BannerLayoutEditor';
+import { useBannerSettings } from '../hooks/useBannerSettings';
 import { versionManager } from '../utils/versionManager';
 
 function AdminPanel({ onNavigate, onLogout }) {
@@ -16,6 +18,14 @@ function AdminPanel({ onNavigate, onLogout }) {
   const [requests, setRequests] = useState([]);
   const [approvedChallenges, setApprovedChallenges] = useState([]);
   const [siteSettings, setSiteSettings] = useState({ isOpen: true, closureReason: '' });
+  
+  const { 
+    settings: bannerSettings, 
+    getActivePreset, 
+    setActivePreset, 
+    saveSettings: saveBannerSettings,
+    DEFAULT_PRESETS 
+  } = useBannerSettings();
 
   const [opponentForm, setOpponentForm] = useState({
     name1: '',
@@ -478,7 +488,7 @@ function AdminPanel({ onNavigate, onLogout }) {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <button
             onClick={() => setActiveTab('opponents')}
             className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
@@ -511,6 +521,17 @@ function AdminPanel({ onNavigate, onLogout }) {
           >
             <Trophy size={32} />
             <span className="text-center text-sm md:text-base">إدارة النتائج</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('bannerLayout')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'bannerLayout'
+                ? 'bg-gradient-to-br from-pink-600 to-rose-500 text-white shadow-pink-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Layout size={32} />
+            <span className="text-center text-sm md:text-base">تصميم البنر</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -903,6 +924,55 @@ function AdminPanel({ onNavigate, onLogout }) {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {activeTab === 'bannerLayout' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">تخصيص تصميم البنر</h2>
+            {bannerSettings ? (
+              <BannerLayoutEditor
+                initialLayout={getActivePreset()?.base || DEFAULT_PRESETS.default.base}
+                onSave={async (newLayout) => {
+                  const activePresetId = bannerSettings?.global?.activePresetId || 'default';
+                  const currentPreset = bannerSettings?.global?.presets?.[activePresetId] || DEFAULT_PRESETS.default;
+                  
+                  const updatedSettings = {
+                    ...bannerSettings,
+                    global: {
+                      ...bannerSettings.global,
+                      presets: {
+                        ...bannerSettings.global.presets,
+                        [activePresetId]: {
+                          ...currentPreset,
+                          base: newLayout
+                        }
+                      }
+                    }
+                  };
+                  
+                  const result = await saveBannerSettings(updatedSettings);
+                  if (result.success) {
+                    alert('✓ تم حفظ التصميم بنجاح!');
+                  } else {
+                    alert('خطأ في الحفظ: ' + result.error);
+                  }
+                }}
+                presets={bannerSettings?.global?.presets || DEFAULT_PRESETS}
+                activePresetId={bannerSettings?.global?.activePresetId || 'default'}
+                onPresetChange={async (presetId) => {
+                  const result = await setActivePreset(presetId);
+                  if (!result.success) {
+                    alert('خطأ في تغيير القالب: ' + result.error);
+                  }
+                }}
+                challenges={approvedChallenges}
+              />
+            ) : (
+              <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10 text-center">
+                <p className="text-white text-lg">جاري تحميل إعدادات البنر...</p>
+              </div>
+            )}
           </div>
         )}
 
