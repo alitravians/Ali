@@ -17,12 +17,6 @@ export default function Navbar() {
           
           <nav className="flex items-center gap-4">
             <Link 
-              to="/" 
-              className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-400 transition-colors font-medium"
-            >
-              {t('home')}
-            </Link>
-            <Link 
               to="/admin" 
               className="px-4 py-2 rounded-lg bg-blue-600 dark:bg-purple-600 hover:bg-blue-700 dark:hover:bg-purple-700 text-white transition-colors shadow-sm"
             >
