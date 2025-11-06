@@ -41,12 +41,6 @@ export default function Navbar() {
               {language === 'ar' ? 'القواعد' : 'Rules'}
             </Link>
             <Link 
-              to="/contact" 
-              className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-400 transition-colors font-medium"
-            >
-              {language === 'ar' ? 'تواصل' : 'Contact'}
-            </Link>
-            <Link 
               to="/updates" 
               className="text-slate-700 dark:text-slate-300 hover:text-blue-600 dark:hover:text-cyan-400 transition-colors font-medium"
             >

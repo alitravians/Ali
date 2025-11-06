@@ -1,119 +1,66 @@
+import { useState, useEffect } from 'react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { useThemeStore } from '../store/useThemeStore';
+import { database } from '../utils/firebase';
+import { ref, onValue } from 'firebase/database';
+import { Clock, Sparkles } from 'lucide-react';
 
 function Updates() {
-  const { language, t } = useLanguage();
-  const theme = useThemeStore((state) => state.theme);
+  const { language } = useLanguage();
+  const [updates, setUpdates] = useState([]);
 
-  const updates = [
-    {
-      date: '2025-11-06 03:20',
-      ar: [
-        'إعادة بناء المشروع على Vite + React + Tailwind',
-        'دعم كامل RTL + الوضع الليلي مع تذكر الحالة',
-        'إضافة React Router وصفحات: الرئيسية/البطولات/المتصدرون/القواعد/تواصل/الإدارة',
-        'لوحة إدارة مبسطة (إنشاء/تصفية/حذف/تغيير حالة البطولة) — تخزين على Firebase',
-        'تحسين SEO وPWA (manifest + service worker)',
-        'مكونات مشتركة (Navbar, Footer) وتصميم بطاقات وأزرار احترافي',
-        'دليل عربي شامل للتثبيت والربط مع Firebase',
-      ],
-      en: [
-        'Rebuilt project on Vite + React + Tailwind',
-        'Full RTL support + dark mode with state persistence',
-        'Added React Router and pages: Home/Tournaments/Leaderboard/Rules/Contact/Admin',
-        'Simplified admin panel (create/filter/delete/change tournament status) — Firebase storage',
-        'SEO and PWA improvements (manifest + service worker)',
-        'Shared components (Navbar, Footer) with professional card and button design',
-        'Comprehensive Arabic guide for installation and Firebase integration',
-      ]
-    }
-  ];
+  useEffect(() => {
+    const updatesRef = ref(database, 'updates');
+    const unsubscribe = onValue(updatesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        const updatesArray = Object.keys(data).map(key => ({
+          id: key,
+          ...data[key]
+        })).sort((a, b) => new Date(b.date) - new Date(a.date));
+        setUpdates(updatesArray);
+      } else {
+        setUpdates([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
 
   return (
-    <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950' : 'bg-white'}`}>
-      <div className="container mx-auto px-4 py-8">
-        <div className={`max-w-4xl mx-auto ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-          <h1 className={`text-4xl font-bold mb-8 text-center ${language === 'ar' ? 'font-arabic' : ''}`}>
-            {t('updatesTitle')}
-          </h1>
+    <section className="container mx-auto px-4 mt-10">
+      <div className="bg-white dark:bg-slate-800 rounded-xl shadow-lg p-6 border border-slate-200 dark:border-slate-700">
+        <div className="flex items-center gap-3 mb-6">
+          <Sparkles className="text-blue-600 dark:text-cyan-400" size={32} />
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-white">
+            {language === 'ar' ? 'سجل التحديثات' : 'Updates Log'}
+          </h2>
+        </div>
 
-          <div className="space-y-8">
-            {updates.map((update, index) => (
-              <div
-                key={index}
-                className={`rounded-lg p-6 shadow-lg ${
-                  theme === 'dark'
-                    ? 'bg-slate-900 border border-slate-800'
-                    : 'bg-white border border-slate-200'
-                }`}
-              >
-                <div className={`text-sm mb-4 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  {update.date}
+        {updates.length === 0 ? (
+          <p className="text-center text-slate-500 dark:text-slate-400 py-8">
+            {language === 'ar' ? 'لا توجد تحديثات حالياً' : 'No updates yet'}
+          </p>
+        ) : (
+          <div className="space-y-6">
+            {updates.map((update) => (
+              <div key={update.id} className="border-b border-slate-200 dark:border-slate-700 pb-6 last:border-0">
+                <div className="flex items-center gap-2 mb-3">
+                  <Clock size={16} className="text-blue-600 dark:text-cyan-400" />
+                  <span className="text-sm font-mono text-blue-600 dark:text-cyan-400">
+                    {update.date}
+                  </span>
                 </div>
-                <ul className={`space-y-3 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
-                  {(language === 'ar' ? update.ar : update.en).map((item, itemIndex) => (
-                    <li
-                      key={itemIndex}
-                      className={`flex items-start gap-3 ${language === 'ar' ? 'flex-row-reverse' : ''}`}
-                    >
-                      <span className={`flex-shrink-0 w-2 h-2 rounded-full mt-2 ${
-                        theme === 'dark' ? 'bg-cyan-500' : 'bg-blue-600'
-                      }`}></span>
-                      <span className={`flex-1 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                        {item}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <div className="bg-slate-50 dark:bg-slate-700 rounded-lg p-4 border border-slate-200 dark:border-slate-600">
+                  <p className="text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {language === 'ar' ? update.textAr : update.textEn}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
-
-          <div className={`mt-12 p-6 rounded-lg ${
-            theme === 'dark'
-              ? 'bg-gradient-to-r from-purple-900/20 to-cyan-900/20 border border-purple-500/30'
-              : 'bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200'
-          }`}>
-            <h2 className={`text-2xl font-bold mb-4 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
-              {language === 'ar' ? 'قادم قريباً' : 'Coming Soon'}
-            </h2>
-            <ul className={`space-y-2 ${language === 'ar' ? 'text-right' : 'text-left'}`}>
-              {language === 'ar' ? (
-                <>
-                  <li className="flex items-center gap-2 flex-row-reverse">
-                    <span>⏳</span>
-                    <span>تحسينات إضافية للأداء</span>
-                  </li>
-                  <li className="flex items-center gap-2 flex-row-reverse">
-                    <span>⏳</span>
-                    <span>ميزات جديدة للبطولات</span>
-                  </li>
-                  <li className="flex items-center gap-2 flex-row-reverse">
-                    <span>⏳</span>
-                    <span>نظام إشعارات متقدم</span>
-                  </li>
-                </>
-              ) : (
-                <>
-                  <li className="flex items-center gap-2">
-                    <span>⏳</span>
-                    <span>Additional performance improvements</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>⏳</span>
-                    <span>New tournament features</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <span>⏳</span>
-                    <span>Advanced notification system</span>
-                  </li>
-                </>
-              )}
-            </ul>
-          </div>
-        </div>
+        )}
       </div>
-    </div>
+    </section>
   );
 }
 

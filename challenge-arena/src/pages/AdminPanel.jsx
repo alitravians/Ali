@@ -79,6 +79,22 @@ function AdminPanel({ onNavigate, onLogout }) {
 
   const [editingChallenge, setEditingChallenge] = useState(null);
 
+  const [tournaments, setTournaments] = useState([]);
+  const [tournamentForm, setTournamentForm] = useState({ name: '', game: '', date: '', status: 'open' });
+  const [editingTournament, setEditingTournament] = useState(null);
+
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardForm, setLeaderboardForm] = useState({ name: '', points: '' });
+  const [editingPlayer, setEditingPlayer] = useState(null);
+
+  const [rules, setRules] = useState([]);
+  const [ruleForm, setRuleForm] = useState({ textAr: '', textEn: '', order: 0 });
+  const [editingRule, setEditingRule] = useState(null);
+
+  const [updates, setUpdates] = useState([]);
+  const [updateForm, setUpdateForm] = useState({ date: '', textAr: '', textEn: '' });
+  const [editingUpdate, setEditingUpdate] = useState(null);
+
   useEffect(() => {
     const savedAuth = sessionStorage.getItem('adminAuth');
     if (savedAuth === 'true') {
@@ -94,6 +110,10 @@ function AdminPanel({ onNavigate, onLogout }) {
     const challengesRef = ref(database, 'approvedChallenges');
     const settingsRef = ref(database, 'siteSettings');
     const maintenanceRef = ref(database, 'siteSettings/maintenance');
+    const tournamentsRef = ref(database, 'tournaments');
+    const leaderboardRef = ref(database, 'leaderboard');
+    const rulesRef = ref(database, 'rules');
+    const updatesRef = ref(database, 'updates');
 
     const unsubscribe1 = onValue(opponentsRef, (snapshot) => {
       if (snapshot.exists()) {
@@ -134,12 +154,52 @@ function AdminPanel({ onNavigate, onLogout }) {
       }
     });
 
+    const unsubscribe6 = onValue(tournamentsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setTournaments(Object.entries(data).map(([id, value]) => ({ id, ...value })));
+      } else {
+        setTournaments([]);
+      }
+    });
+
+    const unsubscribe7 = onValue(leaderboardRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setLeaderboard(Object.entries(data).map(([id, value]) => ({ id, ...value })).sort((a, b) => b.points - a.points));
+      } else {
+        setLeaderboard([]);
+      }
+    });
+
+    const unsubscribe8 = onValue(rulesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setRules(Object.entries(data).map(([id, value]) => ({ id, ...value })).sort((a, b) => a.order - b.order));
+      } else {
+        setRules([]);
+      }
+    });
+
+    const unsubscribe9 = onValue(updatesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        setUpdates(Object.entries(data).map(([id, value]) => ({ id, ...value })).sort((a, b) => new Date(b.date) - new Date(a.date)));
+      } else {
+        setUpdates([]);
+      }
+    });
+
     return () => {
       unsubscribe1();
       unsubscribe2();
       unsubscribe3();
       unsubscribe4();
       unsubscribe5();
+      unsubscribe6();
+      unsubscribe7();
+      unsubscribe8();
+      unsubscribe9();
     };
   }, [isAuthenticated]);
 
@@ -437,6 +497,158 @@ function AdminPanel({ onNavigate, onLogout }) {
     };
   };
 
+  const handleAddTournament = async (e) => {
+    e.preventDefault();
+    if (!tournamentForm.name) return;
+    
+    const tournamentsRef = ref(database, 'tournaments');
+    await push(tournamentsRef, {
+      name: tournamentForm.name,
+      game: tournamentForm.game,
+      date: tournamentForm.date,
+      status: tournamentForm.status,
+      createdAt: Date.now()
+    });
+    
+    setTournamentForm({ name: '', game: '', date: '', status: 'open' });
+    alert('تم إضافة البطولة بنجاح ✅');
+  };
+
+  const handleUpdateTournament = async () => {
+    if (!editingTournament) return;
+    
+    const tournamentRef = ref(database, `tournaments/${editingTournament.id}`);
+    await update(tournamentRef, {
+      name: editingTournament.name,
+      game: editingTournament.game,
+      date: editingTournament.date,
+      status: editingTournament.status
+    });
+    
+    setEditingTournament(null);
+    alert('تم تحديث البطولة بنجاح ✅');
+  };
+
+  const handleDeleteTournament = async (id) => {
+    if (confirm('هل أنت متأكد من حذف هذه البطولة؟')) {
+      const tournamentRef = ref(database, `tournaments/${id}`);
+      await remove(tournamentRef);
+      alert('تم حذف البطولة بنجاح ✅');
+    }
+  };
+
+  const handleAddPlayer = async (e) => {
+    e.preventDefault();
+    if (!leaderboardForm.name || !leaderboardForm.points) return;
+    
+    const playersRef = ref(database, 'leaderboard');
+    await push(playersRef, {
+      name: leaderboardForm.name,
+      points: parseInt(leaderboardForm.points),
+      createdAt: Date.now()
+    });
+    
+    setLeaderboardForm({ name: '', points: '' });
+    alert('تم إضافة اللاعب بنجاح ✅');
+  };
+
+  const handleUpdatePlayer = async () => {
+    if (!editingPlayer) return;
+    
+    const playerRef = ref(database, `leaderboard/${editingPlayer.id}`);
+    await update(playerRef, {
+      name: editingPlayer.name,
+      points: parseInt(editingPlayer.points)
+    });
+    
+    setEditingPlayer(null);
+    alert('تم تحديث اللاعب بنجاح ✅');
+  };
+
+  const handleDeletePlayer = async (id) => {
+    if (confirm('هل أنت متأكد من حذف هذا اللاعب؟')) {
+      const playerRef = ref(database, `leaderboard/${id}`);
+      await remove(playerRef);
+      alert('تم حذف اللاعب بنجاح ✅');
+    }
+  };
+
+  const handleAddRule = async (e) => {
+    e.preventDefault();
+    if (!ruleForm.textAr || !ruleForm.textEn) return;
+    
+    const rulesRef = ref(database, 'rules');
+    await push(rulesRef, {
+      textAr: ruleForm.textAr,
+      textEn: ruleForm.textEn,
+      order: parseInt(ruleForm.order) || rules.length,
+      createdAt: Date.now()
+    });
+    
+    setRuleForm({ textAr: '', textEn: '', order: 0 });
+    alert('تم إضافة القاعدة بنجاح ✅');
+  };
+
+  const handleUpdateRule = async () => {
+    if (!editingRule) return;
+    
+    const ruleRef = ref(database, `rules/${editingRule.id}`);
+    await update(ruleRef, {
+      textAr: editingRule.textAr,
+      textEn: editingRule.textEn,
+      order: parseInt(editingRule.order)
+    });
+    
+    setEditingRule(null);
+    alert('تم تحديث القاعدة بنجاح ✅');
+  };
+
+  const handleDeleteRule = async (id) => {
+    if (confirm('هل أنت متأكد من حذف هذه القاعدة؟')) {
+      const ruleRef = ref(database, `rules/${id}`);
+      await remove(ruleRef);
+      alert('تم حذف القاعدة بنجاح ✅');
+    }
+  };
+
+  const handleAddUpdate = async (e) => {
+    e.preventDefault();
+    if (!updateForm.date || !updateForm.textAr || !updateForm.textEn) return;
+    
+    const updatesRef = ref(database, 'updates');
+    await push(updatesRef, {
+      date: updateForm.date,
+      textAr: updateForm.textAr,
+      textEn: updateForm.textEn,
+      createdAt: Date.now()
+    });
+    
+    setUpdateForm({ date: '', textAr: '', textEn: '' });
+    alert('تم إضافة التحديث بنجاح ✅');
+  };
+
+  const handleUpdateUpdate = async () => {
+    if (!editingUpdate) return;
+    
+    const updateRef = ref(database, `updates/${editingUpdate.id}`);
+    await update(updateRef, {
+      date: editingUpdate.date,
+      textAr: editingUpdate.textAr,
+      textEn: editingUpdate.textEn
+    });
+    
+    setEditingUpdate(null);
+    alert('تم تحديث التحديث بنجاح ✅');
+  };
+
+  const handleDeleteUpdate = async (id) => {
+    if (confirm('هل أنت متأكد من حذف هذا التحديث؟')) {
+      const updateRef = ref(database, `updates/${id}`);
+      await remove(updateRef);
+      alert('تم حذف التحديث بنجاح ✅');
+    }
+  };
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-4 md:p-8">
@@ -518,7 +730,7 @@ function AdminPanel({ onNavigate, onLogout }) {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <button
             onClick={() => setActiveTab('opponents')}
             className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
@@ -562,6 +774,50 @@ function AdminPanel({ onNavigate, onLogout }) {
           >
             <Layout size={32} />
             <span className="text-center text-sm md:text-base">تعديل البنرات و اضافة بنرات جديدة</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('tournaments')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'tournaments'
+                ? 'bg-gradient-to-br from-yellow-600 to-yellow-500 text-white shadow-yellow-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Trophy size={32} />
+            <span className="text-center text-sm md:text-base">إدارة البطولات</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('leaderboard')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'leaderboard'
+                ? 'bg-gradient-to-br from-orange-600 to-orange-500 text-white shadow-orange-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Users size={32} />
+            <span className="text-center text-sm md:text-base">إدارة المتصدرين</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('rules')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'rules'
+                ? 'bg-gradient-to-br from-indigo-600 to-indigo-500 text-white shadow-indigo-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Database size={32} />
+            <span className="text-center text-sm md:text-base">إدارة القواعد</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('updates')}
+            className={`flex flex-col items-center gap-3 p-6 rounded-2xl font-bold transition-all transform hover:scale-105 shadow-lg ${
+              activeTab === 'updates'
+                ? 'bg-gradient-to-br from-teal-600 to-teal-500 text-white shadow-teal-500/50'
+                : 'bg-white/5 text-white hover:bg-white/10 border border-white/10 backdrop-blur-sm'
+            }`}
+          >
+            <Sparkles size={32} />
+            <span className="text-center text-sm md:text-base">إدارة التحديثات</span>
           </button>
           <button
             onClick={() => setActiveTab('settings')}
@@ -1012,6 +1268,486 @@ function AdminPanel({ onNavigate, onLogout }) {
                 <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-white/10 text-center">
                   <p className="text-white text-lg">جاري تحميل إعدادات البنر...</p>
                 </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tournaments' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">إدارة البطولات</h2>
+            
+            {editingTournament ? (
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">تعديل البطولة</h3>
+                <input
+                  type="text"
+                  placeholder="اسم البطولة"
+                  value={editingTournament.name}
+                  onChange={(e) => setEditingTournament({ ...editingTournament, name: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                />
+                <input
+                  type="text"
+                  placeholder="اسم اللعبة"
+                  value={editingTournament.game}
+                  onChange={(e) => setEditingTournament({ ...editingTournament, game: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                />
+                <input
+                  type="date"
+                  value={editingTournament.date}
+                  onChange={(e) => setEditingTournament({ ...editingTournament, date: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  dir="ltr"
+                />
+                <select
+                  value={editingTournament.status}
+                  onChange={(e) => setEditingTournament({ ...editingTournament, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  <option value="open">مفتوحة</option>
+                  <option value="upcoming">قادمة</option>
+                  <option value="closed">مغلقة</option>
+                </select>
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleUpdateTournament}
+                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    حفظ التعديلات
+                  </button>
+                  <button
+                    onClick={() => setEditingTournament(null)}
+                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddTournament} className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">إضافة بطولة جديدة</h3>
+                <input
+                  type="text"
+                  placeholder="اسم البطولة"
+                  value={tournamentForm.name}
+                  onChange={(e) => setTournamentForm({ ...tournamentForm, name: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                />
+                <input
+                  type="text"
+                  placeholder="اسم اللعبة"
+                  value={tournamentForm.game}
+                  onChange={(e) => setTournamentForm({ ...tournamentForm, game: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                />
+                <input
+                  type="date"
+                  value={tournamentForm.date}
+                  onChange={(e) => setTournamentForm({ ...tournamentForm, date: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                  dir="ltr"
+                />
+                <select
+                  value={tournamentForm.status}
+                  onChange={(e) => setTournamentForm({ ...tournamentForm, status: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                >
+                  <option value="open">مفتوحة</option>
+                  <option value="upcoming">قادمة</option>
+                  <option value="closed">مغلقة</option>
+                </select>
+                <button
+                  type="submit"
+                  className="w-full px-6 py-4 bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl font-bold transition-all"
+                >
+                  إضافة البطولة
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">البطولات الحالية ({tournaments.length})</h3>
+              {tournaments.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">لا توجد بطولات حالياً</p>
+              ) : (
+                tournaments.map((tournament) => (
+                  <div key={tournament.id} className="bg-slate-700 p-4 rounded-lg">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <p className="text-white font-bold text-lg">{tournament.name}</p>
+                        <p className="text-gray-400">{tournament.game}</p>
+                        <p className="text-gray-500 text-sm">{tournament.date}</p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        tournament.status === 'open' ? 'bg-green-600 text-white' :
+                        tournament.status === 'upcoming' ? 'bg-blue-600 text-white' :
+                        'bg-gray-600 text-white'
+                      }`}>
+                        {tournament.status === 'open' ? 'مفتوحة' : tournament.status === 'upcoming' ? 'قادمة' : 'مغلقة'}
+                      </span>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => setEditingTournament(tournament)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <Edit size={16} />
+                        تعديل
+                      </button>
+                      <button
+                        onClick={() => handleDeleteTournament(tournament.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'leaderboard' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">إدارة المتصدرين</h2>
+            
+            {editingPlayer ? (
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">تعديل اللاعب</h3>
+                <input
+                  type="text"
+                  placeholder="اسم اللاعب"
+                  value={editingPlayer.name}
+                  onChange={(e) => setEditingPlayer({ ...editingPlayer, name: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <input
+                  type="number"
+                  placeholder="النقاط"
+                  value={editingPlayer.points}
+                  onChange={(e) => setEditingPlayer({ ...editingPlayer, points: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleUpdatePlayer}
+                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    حفظ التعديلات
+                  </button>
+                  <button
+                    onClick={() => setEditingPlayer(null)}
+                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddPlayer} className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">إضافة لاعب جديد</h3>
+                <input
+                  type="text"
+                  placeholder="اسم اللاعب"
+                  value={leaderboardForm.name}
+                  onChange={(e) => setLeaderboardForm({ ...leaderboardForm, name: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <input
+                  type="number"
+                  placeholder="النقاط"
+                  value={leaderboardForm.points}
+                  onChange={(e) => setLeaderboardForm({ ...leaderboardForm, points: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <button
+                  type="submit"
+                  className="w-full px-6 py-4 bg-orange-600 hover:bg-orange-700 text-white rounded-xl font-bold transition-all"
+                >
+                  إضافة اللاعب
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">المتصدرون الحاليون ({leaderboard.length})</h3>
+              {leaderboard.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">لا يوجد متصدرون حالياً</p>
+              ) : (
+                leaderboard.map((player, index) => (
+                  <div key={player.id} className="bg-slate-700 p-4 rounded-lg">
+                    <div className="flex justify-between items-center mb-2">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
+                          index === 0 ? 'bg-gradient-to-r from-yellow-400 to-yellow-600' :
+                          index === 1 ? 'bg-gradient-to-r from-slate-300 to-slate-500' :
+                          index === 2 ? 'bg-gradient-to-r from-orange-400 to-orange-600' :
+                          'bg-slate-500'
+                        }`}>
+                          {index + 1}
+                        </div>
+                        <div>
+                          <p className="text-white font-bold text-lg">{player.name}</p>
+                          <p className="text-gray-400">{player.points} نقطة</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2 mt-4">
+                      <button
+                        onClick={() => setEditingPlayer(player)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <Edit size={16} />
+                        تعديل
+                      </button>
+                      <button
+                        onClick={() => handleDeletePlayer(player.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'rules' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">إدارة القواعد</h2>
+            
+            {editingRule ? (
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">تعديل القاعدة</h3>
+                <textarea
+                  placeholder="النص بالعربية"
+                  value={editingRule.textAr}
+                  onChange={(e) => setEditingRule({ ...editingRule, textAr: e.target.value })}
+                  rows="3"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <textarea
+                  placeholder="النص بالإنجليزية"
+                  value={editingRule.textEn}
+                  onChange={(e) => setEditingRule({ ...editingRule, textEn: e.target.value })}
+                  rows="3"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="number"
+                  placeholder="الترتيب"
+                  value={editingRule.order}
+                  onChange={(e) => setEditingRule({ ...editingRule, order: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleUpdateRule}
+                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    حفظ التعديلات
+                  </button>
+                  <button
+                    onClick={() => setEditingRule(null)}
+                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddRule} className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">إضافة قاعدة جديدة</h3>
+                <textarea
+                  placeholder="النص بالعربية"
+                  value={ruleForm.textAr}
+                  onChange={(e) => setRuleForm({ ...ruleForm, textAr: e.target.value })}
+                  required
+                  rows="3"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <textarea
+                  placeholder="النص بالإنجليزية"
+                  value={ruleForm.textEn}
+                  onChange={(e) => setRuleForm({ ...ruleForm, textEn: e.target.value })}
+                  required
+                  rows="3"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <input
+                  type="number"
+                  placeholder="الترتيب (اختياري)"
+                  value={ruleForm.order}
+                  onChange={(e) => setRuleForm({ ...ruleForm, order: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+                <button
+                  type="submit"
+                  className="w-full px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-all"
+                >
+                  إضافة القاعدة
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">القواعد الحالية ({rules.length})</h3>
+              {rules.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">لا توجد قواعد حالياً</p>
+              ) : (
+                rules.map((rule, index) => (
+                  <div key={rule.id} className="bg-slate-700 p-4 rounded-lg">
+                    <div className="flex items-start gap-4 mb-4">
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold flex-shrink-0">
+                        {index + 1}
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-white mb-2"><strong>عربي:</strong> {rule.textAr}</p>
+                        <p className="text-gray-300"><strong>English:</strong> {rule.textEn}</p>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingRule(rule)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <Edit size={16} />
+                        تعديل
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRule(rule.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'updates' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-white mb-6">إدارة التحديثات</h2>
+            
+            {editingUpdate ? (
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">تعديل التحديث</h3>
+                <input
+                  type="datetime-local"
+                  value={editingUpdate.date}
+                  onChange={(e) => setEditingUpdate({ ...editingUpdate, date: e.target.value })}
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  dir="ltr"
+                />
+                <textarea
+                  placeholder="النص بالعربية"
+                  value={editingUpdate.textAr}
+                  onChange={(e) => setEditingUpdate({ ...editingUpdate, textAr: e.target.value })}
+                  rows="4"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <textarea
+                  placeholder="النص بالإنجليزية"
+                  value={editingUpdate.textEn}
+                  onChange={(e) => setEditingUpdate({ ...editingUpdate, textEn: e.target.value })}
+                  rows="4"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <div className="flex gap-4">
+                  <button
+                    onClick={handleUpdateUpdate}
+                    className="flex-1 px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    حفظ التعديلات
+                  </button>
+                  <button
+                    onClick={() => setEditingUpdate(null)}
+                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-bold transition-all"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleAddUpdate} className="bg-white/5 p-6 rounded-xl border border-white/10 space-y-4">
+                <h3 className="text-xl font-bold text-white">إضافة تحديث جديد</h3>
+                <input
+                  type="datetime-local"
+                  value={updateForm.date}
+                  onChange={(e) => setUpdateForm({ ...updateForm, date: e.target.value })}
+                  required
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  dir="ltr"
+                />
+                <textarea
+                  placeholder="النص بالعربية"
+                  value={updateForm.textAr}
+                  onChange={(e) => setUpdateForm({ ...updateForm, textAr: e.target.value })}
+                  required
+                  rows="4"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <textarea
+                  placeholder="النص بالإنجليزية"
+                  value={updateForm.textEn}
+                  onChange={(e) => setUpdateForm({ ...updateForm, textEn: e.target.value })}
+                  required
+                  rows="4"
+                  className="w-full px-4 py-3 bg-white text-gray-800 border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+                <button
+                  type="submit"
+                  className="w-full px-6 py-4 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all"
+                >
+                  إضافة التحديث
+                </button>
+              </form>
+            )}
+
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">التحديثات الحالية ({updates.length})</h3>
+              {updates.length === 0 ? (
+                <p className="text-gray-400 text-center py-8">لا توجد تحديثات حالياً</p>
+              ) : (
+                updates.map((update) => (
+                  <div key={update.id} className="bg-slate-700 p-4 rounded-lg">
+                    <div className="mb-4">
+                      <p className="text-gray-400 text-sm mb-2">{update.date}</p>
+                      <p className="text-white mb-2"><strong>عربي:</strong> {update.textAr}</p>
+                      <p className="text-gray-300"><strong>English:</strong> {update.textEn}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditingUpdate(update)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                      >
+                        <Edit size={16} />
+                        تعديل
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUpdate(update.id)}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        حذف
+                      </button>
+                    </div>
+                  </div>
+                ))
               )}
             </div>
           </div>

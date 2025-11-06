@@ -1,5 +1,5 @@
 
-const CURRENT_VERSION = '2025.11.05.6';
+const CURRENT_VERSION = '2025.11.06.1';
 const VERSION_KEY = 'app_version';
 const LAST_CHECK_KEY = 'last_version_check';
 
