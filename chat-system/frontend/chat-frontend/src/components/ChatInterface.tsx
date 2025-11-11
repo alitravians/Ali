@@ -95,6 +95,12 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
         setMessages([]);
       } else if (data.type === 'new_announcement') {
         setAnnouncements(prev => [...prev, data.announcement]);
+      } else if (data.type === 'announcement_updated') {
+        setAnnouncements(prev => prev.map(ann => 
+          ann.id === data.announcement.id ? data.announcement : ann
+        ));
+      } else if (data.type === 'announcement_deleted') {
+        setAnnouncements(prev => prev.filter(ann => ann.id !== data.id));
       } else if (data.type === 'chat_settings_updated') {
         setChatSettings(data.settings);
       } else if (data.type === 'user_muted' && data.user_id === user.user_id) {
@@ -139,14 +145,8 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
     if (!newMessage.trim()) return;
 
     try {
-      let messageContent = newMessage;
-      
-      if (user.role === 'admin' && newMessage.startsWith('$')) {
-        messageContent = newMessage.substring(1);
-      }
-
       await axios.post(`${apiUrl}/api/messages`, {
-        content: messageContent,
+        content: newMessage,
         user_id: user.user_id,
         username: user.username,
         role: user.role
@@ -199,12 +199,10 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
   };
 
   const renderMessage = (msg: any) => {
-    const isAdminMessage = msg.role === 'admin' && msg.content.startsWith('$');
-    const messageContent = isAdminMessage ? msg.content.substring(1) : msg.content;
-    const messageClass = isAdminMessage ? 'admin-bold-message' : '';
+    const contentClass = msg.is_admin_bold ? 'admin-bold-text' : '';
 
     return (
-      <div key={msg.id} className={`message ${messageClass}`} onClick={() => handleReportMessage(msg.id)}>
+      <div key={msg.id} className="message" onClick={() => handleReportMessage(msg.id)}>
         <div className="message-header">
           <span className="username">
             {msg.username}
@@ -214,7 +212,7 @@ const ChatInterface = ({ user, language, apiUrl, onLogout, onGoToAdmin }: ChatIn
           </span>
           <span className="timestamp">{new Date(msg.timestamp).toLocaleTimeString()}</span>
         </div>
-        <div className="message-content">{messageContent}</div>
+        <div className={`message-content ${contentClass}`}>{msg.content}</div>
       </div>
     );
   };
