@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 interface LoginPageProps {
@@ -18,6 +18,30 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
   const [accessCode, setAccessCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loginSettings, setLoginSettings] = useState({
+    allow_registration: true,
+    app_name: 'Entertainment Chat',
+    background_type: 'color',
+    background_color: '#1a1a2e',
+    background_image_url: '',
+    background_size: 'cover',
+    background_position: 'center',
+    background_repeat: 'no-repeat',
+    overlay_color: '',
+    overlay_opacity: 0
+  });
+
+  useEffect(() => {
+    const fetchLoginSettings = async () => {
+      try {
+        const response = await axios.get(`${apiUrl}/api/login/settings`);
+        setLoginSettings(response.data.settings);
+      } catch (err) {
+        console.error('Failed to fetch login settings', err);
+      }
+    };
+    fetchLoginSettings();
+  }, [apiUrl]);
 
   const texts = {
     ar: {
@@ -65,6 +89,12 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
 
     try {
       if (mode === 'register') {
+        if (!loginSettings.allow_registration) {
+          setError(language === 'ar' ? 'التسجيل مغلق حالياً' : 'Registration is currently closed');
+          setLoading(false);
+          return;
+        }
+
         await axios.post(`${apiUrl}/api/register`, {
           username,
           password,
@@ -99,6 +129,8 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
         const banData = { ...err.response.data.detail, username };
         localStorage.setItem('banInfo', JSON.stringify(banData));
         onBanned(banData);
+      } else if (err.response?.status === 403) {
+        setError(language === 'ar' ? 'التسجيل مغلق حالياً' : 'Registration is currently closed');
       } else {
         setError(err.response?.data?.detail || 'Login failed');
       }
@@ -113,11 +145,38 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
     }
   };
 
+  const getBackgroundStyle = () => {
+    const style: React.CSSProperties = {};
+    
+    if (loginSettings.background_type === 'color') {
+      style.backgroundColor = loginSettings.background_color;
+    } else if (loginSettings.background_type === 'image' && loginSettings.background_image_url) {
+      style.backgroundImage = `url(${loginSettings.background_image_url})`;
+      style.backgroundSize = loginSettings.background_size;
+      style.backgroundPosition = loginSettings.background_position;
+      style.backgroundRepeat = loginSettings.background_repeat;
+    }
+    
+    return style;
+  };
+
   return (
-    <div className="login-page">
-      <div className="login-container">
+    <div className="login-page" style={getBackgroundStyle()}>
+      {loginSettings.background_type === 'image' && loginSettings.overlay_color && loginSettings.overlay_opacity && loginSettings.overlay_opacity > 0 && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: loginSettings.overlay_color,
+          opacity: loginSettings.overlay_opacity,
+          pointerEvents: 'none'
+        }} />
+      )}
+      <div className="login-container" style={{position: 'relative', zIndex: 1}}>
         <h1 className="login-title">
-          {mode === 'register' ? t.register : mode === 'admin' ? t.adminLogin : t.userLogin}
+          {loginSettings.app_name}
         </h1>
 
         <div className="mode-switcher">
@@ -133,12 +192,14 @@ const LoginPage = ({ onLogin, onBanned, language, apiUrl }: LoginPageProps) => {
           >
             {t.adminLogin}
           </button>
-          <button
-            className={mode === 'register' ? 'active' : ''}
-            onClick={() => setMode('register')}
-          >
-            {t.register}
-          </button>
+          {loginSettings.allow_registration && (
+            <button
+              className={mode === 'register' ? 'active' : ''}
+              onClick={() => setMode('register')}
+            >
+              {t.register}
+            </button>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">

@@ -103,6 +103,18 @@ class ChatSettings(BaseModel):
     is_open: bool
     close_message: str
 
+class LoginPageSettings(BaseModel):
+    allow_registration: bool
+    app_name: str
+    background_type: str  # 'color' or 'image'
+    background_color: str
+    background_image_url: Optional[str] = None
+    background_size: str  # 'cover', 'contain', 'auto'
+    background_position: str  # 'center', 'top', 'bottom', etc.
+    background_repeat: str  # 'no-repeat', 'repeat', 'repeat-x', 'repeat-y'
+    overlay_color: Optional[str] = None
+    overlay_opacity: Optional[float] = None
+
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode()).hexdigest()
 
@@ -125,6 +137,11 @@ async def healthz():
 
 @app.post("/api/register")
 async def register(user: UserRegister):
+    settings = settings_repo.get()
+    login_settings = settings.get("login_page", {})
+    if not login_settings.get("allow_registration", True):
+        raise HTTPException(status_code=403, detail="التسجيل مغلق حالياً / Registration is currently closed")
+    
     if users_repo.get_by_username(user.username):
         raise HTTPException(status_code=400, detail="Username already exists")
     
@@ -593,6 +610,29 @@ async def get_chat_settings():
     if not settings:
         settings = {"is_open": True, "close_message": ""}
     return {"settings": settings}
+
+@app.post("/api/admin/login/settings")
+async def update_login_settings(settings: LoginPageSettings):
+    settings_data = settings.dict()
+    settings_repo.update({"login_page": settings_data})
+    return {"message": "Login page settings updated successfully"}
+
+@app.get("/api/login/settings")
+async def get_login_settings():
+    settings = settings_repo.get()
+    login_settings = settings.get("login_page", {
+        "allow_registration": True,
+        "app_name": "Entertainment Chat",
+        "background_type": "color",
+        "background_color": "#1a1a2e",
+        "background_image_url": None,
+        "background_size": "cover",
+        "background_position": "center",
+        "background_repeat": "no-repeat",
+        "overlay_color": None,
+        "overlay_opacity": None
+    })
+    return {"settings": login_settings}
 
 @app.post("/api/files/upload")
 async def upload_file(file: UploadFile = File(...), user_id: str = ""):

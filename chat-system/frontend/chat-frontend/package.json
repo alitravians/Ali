@@ -7,9 +7,19 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "update-launcher-icon": "npx @capacitor/assets generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#000000' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#000000'",
+    "build-apk": "npm run build && npx cap sync android && cd android && export ANDROID_HOME=\"$HOME/android-sdk\" && export ANDROID_SDK_ROOT=\"$ANDROID_HOME\" && export PATH=\"$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH\" && ./gradlew assembleDebug && cd .. && cp android/app/build/outputs/apk/debug/app-debug.apk ../../entertainment-chat.apk && echo '\n✅ APK built successfully: entertainment-chat.apk'",
+    "build-apk:release": "npm run build && npx cap sync android && cd android && export ANDROID_HOME=\"$HOME/android-sdk\" && export ANDROID_SDK_ROOT=\"$ANDROID_HOME\" && export PATH=\"$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH\" && ./gradlew assembleRelease && cd .. && cp android/app/build/outputs/apk/release/app-release-unsigned.apk ../../entertainment-chat-release.apk && echo '\n✅ Release APK built successfully: entertainment-chat-release.apk'",
+    "sync-android": "npx cap sync android",
+    "open-android": "npx cap open android",
+    "clean-android": "cd android && export ANDROID_HOME=\"$HOME/android-sdk\" && export ANDROID_SDK_ROOT=\"$ANDROID_HOME\" && export PATH=\"$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH\" && ./gradlew clean && cd ..",
+    "deploy-web": "npm run build && echo '✅ Build complete. Ready to deploy to: https://chat-entertainment-app-23vd79xi.devinapps.com'"
   },
   "dependencies": {
+    "@capacitor/android": "^7.4.4",
+    "@capacitor/cli": "^7.4.4",
+    "@capacitor/core": "^7.4.4",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -61,6 +71,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@eslint/js": "^9.15.0",
     "@types/node": "^24.9.2",
     "@types/react": "^18.3.12",

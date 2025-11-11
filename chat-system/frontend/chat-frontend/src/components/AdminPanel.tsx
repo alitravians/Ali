@@ -45,6 +45,19 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
   const [reportSearchTerm, setReportSearchTerm] = useState('');
   const [showReportDetails, setShowReportDetails] = useState(false);
   const [banDurationForReport, setBanDurationForReport] = useState('30');
+  
+  const [loginSettings, setLoginSettings] = useState({
+    allow_registration: true,
+    app_name: 'Entertainment Chat',
+    background_type: 'color',
+    background_color: '#1a1a2e',
+    background_image_url: '',
+    background_size: 'cover',
+    background_position: 'center',
+    background_repeat: 'no-repeat',
+    overlay_color: '',
+    overlay_opacity: 0
+  });
 
   const texts = {
     ar: {
@@ -59,6 +72,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       chatSettings: 'إعدادات الدردشة',
       announcements: 'الإعلانات',
       aiScanner: 'الماسح الذكي',
+      loginPageSettings: 'إعدادات صفحة الدخول',
       backToChat: 'العودة للدردشة',
       logout: 'تسجيل الخروج',
       banUser: 'حظر مستخدم',
@@ -146,6 +160,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       chatSettings: 'Chat Settings',
       announcements: 'Announcements',
       aiScanner: 'AI Scanner',
+      loginPageSettings: 'Login Page Settings',
       backToChat: 'Back to Chat',
       logout: 'Logout',
       banUser: 'Ban User',
@@ -261,6 +276,9 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
       } else if (activeTab === 'announcements') {
         const response = await axios.get(`${apiUrl}/api/announcements`);
         setAnnouncements(response.data.announcements);
+      } else if (activeTab === 'loginPageSettings') {
+        const response = await axios.get(`${apiUrl}/api/login/settings`);
+        setLoginSettings(response.data.settings);
       }
     } catch (err) {
       console.error('Failed to load data', err);
@@ -520,6 +538,15 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
     }
   };
 
+  const handleUpdateLoginSettings = async () => {
+    try {
+      await axios.post(`${apiUrl}/api/admin/login/settings`, loginSettings);
+      alert(language === 'ar' ? 'تم تحديث إعدادات صفحة الدخول بنجاح' : 'Login page settings updated successfully');
+    } catch (err) {
+      alert(language === 'ar' ? 'فشل تحديث إعدادات صفحة الدخول' : 'Failed to update login page settings');
+    }
+  };
+
   return (
     <div className="admin-panel">
       <div className="admin-header">
@@ -540,6 +567,7 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
         <button className={activeTab === 'messages' ? 'active' : ''} onClick={() => setActiveTab('messages')}>{t.messages}</button>
         <button className={activeTab === 'chatSettings' ? 'active' : ''} onClick={() => setActiveTab('chatSettings')}>{t.chatSettings}</button>
         <button className={activeTab === 'announcements' ? 'active' : ''} onClick={() => setActiveTab('announcements')}>{t.announcements}</button>
+        <button className={activeTab === 'loginPageSettings' ? 'active' : ''} onClick={() => setActiveTab('loginPageSettings')}>{t.loginPageSettings}</button>
         <button className={activeTab === 'aiScanner' ? 'active' : ''} onClick={() => setActiveTab('aiScanner')}>{t.aiScanner}</button>
       </div>
 
@@ -1238,6 +1266,232 @@ const AdminPanel = ({ user, language, apiUrl, onLogout, onGoToChat }: AdminPanel
               <button className="btn-save-settings" onClick={handleUpdateChatSettings}>
                 <span className="btn-icon">💾</span>
                 {t.updateSettings}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'loginPageSettings' && (
+          <div className="chat-settings-section-enhanced">
+            <div className="settings-header">
+              <h3>🔐 {t.loginPageSettings}</h3>
+              <p className="settings-subtitle">{language === 'ar' ? 'إدارة إعدادات صفحة تسجيل الدخول والخلفية' : 'Manage login page and background settings'}</p>
+            </div>
+
+            <div className="settings-cards">
+              <div className="setting-card status-card">
+                <div className="card-header">
+                  <div className="card-icon">
+                    {loginSettings.allow_registration ? '✅' : '🚫'}
+                  </div>
+                  <div className="card-title">
+                    <h4>{language === 'ar' ? 'التسجيل للمستخدمين الجدد' : 'New User Registration'}</h4>
+                    <span className={`status-badge ${loginSettings.allow_registration ? 'open' : 'closed'}`}>
+                      {loginSettings.allow_registration ? (language === 'ar' ? 'مفتوح' : 'Open') : (language === 'ar' ? 'مغلق' : 'Closed')}
+                    </span>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <div className="toggle-container">
+                    <label className="toggle-switch">
+                      <input
+                        type="checkbox"
+                        checked={loginSettings.allow_registration}
+                        onChange={(e) => setLoginSettings({...loginSettings, allow_registration: e.target.checked})}
+                      />
+                      <span className="toggle-slider"></span>
+                    </label>
+                    <span className="toggle-label">
+                      {loginSettings.allow_registration ? (language === 'ar' ? 'السماح بتسجيل مستخدمين جدد' : 'Allow new user registration') : (language === 'ar' ? 'التسجيل مغلق حالياً' : 'Registration is closed')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="setting-card message-card">
+                <div className="card-header">
+                  <div className="card-icon">📱</div>
+                  <div className="card-title">
+                    <h4>{language === 'ar' ? 'اسم التطبيق' : 'App Name'}</h4>
+                    <span className="card-subtitle">{language === 'ar' ? 'الاسم الذي يظهر في صفحة الدخول' : 'Name displayed on login page'}</span>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <input
+                    type="text"
+                    className="close-message-input"
+                    placeholder={language === 'ar' ? 'مثال: Entertainment Chat' : 'Example: Entertainment Chat'}
+                    value={loginSettings.app_name}
+                    onChange={(e) => setLoginSettings({...loginSettings, app_name: e.target.value})}
+                  />
+                </div>
+              </div>
+
+              <div className="setting-card message-card">
+                <div className="card-header">
+                  <div className="card-icon">🎨</div>
+                  <div className="card-title">
+                    <h4>{language === 'ar' ? 'نوع الخلفية' : 'Background Type'}</h4>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <select
+                    className="close-message-input"
+                    value={loginSettings.background_type}
+                    onChange={(e) => setLoginSettings({...loginSettings, background_type: e.target.value})}
+                  >
+                    <option value="color">{language === 'ar' ? 'لون' : 'Color'}</option>
+                    <option value="image">{language === 'ar' ? 'صورة' : 'Image'}</option>
+                  </select>
+                </div>
+              </div>
+
+              {loginSettings.background_type === 'color' && (
+                <div className="setting-card message-card">
+                  <div className="card-header">
+                    <div className="card-icon">🎨</div>
+                    <div className="card-title">
+                      <h4>{language === 'ar' ? 'لون الخلفية' : 'Background Color'}</h4>
+                    </div>
+                  </div>
+                  <div className="card-body">
+                    <input
+                      type="color"
+                      className="close-message-input"
+                      value={loginSettings.background_color}
+                      onChange={(e) => setLoginSettings({...loginSettings, background_color: e.target.value})}
+                    />
+                    <input
+                      type="text"
+                      className="close-message-input"
+                      style={{marginTop: '10px'}}
+                      value={loginSettings.background_color}
+                      onChange={(e) => setLoginSettings({...loginSettings, background_color: e.target.value})}
+                      placeholder="#1a1a2e"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {loginSettings.background_type === 'image' && (
+                <>
+                  <div className="setting-card message-card">
+                    <div className="card-header">
+                      <div className="card-icon">🖼️</div>
+                      <div className="card-title">
+                        <h4>{language === 'ar' ? 'رابط صورة الخلفية' : 'Background Image URL'}</h4>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      <input
+                        type="text"
+                        className="close-message-input"
+                        placeholder="https://example.com/image.jpg"
+                        value={loginSettings.background_image_url}
+                        onChange={(e) => setLoginSettings({...loginSettings, background_image_url: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="setting-card message-card">
+                    <div className="card-header">
+                      <div className="card-icon">📐</div>
+                      <div className="card-title">
+                        <h4>{language === 'ar' ? 'حجم الخلفية' : 'Background Size'}</h4>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      <select
+                        className="close-message-input"
+                        value={loginSettings.background_size}
+                        onChange={(e) => setLoginSettings({...loginSettings, background_size: e.target.value})}
+                      >
+                        <option value="cover">{language === 'ar' ? 'تغطية كاملة' : 'Cover'}</option>
+                        <option value="contain">{language === 'ar' ? 'احتواء' : 'Contain'}</option>
+                        <option value="auto">{language === 'ar' ? 'تلقائي' : 'Auto'}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="setting-card message-card">
+                    <div className="card-header">
+                      <div className="card-icon">📍</div>
+                      <div className="card-title">
+                        <h4>{language === 'ar' ? 'موضع الخلفية' : 'Background Position'}</h4>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      <select
+                        className="close-message-input"
+                        value={loginSettings.background_position}
+                        onChange={(e) => setLoginSettings({...loginSettings, background_position: e.target.value})}
+                      >
+                        <option value="center">{language === 'ar' ? 'وسط' : 'Center'}</option>
+                        <option value="top">{language === 'ar' ? 'أعلى' : 'Top'}</option>
+                        <option value="bottom">{language === 'ar' ? 'أسفل' : 'Bottom'}</option>
+                        <option value="left">{language === 'ar' ? 'يسار' : 'Left'}</option>
+                        <option value="right">{language === 'ar' ? 'يمين' : 'Right'}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="setting-card message-card">
+                    <div className="card-header">
+                      <div className="card-icon">🔁</div>
+                      <div className="card-title">
+                        <h4>{language === 'ar' ? 'تكرار الخلفية' : 'Background Repeat'}</h4>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      <select
+                        className="close-message-input"
+                        value={loginSettings.background_repeat}
+                        onChange={(e) => setLoginSettings({...loginSettings, background_repeat: e.target.value})}
+                      >
+                        <option value="no-repeat">{language === 'ar' ? 'بدون تكرار' : 'No Repeat'}</option>
+                        <option value="repeat">{language === 'ar' ? 'تكرار' : 'Repeat'}</option>
+                        <option value="repeat-x">{language === 'ar' ? 'تكرار أفقي' : 'Repeat X'}</option>
+                        <option value="repeat-y">{language === 'ar' ? 'تكرار عمودي' : 'Repeat Y'}</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="setting-card message-card">
+                    <div className="card-header">
+                      <div className="card-icon">🌫️</div>
+                      <div className="card-title">
+                        <h4>{language === 'ar' ? 'طبقة شفافة' : 'Overlay'}</h4>
+                      </div>
+                    </div>
+                    <div className="card-body">
+                      <input
+                        type="color"
+                        className="close-message-input"
+                        value={loginSettings.overlay_color || '#000000'}
+                        onChange={(e) => setLoginSettings({...loginSettings, overlay_color: e.target.value})}
+                      />
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        style={{marginTop: '10px', width: '100%'}}
+                        value={loginSettings.overlay_opacity || 0}
+                        onChange={(e) => setLoginSettings({...loginSettings, overlay_opacity: parseFloat(e.target.value)})}
+                      />
+                      <span style={{fontSize: '12px', color: '#888'}}>
+                        {language === 'ar' ? 'الشفافية' : 'Opacity'}: {loginSettings.overlay_opacity || 0}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="settings-actions">
+              <button className="btn-save-settings" onClick={handleUpdateLoginSettings}>
+                <span className="btn-icon">💾</span>
+                {language === 'ar' ? 'حفظ الإعدادات' : 'Save Settings'}
               </button>
             </div>
           </div>
