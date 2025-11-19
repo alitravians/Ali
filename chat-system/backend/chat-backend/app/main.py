@@ -13,7 +13,8 @@ import bcrypt
 from dotenv import load_dotenv
 from .repositories import (
     users_repo, messages_repo, bans_repo, mutes_repo,
-    appeals_repo, reports_repo, files_repo, announcements_repo, settings_repo
+    appeals_repo, reports_repo, files_repo, announcements_repo, settings_repo,
+    audit_log_repo, private_messages_repo, notifications_repo, points_repo, rooms_repo
 )
 
 load_dotenv()
@@ -41,6 +42,10 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 ADMIN_CODE_HASH = os.getenv("ADMIN_CODE_HASH")
 if not ADMIN_CODE_HASH:
     raise RuntimeError("ADMIN_CODE_HASH must be set in environment variables")
+
+MODERATOR_CODE_HASH = os.getenv("MODERATOR_CODE_HASH")
+if not MODERATOR_CODE_HASH:
+    MODERATOR_CODE_HASH = bcrypt.hashpw("2121".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 class ConnectionManager:
     def __init__(self):
@@ -74,6 +79,10 @@ class UserLogin(BaseModel):
     password: Optional[str] = None
 
 class AdminLogin(BaseModel):
+    username: str
+    access_code: str
+
+class ModeratorLogin(BaseModel):
     username: str
     access_code: str
 
@@ -119,14 +128,39 @@ class ChatSettings(BaseModel):
 class LoginPageSettings(BaseModel):
     allow_registration: bool
     app_name: str
-    background_type: str  # 'color' or 'image'
+    background_type: str
     background_color: str
     background_image_url: Optional[str] = None
-    background_size: str  # 'cover', 'contain', 'auto'
-    background_position: str  # 'center', 'top', 'bottom', etc.
-    background_repeat: str  # 'no-repeat', 'repeat', 'repeat-x', 'repeat-y'
+    background_size: str
+    background_position: str
+    background_repeat: str
     overlay_color: Optional[str] = None
     overlay_opacity: Optional[float] = None
+
+class PrivateMessage(BaseModel):
+    receiver_id: str
+    content: str
+
+class Notification(BaseModel):
+    user_id: str
+    title: str
+    message: str
+    type: str
+
+class Room(BaseModel):
+    name: str
+    description: str
+    is_private: bool = False
+
+class RoomMessage(BaseModel):
+    room_id: str
+    content: str
+    user_id: str
+    username: str
+
+class SearchQuery(BaseModel):
+    query: str
+    room_id: Optional[str] = None
 
 def hash_password(password: str) -> str:
     """Hash password using bcrypt"""
@@ -254,6 +288,13 @@ async def admin_login(admin: AdminLogin):
         users_repo.update(admin.username, {"role": "admin"})
         stored_user["role"] = "admin"
     
+    audit_log_repo.create({
+        "action": "admin_login",
+        "user_id": stored_user["user_id"],
+        "username": admin.username,
+        "details": "Admin logged in"
+    })
+    
     token = create_access_token({"sub": admin.username, "role": "admin"})
     
     return {
@@ -263,6 +304,48 @@ async def admin_login(admin: AdminLogin):
             "username": stored_user["username"],
             "user_id": stored_user["user_id"],
             "role": "admin"
+        }
+    }
+
+@app.post("/api/moderator/login")
+async def moderator_login(moderator: ModeratorLogin):
+    if not bcrypt.checkpw(moderator.access_code.encode('utf-8'), MODERATOR_CODE_HASH.encode('utf-8')):
+        raise HTTPException(status_code=401, detail="Invalid access code")
+    
+    stored_user = users_repo.get_by_username(moderator.username)
+    if not stored_user:
+        user_id = generate_user_id()
+        user_data = {
+            "username": moderator.username,
+            "password": hash_password("moderator"),
+            "email": "moderator@chat.com",
+            "bigo_name": "Moderator",
+            "user_id": user_id,
+            "role": "moderator",
+            "created_at": datetime.utcnow().isoformat()
+        }
+        users_repo.create(moderator.username, user_data)
+        stored_user = user_data
+    else:
+        users_repo.update(moderator.username, {"role": "moderator"})
+        stored_user["role"] = "moderator"
+    
+    audit_log_repo.create({
+        "action": "moderator_login",
+        "user_id": stored_user["user_id"],
+        "username": moderator.username,
+        "details": "Moderator logged in"
+    })
+    
+    token = create_access_token({"sub": moderator.username, "role": "moderator"})
+    
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "user": {
+            "username": stored_user["username"],
+            "user_id": stored_user["user_id"],
+            "role": "moderator"
         }
     }
 
@@ -710,6 +793,245 @@ async def websocket_endpoint(websocket: WebSocket):
 async def get_users():
     all_users = users_repo.list_all()
     return {"users": [{"username": u["username"], "user_id": u["user_id"], "role": u["role"]} for u in all_users.values()]}
+
+@app.get("/api/audit-log")
+async def get_audit_log(limit: int = 100):
+    logs = audit_log_repo.list_all(limit=limit)
+    return {"logs": logs}
+
+@app.get("/api/private-messages/conversations")
+async def get_conversations(user_id: str):
+    conversations = private_messages_repo.list_conversations(user_id)
+    return {"conversations": conversations}
+
+@app.get("/api/private-messages/{user1_id}/{user2_id}")
+async def get_private_messages(user1_id: str, user2_id: str, limit: int = 50):
+    messages = private_messages_repo.list_by_conversation(user1_id, user2_id, limit=limit)
+    return {"messages": messages}
+
+@app.post("/api/private-messages")
+async def send_private_message(message: PrivateMessage, sender_id: str):
+    message_data = {
+        "sender_id": sender_id,
+        "receiver_id": message.receiver_id,
+        "content": message.content
+    }
+    message_id = private_messages_repo.create(message_data)
+    
+    notifications_repo.create({
+        "user_id": message.receiver_id,
+        "title": "رسالة خاصة جديدة",
+        "message": f"لديك رسالة خاصة جديدة",
+        "type": "private_message"
+    })
+    
+    points_repo.add_points(sender_id, 2, "sent_private_message")
+    
+    return {"message_id": message_id, "status": "sent"}
+
+@app.get("/api/notifications/{user_id}")
+async def get_notifications(user_id: str, limit: int = 50):
+    notifications = notifications_repo.list_by_user(user_id, limit=limit)
+    return {"notifications": notifications}
+
+@app.post("/api/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str):
+    notifications_repo.mark_as_read(notification_id)
+    return {"status": "marked_as_read"}
+
+@app.delete("/api/notifications/{notification_id}")
+async def delete_notification(notification_id: str):
+    notifications_repo.delete(notification_id)
+    return {"status": "deleted"}
+
+@app.get("/api/points/{user_id}")
+async def get_user_points(user_id: str):
+    points_data = points_repo.get(user_id)
+    return points_data
+
+@app.post("/api/points/{user_id}/add")
+async def add_points(user_id: str, points: int, reason: str):
+    points_repo.add_points(user_id, points, reason)
+    return {"status": "points_added"}
+
+@app.post("/api/points/{user_id}/badge")
+async def add_badge(user_id: str, badge: str):
+    points_repo.add_badge(user_id, badge)
+    return {"status": "badge_added"}
+
+@app.get("/api/rooms")
+async def get_rooms():
+    rooms = rooms_repo.list_all()
+    return {"rooms": rooms}
+
+@app.post("/api/rooms")
+async def create_room(room: Room, created_by: str):
+    room_data = {
+        "name": room.name,
+        "description": room.description,
+        "is_private": room.is_private,
+        "created_by": created_by
+    }
+    room_id = rooms_repo.create(room_data)
+    
+    audit_log_repo.create({
+        "action": "create_room",
+        "user_id": created_by,
+        "details": f"Created room: {room.name}"
+    })
+    
+    return {"room_id": room_id, "status": "created"}
+
+@app.get("/api/rooms/{room_id}")
+async def get_room(room_id: str):
+    room = rooms_repo.get(room_id)
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    return room
+
+@app.get("/api/rooms/{room_id}/messages")
+async def get_room_messages(room_id: str, limit: int = 50):
+    messages = rooms_repo.get_messages(room_id, limit=limit)
+    return {"messages": messages}
+
+@app.post("/api/rooms/{room_id}/messages")
+async def send_room_message(room_id: str, message: RoomMessage):
+    message_data = {
+        "content": message.content,
+        "user_id": message.user_id,
+        "username": message.username
+    }
+    message_id = rooms_repo.add_message(room_id, message_data)
+    
+    points_repo.add_points(message.user_id, 1, "sent_room_message")
+    
+    return {"message_id": message_id, "status": "sent"}
+
+@app.delete("/api/rooms/{room_id}")
+async def delete_room(room_id: str, deleted_by: str):
+    rooms_repo.delete(room_id)
+    
+    audit_log_repo.create({
+        "action": "delete_room",
+        "user_id": deleted_by,
+        "details": f"Deleted room: {room_id}"
+    })
+    
+    return {"status": "deleted"}
+
+@app.post("/api/messages/search")
+async def search_messages(query: SearchQuery):
+    all_messages = messages_repo.list_all()
+    
+    if query.room_id:
+        all_messages = rooms_repo.get_messages(query.room_id)
+    
+    filtered_messages = [
+        msg for msg in all_messages 
+        if query.query.lower() in msg.get('content', '').lower()
+    ]
+    
+    return {"messages": filtered_messages, "count": len(filtered_messages)}
+
+@app.get("/api/messages/paginated")
+async def get_messages_paginated(page: int = 1, limit: int = 50):
+    all_messages = messages_repo.list_all()
+    start_idx = (page - 1) * limit
+    end_idx = start_idx + limit
+    
+    paginated_messages = all_messages[start_idx:end_idx]
+    total_pages = (len(all_messages) + limit - 1) // limit
+    
+    return {
+        "messages": paginated_messages,
+        "page": page,
+        "limit": limit,
+        "total": len(all_messages),
+        "total_pages": total_pages
+    }
+
+@app.get("/api/admin/statistics")
+async def get_admin_statistics():
+    all_users = users_repo.list_all()
+    all_messages = messages_repo.list_all()
+    all_bans = bans_repo.list_all()
+    all_mutes = mutes_repo.list_all()
+    all_reports = reports_repo.list_all()
+    all_appeals = appeals_repo.list_all()
+    
+    return {
+        "total_users": len(all_users),
+        "total_messages": len(all_messages),
+        "active_bans": len(all_bans),
+        "active_mutes": len(all_mutes),
+        "pending_reports": len([r for r in all_reports if r.get('status') == 'pending']),
+        "pending_appeals": len([a for a in all_appeals if a.get('status') == 'pending'])
+    }
+
+@app.get("/api/export/users")
+async def export_users():
+    all_users = users_repo.list_all()
+    return {"users": list(all_users.values()), "format": "json"}
+
+@app.get("/api/export/messages")
+async def export_messages():
+    all_messages = messages_repo.list_all()
+    return {"messages": all_messages, "format": "json"}
+
+@app.get("/api/export/audit-log")
+async def export_audit_log():
+    logs = audit_log_repo.list_all()
+    return {"logs": logs, "format": "json"}
+
+@app.get("/api/settings/theme")
+async def get_theme_settings():
+    theme = firebase_db.get("settings/theme")
+    if not theme:
+        return {"theme": "light", "primary_color": "#1976d2", "secondary_color": "#dc004e"}
+    return theme
+
+@app.post("/api/settings/theme")
+async def update_theme_settings(theme: str, primary_color: str = "#1976d2", secondary_color: str = "#dc004e"):
+    theme_data = {
+        "theme": theme,
+        "primary_color": primary_color,
+        "secondary_color": secondary_color
+    }
+    firebase_db.update("settings/theme", theme_data)
+    return {"status": "updated", "theme": theme_data}
+
+@app.get("/api/emojis")
+async def get_emojis():
+    return {
+        "emojis": [
+            {"name": "smile", "emoji": "😊", "category": "faces"},
+            {"name": "laugh", "emoji": "😂", "category": "faces"},
+            {"name": "heart", "emoji": "❤️", "category": "symbols"},
+            {"name": "fire", "emoji": "🔥", "category": "symbols"},
+            {"name": "thumbs_up", "emoji": "👍", "category": "gestures"},
+            {"name": "clap", "emoji": "👏", "category": "gestures"},
+            {"name": "star", "emoji": "⭐", "category": "symbols"},
+            {"name": "check", "emoji": "✅", "category": "symbols"}
+        ]
+    }
+
+@app.get("/api/stickers")
+async def get_stickers():
+    stickers = firebase_db.get("stickers")
+    if not stickers:
+        return {"stickers": []}
+    return {"stickers": list(stickers.values())}
+
+@app.post("/api/stickers")
+async def add_sticker(name: str, url: str, category: str = "general"):
+    sticker_data = {
+        "name": name,
+        "url": url,
+        "category": category,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    sticker_id = firebase_db.push("stickers", sticker_data)
+    return {"sticker_id": sticker_id, "status": "added"}
 
 import asyncio
 import traceback
