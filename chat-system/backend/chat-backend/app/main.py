@@ -6,28 +6,41 @@ from datetime import datetime, timedelta, timezone
 import json
 import uuid
 import hashlib
+import re
 from jose import JWTError, jwt
 import os
+import bcrypt
+from dotenv import load_dotenv
 from .repositories import (
     users_repo, messages_repo, bans_repo, mutes_repo,
     appeals_repo, reports_repo, files_repo, announcements_repo, settings_repo
 )
 
+load_dotenv()
+
 app = FastAPI()
 
-# Disable CORS. Do not remove this for full-stack development.
+ALLOWED_ORIGINS = [origin.strip() for origin in os.getenv("ALLOWED_ORIGINS", "").split(",") if origin.strip()]
+if not ALLOWED_ORIGINS:
+    raise RuntimeError("ALLOWED_ORIGINS must be set in environment variables")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
-import os
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "your-secret-key-change-in-production")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY must be set in environment variables")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+ADMIN_CODE_HASH = os.getenv("ADMIN_CODE_HASH")
+if not ADMIN_CODE_HASH:
+    raise RuntimeError("ADMIN_CODE_HASH must be set in environment variables")
 
 class ConnectionManager:
     def __init__(self):
@@ -116,10 +129,21 @@ class LoginPageSettings(BaseModel):
     overlay_opacity: Optional[float] = None
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode()).hexdigest()
+    """Hash password using bcrypt"""
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+    """Verify password with bcrypt, fallback to SHA-256 for legacy passwords"""
+    if hashed_password.startswith('$2'):
+        try:
+            return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+        except:
+            return False
+    elif re.fullmatch(r'[a-f0-9]{64}', hashed_password):
+        return hashlib.sha256(plain_password.encode()).hexdigest() == hashed_password
+    else:
+        return False
 
 def create_access_token(data: dict):
     to_encode = data.copy()
@@ -190,6 +214,11 @@ async def login(user: UserLogin):
     if user.password and not verify_password(user.password, stored_user["password"]):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
+    if user.password and re.fullmatch(r'[a-f0-9]{64}', stored_user["password"]):
+        new_hash = hash_password(user.password)
+        stored_user["password"] = new_hash
+        users_repo.update(user.username, {"password": new_hash})
+    
     token = create_access_token({"sub": user.username, "role": stored_user["role"]})
     
     return {
@@ -204,7 +233,7 @@ async def login(user: UserLogin):
 
 @app.post("/api/admin/login")
 async def admin_login(admin: AdminLogin):
-    if admin.access_code != "3131":
+    if not bcrypt.checkpw(admin.access_code.encode('utf-8'), ADMIN_CODE_HASH.encode('utf-8')):
         raise HTTPException(status_code=401, detail="Invalid access code")
     
     stored_user = users_repo.get_by_username(admin.username)
