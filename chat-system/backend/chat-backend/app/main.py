@@ -1,5 +1,6 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Depends, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta, timezone
@@ -16,6 +17,7 @@ from .repositories import (
     appeals_repo, reports_repo, files_repo, announcements_repo, settings_repo,
     audit_log_repo, private_messages_repo, notifications_repo, points_repo, rooms_repo
 )
+from .firebase_config import firebase_db
 
 load_dotenv()
 
@@ -46,6 +48,39 @@ if not ADMIN_CODE_HASH:
 MODERATOR_CODE_HASH = os.getenv("MODERATOR_CODE_HASH")
 if not MODERATOR_CODE_HASH:
     MODERATOR_CODE_HASH = bcrypt.hashpw("2121".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token", auto_error=False)
+
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> Dict:
+    """Get current authenticated user from JWT token"""
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        
+        user = users_repo.get_by_username(username)
+        if user is None:
+            raise HTTPException(status_code=401, detail="User not found")
+        
+        return user
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+async def require_admin(current_user: Dict = Depends(get_current_user)) -> Dict:
+    """Require admin role"""
+    if current_user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+
+async def require_moderator_or_admin(current_user: Dict = Depends(get_current_user)) -> Dict:
+    """Require moderator or admin role"""
+    if current_user.get("role") not in ["admin", "moderator"]:
+        raise HTTPException(status_code=403, detail="Moderator or admin access required")
+    return current_user
 
 class ConnectionManager:
     def __init__(self):
@@ -273,14 +308,16 @@ async def admin_login(admin: AdminLogin):
     stored_user = users_repo.get_by_username(admin.username)
     if not stored_user:
         user_id = generate_user_id()
+        random_password = str(uuid.uuid4())
         user_data = {
             "username": admin.username,
-            "password": hash_password("admin"),
+            "password": hash_password(random_password),
             "email": "admin@chat.com",
             "bigo_name": "Admin",
             "user_id": user_id,
             "role": "admin",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "is_system_account": True
         }
         users_repo.create(admin.username, user_data)
         stored_user = user_data
@@ -315,14 +352,16 @@ async def moderator_login(moderator: ModeratorLogin):
     stored_user = users_repo.get_by_username(moderator.username)
     if not stored_user:
         user_id = generate_user_id()
+        random_password = str(uuid.uuid4())
         user_data = {
             "username": moderator.username,
-            "password": hash_password("moderator"),
+            "password": hash_password(random_password),
             "email": "moderator@chat.com",
             "bigo_name": "Moderator",
             "user_id": user_id,
             "role": "moderator",
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "is_system_account": True
         }
         users_repo.create(moderator.username, user_data)
         stored_user = user_data
@@ -537,18 +576,50 @@ async def get_reports():
     return {"reports": reports_repo.list_all()}
 
 @app.post("/api/admin/reports/{report_id}/resolve")
-async def resolve_report(report_id: str):
+async def resolve_report(report_id: str, current_user: Dict = Depends(require_moderator_or_admin)):
     report = reports_repo.get(report_id)
     if report:
         reports_repo.update(report_id, {"status": "resolved", "resolved_at": datetime.utcnow().isoformat()})
+        
+        audit_log_repo.create({
+            "action": "resolve_report",
+            "user_id": current_user["user_id"],
+            "username": current_user["username"],
+            "details": f"Resolved report {report_id}"
+        })
+        
+        if report.get("reported_by"):
+            notifications_repo.create({
+                "user_id": report["reported_by"],
+                "title": "تم حل البلاغ",
+                "message": "تم حل البلاغ الذي قدمته",
+                "type": "report_resolved"
+            })
+        
         return {"message": "Report resolved"}
     raise HTTPException(status_code=404, detail="Report not found")
 
 @app.post("/api/admin/reports/{report_id}/reject")
-async def reject_report(report_id: str):
+async def reject_report(report_id: str, current_user: Dict = Depends(require_moderator_or_admin)):
     report = reports_repo.get(report_id)
     if report:
         reports_repo.update(report_id, {"status": "rejected", "resolved_at": datetime.utcnow().isoformat()})
+        
+        audit_log_repo.create({
+            "action": "reject_report",
+            "user_id": current_user["user_id"],
+            "username": current_user["username"],
+            "details": f"Rejected report {report_id}"
+        })
+        
+        if report.get("reported_by"):
+            notifications_repo.create({
+                "user_id": report["reported_by"],
+                "title": "تم رفض البلاغ",
+                "message": "تم رفض البلاغ الذي قدمته",
+                "type": "report_rejected"
+            })
+        
         return {"message": "Report rejected"}
     raise HTTPException(status_code=404, detail="Report not found")
 
@@ -790,29 +861,31 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 @app.get("/api/users")
-async def get_users():
+async def get_users(current_user: Dict = Depends(require_admin)):
     all_users = users_repo.list_all()
     return {"users": [{"username": u["username"], "user_id": u["user_id"], "role": u["role"]} for u in all_users.values()]}
 
 @app.get("/api/audit-log")
-async def get_audit_log(limit: int = 100):
+async def get_audit_log(limit: int = 100, current_user: Dict = Depends(require_admin)):
     logs = audit_log_repo.list_all(limit=limit)
     return {"logs": logs}
 
 @app.get("/api/private-messages/conversations")
-async def get_conversations(user_id: str):
-    conversations = private_messages_repo.list_conversations(user_id)
+async def get_conversations(current_user: Dict = Depends(get_current_user)):
+    conversations = private_messages_repo.list_conversations(current_user["user_id"])
     return {"conversations": conversations}
 
 @app.get("/api/private-messages/{user1_id}/{user2_id}")
-async def get_private_messages(user1_id: str, user2_id: str, limit: int = 50):
+async def get_private_messages(user1_id: str, user2_id: str, limit: int = 50, current_user: Dict = Depends(get_current_user)):
+    if current_user["user_id"] not in [user1_id, user2_id]:
+        raise HTTPException(status_code=403, detail="Access denied")
     messages = private_messages_repo.list_by_conversation(user1_id, user2_id, limit=limit)
     return {"messages": messages}
 
 @app.post("/api/private-messages")
-async def send_private_message(message: PrivateMessage, sender_id: str):
+async def send_private_message(message: PrivateMessage, current_user: Dict = Depends(get_current_user)):
     message_data = {
-        "sender_id": sender_id,
+        "sender_id": current_user["user_id"],
         "receiver_id": message.receiver_id,
         "content": message.content
     }
@@ -825,38 +898,54 @@ async def send_private_message(message: PrivateMessage, sender_id: str):
         "type": "private_message"
     })
     
-    points_repo.add_points(sender_id, 2, "sent_private_message")
+    points_repo.add_points(current_user["user_id"], 2, "sent_private_message")
     
     return {"message_id": message_id, "status": "sent"}
 
-@app.get("/api/notifications/{user_id}")
-async def get_notifications(user_id: str, limit: int = 50):
-    notifications = notifications_repo.list_by_user(user_id, limit=limit)
+@app.get("/api/notifications")
+async def get_notifications(limit: int = 50, current_user: Dict = Depends(get_current_user)):
+    notifications = notifications_repo.list_by_user(current_user["user_id"], limit=limit)
     return {"notifications": notifications}
 
 @app.post("/api/notifications/{notification_id}/read")
-async def mark_notification_read(notification_id: str):
+async def mark_notification_read(notification_id: str, current_user: Dict = Depends(get_current_user)):
     notifications_repo.mark_as_read(notification_id)
     return {"status": "marked_as_read"}
 
 @app.delete("/api/notifications/{notification_id}")
-async def delete_notification(notification_id: str):
+async def delete_notification(notification_id: str, current_user: Dict = Depends(get_current_user)):
     notifications_repo.delete(notification_id)
     return {"status": "deleted"}
 
 @app.get("/api/points/{user_id}")
-async def get_user_points(user_id: str):
+async def get_user_points(user_id: str, current_user: Dict = Depends(get_current_user)):
     points_data = points_repo.get(user_id)
     return points_data
 
 @app.post("/api/points/{user_id}/add")
-async def add_points(user_id: str, points: int, reason: str):
+async def add_points(user_id: str, points: int, reason: str, current_user: Dict = Depends(require_admin)):
     points_repo.add_points(user_id, points, reason)
+    
+    audit_log_repo.create({
+        "action": "add_points",
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
+        "details": f"Added {points} points to user {user_id} for {reason}"
+    })
+    
     return {"status": "points_added"}
 
 @app.post("/api/points/{user_id}/badge")
-async def add_badge(user_id: str, badge: str):
+async def add_badge(user_id: str, badge: str, current_user: Dict = Depends(require_admin)):
     points_repo.add_badge(user_id, badge)
+    
+    audit_log_repo.create({
+        "action": "add_badge",
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
+        "details": f"Added badge '{badge}' to user {user_id}"
+    })
+    
     return {"status": "badge_added"}
 
 @app.get("/api/rooms")
@@ -865,18 +954,19 @@ async def get_rooms():
     return {"rooms": rooms}
 
 @app.post("/api/rooms")
-async def create_room(room: Room, created_by: str):
+async def create_room(room: Room, current_user: Dict = Depends(require_moderator_or_admin)):
     room_data = {
         "name": room.name,
         "description": room.description,
         "is_private": room.is_private,
-        "created_by": created_by
+        "created_by": current_user["user_id"]
     }
     room_id = rooms_repo.create(room_data)
     
     audit_log_repo.create({
         "action": "create_room",
-        "user_id": created_by,
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
         "details": f"Created room: {room.name}"
     })
     
@@ -908,12 +998,13 @@ async def send_room_message(room_id: str, message: RoomMessage):
     return {"message_id": message_id, "status": "sent"}
 
 @app.delete("/api/rooms/{room_id}")
-async def delete_room(room_id: str, deleted_by: str):
+async def delete_room(room_id: str, current_user: Dict = Depends(require_moderator_or_admin)):
     rooms_repo.delete(room_id)
     
     audit_log_repo.create({
         "action": "delete_room",
-        "user_id": deleted_by,
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
         "details": f"Deleted room: {room_id}"
     })
     
@@ -951,7 +1042,7 @@ async def get_messages_paginated(page: int = 1, limit: int = 50):
     }
 
 @app.get("/api/admin/statistics")
-async def get_admin_statistics():
+async def get_admin_statistics(current_user: Dict = Depends(require_admin)):
     all_users = users_repo.list_all()
     all_messages = messages_repo.list_all()
     all_bans = bans_repo.list_all()
@@ -969,17 +1060,21 @@ async def get_admin_statistics():
     }
 
 @app.get("/api/export/users")
-async def export_users():
+async def export_users(current_user: Dict = Depends(require_admin)):
     all_users = users_repo.list_all()
-    return {"users": list(all_users.values()), "format": "json"}
+    users_safe = [
+        {k: v for k, v in u.items() if k not in ["password"]}
+        for u in all_users.values()
+    ]
+    return {"users": users_safe, "format": "json"}
 
 @app.get("/api/export/messages")
-async def export_messages():
+async def export_messages(current_user: Dict = Depends(require_admin)):
     all_messages = messages_repo.list_all()
     return {"messages": all_messages, "format": "json"}
 
 @app.get("/api/export/audit-log")
-async def export_audit_log():
+async def export_audit_log(current_user: Dict = Depends(require_admin)):
     logs = audit_log_repo.list_all()
     return {"logs": logs, "format": "json"}
 
@@ -991,13 +1086,21 @@ async def get_theme_settings():
     return theme
 
 @app.post("/api/settings/theme")
-async def update_theme_settings(theme: str, primary_color: str = "#1976d2", secondary_color: str = "#dc004e"):
+async def update_theme_settings(theme: str, primary_color: str = "#1976d2", secondary_color: str = "#dc004e", current_user: Dict = Depends(require_admin)):
     theme_data = {
         "theme": theme,
         "primary_color": primary_color,
         "secondary_color": secondary_color
     }
     firebase_db.update("settings/theme", theme_data)
+    
+    audit_log_repo.create({
+        "action": "update_theme",
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
+        "details": f"Updated theme to {theme}"
+    })
+    
     return {"status": "updated", "theme": theme_data}
 
 @app.get("/api/emojis")
@@ -1023,7 +1126,7 @@ async def get_stickers():
     return {"stickers": list(stickers.values())}
 
 @app.post("/api/stickers")
-async def add_sticker(name: str, url: str, category: str = "general"):
+async def add_sticker(name: str, url: str, category: str = "general", current_user: Dict = Depends(require_admin)):
     sticker_data = {
         "name": name,
         "url": url,
@@ -1031,6 +1134,14 @@ async def add_sticker(name: str, url: str, category: str = "general"):
         "created_at": datetime.utcnow().isoformat()
     }
     sticker_id = firebase_db.push("stickers", sticker_data)
+    
+    audit_log_repo.create({
+        "action": "add_sticker",
+        "user_id": current_user["user_id"],
+        "username": current_user["username"],
+        "details": f"Added sticker: {name}"
+    })
+    
     return {"sticker_id": sticker_id, "status": "added"}
 
 import asyncio
