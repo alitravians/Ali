@@ -530,7 +530,7 @@ function IncidentsManagement() {
     }
   };
 
-  const handleCreateIncident = async (incident: { title_ar: string; title_en: string; stage: string; affected_services: string[] }) => {
+  const handleCreateIncident = async (incident: { title_ar: string; title_en: string; stage: string; affected_services: string[]; message_ar: string; message_en: string }) => {
     try {
       await api.admin.createIncident(incident);
       await loadData();
@@ -644,7 +644,7 @@ function IncidentsManagement() {
 
 function IncidentForm({ services, onSave, onCancel }: {
   services: Service[];
-  onSave: (incident: { title_ar: string; title_en: string; stage: string; affected_services: string[] }) => void;
+  onSave: (incident: { title_ar: string; title_en: string; stage: string; affected_services: string[]; message_ar: string; message_en: string }) => void;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
@@ -653,6 +653,8 @@ function IncidentForm({ services, onSave, onCancel }: {
     title_en: '',
     stage: IncidentStage.INVESTIGATING,
     affected_services: [] as string[],
+    message_ar: '',
+    message_en: '',
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -721,6 +723,29 @@ function IncidentForm({ services, onSave, onCancel }: {
                 <Label htmlFor={`service-${service.id}`}>{service.name_en}</Label>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="message_en">{t('message_en')}</Label>
+            <textarea
+              id="message_en"
+              className="w-full px-3 py-2 border rounded-md min-h-[100px]"
+              value={formData.message_en}
+              onChange={(e) => setFormData({ ...formData, message_en: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="message_ar">{t('message_ar')}</Label>
+            <textarea
+              id="message_ar"
+              className="w-full px-3 py-2 border rounded-md min-h-[100px]"
+              value={formData.message_ar}
+              onChange={(e) => setFormData({ ...formData, message_ar: e.target.value })}
+              required
+            />
           </div>
         </div>
 

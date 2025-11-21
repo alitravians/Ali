@@ -121,7 +121,7 @@ export const api = {
     getIncidents: () => 
       fetchApi<Incident[]>('/api/admin/incidents'),
     
-    createIncident: (incident: { title_ar: string; title_en: string; stage: string; affected_services: string[] }) => 
+    createIncident: (incident: { title_ar: string; title_en: string; stage: string; affected_services: string[]; message_ar: string; message_en: string }) => 
       fetchApi<Incident>('/api/admin/incidents', {
         method: 'POST',
         body: JSON.stringify(incident),
