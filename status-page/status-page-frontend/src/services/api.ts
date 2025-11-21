@@ -27,22 +27,37 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
-    credentials: 'include',
     headers: headersObj,
   });
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    const text = await response.text();
     let errorMessage = 'Request failed';
     
-    if (error.detail) {
-      if (Array.isArray(error.detail)) {
-        errorMessage = error.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
-      } else if (typeof error.detail === 'object') {
-        errorMessage = JSON.stringify(error.detail);
+    try {
+      const error = JSON.parse(text);
+      
+      if (Array.isArray(error)) {
+        errorMessage = error.map((d: any) => d.msg || d.message || JSON.stringify(d)).join('; ');
+      } else if (error && typeof error === 'object') {
+        if (error.detail) {
+          if (Array.isArray(error.detail)) {
+            errorMessage = error.detail.map((d: any) => d.msg || d.message || JSON.stringify(d)).join('; ');
+          } else if (typeof error.detail === 'object') {
+            errorMessage = JSON.stringify(error.detail);
+          } else {
+            errorMessage = String(error.detail);
+          }
+        } else if (error.message) {
+          errorMessage = String(error.message);
+        } else {
+          errorMessage = JSON.stringify(error);
+        }
       } else {
-        errorMessage = error.detail;
+        errorMessage = String(error);
       }
+    } catch {
+      errorMessage = text || response.statusText || 'Request failed';
     }
     
     throw new ApiError(response.status, errorMessage);
