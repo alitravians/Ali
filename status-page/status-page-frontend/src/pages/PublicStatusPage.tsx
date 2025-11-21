@@ -162,6 +162,76 @@ export default function PublicStatusPage() {
 
   const siteName = i18n.language === 'ar' ? data.settings.site_name_ar : data.settings.site_name_en;
 
+  if (data.settings.maintenance_mode) {
+    const maintenanceMessage = i18n.language === 'ar' 
+      ? data.settings.maintenance_message_ar 
+      : data.settings.maintenance_message_en;
+
+    return (
+      <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+        {/* Animated background with cycling colors */}
+        <div 
+          className="absolute inset-0 animate-gradient"
+          style={{
+            background: 'linear-gradient(45deg, #667eea 0%, #764ba2 20%, #f093fb 40%, #4facfe 60%, #00f2fe 80%, #667eea 100%)',
+            backgroundSize: '400% 400%',
+            animation: 'gradient 10s ease infinite'
+          }}
+        />
+        
+        <style>{`
+          @keyframes gradient {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+          }
+        `}</style>
+
+        {/* Language toggle button - positioned at top right */}
+        <div className="absolute top-6 right-6 z-20">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLanguage}
+            className="flex items-center gap-2 bg-white/90 hover:bg-white"
+          >
+            <Globe className="w-4 h-4" />
+            {i18n.language === 'ar' ? 'English' : 'العربية'}
+          </Button>
+        </div>
+
+        {/* Maintenance message popup frame */}
+        <div className="relative z-10 max-w-2xl mx-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 md:p-12 text-center transform hover:scale-105 transition-transform duration-300">
+            <div className="mb-6">
+              <div className="w-20 h-20 mx-auto bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                {i18n.language === 'ar' ? 'الموقع تحت الصيانة' : 'Site Under Maintenance'}
+              </h1>
+            </div>
+            
+            {maintenanceMessage && (
+              <p className="text-lg md:text-xl text-gray-700 mb-8 leading-relaxed">
+                {maintenanceMessage}
+              </p>
+            )}
+            
+            <Link to="/admin/login">
+              <Button size="lg" className="flex items-center gap-2 mx-auto">
+                <Shield className="w-5 h-5" />
+                {i18n.language === 'ar' ? 'إدارة الموقع' : 'Site Management'}
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm">

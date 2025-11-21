@@ -10,28 +10,42 @@ export class ApiError extends Error {
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = {
-    ...options?.headers,
+  const headers: HeadersInit = {
+    ...(options?.headers as Record<string, string>),
   };
 
+  const headersObj = headers as Record<string, string>;
+
   if (options?.body) {
-    headers['Content-Type'] = 'application/json';
+    headersObj['Content-Type'] = 'application/json';
   }
 
   const token = localStorage.getItem('adminToken');
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headersObj['Authorization'] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     credentials: 'include',
-    headers,
+    headers: headersObj,
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
-    throw new ApiError(response.status, error.detail || 'Request failed');
+    let errorMessage = 'Request failed';
+    
+    if (error.detail) {
+      if (Array.isArray(error.detail)) {
+        errorMessage = error.detail.map((d: any) => d.msg || JSON.stringify(d)).join('; ');
+      } else if (typeof error.detail === 'object') {
+        errorMessage = JSON.stringify(error.detail);
+      } else {
+        errorMessage = error.detail;
+      }
+    }
+    
+    throw new ApiError(response.status, errorMessage);
   }
 
   return response.json();
