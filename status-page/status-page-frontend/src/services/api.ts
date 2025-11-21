@@ -10,13 +10,23 @@ export class ApiError extends Error {
 }
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    ...options?.headers,
+  };
+
+  if (options?.body) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const token = localStorage.getItem('adminToken');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const response = await fetch(`${API_URL}${endpoint}`, {
     ...options,
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -38,16 +48,23 @@ export const api = {
   },
   
   admin: {
-    login: (code: string) => 
-      fetchApi<{ message: string }>('/api/admin/auth/login', {
+    login: async (code: string) => {
+      const response = await fetchApi<{ success: boolean; message: string; token: string }>('/api/admin/auth/login', {
         method: 'POST',
         body: JSON.stringify({ code }),
-      }),
+      });
+      if (response.token) {
+        localStorage.setItem('adminToken', response.token);
+      }
+      return response;
+    },
     
-    logout: () => 
-      fetchApi<{ message: string }>('/api/admin/auth/logout', {
+    logout: async () => {
+      localStorage.removeItem('adminToken');
+      return fetchApi<{ message: string }>('/api/admin/auth/logout', {
         method: 'POST',
-      }),
+      });
+    },
     
     verify: () => 
       fetchApi<{ authenticated: boolean }>('/api/admin/auth/verify'),

@@ -114,6 +114,7 @@ class LoginRequest(BaseModel):
 class LoginResponse(BaseModel):
     success: bool
     message: str
+    token: str
 
 
 class ServiceCreateRequest(BaseModel):

@@ -2,7 +2,7 @@ import os
 import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional
-from fastapi import HTTPException, status, Cookie, Response
+from fastapi import HTTPException, status, Cookie, Response, Header
 from jose import JWTError, jwt
 
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
@@ -39,15 +39,25 @@ def verify_token(token: str) -> dict:
         )
 
 
-def get_current_admin(session_token: Optional[str] = Cookie(None)):
-    """Dependency to verify admin authentication"""
-    if not session_token:
+def get_current_admin(
+    session_token: Optional[str] = Cookie(None),
+    authorization: Optional[str] = Header(None)
+):
+    """Dependency to verify admin authentication via cookie or Authorization header"""
+    token = None
+    
+    if authorization and authorization.lower().startswith("bearer "):
+        token = authorization.split(" ", 1)[1]
+    elif session_token:
+        token = session_token
+    
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
         )
     
-    payload = verify_token(session_token)
+    payload = verify_token(token)
     if not payload.get("admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

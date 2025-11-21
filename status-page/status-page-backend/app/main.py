@@ -276,7 +276,7 @@ async def admin_login(
     db.add(audit_log)
     await db.commit()
     
-    return LoginResponse(success=True, message="Login successful")
+    return LoginResponse(success=True, message="Login successful", token=token)
 
 
 @app.post("/api/admin/auth/logout")
