@@ -54,21 +54,40 @@ function App() {
       const interval = setInterval(async () => {
         try {
           const response = await fetch(`${API_URL}/api/task-status/${taskId}`)
-          const data = await response.json()
-          setTaskStatus(data)
           
-          if (data.status === 'completed') {
+          if (!response.ok) {
+            console.error('Failed to fetch task status', response.status)
+            setError('حدث خطأ أثناء متابعة حالة البوتات')
+            setLoading(false)
+            clearInterval(interval)
+            return
+          }
+
+          const raw = await response.json()
+          const normalized: TaskStatus = {
+            task_id: raw.task_id,
+            status: raw.status,
+            bots_sent: raw.bots_sent ?? 0,
+            total_bots: raw.total_bots ?? botCount,
+            messages_sent: raw.messages_sent ?? []
+          }
+
+          setTaskStatus(normalized)
+          
+          if (normalized.status === 'completed') {
             setLoading(false)
             fetchStats()
           }
         } catch (err) {
           console.error('Error fetching task status:', err)
+          setError('حدث خطأ أثناء متابعة حالة البوتات')
+          setLoading(false)
         }
       }, 2000)
 
       return () => clearInterval(interval)
     }
-  }, [taskId, taskStatus?.status])
+  }, [taskId, taskStatus?.status, botCount])
 
   const fetchStats = async () => {
     try {
@@ -306,7 +325,7 @@ function App() {
                 <div className="text-center text-2xl font-bold text-white">{Math.round(progress)}%</div>
               </div>
 
-              {taskStatus.messages_sent.length > 0 && (
+              {taskStatus.messages_sent?.length > 0 && (
                 <div className="space-y-2 max-h-64 overflow-y-auto">
                   <h4 className="text-sm font-medium text-slate-300">آخر الرسائل المرسلة:</h4>
                   {taskStatus.messages_sent.slice(-5).reverse().map((msg, index) => (
