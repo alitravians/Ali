@@ -6,10 +6,10 @@ import { useCart } from '../../contexts/CartContext';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import { useCoupons } from '../../contexts/CouponContext';
 import { useSiteSettings } from '../../contexts/SiteSettingsContext';
-import { ref, push, set } from 'firebase/database';
+import { ref, push, set, update } from 'firebase/database';
 import { database } from '../../firebase/config';
 
-type OrderStatus = 'idle' | 'processing' | 'success' | 'error';
+type OrderStatus = 'idle' | 'processing' | 'success' | 'error' | 'paypal_pending';
 
 const CheckoutPage: React.FC = () => {
     const { t, i18n } = useTranslation();
@@ -167,85 +167,207 @@ const CheckoutPage: React.FC = () => {
         }
       };
 
-    // PayPal Order Handler
-    const handlePayPalOrder = async () => {
-      if (!robloxUsername || !email) {
-        alert(i18n.language === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields');
-        return;
-      }
+        // PayPal Order Handler
+        const handlePayPalOrder = async () => {
+          if (!robloxUsername || !email) {
+            alert(i18n.language === 'ar' ? 'يرجى ملء جميع الحقول' : 'Please fill all fields');
+            return;
+          }
 
-      if (!settings?.paypalBusinessEmail) {
-        alert(i18n.language === 'ar' ? 'الدفع بـ PayPal غير متاح حالياً' : 'PayPal payment is not available');
-        return;
-      }
+          if (!settings?.paypalBusinessEmail) {
+            alert(i18n.language === 'ar' ? 'الدفع بـ PayPal غير متاح حالياً' : 'PayPal payment is not available');
+            return;
+          }
 
-      setOrderStatus('processing');
-      try {
-        // Create order in Firebase with PayPal payment method
-        const ordersRef = ref(database, 'orders');
-        const newOrderRef = push(ordersRef);
+          setOrderStatus('processing');
+          try {
+            // Create order in Firebase with PayPal payment method
+            const ordersRef = ref(database, 'orders');
+            const newOrderRef = push(ordersRef);
       
-        const order = {
-          items: items.map(item => ({
-            id: item.id,
-            name_en: item.name_en,
-            name_ar: item.name_ar,
-            price: item.price,
-            quantity: item.quantity,
-            image: item.image,
-            gamePassUrl: item.gamePassUrl || null
-          })),
-          subtotal: total,
-          discount: appliedCoupon?.discount || 0,
-          couponCode: appliedCoupon?.code || null,
-          couponId: appliedCoupon?.couponId || null,
-          total: finalTotal,
-          paymentMethod: 'paypal',
-          paypalDetails: {
-            businessEmail: settings.paypalBusinessEmail,
-            businessName: settings.paypalBusinessName || '',
-            currency: settings.paypalCurrency || 'USD',
-            amount: finalTotal
-          },
-          customerInfo: {
-            robloxUsername,
-            robloxId: customer?.robloxId || '',
-            email,
-            customerId: customer?.id || ''
-          },
-          proofImage: null, // No proof needed for PayPal
-          proofImageName: null,
-          status: 'pending_payment', // Waiting for PayPal payment
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+            const order = {
+              items: items.map(item => ({
+                id: item.id,
+                name_en: item.name_en,
+                name_ar: item.name_ar,
+                price: item.price,
+                quantity: item.quantity,
+                image: item.image,
+                gamePassUrl: item.gamePassUrl || null
+              })),
+              subtotal: total,
+              discount: appliedCoupon?.discount || 0,
+              couponCode: appliedCoupon?.code || null,
+              couponId: appliedCoupon?.couponId || null,
+              total: finalTotal,
+              paymentMethod: 'paypal',
+              paypalDetails: {
+                businessEmail: settings.paypalBusinessEmail,
+                businessName: settings.paypalBusinessName || '',
+                currency: settings.paypalCurrency || 'USD',
+                amount: finalTotal
+              },
+              customerInfo: {
+                robloxUsername,
+                robloxId: customer?.robloxId || '',
+                email,
+                customerId: customer?.id || ''
+              },
+              proofImage: null, // No proof needed for PayPal
+              proofImageName: null,
+              status: 'pending_payment', // Waiting for PayPal payment
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+
+            await set(newOrderRef, order);
+            setOrderId(newOrderRef.key);
+      
+            // Store PayPal payment details for the pending payment screen
+            setPaypalInvoiceUrl(settings.paypalBusinessEmail);
+      
+            // Apply coupon usage if one was used
+            if (appliedCoupon) {
+              await applyCoupon(appliedCoupon.couponId);
+            }
+      
+            // Show PayPal pending payment screen instead of success
+            // Don't clear cart until payment is confirmed
+            setOrderStatus('paypal_pending');
+          } catch (error) {
+            console.error('Error creating PayPal order:', error);
+            setOrderStatus('error');
+          }
         };
+    
+                // Mark PayPal order as payment submitted (awaiting verification)
+                const handlePayPalPaymentSubmitted = async () => {
+                  if (!orderId) return;
+      
+                  try {
+                    const orderRef = ref(database, `orders/${orderId}`);
+                    await update(orderRef, {
+                      status: 'awaiting_verification',
+                      updatedAt: new Date().toISOString()
+                    });
+        
+                    // Now clear cart and show success
+                    clearCart();
+                    setOrderStatus('success');
+                  } catch (error) {
+                    console.error('Error updating order status:', error);
+                  }
+                };
 
-        await set(newOrderRef, order);
-        setOrderId(newOrderRef.key);
-      
-        // Generate PayPal.me link for direct payment
-        const paypalMeUrl = `https://www.paypal.com/paypalme/${settings.paypalBusinessEmail?.split('@')[0]}/${finalTotal.toFixed(2)}${settings.paypalCurrency || 'USD'}`;
-        setPaypalInvoiceUrl(paypalMeUrl);
-      
-        // Apply coupon usage if one was used
-        if (appliedCoupon) {
-          await applyCoupon(appliedCoupon.couponId);
-        }
-      
-        setOrderStatus('success');
-        clearCart();
-      } catch (error) {
-        console.error('Error creating PayPal order:', error);
-        setOrderStatus('error');
+    if (items.length === 0 && orderStatus !== 'success' && orderStatus !== 'paypal_pending') {
+      navigate('/cart');
+      return null;
+    }
+
+      // PayPal Pending Payment Screen
+      if (orderStatus === 'paypal_pending') {
+        return (
+          <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-lg p-8 max-w-lg w-full">
+              <div className="text-center mb-6">
+                <CreditCard size={60} className="mx-auto text-blue-500 mb-4" />
+                <h2 className="text-2xl font-bold text-gray-800 mb-2">
+                  {i18n.language === 'ar' ? 'أكمل الدفع عبر PayPal' : 'Complete PayPal Payment'}
+                </h2>
+                <p className="text-gray-600">
+                  {i18n.language === 'ar' 
+                    ? `رقم الطلب: ${orderId}` 
+                    : `Order ID: ${orderId}`}
+                </p>
+              </div>
+
+              {/* Payment Amount */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex justify-between items-center">
+                  <span className="text-blue-800 font-medium">
+                    {i18n.language === 'ar' ? 'المبلغ المطلوب:' : 'Amount Due:'}
+                  </span>
+                  <span className="text-2xl font-bold text-blue-600">
+                    ${finalTotal.toFixed(2)} {settings?.paypalCurrency || 'USD'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Payment Instructions */}
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                <h3 className="font-bold text-yellow-800 mb-3">
+                  {i18n.language === 'ar' ? '📋 تعليمات الدفع:' : '📋 Payment Instructions:'}
+                </h3>
+                <ol className="text-yellow-700 text-sm space-y-2 list-decimal list-inside">
+                  <li>
+                    {i18n.language === 'ar' 
+                      ? `أرسل المبلغ إلى: ${paypalInvoiceUrl}` 
+                      : `Send payment to: ${paypalInvoiceUrl}`}
+                  </li>
+                  <li>
+                    {i18n.language === 'ar' 
+                      ? `اكتب رقم الطلب في ملاحظات الدفع: ${orderId}` 
+                      : `Include order ID in payment note: ${orderId}`}
+                  </li>
+                  <li>
+                    {i18n.language === 'ar' 
+                      ? 'بعد إتمام الدفع، اضغط على "لقد أتممت الدفع"' 
+                      : 'After payment, click "I have completed payment"'}
+                  </li>
+                </ol>
+              </div>
+
+              {/* PayPal Send Money Link */}
+              <a
+                href={`https://www.paypal.com/paypalme/${settings?.paypalBusinessEmail?.split('@')[0] || ''}/${finalTotal.toFixed(2)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full bg-blue-600 text-white py-4 rounded-lg font-bold text-center hover:bg-blue-700 transition-colors mb-4"
+              >
+                {i18n.language === 'ar' ? '💳 ادفع الآن عبر PayPal' : '💳 Pay Now via PayPal'}
+              </a>
+
+              {/* Alternative: Copy Email */}
+              <div className="text-center mb-4">
+                <p className="text-gray-500 text-sm mb-2">
+                  {i18n.language === 'ar' ? 'أو أرسل الدفع يدوياً إلى:' : 'Or send payment manually to:'}
+                </p>
+                <div className="bg-gray-100 rounded-lg p-3 flex items-center justify-center gap-2">
+                  <span className="font-mono text-gray-800">{paypalInvoiceUrl}</span>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(paypalInvoiceUrl || '');
+                      alert(i18n.language === 'ar' ? 'تم نسخ البريد الإلكتروني!' : 'Email copied!');
+                    }}
+                    className="text-blue-600 hover:text-blue-800"
+                  >
+                    📋
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Payment Button */}
+              <button
+                onClick={handlePayPalPaymentSubmitted}
+                className="w-full bg-green-600 text-white py-4 rounded-lg font-bold hover:bg-green-700 transition-colors mb-4"
+              >
+                {i18n.language === 'ar' ? '✅ لقد أتممت الدفع' : '✅ I have completed payment'}
+              </button>
+
+              {/* Warning */}
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                <p className="text-red-700 text-sm text-center">
+                  {i18n.language === 'ar' 
+                    ? '⚠️ لا تضغط على "لقد أتممت الدفع" إلا بعد إرسال المبلغ فعلياً. سيتم التحقق من الدفع قبل تسليم الطلب.'
+                    : '⚠️ Only click "I have completed payment" after actually sending the payment. Payment will be verified before order delivery.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        );
       }
-    };
 
-  if (items.length === 0 && orderStatus !== 'success') {
-    navigate('/cart');
-    return null;
-  }
-
-    if (orderStatus === 'success') {
+      if (orderStatus === 'success') {
       return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="bg-white rounded-xl shadow-lg p-8 max-w-md text-center">
