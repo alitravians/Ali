@@ -154,18 +154,12 @@ const NotificationDropdown: React.FC = () => {
               )}
             </div>
 
-            {/* Footer */}
+            {/* Footer - Show count if more than 10 notifications */}
             {notifications.length > 10 && (
               <div className="p-2 border-t border-gray-200 bg-gray-50 text-center">
-                <button
-                  onClick={() => {
-                    navigate('/customer/notifications');
-                    setIsOpen(false);
-                  }}
-                  className="text-sm text-purple-600 hover:text-purple-800"
-                >
-                  {isArabic ? 'عرض جميع الإشعارات' : 'View all notifications'}
-                </button>
+                <span className="text-sm text-gray-500">
+                  {isArabic ? `لديك ${notifications.length} إشعار` : `You have ${notifications.length} notifications`}
+                </span>
               </div>
             )}
           </div>
