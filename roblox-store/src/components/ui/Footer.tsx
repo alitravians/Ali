@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Zap, Shield, Clock, Ticket, FileText, Truck, Users, HelpCircle } from 'lucide-react';
+import { Zap, Shield, Clock, Ticket, FileText, Truck, Users, HelpCircle, Code } from 'lucide-react';
+import { useSiteSettings } from '../../contexts/SiteSettingsContext';
 
 const Footer: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const { settings } = useSiteSettings();
   const currentYear = new Date().getFullYear();
   const isArabic = i18n.language === 'ar';
 
@@ -136,21 +138,54 @@ const Footer: React.FC = () => {
         </div>
       </div>
 
-      {/* Copyright */}
-      <div className="container mx-auto px-4 py-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
-              <span className="text-lg">🎮</span>
+          {/* Copyright */}
+          <div className="container mx-auto px-4 py-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center">
+                  <span className="text-lg">🎮</span>
+                </div>
+                <span className="font-bold">{t('store.name')}</span>
+              </div>
+              <p className="text-gray-400 text-sm">
+                © {currentYear} {t('store.name')}. {t('footer.rights')}
+              </p>
             </div>
-            <span className="font-bold">{t('store.name')}</span>
+        
+            {/* Developer Credit */}
+            {settings?.developerName && (
+              <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  <Code size={16} className="text-purple-400" />
+                  <span className="text-gray-400 text-sm">
+                    {isArabic ? 'تطوير بواسطة' : 'Developed by'}
+                  </span>
+                  <span 
+                    className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-pink-500 to-yellow-400 animate-pulse"
+                    style={{
+                      animation: 'float 2s ease-in-out infinite, gradient 3s ease infinite',
+                      backgroundSize: '200% 200%'
+                    }}
+                  >
+                    {settings.developerName}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
-          <p className="text-gray-400 text-sm">
-            © {currentYear} {t('store.name')}. {t('footer.rights')}
-          </p>
-        </div>
-      </div>
-    </footer>
+      
+          <style>{`
+            @keyframes float {
+              0%, 100% { transform: translateY(0px); }
+              50% { transform: translateY(-3px); }
+            }
+            @keyframes gradient {
+              0% { background-position: 0% 50%; }
+              50% { background-position: 100% 50%; }
+              100% { background-position: 0% 50%; }
+            }
+          `}</style>
+        </footer>
   );
 };
 
