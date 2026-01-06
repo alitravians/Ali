@@ -31,9 +31,10 @@ const CouponManagementModal: React.FC<CouponManagementModalProps> = ({ isOpen, o
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
-  const [saving, setSaving] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [saveError, setSaveError] = useState<string | null>(null);
 
-  // Form state
+    // Form state
   const [formData, setFormData] = useState({
     code: '',
     type: 'percentage' as 'percentage' | 'fixed',
@@ -99,34 +100,47 @@ const CouponManagementModal: React.FC<CouponManagementModalProps> = ({ isOpen, o
     setShowForm(true);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      setSaving(true);
+      setSaveError(null);
 
-    try {
-      const couponData = {
-        ...formData,
-        code: formData.code.toUpperCase(),
-        expiresAt: new Date(formData.expiresAt).toISOString()
-      };
+      try {
+        // Validate value
+        const numValue = Number(formData.value);
+        if (!Number.isFinite(numValue) || numValue <= 0) {
+          setSaveError(isArabic ? 'قيمة الخصم يجب أن تكون رقم أكبر من صفر' : 'Discount value must be a number greater than zero');
+          setSaving(false);
+          return;
+        }
 
-      if (editingCoupon) {
-        await update(ref(database, `coupons/${editingCoupon.id}`), couponData);
-      } else {
-        await push(ref(database, 'coupons'), {
-          ...couponData,
-          usedCount: 0,
-          createdAt: new Date().toISOString()
-        });
+        const couponData = {
+          ...formData,
+          code: formData.code.toUpperCase(),
+          value: numValue,
+          minOrderAmount: Number(formData.minOrderAmount) || 0,
+          maxUses: Number(formData.maxUses) || 0,
+          expiresAt: new Date(formData.expiresAt).toISOString()
+        };
+
+        if (editingCoupon) {
+          await update(ref(database, `coupons/${editingCoupon.id}`), couponData);
+        } else {
+          await push(ref(database, 'coupons'), {
+            ...couponData,
+            usedCount: 0,
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        resetForm();
+        setShowForm(false);
+      } catch (error) {
+        console.error('Error saving coupon:', error);
+        setSaveError(isArabic ? 'حدث خطأ أثناء الحفظ، يرجى المحاولة مرة أخرى' : 'Error saving coupon, please try again');
       }
-
-      resetForm();
-      setShowForm(false);
-    } catch (error) {
-      console.error('Error saving coupon:', error);
-    }
-    setSaving(false);
-  };
+      setSaving(false);
+    };
 
   const handleDelete = async (couponId: string) => {
     if (window.confirm(isArabic ? 'هل أنت متأكد من حذف هذا الكوبون؟' : 'Are you sure you want to delete this coupon?')) {
@@ -285,20 +299,25 @@ const CouponManagementModal: React.FC<CouponManagementModalProps> = ({ isOpen, o
                   />
                 </div>
 
-                {/* Expiry Date */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {isArabic ? 'تاريخ الانتهاء' : 'Expiry Date'}
-                  </label>
-                  <input
-                    type="date"
-                    value={formData.expiresAt}
-                    onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
-                    required
-                    min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
+                                {/* Expiry Date */}
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    {isArabic ? 'تاريخ الانتهاء' : 'Expiry Date'}
+                                  </label>
+                                  <input
+                                    type="date"
+                                    value={formData.expiresAt}
+                                    onChange={(e) => setFormData({ ...formData, expiresAt: e.target.value })}
+                                    required
+                                    min={editingCoupon ? undefined : new Date().toISOString().split('T')[0]}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
+                                  />
+                                  {editingCoupon && formData.expiresAt && new Date(formData.expiresAt) < new Date(new Date().toISOString().split('T')[0]) && (
+                                    <p className="text-xs text-amber-600 mt-1">
+                                      {isArabic ? '⚠️ هذا الكوبون منتهي الصلاحية' : '⚠️ This coupon has expired'}
+                                    </p>
+                                  )}
+                                </div>
 
                 {/* Description AR */}
                 <div>
@@ -343,26 +362,33 @@ const CouponManagementModal: React.FC<CouponManagementModalProps> = ({ isOpen, o
                 </div>
               </div>
 
-              {/* Form Actions */}
-              <div className="flex gap-3 mt-6">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
-                >
-                  {saving 
-                    ? (isArabic ? 'جاري الحفظ...' : 'Saving...')
-                    : (isArabic ? 'حفظ' : 'Save')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { resetForm(); setShowForm(false); }}
-                  className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  {isArabic ? 'إلغاء' : 'Cancel'}
-                </button>
-              </div>
-            </form>
+                          {/* Error Message */}
+                          {saveError && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mt-4">
+                              {saveError}
+                            </div>
+                          )}
+
+                          {/* Form Actions */}
+                          <div className="flex gap-3 mt-6">
+                            <button
+                              type="submit"
+                              disabled={saving}
+                              className="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {saving 
+                                ? (isArabic ? 'جاري الحفظ...' : 'Saving...')
+                                : (isArabic ? 'حفظ' : 'Save')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { resetForm(); setShowForm(false); setSaveError(null); }}
+                              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+                            >
+                              {isArabic ? 'إلغاء' : 'Cancel'}
+                            </button>
+                          </div>
+                        </form>
           )}
 
           {/* Coupons List */}
