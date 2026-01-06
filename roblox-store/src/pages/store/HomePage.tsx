@@ -40,8 +40,8 @@ const HomePage: React.FC = () => {
   const [showBanner, setShowBanner] = useState(true);
 
   useEffect(() => {
-    // Load banner settings from Firebase
-    const settingsRef = ref(database, 'siteSettings');
+    // Load banner settings from Firebase (settings/site is where admin panel saves)
+    const settingsRef = ref(database, 'settings/site');
     const unsubscribeSettings = onValue(settingsRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
