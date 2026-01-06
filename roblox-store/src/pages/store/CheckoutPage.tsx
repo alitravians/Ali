@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Gamepad2, CheckCircle, AlertCircle, Upload, Image } from 'lucide-react';
+import { Gamepad2, CheckCircle, AlertCircle, Upload, Image, Tag, X } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
+import { useCoupons } from '../../contexts/CouponContext';
 import { ref, push, set } from 'firebase/database';
 import { database } from '../../firebase/config';
 
@@ -13,13 +14,22 @@ const CheckoutPage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { items, total, clearCart } = useCart();
-  const { customer, isLoggedIn } = useCustomerAuth();
-  const [robloxUsername, setRobloxUsername] = useState('');
-  const [email, setEmail] = useState('');
-  const [orderStatus, setOrderStatus] = useState<OrderStatus>('idle');
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [proofImage, setProofImage] = useState<string | null>(null);
-  const [proofImageName, setProofImageName] = useState<string>('');
+    const { customer, isLoggedIn } = useCustomerAuth();
+    const { validateCoupon, applyCoupon } = useCoupons();
+    const [robloxUsername, setRobloxUsername] = useState('');
+    const [email, setEmail] = useState('');
+    const [orderStatus, setOrderStatus] = useState<OrderStatus>('idle');
+    const [orderId, setOrderId] = useState<string | null>(null);
+    const [proofImage, setProofImage] = useState<string | null>(null);
+    const [proofImageName, setProofImageName] = useState<string>('');
+  
+    // Coupon state
+    const [couponCode, setCouponCode] = useState('');
+    const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; couponId: string } | null>(null);
+    const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  
+    // Calculate final total with discount
+    const finalTotal = appliedCoupon ? Math.max(0, total - appliedCoupon.discount) : total;
 
   // Pre-fill customer info if logged in
   useEffect(() => {
@@ -29,8 +39,45 @@ const CheckoutPage: React.FC = () => {
     }
   }, [isLoggedIn, customer]);
 
-  // Handle image upload and convert to base64
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Handle coupon validation
+    const handleApplyCoupon = () => {
+      if (!couponCode.trim()) {
+        setCouponMessage({
+          type: 'error',
+          text: i18n.language === 'ar' ? 'يرجى إدخال كود الخصم' : 'Please enter a coupon code'
+        });
+        return;
+      }
+
+      const result = validateCoupon(couponCode, total);
+    
+      if (result.valid && result.coupon) {
+        setAppliedCoupon({
+          code: couponCode,
+          discount: result.discount,
+          couponId: result.coupon.id
+        });
+        setCouponMessage({
+          type: 'success',
+          text: i18n.language === 'ar' ? result.message_ar : result.message_en
+        });
+        setCouponCode('');
+      } else {
+        setCouponMessage({
+          type: 'error',
+          text: i18n.language === 'ar' ? result.message_ar : result.message_en
+        });
+      }
+    };
+
+    // Remove applied coupon
+    const handleRemoveCoupon = () => {
+      setAppliedCoupon(null);
+      setCouponMessage(null);
+    };
+
+    // Handle image upload and convert to base64
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -51,17 +98,21 @@ const CheckoutPage: React.FC = () => {
       try {
         const ordersRef = ref(database, 'orders');
         const newOrderRef = push(ordersRef);
-        const order = {
-          items: items.map(item => ({
-            id: item.id,
-            name_en: item.name_en,
-            name_ar: item.name_ar,
-            price: item.price,
-            quantity: item.quantity,
-            gamePassUrl: item.gamePassUrl || null
-          })),
-        total,
-        paymentMethod: 'gamepass',
+                const order = {
+                  items: items.map(item => ({
+                    id: item.id,
+                    name_en: item.name_en,
+                    name_ar: item.name_ar,
+                    price: item.price,
+                    quantity: item.quantity,
+                    gamePassUrl: item.gamePassUrl || null
+                  })),
+                subtotal: total,
+                discount: appliedCoupon?.discount || 0,
+                couponCode: appliedCoupon?.code || null,
+                couponId: appliedCoupon?.couponId || null,
+                total: finalTotal,
+                paymentMethod: 'gamepass',
                 customerInfo: {
                   robloxUsername,
                   robloxId: customer?.robloxId || '',
@@ -94,16 +145,22 @@ const CheckoutPage: React.FC = () => {
       return;
     }
 
-    setOrderStatus('processing');
-    try {
-      const id = await createOrder();
-      setOrderId(id);
-      setOrderStatus('success');
-      clearCart();
-    } catch (error) {
-      setOrderStatus('error');
-    }
-  };
+      setOrderStatus('processing');
+      try {
+        const id = await createOrder();
+        setOrderId(id);
+      
+        // Apply coupon usage if one was used
+        if (appliedCoupon) {
+          await applyCoupon(appliedCoupon.couponId);
+        }
+      
+        setOrderStatus('success');
+        clearCart();
+      } catch (error) {
+        setOrderStatus('error');
+      }
+    };
 
   if (items.length === 0 && orderStatus !== 'success') {
     navigate('/cart');
@@ -190,11 +247,72 @@ const CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Payment Method - Game Pass Only */}
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <h2 className="text-xl font-bold text-gray-800 mb-4">
-                {t('checkout.paymentMethod')}
-              </h2>
+                        {/* Coupon Code Section */}
+                        <div className="bg-white rounded-xl shadow-md p-6">
+                          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <Tag size={20} className="text-purple-600" />
+                            {i18n.language === 'ar' ? 'كود الخصم' : 'Coupon Code'}
+                          </h2>
+              
+                          {appliedCoupon ? (
+                            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-4">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle size={20} className="text-green-600" />
+                                <div>
+                                  <p className="font-bold text-green-800">{appliedCoupon.code}</p>
+                                  <p className="text-sm text-green-600">
+                                    {i18n.language === 'ar' 
+                                      ? `خصم: $${appliedCoupon.discount.toFixed(2)}` 
+                                      : `Discount: $${appliedCoupon.discount.toFixed(2)}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <button
+                                onClick={handleRemoveCoupon}
+                                className="text-red-500 hover:text-red-700 p-1"
+                                title={i18n.language === 'ar' ? 'إزالة الكوبون' : 'Remove coupon'}
+                              >
+                                <X size={20} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <div className="flex gap-2">
+                                <input
+                                  type="text"
+                                  value={couponCode}
+                                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                                  placeholder={i18n.language === 'ar' ? 'أدخل كود الخصم' : 'Enter coupon code'}
+                                />
+                                <button
+                                  onClick={handleApplyCoupon}
+                                  className="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+                                >
+                                  {i18n.language === 'ar' ? 'تطبيق' : 'Apply'}
+                                </button>
+                              </div>
+                              {couponMessage && (
+                                <div className={`flex items-center gap-2 text-sm ${
+                                  couponMessage.type === 'success' ? 'text-green-600' : 'text-red-600'
+                                }`}>
+                                  {couponMessage.type === 'success' ? (
+                                    <CheckCircle size={16} />
+                                  ) : (
+                                    <AlertCircle size={16} />
+                                  )}
+                                  <span>{couponMessage.text}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Payment Method - Game Pass Only */}
+                        <div className="bg-white rounded-xl shadow-md p-6">
+                          <h2 className="text-xl font-bold text-gray-800 mb-4">
+                            {t('checkout.paymentMethod')}
+                          </h2>
               <div className="flex items-center gap-4 p-4 rounded-lg border-2 border-green-600 bg-green-50">
                 <Gamepad2 size={24} className="text-green-600" />
                 <div className="text-left">
@@ -339,14 +457,42 @@ const CheckoutPage: React.FC = () => {
                 })}
               </div>
 
-              <hr className="my-4" />
+                        <hr className="my-4" />
 
-              <div className="flex justify-between text-xl font-bold text-gray-800">
-                <span>{t('cart.total')}</span>
-                <span>${total.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
+                        {/* Subtotal */}
+                        <div className="flex justify-between text-gray-600 mb-2">
+                          <span>{i18n.language === 'ar' ? 'المجموع الفرعي' : 'Subtotal'}</span>
+                          <span>${total.toFixed(2)}</span>
+                        </div>
+
+                        {/* Discount if applied */}
+                        {appliedCoupon && (
+                          <div className="flex justify-between text-green-600 mb-2">
+                            <span className="flex items-center gap-1">
+                              <Tag size={16} />
+                              {i18n.language === 'ar' ? 'الخصم' : 'Discount'} ({appliedCoupon.code})
+                            </span>
+                            <span>-${appliedCoupon.discount.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        <hr className="my-2" />
+
+                        {/* Final Total */}
+                        <div className="flex justify-between text-xl font-bold text-gray-800">
+                          <span>{t('cart.total')}</span>
+                          <span className={appliedCoupon ? 'text-green-600' : ''}>${finalTotal.toFixed(2)}</span>
+                        </div>
+
+                        {appliedCoupon && (
+                          <p className="text-xs text-green-600 mt-2 text-center">
+                            {i18n.language === 'ar' 
+                              ? `🎉 وفرت $${appliedCoupon.discount.toFixed(2)}!` 
+                              : `🎉 You saved $${appliedCoupon.discount.toFixed(2)}!`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
         </div>
       </div>
     </div>
