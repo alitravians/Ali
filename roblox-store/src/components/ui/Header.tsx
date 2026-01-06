@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ShoppingCart, Globe, Settings, Home, Package, User, LogIn, Heart, Gift } from 'lucide-react';
+import { ShoppingCart, Globe, Settings, Home, Package, User, LogIn, Heart, Gift, Mail } from 'lucide-react';
 import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
@@ -111,16 +111,25 @@ const Header: React.FC = () => {
                                                   <Heart size={18} />
                                                 </Link>
                           
-                                                {/* Loyalty Points */}
-                                                <Link
-                                                  to="/my-loyalty"
-                                                  className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
-                                                  title={isArabic ? 'نقاط الولاء' : 'Loyalty Points'}
-                                                >
-                                                  <Gift size={18} />
-                                                </Link>
+                                                                                                {/* Loyalty Points */}
+                                                                                                <Link
+                                                                                                  to="/my-loyalty"
+                                                                                                  className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                                                                                                  title={isArabic ? 'نقاط الولاء' : 'Loyalty Points'}
+                                                                                                >
+                                                                                                  <Gift size={18} />
+                                                                                                </Link>
+
+                                                                                                {/* Inbox */}
+                                                                                                <Link
+                                                                                                  to="/my-inbox"
+                                                                                                  className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
+                                                                                                  title={isArabic ? 'صندوق الوارد' : 'Inbox'}
+                                                                                                >
+                                                                                                  <Mail size={18} />
+                                                                                                </Link>
                           
-                                                {/* Account */}
+                                                                                                {/* Account */}
                                                 <Link
                                                   to="/my-orders"
                                                   className="flex items-center gap-1 px-3 py-2 rounded-lg bg-green-600/80 hover:bg-green-600 transition-colors"

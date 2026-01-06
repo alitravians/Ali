@@ -21,7 +21,8 @@ import {
   Star,
   Gift,
   Percent,
-  Gamepad2
+  Gamepad2,
+  Mail
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ref, onValue } from 'firebase/database';
@@ -43,6 +44,7 @@ import ReviewManagementModal from '../../components/admin/ReviewManagementModal'
 import LoyaltyManagementModal from '../../components/admin/LoyaltyManagementModal';
 import CouponManagementModal from '../../components/admin/CouponManagementModal';
 import GameCategoryManagementModal from '../../components/admin/GameCategoryManagementModal';
+import MessageManagementModal from '../../components/admin/MessageManagementModal';
 
 interface Order {
   id: string;
@@ -86,9 +88,10 @@ const AdminDashboard: React.FC = () => {
           customerManagement: false,
           reviewManagement: false,
           loyaltyManagement: false,
-          couponManagement: false,
-          gameCategoryManagement: false
-        });
+                  couponManagement: false,
+                  gameCategoryManagement: false,
+                  messageManagement: false
+                });
 
   useEffect(() => {
     if (!isAdmin) {
@@ -258,23 +261,31 @@ const AdminDashboard: React.FC = () => {
         color: 'from-lime-500 to-lime-600',
         onClick: () => openModal('couponManagement')
       },
-          {
-            id: 'gameCategoryManagement',
-            icon: Gamepad2,
-            label: isArabic ? 'إدارة الألعاب والفئات' : 'Games & Categories',
-            description: isArabic ? 'إضافة/تعديل/حذف الألعاب والفئات' : 'Add/edit/delete games & categories',
-            color: 'from-fuchsia-500 to-fuchsia-600',
-            onClick: () => openModal('gameCategoryManagement')
-          },
-          {
-            id: 'clearCache',
-            icon: Trash2,
-            label: isArabic ? 'مسح الكاش' : 'Clear Cache',
-            description: isArabic ? 'مسح الذاكرة المؤقتة للمتصفح' : 'Clear browser cache',
-            color: 'from-red-500 to-red-600',
-            onClick: clearCache
-          }
-        ];
+                  {
+                    id: 'gameCategoryManagement',
+                    icon: Gamepad2,
+                    label: isArabic ? 'إدارة الألعاب والفئات' : 'Games & Categories',
+                    description: isArabic ? 'إضافة/تعديل/حذف الألعاب والفئات' : 'Add/edit/delete games & categories',
+                    color: 'from-fuchsia-500 to-fuchsia-600',
+                    onClick: () => openModal('gameCategoryManagement')
+                  },
+                  {
+                    id: 'messageManagement',
+                    icon: Mail,
+                    label: isArabic ? 'إدارة الرسائل' : 'Message Management',
+                    description: isArabic ? 'إرسال رسائل جماعية للعملاء' : 'Send bulk messages to customers',
+                    color: 'from-emerald-500 to-teal-600',
+                    onClick: () => openModal('messageManagement')
+                  },
+                  {
+                    id: 'clearCache',
+                    icon: Trash2,
+                    label: isArabic ? 'مسح الكاش' : 'Clear Cache',
+                    description: isArabic ? 'مسح الذاكرة المؤقتة للمتصفح' : 'Clear browser cache',
+                    color: 'from-red-500 to-red-600',
+                    onClick: clearCache
+                  }
+                ];
 
   return (
     <div className="min-h-screen bg-gray-100" dir={isArabic ? 'rtl' : 'ltr'}>
@@ -514,6 +525,10 @@ const AdminDashboard: React.FC = () => {
       <GameCategoryManagementModal 
         isOpen={modals.gameCategoryManagement} 
         onClose={() => closeModal('gameCategoryManagement')} 
+      />
+      <MessageManagementModal 
+        isOpen={modals.messageManagement} 
+        onClose={() => closeModal('messageManagement')} 
       />
     </div>
   );

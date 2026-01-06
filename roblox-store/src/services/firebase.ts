@@ -9,7 +9,10 @@ import type {
   Coupon, 
   AuditLogEntry,
   GameCategory,
-  ProductCategory
+  ProductCategory,
+  AdminMessage,
+  CustomerMessage,
+  MessageTemplate
 } from '../types';
 
 // ============ SITE SETTINGS ============
@@ -437,6 +440,177 @@ export const findCustomerIdByEmail = async (email: string): Promise<string | nul
     console.error('Error finding customer by email:', error);
     return null;
   }
+};
+
+// ============ ADMIN MESSAGES ============
+export const getAdminMessages = async (): Promise<AdminMessage[]> => {
+  const snapshot = await get(ref(database, 'adminMessages'));
+  if (!snapshot.exists()) return [];
+  const data = snapshot.val();
+  return Object.keys(data).map(key => ({ id: key, ...data[key] }));
+};
+
+export const addAdminMessage = async (message: Omit<AdminMessage, 'id'>): Promise<string> => {
+  const newRef = push(ref(database, 'adminMessages'));
+  await set(newRef, message);
+  return newRef.key!;
+};
+
+export const updateAdminMessage = async (messageId: string, data: Partial<AdminMessage>): Promise<void> => {
+  await update(ref(database, `adminMessages/${messageId}`), {
+    ...data,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+export const deleteAdminMessage = async (messageId: string): Promise<void> => {
+  await remove(ref(database, `adminMessages/${messageId}`));
+};
+
+export const subscribeAdminMessages = (callback: (messages: AdminMessage[]) => void) => {
+  return onValue(ref(database, 'adminMessages'), (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+    const data = snapshot.val();
+    const messages = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+    messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    callback(messages);
+  });
+};
+
+// ============ CUSTOMER MESSAGES (INBOX) ============
+export const getCustomerMessages = async (customerId: string): Promise<CustomerMessage[]> => {
+  const snapshot = await get(ref(database, `customerMessages/${customerId}`));
+  if (!snapshot.exists()) return [];
+  const data = snapshot.val();
+  return Object.keys(data).map(key => ({ id: key, ...data[key] }));
+};
+
+export const addCustomerMessage = async (customerId: string, message: Omit<CustomerMessage, 'id'>): Promise<string> => {
+  const newRef = push(ref(database, `customerMessages/${customerId}`));
+  await set(newRef, message);
+  return newRef.key!;
+};
+
+export const markMessageAsRead = async (customerId: string, messageId: string): Promise<void> => {
+  await update(ref(database, `customerMessages/${customerId}/${messageId}`), {
+    isRead: true,
+    readAt: new Date().toISOString()
+  });
+};
+
+export const deleteCustomerMessage = async (customerId: string, messageId: string): Promise<void> => {
+  await update(ref(database, `customerMessages/${customerId}/${messageId}`), {
+    isDeleted: true,
+    deletedAt: new Date().toISOString()
+  });
+};
+
+export const subscribeCustomerMessages = (customerId: string, callback: (messages: CustomerMessage[]) => void) => {
+  return onValue(ref(database, `customerMessages/${customerId}`), (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+    const data = snapshot.val();
+    const messages = Object.keys(data)
+      .map(key => ({ id: key, ...data[key] }))
+      .filter(m => !m.isDeleted);
+    messages.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    callback(messages);
+  });
+};
+
+export const getUnreadMessageCount = async (customerId: string): Promise<number> => {
+  const messages = await getCustomerMessages(customerId);
+  return messages.filter(m => !m.isRead && !m.isDeleted).length;
+};
+
+// Send message to single customer
+export const sendMessageToCustomer = async (
+  adminMessage: AdminMessage,
+  customerId: string
+): Promise<void> => {
+  const customerMessage: Omit<CustomerMessage, 'id'> = {
+    messageId: adminMessage.id,
+    customerId,
+    title_en: adminMessage.title_en,
+    title_ar: adminMessage.title_ar,
+    content_en: adminMessage.content_en,
+    content_ar: adminMessage.content_ar,
+    type: adminMessage.type,
+    priority: adminMessage.priority,
+    isRead: false,
+    isDeleted: false,
+    createdAt: new Date().toISOString()
+  };
+  await addCustomerMessage(customerId, customerMessage);
+};
+
+// Send message to all customers
+export const sendMessageToAllCustomers = async (adminMessage: AdminMessage): Promise<number> => {
+  const customers = await getCustomers();
+  let sentCount = 0;
+  
+  for (const customer of customers) {
+    if (!customer.isBanned) {
+      await sendMessageToCustomer(adminMessage, customer.id);
+      sentCount++;
+    }
+  }
+  
+  return sentCount;
+};
+
+// Send message to selected customers
+export const sendMessageToSelectedCustomers = async (
+  adminMessage: AdminMessage,
+  customerIds: string[]
+): Promise<number> => {
+  let sentCount = 0;
+  
+  for (const customerId of customerIds) {
+    await sendMessageToCustomer(adminMessage, customerId);
+    sentCount++;
+  }
+  
+  return sentCount;
+};
+
+// ============ MESSAGE TEMPLATES ============
+export const getMessageTemplates = async (): Promise<MessageTemplate[]> => {
+  const snapshot = await get(ref(database, 'messageTemplates'));
+  if (!snapshot.exists()) return [];
+  const data = snapshot.val();
+  return Object.keys(data).map(key => ({ id: key, ...data[key] }));
+};
+
+export const addMessageTemplate = async (template: Omit<MessageTemplate, 'id'>): Promise<string> => {
+  const newRef = push(ref(database, 'messageTemplates'));
+  await set(newRef, template);
+  return newRef.key!;
+};
+
+export const updateMessageTemplate = async (templateId: string, data: Partial<MessageTemplate>): Promise<void> => {
+  await update(ref(database, `messageTemplates/${templateId}`), data);
+};
+
+export const deleteMessageTemplate = async (templateId: string): Promise<void> => {
+  await remove(ref(database, `messageTemplates/${templateId}`));
+};
+
+export const subscribeMessageTemplates = (callback: (templates: MessageTemplate[]) => void) => {
+  return onValue(ref(database, 'messageTemplates'), (snapshot) => {
+    if (!snapshot.exists()) {
+      callback([]);
+      return;
+    }
+    const data = snapshot.val();
+    const templates = Object.keys(data).map(key => ({ id: key, ...data[key] }));
+    callback(templates);
+  });
 };
 
 // initializeDefaultSettings removed - all data should come from Firebase only

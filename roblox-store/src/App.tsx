@@ -30,6 +30,7 @@ import MyTickets from './pages/customer/MyTickets';
 import TrackTicket from './pages/customer/TrackTicket';
 import CustomerLoyalty from './pages/customer/CustomerLoyalty';
 import CustomerWishlist from './pages/customer/CustomerWishlist';
+import CustomerInbox from './pages/customer/CustomerInbox';
 import BannedPage from './pages/customer/BannedPage';
 import { useCustomerAuth } from './contexts/CustomerAuthContext';
 
@@ -115,8 +116,9 @@ const App: React.FC = () => {
                               <Route path="/create-ticket" element={<CreateTicket />} />
                               <Route path="/my-tickets" element={<MyTickets />} />
                               <Route path="/track-ticket" element={<TrackTicket />} />
-                              <Route path="/my-loyalty" element={<CustomerLoyalty />} />
-                              <Route path="/my-wishlist" element={<CustomerWishlist />} />
+                                                            <Route path="/my-loyalty" element={<CustomerLoyalty />} />
+                                                            <Route path="/my-wishlist" element={<CustomerWishlist />} />
+                                                            <Route path="/my-inbox" element={<CustomerInbox />} />
                               
                               {/* Store Routes - With Header/Footer */}
                               <Route

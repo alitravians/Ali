@@ -251,3 +251,61 @@ export interface TopBuyer {
   totalOrders: number;
   totalSpent: number;
 }
+
+// Message Types
+export type MessageType = 'general' | 'promotion' | 'order_update' | 'welcome' | 'urgent' | 'announcement';
+export type MessagePriority = 'normal' | 'high' | 'urgent';
+export type MessageStatus = 'draft' | 'scheduled' | 'sent';
+
+// Admin Message (stored in messages collection)
+export interface AdminMessage {
+  id: string;
+  title_en: string;
+  title_ar: string;
+  content_en: string;
+  content_ar: string;
+  type: MessageType;
+  priority: MessagePriority;
+  status: MessageStatus;
+  targetType: 'all' | 'single' | 'selected';
+  targetCustomerIds?: string[]; // For single or selected customers
+  scheduledAt?: string; // For scheduled messages
+  sentAt?: string;
+  sentBy: string;
+  totalRecipients: number;
+  readCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Customer Message (stored in customer's inbox)
+export interface CustomerMessage {
+  id: string;
+  messageId: string; // Reference to AdminMessage
+  customerId: string;
+  title_en: string;
+  title_ar: string;
+  content_en: string;
+  content_ar: string;
+  type: MessageType;
+  priority: MessagePriority;
+  isRead: boolean;
+  readAt?: string;
+  isDeleted: boolean;
+  deletedAt?: string;
+  createdAt: string;
+}
+
+// Message Template
+export interface MessageTemplate {
+  id: string;
+  name_en: string;
+  name_ar: string;
+  title_en: string;
+  title_ar: string;
+  content_en: string;
+  content_ar: string;
+  type: MessageType;
+  isActive: boolean;
+  createdAt: string;
+}
