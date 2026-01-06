@@ -154,26 +154,27 @@ const MessageManagementModal: React.FC<MessageManagementModalProps> = ({ isOpen,
       return;
     }
 
-    setSending(true);
-    try {
-      // Create admin message
-      const adminMessage: Omit<AdminMessage, 'id'> = {
-        title_en: titleEn || titleAr,
-        title_ar: titleAr,
-        content_en: contentEn || contentAr,
-        content_ar: contentAr,
-        type: messageType,
-        priority,
-        status: 'sent',
-        targetType,
-        targetCustomerIds: targetType === 'single' ? [singleCustomerId] : targetType === 'selected' ? selectedCustomers : undefined,
-        sentAt: new Date().toISOString(),
-        sentBy: 'admin',
-        totalRecipients: 0,
-        readCount: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+        setSending(true);
+        try {
+          // Create admin message - only include targetCustomerIds if not sending to all
+          const adminMessage: Omit<AdminMessage, 'id'> = {
+            title_en: titleEn || titleAr,
+            title_ar: titleAr,
+            content_en: contentEn || contentAr,
+            content_ar: contentAr,
+            type: messageType,
+            priority,
+            status: 'sent',
+            targetType,
+            ...(targetType === 'single' && { targetCustomerIds: [singleCustomerId] }),
+            ...(targetType === 'selected' && { targetCustomerIds: selectedCustomers }),
+            sentAt: new Date().toISOString(),
+            sentBy: 'admin',
+            totalRecipients: 0,
+            readCount: 0,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          };
 
       const messageId = await addAdminMessage(adminMessage);
       const messageWithId = { ...adminMessage, id: messageId };
