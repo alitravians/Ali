@@ -65,73 +65,92 @@ export const CouponProvider: React.FC<CouponProviderProps> = ({ children }) => {
     return () => unsubscribe();
   }, []);
 
-  const validateCoupon = (code: string, orderAmount: number) => {
-    const coupon = coupons.find(c => c.code.toLowerCase() === code.toLowerCase());
+    const validateCoupon = (code: string, orderAmount: number) => {
+      const coupon = coupons.find(c => c.code.toLowerCase() === code.toLowerCase());
 
-    if (!coupon) {
+      if (!coupon) {
+        return {
+          valid: false,
+          discount: 0,
+          message_ar: 'كود الخصم غير صالح',
+          message_en: 'Invalid coupon code'
+        };
+      }
+
+      if (!coupon.isActive) {
+        return {
+          valid: false,
+          discount: 0,
+          message_ar: 'كود الخصم غير مفعّل',
+          message_en: 'Coupon is not active'
+        };
+      }
+
+      if (new Date(coupon.expiresAt) < new Date()) {
+        return {
+          valid: false,
+          discount: 0,
+          message_ar: 'كود الخصم منتهي الصلاحية',
+          message_en: 'Coupon has expired'
+        };
+      }
+
+      if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {
+        return {
+          valid: false,
+          discount: 0,
+          message_ar: 'تم استخدام كود الخصم الحد الأقصى من المرات',
+          message_en: 'Coupon has reached maximum uses'
+        };
+      }
+
+      if (orderAmount < coupon.minOrderAmount) {
+        return {
+          valid: false,
+          discount: 0,
+          message_ar: `الحد الأدنى للطلب هو $${coupon.minOrderAmount}`,
+          message_en: `Minimum order amount is $${coupon.minOrderAmount}`
+        };
+      }
+
+      // Safely convert values to numbers to prevent NaN
+      const safeOrderAmount = Number(orderAmount) || 0;
+      const safeValue = Number(coupon.value) || 0;
+
+      // Validate that coupon has a valid value
+      if (!Number.isFinite(safeValue) || safeValue <= 0) {
+        return {
+          valid: false,
+          discount: 0,
+          message_ar: 'إعدادات الكوبون غير صحيحة',
+          message_en: 'Invalid coupon configuration'
+        };
+      }
+
+      let discount = 0;
+      if (coupon.type === 'percentage') {
+        discount = (safeOrderAmount * safeValue) / 100;
+      } else {
+        discount = Math.min(safeValue, safeOrderAmount);
+      }
+
+      // Ensure discount is a valid number
+      if (!Number.isFinite(discount) || discount < 0) {
+        discount = 0;
+      }
+
       return {
-        valid: false,
-        discount: 0,
-        message_ar: 'كود الخصم غير صالح',
-        message_en: 'Invalid coupon code'
+        valid: true,
+        discount,
+        message_ar: coupon.type === 'percentage' 
+          ? `خصم ${safeValue}% تم تطبيقه`
+          : `خصم $${safeValue} تم تطبيقه`,
+        message_en: coupon.type === 'percentage'
+          ? `${safeValue}% discount applied`
+          : `$${safeValue} discount applied`,
+        coupon
       };
-    }
-
-    if (!coupon.isActive) {
-      return {
-        valid: false,
-        discount: 0,
-        message_ar: 'كود الخصم غير مفعّل',
-        message_en: 'Coupon is not active'
-      };
-    }
-
-    if (new Date(coupon.expiresAt) < new Date()) {
-      return {
-        valid: false,
-        discount: 0,
-        message_ar: 'كود الخصم منتهي الصلاحية',
-        message_en: 'Coupon has expired'
-      };
-    }
-
-    if (coupon.maxUses > 0 && coupon.usedCount >= coupon.maxUses) {
-      return {
-        valid: false,
-        discount: 0,
-        message_ar: 'تم استخدام كود الخصم الحد الأقصى من المرات',
-        message_en: 'Coupon has reached maximum uses'
-      };
-    }
-
-    if (orderAmount < coupon.minOrderAmount) {
-      return {
-        valid: false,
-        discount: 0,
-        message_ar: `الحد الأدنى للطلب هو $${coupon.minOrderAmount}`,
-        message_en: `Minimum order amount is $${coupon.minOrderAmount}`
-      };
-    }
-
-    let discount = 0;
-    if (coupon.type === 'percentage') {
-      discount = (orderAmount * coupon.value) / 100;
-    } else {
-      discount = Math.min(coupon.value, orderAmount);
-    }
-
-    return {
-      valid: true,
-      discount,
-      message_ar: coupon.type === 'percentage' 
-        ? `خصم ${coupon.value}% تم تطبيقه`
-        : `خصم $${coupon.value} تم تطبيقه`,
-      message_en: coupon.type === 'percentage'
-        ? `${coupon.value}% discount applied`
-        : `$${coupon.value} discount applied`,
-      coupon
     };
-  };
 
   const applyCoupon = async (couponId: string) => {
     try {
