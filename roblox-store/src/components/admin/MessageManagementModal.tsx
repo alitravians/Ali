@@ -205,10 +205,15 @@ const MessageManagementModal: React.FC<MessageManagementModalProps> = ({ isOpen,
 
       alert(isArabic ? `تم إرسال الرسالة إلى ${sentCount} عميل بنجاح!` : `Message sent to ${sentCount} customers successfully!`);
       setActiveTab('sent');
-    } catch (error) {
-      console.error('Error sending message:', error);
-      alert(isArabic ? 'حدث خطأ أثناء إرسال الرسالة' : 'Error sending message');
-    } finally {
+        } catch (error: any) {
+          console.error('Error sending message:', error);
+          console.error('Error code:', error?.code);
+          console.error('Error message:', error?.message);
+          const errorMsg = error?.code === 'PERMISSION_DENIED' 
+            ? (isArabic ? 'خطأ في الصلاحيات - تحقق من قواعد Firebase' : 'Permission denied - check Firebase rules')
+            : (isArabic ? `حدث خطأ: ${error?.message || 'خطأ غير معروف'}` : `Error: ${error?.message || 'Unknown error'}`);
+          alert(errorMsg);
+        } finally {
       setSending(false);
     }
   };

@@ -552,12 +552,18 @@ export const sendMessageToCustomer = async (
 // Send message to all customers
 export const sendMessageToAllCustomers = async (adminMessage: AdminMessage): Promise<number> => {
   const customers = await getCustomers();
+  console.log('Found customers:', customers.length);
   let sentCount = 0;
   
   for (const customer of customers) {
-    if (!customer.isBanned) {
-      await sendMessageToCustomer(adminMessage, customer.id);
-      sentCount++;
+    if (!customer.isBanned && customer.id) {
+      try {
+        await sendMessageToCustomer(adminMessage, customer.id);
+        sentCount++;
+        console.log('Sent message to customer:', customer.id);
+      } catch (err) {
+        console.error('Failed to send to customer:', customer.id, err);
+      }
     }
   }
   
