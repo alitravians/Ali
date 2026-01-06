@@ -31,49 +31,58 @@ const OrderManagementModal: React.FC<OrderManagementModalProps> = ({ isOpen, onC
     }
   }, [isOpen]);
 
-  const statusOptions: OrderStatus[] = ['pending', 'paid', 'needs_verification', 'processing', 'delivered', 'completed', 'failed', 'refunded'];
+  const statusOptions: OrderStatus[] = ['pending', 'pending_payment', 'awaiting_verification', 'paid', 'needs_verification', 'processing', 'delivered', 'completed', 'failed', 'refunded'];
 
-  const getStatusLabel = (status: OrderStatus) => {
-    const labels: Record<OrderStatus, { en: string; ar: string }> = {
-      pending: { en: 'Pending', ar: 'قيد الانتظار' },
-      paid: { en: 'Paid', ar: 'تم الدفع' },
-      needs_verification: { en: 'Needs Verification', ar: 'يحتاج تحقق' },
-      processing: { en: 'Processing', ar: 'قيد المعالجة' },
-      delivered: { en: 'Delivered', ar: 'تم التسليم' },
-      completed: { en: 'Completed', ar: 'مكتمل' },
-      failed: { en: 'Failed', ar: 'فشل' },
-      refunded: { en: 'Refunded', ar: 'مسترجع' }
+    const getStatusLabel = (status: OrderStatus) => {
+      const labels: Record<OrderStatus, { en: string; ar: string }> = {
+        pending: { en: 'Pending', ar: 'قيد الانتظار' },
+        pending_payment: { en: 'Pending Payment', ar: 'بانتظار الدفع' },
+        awaiting_verification: { en: 'Awaiting Verification', ar: 'بانتظار التحقق' },
+        paid: { en: 'Paid', ar: 'تم الدفع' },
+        needs_verification: { en: 'Needs Verification', ar: 'يحتاج تحقق' },
+        processing: { en: 'Processing', ar: 'قيد المعالجة' },
+        delivered: { en: 'Delivered', ar: 'تم التسليم' },
+        completed: { en: 'Completed', ar: 'مكتمل' },
+        failed: { en: 'Failed', ar: 'فشل' },
+        refunded: { en: 'Refunded', ar: 'مسترجع' }
+      };
+      // Defensive fallback for unknown statuses
+      const label = labels[status];
+      if (!label) return status;
+      return isArabic ? label.ar : label.en;
     };
-    return isArabic ? labels[status].ar : labels[status].en;
-  };
 
-  const getStatusColor = (status: OrderStatus) => {
-    const colors: Record<OrderStatus, string> = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      paid: 'bg-blue-100 text-blue-700',
-      needs_verification: 'bg-orange-100 text-orange-700',
-      processing: 'bg-purple-100 text-purple-700',
-      delivered: 'bg-teal-100 text-teal-700',
-      completed: 'bg-green-100 text-green-700',
-      failed: 'bg-red-100 text-red-700',
-      refunded: 'bg-gray-100 text-gray-700'
+    const getStatusColor = (status: OrderStatus) => {
+      const colors: Record<OrderStatus, string> = {
+        pending: 'bg-yellow-100 text-yellow-700',
+        pending_payment: 'bg-amber-100 text-amber-700',
+        awaiting_verification: 'bg-orange-100 text-orange-700',
+        paid: 'bg-blue-100 text-blue-700',
+        needs_verification: 'bg-orange-100 text-orange-700',
+        processing: 'bg-purple-100 text-purple-700',
+        delivered: 'bg-teal-100 text-teal-700',
+        completed: 'bg-green-100 text-green-700',
+        failed: 'bg-red-100 text-red-700',
+        refunded: 'bg-gray-100 text-gray-700'
+      };
+      return colors[status] || 'bg-gray-100 text-gray-700';
     };
-    return colors[status];
-  };
 
-  const getStatusIcon = (status: OrderStatus) => {
-    const icons: Record<OrderStatus, React.ReactNode> = {
-      pending: <Clock size={14} />,
-      paid: <CheckCircle size={14} />,
-      needs_verification: <Eye size={14} />,
-      processing: <RefreshCw size={14} />,
-      delivered: <Truck size={14} />,
-      completed: <CheckCircle size={14} />,
-      failed: <XCircle size={14} />,
-      refunded: <RefreshCw size={14} />
+    const getStatusIcon = (status: OrderStatus) => {
+      const icons: Record<OrderStatus, React.ReactNode> = {
+        pending: <Clock size={14} />,
+        pending_payment: <Clock size={14} />,
+        awaiting_verification: <Eye size={14} />,
+        paid: <CheckCircle size={14} />,
+        needs_verification: <Eye size={14} />,
+        processing: <RefreshCw size={14} />,
+        delivered: <Truck size={14} />,
+        completed: <CheckCircle size={14} />,
+        failed: <XCircle size={14} />,
+        refunded: <RefreshCw size={14} />
+      };
+      return icons[status] || <Clock size={14} />;
     };
-    return icons[status];
-  };
 
     const handleStatusChange = async (order: Order, newStatus: OrderStatus) => {
       try {
@@ -98,26 +107,29 @@ const OrderManagementModal: React.FC<OrderManagementModalProps> = ({ isOpen, onC
         }
       
         if (customerId) {
-          const statusLabels: Record<OrderStatus, { ar: string; en: string }> = {
-            pending: { ar: 'قيد الانتظار', en: 'Pending' },
-            paid: { ar: 'مدفوع', en: 'Paid' },
-            needs_verification: { ar: 'يحتاج تحقق', en: 'Needs Verification' },
-            processing: { ar: 'قيد المعالجة', en: 'Processing' },
-            delivered: { ar: 'تم التسليم', en: 'Delivered' },
-            completed: { ar: 'مكتمل', en: 'Completed' },
-            failed: { ar: 'فشل', en: 'Failed' },
-            refunded: { ar: 'مسترد', en: 'Refunded' }
-          };
+                    const statusLabels: Record<OrderStatus, { ar: string; en: string }> = {
+                      pending: { ar: 'قيد الانتظار', en: 'Pending' },
+                      pending_payment: { ar: 'بانتظار الدفع', en: 'Pending Payment' },
+                      awaiting_verification: { ar: 'بانتظار التحقق', en: 'Awaiting Verification' },
+                      paid: { ar: 'مدفوع', en: 'Paid' },
+                      needs_verification: { ar: 'يحتاج تحقق', en: 'Needs Verification' },
+                      processing: { ar: 'قيد المعالجة', en: 'Processing' },
+                      delivered: { ar: 'تم التسليم', en: 'Delivered' },
+                      completed: { ar: 'مكتمل', en: 'Completed' },
+                      failed: { ar: 'فشل', en: 'Failed' },
+                      refunded: { ar: 'مسترد', en: 'Refunded' }
+                    };
         
-          await sendNotification(
-            customerId,
-            'order_status',
-            'تحديث حالة الطلب',
-            'Order Status Update',
-            `تم تحديث حالة طلبك #${order.id.slice(-8)} إلى: ${statusLabels[newStatus].ar}`,
-            `Your order #${order.id.slice(-8)} status has been updated to: ${statusLabels[newStatus].en}`,
-            '/my-orders'
-          );
+                    const statusLabel = statusLabels[newStatus] || { ar: newStatus, en: newStatus };
+                    await sendNotification(
+                      customerId,
+                      'order_status',
+                      'تحديث حالة الطلب',
+                      'Order Status Update',
+                      `تم تحديث حالة طلبك #${order.id.slice(-8)} إلى: ${statusLabel.ar}`,
+                      `Your order #${order.id.slice(-8)} status has been updated to: ${statusLabel.en}`,
+                      '/my-orders'
+                    );
         }
       
         alert(isArabic ? 'تم تحديث حالة الطلب' : 'Order status updated');

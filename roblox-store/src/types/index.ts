@@ -120,6 +120,8 @@ export interface Staff {
 // Order Status
 export type OrderStatus = 
   | 'pending' 
+  | 'pending_payment'
+  | 'awaiting_verification'
   | 'paid' 
   | 'needs_verification' 
   | 'processing' 
