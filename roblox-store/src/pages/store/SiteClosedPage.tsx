@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Lock, Settings } from 'lucide-react';
+import { Lock, Settings, Code } from 'lucide-react';
 import type { SiteSettings } from '../../types';
 
 interface SiteClosedPageProps {
@@ -68,7 +68,40 @@ const SiteClosedPage: React.FC<SiteClosedPageProps> = ({ settings }) => {
         <p className="mt-6 text-sm text-gray-500">
           {isArabic ? 'نعتذر عن الإزعاج. سنعود قريباً!' : 'We apologize for the inconvenience. We will be back soon!'}
         </p>
+
+        {/* Developer Credit */}
+        {settings?.developerName && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="flex items-center justify-center gap-2">
+              <Code size={16} className="text-purple-500" />
+              <span className="text-gray-500 text-sm">
+                {isArabic ? 'تطوير بواسطة' : 'Developed by'}
+              </span>
+              <span 
+                className="font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-500 via-pink-500 to-yellow-500"
+                style={{
+                  animation: 'float 2s ease-in-out infinite, gradient 3s ease infinite',
+                  backgroundSize: '200% 200%'
+                }}
+              >
+                {settings.developerName}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes gradient {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+      `}</style>
     </div>
   );
 };
