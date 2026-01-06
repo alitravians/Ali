@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ShoppingCart, Globe, Settings, Home, Package, User, LogIn, Heart, Gift, Mail } from 'lucide-react';
@@ -6,6 +6,7 @@ import { useCart } from '../../contexts/CartContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCustomerAuth } from '../../contexts/CustomerAuthContext';
 import NotificationDropdown from './NotificationDropdown';
+import { subscribeCustomerMessages } from '../../services/firebase';
 
 const Header: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -14,6 +15,22 @@ const Header: React.FC = () => {
   const { customer, isLoggedIn } = useCustomerAuth();
   const location = useLocation();
   const isArabic = i18n.language === 'ar';
+  const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+
+  // Subscribe to customer messages for unread count
+  useEffect(() => {
+    if (!isLoggedIn || !customer?.id) {
+      setUnreadMessageCount(0);
+      return;
+    }
+
+    const unsubscribe = subscribeCustomerMessages(customer.id, (messages) => {
+      const unreadCount = messages.filter(m => !m.isRead && !m.isDeleted).length;
+      setUnreadMessageCount(unreadCount);
+    });
+
+    return () => unsubscribe();
+  }, [isLoggedIn, customer?.id]);
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'en' ? 'ar' : 'en';
@@ -120,14 +137,19 @@ const Header: React.FC = () => {
                                                                                                   <Gift size={18} />
                                                                                                 </Link>
 
-                                                                                                {/* Inbox */}
-                                                                                                <Link
-                                                                                                  to="/my-inbox"
-                                                                                                  className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors"
-                                                                                                  title={isArabic ? 'صندوق الوارد' : 'Inbox'}
-                                                                                                >
-                                                                                                  <Mail size={18} />
-                                                                                                </Link>
+                                                                                                                                                                                                {/* Inbox */}
+                                                                                                                                                                                                <Link
+                                                                                                                                                                                                  to="/my-inbox"
+                                                                                                                                                                                                  className="flex items-center gap-1 px-3 py-2 rounded-lg hover:bg-white/10 transition-colors relative"
+                                                                                                                                                                                                  title={isArabic ? 'صندوق الوارد' : 'Inbox'}
+                                                                                                                                                                                                >
+                                                                                                                                                                                                  <Mail size={18} />
+                                                                                                                                                                                                  {unreadMessageCount > 0 && (
+                                                                                                                                                                                                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center animate-pulse">
+                                                                                                                                                                                                      {unreadMessageCount > 9 ? '9+' : unreadMessageCount}
+                                                                                                                                                                                                    </span>
+                                                                                                                                                                                                  )}
+                                                                                                                                                                                                </Link>
                           
                                                                                                 {/* Account */}
                                                 <Link
