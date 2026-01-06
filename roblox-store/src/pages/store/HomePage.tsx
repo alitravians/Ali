@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowRight, Star, Zap, Shield, Clock } from 'lucide-react';
+import { ArrowRight, Star, Zap, Shield, Clock, X } from 'lucide-react';
 import ProductCard from '../../components/ui/ProductCard';
 import { ref, onValue } from 'firebase/database';
 import { database } from '../../firebase/config';
@@ -16,6 +16,14 @@ interface Product {
   featured?: boolean;
 }
 
+interface BannerSettings {
+  bannerEnabled: boolean;
+  bannerText_ar: string;
+  bannerText_en: string;
+  bannerLink: string;
+  bannerColor: string;
+}
+
 interface ProductCategory {
   id: string;
   name_ar: string;
@@ -28,8 +36,29 @@ const HomePage: React.FC = () => {
   const { t, i18n } = useTranslation();
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [banner, setBanner] = useState<BannerSettings | null>(null);
+  const [showBanner, setShowBanner] = useState(true);
 
   useEffect(() => {
+    // Load banner settings from Firebase
+    const settingsRef = ref(database, 'siteSettings');
+    const unsubscribeSettings = onValue(settingsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
+        if (data.bannerEnabled) {
+          setBanner({
+            bannerEnabled: data.bannerEnabled,
+            bannerText_ar: data.bannerText_ar || '',
+            bannerText_en: data.bannerText_en || '',
+            bannerLink: data.bannerLink || '',
+            bannerColor: data.bannerColor || '#8B5CF6'
+          });
+        } else {
+          setBanner(null);
+        }
+      }
+    });
+
     // Load featured products from Firebase
     const productsRef = ref(database, 'products');
     const unsubscribeProducts = onValue(productsRef, (snapshot) => {
@@ -63,6 +92,7 @@ const HomePage: React.FC = () => {
     });
 
     return () => {
+      unsubscribeSettings();
       unsubscribeProducts();
       unsubscribeCategories();
     };
@@ -70,6 +100,34 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Banner Section */}
+      {banner && banner.bannerEnabled && showBanner && (
+        <div 
+          className="relative py-3 px-4 text-center text-white font-medium"
+          style={{ backgroundColor: banner.bannerColor }}
+        >
+          {banner.bannerLink ? (
+            <a 
+              href={banner.bannerLink} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:underline"
+            >
+              {i18n.language === 'ar' ? banner.bannerText_ar : banner.bannerText_en}
+            </a>
+          ) : (
+            <span>{i18n.language === 'ar' ? banner.bannerText_ar : banner.bannerText_en}</span>
+          )}
+          <button
+            onClick={() => setShowBanner(false)}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-white/80 hover:text-white"
+            aria-label="Close banner"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-purple-900 via-indigo-800 to-blue-900 text-white py-20">
         <div className="container mx-auto px-4">
