@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Image, Save, Power, PowerOff } from 'lucide-react';
+import { Globe, Image, Save, Power, PowerOff, CreditCard } from 'lucide-react';
 import Modal from './Modal';
 import { getSiteSettings, updateSiteSettings } from '../../services/firebase';
 import type { SiteSettings } from '../../types';
@@ -14,22 +14,26 @@ const SiteManagementModal: React.FC<SiteManagementModalProps> = ({ isOpen, onClo
   const { i18n } = useTranslation();
   const isArabic = i18n.language === 'ar';
   
-  const [settings, setSettings] = useState<SiteSettings>({
-    siteName_en: 'Roblox Assets Store',
-    siteName_ar: 'متجر أصول روبلوكس',
-    developerName: '',
-    isOpen: true,
-    closureMessage_en: 'The store is currently closed for maintenance.',
-    closureMessage_ar: 'المتجر مغلق حالياً للصيانة.',
-    bannerEnabled: false,
-    bannerText_en: '',
-    bannerText_ar: '',
-    bannerLink: '',
-    bannerColor: '#8B5CF6'
-  });
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'status' | 'banner' | 'branding'>('status');
+    const [settings, setSettings] = useState<SiteSettings>({
+      siteName_en: 'Roblox Assets Store',
+      siteName_ar: 'متجر أصول روبلوكس',
+      developerName: '',
+      isOpen: true,
+      closureMessage_en: 'The store is currently closed for maintenance.',
+      closureMessage_ar: 'المتجر مغلق حالياً للصيانة.',
+      bannerEnabled: false,
+      bannerText_en: '',
+      bannerText_ar: '',
+      bannerLink: '',
+      bannerColor: '#8B5CF6',
+      paypalEnabled: false,
+      paypalBusinessName: '',
+      paypalBusinessEmail: '',
+      paypalCurrency: 'USD'
+    });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [activeTab, setActiveTab] = useState<'status' | 'banner' | 'branding' | 'paypal'>('status');
 
   useEffect(() => {
     if (isOpen) {
@@ -62,11 +66,12 @@ const SiteManagementModal: React.FC<SiteManagementModalProps> = ({ isOpen, onClo
     setSaving(false);
   };
 
-  const tabs = [
-    { id: 'status', label: isArabic ? 'حالة الموقع' : 'Site Status', icon: Power },
-    { id: 'banner', label: isArabic ? 'البنر' : 'Banner', icon: Image },
-    { id: 'branding', label: isArabic ? 'العلامة التجارية' : 'Branding', icon: Globe },
-  ];
+    const tabs = [
+      { id: 'status', label: isArabic ? 'حالة الموقع' : 'Site Status', icon: Power },
+      { id: 'banner', label: isArabic ? 'البنر' : 'Banner', icon: Image },
+      { id: 'branding', label: isArabic ? 'العلامة التجارية' : 'Branding', icon: Globe },
+      { id: 'paypal', label: isArabic ? 'PayPal' : 'PayPal', icon: CreditCard },
+    ];
 
   if (loading) {
     return (
@@ -260,48 +265,144 @@ const SiteManagementModal: React.FC<SiteManagementModalProps> = ({ isOpen, onClo
         </div>
       )}
 
-      {/* Branding Tab */}
-      {activeTab === 'branding' && (
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {isArabic ? 'اسم الموقع (عربي)' : 'Site Name (Arabic)'}
-            </label>
-            <input
-              type="text"
-              value={settings.siteName_ar}
-              onChange={(e) => setSettings({ ...settings, siteName_ar: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              dir="rtl"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {isArabic ? 'اسم الموقع (إنجليزي)' : 'Site Name (English)'}
-            </label>
-            <input
-              type="text"
-              value={settings.siteName_en}
-              onChange={(e) => setSettings({ ...settings, siteName_en: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {isArabic ? 'اسم المطور (يظهر في أسفل الصفحة)' : 'Developer Name (shown in footer)'}
-            </label>
-            <input
-              type="text"
-              value={settings.developerName}
-              onChange={(e) => setSettings({ ...settings, developerName: e.target.value })}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              placeholder={isArabic ? 'اسم المطور' : 'Developer name'}
-            />
-          </div>
-        </div>
-      )}
+            {/* Branding Tab */}
+            {activeTab === 'branding' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {isArabic ? 'اسم الموقع (عربي)' : 'Site Name (Arabic)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.siteName_ar}
+                    onChange={(e) => setSettings({ ...settings, siteName_ar: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    dir="rtl"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {isArabic ? 'اسم الموقع (إنجليزي)' : 'Site Name (English)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.siteName_en}
+                    onChange={(e) => setSettings({ ...settings, siteName_en: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {isArabic ? 'اسم المطور (يظهر في أسفل الصفحة)' : 'Developer Name (shown in footer)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.developerName}
+                    onChange={(e) => setSettings({ ...settings, developerName: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder={isArabic ? 'اسم المطور' : 'Developer name'}
+                  />
+                </div>
+              </div>
+            )}
 
-      {/* Save Button */}
+            {/* PayPal Tab */}
+            {activeTab === 'paypal' && (
+              <div className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <h4 className="font-bold text-gray-800">
+                      {isArabic ? 'تفعيل الدفع بـ PayPal' : 'Enable PayPal Payment'}
+                    </h4>
+                    <p className="text-sm text-gray-500">
+                      {isArabic ? 'السماح للعملاء بالدفع عبر PayPal' : 'Allow customers to pay via PayPal'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setSettings({ ...settings, paypalEnabled: !settings.paypalEnabled })}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      settings.paypalEnabled
+                        ? 'bg-green-500 text-white'
+                        : 'bg-gray-300 text-gray-700'
+                    }`}
+                  >
+                    {settings.paypalEnabled 
+                      ? (isArabic ? 'مفعل' : 'Enabled')
+                      : (isArabic ? 'معطل' : 'Disabled')
+                    }
+                  </button>
+                </div>
+
+                {settings.paypalEnabled && (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <p className="text-blue-800 text-sm">
+                        {isArabic 
+                          ? '💡 أدخل بيانات حساب PayPal Business الخاص بك لاستقبال المدفوعات' 
+                          : '💡 Enter your PayPal Business account details to receive payments'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {isArabic ? 'اسم النشاط التجاري' : 'Business Name'}
+                      </label>
+                      <input
+                        type="text"
+                        value={settings.paypalBusinessName || ''}
+                        onChange={(e) => setSettings({ ...settings, paypalBusinessName: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder={isArabic ? 'اسم متجرك أو شركتك' : 'Your store or company name'}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {isArabic ? 'البريد الإلكتروني لـ PayPal' : 'PayPal Email'}
+                      </label>
+                      <input
+                        type="email"
+                        value={settings.paypalBusinessEmail || ''}
+                        onChange={(e) => setSettings({ ...settings, paypalBusinessEmail: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        placeholder="business@example.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        {isArabic ? 'العملة' : 'Currency'}
+                      </label>
+                      <select
+                        value={settings.paypalCurrency || 'USD'}
+                        onChange={(e) => setSettings({ ...settings, paypalCurrency: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                      >
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="SAR">SAR - Saudi Riyal</option>
+                        <option value="AED">AED - UAE Dirham</option>
+                        <option value="KWD">KWD - Kuwaiti Dinar</option>
+                        <option value="QAR">QAR - Qatari Riyal</option>
+                        <option value="BHD">BHD - Bahraini Dinar</option>
+                        <option value="OMR">OMR - Omani Rial</option>
+                      </select>
+                    </div>
+
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                      <p className="text-yellow-800 text-sm">
+                        {isArabic 
+                          ? '⚠️ تأكد من أن حساب PayPal الخاص بك هو حساب Business وليس حساب شخصي' 
+                          : '⚠️ Make sure your PayPal account is a Business account, not a personal account'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Save Button */}
       <div className="mt-6 pt-4 border-t">
         <button
           onClick={handleSave}

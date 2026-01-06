@@ -84,6 +84,11 @@ export interface SiteSettings {
   bannerText_ar: string;
   bannerLink: string;
   bannerColor: string;
+  // PayPal Settings
+  paypalEnabled?: boolean;
+  paypalBusinessName?: string;
+  paypalBusinessEmail?: string;
+  paypalCurrency?: string;
 }
 
 // User/Customer
