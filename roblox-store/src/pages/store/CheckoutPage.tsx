@@ -35,14 +35,15 @@ const CheckoutPage: React.FC = () => {
     // Calculate final total with discount
     const finalTotal = appliedCoupon ? Math.max(0, total - appliedCoupon.discount) : total;
 
-  // Pre-fill customer info if logged in
-  useEffect(() => {
-    if (isLoggedIn && customer) {
-      setRobloxUsername(customer.robloxUsername || '');
-      setEmail(customer.email || '');
-    }
-  }, [isLoggedIn, customer]);
+    // Pre-fill customer info if logged in
+    useEffect(() => {
+      if (isLoggedIn && customer) {
+        setRobloxUsername(customer.robloxUsername || '');
+        setEmail(customer.email || '');
+      }
+    }, [isLoggedIn, customer]);
 
+    
     // Handle coupon validation
     const handleApplyCoupon = () => {
       if (!couponCode.trim()) {
