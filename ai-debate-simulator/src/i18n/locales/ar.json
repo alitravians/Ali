@@ -1,0 +1,58 @@
+{
+  "appTitle": "محاكي المناظرات بالذكاء الاصطناعي",
+  "home": {
+    "title": "مرحباً بك في محاكي المناظرات",
+    "subtitle": "شاهد مناظرات مثيرة بين شخصيات الذكاء الاصطناعي",
+    "selectTopic": "اختر موضوع المناظرة",
+    "startDebate": "ابدأ المناظرة",
+    "categories": "التصنيفات",
+    "allTopics": "جميع المواضيع"
+  },
+  "debate": {
+    "title": "المناظرة",
+    "round": "الجولة",
+    "of": "من",
+    "vs": "ضد",
+    "judgesPanel": "لوحة الحكام",
+    "evaluating": "جاري التقييم...",
+    "averageScore": "متوسط النقاط",
+    "currentArgument": "الحجة الحالية",
+    "nextRound": "الجولة التالية",
+    "pause": "إيقاف مؤقت",
+    "resume": "استئناف",
+    "skip": "تخطي",
+    "backToHome": "العودة للرئيسية",
+    "debateInProgress": "المناظرة جارية",
+    "waitingForJudges": "في انتظار تقييم الحكام"
+  },
+  "results": {
+    "title": "نتائج المناظرة",
+    "winner": "الفائز",
+    "draw": "تعادل!",
+    "finalScores": "النتائج النهائية",
+    "totalPoints": "مجموع النقاط",
+    "roundByRound": "النتائج حسب الجولات",
+    "judgesVerdict": "حكم الحكام",
+    "playAgain": "مناظرة جديدة",
+    "shareResults": "مشاركة النتائج",
+    "congratulations": "تهانينا!"
+  },
+  "common": {
+    "loading": "جاري التحميل...",
+    "error": "حدث خطأ",
+    "retry": "إعادة المحاولة",
+    "close": "إغلاق",
+    "settings": "الإعدادات",
+    "language": "اللغة",
+    "sound": "الصوت",
+    "on": "تشغيل",
+    "off": "إيقاف"
+  },
+  "categories": {
+    "philosophy": "فلسفة",
+    "technology": "تكنولوجيا",
+    "work": "عمل",
+    "society": "مجتمع",
+    "education": "تعليم"
+  }
+}

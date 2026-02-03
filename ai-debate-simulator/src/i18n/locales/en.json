@@ -1,0 +1,58 @@
+{
+  "appTitle": "AI Debate Simulator",
+  "home": {
+    "title": "Welcome to AI Debate Simulator",
+    "subtitle": "Watch exciting debates between AI characters",
+    "selectTopic": "Select Debate Topic",
+    "startDebate": "Start Debate",
+    "categories": "Categories",
+    "allTopics": "All Topics"
+  },
+  "debate": {
+    "title": "Debate",
+    "round": "Round",
+    "of": "of",
+    "vs": "vs",
+    "judgesPanel": "Judges Panel",
+    "evaluating": "Evaluating...",
+    "averageScore": "Average Score",
+    "currentArgument": "Current Argument",
+    "nextRound": "Next Round",
+    "pause": "Pause",
+    "resume": "Resume",
+    "skip": "Skip",
+    "backToHome": "Back to Home",
+    "debateInProgress": "Debate in Progress",
+    "waitingForJudges": "Waiting for judges evaluation"
+  },
+  "results": {
+    "title": "Debate Results",
+    "winner": "Winner",
+    "draw": "It's a Draw!",
+    "finalScores": "Final Scores",
+    "totalPoints": "Total Points",
+    "roundByRound": "Round by Round Results",
+    "judgesVerdict": "Judges Verdict",
+    "playAgain": "New Debate",
+    "shareResults": "Share Results",
+    "congratulations": "Congratulations!"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry",
+    "close": "Close",
+    "settings": "Settings",
+    "language": "Language",
+    "sound": "Sound",
+    "on": "On",
+    "off": "Off"
+  },
+  "categories": {
+    "philosophy": "Philosophy",
+    "technology": "Technology",
+    "work": "Work",
+    "society": "Society",
+    "education": "Education"
+  }
+}
