@@ -1,0 +1,10 @@
+whatsapp-auto-reply/node_modules/
+whatsapp-auto-reply/dist/
+whatsapp-auto-reply/android/app/build/
+whatsapp-auto-reply/android/build/
+whatsapp-auto-reply/android/.gradle/
+whatsapp-auto-reply/android/capacitor-cordova-android-plugins/build/
+whatsapp-auto-reply/android/capacitor-android/build/
+*.iml
+.idea/
+local.properties
