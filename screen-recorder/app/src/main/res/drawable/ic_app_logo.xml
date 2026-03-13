@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="80dp"
+    android:height="80dp"
+    android:viewportWidth="80"
+    android:viewportHeight="80">
+
+    <!-- Background circle -->
+    <path
+        android:fillColor="#1E88E5"
+        android:pathData="M40,40m-38,0a38,38 0,1 1,76 0a38,38 0,1 1,-76 0" />
+
+    <!-- Screen shape -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M22,20h36c2.2,0 4,1.8 4,4v22c0,2.2 -1.8,4 -4,4H22c-2.2,0 -4,-1.8 -4,-4V24c0,-2.2 1.8,-4 4,-4z" />
+
+    <!-- Screen content area -->
+    <path
+        android:fillColor="#BBDEFB"
+        android:pathData="M24,24h32v18H24z" />
+
+    <!-- Record button on screen -->
+    <path
+        android:fillColor="#F44336"
+        android:pathData="M40,33m-5,0a5,5 0,1 1,10 0a5,5 0,1 1,-10 0" />
+
+    <!-- Stand -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35,50h10v4H35z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,54h20v2H30z" />
+
+    <!-- Audio waves -->
+    <path
+        android:fillColor="#4CAF50"
+        android:strokeWidth="1.5"
+        android:strokeColor="#4CAF50"
+        android:pathData="M14,30 L14,40" />
+    <path
+        android:fillColor="#4CAF50"
+        android:strokeWidth="1.5"
+        android:strokeColor="#4CAF50"
+        android:pathData="M10,33 L10,37" />
+    <path
+        android:fillColor="#4CAF50"
+        android:strokeWidth="1.5"
+        android:strokeColor="#4CAF50"
+        android:pathData="M66,30 L66,40" />
+    <path
+        android:fillColor="#4CAF50"
+        android:strokeWidth="1.5"
+        android:strokeColor="#4CAF50"
+        android:pathData="M70,33 L70,37" />
+</vector>

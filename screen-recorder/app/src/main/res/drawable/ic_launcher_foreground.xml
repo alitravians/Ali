@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Screen -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,30h48c3,0 5,2 5,5v28c0,3 -2,5 -5,5H30c-3,0 -5,-2 -5,-5V35c0,-3 2,-5 5,-5z" />
+
+    <!-- Screen content -->
+    <path
+        android:fillColor="#BBDEFB"
+        android:pathData="M33,35h42v22H33z" />
+
+    <!-- Record dot -->
+    <path
+        android:fillColor="#F44336"
+        android:pathData="M54,46m-6,0a6,6 0,1 1,12 0a6,6 0,1 1,-12 0" />
+
+    <!-- Stand -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,68h16v4H46z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M40,72h28v3H40z" />
+</vector>

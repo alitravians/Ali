@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">مسجل الشاشة</string>
+    <string name="app_subtitle">سجّل شاشتك بالصوت أثناء المكالمات</string>
+    <string name="start_recording">بدء التسجيل</string>
+    <string name="stop_recording">إيقاف التسجيل</string>
+    <string name="status_ready">جاهز للتسجيل</string>
+    <string name="status_recording">جاري التسجيل...</string>
+    <string name="status_paused">التسجيل متوقف مؤقتاً</string>
+    <string name="include_mic">تسجيل صوت المايكروفون</string>
+    <string name="include_mic_desc">تسجيل صوتك بالإضافة للصوت الداخلي</string>
+    <string name="previous_recordings">التسجيلات السابقة</string>
+    <string name="no_recordings">لا توجد تسجيلات بعد</string>
+    <string name="how_to_use_title">طريقة الاستخدام</string>
+    <string name="how_to_use_steps">١. اضغط على \"بدء التسجيل\"\n٢. افتح الواتساب وابدأ المكالمة\n٣. التطبيق يسجل الشاشة والصوت تلقائياً\n٤. استخدم الفقاعة العائمة للتحكم\n٥. اضغط \"إيقاف\" لحفظ الفيديو في الاستوديو</string>
+    <string name="developer_info">تطوير: علي | الإصدار 1.0</string>
+    <string name="permission_denied">تم رفض الإذن المطلوب</string>
+</resources>
