@@ -2,12 +2,21 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import OfficialStamp from "@/components/certificate/OfficialStamp";
 
 interface Settings {
   maintenanceMode: boolean;
   maintenanceMessage: string;
   siteName: string;
   siteDescription: string;
+  stampTopText: string;
+  stampBottomText: string;
+  stampCenterText: string;
+  stampVerifyBottomText: string;
+  stampVerifyCenterText: string;
+  stampColor: string;
+  stampStars: number;
+  stampShowDots: boolean;
 }
 
 export default function AdminSettingsPage() {
@@ -16,6 +25,14 @@ export default function AdminSettingsPage() {
     maintenanceMessage: "الموقع تحت الصيانة حالياً. سنعود قريباً!",
     siteName: "LinguaMaster",
     siteDescription: "منصة تعلم اللغات الأجنبية",
+    stampTopText: "LINGUAMASTER",
+    stampBottomText: "CERTIFIED",
+    stampCenterText: "معتمدة",
+    stampVerifyBottomText: "VERIFIED",
+    stampVerifyCenterText: "موثقة",
+    stampColor: "#1e40af",
+    stampStars: 3,
+    stampShowDots: true,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,6 +48,14 @@ export default function AdminSettingsPage() {
             maintenanceMessage: data.maintenanceMessage || "الموقع تحت الصيانة حالياً. سنعود قريباً!",
             siteName: data.siteName || "LinguaMaster",
             siteDescription: data.siteDescription || "منصة تعلم اللغات الأجنبية",
+            stampTopText: data.stampTopText || "LINGUAMASTER",
+            stampBottomText: data.stampBottomText || "CERTIFIED",
+            stampCenterText: data.stampCenterText || "معتمدة",
+            stampVerifyBottomText: data.stampVerifyBottomText || "VERIFIED",
+            stampVerifyCenterText: data.stampVerifyCenterText || "موثقة",
+            stampColor: data.stampColor || "#1e40af",
+            stampStars: data.stampStars ?? 3,
+            stampShowDots: data.stampShowDots ?? true,
           });
         }
         setLoading(false);
@@ -141,6 +166,138 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Stamp Settings */}
+        <div className="card p-6">
+          <h3 className="font-bold text-gray-900 mb-4">إعدادات الختم الرسمي</h3>
+          <p className="text-sm text-gray-500 mb-4">تخصيص الختم الدائري الذي يظهر على الشهادات</p>
+          
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Stamp Preview */}
+            <div className="flex-shrink-0 flex flex-col items-center gap-3">
+              <p className="text-sm font-medium text-gray-600">معاينة مباشرة</p>
+              <div className="bg-gray-50 rounded-xl p-4 border">
+                <OfficialStamp
+                  settings={{
+                    stampTopText: settings.stampTopText,
+                    stampBottomText: settings.stampBottomText,
+                    stampCenterText: settings.stampCenterText,
+                    stampColor: settings.stampColor,
+                    stampStars: settings.stampStars,
+                    stampShowDots: settings.stampShowDots,
+                  }}
+                  size={150}
+                  idPrefix="preview"
+                />
+              </div>
+            </div>
+
+            {/* Stamp Form */}
+            <div className="flex-1 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">النص العلوي</label>
+                  <input
+                    type="text"
+                    value={settings.stampTopText}
+                    onChange={(e) => setSettings({ ...settings, stampTopText: e.target.value })}
+                    className="input-field"
+                    placeholder="LINGUAMASTER"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">النص السفلي (الشهادة)</label>
+                  <input
+                    type="text"
+                    value={settings.stampBottomText}
+                    onChange={(e) => setSettings({ ...settings, stampBottomText: e.target.value })}
+                    className="input-field"
+                    placeholder="CERTIFIED"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">النص الوسط (الشهادة)</label>
+                  <input
+                    type="text"
+                    value={settings.stampCenterText}
+                    onChange={(e) => setSettings({ ...settings, stampCenterText: e.target.value })}
+                    className="input-field"
+                    placeholder="معتمدة"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">النص السفلي (التحقق)</label>
+                  <input
+                    type="text"
+                    value={settings.stampVerifyBottomText}
+                    onChange={(e) => setSettings({ ...settings, stampVerifyBottomText: e.target.value })}
+                    className="input-field"
+                    placeholder="VERIFIED"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">النص الوسط (التحقق)</label>
+                  <input
+                    type="text"
+                    value={settings.stampVerifyCenterText}
+                    onChange={(e) => setSettings({ ...settings, stampVerifyCenterText: e.target.value })}
+                    className="input-field"
+                    placeholder="موثقة"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">لون الختم</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={settings.stampColor}
+                      onChange={(e) => setSettings({ ...settings, stampColor: e.target.value })}
+                      className="w-10 h-10 rounded cursor-pointer border"
+                    />
+                    <input
+                      type="text"
+                      value={settings.stampColor}
+                      onChange={(e) => setSettings({ ...settings, stampColor: e.target.value })}
+                      className="input-field flex-1"
+                      dir="ltr"
+                      placeholder="#1e40af"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-6 items-center">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">عدد النجوم</label>
+                  <select
+                    value={settings.stampStars}
+                    onChange={(e) => setSettings({ ...settings, stampStars: parseInt(e.target.value) })}
+                    className="input-field w-24"
+                  >
+                    <option value={0}>بدون</option>
+                    <option value={1}>1</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
+                    <option value={5}>5</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 mt-5">
+                  <button
+                    onClick={() => setSettings({ ...settings, stampShowDots: !settings.stampShowDots })}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${settings.stampShowDots ? "bg-primary-500" : "bg-gray-300"}`}
+                  >
+                    <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${settings.stampShowDots ? "translate-x-0.5" : "translate-x-6"}`}></div>
+                  </button>
+                  <span className="text-sm text-gray-700">إظهار النقاط الزخرفية</span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Admin Tools */}

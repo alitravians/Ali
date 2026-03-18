@@ -252,6 +252,14 @@ model SiteSettings {
   siteDescription    String  @default("منصة تعلم اللغات الأجنبية")
   maintenanceMode    Boolean @default(false)
   maintenanceMessage String  @default("الموقع تحت الصيانة حالياً")
+  stampTopText       String  @default("LINGUAMASTER")
+  stampBottomText    String  @default("CERTIFIED")
+  stampCenterText    String  @default("معتمدة")
+  stampVerifyBottomText String @default("VERIFIED")
+  stampVerifyCenterText String @default("موثقة")
+  stampColor         String  @default("#1e40af")
+  stampStars         Int     @default(3)
+  stampShowDots      Boolean @default(true)
 }
 
 model Ticket {
