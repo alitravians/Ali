@@ -20,6 +20,11 @@ interface Settings {
   stampColor: string;
   stampStars: number;
   stampShowDots: boolean;
+  chatEnabled: boolean;
+  chatPrivateEnabled: boolean;
+  chatFileUpload: boolean;
+  chatBannedWords: string;
+  chatAutoFilter: boolean;
 }
 
 export default function AdminSettingsPage() {
@@ -39,6 +44,11 @@ export default function AdminSettingsPage() {
     stampColor: "#1e40af",
     stampStars: 3,
     stampShowDots: true,
+    chatEnabled: true,
+    chatPrivateEnabled: false,
+    chatFileUpload: false,
+    chatBannedWords: "",
+    chatAutoFilter: true,
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,6 +75,11 @@ export default function AdminSettingsPage() {
             stampColor: data.stampColor || "#1e40af",
             stampStars: data.stampStars ?? 3,
             stampShowDots: data.stampShowDots ?? true,
+            chatEnabled: data.chatEnabled ?? true,
+            chatPrivateEnabled: data.chatPrivateEnabled ?? false,
+            chatFileUpload: data.chatFileUpload ?? false,
+            chatBannedWords: data.chatBannedWords || "",
+            chatAutoFilter: data.chatAutoFilter ?? true,
           });
         }
         setLoading(false);
@@ -376,6 +391,42 @@ export default function AdminSettingsPage() {
                   <span className="text-sm text-gray-700">إظهار النقاط الزخرفية</span>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Chat Settings */}
+        <div className="card p-6">
+          <h3 className="font-bold text-gray-900 mb-4">💬 إعدادات الدردشة</h3>
+          <p className="text-sm text-gray-500 mb-4">التحكم في نظام الدردشة العام</p>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">تفعيل نظام الدردشة</span>
+              <button onClick={() => setSettings({ ...settings, chatEnabled: !settings.chatEnabled })} className={`relative w-14 h-7 rounded-full transition-colors ${settings.chatEnabled ? "bg-emerald-500" : "bg-gray-300"}`}>
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${settings.chatEnabled ? "translate-x-0.5" : "translate-x-7"}`}></div>
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">السماح بالرسائل الخاصة</span>
+              <button onClick={() => setSettings({ ...settings, chatPrivateEnabled: !settings.chatPrivateEnabled })} className={`relative w-14 h-7 rounded-full transition-colors ${settings.chatPrivateEnabled ? "bg-emerald-500" : "bg-gray-300"}`}>
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${settings.chatPrivateEnabled ? "translate-x-0.5" : "translate-x-7"}`}></div>
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">السماح بإرسال الملفات والصور</span>
+              <button onClick={() => setSettings({ ...settings, chatFileUpload: !settings.chatFileUpload })} className={`relative w-14 h-7 rounded-full transition-colors ${settings.chatFileUpload ? "bg-emerald-500" : "bg-gray-300"}`}>
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${settings.chatFileUpload ? "translate-x-0.5" : "translate-x-7"}`}></div>
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-gray-700">فلترة الكلمات المسيئة تلقائياً</span>
+              <button onClick={() => setSettings({ ...settings, chatAutoFilter: !settings.chatAutoFilter })} className={`relative w-14 h-7 rounded-full transition-colors ${settings.chatAutoFilter ? "bg-emerald-500" : "bg-gray-300"}`}>
+                <div className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow transition-transform ${settings.chatAutoFilter ? "translate-x-0.5" : "translate-x-7"}`}></div>
+              </button>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">الكلمات الممنوعة (مفصولة بفواصل)</label>
+              <textarea value={settings.chatBannedWords} onChange={(e) => setSettings({ ...settings, chatBannedWords: e.target.value })} className="input-field" rows={3} placeholder="كلمة1, كلمة2, كلمة3" />
             </div>
           </div>
         </div>

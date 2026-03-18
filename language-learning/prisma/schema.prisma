@@ -12,7 +12,9 @@ model User {
   name          String
   email         String    @unique
   password      String
-  role          String    @default("user") // user | admin
+  role          String    @default("user") // user | admin | moderator
+  chatRank      String    @default("member") // member | vip | teacher | tester | moderator | admin
+  chatBadgeColor String   @default("#6b7280")
   points        Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -24,6 +26,11 @@ model User {
   notifications Notification[]
   tickets       Ticket[]
   notificationSettings NotificationSettings?
+  chatMessages  ChatMessage[]
+  chatWarnings  ChatWarning[]
+  chatBans      ChatBan[]
+  banAppeals    BanAppeal[]
+  adminActions  ChatAdminLog[] @relation("AdminActor")
 }
 
 model Language {
@@ -263,6 +270,90 @@ model SiteSettings {
   stampColor         String  @default("#1e40af")
   stampStars         Int     @default(3)
   stampShowDots      Boolean @default(true)
+  // Chat settings
+  chatEnabled        Boolean @default(true)
+  chatPrivateEnabled Boolean @default(false)
+  chatFileUpload     Boolean @default(false)
+  chatBannedWords    String  @default("")
+  chatAutoFilter     Boolean @default(true)
+}
+
+// ==================== Chat System ====================
+
+model ChatRoom {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  description String   @default("")
+  type        String   @default("public") // public | support | educational | admin
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  messages    ChatMessage[]
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  roomId    String
+  userId    String
+  isDeleted Boolean  @default(false)
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatWarning {
+  id        String   @id @default(cuid())
+  userId    String
+  reason    String
+  issuedBy  String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatBan {
+  id        String   @id @default(cuid())
+  userId    String
+  reason    String
+  duration  Int      // minutes: 0 = permanent
+  issuedBy  String
+  isActive  Boolean  @default(true)
+  startedAt DateTime @default(now())
+  endsAt    DateTime
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appeals   BanAppeal[]
+}
+
+model BanAppeal {
+  id        String   @id @default(cuid())
+  banId     String
+  userId    String
+  reason    String
+  status    String   @default("pending") // pending | accepted | rejected | reduced
+  adminNote String   @default("")
+  reviewedBy String  @default("")
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+
+  ban       ChatBan  @relation(fields: [banId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatAdminLog {
+  id        String   @id @default(cuid())
+  action    String   // warn | ban | unban | mute | rank_change | delete_message | appeal_review
+  targetUserId String
+  adminId   String
+  details   String   @default("")
+  createdAt DateTime @default(now())
+
+  admin     User     @relation("AdminActor", fields: [adminId], references: [id], onDelete: Cascade)
 }
 
 model Ticket {
