@@ -23,6 +23,7 @@ model User {
   badges        UserBadge[]
   notifications Notification[]
   tickets       Ticket[]
+  notificationSettings NotificationSettings?
 }
 
 model Language {
@@ -202,11 +203,47 @@ model Notification {
   message   String
   messageAr String   @default("")
   type      String   @default("info") // info | success | warning | achievement
+  category  String   @default("general") // educational | certificates | support | account | admin | general
+  icon      String   @default("bell") // bell | book | award | ticket | user | megaphone | star | check | alert
+  link      String   @default("") // internal link e.g. /profile/tickets/123
+  priority  String   @default("normal") // normal | important | urgent
   isRead    Boolean  @default(false)
+  isDeleted Boolean  @default(false)
   userId    String
   createdAt DateTime @default(now())
 
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationSettings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  inAppEnabled          Boolean @default(true)
+  emailEnabled          Boolean @default(false)
+  educationalEnabled    Boolean @default(true)
+  certificatesEnabled   Boolean @default(true)
+  supportEnabled        Boolean @default(true)
+  accountEnabled        Boolean @default(true)
+  adminEnabled          Boolean @default(true)
+
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminNotification {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String   @default("")
+  message     String
+  messageAr   String   @default("")
+  category    String   @default("admin")
+  link        String   @default("")
+  priority    String   @default("normal")
+  targetType  String   @default("all") // all | specific
+  targetUsers String   @default("") // comma-separated user IDs if specific
+  sentCount   Int      @default(0)
+  readCount   Int      @default(0)
+  sentAt      DateTime @default(now())
+  sentBy      String   @default("admin")
 }
 
 model SiteSettings {

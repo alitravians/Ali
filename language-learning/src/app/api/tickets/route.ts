@@ -82,6 +82,10 @@ export async function POST(req: NextRequest) {
         message: `Ticket ${ticketCode} has been created`,
         messageAr: `تم إنشاء التذكرة رقم ${ticketCode} بنجاح`,
         type: "info",
+        category: "support",
+        icon: "ticket",
+        link: `/profile/tickets/${ticket.id}`,
+        priority: "normal",
         userId,
       },
     });

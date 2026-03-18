@@ -42,6 +42,10 @@ export async function POST(
         message: `Your ticket ${ticket.ticketCode} has been replied to`,
         messageAr: `تم الرد على تذكرتك رقم ${ticket.ticketCode}`,
         type: "info",
+        category: "support",
+        icon: "ticket",
+        link: `/profile/tickets/${ticket.id}`,
+        priority: "normal",
         userId: ticket.userId,
       },
     });

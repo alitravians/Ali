@@ -39,6 +39,10 @@ export async function PUT(
         message: `Ticket ${ticket.ticketCode} status changed to ${status}`,
         messageAr: `تم تغيير حالة التذكرة ${ticket.ticketCode} إلى: ${statusLabels[status] || status}`,
         type: status === "closed" ? "warning" : "info",
+        category: "support",
+        icon: "ticket",
+        link: `/profile/tickets/${ticket.id}`,
+        priority: status === "closed" ? "important" : "normal",
         userId: ticket.userId,
       },
     });

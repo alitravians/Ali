@@ -79,6 +79,7 @@ export default function AdminDashboard() {
               { label: "الشهادات", href: "/admin/certificates", icon: "🎓" },
               { label: "المستخدمين", href: "/admin/users", icon: "👥" },
               { label: "التذاكر", href: "/admin/tickets", icon: "🎫" },
+              { label: "الإشعارات", href: "/admin/notifications", icon: "🔔" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (
               <Link

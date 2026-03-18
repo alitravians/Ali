@@ -49,6 +49,10 @@ export async function POST(req: NextRequest) {
         message: "Start your language learning journey today.",
         messageAr: "ابدأ رحلة تعلم اللغات اليوم.",
         type: "success",
+        category: "account",
+        icon: "rocket",
+        link: "/languages",
+        priority: "normal",
         userId: user.id,
       },
     });

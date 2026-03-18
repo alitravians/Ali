@@ -120,6 +120,10 @@ export async function POST(req: NextRequest) {
         message: `You earned a certificate for ${level.name} in ${level.language.name}!`,
         messageAr: `حصلت على شهادة ${level.nameAr} في ${level.language.nameAr}!`,
         type: "achievement",
+        category: "certificates",
+        icon: "award",
+        link: "/profile/certificates",
+        priority: "important",
         userId: session.user.id,
       },
     });

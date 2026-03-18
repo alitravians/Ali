@@ -99,6 +99,10 @@ export async function POST(req: NextRequest) {
           message: `You passed the ${test.level.name} test with ${scorePercentage}%!`,
           messageAr: `لقد اجتزت اختبار ${test.level.nameAr} بنسبة ${scorePercentage}%!`,
           type: "success",
+          category: "educational",
+          icon: "trophy",
+          link: `/learn/${test.levelId}`,
+          priority: "important",
           userId: session.user.id,
         },
       });
@@ -116,6 +120,22 @@ export async function POST(req: NextRequest) {
           },
         });
       }
+    } else {
+      // Fail notification
+      await prisma.notification.create({
+        data: {
+          title: "Keep trying!",
+          titleAr: "حاول مرة أخرى!",
+          message: `You scored ${scorePercentage}% on the ${test.level.name} test. Try again!`,
+          messageAr: `حصلت على ${scorePercentage}% في اختبار ${test.level.nameAr}. حاول مرة أخرى!`,
+          type: "warning",
+          category: "educational",
+          icon: "alert",
+          link: `/learn/${test.levelId}`,
+          priority: "normal",
+          userId: session.user.id,
+        },
+      });
     }
 
     // Determine grade
