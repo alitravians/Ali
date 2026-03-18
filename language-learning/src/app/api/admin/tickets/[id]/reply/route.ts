@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(
   req: NextRequest,
@@ -35,19 +36,17 @@ export async function POST(
     });
 
     // Notify user
-    await prisma.notification.create({
-      data: {
-        title: "Ticket Reply",
-        titleAr: "رد على تذكرتك",
-        message: `Your ticket ${ticket.ticketCode} has been replied to`,
-        messageAr: `تم الرد على تذكرتك رقم ${ticket.ticketCode}`,
-        type: "info",
-        category: "support",
-        icon: "ticket",
-        link: `/profile/tickets/${ticket.id}`,
-        priority: "normal",
-        userId: ticket.userId,
-      },
+    await createNotification({
+      userId: ticket.userId,
+      title: "Ticket Reply",
+      titleAr: "رد على تذكرتك",
+      message: `Your ticket ${ticket.ticketCode} has been replied to`,
+      messageAr: `تم الرد على تذكرتك رقم ${ticket.ticketCode}`,
+      type: "info",
+      category: "support",
+      icon: "ticket",
+      link: `/profile/tickets/${ticket.id}`,
+      priority: "normal",
     });
 
     return NextResponse.json(message, { status: 201 });

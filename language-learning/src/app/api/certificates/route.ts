@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 function generateCertCode(langCode: string, levelOrder: number): string {
   const year = new Date().getFullYear();
@@ -113,19 +114,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Notification
-    await prisma.notification.create({
-      data: {
-        title: "Certificate Earned!",
-        titleAr: "حصلت على شهادة!",
-        message: `You earned a certificate for ${level.name} in ${level.language.name}!`,
-        messageAr: `حصلت على شهادة ${level.nameAr} في ${level.language.nameAr}!`,
-        type: "achievement",
-        category: "certificates",
-        icon: "award",
-        link: "/profile/certificates",
-        priority: "important",
-        userId: session.user.id,
-      },
+    await createNotification({
+      userId: session.user.id,
+      title: "Certificate Earned!",
+      titleAr: "حصلت على شهادة!",
+      message: `You earned a certificate for ${level.name} in ${level.language.name}!`,
+      messageAr: `حصلت على شهادة ${level.nameAr} في ${level.language.nameAr}!`,
+      type: "achievement",
+      category: "certificates",
+      icon: "award",
+      link: "/profile/certificates",
+      priority: "important",
     });
 
     // Award certificate badge

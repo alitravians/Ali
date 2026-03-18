@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export async function PUT(
   req: NextRequest,
@@ -32,19 +33,17 @@ export async function PUT(
       closed: "مغلقة",
     };
 
-    await prisma.notification.create({
-      data: {
-        title: "Ticket Status Updated",
-        titleAr: "تحديث حالة التذكرة",
-        message: `Ticket ${ticket.ticketCode} status changed to ${status}`,
-        messageAr: `تم تغيير حالة التذكرة ${ticket.ticketCode} إلى: ${statusLabels[status] || status}`,
-        type: status === "closed" ? "warning" : "info",
-        category: "support",
-        icon: "ticket",
-        link: `/profile/tickets/${ticket.id}`,
-        priority: status === "closed" ? "important" : "normal",
-        userId: ticket.userId,
-      },
+    await createNotification({
+      userId: ticket.userId,
+      title: "Ticket Status Updated",
+      titleAr: "تحديث حالة التذكرة",
+      message: `Ticket ${ticket.ticketCode} status changed to ${status}`,
+      messageAr: `تم تغيير حالة التذكرة ${ticket.ticketCode} إلى: ${statusLabels[status] || status}`,
+      type: status === "closed" ? "warning" : "info",
+      category: "support",
+      icon: "ticket",
+      link: `/profile/tickets/${ticket.id}`,
+      priority: status === "closed" ? "important" : "normal",
     });
 
     return NextResponse.json({ message: "تم تحديث الحالة" });

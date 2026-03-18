@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 function generateTicketCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -75,19 +76,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Create notification for user
-    await prisma.notification.create({
-      data: {
-        title: "New Ticket Created",
-        titleAr: "تم إنشاء تذكرة جديدة",
-        message: `Ticket ${ticketCode} has been created`,
-        messageAr: `تم إنشاء التذكرة رقم ${ticketCode} بنجاح`,
-        type: "info",
-        category: "support",
-        icon: "ticket",
-        link: `/profile/tickets/${ticket.id}`,
-        priority: "normal",
-        userId,
-      },
+    await createNotification({
+      userId,
+      title: "New Ticket Created",
+      titleAr: "تم إنشاء تذكرة جديدة",
+      message: `Ticket ${ticketCode} has been created`,
+      messageAr: `تم إنشاء التذكرة رقم ${ticketCode} بنجاح`,
+      type: "info",
+      category: "support",
+      icon: "ticket",
+      link: `/profile/tickets/${ticket.id}`,
+      priority: "normal",
     });
 
     return NextResponse.json(ticket, { status: 201 });

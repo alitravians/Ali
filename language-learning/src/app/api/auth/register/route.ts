@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,19 +43,17 @@ export async function POST(req: NextRequest) {
     });
 
     // Create welcome notification
-    await prisma.notification.create({
-      data: {
-        title: "Welcome to LinguaMaster!",
-        titleAr: "مرحباً بك في LinguaMaster!",
-        message: "Start your language learning journey today.",
-        messageAr: "ابدأ رحلة تعلم اللغات اليوم.",
-        type: "success",
-        category: "account",
-        icon: "rocket",
-        link: "/languages",
-        priority: "normal",
-        userId: user.id,
-      },
+    await createNotification({
+      userId: user.id,
+      title: "Welcome to LinguaMaster!",
+      titleAr: "مرحباً بك في LinguaMaster!",
+      message: "Start your language learning journey today.",
+      messageAr: "ابدأ رحلة تعلم اللغات اليوم.",
+      type: "success",
+      category: "account",
+      icon: "rocket",
+      link: "/languages",
+      priority: "normal",
     });
 
     return NextResponse.json(

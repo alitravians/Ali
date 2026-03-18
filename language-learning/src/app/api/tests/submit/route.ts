@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { createNotification } from "@/lib/notifications";
 
 export async function POST(req: NextRequest) {
   try {
@@ -92,19 +93,17 @@ export async function POST(req: NextRequest) {
 
     // Create notification
     if (passed) {
-      await prisma.notification.create({
-        data: {
-          title: "Congratulations!",
-          titleAr: "تهانينا!",
-          message: `You passed the ${test.level.name} test with ${scorePercentage}%!`,
-          messageAr: `لقد اجتزت اختبار ${test.level.nameAr} بنسبة ${scorePercentage}%!`,
-          type: "success",
-          category: "educational",
-          icon: "trophy",
-          link: `/learn/${test.levelId}`,
-          priority: "important",
-          userId: session.user.id,
-        },
+      await createNotification({
+        userId: session.user.id,
+        title: "Congratulations!",
+        titleAr: "تهانينا!",
+        message: `You passed the ${test.level.name} test with ${scorePercentage}%!`,
+        messageAr: `لقد اجتزت اختبار ${test.level.nameAr} بنسبة ${scorePercentage}%!`,
+        type: "success",
+        category: "educational",
+        icon: "trophy",
+        link: `/learn/${test.levelId}`,
+        priority: "important",
       });
 
       // Award badge for first test pass
@@ -122,19 +121,17 @@ export async function POST(req: NextRequest) {
       }
     } else {
       // Fail notification
-      await prisma.notification.create({
-        data: {
-          title: "Keep trying!",
-          titleAr: "حاول مرة أخرى!",
-          message: `You scored ${scorePercentage}% on the ${test.level.name} test. Try again!`,
-          messageAr: `حصلت على ${scorePercentage}% في اختبار ${test.level.nameAr}. حاول مرة أخرى!`,
-          type: "warning",
-          category: "educational",
-          icon: "alert",
-          link: `/learn/${test.levelId}`,
-          priority: "normal",
-          userId: session.user.id,
-        },
+      await createNotification({
+        userId: session.user.id,
+        title: "Keep trying!",
+        titleAr: "حاول مرة أخرى!",
+        message: `You scored ${scorePercentage}% on the ${test.level.name} test. Try again!`,
+        messageAr: `حصلت على ${scorePercentage}% في اختبار ${test.level.nameAr}. حاول مرة أخرى!`,
+        type: "warning",
+        category: "educational",
+        icon: "alert",
+        link: `/learn/${test.levelId}`,
+        priority: "normal",
       });
     }
 
