@@ -40,6 +40,13 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString("ar");
 }
 
+interface SiteSettings {
+  siteName: string;
+  logoText: string;
+  logoColor1: string;
+  logoColor2: string;
+}
+
 export default function Navbar() {
   const { data: session } = useSession();
   const router = useRouter();
@@ -49,6 +56,28 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [siteSettings, setSiteSettings] = useState<SiteSettings>({
+    siteName: "LinguaMaster",
+    logoText: "L",
+    logoColor1: "#3b82f6",
+    logoColor2: "#8b5cf6",
+  });
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && !data.error) {
+          setSiteSettings({
+            siteName: data.siteName || "LinguaMaster",
+            logoText: data.logoText || "L",
+            logoColor1: data.logoColor1 || "#3b82f6",
+            logoColor2: data.logoColor2 || "#8b5cf6",
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (session?.user) {
@@ -128,10 +157,18 @@ export default function Navbar() {
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">L</span>
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: `linear-gradient(135deg, ${siteSettings.logoColor1}, ${siteSettings.logoColor2})` }}
+              >
+                <span className="text-white font-bold text-lg">{siteSettings.logoText}</span>
               </div>
-              <span className="text-xl font-bold gradient-text hidden sm:block">LinguaMaster</span>
+              <span
+                className="text-xl font-bold hidden sm:block"
+                style={{ background: `linear-gradient(135deg, ${siteSettings.logoColor1}, ${siteSettings.logoColor2})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}
+              >
+                {siteSettings.siteName}
+              </span>
             </Link>
 
             {/* Desktop Nav */}

@@ -9,6 +9,9 @@ interface Settings {
   maintenanceMessage: string;
   siteName: string;
   siteDescription: string;
+  logoText: string;
+  logoColor1: string;
+  logoColor2: string;
   stampTopText: string;
   stampBottomText: string;
   stampCenterText: string;
@@ -25,6 +28,9 @@ export default function AdminSettingsPage() {
     maintenanceMessage: "الموقع تحت الصيانة حالياً. سنعود قريباً!",
     siteName: "LinguaMaster",
     siteDescription: "منصة تعلم اللغات الأجنبية",
+    logoText: "L",
+    logoColor1: "#3b82f6",
+    logoColor2: "#8b5cf6",
     stampTopText: "LINGUAMASTER",
     stampBottomText: "CERTIFIED",
     stampCenterText: "معتمدة",
@@ -48,6 +54,9 @@ export default function AdminSettingsPage() {
             maintenanceMessage: data.maintenanceMessage || "الموقع تحت الصيانة حالياً. سنعود قريباً!",
             siteName: data.siteName || "LinguaMaster",
             siteDescription: data.siteDescription || "منصة تعلم اللغات الأجنبية",
+            logoText: data.logoText || "L",
+            logoColor1: data.logoColor1 || "#3b82f6",
+            logoColor2: data.logoColor2 || "#8b5cf6",
             stampTopText: data.stampTopText || "LINGUAMASTER",
             stampBottomText: data.stampBottomText || "CERTIFIED",
             stampCenterText: data.stampCenterText || "معتمدة",
@@ -104,27 +113,98 @@ export default function AdminSettingsPage() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
-        {/* Site Info */}
+        {/* Site Info & Logo */}
         <div className="card p-6">
-          <h3 className="font-bold text-gray-900 mb-4">معلومات الموقع</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">اسم الموقع</label>
-              <input
-                type="text"
-                value={settings.siteName}
-                onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
-                className="input-field"
-              />
+          <h3 className="font-bold text-gray-900 mb-4">معلومات الموقع والشعار</h3>
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Logo Preview */}
+            <div className="flex-shrink-0 flex flex-col items-center gap-3">
+              <p className="text-sm font-medium text-gray-600">معاينة الشعار</p>
+              <div className="bg-gray-50 rounded-xl p-6 border flex flex-col items-center gap-3">
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg"
+                  style={{ background: `linear-gradient(135deg, ${settings.logoColor1}, ${settings.logoColor2})` }}
+                >
+                  <span className="text-white font-bold text-2xl">{settings.logoText || "L"}</span>
+                </div>
+                <span className="text-lg font-bold" style={{ background: `linear-gradient(135deg, ${settings.logoColor1}, ${settings.logoColor2})`, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                  {settings.siteName || "LinguaMaster"}
+                </span>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">وصف الموقع</label>
-              <textarea
-                value={settings.siteDescription}
-                onChange={(e) => setSettings({ ...settings, siteDescription: e.target.value })}
-                className="input-field"
-                rows={2}
-              />
+
+            {/* Site Info Form */}
+            <div className="flex-1 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">اسم الموقع</label>
+                <input
+                  type="text"
+                  value={settings.siteName}
+                  onChange={(e) => setSettings({ ...settings, siteName: e.target.value })}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">وصف الموقع</label>
+                <textarea
+                  value={settings.siteDescription}
+                  onChange={(e) => setSettings({ ...settings, siteDescription: e.target.value })}
+                  className="input-field"
+                  rows={2}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">حرف/رمز الشعار</label>
+                  <input
+                    type="text"
+                    value={settings.logoText}
+                    onChange={(e) => setSettings({ ...settings, logoText: e.target.value.slice(0, 3) })}
+                    className="input-field text-center text-lg font-bold"
+                    maxLength={3}
+                    dir="ltr"
+                    placeholder="L"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">اللون الأول</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={settings.logoColor1}
+                      onChange={(e) => setSettings({ ...settings, logoColor1: e.target.value })}
+                      className="w-10 h-10 rounded cursor-pointer border"
+                    />
+                    <input
+                      type="text"
+                      value={settings.logoColor1}
+                      onChange={(e) => setSettings({ ...settings, logoColor1: e.target.value })}
+                      className="input-field flex-1"
+                      dir="ltr"
+                      placeholder="#3b82f6"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">اللون الثاني</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={settings.logoColor2}
+                      onChange={(e) => setSettings({ ...settings, logoColor2: e.target.value })}
+                      className="w-10 h-10 rounded cursor-pointer border"
+                    />
+                    <input
+                      type="text"
+                      value={settings.logoColor2}
+                      onChange={(e) => setSettings({ ...settings, logoColor2: e.target.value })}
+                      className="input-field flex-1"
+                      dir="ltr"
+                      placeholder="#8b5cf6"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
