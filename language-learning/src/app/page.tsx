@@ -58,7 +58,14 @@ export default function HomePage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">الموقع تحت الصيانة</h1>
           <p className="text-gray-500 mb-6">{settings.maintenanceMessage}</p>
-          <p className="text-sm text-gray-400">سنعود قريباً إن شاء الله</p>
+          <p className="text-sm text-gray-400 mb-6">سنعود قريباً إن شاء الله</p>
+          <Link
+            href="/admin/login"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-primary-500 to-accent-500 text-white font-bold hover:from-primary-600 hover:to-accent-600 transition-all shadow-lg hover:shadow-xl"
+          >
+            <span>⚙</span>
+            <span>لوحة تحكم الإدارة</span>
+          </Link>
         </div>
       </div>
     );
