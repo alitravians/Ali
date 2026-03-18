@@ -37,6 +37,9 @@ model User {
   escalationsReported ChatEscalation[] @relation("EscalationReporter")
   nameChangeRequests NameChangeRequest[]
   teamMemberships TeamMember[]
+  moderatorRole   ModeratorRole? @relation("ModeratorUser")
+  modReports      ModReport[] @relation("ReportedUser")
+  modViolations   ModViolationRecord[] @relation("ViolationUser")
 }
 
 model Language {
@@ -477,6 +480,128 @@ model BannedWord {
   category  String   @default("inappropriate") // inappropriate | offensive | misleading | other
   addedBy   String   @default("admin")
   createdAt DateTime @default(now())
+}
+
+// ==================== Moderator System ====================
+
+model ModeratorRole {
+  id            String   @id @default(cuid())
+  userId        String
+  rank          String   @default("assistant") // assistant | moderator | head
+  permissions   String   @default("[]") // JSON array of permission strings
+  isActive      Boolean  @default(true)
+  assignedBy    String   @default("")
+  securityPin   String   @default("") // hashed PIN for moderator panel access
+  trustedDevices String  @default("[]") // JSON array of device fingerprints
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation("ModeratorUser", fields: [userId], references: [id], onDelete: Cascade)
+  sessions      ModeratorSession[]
+  activityLogs  ModActivityLog[]
+  reports       ModReport[] @relation("ReporterMod")
+  notifications ModNotification[]
+
+  @@unique([userId])
+}
+
+model ModeratorSession {
+  id            String   @id @default(cuid())
+  moderatorId   String
+  deviceFingerprint String @default("")
+  browser       String   @default("")
+  ipAddress     String   @default("")
+  isActive      Boolean  @default(true)
+  lastActivity  DateTime @default(now())
+  loginAt       DateTime @default(now())
+  logoutAt      DateTime?
+
+  moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+}
+
+model ModInstruction {
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  priority      String   @default("normal") // normal | important | urgent
+  targetType    String   @default("all") // all | rank | specific
+  targetRank    String   @default("") // assistant | moderator | head
+  targetModId   String   @default("") // specific moderator ID
+  sentBy        String   @default("admin")
+  createdAt     DateTime @default(now())
+
+  acknowledgments ModInstructionAck[]
+}
+
+model ModInstructionAck {
+  id              String   @id @default(cuid())
+  instructionId   String
+  moderatorUserId String
+  status          String   @default("unread") // unread | read | acknowledged | confirmed
+  readAt          DateTime?
+  acknowledgedAt  DateTime?
+
+  instruction     ModInstruction @relation(fields: [instructionId], references: [id], onDelete: Cascade)
+
+  @@unique([instructionId, moderatorUserId])
+}
+
+model ModReport {
+  id              String   @id @default(cuid())
+  reportedUserId  String
+  reportedByModId String
+  violationType   String   // abuse | insult | spam | inappropriate | impersonation | threat | other
+  severity        String   @default("medium") // minor | medium | serious | critical
+  description     String
+  evidence        String   @default("") // message ID or content reference
+  suggestedAction String   @default("")
+  status          String   @default("pending") // pending | reviewed | escalated | resolved | dismissed
+  adminNote       String   @default("")
+  reviewedBy      String   @default("")
+  escalatedTo     String   @default("") // head | admin
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+
+  reportedUser    User          @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reporter        ModeratorRole @relation("ReporterMod", fields: [reportedByModId], references: [id], onDelete: Cascade)
+}
+
+model ModViolationRecord {
+  id              String   @id @default(cuid())
+  userId          String
+  violationType   String
+  severity        String   @default("medium")
+  description     String
+  action          String   @default("") // warning | temp_ban | escalated
+  actionBy        String   @default("")
+  reportId        String   @default("")
+  createdAt       DateTime @default(now())
+
+  user            User     @relation("ViolationUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ModActivityLog {
+  id            String   @id @default(cuid())
+  moderatorId   String
+  action        String   // login | logout | report | warning | ban | escalation | ack_instruction | review_report
+  targetUserId  String   @default("")
+  details       String   @default("")
+  createdAt     DateTime @default(now())
+
+  moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+}
+
+model ModNotification {
+  id            String   @id @default(cuid())
+  moderatorId   String
+  title         String
+  message       String
+  type          String   @default("info") // info | warning | report | instruction | escalation
+  isRead        Boolean  @default(false)
+  link          String   @default("")
+  createdAt     DateTime @default(now())
+
+  moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
 }
 
 // ==================== Team System ====================
