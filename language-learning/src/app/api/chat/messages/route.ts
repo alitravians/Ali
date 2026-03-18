@@ -76,9 +76,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "المحتوى والغرفة مطلوبان" }, { status: 400 });
     }
 
+    // Check for $ bold prefix (admin/moderator only)
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, chatRank: true } });
+    const isStaff = user?.role === "admin" || user?.chatRank === "moderator" || user?.chatRank === "admin";
+    let isBold = false;
+    let processedContent = content.slice(0, 1000);
+
+    if (processedContent.startsWith("$")) {
+      if (isStaff) {
+        isBold = true;
+        processedContent = processedContent.slice(1).trim();
+        if (!processedContent) {
+          return NextResponse.json({ error: "الرسالة فارغة" }, { status: 400 });
+        }
+      } else {
+        // Strip $ for non-staff users silently
+        processedContent = processedContent.slice(1).trim();
+        if (!processedContent) {
+          return NextResponse.json({ error: "الرسالة فارغة" }, { status: 400 });
+        }
+      }
+    }
+
     // Word filter
     const settings = await prisma.siteSettings.findFirst();
-    let filteredContent = content.slice(0, 1000);
+    let filteredContent = processedContent;
 
     if (settings?.chatAutoFilter && settings?.chatBannedWords) {
       const bannedWords = settings.chatBannedWords.split(",").map((w: string) => w.trim()).filter(Boolean);
@@ -90,9 +112,12 @@ export async function POST(request: Request) {
       }
     }
 
+    // If bold, prefix with marker
+    const finalContent = isBold ? `[BOLD]${filteredContent}` : filteredContent;
+
     const message = await prisma.chatMessage.create({
       data: {
-        content: filteredContent,
+        content: finalContent,
         roomId,
         userId,
       },
@@ -134,7 +159,7 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "معرف الرسالة مطلوب" }, { status: 400 });
     }
 
-    await prisma.chatMessage.update({
+    const deletedMsg = await prisma.chatMessage.update({
       where: { id: messageId },
       data: { isDeleted: true },
     });
@@ -143,7 +168,7 @@ export async function DELETE(request: Request) {
     await prisma.chatAdminLog.create({
       data: {
         action: "delete_message",
-        targetUserId: messageId,
+        targetUserId: deletedMsg.userId,
         adminId: (session.user as { id: string }).id,
         details: `حذف رسالة #${messageId}`,
       },

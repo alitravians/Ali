@@ -409,10 +409,21 @@ export default function ChatPage() {
                             className={`rounded-2xl px-4 py-2 relative ${
                               isMe
                                 ? "bg-primary-600 text-white rounded-br-md"
-                                : "bg-white border border-gray-200 text-gray-800 rounded-bl-md shadow-sm"
+                                : msg.content.startsWith("[BOLD]")
+                                  ? "bg-amber-50 border-2 border-amber-300 text-gray-900 rounded-bl-md shadow-md"
+                                  : "bg-white border border-gray-200 text-gray-800 rounded-bl-md shadow-sm"
                             }`}
                           >
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                            {msg.content.startsWith("[BOLD]") ? (
+                              <div className="flex items-start gap-1.5">
+                                <span className="text-amber-500 mt-0.5">&#9733;</span>
+                                <p className="text-base font-bold text-black leading-relaxed whitespace-pre-wrap break-words">
+                                  {msg.content.slice(6)}
+                                </p>
+                              </div>
+                            ) : (
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                            )}
                             <div className={`flex items-center gap-2 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
                               <span className={`text-[10px] ${isMe ? "text-primary-200" : "text-gray-400"}`}>
                                 {formatTime(msg.createdAt)}
