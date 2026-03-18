@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
+import { sanitizeInput, validateLength, validateEnum } from "@/lib/validation";
 
 function generateTicketCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -54,27 +55,34 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "العنوان والوصف مطلوبان" }, { status: 400 });
     }
 
-    if (typeof subject !== "string" || subject.trim().length > 200) {
-      return NextResponse.json({ error: "العنوان يجب أن لا يتجاوز 200 حرف" }, { status: 400 });
+    const subjectError = validateLength(subject, "العنوان", 1, 200);
+    if (subjectError) {
+      return NextResponse.json({ error: subjectError }, { status: 400 });
     }
 
-    if (typeof description !== "string" || description.trim().length > 5000) {
-      return NextResponse.json({ error: "الوصف يجب أن لا يتجاوز 5000 حرف" }, { status: 400 });
+    const descError = validateLength(description, "الوصف", 1, 5000);
+    if (descError) {
+      return NextResponse.json({ error: descError }, { status: 400 });
     }
 
-    const validCategories = ["general", "technical", "account", "tests", "certificates", "inquiry"];
-    const validPriorities = ["low", "medium", "high", "urgent"];
-
-    const safeCategory = validCategories.includes(category) ? category : "general";
-    const safePriority = validPriorities.includes(priority) ? priority : "medium";
+    const safeCategory = validateEnum(
+      category,
+      ["general", "technical", "account", "tests", "certificates", "inquiry"] as const,
+      "general"
+    );
+    const safePriority = validateEnum(
+      priority,
+      ["low", "medium", "high", "urgent"] as const,
+      "medium"
+    );
 
     const ticketCode = generateTicketCode();
 
     const ticket = await prisma.ticket.create({
       data: {
         ticketCode,
-        subject: subject.trim(),
-        description: description.trim(),
+        subject: sanitizeInput(subject.trim()),
+        description: sanitizeInput(description.trim()),
         category: safeCategory,
         priority: safePriority,
         userId,

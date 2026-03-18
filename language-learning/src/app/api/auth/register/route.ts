@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
-
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailRegex.test(email);
-}
+import { isValidEmail, validateLength } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,9 +15,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 50) {
+    const nameError = validateLength(name, "الاسم", 2, 50);
+    if (nameError) {
       return NextResponse.json(
-        { error: "الاسم يجب أن يكون بين 2 و 50 حرف" },
+        { error: nameError },
         { status: 400 }
       );
     }

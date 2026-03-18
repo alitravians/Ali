@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-
-function sanitizeInput(input: string): string {
-  return input
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-  return emailRegex.test(email);
-}
+import { sanitizeInput, isValidEmail, validateLength } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,20 +10,23 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 });
     }
 
-    if (typeof name !== "string" || name.trim().length > 100) {
-      return NextResponse.json({ error: "الاسم يجب أن لا يتجاوز 100 حرف" }, { status: 400 });
+    const nameError = validateLength(name, "الاسم", 1, 100);
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 });
     }
 
     if (!isValidEmail(email)) {
       return NextResponse.json({ error: "البريد الإلكتروني غير صالح" }, { status: 400 });
     }
 
-    if (typeof subject !== "string" || subject.trim().length > 200) {
-      return NextResponse.json({ error: "الموضوع يجب أن لا يتجاوز 200 حرف" }, { status: 400 });
+    const subjectError = validateLength(subject, "الموضوع", 1, 200);
+    if (subjectError) {
+      return NextResponse.json({ error: subjectError }, { status: 400 });
     }
 
-    if (typeof message !== "string" || message.trim().length > 2000) {
-      return NextResponse.json({ error: "الرسالة يجب أن لا تتجاوز 2000 حرف" }, { status: 400 });
+    const messageError = validateLength(message, "الرسالة", 1, 2000);
+    if (messageError) {
+      return NextResponse.json({ error: messageError }, { status: 400 });
     }
 
     await prisma.contactMessage.create({
