@@ -67,6 +67,10 @@ export async function PUT(req: NextRequest) {
     }
 
     if (id) {
+      const notification = await prisma.notification.findUnique({ where: { id } });
+      if (!notification || notification.userId !== session.user.id) {
+        return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+      }
       await prisma.notification.update({
         where: { id },
         data: { isRead: true },
@@ -90,6 +94,10 @@ export async function DELETE(req: NextRequest) {
     const { id } = await req.json();
 
     if (id) {
+      const notification = await prisma.notification.findUnique({ where: { id } });
+      if (!notification || notification.userId !== session.user.id) {
+        return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+      }
       await prisma.notification.update({
         where: { id },
         data: { isDeleted: true },

@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { requireAdmin } from "@/lib/admin-auth";
 
 export async function GET() {
   try {
+    const auth = await requireAdmin();
+    if (!auth.authorized) return auth.response;
     const [totalUsers, totalLanguages, totalLevels, totalLessons, totalQuestions, totalTests, totalCertificates, totalTestResults, totalTickets, openTickets] =
       await Promise.all([
         prisma.user.count(),
