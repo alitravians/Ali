@@ -25,6 +25,7 @@ interface DepartmentData {
   id: string;
   name: string;
   nameAr: string;
+  color: string;
   order: number;
   isVisible: boolean;
   members: TeamMemberData[];
@@ -38,8 +39,21 @@ export default function AdminTeamPage() {
   // Department form
   const [showDeptForm, setShowDeptForm] = useState(false);
   const [editDept, setEditDept] = useState<DepartmentData | null>(null);
-  const [deptName, setDeptName] = useState("");
   const [deptNameAr, setDeptNameAr] = useState("");
+  const [deptColor, setDeptColor] = useState("#2563eb");
+
+  const colorPresets = [
+    { name: "أزرق", value: "#2563eb" },
+    { name: "أحمر", value: "#dc2626" },
+    { name: "أخضر", value: "#16a34a" },
+    { name: "برتقالي", value: "#ea580c" },
+    { name: "بنفسجي", value: "#9333ea" },
+    { name: "وردي", value: "#db2777" },
+    { name: "ذهبي", value: "#ca8a04" },
+    { name: "فيروزي", value: "#0891b2" },
+    { name: "رمادي", value: "#4b5563" },
+    { name: "أسود", value: "#1f2937" },
+  ];
 
   // Member form
   const [showMemberForm, setShowMemberForm] = useState(false);
@@ -65,14 +79,14 @@ export default function AdminTeamPage() {
   useEffect(() => { fetchData(); }, []);
 
   const handleCreateDept = async () => {
-    if (!deptName.trim() || !deptNameAr.trim()) return;
+    if (!deptNameAr.trim()) return;
     const res = await fetch("/api/admin/team", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "create_department", name: deptName.trim(), nameAr: deptNameAr.trim() }),
+      body: JSON.stringify({ action: "create_department", nameAr: deptNameAr.trim(), color: deptColor }),
     });
     if (res.ok) {
-      setDeptName(""); setDeptNameAr(""); setShowDeptForm(false);
+      setDeptNameAr(""); setDeptColor("#2563eb"); setShowDeptForm(false);
       fetchData();
     }
   };
@@ -82,9 +96,9 @@ export default function AdminTeamPage() {
     await fetch("/api/admin/team", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "update_department", id: editDept.id, name: deptName.trim(), nameAr: deptNameAr.trim() }),
+      body: JSON.stringify({ action: "update_department", id: editDept.id, nameAr: deptNameAr.trim(), color: deptColor }),
     });
-    setEditDept(null); setDeptName(""); setDeptNameAr("");
+    setEditDept(null); setDeptNameAr(""); setDeptColor("#2563eb");
     fetchData();
   };
 
@@ -223,7 +237,7 @@ export default function AdminTeamPage() {
               + إضافة عضو
             </button>
             <button
-              onClick={() => { setShowDeptForm(true); setDeptName(""); setDeptNameAr(""); }}
+              onClick={() => { setShowDeptForm(true); setDeptNameAr(""); setDeptColor("#2563eb"); }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors"
             >
               + قسم جديد
@@ -270,13 +284,17 @@ export default function AdminTeamPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-900">{dept.nameAr}</h3>
-                    <p className="text-gray-400 text-xs">{dept.name} - {dept.members.length} عضو</p>
+                    <p className="text-gray-400 text-xs">{dept.members.length} عضو</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <div className="w-3 h-3 rounded-full border border-gray-300" style={{ backgroundColor: dept.color || "#2563eb" }}></div>
+                      <span className="text-gray-400 text-xs">{dept.color || "#2563eb"}</span>
+                    </div>
                   </div>
                   {!dept.isVisible && <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">مخفي</span>}
                   <button onClick={() => handleToggleDeptVisibility(dept)} className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100">
                     {dept.isVisible ? "إخفاء" : "إظهار"}
                   </button>
-                  <button onClick={() => { setEditDept(dept); setDeptName(dept.name); setDeptNameAr(dept.nameAr); }} className="text-sm text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
+                  <button onClick={() => { setEditDept(dept); setDeptNameAr(dept.nameAr); setDeptColor(dept.color || "#2563eb"); }} className="text-sm text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
                     تعديل
                   </button>
                   <button onClick={() => handleDeleteDept(dept.id)} className="text-sm text-red-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50">
@@ -374,16 +392,32 @@ export default function AdminTeamPage() {
             <h3 className="text-lg font-bold text-gray-900 mb-4">إنشاء قسم جديد</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">اسم القسم (إنجليزي)</label>
-                <input type="text" value={deptName} onChange={(e) => setDeptName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="e.g. Administration" dir="ltr" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">اسم القسم</label>
+                <input type="text" value={deptNameAr} onChange={(e) => setDeptNameAr(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="مثال: الإدارة العامة" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">اسم القسم (عربي)</label>
-                <input type="text" value={deptNameAr} onChange={(e) => setDeptNameAr(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="مثال: الإدارة العامة" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">لون القسم</label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {colorPresets.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setDeptColor(c.value)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${deptColor === c.value ? "border-gray-900 scale-110 shadow-md" : "border-gray-200 hover:border-gray-400"}`}
+                      style={{ backgroundColor: c.value }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={deptColor} onChange={(e) => setDeptColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
+                  <input type="text" value={deptColor} onChange={(e) => setDeptColor(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm font-mono" dir="ltr" placeholder="#2563eb" />
+                </div>
+                <div className="mt-3 rounded-lg py-2 px-4 text-center text-white text-sm font-bold" style={{ backgroundColor: deptColor }}>معاينة: {deptNameAr || "اسم القسم"}</div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={handleCreateDept} disabled={!deptName.trim() || !deptNameAr.trim()} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700 disabled:opacity-50">إنشاء</button>
+              <button onClick={handleCreateDept} disabled={!deptNameAr.trim()} className="flex-1 bg-blue-600 text-white rounded-lg py-2 text-sm hover:bg-blue-700 disabled:opacity-50">إنشاء</button>
               <button onClick={() => setShowDeptForm(false)} className="px-4 py-2 text-gray-500 text-sm">إلغاء</button>
             </div>
           </div>
@@ -397,12 +431,28 @@ export default function AdminTeamPage() {
             <h3 className="text-lg font-bold text-gray-900 mb-4">تعديل القسم</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">اسم القسم (إنجليزي)</label>
-                <input type="text" value={deptName} onChange={(e) => setDeptName(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" dir="ltr" />
+                <label className="block text-sm font-medium text-gray-700 mb-1">اسم القسم</label>
+                <input type="text" value={deptNameAr} onChange={(e) => setDeptNameAr(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">اسم القسم (عربي)</label>
-                <input type="text" value={deptNameAr} onChange={(e) => setDeptNameAr(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" />
+                <label className="block text-sm font-medium text-gray-700 mb-2">لون القسم</label>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  {colorPresets.map((c) => (
+                    <button
+                      key={c.value}
+                      type="button"
+                      onClick={() => setDeptColor(c.value)}
+                      className={`w-8 h-8 rounded-full border-2 transition-all ${deptColor === c.value ? "border-gray-900 scale-110 shadow-md" : "border-gray-200 hover:border-gray-400"}`}
+                      style={{ backgroundColor: c.value }}
+                      title={c.name}
+                    />
+                  ))}
+                </div>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={deptColor} onChange={(e) => setDeptColor(e.target.value)} className="w-10 h-10 rounded cursor-pointer border-0 p-0" />
+                  <input type="text" value={deptColor} onChange={(e) => setDeptColor(e.target.value)} className="flex-1 border rounded-lg px-3 py-2 text-sm font-mono" dir="ltr" placeholder="#2563eb" />
+                </div>
+                <div className="mt-3 rounded-lg py-2 px-4 text-center text-white text-sm font-bold" style={{ backgroundColor: deptColor }}>معاينة: {deptNameAr || "اسم القسم"}</div>
               </div>
             </div>
             <div className="flex gap-3 mt-6">

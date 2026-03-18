@@ -483,8 +483,9 @@ model BannedWord {
 
 model TeamDepartment {
   id        String   @id @default(cuid())
-  name      String
+  name      String   @default("")
   nameAr    String
+  color     String   @default("#2563eb") // department header color
   order     Int      @default(0)
   isVisible Boolean  @default(true)
   createdAt DateTime @default(now())

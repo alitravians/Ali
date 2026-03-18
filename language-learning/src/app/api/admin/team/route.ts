@@ -56,15 +56,16 @@ export async function POST(req: NextRequest) {
     const { action } = body;
 
     if (action === "create_department") {
-      const { name, nameAr } = body;
-      if (!name || !nameAr) {
-        return NextResponse.json({ error: "الاسم مطلوب" }, { status: 400 });
+      const { nameAr, color } = body;
+      if (!nameAr) {
+        return NextResponse.json({ error: "اسم القسم مطلوب" }, { status: 400 });
       }
       const maxOrder = await prisma.teamDepartment.aggregate({ _max: { order: true } });
       const department = await prisma.teamDepartment.create({
         data: {
-          name,
+          name: nameAr,
           nameAr,
+          color: color || "#2563eb",
           order: (maxOrder._max.order || 0) + 1,
         },
       });
@@ -72,13 +73,13 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "update_department") {
-      const { id, name, nameAr, isVisible, order } = body;
+      const { id, nameAr, color, isVisible, order } = body;
       if (!id) return NextResponse.json({ error: "المعرّف مطلوب" }, { status: 400 });
       const department = await prisma.teamDepartment.update({
         where: { id },
         data: {
-          ...(name !== undefined && { name }),
-          ...(nameAr !== undefined && { nameAr }),
+          ...(nameAr !== undefined && { nameAr, name: nameAr }),
+          ...(color !== undefined && { color }),
           ...(isVisible !== undefined && { isVisible }),
           ...(order !== undefined && { order }),
         },

@@ -21,6 +21,7 @@ interface TeamDepartment {
   id: string;
   name: string;
   nameAr: string;
+  color: string;
   members: TeamMember[];
 }
 
@@ -72,7 +73,7 @@ export default function TeamPage() {
                 {departments.map((dept) => (
                   <div key={dept.id} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
                     {/* Department Name Header */}
-                    <div className="bg-gradient-to-l from-primary-600 to-primary-700 px-6 py-4">
+                    <div className="px-6 py-4" style={{ backgroundColor: dept.color || "#2563eb" }}>
                       <h2 className="text-xl font-bold text-white text-center">{dept.nameAr}</h2>
                     </div>
 
