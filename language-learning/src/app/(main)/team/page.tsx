@@ -29,16 +29,23 @@ export default function TeamPage() {
   const [departments, setDepartments] = useState<TeamDepartment[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchTeamData = () => {
     fetch("/api/team")
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setDepartments(data.filter((d: TeamDepartment) => d.members.length > 0));
+          setDepartments(data);
         }
         setLoading(false);
       })
       .catch(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchTeamData();
+    // Auto-refresh every 5 seconds to pick up admin changes
+    const interval = setInterval(fetchTeamData, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -89,48 +96,56 @@ export default function TeamPage() {
                           </tr>
                         </thead>
 
-                        {/* Table Body */}
-                        <tbody>
-                          {dept.members.map((member, idx) => (
-                            <tr
-                              key={member.id}
-                              className={`border-b border-gray-100 hover:bg-primary-50/50 transition-colors ${idx % 2 === 1 ? "bg-gray-50/50" : ""}`}
-                            >
-                              {/* Name Column */}
-                              <td className="px-6 py-4">
-                                <span className="text-base font-semibold text-gray-900">
-                                  {member.user.name}
-                                </span>
-                              </td>
+                            {/* Table Body */}
+                            <tbody>
+                              {dept.members.length > 0 ? (
+                                dept.members.map((member, idx) => (
+                                  <tr
+                                    key={member.id}
+                                    className={`border-b border-gray-100 hover:bg-primary-50/50 transition-colors ${idx % 2 === 1 ? "bg-gray-50/50" : ""}`}
+                                  >
+                                    {/* Name Column */}
+                                    <td className="px-6 py-4">
+                                      <span className="text-base font-semibold text-gray-900">
+                                        {member.user.name}
+                                      </span>
+                                    </td>
 
-                              {/* Responsibility Column */}
-                              <td className="px-6 py-4 text-center">
-                                <span className="text-sm font-medium text-primary-600">
-                                  {member.roleAr || member.role || "عضو فريق"}
-                                </span>
-                              </td>
+                                    {/* Responsibility Column */}
+                                    <td className="px-6 py-4 text-center">
+                                      <span className="text-sm font-medium text-primary-600">
+                                        {member.roleAr || member.role || "عضو فريق"}
+                                      </span>
+                                    </td>
 
-                              {/* Avatar Column */}
-                              <td className="px-6 py-4">
-                                <div className="flex justify-center">
-                                  <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-primary-200 shadow-sm">
-                                    {member.user.avatar ? (
-                                      <img
-                                        src={member.user.avatar}
-                                        alt={member.user.name}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    ) : (
-                                      <div className="w-full h-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-lg font-bold">
-                                        {member.user.name.charAt(0)}
+                                    {/* Avatar Column */}
+                                    <td className="px-6 py-4">
+                                      <div className="flex justify-center">
+                                        <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-primary-200 shadow-sm">
+                                          {member.user.avatar ? (
+                                            <img
+                                              src={member.user.avatar}
+                                              alt={member.user.name}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          ) : (
+                                            <div className="w-full h-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-lg font-bold">
+                                              {member.user.name.charAt(0)}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
+                                    </td>
+                                  </tr>
+                                ))
+                              ) : (
+                                <tr>
+                                  <td colSpan={3} className="px-6 py-8 text-center text-gray-400 text-sm">
+                                    لا يوجد أعضاء في هذا القسم حالياً
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
                       </table>
                     </div>
                   </div>
