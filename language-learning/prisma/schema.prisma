@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    @default("user") // user | admin
+  points        Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  progress      UserProgress[]
+  testResults   TestResult[]
+  certificates  Certificate[]
+  badges        UserBadge[]
+  notifications Notification[]
+}
+
+model Language {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  code        String   @unique
+  flag        String   @default("")
+  description String   @default("")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  levels      Level[]
+}
+
+model Level {
+  id           String   @id @default(cuid())
+  name         String
+  nameAr       String
+  order        Int
+  description  String   @default("")
+  passingScore Int      @default(70)
+  languageId   String
+  createdAt    DateTime @default(now())
+
+  language     Language  @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+  tests        Test[]
+  progress     UserProgress[]
+  certificates Certificate[]
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String
+  order       Int
+  content     String   @default("")
+  levelId     String
+  createdAt   DateTime @default(now())
+
+  level       Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  words       Word[]
+  grammarRules GrammarRule[]
+  questions   Question[]
+}
+
+model Word {
+  id            String   @id @default(cuid())
+  word          String
+  translation   String
+  translationAr String   @default("")
+  pronunciation String   @default("")
+  example       String   @default("")
+  exampleTranslation String @default("")
+  audioUrl      String   @default("")
+  lessonId      String
+  createdAt     DateTime @default(now())
+
+  lesson        Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model GrammarRule {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String   @default("")
+  explanation String
+  explanationAr String @default("")
+  examples    String   @default("[]")
+  lessonId    String
+  createdAt   DateTime @default(now())
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  type        String   // multiple_choice | matching | writing | listening | pronunciation
+  question    String
+  questionAr  String   @default("")
+  options     String   @default("[]")
+  answer      String
+  explanation String   @default("")
+  audioUrl    String   @default("")
+  points      Int      @default(10)
+  lessonId    String
+  createdAt   DateTime @default(now())
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Test {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String   @default("")
+  type        String   @default("level") // lesson | level | final
+  passingScore Int     @default(70)
+  levelId     String
+  createdAt   DateTime @default(now())
+
+  level       Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  results     TestResult[]
+}
+
+model TestResult {
+  id          String   @id @default(cuid())
+  score       Int
+  totalPoints Int
+  passed      Boolean
+  answers     String   @default("[]")
+  userId      String
+  testId      String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+}
+
+model UserProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  levelId         String
+  completedLessons String  @default("[]")
+  readingScore    Int      @default(0)
+  writingScore    Int      @default(0)
+  listeningScore  Int      @default(0)
+  speakingScore   Int      @default(0)
+  overallProgress Int      @default(0)
+  isCompleted     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level           Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, levelId])
+}
+
+model Certificate {
+  id              String   @id @default(cuid())
+  certificateCode String   @unique
+  userName        String
+  languageName    String
+  levelName       String
+  score           Int      @default(0)
+  grade           String   @default("good")
+  gradeAr         String   @default("جيد")
+  readingScore    Int      @default(0)
+  writingScore    Int      @default(0)
+  listeningScore  Int      @default(0)
+  speakingScore   Int      @default(0)
+  issueDate       DateTime @default(now())
+  expiresAt       DateTime?
+  userId          String
+  levelId         String
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level           Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String   @default("")
+  description String   @default("")
+  icon        String   @default("")
+  userId      String
+  earnedAt    DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  titleAr   String   @default("")
+  message   String
+  messageAr String   @default("")
+  type      String   @default("info") // info | success | warning | achievement
+  isRead    Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SiteSettings {
+  id                 String  @id @default("settings")
+  siteName           String  @default("LinguaMaster")
+  siteDescription    String  @default("منصة تعلم اللغات الأجنبية")
+  maintenanceMode    Boolean @default(false)
+  maintenanceMessage String  @default("الموقع تحت الصيانة حالياً")
+}
