@@ -183,14 +183,15 @@ export default function AdminModeratorsPage() {
     if (activeSection === "activity") fetchActivities();
   }, [activeSection]);
 
-  // Auto-refresh
+  // Auto-refresh (skip when editing permissions or reviewing reports)
   useEffect(() => {
     const interval = setInterval(() => {
+      if (editingPermsMod || reviewingReport) return;
       if (activeSection === "moderators") fetchModerators();
       if (activeSection === "reports") fetchReports();
     }, 10000);
     return () => clearInterval(interval);
-  }, [activeSection]);
+  }, [activeSection, editingPermsMod, reviewingReport]);
 
   const handleAddModerator = async () => {
     if (!selectedUserId || !selectedRank) return;
@@ -427,7 +428,7 @@ export default function AdminModeratorsPage() {
                 {moderators.map((mod) => {
                   const perms: string[] = JSON.parse(mod.permissions || "[]");
                   return (
-                    <div key={mod.id} className={`card p-5 ${!mod.isActive ? "opacity-60" : ""}`}>
+                    <div key={mod.id} className={`bg-white rounded-2xl shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-xl p-5 ${!mod.isActive ? "opacity-60" : ""}`}>
                       <div className="flex items-start gap-4">
                         <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-lg overflow-hidden">
                           {mod.user.avatar ? (
@@ -468,8 +469,8 @@ export default function AdminModeratorsPage() {
                           className={`text-xs px-3 py-1 rounded ${mod.isActive ? "bg-red-50 text-red-600" : "bg-emerald-50 text-emerald-600"}`}>
                           {mod.isActive ? "تعطيل" : "تفعيل"}
                         </button>
-                        <button onClick={() => { setEditingPermsMod(mod.id); setEditPerms(perms); }}
-                          className="text-xs px-3 py-1 rounded bg-blue-50 text-blue-600">
+                        <button onClick={() => { setEditingPermsMod(editingPermsMod === mod.id ? null : mod.id); setEditPerms(perms); }}
+                          className={`text-xs px-3 py-1 rounded ${editingPermsMod === mod.id ? "bg-blue-600 text-white" : "bg-blue-50 text-blue-600"}`}>
                           الصلاحيات
                         </button>
                         <button onClick={() => handleResetPin(mod.id)}
@@ -482,38 +483,41 @@ export default function AdminModeratorsPage() {
                         </button>
                       </div>
 
-                      {/* Permission Editor */}
-                      {editingPermsMod === mod.id && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                          <h4 className="font-bold text-sm text-gray-900 mb-3">تعديل الصلاحيات</h4>
-                          <div className="grid grid-cols-2 gap-2">
-                            {ALL_PERMISSIONS.map((p) => (
-                              <label key={p.key} className="flex items-center gap-2 text-xs cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={editPerms.includes(p.key)}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setEditPerms([...editPerms, p.key]);
-                                    } else {
-                                      setEditPerms(editPerms.filter(k => k !== p.key));
-                                    }
-                                  }}
-                                  className="rounded border-gray-300"
-                                />
-                                {p.label}
-                              </label>
-                            ))}
-                          </div>
-                          <div className="flex gap-2 mt-3">
-                            <button onClick={() => handleSavePermissions(mod.id)} className="bg-primary-600 text-white px-3 py-1.5 rounded text-sm">حفظ</button>
-                            <button onClick={() => setEditingPermsMod(null)} className="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm">إلغاء</button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Permission Editor Modal */}
+            {editingPermsMod && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setEditingPermsMod(null)}>
+                <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
+                  <h4 className="font-bold text-lg text-gray-900 mb-4">تعديل الصلاحيات</h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    {ALL_PERMISSIONS.map((p) => (
+                      <label key={p.key} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded">
+                        <input
+                          type="checkbox"
+                          checked={editPerms.includes(p.key)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setEditPerms([...editPerms, p.key]);
+                            } else {
+                              setEditPerms(editPerms.filter(k => k !== p.key));
+                            }
+                          }}
+                          className="rounded border-gray-300 w-4 h-4"
+                        />
+                        {p.label}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-5 pt-4 border-t">
+                    <button onClick={() => handleSavePermissions(editingPermsMod)} className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm flex-1">حفظ الصلاحيات</button>
+                    <button onClick={() => setEditingPermsMod(null)} className="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm">إلغاء</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>
