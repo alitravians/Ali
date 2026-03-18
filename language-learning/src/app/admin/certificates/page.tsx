@@ -70,7 +70,7 @@ export default function AdminCertificatesPage() {
                       <p className="text-xs text-gray-500">{cert.user.email}</p>
                     </td>
                     <td className="py-3 px-4 text-sm text-gray-700">
-                      {cert.level.language.flag} {cert.level.language.nameAr} - {cert.level.nameAr}
+                      {cert.level ? `${cert.level.language?.flag || ""} ${cert.level.language?.nameAr || ""} - ${cert.level.nameAr}` : "-"}
                     </td>
                     <td className="py-3 px-4">
                       <span className="badge-primary text-xs">{cert.gradeAr}</span>
