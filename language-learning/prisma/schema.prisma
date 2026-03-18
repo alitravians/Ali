@@ -15,6 +15,7 @@ model User {
   role          String    @default("user") // user | admin | moderator
   chatRank      String    @default("member") // member | vip | teacher | tester | moderator | admin
   chatBadgeColor String   @default("#6b7280")
+  avatar        String    @default("") // base64 encoded avatar image
   points        Int       @default(0)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -35,6 +36,7 @@ model User {
   escalationsReceived ChatEscalation[] @relation("EscalatedUser")
   escalationsReported ChatEscalation[] @relation("EscalationReporter")
   nameChangeRequests NameChangeRequest[]
+  teamMemberships TeamMember[]
 }
 
 model Language {
@@ -475,4 +477,33 @@ model BannedWord {
   category  String   @default("inappropriate") // inappropriate | offensive | misleading | other
   addedBy   String   @default("admin")
   createdAt DateTime @default(now())
+}
+
+// ==================== Team System ====================
+
+model TeamDepartment {
+  id        String   @id @default(cuid())
+  name      String
+  nameAr    String
+  order     Int      @default(0)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  members   TeamMember[]
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  userId       String
+  departmentId String
+  role         String   @default("") // e.g. المدير العام, مشرف دردشة
+  roleAr       String   @default("")
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   TeamDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
 }

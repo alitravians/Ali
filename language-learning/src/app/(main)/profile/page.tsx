@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -75,6 +75,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"progress" | "badges" | "notifications">("progress");
   const [loading, setLoading] = useState(true);
 
+  // Avatar state
+  const [avatar, setAvatar] = useState("");
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState("");
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
   // Name change state
   const [nameChangeStatus, setNameChangeStatus] = useState<NameChangeStatus | null>(null);
   const [showNameChangeModal, setShowNameChangeModal] = useState(false);
@@ -105,11 +111,13 @@ export default function ProfilePage() {
       fetch("/api/progress").then((r) => r.json()),
       fetch("/api/badges").then((r) => r.json()),
       fetch("/api/notifications").then((r) => r.json()),
+      fetch("/api/profile/avatar").then((r) => r.json()),
     ])
-      .then(([prog, bdg, notif]) => {
+      .then(([prog, bdg, notif, avatarData]) => {
         setProgress(Array.isArray(prog) ? prog : []);
         setBadges(Array.isArray(bdg) ? bdg : []);
         setNotifications(Array.isArray(notif) ? notif : []);
+        if (avatarData?.avatar) setAvatar(avatarData.avatar);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -173,6 +181,43 @@ export default function ProfilePage() {
     setNameChangeLoading(false);
   };
 
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAvatarLoading(true);
+    setAvatarMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("avatar", file);
+      const res = await fetch("/api/profile/avatar", { method: "POST", body: formData });
+      const data = await res.json();
+      if (res.ok) {
+        setAvatar(data.avatar);
+        setAvatarMessage("تم تحديث الصورة بنجاح");
+        setTimeout(() => setAvatarMessage(""), 3000);
+      } else {
+        setAvatarMessage(data.error || "فشل في رفع الصورة");
+      }
+    } catch {
+      setAvatarMessage("حدث خطأ أثناء رفع الصورة");
+    }
+    setAvatarLoading(false);
+    if (avatarInputRef.current) avatarInputRef.current.value = "";
+  };
+
+  const handleDeleteAvatar = async () => {
+    setAvatarLoading(true);
+    try {
+      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      if (res.ok) {
+        setAvatar("");
+        setAvatarMessage("تم حذف الصورة");
+        setTimeout(() => setAvatarMessage(""), 3000);
+      }
+    } catch { /* ignore */ }
+    setAvatarLoading(false);
+  };
+
   const markNotificationRead = async (id: string) => {
     await fetch("/api/notifications", {
       method: "PUT",
@@ -202,8 +247,46 @@ export default function ProfilePage() {
         <section className="gradient-bg text-white py-12">
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center gap-6">
-              <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center text-4xl">
-                👤
+              <div className="relative group">
+                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white/30 shadow-lg">
+                  {avatar ? (
+                    <img src={avatar} alt="الصورة الشخصية" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full bg-white/20 flex items-center justify-center text-4xl">
+                      {session?.user?.name?.charAt(0) || "👤"}
+                    </div>
+                  )}
+                </div>
+                <input
+                  ref={avatarInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                />
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <button
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="text-white text-xs font-medium"
+                    disabled={avatarLoading}
+                  >
+                    {avatarLoading ? "..." : "تغيير"}
+                  </button>
+                </div>
+                {avatar && (
+                  <button
+                    onClick={handleDeleteAvatar}
+                    className="absolute -top-1 -left-1 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                    title="حذف الصورة"
+                  >
+                    ✕
+                  </button>
+                )}
+                {avatarMessage && (
+                  <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 whitespace-nowrap bg-white text-gray-800 text-xs px-3 py-1 rounded-lg shadow">
+                    {avatarMessage}
+                  </div>
+                )}
               </div>
               <div className="text-center md:text-right flex-1">
                 <div className="flex items-center gap-3 justify-center md:justify-start">

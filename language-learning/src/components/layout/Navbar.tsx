@@ -176,6 +176,7 @@ export default function Navbar() {
               <Link href="/" className="nav-link">الرئيسية</Link>
               <Link href="/languages" className="nav-link">اللغات</Link>
               <Link href="/verify-certificate" className="nav-link">التحقق من شهادة</Link>
+              <Link href="/team" className="nav-link">فريق العمل</Link>
               <Link href="/contact" className="nav-link">تواصل معنا</Link>
               
               {session?.user ? (
@@ -303,6 +304,7 @@ export default function Navbar() {
               <Link href="/" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>الرئيسية</Link>
               <Link href="/languages" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>اللغات</Link>
               <Link href="/verify-certificate" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>التحقق من شهادة</Link>
+              <Link href="/team" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>فريق العمل</Link>
               <Link href="/contact" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>تواصل معنا</Link>
               {session?.user ? (
                 <>
