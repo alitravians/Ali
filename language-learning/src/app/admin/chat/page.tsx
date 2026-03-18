@@ -62,6 +62,20 @@ interface AdminLog {
   admin: { id: string; name: string };
 }
 
+interface Escalation {
+  id: string;
+  userId: string;
+  reportedBy: string;
+  reason: string;
+  status: string;
+  adminNote: string;
+  reviewedBy: string;
+  createdAt: string;
+  reviewedAt: string | null;
+  user: { id: string; name: string; email: string };
+  reporter: { id: string; name: string };
+}
+
 const RANKS = [
   { value: "member", label: "عضو", color: "#6b7280" },
   { value: "vip", label: "VIP", color: "#f59e0b" },
@@ -97,13 +111,14 @@ function formatDate(d: string) {
 }
 
 export default function AdminChatPage() {
-  const [tab, setTab] = useState<"users" | "rooms" | "warnings" | "bans" | "appeals" | "logs">("users");
+  const [tab, setTab] = useState<"users" | "rooms" | "warnings" | "bans" | "appeals" | "escalations" | "logs">("users");
   const [users, setUsers] = useState<ChatUser[]>([]);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [warnings, setWarnings] = useState<Warning[]>([]);
   const [bans, setBans] = useState<Ban[]>([]);
   const [appeals, setAppeals] = useState<Appeal[]>([]);
   const [logs, setLogs] = useState<AdminLog[]>([]);
+  const [escalations, setEscalations] = useState<Escalation[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -125,25 +140,31 @@ export default function AdminChatPage() {
   const [newRoomNameAr, setNewRoomNameAr] = useState("");
   const [newRoomDesc, setNewRoomDesc] = useState("");
   const [newRoomType, setNewRoomType] = useState("public");
+  const [showEscalationModal, setShowEscalationModal] = useState(false);
+  const [selectedEscalation, setSelectedEscalation] = useState<Escalation | null>(null);
+  const [escalationDecision, setEscalationDecision] = useState("reviewed");
+  const [escalationNote, setEscalationNote] = useState("");
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [usersRes, roomsRes, warningsRes, bansRes, appealsRes, logsRes] = await Promise.all([
+      const [usersRes, roomsRes, warningsRes, bansRes, appealsRes, logsRes, escalationsRes] = await Promise.all([
         fetch("/api/chat/users"),
         fetch("/api/chat/rooms"),
         fetch("/api/chat/warnings"),
         fetch("/api/chat/bans"),
         fetch("/api/chat/appeals?status=pending"),
         fetch("/api/chat/admin-log"),
+        fetch("/api/chat/escalations"),
       ]);
-      const [usersData, roomsData, warningsData, bansData, appealsData, logsData] = await Promise.all([
+      const [usersData, roomsData, warningsData, bansData, appealsData, logsData, escalationsData] = await Promise.all([
         usersRes.json(),
         roomsRes.json(),
         warningsRes.json(),
         bansRes.json(),
         appealsRes.json(),
         logsRes.json(),
+        escalationsRes.json(),
       ]);
       if (Array.isArray(usersData)) setUsers(usersData);
       if (Array.isArray(roomsData)) setRooms(roomsData);
@@ -151,6 +172,7 @@ export default function AdminChatPage() {
       if (Array.isArray(bansData)) setBans(bansData);
       if (Array.isArray(appealsData)) setAppeals(appealsData);
       if (Array.isArray(logsData)) setLogs(logsData);
+      if (Array.isArray(escalationsData)) setEscalations(escalationsData);
     } catch {
       // Silently handle fetch errors
     }
@@ -216,6 +238,18 @@ export default function AdminChatPage() {
     fetchData();
   };
 
+  const handleEscalationReview = async () => {
+    if (!selectedEscalation) return;
+    await fetch("/api/chat/escalations", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ escalationId: selectedEscalation.id, status: escalationDecision, adminNote: escalationNote }),
+    });
+    setShowEscalationModal(false);
+    setEscalationNote("");
+    fetchData();
+  };
+
   const handleCreateRoom = async () => {
     if (!newRoomName.trim() || !newRoomNameAr.trim()) return;
     await fetch("/api/chat/rooms", {
@@ -236,6 +270,7 @@ export default function AdminChatPage() {
     { id: "warnings" as const, label: "التحذيرات", icon: "⚠️", count: warnings.length },
     { id: "bans" as const, label: "الحظر", icon: "🚫", count: bans.filter((b) => b.isActive).length },
     { id: "appeals" as const, label: "الاعتراضات", icon: "📋", count: appeals.length },
+    { id: "escalations" as const, label: "التصعيدات", icon: "📢", count: escalations.filter((e) => e.status === "pending").length },
     { id: "logs" as const, label: "السجلات", icon: "📜", count: logs.length },
   ];
 
@@ -493,6 +528,46 @@ export default function AdminChatPage() {
           </div>
         )}
 
+        {/* Escalations Tab */}
+        {tab === "escalations" && (
+          <div className="space-y-4">
+            {escalations.length === 0 && (
+              <div className="card p-8 text-center text-gray-400">لا توجد تصعيدات</div>
+            )}
+            {escalations.map((esc) => (
+              <div key={esc.id} className="card p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">📢</span>
+                      <h4 className="font-bold text-gray-900">{esc.user.name}</h4>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        esc.status === "pending" ? "bg-amber-100 text-amber-700" : esc.status === "reviewed" ? "bg-blue-100 text-blue-700" : esc.status === "resolved" ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-600"
+                      }`}>
+                        {esc.status === "pending" ? "قيد المراجعة" : esc.status === "reviewed" ? "تمت المراجعة" : esc.status === "resolved" ? "تم الحل" : "مرفوض"}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-700 mb-1"><strong>سبب التصعيد:</strong> {esc.reason}</p>
+                    <p className="text-sm text-gray-500 mb-1">البريد: {esc.user.email}</p>
+                    <p className="text-xs text-gray-500">أبلغ بواسطة: {esc.reporter.name} • {formatDate(esc.createdAt)}</p>
+                    {esc.adminNote && (
+                      <p className="text-sm text-gray-600 mt-1 bg-gray-50 rounded-lg p-2">ملاحظة الإدارة: {esc.adminNote}</p>
+                    )}
+                  </div>
+                  {esc.status === "pending" && (
+                    <button
+                      onClick={() => { setSelectedEscalation(esc); setEscalationDecision("reviewed"); setEscalationNote(""); setShowEscalationModal(true); }}
+                      className="btn-primary text-sm"
+                    >
+                      مراجعة
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Logs Tab */}
         {tab === "logs" && (
           <div className="card overflow-hidden">
@@ -515,7 +590,31 @@ export default function AdminChatPage() {
                         </span>
                       </td>
                       <td className="p-3 font-medium text-gray-900">{l.admin.name}</td>
-                      <td className="p-3 text-gray-700 text-xs max-w-xs truncate">{l.details}</td>
+                      <td className="p-3 text-gray-700 text-xs max-w-xs">
+                        {(() => {
+                          try {
+                            const parsed = JSON.parse(l.details);
+                            return (
+                              <div className="space-y-0.5">
+                                {parsed.reason && <p>السبب: {parsed.reason}</p>}
+                                {parsed.duration && <p>المدة: {parsed.duration} دقيقة</p>}
+                                {parsed.status && (
+                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    parsed.status === "active" ? "bg-red-100 text-red-700" :
+                                    parsed.status === "expired" ? "bg-gray-100 text-gray-600" :
+                                    parsed.status === "manually_lifted" ? "bg-emerald-100 text-emerald-700" :
+                                    "bg-gray-100 text-gray-600"
+                                  }`}>
+                                    {parsed.status === "active" ? "نشط" : parsed.status === "expired" ? "منتهي" : parsed.status === "manually_lifted" ? "تم فكّه يدوياً" : parsed.status}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          } catch {
+                            return <span className="truncate block">{l.details}</span>;
+                          }
+                        })()}
+                      </td>
                       <td className="p-3 text-gray-500 text-xs">{formatDate(l.createdAt)}</td>
                     </tr>
                   ))}
@@ -649,6 +748,39 @@ export default function AdminChatPage() {
             <div className="flex gap-2 justify-end mt-4">
               <button onClick={() => setShowRoomModal(false)} className="btn-secondary text-sm">إلغاء</button>
               <button onClick={handleCreateRoom} disabled={!newRoomName.trim() || !newRoomNameAr.trim()} className="btn-primary text-sm disabled:opacity-50">إنشاء</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Escalation Review Modal */}
+      {showEscalationModal && selectedEscalation && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">📢 مراجعة التصعيد</h3>
+            <div className="space-y-3 mb-4">
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-sm text-gray-700"><strong>المستخدم:</strong> {selectedEscalation.user.name}</p>
+                <p className="text-sm text-gray-700"><strong>البريد:</strong> {selectedEscalation.user.email}</p>
+                <p className="text-sm text-gray-700"><strong>سبب التصعيد:</strong> {selectedEscalation.reason}</p>
+                <p className="text-sm text-gray-500">أبلغ بواسطة: {selectedEscalation.reporter.name}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">القرار</label>
+                <select value={escalationDecision} onChange={(e) => setEscalationDecision(e.target.value)} className="input-field w-full">
+                  <option value="reviewed">تمت المراجعة</option>
+                  <option value="resolved">تم الحل</option>
+                  <option value="dismissed">مرفوض</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظة</label>
+                <textarea value={escalationNote} onChange={(e) => setEscalationNote(e.target.value)} className="input-field w-full" rows={2} placeholder="ملاحظة اختيارية..." />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowEscalationModal(false)} className="btn-secondary text-sm">إلغاء</button>
+              <button onClick={handleEscalationReview} className="btn-primary text-sm">تأكيد القرار</button>
             </div>
           </div>
         </div>

@@ -31,6 +31,8 @@ model User {
   chatBans      ChatBan[]
   banAppeals    BanAppeal[]
   adminActions  ChatAdminLog[] @relation("AdminActor")
+  escalationsReceived ChatEscalation[] @relation("EscalatedUser")
+  escalationsReported ChatEscalation[] @relation("EscalationReporter")
 }
 
 model Language {
@@ -345,9 +347,24 @@ model BanAppeal {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model ChatEscalation {
+  id          String   @id @default(cuid())
+  userId      String
+  reportedBy  String
+  reason      String
+  status      String   @default("pending") // pending | reviewed | resolved | dismissed
+  adminNote   String   @default("")
+  reviewedBy  String   @default("")
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+
+  user        User     @relation("EscalatedUser", fields: [userId], references: [id], onDelete: Cascade)
+  reporter    User     @relation("EscalationReporter", fields: [reportedBy], references: [id], onDelete: Cascade)
+}
+
 model ChatAdminLog {
   id        String   @id @default(cuid())
-  action    String   // warn | ban | unban | mute | rank_change | delete_message | appeal_review
+  action    String   // warn | ban | unban | mute | rank_change | delete_message | appeal_review | escalation
   targetUserId String
   adminId   String
   details   String   @default("")

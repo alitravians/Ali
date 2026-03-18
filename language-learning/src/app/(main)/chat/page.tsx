@@ -32,12 +32,14 @@ interface ChatMessage {
 interface BanInfo {
   reason: string;
   endsAt: string;
+  startedAt: string;
 }
 
 interface ActiveBan {
   id: string;
   reason: string;
   endsAt: string;
+  startedAt: string;
   duration: number;
 }
 
@@ -67,6 +69,12 @@ function formatTime(dateStr: string) {
 function formatDate(dateStr: string) {
   const d = new Date(dateStr);
   return d.toLocaleDateString("ar-SA", { year: "numeric", month: "short", day: "numeric" });
+}
+
+function formatFullDateTime(dateStr: string) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" }) + " - " +
+    d.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
 }
 
 function formatCountdown(endsAt: string) {
@@ -99,8 +107,36 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Admin action popup state
+  const [actionMenuUser, setActionMenuUser] = useState<ChatUser | null>(null);
+  const [actionMenuPos, setActionMenuPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  // Inline ban modal state
+  const [showBanModal, setShowBanModal] = useState(false);
+  const [banTargetUser, setBanTargetUser] = useState<ChatUser | null>(null);
+  const [banMinutes, setBanMinutes] = useState<number>(30);
+  const [banReason, setBanReason] = useState("");
+  const [banSubmitting, setBanSubmitting] = useState(false);
+
+  // Escalation modal state
+  const [showEscalateModal, setShowEscalateModal] = useState(false);
+  const [escalateTargetUser, setEscalateTargetUser] = useState<ChatUser | null>(null);
+  const [escalateReason, setEscalateReason] = useState("");
+  const [escalateSubmitting, setEscalateSubmitting] = useState(false);
+
+  // Warn modal state
+  const [showWarnModal, setShowWarnModal] = useState(false);
+  const [warnTargetUser, setWarnTargetUser] = useState<ChatUser | null>(null);
+  const [warnReason, setWarnReason] = useState("");
+  const [warnSubmitting, setWarnSubmitting] = useState(false);
+
+  // Ban popup for banned user trying to type
+  const [showBanPopup, setShowBanPopup] = useState(false);
+
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
+  const userChatRank = session?.user ? (session.user as { chatRank?: string }).chatRank : "";
+  const isStaff = userRole === "admin" || userChatRank === "moderator" || userChatRank === "admin";
 
   // Fetch rooms
   useEffect(() => {
@@ -124,7 +160,7 @@ export default function ChatPage() {
         if (Array.isArray(data) && data.length > 0) {
           const ban = data[0];
           setActiveBan(ban);
-          setBanInfo({ reason: ban.reason, endsAt: ban.endsAt });
+          setBanInfo({ reason: ban.reason, endsAt: ban.endsAt, startedAt: ban.startedAt });
         }
       })
       .catch(() => {});
@@ -171,6 +207,14 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Close action menu on click outside
+  useEffect(() => {
+    if (!actionMenuUser) return;
+    const handleClick = () => setActionMenuUser(null);
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [actionMenuUser]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +268,95 @@ export default function ChatPage() {
     fetchMessages();
   };
 
+  // Handle username click - show action menu for admin/staff
+  const handleUsernameClick = (e: React.MouseEvent, user: ChatUser) => {
+    if (!isStaff) return;
+    e.stopPropagation();
+    e.preventDefault();
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    setActionMenuPos({ x: rect.left, y: rect.bottom + 4 });
+    setActionMenuUser(user);
+  };
+
+  // Inline ban from chat
+  const handleInlineBan = async () => {
+    if (!banTargetUser || !banReason.trim() || banMinutes < 1) return;
+    setBanSubmitting(true);
+    try {
+      const res = await fetch("/api/chat/bans", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: banTargetUser.id, reason: banReason.trim(), duration: banMinutes }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setShowBanModal(false);
+        setBanReason("");
+        setBanMinutes(30);
+        fetchMessages();
+      }
+    } catch {
+      alert("فشل في تنفيذ الحظر");
+    }
+    setBanSubmitting(false);
+  };
+
+  // Escalate user
+  const handleEscalate = async () => {
+    if (!escalateTargetUser || !escalateReason.trim()) return;
+    setEscalateSubmitting(true);
+    try {
+      const res = await fetch("/api/chat/escalations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: escalateTargetUser.id, reason: escalateReason.trim() }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setShowEscalateModal(false);
+        setEscalateReason("");
+        alert("تم تصعيد المستخدم للإدارة بنجاح");
+      }
+    } catch {
+      alert("فشل في التصعيد");
+    }
+    setEscalateSubmitting(false);
+  };
+
+  // Warn user from chat
+  const handleInlineWarn = async () => {
+    if (!warnTargetUser || !warnReason.trim()) return;
+    setWarnSubmitting(true);
+    try {
+      const res = await fetch("/api/chat/warnings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: warnTargetUser.id, reason: warnReason.trim() }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        alert(data.error);
+      } else {
+        setShowWarnModal(false);
+        setWarnReason("");
+      }
+    } catch {
+      alert("فشل في إرسال التحذير");
+    }
+    setWarnSubmitting(false);
+  };
+
+  // Handle banned user clicking on input
+  const handleBannedInputClick = () => {
+    if (banInfo) {
+      setShowBanPopup(true);
+    }
+  };
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -271,6 +404,10 @@ export default function ChatPage() {
               <div className="flex-1">
                 <h3 className="font-bold text-red-800">أنت محظور من الدردشة</h3>
                 <p className="text-sm text-red-700 mt-1">السبب: {banInfo.reason}</p>
+                {banInfo.startedAt && (
+                  <p className="text-sm text-red-700">تاريخ الحظر: {formatFullDateTime(banInfo.startedAt)}</p>
+                )}
+                <p className="text-sm text-red-700">ينتهي في: {formatFullDateTime(banInfo.endsAt)}</p>
                 <p className="text-sm text-red-700">الوقت المتبقي: <strong>{countdown}</strong></p>
                 {!appealSent ? (
                   <div className="mt-3">
@@ -393,7 +530,11 @@ export default function ChatPage() {
                           {!isMe && (
                             <div className="flex items-center gap-1.5 mb-1 px-1">
                               <span className="text-xs">{RANK_ICONS[msg.user.chatRank] || "👤"}</span>
-                              <span className="text-xs font-bold" style={{ color: msg.user.chatBadgeColor || "#6b7280" }}>
+                              <span
+                                className={`text-xs font-bold ${isStaff ? "cursor-pointer hover:underline" : ""}`}
+                                style={{ color: msg.user.chatBadgeColor || "#6b7280" }}
+                                onClick={(e) => handleUsernameClick(e, msg.user)}
+                              >
                                 {msg.user.name}
                               </span>
                               <span
@@ -451,8 +592,11 @@ export default function ChatPage() {
             {/* Message Input */}
             <div className="p-3 border-t">
               {banInfo ? (
-                <div className="text-center text-sm text-red-500 py-2">
-                  أنت محظور من الدردشة - الوقت المتبقي: {countdown}
+                <div
+                  className="text-center text-sm text-red-500 py-2 cursor-pointer hover:bg-red-50 rounded-lg transition-colors"
+                  onClick={handleBannedInputClick}
+                >
+                  🚫 أنت محظور من الدردشة - اضغط هنا للتفاصيل
                 </div>
               ) : (
                 <form onSubmit={handleSend} className="flex gap-2">
@@ -478,6 +622,229 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
+      {/* Admin Action Popup Menu */}
+      {actionMenuUser && isStaff && (
+        <div
+          className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 py-2 z-50 min-w-[200px]"
+          style={{ left: actionMenuPos.x, top: actionMenuPos.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-4 py-2 border-b border-gray-100">
+            <p className="text-sm font-bold text-gray-900">{actionMenuUser.name}</p>
+            <p className="text-xs text-gray-500">
+              {RANK_ICONS[actionMenuUser.chatRank]} {RANK_LABELS[actionMenuUser.chatRank] || "عضو"}
+            </p>
+          </div>
+          {userRole === "admin" && (
+            <button
+              onClick={() => {
+                setBanTargetUser(actionMenuUser);
+                setShowBanModal(true);
+                setActionMenuUser(null);
+              }}
+              className="w-full text-right px-4 py-2.5 text-sm hover:bg-red-50 text-red-700 flex items-center gap-2 transition-colors"
+            >
+              <span>🚫</span>
+              <span>حظر مؤقت</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setWarnTargetUser(actionMenuUser);
+              setShowWarnModal(true);
+              setActionMenuUser(null);
+            }}
+            className="w-full text-right px-4 py-2.5 text-sm hover:bg-amber-50 text-amber-700 flex items-center gap-2 transition-colors"
+          >
+            <span>⚠️</span>
+            <span>تحذير</span>
+          </button>
+          <button
+            onClick={() => {
+              setEscalateTargetUser(actionMenuUser);
+              setShowEscalateModal(true);
+              setActionMenuUser(null);
+            }}
+            className="w-full text-right px-4 py-2.5 text-sm hover:bg-orange-50 text-orange-700 flex items-center gap-2 transition-colors"
+          >
+            <span>📢</span>
+            <span>تصعيد للإدارة</span>
+          </button>
+          {userRole === "admin" && (
+            <Link
+              href="/admin/chat"
+              className="w-full text-right px-4 py-2.5 text-sm hover:bg-blue-50 text-blue-700 flex items-center gap-2 transition-colors"
+              onClick={() => setActionMenuUser(null)}
+            >
+              <span>👤</span>
+              <span>عرض معلومات المستخدم</span>
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Inline Ban Modal */}
+      {showBanModal && banTargetUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">🚫 حظر مؤقت</h3>
+            <p className="text-sm text-gray-500 mb-4">حظر المستخدم: <strong>{banTargetUser.name}</strong></p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المدة (بالدقائق)</label>
+                <input
+                  type="number"
+                  value={banMinutes}
+                  onChange={(e) => setBanMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="input-field w-full"
+                  min={1}
+                  max={525600}
+                  placeholder="30"
+                />
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {[10, 30, 60, 360, 1440, 10080].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setBanMinutes(m)}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+                        banMinutes === m ? "bg-red-100 border-red-300 text-red-700" : "bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100"
+                      }`}
+                    >
+                      {m < 60 ? `${m} دقيقة` : m < 1440 ? `${m / 60} ساعة` : `${m / 1440} يوم`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">سبب الحظر</label>
+                <textarea
+                  value={banReason}
+                  onChange={(e) => setBanReason(e.target.value)}
+                  className="input-field w-full"
+                  rows={3}
+                  placeholder="اكتب سبب الحظر..."
+                  maxLength={500}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-4">
+              <button
+                onClick={() => { setShowBanModal(false); setBanReason(""); }}
+                className="btn-secondary text-sm"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleInlineBan}
+                disabled={!banReason.trim() || banSubmitting}
+                className="bg-red-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-red-600 disabled:opacity-50 transition-colors"
+              >
+                {banSubmitting ? "جاري الحظر..." : "تنفيذ الحظر"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Warn Modal */}
+      {showWarnModal && warnTargetUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">⚠️ تحذير مستخدم</h3>
+            <p className="text-sm text-gray-500 mb-4">تحذير: <strong>{warnTargetUser.name}</strong></p>
+            <textarea
+              value={warnReason}
+              onChange={(e) => setWarnReason(e.target.value)}
+              className="input-field w-full"
+              rows={3}
+              placeholder="سبب التحذير..."
+              maxLength={500}
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button
+                onClick={() => { setShowWarnModal(false); setWarnReason(""); }}
+                className="btn-secondary text-sm"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleInlineWarn}
+                disabled={!warnReason.trim() || warnSubmitting}
+                className="bg-amber-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-600 disabled:opacity-50 transition-colors"
+              >
+                {warnSubmitting ? "جاري الإرسال..." : "إرسال التحذير"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Escalation Modal */}
+      {showEscalateModal && escalateTargetUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">📢 تصعيد للإدارة</h3>
+            <p className="text-sm text-gray-500 mb-4">تصعيد المستخدم: <strong>{escalateTargetUser.name}</strong></p>
+            <textarea
+              value={escalateReason}
+              onChange={(e) => setEscalateReason(e.target.value)}
+              className="input-field w-full"
+              rows={3}
+              placeholder="سبب التصعيد..."
+              maxLength={500}
+            />
+            <div className="flex gap-2 justify-end mt-4">
+              <button
+                onClick={() => { setShowEscalateModal(false); setEscalateReason(""); }}
+                className="btn-secondary text-sm"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleEscalate}
+                disabled={!escalateReason.trim() || escalateSubmitting}
+                className="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-orange-600 disabled:opacity-50 transition-colors"
+              >
+                {escalateSubmitting ? "جاري التصعيد..." : "تصعيد"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ban Popup - dates/times WITHOUT reason */}
+      {showBanPopup && banInfo && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl text-center">
+            <div className="text-5xl mb-3">🚫</div>
+            <h3 className="text-lg font-bold text-red-800 mb-4">لا يمكنك الكتابة</h3>
+            <div className="bg-red-50 rounded-xl p-4 space-y-2 text-sm text-right">
+              {banInfo.startedAt && (
+                <div className="flex justify-between items-center">
+                  <span className="text-red-700 font-medium">{formatFullDateTime(banInfo.startedAt)}</span>
+                  <span className="text-red-500">تاريخ الحظر:</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center">
+                <span className="text-red-700 font-medium">{formatFullDateTime(banInfo.endsAt)}</span>
+                <span className="text-red-500">ينتهي في:</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-red-700 font-bold">{countdown}</span>
+                <span className="text-red-500">الوقت المتبقي:</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowBanPopup(false)}
+              className="mt-4 btn-secondary text-sm w-full"
+            >
+              حسناً
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

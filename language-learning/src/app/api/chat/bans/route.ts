@@ -73,9 +73,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "جميع الحقول مطلوبة" }, { status: 400 });
     }
 
-    const durationMinutes = BAN_DURATIONS[duration];
-    if (durationMinutes === undefined) {
-      return NextResponse.json({ error: "مدة الحظر غير صالحة" }, { status: 400 });
+    // Support both preset durations and custom minutes
+    let durationMinutes: number;
+    if (typeof duration === "number") {
+      // Custom minutes input from inline chat ban
+      durationMinutes = Math.max(1, Math.min(duration, 525600)); // 1 min to 1 year
+    } else {
+      const preset = BAN_DURATIONS[duration];
+      if (preset === undefined) {
+        return NextResponse.json({ error: "مدة الحظر غير صالحة" }, { status: 400 });
+      }
+      durationMinutes = preset;
     }
 
     // Deactivate any existing active bans
@@ -99,26 +107,66 @@ export async function POST(request: Request) {
       },
     });
 
-    // Log admin action
+    // Get admin name for detailed logging
+    const adminUser = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
+    const targetUser = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+
+    // Format duration label
+    const durationLabel = durationMinutes === 0 ? "دائم" :
+      durationMinutes < 60 ? `${durationMinutes} دقيقة` :
+      durationMinutes < 1440 ? `${Math.floor(durationMinutes / 60)} ساعة` :
+      `${Math.floor(durationMinutes / 1440)} يوم`;
+
+    // Format dates for Arabic display
+    const startDateStr = now.toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" });
+    const startTimeStr = now.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+    const endDateStr = endsAt.toLocaleDateString("ar-SA", { year: "numeric", month: "long", day: "numeric" });
+    const endTimeStr = endsAt.toLocaleTimeString("ar-SA", { hour: "2-digit", minute: "2-digit" });
+
+    // Log admin action with full details
     await prisma.chatAdminLog.create({
       data: {
         action: "ban",
         targetUserId: userId,
         adminId,
-        details: `حظر لمدة ${duration}: ${reason.slice(0, 200)}`,
+        details: JSON.stringify({
+          userName: targetUser?.name || "",
+          adminName: adminUser?.name || "",
+          reason: reason.slice(0, 200),
+          duration: durationMinutes,
+          durationLabel,
+          startedAt: now.toISOString(),
+          endsAt: endsAt.toISOString(),
+          status: "active",
+        }),
       },
     });
 
-    // Notify user
+    // Send detailed notification to user with ban info + appeal option
+    const notifMessage = [
+      `تم حظرك من الدردشة بواسطة الإدارة.`,
+      ``,
+      `سبب الحظر: ${reason}`,
+      `مدة الحظر: ${durationLabel}`,
+      `تاريخ الحظر: ${startDateStr}`,
+      `وقت بداية الحظر: ${startTimeStr}`,
+      `تاريخ انتهاء الحظر: ${endDateStr}`,
+      `وقت انتهاء الحظر: ${endTimeStr}`,
+      ``,
+      `إذا كنت ترى أن هذا الحظر غير عادل، يمكنك تقديم تظلم من خلال صفحة الدردشة.`,
+    ].join("\n");
+
     await prisma.notification.create({
       data: {
         title: "تم حظرك من الدردشة",
         titleAr: "تم حظرك من الدردشة",
-        message: `السبب: ${reason}. المدة: ${duration === "permanent" ? "دائم" : duration}`,
-        messageAr: `السبب: ${reason}. المدة: ${duration === "permanent" ? "دائم" : duration}`,
+        message: notifMessage,
+        messageAr: notifMessage,
         type: "warning",
         category: "admin",
         icon: "alert",
+        priority: "urgent",
+        link: "/chat",
         userId,
       },
     });
@@ -154,13 +202,22 @@ export async function PUT(request: Request) {
       data: { isActive: false },
     });
 
-    // Log admin action
+    // Log admin action with status
+    const adminUser = await prisma.user.findUnique({ where: { id: adminId }, select: { name: true } });
+    const targetUser = await prisma.user.findUnique({ where: { id: ban.userId }, select: { name: true } });
     await prisma.chatAdminLog.create({
       data: {
         action: "unban",
         targetUserId: ban.userId,
         adminId,
-        details: `رفع الحظر عن المستخدم`,
+        details: JSON.stringify({
+          userName: targetUser?.name || "",
+          adminName: adminUser?.name || "",
+          reason: "رفع يدوي",
+          liftedAt: new Date().toISOString(),
+          originalEndsAt: ban.endsAt.toISOString(),
+          status: "manually_lifted",
+        }),
       },
     });
 
