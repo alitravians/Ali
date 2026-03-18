@@ -5,7 +5,7 @@ import Link from "next/link";
 
 interface Certificate {
   id: string;
-  code: string;
+  certificateCode: string;
   grade: string;
   gradeAr: string;
   score: number;
@@ -13,10 +13,10 @@ interface Certificate {
   writingScore: number;
   listeningScore: number;
   speakingScore: number;
-  issuedAt: string;
+  issueDate: string;
   expiresAt: string | null;
-  user: { id: string; name: string; email: string };
-  level: { nameAr: string; name: string; language: { nameAr: string; flag: string } };
+  user: { name: string; email: string };
+  level: { nameAr: string; name: string; language: { nameAr: string; flag: string } } | null;
 }
 
 export default function AdminCertificatesPage() {
@@ -76,8 +76,8 @@ export default function AdminCertificatesPage() {
                       <span className="badge-primary text-xs">{cert.gradeAr}</span>
                     </td>
                     <td className="py-3 px-4 text-sm font-semibold text-gray-700">{cert.score}%</td>
-                    <td className="py-3 px-4 text-sm font-mono text-gray-500" dir="ltr">{cert.code}</td>
-                    <td className="py-3 px-4 text-sm text-gray-500">{new Date(cert.issuedAt).toLocaleDateString("ar")}</td>
+                    <td className="py-3 px-4 text-sm font-mono text-gray-500" dir="ltr">{cert.certificateCode}</td>
+                    <td className="py-3 px-4 text-sm text-gray-500">{new Date(cert.issueDate).toLocaleDateString("ar")}</td>
                   </tr>
                 ))}
               </tbody>
