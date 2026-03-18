@@ -183,6 +183,7 @@ export default function AdminTicketsPage() {
               { label: "المستخدمين", href: "/admin/users", icon: "👥" },
               { label: "التذاكر", href: "/admin/tickets", icon: "🎫" },
               { label: "الإشعارات", href: "/admin/notifications", icon: "🔔" },
+              { label: "فحص النظام", href: "/admin/scan", icon: "🔍" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (
               <Link

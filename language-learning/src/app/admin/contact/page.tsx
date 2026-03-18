@@ -84,6 +84,7 @@ export default function AdminContactPage() {
               { label: "التذاكر", href: "/admin/tickets", icon: "🎫" },
               { label: "رسائل الاتصال", href: "/admin/contact", icon: "📬" },
               { label: "الإشعارات", href: "/admin/notifications", icon: "🔔" },
+              { label: "فحص النظام", href: "/admin/scan", icon: "🔍" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (
               <Link

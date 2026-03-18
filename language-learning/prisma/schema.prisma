@@ -290,3 +290,43 @@ model TicketMessage {
 
   ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
+
+model SystemScan {
+  id              String   @id @default(cuid())
+  status          String   @default("running") // running | completed | failed
+  scanType        String   @default("full") // full | pages | files | api | database | performance | security | tickets | notifications | certificates | tests
+  totalChecks     Int      @default(0)
+  passedChecks    Int      @default(0)
+  failedChecks    Int      @default(0)
+  criticalCount   Int      @default(0)
+  highCount       Int      @default(0)
+  mediumCount     Int      @default(0)
+  lowCount        Int      @default(0)
+  duration        Int      @default(0) // milliseconds
+  summary         String   @default("")
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  startedBy       String   @default("admin")
+
+  issues          SystemIssue[]
+}
+
+model SystemIssue {
+  id              String   @id @default(cuid())
+  name            String
+  type            String   // page | file | api | database | performance | security | config | ui
+  severity        String   // critical | high | medium | low
+  section         String   @default("") // affected page or section
+  fileName        String   @default("")
+  filePath        String   @default("")
+  lineNumber      Int?
+  description     String
+  cause           String   @default("")
+  solution        String   @default("")
+  recommendation  String   @default("")
+  status          String   @default("new") // new | in_progress | fixed | ignored
+  scanId          String
+  detectedAt      DateTime @default(now())
+
+  scan            SystemScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
