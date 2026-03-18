@@ -141,6 +141,16 @@ export default function Navbar() {
               <Link href="/verify-certificate" className="nav-link">التحقق من شهادة</Link>
               <Link href="/contact" className="nav-link">تواصل معنا</Link>
               
+              {/* Admin Dashboard Button - always visible */}
+              <Link
+                href="/admin/login"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 transition-colors text-sm font-medium"
+                title="لوحة تحكم الإدارة"
+              >
+                <span>⚙</span>
+                <span>لوحة التحكم</span>
+              </Link>
+
               {session?.user ? (
                 <>
                   <Link href="/profile/tickets" className="nav-link">🎫 الدعم الفني</Link>
@@ -215,13 +225,6 @@ export default function Navbar() {
                       </div>
                     )}
                   </div>
-                  <Link
-                    href="/admin/login"
-                    className="text-gray-400 hover:text-gray-600 text-xs"
-                    title="إدارة"
-                  >
-                    ⚙
-                  </Link>
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}
                     className="btn-danger text-sm py-2 px-4"
@@ -263,6 +266,14 @@ export default function Navbar() {
               <Link href="/languages" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>اللغات</Link>
               <Link href="/verify-certificate" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>التحقق من شهادة</Link>
               <Link href="/contact" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>تواصل معنا</Link>
+              {/* Admin Dashboard Button - always visible in mobile */}
+              <Link
+                href="/admin/login"
+                className="block py-2 px-3 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 hover:text-gray-900 transition-colors text-sm font-medium"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                ⚙ لوحة تحكم الإدارة
+              </Link>
               {session?.user ? (
                 <>
                   <Link href="/profile/tickets" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>🎫 الدعم الفني</Link>
@@ -274,13 +285,6 @@ export default function Navbar() {
                         {unreadCount}
                       </span>
                     )}
-                  </Link>
-                  <Link
-                    href="/admin/login"
-                    className="block text-gray-400 hover:text-gray-600 text-sm py-2"
-                    onClick={() => setIsMenuOpen(false)}
-                  >
-                    ⚙ إدارة الموقع
                   </Link>
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}
