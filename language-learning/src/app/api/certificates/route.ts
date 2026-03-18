@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (!userId) {
-      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+      return NextResponse.json([]);
     }
 
     const certificates = await prisma.certificate.findMany({
