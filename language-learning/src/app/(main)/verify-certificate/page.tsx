@@ -5,22 +5,26 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 
 interface CertificateData {
-  id: string;
   code: string;
+  userName: string;
+  languageName: string;
+  levelName: string;
   grade: string;
   gradeAr: string;
   score: number;
-  readingScore: number;
-  writingScore: number;
-  listeningScore: number;
-  speakingScore: number;
-  issuedAt: string;
+  issueDate: string;
   expiresAt: string | null;
-  user: { name: string };
   level: {
     name: string;
     nameAr: string;
     language: { name: string; nameAr: string; flag: string };
+  };
+  skills: {
+    reading: number;
+    writing: number;
+    listening: number;
+    speaking: number;
+    overall: number;
   };
 }
 
@@ -43,7 +47,11 @@ export default function VerifyCertificatePage() {
       const res = await fetch(`/api/verify-certificate?code=${encodeURIComponent(code.trim())}`);
       if (res.ok) {
         const data = await res.json();
-        setCertificate(data);
+        if (data.valid && data.certificate) {
+          setCertificate(data.certificate);
+        } else {
+          setError("لم يتم العثور على شهادة بهذا الرقم");
+        }
       } else {
         setError("لم يتم العثور على شهادة بهذا الرقم");
       }
@@ -116,7 +124,7 @@ export default function VerifyCertificatePage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                       <div>
                         <p className="text-sm text-gray-500 mb-1">اسم الحاصل على الشهادة</p>
-                        <p className="text-lg font-bold text-gray-900">{certificate.user.name}</p>
+                        <p className="text-lg font-bold text-gray-900">{certificate.userName}</p>
                       </div>
                       <div>
                         <p className="text-sm text-gray-500 mb-1">رقم الشهادة</p>
@@ -141,7 +149,7 @@ export default function VerifyCertificatePage() {
                       <div>
                         <p className="text-sm text-gray-500 mb-1">تاريخ الإصدار</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {new Date(certificate.issuedAt).toLocaleDateString("ar")}
+                          {new Date(certificate.issueDate).toLocaleDateString("ar")}
                         </p>
                       </div>
                     </div>
@@ -151,10 +159,10 @@ export default function VerifyCertificatePage() {
                       <h3 className="font-bold text-gray-700 mb-4">تحليل المهارات</h3>
                       <div className="grid grid-cols-2 gap-4">
                         {[
-                          { label: "القراءة", value: certificate.readingScore, icon: "📖", color: "bg-blue-500" },
-                          { label: "الكتابة", value: certificate.writingScore, icon: "✍️", color: "bg-purple-500" },
-                          { label: "الاستماع", value: certificate.listeningScore, icon: "👂", color: "bg-amber-500" },
-                          { label: "النطق", value: certificate.speakingScore, icon: "🗣️", color: "bg-pink-500" },
+                          { label: "القراءة", value: certificate.skills.reading, icon: "📖", color: "bg-blue-500" },
+                          { label: "الكتابة", value: certificate.skills.writing, icon: "✍️", color: "bg-purple-500" },
+                          { label: "الاستماع", value: certificate.skills.listening, icon: "👂", color: "bg-amber-500" },
+                          { label: "النطق", value: certificate.skills.speaking, icon: "🗣️", color: "bg-pink-500" },
                         ].map((skill) => (
                           <div key={skill.label} className="bg-gray-50 rounded-xl p-4 text-center">
                             <div className="text-2xl mb-1">{skill.icon}</div>

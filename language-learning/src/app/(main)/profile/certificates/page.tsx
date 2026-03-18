@@ -8,7 +8,8 @@ import Footer from "@/components/layout/Footer";
 
 interface CertificateData {
   id: string;
-  code: string;
+  certificateCode: string;
+  userName: string;
   grade: string;
   gradeAr: string;
   score: number;
@@ -16,7 +17,7 @@ interface CertificateData {
   writingScore: number;
   listeningScore: number;
   speakingScore: number;
-  issuedAt: string;
+  issueDate: string;
   expiresAt: string | null;
   user: { name: string };
   level: {
@@ -65,14 +66,14 @@ export default function CertificatesPage() {
       const imgData = canvas.toDataURL("image/png");
       const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
       pdf.addImage(imgData, "PNG", 0, 0, 297, 210);
-      pdf.save(`certificate-${selectedCert.code}.pdf`);
+      pdf.save(`certificate-${selectedCert.certificateCode}.pdf`);
     } catch (err) {
       console.error("PDF error:", err);
     }
   };
 
   const shareUrl = (cert: CertificateData) => {
-    return `${typeof window !== "undefined" ? window.location.origin : ""}/verify-certificate?code=${cert.code}`;
+    return `${typeof window !== "undefined" ? window.location.origin : ""}/verify-certificate?code=${cert.certificateCode}`;
   };
 
   if (status === "loading" || loading) {
@@ -116,8 +117,8 @@ export default function CertificatesPage() {
                         <div className="grid grid-cols-2 gap-3 text-sm mb-4">
                           <div><span className="text-gray-500">التقدير:</span> <strong>{cert.gradeAr}</strong></div>
                           <div><span className="text-gray-500">النتيجة:</span> <strong>{cert.score}%</strong></div>
-                          <div><span className="text-gray-500">الرقم:</span> <strong className="font-mono text-xs" dir="ltr">{cert.code}</strong></div>
-                          <div><span className="text-gray-500">التاريخ:</span> <strong>{new Date(cert.issuedAt).toLocaleDateString("ar")}</strong></div>
+                                                    <div><span className="text-gray-500">الرقم:</span> <strong className="font-mono text-xs" dir="ltr">{cert.certificateCode}</strong></div>
+                                                    <div><span className="text-gray-500">التاريخ:</span> <strong>{new Date(cert.issueDate).toLocaleDateString("ar")}</strong></div>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => viewCertificate(cert)} className="btn-primary text-sm flex-1">عرض الشهادة</button>
@@ -205,7 +206,7 @@ export default function CertificatesPage() {
                 <div className="flex justify-between items-end mt-4 text-xs text-gray-500">
                   <div>
                     <p>تاريخ الإصدار</p>
-                    <p className="font-medium text-gray-700">{new Date(selectedCert.issuedAt).toLocaleDateString("ar")}</p>
+                    <p className="font-medium text-gray-700">{new Date(selectedCert.issueDate).toLocaleDateString("ar")}</p>
                   </div>
                   <div>
                     {/* Official Seal */}
@@ -219,7 +220,7 @@ export default function CertificatesPage() {
                   </div>
                   <div>
                     <p>رقم الشهادة</p>
-                    <p className="font-mono font-medium text-gray-700" dir="ltr">{selectedCert.code}</p>
+                    <p className="font-mono font-medium text-gray-700" dir="ltr">{selectedCert.certificateCode}</p>
                   </div>
                 </div>
               </div>
