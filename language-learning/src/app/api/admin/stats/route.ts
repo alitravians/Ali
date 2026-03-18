@@ -3,7 +3,7 @@ import prisma from "@/lib/prisma";
 
 export async function GET() {
   try {
-    const [totalUsers, totalLanguages, totalLevels, totalLessons, totalQuestions, totalTests, totalCertificates, totalTestResults] =
+    const [totalUsers, totalLanguages, totalLevels, totalLessons, totalQuestions, totalTests, totalCertificates, totalTestResults, totalTickets, openTickets] =
       await Promise.all([
         prisma.user.count(),
         prisma.language.count(),
@@ -13,6 +13,8 @@ export async function GET() {
         prisma.test.count(),
         prisma.certificate.count(),
         prisma.testResult.count(),
+        prisma.ticket.count(),
+        prisma.ticket.count({ where: { status: { not: "closed" } } }),
       ]);
 
     const recentCertificates = await prisma.certificate.findMany({
@@ -31,7 +33,7 @@ export async function GET() {
     });
 
     return NextResponse.json({
-      totalUsers, totalLanguages, totalLevels, totalLessons, totalQuestions, totalTests, totalCertificates, totalTestResults,
+      totalUsers, totalLanguages, totalLevels, totalLessons, totalQuestions, totalTests, totalCertificates, totalTestResults, totalTickets, openTickets,
       recentCertificates,
       recentUsers,
     });

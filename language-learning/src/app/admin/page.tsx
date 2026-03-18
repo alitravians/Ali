@@ -12,6 +12,8 @@ interface Stats {
   totalTests: number;
   totalCertificates: number;
   totalTestResults: number;
+  totalTickets: number;
+  openTickets: number;
   recentUsers: { id: string; name: string; email: string; createdAt: string }[];
   recentCertificates: { id: string; code: string; score: number; user: { name: string }; level: { nameAr: string } }[];
 }
@@ -43,6 +45,7 @@ export default function AdminDashboard() {
     { label: "الأسئلة", value: stats?.totalQuestions || 0, icon: "❓", color: "from-pink-500 to-pink-600", href: "/admin/questions" },
     { label: "الاختبارات المنجزة", value: stats?.totalTestResults || 0, icon: "📝", color: "from-indigo-500 to-indigo-600", href: "#" },
     { label: "الشهادات", value: stats?.totalCertificates || 0, icon: "🎓", color: "from-yellow-500 to-yellow-600", href: "/admin/certificates" },
+    { label: "التذاكر", value: stats?.totalTickets || 0, icon: "🎫", color: "from-teal-500 to-teal-600", href: "/admin/tickets" },
   ];
 
   return (
@@ -75,6 +78,7 @@ export default function AdminDashboard() {
               { label: "الأسئلة", href: "/admin/questions", icon: "❓" },
               { label: "الشهادات", href: "/admin/certificates", icon: "🎓" },
               { label: "المستخدمين", href: "/admin/users", icon: "👥" },
+              { label: "التذاكر", href: "/admin/tickets", icon: "🎫" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (
               <Link

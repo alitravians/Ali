@@ -134,6 +134,9 @@ export default function ProfilePage() {
             <Link href="/profile/certificates" className="btn-primary text-sm">
               🎓 شهاداتي
             </Link>
+            <Link href="/profile/tickets" className="btn-secondary text-sm">
+              🎫 الدعم الفني
+            </Link>
             <Link href="/languages" className="btn-secondary text-sm">
               📚 تعلم لغة جديدة
             </Link>

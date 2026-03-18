@@ -58,6 +58,7 @@ export default function Navbar() {
               
               {session?.user ? (
                 <>
+                  <Link href="/profile/tickets" className="nav-link">🎫 الدعم الفني</Link>
                   <Link href="/profile" className="nav-link flex items-center gap-1">
                     <span>ملفي الشخصي</span>
                     {unreadCount > 0 && (
@@ -116,6 +117,7 @@ export default function Navbar() {
               <Link href="/contact" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>تواصل معنا</Link>
               {session?.user ? (
                 <>
+                  <Link href="/profile/tickets" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>🎫 الدعم الفني</Link>
                   <Link href="/profile" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>
                     ملفي الشخصي
                     {unreadCount > 0 && (
