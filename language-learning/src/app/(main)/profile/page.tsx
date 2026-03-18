@@ -315,10 +315,14 @@ export default function ProfilePage() {
               <h3 className="text-xl font-bold text-gray-900 mb-2">تغيير الاسم</h3>
               <p className="text-sm text-gray-500 mb-4">يمكنك تغيير اسمك مرة كل 7 أيام. الأسماء غير المناسبة ستخضع لمراجعة إدارية.</p>
               
-              {!nameChangeStatus?.canChange ? (
+              {!nameChangeStatus ? (
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <p className="text-gray-600 text-sm">جاري التحميل...</p>
+                </div>
+              ) : !nameChangeStatus.canChange ? (
                 <div className="bg-gray-50 rounded-xl p-4 text-center">
                   <p className="text-gray-600 text-sm">
-                    {nameChangeStatus?.pendingRequest ? "لديك طلب قيد المراجعة بالفعل" : "يجب الانتظار حتى انتهاء فترة الانتظار"}
+                    {nameChangeStatus.pendingRequest ? "لديك طلب قيد المراجعة بالفعل" : "يجب الانتظار حتى انتهاء فترة الانتظار"}
                   </p>
                   {cooldownRemaining && <p className="text-gray-500 text-xs mt-2">متبقي: {cooldownRemaining}</p>}
                 </div>
