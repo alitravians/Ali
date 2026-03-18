@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import OfficialStamp from "@/components/certificate/OfficialStamp";
+
+interface BannedWordItem {
+  id: string;
+  word: string;
+  category: string;
+  createdAt: string;
+}
 
 interface Settings {
   maintenanceMode: boolean;
@@ -54,6 +61,13 @@ export default function AdminSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  // Banned words state
+  const [bannedWords, setBannedWords] = useState<BannedWordItem[]>([]);
+  const [newBannedWord, setNewBannedWord] = useState("");
+  const [newBannedCategory, setNewBannedCategory] = useState("inappropriate");
+  const [bannedWordLoading, setBannedWordLoading] = useState(false);
+  const [bannedWordError, setBannedWordError] = useState("");
+
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
@@ -98,6 +112,48 @@ export default function AdminSettingsPage() {
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
+  };
+
+  const fetchBannedWords = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/banned-words");
+      const data = await res.json();
+      if (Array.isArray(data)) setBannedWords(data);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchBannedWords();
+  }, [fetchBannedWords]);
+
+  const addBannedWord = async () => {
+    if (!newBannedWord.trim()) return;
+    setBannedWordLoading(true);
+    setBannedWordError("");
+    try {
+      const res = await fetch("/api/admin/banned-words", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word: newBannedWord.trim(), category: newBannedCategory }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBannedWordError(data.error || "فشل في إضافة الكلمة");
+      } else {
+        setNewBannedWord("");
+        fetchBannedWords();
+      }
+    } catch {
+      setBannedWordError("حدث خطأ");
+    }
+    setBannedWordLoading(false);
+  };
+
+  const deleteBannedWord = async (id: string) => {
+    try {
+      await fetch(`/api/admin/banned-words?id=${id}`, { method: "DELETE" });
+      fetchBannedWords();
+    } catch { /* ignore */ }
   };
 
   const clearCache = () => {
@@ -428,6 +484,85 @@ export default function AdminSettingsPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">الكلمات الممنوعة (مفصولة بفواصل)</label>
               <textarea value={settings.chatBannedWords} onChange={(e) => setSettings({ ...settings, chatBannedWords: e.target.value })} className="input-field" rows={3} placeholder="كلمة1, كلمة2, كلمة3" />
             </div>
+          </div>
+        </div>
+
+        {/* Banned Words for Name Changes */}
+        <div className="card p-6">
+          <h3 className="font-bold text-gray-900 mb-2">الكلمات الممنوعة في الأسماء</h3>
+          <p className="text-sm text-gray-500 mb-4">الأسماء التي تحتوي على هذه الكلمات ستخضع لمراجعة إدارية قبل الموافقة</p>
+
+          {/* Add new word */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              value={newBannedWord}
+              onChange={(e) => setNewBannedWord(e.target.value)}
+              className="input-field flex-1"
+              placeholder="أدخل كلمة ممنوعة"
+              dir="auto"
+            />
+            <select
+              value={newBannedCategory}
+              onChange={(e) => setNewBannedCategory(e.target.value)}
+              className="input-field w-40"
+            >
+              <option value="inappropriate">غير لائقة</option>
+              <option value="offensive">مسيئة</option>
+              <option value="misleading">مضللة</option>
+              <option value="other">أخرى</option>
+            </select>
+            <button
+              onClick={addBannedWord}
+              disabled={bannedWordLoading || !newBannedWord.trim()}
+              className="btn-primary text-sm px-4 disabled:opacity-50"
+            >
+              {bannedWordLoading ? "..." : "إضافة"}
+            </button>
+          </div>
+
+          {bannedWordError && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+              <p className="text-red-700 text-sm">{bannedWordError}</p>
+            </div>
+          )}
+
+          {/* Words list */}
+          {bannedWords.length === 0 ? (
+            <p className="text-gray-400 text-center py-4 text-sm">لا توجد كلمات ممنوعة مضافة</p>
+          ) : (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {bannedWords.map((bw) => (
+                <div key={bw.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-gray-900 text-sm">{bw.word}</span>
+                    <span className={`px-2 py-0.5 rounded text-xs ${
+                      bw.category === "offensive" ? "bg-red-100 text-red-700" :
+                      bw.category === "misleading" ? "bg-amber-100 text-amber-700" :
+                      bw.category === "inappropriate" ? "bg-purple-100 text-purple-700" :
+                      "bg-gray-100 text-gray-700"
+                    }`}>
+                      {bw.category === "offensive" ? "مسيئة" :
+                       bw.category === "misleading" ? "مضللة" :
+                       bw.category === "inappropriate" ? "غير لائقة" : "أخرى"}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => deleteBannedWord(bw.id)}
+                    className="text-red-400 hover:text-red-600 text-sm"
+                    title="حذف"
+                  >
+                    حذف
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="mt-4 pt-4 border-t">
+            <Link href="/admin/name-requests" className="text-primary-600 text-sm font-medium hover:text-primary-700">
+              عرض طلبات تغيير الأسماء ←
+            </Link>
           </div>
         </div>
 

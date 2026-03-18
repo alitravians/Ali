@@ -26,6 +26,7 @@ model User {
   notifications Notification[]
   tickets       Ticket[]
   notificationSettings NotificationSettings?
+  lastNameChange DateTime?
   chatMessages  ChatMessage[]
   chatWarnings  ChatWarning[]
   chatBans      ChatBan[]
@@ -33,6 +34,7 @@ model User {
   adminActions  ChatAdminLog[] @relation("AdminActor")
   escalationsReceived ChatEscalation[] @relation("EscalatedUser")
   escalationsReported ChatEscalation[] @relation("EscalationReporter")
+  nameChangeRequests NameChangeRequest[]
 }
 
 model Language {
@@ -448,4 +450,29 @@ model SystemIssue {
   detectedAt      DateTime @default(now())
 
   scan            SystemScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Name Change System ====================
+
+model NameChangeRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  currentName   String
+  requestedName String
+  status        String   @default("pending") // pending | approved | rejected | auto_approved
+  reason        String   @default("") // reason for flagging
+  adminNote     String   @default("") // admin rejection reason
+  reviewedBy    String   @default("")
+  createdAt     DateTime @default(now())
+  reviewedAt    DateTime?
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BannedWord {
+  id        String   @id @default(cuid())
+  word      String   @unique
+  category  String   @default("inappropriate") // inappropriate | offensive | misleading | other
+  addedBy   String   @default("admin")
+  createdAt DateTime @default(now())
 }

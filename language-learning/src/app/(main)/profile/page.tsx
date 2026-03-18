@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -44,14 +44,55 @@ interface Notification {
   createdAt: string;
 }
 
+interface NameChangeStatus {
+  currentName: string;
+  lastNameChange: string | null;
+  canChange: boolean;
+  cooldownEndsAt: string | null;
+  pendingRequest: {
+    id: string;
+    requestedName: string;
+    status: string;
+    createdAt: string;
+  } | null;
+  recentRequests: {
+    id: string;
+    currentName: string;
+    requestedName: string;
+    status: string;
+    adminNote: string;
+    createdAt: string;
+    reviewedAt: string | null;
+  }[];
+}
+
 export default function ProfilePage() {
-  const { data: session, status } = useSession();
+  const { data: session, status, update: updateSession } = useSession();
   const router = useRouter();
   const [progress, setProgress] = useState<ProgressData[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [activeTab, setActiveTab] = useState<"progress" | "badges" | "notifications">("progress");
   const [loading, setLoading] = useState(true);
+
+  // Name change state
+  const [nameChangeStatus, setNameChangeStatus] = useState<NameChangeStatus | null>(null);
+  const [showNameChangeModal, setShowNameChangeModal] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [nameChangeLoading, setNameChangeLoading] = useState(false);
+  const [nameChangeError, setNameChangeError] = useState("");
+  const [nameChangeSuccess, setNameChangeSuccess] = useState("");
+  const [cooldownRemaining, setCooldownRemaining] = useState("");
+
+  const fetchNameChangeStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profile/name-change");
+      const data = await res.json();
+      if (!data.error) {
+        setNameChangeStatus(data);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -72,7 +113,65 @@ export default function ProfilePage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [status, router]);
+
+    fetchNameChangeStatus();
+  }, [status, router, fetchNameChangeStatus]);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (!nameChangeStatus?.cooldownEndsAt) {
+      setCooldownRemaining("");
+      return;
+    }
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const end = new Date(nameChangeStatus.cooldownEndsAt!).getTime();
+      const diff = end - now;
+      if (diff <= 0) {
+        setCooldownRemaining("");
+        fetchNameChangeStatus();
+        return;
+      }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      setCooldownRemaining(`${days} يوم و ${hours} ساعة و ${mins} دقيقة`);
+    };
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 60000);
+    return () => clearInterval(interval);
+  }, [nameChangeStatus?.cooldownEndsAt, fetchNameChangeStatus]);
+
+  const handleNameChange = async () => {
+    if (!newName.trim()) return;
+    setNameChangeLoading(true);
+    setNameChangeError("");
+    setNameChangeSuccess("");
+    try {
+      const res = await fetch("/api/profile/name-change", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ newName: newName.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNameChangeError(data.error || "فشل في تغيير الاسم");
+      } else {
+        if (data.status === "auto_approved") {
+          setNameChangeSuccess("تم تغيير اسمك بنجاح!");
+          await updateSession();
+        } else if (data.status === "pending") {
+          setNameChangeSuccess("تم إرسال طلبك للمراجعة الإدارية. سيتم إشعارك بالنتيجة.");
+        }
+        setShowNameChangeModal(false);
+        setNewName("");
+        fetchNameChangeStatus();
+      }
+    } catch {
+      setNameChangeError("حدث خطأ أثناء تغيير الاسم");
+    }
+    setNameChangeLoading(false);
+  };
 
   const markNotificationRead = async (id: string) => {
     await fetch("/api/notifications", {
@@ -107,7 +206,20 @@ export default function ProfilePage() {
                 👤
               </div>
               <div className="text-center md:text-right flex-1">
-                <h1 className="text-3xl font-bold mb-1">{session?.user?.name}</h1>
+                <div className="flex items-center gap-3 justify-center md:justify-start">
+                  <h1 className="text-3xl font-bold mb-1">{session?.user?.name}</h1>
+                  <button
+                    onClick={() => {
+                      setShowNameChangeModal(true);
+                      setNewName("");
+                      setNameChangeError("");
+                    }}
+                    className="bg-white/20 hover:bg-white/30 text-white text-xs px-3 py-1 rounded-lg transition-colors"
+                    title="تغيير الاسم"
+                  >
+                    تعديل
+                  </button>
+                </div>
                 <p className="text-primary-200">{session?.user?.email}</p>
               </div>
               <div className="flex gap-6 text-center">
@@ -127,6 +239,133 @@ export default function ProfilePage() {
             </div>
           </div>
         </section>
+
+        {/* Name Change Section */}
+        <section className="py-4 bg-white border-b">
+          <div className="max-w-5xl mx-auto px-4">
+            {/* Success/Error Messages */}
+            {nameChangeSuccess && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-3 flex items-center gap-3">
+                <span className="text-emerald-500 text-xl">&#10003;</span>
+                <p className="text-emerald-700 text-sm font-medium">{nameChangeSuccess}</p>
+                <button onClick={() => setNameChangeSuccess("")} className="mr-auto text-emerald-400 hover:text-emerald-600">&#10005;</button>
+              </div>
+            )}
+
+            {/* Pending Request Banner */}
+            {nameChangeStatus?.pendingRequest && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-amber-500 text-xl">&#9201;</span>
+                  <div className="flex-1">
+                    <p className="text-amber-800 font-medium text-sm">طلب تغيير اسم قيد المراجعة</p>
+                    <p className="text-amber-600 text-xs mt-1">
+                      الاسم المطلوب: <strong>{nameChangeStatus.pendingRequest.requestedName}</strong> - 
+                      تم الإرسال في {new Date(nameChangeStatus.pendingRequest.createdAt).toLocaleDateString("ar")}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Cooldown Info */}
+            {cooldownRemaining && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-blue-500 text-xl">&#128338;</span>
+                  <div>
+                    <p className="text-blue-800 font-medium text-sm">فترة الانتظار لتغيير الاسم</p>
+                    <p className="text-blue-600 text-xs mt-1">يمكنك تغيير اسمك بعد: {cooldownRemaining}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Name Change History */}
+            {nameChangeStatus?.recentRequests && nameChangeStatus.recentRequests.length > 0 && (
+              <details className="mb-3">
+                <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700 py-1">سجل طلبات تغيير الاسم ({nameChangeStatus.recentRequests.length})</summary>
+                <div className="mt-2 space-y-2">
+                  {nameChangeStatus.recentRequests.map((req) => (
+                    <div key={req.id} className="bg-gray-50 rounded-lg p-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          req.status === "approved" || req.status === "auto_approved" ? "bg-emerald-100 text-emerald-700" :
+                          req.status === "rejected" ? "bg-red-100 text-red-700" :
+                          "bg-amber-100 text-amber-700"
+                        }`}>
+                          {req.status === "approved" ? "موافق" : req.status === "auto_approved" ? "موافق تلقائي" : req.status === "rejected" ? "مرفوض" : "قيد المراجعة"}
+                        </span>
+                        <span className="text-gray-500">{req.currentName} &#8592; {req.requestedName}</span>
+                        <span className="text-gray-400 text-xs mr-auto">{new Date(req.createdAt).toLocaleDateString("ar")}</span>
+                      </div>
+                      {req.adminNote && <p className="text-gray-600 text-xs mt-1">ملاحظة الإدارة: {req.adminNote}</p>}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+        </section>
+
+        {/* Name Change Modal */}
+        {showNameChangeModal && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowNameChangeModal(false)}>
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">تغيير الاسم</h3>
+              <p className="text-sm text-gray-500 mb-4">يمكنك تغيير اسمك مرة كل 7 أيام. الأسماء غير المناسبة ستخضع لمراجعة إدارية.</p>
+              
+              {!nameChangeStatus?.canChange ? (
+                <div className="bg-gray-50 rounded-xl p-4 text-center">
+                  <p className="text-gray-600 text-sm">
+                    {nameChangeStatus?.pendingRequest ? "لديك طلب قيد المراجعة بالفعل" : "يجب الانتظار حتى انتهاء فترة الانتظار"}
+                  </p>
+                  {cooldownRemaining && <p className="text-gray-500 text-xs mt-2">متبقي: {cooldownRemaining}</p>}
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الاسم الحالي</label>
+                    <p className="text-gray-900 font-medium bg-gray-50 rounded-lg px-3 py-2">{nameChangeStatus?.currentName || session?.user?.name}</p>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">الاسم الجديد</label>
+                    <input
+                      type="text"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                      placeholder="أدخل الاسم الجديد"
+                      maxLength={30}
+                      dir="auto"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">2-30 حرفاً (حروف عربية، إنجليزية، أرقام)</p>
+                  </div>
+                  {nameChangeError && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+                      <p className="text-red-700 text-sm">{nameChangeError}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleNameChange}
+                      disabled={nameChangeLoading || !newName.trim()}
+                      className="flex-1 bg-primary-600 text-white rounded-xl py-2 text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {nameChangeLoading ? "جاري الإرسال..." : "تغيير الاسم"}
+                    </button>
+                    <button
+                      onClick={() => setShowNameChangeModal(false)}
+                      className="px-4 py-2 text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                      إلغاء
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Quick Links */}
         <section className="py-6 border-b bg-white">
