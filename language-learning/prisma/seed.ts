@@ -1,9 +1,24 @@
 import { PrismaClient } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log("Seeding database...");
+
+  // Create admin user
+  const adminPassword = await hash("admin123", 12);
+  const adminUser = await prisma.user.upsert({
+    where: { email: "admin@linguamaster.com" },
+    update: {},
+    create: {
+      name: "المسؤول",
+      email: "admin@linguamaster.com",
+      password: adminPassword,
+      role: "admin",
+    },
+  });
+  console.log(`Admin user created: ${adminUser.email}`);
 
   // Create English language
   const english = await prisma.language.create({

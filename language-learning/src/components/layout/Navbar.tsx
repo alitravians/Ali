@@ -45,9 +45,6 @@ export default function Navbar() {
   const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [showAdminCode, setShowAdminCode] = useState(false);
-  const [adminCode, setAdminCode] = useState("");
-  const [adminError, setAdminError] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
@@ -123,16 +120,6 @@ export default function Navbar() {
     if (notif.link) router.push(notif.link);
   };
 
-  const handleAdminAccess = () => {
-    if (adminCode === "3131") {
-      setShowAdminCode(false);
-      setAdminCode("");
-      setAdminError("");
-      window.location.href = "/admin";
-    } else {
-      setAdminError("رمز الدخول غير صحيح");
-    }
-  };
 
   return (
     <>
@@ -228,13 +215,13 @@ export default function Navbar() {
                       </div>
                     )}
                   </div>
-                  <button
-                    onClick={() => setShowAdminCode(true)}
+                  <Link
+                    href="/admin/login"
                     className="text-gray-400 hover:text-gray-600 text-xs"
                     title="إدارة"
                   >
                     ⚙
-                  </button>
+                  </Link>
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}
                     className="btn-danger text-sm py-2 px-4"
@@ -288,12 +275,13 @@ export default function Navbar() {
                       </span>
                     )}
                   </Link>
-                  <button
-                    onClick={() => { setShowAdminCode(true); setIsMenuOpen(false); }}
+                  <Link
+                    href="/admin/login"
                     className="block text-gray-400 hover:text-gray-600 text-sm py-2"
+                    onClick={() => setIsMenuOpen(false)}
                   >
                     ⚙ إدارة الموقع
-                  </button>
+                  </Link>
                   <button
                     onClick={() => signOut({ callbackUrl: "/" })}
                     className="block w-full text-right btn-danger text-sm py-2 px-4"
@@ -316,32 +304,6 @@ export default function Navbar() {
         </div>
       </nav>
 
-      {/* Admin Access Modal */}
-      {showAdminCode && (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowAdminCode(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-lg font-bold mb-4 text-center">دخول لوحة الإدارة</h3>
-            <input
-              type="password"
-              value={adminCode}
-              onChange={(e) => { setAdminCode(e.target.value); setAdminError(""); }}
-              placeholder="أدخل رمز الدخول"
-              className="input-field mb-3 text-center"
-              onKeyDown={(e) => e.key === "Enter" && handleAdminAccess()}
-              autoFocus
-            />
-            {adminError && <p className="text-red-500 text-sm text-center mb-3">{adminError}</p>}
-            <div className="flex gap-3">
-              <button onClick={handleAdminAccess} className="flex-1 btn-primary text-sm py-2">
-                دخول
-              </button>
-              <button onClick={() => { setShowAdminCode(false); setAdminCode(""); setAdminError(""); }} className="flex-1 btn-secondary text-sm py-2">
-                إلغاء
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </>
   );
 }
