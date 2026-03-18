@@ -264,7 +264,7 @@ export default function Navbar() {
                     )}
                   </div>
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => signOut({ callbackUrl: "/login" })}
                     className="btn-danger text-sm py-2 px-4"
                   >
                     تسجيل خروج
@@ -327,7 +327,7 @@ export default function Navbar() {
                     )}
                   </Link>
                   <button
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => signOut({ callbackUrl: "/login" })}
                     className="block w-full text-right btn-danger text-sm py-2 px-4"
                   >
                     تسجيل خروج
