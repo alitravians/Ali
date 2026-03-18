@@ -7,7 +7,7 @@ export async function GET(req: NextRequest) {
     const lessonId = searchParams.get("lessonId");
     const questions = await prisma.question.findMany({
       where: lessonId ? { lessonId } : {},
-      include: { lesson: true },
+      include: { lesson: { include: { level: { include: { language: true } } } } },
     });
     return NextResponse.json(questions);
   } catch (error) {

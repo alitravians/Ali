@@ -17,7 +17,7 @@ interface Language {
 
 interface Settings {
   maintenanceMode: boolean;
-  maintenanceMsg: string;
+  maintenanceMessage: string;
 }
 
 export default function HomePage() {
@@ -57,7 +57,7 @@ export default function HomePage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">الموقع تحت الصيانة</h1>
-          <p className="text-gray-500 mb-6">{settings.maintenanceMsg}</p>
+          <p className="text-gray-500 mb-6">{settings.maintenanceMessage}</p>
           <p className="text-sm text-gray-400">سنعود قريباً إن شاء الله</p>
         </div>
       </div>

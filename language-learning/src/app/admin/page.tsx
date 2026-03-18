@@ -15,7 +15,7 @@ interface Stats {
   totalTickets: number;
   openTickets: number;
   recentUsers: { id: string; name: string; email: string; createdAt: string }[];
-  recentCertificates: { id: string; code: string; score: number; user: { name: string }; level: { nameAr: string } }[];
+  recentCertificates: { id: string; certificateCode: string; score: number; user: { name: string }; level: { nameAr: string } }[];
 }
 
 export default function AdminDashboard() {
@@ -146,7 +146,7 @@ export default function AdminDashboard() {
                       <p className="font-medium text-gray-900 text-sm">{cert.user.name}</p>
                       <p className="text-xs text-gray-500">{cert.level.nameAr} - {cert.score}%</p>
                     </div>
-                    <p className="text-xs text-gray-400 font-mono" dir="ltr">{cert.code}</p>
+                    <p className="text-xs text-gray-400 font-mono" dir="ltr">{cert.certificateCode}</p>
                   </div>
                 ))}
               </div>

@@ -14,6 +14,7 @@ export async function GET() {
             },
           },
         },
+        _count: { select: { levels: true } },
       },
       orderBy: { createdAt: "asc" },
     });

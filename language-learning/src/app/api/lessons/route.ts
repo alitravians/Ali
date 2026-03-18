@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
         grammarRules: true,
         questions: true,
         level: { include: { language: true } },
+        _count: { select: { words: true, grammarRules: true, questions: true } },
       },
       orderBy: { order: "asc" },
     });
