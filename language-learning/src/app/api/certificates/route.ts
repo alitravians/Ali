@@ -20,6 +20,13 @@ export async function GET(req: NextRequest) {
     const all = searchParams.get("all");
 
     if (all === "true") {
+      if (!session?.user) {
+        return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+      }
+      const adminUser = await prisma.user.findUnique({ where: { id: session.user.id } });
+      if (!adminUser || adminUser.role !== "admin") {
+        return NextResponse.json({ error: "غير مصرح - صلاحيات الإدارة مطلوبة" }, { status: 403 });
+      }
       const certificates = await prisma.certificate.findMany({
         include: {
           user: { select: { name: true, email: true } },

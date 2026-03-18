@@ -3,6 +3,11 @@ import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(email);
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password } = await req.json();
@@ -10,6 +15,20 @@ export async function POST(req: NextRequest) {
     if (!name || !email || !password) {
       return NextResponse.json(
         { error: "جميع الحقول مطلوبة" },
+        { status: 400 }
+      );
+    }
+
+    if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 50) {
+      return NextResponse.json(
+        { error: "الاسم يجب أن يكون بين 2 و 50 حرف" },
+        { status: 400 }
+      );
+    }
+
+    if (!isValidEmail(email)) {
+      return NextResponse.json(
+        { error: "البريد الإلكتروني غير صالح" },
         { status: 400 }
       );
     }
