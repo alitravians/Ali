@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 interface Badge {
   id: string;
@@ -10,6 +11,7 @@ interface Badge {
   description: string;
   descriptionAr: string;
   icon: string;
+  imageUrl: string;
   color: string;
   category: string;
   isActive: boolean;
@@ -33,7 +35,7 @@ interface Assignment {
   note: string;
   createdAt: string;
   user: User;
-  badge: { name: string; nameAr: string; icon: string; color: string };
+  badge: { name: string; nameAr: string; icon: string; imageUrl: string; color: string };
 }
 
 const CATEGORIES: Record<string, string> = {
@@ -68,6 +70,9 @@ export default function AdminBadgesPage() {
     icon: "⭐", color: "#f59e0b", category: "general", order: 0,
   });
   const [formLoading, setFormLoading] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Assign badge
   const [assignBadgeId, setAssignBadgeId] = useState("");
@@ -102,6 +107,16 @@ export default function AdminBadgesPage() {
     fetchUsers();
   }, []);
 
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleCreateOrUpdate = async () => {
     if (!formData.name || !formData.nameAr) {
       alert("الاسم مطلوب بالعربي والإنجليزي");
@@ -109,22 +124,53 @@ export default function AdminBadgesPage() {
     }
     setFormLoading(true);
     try {
-      const body = editingBadge
-        ? { action: "update", badgeId: editingBadge.id, ...formData }
-        : { action: "create", ...formData };
-      const res = await fetch("/api/admin/badges", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (res.ok) {
-        setShowForm(false);
-        setEditingBadge(null);
-        resetForm();
-        fetchBadges();
+      // Use FormData if image is being uploaded
+      if (imageFile) {
+        const fd = new FormData();
+        fd.append("action", editingBadge ? "update" : "create");
+        fd.append("image", imageFile);
+        fd.append("name", formData.name);
+        fd.append("nameAr", formData.nameAr);
+        fd.append("description", formData.description);
+        fd.append("descriptionAr", formData.descriptionAr);
+        fd.append("icon", formData.icon);
+        fd.append("color", formData.color);
+        fd.append("category", formData.category);
+        fd.append("order", String(formData.order));
+        if (editingBadge) fd.append("badgeId", editingBadge.id);
+
+        const res = await fetch("/api/admin/badges", {
+          method: "POST",
+          body: fd,
+        });
+        if (res.ok) {
+          setShowForm(false);
+          setEditingBadge(null);
+          resetForm();
+          fetchBadges();
+        } else {
+          const data = await res.json();
+          alert(data.error || "فشل في الحفظ");
+        }
       } else {
-        const data = await res.json();
-        alert(data.error || "فشل في الحفظ");
+        // JSON request (no image)
+        const body = editingBadge
+          ? { action: "update", badgeId: editingBadge.id, ...formData }
+          : { action: "create", ...formData };
+        const res = await fetch("/api/admin/badges", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          setShowForm(false);
+          setEditingBadge(null);
+          resetForm();
+          fetchBadges();
+        } else {
+          const data = await res.json();
+          alert(data.error || "فشل في الحفظ");
+        }
       }
     } catch {
       alert("خطأ في الاتصال");
@@ -217,6 +263,8 @@ export default function AdminBadgesPage() {
 
   const resetForm = () => {
     setFormData({ name: "", nameAr: "", description: "", descriptionAr: "", icon: "⭐", color: "#f59e0b", category: "general", order: 0 });
+    setImageFile(null);
+    setImagePreview("");
   };
 
   const openEdit = (badge: Badge) => {
@@ -225,7 +273,22 @@ export default function AdminBadgesPage() {
       name: badge.name, nameAr: badge.nameAr, description: badge.description, descriptionAr: badge.descriptionAr,
       icon: badge.icon, color: badge.color, category: badge.category, order: badge.order,
     });
+    setImageFile(null);
+    setImagePreview(badge.imageUrl || "");
     setShowForm(true);
+  };
+
+  const handleRemoveImage = async (badgeId: string) => {
+    try {
+      await fetch("/api/admin/badges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "removeImage", badgeId }),
+      });
+      fetchBadges();
+    } catch {
+      alert("خطأ في إزالة الصورة");
+    }
   };
 
   if (loading) {
@@ -339,10 +402,14 @@ export default function AdminBadgesPage() {
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm"
+                          className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl shadow-sm overflow-hidden"
                           style={{ backgroundColor: badge.color + "20", borderColor: badge.color, borderWidth: "2px" }}
                         >
-                          {badge.icon}
+                          {badge.imageUrl ? (
+                            <Image src={badge.imageUrl} alt={badge.nameAr} width={48} height={48} className="w-full h-full object-cover" />
+                          ) : (
+                            badge.icon
+                          )}
                         </div>
                         <div>
                           <h4 className="font-bold text-gray-900">{badge.nameAr}</h4>
@@ -506,9 +573,46 @@ export default function AdminBadgesPage() {
                   />
                 </div>
               </div>
-              {/* Icon picker */}
+              {/* Image upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">الأيقونة</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">📷 صورة الشارة (يتم تصغيرها تلقائياً)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-blue-50 text-blue-700 rounded-xl text-sm font-medium hover:bg-blue-100 transition-colors border border-blue-200"
+                  >
+                    📁 اختر صورة من الجهاز
+                  </button>
+                  {(imagePreview || (editingBadge?.imageUrl)) && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-green-400 shadow-sm">
+                        <Image src={imagePreview || editingBadge?.imageUrl || ""} alt="معاينة" width={48} height={48} className="w-full h-full object-cover" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setImageFile(null); setImagePreview(""); }}
+                        className="text-xs text-red-500 hover:text-red-700"
+                      >
+                        ❌ إزالة
+                      </button>
+                    </div>
+                  )}
+                  {!imagePreview && !editingBadge?.imageUrl && (
+                    <span className="text-xs text-gray-400">أي حجم - يتم تصغيرها لـ 64x64 تلقائياً</span>
+                  )}
+                </div>
+              </div>
+              {/* Emoji fallback picker */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الأيقونة الاحتياطية (إذا لم يتم رفع صورة)</label>
                 <div className="flex flex-wrap gap-2">
                   {EMOJI_OPTIONS.map((emoji) => (
                     <button
@@ -572,10 +676,16 @@ export default function AdminBadgesPage() {
                 <p className="text-xs text-gray-500 mb-2">معاينة:</p>
                 <div className="flex items-center gap-3">
                   <div
-                    className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl shadow-sm"
+                    className="w-14 h-14 rounded-xl flex items-center justify-center text-3xl shadow-sm overflow-hidden"
                     style={{ backgroundColor: formData.color + "20", borderColor: formData.color, borderWidth: "2px" }}
                   >
-                    {formData.icon}
+                    {imagePreview ? (
+                      <Image src={imagePreview} alt="معاينة" width={56} height={56} className="w-full h-full object-cover" />
+                    ) : editingBadge?.imageUrl ? (
+                      <Image src={editingBadge.imageUrl} alt="معاينة" width={56} height={56} className="w-full h-full object-cover" />
+                    ) : (
+                      formData.icon
+                    )}
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-900">{formData.nameAr || "اسم الشارة"}</h4>
@@ -588,12 +698,19 @@ export default function AdminBadgesPage() {
                 {/* Chat preview */}
                 <div className="mt-3 flex items-center gap-1">
                   <span className="text-xs text-gray-500">في الدردشة:</span>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium"
-                    style={{ backgroundColor: formData.color }}
-                  >
-                    {formData.icon} {formData.nameAr || "شارة"}
-                  </span>
+                  {imagePreview || editingBadge?.imageUrl ? (
+                    <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full text-white font-medium" style={{ backgroundColor: formData.color }}>
+                      <Image src={imagePreview || editingBadge?.imageUrl || ""} alt="" width={14} height={14} className="w-3.5 h-3.5 rounded-full object-cover" />
+                      {formData.nameAr || "شارة"}
+                    </span>
+                  ) : (
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full text-white font-medium"
+                      style={{ backgroundColor: formData.color }}
+                    >
+                      {formData.icon} {formData.nameAr || "شارة"}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex gap-3 pt-2">
@@ -622,10 +739,14 @@ export default function AdminBadgesPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-3 mb-4">
               <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl overflow-hidden"
                 style={{ backgroundColor: viewBadge.color + "20", borderColor: viewBadge.color, borderWidth: "2px" }}
               >
-                {viewBadge.icon}
+                {viewBadge.imageUrl ? (
+                  <Image src={viewBadge.imageUrl} alt={viewBadge.nameAr} width={48} height={48} className="w-full h-full object-cover" />
+                ) : (
+                  viewBadge.icon
+                )}
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">{viewBadge.nameAr}</h3>

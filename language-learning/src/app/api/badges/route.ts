@@ -27,6 +27,7 @@ export async function GET() {
         description: a.badge.description,
         descriptionAr: a.badge.descriptionAr,
         icon: a.badge.icon,
+        imageUrl: a.badge.imageUrl,
         color: a.badge.color,
         category: a.badge.category,
         earnedAt: a.createdAt.toISOString(),

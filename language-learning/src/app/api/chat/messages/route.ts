@@ -39,13 +39,13 @@ export async function GET(request: Request) {
     const userIds = [...new Set(messages.map((m) => m.userId))];
     const badgeAssignments = await prisma.badgeAssignment.findMany({
       where: { userId: { in: userIds } },
-      include: { badge: { select: { icon: true, nameAr: true, color: true, isActive: true } } },
+      include: { badge: { select: { icon: true, imageUrl: true, nameAr: true, color: true, isActive: true } } },
     });
-    const userBadgesMap: Record<string, { icon: string; nameAr: string; color: string }[]> = {};
+    const userBadgesMap: Record<string, { icon: string; imageUrl: string; nameAr: string; color: string }[]> = {};
     for (const ba of badgeAssignments) {
       if (!ba.badge.isActive) continue;
       if (!userBadgesMap[ba.userId]) userBadgesMap[ba.userId] = [];
-      userBadgesMap[ba.userId].push({ icon: ba.badge.icon, nameAr: ba.badge.nameAr, color: ba.badge.color });
+      userBadgesMap[ba.userId].push({ icon: ba.badge.icon, imageUrl: ba.badge.imageUrl, nameAr: ba.badge.nameAr, color: ba.badge.color });
     }
 
     const enriched = messages.map((m) => ({

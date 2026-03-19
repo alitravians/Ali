@@ -612,7 +612,8 @@ model Badge {
   nameAr      String
   description String   @default("")
   descriptionAr String @default("")
-  icon        String   @default("⭐") // emoji icon
+  icon        String   @default("⭐") // emoji icon (fallback)
+  imageUrl    String   @default("") // base64 encoded badge image (auto-resized)
   color       String   @default("#f59e0b") // badge color
   category    String   @default("general") // general | achievement | rank | special | event
   isActive    Boolean  @default(true)

@@ -23,6 +23,7 @@ interface ChatUser {
 
 interface UserBadge {
   icon: string;
+  imageUrl: string;
   nameAr: string;
   color: string;
 }
@@ -580,11 +581,15 @@ export default function ChatPage() {
                               {msg.userBadges && msg.userBadges.length > 0 && msg.userBadges.map((badge, idx) => (
                                 <span
                                   key={idx}
-                                  className="text-[10px] px-1.5 py-0.5 rounded-full font-medium text-white"
+                                  className="inline-flex items-center gap-0.5 text-[10px] px-1.5 py-0.5 rounded-full font-medium text-white"
                                   style={{ backgroundColor: badge.color }}
                                   title={badge.nameAr}
                                 >
-                                  {badge.icon}
+                                  {badge.imageUrl ? (
+                                    <img src={badge.imageUrl} alt="" className="w-3.5 h-3.5 rounded-full object-cover" />
+                                  ) : (
+                                    badge.icon
+                                  )}
                                 </span>
                               ))}
                             </div>
