@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       include: { item: true },
     });
 
-    const userInventoryMap: Record<string, Record<string, { previewData: string; icon: string; color: string; nameAr: string; rarity?: string }>> = {};
+    const userInventoryMap: Record<string, Record<string, { previewData: string; icon: string; color: string; nameAr: string; rarity?: string; videoUrl?: string; soundUrl?: string; effectDuration?: number }>> = {};
     for (const inv of activeInventory) {
       // Auto-expire check
       if (!inv.isPermanent && inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
@@ -74,6 +74,9 @@ export async function GET(request: Request) {
         color: inv.item.color,
         nameAr: inv.item.nameAr,
         rarity: inv.item.rarity,
+        videoUrl: inv.item.videoUrl || undefined,
+        soundUrl: inv.item.soundUrl || undefined,
+        effectDuration: inv.item.effectDuration || 5,
       };
     }
 

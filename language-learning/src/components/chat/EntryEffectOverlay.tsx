@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 
 // Effect type definitions
 export type EffectType = 
@@ -17,11 +17,15 @@ export interface EntryEffect {
   color: string;
   nameAr: string;
   rarity: string;
+  videoUrl?: string;
+  soundUrl?: string;
+  effectDuration?: number;
 }
 
 interface EntryEffectOverlayProps {
   effects: EntryEffect[];
   onEffectComplete: (userId: string) => void;
+  soundMuted?: boolean;
 }
 
 // Particle system for various effects
@@ -254,30 +258,98 @@ function getRarityStyle(rarity: string): { bg: string; text: string; border: str
   return styles[rarity] || styles.common;
 }
 
-// Single effect renderer
-function SingleEntryEffect({ effect, onComplete }: { effect: EntryEffect; onComplete: () => void }) {
+// Single effect renderer with video/audio support
+function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEffect; onComplete: () => void; soundMuted?: boolean }) {
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
   const config = getEffectConfig(effect.effectType);
   const particles = generateParticles(effect.effectType, config.particleCount);
   const rarityStyle = getRarityStyle(effect.rarity);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const hasVideo = Boolean(effect.videoUrl);
+  const hasSound = Boolean(effect.soundUrl);
+  const duration = (effect.effectDuration || 5) * 1000;
 
   useEffect(() => {
-    // Enter phase (0.5s) -> Show phase (3s) -> Exit phase (1s) -> Complete
-    const enterTimer = setTimeout(() => setPhase("show"), 500);
-    const exitTimer = setTimeout(() => setPhase("exit"), 3500);
-    const completeTimer = setTimeout(() => onComplete(), 4500);
+    const enterTime = 500;
+    const exitTime = duration - 1000;
+    const enterTimer = setTimeout(() => setPhase("show"), enterTime);
+    const exitTimer = setTimeout(() => setPhase("exit"), exitTime);
+    const completeTimer = setTimeout(() => onComplete(), duration);
     return () => {
       clearTimeout(enterTimer);
       clearTimeout(exitTimer);
       clearTimeout(completeTimer);
     };
-  }, [onComplete]);
+  }, [onComplete, duration]);
+
+  // Play video when effect starts
+  useEffect(() => {
+    if (hasVideo && videoRef.current) {
+      videoRef.current.currentTime = 0;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [hasVideo]);
+
+  // Play audio when effect starts (if not muted)
+  useEffect(() => {
+    if (hasSound && audioRef.current && !soundMuted) {
+      audioRef.current.currentTime = 0;
+      audioRef.current.volume = 0.6;
+      audioRef.current.play().catch(() => {});
+    }
+  }, [hasSound, soundMuted]);
+
+  // Fade out audio/video on exit
+  useEffect(() => {
+    if (phase === "exit") {
+      if (videoRef.current) {
+        videoRef.current.style.opacity = "0";
+      }
+      if (audioRef.current) {
+        const audio = audioRef.current;
+        const fadeInterval = setInterval(() => {
+          if (audio.volume > 0.05) {
+            audio.volume = Math.max(0, audio.volume - 0.1);
+          } else {
+            audio.pause();
+            clearInterval(fadeInterval);
+          }
+        }, 50);
+      }
+    }
+  }, [phase]);
 
   return (
     <div 
       className={`entry-effect-container entry-effect-${phase}`}
-      style={{ background: config.bgGradient }}
+      style={{ background: hasVideo ? "rgba(0,0,0,0.85)" : config.bgGradient }}
     >
+      {/* Video background (fullscreen) */}
+      {hasVideo && (
+        <video
+          ref={videoRef}
+          className="entry-effect-video"
+          src={effect.videoUrl}
+          muted
+          playsInline
+          loop={false}
+          style={{
+            opacity: phase === "exit" ? 0 : 1,
+            transition: "opacity 0.8s ease",
+          }}
+        />
+      )}
+
+      {/* Audio element */}
+      {hasSound && !soundMuted && (
+        <audio
+          ref={audioRef}
+          src={effect.soundUrl}
+          preload="auto"
+        />
+      )}
+
       {/* Animated particles */}
       <div className="entry-particles">
         {particles.map((p) => (
@@ -378,6 +450,13 @@ function SingleEntryEffect({ effect, onComplete }: { effect: EntryEffect; onComp
             {rarityStyle.label}
           </div>
 
+          {/* Sound indicator */}
+          {hasSound && (
+            <div className="entry-card-sound-indicator">
+              {soundMuted ? "🔇" : "🔊"}
+            </div>
+          )}
+
           {/* Bottom decorative line */}
           <div 
             className="entry-card-bottom-line"
@@ -390,12 +469,13 @@ function SingleEntryEffect({ effect, onComplete }: { effect: EntryEffect; onComp
 }
 
 // Preview component for inventory page
-export function EntryEffectPreview({ effectType, icon, color, nameAr, size = "medium" }: {
+export function EntryEffectPreview({ effectType, icon, color, nameAr, size = "medium", videoUrl }: {
   effectType: EffectType;
   icon: string;
   color: string;
   nameAr: string;
   size?: "small" | "medium" | "large";
+  videoUrl?: string;
 }) {
   const config = getEffectConfig(effectType);
   const particles = generateParticles(effectType, size === "small" ? 8 : size === "medium" ? 12 : 18);
@@ -403,6 +483,26 @@ export function EntryEffectPreview({ effectType, icon, color, nameAr, size = "me
 
   return (
     <div className={`entry-preview ${sizeClass}`} style={{ background: config.bgGradient }}>
+      {/* Video thumbnail if available */}
+      {videoUrl && (
+        <video
+          className="entry-preview-video"
+          src={videoUrl}
+          muted
+          playsInline
+          autoPlay
+          loop
+          style={{
+            position: "absolute",
+            inset: 0,
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            opacity: 0.4,
+            borderRadius: "16px",
+          }}
+        />
+      )}
       {/* Mini particles */}
       {particles.map((p) => (
         <div
@@ -440,7 +540,7 @@ export function EntryEffectPreview({ effectType, icon, color, nameAr, size = "me
 }
 
 // Main overlay component
-export default function EntryEffectOverlay({ effects, onEffectComplete }: EntryEffectOverlayProps) {
+export default function EntryEffectOverlay({ effects, onEffectComplete, soundMuted }: EntryEffectOverlayProps) {
   const [activeEffect, setActiveEffect] = useState<EntryEffect | null>(null);
   const [queue, setQueue] = useState<EntryEffect[]>([]);
 
@@ -474,7 +574,7 @@ export default function EntryEffectOverlay({ effects, onEffectComplete }: EntryE
 
   return (
     <div className="entry-effect-overlay" onClick={handleComplete}>
-      <SingleEntryEffect effect={activeEffect} onComplete={handleComplete} />
+      <SingleEntryEffect effect={activeEffect} onComplete={handleComplete} soundMuted={soundMuted} />
     </div>
   );
 }

@@ -159,6 +159,12 @@ export default function ChatPage() {
   const [shownEntryEffects, setShownEntryEffects] = useState<Set<string>>(new Set());
   const [entryEffectQueue, setEntryEffectQueue] = useState<EntryEffect[]>([]);
   const [entryEffectCooldowns, setEntryEffectCooldowns] = useState<Record<string, number>>({});
+  const [effectSoundMuted, setEffectSoundMuted] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("effectSoundMuted") === "true";
+    }
+    return false;
+  });
   const ENTRY_EFFECT_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown per user
 
   const userId = session?.user ? (session.user as { id: string }).id : "";
@@ -268,6 +274,9 @@ export default function ChatPage() {
                 color: msg.userInventory.entry_effect.color,
                 nameAr: msg.userInventory.entry_effect.nameAr,
                 rarity,
+                videoUrl: msg.userInventory.entry_effect.videoUrl || undefined,
+                soundUrl: msg.userInventory.entry_effect.soundUrl || undefined,
+                effectDuration: msg.userInventory.entry_effect.effectDuration || 5,
               });
             }
           }
@@ -1000,12 +1009,28 @@ export default function ChatPage() {
         </div>
       )}
 
+      {/* Sound mute toggle for entry effects */}
+      <button
+        onClick={() => {
+          setEffectSoundMuted((prev: boolean) => {
+            const next = !prev;
+            localStorage.setItem("effectSoundMuted", String(next));
+            return next;
+          });
+        }}
+        className="fixed bottom-4 left-4 z-50 bg-white/90 backdrop-blur-sm border border-gray-200 rounded-full w-10 h-10 flex items-center justify-center shadow-lg hover:bg-gray-100 transition-all"
+        title={effectSoundMuted ? "تفعيل صوت تأثيرات الدخول" : "كتم صوت تأثيرات الدخول"}
+      >
+        {effectSoundMuted ? "🔇" : "🔊"}
+      </button>
+
       {/* Professional Entry Effects Overlay */}
       <EntryEffectOverlay
         effects={entryEffectQueue}
         onEffectComplete={(completedUserId) => {
           setEntryEffectQueue((prev) => prev.filter((e) => e.userId !== completedUserId));
         }}
+        soundMuted={effectSoundMuted}
       />
     </div>
   );

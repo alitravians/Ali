@@ -452,6 +452,45 @@
 }
 
 /* ========================================
+   Video/Audio Entry Effect Styles
+   ======================================== */
+
+/* Fullscreen video background */
+.entry-effect-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: 0;
+}
+
+/* Sound indicator on card */
+.entry-card-sound-indicator {
+  margin-top: 8px;
+  font-size: 18px;
+  opacity: 0.7;
+  animation: soundPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes soundPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* Ensure particles appear above video */
+.entry-particles {
+  z-index: 2;
+}
+
+/* Ensure card appears above video */
+.entry-card {
+  z-index: 3;
+}
+
+/* ========================================
    Preview Component Styles
    ======================================== */
 

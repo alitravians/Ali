@@ -653,6 +653,9 @@ model InventoryItem {
   imageUrl      String   @default("") // base64 encoded image
   color         String   @default("#6366f1")
   previewData   String   @default("{}") // JSON config for visual preview
+  videoUrl      String   @default("") // path to MP4 video file for entry effects
+  soundUrl      String   @default("") // path to audio file for entry effects
+  effectDuration Int     @default(5) // duration in seconds for video/sound effects
   category      String   @default("general") // general | achievement | rank | special | event | seasonal
   rarity        String   @default("common") // common | uncommon | rare | epic | legendary
   isActive      Boolean  @default(true)

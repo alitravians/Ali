@@ -77,6 +77,9 @@ interface InventoryItem {
   imageUrl: string;
   color: string;
   previewData: string;
+  videoUrl: string;
+  soundUrl: string;
+  effectDuration: number;
   category: string;
   rarity: string;
   isActive: boolean;
@@ -119,7 +122,14 @@ export default function AdminInventoryPage() {
   const [formLoading, setFormLoading] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState("");
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoPreview, setVideoPreview] = useState("");
+  const [soundFile, setSoundFile] = useState<File | null>(null);
+  const [soundPreview, setSoundPreview] = useState("");
+  const [effectDuration, setEffectDuration] = useState(5);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const soundInputRef = useRef<HTMLInputElement>(null);
 
   // Form data
   const [formData, setFormData] = useState({
@@ -180,6 +190,11 @@ export default function AdminInventoryPage() {
     setFormData({ nameAr: "", descriptionAr: "", type: "bubble", icon: "✨", color: "#6366f1", category: "general", rarity: "common", order: 0, previewData: "{}" });
     setImageFile(null);
     setImagePreview("");
+    setVideoFile(null);
+    setVideoPreview("");
+    setSoundFile(null);
+    setSoundPreview("");
+    setEffectDuration(5);
     setEditingItem(null);
     setShowForm(false);
   };
@@ -192,6 +207,9 @@ export default function AdminInventoryPage() {
       order: item.order, previewData: item.previewData,
     });
     setImagePreview(item.imageUrl || "");
+    setVideoPreview(item.videoUrl || "");
+    setSoundPreview(item.soundUrl || "");
+    setEffectDuration(item.effectDuration || 5);
     setShowForm(true);
   };
 
@@ -199,10 +217,13 @@ export default function AdminInventoryPage() {
     if (!formData.nameAr) { alert("اسم العنصر مطلوب"); return; }
     setFormLoading(true);
     try {
-      if (imageFile) {
+      const hasFiles = imageFile || videoFile || soundFile;
+      if (hasFiles) {
         const fd = new FormData();
         fd.append("action", editingItem ? "update" : "create");
-        fd.append("image", imageFile);
+        if (imageFile) fd.append("image", imageFile);
+        if (videoFile) fd.append("video", videoFile);
+        if (soundFile) fd.append("sound", soundFile);
         fd.append("nameAr", formData.nameAr);
         fd.append("descriptionAr", formData.descriptionAr);
         fd.append("type", formData.type);
@@ -212,6 +233,7 @@ export default function AdminInventoryPage() {
         fd.append("rarity", formData.rarity);
         fd.append("order", String(formData.order));
         fd.append("previewData", formData.previewData);
+        fd.append("effectDuration", String(effectDuration));
         if (editingItem) fd.append("itemId", editingItem.id);
         await fetch("/api/admin/inventory", { method: "POST", body: fd });
       } else {
@@ -221,6 +243,7 @@ export default function AdminInventoryPage() {
           body: JSON.stringify({
             action: editingItem ? "update" : "create",
             itemId: editingItem?.id,
+            effectDuration,
             ...formData,
           }),
         });
@@ -660,6 +683,62 @@ export default function AdminInventoryPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Video/Sound uploads for entry effects */}
+                {formData.type === "entry_effect" && (
+                  <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+                    <h4 className="text-sm font-bold text-purple-800">ملفات تأثير الدخول</h4>
+                    
+                    {/* Video upload */}
+                    <div>
+                      <label className="block text-sm font-medium text-purple-700 mb-1">فيديو التأثير (MP4/WebM)</label>
+                      <input ref={videoInputRef} type="file" accept="video/mp4,video/webm" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) { setVideoFile(file); setVideoPreview(URL.createObjectURL(file)); }
+                      }} className="hidden" />
+                      <div className="flex items-center gap-3">
+                        <button type="button" onClick={() => videoInputRef.current?.click()}
+                          className="px-4 py-2 border border-purple-300 rounded-xl text-sm hover:bg-purple-100 text-purple-700">🎬 اختر فيديو</button>
+                        {(videoPreview || videoFile) && (
+                          <>
+                            <span className="text-xs text-purple-600">{videoFile ? videoFile.name : "فيديو محفوظ"}</span>
+                            <button type="button" onClick={() => { setVideoFile(null); setVideoPreview(""); }}
+                              className="text-red-500 text-sm">❌</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sound upload */}
+                    <div>
+                      <label className="block text-sm font-medium text-purple-700 mb-1">صوت التأثير (MP3/WAV/OGG)</label>
+                      <input ref={soundInputRef} type="file" accept="audio/mp3,audio/wav,audio/ogg,audio/mpeg" onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) { setSoundFile(file); setSoundPreview(URL.createObjectURL(file)); }
+                      }} className="hidden" />
+                      <div className="flex items-center gap-3">
+                        <button type="button" onClick={() => soundInputRef.current?.click()}
+                          className="px-4 py-2 border border-purple-300 rounded-xl text-sm hover:bg-purple-100 text-purple-700">🔊 اختر صوت</button>
+                        {(soundPreview || soundFile) && (
+                          <>
+                            <span className="text-xs text-purple-600">{soundFile ? soundFile.name : "صوت محفوظ"}</span>
+                            <button type="button" onClick={() => { setSoundFile(null); setSoundPreview(""); }}
+                              className="text-red-500 text-sm">❌</button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Effect duration */}
+                    <div>
+                      <label className="block text-sm font-medium text-purple-700 mb-1">مدة التأثير (ثواني)</label>
+                      <input type="number" min={2} max={15} value={effectDuration}
+                        onChange={(e) => setEffectDuration(parseInt(e.target.value) || 5)}
+                        className="w-32 border border-purple-300 rounded-xl px-3 py-2 text-sm" />
+                      <span className="text-xs text-purple-500 mr-2">({effectDuration} ثانية)</span>
+                    </div>
+                  </div>
+                )}
 
                 {/* Row: Icon, Color, Category, Rarity */}
                 <div className="grid grid-cols-2 gap-3">

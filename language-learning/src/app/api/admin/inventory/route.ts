@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import sharp from "sharp";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 export async function GET(request: Request) {
   try {
@@ -67,17 +69,43 @@ export async function POST(request: Request) {
     const adminId = (session.user as { id: string }).id;
     const contentType = request.headers.get("content-type") || "";
 
-    // Handle multipart form data (with image upload)
+    // Handle multipart form data (with image/video/sound upload)
     if (contentType.includes("multipart/form-data")) {
       const formData = await request.formData();
       const action = formData.get("action") as string;
       const image = formData.get("image") as File | null;
+      const video = formData.get("video") as File | null;
+      const sound = formData.get("sound") as File | null;
 
       let imageUrl = "";
       if (image && image.size > 0) {
         const buffer = Buffer.from(await image.arrayBuffer());
         const resized = await sharp(buffer).resize(64, 64, { fit: "cover" }).png().toBuffer();
         imageUrl = `data:image/png;base64,${resized.toString("base64")}`;
+      }
+
+      // Save video file to public/effects/
+      let videoUrl = "";
+      if (video && video.size > 0) {
+        const effectsDir = path.join(process.cwd(), "public", "effects");
+        await mkdir(effectsDir, { recursive: true });
+        const ext = video.name.split(".").pop() || "mp4";
+        const filename = `video_${Date.now()}.${ext}`;
+        const buffer = Buffer.from(await video.arrayBuffer());
+        await writeFile(path.join(effectsDir, filename), buffer);
+        videoUrl = `/effects/${filename}`;
+      }
+
+      // Save sound file to public/effects/
+      let soundUrl = "";
+      if (sound && sound.size > 0) {
+        const effectsDir = path.join(process.cwd(), "public", "effects");
+        await mkdir(effectsDir, { recursive: true });
+        const ext = sound.name.split(".").pop() || "mp3";
+        const filename = `sound_${Date.now()}.${ext}`;
+        const buffer = Buffer.from(await sound.arrayBuffer());
+        await writeFile(path.join(effectsDir, filename), buffer);
+        soundUrl = `/effects/${filename}`;
       }
 
       if (action === "create") {
@@ -87,6 +115,7 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "الاسم والنوع مطلوبان" }, { status: 400 });
         }
 
+        const effectDurationStr = formData.get("effectDuration") as string;
         const item = await prisma.inventoryItem.create({
           data: {
             name: (formData.get("name") as string) || nameAr,
@@ -98,6 +127,9 @@ export async function POST(request: Request) {
             imageUrl,
             color: (formData.get("color") as string) || "#6366f1",
             previewData: (formData.get("previewData") as string) || "{}",
+            videoUrl,
+            soundUrl,
+            effectDuration: effectDurationStr ? parseInt(effectDurationStr) : 5,
             category: (formData.get("category") as string) || "general",
             rarity: (formData.get("rarity") as string) || "common",
             order: parseInt((formData.get("order") as string) || "0"),
@@ -124,6 +156,10 @@ export async function POST(request: Request) {
         if (color) data.color = color;
         const previewData = formData.get("previewData") as string;
         if (previewData) data.previewData = previewData;
+        if (videoUrl) data.videoUrl = videoUrl;
+        if (soundUrl) data.soundUrl = soundUrl;
+        const effectDurationStr = formData.get("effectDuration") as string;
+        if (effectDurationStr) data.effectDuration = parseInt(effectDurationStr);
         const category = formData.get("category") as string;
         if (category) data.category = category;
         const rarity = formData.get("rarity") as string;
@@ -159,6 +195,7 @@ export async function POST(request: Request) {
           icon: body.icon || "✨",
           color: body.color || "#6366f1",
           previewData: body.previewData || "{}",
+          effectDuration: body.effectDuration ? parseInt(body.effectDuration) : 5,
           category: body.category || "general",
           rarity: body.rarity || "common",
           order: body.order || 0,
