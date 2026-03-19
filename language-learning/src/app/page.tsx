@@ -18,6 +18,7 @@ interface Language {
 interface Settings {
   maintenanceMode: boolean;
   maintenanceMessage: string;
+  siteName?: string;
 }
 
 export default function HomePage() {
@@ -107,7 +108,7 @@ export default function HomePage() {
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="section-title">لماذا LinguaMaster؟</h2>
+            <h2 className="section-title">لماذا {settings?.siteName || "LinguaMaster"}؟</h2>
             <p className="section-subtitle">منصة شاملة تجمع بين التعلم والاختبار والتقييم</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">

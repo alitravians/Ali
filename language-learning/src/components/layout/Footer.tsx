@@ -1,6 +1,20 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 export default function Footer() {
+  const [siteName, setSiteName] = useState("LinguaMaster");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.siteName) setSiteName(data.siteName);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <footer className="bg-gray-900 text-gray-300 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -11,7 +25,7 @@ export default function Footer() {
               <div className="w-10 h-10 bg-gradient-to-br from-primary-400 to-accent-400 rounded-xl flex items-center justify-center">
                 <span className="text-white font-bold text-lg">L</span>
               </div>
-              <span className="text-xl font-bold text-white">LinguaMaster</span>
+              <span className="text-xl font-bold text-white">{siteName}</span>
             </div>
             <p className="text-gray-400 leading-relaxed max-w-md">
               منصة احترافية لتعلم اللغات الأجنبية. نقدم لك تجربة تعليمية متكاملة مع اختبارات تفاعلية وشهادات معتمدة.
@@ -40,7 +54,7 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-500 text-sm">
-          <p>&copy; {new Date().getFullYear()} LinguaMaster. جميع الحقوق محفوظة.</p>
+          <p>&copy; {new Date().getFullYear()} {siteName}. جميع الحقوق محفوظة.</p>
         </div>
       </div>
     </footer>

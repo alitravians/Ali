@@ -77,11 +77,18 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Fetch site name for welcome message
+    let sName = "LinguaMaster";
+    try {
+      const s = await prisma.siteSettings.findUnique({ where: { id: "settings" } });
+      if (s?.siteName) sName = s.siteName;
+    } catch {}
+
     // Create welcome notification
     await createNotification({
       userId: user.id,
-      title: "Welcome to LinguaMaster!",
-      titleAr: "مرحباً بك في LinguaMaster!",
+      title: `Welcome to ${sName}!`,
+      titleAr: `مرحباً بك في ${sName}!`,
       message: "Start your language learning journey today.",
       messageAr: "ابدأ رحلة تعلم اللغات اليوم.",
       type: "success",

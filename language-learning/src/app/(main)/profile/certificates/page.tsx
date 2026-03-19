@@ -38,6 +38,7 @@ export default function CertificatesPage() {
   const [showCert, setShowCert] = useState(false);
   const certRef = useRef<HTMLDivElement>(null);
   const [stampSettings, setStampSettings] = useState<StampSettings | null>(null);
+  const [siteName, setSiteName] = useState("LinguaMaster");
 
   useEffect(() => {
     if (status === "unauthenticated") { router.push("/login"); return; }
@@ -50,6 +51,7 @@ export default function CertificatesPage() {
       .then((r) => r.json())
       .then((data) => {
         if (data && !data.error) {
+          if (data.siteName) setSiteName(data.siteName);
           setStampSettings({
             stampTopText: data.stampTopText || "LINGUAMASTER",
             stampBottomText: data.stampBottomText || "CERTIFIED",
@@ -187,7 +189,7 @@ export default function CertificatesPage() {
                   <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-accent-500 rounded-xl mx-auto flex items-center justify-center mb-3">
                     <span className="text-white font-bold text-2xl">L</span>
                   </div>
-                  <h2 className="text-sm text-gray-500 tracking-widest uppercase">LinguaMaster</h2>
+                  <h2 className="text-sm text-gray-500 tracking-widest uppercase">{siteName}</h2>
                 </div>
 
                 <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-2">شهادة إتمام</h1>
@@ -254,7 +256,7 @@ export default function CertificatesPage() {
                   LinkedIn
                 </a>
                 <a
-                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`حصلت على شهادة ${selectedCert.level.language.nameAr} - ${selectedCert.level.nameAr} من LinguaMaster!`)}&url=${encodeURIComponent(shareUrl(selectedCert))}`}
+                  href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(`حصلت على شهادة ${selectedCert.level.language.nameAr} - ${selectedCert.level.nameAr} من ${siteName}!`)}&url=${encodeURIComponent(shareUrl(selectedCert))}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-sky-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-sky-600"

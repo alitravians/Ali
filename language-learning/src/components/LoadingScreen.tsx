@@ -6,6 +6,16 @@ export default function LoadingScreen({ children }: { children: React.ReactNode 
   const [loading, setLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [siteName, setSiteName] = useState("LinguaMaster");
+
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.siteName) setSiteName(data.siteName);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     // Animate progress bar
@@ -136,7 +146,7 @@ export default function LoadingScreen({ children }: { children: React.ReactNode 
             className="text-5xl md:text-6xl font-extrabold text-white mb-3 tracking-tight"
             style={{ animation: "textReveal 0.8s ease-out 0.3s both" }}
           >
-            LinguaMaster
+            {siteName}
           </h1>
 
           {/* Tagline */}
