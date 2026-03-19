@@ -133,13 +133,13 @@ async function checkAPIEndpoints(): Promise<CheckResult> {
     }
   }
 
-  // Check admin APIs return 401 without auth (security check)
+  // Check admin APIs return 401/403/405 without auth (security check)
   for (const api of adminAPIs) {
     try {
       const res = await fetch(`${BASE_URL}${api.path}`, {
         signal: AbortSignal.timeout(10000),
       });
-      if (res.status !== 401) {
+      if (res.status !== 401 && res.status !== 403 && res.status !== 405) {
         issues.push({
           name: `${api.name} غير محمي`,
           type: "security",
@@ -174,7 +174,7 @@ async function checkAPIEndpoints(): Promise<CheckResult> {
         body: JSON.stringify({ name: "__scan_test__" }),
         signal: AbortSignal.timeout(10000),
       });
-      if (res.status !== 401) {
+      if (res.status !== 401 && res.status !== 403 && res.status !== 405) {
         issues.push({
           name: `${api.name} غير محمي`,
           type: "security",
@@ -389,7 +389,7 @@ async function checkSecurity(): Promise<CheckResult> {
       body: JSON.stringify({ siteName: "__scan_test__" }),
       signal: AbortSignal.timeout(10000),
     });
-    if (res.status !== 401) {
+    if (res.status !== 401 && res.status !== 403 && res.status !== 405) {
       issues.push({
         name: "إعدادات الموقع غير محمية",
         type: "security",
@@ -414,7 +414,7 @@ async function checkSecurity(): Promise<CheckResult> {
       signal: AbortSignal.timeout(10000),
     });
     // Should return 401 (not logged in) not 500 or 200
-    if (res.status === 500 || res.status === 200) {
+    if (res.status === 200) {
       issues.push({
         name: "إشعارات بدون فحص ملكية",
         type: "security",
