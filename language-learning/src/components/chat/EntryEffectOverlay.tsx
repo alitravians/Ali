@@ -262,7 +262,6 @@ function getRarityStyle(rarity: string): { bg: string; text: string; border: str
 function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEffect; onComplete: () => void; soundMuted?: boolean }) {
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
   const config = getEffectConfig(effect.effectType);
-  const particles = generateParticles(effect.effectType, Math.min(config.particleCount, 10));
   const rarityStyle = getRarityStyle(effect.rarity);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -325,16 +324,130 @@ function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEf
     }
   }, [hasSound, soundMuted]);
 
+  const orbitPositions = [
+    { top: '0%', left: '50%' },
+    { top: '50%', left: '100%' },
+    { top: '100%', left: '50%' },
+    { top: '50%', left: '0%' },
+    { top: '15%', left: '85%' },
+    { top: '85%', left: '85%' },
+    { top: '85%', left: '15%' },
+    { top: '15%', left: '15%' },
+  ];
+
+  // Generate burst particles with animation class
+  const burstAnimClass = `entry-anim-${effect.effectType.replace('seasonal_', '')}`;
+  const burstParticles = Array.from({ length: 16 }, (_, i) => {
+    const angle = (i / 16) * 360;
+    const radius = 120 + Math.random() * 80;
+    return {
+      id: i,
+      x: 50 + Math.cos((angle * Math.PI) / 180) * (radius / 3),
+      y: 50 + Math.sin((angle * Math.PI) / 180) * (radius / 3),
+      emoji: getParticleEmoji(effect.effectType, i),
+      delay: Math.random() * 1.5,
+      duration: 2 + Math.random() * 1.5,
+      size: 14 + Math.random() * 16,
+    };
+  });
+
+  // Light ray angles
+  const lightRays = Array.from({ length: 12 }, (_, i) => (i / 12) * 360);
+
   return (
-    <div className={`entry-effect-backdrop entry-effect-${phase}`}>
-      {/* Medium centered container */}
-      <div className="entry-effect-popup">
+    <div className={`entry-effect-backdrop entry-effect-${phase}`} onClick={triggerExit}>
+      {/* Audio element */}
+      {hasSound && !soundMuted && (
+        <audio
+          ref={audioRef}
+          src={effect.soundUrl}
+          preload="auto"
+          onEnded={() => triggerExit()}
+        />
+      )}
+
+      {/* Sound indicator */}
+      {hasSound && (
+        <div className="entry-sound-indicator">{soundMuted ? '🔇' : '🔊'}</div>
+      )}
+
+      {/* Main stage - center of screen */}
+      <div className="entry-effect-stage">
+        {/* Glow rings behind everything */}
+        <div className="entry-glow-ring entry-glow-ring-1" style={{ borderColor: config.glowColor }} />
+        <div className="entry-glow-ring entry-glow-ring-2" style={{ borderColor: config.glowColor }} />
+        <div className="entry-glow-ring entry-glow-ring-3" style={{ borderColor: config.glowColor }} />
+
+        {/* Light rays */}
+        <div className="entry-light-rays">
+          {lightRays.map((angle, i) => (
+            <div
+              key={i}
+              className="entry-light-ray"
+              style={{
+                transform: `rotate(${angle}deg)`,
+                background: `linear-gradient(to bottom, ${config.glowColor}, transparent)`,
+                animationDelay: `${i * 0.15}s`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Shockwave rings */}
+        <div className="entry-shockwave" style={{ borderColor: config.borderColor }} />
+        <div className="entry-shockwave entry-shockwave-2" style={{ borderColor: config.borderColor }} />
+        <div className="entry-shockwave entry-shockwave-3" style={{ borderColor: config.borderColor }} />
+
+        {/* Orbiting ring 1 */}
+        <div className="entry-orbit-ring entry-orbit-ring-1">
+          {orbitPositions.slice(0, 4).map((pos, i) => (
+            <div
+              key={i}
+              className="entry-orbit-particle"
+              style={{ ...pos, color: config.textColor, animationDelay: `${i * 0.5}s` }}
+            >
+              {getParticleEmoji(effect.effectType, i)}
+            </div>
+          ))}
+        </div>
+
+        {/* Orbiting ring 2 */}
+        <div className="entry-orbit-ring entry-orbit-ring-2">
+          {orbitPositions.slice(0, 6).map((pos, i) => (
+            <div
+              key={i}
+              className="entry-orbit-particle"
+              style={{ ...pos, color: config.textColor, animationDelay: `${i * 0.4}s`, fontSize: '14px' }}
+            >
+              {getParticleEmoji(effect.effectType, i + 2)}
+            </div>
+          ))}
+        </div>
+
+        {/* Burst particles */}
+        <div className="entry-burst-particles">
+          {burstParticles.map((p) => (
+            <div
+              key={p.id}
+              className={`entry-burst-particle ${burstAnimClass}`}
+              style={{
+                left: `${p.x}%`,
+                top: `${p.y}%`,
+                fontSize: `${p.size}px`,
+                animationDelay: `${p.delay}s`,
+                animationDuration: `${p.duration}s`,
+              }}
+            >
+              {p.emoji}
+            </div>
+          ))}
+        </div>
+
         {/* Video area */}
         {hasVideo && (
-          <div className="entry-effect-video-wrap">
+          <div className="entry-video-container">
             <video
               ref={videoRef}
-              className="entry-effect-video"
               src={effect.videoUrl}
               muted
               playsInline
@@ -342,7 +455,6 @@ function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEf
               preload="auto"
               loop={false}
               onEnded={() => {
-                // If no sound, dismiss when video ends
                 if (!hasSound || soundMuted) triggerExit();
               }}
               onLoadedData={() => {
@@ -352,61 +464,43 @@ function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEf
           </div>
         )}
 
-        {/* Audio element - triggers dismiss when ended */}
-        {hasSound && !soundMuted && (
-          <audio
-            ref={audioRef}
-            src={effect.soundUrl}
-            preload="auto"
-            onEnded={() => triggerExit()}
+        {/* Center icon */}
+        <div className="entry-center-icon-wrap">
+          <div
+            className="entry-center-icon"
+            style={{
+              borderColor: config.borderColor,
+              boxShadow: `0 0 30px ${config.glowColor}, 0 0 60px ${config.glowColor}`,
+              background: config.bgGradient,
+            }}
+          >
+            <span>{effect.icon}</span>
+          </div>
+          <div
+            className="entry-center-icon-glow"
+            style={{ background: `radial-gradient(circle, ${config.glowColor} 0%, transparent 70%)` }}
           />
-        )}
+        </div>
 
-        {/* Info section */}
-        <div className="entry-effect-info" style={{ borderColor: config.borderColor }}>
-          {/* Small particles around the info */}
-          <div className="entry-effect-mini-particles">
-            {particles.map((p) => (
-              <div
-                key={p.id}
-                className={`entry-particle ${config.animationClass}`}
-                style={{
-                  left: `${p.x}%`,
-                  top: `${p.y}%`,
-                  fontSize: `${Math.max(8, p.size * 0.5)}px`,
-                  animationDelay: `${p.delay}s`,
-                  animationDuration: `${p.duration}s`,
-                  opacity: p.opacity * 0.6,
-                }}
-              >
-                {p.emoji}
-              </div>
-            ))}
+        {/* Text area */}
+        <div className="entry-text-area">
+          <div className="entry-user-name" style={{ color: config.textColor }}>
+            {effect.userName}
           </div>
-
-          {/* Icon + Name row */}
-          <div className="entry-effect-header">
-            <div className="entry-effect-icon" style={{ borderColor: config.borderColor, boxShadow: `0 0 12px ${config.glowColor}` }}>
-              <span>{effect.icon}</span>
-            </div>
-            <div className="entry-effect-text">
-              <div className="entry-effect-name" style={{ color: config.textColor }}>{effect.userName}</div>
-              <div className="entry-effect-subtitle">دخل الدردشة</div>
-            </div>
+          <div className="entry-subtitle-text">دخل الدردشة</div>
+          <div className="entry-effect-label" style={{ color: config.borderColor }}>
+            {effect.nameAr}
           </div>
-
-          {/* Effect name + rarity */}
-          <div className="entry-effect-meta">
-            <span className="entry-effect-effect-name" style={{ color: config.borderColor }}>{effect.nameAr}</span>
-            <span className="entry-effect-rarity" style={{ backgroundColor: rarityStyle.bg, color: rarityStyle.text, borderColor: rarityStyle.border }}>
-              {rarityStyle.label}
-            </span>
-          </div>
-
-          {/* Sound indicator */}
-          {hasSound && (
-            <div className="entry-effect-sound-badge">{soundMuted ? "🔇" : "🔊"}</div>
-          )}
+          <span
+            className="entry-rarity-badge"
+            style={{
+              backgroundColor: rarityStyle.bg,
+              color: rarityStyle.text,
+              borderColor: rarityStyle.border,
+            }}
+          >
+            {rarityStyle.label}
+          </span>
         </div>
       </div>
     </div>
