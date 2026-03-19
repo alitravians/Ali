@@ -68,6 +68,8 @@ export default function AdminSettingsPage() {
   const [newBannedCategory, setNewBannedCategory] = useState("inappropriate");
   const [bannedWordLoading, setBannedWordLoading] = useState(false);
   const [bannedWordError, setBannedWordError] = useState("");
+  const [aiGenerating, setAiGenerating] = useState<"names" | "chat" | null>(null);
+  const [aiResult, setAiResult] = useState<{ type: string; message: string; added: number } | null>(null);
 
   useEffect(() => {
     fetch("/api/settings")
@@ -167,6 +169,33 @@ export default function AdminSettingsPage() {
       await fetch(`/api/admin/banned-words?id=${id}`, { method: "DELETE" });
       fetchBannedWords();
     } catch { /* ignore */ }
+  };
+
+  const generateAIWords = async (type: "names" | "chat") => {
+    setAiGenerating(type);
+    setAiResult(null);
+    try {
+      const res = await fetch("/api/admin/banned-words/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiResult({ type, message: data.error || "فشل في استخراج الكلمات", added: 0 });
+      } else {
+        setAiResult({ type, message: data.message, added: data.added });
+        if (type === "names") {
+          fetchBannedWords();
+        } else if (type === "chat" && data.mergedList) {
+          setSettings((prev) => ({ ...prev, chatBannedWords: data.mergedList }));
+        }
+      }
+    } catch {
+      setAiResult({ type, message: "حدث خطأ في الاتصال", added: 0 });
+    }
+    setAiGenerating(null);
+    setTimeout(() => setAiResult(null), 5000);
   };
 
   const clearCache = () => {
@@ -494,7 +523,26 @@ export default function AdminSettingsPage() {
               </button>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">الكلمات الممنوعة (مفصولة بفواصل)</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-sm font-medium text-gray-700">الكلمات الممنوعة (مفصولة بفواصل)</label>
+                <button
+                  onClick={() => generateAIWords("chat")}
+                  disabled={aiGenerating === "chat"}
+                  className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all shadow-sm disabled:opacity-50"
+                  title="استخراج الكلمات الممنوعة بالذكاء الاصطناعي"
+                >
+                  {aiGenerating === "chat" ? (
+                    <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> جاري الاستخراج...</>
+                  ) : (
+                    <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg> استخراج بالذكاء الاصطناعي</>
+                  )}
+                </button>
+              </div>
+              {aiResult && aiResult.type === "chat" && (
+                <div className={`text-xs mb-2 px-3 py-1.5 rounded-lg ${aiResult.added > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+                  {aiResult.message}
+                </div>
+              )}
               <textarea value={settings.chatBannedWords} onChange={(e) => setSettings({ ...settings, chatBannedWords: e.target.value })} className="input-field" rows={3} placeholder="كلمة1, كلمة2, كلمة3" />
             </div>
           </div>
@@ -502,8 +550,27 @@ export default function AdminSettingsPage() {
 
         {/* Banned Words for Name Changes */}
         <div className="card p-6">
-          <h3 className="font-bold text-gray-900 mb-2">الكلمات الممنوعة في الأسماء</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-bold text-gray-900">الكلمات الممنوعة في الأسماء</h3>
+            <button
+              onClick={() => generateAIWords("names")}
+              disabled={aiGenerating === "names"}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white hover:from-violet-600 hover:to-purple-700 transition-all shadow-sm disabled:opacity-50"
+              title="استخراج الكلمات الممنوعة بالذكاء الاصطناعي"
+            >
+              {aiGenerating === "names" ? (
+                <><span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span> جاري الاستخراج...</>
+              ) : (
+                <><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg> استخراج بالذكاء الاصطناعي</>
+              )}
+            </button>
+          </div>
           <p className="text-sm text-gray-500 mb-4">الأسماء التي تحتوي على هذه الكلمات ستخضع لمراجعة إدارية قبل الموافقة</p>
+          {aiResult && aiResult.type === "names" && (
+            <div className={`text-xs mb-3 px-3 py-2 rounded-lg ${aiResult.added > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+              {aiResult.message}
+            </div>
+          )}
 
           {/* Add new word */}
           <div className="flex gap-2 mb-4">
