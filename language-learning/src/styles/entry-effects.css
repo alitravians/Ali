@@ -15,64 +15,55 @@
   justify-content: center;
 }
 
-/* Backdrop - non-blocking, effect floats over chat */
+/* Backdrop - non-blocking popup container */
 .entry-effect-backdrop {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 9998;
   display: flex;
-  align-items: flex-start;
   justify-content: center;
-  padding-top: 60px;
+  padding-top: 24px;
   pointer-events: none;
 }
 
-.entry-effect-enter {
-  opacity: 0;
-  animation: popupFadeIn 0.4s ease forwards;
+.entry-effect-enter .entry-effect-popup {
+  animation: popupSlideIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-.entry-effect-show {
+.entry-effect-show .entry-effect-popup {
+  transform: translateY(0);
   opacity: 1;
 }
 
-.entry-effect-exit {
-  animation: popupFadeOut 0.8s ease forwards;
-}
-
-@keyframes popupFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-
-@keyframes popupFadeOut {
-  from { opacity: 1; }
-  to { opacity: 0; }
-}
-
-/* Medium centered popup container */
-.entry-effect-popup {
-  width: 380px;
-  max-width: 90vw;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(139, 92, 246, 0.2);
-  animation: popupScaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-  transform-origin: center;
-}
-
 .entry-effect-exit .entry-effect-popup {
-  animation: popupScaleOut 0.6s ease forwards;
+  animation: popupSlideOut 0.6s cubic-bezier(0.55, 0, 1, 0.45) forwards;
 }
 
-@keyframes popupScaleIn {
-  0% { transform: scale(0.6) translateY(30px); opacity: 0; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
+@keyframes popupSlideIn {
+  0% { transform: translateY(-120%) scale(0.9); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
 }
 
-@keyframes popupScaleOut {
-  0% { transform: scale(1) translateY(0); opacity: 1; }
-  100% { transform: scale(0.8) translateY(-20px); opacity: 0; }
+@keyframes popupSlideOut {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-120%) scale(0.9); opacity: 0; }
+}
+
+/* Popup container */
+.entry-effect-popup {
+  width: 360px;
+  max-width: 88vw;
+  border-radius: 18px;
+  overflow: hidden;
+  background: linear-gradient(145deg, rgba(20, 20, 40, 0.98), rgba(10, 10, 25, 0.98));
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 30px rgba(139, 92, 246, 0.15);
+  pointer-events: auto;
+  backdrop-filter: blur(20px);
 }
 
 /* Video wrapper */
@@ -82,6 +73,7 @@
   overflow: hidden;
   background: #000;
   position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .entry-effect-video-wrap .entry-effect-video {
@@ -94,8 +86,7 @@
 /* Info section below video */
 .entry-effect-info {
   position: relative;
-  background: rgba(15, 15, 30, 0.95);
-  padding: 16px 20px;
+  padding: 14px 18px;
   border-top: 2px solid;
   overflow: hidden;
 }
@@ -105,6 +96,7 @@
   inset: 0;
   pointer-events: none;
   overflow: hidden;
+  opacity: 0.5;
 }
 
 .entry-effect-header {
@@ -116,16 +108,22 @@
 }
 
 .entry-effect-icon {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   border: 2px solid;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   flex-shrink: 0;
+  animation: iconGlow 2s ease-in-out infinite;
+}
+
+@keyframes iconGlow {
+  0%, 100% { box-shadow: 0 0 8px currentColor; }
+  50% { box-shadow: 0 0 16px currentColor; }
 }
 
 .entry-effect-text {
@@ -134,15 +132,16 @@
 }
 
 .entry-effect-name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 800;
-  text-shadow: 0 0 10px currentColor;
+  text-shadow: 0 0 8px currentColor;
 }
 
 .entry-effect-subtitle {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
   letter-spacing: 1px;
+  margin-top: 2px;
 }
 
 .entry-effect-meta {
@@ -155,7 +154,7 @@
 }
 
 .entry-effect-effect-name {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.5px;
 }
@@ -175,7 +174,7 @@
   top: 12px;
   left: 12px;
   font-size: 14px;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 /* Particle system */
