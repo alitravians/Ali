@@ -155,10 +155,10 @@ export default function ChatPage() {
   const [boldMode, setBoldMode] = useState(false);
   const [canBold, setCanBold] = useState(false);
 
-  // Entry effects tracking (professional system with cooldown)
-  const [shownEntryEffects, setShownEntryEffects] = useState<Set<string>>(new Set());
+  // Entry effects tracking (ref-based to avoid stale closures)
+  const shownEntryEffectsRef = useRef<Set<string>>(new Set());
+  const entryEffectCooldownsRef = useRef<Record<string, number>>({});
   const [entryEffectQueue, setEntryEffectQueue] = useState<EntryEffect[]>([]);
-  const [entryEffectCooldowns, setEntryEffectCooldowns] = useState<Record<string, number>>({});
   const [effectSoundMuted, setEffectSoundMuted] = useState(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("effectSoundMuted") === "true";
@@ -246,16 +246,20 @@ export default function ChatPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setMessages(data);
-          // Detect entry effects for new users (professional system with cooldown)
+          // Detect entry effects for new users (ref-based to prevent repeats)
           const newEffects: EntryEffect[] = [];
           const now = Date.now();
           for (const msg of data) {
-            if (msg.userInventory?.entry_effect && !shownEntryEffects.has(msg.user.id)) {
+            if (msg.userInventory?.entry_effect && !shownEntryEffectsRef.current.has(msg.user.id)) {
               // Check cooldown - don't show effect if user entered recently
-              const lastShown = entryEffectCooldowns[msg.user.id] || 0;
+              const lastShown = entryEffectCooldownsRef.current[msg.user.id] || 0;
               if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
               // Skip own effects
               if (msg.user.id === userId) continue;
+              
+              // Mark as shown IMMEDIATELY via ref (prevents any re-detection)
+              shownEntryEffectsRef.current.add(msg.user.id);
+              entryEffectCooldownsRef.current[msg.user.id] = now;
               
               // Parse effect type from previewData
               let effectType: EffectType = "glow";
@@ -281,23 +285,12 @@ export default function ChatPage() {
             }
           }
           if (newEffects.length > 0) {
-            setShownEntryEffects((prev) => {
-              const next = new Set(prev);
-              newEffects.forEach((e) => next.add(e.userId));
-              return next;
-            });
-            // Update cooldowns
-            setEntryEffectCooldowns((prev) => {
-              const updated = { ...prev };
-              newEffects.forEach((e) => { updated[e.userId] = now; });
-              return updated;
-            });
             setEntryEffectQueue((prev) => [...prev, ...newEffects]);
           }
         }
       })
       .catch(() => {});
-  }, [activeRoom, shownEntryEffects, entryEffectCooldowns, userId, ENTRY_EFFECT_COOLDOWN]);
+  }, [activeRoom, userId, ENTRY_EFFECT_COOLDOWN]);
 
   useEffect(() => {
     fetchMessages();
