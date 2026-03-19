@@ -262,35 +262,52 @@ function getRarityStyle(rarity: string): { bg: string; text: string; border: str
 function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEffect; onComplete: () => void; soundMuted?: boolean }) {
   const [phase, setPhase] = useState<"enter" | "show" | "exit">("enter");
   const config = getEffectConfig(effect.effectType);
-  const particles = generateParticles(effect.effectType, config.particleCount);
+  const particles = generateParticles(effect.effectType, Math.min(config.particleCount, 10));
   const rarityStyle = getRarityStyle(effect.rarity);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const hasVideo = Boolean(effect.videoUrl);
   const hasSound = Boolean(effect.soundUrl);
-  const duration = (effect.effectDuration || 5) * 1000;
+  const completedRef = useRef(false);
 
+  // Trigger exit phase and complete
+  const triggerExit = useCallback(() => {
+    if (completedRef.current) return;
+    completedRef.current = true;
+    setPhase("exit");
+    // Fade out audio
+    if (audioRef.current) {
+      const audio = audioRef.current;
+      const fadeInterval = setInterval(() => {
+        if (audio.volume > 0.05) {
+          audio.volume = Math.max(0, audio.volume - 0.1);
+        } else {
+          audio.pause();
+          clearInterval(fadeInterval);
+        }
+      }, 50);
+    }
+    // Complete after fade out animation
+    setTimeout(() => onComplete(), 800);
+  }, [onComplete]);
+
+  // Phase transitions
   useEffect(() => {
-    const enterTime = 500;
-    const exitTime = duration - 1000;
-    const enterTimer = setTimeout(() => setPhase("show"), enterTime);
-    const exitTimer = setTimeout(() => setPhase("exit"), exitTime);
-    const completeTimer = setTimeout(() => onComplete(), duration);
+    const enterTimer = setTimeout(() => setPhase("show"), 400);
+    // Fallback max duration (15 seconds) in case audio/video events don't fire
+    const maxTimer = setTimeout(() => triggerExit(), 15000);
     return () => {
       clearTimeout(enterTimer);
-      clearTimeout(exitTimer);
-      clearTimeout(completeTimer);
+      clearTimeout(maxTimer);
     };
-  }, [onComplete, duration]);
+  }, [triggerExit]);
 
   // Play video when effect starts
   useEffect(() => {
     if (hasVideo && videoRef.current) {
       const vid = videoRef.current;
       vid.currentTime = 0;
-      // Try to play immediately
       vid.play().catch(() => {
-        // If play fails, wait for canplay event
         vid.addEventListener("canplay", () => {
           vid.play().catch(() => {});
         }, { once: true });
@@ -301,182 +318,95 @@ function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEf
   // Play audio when effect starts (if not muted)
   useEffect(() => {
     if (hasSound && audioRef.current && !soundMuted) {
-      audioRef.current.currentTime = 0;
-      audioRef.current.volume = 0.6;
-      audioRef.current.play().catch(() => {});
+      const audio = audioRef.current;
+      audio.currentTime = 0;
+      audio.volume = 0.6;
+      audio.play().catch(() => {});
     }
   }, [hasSound, soundMuted]);
 
-  // Fade out audio/video on exit
-  useEffect(() => {
-    if (phase === "exit") {
-      if (videoRef.current) {
-        videoRef.current.style.opacity = "0";
-      }
-      if (audioRef.current) {
-        const audio = audioRef.current;
-        const fadeInterval = setInterval(() => {
-          if (audio.volume > 0.05) {
-            audio.volume = Math.max(0, audio.volume - 0.1);
-          } else {
-            audio.pause();
-            clearInterval(fadeInterval);
-          }
-        }, 50);
-      }
-    }
-  }, [phase]);
-
   return (
-    <div 
-      className={`entry-effect-container entry-effect-${phase}`}
-      style={{ background: hasVideo ? "rgba(0,0,0,0.85)" : config.bgGradient }}
-    >
-      {/* Video background (fullscreen) */}
-      {hasVideo && (
-        <video
-          ref={videoRef}
-          className="entry-effect-video"
-          src={effect.videoUrl}
-          muted
-          playsInline
-          autoPlay
-          preload="auto"
-          loop={false}
-          onLoadedData={() => {
-            // Backup: ensure video plays when data is loaded
-            if (videoRef.current) {
-              videoRef.current.play().catch(() => {});
-            }
-          }}
-          style={{
-            opacity: phase === "exit" ? 0 : 1,
-            transition: "opacity 0.8s ease",
-          }}
-        />
-      )}
-
-      {/* Audio element */}
-      {hasSound && !soundMuted && (
-        <audio
-          ref={audioRef}
-          src={effect.soundUrl}
-          preload="auto"
-        />
-      )}
-
-      {/* Animated particles */}
-      <div className="entry-particles">
-        {particles.map((p) => (
-          <div
-            key={p.id}
-            className={`entry-particle ${config.animationClass}`}
-            style={{
-              left: `${p.x}%`,
-              top: `${p.y}%`,
-              fontSize: `${p.size}px`,
-              animationDelay: `${p.delay}s`,
-              animationDuration: `${p.duration}s`,
-              opacity: phase === "exit" ? 0 : p.opacity,
-              transform: `rotate(${p.rotation}deg)`,
-            }}
-          >
-            {p.emoji}
-          </div>
-        ))}
-      </div>
-
-      {/* Radial light burst */}
-      <div 
-        className="entry-light-burst"
-        style={{ 
-          boxShadow: `0 0 100px 50px ${config.glowColor}, 0 0 200px 100px ${config.glowColor}40`,
-          opacity: phase === "show" ? 1 : 0,
-        }}
-      />
-
-      {/* Center card */}
-      <div className={`entry-card entry-card-${phase}`}>
-        {/* Glow ring behind card */}
-        <div 
-          className="entry-card-glow"
-          style={{ 
-            boxShadow: `0 0 40px 20px ${config.glowColor}, 0 0 80px 40px ${config.glowColor}40`,
-          }}
-        />
-        
-        {/* Card content */}
-        <div 
-          className="entry-card-inner"
-          style={{ 
-            borderColor: config.borderColor,
-            boxShadow: `0 0 20px ${config.glowColor}, inset 0 0 20px ${config.glowColor}20`,
-          }}
-        >
-          {/* Top decorative line */}
-          <div 
-            className="entry-card-top-line"
-            style={{ background: `linear-gradient(90deg, transparent, ${config.borderColor}, transparent)` }}
-          />
-          
-          {/* Effect icon */}
-          <div className="entry-card-icon-wrapper">
-            <div 
-              className="entry-card-icon"
-              style={{ 
-                boxShadow: `0 0 30px ${config.glowColor}`,
-                borderColor: config.borderColor,
+    <div className={`entry-effect-backdrop entry-effect-${phase}`}>
+      {/* Medium centered container */}
+      <div className="entry-effect-popup">
+        {/* Video area */}
+        {hasVideo && (
+          <div className="entry-effect-video-wrap">
+            <video
+              ref={videoRef}
+              className="entry-effect-video"
+              src={effect.videoUrl}
+              muted
+              playsInline
+              autoPlay
+              preload="auto"
+              loop={false}
+              onEnded={() => {
+                // If no sound, dismiss when video ends
+                if (!hasSound || soundMuted) triggerExit();
               }}
-            >
-              <span className="entry-card-icon-emoji">{effect.icon}</span>
+              onLoadedData={() => {
+                if (videoRef.current) videoRef.current.play().catch(() => {});
+              }}
+            />
+          </div>
+        )}
+
+        {/* Audio element - triggers dismiss when ended */}
+        {hasSound && !soundMuted && (
+          <audio
+            ref={audioRef}
+            src={effect.soundUrl}
+            preload="auto"
+            onEnded={() => triggerExit()}
+          />
+        )}
+
+        {/* Info section */}
+        <div className="entry-effect-info" style={{ borderColor: config.borderColor }}>
+          {/* Small particles around the info */}
+          <div className="entry-effect-mini-particles">
+            {particles.map((p) => (
+              <div
+                key={p.id}
+                className={`entry-particle ${config.animationClass}`}
+                style={{
+                  left: `${p.x}%`,
+                  top: `${p.y}%`,
+                  fontSize: `${Math.max(8, p.size * 0.5)}px`,
+                  animationDelay: `${p.delay}s`,
+                  animationDuration: `${p.duration}s`,
+                  opacity: p.opacity * 0.6,
+                }}
+              >
+                {p.emoji}
+              </div>
+            ))}
+          </div>
+
+          {/* Icon + Name row */}
+          <div className="entry-effect-header">
+            <div className="entry-effect-icon" style={{ borderColor: config.borderColor, boxShadow: `0 0 12px ${config.glowColor}` }}>
+              <span>{effect.icon}</span>
+            </div>
+            <div className="entry-effect-text">
+              <div className="entry-effect-name" style={{ color: config.textColor }}>{effect.userName}</div>
+              <div className="entry-effect-subtitle">دخل الدردشة</div>
             </div>
           </div>
 
-          {/* User name */}
-          <div className="entry-card-name" style={{ color: config.textColor }}>
-            {effect.userName}
-          </div>
-
-          {/* Entry text */}
-          <div className="entry-card-subtitle">
-            دخل الدردشة
-          </div>
-
-          {/* Effect name */}
-          <div 
-            className="entry-card-effect-name"
-            style={{ 
-              color: config.borderColor,
-              textShadow: `0 0 10px ${config.glowColor}`,
-            }}
-          >
-            {effect.nameAr}
-          </div>
-
-          {/* Rarity badge */}
-          <div 
-            className="entry-card-rarity"
-            style={{ 
-              backgroundColor: rarityStyle.bg,
-              color: rarityStyle.text,
-              borderColor: rarityStyle.border,
-            }}
-          >
-            {rarityStyle.label}
+          {/* Effect name + rarity */}
+          <div className="entry-effect-meta">
+            <span className="entry-effect-effect-name" style={{ color: config.borderColor }}>{effect.nameAr}</span>
+            <span className="entry-effect-rarity" style={{ backgroundColor: rarityStyle.bg, color: rarityStyle.text, borderColor: rarityStyle.border }}>
+              {rarityStyle.label}
+            </span>
           </div>
 
           {/* Sound indicator */}
           {hasSound && (
-            <div className="entry-card-sound-indicator">
-              {soundMuted ? "🔇" : "🔊"}
-            </div>
+            <div className="entry-effect-sound-badge">{soundMuted ? "🔇" : "🔊"}</div>
           )}
-
-          {/* Bottom decorative line */}
-          <div 
-            className="entry-card-bottom-line"
-            style={{ background: `linear-gradient(90deg, transparent, ${config.borderColor}, transparent)` }}
-          />
         </div>
       </div>
     </div>
