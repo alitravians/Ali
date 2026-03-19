@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeInput } from "@/lib/validation";
 
 export async function GET() {
   try {
@@ -30,8 +31,8 @@ export async function POST(req: NextRequest) {
 
     const announcement = await prisma.announcement.create({
       data: {
-        title,
-        content,
+        title: sanitizeInput(title),
+        content: sanitizeInput(content),
         importance: importance || "normal",
         placement: placement || "banner",
         targetType: targetType || "all",
@@ -78,8 +79,8 @@ export async function PUT(req: NextRequest) {
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
     const updateData: Record<string, unknown> = {};
-    if (title !== undefined) updateData.title = title;
-    if (content !== undefined) updateData.content = content;
+    if (title !== undefined) updateData.title = sanitizeInput(title);
+    if (content !== undefined) updateData.content = sanitizeInput(content);
     if (importance !== undefined) updateData.importance = importance;
     if (placement !== undefined) updateData.placement = placement;
     if (targetType !== undefined) updateData.targetType = targetType;

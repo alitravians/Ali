@@ -2,10 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
-import { isValidEmail, validateLength } from "@/lib/validation";
+import { isValidEmail, validateLength, sanitizeInput } from "@/lib/validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting: 3 registrations per hour per IP
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(`register:${ip}`, RATE_LIMITS.REGISTER);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "تم تجاوز الحد المسموح من المحاولات. حاول مرة أخرى لاحقاً" },
+        { status: 429 }
+      );
+    }
+
     const { name, email, password } = await req.json();
 
     if (!name || !email || !password) {
@@ -30,9 +41,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return NextResponse.json(
-        { error: "كلمة المرور يجب أن تكون 6 أحرف على الأقل" },
+        { error: "كلمة المرور يجب أن تكون 8 أحرف على الأقل" },
+        { status: 400 }
+      );
+    }
+
+    // Password complexity: require at least one letter and one number
+    if (!/[a-zA-Z\u0600-\u06FF]/.test(password) || !/[0-9]/.test(password)) {
+      return NextResponse.json(
+        { error: "كلمة المرور يجب أن تحتوي على أحرف وأرقام" },
         { status: 400 }
       );
     }
@@ -52,8 +71,8 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: sanitizeInput(name.trim()),
+        email: email.trim().toLowerCase(),
         password: hashedPassword,
       },
     });

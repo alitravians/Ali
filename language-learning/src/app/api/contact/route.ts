@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { sanitizeInput, isValidEmail, validateLength } from "@/lib/validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting: 3 submissions per hour per IP
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(`contact:${ip}`, RATE_LIMITS.CONTACT);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "تم تجاوز الحد المسموح من الرسائل. حاول مرة أخرى لاحقاً" },
+        { status: 429 }
+      );
+    }
+
     const { name, email, subject, message } = await req.json();
 
     if (!name || !email || !subject || !message) {

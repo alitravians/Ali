@@ -206,13 +206,25 @@ export async function POST(request: Request) {
       return NextResponse.json(item);
     }
 
-    // Update item
+    // Update item (whitelist allowed fields to prevent mass assignment)
     if (action === "update") {
-      const { itemId, ...data } = body;
+      const { itemId } = body;
       if (!itemId) return NextResponse.json({ error: "معرف العنصر مطلوب" }, { status: 400 });
-      delete data.action;
-      if (data.nameAr && !data.name) data.name = data.nameAr;
-      const item = await prisma.inventoryItem.update({ where: { id: itemId }, data });
+
+      const ALLOWED_ITEM_FIELDS = [
+        "name", "nameAr", "description", "descriptionAr", "type", "icon",
+        "imageUrl", "color", "previewData", "videoUrl", "soundUrl",
+        "effectDuration", "category", "rarity", "order", "isActive",
+      ];
+      const safeData: Record<string, unknown> = {};
+      for (const key of ALLOWED_ITEM_FIELDS) {
+        if (key in body && body[key] !== undefined) {
+          safeData[key] = body[key];
+        }
+      }
+      if (safeData.nameAr && !safeData.name) safeData.name = safeData.nameAr;
+
+      const item = await prisma.inventoryItem.update({ where: { id: itemId }, data: safeData });
       return NextResponse.json(item);
     }
 

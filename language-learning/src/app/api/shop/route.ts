@@ -59,11 +59,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "رصيد النقاط غير كافٍ" }, { status: 400 });
     }
 
-    // Deduct points
-    await prisma.user.update({
-      where: { id: userId },
+    // Atomic deduct: only deduct if user still has enough points (prevents race condition / double-spend)
+    const updateResult = await prisma.user.updateMany({
+      where: { id: userId, points: { gte: item.price } },
       data: { points: { decrement: item.price } },
     });
+
+    if (updateResult.count === 0) {
+      return NextResponse.json({ error: "رصيد النقاط غير كافٍ" }, { status: 400 });
+    }
+
+    // Re-fetch updated balance
+    const updatedUser = await prisma.user.findUnique({ where: { id: userId }, select: { points: true } });
 
     // Create purchase record
     await prisma.purchase.create({
@@ -77,7 +84,7 @@ export async function POST(req: NextRequest) {
         amount: -item.price,
         source: "purchase",
         details: `شراء: ${item.nameAr}`,
-        balanceAfter: user.points - item.price,
+        balanceAfter: updatedUser?.points ?? (user.points - item.price),
       },
     });
 
@@ -128,7 +135,7 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    return NextResponse.json({ success: true, newBalance: user.points - item.price });
+    return NextResponse.json({ success: true, newBalance: updatedUser?.points ?? (user.points - item.price) });
   } catch {
     return NextResponse.json({ error: "فشلت عملية الشراء" }, { status: 500 });
   }

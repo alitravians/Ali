@@ -28,6 +28,9 @@ export async function GET() {
   }
 }
 
+// Whitelist of allowed roles to prevent privilege escalation
+const ALLOWED_ROLES = ["user", "moderator", "admin"];
+
 export async function PUT(req: NextRequest) {
   try {
     const auth = await requireAdmin();
@@ -35,9 +38,20 @@ export async function PUT(req: NextRequest) {
 
     const { userId, id, role } = await req.json();
     const targetId = userId || id;
+
+    if (!targetId) {
+      return NextResponse.json({ error: "معرف المستخدم مطلوب" }, { status: 400 });
+    }
+
+    // Validate role against whitelist
+    if (!role || !ALLOWED_ROLES.includes(role)) {
+      return NextResponse.json({ error: "الدور غير صالح. الأدوار المسموحة: user, moderator, admin" }, { status: 400 });
+    }
+
     const user = await prisma.user.update({
       where: { id: targetId },
       data: { role },
+      select: { id: true, name: true, email: true, role: true },
     });
     return NextResponse.json(user);
   } catch (error) {

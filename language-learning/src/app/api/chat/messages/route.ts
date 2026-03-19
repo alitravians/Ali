@@ -2,9 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sanitizeInput } from "@/lib/validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
   try {
+    // Require authentication to read chat messages
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get("roomId");
     const cursor = searchParams.get("cursor");
@@ -135,11 +143,24 @@ export async function POST(request: Request) {
       }, { status: 403 });
     }
 
+    // Rate limiting: 30 messages per minute
+    const msgIp = getClientIp(request);
+    const msgRateCheck = checkRateLimit(`chat:${userId}:${msgIp}`, RATE_LIMITS.CHAT_MESSAGE);
+    if (!msgRateCheck.allowed) {
+      return NextResponse.json({ error: "أنت ترسل رسائل بسرعة كبيرة. انتظر قليلاً" }, { status: 429 });
+    }
+
     const body = await request.json();
     const { content, roomId } = body;
 
     if (!content || !roomId) {
       return NextResponse.json({ error: "المحتوى والغرفة مطلوبان" }, { status: 400 });
+    }
+
+    // Validate roomId exists
+    const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+    if (!room) {
+      return NextResponse.json({ error: "الغرفة غير موجودة" }, { status: 404 });
     }
 
     // Check for bold message (admin/moderator with bold_message permission)
@@ -157,7 +178,7 @@ export async function POST(request: Request) {
     }
     
     let isBold = false;
-    let processedContent = content.slice(0, 1000);
+    let processedContent = sanitizeInput(content.slice(0, 1000));
     const requestedBold = body.bold === true;
 
     if (processedContent.startsWith("$") || requestedBold) {

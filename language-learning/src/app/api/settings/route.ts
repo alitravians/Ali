@@ -17,16 +17,39 @@ export async function GET() {
   }
 }
 
+// Whitelist of allowed settings fields to prevent mass assignment
+const ALLOWED_SETTINGS_FIELDS = [
+  "siteName", "siteDescription", "logoText", "logoColor1", "logoColor2",
+  "maintenanceMode", "maintenanceMessage",
+  "stampTopText", "stampBottomText", "stampCenterText",
+  "stampVerifyBottomText", "stampVerifyCenterText",
+  "stampColor", "stampStars", "stampShowDots",
+  "chatEnabled", "chatPrivateEnabled", "chatFileUpload",
+  "chatBannedWords", "chatAutoFilter",
+  "chatLocked", "chatLockType", "chatLockReason", "chatLockedBy", "chatLockedAt",
+  "xpPerMessage", "xpMsgCooldown", "xpDailyMessageCap", "xpMinMsgLength",
+  "pointsPerMessage", "pointsDailyMsgCap", "pointsPerLevelUp",
+];
+
 export async function PUT(req: NextRequest) {
   try {
     const auth = await requireAdmin();
     if (!auth.authorized) return auth.response;
 
     const body = await req.json();
+
+    // Only allow whitelisted fields to prevent mass assignment attacks
+    const sanitizedData: Record<string, unknown> = {};
+    for (const key of ALLOWED_SETTINGS_FIELDS) {
+      if (key in body) {
+        sanitizedData[key] = body[key];
+      }
+    }
+
     const settings = await prisma.siteSettings.upsert({
       where: { id: "settings" },
-      update: body,
-      create: { id: "settings", ...body },
+      update: sanitizedData,
+      create: { id: "settings", ...sanitizedData },
     });
     return NextResponse.json(settings);
   } catch (error) {

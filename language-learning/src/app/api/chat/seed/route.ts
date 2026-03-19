@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const DEFAULT_ROOMS = [
   { name: "general", nameAr: "الدردشة العامة", description: "غرفة الدردشة العامة لجميع المستخدمين", type: "public", order: 1 },
@@ -9,6 +11,12 @@ const DEFAULT_ROOMS = [
 ];
 
 export async function POST() {
+  // Require admin authentication to seed chat rooms
+  const session = await getServerSession(authOptions);
+  if (!session?.user || (session.user as { role?: string }).role !== "admin") {
+    return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+  }
+
   try {
     const existing = await prisma.chatRoom.count();
     if (existing > 0) {

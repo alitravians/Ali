@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 import { sanitizeInput, validateLength, validateEnum } from "@/lib/validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
 
 function generateTicketCode(): string {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -49,6 +50,17 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = (session.user as { id: string }).id;
+
+    // Rate limiting: 5 tickets per hour
+    const ip = getClientIp(req);
+    const rateCheck = checkRateLimit(`ticket:${userId}:${ip}`, RATE_LIMITS.TICKET);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { error: "تم تجاوز الحد المسموح من التذاكر. حاول مرة أخرى لاحقاً" },
+        { status: 429 }
+      );
+    }
+
     const { subject, description, category, priority } = await req.json();
 
     if (!subject || !description) {

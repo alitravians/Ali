@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sanitizeInput, validateLength } from "@/lib/validation";
 
 export async function POST(
   req: NextRequest,
@@ -20,6 +21,12 @@ export async function POST(
       return NextResponse.json({ error: "محتوى الرسالة مطلوب" }, { status: 400 });
     }
 
+    // Validate content length
+    const contentError = validateLength(content, "الرسالة", 1, 5000);
+    if (contentError) {
+      return NextResponse.json({ error: contentError }, { status: 400 });
+    }
+
     const ticket = await prisma.ticket.findFirst({
       where: { id: params.id, userId },
     });
@@ -34,7 +41,7 @@ export async function POST(
 
     const message = await prisma.ticketMessage.create({
       data: {
-        content,
+        content: sanitizeInput(content.trim()),
         isAdmin: false,
         senderName: session.user.name || "مستخدم",
         ticketId: params.id,

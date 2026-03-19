@@ -21,7 +21,7 @@ export const authOptions: NextAuthOptions = {
         });
 
         if (!user) {
-          throw new Error("لا يوجد حساب بهذا البريد الإلكتروني");
+          throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         }
 
         const isPasswordValid = await compare(
@@ -30,7 +30,7 @@ export const authOptions: NextAuthOptions = {
         );
 
         if (!isPasswordValid) {
-          throw new Error("كلمة المرور غير صحيحة");
+          throw new Error("البريد الإلكتروني أو كلمة المرور غير صحيحة");
         }
 
         return {
