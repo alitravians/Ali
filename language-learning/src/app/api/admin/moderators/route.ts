@@ -148,6 +148,39 @@ export async function POST(req: NextRequest) {
         data: { role: "moderator", chatRank: rank === "head" ? "moderator" : "moderator" },
       });
 
+      // Send notification to the new moderator
+      const rankLabels: Record<string, string> = {
+        assistant: "مساعد مشرف",
+        moderator: "مشرف دردشة",
+        head: "رئيس مشرفين",
+      };
+      const rankLabel = rankLabels[rank] || rank;
+      const permissionsList = permissions.map((p: string) => {
+        const permLabels: Record<string, string> = {
+          view_chat: "عرض الدردشة", view_violations: "عرض المخالفات", view_instructions: "عرض التعليمات",
+          submit_report: "رفع بلاغ", send_internal_note: "ملاحظات داخلية", warn_user: "إصدار تحذير",
+          temp_ban: "حظر مؤقت", review_reports: "مراجعة البلاغات", view_activity_log: "سجل الأنشطة",
+          escalate: "تصعيد البلاغات", review_escalations: "مراجعة التصعيدات", manage_moderators: "إدارة المشرفين",
+          view_stats: "عرض الإحصائيات", approve_reports: "اعتماد البلاغات", bold_message: "الكتابة بالخط العريض",
+        };
+        return permLabels[p] || p;
+      }).join("، ");
+
+      await prisma.notification.create({
+        data: {
+          userId,
+          title: "تم تعيينك كمشرف!",
+          titleAr: "تم تعيينك كمشرف!",
+          message: `Congratulations! You have been assigned as ${rankLabel}.`,
+          messageAr: `تهانينا! تم تعيينك بصلاحية ${rankLabel}. صلاحياتك: ${permissionsList}. يمكنك الوصول للوحة تحكم المشرفين من خلال أيقونة 🛡️ في شريط التنقل أو بالذهاب مباشرة إلى /moderator. ستحتاج رمز PIN الخاص بك لتسجيل الدخول.`,
+          type: "success",
+          category: "account",
+          icon: "shield",
+          link: "/moderator",
+          priority: "important",
+        },
+      });
+
       return NextResponse.json(modRole);
     }
 
@@ -186,6 +219,21 @@ export async function POST(req: NextRequest) {
 
       const mod = await prisma.moderatorRole.findUnique({ where: { id: modId } });
       if (mod) {
+        // Notify user about removal
+        await prisma.notification.create({
+          data: {
+            userId: mod.userId,
+            title: "تم إزالة صلاحية الإشراف",
+            titleAr: "تم إزالة صلاحية الإشراف",
+            message: "Your moderator role has been removed.",
+            messageAr: "تم إزالة صلاحية الإشراف الخاصة بك. إذا كان لديك أي استفسار، يرجى التواصل مع الإدارة.",
+            type: "warning",
+            category: "account",
+            icon: "alert",
+            priority: "important",
+          },
+        });
+
         await prisma.user.update({
           where: { id: mod.userId },
           data: { role: "user", chatRank: "member" },

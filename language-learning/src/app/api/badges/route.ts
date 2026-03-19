@@ -10,10 +10,28 @@ export async function GET() {
       return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
     }
 
-    const badges = await prisma.userBadge.findMany({
+    const assignments = await prisma.badgeAssignment.findMany({
       where: { userId: session.user.id },
-      orderBy: { earnedAt: "desc" },
+      include: {
+        badge: true,
+      },
+      orderBy: { createdAt: "desc" },
     });
+
+    const badges = assignments
+      .filter((a) => a.badge.isActive)
+      .map((a) => ({
+        id: a.badge.id,
+        name: a.badge.name,
+        nameAr: a.badge.nameAr,
+        description: a.badge.description,
+        descriptionAr: a.badge.descriptionAr,
+        icon: a.badge.icon,
+        color: a.badge.color,
+        category: a.badge.category,
+        earnedAt: a.createdAt.toISOString(),
+      }));
+
     return NextResponse.json(badges);
   } catch (error) {
     console.error("Error fetching badges:", error);

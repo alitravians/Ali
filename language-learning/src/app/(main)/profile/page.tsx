@@ -30,6 +30,8 @@ interface Badge {
   description: string;
   descriptionAr: string;
   icon: string;
+  color: string;
+  category: string;
   earnedAt: string;
 }
 
@@ -572,8 +574,13 @@ export default function ProfilePage() {
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {badges.map((badge) => (
-                      <div key={badge.id} className="card p-6 text-center">
-                        <div className="text-4xl mb-3">{badge.icon}</div>
+                      <div key={badge.id} className="card p-6 text-center hover:shadow-lg transition-shadow">
+                        <div
+                          className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-3 shadow-sm"
+                          style={{ backgroundColor: (badge.color || '#f59e0b') + '20', borderColor: badge.color || '#f59e0b', borderWidth: '2px' }}
+                        >
+                          {badge.icon}
+                        </div>
                         <h4 className="font-bold text-gray-900 text-sm mb-1">{badge.nameAr || badge.name}</h4>
                         <p className="text-xs text-gray-500">{badge.descriptionAr || badge.description}</p>
                         <p className="text-xs text-gray-400 mt-2">{new Date(badge.earnedAt).toLocaleDateString("ar")}</p>

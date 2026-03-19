@@ -56,6 +56,7 @@ export default function Navbar() {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [loadingNotifs, setLoadingNotifs] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
+  const [isModerator, setIsModerator] = useState(false);
   const [siteSettings, setSiteSettings] = useState<SiteSettings>({
     siteName: "LinguaMaster",
     logoText: "L",
@@ -89,6 +90,17 @@ export default function Navbar() {
           }
         })
         .catch(() => {});
+
+      // Check if user is a moderator
+      const userRole = (session.user as { role?: string }).role;
+      if (userRole === "moderator") {
+        setIsModerator(true);
+      } else if (userRole !== "admin") {
+        // Also check via API in case role field isn't set yet
+        fetch("/api/moderator?section=dashboard")
+          .then((r) => { if (r.ok) { setIsModerator(true); } })
+          .catch(() => {});
+      }
     }
   }, [session]);
 
@@ -189,6 +201,16 @@ export default function Navbar() {
                     >
                       <span>⚙</span>
                       <span>لوحة التحكم</span>
+                    </Link>
+                  )}
+                  {isModerator && (session.user as { role?: string }).role !== "admin" && (
+                    <Link
+                      href="/moderator"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 transition-colors text-sm font-medium border border-emerald-200"
+                      title="لوحة تحكم المشرفين"
+                    >
+                      <span>🛡️</span>
+                      <span>لوحة المشرفين</span>
                     </Link>
                   )}
                   <Link href="/chat" className="nav-link">💬 الدردشة</Link>
@@ -315,6 +337,15 @@ export default function Navbar() {
                       onClick={() => setIsMenuOpen(false)}
                     >
                       ⚙ لوحة تحكم الإدارة
+                    </Link>
+                  )}
+                  {isModerator && (session.user as { role?: string }).role !== "admin" && (
+                    <Link
+                      href="/moderator"
+                      className="block py-2 px-3 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 hover:text-emerald-800 transition-colors text-sm font-medium border border-emerald-200"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      🛡️ لوحة تحكم المشرفين
                     </Link>
                   )}
                   <Link href="/chat" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>💬 الدردشة</Link>

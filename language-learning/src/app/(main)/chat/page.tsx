@@ -21,12 +21,19 @@ interface ChatUser {
   chatBadgeColor: string;
 }
 
+interface UserBadge {
+  icon: string;
+  nameAr: string;
+  color: string;
+}
+
 interface ChatMessage {
   id: string;
   content: string;
   isSystem: boolean;
   createdAt: string;
   user: ChatUser;
+  userBadges?: UserBadge[];
 }
 
 interface BanInfo {
@@ -570,6 +577,16 @@ export default function ChatPage() {
                               >
                                 {RANK_LABELS[msg.user.chatRank] || "عضو"}
                               </span>
+                              {msg.userBadges && msg.userBadges.length > 0 && msg.userBadges.map((badge, idx) => (
+                                <span
+                                  key={idx}
+                                  className="text-[10px] px-1.5 py-0.5 rounded-full font-medium text-white"
+                                  style={{ backgroundColor: badge.color }}
+                                  title={badge.nameAr}
+                                >
+                                  {badge.icon}
+                                </span>
+                              ))}
                             </div>
                           )}
                           {/* Message bubble */}

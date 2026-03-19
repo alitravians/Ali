@@ -85,6 +85,7 @@ export default function AdminDashboard() {
               { label: "تغيير الأسماء", href: "/admin/name-requests", icon: "✏️" },
               { label: "فريق العمل", href: "/admin/team", icon: "👨‍💼" },
               { label: "المشرفين", href: "/admin/moderators", icon: "👮" },
+              { label: "الشارات", href: "/admin/badges", icon: "🏅" },
               { label: "فحص النظام", href: "/admin/scan", icon: "🔍" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (

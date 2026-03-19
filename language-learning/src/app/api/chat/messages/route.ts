@@ -35,7 +35,25 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json(messages.reverse());
+    // Enrich messages with user badges
+    const userIds = [...new Set(messages.map((m) => m.userId))];
+    const badgeAssignments = await prisma.badgeAssignment.findMany({
+      where: { userId: { in: userIds } },
+      include: { badge: { select: { icon: true, nameAr: true, color: true, isActive: true } } },
+    });
+    const userBadgesMap: Record<string, { icon: string; nameAr: string; color: string }[]> = {};
+    for (const ba of badgeAssignments) {
+      if (!ba.badge.isActive) continue;
+      if (!userBadgesMap[ba.userId]) userBadgesMap[ba.userId] = [];
+      userBadgesMap[ba.userId].push({ icon: ba.badge.icon, nameAr: ba.badge.nameAr, color: ba.badge.color });
+    }
+
+    const enriched = messages.map((m) => ({
+      ...m,
+      userBadges: userBadgesMap[m.userId] || [],
+    }));
+
+    return NextResponse.json(enriched.reverse());
   } catch {
     return NextResponse.json({ error: "فشل في جلب الرسائل" }, { status: 500 });
   }

@@ -604,6 +604,37 @@ model ModNotification {
   moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
 }
 
+// ==================== Badge System ====================
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  description String   @default("")
+  descriptionAr String @default("")
+  icon        String   @default("⭐") // emoji icon
+  color       String   @default("#f59e0b") // badge color
+  category    String   @default("general") // general | achievement | rank | special | event
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  assignments BadgeAssignment[]
+}
+
+model BadgeAssignment {
+  id        String   @id @default(cuid())
+  badgeId   String
+  userId    String
+  assignedBy String  @default("admin")
+  note      String   @default("")
+  createdAt DateTime @default(now())
+
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([badgeId, userId])
+}
+
 // ==================== Team System ====================
 
 model TeamDepartment {
