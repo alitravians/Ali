@@ -41,6 +41,16 @@ model User {
   modReports      ModReport[] @relation("ReportedUser")
   modViolations   ModViolationRecord[] @relation("ViolationUser")
   inventoryItems  UserInventory[]
+  xp              Int       @default(0)
+  level           Int       @default(1)
+  totalXpEarned   Int       @default(0)
+  lastXpMessageAt DateTime?
+  lastLoginReward DateTime?
+  lastDailyReset  DateTime?
+  xpLogs          XpLog[]
+  pointLogs       PointLog[]
+  purchases       Purchase[]
+  dailyQuestProgress DailyQuestProgress[]
 }
 
 model Language {
@@ -286,6 +296,25 @@ model SiteSettings {
   chatFileUpload     Boolean @default(false)
   chatBannedWords    String  @default("")
   chatAutoFilter     Boolean @default(true)
+  // Chat lock settings
+  chatLocked         Boolean @default(false)
+  chatLockType       String  @default("full") // full | members_only
+  chatLockReason     String  @default("")
+  chatLockedBy       String  @default("")
+  chatLockedAt       DateTime?
+  // XP settings
+  xpPerMessage       Int     @default(5)
+  xpPerLogin         Int     @default(20)
+  xpPerQuest         Int     @default(50)
+  xpDailyMessageCap  Int     @default(100) // max XP from messages per day
+  xpMinMsgLength     Int     @default(3)   // min message length to earn XP
+  xpMsgCooldown      Int     @default(30)  // seconds between XP-earning messages
+  // Points settings
+  pointsPerMessage   Int     @default(2)
+  pointsPerLogin     Int     @default(10)
+  pointsPerQuest     Int     @default(25)
+  pointsPerLevelUp   Int     @default(100)
+  pointsDailyMsgCap  Int     @default(50) // max points from messages per day
 }
 
 // ==================== Chat System ====================
@@ -725,4 +754,155 @@ model TeamMember {
   department   TeamDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, departmentId])
+}
+
+// ==================== Announcements System ====================
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  importance  String   @default("normal") // normal | important | urgent
+  placement   String   @default("banner") // banner | popup | chat_pin | notification_center
+  targetType  String   @default("all") // all | members | moderators | specific
+  targetUsers String   @default("") // comma-separated user IDs
+  status      String   @default("published") // published | expired | hidden
+  isPinned    Boolean  @default(false)
+  showOnce    Boolean  @default(false) // show only once per user
+  publishedAt DateTime @default(now())
+  expiresAt   DateTime?
+  createdBy   String   @default("")
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  reads       AnnouncementRead[]
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+// ==================== Chat Lock Log ====================
+
+model ChatLockLog {
+  id        String   @id @default(cuid())
+  action    String   // lock | unlock
+  lockType  String   @default("full") // full | members_only
+  reason    String   @default("")
+  adminId   String
+  adminName String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ==================== XP & Level System ====================
+
+model XpLog {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  source    String   // message | login | quest | level_up | admin | achievement
+  details   String   @default("")
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Points System ====================
+
+model PointLog {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int      // positive = earned, negative = spent
+  source    String   // message | login | quest | level_up | purchase | admin | achievement
+  details   String   @default("")
+  balanceAfter Int   @default(0)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Shop System ====================
+
+model ShopItem {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String
+  description   String   @default("")
+  descriptionAr String   @default("")
+  type          String   // entry_effect | necklace | badge
+  price         Int      @default(100)
+  imageUrl      String   @default("")
+  icon          String   @default("🛒")
+  color         String   @default("#6366f1")
+  previewData   String   @default("{}") // JSON config
+  isPermanent   Boolean  @default(true)
+  durationDays  Int      @default(0) // 0 = permanent
+  isActive      Boolean  @default(true)
+  isLimited     Boolean  @default(false) // limited time offer
+  limitedUntil  DateTime?
+  stock         Int      @default(-1) // -1 = unlimited
+  soldCount     Int      @default(0)
+  category      String   @default("general") // general | seasonal | limited | event
+  rarity        String   @default("common") // common | uncommon | rare | epic | legendary
+  inventoryItemId String @default("") // link to inventory item template
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  purchases     Purchase[]
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  shopItemId  String
+  price       Int
+  status      String   @default("completed") // completed | refunded
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopItem    ShopItem @relation(fields: [shopItemId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Daily Quests System ====================
+
+model DailyQuest {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  description String   @default("")
+  descriptionAr String @default("")
+  type        String   // login | messages | activity | custom
+  target      Int      @default(1) // target count to complete
+  xpReward    Int      @default(50)
+  pointsReward Int     @default(25)
+  icon        String   @default("⭐")
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  progress    DailyQuestProgress[]
+}
+
+model DailyQuestProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  questId     String
+  progress    Int      @default(0)
+  isCompleted Boolean  @default(false)
+  isRewarded  Boolean  @default(false)
+  date        String   // YYYY-MM-DD format for daily reset
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest       DailyQuest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId, date])
 }

@@ -100,6 +100,21 @@ export async function POST(request: Request) {
     }
 
     const userId = (session.user as { id: string }).id;
+    const userRole = (session.user as { role?: string }).role;
+
+    // Check chat lock status
+    const siteSettings = await prisma.siteSettings.findFirst({ where: { id: "settings" } });
+    if (siteSettings?.chatLocked && userRole !== "admin") {
+      if (siteSettings.chatLockType === "full") {
+        return NextResponse.json({ error: "الدردشة مغلقة حالياً", lockReason: siteSettings.chatLockReason || "" }, { status: 403 });
+      }
+      if (siteSettings.chatLockType === "members_only") {
+        const userChatRank = (session.user as { chatRank?: string }).chatRank;
+        if (!userChatRank || userChatRank === "member") {
+          return NextResponse.json({ error: "الدردشة مقفلة للأعضاء العاديين", lockReason: siteSettings.chatLockReason || "" }, { status: 403 });
+        }
+      }
+    }
 
     // Check if user is banned
     const activeBan = await prisma.chatBan.findFirst({
@@ -196,6 +211,95 @@ export async function POST(request: Request) {
         },
       },
     });
+
+    // Award XP and Points for message (non-admin, with anti-spam)
+    if (userRole !== "admin" && processedContent.length >= (siteSettings?.xpMinMsgLength || 3)) {
+      const now = new Date();
+      const fullUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (fullUser) {
+        const cooldownMs = (siteSettings?.xpMsgCooldown || 30) * 1000;
+        const lastMsg = fullUser.lastXpMessageAt;
+        const canEarn = !lastMsg || (now.getTime() - new Date(lastMsg).getTime()) >= cooldownMs;
+
+        if (canEarn) {
+          // Check daily caps
+          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const todayXp = await prisma.xpLog.aggregate({
+            where: { userId, source: "message", createdAt: { gte: todayStart } },
+            _sum: { amount: true },
+          });
+          const todayPoints = await prisma.pointLog.aggregate({
+            where: { userId, source: "message", createdAt: { gte: todayStart } },
+            _sum: { amount: true },
+          });
+
+          const xpEarned = todayXp._sum.amount || 0;
+          const pointsEarned = todayPoints._sum.amount || 0;
+          const xpCap = siteSettings?.xpDailyMessageCap || 100;
+          const pointsCap = siteSettings?.pointsDailyMsgCap || 50;
+          const xpAmount = siteSettings?.xpPerMessage || 5;
+          const pointsAmount = siteSettings?.pointsPerMessage || 2;
+
+          // Award XP if under cap
+          if (xpEarned < xpCap) {
+            const awardXp = Math.min(xpAmount, xpCap - xpEarned);
+            let newXp = fullUser.xp + awardXp;
+            let newLevel = fullUser.level;
+            let leveledUp = false;
+            while (newXp >= newLevel * 100) {
+              newXp -= newLevel * 100;
+              newLevel++;
+              leveledUp = true;
+            }
+            await prisma.user.update({
+              where: { id: userId },
+              data: { xp: newXp, level: newLevel, totalXpEarned: { increment: awardXp }, lastXpMessageAt: now },
+            });
+            await prisma.xpLog.create({ data: { userId, amount: awardXp, source: "message", details: "رسالة في الدردشة" } });
+
+            if (leveledUp) {
+              const levelUpPoints = siteSettings?.pointsPerLevelUp || 100;
+              await prisma.user.update({ where: { id: userId }, data: { points: { increment: levelUpPoints } } });
+              await prisma.pointLog.create({
+                data: { userId, amount: levelUpPoints, source: "level_up", details: `وصلت للمستوى ${newLevel}`, balanceAfter: fullUser.points + levelUpPoints },
+              });
+              await prisma.notification.create({
+                data: { userId, title: "ارتقاء مستوى!", titleAr: "ارتقاء مستوى!", message: `وصلت للمستوى ${newLevel}! حصلت على ${levelUpPoints} نقطة`, messageAr: `وصلت للمستوى ${newLevel}! حصلت على ${levelUpPoints} نقطة`, type: "success", category: "general", icon: "star" },
+              });
+            }
+          }
+
+          // Award Points if under cap
+          if (pointsEarned < pointsCap) {
+            const awardPts = Math.min(pointsAmount, pointsCap - pointsEarned);
+            await prisma.user.update({ where: { id: userId }, data: { points: { increment: awardPts } } });
+            await prisma.pointLog.create({
+              data: { userId, amount: awardPts, source: "message", details: "رسالة في الدردشة", balanceAfter: fullUser.points + awardPts },
+            });
+          }
+
+          // Update daily quest progress for messages
+          const messageQuests = await prisma.dailyQuest.findMany({ where: { isActive: true, type: { in: ["messages", "activity"] } } });
+          const today = new Date().toISOString().split("T")[0];
+          for (const quest of messageQuests) {
+            const qProgress = await prisma.dailyQuestProgress.findUnique({
+              where: { userId_questId_date: { userId, questId: quest.id, date: today } },
+            });
+            if (qProgress && !qProgress.isCompleted) {
+              const newProgress = qProgress.progress + 1;
+              await prisma.dailyQuestProgress.update({
+                where: { userId_questId_date: { userId, questId: quest.id, date: today } },
+                data: { progress: newProgress, isCompleted: newProgress >= quest.target },
+              });
+            } else if (!qProgress) {
+              await prisma.dailyQuestProgress.create({
+                data: { userId, questId: quest.id, date: today, progress: 1, isCompleted: 1 >= quest.target },
+              });
+            }
+          }
+        }
+      }
+    }
 
     return NextResponse.json(message);
   } catch {
