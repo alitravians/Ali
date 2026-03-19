@@ -165,7 +165,7 @@ export default function ChatPage() {
     }
     return false;
   });
-  const ENTRY_EFFECT_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown per user
+  const ENTRY_EFFECT_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown per user
 
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
@@ -250,15 +250,14 @@ export default function ChatPage() {
           const newEffects: EntryEffect[] = [];
           const now = Date.now();
           for (const msg of data) {
-            if (msg.userInventory?.entry_effect && !shownEntryEffectsRef.current.has(msg.user.id)) {
-              // Check cooldown - don't show effect if user entered recently
+            if (msg.userInventory?.entry_effect) {
+              // Check cooldown - don't show effect if shown recently
               const lastShown = entryEffectCooldownsRef.current[msg.user.id] || 0;
               if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
               // Skip own effects
               if (msg.user.id === userId) continue;
               
-              // Mark as shown IMMEDIATELY via ref (prevents any re-detection)
-              shownEntryEffectsRef.current.add(msg.user.id);
+              // Mark cooldown IMMEDIATELY via ref (prevents any re-detection)
               entryEffectCooldownsRef.current[msg.user.id] = now;
               
               // Parse effect type from previewData
