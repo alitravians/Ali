@@ -215,7 +215,7 @@ export default function ChatPage() {
 
   // Check chat lock status
   useEffect(() => {
-    fetch("/api/admin/chat-lock")
+    fetch("/api/chat-lock-status")
       .then((r) => r.json())
       .then((data) => {
         setChatLocked(data.chatLocked || false);
