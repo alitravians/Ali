@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -134,7 +134,15 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 // ============ Main Component ============
-export default function ModeratorPanel() {
+export default function ModeratorPanelWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center"><div className="text-white text-xl">جاري التحميل...</div></div>}>
+      <ModeratorPanel />
+    </Suspense>
+  );
+}
+
+function ModeratorPanel() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();

@@ -878,7 +878,7 @@ async function checkGamificationSystem(): Promise<CheckResult> {
 
   // Check XP settings exist
   try {
-    const xpSettings = await prisma.xpSettings.findFirst();
+    const xpSettings = await prisma.siteSettings.findFirst({ where: { id: "settings" } });
     if (!xpSettings) {
       issues.push({
         name: "إعدادات XP غير موجودة",
@@ -1099,12 +1099,8 @@ async function checkInventorySystem(): Promise<CheckResult> {
 
   // Check for expired user inventory items still active
   try {
-    const expiredActive = await prisma.userInventory.count({
-      where: {
-        isActive: true,
-        expiresAt: { lt: new Date() },
-      },
-    });
+    const allUserInv = await prisma.userInventory.findMany({ where: { activatedAt: { not: null } } });
+    const expiredActive = allUserInv.filter(i => i.expiresAt && i.expiresAt < new Date()).length;
     if (expiredActive > 0) {
       issues.push({
         name: "عناصر منتهية لا تزال نشطة",
@@ -1150,8 +1146,8 @@ async function checkModeratorSystem(): Promise<CheckResult> {
 
   // Check moderator data integrity
   try {
-    const moderators = await prisma.moderator.findMany({ include: { user: true } });
-    const orphanedMods = moderators.filter(m => !m.user);
+    const moderators = await prisma.moderatorRole.findMany({ include: { user: true } });
+    const orphanedMods = moderators.filter((m: { user: unknown }) => !m.user);
     if (orphanedMods.length > 0) {
       issues.push({
         name: "مشرفين بدون مستخدم مرتبط",
@@ -1193,28 +1189,7 @@ async function checkBadgeSystem(): Promise<CheckResult> {
     }
   } catch { /* skip */ }
 
-  // Check expired badge assignments
-  try {
-    const expiredBadges = await prisma.userBadge.count({
-      where: {
-        expiresAt: { lt: new Date() },
-      },
-    });
-    if (expiredBadges > 5) {
-      issues.push({
-        name: "شارات منتهية لم يتم تنظيفها",
-        type: "database",
-        severity: "low",
-        section: "نظام الشارات",
-        fileName: "",
-        filePath: "",
-        description: `يوجد ${expiredBadges} شارة منتهية الصلاحية لم يتم حذفها`,
-        cause: "الشارات المؤقتة المنتهية تبقى في قاعدة البيانات",
-        solution: "أضف تنظيف دوري للشارات المنتهية",
-        recommendation: "الشارات المنتهية تشغل مساحة بلا فائدة",
-      });
-    }
-  } catch { /* skip */ }
+  // Note: UserBadge model does not have expiresAt field - badge expiration is handled via BadgeAssignment
 
   // Check badge admin API requires auth
   try {
