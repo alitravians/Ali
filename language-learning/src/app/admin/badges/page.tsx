@@ -118,8 +118,8 @@ export default function AdminBadgesPage() {
   };
 
   const handleCreateOrUpdate = async () => {
-    if (!formData.name || !formData.nameAr) {
-      alert("الاسم مطلوب بالعربي والإنجليزي");
+    if (!formData.nameAr) {
+      alert("اسم الشارة مطلوب");
       return;
     }
     setFormLoading(true);
@@ -129,7 +129,7 @@ export default function AdminBadgesPage() {
         const fd = new FormData();
         fd.append("action", editingBadge ? "update" : "create");
         fd.append("image", imageFile);
-        fd.append("name", formData.name);
+        fd.append("name", formData.name || formData.nameAr);
         fd.append("nameAr", formData.nameAr);
         fd.append("description", formData.description);
         fd.append("descriptionAr", formData.descriptionAr);
@@ -529,49 +529,25 @@ export default function AdminBadgesPage() {
               {editingBadge ? "✏️ تعديل الشارة" : "🏅 إنشاء شارة جديدة"}
             </h3>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الاسم بالعربي *</label>
-                  <input
-                    type="text"
-                    value={formData.nameAr}
-                    onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="شارة التميز"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name (EN) *</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="Excellence Badge"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">اسم الشارة *</label>
+                <input
+                  type="text"
+                  value={formData.nameAr}
+                  onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="شارة التميز"
+                />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">الوصف بالعربي</label>
-                  <input
-                    type="text"
-                    value={formData.descriptionAr}
-                    onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="وصف الشارة"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description (EN)</label>
-                  <input
-                    type="text"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    placeholder="Badge description"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">وصف الشارة</label>
+                <input
+                  type="text"
+                  value={formData.descriptionAr}
+                  onChange={(e) => setFormData({ ...formData, descriptionAr: e.target.value })}
+                  className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  placeholder="وصف الشارة"
+                />
               </div>
               {/* Image upload */}
               <div>

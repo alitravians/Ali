@@ -100,8 +100,8 @@ export async function POST(req: NextRequest) {
         const order = parseInt((formData.get("order") as string) || "0") || 0;
         const badgeId = formData.get("badgeId") as string | null;
 
-        if (!name || !nameAr) {
-          return NextResponse.json({ error: "الاسم مطلوب بالعربي والإنجليزي" }, { status: 400 });
+        if (!nameAr) {
+          return NextResponse.json({ error: "الاسم بالعربي مطلوب" }, { status: 400 });
         }
 
         let imageUrl = "";
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
 
         if (action === "update" && badgeId) {
           const data: Record<string, unknown> = {
-            name, nameAr, description, descriptionAr, icon, color, category, order,
+            name: name || nameAr, nameAr, description, descriptionAr, icon, color, category, order,
           };
           if (imageUrl) data.imageUrl = imageUrl;
 
@@ -158,13 +158,13 @@ export async function POST(req: NextRequest) {
     // === Create Badge (without image - emoji only) ===
     if (action === "create") {
       const { name, nameAr, description, descriptionAr, icon, color, category, order } = body;
-      if (!name || !nameAr) {
-        return NextResponse.json({ error: "الاسم مطلوب بالعربي والإنجليزي" }, { status: 400 });
+      if (!nameAr) {
+        return NextResponse.json({ error: "الاسم بالعربي مطلوب" }, { status: 400 });
       }
 
       const badge = await prisma.badge.create({
         data: {
-          name,
+          name: name || nameAr,
           nameAr,
           description: description || "",
           descriptionAr: descriptionAr || "",
