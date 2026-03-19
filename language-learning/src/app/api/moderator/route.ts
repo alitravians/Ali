@@ -204,6 +204,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ notifications });
     }
 
+    if (section === "permissions") {
+      return NextResponse.json({ permissions });
+    }
+
     if (section === "users") {
       const query = searchParams.get("q") || "";
       const users = await prisma.user.findMany({

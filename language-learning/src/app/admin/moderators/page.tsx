@@ -88,6 +88,7 @@ const ALL_PERMISSIONS = [
   { key: "manage_moderators", label: "إدارة المشرفين" },
   { key: "view_stats", label: "عرض الإحصائيات" },
   { key: "approve_reports", label: "اعتماد البلاغات" },
+  { key: "bold_message", label: "الكتابة بالخط العريض" },
 ];
 
 const VIOLATION_LABELS: Record<string, string> = {

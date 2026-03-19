@@ -133,10 +133,37 @@ export default function ChatPage() {
   // Ban popup for banned user trying to type
   const [showBanPopup, setShowBanPopup] = useState(false);
 
+  // Bold message mode
+  const [boldMode, setBoldMode] = useState(false);
+  const [canBold, setCanBold] = useState(false);
+
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
   const userChatRank = session?.user ? (session.user as { chatRank?: string }).chatRank : "";
   const isStaff = userRole === "admin" || userChatRank === "moderator" || userChatRank === "admin";
+
+  // Check if user has bold_message permission
+  useEffect(() => {
+    if (userRole === "admin") {
+      setCanBold(true);
+      return;
+    }
+    if (!userId) return;
+    fetch(`/api/moderator?section=dashboard`)
+      .then((r) => { if (r.ok) return r.json(); throw new Error(); })
+      .then(() => {
+        // User is a moderator, check permissions
+        fetch(`/api/moderator?section=permissions`)
+          .then((r) => { if (r.ok) return r.json(); throw new Error(); })
+          .then((data) => {
+            if (Array.isArray(data?.permissions) && (data.permissions.includes("bold_message") || data.permissions.includes("all"))) {
+              setCanBold(true);
+            }
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+  }, [userId, userRole]);
 
   // Fetch rooms
   useEffect(() => {
@@ -225,7 +252,7 @@ export default function ChatPage() {
       const res = await fetch("/api/chat/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: newMessage.trim(), roomId: activeRoom }),
+        body: JSON.stringify({ content: newMessage.trim(), roomId: activeRoom, bold: boldMode }),
       });
       const data = await res.json();
       if (data.error) {
@@ -599,13 +626,29 @@ export default function ChatPage() {
                   🚫 أنت محظور من الدردشة - اضغط هنا للتفاصيل
                 </div>
               ) : (
-                <form onSubmit={handleSend} className="flex gap-2">
+                <form onSubmit={handleSend} className="flex gap-2 items-center">
+                  {canBold && (
+                    <button
+                      type="button"
+                      onClick={() => setBoldMode(!boldMode)}
+                      title={boldMode ? "إلغاء الخط العريض" : "كتابة بالخط العريض"}
+                      className={`px-3 py-2.5 rounded-xl text-sm font-black transition-all border-2 ${
+                        boldMode
+                          ? "bg-amber-100 border-amber-400 text-amber-800 shadow-inner"
+                          : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      }`}
+                    >
+                      B
+                    </button>
+                  )}
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder="اكتب رسالتك..."
-                    className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    placeholder={boldMode ? "اكتب رسالة عريضة..." : "اكتب رسالتك..."}
+                    className={`flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                      boldMode ? "border-amber-300 bg-amber-50 font-bold" : "border-gray-200"
+                    }`}
                     maxLength={1000}
                     disabled={!activeRoom}
                   />

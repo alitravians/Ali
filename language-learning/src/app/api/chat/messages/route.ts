@@ -76,22 +76,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "المحتوى والغرفة مطلوبان" }, { status: 400 });
     }
 
-    // Check for $ bold prefix (admin/moderator only)
+    // Check for bold message (admin/moderator with bold_message permission)
     const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, chatRank: true } });
     const isStaff = user?.role === "admin" || user?.chatRank === "moderator" || user?.chatRank === "admin";
+    
+    // Check if user has bold_message permission via moderator role
+    let hasBoldPermission = user?.role === "admin"; // admin always has bold
+    if (!hasBoldPermission) {
+      const modRole = await prisma.moderatorRole.findUnique({ where: { userId }, select: { permissions: true, isActive: true } });
+      if (modRole?.isActive) {
+        const perms: string[] = JSON.parse(modRole.permissions || "[]");
+        hasBoldPermission = perms.includes("bold_message") || perms.includes("all");
+      }
+    }
+    
     let isBold = false;
     let processedContent = content.slice(0, 1000);
+    const requestedBold = body.bold === true;
 
-    if (processedContent.startsWith("$")) {
-      if (isStaff) {
-        isBold = true;
+    if (processedContent.startsWith("$") || requestedBold) {
+      if (processedContent.startsWith("$")) {
         processedContent = processedContent.slice(1).trim();
+      }
+      if (hasBoldPermission || isStaff) {
+        isBold = true;
         if (!processedContent) {
           return NextResponse.json({ error: "الرسالة فارغة" }, { status: 400 });
         }
       } else {
-        // Strip $ for non-staff users silently
-        processedContent = processedContent.slice(1).trim();
         if (!processedContent) {
           return NextResponse.json({ error: "الرسالة فارغة" }, { status: 400 });
         }
