@@ -46,24 +46,25 @@ const BUBBLE_PRESETS = [
   { name: "قوس قزح", nameAr: "فقاعة قوس قزح", bg: "linear-gradient(135deg, #ef4444, #f59e0b, #22c55e, #3b82f6, #8b5cf6)", text: "#fff", border: "#6366f1" },
 ];
 
-// Predefined entry effects - professional animations
+// Predefined entry effects - professional animations with sounds
 const EFFECT_PRESETS = [
-  { name: "توهج", nameAr: "تأثير التوهج", effect: "glow", icon: "🔆", rarity: "common", color: "#fbbf24", desc: "توهج ضوئي ناعم" },
-  { name: "نيون", nameAr: "تأثير النيون", effect: "neon", icon: "💜", rarity: "uncommon", color: "#8b5cf6", desc: "إضاءة نيون نابضة" },
-  { name: "شرارات", nameAr: "تأثير الشرارات", effect: "sparks", icon: "⚡", rarity: "uncommon", color: "#f59e0b", desc: "شرارات متطايرة" },
-  { name: "نجوم", nameAr: "تأثير النجوم", effect: "stars", icon: "⭐", rarity: "rare", color: "#60a5fa", desc: "نجوم متلألئة" },
-  { name: "بريق", nameAr: "تأثير البريق", effect: "sparkle", icon: "✨", rarity: "uncommon", color: "#6366f1", desc: "بريق لامع" },
-  { name: "ألعاب نارية", nameAr: "تأثير الألعاب النارية", effect: "fireworks", icon: "🎆", rarity: "epic", color: "#a855f7", desc: "ألعاب نارية منفجرة" },
-  { name: "قلوب", nameAr: "تأثير القلوب", effect: "hearts", icon: "❤️", rarity: "rare", color: "#ec4899", desc: "قلوب طائرة" },
-  { name: "فقاعات", nameAr: "تأثير الفقاعات", effect: "bubbles", icon: "🫧", rarity: "common", color: "#06b6d4", desc: "فقاعات عائمة" },
-  { name: "برق", nameAr: "تأثير البرق", effect: "lightning", icon: "⚡", rarity: "rare", color: "#3b82f6", desc: "صواعق برق" },
-  { name: "تاج", nameAr: "تأثير التاج الملكي", effect: "crown", icon: "👑", rarity: "epic", color: "#eab308", desc: "تاج ملكي فاخر" },
-  { name: "نار", nameAr: "تأثير النار", effect: "fire", icon: "🔥", rarity: "rare", color: "#ef4444", desc: "ألسنة لهب" },
-  { name: "إطار ملكي", nameAr: "تأثير الإطار الملكي", effect: "royal", icon: "👑", rarity: "legendary", color: "#eab308", desc: "إطار ملكي ذهبي" },
-  { name: "أسطوري", nameAr: "تأثير أسطوري", effect: "legendary", icon: "🐉", rarity: "legendary", color: "#a855f7", desc: "تأثير أسطوري خرافي" },
-  { name: "ثلوج", nameAr: "تأثير الثلوج", effect: "seasonal_snow", icon: "❄️", rarity: "rare", color: "#bae6fd", desc: "ثلوج موسمية" },
-  { name: "أزهار الكرز", nameAr: "تأثير أزهار الكرز", effect: "seasonal_cherry", icon: "🌸", rarity: "epic", color: "#f472b6", desc: "أزهار كرز متساقطة" },
-  { name: "أوراق الخريف", nameAr: "تأثير أوراق الخريف", effect: "seasonal_leaves", icon: "🍂", rarity: "rare", color: "#b45309", desc: "أوراق خريف متساقطة" },
+  { name: "توهج", nameAr: "تأثير التوهج", effect: "glow", icon: "🔆", rarity: "common", color: "#fbbf24", desc: "توهج ضوئي ناعم", soundFile: "entry_glow.wav" },
+  { name: "نيون", nameAr: "تأثير النيون", effect: "neon", icon: "💜", rarity: "uncommon", color: "#8b5cf6", desc: "إضاءة نيون نابضة", soundFile: "entry_neon.wav" },
+  { name: "شرارات", nameAr: "تأثير الشرارات", effect: "sparks", icon: "⚡", rarity: "uncommon", color: "#f59e0b", desc: "شرارات متطايرة", soundFile: "entry_sparks.wav" },
+  { name: "نجوم", nameAr: "تأثير النجوم", effect: "stars", icon: "⭐", rarity: "rare", color: "#60a5fa", desc: "نجوم متلألئة", soundFile: "entry_stars.wav" },
+  { name: "بريق", nameAr: "تأثير البريق", effect: "sparkle", icon: "✨", rarity: "uncommon", color: "#6366f1", desc: "بريق لامع", soundFile: "entry_sparkle.wav" },
+  { name: "ألعاب نارية", nameAr: "تأثير الألعاب النارية", effect: "fireworks", icon: "🎆", rarity: "epic", color: "#a855f7", desc: "ألعاب نارية منفجرة", soundFile: "entry_fireworks.wav" },
+  { name: "قلوب", nameAr: "تأثير القلوب", effect: "hearts", icon: "❤️", rarity: "rare", color: "#ec4899", desc: "قلوب طائرة", soundFile: "entry_hearts.wav" },
+  { name: "فقاعات", nameAr: "تأثير الفقاعات", effect: "bubbles", icon: "🫧", rarity: "common", color: "#06b6d4", desc: "فقاعات عائمة", soundFile: "entry_bubbles.wav" },
+  { name: "برق", nameAr: "تأثير البرق", effect: "lightning", icon: "⚡", rarity: "rare", color: "#3b82f6", desc: "صواعق برق", soundFile: "entry_lightning.wav" },
+  { name: "تاج", nameAr: "تأثير التاج الملكي", effect: "crown", icon: "👑", rarity: "epic", color: "#eab308", desc: "تاج ملكي فاخر", soundFile: "entry_crown.wav" },
+  { name: "نار", nameAr: "تأثير النار", effect: "fire", icon: "🔥", rarity: "rare", color: "#ef4444", desc: "ألسنة لهب", soundFile: "entry_fire.wav" },
+  { name: "إطار ملكي", nameAr: "تأثير الإطار الملكي", effect: "royal", icon: "👑", rarity: "legendary", color: "#eab308", desc: "إطار ملكي ذهبي", soundFile: "entry_royal.wav" },
+  { name: "أسطوري", nameAr: "تأثير أسطوري", effect: "legendary", icon: "🐉", rarity: "legendary", color: "#a855f7", desc: "تأثير أسطوري خرافي", soundFile: "entry_legendary.wav" },
+  { name: "ثلوج", nameAr: "تأثير الثلوج", effect: "seasonal_snow", icon: "❄️", rarity: "rare", color: "#bae6fd", desc: "ثلوج موسمية", soundFile: "entry_snow.wav" },
+  { name: "أزهار الكرز", nameAr: "تأثير أزهار الكرز", effect: "seasonal_cherry", icon: "🌸", rarity: "epic", color: "#f472b6", desc: "أزهار كرز متساقطة", soundFile: "entry_cherry.wav" },
+  { name: "أوراق الخريف", nameAr: "تأثير أوراق الخريف", effect: "seasonal_leaves", icon: "🍂", rarity: "rare", color: "#b45309", desc: "أوراق خريف متساقطة", soundFile: "entry_leaves.wav" },
+  { name: "عتابة", nameAr: "تأثير العتابة", effect: "legendary", icon: "🎵", rarity: "legendary", color: "#e11d48", desc: "تأثير عتابة مع فيديو وصوت", soundFile: "entry_3taba.mp3", videoFile: "entry_3taba.mp4" },
 ];
 
 interface InventoryItem {
@@ -237,6 +238,10 @@ export default function AdminInventoryPage() {
         if (editingItem) fd.append("itemId", editingItem.id);
         await fetch("/api/admin/inventory", { method: "POST", body: fd });
       } else {
+        // Include sound/video URLs from presets if available
+        const extraData: Record<string, string> = {};
+        if (soundPreview && !soundFile) extraData.soundUrl = soundPreview;
+        if (videoPreview && !videoFile) extraData.videoUrl = videoPreview;
         await fetch("/api/admin/inventory", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -245,6 +250,7 @@ export default function AdminInventoryPage() {
             itemId: editingItem?.id,
             effectDuration,
             ...formData,
+            ...extraData,
           }),
         });
       }
@@ -334,6 +340,14 @@ export default function AdminInventoryPage() {
       rarity: preset.rarity,
       previewData: JSON.stringify({ effect: preset.effect, rarity: preset.rarity }),
     });
+    // Auto-set sound preview from preset
+    if (preset.soundFile) {
+      setSoundPreview(`/api/effects?file=${preset.soundFile}`);
+    }
+    // Auto-set video preview from preset
+    if (preset.videoFile) {
+      setVideoPreview(`/api/effects?file=${preset.videoFile}`);
+    }
   };
 
   const filteredItems = typeFilter === "all" ? items : items.filter((i) => i.type === typeFilter);

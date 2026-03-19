@@ -195,6 +195,8 @@ export async function POST(request: Request) {
           icon: body.icon || "✨",
           color: body.color || "#6366f1",
           previewData: body.previewData || "{}",
+          videoUrl: body.videoUrl || "",
+          soundUrl: body.soundUrl || "",
           effectDuration: body.effectDuration ? parseInt(body.effectDuration) : 5,
           category: body.category || "general",
           rarity: body.rarity || "common",
