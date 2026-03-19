@@ -87,6 +87,10 @@ export default function AdminDashboard() {
               { label: "المشرفين", href: "/admin/moderators", icon: "👮" },
               { label: "الشارات", href: "/admin/badges", icon: "🏅" },
               { label: "الحقيبة", href: "/admin/inventory", icon: "🎒" },
+              { label: "الإعلانات", href: "/admin/announcements", icon: "📢" },
+              { label: "المتجر", href: "/admin/shop", icon: "🛒" },
+              { label: "المهام اليومية", href: "/admin/daily-quests", icon: "🎯" },
+              { label: "إعدادات XP", href: "/admin/xp-settings", icon: "⚡" },
               { label: "فحص النظام", href: "/admin/scan", icon: "🔍" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (

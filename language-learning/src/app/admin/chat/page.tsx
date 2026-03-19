@@ -111,7 +111,16 @@ function formatDate(d: string) {
 }
 
 export default function AdminChatPage() {
-  const [tab, setTab] = useState<"users" | "rooms" | "warnings" | "bans" | "appeals" | "escalations" | "logs">("users");
+  const [tab, setTab] = useState<"users" | "rooms" | "warnings" | "bans" | "appeals" | "escalations" | "logs" | "chatlock">("users");
+
+  // Chat lock state
+  const [chatLocked, setChatLocked] = useState(false);
+  const [chatLockType, setChatLockType] = useState("full");
+  const [chatLockReason, setChatLockReason] = useState("");
+  const [chatLockedBy, setChatLockedBy] = useState("");
+  const [chatLockLogs, setChatLockLogs] = useState<{id: string; action: string; lockType: string; reason: string; adminName: string; createdAt: string}[]>([]);
+  const [lockReason, setLockReason] = useState("");
+  const [lockType, setLockType] = useState("full");
   const [users, setUsers] = useState<ChatUser[]>([]);
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
   const [warnings, setWarnings] = useState<Warning[]>([]);
@@ -173,6 +182,14 @@ export default function AdminChatPage() {
       if (Array.isArray(appealsData)) setAppeals(appealsData);
       if (Array.isArray(logsData)) setLogs(logsData);
       if (Array.isArray(escalationsData)) setEscalations(escalationsData);
+
+      // Fetch chat lock status
+      const lockRes = await fetch("/api/admin/chat-lock");
+      const lockData = await lockRes.json();
+      setChatLocked(lockData.chatLocked || false);
+      setChatLockType(lockData.chatLockType || "full");
+      setChatLockReason(lockData.chatLockReason || "");
+      setChatLockedBy(lockData.chatLockedBy || "");
     } catch {
       // Silently handle fetch errors
     }
@@ -264,6 +281,28 @@ export default function AdminChatPage() {
     fetchData();
   };
 
+  const handleChatLock = async (action: "lock" | "unlock") => {
+    try {
+      const res = await fetch("/api/admin/chat-lock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, lockType: lockType, reason: lockReason }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setChatLocked(data.chatLocked);
+        setChatLockType(data.chatLockType || "full");
+        setChatLockReason(data.chatLockReason || "");
+        setChatLockedBy(data.chatLockedBy || "");
+        setLockReason("");
+        // Fetch lock logs
+        const logsRes = await fetch("/api/admin/chat-lock?logs=true");
+        const logsData = await logsRes.json();
+        if (Array.isArray(logsData)) setChatLockLogs(logsData);
+      }
+    } catch { /* silently handle */ }
+  };
+
   const tabs = [
     { id: "users" as const, label: "المستخدمين", icon: "👥", count: users.length },
     { id: "rooms" as const, label: "الغرف", icon: "💬", count: rooms.length },
@@ -272,6 +311,7 @@ export default function AdminChatPage() {
     { id: "appeals" as const, label: "الاعتراضات", icon: "📋", count: appeals.length },
     { id: "escalations" as const, label: "التصعيدات", icon: "📢", count: escalations.filter((e) => e.status === "pending").length },
     { id: "logs" as const, label: "السجلات", icon: "📜", count: logs.length },
+    { id: "chatlock" as const, label: "قفل الدردشة", icon: "🔒", count: chatLocked ? 1 : 0 },
   ];
 
   if (loading) {
@@ -624,6 +664,89 @@ export default function AdminChatPage() {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Chat Lock Tab */}
+        {tab === "chatlock" && (
+          <div className="space-y-6">
+            {/* Current Status */}
+            <div className={`card p-6 border-2 ${chatLocked ? "border-red-300 bg-red-50" : "border-emerald-300 bg-emerald-50"}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">{chatLocked ? "🔒" : "🔓"}</span>
+                  <div>
+                    <h3 className={`text-lg font-bold ${chatLocked ? "text-red-800" : "text-emerald-800"}`}>
+                      {chatLocked ? "الدردشة مقفلة" : "الدردشة مفتوحة"}
+                    </h3>
+                    {chatLocked && (
+                      <div className="text-sm text-red-600 space-y-0.5">
+                        <p>النوع: {chatLockType === "full" ? "قفل كامل" : "الأعضاء فقط"}</p>
+                        {chatLockReason && <p>السبب: {chatLockReason}</p>}
+                        {chatLockedBy && <p>بواسطة: {chatLockedBy}</p>}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {chatLocked ? (
+                  <button onClick={() => handleChatLock("unlock")} className="bg-emerald-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-emerald-600 transition">
+                    فتح الدردشة
+                  </button>
+                ) : (
+                  <div className="text-sm text-emerald-600">جميع المستخدمين يمكنهم الكتابة</div>
+                )}
+              </div>
+            </div>
+
+            {/* Lock Controls */}
+            {!chatLocked && (
+              <div className="card p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">قفل الدردشة</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">نوع القفل</label>
+                    <select value={lockType} onChange={(e) => setLockType(e.target.value)} className="input-field w-full">
+                      <option value="full">قفل كامل - لا أحد يستطيع الكتابة</option>
+                      <option value="members_only">الأعضاء فقط - فقط المشرفين والإداريين</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">السبب (اختياري)</label>
+                    <input
+                      type="text"
+                      value={lockReason}
+                      onChange={(e) => setLockReason(e.target.value)}
+                      className="input-field w-full"
+                      placeholder="سبب القفل..."
+                    />
+                  </div>
+                  <button onClick={() => handleChatLock("lock")} className="bg-red-500 text-white px-6 py-2.5 rounded-xl font-medium hover:bg-red-600 transition w-full">
+                    قفل الدردشة
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Lock Logs */}
+            {chatLockLogs.length > 0 && (
+              <div className="card p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-4">سجل القفل</h3>
+                <div className="space-y-2">
+                  {chatLockLogs.map((log) => (
+                    <div key={log.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>{log.action === "lock" ? "🔒" : "🔓"}</span>
+                        <span className="font-medium">{log.action === "lock" ? "قفل" : "فتح"}</span>
+                        {log.reason && <span className="text-gray-500">- {log.reason}</span>}
+                      </div>
+                      <div className="text-gray-400 text-xs">
+                        {log.adminName} • {formatDate(log.createdAt)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
