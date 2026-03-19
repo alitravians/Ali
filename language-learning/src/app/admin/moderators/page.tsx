@@ -431,7 +431,7 @@ export default function AdminModeratorsPage() {
                   return (
                     <div key={mod.id} className={`bg-white rounded-2xl shadow-lg border border-gray-100 transition-all duration-300 hover:shadow-xl p-5 ${!mod.isActive ? "opacity-60" : ""}`}>
                       <div className="flex items-start gap-4">
-                        <div className="w-12 h-12 rounded-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-lg overflow-hidden">
+                        <div className="w-12 h-12 rounded-lg bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-lg overflow-hidden">
                           {mod.user.avatar ? (
                             <img src={mod.user.avatar} alt="" className="w-full h-full object-cover" />
                           ) : (

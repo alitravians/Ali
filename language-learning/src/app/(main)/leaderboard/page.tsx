@@ -74,7 +74,7 @@ export default function LeaderboardPage() {
                 return (
                   <div key={e.id} className={`card p-4 text-center ${order === 1 ? "-mt-4 shadow-lg" : ""} ${e.id === userId ? "ring-2 ring-primary-400" : ""}`}>
                     <div className="text-2xl mb-1">{RANK_ICONS[order - 1]}</div>
-                    <div className={`${sizes[order as 1|2|3]} mx-auto rounded-full overflow-hidden bg-gray-100 mb-2`}>
+                    <div className={`${sizes[order as 1|2|3]} mx-auto rounded-lg overflow-hidden bg-gray-100 mb-2`}>
                       {e.avatar ? (
                         <img src={e.avatar} alt={e.name} className="w-full h-full object-cover" />
                       ) : (
@@ -126,7 +126,7 @@ export default function LeaderboardPage() {
                         </td>
                         <td className="p-3">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-100 flex-shrink-0">
+                            <div className="w-8 h-8 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                               {e.avatar ? (
                                 <img src={e.avatar} alt={e.name} className="w-full h-full object-cover" />
                               ) : (

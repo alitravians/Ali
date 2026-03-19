@@ -332,19 +332,19 @@ export default function AdminTeamPage() {
                               </div>
                             </td>
                             <td className="py-3 px-4">
-                              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
-                                {member.user.avatar ? (
-                                  <img src={member.user.avatar} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                  <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
-                                    {member.user.name.charAt(0)}
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <p className="font-medium text-gray-900 text-sm">{member.user.name}</p>
-                              <p className="text-gray-400 text-xs">{member.user.email}</p>
+                                                          <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-gray-200">
+                                                            {member.user.avatar ? (
+                                                              <img src={member.user.avatar} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                              <div className="w-full h-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                                                                {member.user.name.charAt(0)}
+                                                              </div>
+                                                            )}
+                                                          </div>
+                                                        </td>
+                                                        <td className="py-3 px-4">
+                                                          <p className="font-medium text-gray-900 text-sm">{member.user.name}</p>
+                                                          <p className="text-gray-400 text-xs">{member.user.email}</p>
                             </td>
                             <td className="py-3 px-4">
                               <p className="text-sm text-gray-700">{member.roleAr || member.role || "—"}</p>
@@ -509,7 +509,7 @@ export default function AdminTeamPage() {
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-gray-900 mb-4">تعديل بيانات العضو</h3>
             <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-3 mb-4">
-              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+              <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-gray-200">
                 {editMember.user.avatar ? (
                   <img src={editMember.user.avatar} alt="" className="w-full h-full object-cover" />
                 ) : (

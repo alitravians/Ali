@@ -268,7 +268,7 @@ export default function ProfilePage() {
           <div className="max-w-5xl mx-auto px-4">
             <div className="flex flex-col md:flex-row items-center gap-6">
               <div className="relative group">
-                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-white/30 shadow-lg">
+                <div className="w-[150px] h-[150px] rounded-lg overflow-hidden border-4 border-white/30 shadow-lg">
                   {avatar ? (
                     <img src={avatar} alt="الصورة الشخصية" className="w-full h-full object-cover" />
                   ) : (
@@ -284,7 +284,7 @@ export default function ProfilePage() {
                   onChange={handleAvatarUpload}
                   className="hidden"
                 />
-                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                   <button
                     onClick={() => avatarInputRef.current?.click()}
                     className="text-white text-xs font-medium"
