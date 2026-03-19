@@ -86,6 +86,7 @@ export default function AdminDashboard() {
               { label: "فريق العمل", href: "/admin/team", icon: "👨‍💼" },
               { label: "المشرفين", href: "/admin/moderators", icon: "👮" },
               { label: "الشارات", href: "/admin/badges", icon: "🏅" },
+              { label: "الحقيبة", href: "/admin/inventory", icon: "🎒" },
               { label: "فحص النظام", href: "/admin/scan", icon: "🔍" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (

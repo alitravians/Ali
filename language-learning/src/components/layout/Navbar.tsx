@@ -214,6 +214,7 @@ export default function Navbar() {
                     </Link>
                   )}
                   <Link href="/chat" className="nav-link">💬 الدردشة</Link>
+                  <Link href="/inventory" className="nav-link">🎒 حقيبتي</Link>
                   <Link href="/profile/tickets" className="nav-link">🎫 الدعم الفني</Link>
                   <Link href="/profile" className="nav-link">ملفي الشخصي</Link>
                   {/* Notification Bell */}
@@ -349,6 +350,7 @@ export default function Navbar() {
                     </Link>
                   )}
                   <Link href="/chat" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>💬 الدردشة</Link>
+                  <Link href="/inventory" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>🎒 حقيبتي</Link>
                   <Link href="/profile/tickets" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>🎫 الدعم الفني</Link>
                   <Link href="/profile" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>ملفي الشخصي</Link>
                   <Link href="/profile/notifications" className="block nav-link py-2" onClick={() => setIsMenuOpen(false)}>

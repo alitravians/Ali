@@ -40,6 +40,7 @@ model User {
   moderatorRole   ModeratorRole? @relation("ModeratorUser")
   modReports      ModReport[] @relation("ReportedUser")
   modViolations   ModViolationRecord[] @relation("ViolationUser")
+  inventoryItems  UserInventory[]
 }
 
 model Language {
@@ -624,16 +625,73 @@ model Badge {
 }
 
 model BadgeAssignment {
-  id        String   @id @default(cuid())
-  badgeId   String
-  userId    String
-  assignedBy String  @default("admin")
-  note      String   @default("")
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  badgeId     String
+  userId      String
+  assignedBy  String   @default("admin")
+  note        String   @default("")
+  isPermanent Boolean  @default(true)
+  durationDays Int     @default(0) // 0 = permanent
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
 
-  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
 
   @@unique([badgeId, userId])
+}
+
+// ==================== Inventory System (الحقيبة) ====================
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String
+  description   String   @default("")
+  descriptionAr String   @default("")
+  type          String   // badge | bubble | entry_effect | necklace | name_frame | avatar_frame | name_color | profile_bg
+  icon          String   @default("✨")
+  imageUrl      String   @default("") // base64 encoded image
+  color         String   @default("#6366f1")
+  previewData   String   @default("{}") // JSON config for visual preview
+  category      String   @default("general") // general | achievement | rank | special | event | seasonal
+  rarity        String   @default("common") // common | uncommon | rare | epic | legendary
+  isActive      Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  userItems     UserInventory[]
+}
+
+model UserInventory {
+  id            String    @id @default(cuid())
+  userId        String
+  itemId        String
+  status        String    @default("inactive") // active | inactive | expired | revoked
+  isPermanent   Boolean   @default(true)
+  durationDays  Int       @default(0)
+  grantedAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  activatedAt   DateTime?
+  revokedAt     DateTime?
+  revokedBy     String    @default("")
+  revokeReason  String    @default("")
+  grantedBy     String    @default("admin")
+  adminNote     String    @default("")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item          InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+}
+
+model InventoryLog {
+  id          String   @id @default(cuid())
+  userId      String
+  itemId      String
+  action      String   // granted | activated | deactivated | expired | revoked | swapped
+  details     String   @default("")
+  performedBy String   @default("")
+  createdAt   DateTime @default(now())
 }
 
 // ==================== Team System ====================

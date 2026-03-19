@@ -48,9 +48,36 @@ export async function GET(request: Request) {
       userBadgesMap[ba.userId].push({ icon: ba.badge.icon, imageUrl: ba.badge.imageUrl, nameAr: ba.badge.nameAr, color: ba.badge.color });
     }
 
+    // Get active inventory items (bubbles, necklaces, entry effects) for users
+    const activeInventory = await prisma.userInventory.findMany({
+      where: {
+        userId: { in: userIds },
+        status: "active",
+        item: { type: { in: ["bubble", "necklace", "entry_effect"] } },
+      },
+      include: { item: true },
+    });
+
+    const userInventoryMap: Record<string, Record<string, { previewData: string; icon: string; color: string; nameAr: string }>> = {};
+    for (const inv of activeInventory) {
+      // Auto-expire check
+      if (!inv.isPermanent && inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
+        await prisma.userInventory.update({ where: { id: inv.id }, data: { status: "expired" } });
+        continue;
+      }
+      if (!userInventoryMap[inv.userId]) userInventoryMap[inv.userId] = {};
+      userInventoryMap[inv.userId][inv.item.type] = {
+        previewData: inv.item.previewData,
+        icon: inv.item.icon,
+        color: inv.item.color,
+        nameAr: inv.item.nameAr,
+      };
+    }
+
     const enriched = messages.map((m) => ({
       ...m,
       userBadges: userBadgesMap[m.userId] || [],
+      userInventory: userInventoryMap[m.userId] || {},
     }));
 
     return NextResponse.json(enriched.reverse());

@@ -28,6 +28,13 @@ interface UserBadge {
   color: string;
 }
 
+interface InventoryEffect {
+  previewData: string;
+  icon: string;
+  color: string;
+  nameAr: string;
+}
+
 interface ChatMessage {
   id: string;
   content: string;
@@ -35,6 +42,7 @@ interface ChatMessage {
   createdAt: string;
   user: ChatUser;
   userBadges?: UserBadge[];
+  userInventory?: Record<string, InventoryEffect>;
 }
 
 interface BanInfo {
@@ -594,32 +602,60 @@ export default function ChatPage() {
                               ))}
                             </div>
                           )}
-                          {/* Message bubble */}
-                          <div
-                            className={`rounded-2xl px-4 py-2 relative ${
-                              isMe
-                                ? "bg-primary-600 text-white rounded-br-md"
-                                : msg.content.startsWith("[BOLD]")
-                                  ? "bg-amber-50 border-2 border-amber-300 text-gray-900 rounded-bl-md shadow-md"
+                          {/* Necklace display */}
+                          {!isMe && msg.userInventory?.necklace && (() => {
+                            try {
+                              return (
+                                <div className="flex items-center gap-1 mb-0.5 px-1">
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: msg.userInventory!.necklace.color + "20", color: msg.userInventory!.necklace.color }}>
+                                    {msg.userInventory!.necklace.icon} {msg.userInventory!.necklace.nameAr}
+                                  </span>
+                                </div>
+                              );
+                            } catch { return null; }
+                          })()}
+                          {/* Message bubble - with custom bubble support */}
+                          {(() => {
+                            let bubbleStyle: React.CSSProperties = {};
+                            let bubbleClass = "";
+                            let hasBubble = false;
+                            if (!isMe && msg.userInventory?.bubble) {
+                              try {
+                                const bData = JSON.parse(msg.userInventory.bubble.previewData);
+                                if (bData.bg) {
+                                  bubbleStyle = { background: bData.bg, color: bData.text || "#fff", border: `2px solid ${bData.border || "transparent"}` };
+                                  bubbleClass = "rounded-2xl px-4 py-2 relative rounded-bl-md shadow-sm";
+                                  hasBubble = true;
+                                }
+                              } catch { /* ignore */ }
+                            }
+                            if (!hasBubble) {
+                              bubbleClass = `rounded-2xl px-4 py-2 relative ${
+                                isMe ? "bg-primary-600 text-white rounded-br-md"
+                                  : msg.content.startsWith("[BOLD]") ? "bg-amber-50 border-2 border-amber-300 text-gray-900 rounded-bl-md shadow-md"
                                   : "bg-white border border-gray-200 text-gray-800 rounded-bl-md shadow-sm"
-                            }`}
-                          >
-                            {msg.content.startsWith("[BOLD]") ? (
-                              <div className="flex items-start gap-1.5">
-                                <span className="text-amber-500 mt-0.5">&#9733;</span>
-                                <p className="text-base font-bold text-black leading-relaxed whitespace-pre-wrap break-words">
-                                  {msg.content.slice(6)}
-                                </p>
+                              }`;
+                            }
+                            return (
+                              <div className={bubbleClass} style={bubbleStyle}>
+                                {msg.content.startsWith("[BOLD]") ? (
+                                  <div className="flex items-start gap-1.5">
+                                    <span className="text-amber-500 mt-0.5">&#9733;</span>
+                                    <p className="text-base font-bold leading-relaxed whitespace-pre-wrap break-words" style={hasBubble ? {} : { color: "black" }}>
+                                      {msg.content.slice(6)}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                                )}
+                                <div className={`flex items-center gap-2 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                                  <span className={`text-[10px] ${isMe ? "text-primary-200" : hasBubble ? "opacity-70" : "text-gray-400"}`}>
+                                    {formatTime(msg.createdAt)}
+                                  </span>
+                                </div>
                               </div>
-                            ) : (
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                            )}
-                            <div className={`flex items-center gap-2 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                              <span className={`text-[10px] ${isMe ? "text-primary-200" : "text-gray-400"}`}>
-                                {formatTime(msg.createdAt)}
-                              </span>
-                            </div>
-                          </div>
+                            );
+                          })()}
                           {/* Admin delete button */}
                           {userRole === "admin" && !isMe && (
                             <button
