@@ -6,8 +6,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const rule = await prisma.grammarRule.create({ data: body });
     return NextResponse.json(rule, { status: 201 });
-  } catch (error) {
-    console.error("Error creating grammar rule:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

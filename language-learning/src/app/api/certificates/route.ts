@@ -50,8 +50,7 @@ export async function GET(req: NextRequest) {
       orderBy: { issueDate: "desc" },
     });
     return NextResponse.json(certificates);
-  } catch (error) {
-    console.error("Error fetching certificates:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -152,8 +151,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(certificate, { status: 201 });
-  } catch (error) {
-    console.error("Error creating certificate:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

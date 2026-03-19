@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeInput } from "@/lib/validation";
+
+const ALLOWED_QUEST_FIELDS = [
+  "title", "titleAr", "description", "descriptionAr", "type",
+  "target", "xpReward", "pointsReward", "order", "isActive",
+];
 
 export async function GET() {
   try {
@@ -19,7 +25,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     const body = await req.json();
-    const quest = await prisma.dailyQuest.create({ data: body });
+    const safeData: Record<string, unknown> = {};
+    for (const key of ALLOWED_QUEST_FIELDS) {
+      if (key in body && body[key] !== undefined) {
+        if (key === "title" || key === "titleAr" || key === "description" || key === "descriptionAr") {
+          safeData[key] = sanitizeInput(String(body[key]));
+        } else {
+          safeData[key] = body[key];
+        }
+      }
+    }
+    const quest = await prisma.dailyQuest.create({ data: safeData as Parameters<typeof prisma.dailyQuest.create>[0]["data"] });
     return NextResponse.json(quest);
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
@@ -33,9 +49,19 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     const body = await req.json();
-    const { id, ...data } = body;
+    const { id } = body;
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
-    const quest = await prisma.dailyQuest.update({ where: { id }, data });
+    const safeData: Record<string, unknown> = {};
+    for (const key of ALLOWED_QUEST_FIELDS) {
+      if (key in body && body[key] !== undefined) {
+        if (key === "title" || key === "titleAr" || key === "description" || key === "descriptionAr") {
+          safeData[key] = sanitizeInput(String(body[key]));
+        } else {
+          safeData[key] = body[key];
+        }
+      }
+    }
+    const quest = await prisma.dailyQuest.update({ where: { id }, data: safeData });
     return NextResponse.json(quest);
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });

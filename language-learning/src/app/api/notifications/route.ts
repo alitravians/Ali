@@ -43,8 +43,7 @@ export async function GET(req: NextRequest) {
       take: limit,
     });
     return NextResponse.json(notifications);
-  } catch (error) {
-    console.error("Error fetching notifications:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -78,8 +77,7 @@ export async function PUT(req: NextRequest) {
     }
 
     return NextResponse.json({ message: "تم التحديث" });
-  } catch (error) {
-    console.error("Error updating notifications:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -105,8 +103,7 @@ export async function DELETE(req: NextRequest) {
     }
 
     return NextResponse.json({ message: "تم حذف الإشعار" });
-  } catch (error) {
-    console.error("Error deleting notification:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

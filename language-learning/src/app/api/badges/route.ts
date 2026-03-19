@@ -34,8 +34,7 @@ export async function GET() {
       }));
 
     return NextResponse.json(badges);
-  } catch (error) {
-    console.error("Error fetching badges:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

@@ -50,8 +50,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ message: "تم إرسال رسالتك بنجاح. سنتواصل معك قريباً." });
-  } catch (error) {
-    console.error("Error processing contact form:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

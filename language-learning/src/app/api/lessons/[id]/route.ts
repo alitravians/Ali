@@ -21,8 +21,7 @@ export async function GET(
     }
 
     return NextResponse.json(lesson);
-  } catch (error) {
-    console.error("Error fetching lesson:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -38,8 +37,7 @@ export async function PUT(
       data: body,
     });
     return NextResponse.json(lesson);
-  } catch (error) {
-    console.error("Error updating lesson:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -51,8 +49,7 @@ export async function DELETE(
   try {
     await prisma.lesson.delete({ where: { id: params.id } });
     return NextResponse.json({ message: "تم الحذف بنجاح" });
-  } catch (error) {
-    console.error("Error deleting lesson:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

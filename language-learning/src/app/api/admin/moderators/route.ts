@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { hash } from "bcryptjs";
+import { sanitizeInput } from "@/lib/validation";
+
+const VALID_RANKS = ["assistant", "moderator", "head"];
 
 // Helper: get default permissions for rank
 function getDefaultPermissions(rank: string): string[] {
@@ -98,8 +101,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "قسم غير معروف" }, { status: 400 });
-  } catch (error) {
-    console.error("Admin moderators GET error:", error);
+  } catch {
     return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }
@@ -121,6 +123,11 @@ export async function POST(req: NextRequest) {
       const { userId, rank, pin } = body;
       if (!userId || !rank) {
         return NextResponse.json({ error: "بيانات غير مكتملة" }, { status: 400 });
+      }
+
+      // Validate rank against whitelist
+      if (!VALID_RANKS.includes(rank)) {
+        return NextResponse.json({ error: "الرتبة غير صالحة. الرتب المسموحة: assistant, moderator, head" }, { status: 400 });
       }
 
       const existing = await prisma.moderatorRole.findUnique({ where: { userId } });
@@ -193,6 +200,9 @@ export async function POST(req: NextRequest) {
 
       const data: Record<string, unknown> = {};
       if (rank !== undefined) {
+        if (!VALID_RANKS.includes(rank)) {
+          return NextResponse.json({ error: "الرتبة غير صالحة" }, { status: 400 });
+        }
         data.rank = rank;
         if (!permissions) {
           data.permissions = JSON.stringify(getDefaultPermissions(rank));
@@ -267,12 +277,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "العنوان والمحتوى مطلوبان" }, { status: 400 });
       }
 
+      // Validate priority and targetType
+      const validPriorities = ["normal", "important", "urgent"];
+      const validTargetTypes = ["all", "rank", "specific"];
+      const safePriority = validPriorities.includes(priority) ? priority : "normal";
+      const safeTargetType = validTargetTypes.includes(targetType) ? targetType : "all";
+
       const instruction = await prisma.modInstruction.create({
         data: {
-          title,
-          content,
-          priority: priority || "normal",
-          targetType: targetType || "all",
+          title: sanitizeInput(title),
+          content: sanitizeInput(content),
+          priority: safePriority,
+          targetType: safeTargetType,
           targetRank: targetRank || "",
           targetModId: targetModId || "",
           sentBy: adminId,
@@ -344,8 +360,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
-  } catch (error) {
-    console.error("Admin moderators POST error:", error);
+  } catch {
     return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }

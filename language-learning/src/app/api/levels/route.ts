@@ -17,8 +17,7 @@ export async function GET(req: NextRequest) {
       orderBy: { order: "asc" },
     });
     return NextResponse.json(levels);
-  } catch (error) {
-    console.error("Error fetching levels:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -39,8 +38,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(level, { status: 201 });
-  } catch (error) {
-    console.error("Error creating level:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

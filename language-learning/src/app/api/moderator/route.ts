@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { hash, compare } from "bcryptjs";
+import { sanitizeInput } from "@/lib/validation";
+import { checkRateLimit, RATE_LIMITS } from "@/lib/rate-limit";
 
 // Helper: check if user is a moderator and get their role
 async function getModeratorRole(userId: string) {
@@ -273,8 +275,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "قسم غير معروف" }, { status: 400 });
-  } catch (error) {
-    console.error("Moderator GET error:", error);
+  } catch {
     return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }
@@ -304,6 +305,13 @@ export async function POST(req: NextRequest) {
       if (!modRole.securityPin) {
         return NextResponse.json({ error: "لم يتم تعيين رمز أمان" }, { status: 400 });
       }
+
+      // Rate limiting: 5 PIN attempts per 15 minutes
+      const pinRateCheck = checkRateLimit(`mod_pin:${userId}`, RATE_LIMITS.LOGIN);
+      if (!pinRateCheck.allowed) {
+        return NextResponse.json({ error: "تم تجاوز الحد المسموح من المحاولات. حاول مرة أخرى بعد 15 دقيقة" }, { status: 429 });
+      }
+
       const valid = await compare(pin, modRole.securityPin);
       if (!valid) {
         return NextResponse.json({ error: "رمز الأمان غير صحيح" }, { status: 401 });
@@ -351,15 +359,19 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "بيانات البلاغ غير مكتملة" }, { status: 400 });
       }
 
+      // Validate severity
+      const validSeverities = ["minor", "medium", "serious", "critical"];
+      const safeSeverity = validSeverities.includes(severity) ? severity : "medium";
+
       const report = await prisma.modReport.create({
         data: {
           reportedUserId,
           reportedByModId: modRole.id,
-          violationType,
-          severity: severity || "medium",
-          description,
-          evidence: evidence || "",
-          suggestedAction: suggestedAction || "",
+          violationType: sanitizeInput(violationType),
+          severity: safeSeverity,
+          description: sanitizeInput(description),
+          evidence: evidence ? sanitizeInput(evidence) : "",
+          suggestedAction: suggestedAction ? sanitizeInput(suggestedAction) : "",
         },
       });
 
@@ -585,8 +597,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
-  } catch (error) {
-    console.error("Moderator POST error:", error);
+  } catch {
     return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }

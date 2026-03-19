@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { compare } from "bcryptjs";
 import prisma from "./prisma";
+import { checkRateLimit, RATE_LIMITS } from "./rate-limit";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,13 +12,20 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("بيانات الدخول غير صحيحة");
         }
 
+        // Rate limiting: 5 attempts per 15 minutes per email
+        const loginKey = `login:${credentials.email.toLowerCase()}`;
+        const rateCheck = checkRateLimit(loginKey, RATE_LIMITS.LOGIN);
+        if (!rateCheck.allowed) {
+          throw new Error("تم تجاوز الحد المسموح من المحاولات. حاول مرة أخرى بعد 15 دقيقة");
+        }
+
         const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
+          where: { email: credentials.email.toLowerCase() },
         });
 
         if (!user) {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sanitizeInput } from "@/lib/validation";
 
 const BAN_DURATIONS: Record<string, number> = {
   "10m": 10,
@@ -100,7 +101,7 @@ export async function POST(request: Request) {
     const ban = await prisma.chatBan.create({
       data: {
         userId,
-        reason: reason.slice(0, 500),
+        reason: sanitizeInput(reason.slice(0, 500)),
         duration: durationMinutes,
         issuedBy: adminId,
         endsAt,

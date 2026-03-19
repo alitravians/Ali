@@ -2,6 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { sanitizeInput } from "@/lib/validation";
+
+const ALLOWED_SHOP_FIELDS = [
+  "name", "nameAr", "description", "descriptionAr", "type", "icon",
+  "price", "stock", "soldCount", "rarity", "order", "isActive",
+  "isPermanent", "durationDays", "isLimited", "limitedUntil",
+  "inventoryItemId", "imageUrl",
+];
 
 export async function GET() {
   try {
@@ -22,7 +30,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     const body = await req.json();
-    const item = await prisma.shopItem.create({ data: body });
+    // Whitelist allowed fields to prevent mass assignment
+    const safeData: Record<string, unknown> = {};
+    for (const key of ALLOWED_SHOP_FIELDS) {
+      if (key in body && body[key] !== undefined) {
+        if (key === "name" || key === "nameAr" || key === "description" || key === "descriptionAr") {
+          safeData[key] = sanitizeInput(String(body[key]));
+        } else if (key === "limitedUntil" && body[key]) {
+          safeData[key] = new Date(body[key]);
+        } else {
+          safeData[key] = body[key];
+        }
+      }
+    }
+    const item = await prisma.shopItem.create({ data: safeData as Parameters<typeof prisma.shopItem.create>[0]["data"] });
     return NextResponse.json(item);
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
@@ -36,10 +57,22 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     const body = await req.json();
-    const { id, ...data } = body;
+    const { id } = body;
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
-    if (data.limitedUntil) data.limitedUntil = new Date(data.limitedUntil);
-    const item = await prisma.shopItem.update({ where: { id }, data });
+    // Whitelist allowed fields to prevent mass assignment
+    const safeData: Record<string, unknown> = {};
+    for (const key of ALLOWED_SHOP_FIELDS) {
+      if (key in body && body[key] !== undefined) {
+        if (key === "name" || key === "nameAr" || key === "description" || key === "descriptionAr") {
+          safeData[key] = sanitizeInput(String(body[key]));
+        } else if (key === "limitedUntil" && body[key]) {
+          safeData[key] = new Date(body[key]);
+        } else {
+          safeData[key] = body[key];
+        }
+      }
+    }
+    const item = await prisma.shopItem.update({ where: { id }, data: safeData });
     return NextResponse.json(item);
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });

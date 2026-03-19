@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { createNotification } from "@/lib/notifications";
 import { requireAdmin } from "@/lib/admin-auth";
+import { sanitizeInput } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   try {
@@ -43,8 +44,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json(logs);
-  } catch (error) {
-    console.error("Error fetching admin notifications:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -54,7 +54,12 @@ export async function POST(req: NextRequest) {
     const auth = await requireAdmin();
     if (!auth.authorized) return auth.response;
 
-    const { title, titleAr, message, messageAr, category, link, priority, targetType, targetUserIds } = await req.json();
+    const body = await req.json();
+    const { category, link, priority, targetType, targetUserIds } = body;
+    const title = body.title ? sanitizeInput(body.title) : "";
+    const titleAr = body.titleAr ? sanitizeInput(body.titleAr) : "";
+    const message = body.message ? sanitizeInput(body.message) : "";
+    const messageAr = body.messageAr ? sanitizeInput(body.messageAr) : "";
 
     if (!title && !titleAr) {
       return NextResponse.json({ error: "العنوان مطلوب" }, { status: 400 });
@@ -116,8 +121,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ message: "تم إرسال الإشعارات", sentCount }, { status: 201 });
-  } catch (error) {
-    console.error("Error sending admin notification:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

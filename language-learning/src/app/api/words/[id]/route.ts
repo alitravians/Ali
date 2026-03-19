@@ -6,8 +6,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     const body = await req.json();
     const word = await prisma.word.update({ where: { id: params.id }, data: body });
     return NextResponse.json(word);
-  } catch (error) {
-    console.error("Error updating word:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -16,8 +15,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     await prisma.word.delete({ where: { id: params.id } });
     return NextResponse.json({ message: "تم الحذف بنجاح" });
-  } catch (error) {
-    console.error("Error deleting word:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

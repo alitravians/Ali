@@ -9,8 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
     const question = await prisma.question.update({ where: { id: params.id }, data: body });
     return NextResponse.json(question);
-  } catch (error) {
-    console.error("Error updating question:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -19,8 +18,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     await prisma.question.delete({ where: { id: params.id } });
     return NextResponse.json({ message: "تم الحذف بنجاح" });
-  } catch (error) {
-    console.error("Error deleting question:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

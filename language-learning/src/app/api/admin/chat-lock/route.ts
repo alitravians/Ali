@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
 
     const logs = await prisma.chatLockLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 });
     return NextResponse.json({ success: true, logs });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
   }
 }

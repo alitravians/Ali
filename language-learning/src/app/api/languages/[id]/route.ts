@@ -29,8 +29,7 @@ export async function GET(
     }
 
     return NextResponse.json(language);
-  } catch (error) {
-    console.error("Error fetching language:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -46,8 +45,7 @@ export async function PUT(
       data: body,
     });
     return NextResponse.json(language);
-  } catch (error) {
-    console.error("Error updating language:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -59,8 +57,7 @@ export async function DELETE(
   try {
     await prisma.language.delete({ where: { id: params.id } });
     return NextResponse.json({ message: "تم الحذف بنجاح" });
-  } catch (error) {
-    console.error("Error deleting language:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

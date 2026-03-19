@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import sharp from "sharp";
+import { sanitizeInput } from "@/lib/validation";
 
 const BADGE_IMAGE_SIZE = 64; // 64x64 pixels for badge icons
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -66,8 +67,7 @@ export async function GET(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "قسم غير معروف" }, { status: 400 });
-  } catch (error) {
-    console.error("Admin badges GET error:", error);
+  } catch {
     return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }
@@ -162,15 +162,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "الاسم بالعربي مطلوب" }, { status: 400 });
       }
 
+      const validCategories = ["general", "special", "event", "achievement", "rank"];
+      const safeCategory = validCategories.includes(category) ? category : "general";
+
       const badge = await prisma.badge.create({
         data: {
-          name: name || nameAr,
-          nameAr,
-          description: description || "",
-          descriptionAr: descriptionAr || "",
+          name: sanitizeInput(name || nameAr),
+          nameAr: sanitizeInput(nameAr),
+          description: description ? sanitizeInput(description) : "",
+          descriptionAr: descriptionAr ? sanitizeInput(descriptionAr) : "",
           icon: icon || "⭐",
           color: color || "#f59e0b",
-          category: category || "general",
+          category: safeCategory,
           order: order || 0,
         },
       });
@@ -185,14 +188,15 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "معرف الشارة مطلوب" }, { status: 400 });
       }
 
+      const validCategories = ["general", "special", "event", "achievement", "rank"];
       const data: Record<string, unknown> = {};
-      if (name !== undefined) data.name = name;
-      if (nameAr !== undefined) data.nameAr = nameAr;
-      if (description !== undefined) data.description = description;
-      if (descriptionAr !== undefined) data.descriptionAr = descriptionAr;
+      if (name !== undefined) data.name = sanitizeInput(name);
+      if (nameAr !== undefined) data.nameAr = sanitizeInput(nameAr);
+      if (description !== undefined) data.description = sanitizeInput(description);
+      if (descriptionAr !== undefined) data.descriptionAr = sanitizeInput(descriptionAr);
       if (icon !== undefined) data.icon = icon;
       if (color !== undefined) data.color = color;
-      if (category !== undefined) data.category = category;
+      if (category !== undefined) data.category = validCategories.includes(category) ? category : "general";
       if (isActive !== undefined) data.isActive = isActive;
       if (order !== undefined) data.order = order;
 
@@ -402,8 +406,7 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
-  } catch (error) {
-    console.error("Admin badges POST error:", error);
+  } catch {
     return NextResponse.json({ error: "خطأ في الخادم" }, { status: 500 });
   }
 }

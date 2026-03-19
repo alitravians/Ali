@@ -40,8 +40,7 @@ export async function GET(req: NextRequest) {
     });
 
     return NextResponse.json(tickets);
-  } catch (error) {
-    console.error("Error fetching admin tickets:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

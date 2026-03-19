@@ -51,8 +51,7 @@ export async function PUT(
     });
 
     return NextResponse.json({ message: "تم تحديث الحالة" });
-  } catch (error) {
-    console.error("Error updating ticket status:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

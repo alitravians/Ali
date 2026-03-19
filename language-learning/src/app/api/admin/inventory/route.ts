@@ -384,8 +384,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: "إجراء غير معروف" }, { status: 400 });
-  } catch (err) {
-    console.error("Inventory API error:", err);
+  } catch {
     return NextResponse.json({ error: "فشل في العملية" }, { status: 500 });
   }
 }

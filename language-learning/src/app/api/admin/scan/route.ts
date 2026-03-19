@@ -62,8 +62,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     return NextResponse.json({ scans, total, page, limit });
-  } catch (error) {
-    console.error("Error in scan GET:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -122,8 +121,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(scan);
-  } catch (error) {
-    console.error("Error in scan POST:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ أثناء الفحص" }, { status: 500 });
   }
 }
@@ -152,8 +150,7 @@ export async function PUT(request: NextRequest) {
     });
 
     return NextResponse.json(issue);
-  } catch (error) {
-    console.error("Error in scan PUT:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -176,8 +173,7 @@ export async function DELETE(request: NextRequest) {
     });
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("Error in scan DELETE:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

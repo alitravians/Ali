@@ -11,8 +11,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(messages);
-  } catch (error) {
-    console.error("Error fetching contact messages:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -32,8 +31,7 @@ export async function PUT(req: NextRequest) {
       data: { isRead },
     });
     return NextResponse.json(message);
-  } catch (error) {
-    console.error("Error updating contact message:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -50,8 +48,7 @@ export async function DELETE(req: NextRequest) {
 
     await prisma.contactMessage.delete({ where: { id } });
     return NextResponse.json({ message: "تم حذف الرسالة" });
-  } catch (error) {
-    console.error("Error deleting contact message:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

@@ -11,8 +11,7 @@ export async function GET() {
       });
     }
     return NextResponse.json(settings);
-  } catch (error) {
-    console.error("Error fetching settings:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -52,8 +51,7 @@ export async function PUT(req: NextRequest) {
       create: { id: "settings", ...sanitizedData },
     });
     return NextResponse.json(settings);
-  } catch (error) {
-    console.error("Error updating settings:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

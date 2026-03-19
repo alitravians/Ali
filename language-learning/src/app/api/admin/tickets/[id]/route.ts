@@ -23,8 +23,7 @@ export async function GET(
     }
 
     return NextResponse.json(ticket);
-  } catch (error) {
-    console.error("Error fetching ticket:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

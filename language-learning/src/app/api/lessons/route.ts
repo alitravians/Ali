@@ -19,8 +19,7 @@ export async function GET(req: NextRequest) {
       orderBy: { order: "asc" },
     });
     return NextResponse.json(lessons);
-  } catch (error) {
-    console.error("Error fetching lessons:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -41,8 +40,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(lesson, { status: 201 });
-  } catch (error) {
-    console.error("Error creating lesson:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

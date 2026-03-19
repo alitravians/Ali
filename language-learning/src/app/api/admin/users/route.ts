@@ -22,8 +22,7 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
     return NextResponse.json(users);
-  } catch (error) {
-    console.error("Error fetching users:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -54,8 +53,7 @@ export async function PUT(req: NextRequest) {
       select: { id: true, name: true, email: true, role: true },
     });
     return NextResponse.json(user);
-  } catch (error) {
-    console.error("Error updating user:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

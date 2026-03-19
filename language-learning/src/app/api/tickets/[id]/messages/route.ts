@@ -54,8 +54,7 @@ export async function POST(
     });
 
     return NextResponse.json(message, { status: 201 });
-  } catch (error) {
-    console.error("Error adding message:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

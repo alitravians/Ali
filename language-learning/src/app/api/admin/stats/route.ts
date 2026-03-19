@@ -40,8 +40,7 @@ export async function GET() {
       recentCertificates,
       recentUsers,
     });
-  } catch (error) {
-    console.error("Error fetching admin stats:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { sanitizeInput } from "@/lib/validation";
 
 export async function GET(request: Request) {
   try {
@@ -52,10 +53,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "المستخدم والسبب مطلوبان" }, { status: 400 });
     }
 
+    const safeReason = sanitizeInput(reason.slice(0, 500));
     const warning = await prisma.chatWarning.create({
       data: {
         userId,
-        reason: reason.slice(0, 500),
+        reason: safeReason,
         issuedBy: adminId,
       },
     });
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
         action: "warn",
         targetUserId: userId,
         adminId,
-        details: `تحذير: ${reason.slice(0, 200)}`,
+        details: `تحذير: ${safeReason.slice(0, 200)}`,
       },
     });
 

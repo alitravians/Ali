@@ -54,8 +54,7 @@ export async function GET(req: NextRequest) {
         },
       },
     });
-  } catch (error) {
-    console.error("Error verifying certificate:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

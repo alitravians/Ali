@@ -152,8 +152,7 @@ export async function POST(req: NextRequest) {
       totalPoints,
       earnedPoints,
     });
-  } catch (error) {
-    console.error("Error submitting test:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

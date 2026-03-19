@@ -20,8 +20,7 @@ export async function GET() {
       orderBy: { createdAt: "asc" },
     });
     return NextResponse.json(languages);
-  } catch (error) {
-    console.error("Error fetching languages:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -43,8 +42,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(language, { status: 201 });
-  } catch (error) {
-    console.error("Error creating language:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

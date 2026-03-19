@@ -11,8 +11,7 @@ export async function GET(req: NextRequest) {
       include: { lesson: { include: { level: { include: { language: true } } } } },
     });
     return NextResponse.json(questions);
-  } catch (error) {
-    console.error("Error fetching questions:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -37,8 +36,7 @@ export async function POST(req: NextRequest) {
       },
     });
     return NextResponse.json(question, { status: 201 });
-  } catch (error) {
-    console.error("Error creating question:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

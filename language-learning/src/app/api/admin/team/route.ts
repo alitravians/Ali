@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { sanitizeInput } from "@/lib/validation";
+
+// Validate hex color format
+function isValidHexColor(color: string): boolean {
+  return /^#[0-9a-fA-F]{3,8}$/.test(color);
+}
 
 // GET - Get all departments with members (admin view - includes hidden)
 export async function GET() {
@@ -61,11 +67,13 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "اسم القسم مطلوب" }, { status: 400 });
       }
       const maxOrder = await prisma.teamDepartment.aggregate({ _max: { order: true } });
+      const safeColor = color && isValidHexColor(color) ? color : "#2563eb";
+      const safeName = sanitizeInput(nameAr);
       const department = await prisma.teamDepartment.create({
         data: {
-          name: nameAr,
-          nameAr,
-          color: color || "#2563eb",
+          name: safeName,
+          nameAr: safeName,
+          color: safeColor,
           order: (maxOrder._max.order || 0) + 1,
         },
       });
@@ -75,10 +83,14 @@ export async function POST(req: NextRequest) {
     if (action === "update_department") {
       const { id, nameAr, color, isVisible, order } = body;
       if (!id) return NextResponse.json({ error: "المعرّف مطلوب" }, { status: 400 });
+      // Validate color format if provided
+      if (color !== undefined && !isValidHexColor(color)) {
+        return NextResponse.json({ error: "صيغة اللون غير صالحة" }, { status: 400 });
+      }
       const department = await prisma.teamDepartment.update({
         where: { id },
         data: {
-          ...(nameAr !== undefined && { nameAr, name: nameAr }),
+          ...(nameAr !== undefined && { nameAr: sanitizeInput(nameAr), name: sanitizeInput(nameAr) }),
           ...(color !== undefined && { color }),
           ...(isVisible !== undefined && { isVisible }),
           ...(order !== undefined && { order }),
@@ -114,8 +126,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId,
           departmentId,
-          role: role || "",
-          roleAr: roleAr || "",
+          role: role ? sanitizeInput(role) : "",
+          roleAr: roleAr ? sanitizeInput(roleAr) : "",
           order: (maxOrder._max.order || 0) + 1,
         },
         include: {
@@ -131,8 +143,8 @@ export async function POST(req: NextRequest) {
       const member = await prisma.teamMember.update({
         where: { id },
         data: {
-          ...(role !== undefined && { role }),
-          ...(roleAr !== undefined && { roleAr }),
+          ...(role !== undefined && { role: sanitizeInput(role) }),
+          ...(roleAr !== undefined && { roleAr: sanitizeInput(roleAr) }),
           ...(isVisible !== undefined && { isVisible }),
           ...(order !== undefined && { order }),
         },

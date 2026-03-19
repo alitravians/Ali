@@ -95,8 +95,7 @@ export async function POST(req: NextRequest) {
       { message: "تم إنشاء الحساب بنجاح", userId: user.id },
       { status: 201 }
     );
-  } catch (error) {
-    console.error("Registration error:", error);
+  } catch {
     return NextResponse.json(
       { error: "حدث خطأ أثناء إنشاء الحساب" },
       { status: 500 }

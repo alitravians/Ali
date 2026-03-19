@@ -10,8 +10,7 @@ export async function GET(req: NextRequest) {
       include: { lesson: true },
     });
     return NextResponse.json(words);
-  } catch (error) {
-    console.error("Error fetching words:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -21,8 +20,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const word = await prisma.word.create({ data: body });
     return NextResponse.json(word, { status: 201 });
-  } catch (error) {
-    console.error("Error creating word:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

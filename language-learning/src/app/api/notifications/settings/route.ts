@@ -21,8 +21,7 @@ export async function GET() {
     }
 
     return NextResponse.json(settings);
-  } catch (error) {
-    console.error("Error fetching notification settings:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -60,8 +59,7 @@ export async function PUT(req: NextRequest) {
     });
 
     return NextResponse.json(settings);
-  } catch (error) {
-    console.error("Error updating notification settings:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }

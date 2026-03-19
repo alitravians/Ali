@@ -18,8 +18,7 @@ export async function GET() {
     });
 
     return NextResponse.json(progress);
-  } catch (error) {
-    console.error("Error fetching progress:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
@@ -73,8 +72,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ message: "تم تحديث التقدم" });
-  } catch (error) {
-    console.error("Error updating progress:", error);
+  } catch {
     return NextResponse.json({ error: "حدث خطأ" }, { status: 500 });
   }
 }
