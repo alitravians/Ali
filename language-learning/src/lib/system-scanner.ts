@@ -33,6 +33,11 @@ async function checkPageRoutes(): Promise<CheckResult> {
     { path: "/contact", name: "صفحة الاتصال" },
     { path: "/admin/login", name: "صفحة دخول الإدارة" },
     { path: "/verify-certificate", name: "صفحة التحقق من الشهادة" },
+    { path: "/chat", name: "صفحة الدردشة" },
+    { path: "/shop", name: "صفحة المتجر" },
+    { path: "/daily-quests", name: "صفحة المهام اليومية" },
+    { path: "/leaderboard", name: "صفحة لوحة المتصدرين" },
+    { path: "/team", name: "صفحة الفريق" },
   ];
 
   for (const page of pages) {
@@ -754,6 +759,534 @@ async function checkTestSystem(): Promise<CheckResult> {
   return { name: "فحص نظام الاختبارات", passed: issues.length === 0, issues };
 }
 
+// ==================== New Feature Checks ====================
+
+async function checkChatSystem(): Promise<CheckResult> {
+  const issues: ScanIssue[] = [];
+
+  // Check chat rooms exist
+  try {
+    const roomCount = await prisma.chatRoom.count();
+    if (roomCount === 0) {
+      issues.push({
+        name: "لا توجد غرف دردشة",
+        type: "database",
+        severity: "high",
+        section: "نظام الدردشة",
+        fileName: "schema.prisma",
+        filePath: "prisma/schema.prisma",
+        description: "لا توجد أي غرف دردشة في النظام",
+        cause: "لم يتم إنشاء غرف دردشة أو تم حذفها",
+        solution: "أنشئ غرف دردشة من لوحة التحكم أو أعد تشغيل البذر",
+        recommendation: "يجب وجود غرفة عامة واحدة على الأقل",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check chat messages API
+  try {
+    const res = await fetch(`${BASE_URL}/api/chat/messages?roomId=general-room`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API رسائل الدردشة",
+        type: "api",
+        severity: "high",
+        section: "نظام الدردشة",
+        fileName: "route.ts",
+        filePath: "src/app/api/chat/messages/route.ts",
+        description: "API رسائل الدردشة يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة العلاقات في schema.prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check chat rooms API
+  try {
+    const res = await fetch(`${BASE_URL}/api/chat/rooms`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API غرف الدردشة",
+        type: "api",
+        severity: "high",
+        section: "نظام الدردشة",
+        fileName: "route.ts",
+        filePath: "src/app/api/chat/rooms/route.ts",
+        description: "API غرف الدردشة يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check chat lock status API
+  try {
+    const res = await fetch(`${BASE_URL}/api/chat-lock-status`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API حالة قفل الدردشة",
+        type: "api",
+        severity: "medium",
+        section: "نظام الدردشة",
+        fileName: "route.ts",
+        filePath: "src/app/api/chat-lock-status/route.ts",
+        description: "API حالة قفل الدردشة يرجع خطأ",
+        cause: "خطأ في الكود أو عدم وجود سجل قفل",
+        solution: "تحقق من ملف route.ts",
+        recommendation: "تأكد من وجود سجل ChatLock في قاعدة البيانات",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check for active bans with expired dates
+  try {
+    const expiredBans = await prisma.chatBan.count({
+      where: {
+        isActive: true,
+        endsAt: { lt: new Date() },
+      },
+    });
+    if (expiredBans > 0) {
+      issues.push({
+        name: "حظر منتهي لم يتم رفعه",
+        type: "database",
+        severity: "medium",
+        section: "نظام الدردشة",
+        fileName: "",
+        filePath: "",
+        description: `يوجد ${expiredBans} حظر منتهي الصلاحية لكن لا يزال نشطاً`,
+        cause: "لم يتم تحديث حالة الحظر بعد انتهاء المدة",
+        solution: "أضف مهمة دورية لإلغاء الحظر المنتهي تلقائياً",
+        recommendation: "الحظر المنتهي يجب أن يُرفع تلقائياً",
+      });
+    }
+  } catch { /* skip */ }
+
+  return { name: "فحص نظام الدردشة", passed: issues.length === 0, issues };
+}
+
+async function checkGamificationSystem(): Promise<CheckResult> {
+  const issues: ScanIssue[] = [];
+
+  // Check XP settings exist
+  try {
+    const xpSettings = await prisma.xpSettings.findFirst();
+    if (!xpSettings) {
+      issues.push({
+        name: "إعدادات XP غير موجودة",
+        type: "database",
+        severity: "high",
+        section: "نظام التلعيب",
+        fileName: "schema.prisma",
+        filePath: "prisma/schema.prisma",
+        description: "لا توجد إعدادات XP في قاعدة البيانات",
+        cause: "لم يتم إنشاء إعدادات XP الأولية",
+        solution: "أنشئ إعدادات XP من لوحة التحكم → إعدادات XP",
+        recommendation: "إعدادات XP ضرورية لعمل نظام التلعيب",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check XP API
+  try {
+    const res = await fetch(`${BASE_URL}/api/xp`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API نقاط الخبرة",
+        type: "api",
+        severity: "high",
+        section: "نظام التلعيب",
+        fileName: "route.ts",
+        filePath: "src/app/api/xp/route.ts",
+        description: "API نقاط الخبرة يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من استيراد authOptions بشكل صحيح",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check Shop API
+  try {
+    const res = await fetch(`${BASE_URL}/api/shop`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API المتجر",
+        type: "api",
+        severity: "high",
+        section: "نظام التلعيب",
+        fileName: "route.ts",
+        filePath: "src/app/api/shop/route.ts",
+        description: "API المتجر يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check Daily Quests API
+  try {
+    const res = await fetch(`${BASE_URL}/api/daily-quests`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API المهام اليومية",
+        type: "api",
+        severity: "high",
+        section: "نظام التلعيب",
+        fileName: "route.ts",
+        filePath: "src/app/api/daily-quests/route.ts",
+        description: "API المهام اليومية يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check Leaderboard API
+  try {
+    const res = await fetch(`${BASE_URL}/api/leaderboard`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API لوحة المتصدرين",
+        type: "api",
+        severity: "medium",
+        section: "نظام التلعيب",
+        fileName: "route.ts",
+        filePath: "src/app/api/leaderboard/route.ts",
+        description: "API لوحة المتصدرين يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check Announcements API
+  try {
+    const res = await fetch(`${BASE_URL}/api/announcements?placement=banner`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API الإعلانات",
+        type: "api",
+        severity: "medium",
+        section: "نظام التلعيب",
+        fileName: "route.ts",
+        filePath: "src/app/api/announcements/route.ts",
+        description: "API الإعلانات يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check admin gamification APIs require auth
+  const gamificationAdminAPIs = [
+    { path: "/api/admin/xp-settings", name: "API إعدادات XP" },
+    { path: "/api/admin/shop", name: "API متجر الإدارة" },
+    { path: "/api/admin/daily-quests", name: "API مهام الإدارة" },
+    { path: "/api/admin/announcements", name: "API إعلانات الإدارة" },
+    { path: "/api/admin/chat-lock", name: "API قفل الدردشة" },
+  ];
+
+  for (const api of gamificationAdminAPIs) {
+    try {
+      const res = await fetch(`${BASE_URL}${api.path}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.status !== 401 && res.status !== 403) {
+        issues.push({
+          name: `${api.name} غير محمي`,
+          type: "security",
+          severity: "critical",
+          section: api.name,
+          fileName: "route.ts",
+          filePath: `src/app${api.path}/route.ts`,
+          description: `${api.name} لا يتطلب مصادقة - يرجع ${res.status}`,
+          cause: "عدم استخدام فحص المصادقة في بداية معالج الطلب",
+          solution: "أضف فحص الجلسة والصلاحيات في بداية الدالة",
+          recommendation: "جميع واجهات الإدارة يجب أن تكون محمية",
+        });
+      }
+    } catch { /* skip */ }
+  }
+
+  // Check shop items data integrity
+  try {
+    const shopItems = await prisma.shopItem.count();
+    const activeItems = await prisma.shopItem.count({ where: { isActive: true } });
+    if (shopItems > 0 && activeItems === 0) {
+      issues.push({
+        name: "لا توجد عناصر نشطة في المتجر",
+        type: "database",
+        severity: "medium",
+        section: "المتجر",
+        fileName: "",
+        filePath: "",
+        description: `يوجد ${shopItems} عنصر لكن لا يوجد أي عنصر نشط للبيع`,
+        cause: "جميع عناصر المتجر معطلة",
+        solution: "فعّل عنصراً واحداً على الأقل من لوحة التحكم",
+        recommendation: "المتجر الفارغ لا يفيد المستخدمين",
+      });
+    }
+  } catch { /* skip */ }
+
+  return { name: "فحص نظام التلعيب", passed: issues.length === 0, issues };
+}
+
+async function checkInventorySystem(): Promise<CheckResult> {
+  const issues: ScanIssue[] = [];
+
+  // Check inventory admin API requires auth
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/inventory`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status !== 401 && res.status !== 403) {
+      issues.push({
+        name: "API المخزون غير محمي",
+        type: "security",
+        severity: "critical",
+        section: "نظام الحقيبة",
+        fileName: "route.ts",
+        filePath: "src/app/api/admin/inventory/route.ts",
+        description: `API المخزون لا يتطلب مصادقة - يرجع ${res.status}`,
+        cause: "عدم استخدام فحص المصادقة",
+        solution: "أضف فحص الجلسة والصلاحيات",
+        recommendation: "واجهات إدارة المخزون يجب أن تكون محمية",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check inventory items exist
+  try {
+    const itemCount = await prisma.inventoryItem.count();
+    if (itemCount === 0) {
+      issues.push({
+        name: "لا توجد عناصر في المخزون",
+        type: "database",
+        severity: "low",
+        section: "نظام الحقيبة",
+        fileName: "",
+        filePath: "",
+        description: "لا توجد أي عناصر مخزون في النظام",
+        cause: "لم يتم إنشاء عناصر من لوحة التحكم",
+        solution: "أضف عناصر من لوحة التحكم → المخزون",
+        recommendation: "نظام الحقيبة يحتاج عناصر ليعمل",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check for expired user inventory items still active
+  try {
+    const expiredActive = await prisma.userInventory.count({
+      where: {
+        isActive: true,
+        expiresAt: { lt: new Date() },
+      },
+    });
+    if (expiredActive > 0) {
+      issues.push({
+        name: "عناصر منتهية لا تزال نشطة",
+        type: "database",
+        severity: "medium",
+        section: "نظام الحقيبة",
+        fileName: "",
+        filePath: "",
+        description: `يوجد ${expiredActive} عنصر منتهي الصلاحية لا يزال نشطاً في حقائب المستخدمين`,
+        cause: "لم يتم تعطيل العناصر المنتهية تلقائياً",
+        solution: "أضف مهمة دورية لتعطيل العناصر المنتهية",
+        recommendation: "العناصر المنتهية يجب أن تُعطّل تلقائياً",
+      });
+    }
+  } catch { /* skip */ }
+
+  return { name: "فحص نظام الحقيبة والمخزون", passed: issues.length === 0, issues };
+}
+
+async function checkModeratorSystem(): Promise<CheckResult> {
+  const issues: ScanIssue[] = [];
+
+  // Check moderator API
+  try {
+    const res = await fetch(`${BASE_URL}/api/moderator?section=dashboard`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API المشرفين",
+        type: "api",
+        severity: "high",
+        section: "نظام الإشراف",
+        fileName: "route.ts",
+        filePath: "src/app/api/moderator/route.ts",
+        description: "API المشرفين يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check moderator data integrity
+  try {
+    const moderators = await prisma.moderator.findMany({ include: { user: true } });
+    const orphanedMods = moderators.filter(m => !m.user);
+    if (orphanedMods.length > 0) {
+      issues.push({
+        name: "مشرفين بدون مستخدم مرتبط",
+        type: "database",
+        severity: "high",
+        section: "نظام الإشراف",
+        fileName: "schema.prisma",
+        filePath: "prisma/schema.prisma",
+        description: `يوجد ${orphanedMods.length} مشرف بدون مستخدم مرتبط`,
+        cause: "تم حذف المستخدم دون حذف سجل المشرف",
+        solution: "احذف سجلات المشرفين اليتيمة",
+        recommendation: "أضف onDelete: Cascade للعلاقة",
+      });
+    }
+  } catch { /* skip */ }
+
+  return { name: "فحص نظام الإشراف", passed: issues.length === 0, issues };
+}
+
+async function checkBadgeSystem(): Promise<CheckResult> {
+  const issues: ScanIssue[] = [];
+
+  // Check badges exist
+  try {
+    const badgeCount = await prisma.badge.count();
+    if (badgeCount === 0) {
+      issues.push({
+        name: "لا توجد شارات في النظام",
+        type: "database",
+        severity: "low",
+        section: "نظام الشارات",
+        fileName: "",
+        filePath: "",
+        description: "لا توجد أي شارات في النظام",
+        cause: "لم يتم إنشاء شارات من لوحة التحكم",
+        solution: "أضف شارات من لوحة التحكم → الشارات",
+        recommendation: "الشارات تحفز المستخدمين وتزيد التفاعل",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check expired badge assignments
+  try {
+    const expiredBadges = await prisma.userBadge.count({
+      where: {
+        expiresAt: { lt: new Date() },
+      },
+    });
+    if (expiredBadges > 5) {
+      issues.push({
+        name: "شارات منتهية لم يتم تنظيفها",
+        type: "database",
+        severity: "low",
+        section: "نظام الشارات",
+        fileName: "",
+        filePath: "",
+        description: `يوجد ${expiredBadges} شارة منتهية الصلاحية لم يتم حذفها`,
+        cause: "الشارات المؤقتة المنتهية تبقى في قاعدة البيانات",
+        solution: "أضف تنظيف دوري للشارات المنتهية",
+        recommendation: "الشارات المنتهية تشغل مساحة بلا فائدة",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check badge admin API requires auth
+  try {
+    const res = await fetch(`${BASE_URL}/api/admin/badges`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status !== 401 && res.status !== 403) {
+      issues.push({
+        name: "API الشارات غير محمي",
+        type: "security",
+        severity: "critical",
+        section: "نظام الشارات",
+        fileName: "route.ts",
+        filePath: "src/app/api/admin/badges/route.ts",
+        description: `API الشارات لا يتطلب مصادقة - يرجع ${res.status}`,
+        cause: "عدم استخدام فحص المصادقة",
+        solution: "أضف فحص الجلسة والصلاحيات",
+        recommendation: "واجهات إدارة الشارات يجب أن تكون محمية",
+      });
+    }
+  } catch { /* skip */ }
+
+  return { name: "فحص نظام الشارات", passed: issues.length === 0, issues };
+}
+
+async function checkTeamSystem(): Promise<CheckResult> {
+  const issues: ScanIssue[] = [];
+
+  // Check team API
+  try {
+    const res = await fetch(`${BASE_URL}/api/team`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.status === 500) {
+      issues.push({
+        name: "خطأ في API الفريق",
+        type: "api",
+        severity: "medium",
+        section: "نظام الفريق",
+        fileName: "route.ts",
+        filePath: "src/app/api/team/route.ts",
+        description: "API الفريق يرجع خطأ داخلي",
+        cause: "خطأ في الكود أو الاتصال بقاعدة البيانات",
+        solution: "تحقق من ملف route.ts وسجلات الخادم",
+        recommendation: "تأكد من صحة استعلامات Prisma",
+      });
+    }
+  } catch { /* skip */ }
+
+  // Check team members without user link
+  try {
+    const members = await prisma.teamMember.findMany({ include: { user: true } });
+    const orphanedMembers = members.filter(m => m.userId && !m.user);
+    if (orphanedMembers.length > 0) {
+      issues.push({
+        name: "أعضاء فريق بدون مستخدم مرتبط",
+        type: "database",
+        severity: "medium",
+        section: "نظام الفريق",
+        fileName: "schema.prisma",
+        filePath: "prisma/schema.prisma",
+        description: `يوجد ${orphanedMembers.length} عضو فريق بمعرف مستخدم غير صالح`,
+        cause: "تم حذف المستخدم دون تحديث سجل عضو الفريق",
+        solution: "حدّث سجلات الفريق لإزالة المعرفات غير الصالحة",
+        recommendation: "تأكد من تحديث الفريق عند حذف مستخدم",
+      });
+    }
+  } catch { /* skip */ }
+
+  return { name: "فحص نظام الفريق", passed: issues.length === 0, issues };
+}
+
 // ==================== Level 2: AI Analysis ====================
 
 function generateAISummary(allIssues: ScanIssue[]): string {
@@ -807,7 +1340,7 @@ function generateAISummary(allIssues: ScanIssue[]): string {
 
 // ==================== Main Scanner ====================
 
-type ScanType = "full" | "pages" | "files" | "api" | "database" | "performance" | "security" | "tickets" | "notifications" | "certificates" | "tests";
+type ScanType = "full" | "pages" | "files" | "api" | "database" | "performance" | "security" | "tickets" | "notifications" | "certificates" | "tests" | "chat" | "gamification" | "inventory" | "moderator" | "badges" | "team";
 
 export async function runSystemScan(scanType: ScanType = "full", startedBy: string = "admin"): Promise<string> {
   // Create scan record
@@ -834,6 +1367,12 @@ export async function runSystemScan(scanType: ScanType = "full", startedBy: stri
     if (scanType === "full" || scanType === "notifications") checksToRun.push(checkNotificationSystem);
     if (scanType === "full" || scanType === "certificates") checksToRun.push(checkCertificateSystem);
     if (scanType === "full" || scanType === "tests") checksToRun.push(checkTestSystem);
+    if (scanType === "full" || scanType === "chat") checksToRun.push(checkChatSystem);
+    if (scanType === "full" || scanType === "gamification") checksToRun.push(checkGamificationSystem);
+    if (scanType === "full" || scanType === "inventory") checksToRun.push(checkInventorySystem);
+    if (scanType === "full" || scanType === "moderator") checksToRun.push(checkModeratorSystem);
+    if (scanType === "full" || scanType === "badges") checksToRun.push(checkBadgeSystem);
+    if (scanType === "full" || scanType === "team") checksToRun.push(checkTeamSystem);
 
     // Run all checks
     for (const check of checksToRun) {

@@ -68,6 +68,12 @@ const SCAN_TYPES = [
   { value: "notifications", label: "فحص الإشعارات" },
   { value: "certificates", label: "فحص الشهادات" },
   { value: "tests", label: "فحص الاختبارات" },
+  { value: "chat", label: "فحص الدردشة" },
+  { value: "gamification", label: "فحص التلعيب" },
+  { value: "inventory", label: "فحص الحقيبة" },
+  { value: "moderator", label: "فحص الإشراف" },
+  { value: "badges", label: "فحص الشارات" },
+  { value: "team", label: "فحص الفريق" },
 ];
 
 const SEVERITY_MAP: Record<string, { label: string; color: string; bg: string }> = {
