@@ -488,12 +488,15 @@ export function EntryEffectPreview({ effectType, icon, color, nameAr, size = "me
 export default function EntryEffectOverlay({ effects, onEffectComplete, soundMuted }: EntryEffectOverlayProps) {
   const [activeEffect, setActiveEffect] = useState<EntryEffect | null>(null);
   const [queue, setQueue] = useState<EntryEffect[]>([]);
+  const completedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (effects.length > 0) {
       setQueue((prev) => {
         const newEffects = effects.filter(
-          (e) => !prev.some((p) => p.userId === e.userId) && activeEffect?.userId !== e.userId
+          (e) => !prev.some((p) => p.userId === e.userId) 
+            && activeEffect?.userId !== e.userId
+            && !completedRef.current.has(e.userId)
         );
         return [...prev, ...newEffects];
       });
@@ -510,6 +513,7 @@ export default function EntryEffectOverlay({ effects, onEffectComplete, soundMut
 
   const handleComplete = useCallback(() => {
     if (activeEffect) {
+      completedRef.current.add(activeEffect.userId);
       onEffectComplete(activeEffect.userId);
       setActiveEffect(null);
     }
@@ -518,8 +522,6 @@ export default function EntryEffectOverlay({ effects, onEffectComplete, soundMut
   if (!activeEffect) return null;
 
   return (
-    <div className="entry-effect-overlay" onClick={handleComplete}>
-      <SingleEntryEffect effect={activeEffect} onComplete={handleComplete} soundMuted={soundMuted} />
-    </div>
+    <SingleEntryEffect effect={activeEffect} onComplete={handleComplete} soundMuted={soundMuted} />
   );
 }

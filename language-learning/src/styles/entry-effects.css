@@ -15,18 +15,16 @@
   justify-content: center;
 }
 
-/* Backdrop - semi-transparent, not fullscreen dark */
+/* Backdrop - non-blocking, effect floats over chat */
 .entry-effect-backdrop {
   position: fixed;
   inset: 0;
   z-index: 9998;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(4px);
-  pointer-events: all;
-  cursor: pointer;
+  padding-top: 60px;
+  pointer-events: none;
 }
 
 .entry-effect-enter {
