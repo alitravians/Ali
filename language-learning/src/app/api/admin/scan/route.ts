@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const scanType = body.scanType || "full";
 
-    const validTypes = ["full", "pages", "files", "api", "database", "performance", "security", "tickets", "notifications", "certificates", "tests"];
+    const validTypes = ["full", "pages", "files", "api", "database", "performance", "security", "tickets", "notifications", "certificates", "tests", "chat", "gamification", "inventory", "moderator", "badges", "team"];
     if (!validTypes.includes(scanType)) {
       return NextResponse.json({ error: "نوع الفحص غير صالح" }, { status: 400 });
     }
