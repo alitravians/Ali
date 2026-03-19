@@ -78,6 +78,12 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<"progress" | "badges" | "notifications">("progress");
   const [loading, setLoading] = useState(true);
 
+  // XP/Level state
+  const [userXp, setUserXp] = useState(0);
+  const [userLevel, setUserLevel] = useState(1);
+  const [userPoints, setUserPoints] = useState(0);
+  const [totalXpEarned, setTotalXpEarned] = useState(0);
+
   // Avatar state
   const [avatar, setAvatar] = useState("");
   const [avatarLoading, setAvatarLoading] = useState(false);
@@ -115,12 +121,22 @@ export default function ProfilePage() {
       fetch("/api/badges").then((r) => r.json()),
       fetch("/api/notifications").then((r) => r.json()),
       fetch("/api/profile/avatar").then((r) => r.json()),
+      fetch("/api/xp").then((r) => r.json()),
+      fetch("/api/points").then((r) => r.json()),
     ])
-      .then(([prog, bdg, notif, avatarData]) => {
+      .then(([prog, bdg, notif, avatarData, xpData, pointsData]) => {
         setProgress(Array.isArray(prog) ? prog : []);
         setBadges(Array.isArray(bdg) ? bdg : []);
         setNotifications(Array.isArray(notif) ? notif : []);
         if (avatarData?.avatar) setAvatar(avatarData.avatar);
+        if (xpData && !xpData.error) {
+          setUserXp(xpData.xp || 0);
+          setUserLevel(xpData.level || 1);
+          setTotalXpEarned(xpData.totalXpEarned || 0);
+        }
+        if (pointsData && !pointsData.error) {
+          setUserPoints(pointsData.points || 0);
+        }
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -238,9 +254,10 @@ export default function ProfilePage() {
     );
   }
 
-  const totalPoints = (session?.user as { points?: number })?.points || 0;
   const completedLevels = progress.filter((p) => p.isCompleted).length;
   const avgProgress = progress.length > 0 ? Math.round(progress.reduce((sum, p) => sum + p.overallProgress, 0) / progress.length) : 0;
+  const xpNeeded = userLevel * 100;
+  const xpPercent = Math.min(100, Math.round((userXp / xpNeeded) * 100));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -308,18 +325,26 @@ export default function ProfilePage() {
                 </div>
                 <p className="text-primary-200">{session?.user?.email}</p>
               </div>
-              <div className="flex gap-6 text-center">
-                <div className="bg-white/10 rounded-2xl px-6 py-4">
-                  <p className="text-2xl font-bold">{totalPoints}</p>
-                  <p className="text-sm text-primary-200">نقطة</p>
+              <div className="flex flex-wrap gap-4 text-center">
+                <div className="bg-white/10 rounded-2xl px-5 py-3">
+                  <p className="text-xl font-bold">⭐ {userLevel}</p>
+                  <p className="text-xs text-primary-200">المستوى</p>
+                  <div className="w-full h-1.5 bg-white/20 rounded-full mt-1">
+                    <div className="h-full bg-amber-400 rounded-full" style={{ width: `${xpPercent}%` }} />
+                  </div>
+                  <p className="text-xs text-primary-300 mt-0.5">{userXp}/{xpNeeded} XP</p>
                 </div>
-                <div className="bg-white/10 rounded-2xl px-6 py-4">
-                  <p className="text-2xl font-bold">{completedLevels}</p>
-                  <p className="text-sm text-primary-200">مستوى مكتمل</p>
+                <div className="bg-white/10 rounded-2xl px-5 py-3">
+                  <p className="text-xl font-bold">💰 {userPoints}</p>
+                  <p className="text-xs text-primary-200">نقطة</p>
                 </div>
-                <div className="bg-white/10 rounded-2xl px-6 py-4">
-                  <p className="text-2xl font-bold">{badges.length}</p>
-                  <p className="text-sm text-primary-200">شارة</p>
+                <div className="bg-white/10 rounded-2xl px-5 py-3">
+                  <p className="text-xl font-bold">{completedLevels}</p>
+                  <p className="text-xs text-primary-200">مستوى مكتمل</p>
+                </div>
+                <div className="bg-white/10 rounded-2xl px-5 py-3">
+                  <p className="text-xl font-bold">{badges.length}</p>
+                  <p className="text-xs text-primary-200">شارة</p>
                 </div>
               </div>
             </div>

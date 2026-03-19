@@ -151,6 +151,11 @@ export default function ChatPage() {
   // Ban popup for banned user trying to type
   const [showBanPopup, setShowBanPopup] = useState(false);
 
+  // Chat lock state
+  const [chatLocked, setChatLocked] = useState(false);
+  const [chatLockType, setChatLockType] = useState("");
+  const [chatLockReason, setChatLockReason] = useState("");
+
   // Bold message mode
   const [boldMode, setBoldMode] = useState(false);
   const [canBold, setCanBold] = useState(false);
@@ -204,6 +209,18 @@ export default function ChatPage() {
           setRooms(data);
           setActiveRoom(data[0].id);
         }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Check chat lock status
+  useEffect(() => {
+    fetch("/api/admin/chat-lock")
+      .then((r) => r.json())
+      .then((data) => {
+        setChatLocked(data.chatLocked || false);
+        setChatLockType(data.chatLockType || "");
+        setChatLockReason(data.chatLockReason || "");
       })
       .catch(() => {});
   }, []);
@@ -730,7 +747,11 @@ export default function ChatPage() {
 
             {/* Message Input */}
             <div className="p-3 border-t">
-              {banInfo ? (
+              {chatLocked && (chatLockType === "full" || !isStaff) ? (
+                <div className="text-center text-sm text-gray-500 py-2 bg-gray-50 rounded-lg">
+                  🔒 الدردشة مقفلة {chatLockReason ? `- ${chatLockReason}` : ""}
+                </div>
+              ) : banInfo ? (
                 <div
                   className="text-center text-sm text-red-500 py-2 cursor-pointer hover:bg-red-50 rounded-lg transition-colors"
                   onClick={handleBannedInputClick}
