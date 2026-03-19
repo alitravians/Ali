@@ -93,7 +93,7 @@ export async function POST(request: Request) {
         const filename = `video_${Date.now()}.${ext}`;
         const buffer = Buffer.from(await video.arrayBuffer());
         await writeFile(path.join(effectsDir, filename), buffer);
-        videoUrl = `/effects/${filename}`;
+        videoUrl = `/api/effects?file=${filename}`;
       }
 
       // Save sound file to public/effects/
@@ -105,7 +105,7 @@ export async function POST(request: Request) {
         const filename = `sound_${Date.now()}.${ext}`;
         const buffer = Buffer.from(await sound.arrayBuffer());
         await writeFile(path.join(effectsDir, filename), buffer);
-        soundUrl = `/effects/${filename}`;
+        soundUrl = `/api/effects?file=${filename}`;
       }
 
       if (action === "create") {

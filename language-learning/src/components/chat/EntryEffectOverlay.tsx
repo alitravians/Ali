@@ -286,8 +286,15 @@ function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEf
   // Play video when effect starts
   useEffect(() => {
     if (hasVideo && videoRef.current) {
-      videoRef.current.currentTime = 0;
-      videoRef.current.play().catch(() => {});
+      const vid = videoRef.current;
+      vid.currentTime = 0;
+      // Try to play immediately
+      vid.play().catch(() => {
+        // If play fails, wait for canplay event
+        vid.addEventListener("canplay", () => {
+          vid.play().catch(() => {});
+        }, { once: true });
+      });
     }
   }, [hasVideo]);
 
@@ -333,7 +340,15 @@ function SingleEntryEffect({ effect, onComplete, soundMuted }: { effect: EntryEf
           src={effect.videoUrl}
           muted
           playsInline
+          autoPlay
+          preload="auto"
           loop={false}
+          onLoadedData={() => {
+            // Backup: ensure video plays when data is loaded
+            if (videoRef.current) {
+              videoRef.current.play().catch(() => {});
+            }
+          }}
           style={{
             opacity: phase === "exit" ? 0 : 1,
             transition: "opacity 0.8s ease",
