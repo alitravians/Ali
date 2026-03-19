@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeInput } from "@/lib/validation";
 
+export const dynamic = "force-dynamic";
+
 const ALLOWED_SHOP_FIELDS = [
   "name", "nameAr", "description", "descriptionAr", "type", "icon",
   "price", "stock", "soldCount", "rarity", "order", "isActive",

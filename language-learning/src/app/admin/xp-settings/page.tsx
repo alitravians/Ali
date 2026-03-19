@@ -26,6 +26,7 @@ export default function AdminXPSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     fetch("/api/admin/xp-settings")
@@ -37,14 +38,27 @@ export default function AdminXPSettingsPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    await fetch("/api/admin/xp-settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaved(false);
+    setSaveError("");
+    try {
+      const res = await fetch("/api/admin/xp-settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSaveError(data.error || `فشل في حفظ الإعدادات (${res.status})`);
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setSaveError("حدث خطأ في الاتصال بالخادم");
+      setSaving(false);
+    }
   };
 
   const updateField = (field: keyof Settings, value: number) => {
@@ -67,6 +81,7 @@ export default function AdminXPSettingsPage() {
             <h1 className="text-xl font-bold text-gray-900">⚡ إعدادات XP والنقاط</h1>
             <div className="flex gap-2">
               {saved && <span className="text-emerald-600 text-sm font-medium self-center">تم الحفظ!</span>}
+              {saveError && <span className="text-red-600 text-sm font-medium self-center">⚠️ {saveError}</span>}
               <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">{saving ? "جاري الحفظ..." : "حفظ الإعدادات"}</button>
               <Link href="/admin" className="btn-secondary text-sm">← لوحة التحكم</Link>
             </div>

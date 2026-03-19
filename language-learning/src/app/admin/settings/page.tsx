@@ -60,6 +60,7 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   // Banned words state
   const [bannedWords, setBannedWords] = useState<BannedWordItem[]>([]);
@@ -104,14 +105,26 @@ export default function AdminSettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     setSaved(false);
-    await fetch("/api/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+    setSaveError("");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setSaveError(data.error || `فشل في حفظ الإعدادات (${res.status})`);
+        setSaving(false);
+        return;
+      }
+      setSaving(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setSaveError("حدث خطأ في الاتصال بالخادم");
+      setSaving(false);
+    }
   };
 
   const fetchBannedWords = useCallback(async () => {
@@ -597,6 +610,11 @@ export default function AdminSettingsPage() {
           {saved && (
             <div className="flex items-center text-emerald-600 font-medium text-sm animate-fadeIn">
               تم الحفظ بنجاح ✓
+            </div>
+          )}
+          {saveError && (
+            <div className="flex items-center text-red-600 font-medium text-sm animate-fadeIn">
+              ⚠️ {saveError}
             </div>
           )}
         </div>

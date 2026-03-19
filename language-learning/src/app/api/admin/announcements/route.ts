@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { sanitizeInput } from "@/lib/validation";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const announcements = await prisma.announcement.findMany({

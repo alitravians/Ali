@@ -3,6 +3,8 @@ import prisma from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin-auth";
 import { runSystemScan } from "@/lib/system-scanner";
 
+export const dynamic = "force-dynamic";
+
 // GET - Get scan history or specific scan results
 export async function GET(request: NextRequest) {
   try {

@@ -4,6 +4,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { sanitizeInput } from "@/lib/validation";
 
+export const dynamic = "force-dynamic";
+
 const BAN_DURATIONS: Record<string, number> = {
   "10m": 10,
   "30m": 30,
