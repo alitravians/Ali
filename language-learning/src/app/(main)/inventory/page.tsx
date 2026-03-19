@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { EntryEffectPreview } from "@/components/chat/EntryEffectOverlay";
+import type { EffectType } from "@/components/chat/EntryEffectOverlay";
 
 const ITEM_TYPES = [
   { value: "all", label: "الكل", icon: "🎒" },
@@ -273,6 +275,24 @@ export default function InventoryPage() {
                       return null;
                     })()}
 
+                    {/* Entry effect preview */}
+                    {ui.item.type === "entry_effect" && (() => {
+                      try {
+                        const p = JSON.parse(ui.item.previewData || "{}");
+                        return (
+                          <div className="mb-3 rounded-xl overflow-hidden">
+                            <EntryEffectPreview
+                              effectType={(p.effect || "glow") as EffectType}
+                              icon={ui.item.icon}
+                              color={ui.item.color}
+                              nameAr={ui.item.nameAr}
+                              size="small"
+                            />
+                          </div>
+                        );
+                      } catch { return null; }
+                    })()}
+
                     {/* Duration info */}
                     <div className="flex items-center gap-2 mb-3 text-xs text-gray-400">
                       {ui.isPermanent ? (
@@ -363,16 +383,25 @@ export default function InventoryPage() {
                 return null;
               })()}
 
-              {/* Entry effect preview */}
+              {/* Entry effect preview - professional animated preview */}
               {previewItem.item.type === "entry_effect" && (() => {
                 try {
-                  const p = JSON.parse(previewItem.item.previewData);
+                  const p = JSON.parse(previewItem.item.previewData || "{}");
                   return (
-                    <div className="mb-4 bg-gray-100 rounded-xl p-4 text-center">
-                      <p className="text-xs text-gray-500 mb-2">تأثير الدخول:</p>
-                      <div className="text-4xl mb-2 animate-bounce">{previewItem.item.icon}</div>
-                      <p className="text-sm text-gray-700">🎉 أحمد دخل الدردشة {previewItem.item.icon}</p>
-                      {p.effect && <p className="text-xs text-gray-400 mt-1">التأثير: {p.effect}</p>}
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-500 mb-2 text-center">معاينة تأثير الدخول:</p>
+                      <div className="rounded-xl overflow-hidden">
+                        <EntryEffectPreview
+                          effectType={(p.effect || "glow") as EffectType}
+                          icon={previewItem.item.icon}
+                          color={previewItem.item.color}
+                          nameAr={previewItem.item.nameAr}
+                          size="large"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2 text-center">
+                        يظهر هذا التأثير للمستخدمين عند دخولك الدردشة
+                      </p>
                     </div>
                   );
                 } catch { return null; }

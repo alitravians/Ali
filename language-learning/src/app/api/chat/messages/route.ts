@@ -36,7 +36,7 @@ export async function GET(request: Request) {
     });
 
     // Enrich messages with user badges
-    const userIds = [...new Set(messages.map((m) => m.userId))];
+    const userIds = Array.from(new Set(messages.map((m) => m.userId)));
     const badgeAssignments = await prisma.badgeAssignment.findMany({
       where: { userId: { in: userIds } },
       include: { badge: { select: { icon: true, imageUrl: true, nameAr: true, color: true, isActive: true } } },
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       include: { item: true },
     });
 
-    const userInventoryMap: Record<string, Record<string, { previewData: string; icon: string; color: string; nameAr: string }>> = {};
+    const userInventoryMap: Record<string, Record<string, { previewData: string; icon: string; color: string; nameAr: string; rarity?: string }>> = {};
     for (const inv of activeInventory) {
       // Auto-expire check
       if (!inv.isPermanent && inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
@@ -73,6 +73,7 @@ export async function GET(request: Request) {
         icon: inv.item.icon,
         color: inv.item.color,
         nameAr: inv.item.nameAr,
+        rarity: inv.item.rarity,
       };
     }
 

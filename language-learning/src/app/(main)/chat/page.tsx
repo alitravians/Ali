@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import EntryEffectOverlay from "@/components/chat/EntryEffectOverlay";
+import type { EntryEffect, EffectType } from "@/components/chat/EntryEffectOverlay";
 
 interface ChatRoom {
   id: string;
@@ -153,9 +155,11 @@ export default function ChatPage() {
   const [boldMode, setBoldMode] = useState(false);
   const [canBold, setCanBold] = useState(false);
 
-  // Entry effects tracking
+  // Entry effects tracking (professional system with cooldown)
   const [shownEntryEffects, setShownEntryEffects] = useState<Set<string>>(new Set());
-  const [entryEffects, setEntryEffects] = useState<Array<{ userId: string; userName: string; icon: string; color: string; nameAr: string }>>([]);
+  const [entryEffectQueue, setEntryEffectQueue] = useState<EntryEffect[]>([]);
+  const [entryEffectCooldowns, setEntryEffectCooldowns] = useState<Record<string, number>>({});
+  const ENTRY_EFFECT_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown per user
 
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
@@ -236,16 +240,34 @@ export default function ChatPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setMessages(data);
-          // Detect entry effects for new users
-          const newEffects: Array<{ userId: string; userName: string; icon: string; color: string; nameAr: string }> = [];
+          // Detect entry effects for new users (professional system with cooldown)
+          const newEffects: EntryEffect[] = [];
+          const now = Date.now();
           for (const msg of data) {
             if (msg.userInventory?.entry_effect && !shownEntryEffects.has(msg.user.id)) {
+              // Check cooldown - don't show effect if user entered recently
+              const lastShown = entryEffectCooldowns[msg.user.id] || 0;
+              if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
+              // Skip own effects
+              if (msg.user.id === userId) continue;
+              
+              // Parse effect type from previewData
+              let effectType: EffectType = "glow";
+              let rarity = "common";
+              try {
+                const pd = JSON.parse(msg.userInventory.entry_effect.previewData || "{}");
+                if (pd.effect) effectType = pd.effect as EffectType;
+                if (pd.rarity) rarity = pd.rarity;
+              } catch { /* use default */ }
+              
               newEffects.push({
                 userId: msg.user.id,
                 userName: msg.user.name,
+                effectType,
                 icon: msg.userInventory.entry_effect.icon,
                 color: msg.userInventory.entry_effect.color,
                 nameAr: msg.userInventory.entry_effect.nameAr,
+                rarity,
               });
             }
           }
@@ -255,16 +277,18 @@ export default function ChatPage() {
               newEffects.forEach((e) => next.add(e.userId));
               return next;
             });
-            setEntryEffects((prev) => [...prev, ...newEffects]);
-            // Auto-remove after 5 seconds
-            setTimeout(() => {
-              setEntryEffects((prev) => prev.filter((e) => !newEffects.some((n) => n.userId === e.userId)));
-            }, 5000);
+            // Update cooldowns
+            setEntryEffectCooldowns((prev) => {
+              const updated = { ...prev };
+              newEffects.forEach((e) => { updated[e.userId] = now; });
+              return updated;
+            });
+            setEntryEffectQueue((prev) => [...prev, ...newEffects]);
           }
         }
       })
       .catch(() => {});
-  }, [activeRoom, shownEntryEffects]);
+  }, [activeRoom, shownEntryEffects, entryEffectCooldowns, userId, ENTRY_EFFECT_COOLDOWN]);
 
   useEffect(() => {
     fetchMessages();
@@ -567,22 +591,6 @@ export default function ChatPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {/* Entry Effects */}
-              {entryEffects.length > 0 && (
-                <div className="space-y-2">
-                  {entryEffects.map((effect) => (
-                    <div key={effect.userId} className="flex justify-center animate-bounce">
-                      <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200 rounded-full px-4 py-2 flex items-center gap-2 shadow-lg">
-                        <span className="text-xl animate-pulse">{effect.icon}</span>
-                        <span className="text-sm font-medium" style={{ color: effect.color }}>
-                          {effect.userName} دخل الدردشة
-                        </span>
-                        <span className="text-xl animate-pulse">{effect.icon}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
               {messages.length === 0 && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-400">
@@ -991,6 +999,14 @@ export default function ChatPage() {
           </div>
         </div>
       )}
+
+      {/* Professional Entry Effects Overlay */}
+      <EntryEffectOverlay
+        effects={entryEffectQueue}
+        onEffectComplete={(completedUserId) => {
+          setEntryEffectQueue((prev) => prev.filter((e) => e.userId !== completedUserId));
+        }}
+      />
     </div>
   );
 }

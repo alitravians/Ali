@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { EntryEffectPreview } from "@/components/chat/EntryEffectOverlay";
+import type { EffectType } from "@/components/chat/EntryEffectOverlay";
 
 const ITEM_TYPES = [
   { value: "bubble", label: "فقاعة رسائل", icon: "💬" },
@@ -44,16 +46,24 @@ const BUBBLE_PRESETS = [
   { name: "قوس قزح", nameAr: "فقاعة قوس قزح", bg: "linear-gradient(135deg, #ef4444, #f59e0b, #22c55e, #3b82f6, #8b5cf6)", text: "#fff", border: "#6366f1" },
 ];
 
-// Predefined entry effects
+// Predefined entry effects - professional animations
 const EFFECT_PRESETS = [
-  { name: "نجوم", nameAr: "تأثير النجوم", effect: "stars", icon: "⭐" },
-  { name: "بريق", nameAr: "تأثير البريق", effect: "sparkle", icon: "✨" },
-  { name: "ألعاب نارية", nameAr: "تأثير الألعاب النارية", effect: "fireworks", icon: "🎆" },
-  { name: "قلوب", nameAr: "تأثير القلوب", effect: "hearts", icon: "❤️" },
-  { name: "فقاعات", nameAr: "تأثير الفقاعات", effect: "bubbles", icon: "🫧" },
-  { name: "برق", nameAr: "تأثير البرق", effect: "lightning", icon: "⚡" },
-  { name: "تاج", nameAr: "تأثير التاج", effect: "crown", icon: "👑" },
-  { name: "نار", nameAr: "تأثير النار", effect: "fire", icon: "🔥" },
+  { name: "توهج", nameAr: "تأثير التوهج", effect: "glow", icon: "🔆", rarity: "common", color: "#fbbf24", desc: "توهج ضوئي ناعم" },
+  { name: "نيون", nameAr: "تأثير النيون", effect: "neon", icon: "💜", rarity: "uncommon", color: "#8b5cf6", desc: "إضاءة نيون نابضة" },
+  { name: "شرارات", nameAr: "تأثير الشرارات", effect: "sparks", icon: "⚡", rarity: "uncommon", color: "#f59e0b", desc: "شرارات متطايرة" },
+  { name: "نجوم", nameAr: "تأثير النجوم", effect: "stars", icon: "⭐", rarity: "rare", color: "#60a5fa", desc: "نجوم متلألئة" },
+  { name: "بريق", nameAr: "تأثير البريق", effect: "sparkle", icon: "✨", rarity: "uncommon", color: "#6366f1", desc: "بريق لامع" },
+  { name: "ألعاب نارية", nameAr: "تأثير الألعاب النارية", effect: "fireworks", icon: "🎆", rarity: "epic", color: "#a855f7", desc: "ألعاب نارية منفجرة" },
+  { name: "قلوب", nameAr: "تأثير القلوب", effect: "hearts", icon: "❤️", rarity: "rare", color: "#ec4899", desc: "قلوب طائرة" },
+  { name: "فقاعات", nameAr: "تأثير الفقاعات", effect: "bubbles", icon: "🫧", rarity: "common", color: "#06b6d4", desc: "فقاعات عائمة" },
+  { name: "برق", nameAr: "تأثير البرق", effect: "lightning", icon: "⚡", rarity: "rare", color: "#3b82f6", desc: "صواعق برق" },
+  { name: "تاج", nameAr: "تأثير التاج الملكي", effect: "crown", icon: "👑", rarity: "epic", color: "#eab308", desc: "تاج ملكي فاخر" },
+  { name: "نار", nameAr: "تأثير النار", effect: "fire", icon: "🔥", rarity: "rare", color: "#ef4444", desc: "ألسنة لهب" },
+  { name: "إطار ملكي", nameAr: "تأثير الإطار الملكي", effect: "royal", icon: "👑", rarity: "legendary", color: "#eab308", desc: "إطار ملكي ذهبي" },
+  { name: "أسطوري", nameAr: "تأثير أسطوري", effect: "legendary", icon: "🐉", rarity: "legendary", color: "#a855f7", desc: "تأثير أسطوري خرافي" },
+  { name: "ثلوج", nameAr: "تأثير الثلوج", effect: "seasonal_snow", icon: "❄️", rarity: "rare", color: "#bae6fd", desc: "ثلوج موسمية" },
+  { name: "أزهار الكرز", nameAr: "تأثير أزهار الكرز", effect: "seasonal_cherry", icon: "🌸", rarity: "epic", color: "#f472b6", desc: "أزهار كرز متساقطة" },
+  { name: "أوراق الخريف", nameAr: "تأثير أوراق الخريف", effect: "seasonal_leaves", icon: "🍂", rarity: "rare", color: "#b45309", desc: "أوراق خريف متساقطة" },
 ];
 
 interface InventoryItem {
@@ -294,9 +304,12 @@ export default function AdminInventoryPage() {
     setFormData({
       ...formData,
       nameAr: preset.nameAr,
+      descriptionAr: preset.desc,
       type: "entry_effect",
       icon: preset.icon,
-      previewData: JSON.stringify({ effect: preset.effect }),
+      color: preset.color,
+      rarity: preset.rarity,
+      previewData: JSON.stringify({ effect: preset.effect, rarity: preset.rarity }),
     });
   };
 
@@ -393,6 +406,23 @@ export default function AdminInventoryPage() {
                         }
                       } catch { /* ignore */ }
                       return null;
+                    })()}
+                    {/* Preview for entry effects */}
+                    {item.type === "entry_effect" && (() => {
+                      try {
+                        const preview = JSON.parse(item.previewData || "{}");
+                        return (
+                          <div className="mt-2 rounded-xl overflow-hidden">
+                            <EntryEffectPreview
+                              effectType={(preview.effect || "glow") as EffectType}
+                              icon={item.icon}
+                              color={item.color}
+                              nameAr={item.nameAr}
+                              size="small"
+                            />
+                          </div>
+                        );
+                      } catch { return null; }
                     })()}
                     <div className="flex items-center justify-between mt-3 pt-3 border-t">
                       <span className="text-xs text-gray-400">👥 {item._count?.userItems || 0} مستخدم</span>
@@ -697,6 +727,29 @@ export default function AdminInventoryPage() {
                     <textarea value={formData.previewData} onChange={(e) => setFormData({ ...formData, previewData: e.target.value })}
                       className="w-full border rounded-xl px-3 py-2 text-sm font-mono" rows={2}
                       placeholder='{"effect":"stars"}' />
+                    {/* Live entry effect preview */}
+                    {(() => {
+                      try {
+                        const p = JSON.parse(formData.previewData || "{}");
+                        if (p.effect) {
+                          return (
+                            <div className="mt-2">
+                              <p className="text-xs text-gray-500 mb-1">معاينة التأثير:</p>
+                              <div className="rounded-xl overflow-hidden">
+                                <EntryEffectPreview
+                                  effectType={(p.effect || "glow") as EffectType}
+                                  icon={formData.icon}
+                                  color={formData.color}
+                                  nameAr={formData.nameAr || "اسم التأثير"}
+                                  size="medium"
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+                      } catch { /* ignore */ }
+                      return null;
+                    })()}
                   </div>
                 )}
 
