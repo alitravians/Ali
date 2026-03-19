@@ -47,6 +47,16 @@ interface ChatMessage {
   userInventory?: Record<string, InventoryEffect>;
 }
 
+interface ChatAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  importance: string;
+  placement: string;
+  isPinned: boolean;
+  expiresAt: string | null;
+}
+
 interface BanInfo {
   reason: string;
   endsAt: string;
@@ -156,6 +166,9 @@ export default function ChatPage() {
   const [chatLockType, setChatLockType] = useState("");
   const [chatLockReason, setChatLockReason] = useState("");
 
+  // Chat announcements state
+  const [chatAnnouncements, setChatAnnouncements] = useState<ChatAnnouncement[]>([]);
+
   // Bold message mode
   const [boldMode, setBoldMode] = useState(false);
   const [canBold, setCanBold] = useState(false);
@@ -176,6 +189,27 @@ export default function ChatPage() {
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
   const userChatRank = session?.user ? (session.user as { chatRank?: string }).chatRank : "";
   const isStaff = userRole === "admin" || userChatRank === "moderator" || userChatRank === "admin";
+
+  // Fetch chat_pin announcements
+  useEffect(() => {
+    fetch("/api/announcements?placement=chat_pin")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) setChatAnnouncements(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const dismissAnnouncement = async (announcementId: string) => {
+    setChatAnnouncements((prev) => prev.filter((a) => a.id !== announcementId));
+    try {
+      await fetch("/api/announcements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ announcementId }),
+      });
+    } catch { /* ignore */ }
+  };
 
   // Check if user has bold_message permission
   useEffect(() => {
@@ -606,6 +640,49 @@ export default function ChatPage() {
                 </Link>
               )}
             </div>
+
+            {/* Pinned Announcements */}
+            {chatAnnouncements.length > 0 && (
+              <div className="px-4 pt-3 space-y-2">
+                {chatAnnouncements.map((ann) => (
+                  <div
+                    key={ann.id}
+                    className={`rounded-xl p-3 flex items-start gap-3 border ${
+                      ann.importance === "urgent"
+                        ? "bg-red-50 border-red-200"
+                        : ann.importance === "important"
+                        ? "bg-amber-50 border-amber-200"
+                        : "bg-blue-50 border-blue-200"
+                    }`}
+                  >
+                    <span className="text-lg mt-0.5">
+                      {ann.importance === "urgent" ? "🚨" : ann.importance === "important" ? "⚠️" : "📌"}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-bold ${
+                        ann.importance === "urgent" ? "text-red-800" : ann.importance === "important" ? "text-amber-800" : "text-blue-800"
+                      }`}>
+                        {ann.title}
+                      </p>
+                      <p className={`text-xs mt-0.5 ${
+                        ann.importance === "urgent" ? "text-red-600" : ann.importance === "important" ? "text-amber-600" : "text-blue-600"
+                      }`}>
+                        {ann.content}
+                      </p>
+                    </div>
+                    {!ann.isPinned && (
+                      <button
+                        onClick={() => dismissAnnouncement(ann.id)}
+                        className="text-gray-400 hover:text-gray-600 text-sm p-1 transition-colors"
+                        title="إخفاء"
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">

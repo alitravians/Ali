@@ -74,12 +74,21 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
     const body = await req.json();
-    const { id, ...data } = body;
+    const { id, title, content, importance, placement, targetType, targetUsers, isPinned, showOnce, expiresAt } = body;
     if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 });
 
-    if (data.expiresAt) data.expiresAt = new Date(data.expiresAt);
+    const updateData: Record<string, unknown> = {};
+    if (title !== undefined) updateData.title = title;
+    if (content !== undefined) updateData.content = content;
+    if (importance !== undefined) updateData.importance = importance;
+    if (placement !== undefined) updateData.placement = placement;
+    if (targetType !== undefined) updateData.targetType = targetType;
+    if (targetUsers !== undefined) updateData.targetUsers = targetUsers;
+    if (isPinned !== undefined) updateData.isPinned = isPinned;
+    if (showOnce !== undefined) updateData.showOnce = showOnce;
+    if (expiresAt !== undefined) updateData.expiresAt = expiresAt ? new Date(expiresAt) : null;
 
-    const announcement = await prisma.announcement.update({ where: { id }, data });
+    const announcement = await prisma.announcement.update({ where: { id }, data: updateData });
     return NextResponse.json(announcement);
   } catch {
     return NextResponse.json({ error: "Failed" }, { status: 500 });
