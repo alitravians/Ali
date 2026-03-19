@@ -23,6 +23,74 @@ export async function GET() {
       data: { status: "expired" },
     });
 
+    // === Sync badge assignments to inventory ===
+    // Find badges assigned to user that don't have corresponding inventory entries
+    const badgeAssignments = await prisma.badgeAssignment.findMany({
+      where: { userId },
+      include: { badge: true },
+    });
+
+    for (const ba of badgeAssignments) {
+      // Skip expired temporary badges
+      if (!ba.isPermanent && ba.expiresAt && new Date(ba.expiresAt) < new Date()) continue;
+
+      const inventoryItemId = `badge-${ba.badge.id}`;
+
+      // Ensure InventoryItem exists for this badge
+      const existingItem = await prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } });
+      if (!existingItem) {
+        await prisma.inventoryItem.create({
+          data: {
+            id: inventoryItemId,
+            name: ba.badge.name,
+            nameAr: ba.badge.nameAr,
+            description: ba.badge.description,
+            descriptionAr: ba.badge.descriptionAr,
+            type: "badge",
+            icon: ba.badge.icon,
+            imageUrl: ba.badge.imageUrl,
+            color: ba.badge.color,
+            category: ba.badge.category,
+            previewData: JSON.stringify({ badgeId: ba.badge.id }),
+            rarity: ba.badge.category === "special" ? "epic" : ba.badge.category === "event" ? "rare" : "common",
+          },
+        });
+      }
+
+      // Ensure UserInventory entry exists
+      const existingInv = await prisma.userInventory.findUnique({
+        where: { userId_itemId: { userId, itemId: inventoryItemId } },
+      });
+      if (!existingInv) {
+        await prisma.userInventory.create({
+          data: {
+            userId,
+            itemId: inventoryItemId,
+            status: "active",
+            isPermanent: ba.isPermanent,
+            durationDays: ba.durationDays,
+            expiresAt: ba.expiresAt,
+            grantedBy: ba.assignedBy,
+            adminNote: ba.note,
+          },
+        });
+      } else if (existingInv.status === "revoked" || existingInv.status === "expired") {
+        // Badge is still assigned but inventory entry was revoked - re-sync
+        await prisma.userInventory.update({
+          where: { id: existingInv.id },
+          data: {
+            status: "active",
+            isPermanent: ba.isPermanent,
+            durationDays: ba.durationDays,
+            expiresAt: ba.expiresAt,
+            revokedAt: null,
+            revokedBy: "",
+            revokeReason: "",
+          },
+        });
+      }
+    }
+
     // Get user's inventory items
     const items = await prisma.userInventory.findMany({
       where: { userId },

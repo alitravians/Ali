@@ -264,11 +264,79 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Get badge info for notification
+      // Get badge info for notification and inventory sync
       const badge = await prisma.badge.findUnique({ where: { id: badgeId } });
 
-      // Send notification to user
+      // === Sync badge to inventory/bag system ===
       if (badge) {
+        // Find or create corresponding InventoryItem for this badge
+        const inventoryItemId = `badge-${badge.id}`;
+        let inventoryItem = await prisma.inventoryItem.findUnique({ where: { id: inventoryItemId } });
+        if (!inventoryItem) {
+          inventoryItem = await prisma.inventoryItem.create({
+            data: {
+              id: inventoryItemId,
+              name: badge.name,
+              nameAr: badge.nameAr,
+              description: badge.description,
+              descriptionAr: badge.descriptionAr,
+              type: "badge",
+              icon: badge.icon,
+              imageUrl: badge.imageUrl,
+              color: badge.color,
+              category: badge.category,
+              previewData: JSON.stringify({ badgeId: badge.id }),
+              rarity: badge.category === "special" ? "epic" : badge.category === "event" ? "rare" : "common",
+            },
+          });
+        }
+
+        // Create UserInventory entry so badge appears in bag
+        const existingInv = await prisma.userInventory.findUnique({
+          where: { userId_itemId: { userId, itemId: inventoryItemId } },
+        });
+        if (!existingInv) {
+          await prisma.userInventory.create({
+            data: {
+              userId,
+              itemId: inventoryItemId,
+              status: "active",
+              isPermanent: isPermanent !== false,
+              durationDays: durationDays || 0,
+              expiresAt,
+              grantedBy: adminId,
+              adminNote: note || "",
+            },
+          });
+        } else if (existingInv.status === "revoked" || existingInv.status === "expired") {
+          // Re-activate if previously revoked/expired
+          await prisma.userInventory.update({
+            where: { id: existingInv.id },
+            data: {
+              status: "active",
+              isPermanent: isPermanent !== false,
+              durationDays: durationDays || 0,
+              expiresAt,
+              grantedBy: adminId,
+              revokedAt: null,
+              revokedBy: "",
+              revokeReason: "",
+            },
+          });
+        }
+
+        // Log in inventory system
+        await prisma.inventoryLog.create({
+          data: {
+            userId,
+            itemId: inventoryItemId,
+            action: "granted",
+            details: `منح شارة "${badge.nameAr}" - ${isPermanent !== false ? "دائم" : `${durationDays} يوم`}`,
+            performedBy: adminId,
+          },
+        });
+
+        // Send notification to user
         await prisma.notification.create({
           data: {
             userId,
@@ -279,7 +347,7 @@ export async function POST(req: NextRequest) {
             type: "achievement",
             category: "general",
             icon: "trophy",
-            link: "/profile",
+            link: "/inventory",
             priority: "normal",
           },
         });
@@ -295,9 +363,40 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "معرف الشارة والمستخدم مطلوبان" }, { status: 400 });
       }
 
+      // Get badge info before deleting
+      const badge = await prisma.badge.findUnique({ where: { id: badgeId } });
+
       await prisma.badgeAssignment.delete({
         where: { badgeId_userId: { badgeId, userId } },
       });
+
+      // === Sync removal to inventory/bag system ===
+      const inventoryItemId = `badge-${badgeId}`;
+      const userInvEntry = await prisma.userInventory.findUnique({
+        where: { userId_itemId: { userId, itemId: inventoryItemId } },
+      });
+      if (userInvEntry && userInvEntry.status !== "revoked") {
+        await prisma.userInventory.update({
+          where: { id: userInvEntry.id },
+          data: {
+            status: "revoked",
+            revokedAt: new Date(),
+            revokedBy: adminId,
+            revokeReason: "تم إزالة الشارة",
+          },
+        });
+
+        // Log in inventory system
+        await prisma.inventoryLog.create({
+          data: {
+            userId,
+            itemId: inventoryItemId,
+            action: "revoked",
+            details: `سحب شارة "${badge?.nameAr || badgeId}"`,
+            performedBy: adminId,
+          },
+        });
+      }
 
       return NextResponse.json({ success: true });
     }
