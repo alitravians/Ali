@@ -153,6 +153,10 @@ export default function ChatPage() {
   const [boldMode, setBoldMode] = useState(false);
   const [canBold, setCanBold] = useState(false);
 
+  // Entry effects tracking
+  const [shownEntryEffects, setShownEntryEffects] = useState<Set<string>>(new Set());
+  const [entryEffects, setEntryEffects] = useState<Array<{ userId: string; userName: string; icon: string; color: string; nameAr: string }>>([]);
+
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
   const userChatRank = session?.user ? (session.user as { chatRank?: string }).chatRank : "";
@@ -232,10 +236,35 @@ export default function ChatPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setMessages(data);
+          // Detect entry effects for new users
+          const newEffects: Array<{ userId: string; userName: string; icon: string; color: string; nameAr: string }> = [];
+          for (const msg of data) {
+            if (msg.userInventory?.entry_effect && !shownEntryEffects.has(msg.user.id)) {
+              newEffects.push({
+                userId: msg.user.id,
+                userName: msg.user.name,
+                icon: msg.userInventory.entry_effect.icon,
+                color: msg.userInventory.entry_effect.color,
+                nameAr: msg.userInventory.entry_effect.nameAr,
+              });
+            }
+          }
+          if (newEffects.length > 0) {
+            setShownEntryEffects((prev) => {
+              const next = new Set(prev);
+              newEffects.forEach((e) => next.add(e.userId));
+              return next;
+            });
+            setEntryEffects((prev) => [...prev, ...newEffects]);
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+              setEntryEffects((prev) => prev.filter((e) => !newEffects.some((n) => n.userId === e.userId)));
+            }, 5000);
+          }
         }
       })
       .catch(() => {});
-  }, [activeRoom]);
+  }, [activeRoom, shownEntryEffects]);
 
   useEffect(() => {
     fetchMessages();
@@ -538,6 +567,22 @@ export default function ChatPage() {
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {/* Entry Effects */}
+              {entryEffects.length > 0 && (
+                <div className="space-y-2">
+                  {entryEffects.map((effect) => (
+                    <div key={effect.userId} className="flex justify-center animate-bounce">
+                      <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-indigo-200 rounded-full px-4 py-2 flex items-center gap-2 shadow-lg">
+                        <span className="text-xl animate-pulse">{effect.icon}</span>
+                        <span className="text-sm font-medium" style={{ color: effect.color }}>
+                          {effect.userName} دخل الدردشة
+                        </span>
+                        <span className="text-xl animate-pulse">{effect.icon}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
               {messages.length === 0 && (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center text-gray-400">

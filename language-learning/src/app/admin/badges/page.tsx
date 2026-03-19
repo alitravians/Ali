@@ -79,6 +79,8 @@ export default function AdminBadgesPage() {
   const [assignUserId, setAssignUserId] = useState("");
   const [assignNote, setAssignNote] = useState("");
   const [assignLoading, setAssignLoading] = useState(false);
+  const [assignPermanent, setAssignPermanent] = useState(true);
+  const [assignDuration, setAssignDuration] = useState(7);
 
   // View assignments
   const [viewBadge, setViewBadge] = useState<Badge | null>(null);
@@ -215,7 +217,7 @@ export default function AdminBadgesPage() {
       const res = await fetch("/api/admin/badges", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "assign", badgeId: assignBadgeId, userId: assignUserId, note: assignNote }),
+        body: JSON.stringify({ action: "assign", badgeId: assignBadgeId, userId: assignUserId, note: assignNote, isPermanent: assignPermanent, durationDays: assignPermanent ? 0 : assignDuration }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -342,6 +344,7 @@ export default function AdminBadgesPage() {
               { label: "فريق العمل", href: "/admin/team", icon: "👨‍💼" },
               { label: "المشرفين", href: "/admin/moderators", icon: "👮" },
               { label: "الشارات", href: "/admin/badges", icon: "🏅" },
+              { label: "الحقيبة", href: "/admin/inventory", icon: "🎒" },
               { label: "فحص النظام", href: "/admin/scan", icon: "🔍" },
               { label: "الإعدادات", href: "/admin/settings", icon: "⚙️" },
             ].map((nav) => (
@@ -498,6 +501,34 @@ export default function AdminBadgesPage() {
                     <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
                   ))}
                 </select>
+              </div>
+              {/* Duration */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">المدة</label>
+                <div className="flex gap-2 mb-2">
+                  <button type="button" onClick={() => setAssignPermanent(true)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${assignPermanent ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                    ♾️ دائمة
+                  </button>
+                  <button type="button" onClick={() => setAssignPermanent(false)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${!assignPermanent ? "bg-amber-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                    ⏳ مؤقتة
+                  </button>
+                </div>
+                {!assignPermanent && (
+                  <div>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {[1, 3, 7, 14, 30, 90].map((d) => (
+                        <button key={d} type="button" onClick={() => setAssignDuration(d)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${assignDuration === d ? "bg-amber-100 border-amber-300 text-amber-700 border" : "bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-100"}`}>
+                          {d} يوم
+                        </button>
+                      ))}
+                    </div>
+                    <input type="number" value={assignDuration} onChange={(e) => setAssignDuration(Math.max(1, parseInt(e.target.value) || 1))}
+                      className="w-full border border-gray-300 rounded-xl px-4 py-2 text-sm" min={1} placeholder="عدد الأيام" />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">ملاحظة (اختياري)</label>

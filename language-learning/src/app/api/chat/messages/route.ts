@@ -44,6 +44,8 @@ export async function GET(request: Request) {
     const userBadgesMap: Record<string, { icon: string; imageUrl: string; nameAr: string; color: string }[]> = {};
     for (const ba of badgeAssignments) {
       if (!ba.badge.isActive) continue;
+      // Filter out expired temporary badges
+      if (!ba.isPermanent && ba.expiresAt && new Date(ba.expiresAt) < new Date()) continue;
       if (!userBadgesMap[ba.userId]) userBadgesMap[ba.userId] = [];
       userBadgesMap[ba.userId].push({ icon: ba.badge.icon, imageUrl: ba.badge.imageUrl, nameAr: ba.badge.nameAr, color: ba.badge.color });
     }

@@ -232,7 +232,7 @@ export async function POST(req: NextRequest) {
 
     // === Assign Badge to User ===
     if (action === "assign") {
-      const { badgeId, userId, note } = body;
+      const { badgeId, userId, note, isPermanent = true, durationDays = 0 } = body;
       if (!badgeId || !userId) {
         return NextResponse.json({ error: "معرف الشارة والمستخدم مطلوبان" }, { status: 400 });
       }
@@ -245,12 +245,22 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "الشارة معينة بالفعل لهذا المستخدم" }, { status: 400 });
       }
 
+      // Calculate expiration date for temporary badges
+      let expiresAt: Date | null = null;
+      if (!isPermanent && durationDays > 0) {
+        expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + durationDays);
+      }
+
       const assignment = await prisma.badgeAssignment.create({
         data: {
           badgeId,
           userId,
           assignedBy: adminId,
           note: note || "",
+          isPermanent: isPermanent !== false,
+          durationDays: durationDays || 0,
+          expiresAt,
         },
       });
 
