@@ -8,8 +8,13 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "prisma generate",
-    "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:push": "bash scripts/backup-db.sh pre-push && prisma db push",
+    "db:push:unsafe": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:migrate": "bash scripts/safe-migrate.sh",
+    "db:backup": "bash scripts/backup-db.sh",
+    "db:restore": "bash scripts/restore-db.sh",
+    "db:reset": "bash scripts/backup-db.sh pre-reset && prisma db push --force-reset && tsx prisma/seed.ts"
   },
   "keywords": [],
   "author": "",

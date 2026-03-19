@@ -16,9 +16,25 @@ async function main() {
       email: "admin@linguamaster.com",
       password: adminPassword,
       role: "admin",
+      chatRank: "admin",
     },
   });
   console.log(`Admin user created: ${adminUser.email}`);
+
+  // Create test user
+  const testPassword = await hash("test123", 12);
+  const testUser = await prisma.user.upsert({
+    where: { email: "testuser2026@test.com" },
+    update: {},
+    create: {
+      name: "مستخدم تجريبي",
+      email: "testuser2026@test.com",
+      password: testPassword,
+      role: "user",
+      chatRank: "member",
+    },
+  });
+  console.log(`Test user created: ${testUser.email}`);
 
   // Create English language
   const english = await prisma.language.create({
@@ -349,8 +365,10 @@ async function main() {
   });
 
   // Create site settings
-  await prisma.siteSettings.create({
-    data: {
+  await prisma.siteSettings.upsert({
+    where: { id: "settings" },
+    update: {},
+    create: {
       id: "settings",
       siteName: "LinguaMaster",
       siteDescription: "منصة تعلم اللغات الأجنبية",
@@ -359,8 +377,155 @@ async function main() {
     },
   });
 
-  console.log("Seed completed successfully!");
+  // ==================== Chat Rooms ====================
+  const generalRoom = await prisma.chatRoom.upsert({
+    where: { id: "general-room" },
+    update: {},
+    create: {
+      id: "general-room",
+      name: "General Chat",
+      nameAr: "الغرفة العامة",
+      description: "غرفة الدردشة العامة",
+      type: "public",
+      isActive: true,
+      order: 1,
+    },
+  });
+  console.log(`Chat room created: ${generalRoom.nameAr}`);
+
+  const supportRoom = await prisma.chatRoom.upsert({
+    where: { id: "support-room" },
+    update: {},
+    create: {
+      id: "support-room",
+      name: "Support Chat",
+      nameAr: "غرفة الدعم الفني",
+      description: "غرفة الدعم الفني والمساعدة",
+      type: "support",
+      isActive: true,
+      order: 2,
+    },
+  });
+  console.log(`Chat room created: ${supportRoom.nameAr}`);
+
+  const educationalRoom = await prisma.chatRoom.upsert({
+    where: { id: "educational-room" },
+    update: {},
+    create: {
+      id: "educational-room",
+      name: "Educational Chat",
+      nameAr: "غرفة التعليم",
+      description: "غرفة مناقشة الدروس والتعلم",
+      type: "educational",
+      isActive: true,
+      order: 3,
+    },
+  });
+  console.log(`Chat room created: ${educationalRoom.nameAr}`);
+
+  // ==================== Default Badges ====================
+  const defaultBadges = [
+    { name: "Early Adopter", nameAr: "المبكر", description: "Joined during beta", descriptionAr: "انضم خلال الفترة التجريبية", icon: "🌟", color: "#f59e0b", category: "special", order: 1 },
+    { name: "Top Student", nameAr: "الطالب المتميز", description: "Achieved high scores", descriptionAr: "حقق درجات عالية", icon: "🏆", color: "#eab308", category: "achievement", order: 2 },
+    { name: "Active Learner", nameAr: "المتعلم النشط", description: "Completed many lessons", descriptionAr: "أكمل العديد من الدروس", icon: "📚", color: "#3b82f6", category: "achievement", order: 3 },
+    { name: "Helper", nameAr: "المساعد", description: "Helped other students", descriptionAr: "ساعد الطلاب الآخرين", icon: "🤝", color: "#10b981", category: "general", order: 4 },
+    { name: "Chat Champion", nameAr: "بطل الدردشة", description: "Active in chat", descriptionAr: "نشط في الدردشة", icon: "💬", color: "#8b5cf6", category: "general", order: 5 },
+  ];
+
+  for (const badge of defaultBadges) {
+    await prisma.badge.upsert({
+      where: { id: `default-badge-${badge.order}` },
+      update: {},
+      create: {
+        id: `default-badge-${badge.order}`,
+        ...badge,
+      },
+    });
+  }
+  console.log(`Created ${defaultBadges.length} default badges`);
+
+  // ==================== Default Inventory Items ====================
+  const defaultItems = [
+    {
+      id: "item-golden-bubble",
+      name: "Golden Bubble",
+      nameAr: "فقاعة ذهبية",
+      description: "A beautiful golden chat bubble",
+      descriptionAr: "فقاعة دردشة ذهبية جميلة",
+      type: "bubble",
+      icon: "💬",
+      color: "#f59e0b",
+      previewData: JSON.stringify({ bg: "linear-gradient(135deg, #f59e0b, #d97706)", text: "#fff", border: "#b45309" }),
+      rarity: "rare",
+      order: 1,
+    },
+    {
+      id: "item-diamond-bubble",
+      name: "Diamond Bubble",
+      nameAr: "فقاعة ماسية",
+      description: "A sparkling diamond chat bubble",
+      descriptionAr: "فقاعة دردشة ماسية لامعة",
+      type: "bubble",
+      icon: "💎",
+      color: "#06b6d4",
+      previewData: JSON.stringify({ bg: "linear-gradient(135deg, #06b6d4, #0891b2)", text: "#fff", border: "#0e7490" }),
+      rarity: "epic",
+      order: 2,
+    },
+    {
+      id: "item-stars-effect",
+      name: "Stars Effect",
+      nameAr: "تأثير النجوم",
+      description: "Stars animation when entering chat",
+      descriptionAr: "تأثير نجوم عند دخول الدردشة",
+      type: "entry_effect",
+      icon: "⭐",
+      color: "#eab308",
+      previewData: JSON.stringify({ animation: "stars", particles: 5 }),
+      rarity: "rare",
+      order: 3,
+    },
+    {
+      id: "item-fire-effect",
+      name: "Fire Effect",
+      nameAr: "تأثير النار",
+      description: "Fire animation when entering chat",
+      descriptionAr: "تأثير ناري عند دخول الدردشة",
+      type: "entry_effect",
+      icon: "🔥",
+      color: "#ef4444",
+      previewData: JSON.stringify({ animation: "fire", particles: 5 }),
+      rarity: "epic",
+      order: 4,
+    },
+    {
+      id: "item-crown-necklace",
+      name: "Crown Necklace",
+      nameAr: "قلادة التاج",
+      description: "A royal crown necklace",
+      descriptionAr: "قلادة تاج ملكية",
+      type: "necklace",
+      icon: "👑",
+      color: "#f59e0b",
+      previewData: JSON.stringify({}),
+      rarity: "legendary",
+      order: 5,
+    },
+  ];
+
+  for (const item of defaultItems) {
+    await prisma.inventoryItem.upsert({
+      where: { id: item.id },
+      update: {},
+      create: item,
+    });
+  }
+  console.log(`Created ${defaultItems.length} default inventory items`);
+
+  console.log("\n=== Seed completed successfully! ===");
   console.log(`Created: 1 language, 3 levels, 7 lessons, ${b1Words.length + b2Words.length + b3Words.length + i1Words.length + i2Words.length + a1Words.length + a2Words.length} words, ${beginnerQuestions.length + intermediateQuestions.length + advancedQuestions.length} questions, 3 tests`);
+  console.log(`Created: 3 chat rooms, ${defaultBadges.length} badges, ${defaultItems.length} inventory items`);
+  console.log(`Created: 2 users (admin + test)`);
 }
 
 main()

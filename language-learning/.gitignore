@@ -25,6 +25,8 @@ npm-debug.log*
 # prisma
 prisma/dev.db
 prisma/dev.db-journal
+prisma/backups/
+prisma/*.backup.*
 
 # turbo
 .turbo
