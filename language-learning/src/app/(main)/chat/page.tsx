@@ -176,6 +176,8 @@ export default function ChatPage() {
   // Entry effects tracking (ref-based to avoid stale closures)
   const shownEntryEffectsRef = useRef<Set<string>>(new Set());
   const entryEffectCooldownsRef = useRef<Record<string, number>>({});
+  const seenMessageIdsRef = useRef<Set<string>>(new Set());
+  const isFirstFetchRef = useRef(true);
   const [entryEffectQueue, setEntryEffectQueue] = useState<EntryEffect[]>([]);
   const [effectSoundMuted, setEffectSoundMuted] = useState(() => {
     if (typeof window !== "undefined") {
@@ -183,7 +185,7 @@ export default function ChatPage() {
     }
     return false;
   });
-  const ENTRY_EFFECT_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown per user
+  const ENTRY_EFFECT_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown per user
 
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
@@ -289,6 +291,13 @@ export default function ChatPage() {
     return () => clearInterval(timer);
   }, [banInfo]);
 
+  // Reset entry effect tracking when room changes
+  useEffect(() => {
+    seenMessageIdsRef.current = new Set();
+    isFirstFetchRef.current = true;
+    entryEffectCooldownsRef.current = {};
+  }, [activeRoom]);
+
   // Fetch messages with polling
   const fetchMessages = useCallback(() => {
     if (!activeRoom) return;
@@ -297,46 +306,79 @@ export default function ChatPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setMessages(data);
-          // Detect entry effects for new users (ref-based to prevent repeats)
+
+          // On first fetch (page load), just record all message IDs without triggering effects
+          if (isFirstFetchRef.current) {
+            isFirstFetchRef.current = false;
+            for (const msg of data) {
+              seenMessageIdsRef.current.add(msg.id);
+            }
+            return;
+          }
+
+          // Detect entry effects ONLY for truly new messages (not seen before)
           const newEffects: EntryEffect[] = [];
           const now = Date.now();
+          const seenUserIds = new Set<string>();
+
           for (const msg of data) {
-            if (msg.userInventory?.entry_effect) {
-              // Check cooldown - don't show effect if shown recently
-              const lastShown = entryEffectCooldownsRef.current[msg.user.id] || 0;
-              if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
-              // Skip own effects
-              if (msg.user.id === userId) continue;
-              
-              // Mark cooldown IMMEDIATELY via ref (prevents any re-detection)
-              entryEffectCooldownsRef.current[msg.user.id] = now;
-              
-              // Parse effect type from previewData
-              let effectType: EffectType = "glow";
-              let rarity = "common";
-              try {
-                const pd = JSON.parse(msg.userInventory.entry_effect.previewData || "{}");
-                if (pd.effect) effectType = pd.effect as EffectType;
-                if (pd.rarity) rarity = pd.rarity;
-              } catch { /* use default */ }
-              
-              newEffects.push({
-                userId: msg.user.id,
-                userName: msg.user.name,
-                effectType,
-                icon: msg.userInventory.entry_effect.icon,
-                color: msg.userInventory.entry_effect.color,
-                nameAr: msg.userInventory.entry_effect.nameAr,
-                rarity,
-                videoUrl: msg.userInventory.entry_effect.videoUrl || undefined,
-                soundUrl: msg.userInventory.entry_effect.soundUrl || undefined,
-                effectDuration: msg.userInventory.entry_effect.effectDuration || 5,
-              });
-            }
+            // Skip messages we've already seen
+            if (seenMessageIdsRef.current.has(msg.id)) continue;
+            // Mark as seen
+            seenMessageIdsRef.current.add(msg.id);
+
+            // Only trigger entry effects for messages created very recently (within 15 seconds)
+            const msgAge = now - new Date(msg.createdAt).getTime();
+            if (msgAge > 15000) continue;
+
+            // Check if this user has an entry effect
+            if (!msg.userInventory?.entry_effect) continue;
+            // Skip own effects
+            if (msg.user.id === userId) continue;
+            // Only one effect per user per poll cycle
+            if (seenUserIds.has(msg.user.id)) continue;
+            seenUserIds.add(msg.user.id);
+
+            // Check cooldown - don't show effect if shown recently
+            const lastShown = entryEffectCooldownsRef.current[msg.user.id] || 0;
+            if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
+
+            // Mark cooldown IMMEDIATELY via ref (prevents any re-detection)
+            entryEffectCooldownsRef.current[msg.user.id] = now;
+
+            // Parse effect type from previewData
+            let effectType: EffectType = "glow";
+            let rarity = "common";
+            try {
+              const pd = JSON.parse(msg.userInventory.entry_effect.previewData || "{}");
+              if (pd.effect) effectType = pd.effect as EffectType;
+              if (pd.rarity) rarity = pd.rarity;
+            } catch { /* use default */ }
+
+            newEffects.push({
+              userId: msg.user.id,
+              userName: msg.user.name,
+              effectType,
+              icon: msg.userInventory.entry_effect.icon,
+              color: msg.userInventory.entry_effect.color,
+              nameAr: msg.userInventory.entry_effect.nameAr,
+              rarity,
+              videoUrl: msg.userInventory.entry_effect.videoUrl || undefined,
+              soundUrl: msg.userInventory.entry_effect.soundUrl || undefined,
+              effectDuration: msg.userInventory.entry_effect.effectDuration || 5,
+            });
           }
           if (newEffects.length > 0) {
             setEntryEffectQueue((prev) => [...prev, ...newEffects]);
           }
+
+          // Prune seenMessageIdsRef to prevent memory leak (keep only current message IDs)
+          const currentIds = new Set(data.map((m: ChatMessage) => m.id));
+          const prunedIds = new Set<string>();
+          seenMessageIdsRef.current.forEach(id => {
+            if (currentIds.has(id)) prunedIds.add(id);
+          });
+          seenMessageIdsRef.current = prunedIds;
         }
       })
       .catch(() => {});
