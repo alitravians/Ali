@@ -184,7 +184,7 @@ export default function ChatPage() {
     }
     return false;
   });
-  const ENTRY_EFFECT_COOLDOWN = 5 * 60 * 1000; // 5 minutes cooldown per user
+  const ENTRY_EFFECT_COOLDOWN = 2 * 60 * 1000; // 2 minutes cooldown per user
 
   const userId = session?.user ? (session.user as { id: string }).id : "";
   const userRole = session?.user ? (session.user as { role?: string }).role : "";
