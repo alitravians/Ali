@@ -52,6 +52,7 @@ model User {
   pointLogs       PointLog[]
   purchases       Purchase[]
   dailyQuestProgress DailyQuestProgress[]
+  chatPresences  ChatPresence[]
 }
 
 model Language {
@@ -331,6 +332,7 @@ model ChatRoom {
   createdAt   DateTime @default(now())
 
   messages    ChatMessage[]
+  presences   ChatPresence[]
 }
 
 model ChatMessage {
@@ -788,6 +790,20 @@ model AnnouncementRead {
   announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@unique([announcementId, userId])
+}
+
+// ==================== Chat Presence ====================
+
+model ChatPresence {
+  id        String   @id @default(cuid())
+  userId    String
+  roomId    String
+  lastSeen  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
 }
 
 // ==================== Chat Lock Log ====================

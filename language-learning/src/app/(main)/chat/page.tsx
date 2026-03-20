@@ -173,11 +173,10 @@ export default function ChatPage() {
   const [boldMode, setBoldMode] = useState(false);
   const [canBold, setCanBold] = useState(false);
 
-  // Entry effects tracking (ref-based to avoid stale closures)
-  const shownEntryEffectsRef = useRef<Set<string>>(new Set());
+  // Entry effects tracking (presence-based)
   const entryEffectCooldownsRef = useRef<Record<string, number>>({});
-  const seenMessageIdsRef = useRef<Set<string>>(new Set());
-  const isFirstFetchRef = useRef(true);
+  const knownPresenceUsersRef = useRef<Set<string>>(new Set());
+  const presenceInitializedRef = useRef(false);
   const [entryEffectQueue, setEntryEffectQueue] = useState<EntryEffect[]>([]);
   const [effectSoundMuted, setEffectSoundMuted] = useState(() => {
     if (typeof window !== "undefined") {
@@ -293,12 +292,12 @@ export default function ChatPage() {
 
   // Reset entry effect tracking when room changes
   useEffect(() => {
-    seenMessageIdsRef.current = new Set();
-    isFirstFetchRef.current = true;
+    knownPresenceUsersRef.current = new Set();
+    presenceInitializedRef.current = false;
     entryEffectCooldownsRef.current = {};
   }, [activeRoom]);
 
-  // Fetch messages with polling
+  // Fetch messages with polling (no entry effect logic here anymore)
   const fetchMessages = useCallback(() => {
     if (!activeRoom) return;
     fetch(`/api/chat/messages?roomId=${activeRoom}`)
@@ -306,79 +305,79 @@ export default function ChatPage() {
       .then((data) => {
         if (Array.isArray(data)) {
           setMessages(data);
+        }
+      })
+      .catch(() => {});
+  }, [activeRoom]);
 
-          // On first fetch (page load), just record all message IDs without triggering effects
-          if (isFirstFetchRef.current) {
-            isFirstFetchRef.current = false;
-            for (const msg of data) {
-              seenMessageIdsRef.current.add(msg.id);
-            }
-            return;
+  // Register presence and poll for new users with entry effects
+  const pollPresence = useCallback(() => {
+    if (!activeRoom || !userId) return;
+
+    // Register own presence
+    fetch("/api/chat/presence", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roomId: activeRoom }),
+    }).catch(() => {});
+
+    // Fetch users with entry effects who are present
+    fetch(`/api/chat/presence?roomId=${activeRoom}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!Array.isArray(data)) return;
+
+        // On first presence check, just record known users without triggering effects
+        if (!presenceInitializedRef.current) {
+          presenceInitializedRef.current = true;
+          for (const p of data) {
+            knownPresenceUsersRef.current.add(p.userId);
           }
+          return;
+        }
 
-          // Detect entry effects ONLY for truly new messages (not seen before)
-          const newEffects: EntryEffect[] = [];
-          const now = Date.now();
-          const seenUserIds = new Set<string>();
+        const newEffects: EntryEffect[] = [];
+        const now = Date.now();
 
-          for (const msg of data) {
-            // Skip messages we've already seen
-            if (seenMessageIdsRef.current.has(msg.id)) continue;
-            // Mark as seen
-            seenMessageIdsRef.current.add(msg.id);
+        for (const p of data) {
+          // Skip users we already know about (they were already in the room)
+          if (knownPresenceUsersRef.current.has(p.userId)) continue;
+          // Add to known users
+          knownPresenceUsersRef.current.add(p.userId);
+          // Skip own effects
+          if (p.userId === userId) continue;
+          // Check cooldown
+          const lastShown = entryEffectCooldownsRef.current[p.userId] || 0;
+          if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
 
-            // Only trigger entry effects for messages created very recently (within 15 seconds)
-            const msgAge = now - new Date(msg.createdAt).getTime();
-            if (msgAge > 15000) continue;
+          // Mark cooldown
+          entryEffectCooldownsRef.current[p.userId] = now;
 
-            // Check if this user has an entry effect
-            if (!msg.userInventory?.entry_effect) continue;
-            // Skip own effects
-            if (msg.user.id === userId) continue;
-            // Only one effect per user per poll cycle
-            if (seenUserIds.has(msg.user.id)) continue;
-            seenUserIds.add(msg.user.id);
+          // Parse effect type from previewData
+          let effectType: EffectType = "glow";
+          let rarity = "common";
+          try {
+            const pd = JSON.parse(p.entryEffect.previewData || "{}");
+            if (pd.effect) effectType = pd.effect as EffectType;
+            if (pd.rarity) rarity = pd.rarity;
+          } catch { /* use default */ }
 
-            // Check cooldown - don't show effect if shown recently
-            const lastShown = entryEffectCooldownsRef.current[msg.user.id] || 0;
-            if (now - lastShown < ENTRY_EFFECT_COOLDOWN) continue;
-
-            // Mark cooldown IMMEDIATELY via ref (prevents any re-detection)
-            entryEffectCooldownsRef.current[msg.user.id] = now;
-
-            // Parse effect type from previewData
-            let effectType: EffectType = "glow";
-            let rarity = "common";
-            try {
-              const pd = JSON.parse(msg.userInventory.entry_effect.previewData || "{}");
-              if (pd.effect) effectType = pd.effect as EffectType;
-              if (pd.rarity) rarity = pd.rarity;
-            } catch { /* use default */ }
-
-            newEffects.push({
-              userId: msg.user.id,
-              userName: msg.user.name,
-              effectType,
-              icon: msg.userInventory.entry_effect.icon,
-              color: msg.userInventory.entry_effect.color,
-              nameAr: msg.userInventory.entry_effect.nameAr,
-              rarity,
-              videoUrl: msg.userInventory.entry_effect.videoUrl || undefined,
-              soundUrl: msg.userInventory.entry_effect.soundUrl || undefined,
-              effectDuration: msg.userInventory.entry_effect.effectDuration || 5,
-            });
-          }
-          if (newEffects.length > 0) {
-            setEntryEffectQueue((prev) => [...prev, ...newEffects]);
-          }
-
-          // Prune seenMessageIdsRef to prevent memory leak (keep only current message IDs)
-          const currentIds = new Set(data.map((m: ChatMessage) => m.id));
-          const prunedIds = new Set<string>();
-          seenMessageIdsRef.current.forEach(id => {
-            if (currentIds.has(id)) prunedIds.add(id);
+          newEffects.push({
+            userId: p.userId,
+            userName: p.userName,
+            effectType,
+            icon: p.entryEffect.icon,
+            color: p.entryEffect.color,
+            nameAr: p.entryEffect.nameAr,
+            rarity,
+            videoUrl: p.entryEffect.videoUrl || undefined,
+            soundUrl: p.entryEffect.soundUrl || undefined,
+            effectDuration: p.entryEffect.effectDuration || 5,
           });
-          seenMessageIdsRef.current = prunedIds;
+        }
+
+        if (newEffects.length > 0) {
+          setEntryEffectQueue((prev) => [...prev, ...newEffects]);
         }
       })
       .catch(() => {});
@@ -386,12 +385,16 @@ export default function ChatPage() {
 
   useEffect(() => {
     fetchMessages();
+    pollPresence();
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(fetchMessages, 3000);
+    pollRef.current = setInterval(() => {
+      fetchMessages();
+      pollPresence();
+    }, 3000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
     };
-  }, [fetchMessages]);
+  }, [fetchMessages, pollPresence]);
 
   // Auto-scroll
   useEffect(() => {
