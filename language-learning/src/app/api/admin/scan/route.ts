@@ -107,19 +107,63 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create admin notification if critical issues found
-    if (scan && scan.criticalCount > 0) {
-      await prisma.adminNotification.create({
-        data: {
-          title: "Critical System Issues Detected",
-          titleAr: "تم اكتشاف مشاكل حرجة في النظام",
-          message: `System scan found ${scan.criticalCount} critical issues requiring immediate attention.`,
-          messageAr: `اكتشف فحص النظام ${scan.criticalCount} مشكلة حرجة تتطلب إصلاحاً فورياً.`,
-          category: "admin",
-          priority: "urgent",
-          link: "/admin/scan",
-        },
-      });
+    // Create admin notifications based on scan results
+    if (scan) {
+      const totalIssues = scan.criticalCount + scan.highCount + scan.mediumCount + scan.lowCount;
+
+      // Critical issues - urgent notification
+      if (scan.criticalCount > 0) {
+        const breakdownParts = [];
+        if (scan.criticalCount > 0) breakdownParts.push(`${scan.criticalCount} حرجة`);
+        if (scan.highCount > 0) breakdownParts.push(`${scan.highCount} عالية`);
+        if (scan.mediumCount > 0) breakdownParts.push(`${scan.mediumCount} متوسطة`);
+        if (scan.lowCount > 0) breakdownParts.push(`${scan.lowCount} منخفضة`);
+        const breakdown = breakdownParts.join(" | ");
+
+        await prisma.adminNotification.create({
+          data: {
+            title: "Critical System Issues Detected",
+            titleAr: "تنبيه عاجل: مشاكل حرجة في النظام",
+            message: `System scan found ${totalIssues} issues (${scan.criticalCount} critical). Breakdown: ${breakdown}. Immediate action required.`,
+            messageAr: `اكتشف فحص النظام ${totalIssues} مشكلة (${scan.criticalCount} حرجة). التوزيع: ${breakdown}. يتطلب إجراءً فورياً.`,
+            category: "admin",
+            priority: "urgent",
+            link: "/admin/scan",
+          },
+        });
+      }
+      // High severity issues - high priority notification
+      else if (scan.highCount > 0) {
+        await prisma.adminNotification.create({
+          data: {
+            title: "High Severity Issues Found",
+            titleAr: "تم اكتشاف مشاكل عالية الخطورة",
+            message: `System scan found ${scan.highCount} high severity issues out of ${totalIssues} total. Review recommended.`,
+            messageAr: `اكتشف فحص النظام ${scan.highCount} مشكلة عالية الخطورة من إجمالي ${totalIssues}. يُنصح بالمراجعة.`,
+            category: "admin",
+            priority: "high",
+            link: "/admin/scan",
+          },
+        });
+      }
+      // Performance degradation notification
+      const perfIssues = scan.issues.filter((i: { type: string }) => i.type === "performance");
+      if (perfIssues.length > 0) {
+        const perfCritical = perfIssues.filter((i: { severity: string }) => i.severity === "critical" || i.severity === "high").length;
+        if (perfCritical > 0) {
+          await prisma.adminNotification.create({
+            data: {
+              title: "Performance Degradation Detected",
+              titleAr: "تم اكتشاف تدهور في الأداء",
+              message: `${perfCritical} performance issues detected. Response times or database sizes may need attention.`,
+              messageAr: `تم اكتشاف ${perfCritical} مشكلة في الأداء. أوقات الاستجابة أو حجم قاعدة البيانات قد تحتاج اهتماماً.`,
+              category: "admin",
+              priority: "high",
+              link: "/admin/scan",
+            },
+          });
+        }
+      }
     }
 
     return NextResponse.json(scan);

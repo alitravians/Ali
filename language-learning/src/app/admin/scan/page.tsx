@@ -124,7 +124,7 @@ export default function AdminScanPage() {
   const [scanProgress, setScanProgress] = useState(0);
   const [selectedScanType, setSelectedScanType] = useState("full");
   const [selectedIssue, setSelectedIssue] = useState<SystemIssue | null>(null);
-  const [tab, setTab] = useState<"results" | "history">("results");
+  const [tab, setTab] = useState<"results" | "history" | "reports">("results");
 
   // Filters
   const [filterSeverity, setFilterSeverity] = useState("");
@@ -457,6 +457,14 @@ export default function AdminScanPage() {
           >
             سجل الفحوصات ({history.length})
           </button>
+          <button
+            onClick={() => setTab("reports")}
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${
+              tab === "reports" ? "bg-primary-600 text-white" : "bg-white text-gray-600 hover:bg-gray-100"
+            }`}
+          >
+            التقارير البيانية
+          </button>
           {currentScan && (
             <button
               onClick={exportReport}
@@ -682,6 +690,151 @@ export default function AdminScanPage() {
               </div>
             )}
           </>
+        )}
+
+        {/* Reports Tab */}
+        {tab === "reports" && (
+          <div>
+            {history.length < 2 ? (
+              <div className="card p-12 text-center">
+                <div className="text-6xl mb-4">📊</div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">بيانات غير كافية للتقارير</h3>
+                <p className="text-gray-500">أجرِ فحصين على الأقل لرؤية التقارير البيانية والاتجاهات</p>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Health Score Trend */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">مؤشر صحة النظام عبر الزمن</h3>
+                  <div className="relative h-48 flex items-end gap-1">
+                    {(() => {
+                      const sortedScans = [...history].filter(s => s.status === "completed").reverse().slice(-15);
+                      const maxChecks = Math.max(...sortedScans.map(s => s.totalChecks), 1);
+                      return sortedScans.map((scan, idx) => {
+                        const healthScore = scan.totalChecks > 0 ? Math.round((scan.passedChecks / scan.totalChecks) * 100) : 0;
+                        const barHeight = Math.max((healthScore / 100) * 100, 5);
+                        const color = healthScore >= 80 ? "bg-green-500" : healthScore >= 50 ? "bg-yellow-500" : "bg-red-500";
+                        return (
+                          <div key={scan.id} className="flex-1 flex flex-col items-center gap-1" title={`${new Date(scan.startedAt).toLocaleDateString("ar")} - ${healthScore}%`}>
+                            <span className="text-xs text-gray-500 font-bold">{healthScore}%</span>
+                            <div
+                              className={`w-full rounded-t-md ${color} transition-all duration-500 min-w-[20px]`}
+                              style={{ height: `${barHeight}%` }}
+                            />
+                            <span className="text-[9px] text-gray-400 truncate w-full text-center">
+                              {new Date(scan.startedAt).toLocaleDateString("ar", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-500 inline-block" /> 80%+ ممتاز</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-500 inline-block" /> 50-79% متوسط</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-500 inline-block" /> أقل من 50% ضعيف</span>
+                  </div>
+                </div>
+
+                {/* Issues by Severity Over Time */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">توزيع المشاكل حسب الخطورة</h3>
+                  <div className="relative h-48 flex items-end gap-1">
+                    {(() => {
+                      const sortedScans = [...history].filter(s => s.status === "completed").reverse().slice(-15);
+                      const maxIssues = Math.max(...sortedScans.map(s => s.criticalCount + s.highCount + s.mediumCount + s.lowCount), 1);
+                      return sortedScans.map((scan) => {
+                        const total = scan.criticalCount + scan.highCount + scan.mediumCount + scan.lowCount;
+                        const critH = maxIssues > 0 ? (scan.criticalCount / maxIssues) * 100 : 0;
+                        const highH = maxIssues > 0 ? (scan.highCount / maxIssues) * 100 : 0;
+                        const medH = maxIssues > 0 ? (scan.mediumCount / maxIssues) * 100 : 0;
+                        const lowH = maxIssues > 0 ? (scan.lowCount / maxIssues) * 100 : 0;
+                        return (
+                          <div key={scan.id} className="flex-1 flex flex-col items-center" title={`إجمالي: ${total} مشكلة`}>
+                            <span className="text-xs text-gray-500 font-bold mb-1">{total}</span>
+                            <div className="w-full flex flex-col-reverse min-w-[20px]">
+                              {scan.lowCount > 0 && <div className="bg-blue-400 rounded-sm" style={{ height: `${Math.max(lowH, 2)}%` }} />}
+                              {scan.mediumCount > 0 && <div className="bg-yellow-400 rounded-sm" style={{ height: `${Math.max(medH, 2)}%` }} />}
+                              {scan.highCount > 0 && <div className="bg-orange-500 rounded-sm" style={{ height: `${Math.max(highH, 2)}%` }} />}
+                              {scan.criticalCount > 0 && <div className="bg-red-600 rounded-sm" style={{ height: `${Math.max(critH, 2)}%` }} />}
+                            </div>
+                            <span className="text-[9px] text-gray-400 truncate w-full text-center mt-1">
+                              {new Date(scan.startedAt).toLocaleDateString("ar", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                  <div className="flex items-center justify-center gap-4 mt-3 text-xs text-gray-500">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-red-600 inline-block" /> حرجة</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-orange-500 inline-block" /> عالية</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-400 inline-block" /> متوسطة</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-400 inline-block" /> منخفضة</span>
+                  </div>
+                </div>
+
+                {/* Scan Duration Trend */}
+                <div className="card p-6">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">مدة الفحص عبر الزمن (ثانية)</h3>
+                  <div className="relative h-36 flex items-end gap-1">
+                    {(() => {
+                      const sortedScans = [...history].filter(s => s.status === "completed").reverse().slice(-15);
+                      const maxDuration = Math.max(...sortedScans.map(s => s.duration), 1);
+                      return sortedScans.map((scan) => {
+                        const durationSec = (scan.duration / 1000);
+                        const barHeight = Math.max((scan.duration / maxDuration) * 100, 5);
+                        return (
+                          <div key={scan.id} className="flex-1 flex flex-col items-center gap-1" title={`${durationSec.toFixed(1)}s`}>
+                            <span className="text-xs text-gray-500">{durationSec.toFixed(1)}s</span>
+                            <div
+                              className="w-full rounded-t-md bg-purple-500 min-w-[20px]"
+                              style={{ height: `${barHeight}%` }}
+                            />
+                            <span className="text-[9px] text-gray-400 truncate w-full text-center">
+                              {new Date(scan.startedAt).toLocaleDateString("ar", { month: "short", day: "numeric" })}
+                            </span>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {(() => {
+                    const completedScans = history.filter(s => s.status === "completed");
+                    const totalScans = completedScans.length;
+                    const avgHealth = totalScans > 0 ? Math.round(completedScans.reduce((sum, s) => sum + (s.totalChecks > 0 ? (s.passedChecks / s.totalChecks) * 100 : 0), 0) / totalScans) : 0;
+                    const totalCritical = completedScans.reduce((sum, s) => sum + s.criticalCount, 0);
+                    const avgDuration = totalScans > 0 ? (completedScans.reduce((sum, s) => sum + s.duration, 0) / totalScans / 1000).toFixed(1) : "0";
+                    const totalIssues = completedScans.reduce((sum, s) => sum + s.criticalCount + s.highCount + s.mediumCount + s.lowCount, 0);
+                    return (
+                      <>
+                        <div className="card p-5 text-center">
+                          <p className="text-3xl font-bold text-primary-600">{totalScans}</p>
+                          <p className="text-sm text-gray-500 mt-1">إجمالي الفحوصات</p>
+                        </div>
+                        <div className="card p-5 text-center">
+                          <p className={`text-3xl font-bold ${avgHealth >= 80 ? "text-green-600" : avgHealth >= 50 ? "text-yellow-600" : "text-red-600"}`}>{avgHealth}%</p>
+                          <p className="text-sm text-gray-500 mt-1">متوسط صحة النظام</p>
+                        </div>
+                        <div className="card p-5 text-center">
+                          <p className="text-3xl font-bold text-red-600">{totalCritical}</p>
+                          <p className="text-sm text-gray-500 mt-1">إجمالي المشاكل الحرجة</p>
+                        </div>
+                        <div className="card p-5 text-center">
+                          <p className="text-3xl font-bold text-purple-600">{avgDuration}s</p>
+                          <p className="text-sm text-gray-500 mt-1">متوسط مدة الفحص</p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* History Tab */}

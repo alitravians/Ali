@@ -457,13 +457,14 @@ async function checkSecurity(): Promise<CheckResult> {
 async function checkPerformance(): Promise<CheckResult> {
   const issues: ScanIssue[] = [];
 
-  // Check response times for critical endpoints
-  const endpoints = [
+  // Check response times for critical API endpoints
+  const apiEndpoints = [
     { path: "/api/languages", name: "API اللغات", maxMs: 2000 },
     { path: "/api/settings", name: "API الإعدادات", maxMs: 1000 },
+    { path: "/api/certificates", name: "API الشهادات", maxMs: 2000 },
   ];
 
-  for (const endpoint of endpoints) {
+  for (const endpoint of apiEndpoints) {
     try {
       const start = Date.now();
       await fetch(`${BASE_URL}${endpoint.path}`, {
@@ -501,11 +502,92 @@ async function checkPerformance(): Promise<CheckResult> {
     }
   }
 
-  // Check database size
+  // Check page load times
+  const pages = [
+    { path: "/", name: "الصفحة الرئيسية", maxMs: 3000 },
+    { path: "/login", name: "صفحة تسجيل الدخول", maxMs: 2000 },
+    { path: "/admin/login", name: "صفحة دخول الإدارة", maxMs: 2000 },
+  ];
+
+  for (const page of pages) {
+    try {
+      const start = Date.now();
+      await fetch(`${BASE_URL}${page.path}`, {
+        signal: AbortSignal.timeout(15000),
+        redirect: "follow",
+      });
+      const duration = Date.now() - start;
+
+      if (duration > page.maxMs) {
+        issues.push({
+          name: `بطء في تحميل ${page.name}`,
+          type: "performance",
+          severity: duration > page.maxMs * 2 ? "high" : "medium",
+          section: page.name,
+          fileName: "page.tsx",
+          filePath: page.path,
+          description: `${page.name} تستغرق ${duration}ms للتحميل (الحد المسموح: ${page.maxMs}ms)`,
+          cause: "تحميل بيانات كثيرة أو معالجة ثقيلة على جانب الخادم",
+          solution: "استخدم التحميل الكسول (lazy loading) وقلّل حجم البيانات الأولية",
+          recommendation: "فعّل التخزين المؤقت واستخدم ISR لتحسين سرعة التحميل",
+        });
+      }
+    } catch { /* skip - connection errors handled elsewhere */ }
+  }
+
+  // Comprehensive database table size checks
   try {
-    const userCount = await prisma.user.count();
-    const notifCount = await prisma.notification.count();
-    const ticketMsgCount = await prisma.ticketMessage.count();
+    const [
+      userCount,
+      notifCount,
+      ticketCount,
+      ticketMsgCount,
+      languageCount,
+      levelCount,
+      lessonCount,
+      questionCount,
+      certCount,
+      chatMsgCount,
+      scanCount,
+      scanIssueCount,
+      badgeCount,
+      inventoryCount,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.notification.count(),
+      prisma.ticket.count(),
+      prisma.ticketMessage.count(),
+      prisma.language.count(),
+      prisma.level.count(),
+      prisma.lesson.count(),
+      prisma.question.count(),
+      prisma.certificate.count(),
+      prisma.chatMessage.count(),
+      prisma.systemScan.count(),
+      prisma.systemIssue.count(),
+      prisma.badge.count(),
+      prisma.inventoryItem.count(),
+    ]);
+
+    const totalRecords = userCount + notifCount + ticketCount + ticketMsgCount +
+      languageCount + levelCount + lessonCount + questionCount + certCount +
+      chatMsgCount + scanCount + scanIssueCount + badgeCount + inventoryCount;
+
+    // Report database overview (always as info, not as issue unless thresholds exceeded)
+    if (totalRecords > 50000) {
+      issues.push({
+        name: "حجم قاعدة البيانات كبير",
+        type: "performance",
+        severity: totalRecords > 100000 ? "high" : "medium",
+        section: "قاعدة البيانات",
+        fileName: "",
+        filePath: "",
+        description: `إجمالي السجلات: ${totalRecords.toLocaleString("ar")} | المستخدمين: ${userCount} | الدردشة: ${chatMsgCount} | الإشعارات: ${notifCount} | الشهادات: ${certCount}`,
+        cause: "تراكم البيانات مع مرور الوقت",
+        solution: "أضف آلية أرشفة تلقائية للبيانات القديمة",
+        recommendation: "احذف سجلات الفحوصات القديمة والإشعارات المقروءة بشكل دوري",
+      });
+    }
 
     if (notifCount > 10000) {
       issues.push({
@@ -534,6 +616,36 @@ async function checkPerformance(): Promise<CheckResult> {
         cause: "تراكم رسائل التذاكر القديمة",
         solution: "أضف أرشفة للتذاكر المغلقة",
         recommendation: "التذاكر المغلقة القديمة يمكن أرشفتها لتحسين الأداء",
+      });
+    }
+
+    if (chatMsgCount > 20000) {
+      issues.push({
+        name: "عدد كبير من رسائل الدردشة",
+        type: "performance",
+        severity: "medium",
+        section: "نظام الدردشة",
+        fileName: "",
+        filePath: "",
+        description: `يوجد ${chatMsgCount} رسالة دردشة في قاعدة البيانات`,
+        cause: "تراكم رسائل الدردشة",
+        solution: "أضف أرشفة للرسائل القديمة أو حدد فترة الاحتفاظ",
+        recommendation: "احتفظ برسائل آخر 90 يوماً فقط وأرشف الباقي",
+      });
+    }
+
+    if (scanIssueCount > 1000) {
+      issues.push({
+        name: "عدد كبير من سجلات الفحص",
+        type: "performance",
+        severity: "low",
+        section: "فحص النظام",
+        fileName: "",
+        filePath: "",
+        description: `يوجد ${scanCount} فحص و ${scanIssueCount} مشكلة مسجلة`,
+        cause: "تراكم سجلات الفحوصات القديمة",
+        solution: "احذف الفحوصات القديمة من سجل الفحوصات",
+        recommendation: "احتفظ بآخر 20 فحص فقط واحذف الباقي",
       });
     }
   } catch { /* skip */ }
