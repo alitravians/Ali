@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { wuduConditions } from '../data/wuduData';
 import InfoCard from '../components/InfoCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function WuduConditionsPage() {
   const { completeLesson } = useProgress();
-  completeLesson('wudu-conditions');
+  useEffect(() => { completeLesson('wudu-conditions'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">

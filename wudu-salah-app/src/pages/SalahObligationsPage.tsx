@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { salahObligations } from '../data/salahData';
 import InfoCard from '../components/InfoCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function SalahObligationsPage() {
   const { completeLesson } = useProgress();
-  completeLesson('salah-obligations');
+  useEffect(() => { completeLesson('salah-obligations'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">

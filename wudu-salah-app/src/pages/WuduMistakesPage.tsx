@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { wuduMistakes } from '../data/wuduData';
 import MistakeCard from '../components/MistakeCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function WuduMistakesPage() {
   const { completeLesson } = useProgress();
-  completeLesson('wudu-mistakes');
+  useEffect(() => { completeLesson('wudu-mistakes'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">

@@ -7,9 +7,15 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "sync-android": "npx cap sync android",
+    "build-aab": "npm run build && npx cap sync android && cd android && JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew bundleRelease",
+    "build-apk": "npm run build && npx cap sync android && cd android && JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64 ./gradlew assembleDebug"
   },
   "dependencies": {
+    "@capacitor/android": "^8.3.0",
+    "@capacitor/cli": "^8.3.0",
+    "@capacitor/core": "^8.3.0",
     "@tailwindcss/vite": "^4.2.2",
     "lucide-react": "^1.7.0",
     "react": "^19.2.4",

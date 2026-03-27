@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { wuduInvalidators } from '../data/wuduData';
 import InfoCard from '../components/InfoCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function WuduInvalidatorsPage() {
   const { completeLesson } = useProgress();
-  completeLesson('wudu-invalidators');
+  useEffect(() => { completeLesson('wudu-invalidators'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">

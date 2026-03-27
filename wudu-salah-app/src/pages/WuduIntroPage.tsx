@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { wuduIntro } from '../data/wuduData';
 import SubSectionCard from '../components/SubSectionCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function WuduIntroPage() {
   const { completeLesson } = useProgress();
-  completeLesson('wudu-intro');
+  useEffect(() => { completeLesson('wudu-intro'); }, [completeLesson]);
 
   const subSections = [
     { title: 'شروط الوضوء', description: 'شروط صحة الوضوء', icon: '✅', path: '/wudu/conditions', count: 6 },

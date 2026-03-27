@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { salahIntro } from '../data/salahData';
 import SubSectionCard from '../components/SubSectionCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function SalahIntroPage() {
   const { completeLesson } = useProgress();
-  completeLesson('salah-intro');
+  useEffect(() => { completeLesson('salah-intro'); }, [completeLesson]);
 
   const subSections = [
     { title: 'شروط الصلاة', description: 'شروط صحة الصلاة', icon: '✅', path: '/salah/conditions', count: 9 },

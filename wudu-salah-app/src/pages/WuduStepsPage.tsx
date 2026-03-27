@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { wuduSteps } from '../data/wuduData';
 import StepCard from '../components/StepCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function WuduStepsPage() {
   const { completeLesson } = useProgress();
-  completeLesson('wudu-steps');
+  useEffect(() => { completeLesson('wudu-steps'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">

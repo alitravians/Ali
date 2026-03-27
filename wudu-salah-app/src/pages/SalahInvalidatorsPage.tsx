@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { salahInvalidators } from '../data/salahData';
 import InfoCard from '../components/InfoCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function SalahInvalidatorsPage() {
   const { completeLesson } = useProgress();
-  completeLesson('salah-invalidators');
+  useEffect(() => { completeLesson('salah-invalidators'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">
