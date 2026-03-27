@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>تعلم الوضوء والصلاة</title>
+    <style>
+      #splash-screen {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, #0891b2, #059669);
+        color: white; font-family: 'Segoe UI', Tahoma, sans-serif;
+        transition: opacity 0.5s ease;
+      }
+      #splash-screen.hidden { opacity: 0; pointer-events: none; }
+      #splash-icon { font-size: 72px; margin-bottom: 20px; }
+      #splash-title { font-size: 28px; font-weight: bold; margin-bottom: 8px; }
+      #splash-subtitle { font-size: 16px; opacity: 0.8; margin-bottom: 40px; }
+      #splash-bar-container { width: 200px; height: 4px; background: rgba(255,255,255,0.3); border-radius: 4px; overflow: hidden; }
+      #splash-bar { height: 100%; width: 0%; background: white; border-radius: 4px; transition: width 0.1s linear; }
+    </style>
+  </head>
+  <body>
+    <div id="splash-screen">
+      <div id="splash-icon">🕌</div>
+      <div id="splash-title">تعلم الوضوء والصلاة</div>
+      <div id="splash-subtitle">تعليم سهل وواضح للجميع</div>
+      <div id="splash-bar-container"><div id="splash-bar"></div></div>
+    </div>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    <script>
+      var progress = 0;
+      var bar = document.getElementById('splash-bar');
+      var interval = setInterval(function() {
+        progress += Math.random() * 15 + 5;
+        if (progress > 95) progress = 95;
+        bar.style.width = progress + '%';
+      }, 200);
+      window.__splashDone = function() {
+        clearInterval(interval);
+        bar.style.width = '100%';
+        setTimeout(function() {
+          document.getElementById('splash-screen').classList.add('hidden');
+          setTimeout(function() {
+            var s = document.getElementById('splash-screen');
+            if (s) s.remove();
+          }, 500);
+        }, 300);
+      };
+    </script>
+  </body>
+</html>
