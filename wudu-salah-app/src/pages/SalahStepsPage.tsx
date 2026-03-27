@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { salahSteps } from '../data/salahData';
 import StepCard from '../components/StepCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function SalahStepsPage() {
   const { completeLesson } = useProgress();
-  completeLesson('salah-steps');
+  useEffect(() => { completeLesson('salah-steps'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">

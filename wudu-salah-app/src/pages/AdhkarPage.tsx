@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState , useEffect } from 'react';
 import { adhkarAfterWudu, adhkarAfterSalah } from '../data/adhkarData';
 import { Heart } from 'lucide-react';
 import { useProgress } from '../contexts/ProgressContext';
@@ -7,7 +7,7 @@ export default function AdhkarPage() {
   const [tab, setTab] = useState<'wudu' | 'salah'>('wudu');
   const { toggleFavorite, isFavorite, progress, completeLesson } = useProgress();
   const isChild = progress.childMode;
-  completeLesson('adhkar');
+  useEffect(() => { completeLesson('adhkar'); }, [completeLesson]);
 
   const data = tab === 'wudu' ? adhkarAfterWudu : adhkarAfterSalah;
 

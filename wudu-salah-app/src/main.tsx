@@ -1,6 +1,6 @@
 import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
+import { HashRouter } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProgressProvider } from './contexts/ProgressContext';
 import App from './App';
@@ -21,13 +21,13 @@ function Root() {
 
   return (
     <StrictMode>
-      <BrowserRouter>
+      <HashRouter>
         <ThemeProvider>
           <ProgressProvider>
             <App />
           </ProgressProvider>
         </ThemeProvider>
-      </BrowserRouter>
+      </HashRouter>
     </StrictMode>
   );
 }

@@ -1,10 +1,11 @@
+import { useEffect } from 'react';
 import { salahMistakes } from '../data/salahData';
 import MistakeCard from '../components/MistakeCard';
 import { useProgress } from '../contexts/ProgressContext';
 
 export default function SalahMistakesPage() {
   const { completeLesson } = useProgress();
-  completeLesson('salah-mistakes');
+  useEffect(() => { completeLesson('salah-mistakes'); }, [completeLesson]);
 
   return (
     <div className="px-4 py-4 space-y-3 animate-fade-in">
