@@ -1,8 +1,10 @@
-import { StrictMode, useEffect } from 'react';
+import { StrictMode, useState, useEffect, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
 import { HashRouter } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ProgressProvider } from './contexts/ProgressContext';
+import LoadingScreen from './components/LoadingScreen';
+import WelcomePage from './pages/WelcomePage';
 import App from './App';
 import './index.css';
 
@@ -13,10 +15,25 @@ declare global {
 }
 
 function Root() {
+  const [appState, setAppState] = useState<'loading' | 'welcome' | 'app'>('loading');
+
   useEffect(() => {
     if (window.__splashDone) {
       window.__splashDone();
     }
+  }, []);
+
+  const handleLoadingComplete = useCallback(() => {
+    const hasSeenWelcome = localStorage.getItem('wudu_welcome_seen');
+    if (hasSeenWelcome) {
+      setAppState('app');
+    } else {
+      setAppState('welcome');
+    }
+  }, []);
+
+  const handleWelcomeContinue = useCallback(() => {
+    setAppState('app');
   }, []);
 
   return (
@@ -24,7 +41,15 @@ function Root() {
       <HashRouter>
         <ThemeProvider>
           <ProgressProvider>
-            <App />
+            {appState === 'loading' && (
+              <LoadingScreen onComplete={handleLoadingComplete} />
+            )}
+            {appState === 'welcome' && (
+              <WelcomePage onContinue={handleWelcomeContinue} />
+            )}
+            {appState === 'app' && (
+              <App />
+            )}
           </ProgressProvider>
         </ThemeProvider>
       </HashRouter>
