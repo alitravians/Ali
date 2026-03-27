@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 
 interface ProgressState {
   completedLessons: string[];
@@ -58,52 +58,52 @@ export function ProgressProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('wudu-salah-progress', JSON.stringify(progress));
   }, [progress]);
 
-  const completeLesson = (id: string) => {
+  const completeLesson = useCallback((id: string) => {
     setProgress(prev => ({
       ...prev,
       completedLessons: prev.completedLessons.includes(id) ? prev.completedLessons : [...prev.completedLessons, id],
     }));
-  };
+  }, []);
 
-  const saveQuizScore = (quizId: string, score: number) => {
+  const saveQuizScore = useCallback((quizId: string, score: number) => {
     setProgress(prev => ({
       ...prev,
       quizScores: { ...prev.quizScores, [quizId]: Math.max(prev.quizScores[quizId] || 0, score) },
     }));
-  };
+  }, []);
 
-  const toggleFavorite = (id: string) => {
+  const toggleFavorite = useCallback((id: string) => {
     setProgress(prev => ({
       ...prev,
       favorites: prev.favorites.includes(id)
         ? prev.favorites.filter(f => f !== id)
         : [...prev.favorites, id],
     }));
-  };
+  }, []);
 
   const isFavorite = (id: string) => progress.favorites.includes(id);
 
-  const addAchievement = (id: string) => {
+  const addAchievement = useCallback((id: string) => {
     setProgress(prev => ({
       ...prev,
       achievements: prev.achievements.includes(id) ? prev.achievements : [...prev.achievements, id],
     }));
-  };
+  }, []);
 
   const hasAchievement = (id: string) => progress.achievements.includes(id);
 
-  const setLastVisited = (path: string) => {
+  const setLastVisited = useCallback((path: string) => {
     setProgress(prev => ({ ...prev, lastVisited: path }));
-  };
+  }, []);
 
-  const toggleChildMode = () => {
+  const toggleChildMode = useCallback(() => {
     setProgress(prev => ({ ...prev, childMode: !prev.childMode }));
-  };
+  }, []);
 
-  const resetProgress = () => {
+  const resetProgress = useCallback(() => {
     setProgress(defaultProgress);
     localStorage.removeItem('wudu-salah-progress');
-  };
+  }, []);
 
   const getOverallProgress = () => {
     return Math.round((progress.completedLessons.length / TOTAL_LESSONS) * 100);
