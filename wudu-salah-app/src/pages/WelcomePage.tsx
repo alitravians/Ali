@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface WelcomePageProps {
@@ -44,6 +44,24 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
   const step = steps[currentStep];
   const isLast = currentStep === steps.length - 1;
 
+  const goNext = useCallback(() => {
+    if (isLast) {
+      localStorage.setItem('wudu_welcome_seen', 'true');
+      onContinue();
+    } else {
+      setCurrentStep(prev => prev + 1);
+    }
+  }, [isLast, onContinue]);
+
+  const goPrev = useCallback(() => {
+    setCurrentStep(prev => Math.max(0, prev - 1));
+  }, []);
+
+  const skipWelcome = useCallback(() => {
+    localStorage.setItem('wudu_welcome_seen', 'true');
+    onContinue();
+  }, [onContinue]);
+
   return (
     <div style={{
       position: 'fixed',
@@ -56,7 +74,6 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
         : 'linear-gradient(160deg, #f0fdfa 0%, #e0f2fe 50%, #f0f9ff 100%)',
       direction: 'rtl',
       fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
-      overflow: 'hidden',
     }}>
       {/* Decorative background circles */}
       <div style={{
@@ -69,6 +86,7 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
           : 'radial-gradient(circle, rgba(6,182,212,0.12) 0%, transparent 70%)',
         top: '-80px',
         right: '-80px',
+        pointerEvents: 'none',
       }} />
       <div style={{
         position: 'absolute',
@@ -80,6 +98,7 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
           : 'radial-gradient(circle, rgba(5,150,105,0.12) 0%, transparent 70%)',
         bottom: '-60px',
         left: '-60px',
+        pointerEvents: 'none',
       }} />
 
       {/* Beta badge */}
@@ -94,14 +113,17 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
         fontSize: '12px',
         fontWeight: 'bold',
         boxShadow: '0 2px 8px rgba(245,158,11,0.3)',
-        zIndex: 1,
+        zIndex: 2,
+        pointerEvents: 'none',
       }}>
         نسخة تجريبية BETA
       </div>
 
-      {/* Content */}
+      {/* Scrollable content area */}
       <div style={{
         flex: 1,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -109,36 +131,40 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
         padding: '60px 24px 24px',
         position: 'relative',
         zIndex: 1,
+        minHeight: 0,
       }}>
         {/* Icon */}
         <div style={{
-          fontSize: '72px',
-          marginBottom: '20px',
+          fontSize: '64px',
+          marginBottom: '16px',
           animation: 'welcome-bounce 2s ease-in-out infinite',
+          flexShrink: 0,
         }}>
           {step.icon}
         </div>
 
         {/* Title */}
         <h1 style={{
-          fontSize: '24px',
+          fontSize: '22px',
           fontWeight: 'bold',
           color: isDark ? '#f1f5f9' : '#1e293b',
-          marginBottom: '12px',
+          marginBottom: '10px',
           textAlign: 'center',
           lineHeight: 1.5,
+          flexShrink: 0,
         }}>
           {step.title}
         </h1>
 
         {/* Description */}
         <p style={{
-          fontSize: '15px',
+          fontSize: '14px',
           color: isDark ? '#94a3b8' : '#64748b',
           textAlign: 'center',
           lineHeight: 1.8,
           maxWidth: '340px',
-          marginBottom: '20px',
+          marginBottom: '16px',
+          flexShrink: 0,
         }}>
           {step.description}
         </p>
@@ -156,6 +182,7 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
             fontSize: '14px',
             fontWeight: '600',
             textAlign: 'center',
+            flexShrink: 0,
           }}>
             ⭐ {step.highlight}
           </div>
@@ -166,9 +193,10 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px',
+            gap: '8px',
             width: '100%',
             maxWidth: '300px',
+            flexShrink: 0,
           }}>
             {step.features.map((f, i) => (
               <div key={i} style={{
@@ -176,14 +204,14 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
                 alignItems: 'center',
                 gap: '12px',
                 background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.8)',
-                padding: '10px 16px',
+                padding: '8px 14px',
                 borderRadius: '12px',
                 boxShadow: isDark ? 'none' : '0 1px 3px rgba(0,0,0,0.05)',
                 animation: `feature-slide 0.4s ease-out ${i * 0.1}s both`,
               }}>
-                <span style={{ fontSize: '22px' }}>{f.emoji}</span>
+                <span style={{ fontSize: '20px' }}>{f.emoji}</span>
                 <span style={{
-                  fontSize: '14px',
+                  fontSize: '13px',
                   color: isDark ? '#e2e8f0' : '#334155',
                   fontWeight: '500',
                 }}>
@@ -199,16 +227,17 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
           <div style={{
             display: 'flex',
             flexDirection: 'column',
-            gap: '8px',
+            gap: '6px',
             width: '100%',
             maxWidth: '320px',
+            flexShrink: 0,
           }}>
             {step.tips.map((tip, i) => (
               <div key={i} style={{
                 display: 'flex',
                 alignItems: 'flex-start',
                 gap: '10px',
-                padding: '8px 0',
+                padding: '6px 0',
                 animation: `feature-slide 0.4s ease-out ${i * 0.1}s both`,
               }}>
                 <div style={{
@@ -227,7 +256,7 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
                   {i + 1}
                 </div>
                 <span style={{
-                  fontSize: '14px',
+                  fontSize: '13px',
                   color: isDark ? '#cbd5e1' : '#475569',
                   lineHeight: 1.6,
                   paddingTop: '2px',
@@ -240,13 +269,19 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
         )}
       </div>
 
-      {/* Bottom section */}
+      {/* Bottom section - fixed at bottom, always accessible */}
       <div style={{
-        padding: '20px 24px 40px',
+        padding: '16px 24px 32px',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '16px',
+        gap: '12px',
+        flexShrink: 0,
+        position: 'relative',
+        zIndex: 10,
+        background: isDark
+          ? 'linear-gradient(to top, #1e293b 60%, transparent)'
+          : 'linear-gradient(to top, #f0f9ff 60%, transparent)',
       }}>
         {/* Step indicators */}
         <div style={{
@@ -276,7 +311,9 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
         }}>
           {currentStep > 0 && (
             <button
-              onClick={() => setCurrentStep(currentStep - 1)}
+              type="button"
+              onClick={goPrev}
+              onTouchEnd={(e) => { e.preventDefault(); goPrev(); }}
               style={{
                 flex: 1,
                 padding: '14px',
@@ -288,20 +325,17 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
                 fontWeight: '600',
                 cursor: 'pointer',
                 fontFamily: 'inherit',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
               }}
             >
               السابق
             </button>
           )}
           <button
-            onClick={() => {
-              if (isLast) {
-                localStorage.setItem('wudu_welcome_seen', 'true');
-                onContinue();
-              } else {
-                setCurrentStep(currentStep + 1);
-              }
-            }}
+            type="button"
+            onClick={goNext}
+            onTouchEnd={(e) => { e.preventDefault(); goNext(); }}
             style={{
               flex: currentStep > 0 ? 1 : undefined,
               width: currentStep === 0 ? '100%' : undefined,
@@ -319,6 +353,8 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
                 ? '0 4px 12px rgba(5,150,105,0.3)'
                 : '0 4px 12px rgba(8,145,178,0.3)',
               fontFamily: 'inherit',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
             }}
           >
             {isLast ? 'ابدأ الاستكشاف 🚀' : 'التالي'}
@@ -328,10 +364,9 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
         {/* Skip */}
         {!isLast && (
           <button
-            onClick={() => {
-              localStorage.setItem('wudu_welcome_seen', 'true');
-              onContinue();
-            }}
+            type="button"
+            onClick={skipWelcome}
+            onTouchEnd={(e) => { e.preventDefault(); skipWelcome(); }}
             style={{
               background: 'none',
               border: 'none',
@@ -339,6 +374,9 @@ export default function WelcomePage({ onContinue }: WelcomePageProps) {
               fontSize: '13px',
               cursor: 'pointer',
               fontFamily: 'inherit',
+              padding: '8px 16px',
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation',
             }}
           >
             تخطي المقدمة
