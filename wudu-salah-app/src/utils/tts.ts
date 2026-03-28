@@ -1,5 +1,71 @@
-// Arabic Text-to-Speech utility using Web Speech API
-// Handles async voice loading on Android WebView (Capacitor)
+// Arabic Text-to-Speech utility
+// Uses native Capacitor TTS plugin on Android (bypasses WebView limitations)
+// Falls back to Web Speech API in browser for development
+
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
+import { Capacitor } from '@capacitor/core';
+
+let nativeTTSAvailable: boolean | null = null;
+let currentSpeaking = false;
+
+// Check if we're running in a native Capacitor environment
+function isNative(): boolean {
+  return Capacitor.isNativePlatform();
+}
+
+// Test if native TTS is available
+async function checkNativeTTS(): Promise<boolean> {
+  if (nativeTTSAvailable !== null) return nativeTTSAvailable;
+
+  if (!isNative()) {
+    nativeTTSAvailable = false;
+    return false;
+  }
+
+  try {
+    const result = await TextToSpeech.getSupportedLanguages();
+    nativeTTSAvailable = result.languages.length > 0;
+    return nativeTTSAvailable;
+  } catch {
+    nativeTTSAvailable = false;
+    return false;
+  }
+}
+
+// Initialize check early
+if (typeof window !== 'undefined') {
+  checkNativeTTS();
+}
+
+// ============ Native TTS (Capacitor plugin) ============
+
+async function speakNative(text: string): Promise<void> {
+  try {
+    currentSpeaking = true;
+    await TextToSpeech.speak({
+      text,
+      lang: 'ar-SA',
+      rate: 0.85,
+      pitch: 1.1,
+      volume: 1.0,
+      category: 'ambient',
+    });
+    currentSpeaking = false;
+  } catch {
+    currentSpeaking = false;
+  }
+}
+
+async function stopNative(): Promise<void> {
+  try {
+    await TextToSpeech.stop();
+    currentSpeaking = false;
+  } catch {
+    currentSpeaking = false;
+  }
+}
+
+// ============ Web Speech API fallback (for browser dev) ============
 
 let voicesLoaded = false;
 let cachedArabicVoice: SpeechSynthesisVoice | null = null;
@@ -17,14 +83,12 @@ function loadVoices(): Promise<SpeechSynthesisVoice[]> {
       return;
     }
 
-    // Voices load asynchronously on most browsers/Android
     const onVoicesChanged = () => {
       window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
       resolve(window.speechSynthesis.getVoices());
     };
     window.speechSynthesis.addEventListener('voiceschanged', onVoicesChanged);
 
-    // Timeout fallback - if voices never load, proceed without a specific voice
     setTimeout(() => {
       window.speechSynthesis.removeEventListener('voiceschanged', onVoicesChanged);
       resolve(window.speechSynthesis.getVoices());
@@ -40,7 +104,6 @@ async function getArabicVoice(): Promise<SpeechSynthesisVoice | null> {
   const voices = await loadVoices();
   voicesLoaded = true;
 
-  // Prefer ar-SA, then any Arabic voice
   cachedArabicVoice = voices.find(v => v.lang === 'ar-SA') ||
     voices.find(v => v.lang.startsWith('ar')) ||
     null;
@@ -48,23 +111,12 @@ async function getArabicVoice(): Promise<SpeechSynthesisVoice | null> {
   return cachedArabicVoice;
 }
 
-// Initialize voices early
-if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-  // Trigger voice loading
-  window.speechSynthesis.getVoices();
-  loadVoices().then(() => { voicesLoaded = true; });
-}
+function speakWeb(text: string): void {
+  if (!('speechSynthesis' in window)) return;
 
-export function speakArabic(text: string): void {
-  // Stop any current speech
-  stopSpeaking();
-
-  if (!('speechSynthesis' in window)) {
-    return;
-  }
+  window.speechSynthesis.cancel();
 
   const doSpeak = (voice: SpeechSynthesisVoice | null) => {
-    // Cancel again in case something queued during voice loading
     window.speechSynthesis.cancel();
 
     const utterance = new SpeechSynthesisUtterance(text);
@@ -76,28 +128,32 @@ export function speakArabic(text: string): void {
       utterance.voice = voice;
     }
 
-    // Android WebView workaround: speechSynthesis can get stuck
-    // A small delay helps ensure the engine is ready
+    currentSpeaking = true;
+
     setTimeout(() => {
       window.speechSynthesis.speak(utterance);
 
-      // Android WebView bug: speech can pause after ~15 seconds
-      // Resume periodically to prevent this
       const resumeInterval = setInterval(() => {
-        if (!window.speechSynthesis.speaking) {
+        if (!('speechSynthesis' in window) || !window.speechSynthesis.speaking) {
           clearInterval(resumeInterval);
+          currentSpeaking = false;
           return;
         }
         window.speechSynthesis.pause();
         window.speechSynthesis.resume();
       }, 10000);
 
-      utterance.onend = () => clearInterval(resumeInterval);
-      utterance.onerror = () => clearInterval(resumeInterval);
+      utterance.onend = () => {
+        clearInterval(resumeInterval);
+        currentSpeaking = false;
+      };
+      utterance.onerror = () => {
+        clearInterval(resumeInterval);
+        currentSpeaking = false;
+      };
     }, 100);
   };
 
-  // Try to get voice asynchronously, but don't block
   if (voicesLoaded) {
     doSpeak(cachedArabicVoice);
   } else {
@@ -105,13 +161,45 @@ export function speakArabic(text: string): void {
   }
 }
 
-export function stopSpeaking(): void {
+function stopWeb(): void {
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
+  }
+  currentSpeaking = false;
+}
+
+// Initialize web voices early (for browser dev)
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.getVoices();
+  loadVoices().then(() => { voicesLoaded = true; });
+}
+
+// ============ Public API ============
+
+export function speakArabic(text: string): void {
+  stopSpeaking();
+
+  if (nativeTTSAvailable) {
+    speakNative(text);
+  } else {
+    checkNativeTTS().then((available) => {
+      if (available) {
+        speakNative(text);
+      } else {
+        speakWeb(text);
+      }
+    });
+  }
+}
+
+export function stopSpeaking(): void {
+  if (nativeTTSAvailable) {
+    stopNative();
+  } else {
+    stopWeb();
   }
 }
 
 export function isSpeaking(): boolean {
-  if (!('speechSynthesis' in window)) return false;
-  return window.speechSynthesis.speaking;
+  return currentSpeaking;
 }
