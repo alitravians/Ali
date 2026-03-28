@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
 import { useProgress } from '../contexts/ProgressContext';
 import { useEffect } from 'react';
+import { speakArabic, stopSpeaking } from '../utils/tts';
+import SpeakButton from '../components/SpeakButton';
 
 export default function ChildrenPage() {
   const navigate = useNavigate();
@@ -8,6 +10,8 @@ export default function ChildrenPage() {
 
   useEffect(() => {
     if (!progress.childMode) toggleChildMode();
+    speakArabic('مرحبا بك! هيا نتعلم الوضوء والصلاة معا');
+    return () => stopSpeaking();
   }, []);
 
   const items = [
@@ -24,6 +28,9 @@ export default function ChildrenPage() {
           <span className="text-5xl block mb-2">👶🌟</span>
           <h1 className="text-2xl font-bold mb-1">مرحباً بك!</h1>
           <p className="text-white/80">هيا نتعلم الوضوء والصلاة معاً</p>
+          <div className="mt-2">
+            <SpeakButton text="مرحبا بك! هيا نتعلم الوضوء والصلاة معا" size={22} />
+          </div>
         </div>
       </div>
 

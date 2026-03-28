@@ -1,5 +1,6 @@
 import { Heart } from 'lucide-react';
 import { useProgress } from '../contexts/ProgressContext';
+import SpeakButton from './SpeakButton';
 
 interface StepCardProps {
   id: string;
@@ -40,6 +41,9 @@ export default function StepCard({ id, number, title, description, details, icon
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3 justify-end">
+        {isChild && (
+          <SpeakButton text={`${title}. ${childDescription || description}`} />
+        )}
         <button onClick={() => toggleFavorite(id)} className={`p-2 rounded-full transition-colors ${fav ? 'text-danger' : 'text-text-tertiary hover:text-danger'}`}>
           <Heart size={18} fill={fav ? 'currentColor' : 'none'} />
         </button>
