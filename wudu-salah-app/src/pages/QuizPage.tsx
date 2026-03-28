@@ -3,6 +3,7 @@ import { getQuizByCategory, getChildrenQuiz, getAdultsQuiz } from '../data/quizD
 import type { QuizQuestion } from '../data/quizData';
 import { useProgress } from '../contexts/ProgressContext';
 import { RotateCcw, Trophy } from 'lucide-react';
+import SpeakButton from '../components/SpeakButton';
 
 function shuffleArray<T>(arr: T[]): T[] {
   const a = [...arr];
@@ -193,7 +194,10 @@ export default function QuizPage() {
 
       {/* Question */}
       <div className="bg-white dark:bg-dark-surface rounded-2xl p-5 shadow-md mb-4">
-        <h3 className="font-bold text-text-primary dark:text-dark-text text-base mb-4">{currentQ.question}</h3>
+        <div className="flex items-start gap-2 mb-4">
+          <h3 className="font-bold text-text-primary dark:text-dark-text text-base flex-1">{currentQ.question}</h3>
+          {isChild && <SpeakButton text={currentQ.question} size={20} />}
+        </div>
 
         {currentQ.type === 'multiple-choice' && currentQ.options && (
           <div className="space-y-2">
