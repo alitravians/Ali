@@ -1,6 +1,6 @@
 import { Heart } from 'lucide-react';
 import { useProgress } from '../contexts/ProgressContext';
-import SpeakButton from './SpeakButton';
+import TappableText from './TappableText';
 
 interface InfoCardProps {
   id: string;
@@ -20,17 +20,26 @@ export default function InfoCard({ id, title, description, icon, showFavorite = 
       <div className="flex items-start gap-3">
         <span className="text-2xl shrink-0">{icon}</span>
         <div className="flex-1">
-          <h3 className="font-bold text-text-primary dark:text-dark-text mb-1">{title}</h3>
-          <p className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">{description}</p>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {isChild && <SpeakButton text={`${title}. ${description}`} size={16} />}
-          {showFavorite && (
-            <button onClick={() => toggleFavorite(id)} className={`p-1 rounded-full transition-colors ${fav ? 'text-danger' : 'text-text-tertiary hover:text-danger'}`}>
-              <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
-            </button>
+          {isChild ? (
+            <TappableText text={title} speakText={`${title}. ${description}`} as="h3" className="font-bold text-text-primary dark:text-dark-text mb-1">
+              {title}
+            </TappableText>
+          ) : (
+            <h3 className="font-bold text-text-primary dark:text-dark-text mb-1">{title}</h3>
+          )}
+          {isChild ? (
+            <TappableText text={description} as="p" className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">
+              {description}
+            </TappableText>
+          ) : (
+            <p className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">{description}</p>
           )}
         </div>
+        {showFavorite && (
+          <button onClick={() => toggleFavorite(id)} className={`p-1 rounded-full transition-colors shrink-0 ${fav ? 'text-danger' : 'text-text-tertiary hover:text-danger'}`}>
+            <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
+          </button>
+        )}
       </div>
     </div>
   );

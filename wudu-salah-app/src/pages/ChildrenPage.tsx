@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProgress } from '../contexts/ProgressContext';
 import { useEffect } from 'react';
 import { speakArabic, stopSpeaking } from '../utils/tts';
-import SpeakButton from '../components/SpeakButton';
+import TappableText from '../components/TappableText';
 
 export default function ChildrenPage() {
   const navigate = useNavigate();
@@ -26,11 +26,12 @@ export default function ChildrenPage() {
       <div className="bg-gradient-to-br from-children-primary to-children-secondary text-white px-4 pt-6 pb-8 rounded-b-3xl">
         <div className="text-center">
           <span className="text-5xl block mb-2">👶🌟</span>
-          <h1 className="text-2xl font-bold mb-1">مرحباً بك!</h1>
-          <p className="text-white/80">هيا نتعلم الوضوء والصلاة معاً</p>
-          <div className="mt-2">
-            <SpeakButton text="مرحبا بك! هيا نتعلم الوضوء والصلاة معا" size={22} />
-          </div>
+          <TappableText text="مرحبا بك! هيا نتعلم الوضوء والصلاة معا" as="h1" className="text-2xl font-bold mb-1 justify-center text-white" iconSize={20}>
+            مرحباً بك!
+          </TappableText>
+          <TappableText text="هيا نتعلم الوضوء والصلاة معا" as="p" className="text-white/80 justify-center" iconSize={16}>
+            هيا نتعلم الوضوء والصلاة معاً
+          </TappableText>
         </div>
       </div>
 

@@ -2,7 +2,7 @@ import { useState , useEffect } from 'react';
 import { adhkarAfterWudu, adhkarAfterSalah } from '../data/adhkarData';
 import { Heart } from 'lucide-react';
 import { useProgress } from '../contexts/ProgressContext';
-import SpeakButton from '../components/SpeakButton';
+import TappableText from '../components/TappableText';
 
 export default function AdhkarPage() {
   const [tab, setTab] = useState<'wudu' | 'salah'>('wudu');
@@ -50,11 +50,16 @@ export default function AdhkarPage() {
                   <Heart size={16} fill={fav ? 'currentColor' : 'none'} />
                 </button>
               </div>
-              <div className="flex items-start gap-2 mb-2">
-                <p className="text-text-primary dark:text-dark-text text-sm leading-relaxed font-medium flex-1">
-                  {isChild ? dhikr.childText : dhikr.text}
-                </p>
-                {isChild && <SpeakButton text={dhikr.childText} size={16} />}
+              <div className="mb-2">
+                {isChild ? (
+                  <TappableText text={dhikr.childText} as="p" className="text-text-primary dark:text-dark-text text-sm leading-relaxed font-medium">
+                    {dhikr.childText}
+                  </TappableText>
+                ) : (
+                  <p className="text-text-primary dark:text-dark-text text-sm leading-relaxed font-medium">
+                    {dhikr.text}
+                  </p>
+                )}
               </div>
               {!isChild && (
                 <p className="text-text-tertiary dark:text-dark-text-secondary text-xs">📖 {dhikr.source}</p>
