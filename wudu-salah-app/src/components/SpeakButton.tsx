@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Volume2, VolumeX } from 'lucide-react';
-import { speakArabic, stopSpeaking } from '../utils/tts';
+import { speakArabic, stopSpeaking, isSpeaking } from '../utils/tts';
 
 interface SpeakButtonProps {
   text: string;
@@ -23,18 +23,19 @@ export default function SpeakButton({ text, size = 18 }: SpeakButtonProps) {
     } else {
       setPlaying(true);
       speakArabic(text);
-      // Listen for speech end
+      // Listen for speech end using isSpeaking() from tts module
+      // This works with both native TTS and Web Speech API
       const checkInterval = setInterval(() => {
-        if (!('speechSynthesis' in window) || !window.speechSynthesis.speaking) {
+        if (!isSpeaking()) {
           setPlaying(false);
           clearInterval(checkInterval);
         }
-      }, 300);
-      // Safety timeout: reset after 30 seconds max
+      }, 500);
+      // Safety timeout: reset after 60 seconds max
       setTimeout(() => {
         setPlaying(false);
         clearInterval(checkInterval);
-      }, 30000);
+      }, 60000);
     }
   }, [playing, text]);
 
