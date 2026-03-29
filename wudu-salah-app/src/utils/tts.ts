@@ -23,10 +23,13 @@ async function checkNativeTTS(): Promise<boolean> {
   }
 
   try {
-    const result = await TextToSpeech.getSupportedLanguages();
-    nativeTTSAvailable = result.languages.length > 0;
-    return nativeTTSAvailable;
-  } catch {
+    // On native platforms, the plugin should always be available
+    // Just verify it can be called without throwing
+    await TextToSpeech.getSupportedLanguages();
+    nativeTTSAvailable = true;
+    return true;
+  } catch (e) {
+    console.warn('[TTS] Native TTS not available, falling back to Web Speech API:', e);
     nativeTTSAvailable = false;
     return false;
   }
@@ -40,8 +43,8 @@ if (typeof window !== 'undefined') {
 // ============ Native TTS (Capacitor plugin) ============
 
 async function speakNative(text: string): Promise<void> {
+  currentSpeaking = true;
   try {
-    currentSpeaking = true;
     await TextToSpeech.speak({
       text,
       lang: 'ar-SA',
@@ -50,8 +53,9 @@ async function speakNative(text: string): Promise<void> {
       volume: 1.0,
       category: 'ambient',
     });
-    currentSpeaking = false;
-  } catch {
+  } catch (e) {
+    console.warn('[TTS] Native speak error:', e);
+  } finally {
     currentSpeaking = false;
   }
 }
