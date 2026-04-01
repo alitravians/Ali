@@ -111,9 +111,9 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
 
 function createAudioUrl(text: string): string {
   const encoded = encodeURIComponent(text);
-  // Use translate.googleapis.com with client=gtx (works on mobile)
-  // translate.google.com/translate_tts returns 404 on mobile WebView
-  return 'https://translate.googleapis.com/translate_tts?client=gtx&ie=UTF-8&tl=ar&q=' + encoded;
+  // Use our TTS proxy to bypass Google rate limiting (302/429 errors)
+  // Google blocks direct requests from mobile WebView and cloud IPs
+  return 'https://tts-proxy-jabcxjlh.fly.dev/tts?tl=ar&q=' + encoded;
 }
 
 // Method 1: CapacitorHttp (native HTTP, no CORS)
@@ -347,7 +347,7 @@ export function speakArabic(text: string): void {
   showDebug('speakArabic native=' + isNative());
   const ctx = getAudioContext();
   if (isNative()) {
-    showDebug('Using googleapis.com TTS');
+    showDebug('Using TTS proxy');
     speakGoogle(text, ctx);
   } else {
     if ('speechSynthesis' in window) {
