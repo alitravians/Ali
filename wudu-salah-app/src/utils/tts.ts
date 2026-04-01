@@ -1,6 +1,5 @@
-// Arabic Text-to-Speech utility - Debug version
-// Uses translate.googleapis.com (works on mobile, unlike translate.google.com which returns 404)
-// Shows visible debug messages so user can report exactly what fails
+// Arabic Text-to-Speech utility
+// Uses TTS proxy server to fetch audio from Google Translate
 
 import { Capacitor } from '@capacitor/core';
 import { CapacitorHttp } from '@capacitor/core';
@@ -9,36 +8,8 @@ let currentSpeaking = false;
 let audioContext: AudioContext | null = null;
 let currentSource: AudioBufferSourceNode | null = null;
 
-// ============ Debug Overlay ============
-
-let debugContainer: HTMLDivElement | null = null;
-
 function showDebug(msg: string): void {
   console.log('[TTS]', msg);
-  if (!debugContainer) {
-    debugContainer = document.createElement('div');
-    debugContainer.id = 'tts-debug';
-    debugContainer.style.cssText =
-      'position:fixed;top:0;left:0;right:0;z-index:99999;' +
-      'background:rgba(0,0,0,0.85);color:#0f0;padding:8px 12px;' +
-      'font-size:11px;font-family:monospace;direction:ltr;text-align:left;' +
-      'max-height:150px;overflow-y:auto;pointer-events:none;';
-    document.body.appendChild(debugContainer);
-  }
-  const line = document.createElement('div');
-  const now = new Date();
-  const ts = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0') + ':' + String(now.getSeconds()).padStart(2, '0');
-  line.textContent = ts + ' ' + msg;
-  debugContainer.appendChild(line);
-  debugContainer.scrollTop = debugContainer.scrollHeight;
-  setTimeout(function() {
-    if (debugContainer && debugContainer.children.length <= 1) {
-      debugContainer.remove();
-      debugContainer = null;
-    } else if (debugContainer && line.parentNode === debugContainer) {
-      debugContainer.removeChild(line);
-    }
-  }, 15000);
 }
 
 // ============ Helpers ============
@@ -344,10 +315,8 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 
 export function speakArabic(text: string): void {
   stopSpeaking();
-  showDebug('speakArabic native=' + isNative());
   const ctx = getAudioContext();
   if (isNative()) {
-    showDebug('Using TTS proxy');
     speakGoogle(text, ctx);
   } else {
     if ('speechSynthesis' in window) {
