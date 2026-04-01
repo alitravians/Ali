@@ -1,14 +1,13 @@
 // Arabic Text-to-Speech utility
-// Strategy: Try native Capacitor TTS first, then Google Translate audio fallback
-// The audio fallback works in any WebView by playing MP3 from Google Translate
+// Strategy: On Android, use Google Translate audio directly (most reliable)
+// In browser, use Web Speech API with Google Translate audio fallback
+// The audio approach uses fetch + blob URL to bypass CORS in WebView
 
-import { TextToSpeech } from '@capacitor-community/text-to-speech';
 import { Capacitor } from '@capacitor/core';
 
 let currentSpeaking = false;
 let currentAudio: HTMLAudioElement | null = null;
 let audioQueue: HTMLAudioElement[] = [];
-let nativeTTSWorks: boolean | null = null; // null = untested, true/false = tested
 
 // ============ Helpers ============
 
@@ -16,12 +15,9 @@ function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-// ============ Google Translate Audio TTS (reliable fallback) ============
-// Works in any WebView - plays audio from Google Translate via HTML5 Audio
+// ============ Google Translate Audio TTS (primary on Android) ============
+// Uses fetch() to download MP3 (Capacitor native HTTP bypasses CORS)
+// Then plays via blob URL (local, no CORS issues)
 
 function splitTextIntoChunks(text: string, maxLen = 200): string[] {
   const chunks: string[] = [];
@@ -34,6 +30,7 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
     }
 
     let splitIdx = -1;
+    // Try to split at sentence boundary
     for (let i = maxLen; i >= maxLen / 2; i--) {
       const ch = remaining[i];
       if (ch === '.' || ch === '،' || ch === '؟' || ch === '!' || ch === '\n') {
@@ -42,6 +39,7 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
       }
     }
 
+    // Try to split at word boundary
     if (splitIdx === -1) {
       for (let i = maxLen; i >= maxLen / 2; i--) {
         if (remaining[i] === ' ') {
@@ -51,6 +49,7 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
       }
     }
 
+    // Hard split
     if (splitIdx === -1) {
       splitIdx = maxLen;
     }
@@ -67,6 +66,17 @@ function createAudioUrl(text: string): string {
   return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=ar&client=tw-ob`;
 }
 
+async function fetchAudioBlob(url: string): Promise<string> {
+  // Use fetch() which goes through Capacitor's native HTTP (bypasses CORS)
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+  const blob = await response.blob();
+  // Create a local blob URL that the Audio element can play without CORS
+  return URL.createObjectURL(blob);
+}
+
 async function speakWithAudio(text: string): Promise<void> {
   stopAudio();
   currentSpeaking = true;
@@ -78,10 +88,27 @@ async function speakWithAudio(text: string): Promise<void> {
     for (let i = 0; i < chunks.length; i++) {
       if (!currentSpeaking) break;
 
-      const url = createAudioUrl(chunks[i]);
-      console.log(`[TTS-Audio] Playing chunk ${i + 1}/${chunks.length}: "${chunks[i].substring(0, 30)}..."`);
+      const googleUrl = createAudioUrl(chunks[i]);
+      console.log(`[TTS-Audio] Fetching chunk ${i + 1}/${chunks.length}: "${chunks[i].substring(0, 30)}..."`);
 
-      await playAudioChunk(url);
+      try {
+        // Fetch the audio as blob (native HTTP, no CORS)
+        const blobUrl = await fetchAudioBlob(googleUrl);
+        console.log(`[TTS-Audio] Playing chunk ${i + 1} from blob URL`);
+        await playAudioChunk(blobUrl);
+        // Clean up blob URL after playback
+        URL.revokeObjectURL(blobUrl);
+      } catch (fetchErr) {
+        console.error(`[TTS-Audio] Fetch failed for chunk ${i + 1}:`, fetchErr);
+        // Try direct URL as last resort
+        console.log(`[TTS-Audio] Trying direct URL for chunk ${i + 1}`);
+        try {
+          await playAudioChunk(googleUrl);
+        } catch (directErr) {
+          console.error(`[TTS-Audio] Direct URL also failed:`, directErr);
+          // Continue to next chunk instead of stopping entirely
+        }
+      }
     }
   } catch (e) {
     console.error('[TTS-Audio] Playback error:', e);
@@ -97,7 +124,9 @@ function playAudioChunk(url: string): Promise<void> {
     currentAudio = audio;
     audioQueue.push(audio);
 
+    // Safety timeout - 30 seconds max per chunk
     const timeout = setTimeout(() => {
+      console.warn('[TTS-Audio] Chunk timeout, moving on');
       audio.pause();
       audioQueue = audioQueue.filter(a => a !== audio);
       resolve();
@@ -110,14 +139,14 @@ function playAudioChunk(url: string): Promise<void> {
     };
 
     audio.onerror = (e) => {
-      console.error('[TTS-Audio] Audio error:', e);
+      console.error('[TTS-Audio] Audio element error:', e);
       clearTimeout(timeout);
       audioQueue = audioQueue.filter(a => a !== audio);
       reject(new Error('Audio playback failed'));
     };
 
     audio.play().catch((e) => {
-      console.error('[TTS-Audio] Play() failed:', e);
+      console.error('[TTS-Audio] play() rejected:', e);
       clearTimeout(timeout);
       audioQueue = audioQueue.filter(a => a !== audio);
       reject(e);
@@ -135,83 +164,6 @@ function stopAudio(): void {
     audio.pause();
   }
   audioQueue = [];
-}
-
-// ============ Native TTS (Capacitor plugin) ============
-
-const ARABIC_LANG_CODES = ['ar-SA', 'ar', 'ar-EG', 'ar-AE'];
-let cachedArabicLang: string | null = null;
-
-async function findSupportedArabicLang(): Promise<string | null> {
-  for (const lang of ARABIC_LANG_CODES) {
-    try {
-      const result = await TextToSpeech.isLanguageSupported({ lang });
-      if (result.supported) {
-        console.log(`[TTS-Native] Arabic language supported: ${lang}`);
-        return lang;
-      }
-    } catch (e) {
-      console.warn(`[TTS-Native] Error checking language ${lang}:`, e);
-    }
-  }
-  return null;
-}
-
-async function tryNativeTTS(text: string): Promise<boolean> {
-  if (nativeTTSWorks === false) return false;
-
-  try {
-    // Wait for engine to initialize
-    let available = false;
-    const retryDelays = [0, 300, 600, 1000, 2000];
-
-    for (let i = 0; i < retryDelays.length; i++) {
-      if (retryDelays[i] > 0) await delay(retryDelays[i]);
-      try {
-        await TextToSpeech.getSupportedLanguages();
-        available = true;
-        break;
-      } catch {
-        console.log(`[TTS-Native] Init attempt ${i + 1} failed, retrying...`);
-      }
-    }
-
-    if (!available) {
-      console.warn('[TTS-Native] Engine not available after retries');
-      nativeTTSWorks = false;
-      return false;
-    }
-
-    if (!cachedArabicLang) {
-      cachedArabicLang = await findSupportedArabicLang();
-    }
-
-    if (!cachedArabicLang) {
-      console.warn('[TTS-Native] No Arabic language supported on this device');
-      nativeTTSWorks = false;
-      return false;
-    }
-
-    console.log(`[TTS-Native] Speaking: "${text.substring(0, 50)}..." with lang=${cachedArabicLang}`);
-
-    await TextToSpeech.speak({
-      text,
-      lang: cachedArabicLang,
-      rate: 0.85,
-      pitch: 1.1,
-      volume: 1.0,
-      category: 'ambient',
-    });
-
-    console.log('[TTS-Native] Speech completed successfully!');
-    nativeTTSWorks = true;
-    return true;
-  } catch (e) {
-    console.error('[TTS-Native] Failed:', e);
-    cachedArabicLang = null;
-    nativeTTSWorks = false;
-    return false;
-  }
 }
 
 // ============ Web Speech API (browser dev only) ============
@@ -304,24 +256,12 @@ export function speakArabic(text: string): void {
   stopSpeaking();
 
   if (isNative()) {
-    // On Android: try native TTS first, fallback to Google Translate audio
-    currentSpeaking = true;
-
-    if (nativeTTSWorks === false) {
-      // Native already confirmed broken, go straight to audio fallback
-      console.log('[TTS] Using audio fallback (native known broken)');
-      speakWithAudio(text);
-    } else {
-      // Try native first
-      tryNativeTTS(text).then((success) => {
-        if (!success && currentSpeaking) {
-          console.log('[TTS] Native failed, switching to audio fallback');
-          speakWithAudio(text);
-        }
-      });
-    }
+    // On Android: use Google Translate audio directly (most reliable)
+    // Native TTS is unreliable - Arabic voice data often not installed
+    console.log('[TTS] Android detected - using Google Translate audio');
+    speakWithAudio(text);
   } else {
-    // In browser: use Web Speech API, fallback to audio
+    // In browser: try Web Speech API first, fallback to audio
     if ('speechSynthesis' in window) {
       speakWeb(text);
     } else {
@@ -333,9 +273,6 @@ export function speakArabic(text: string): void {
 export function stopSpeaking(): void {
   currentSpeaking = false;
   stopAudio();
-  if (isNative()) {
-    TextToSpeech.stop().catch(() => {});
-  }
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
