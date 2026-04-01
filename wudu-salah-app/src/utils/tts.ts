@@ -1,13 +1,14 @@
 // Arabic Text-to-Speech utility
-// Strategy: On Android, use Google Translate audio directly (most reliable)
-// In browser, use Web Speech API with Google Translate audio fallback
-// The audio approach uses fetch + blob URL to bypass CORS in WebView
+// Strategy: On Android, use Google Translate audio with Web Audio API
+// Web Audio API (AudioContext) bypasses autoplay restrictions when created in user gesture
+// fetch() goes through Capacitor native HTTP which bypasses CORS
 
 import { Capacitor } from '@capacitor/core';
 
 let currentSpeaking = false;
-let currentAudio: HTMLAudioElement | null = null;
-let audioQueue: HTMLAudioElement[] = [];
+let audioContext: AudioContext | null = null;
+let currentSource: AudioBufferSourceNode | null = null;
+let pendingChunks: string[] = [];
 
 // ============ Helpers ============
 
@@ -15,9 +16,20 @@ function isNative(): boolean {
   return Capacitor.isNativePlatform();
 }
 
-// ============ Google Translate Audio TTS (primary on Android) ============
-// Uses fetch() to download MP3 (Capacitor native HTTP bypasses CORS)
-// Then plays via blob URL (local, no CORS issues)
+// Get or create AudioContext - MUST be called during user gesture to unlock audio
+function getAudioContext(): AudioContext {
+  if (!audioContext) {
+    audioContext = new AudioContext();
+    console.log('[TTS] AudioContext created, state:', audioContext.state);
+  }
+  if (audioContext.state === 'suspended') {
+    audioContext.resume();
+    console.log('[TTS] AudioContext resumed');
+  }
+  return audioContext;
+}
+
+// ============ Google Translate Audio TTS ============
 
 function splitTextIntoChunks(text: string, maxLen = 200): string[] {
   const chunks: string[] = [];
@@ -30,7 +42,6 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
     }
 
     let splitIdx = -1;
-    // Try to split at sentence boundary
     for (let i = maxLen; i >= maxLen / 2; i--) {
       const ch = remaining[i];
       if (ch === '.' || ch === '،' || ch === '؟' || ch === '!' || ch === '\n') {
@@ -39,7 +50,6 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
       }
     }
 
-    // Try to split at word boundary
     if (splitIdx === -1) {
       for (let i = maxLen; i >= maxLen / 2; i--) {
         if (remaining[i] === ' ') {
@@ -49,7 +59,6 @@ function splitTextIntoChunks(text: string, maxLen = 200): string[] {
       }
     }
 
-    // Hard split
     if (splitIdx === -1) {
       splitIdx = maxLen;
     }
@@ -66,104 +75,91 @@ function createAudioUrl(text: string): string {
   return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encoded}&tl=ar&client=tw-ob`;
 }
 
-async function fetchAudioBlob(url: string): Promise<string> {
-  // Use fetch() which goes through Capacitor's native HTTP (bypasses CORS)
+async function playChunkWithWebAudio(ctx: AudioContext, url: string): Promise<void> {
+  console.log('[TTS-Audio] Fetching audio from:', url.substring(0, 80) + '...');
+
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
-  const blob = await response.blob();
-  // Create a local blob URL that the Audio element can play without CORS
-  return URL.createObjectURL(blob);
+
+  const arrayBuffer = await response.arrayBuffer();
+  console.log('[TTS-Audio] Fetched', arrayBuffer.byteLength, 'bytes');
+
+  if (arrayBuffer.byteLength === 0) {
+    throw new Error('Empty audio response');
+  }
+
+  const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+  console.log('[TTS-Audio] Decoded audio:', audioBuffer.duration.toFixed(2), 'seconds');
+
+  return new Promise<void>((resolve, reject) => {
+    if (!currentSpeaking) {
+      resolve();
+      return;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(ctx.destination);
+    currentSource = source;
+
+    source.onended = () => {
+      currentSource = null;
+      resolve();
+    };
+
+    try {
+      source.start(0);
+      console.log('[TTS-Audio] Playback started');
+    } catch (e) {
+      currentSource = null;
+      reject(e);
+    }
+
+    // Safety timeout
+    setTimeout(() => {
+      if (currentSource === source) {
+        console.warn('[TTS-Audio] Chunk timeout');
+        try { source.stop(); } catch (_e) { /* ignore */ }
+        currentSource = null;
+        resolve();
+      }
+    }, 30000);
+  });
 }
 
-async function speakWithAudio(text: string): Promise<void> {
-  stopAudio();
+async function speakWithAudio(text: string, ctx: AudioContext): Promise<void> {
   currentSpeaking = true;
-
-  const chunks = splitTextIntoChunks(text);
-  console.log(`[TTS-Audio] Playing ${chunks.length} chunk(s)`);
+  pendingChunks = splitTextIntoChunks(text);
+  console.log(`[TTS-Audio] Playing ${pendingChunks.length} chunk(s)`);
 
   try {
-    for (let i = 0; i < chunks.length; i++) {
-      if (!currentSpeaking) break;
+    for (let i = 0; i < pendingChunks.length; i++) {
+      if (!currentSpeaking) {
+        console.log('[TTS-Audio] Stopped by user');
+        break;
+      }
 
-      const googleUrl = createAudioUrl(chunks[i]);
-      console.log(`[TTS-Audio] Fetching chunk ${i + 1}/${chunks.length}: "${chunks[i].substring(0, 30)}..."`);
+      const chunk = pendingChunks[i];
+      const url = createAudioUrl(chunk);
+      console.log(`[TTS-Audio] Chunk ${i + 1}/${pendingChunks.length}: "${chunk.substring(0, 40)}..."`);
 
       try {
-        // Fetch the audio as blob (native HTTP, no CORS)
-        const blobUrl = await fetchAudioBlob(googleUrl);
-        console.log(`[TTS-Audio] Playing chunk ${i + 1} from blob URL`);
-        await playAudioChunk(blobUrl);
-        // Clean up blob URL after playback
-        URL.revokeObjectURL(blobUrl);
-      } catch (fetchErr) {
-        console.error(`[TTS-Audio] Fetch failed for chunk ${i + 1}:`, fetchErr);
-        // Try direct URL as last resort
-        console.log(`[TTS-Audio] Trying direct URL for chunk ${i + 1}`);
-        try {
-          await playAudioChunk(googleUrl);
-        } catch (directErr) {
-          console.error(`[TTS-Audio] Direct URL also failed:`, directErr);
-          // Continue to next chunk instead of stopping entirely
-        }
+        await playChunkWithWebAudio(ctx, url);
+      } catch (e) {
+        console.error(`[TTS-Audio] Chunk ${i + 1} failed:`, e);
+        // Continue to next chunk
       }
     }
   } catch (e) {
     console.error('[TTS-Audio] Playback error:', e);
   } finally {
     currentSpeaking = false;
-    currentAudio = null;
+    currentSource = null;
+    pendingChunks = [];
+    console.log('[TTS-Audio] Playback complete');
   }
-}
-
-function playAudioChunk(url: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const audio = new Audio(url);
-    currentAudio = audio;
-    audioQueue.push(audio);
-
-    // Safety timeout - 30 seconds max per chunk
-    const timeout = setTimeout(() => {
-      console.warn('[TTS-Audio] Chunk timeout, moving on');
-      audio.pause();
-      audioQueue = audioQueue.filter(a => a !== audio);
-      resolve();
-    }, 30000);
-
-    audio.onended = () => {
-      clearTimeout(timeout);
-      audioQueue = audioQueue.filter(a => a !== audio);
-      resolve();
-    };
-
-    audio.onerror = (e) => {
-      console.error('[TTS-Audio] Audio element error:', e);
-      clearTimeout(timeout);
-      audioQueue = audioQueue.filter(a => a !== audio);
-      reject(new Error('Audio playback failed'));
-    };
-
-    audio.play().catch((e) => {
-      console.error('[TTS-Audio] play() rejected:', e);
-      clearTimeout(timeout);
-      audioQueue = audioQueue.filter(a => a !== audio);
-      reject(e);
-    });
-  });
-}
-
-function stopAudio(): void {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio.currentTime = 0;
-    currentAudio = null;
-  }
-  for (const audio of audioQueue) {
-    audio.pause();
-  }
-  audioQueue = [];
 }
 
 // ============ Web Speech API (browser dev only) ============
@@ -255,24 +251,33 @@ if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
 export function speakArabic(text: string): void {
   stopSpeaking();
 
+  // IMPORTANT: Create/resume AudioContext NOW (in user gesture context)
+  // This unlocks audio playback on Android WebView
+  const ctx = getAudioContext();
+
   if (isNative()) {
-    // On Android: use Google Translate audio directly (most reliable)
-    // Native TTS is unreliable - Arabic voice data often not installed
-    console.log('[TTS] Android detected - using Google Translate audio');
-    speakWithAudio(text);
+    // On Android: use Google Translate audio via Web Audio API
+    console.log('[TTS] Android - using Google Translate audio via Web Audio API');
+    speakWithAudio(text, ctx);
   } else {
-    // In browser: try Web Speech API first, fallback to audio
+    // In browser: try Web Speech API first, fallback to Google Translate audio
     if ('speechSynthesis' in window) {
       speakWeb(text);
     } else {
-      speakWithAudio(text);
+      speakWithAudio(text, ctx);
     }
   }
 }
 
 export function stopSpeaking(): void {
   currentSpeaking = false;
-  stopAudio();
+  pendingChunks = [];
+
+  if (currentSource) {
+    try { currentSource.stop(); } catch (_e) { /* ignore */ }
+    currentSource = null;
+  }
+
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
