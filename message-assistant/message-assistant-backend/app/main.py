@@ -44,6 +44,7 @@ async def analyze(request: AnalyzeRequest):
             api_key=request.api_key,
             mode=request.mode.value,
             context=request.context,
+            language=request.language,
         )
 
         classification = Classification(

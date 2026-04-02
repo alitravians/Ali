@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { MessageSquare } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Props {
   onComplete: () => void;
@@ -7,6 +8,7 @@ interface Props {
 
 export default function LoadingScreen({ onComplete }: Props) {
   const [progress, setProgress] = useState(0);
+  const { t } = useTranslation();
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -26,7 +28,6 @@ export default function LoadingScreen({ onComplete }: Props) {
   return (
     <div className="fixed inset-0 bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-800 flex items-center justify-center z-50">
       <div className="text-center space-y-8">
-        {/* Logo */}
         <div className="relative">
           <div className="w-20 h-20 mx-auto bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center animate-pulse">
             <MessageSquare className="w-10 h-10 text-white" />
@@ -34,13 +35,11 @@ export default function LoadingScreen({ onComplete }: Props) {
           <div className="absolute -inset-4 bg-indigo-500/20 rounded-3xl blur-xl animate-pulse" />
         </div>
 
-        {/* Title */}
         <div>
-          <h1 className="text-3xl font-bold text-white mb-2">AI Message Assistant</h1>
-          <p className="text-indigo-200 text-sm">Intelligent message analysis & response generation</p>
+          <h1 className="text-3xl font-bold text-white mb-2">{t("loading.title")}</h1>
+          <p className="text-indigo-200 text-sm">{t("loading.subtitle")}</p>
         </div>
 
-        {/* Progress Bar */}
         <div className="w-64 mx-auto">
           <div className="bg-white/10 rounded-full h-2 overflow-hidden">
             <div

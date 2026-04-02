@@ -20,7 +20,8 @@ function getApiKey(): string {
 export async function analyzeMessage(
   message: string,
   mode: AnalysisMode = "single",
-  context?: string
+  context?: string,
+  language: string = "en"
 ): Promise<AnalysisResult> {
   const response = await fetch(`${API_URL}/api/analyze`, {
     method: "POST",
@@ -30,6 +31,7 @@ export async function analyzeMessage(
       api_key: getApiKey(),
       mode,
       context: context || null,
+      language,
     }),
   });
 
