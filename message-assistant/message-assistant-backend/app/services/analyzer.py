@@ -3,7 +3,8 @@ import asyncio
 from openai import AsyncOpenAI
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
-GEMINI_MODEL = "gemini-2.0-flash"
+GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_FALLBACK_MODEL = "gemini-2.0-flash-lite"
 MAX_RETRIES = 3
 RETRY_BASE_DELAY = 2  # seconds
 
@@ -186,37 +187,49 @@ def create_client(api_key: str) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key, base_url=GEMINI_BASE_URL)
 
 
+def _is_rate_limit_error(error_msg: str) -> bool:
+    """Check if an error message indicates a rate limit issue."""
+    lower = error_msg.lower()
+    return "429" in error_msg or "quota" in lower or "rate limit" in lower or "resource_exhausted" in lower
+
+
 async def call_with_retry(client: AsyncOpenAI, **kwargs) -> str:
-    """Call the API with exponential backoff retry for rate limit errors."""
+    """Call the API with exponential backoff retry and model fallback for rate limit errors."""
     last_error = None
-    for attempt in range(MAX_RETRIES):
-        try:
-            response = await client.chat.completions.create(**kwargs)
-            content = response.choices[0].message.content
-            if not content:
-                raise ValueError("Empty response from AI")
-            # Clean up potential markdown code blocks
-            content = content.strip()
-            if content.startswith("```"):
-                content = content.split("\n", 1)[1] if "\n" in content else content[3:]
-                if content.endswith("```"):
-                    content = content[:-3]
+    models_to_try = [kwargs.get("model", GEMINI_MODEL), GEMINI_FALLBACK_MODEL]
+
+    for model in models_to_try:
+        kwargs["model"] = model
+        for attempt in range(MAX_RETRIES):
+            try:
+                response = await client.chat.completions.create(**kwargs)
+                content = response.choices[0].message.content
+                if not content:
+                    raise ValueError("Empty response from AI")
+                # Clean up potential markdown code blocks
                 content = content.strip()
-            return content
-        except Exception as e:
-            error_msg = str(e)
-            last_error = e
-            if "429" in error_msg or "quota" in error_msg.lower() or "rate limit" in error_msg.lower() or "resource_exhausted" in error_msg.lower():
-                if attempt < MAX_RETRIES - 1:
-                    delay = RETRY_BASE_DELAY * (2 ** attempt)
-                    await asyncio.sleep(delay)
-                    continue
-                raise ValueError(
-                    "Gemini API rate limit exceeded. The free tier has limited requests per minute. "
-                    "Please wait a moment and try again, or check your quota at https://ai.google.dev/gemini-api/docs/rate-limits"
-                )
-            raise
-    raise last_error  # type: ignore
+                if content.startswith("```"):
+                    content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+                    if content.endswith("```"):
+                        content = content[:-3]
+                    content = content.strip()
+                return content
+            except Exception as e:
+                error_msg = str(e)
+                last_error = e
+                if _is_rate_limit_error(error_msg):
+                    if attempt < MAX_RETRIES - 1:
+                        delay = RETRY_BASE_DELAY * (2 ** attempt)
+                        await asyncio.sleep(delay)
+                        continue
+                    # Rate limit persists after retries, try fallback model
+                    break
+                raise
+
+    raise ValueError(
+        "Gemini API rate limit exceeded on all models. The free tier has limited requests per minute. "
+        "Please wait a moment and try again, or check your quota at https://ai.google.dev/gemini-api/docs/rate-limits"
+    )
 
 
 async def analyze_message(message: str, api_key: str, mode: str = "single", context: str | None = None, language: str = "en") -> dict:
