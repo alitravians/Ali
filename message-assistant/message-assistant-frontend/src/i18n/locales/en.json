@@ -81,7 +81,8 @@
     "reasoning": "Reasoning",
     "needsResearch": "Research Needed",
     "researchNote": "This response may benefit from additional research or fact-checking",
-    "sensitiveNote": "This message is sensitive — review the suggested reply carefully before sending"
+    "sensitiveNote": "This message is sensitive — review the suggested reply carefully before sending",
+    "needsClarification": "Needs Clarification"
   },
   "reply": {
     "suggestedReply": "Suggested Reply",

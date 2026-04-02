@@ -162,7 +162,7 @@ export default function AnalysisResultCard({ result }: Props) {
           <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
             <div className="flex items-center gap-2 mb-2">
               <Shield className="w-4 h-4 text-purple-600" />
-              <span className="text-sm font-semibold text-purple-700">{t("result.needsResearch")}</span>
+              <span className="text-sm font-semibold text-purple-700">{t("result.needsClarification")}</span>
             </div>
             <p className="text-xs text-purple-600">{result.clarification_note}</p>
           </div>
