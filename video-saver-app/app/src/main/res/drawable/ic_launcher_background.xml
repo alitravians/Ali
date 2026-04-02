@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Deep gradient-style background -->
+    <path
+        android:fillColor="#1A237E"
+        android:pathData="M0,0h108v108h-108z" />
+    <!-- Diagonal gradient layer -->
+    <path
+        android:fillColor="#283593"
+        android:pathData="M0,0 L108,0 L108,108 L0,108 Z"
+        android:fillAlpha="0.7" />
+    <!-- Accent diagonal stripe -->
+    <path
+        android:fillColor="#3949AB"
+        android:pathData="M0,40 L108,0 L108,68 L0,108 Z"
+        android:fillAlpha="0.5" />
+    <!-- Light accent -->
+    <path
+        android:fillColor="#5C6BC0"
+        android:pathData="M0,55 L108,15 L108,45 L0,85 Z"
+        android:fillAlpha="0.3" />
+    <!-- Corner glow top-right -->
+    <path
+        android:fillColor="#7986CB"
+        android:pathData="M70,0 L108,0 L108,38 Z"
+        android:fillAlpha="0.2" />
+    <!-- Corner glow bottom-left -->
+    <path
+        android:fillColor="#7986CB"
+        android:pathData="M0,70 L0,108 L38,108 Z"
+        android:fillAlpha="0.2" />
+</vector>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:translateX="24"
+        android:translateY="24">
+        <!-- Rounded rectangle video frame -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M6,4 C3.8,4 2,5.8 2,8 L2,52 C2,54.2 3.8,56 6,56 L54,56 C56.2,56 58,54.2 58,52 L58,8 C58,5.8 56.2,4 54,4 Z"
+            android:fillAlpha="0.15" />
+
+        <!-- Inner rounded screen -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M8,8 C6.9,8 6,8.9 6,10 L6,50 C6,51.1 6.9,52 8,52 L52,52 C53.1,52 54,51.1 54,50 L54,10 C54,8.9 53.1,8 52,8 Z"
+            android:fillAlpha="0.1" />
+
+        <!-- Play button circle -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M30,18 m-14,0 a14,14 0,1 1,28 0 a14,14 0,1 1,-28 0"
+            android:fillAlpha="0.95" />
+
+        <!-- Play triangle -->
+        <path
+            android:fillColor="#1A237E"
+            android:pathData="M25,11 L25,25 L37,18 Z" />
+
+        <!-- Download arrow shaft -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M27,34 L33,34 L33,42 L27,42 Z"
+            android:fillAlpha="0.95" />
+
+        <!-- Download arrow head -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M22,41 L30,50 L38,41 Z"
+            android:fillAlpha="0.95" />
+
+        <!-- Bottom save bar -->
+        <path
+            android:fillColor="#64FFDA"
+            android:pathData="M12,53 L48,53 L48,56 C48,57.1 47.1,58 46,58 L14,58 C12.9,58 12,57.1 12,56 Z"
+            android:fillAlpha="0.9" />
+
+        <!-- Small decorative dots - left -->
+        <path
+            android:fillColor="#64FFDA"
+            android:pathData="M4,14 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0"
+            android:fillAlpha="0.6" />
+
+        <!-- Small decorative dots - right -->
+        <path
+            android:fillColor="#64FFDA"
+            android:pathData="M56,46 m-2,0 a2,2 0,1 1,4 0 a2,2 0,1 1,-4 0"
+            android:fillAlpha="0.6" />
+
+        <!-- Top accent line -->
+        <path
+            android:fillColor="#64FFDA"
+            android:pathData="M20,2 L40,2"
+            android:strokeWidth="1.5"
+            android:strokeColor="#64FFDA"
+            android:fillAlpha="0.5" />
+    </group>
+</vector>
