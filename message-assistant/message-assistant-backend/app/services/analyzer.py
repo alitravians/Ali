@@ -1,5 +1,5 @@
 import json
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 
 ANALYSIS_SYSTEM_PROMPT = """You are an expert message analyst and communication assistant. Your job is to analyze incoming messages (especially from Discord or similar platforms) and provide detailed classification and suggested replies.
@@ -127,8 +127,8 @@ Guidelines:
 - Do NOT change the language of the text"""
 
 
-def create_client(api_key: str) -> OpenAI:
-    return OpenAI(api_key=api_key)
+def create_client(api_key: str) -> AsyncOpenAI:
+    return AsyncOpenAI(api_key=api_key)
 
 
 async def analyze_message(message: str, api_key: str, mode: str = "single", context: str | None = None) -> dict:
@@ -140,7 +140,7 @@ async def analyze_message(message: str, api_key: str, mode: str = "single", cont
     if context:
         user_content += f"\n\nAdditional context: {context}"
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": system_prompt},
@@ -168,7 +168,7 @@ async def analyze_message(message: str, api_key: str, mode: str = "single", cont
 async def restyle_reply(original_message: str, current_reply: str, style: str, api_key: str) -> dict:
     client = create_client(api_key)
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": RESTYLE_SYSTEM_PROMPT},
@@ -197,7 +197,7 @@ async def translate_text(text: str, direction: str, api_key: str) -> dict:
 
     direction_text = "English to Arabic" if direction == "en_to_ar" else "Arabic to English"
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": TRANSLATE_SYSTEM_PROMPT},
@@ -224,7 +224,7 @@ async def translate_text(text: str, direction: str, api_key: str) -> dict:
 async def improve_text(text: str, api_key: str) -> dict:
     client = create_client(api_key)
 
-    response = client.chat.completions.create(
+    response = await client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {"role": "system", "content": IMPROVE_SYSTEM_PROMPT},

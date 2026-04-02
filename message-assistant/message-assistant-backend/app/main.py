@@ -71,7 +71,7 @@ async def analyze(request: AnalyzeRequest):
         )
     except Exception as e:
         error_msg = str(e)
-        if "api_key" in error_msg.lower() or "authentication" in error_msg.lower() or "invalid" in error_msg.lower():
+        if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
             raise HTTPException(status_code=401, detail="Invalid API key. Please check your OpenAI API key.")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {error_msg}")
 
