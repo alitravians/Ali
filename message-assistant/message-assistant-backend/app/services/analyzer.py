@@ -206,7 +206,7 @@ async def call_with_retry(client: AsyncOpenAI, **kwargs) -> str:
         except Exception as e:
             error_msg = str(e)
             last_error = e
-            if "429" in error_msg or "quota" in error_msg.lower() or "rate" in error_msg.lower() or "resource_exhausted" in error_msg.lower():
+            if "429" in error_msg or "quota" in error_msg.lower() or "rate limit" in error_msg.lower() or "resource_exhausted" in error_msg.lower():
                 if attempt < MAX_RETRIES - 1:
                     delay = RETRY_BASE_DELAY * (2 ** attempt)
                     await asyncio.sleep(delay)
