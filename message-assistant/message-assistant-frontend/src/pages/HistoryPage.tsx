@@ -83,10 +83,10 @@ export default function HistoryPage() {
     const hours = Math.floor(diff / 3600000);
     const days = Math.floor(diff / 86400000);
 
-    if (minutes < 1) return "Just now";
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
-    if (days < 7) return `${days}d ago`;
+    if (minutes < 1) return t("time.justNow");
+    if (minutes < 60) return t("time.minutesAgo", { count: minutes });
+    if (hours < 24) return t("time.hoursAgo", { count: hours });
+    if (days < 7) return t("time.daysAgo", { count: days });
     return date.toLocaleDateString();
   };
 
