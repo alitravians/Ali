@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Mail, Send, User, MessageSquare, Check } from "lucide-react";
+import { Mail, Send, User, MessageSquare, Check, Clock, Code } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export default function ContactPage() {
@@ -37,6 +37,36 @@ export default function ContactPage() {
           <p className="text-gray-600">{t("contact.subtitle")}</p>
         </div>
 
+        {/* Developer Contact Card */}
+        <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 shadow-lg text-white mb-6">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <User className="w-5 h-5" />
+            {t("contact.developerContact")}
+          </h2>
+          <div className="flex items-center gap-4 mb-4">
+            <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+              <Code className="w-7 h-7 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold">{t("contact.developerName")}</h3>
+              <p className="text-indigo-200 text-sm">{t("contact.developerRole")}</p>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2.5 backdrop-blur-sm">
+              <Mail className="w-4 h-4 text-indigo-200" />
+              <span className="text-sm">{t("contact.emailLabel")}:</span>
+              <a href={`mailto:${t("contact.developerEmail")}`} className="text-sm font-medium text-white hover:text-indigo-200 transition-colors">
+                {t("contact.developerEmail")}
+              </a>
+            </div>
+            <div className="flex items-center gap-2 bg-white/10 rounded-xl px-4 py-2.5 backdrop-blur-sm">
+              <Clock className="w-4 h-4 text-indigo-200" />
+              <span className="text-sm text-white/80">{t("contact.responseTime")}</span>
+            </div>
+          </div>
+        </div>
+
         {submitted && (
           <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 flex items-center gap-3">
             <Check className="w-5 h-5 text-green-600 flex-shrink-0" />
@@ -48,6 +78,13 @@ export default function ContactPage() {
         )}
 
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-indigo-600" />
+              {t("contact.feedbackTitle")}
+            </h2>
+            <p className="text-sm text-gray-500 mt-1">{t("contact.feedbackSubtitle")}</p>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">

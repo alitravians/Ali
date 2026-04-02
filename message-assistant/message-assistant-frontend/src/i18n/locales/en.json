@@ -204,7 +204,7 @@
   },
   "about": {
     "title": "About AI Message Assistant",
-    "subtitle": "Learn more about this tool and its purpose",
+    "subtitle": "Learn more about this tool, its purpose, and the developer behind it",
     "what": {
       "title": "What is AI Message Assistant?",
       "desc": "AI Message Assistant is a smart web tool designed to help you understand incoming messages — especially from Discord and other English text sources — and craft professional, context-appropriate replies. It uses advanced AI to analyze message tone, intent, priority, and suggest the best possible response."
@@ -216,11 +216,34 @@
     "how": {
       "title": "How Does It Work?",
       "desc": "The system uses OpenAI's GPT models with deep thinking to analyze messages through multiple layers — understanding language, detecting sentiment, classifying message type, and generating contextually appropriate replies. It supports multiple reply tones and translation between English and Arabic."
+    },
+    "developer": {
+      "title": "Meet the Developer",
+      "name": "Ali",
+      "role": "Full-Stack Developer & AI Enthusiast",
+      "bio": "Ali is a passionate software developer specializing in building intelligent web applications powered by AI. With a focus on creating practical tools that solve real communication challenges, Ali designed AI Message Assistant to help users navigate English conversations with confidence and professionalism.",
+      "vision": "Vision & Mission",
+      "visionDesc": "To empower users with AI-driven tools that make professional communication effortless — bridging language gaps and ensuring every response is thoughtful, accurate, and contextually appropriate.",
+      "skills": "Technical Expertise",
+      "skillsList": {
+        "frontend": "React & TypeScript",
+        "backend": "Python & FastAPI",
+        "ai": "AI & Machine Learning",
+        "design": "UI/UX Design"
+      }
     }
   },
   "contact": {
     "title": "Contact Us",
     "subtitle": "Have feedback or suggestions? We'd love to hear from you.",
+    "developerContact": "Developer Contact",
+    "developerName": "Ali",
+    "developerRole": "Full-Stack Developer",
+    "emailLabel": "Email",
+    "developerEmail": "botbotgroup@gmail.com",
+    "responseTime": "Typical response time: within 24 hours",
+    "feedbackTitle": "Send Feedback",
+    "feedbackSubtitle": "Your feedback helps improve the application",
     "name": "Your Name",
     "namePlaceholder": "Enter your name",
     "email": "Email Address",
@@ -241,7 +264,7 @@
     "aboutUs": "About Us",
     "contactUs": "Contact Us",
     "madeWith": "Made with",
-    "by": "AI Message Assistant"
+    "by": "Ali"
   },
   "settings": {
     "title": "API Settings",
