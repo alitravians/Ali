@@ -15,6 +15,7 @@ import {
   Shield,
   Loader2,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { restyleReply, translateText } from "../services/api";
 import type { ReplyStyle } from "../types";
 
@@ -24,16 +25,18 @@ interface Props {
   researchBased: boolean;
 }
 
-const styles: { style: ReplyStyle; label: string; icon: typeof MessageCircle }[] = [
-  { style: "brief", label: "Brief", icon: MessageCircle },
-  { style: "professional", label: "Professional", icon: Briefcase },
-  { style: "formal", label: "Formal", icon: BookOpen },
-  { style: "friendly", label: "Friendly", icon: Heart },
-  { style: "technical", label: "Technical", icon: Code },
-  { style: "polite", label: "Polite", icon: HandHeart },
-  { style: "direct", label: "Direct", icon: ArrowRight },
-  { style: "firm", label: "Firm", icon: Shield },
-];
+const styleIcons: Record<ReplyStyle, typeof MessageCircle> = {
+  brief: MessageCircle,
+  professional: Briefcase,
+  formal: BookOpen,
+  friendly: Heart,
+  technical: Code,
+  polite: HandHeart,
+  direct: ArrowRight,
+  firm: Shield,
+};
+
+const styleKeys: ReplyStyle[] = ["brief", "professional", "formal", "friendly", "technical", "polite", "direct", "firm"];
 
 export default function ReplySection({ originalMessage, suggestedReply, researchBased }: Props) {
   const [currentReply, setCurrentReply] = useState(suggestedReply);
@@ -45,6 +48,7 @@ export default function ReplySection({ originalMessage, suggestedReply, research
   const [translation, setTranslation] = useState<string | null>(null);
   const [translating, setTranslating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useTranslation();
 
   const handleCopy = async () => {
     try {
@@ -52,7 +56,6 @@ export default function ReplySection({ originalMessage, suggestedReply, research
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
       const textarea = document.createElement("textarea");
       textarea.value = isEditing ? editedReply : currentReply;
       document.body.appendChild(textarea);
@@ -109,12 +112,12 @@ export default function ReplySection({ originalMessage, suggestedReply, research
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-indigo-500" />
-          Suggested Reply
+          {t("reply.suggestedReply")}
         </h3>
         <div className="flex items-center gap-2">
           {researchBased && (
             <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-              Research-based
+              {t("reply.researchBased")}
             </span>
           )}
           {activeStyle && (
@@ -125,7 +128,6 @@ export default function ReplySection({ originalMessage, suggestedReply, research
         </div>
       </div>
 
-      {/* Reply Text */}
       {isEditing ? (
         <textarea
           value={editedReply}
@@ -139,29 +141,26 @@ export default function ReplySection({ originalMessage, suggestedReply, research
         </div>
       )}
 
-      {/* Translation */}
       {translation && (
         <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-100" dir="rtl">
-          <p className="text-xs text-emerald-600 font-medium mb-1 text-right">Arabic Translation:</p>
+          <p className="text-xs text-emerald-600 font-medium mb-1 text-right">{t("reply.translateAr")}:</p>
           <p className="text-gray-800 leading-relaxed">{translation}</p>
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-3">
           <p className="text-sm text-red-600">{error}</p>
         </div>
       )}
 
-      {/* Action Buttons */}
       <div className="flex flex-wrap gap-2">
         <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all text-sm font-medium"
         >
           {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-          {copied ? "Copied!" : "Copy Reply"}
+          {copied ? t("reply.copied") : t("reply.copy")}
         </button>
 
         <button
@@ -173,7 +172,7 @@ export default function ReplySection({ originalMessage, suggestedReply, research
           }}
           className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
         >
-          {isEditing ? "Done Editing" : "Edit Reply"}
+          {isEditing ? t("reply.doneEditing") : t("reply.edit")}
         </button>
 
         <button
@@ -182,7 +181,7 @@ export default function ReplySection({ originalMessage, suggestedReply, research
           className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium disabled:opacity-50"
         >
           {translating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Languages className="w-4 h-4" />}
-          Translate to Arabic
+          {t("reply.translateAr")}
         </button>
 
         <button
@@ -190,33 +189,35 @@ export default function ReplySection({ originalMessage, suggestedReply, research
           className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
         >
           <RefreshCw className="w-4 h-4" />
-          Reset
+          {t("reply.restyle")}
         </button>
       </div>
 
-      {/* Style Buttons */}
       <div>
-        <p className="text-xs text-gray-500 font-medium mb-2">Generate reply in different styles:</p>
+        <p className="text-xs text-gray-500 font-medium mb-2">{t("reply.restyleLabel")}</p>
         <div className="flex flex-wrap gap-2">
-          {styles.map(({ style, label, icon: Icon }) => (
-            <button
-              key={style}
-              onClick={() => handleRestyle(style)}
-              disabled={loading}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
-                activeStyle === style
-                  ? "bg-indigo-100 border-indigo-300 text-indigo-700"
-                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
-              } disabled:opacity-50`}
-            >
-              {loading && activeStyle === style ? (
-                <Loader2 className="w-3 h-3 animate-spin" />
-              ) : (
-                <Icon className="w-3 h-3" />
-              )}
-              {label}
-            </button>
-          ))}
+          {styleKeys.map((style) => {
+            const Icon = styleIcons[style];
+            return (
+              <button
+                key={style}
+                onClick={() => handleRestyle(style)}
+                disabled={loading}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                  activeStyle === style
+                    ? "bg-indigo-100 border-indigo-300 text-indigo-700"
+                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300"
+                } disabled:opacity-50`}
+              >
+                {loading && activeStyle === style ? (
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                ) : (
+                  <Icon className="w-3 h-3" />
+                )}
+                {t(`reply.tones.${style}`)}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

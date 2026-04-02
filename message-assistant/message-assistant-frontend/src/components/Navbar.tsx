@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import {
   MessageSquare,
   Home,
@@ -11,6 +12,7 @@ import {
   Menu,
   X,
   Key,
+  Globe,
 } from "lucide-react";
 
 interface NavbarProps {
@@ -20,15 +22,24 @@ interface NavbarProps {
 export default function Navbar({ onOpenSettings }: NavbarProps) {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { t, i18n } = useTranslation();
+
+  const toggleLanguage = () => {
+    const newLang = i18n.language === "en" ? "ar" : "en";
+    i18n.changeLanguage(newLang);
+    localStorage.setItem("app_language", newLang);
+    document.documentElement.lang = newLang;
+    document.documentElement.dir = newLang === "ar" ? "rtl" : "ltr";
+  };
 
   const links = [
-    { to: "/", label: "Home", icon: Home },
-    { to: "/analyze", label: "Analyze", icon: MessageSquare },
-    { to: "/history", label: "History", icon: History },
-    { to: "/how-to-use", label: "Guide", icon: HelpCircle },
-    { to: "/rules", label: "Rules", icon: BookOpen },
-    { to: "/about", label: "About", icon: Info },
-    { to: "/contact", label: "Contact", icon: Mail },
+    { to: "/", label: t("nav.home"), icon: Home },
+    { to: "/analyze", label: t("nav.analyze"), icon: MessageSquare },
+    { to: "/history", label: t("nav.history"), icon: History },
+    { to: "/how-to-use", label: t("nav.guide"), icon: HelpCircle },
+    { to: "/rules", label: t("nav.rules"), icon: BookOpen },
+    { to: "/about", label: t("nav.about"), icon: Info },
+    { to: "/contact", label: t("nav.contact"), icon: Mail },
   ];
 
   const isActive = (path: string) => location.pathname === path;
@@ -42,7 +53,7 @@ export default function Navbar({ onOpenSettings }: NavbarProps) {
               <MessageSquare className="w-5 h-5 text-white" />
             </div>
             <span className="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hidden sm:block">
-              AI Message Assistant
+              {t("app.name")}
             </span>
           </Link>
 
@@ -66,12 +77,21 @@ export default function Navbar({ onOpenSettings }: NavbarProps) {
 
           <div className="flex items-center gap-2">
             <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-indigo-600 hover:bg-gray-50 transition-all"
+              title={t("nav.language")}
+            >
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">{t("nav.language")}</span>
+            </button>
+
+            <button
               onClick={onOpenSettings}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:text-indigo-600 hover:bg-gray-50 transition-all"
-              title="API Settings"
+              title={t("nav.settings")}
             >
               <Key className="w-4 h-4" />
-              <span className="hidden sm:inline">Settings</span>
+              <span className="hidden sm:inline">{t("nav.settings")}</span>
             </button>
 
             <button

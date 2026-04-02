@@ -68,6 +68,7 @@ class AnalyzeRequest(BaseModel):
     api_key: str
     mode: AnalysisMode = AnalysisMode.SINGLE
     context: Optional[str] = None
+    language: str = "en"
 
 
 class RestyleRequest(BaseModel):

@@ -1,7 +1,10 @@
 import { MessageSquare, Heart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function Footer() {
+  const { t } = useTranslation();
+
   return (
     <footer className="bg-gray-900 text-gray-300 mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -11,40 +14,39 @@ export default function Footer() {
               <div className="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <MessageSquare className="w-4 h-4 text-white" />
               </div>
-              <span className="text-white font-bold">AI Message Assistant</span>
+              <span className="text-white font-bold">{t("app.name")}</span>
             </div>
             <p className="text-sm text-gray-400">
-              Smart AI-powered message analysis and response generation.
-              Understand messages better and reply with confidence.
+              {t("app.tagline")}
             </p>
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">Quick Links</h3>
+            <h3 className="text-white font-semibold mb-4">{t("footer.quickLinks")}</h3>
             <div className="space-y-2">
               <Link to="/analyze" className="block text-sm hover:text-indigo-400 transition-colors">
-                Analyze Messages
+                {t("footer.analyzeMessages")}
               </Link>
               <Link to="/history" className="block text-sm hover:text-indigo-400 transition-colors">
-                Analysis History
+                {t("footer.analysisHistory")}
               </Link>
               <Link to="/how-to-use" className="block text-sm hover:text-indigo-400 transition-colors">
-                How to Use
+                {t("footer.howToUse")}
               </Link>
               <Link to="/rules" className="block text-sm hover:text-indigo-400 transition-colors">
-                Rules & Terms
+                {t("footer.rulesTerms")}
               </Link>
             </div>
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">About</h3>
+            <h3 className="text-white font-semibold mb-4">{t("footer.aboutSection")}</h3>
             <div className="space-y-2">
               <Link to="/about" className="block text-sm hover:text-indigo-400 transition-colors">
-                About Us
+                {t("footer.aboutUs")}
               </Link>
               <Link to="/contact" className="block text-sm hover:text-indigo-400 transition-colors">
-                Contact Us
+                {t("footer.contactUs")}
               </Link>
             </div>
           </div>
@@ -52,9 +54,9 @@ export default function Footer() {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-500">
           <p className="flex items-center justify-center gap-1">
-            Made with <Heart className="w-3 h-3 text-red-400" /> AI Message Assistant
+            {t("footer.madeWith")} <Heart className="w-3 h-3 text-red-400" /> {t("footer.by")}
           </p>
-          <p className="mt-1">&copy; {new Date().getFullYear()} All rights reserved.</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} {t("app.copyright")}</p>
         </div>
       </div>
     </footer>

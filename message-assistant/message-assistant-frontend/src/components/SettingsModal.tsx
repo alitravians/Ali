@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Key, Eye, EyeOff, Save, Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (isOpen) {
@@ -63,22 +65,22 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <Key className="w-5 h-5 text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-900">API Settings</h2>
-            <p className="text-sm text-gray-500">Configure your OpenAI API key</p>
+            <h2 className="text-lg font-bold text-gray-900">{t("settings.title")}</h2>
+            <p className="text-sm text-gray-500">{t("settings.subtitle")}</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              OpenAI API Key
+              {t("settings.label")}
             </label>
             <div className="relative">
               <input
                 type={showKey ? "text" : "password"}
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
+                placeholder={t("settings.placeholder")}
                 className="w-full px-4 py-2.5 pr-10 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-mono"
               />
               <button
@@ -89,23 +91,22 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">
-              Your key is stored locally in your browser and sent to the backend server
-              only to communicate with OpenAI's API. It is not stored on the server.
+              {t("settings.security")}
             </p>
           </div>
 
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
             <p className="text-xs text-amber-700">
-              <strong>How to get an API key:</strong> Visit{" "}
+              <strong>{t("settings.howToGet")}</strong> {t("settings.howToGetDesc")}{" "}
               <a
                 href="https://platform.openai.com/api-keys"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-amber-900"
               >
-                platform.openai.com/api-keys
+                {t("settings.howToGetLink")}
               </a>{" "}
-              to create your API key. You need an OpenAI account with billing enabled.
+              {t("settings.howToGetSuffix")}
             </p>
           </div>
 
@@ -118,12 +119,12 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               {saved ? (
                 <>
                   <Check className="w-4 h-4" />
-                  Saved!
+                  {t("settings.saved")}
                 </>
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  Save Key
+                  {t("settings.save")}
                 </>
               )}
             </button>
@@ -131,7 +132,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               onClick={handleClear}
               className="px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-all text-sm font-medium"
             >
-              Clear
+              {t("settings.clear")}
             </button>
           </div>
         </div>
