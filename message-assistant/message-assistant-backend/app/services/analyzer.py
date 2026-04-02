@@ -1,8 +1,11 @@
 import json
+import asyncio
 from openai import AsyncOpenAI
 
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 GEMINI_MODEL = "gemini-2.0-flash"
+MAX_RETRIES = 3
+RETRY_BASE_DELAY = 2  # seconds
 
 
 def get_analysis_system_prompt(language: str = "en") -> str:
@@ -183,6 +186,39 @@ def create_client(api_key: str) -> AsyncOpenAI:
     return AsyncOpenAI(api_key=api_key, base_url=GEMINI_BASE_URL)
 
 
+async def call_with_retry(client: AsyncOpenAI, **kwargs) -> str:
+    """Call the API with exponential backoff retry for rate limit errors."""
+    last_error = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            response = await client.chat.completions.create(**kwargs)
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError("Empty response from AI")
+            # Clean up potential markdown code blocks
+            content = content.strip()
+            if content.startswith("```"):
+                content = content.split("\n", 1)[1] if "\n" in content else content[3:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+            return content
+        except Exception as e:
+            error_msg = str(e)
+            last_error = e
+            if "429" in error_msg or "quota" in error_msg.lower() or "rate" in error_msg.lower() or "resource_exhausted" in error_msg.lower():
+                if attempt < MAX_RETRIES - 1:
+                    delay = RETRY_BASE_DELAY * (2 ** attempt)
+                    await asyncio.sleep(delay)
+                    continue
+                raise ValueError(
+                    "Gemini API rate limit exceeded. The free tier has limited requests per minute. "
+                    "Please wait a moment and try again, or check your quota at https://ai.google.dev/gemini-api/docs/rate-limits"
+                )
+            raise
+    raise last_error  # type: ignore
+
+
 async def analyze_message(message: str, api_key: str, mode: str = "single", context: str | None = None, language: str = "en") -> dict:
     client = create_client(api_key)
 
@@ -192,7 +228,8 @@ async def analyze_message(message: str, api_key: str, mode: str = "single", cont
     if context:
         user_content += f"\n\nAdditional context: {context}"
 
-    response = await client.chat.completions.create(
+    content = await call_with_retry(
+        client,
         model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
@@ -202,25 +239,14 @@ async def analyze_message(message: str, api_key: str, mode: str = "single", cont
         max_tokens=2000
     )
 
-    content = response.choices[0].message.content
-    if not content:
-        raise ValueError("Empty response from AI")
-
-    # Clean up potential markdown code blocks
-    content = content.strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[1] if "\n" in content else content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-        content = content.strip()
-
     return json.loads(content)
 
 
 async def restyle_reply(original_message: str, current_reply: str, style: str, api_key: str) -> dict:
     client = create_client(api_key)
 
-    response = await client.chat.completions.create(
+    content = await call_with_retry(
+        client,
         model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": RESTYLE_SYSTEM_PROMPT},
@@ -230,17 +256,6 @@ async def restyle_reply(original_message: str, current_reply: str, style: str, a
         max_tokens=1000
     )
 
-    content = response.choices[0].message.content
-    if not content:
-        raise ValueError("Empty response from AI")
-
-    content = content.strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[1] if "\n" in content else content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-        content = content.strip()
-
     return json.loads(content)
 
 
@@ -249,7 +264,8 @@ async def translate_text(text: str, direction: str, api_key: str) -> dict:
 
     direction_text = "English to Arabic" if direction == "en_to_ar" else "Arabic to English"
 
-    response = await client.chat.completions.create(
+    content = await call_with_retry(
+        client,
         model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": TRANSLATE_SYSTEM_PROMPT},
@@ -259,24 +275,14 @@ async def translate_text(text: str, direction: str, api_key: str) -> dict:
         max_tokens=1000
     )
 
-    content = response.choices[0].message.content
-    if not content:
-        raise ValueError("Empty response from AI")
-
-    content = content.strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[1] if "\n" in content else content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-        content = content.strip()
-
     return json.loads(content)
 
 
 async def improve_text(text: str, api_key: str) -> dict:
     client = create_client(api_key)
 
-    response = await client.chat.completions.create(
+    content = await call_with_retry(
+        client,
         model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": IMPROVE_SYSTEM_PROMPT},
@@ -285,16 +291,5 @@ async def improve_text(text: str, api_key: str) -> dict:
         temperature=0.2,
         max_tokens=1000
     )
-
-    content = response.choices[0].message.content
-    if not content:
-        raise ValueError("Empty response from AI")
-
-    content = content.strip()
-    if content.startswith("```"):
-        content = content.split("\n", 1)[1] if "\n" in content else content[3:]
-        if content.endswith("```"):
-            content = content[:-3]
-        content = content.strip()
 
     return json.loads(content)
