@@ -165,7 +165,12 @@ export default function ReplySection({ originalMessage, suggestedReply, research
         </button>
 
         <button
-          onClick={() => setIsEditing(!isEditing)}
+          onClick={() => {
+            if (isEditing) {
+              setCurrentReply(editedReply);
+            }
+            setIsEditing(!isEditing);
+          }}
           className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
         >
           {isEditing ? "Done Editing" : "Edit Reply"}

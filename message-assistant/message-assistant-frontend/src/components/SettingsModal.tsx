@@ -78,8 +78,8 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               </button>
             </div>
             <p className="text-xs text-gray-400 mt-1.5">
-              Your key is stored locally in your browser and never sent to our servers.
-              It is only used to communicate directly with OpenAI's API.
+              Your key is stored locally in your browser and sent to the backend server
+              only to communicate with OpenAI's API. It is not stored on the server.
             </p>
           </div>
 
