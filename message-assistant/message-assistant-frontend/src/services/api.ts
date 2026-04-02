@@ -10,9 +10,9 @@ import type {
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 function getApiKey(): string {
-  const key = localStorage.getItem("openai_api_key") || "";
+  const key = localStorage.getItem("gemini_api_key") || "";
   if (!key) {
-    throw new Error("Please set your OpenAI API key in Settings first.");
+    throw new Error("Please set your Gemini API key in Settings first.");
   }
   return key;
 }

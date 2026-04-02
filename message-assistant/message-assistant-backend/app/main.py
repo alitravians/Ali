@@ -73,7 +73,7 @@ async def analyze(request: AnalyzeRequest):
     except Exception as e:
         error_msg = str(e)
         if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
-            raise HTTPException(status_code=401, detail="Invalid API key. Please check your OpenAI API key.")
+            raise HTTPException(status_code=401, detail="Invalid API key. Please check your Gemini API key.")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {error_msg}")
 
 
@@ -94,7 +94,7 @@ async def restyle(request: RestyleRequest):
     except Exception as e:
         error_msg = str(e)
         if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
-            raise HTTPException(status_code=401, detail="Invalid API key.")
+            raise HTTPException(status_code=401, detail="Invalid Gemini API key.")
         raise HTTPException(status_code=500, detail=f"Restyle failed: {error_msg}")
 
 
@@ -114,7 +114,7 @@ async def translate(request: TranslateRequest):
     except Exception as e:
         error_msg = str(e)
         if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
-            raise HTTPException(status_code=401, detail="Invalid API key.")
+            raise HTTPException(status_code=401, detail="Invalid Gemini API key.")
         raise HTTPException(status_code=500, detail=f"Translation failed: {error_msg}")
 
 
@@ -133,5 +133,5 @@ async def improve(request: ImproveRequest):
     except Exception as e:
         error_msg = str(e)
         if "api_key" in error_msg.lower() or "authentication" in error_msg.lower():
-            raise HTTPException(status_code=401, detail="Invalid API key.")
+            raise HTTPException(status_code=401, detail="Invalid Gemini API key.")
         raise HTTPException(status_code=500, detail=f"Improvement failed: {error_msg}")

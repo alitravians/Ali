@@ -27,7 +27,7 @@ export default function AnalyzePage() {
   const [analyzedMessage, setAnalyzedMessage] = useState("");
   const { t, i18n } = useTranslation();
 
-  const hasApiKey = !!localStorage.getItem("openai_api_key");
+  const hasApiKey = !!localStorage.getItem("gemini_api_key");
 
   const handleAnalyze = useCallback(async () => {
     if (!message.trim()) return;

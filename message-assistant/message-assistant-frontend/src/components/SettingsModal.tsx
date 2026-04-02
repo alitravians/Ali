@@ -16,7 +16,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   useEffect(() => {
     if (isOpen) {
-      const stored = localStorage.getItem("openai_api_key") || "";
+      const stored = localStorage.getItem("gemini_api_key") || "";
       setApiKey(stored);
       setSaved(false);
       if (timeoutRef.current) {
@@ -33,7 +33,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }, []);
 
   const handleSave = () => {
-    localStorage.setItem("openai_api_key", apiKey.trim());
+    localStorage.setItem("gemini_api_key", apiKey.trim());
     setSaved(true);
     timeoutRef.current = setTimeout(() => {
       setSaved(false);
@@ -43,7 +43,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const handleClear = () => {
     setApiKey("");
-    localStorage.removeItem("openai_api_key");
+    localStorage.removeItem("gemini_api_key");
     setSaved(false);
   };
 
@@ -99,7 +99,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             <p className="text-xs text-amber-700">
               <strong>{t("settings.howToGet")}</strong> {t("settings.howToGetDesc")}{" "}
               <a
-                href="https://platform.openai.com/api-keys"
+                href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-amber-900"

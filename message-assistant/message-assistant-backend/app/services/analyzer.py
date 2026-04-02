@@ -1,6 +1,9 @@
 import json
 from openai import AsyncOpenAI
 
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+GEMINI_MODEL = "gemini-2.0-flash"
+
 
 def get_analysis_system_prompt(language: str = "en") -> str:
     lang_instruction = ""
@@ -177,7 +180,7 @@ Guidelines:
 
 
 def create_client(api_key: str) -> AsyncOpenAI:
-    return AsyncOpenAI(api_key=api_key)
+    return AsyncOpenAI(api_key=api_key, base_url=GEMINI_BASE_URL)
 
 
 async def analyze_message(message: str, api_key: str, mode: str = "single", context: str | None = None, language: str = "en") -> dict:
@@ -190,7 +193,7 @@ async def analyze_message(message: str, api_key: str, mode: str = "single", cont
         user_content += f"\n\nAdditional context: {context}"
 
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content}
@@ -218,7 +221,7 @@ async def restyle_reply(original_message: str, current_reply: str, style: str, a
     client = create_client(api_key)
 
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": RESTYLE_SYSTEM_PROMPT},
             {"role": "user", "content": f"Original message received: {original_message}\n\nCurrent reply: {current_reply}\n\nRestyle this reply to be: {style}"}
@@ -247,7 +250,7 @@ async def translate_text(text: str, direction: str, api_key: str) -> dict:
     direction_text = "English to Arabic" if direction == "en_to_ar" else "Arabic to English"
 
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": TRANSLATE_SYSTEM_PROMPT},
             {"role": "user", "content": f"Translate the following text from {direction_text}:\n\n{text}"}
@@ -274,7 +277,7 @@ async def improve_text(text: str, api_key: str) -> dict:
     client = create_client(api_key)
 
     response = await client.chat.completions.create(
-        model="gpt-4o-mini",
+        model=GEMINI_MODEL,
         messages=[
             {"role": "system", "content": IMPROVE_SYSTEM_PROMPT},
             {"role": "user", "content": f"Clean up and improve this text:\n\n{text}"}
