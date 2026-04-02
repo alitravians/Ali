@@ -72,7 +72,7 @@ export default function ReplySection({ originalMessage, suggestedReply, research
     setActiveStyle(style);
     setError(null);
     try {
-      const result = await restyleReply(originalMessage, currentReply, style);
+      const result = await restyleReply(originalMessage, isEditing ? editedReply : currentReply, style);
       setCurrentReply(result.restyled_reply);
       setEditedReply(result.restyled_reply);
       setTranslation(null);
@@ -189,7 +189,7 @@ export default function ReplySection({ originalMessage, suggestedReply, research
           className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all text-sm font-medium"
         >
           <RefreshCw className="w-4 h-4" />
-          {t("reply.restyle")}
+          {t("reply.reset")}
         </button>
       </div>
 

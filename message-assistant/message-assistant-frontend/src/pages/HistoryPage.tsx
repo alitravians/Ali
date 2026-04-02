@@ -99,7 +99,7 @@ export default function HistoryPage() {
               <History className="w-8 h-8 text-indigo-600" />
               {t("history.title")}
             </h1>
-            <p className="text-gray-600 mt-1">{entries.length} {t("history.subtitle")}</p>
+            <p className="text-gray-600 mt-1">{entries.length} {t("history.count")} — {t("history.subtitle")}</p>
           </div>
           {entries.length > 0 && (
             <button

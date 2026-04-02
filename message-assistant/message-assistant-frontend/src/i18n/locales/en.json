@@ -50,8 +50,8 @@
     "translate": "Translate",
     "clear": "Clear",
     "apiKeyRequired": "API Key Required",
-    "apiKeyMessage": "Click the Settings (key icon) in the navbar to set your OpenAI API key before analyzing messages.",
-    "apiKeyError": "Please set your OpenAI API key in Settings first (click the key icon in the navbar).",
+    "apiKeyMessage": "Click the Settings (key icon) in the navbar to set your Gemini API key before analyzing messages.",
+    "apiKeyError": "Please set your Gemini API key in Settings first (click the key icon in the navbar).",
     "analyzingMessage": "Analyzing your message...",
     "analyzingWait": "This may take a few seconds",
     "translationLabel": "Message Translation:",
@@ -60,8 +60,8 @@
     "errorTitle": "Error",
     "analyzeBtn": "Analyze Message",
     "placeholder": "Paste the message you received here...",
-    "noApiKey": "Please set your OpenAI API key in Settings first (click the key icon in the navbar).",
-    "apiKeyHint": "Click the Settings (key icon) in the navbar to set your OpenAI API key before analyzing messages.",
+    "noApiKey": "Please set your Gemini API key in Settings first (click the key icon in the navbar).",
+    "apiKeyHint": "Click the Settings (key icon) in the navbar to set your Gemini API key before analyzing messages.",
     "noReplyNeeded": "No reply needed for this message",
     "deepThinking": "Deep thinking for the best response...",
     "analysisFailed": "Analysis failed. Please try again.",
@@ -95,6 +95,7 @@
     "translateAr": "Translate to Arabic",
     "translateEn": "Translate to English",
     "restyle": "Restyle Reply",
+    "reset": "Reset",
     "restyleLabel": "Choose a tone:",
     "tones": {
       "brief": "Brief",
@@ -110,6 +111,7 @@
   "history": {
     "title": "Analysis History",
     "subtitle": "Review your previous message analyses and suggested replies",
+    "count": "analyses",
     "empty": "No analysis history yet",
     "emptyDesc": "Your analyzed messages will appear here. Go to the Analyze page to get started.",
     "goAnalyze": "Go to Analyze",
@@ -129,7 +131,7 @@
     "steps": {
       "s1": {
         "title": "Set Up Your API Key",
-        "desc": "Click the Settings icon in the navigation bar and enter your OpenAI API key. You can get one from platform.openai.com/api-keys."
+        "desc": "Click the Settings icon in the navigation bar and enter your Gemini API key. You can get one for free from aistudio.google.com."
       },
       "s2": {
         "title": "Paste Your Message",
@@ -216,7 +218,7 @@
     },
     "how": {
       "title": "How Does It Work?",
-      "desc": "The system uses OpenAI's GPT models with deep thinking to analyze messages through multiple layers — understanding language, detecting sentiment, classifying message type, and generating contextually appropriate replies. It supports multiple reply tones and translation between English and Arabic."
+      "desc": "The system uses Google's Gemini AI with deep thinking to analyze messages through multiple layers — understanding language, detecting sentiment, classifying message type, and generating contextually appropriate replies. It supports multiple reply tones and translation between English and Arabic."
     },
     "developer": {
       "title": "Meet the Developer",
@@ -269,14 +271,14 @@
   },
   "settings": {
     "title": "API Settings",
-    "subtitle": "Configure your OpenAI API key",
-    "label": "OpenAI API Key",
-    "placeholder": "sk-...",
-    "security": "Your key is stored locally in your browser and sent to the backend server only to communicate with OpenAI's API. It is not stored on the server.",
+    "subtitle": "Configure your Gemini API key",
+    "label": "Gemini API Key",
+    "placeholder": "AIza...",
+    "security": "Your key is stored locally in your browser and sent to the backend server only to communicate with Google's Gemini API. It is not stored on the server.",
     "howToGet": "How to get an API key:",
     "howToGetDesc": "Visit",
-    "howToGetLink": "platform.openai.com/api-keys",
-    "howToGetSuffix": "to create your API key. You need an OpenAI account with billing enabled.",
+    "howToGetLink": "aistudio.google.com",
+    "howToGetSuffix": "to create your free API key. No billing required.",
     "save": "Save Key",
     "saved": "Saved!",
     "clear": "Clear"
