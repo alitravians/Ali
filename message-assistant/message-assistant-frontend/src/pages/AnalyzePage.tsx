@@ -23,6 +23,7 @@ export default function AnalyzePage() {
   const [improving, setImproving] = useState(false);
   const [translatingMsg, setTranslatingMsg] = useState(false);
   const [messageTranslation, setMessageTranslation] = useState<string | null>(null);
+  const [analyzedMessage, setAnalyzedMessage] = useState("");
 
   const hasApiKey = !!localStorage.getItem("openai_api_key");
 
@@ -39,8 +40,10 @@ export default function AnalyzePage() {
     setMessageTranslation(null);
 
     try {
-      const analysisResult = await analyzeMessage(message.trim(), mode);
+      const trimmedMessage = message.trim();
+      const analysisResult = await analyzeMessage(trimmedMessage, mode);
       setResult(analysisResult);
+      setAnalyzedMessage(trimmedMessage);
 
       // Save to history
       const history: HistoryEntry[] = JSON.parse(localStorage.getItem("analysis_history") || "[]");
@@ -236,7 +239,7 @@ export default function AnalyzePage() {
 
             {result.classification.needs_reply && result.suggested_reply && (
               <ReplySection
-                originalMessage={message}
+                originalMessage={analyzedMessage}
                 suggestedReply={result.suggested_reply}
                 researchBased={result.research_needed}
               />
