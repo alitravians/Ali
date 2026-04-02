@@ -7,11 +7,24 @@ import {
   Shield,
   Zap,
   Heart,
+  User,
+  Eye,
+  Code,
+  Palette,
+  Cpu,
+  MonitorSmartphone,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export default function AboutPage() {
   const { t } = useTranslation();
+
+  const skills = [
+    { icon: MonitorSmartphone, text: t("about.developer.skillsList.frontend"), color: "text-blue-600" },
+    { icon: Code, text: t("about.developer.skillsList.backend"), color: "text-green-600" },
+    { icon: Cpu, text: t("about.developer.skillsList.ai"), color: "text-purple-600" },
+    { icon: Palette, text: t("about.developer.skillsList.design"), color: "text-pink-600" },
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50 py-6 sm:py-10">
@@ -25,6 +38,43 @@ export default function AboutPage() {
         </div>
 
         <div className="space-y-6">
+          {/* Developer Section */}
+          <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl p-6 shadow-lg text-white">
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <User className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">{t("about.developer.name")}</h2>
+                <p className="text-indigo-200 text-sm">{t("about.developer.role")}</p>
+              </div>
+            </div>
+            <p className="text-white/90 text-sm leading-relaxed mb-4">{t("about.developer.bio")}</p>
+            <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
+              <h3 className="text-sm font-semibold text-white mb-2 flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                {t("about.developer.vision")}
+              </h3>
+              <p className="text-white/80 text-xs leading-relaxed">{t("about.developer.visionDesc")}</p>
+            </div>
+          </div>
+
+          {/* Skills Section */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-indigo-600" />
+              {t("about.developer.skills")}
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {skills.map((skill, i) => (
+                <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-xl p-3">
+                  <skill.icon className={`w-5 h-5 ${skill.color}`} />
+                  <span className="text-sm font-medium text-gray-700">{skill.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <Target className="w-5 h-5 text-indigo-600" />
