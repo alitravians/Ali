@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { X, Key, Eye, EyeOff, Save, Check } from "lucide-react";
 
 interface SettingsModalProps {
@@ -10,19 +10,30 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       const stored = localStorage.getItem("openai_api_key") || "";
       setApiKey(stored);
       setSaved(false);
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   const handleSave = () => {
     localStorage.setItem("openai_api_key", apiKey.trim());
     setSaved(true);
-    setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
       setSaved(false);
       onClose();
     }, 1200);
