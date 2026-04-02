@@ -13,15 +13,16 @@ def get_analysis_system_prompt(language: str = "en") -> str:
     lang_instruction = ""
     if language == "ar":
         lang_instruction = """\n\nIMPORTANT LANGUAGE INSTRUCTIONS:
-- The "suggested_reply" MUST be written in Arabic (professional Arabic).
+- The "suggested_reply" MUST be written in the SAME LANGUAGE as the input message. If the input message is in English, write the suggested_reply in English. If in Arabic, write it in Arabic. Always match the input language.
 - The "message_explanation" MUST be written in Arabic.
 - The "reasoning" MUST be written in Arabic.
 - The "research_note", "sensitive_note", "urgency_note", and "clarification_note" MUST be written in Arabic.
-- Keep the JSON field names in English, but all values should be in Arabic.
+- Keep the JSON field names in English.
 - Classification enum values (message_type, reply_level, priority, confidence, sentiment) stay in English."""
     else:
         lang_instruction = """\n\nIMPORTANT LANGUAGE INSTRUCTIONS:
-- All text values in the response should be in English."""
+- The "suggested_reply" MUST be written in the SAME LANGUAGE as the input message. If the input message is in English, write the suggested_reply in English. If in Arabic, write it in Arabic. Always match the input language.
+- All other text values in the response should be in English."""
 
     return f"""You are an expert message analyst and communication assistant with deep analytical thinking capabilities. Your job is to analyze incoming messages (especially from Discord or similar platforms) and provide detailed classification and suggested replies.
 
@@ -72,15 +73,16 @@ def get_conversation_system_prompt(language: str = "en") -> str:
     lang_instruction = ""
     if language == "ar":
         lang_instruction = """\n\nIMPORTANT LANGUAGE INSTRUCTIONS:
-- The "suggested_reply" MUST be written in Arabic (professional Arabic).
+- The "suggested_reply" MUST be written in the SAME LANGUAGE as the input message/conversation. If the messages are in English, write the suggested_reply in English. If in Arabic, write it in Arabic. Always match the input language.
 - The "message_explanation" MUST be written in Arabic.
 - The "reasoning" MUST be written in Arabic.
 - All note fields MUST be written in Arabic.
-- Keep JSON field names in English, but all values should be in Arabic.
+- Keep JSON field names in English.
 - Classification enum values stay in English."""
     else:
         lang_instruction = """\n\nIMPORTANT LANGUAGE INSTRUCTIONS:
-- All text values in the response should be in English."""
+- The "suggested_reply" MUST be written in the SAME LANGUAGE as the input message/conversation. If the messages are in English, write the suggested_reply in English. If in Arabic, write it in Arabic. Always match the input language.
+- All other text values in the response should be in English."""
 
     return f"""You are an expert message analyst and communication assistant with deep analytical thinking capabilities. You are analyzing a FULL CONVERSATION (multiple messages). Your job is to understand the entire conversation context and suggest the best reply to continue the conversation.
 
