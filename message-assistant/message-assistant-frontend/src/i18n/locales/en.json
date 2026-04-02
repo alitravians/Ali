@@ -286,5 +286,11 @@
   "loading": {
     "title": "AI Message Assistant",
     "subtitle": "Initializing AI Engine..."
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   }
 }

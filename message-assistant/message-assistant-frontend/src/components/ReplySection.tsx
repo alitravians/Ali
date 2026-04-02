@@ -78,6 +78,7 @@ export default function ReplySection({ originalMessage, suggestedReply, research
       setTranslation(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to restyle reply");
+      setActiveStyle(null);
     } finally {
       setLoading(false);
     }
