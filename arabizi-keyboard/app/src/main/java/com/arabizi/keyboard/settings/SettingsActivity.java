@@ -140,13 +140,21 @@ public class SettingsActivity extends AppCompatActivity {
 
         TextView tvTitle = container.findViewById(R.id.setting_title);
         TextView tvDesc = container.findViewById(R.id.setting_desc);
-        SwitchMaterial switchView = container.findViewById(R.id.setting_switch);
+        final SwitchMaterial switchView = container.findViewById(R.id.setting_switch);
 
         if (tvTitle != null) tvTitle.setText(title);
         if (tvDesc != null) tvDesc.setText(desc);
         if (switchView != null) {
             switchView.setChecked(defaultValue);
             switchView.setOnCheckedChangeListener(listener);
+
+            // Make entire row clickable to toggle the switch
+            container.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    switchView.setChecked(!switchView.isChecked());
+                }
+            });
         }
     }
 
