@@ -1,13 +1,12 @@
 // ==========================================
 // BIGO LIVE Viewer - Application Logic
-// Uses window.open() for real page visits
-// (iframes blocked by X-Frame-Options)
+// Uses iframes embedded within the page
 // ==========================================
 
 // State
 let isRunning = false;
 let isPaused = false;
-let openedWindows = []; // { id, windowRef, url, status }
+let iframesList = []; // { id, element, url, status }
 let loadedCount = 0;
 let batchTimeout = null;
 let currentBatchIndex = 0;
@@ -68,15 +67,9 @@ function applyGridClasses(sizeClass) {
     if (currentViewMode === 'list') viewerGrid.classList.add('list-view');
 }
 
-// Count active (non-closed) windows
+// Count active iframes
 function getActiveCount() {
-    let count = 0;
-    openedWindows.forEach(w => {
-        if (w.windowRef && !w.windowRef.closed) {
-            count++;
-        }
-    });
-    return count;
+    return iframesList.length;
 }
 
 // Update Stats
@@ -146,8 +139,8 @@ function normalizeUrl(url) {
     return `https://${url}`;
 }
 
-// Create Window Card Element (visual representation in the grid)
-function createWindowCard(index) {
+// Create iframe element embedded in the page
+function createIframeElement(url, index) {
     const size = iframeSizeSelect.value;
     const wrapper = document.createElement('div');
     wrapper.className = `iframe-wrapper size-${size}`;
@@ -175,47 +168,52 @@ function createWindowCard(index) {
     header.appendChild(statusDiv);
     header.appendChild(closeBtn);
     
-    const body = document.createElement('div');
-    body.className = 'window-card-body';
-    body.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span class="window-card-text">نافذة مفتوحة</span>';
+    // Create the actual iframe
+    const uniqueUrl = url + (url.includes('?') ? '&' : '?') + '_v=' + index + '_' + Date.now();
+    const iframe = document.createElement('iframe');
+    iframe.src = uniqueUrl;
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    iframe.setAttribute('referrerpolicy', 'no-referrer');
+    iframe.loading = 'eager';
+    
+    // Track load status
+    iframe.addEventListener('load', function() {
+        const statusEl = document.getElementById(`status-${index}`);
+        if (statusEl && !statusEl.classList.contains('loaded')) {
+            statusEl.classList.add('loaded');
+            loadedCount++;
+            updateStats();
+        }
+    });
+    
+    iframe.addEventListener('error', function() {
+        const statusEl = document.getElementById(`status-${index}`);
+        if (statusEl) {
+            statusEl.classList.add('error');
+        }
+    });
     
     wrapper.appendChild(header);
-    wrapper.appendChild(body);
+    wrapper.appendChild(iframe);
     
-    return wrapper;
+    return { wrapper, iframe };
 }
 
-// Open a single viewer window
-function openViewerWindow(url, index) {
-    const uniqueUrl = url + (url.includes('?') ? '&' : '?') + '_v=' + index + '_' + Date.now();
+// Add a single iframe to the grid
+function addIframe(url, index) {
+    const { wrapper, iframe } = createIframeElement(url, index);
+    viewerGrid.appendChild(wrapper);
     
-    // Open a real browser window/tab
-    const windowRef = window.open(uniqueUrl, '_blank');
-    
-    const windowData = {
+    iframesList.push({
         id: `frame-${index}`,
-        windowRef: windowRef,
-        url: uniqueUrl,
-        status: windowRef ? 'opened' : 'blocked'
-    };
-    
-    openedWindows.push(windowData);
-    
-    // Create visual card in grid
-    const card = createWindowCard(index);
-    viewerGrid.appendChild(card);
-    
-    // Update status indicator
-    const statusEl = document.getElementById(`status-${index}`);
-    if (windowRef) {
-        if (statusEl) statusEl.classList.add('loaded');
-        loadedCount++;
-    } else {
-        if (statusEl) statusEl.classList.add('error');
-    }
+        element: iframe,
+        wrapper: wrapper,
+        url: url,
+        status: 'loading'
+    });
     
     updateStats();
-    return windowRef;
 }
 
 // Start Viewer
@@ -236,7 +234,7 @@ function startViewer() {
     }
     
     // Clear previous if any
-    if (openedWindows.length > 0) {
+    if (iframesList.length > 0) {
         clearAll();
     }
     
@@ -264,7 +262,7 @@ function startViewer() {
     const batchDelay = (parseInt(batchDelayInput.value) || 2) * 1000;
     runParams = { url, totalCount: count, batchSize, batchDelay };
     
-    showToast(`بدء فتح ${count} نافذة... (يرجى السماح بالنوافذ المنبثقة)`, 'info');
+    showToast(`بدء تحميل ${count} نافذة...`, 'info');
     updateStats();
     
     loadBatch(url, count, batchSize, batchDelay);
@@ -280,22 +278,16 @@ function loadBatch(url, totalCount, batchSize, batchDelay) {
         startBtn.disabled = false;
         pauseBtn.disabled = true;
         stopBtn.disabled = true;
-        showToast(`تم فتح جميع النوافذ (${totalCount})`, 'success');
+        showToast(`تم تحميل جميع النوافذ (${totalCount})`, 'success');
         updateStats();
         return;
     }
     
     const currentBatch = Math.min(batchSize, remaining);
-    let blockedCount = 0;
     
     for (let i = 0; i < currentBatch; i++) {
         const frameIndex = currentBatchIndex + i;
-        const windowRef = openViewerWindow(url, frameIndex);
-        if (!windowRef) blockedCount++;
-    }
-    
-    if (blockedCount > 0) {
-        showToast(`تم حظر ${blockedCount} نوافذ - يرجى السماح بالنوافذ المنبثقة في المتصفح`, 'error');
+        addIframe(url, frameIndex);
     }
     
     currentBatchIndex += currentBatch;
@@ -312,7 +304,7 @@ function loadBatch(url, totalCount, batchSize, batchDelay) {
         startBtn.disabled = false;
         pauseBtn.disabled = true;
         stopBtn.disabled = true;
-        showToast(`تم فتح جميع النوافذ (${totalCount})`, 'success');
+        showToast(`تم تحميل جميع النوافذ (${totalCount})`, 'success');
         updateStats();
     }
 }
@@ -339,17 +331,17 @@ function pauseViewer() {
     updateStats();
 }
 
-// Stop Viewer - close all opened windows
+// Stop Viewer - stop all iframes
 function stopViewer() {
     isRunning = false;
     isPaused = false;
     clearTimeout(batchTimeout);
     loadedCount = 0;
     
-    // Close all opened windows
-    openedWindows.forEach(w => {
-        if (w.windowRef && !w.windowRef.closed) {
-            try { w.windowRef.close(); } catch (e) { /* ignore */ }
+    // Remove all iframe src to stop loading
+    iframesList.forEach(item => {
+        if (item.element) {
+            item.element.src = 'about:blank';
         }
     });
     
@@ -365,11 +357,11 @@ function stopViewer() {
     pauseBtn.querySelector('span').textContent = 'إيقاف مؤقت';
     progressContainer.style.display = 'none';
     
-    showToast('تم إغلاق جميع النوافذ', 'warning');
+    showToast('تم إيقاف جميع النوافذ', 'warning');
     updateStats();
 }
 
-// Remove Single Window (guarded against double-click)
+// Remove Single Frame (guarded against double-click)
 function removeFrame(index) {
     const card = document.getElementById(`frame-${index}`);
     if (card && !card.dataset.removing) {
@@ -377,16 +369,16 @@ function removeFrame(index) {
         card.style.opacity = '0';
         card.style.transform = 'scale(0.8)';
         setTimeout(() => {
-            // Close the actual browser window
-            const windowData = openedWindows.find(w => w.id === `frame-${index}`);
-            if (windowData && windowData.windowRef && !windowData.windowRef.closed) {
-                try { windowData.windowRef.close(); } catch (e) { /* ignore */ }
+            // Stop the iframe
+            const iframeData = iframesList.find(item => item.id === `frame-${index}`);
+            if (iframeData && iframeData.element) {
+                iframeData.element.src = 'about:blank';
             }
             
             const statusEl = card.querySelector('.iframe-status');
             const wasLoaded = statusEl && statusEl.classList.contains('loaded');
             card.remove();
-            openedWindows = openedWindows.filter(w => w.id !== `frame-${index}`);
+            iframesList = iframesList.filter(item => item.id !== `frame-${index}`);
             if (wasLoaded && loadedCount > 0) loadedCount--;
             updateStats();
         }, 300);
@@ -402,13 +394,13 @@ function clearAll() {
     loadedCount = 0;
     runParams = null;
     
-    // Close all opened windows
-    openedWindows.forEach(w => {
-        if (w.windowRef && !w.windowRef.closed) {
-            try { w.windowRef.close(); } catch (e) { /* ignore */ }
+    // Stop all iframes
+    iframesList.forEach(item => {
+        if (item.element) {
+            item.element.src = 'about:blank';
         }
     });
-    openedWindows = [];
+    iframesList = [];
     
     viewerGrid.innerHTML = `
         <div class="empty-state">
@@ -490,22 +482,6 @@ function saveSettings() {
         el.addEventListener('input', saveSettings);
     }
 });
-
-// Periodically check window status (detect manually closed windows)
-setInterval(() => {
-    let changed = false;
-    openedWindows.forEach(w => {
-        const idx = w.id.replace('frame-', '');
-        const statusEl = document.getElementById('status-' + idx);
-        if (w.windowRef && w.windowRef.closed && statusEl && statusEl.classList.contains('loaded')) {
-            statusEl.classList.remove('loaded');
-            statusEl.classList.add('error');
-            if (loadedCount > 0) loadedCount--;
-            changed = true;
-        }
-    });
-    if (changed) updateStats();
-}, 5000);
 
 // Initialize
 loadSettings();
