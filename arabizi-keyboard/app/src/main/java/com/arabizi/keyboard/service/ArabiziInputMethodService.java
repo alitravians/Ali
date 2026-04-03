@@ -173,12 +173,13 @@ public class ArabiziInputMethodService extends InputMethodService
         CharSequence selectedText = ic.getSelectedText(0);
         if (selectedText != null && selectedText.length() > 0) {
             ic.commitText("", 1);
+            // Clear composingText entirely since selection likely disrupts tracked state
+            composingText.setLength(0);
         } else {
             ic.deleteSurroundingText(1, 0);
-        }
-
-        if (composingText.length() > 0) {
-            composingText.deleteCharAt(composingText.length() - 1);
+            if (composingText.length() > 0) {
+                composingText.deleteCharAt(composingText.length() - 1);
+            }
         }
     }
 

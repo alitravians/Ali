@@ -40,6 +40,7 @@
             android:id="@+id/btn_add_word"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:src="@drawable/ic_add"
             android:padding="8dp"
             android:background="?android:attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/dictionary_add_word" />

@@ -345,11 +345,6 @@ public class ArabiziKeyboardView extends LinearLayout {
     }
 
     private void handleKeyPress(String key) {
-        // Vibration feedback
-        if (preferences.isVibrationEnabled()) {
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP);
-        }
-
         switch (key) {
             case "SHIFT":
                 handleShift();

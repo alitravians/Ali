@@ -3,12 +3,16 @@ package com.arabizi.keyboard.dictionary;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -268,13 +272,25 @@ public class ArabiziDictionary {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String freqData = prefs.getString(KEY_WORD_FREQ, "");
         if (!freqData.isEmpty()) {
-            String[] entries = freqData.split(";");
-            for (String entry : entries) {
-                String[] parts = entry.split(":");
-                if (parts.length == 2) {
-                    try {
-                        frequencyMap.put(parts[0], Integer.parseInt(parts[1]));
-                    } catch (NumberFormatException ignored) {
+            try {
+                JSONObject json = new JSONObject(freqData);
+                Iterator<String> keys = json.keys();
+                while (keys.hasNext()) {
+                    String key = keys.next();
+                    frequencyMap.put(key, json.getInt(key));
+                }
+            } catch (JSONException e) {
+                // Fallback: try legacy delimiter-based format for migration
+                String[] entries = freqData.split(";");
+                for (String entry : entries) {
+                    int lastColon = entry.lastIndexOf(':');
+                    if (lastColon > 0 && lastColon < entry.length() - 1) {
+                        try {
+                            String word = entry.substring(0, lastColon);
+                            int count = Integer.parseInt(entry.substring(lastColon + 1));
+                            frequencyMap.put(word, count);
+                        } catch (NumberFormatException ignored) {
+                        }
                     }
                 }
             }
@@ -282,14 +298,16 @@ public class ArabiziDictionary {
     }
 
     private void saveFrequencies() {
-        StringBuilder sb = new StringBuilder();
-        for (Map.Entry<String, Integer> entry : frequencyMap.entrySet()) {
-            if (sb.length() > 0) sb.append(";");
-            sb.append(entry.getKey()).append(":").append(entry.getValue());
+        JSONObject json = new JSONObject();
+        try {
+            for (Map.Entry<String, Integer> entry : frequencyMap.entrySet()) {
+                json.put(entry.getKey(), entry.getValue());
+            }
+        } catch (JSONException ignored) {
         }
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                 .edit()
-                .putString(KEY_WORD_FREQ, sb.toString())
+                .putString(KEY_WORD_FREQ, json.toString())
                 .apply();
     }
 
