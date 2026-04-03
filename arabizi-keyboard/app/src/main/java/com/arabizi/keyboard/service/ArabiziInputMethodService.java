@@ -192,6 +192,7 @@ public class ArabiziInputMethodService extends InputMethodService
                 case EditorInfo.IME_ACTION_SEND:
                 case EditorInfo.IME_ACTION_GO:
                 case EditorInfo.IME_ACTION_DONE:
+                case EditorInfo.IME_ACTION_NEXT:
                     ic.performEditorAction(imeAction);
                     break;
                 default:

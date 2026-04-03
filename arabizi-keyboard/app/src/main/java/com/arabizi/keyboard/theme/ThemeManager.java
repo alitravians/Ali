@@ -125,6 +125,18 @@ public class ThemeManager {
         }
     }
 
+    public int getTranslationBarColor() {
+        switch (currentTheme) {
+            case THEME_DARK:
+                return Color.parseColor("#1E2A45");
+            case THEME_LIGHT:
+                return Color.parseColor("#E8F5E9");
+            case THEME_LEBANON:
+            default:
+                return Color.parseColor("#E8F5E9");
+        }
+    }
+
     public int getAccentColor() {
         return Color.parseColor("#00A651");
     }

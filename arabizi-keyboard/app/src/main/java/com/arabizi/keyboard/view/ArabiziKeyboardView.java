@@ -69,6 +69,7 @@ public class ArabiziKeyboardView extends LinearLayout {
     private ArabiziDictionary dictionary;
     private LinearLayout suggestionsContainer;
     private TextView convertButton;
+    private TextView translationPreview;
     private LinearLayout rowsContainer;
     private boolean convertToArabic = true;
 
@@ -170,6 +171,22 @@ public class ArabiziKeyboardView extends LinearLayout {
         }
 
         addView(suggestionBar);
+
+        // Real-time translation preview bar
+        if (preferences.isTranslationEnabled()) {
+            translationPreview = new TextView(ctx);
+            translationPreview.setTextSize(16);
+            translationPreview.setTextColor(themeManager.getSuggestionTextColor());
+            translationPreview.setGravity(Gravity.CENTER);
+            translationPreview.setVisibility(View.GONE);
+            LinearLayout.LayoutParams tpParams = new LinearLayout.LayoutParams(
+                    LayoutParams.MATCH_PARENT, dpToPx(32));
+            translationPreview.setLayoutParams(tpParams);
+            translationPreview.setBackgroundColor(themeManager.getTranslationBarColor());
+            translationPreview.setPadding(dpToPx(8), dpToPx(2), dpToPx(8), dpToPx(2));
+            translationPreview.setTypeface(Typeface.DEFAULT_BOLD);
+            addView(translationPreview);
+        }
 
         // Keyboard rows
         rowsContainer = new LinearLayout(ctx);
@@ -431,6 +448,9 @@ public class ArabiziKeyboardView extends LinearLayout {
         if (suggestionsContainer == null) return;
         suggestionsContainer.removeAllViews();
 
+        // Update real-time translation preview
+        updateTranslationPreview();
+
         if (!preferences.isSuggestionsEnabled() || currentWord.isEmpty()) return;
 
         Context ctx = getContext();
@@ -471,6 +491,23 @@ public class ArabiziKeyboardView extends LinearLayout {
         }
     }
 
+    private void updateTranslationPreview() {
+        if (translationPreview == null) return;
+
+        if (currentWord.isEmpty()) {
+            translationPreview.setVisibility(View.GONE);
+            return;
+        }
+
+        String arabic = ArabiziTransliterator.toArabic(currentWord);
+        if (!arabic.isEmpty()) {
+            translationPreview.setText(currentWord + "  \u2192  " + arabic);
+            translationPreview.setVisibility(View.VISIBLE);
+        } else {
+            translationPreview.setVisibility(View.GONE);
+        }
+    }
+
     public void setConvertMode(boolean toArabic) {
         this.convertToArabic = toArabic;
         if (convertButton != null) {
@@ -487,6 +524,7 @@ public class ArabiziKeyboardView extends LinearLayout {
 
     public void refreshTheme() {
         themeManager = new ThemeManager(getContext());
+        dictionary = new ArabiziDictionary(getContext());
         buildKeyboardUI();
     }
 
