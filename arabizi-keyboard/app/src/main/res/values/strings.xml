@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Arabizi Keyboard</string>
+    <string name="app_name">لوحة المفاتيح اللبنانيه</string>
     <string name="subtype_arabizi">Arabizi</string>
 
     <!-- Setup Wizard -->
-    <string name="setup_welcome_title">مرحباً بك في Arabizi Keyboard</string>
+    <string name="setup_welcome_title">مرحباً بك في لوحة المفاتيح اللبنانيه</string>
     <string name="setup_welcome_desc">لوحة مفاتيح ذكية للكتابة بالإنجليزي المعرّب مع ترجمة وتحويل مباشر</string>
     <string name="setup_step_enable_title">تفعيل لوحة المفاتيح</string>
     <string name="setup_step_enable_desc">يجب تفعيل لوحة المفاتيح من إعدادات النظام حتى تتمكن من استخدامها</string>

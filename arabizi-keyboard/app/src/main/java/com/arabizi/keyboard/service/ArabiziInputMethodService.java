@@ -134,12 +134,12 @@ public class ArabiziInputMethodService extends InputMethodService
         if (extractedText == null || TextUtils.isEmpty(extractedText.text)) return;
 
         String text = extractedText.text.toString();
+        String converted;
 
         // Check if there's selected text
         CharSequence selectedText = ic.getSelectedText(0);
         if (selectedText != null && selectedText.length() > 0) {
             // Convert only selected text
-            String converted;
             if (ArabiziTransliterator.isArabic(selectedText.toString())) {
                 converted = ArabiziTransliterator.toArabizi(selectedText.toString());
             } else {
@@ -148,7 +148,6 @@ public class ArabiziInputMethodService extends InputMethodService
             ic.commitText(converted, 1);
         } else {
             // Convert all text
-            String converted;
             if (ArabiziTransliterator.isArabic(text)) {
                 converted = ArabiziTransliterator.toArabizi(text);
             } else {
@@ -160,8 +159,9 @@ public class ArabiziInputMethodService extends InputMethodService
             ic.commitText(converted, 1);
         }
 
-        // Toggle convert mode
-        convertToArabic = !convertToArabic;
+        // Set convert mode based on what the text is NOW (after conversion)
+        // If we just converted to Arabic, next conversion should be to Arabizi
+        convertToArabic = !ArabiziTransliterator.isArabic(converted);
         if (keyboardView != null) {
             keyboardView.setConvertMode(convertToArabic);
         }
@@ -173,8 +173,11 @@ public class ArabiziInputMethodService extends InputMethodService
         CharSequence selectedText = ic.getSelectedText(0);
         if (selectedText != null && selectedText.length() > 0) {
             ic.commitText("", 1);
-            // Clear composingText entirely since selection likely disrupts tracked state
+            // Clear both composingText and view's currentWord since selection disrupts tracked state
             composingText.setLength(0);
+            if (keyboardView != null) {
+                keyboardView.resetCurrentWord();
+            }
         } else {
             ic.deleteSurroundingText(1, 0);
             if (composingText.length() > 0) {
@@ -187,19 +190,21 @@ public class ArabiziInputMethodService extends InputMethodService
         EditorInfo editorInfo = getCurrentInputEditorInfo();
         if (editorInfo != null) {
             int imeAction = editorInfo.imeOptions & EditorInfo.IME_MASK_ACTION;
-            switch (imeAction) {
-                case EditorInfo.IME_ACTION_SEARCH:
-                case EditorInfo.IME_ACTION_SEND:
-                case EditorInfo.IME_ACTION_GO:
-                case EditorInfo.IME_ACTION_DONE:
-                case EditorInfo.IME_ACTION_NEXT:
-                    ic.performEditorAction(imeAction);
-                    break;
-                default:
-                    ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
-                    ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
-                    break;
+            boolean noEnterAction = (editorInfo.imeOptions & EditorInfo.IME_FLAG_NO_ENTER_ACTION) != 0;
+            if (!noEnterAction) {
+                switch (imeAction) {
+                    case EditorInfo.IME_ACTION_SEARCH:
+                    case EditorInfo.IME_ACTION_SEND:
+                    case EditorInfo.IME_ACTION_GO:
+                    case EditorInfo.IME_ACTION_DONE:
+                    case EditorInfo.IME_ACTION_NEXT:
+                        ic.performEditorAction(imeAction);
+                        composingText.setLength(0);
+                        return;
+                }
             }
+            ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
+            ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER));
         }
         composingText.setLength(0);
     }
