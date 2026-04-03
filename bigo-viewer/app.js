@@ -231,6 +231,7 @@ function loadBatch(url, totalCount, batchSize, batchDelay) {
         isRunning = false;
         startBtn.disabled = false;
         pauseBtn.disabled = true;
+        stopBtn.disabled = true;
         showToast(`تم تحميل جميع النوافذ (${totalCount})`, 'success');
         updateStats();
         return;
@@ -260,6 +261,7 @@ function loadBatch(url, totalCount, batchSize, batchDelay) {
         isRunning = false;
         startBtn.disabled = false;
         pauseBtn.disabled = true;
+        stopBtn.disabled = true;
         showToast(`تم تحميل جميع النوافذ (${totalCount})`, 'success');
         updateStats();
     }
@@ -321,9 +323,11 @@ function removeFrame(index) {
         frame.style.opacity = '0';
         frame.style.transform = 'scale(0.8)';
         setTimeout(() => {
+            const statusEl = frame.querySelector('.iframe-status');
+            const wasLoaded = statusEl && statusEl.classList.contains('loaded');
             frame.remove();
             activeFrames = activeFrames.filter(f => f.id !== `frame-${index}`);
-            if (loadedCount > 0) loadedCount--;
+            if (wasLoaded && loadedCount > 0) loadedCount--;
             updateStats();
         }, 300);
     }
