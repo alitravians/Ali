@@ -174,7 +174,11 @@ function createIframeElement(url, index) {
     const iframe = document.createElement('iframe');
     iframe.src = uniqueUrl;
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
-    iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    if (muteFramesCheckbox.checked) {
+        iframe.setAttribute('allow', 'encrypted-media');
+    } else {
+        iframe.setAttribute('allow', 'autoplay; encrypted-media');
+    }
     iframe.setAttribute('referrerpolicy', 'no-referrer');
     iframe.loading = 'eager';
     
