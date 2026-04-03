@@ -11,6 +11,7 @@ let loadedCount = 0;
 let batchTimeout = null;
 let currentBatchIndex = 0;
 let currentViewMode = 'grid';
+let viewerEpoch = 0; // Incremented on stop/clear to invalidate pending load events
 
 // Stored run parameters (captured at start, used on resume)
 let runParams = null;
@@ -178,7 +179,9 @@ function createIframeElement(url, index) {
     iframe.loading = 'eager';
     
     // Track load status
+    const capturedEpoch = viewerEpoch;
     iframe.addEventListener('load', function() {
+        if (capturedEpoch !== viewerEpoch) return; // Ignore events after stop/clear
         const statusEl = document.getElementById(`status-${index}`);
         if (statusEl && !statusEl.classList.contains('loaded')) {
             statusEl.classList.add('loaded');
@@ -337,6 +340,7 @@ function stopViewer() {
     isPaused = false;
     clearTimeout(batchTimeout);
     loadedCount = 0;
+    viewerEpoch++; // Invalidate pending load events
     
     // Remove all iframe src to stop loading
     iframesList.forEach(item => {
@@ -392,6 +396,7 @@ function clearAll() {
     clearTimeout(batchTimeout);
     currentBatchIndex = 0;
     loadedCount = 0;
+    viewerEpoch++; // Invalidate pending load events
     runParams = null;
     
     // Stop all iframes
