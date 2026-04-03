@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="keyboard_bg_top">#FF1A1A2E</color>
+    <color name="keyboard_bg_middle">#FF16213E</color>
+    <color name="keyboard_bg_bottom">#FF1A1A2E</color>
+    <color name="key_bg_normal">#FF2D2D44</color>
+    <color name="key_bg_pressed">#FF3D3D5C</color>
+    <color name="key_text_normal">#FFFFFFFF</color>
+    <color name="key_border">#33FFFFFF</color>
+    <color name="key_shadow">#1AFFFFFF</color>
+    <color name="suggestion_bar_bg">#FF16213E</color>
+    <color name="suggestion_text">#FFFFFFFF</color>
+    <color name="divider_color">#FF2D2D44</color>
+    <color name="setup_bg">#FF0F0F23</color>
+    <color name="setup_card_bg">#FF1A1A2E</color>
+    <color name="setup_text_primary">#FFFFFFFF</color>
+    <color name="setup_text_secondary">#FFAAAAAA</color>
+</resources>

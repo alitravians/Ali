@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Arabizi Keyboard</string>
+    <string name="subtype_arabizi">Arabizi</string>
+
+    <!-- Setup Wizard -->
+    <string name="setup_welcome_title">مرحباً بك في Arabizi Keyboard</string>
+    <string name="setup_welcome_desc">لوحة مفاتيح ذكية للكتابة بالإنجليزي المعرّب مع ترجمة وتحويل مباشر</string>
+    <string name="setup_step_enable_title">تفعيل لوحة المفاتيح</string>
+    <string name="setup_step_enable_desc">يجب تفعيل لوحة المفاتيح من إعدادات النظام حتى تتمكن من استخدامها</string>
+    <string name="setup_step_enable_button">تفعيل الكيبورد</string>
+    <string name="setup_step_select_title">اختيار لوحة المفاتيح</string>
+    <string name="setup_step_select_desc">اختر Arabizi Keyboard كلوحة المفاتيح الافتراضية</string>
+    <string name="setup_step_select_button">اختيار الكيبورد</string>
+    <string name="setup_step_language_title">لغة الإدخال</string>
+    <string name="setup_step_language_desc">اختر أنماط الإدخال التي تريدها</string>
+    <string name="setup_step_settings_title">إعدادات الكيبورد</string>
+    <string name="setup_step_settings_desc">خصّص تجربتك حسب رغبتك</string>
+    <string name="setup_step_done_title">جاهز!</string>
+    <string name="setup_step_done_desc">يمكنك الآن استخدام Arabizi Keyboard في أي تطبيق</string>
+    <string name="setup_next">التالي</string>
+    <string name="setup_previous">السابق</string>
+    <string name="setup_finish">ابدأ الكتابة</string>
+    <string name="setup_skip">تخطي</string>
+    <string name="setup_step">الخطوة %1$d من %2$d</string>
+
+    <!-- Input Modes -->
+    <string name="mode_arabizi">Arabizi</string>
+    <string name="mode_arabic">عربي</string>
+    <string name="mode_english">English</string>
+
+    <!-- Settings -->
+    <string name="settings_title">الإعدادات</string>
+    <string name="settings_autocorrect">التصحيح التلقائي</string>
+    <string name="settings_autocorrect_desc">تصحيح الكلمات تلقائياً أثناء الكتابة</string>
+    <string name="settings_suggestions">الاقتراحات</string>
+    <string name="settings_suggestions_desc">عرض اقتراحات الكلمات أثناء الكتابة</string>
+    <string name="settings_auto_convert">التحويل المباشر</string>
+    <string name="settings_auto_convert_desc">تحويل Arabizi إلى عربي تلقائياً</string>
+    <string name="settings_translation">الترجمة</string>
+    <string name="settings_translation_desc">تفعيل زر الترجمة في لوحة المفاتيح</string>
+    <string name="settings_vibration">الاهتزاز</string>
+    <string name="settings_vibration_desc">اهتزاز عند الضغط على المفاتيح</string>
+    <string name="settings_sound">الصوت</string>
+    <string name="settings_sound_desc">صوت عند الضغط على المفاتيح</string>
+    <string name="settings_theme">المظهر</string>
+    <string name="settings_theme_lebanon">علم لبنان</string>
+    <string name="settings_theme_dark">داكن</string>
+    <string name="settings_theme_light">فاتح</string>
+    <string name="settings_dictionary">القاموس الشخصي</string>
+    <string name="settings_dictionary_desc">إدارة الكلمات المحفوظة</string>
+    <string name="settings_about">حول التطبيق</string>
+    <string name="settings_version">الإصدار %s</string>
+
+    <!-- Keyboard Actions -->
+    <string name="action_convert_to_arabic">→ عربي</string>
+    <string name="action_convert_to_arabizi">→ Arabizi</string>
+    <string name="action_translate">ترجمة</string>
+    <string name="action_clear">مسح</string>
+
+    <!-- Quick Replies -->
+    <string name="quick_reply_thanks">شكراً</string>
+    <string name="quick_reply_how_are_you">كيفك</string>
+    <string name="quick_reply_ok">تمام</string>
+    <string name="quick_reply_hello">أهلا</string>
+    <string name="quick_reply_god_bless">الله يعطيك العافية</string>
+
+    <!-- Dictionary -->
+    <string name="dictionary_add_word">إضافة كلمة</string>
+    <string name="dictionary_delete_word">حذف</string>
+    <string name="dictionary_empty">لا توجد كلمات محفوظة</string>
+    <string name="dictionary_word_hint">الكلمة</string>
+    <string name="dictionary_added">تمت إضافة الكلمة</string>
+    <string name="dictionary_deleted">تم حذف الكلمة</string>
+
+    <!-- Language Selection -->
+    <string name="lang_arabizi_label">Arabizi (إنجليزي معرّب)</string>
+    <string name="lang_arabic_label">العربية</string>
+    <string name="lang_english_label">English</string>
+    <string name="lang_conversion_label">تحويل / ترجمة</string>
+</resources>

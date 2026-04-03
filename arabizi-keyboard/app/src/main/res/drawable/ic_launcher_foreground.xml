@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Keyboard icon in green (cedar color) -->
+    <path
+        android:fillColor="#00A651"
+        android:pathData="M30,38h48c2.2,0 4,1.8 4,4v24c0,2.2 -1.8,4 -4,4H30c-2.2,0 -4,-1.8 -4,-4V42C26,39.8 27.8,38 30,38z" />
+    <!-- Key rows -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,44h6v5h-6zM40,44h6v5h-6zM48,44h6v5h-6zM56,44h6v5h-6zM64,44h6v5h-6z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35,51h6v5h-6zM43,51h6v5h-6zM51,51h6v5h-6zM59,51h6v5h-6z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,58h32v5h-32z" />
+    <!-- "A" letter -->
+    <path
+        android:fillColor="#ED1C24"
+        android:pathData="M49,42l-4,10h2l0.8,-2h2.4l0.8,2h2l-4,-10zM48.4,48.5L49,46.5l0.6,2z" />
+</vector>
