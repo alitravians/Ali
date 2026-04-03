@@ -344,6 +344,7 @@ function stopViewer() {
     isRunning = false;
     isPaused = false;
     clearTimeout(batchTimeout);
+    loadedCount = 0;
     
     // Close all opened windows
     openedWindows.forEach(w => {
