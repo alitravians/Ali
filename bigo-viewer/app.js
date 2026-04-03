@@ -10,6 +10,9 @@ let loadedCount = 0;
 let batchTimeout = null;
 let currentBatchIndex = 0;
 
+// Stored run parameters (captured at start, used on resume)
+let runParams = null;
+
 // DOM Elements
 const streamUrlInput = document.getElementById('streamUrl');
 const windowCountInput = document.getElementById('windowCount');
@@ -208,9 +211,10 @@ function startViewer() {
     const size = iframeSizeSelect.value;
     viewerGrid.className = 'viewer-grid size-' + size;
     
-    // Start batch loading
+    // Capture and store run parameters
     const batchSize = parseInt(batchSizeInput.value) || 10;
     const batchDelay = (parseInt(batchDelayInput.value) || 2) * 1000;
+    runParams = { url, totalCount: count, batchSize, batchDelay };
     
     showToast(`بدء تحميل ${count} نافذة...`, 'info');
     updateStats();
@@ -266,17 +270,12 @@ function pauseViewer() {
     if (!isRunning) return;
     
     if (isPaused) {
-        // Resume
+        // Resume using stored run parameters
         isPaused = false;
         pauseBtn.querySelector('span').textContent = 'إيقاف مؤقت';
         showToast('تم استئناف التحميل', 'info');
         
-        const url = normalizeUrl(streamUrlInput.value);
-        const count = parseInt(windowCountInput.value) || 100;
-        const batchSize = parseInt(batchSizeInput.value) || 10;
-        const batchDelay = (parseInt(batchDelayInput.value) || 2) * 1000;
-        
-        loadBatch(url, count, batchSize, batchDelay);
+        loadBatch(runParams.url, runParams.totalCount, runParams.batchSize, runParams.batchDelay);
     } else {
         // Pause
         isPaused = true;
@@ -324,6 +323,7 @@ function removeFrame(index) {
         setTimeout(() => {
             frame.remove();
             activeFrames = activeFrames.filter(f => f.id !== `frame-${index}`);
+            if (loadedCount > 0) loadedCount--;
             updateStats();
         }, 300);
     }
@@ -337,6 +337,7 @@ function clearAll() {
     currentBatchIndex = 0;
     loadedCount = 0;
     activeFrames = [];
+    runParams = null;
     
     viewerGrid.innerHTML = `
         <div class="empty-state">
