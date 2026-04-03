@@ -3,6 +3,9 @@
 // Uses iframes embedded within the page
 // ==========================================
 
+// Proxy backend URL - strips X-Frame-Options so BIGO content loads in iframes
+const PROXY_BASE = 'https://app-tswdqvin.fly.dev';
+
 // State
 let isRunning = false;
 let isPaused = false;
@@ -121,23 +124,31 @@ function showToast(message, type = 'info') {
     }, 4000);
 }
 
-// Normalize URL
+// Normalize URL and route through proxy to bypass X-Frame-Options
 function normalizeUrl(url) {
     url = url.trim();
     if (!url) return null;
     
-    // If it's already a full URL
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-        return url;
-    }
+    // Extract the BIGO path from various URL formats
+    let bigoPath = '';
     
-    // If it's just a BIGO ID
     if (/^\d+$/.test(url)) {
-        return `https://www.bigo.tv/${url}`;
+        // Just a BIGO ID
+        bigoPath = url;
+    } else if (url.includes('bigo.tv')) {
+        // Extract path from full BIGO URL
+        try {
+            const parsed = new URL(url.startsWith('http') ? url : 'https://' + url);
+            bigoPath = parsed.pathname.replace(/^\//, '');
+        } catch (e) {
+            bigoPath = url.replace(/.*bigo\.tv\//, '');
+        }
+    } else {
+        bigoPath = url;
     }
     
-    // Add https if missing
-    return `https://${url}`;
+    // Route through proxy to strip X-Frame-Options headers
+    return `${PROXY_BASE}/proxy/${bigoPath}`;
 }
 
 // Create iframe element embedded in the page
@@ -173,7 +184,7 @@ function createIframeElement(url, index) {
     const uniqueUrl = url + (url.includes('?') ? '&' : '?') + '_v=' + index + '_' + Date.now();
     const iframe = document.createElement('iframe');
     iframe.src = uniqueUrl;
-    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms');
+    iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-presentation');
     if (muteFramesCheckbox.checked) {
         iframe.setAttribute('allow', 'encrypted-media');
     } else {
