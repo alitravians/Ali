@@ -297,79 +297,84 @@ app.prepare().then(() => {
 
     // Join room
     socket.on('room:join', async ({ roomId }) => {
-      // Refresh role level for authorization checks
-      await refreshRoleLevel();
+      try {
+        // Refresh role level for authorization checks
+        await refreshRoleLevel();
 
-      // Check if room exists and enforce private room access control
-      const room = await prisma.room.findUnique({ where: { id: roomId } });
-      if (!room) {
-        socket.emit('error', { message: 'الغرفة غير موجودة' });
-        return;
-      }
-      if (room.isPrivate || room.type === 'PRIVATE') {
-        const isMember = await prisma.roomMember.findUnique({
-          where: { userId_roomId: { userId, roomId } },
-        });
-        if (!isMember && roleLevel < 50) {
-          socket.emit('error', { message: 'هذه الغرفة خاصة' });
+        // Check if room exists and enforce private room access control
+        const room = await prisma.room.findUnique({ where: { id: roomId } });
+        if (!room) {
+          socket.emit('error', { message: 'الغرفة غير موجودة' });
           return;
         }
-      }
-
-      // Leave previous room if any
-      const prevRoom = socketRooms.get(socket.id);
-      if (prevRoom && prevRoom !== roomId) {
-        // Clean up typing state for the previous room
-        const prevRoomTyping = typingUsers.get(prevRoom);
-        if (prevRoomTyping) {
-          const existingTyping = prevRoomTyping.get(userId);
-          if (existingTyping) clearTimeout(existingTyping.timeout);
-          prevRoomTyping.delete(userId);
-          io.to(`room:${prevRoom}`).emit('typing:update', { roomId: prevRoom, userId, username, isTyping: false });
+        if (room.isPrivate || room.type === 'PRIVATE') {
+          const isMember = await prisma.roomMember.findUnique({
+            where: { userId_roomId: { userId, roomId } },
+          });
+          if (!isMember && roleLevel < 50) {
+            socket.emit('error', { message: 'هذه الغرفة خاصة' });
+            return;
+          }
         }
-        socket.leave(`room:${prevRoom}`);
-        io.to(`room:${prevRoom}`).emit('room:user_left', { roomId: prevRoom, userId });
+
+        // Leave previous room if any
+        const prevRoom = socketRooms.get(socket.id);
+        if (prevRoom && prevRoom !== roomId) {
+          // Clean up typing state for the previous room
+          const prevRoomTyping = typingUsers.get(prevRoom);
+          if (prevRoomTyping) {
+            const existingTyping = prevRoomTyping.get(userId);
+            if (existingTyping) clearTimeout(existingTyping.timeout);
+            prevRoomTyping.delete(userId);
+            io.to(`room:${prevRoom}`).emit('typing:update', { roomId: prevRoom, userId, username, isTyping: false });
+          }
+          socket.leave(`room:${prevRoom}`);
+          io.to(`room:${prevRoom}`).emit('room:user_left', { roomId: prevRoom, userId });
+        }
+
+        socket.join(`room:${roomId}`);
+        socketRooms.set(socket.id, roomId);
+
+        // Update socket info
+        const info = socketToUser.get(socket.id);
+        if (info) {
+          info.currentRoomId = roomId;
+        }
+
+        // Ensure membership
+        await prisma.roomMember.upsert({
+          where: { userId_roomId: { userId, roomId } },
+          create: { userId, roomId },
+          update: {},
+        }).catch(console.error);
+
+        // Notify room
+        io.to(`room:${roomId}`).emit('room:user_joined', {
+          roomId,
+          user: {
+            id: userId,
+            username,
+            status: 'ONLINE',
+            role: '',
+            roleLevel: socketInfo.roleLevel,
+            roleDisplayName: socketInfo.roleDisplayName,
+            roleColor: socketInfo.roleColor,
+            permissions: [],
+          },
+        });
+
+        // Send online count for this room
+        const roomSockets = await io.in(`room:${roomId}`).fetchSockets();
+        const uniqueUsers = new Set(roomSockets.map(s => socketToUser.get(s.id)?.userId).filter(Boolean));
+        io.to(`room:${roomId}`).emit('online:count', { roomId, count: uniqueUsers.size });
+
+        // Broadcast presence update
+        io.emit('presence:update', { userId, status: 'IN_ROOM', currentRoomId: roomId });
+        broadcastPresenceCounts(io);
+      } catch (e) {
+        console.error('room:join error:', e);
+        socket.emit('error', { message: 'حدث خطأ أثناء الانضمام للغرفة' });
       }
-
-      socket.join(`room:${roomId}`);
-      socketRooms.set(socket.id, roomId);
-
-      // Update socket info
-      const info = socketToUser.get(socket.id);
-      if (info) {
-        info.currentRoomId = roomId;
-      }
-
-      // Ensure membership
-      await prisma.roomMember.upsert({
-        where: { userId_roomId: { userId, roomId } },
-        create: { userId, roomId },
-        update: {},
-      }).catch(console.error);
-
-      // Notify room
-      io.to(`room:${roomId}`).emit('room:user_joined', {
-        roomId,
-        user: {
-          id: userId,
-          username,
-          status: 'ONLINE',
-          role: '',
-          roleLevel: socketInfo.roleLevel,
-          roleDisplayName: socketInfo.roleDisplayName,
-          roleColor: socketInfo.roleColor,
-          permissions: [],
-        },
-      });
-
-      // Send online count for this room
-      const roomSockets = await io.in(`room:${roomId}`).fetchSockets();
-      const uniqueUsers = new Set(roomSockets.map(s => socketToUser.get(s.id)?.userId).filter(Boolean));
-      io.to(`room:${roomId}`).emit('online:count', { roomId, count: uniqueUsers.size });
-
-      // Broadcast presence update
-      io.emit('presence:update', { userId, status: 'IN_ROOM', currentRoomId: roomId });
-      broadcastPresenceCounts(io);
     });
 
     // Leave room
@@ -431,7 +436,7 @@ app.prepare().then(() => {
 
         // Enforce configurable message length limit
         const maxLenSetting = await prisma.siteSetting.findUnique({ where: { key: 'max_message_length' } });
-        const maxLen = parseInt(maxLenSetting?.value || '2000', 10);
+        const maxLen = parseInt(maxLenSetting?.value || '2000', 10) || 2000;
         if (content.length > maxLen) {
           socket.emit('error', { message: 'الرسالة طويلة جداً' });
           return;
@@ -592,7 +597,7 @@ app.prepare().then(() => {
 
         // Enforce configurable message length limit
         const maxLenSetting = await prisma.siteSetting.findUnique({ where: { key: 'max_message_length' } });
-        const maxLen = parseInt(maxLenSetting?.value || '2000', 10);
+        const maxLen = parseInt(maxLenSetting?.value || '2000', 10) || 2000;
         if (content.length > maxLen) {
           socket.emit('error', { message: 'الرسالة طويلة جداً' });
           return;

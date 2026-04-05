@@ -22,6 +22,7 @@ export async function GET() {
           select: { userId: true },
         },
         messages: {
+          where: { isDeleted: false },
           take: 1,
           orderBy: { createdAt: 'desc' },
           include: {

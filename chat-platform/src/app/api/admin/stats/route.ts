@@ -16,7 +16,7 @@ export async function GET() {
       prisma.room.count(),
       prisma.message.count(),
       prisma.report.count({ where: { status: 'PENDING' } }),
-      prisma.ban.count({ where: { isActive: true } }),
+      prisma.ban.count({ where: { isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] } }),
       prisma.mute.count({ where: { isActive: true, expiresAt: { gt: new Date() } } }),
       prisma.warning.count(),
     ]);
