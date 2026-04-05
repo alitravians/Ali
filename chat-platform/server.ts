@@ -33,15 +33,34 @@ app.prepare().then(() => {
     pingInterval: 25000,
   });
 
-  io.on('connection', (socket) => {
-    const userId = socket.handshake.auth.userId as string;
-    const username = socket.handshake.auth.username as string;
-    const roleLevel = socket.handshake.auth.roleLevel as number || 0;
+  io.on('connection', async (socket) => {
+    const clientUserId = socket.handshake.auth.userId as string;
+    const clientUsername = socket.handshake.auth.username as string;
 
-    if (!userId || !username) {
+    if (!clientUserId || !clientUsername) {
       socket.disconnect();
       return;
     }
+
+    // Server-side verification: look up user and role from database
+    const dbUser = await prisma.user.findUnique({
+      where: { id: clientUserId },
+      include: { userRoles: { include: { role: true } } },
+    });
+
+    if (!dbUser || dbUser.username !== clientUsername) {
+      socket.disconnect();
+      return;
+    }
+
+    const highestUserRole = dbUser.userRoles.reduce(
+      (h, ur) => (ur.role.level > h.level ? ur.role : h),
+      { level: 0, name: 'member', displayName: 'عضو', color: '#808080' }
+    );
+
+    const userId = dbUser.id;
+    const username = dbUser.username;
+    const roleLevel = highestUserRole.level;
 
     // Track online status
     if (!onlineUsers.has(userId)) {
@@ -216,17 +235,22 @@ app.prepare().then(() => {
           return;
         }
 
+        // Apply bold processing and word filter (same as message:send)
+        const { text: processedText, isBold } = processBoldMessage(content, roleLevel >= 50);
+        const bannedWords = await getBannedWords();
+        const { filtered } = filterMessage(processedText, bannedWords);
+
         await prisma.messageEdit.create({
-          data: { messageId, editedById: userId, oldContent: message.content, newContent: content },
+          data: { messageId, editedById: userId, oldContent: message.content, newContent: filtered },
         });
 
         await prisma.message.update({
           where: { id: messageId },
-          data: { content, isEdited: true },
+          data: { content: filtered, isEdited: true, isBold },
         });
 
         io.to(`room:${message.roomId}`).emit('message:edited', {
-          messageId, content, roomId: message.roomId,
+          messageId, content: filtered, roomId: message.roomId,
         });
       } catch (error) {
         console.error('Message edit error:', error);

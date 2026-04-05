@@ -7,9 +7,11 @@ import prisma from '@/lib/prisma';
 export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user || (session.user as any).roleLevel < 90) {
+    if (!session?.user || (session.user as any).roleLevel < 50) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 403 });
     }
+
+    const isAdmin = (session.user as any).roleLevel >= 90;
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
@@ -38,7 +40,7 @@ export async function GET(req: NextRequest) {
       users: users.map((u) => ({
         id: u.id,
         username: u.username,
-        email: u.email,
+        email: isAdmin ? u.email : undefined,
         displayName: u.displayName,
         avatar: u.avatar,
         status: u.status,
