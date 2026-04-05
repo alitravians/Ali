@@ -45,17 +45,20 @@ export async function PUT(req: NextRequest) {
       }
     }
 
-    // Update banned words
+    // Update banned words atomically
     if (bannedWords !== undefined) {
-      await prisma.bannedWord.deleteMany();
-      if (bannedWords.length > 0) {
-        await prisma.bannedWord.createMany({
-          data: bannedWords.map((word: string) => ({
-            word,
-            createdBy: (session.user as any).id,
-          })),
-        });
-      }
+      await prisma.$transaction(async (tx) => {
+        await tx.bannedWord.deleteMany();
+        if (bannedWords.length > 0) {
+          const uniqueWords = [...new Set(bannedWords as string[])];
+          await tx.bannedWord.createMany({
+            data: uniqueWords.map((word: string) => ({
+              word,
+              createdBy: (session.user as any).id,
+            })),
+          });
+        }
+      });
     }
 
     await prisma.auditLog.create({

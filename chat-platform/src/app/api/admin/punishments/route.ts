@@ -170,6 +170,11 @@ export async function DELETE(req: NextRequest) {
     const { type, id } = await req.json();
     const performerId = (session.user as any).id;
 
+    // Validate type
+    if (type !== 'mute' && type !== 'ban') {
+      return NextResponse.json({ error: 'نوع العقوبة غير صالح' }, { status: 400 });
+    }
+
     if (type === 'mute') {
       const mute = await prisma.mute.update({
         where: { id },
