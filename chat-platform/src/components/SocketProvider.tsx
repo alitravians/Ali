@@ -33,6 +33,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         username: user.name,
         roleLevel: user.roleLevel,
       },
+      withCredentials: true,
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
