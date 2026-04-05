@@ -36,8 +36,18 @@ export async function POST(request: Request) {
   try {
     const { code } = await request.json();
 
-    const adminCode = process.env.ADMIN_ACCESS_CODE || '3131';
-    const moderatorCode = process.env.MODERATOR_ACCESS_CODE || '2121';
+    const adminCode = process.env.ADMIN_ACCESS_CODE;
+    const moderatorCode = process.env.MODERATOR_ACCESS_CODE;
+
+    if (!adminCode || !moderatorCode) {
+      // In production, require env vars. In dev, fall back to defaults.
+      if (process.env.NODE_ENV === 'production') {
+        return NextResponse.json({ error: 'إعدادات رمز الدخول غير مكتملة' }, { status: 500 });
+      }
+    }
+
+    const effectiveAdminCode = adminCode || '3131';
+    const effectiveModeratorCode = moderatorCode || '2121';
 
     // Check authentication FIRST before revealing whether code is correct
     const session = await getServerSession(authOptions);
@@ -65,9 +75,9 @@ export async function POST(request: Request) {
     const roleLevel = (session.user as any).roleLevel || 0;
     const genericError = 'رمز الدخول غير صحيح أو ليس لديك الصلاحية';
 
-    if (code === adminCode && roleLevel >= 90) {
+    if (code === effectiveAdminCode && roleLevel >= 90) {
       return NextResponse.json({ redirect: '/admin' });
-    } else if (code === moderatorCode && roleLevel >= 50) {
+    } else if (code === effectiveModeratorCode && roleLevel >= 50) {
       return NextResponse.json({ redirect: '/moderator' });
     } else {
       return NextResponse.json({ error: genericError }, { status: 401 });

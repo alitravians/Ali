@@ -573,6 +573,14 @@ app.prepare().then(() => {
           return;
         }
 
+        // Enforce configurable message length limit
+        const maxLenSetting = await prisma.siteSetting.findUnique({ where: { key: 'max_message_length' } });
+        const maxLen = parseInt(maxLenSetting?.value || '2000', 10);
+        if (content.length > maxLen) {
+          socket.emit('error', { message: 'الرسالة طويلة جداً' });
+          return;
+        }
+
         const message = await prisma.message.findUnique({ where: { id: messageId } });
         if (!message || message.isDeleted) return;
         const isModeratingOthersMessage = message.userId !== userId && roleLevel >= 90;
