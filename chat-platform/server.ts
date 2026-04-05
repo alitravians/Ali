@@ -452,9 +452,9 @@ app.prepare().then(() => {
           return;
         }
 
-        // Check mute
+        // Check mute (global or room-specific)
         const activeMute = await prisma.mute.findFirst({
-          where: { userId, isActive: true, expiresAt: { gt: new Date() } },
+          where: { userId, isActive: true, expiresAt: { gt: new Date() }, OR: [{ roomId: null }, { roomId: roomId }] },
         });
         if (activeMute) {
           socket.emit('error', { message: `أنت مكتوم حتى ${activeMute.expiresAt.toISOString()} – السبب: ${activeMute.reason}` });
@@ -598,7 +598,7 @@ app.prepare().then(() => {
         // Check mute and ban — skip for admins moderating others' messages
         if (!isModeratingOthersMessage) {
           const activeMute = await prisma.mute.findFirst({
-            where: { userId, isActive: true, expiresAt: { gt: new Date() } },
+            where: { userId, isActive: true, expiresAt: { gt: new Date() }, OR: [{ roomId: null }, { roomId: message.roomId }] },
           });
           if (activeMute) {
             socket.emit('error', { message: `أنت مكتوم حتى ${activeMute.expiresAt.toISOString()} – السبب: ${activeMute.reason}` });
