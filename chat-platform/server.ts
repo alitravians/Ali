@@ -182,7 +182,20 @@ app.prepare().then(() => {
       broadcastPresenceCounts(io);
     }
 
-    // Client requests full presence list
+    // Auto-send full presence list to the connecting socket
+    // This fixes the race condition where client emits presence:request
+    // before the server finishes async connection setup
+    {
+      const users = getAllPresenceUsers();
+      const roomCounts = getRoomCounts();
+      socket.emit('presence:full', {
+        users,
+        totalOnline: onlineUsers.size,
+        roomCounts,
+      });
+    }
+
+    // Client requests full presence list (for manual refresh)
     socket.on('presence:request', () => {
       const users = getAllPresenceUsers();
       const roomCounts = getRoomCounts();
