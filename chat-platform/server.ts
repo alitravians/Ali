@@ -299,6 +299,14 @@ app.prepare().then(() => {
       // Leave previous room if any
       const prevRoom = socketRooms.get(socket.id);
       if (prevRoom && prevRoom !== roomId) {
+        // Clean up typing state for the previous room
+        const prevRoomTyping = typingUsers.get(prevRoom);
+        if (prevRoomTyping) {
+          const existingTyping = prevRoomTyping.get(userId);
+          if (existingTyping) clearTimeout(existingTyping.timeout);
+          prevRoomTyping.delete(userId);
+          io.to(`room:${prevRoom}`).emit('typing:update', { roomId: prevRoom, userId, username, isTyping: false });
+        }
         socket.leave(`room:${prevRoom}`);
         io.to(`room:${prevRoom}`).emit('room:user_left', { roomId: prevRoom, userId });
       }
@@ -348,6 +356,15 @@ app.prepare().then(() => {
     socket.on('room:leave', ({ roomId }) => {
       const actualRoom = socketRooms.get(socket.id);
       if (actualRoom !== roomId) return; // Ignore if not in this room
+
+      // Clean up typing state for this room
+      const roomTyping = typingUsers.get(roomId);
+      if (roomTyping) {
+        const existingTyping = roomTyping.get(userId);
+        if (existingTyping) clearTimeout(existingTyping.timeout);
+        roomTyping.delete(userId);
+        io.to(`room:${roomId}`).emit('typing:update', { roomId, userId, username, isTyping: false });
+      }
 
       socket.leave(`room:${roomId}`);
       socketRooms.delete(socket.id);
