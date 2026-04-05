@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 
 // Pages that admins can always access
-const ADMIN_BYPASS_PATHS = ['/admin', '/api'];
+const ADMIN_BYPASS_PATHS = ['/admin', '/api', '/login', '/register'];
 
 export default function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
