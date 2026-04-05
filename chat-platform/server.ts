@@ -146,7 +146,35 @@ app.prepare().then(() => {
 
     const userId = dbUser.id;
     const username = dbUser.username;
-    const roleLevel = highestUserRole.level;
+    let roleLevel = highestUserRole.level;
+
+    // Refresh role level from DB (called before authorization-sensitive operations)
+    let lastRoleRefresh = Date.now();
+    const ROLE_REFRESH_INTERVAL = 60_000; // 1 minute
+    async function refreshRoleLevel(): Promise<number> {
+      if (Date.now() - lastRoleRefresh < ROLE_REFRESH_INTERVAL) return roleLevel;
+      try {
+        const freshUser = await prisma.user.findUnique({
+          where: { id: userId },
+          include: { userRoles: { include: { role: true } } },
+        });
+        if (freshUser) {
+          const freshRole = freshUser.userRoles.reduce(
+            (h, ur) => (ur.role.level > h.level ? ur.role : h),
+            { level: 0, name: 'member', displayName: 'عضو', color: '#808080' }
+          );
+          roleLevel = freshRole.level;
+          // Also update socketInfo
+          socketInfo.roleLevel = freshRole.level;
+          socketInfo.roleDisplayName = freshRole.displayName;
+          socketInfo.roleColor = freshRole.color;
+        }
+        lastRoleRefresh = Date.now();
+      } catch (e) {
+        console.error('Role refresh error:', e);
+      }
+      return roleLevel;
+    }
 
     const socketInfo = {
       userId,
@@ -274,6 +302,9 @@ app.prepare().then(() => {
     // Send message
     socket.on('message:send', async ({ content, roomId, replyToId }) => {
       try {
+        // Refresh role level for authorization checks
+        await refreshRoleLevel();
+
         // Check if chat is open
         const chatSetting = await prisma.siteSetting.findUnique({ where: { key: 'chat_enabled' } });
         if (chatSetting && chatSetting.value === 'false') {
@@ -383,6 +414,9 @@ app.prepare().then(() => {
     // Edit message
     socket.on('message:edit', async ({ messageId, content }) => {
       try {
+        // Refresh role level for authorization checks
+        await refreshRoleLevel();
+
         const message = await prisma.message.findUnique({ where: { id: messageId } });
         if (!message) return;
         if (message.userId !== userId && roleLevel < 90) {
@@ -414,6 +448,9 @@ app.prepare().then(() => {
     // Delete message
     socket.on('message:delete', async ({ messageId }) => {
       try {
+        // Refresh role level for authorization checks
+        await refreshRoleLevel();
+
         const message = await prisma.message.findUnique({ where: { id: messageId } });
         if (!message) return;
         if (message.userId !== userId && roleLevel < 50) {
@@ -483,6 +520,10 @@ app.prepare().then(() => {
 
     // Disconnect
     socket.on('disconnect', async () => {
+      // Clean up socket maps BEFORE broadcasting so counts are accurate
+      socketToUser.delete(socket.id);
+      socketRooms.delete(socket.id);
+
       const userSockets = onlineUsers.get(userId);
       if (userSockets) {
         userSockets.delete(socket.id);
@@ -499,8 +540,6 @@ app.prepare().then(() => {
           broadcastPresenceCounts(io);
         }
       }
-      socketToUser.delete(socket.id);
-      socketRooms.delete(socket.id);
 
       // Clean up typing
       for (const [, roomTyping] of typingUsers) {

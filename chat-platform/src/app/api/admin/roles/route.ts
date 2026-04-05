@@ -77,26 +77,24 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'لا يمكنك تعديل رتبة مستخدم بنفس مستواك أو أعلى' }, { status: 403 });
     }
 
-    // Remove all existing roles
-    await prisma.userRole.deleteMany({ where: { userId } });
-
-    // Assign new role
-    await prisma.userRole.create({
-      data: { userId, roleId },
-    });
-
-    // Audit log
-    await prisma.auditLog.create({
-      data: {
-        action: 'CHANGE_ROLE',
-        performedBy: performerId,
-        targetUserId: userId,
-        details: {
-          previousRole: targetUser.userRoles[0]?.role.displayName || 'عضو',
-          newRole: newRole.displayName,
-          newRoleLevel: newRole.level,
+    // Remove all existing roles and assign new role atomically
+    await prisma.$transaction(async (tx) => {
+      await tx.userRole.deleteMany({ where: { userId } });
+      await tx.userRole.create({
+        data: { userId, roleId },
+      });
+      await tx.auditLog.create({
+        data: {
+          action: 'CHANGE_ROLE',
+          performedBy: performerId,
+          targetUserId: userId,
+          details: {
+            previousRole: targetUser.userRoles[0]?.role.displayName || 'عضو',
+            newRole: newRole.displayName,
+            newRoleLevel: newRole.level,
+          },
         },
-      },
+      });
     });
 
     return NextResponse.json({ success: true });
