@@ -60,7 +60,7 @@ export default function TeamPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120]">
-        <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -148,7 +148,7 @@ export default function TeamPage() {
                                           className="w-full h-full object-cover"
                                         />
                                       ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-lg font-bold">
+                                        <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold">
                                           {member.user.username.charAt(0).toUpperCase()}
                                         </div>
                                       )}
