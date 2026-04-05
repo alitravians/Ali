@@ -392,7 +392,7 @@ export default function AdminPage() {
 
   // ==================== Toggle Component ====================
   const Toggle = ({ enabled, onChange, label, desc }: { enabled: boolean; onChange: () => void; label: string; desc?: string }) => (
-    <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-gray-800/40 hover:bg-gray-800/60 transition-colors">
+    <div className="flex items-center justify-between py-3 px-4 rounded-xl bg-white/[0.03] hover:bg-white/[0.05] transition-colors">
       <div className="flex-1 ml-4">
         <span className="text-gray-200 text-sm font-medium">{label}</span>
         {desc && <p className="text-gray-500 text-xs mt-0.5">{desc}</p>}
@@ -438,11 +438,11 @@ export default function AdminPage() {
 
   // ==================== Render ====================
   return (
-    <div className="min-h-screen bg-gray-950 flex" dir="rtl">
+    <div className="min-h-screen bg-[#030711] flex" dir="rtl">
       {/* Sidebar */}
-      <aside className={`${sidebarOpen ? 'w-72' : 'w-16'} bg-gray-900/60 backdrop-blur-xl border-l border-gray-800/60 flex flex-col transition-all duration-300 sticky top-0 h-screen`}>
+      <aside className={`${sidebarOpen ? 'w-72' : 'w-16'} bg-[#0A0F1C]/80 backdrop-blur-xl border-l border-white/[0.04] flex flex-col transition-all duration-300 sticky top-0 h-screen`}>
         {/* Header */}
-        <div className="p-4 border-b border-gray-800/60">
+        <div className="p-4 border-b border-white/[0.04]">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
               <div>
@@ -511,7 +511,7 @@ export default function AdminPage() {
         </nav>
 
         {/* Footer */}
-        <div className="p-3 border-t border-gray-800/60 space-y-2">
+        <div className="p-3 border-t border-white/[0.04] space-y-2">
           {sidebarOpen && maintenanceMode && (
             <div className="px-3 py-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl text-center">
               <p className="text-yellow-400 text-xs font-medium">⚠ وضع الصيانة مفعّل</p>
@@ -526,7 +526,7 @@ export default function AdminPage() {
       {/* Main Content */}
       <main className="flex-1 min-h-screen">
         {/* Top Bar with Breadcrumb */}
-        <div className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/40 px-6 py-3">
+        <div className="sticky top-0 z-30 bg-[#030711]/80 backdrop-blur-xl border-b border-white/[0.04] px-6 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-sm">
               <span className="text-gray-500">لوحة الإدارة</span>
@@ -1339,7 +1339,7 @@ export default function AdminPage() {
       {/* ==================== Role Change Modal ==================== */}
       {showRoleModal && selectedUserForRole && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowRoleModal(false)}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#0A0F1C] border border-white/[0.06] rounded-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-2">تغيير رتبة المستخدم</h3>
             <p className="text-gray-500 text-sm mb-5">تغيير رتبة <span className="text-violet-400 font-medium">{selectedUserForRole.username}</span></p>
 

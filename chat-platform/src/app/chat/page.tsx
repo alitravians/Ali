@@ -554,7 +554,7 @@ function ChatContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#060B18]">
+      <div className="min-h-screen flex items-center justify-center bg-[#030711]">
         <div className="flex flex-col items-center gap-4">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-violet-500/20 rounded-full" />
@@ -567,7 +567,7 @@ function ChatContent() {
   }
 
   return (
-    <div className="h-screen flex bg-[#060B18] overflow-hidden relative" dir="rtl">
+    <div className="h-screen flex bg-[#030711] overflow-hidden relative" dir="rtl">
       {/* Ambient background */}
       <div className="absolute inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/[0.04] rounded-full blur-[120px]" />
@@ -576,7 +576,7 @@ function ChatContent() {
 
       {/* Sidebar - Rooms */}
       <div className={`${showSidebar ? 'w-72' : 'w-0'} transition-all duration-300 flex flex-col overflow-hidden relative z-10 border-l border-white/[0.06]`}>
-        <div className="absolute inset-0 bg-[#0A1128]/90 backdrop-blur-xl" />
+        <div className="absolute inset-0 bg-[#0A0F1C]/90 backdrop-blur-xl" />
 
         <div className="relative z-10 flex flex-col h-full">
           {/* Sidebar Header */}
@@ -668,7 +668,7 @@ function ChatContent() {
               </button>
 
               {showUserMenu && (
-                <div className="absolute bottom-full right-0 mb-2 w-full bg-[#0C1222]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl shadow-black/40 overflow-hidden z-50">
+                <div className="absolute bottom-full right-0 mb-2 w-full bg-[#0A0F1C]/95 backdrop-blur-xl border border-white/[0.08] rounded-xl shadow-2xl shadow-black/40 overflow-hidden z-50">
                   <Link href="/profile" className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-white/[0.06] transition-colors">
                     <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                     الملف الشخصي
@@ -692,7 +692,7 @@ function ChatContent() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Chat Header */}
-        <div className="h-14 bg-[#0A1128]/80 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between px-4">
+        <div className="h-14 bg-[#0A0F1C]/80 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between px-4">
           <div className="flex items-center gap-3">
             <button onClick={() => setShowSidebar(!showSidebar)} className="text-gray-400 hover:text-white transition-colors lg:hidden">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -768,7 +768,7 @@ function ChatContent() {
           <div className="flex-1 flex flex-col min-w-0">
             {/* Search bar */}
             {showSearch && (
-              <div className="px-4 py-2 border-b border-white/[0.06] bg-[#0A1128]/60">
+              <div className="px-4 py-2 border-b border-white/[0.06] bg-[#0A0F1C]/60">
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
@@ -946,25 +946,25 @@ function ChatContent() {
                             isOwn ? '-left-32' : '-right-32'
                           }`}>
                             {/* Reaction picker trigger */}
-                            <button onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)} className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-yellow-400 transition-all" title="تفاعل">
+                            <button onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)} className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-yellow-400 transition-all" title="تفاعل">
                               <span className="text-xs">😀</span>
                             </button>
-                            <button onClick={() => setReplyTo(msg)} className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-violet-400 transition-all" title="رد">
+                            <button onClick={() => setReplyTo(msg)} className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-violet-400 transition-all" title="رد">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                             </button>
                             {isOwn && (
-                              <button onClick={() => startEdit(msg)} className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-emerald-400 transition-all" title="تعديل">
+                              <button onClick={() => startEdit(msg)} className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-emerald-400 transition-all" title="تعديل">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                               </button>
                             )}
                             {(isOwn || (user?.roleLevel || 0) >= 50) && (
-                              <button onClick={() => deleteMessage(msg.id)} className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-red-400 transition-all" title="حذف">
+                              <button onClick={() => deleteMessage(msg.id)} className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-red-400 transition-all" title="حذف">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                               </button>
                             )}
                             {/* Pin button for moderators */}
                             {(user?.roleLevel || 0) >= 50 && (
-                              <button onClick={() => pinMessage(msg.id)} className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-amber-400 transition-all" title="تثبيت">
+                              <button onClick={() => pinMessage(msg.id)} className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-amber-400 transition-all" title="تثبيت">
                                 <span className="text-xs">📌</span>
                               </button>
                             )}
@@ -972,7 +972,7 @@ function ChatContent() {
                             {!isOwn && (
                               <button
                                 onClick={() => blockUser(msg.userId)}
-                                className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-red-400 transition-all"
+                                className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-red-400 transition-all"
                                 title="حظر شخصي"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
@@ -989,7 +989,7 @@ function ChatContent() {
                                   });
                                 }
                               }}
-                              className="p-1 rounded-lg bg-[#0C1222]/90 text-gray-400 hover:text-amber-400 transition-all"
+                              className="p-1 rounded-lg bg-[#0A0F1C]/90 text-gray-400 hover:text-amber-400 transition-all"
                               title="بلاغ"
                             >
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
@@ -998,7 +998,7 @@ function ChatContent() {
 
                           {/* Reaction picker popup */}
                           {showReactionPicker === msg.id && (
-                            <div className={`absolute -bottom-10 flex gap-1 bg-[#0C1222] border border-white/10 rounded-xl px-2 py-1 shadow-xl z-20 ${isOwn ? 'left-0' : 'right-0'}`}>
+                            <div className={`absolute -bottom-10 flex gap-1 bg-[#0A0F1C] border border-white/10 rounded-xl px-2 py-1 shadow-xl z-20 ${isOwn ? 'left-0' : 'right-0'}`}>
                               {REACTION_EMOJIS.map(emoji => (
                                 <button
                                   key={emoji}
@@ -1077,7 +1077,7 @@ function ChatContent() {
             )}
 
             {/* Input */}
-            <div className="p-3 border-t border-white/[0.06] bg-[#0A1128]/60 backdrop-blur-xl">
+            <div className="p-3 border-t border-white/[0.06] bg-[#0A0F1C]/60 backdrop-blur-xl">
               <div className="flex items-center gap-2.5 max-w-4xl mx-auto">
                 <div className="flex-1 relative">
                   <input
@@ -1111,7 +1111,7 @@ function ChatContent() {
 
           {/* ==================== Online Users Panel ==================== */}
           {showPresencePanel && (
-            <div className="w-72 border-r border-white/[0.06] bg-[#0A1128]/90 backdrop-blur-xl flex flex-col overflow-hidden">
+            <div className="w-72 border-r border-white/[0.06] bg-[#0A0F1C]/90 backdrop-blur-xl flex flex-col overflow-hidden">
               {/* Panel Header */}
               <div className="p-3 border-b border-white/[0.06]">
                 <div className="flex items-center justify-between mb-2.5">
@@ -1147,7 +1147,7 @@ function ChatContent() {
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
                             {pu.avatar ? <img src={pu.avatar} alt="" className="w-full h-full rounded-lg object-cover" /> : pu.username[0]?.toUpperCase()}
                           </div>
-                          <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[#0A1128] ${getStatusColor(pu.status)}`} />
+                          <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[#0A0F1C] ${getStatusColor(pu.status)}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -1183,7 +1183,7 @@ function ChatContent() {
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/70 to-indigo-600/70 flex items-center justify-center text-xs font-bold text-white">
                             {pu.avatar ? <img src={pu.avatar} alt="" className="w-full h-full rounded-lg object-cover" /> : pu.username[0]?.toUpperCase()}
                           </div>
-                          <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[#0A1128] ${getStatusColor(pu.status)}`} />
+                          <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[#0A0F1C] ${getStatusColor(pu.status)}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -1213,7 +1213,7 @@ function ChatContent() {
       {/* User Profile Popup */}
       {selectedProfile && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setSelectedProfile(null)}>
-          <div className="bg-[#0C1222] border border-white/[0.08] rounded-2xl p-6 w-full max-w-xs mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+          <div className="bg-[#0A0F1C] border border-white/[0.08] rounded-2xl p-6 w-full max-w-xs mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex flex-col items-center text-center">
               <div className="relative mb-4">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-xl shadow-violet-500/20">
@@ -1223,7 +1223,7 @@ function ChatContent() {
                     selectedProfile.username[0]?.toUpperCase()
                   )}
                 </div>
-                <span className={`absolute -bottom-1 -left-1 w-5 h-5 rounded-full border-3 border-[#0C1222] ${getStatusColor(selectedProfile.status)}`} />
+                <span className={`absolute -bottom-1 -left-1 w-5 h-5 rounded-full border-3 border-[#0A0F1C] ${getStatusColor(selectedProfile.status)}`} />
               </div>
 
               <h3 className="text-lg font-bold text-white mb-1">{selectedProfile.username}</h3>
