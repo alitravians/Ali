@@ -317,6 +317,15 @@ app.prepare().then(() => {
           }
         }
 
+        // Enforce maxMembers limit before any state changes (moderators bypass)
+        if (room.maxMembers && roleLevel < 50) {
+          const memberCount = await prisma.roomMember.count({ where: { roomId } });
+          if (memberCount >= room.maxMembers) {
+            socket.emit('error', { message: 'الغرفة ممتلئة' });
+            return;
+          }
+        }
+
         // Leave previous room if any
         const prevRoom = socketRooms.get(socket.id);
         if (prevRoom && prevRoom !== roomId) {
@@ -341,14 +350,7 @@ app.prepare().then(() => {
           info.currentRoomId = roomId;
         }
 
-        // Ensure membership (enforce maxMembers limit, moderators bypass)
-        if (room.maxMembers && roleLevel < 50) {
-          const memberCount = await prisma.roomMember.count({ where: { roomId } });
-          if (memberCount >= room.maxMembers) {
-            socket.emit('error', { message: 'الغرفة ممتلئة' });
-            return;
-          }
-        }
+        // Ensure membership
         await prisma.roomMember.upsert({
           where: { userId_roomId: { userId, roomId } },
           create: { userId, roomId },
