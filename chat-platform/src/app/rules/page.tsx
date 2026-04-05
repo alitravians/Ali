@@ -36,9 +36,9 @@ export default function RulesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950/20 to-gray-950 px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120] px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
       </div>
 
@@ -50,9 +50,9 @@ export default function RulesPage() {
         </div>
 
         {/* Intro */}
-        <div className="glass rounded-2xl p-6 border border-indigo-500/20 mb-8 text-center">
+        <div className="glass rounded-2xl p-6 border border-cyan-500/20 mb-8 text-center">
           <p className="text-gray-300 leading-relaxed">
-            مرحباً بك في <span className="text-indigo-400 font-bold">ChatZone</span>. لضمان بيئة آمنة ومريحة ومحترمة لجميع الأعضاء،
+            مرحباً بك في <span className="text-cyan-400 font-bold">ChatZone</span>. لضمان بيئة آمنة ومريحة ومحترمة لجميع الأعضاء،
             يرجى قراءة والالتزام بالقوانين التالية. مخالفة هذه القوانين ستؤدي لعقوبات تتدرج حسب شدة المخالفة.
           </p>
         </div>
@@ -74,7 +74,7 @@ export default function RulesPage() {
                 <span className="text-2xl flex-shrink-0">{rule.icon}</span>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <span className="w-6 h-6 rounded-full bg-cyan-500/20 text-cyan-400 flex items-center justify-center text-xs font-bold flex-shrink-0">
                       {i + 1}
                     </span>
                     <h3 className="text-white font-bold">{rule.title}</h3>
@@ -120,19 +120,19 @@ export default function RulesPage() {
 
         {/* Navigation */}
         <div className="text-center space-x-4 space-x-reverse">
-          <Link href="/chat-guide" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/chat-guide" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             دليل الدردشة
           </Link>
           <span className="text-gray-600">|</span>
-          <Link href="/instructions" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/instructions" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             التعليمات
           </Link>
           <span className="text-gray-600">|</span>
-          <Link href="/welcome" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/welcome" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             صفحة الترحيب
           </Link>
           <span className="text-gray-600">|</span>
-          <Link href="/" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             ← الرئيسية
           </Link>
         </div>

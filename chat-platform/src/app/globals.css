@@ -3,15 +3,15 @@
 @tailwind utilities;
 
 :root {
-  --primary: #6366f1;
-  --primary-dark: #4f46e5;
-  --accent: #8b5cf6;
-  --bg-dark: #0a0a0f;
-  --bg-card: #111118;
-  --bg-input: #1a1a24;
-  --border: #2a2a3a;
-  --text-primary: #f0f0f5;
-  --text-secondary: #8888a0;
+  --primary: #06b6d4;
+  --primary-dark: #0891b2;
+  --accent: #14b8a6;
+  --bg-dark: #0b1120;
+  --bg-card: #0d1526;
+  --bg-input: #111827;
+  --border: #1e293b;
+  --text-primary: #f0f4f8;
+  --text-secondary: #64748b;
 }
 
 * {
@@ -111,13 +111,13 @@ body {
 /* Glass effect */
 .glass {
   backdrop-filter: blur(16px);
-  background: rgba(17, 17, 24, 0.7);
+  background: rgba(13, 21, 38, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Gradient text */
+/* Gradient text - updated to cyan/teal */
 .gradient-text {
-  background: linear-gradient(135deg, #6366f1, #8b5cf6, #a855f7);
+  background: linear-gradient(135deg, #06b6d4, #14b8a6, #10b981);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -125,7 +125,7 @@ body {
 
 /* Chat messages area custom styling */
 .chat-messages-area {
-  background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.03) 0%, transparent 50%);
+  background-image: radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.02) 0%, transparent 50%);
 }
 
 /* Smooth transitions for interactive elements */
@@ -142,6 +142,32 @@ input:focus, button:focus-visible {
 
 /* Selection color */
 ::selection {
-  background: rgba(99, 102, 241, 0.3);
+  background: rgba(6, 182, 212, 0.3);
   color: white;
+}
+
+/* Presence panel transition */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.presence-panel-enter {
+  animation: slideInRight 0.2s ease-out;
+}
+
+/* Status indicator animations */
+@keyframes typing-pulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.typing-status {
+  animation: typing-pulse 1s infinite;
 }

@@ -4,9 +4,9 @@ import Link from 'next/link';
 
 export default function ChatGuidePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950/20 to-gray-950 px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120] px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
       </div>
 
@@ -19,7 +19,7 @@ export default function ChatGuidePage() {
 
         {/* Section 1: Interface Overview */}
         <div className="glass rounded-2xl p-6 border border-gray-700/30 mb-6">
-          <h2 className="text-xl font-bold text-indigo-400 mb-4 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-cyan-400 mb-4 flex items-center gap-2">
             <span>🖥️</span> واجهة الدردشة
           </h2>
           <div className="grid md:grid-cols-3 gap-4">
@@ -217,15 +217,15 @@ export default function ChatGuidePage() {
         </div>
 
         <div className="text-center space-x-4 space-x-reverse">
-          <Link href="/rules" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/rules" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             قوانين الدردشة
           </Link>
           <span className="text-gray-600">|</span>
-          <Link href="/instructions" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/instructions" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             التعليمات
           </Link>
           <span className="text-gray-600">|</span>
-          <Link href="/" className="text-indigo-400 hover:text-indigo-300 transition-colors text-sm">
+          <Link href="/" className="text-cyan-400 hover:text-indigo-300 transition-colors text-sm">
             ← الرئيسية
           </Link>
         </div>

@@ -76,9 +76,9 @@ export default function InstructionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950/20 to-gray-950 px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120] px-4 py-12">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
       </div>
 
@@ -99,7 +99,7 @@ export default function InstructionsPage() {
               <ol className="space-y-3 pr-4">
                 {section.steps.map((step, stepIndex) => (
                   <li key={stepIndex} className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
+                    <span className="flex-shrink-0 w-6 h-6 bg-cyan-500/20 text-cyan-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
                       {stepIndex + 1}
                     </span>
                     <span className="text-gray-300 text-sm leading-relaxed">{step}</span>
@@ -111,7 +111,7 @@ export default function InstructionsPage() {
         </div>
 
         <div className="mt-8 text-center">
-          <Link href="/" className="text-indigo-400 hover:text-indigo-300 transition-colors">
+          <Link href="/" className="text-cyan-400 hover:text-indigo-300 transition-colors">
             ← العودة للصفحة الرئيسية
           </Link>
         </div>

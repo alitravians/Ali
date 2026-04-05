@@ -3,7 +3,7 @@ import { parse } from 'url';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
-import type { ClientToServerEvents, ServerToClientEvents } from './src/types/chat';
+import type { ClientToServerEvents, ServerToClientEvents, PresenceUser } from './src/types/chat';
 import { filterMessage, checkSpam, processBoldMessage, getBannedWords } from './src/lib/chat-utils';
 
 const dev = process.env.NODE_ENV !== 'production';
@@ -14,12 +14,98 @@ const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
 const prisma = new PrismaClient();
 
+// ==================== Presence System ====================
 // Track online users: userId -> Set<socketId>
 const onlineUsers = new Map<string, Set<string>>();
-// Track socket to user mapping
-const socketToUser = new Map<string, { userId: string; username: string; roleLevel: number }>();
+// Track socket to user mapping with full presence info
+const socketToUser = new Map<string, {
+  userId: string;
+  username: string;
+  roleLevel: number;
+  roleDisplayName: string;
+  roleColor: string;
+  avatar?: string;
+  currentRoomId?: string;
+}>();
+// Track which room each socket is in
+const socketRooms = new Map<string, string>();
 // Track typing users per room
 const typingUsers = new Map<string, Map<string, { username: string; timeout: NodeJS.Timeout }>>();
+
+/** Build a PresenceUser from stored socket info */
+function buildPresenceUser(socketInfo: {
+  userId: string;
+  username: string;
+  roleLevel: number;
+  roleDisplayName: string;
+  roleColor: string;
+  avatar?: string;
+  currentRoomId?: string;
+}, typingRoomId?: string): PresenceUser {
+  let status: 'ONLINE' | 'IN_ROOM' | 'TYPING' | 'OFFLINE' = 'ONLINE';
+  if (typingRoomId) {
+    // Check if this user is currently typing in any room
+    for (const [, roomTyping] of typingUsers) {
+      if (roomTyping.has(socketInfo.userId)) {
+        status = 'TYPING';
+        break;
+      }
+    }
+  }
+  if (status !== 'TYPING' && socketInfo.currentRoomId) {
+    status = 'IN_ROOM';
+  }
+  return {
+    id: socketInfo.userId,
+    username: socketInfo.username,
+    avatar: socketInfo.avatar,
+    roleLevel: socketInfo.roleLevel,
+    roleDisplayName: socketInfo.roleDisplayName,
+    roleColor: socketInfo.roleColor,
+    status,
+    currentRoomId: socketInfo.currentRoomId,
+  };
+}
+
+/** Get all online presence users sorted by role level desc */
+function getAllPresenceUsers(): PresenceUser[] {
+  const seenUsers = new Map<string, PresenceUser>();
+  for (const [, info] of socketToUser) {
+    if (!seenUsers.has(info.userId)) {
+      seenUsers.set(info.userId, buildPresenceUser(info, 'check'));
+    }
+  }
+  // Sort by roleLevel desc, then by username
+  return Array.from(seenUsers.values()).sort((a, b) => {
+    if (b.roleLevel !== a.roleLevel) return b.roleLevel - a.roleLevel;
+    return a.username.localeCompare(b.username);
+  });
+}
+
+/** Get room online counts */
+function getRoomCounts(): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const roomUsers = new Map<string, Set<string>>();
+  for (const [, info] of socketToUser) {
+    if (info.currentRoomId) {
+      if (!roomUsers.has(info.currentRoomId)) {
+        roomUsers.set(info.currentRoomId, new Set());
+      }
+      roomUsers.get(info.currentRoomId)!.add(info.userId);
+    }
+  }
+  for (const [roomId, users] of roomUsers) {
+    counts[roomId] = users.size;
+  }
+  return counts;
+}
+
+/** Broadcast presence counts to all connected clients */
+function broadcastPresenceCounts(io: SocketIOServer<ClientToServerEvents, ServerToClientEvents>) {
+  const roomCounts = getRoomCounts();
+  const totalOnline = onlineUsers.size;
+  io.emit('presence:room_counts', { roomCounts, totalOnline });
+}
 
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
@@ -62,14 +148,25 @@ app.prepare().then(() => {
     const username = dbUser.username;
     const roleLevel = highestUserRole.level;
 
+    const socketInfo = {
+      userId,
+      username,
+      roleLevel,
+      roleDisplayName: highestUserRole.displayName,
+      roleColor: highestUserRole.color,
+      avatar: dbUser.avatar || undefined,
+      currentRoomId: undefined as string | undefined,
+    };
+
     // Track online status
+    const isNewUser = !onlineUsers.has(userId);
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
     }
     onlineUsers.get(userId)!.add(socket.id);
-    socketToUser.set(socket.id, { userId, username, roleLevel });
+    socketToUser.set(socket.id, socketInfo);
 
-    // Update user status
+    // Update user status in DB
     prisma.user.update({
       where: { id: userId },
       data: { status: 'ONLINE', lastActive: new Date() },
@@ -78,9 +175,41 @@ app.prepare().then(() => {
     // Broadcast online status
     io.emit('user:status', { userId, status: 'ONLINE' });
 
+    // If new user coming online, broadcast presence join
+    if (isNewUser) {
+      const presenceUser = buildPresenceUser(socketInfo);
+      io.emit('presence:join', { user: presenceUser });
+      broadcastPresenceCounts(io);
+    }
+
+    // Client requests full presence list
+    socket.on('presence:request', () => {
+      const users = getAllPresenceUsers();
+      const roomCounts = getRoomCounts();
+      socket.emit('presence:full', {
+        users,
+        totalOnline: onlineUsers.size,
+        roomCounts,
+      });
+    });
+
     // Join room
     socket.on('room:join', async ({ roomId }) => {
+      // Leave previous room if any
+      const prevRoom = socketRooms.get(socket.id);
+      if (prevRoom && prevRoom !== roomId) {
+        socket.leave(`room:${prevRoom}`);
+        io.to(`room:${prevRoom}`).emit('room:user_left', { roomId: prevRoom, userId });
+      }
+
       socket.join(`room:${roomId}`);
+      socketRooms.set(socket.id, roomId);
+
+      // Update socket info
+      const info = socketToUser.get(socket.id);
+      if (info) {
+        info.currentRoomId = roomId;
+      }
 
       // Ensure membership
       await prisma.roomMember.upsert({
@@ -98,22 +227,35 @@ app.prepare().then(() => {
           status: 'ONLINE',
           role: '',
           roleLevel,
-          roleDisplayName: '',
-          roleColor: '',
+          roleDisplayName: highestUserRole.displayName,
+          roleColor: highestUserRole.color,
           permissions: [],
         },
       });
 
-      // Send online count
+      // Send online count for this room
       const roomSockets = await io.in(`room:${roomId}`).fetchSockets();
       const uniqueUsers = new Set(roomSockets.map(s => socketToUser.get(s.id)?.userId).filter(Boolean));
       io.to(`room:${roomId}`).emit('online:count', { roomId, count: uniqueUsers.size });
+
+      // Broadcast presence update
+      io.emit('presence:update', { userId, status: 'IN_ROOM', currentRoomId: roomId });
+      broadcastPresenceCounts(io);
     });
 
     // Leave room
     socket.on('room:leave', ({ roomId }) => {
       socket.leave(`room:${roomId}`);
+      socketRooms.delete(socket.id);
+
+      const info = socketToUser.get(socket.id);
+      if (info) {
+        info.currentRoomId = undefined;
+      }
+
       io.to(`room:${roomId}`).emit('room:user_left', { roomId, userId });
+      io.emit('presence:update', { userId, status: 'ONLINE', currentRoomId: undefined });
+      broadcastPresenceCounts(io);
     });
 
     // Send message
@@ -235,7 +377,6 @@ app.prepare().then(() => {
           return;
         }
 
-        // Apply bold processing and word filter (same as message:send)
         const { text: processedText, isBold } = processBoldMessage(content, roleLevel >= 50);
         const bannedWords = await getBannedWords();
         const { filtered } = filterMessage(processedText, bannedWords);
@@ -276,7 +417,6 @@ app.prepare().then(() => {
           messageId, roomId: message.roomId,
         });
 
-        // Audit log
         if (message.userId !== userId) {
           await prisma.auditLog.create({
             data: {
@@ -297,17 +437,20 @@ app.prepare().then(() => {
       if (!typingUsers.has(roomId)) typingUsers.set(roomId, new Map());
       const roomTyping = typingUsers.get(roomId)!;
 
-      // Clear existing timeout
       const existing = roomTyping.get(userId);
       if (existing) clearTimeout(existing.timeout);
 
       const timeout = setTimeout(() => {
         roomTyping.delete(userId);
         socket.to(`room:${roomId}`).emit('typing:update', { roomId, userId, username, isTyping: false });
+        // Update presence back to IN_ROOM
+        io.emit('presence:update', { userId, status: 'IN_ROOM', currentRoomId: roomId });
       }, 3000);
 
       roomTyping.set(userId, { username, timeout });
       socket.to(`room:${roomId}`).emit('typing:update', { roomId, userId, username, isTyping: true });
+      // Broadcast typing presence
+      io.emit('presence:update', { userId, status: 'TYPING', currentRoomId: roomId });
     });
 
     socket.on('typing:stop', ({ roomId }) => {
@@ -318,6 +461,11 @@ app.prepare().then(() => {
         roomTyping.delete(userId);
       }
       socket.to(`room:${roomId}`).emit('typing:update', { roomId, userId, username, isTyping: false });
+      // Update presence back to IN_ROOM
+      const info = socketToUser.get(socket.id);
+      if (info?.currentRoomId) {
+        io.emit('presence:update', { userId, status: 'IN_ROOM', currentRoomId: info.currentRoomId });
+      }
     });
 
     // Disconnect
@@ -327,14 +475,28 @@ app.prepare().then(() => {
         userSockets.delete(socket.id);
         if (userSockets.size === 0) {
           onlineUsers.delete(userId);
+          const now = new Date();
           prisma.user.update({
             where: { id: userId },
-            data: { status: 'OFFLINE', lastActive: new Date() },
+            data: { status: 'OFFLINE', lastActive: now },
           }).catch(console.error);
-          io.emit('user:status', { userId, status: 'OFFLINE', lastActive: new Date().toISOString() });
+          io.emit('user:status', { userId, status: 'OFFLINE', lastActive: now.toISOString() });
+          // Broadcast presence leave
+          io.emit('presence:leave', { userId });
+          broadcastPresenceCounts(io);
         }
       }
       socketToUser.delete(socket.id);
+      socketRooms.delete(socket.id);
+
+      // Clean up typing
+      for (const [, roomTyping] of typingUsers) {
+        const existing = roomTyping.get(userId);
+        if (existing) {
+          clearTimeout(existing.timeout);
+          roomTyping.delete(userId);
+        }
+      }
     });
   });
 

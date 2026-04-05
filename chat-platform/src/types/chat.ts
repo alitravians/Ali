@@ -12,6 +12,18 @@ export interface ChatUser {
   lastActive?: string;
 }
 
+export interface PresenceUser {
+  id: string;
+  username: string;
+  avatar?: string;
+  roleLevel: number;
+  roleDisplayName: string;
+  roleColor: string;
+  status: 'ONLINE' | 'IN_ROOM' | 'TYPING' | 'OFFLINE';
+  currentRoomId?: string;
+  lastActive?: string;
+}
+
 export interface ChatMessage {
   id: string;
   content: string;
@@ -80,6 +92,11 @@ export interface ServerToClientEvents {
   'announcement:new': (data: { id: string; title: string; content: string }) => void;
   'chat:toggled': (data: { isOpen: boolean; reason?: string }) => void;
   'online:count': (data: { roomId: string; count: number }) => void;
+  'presence:full': (data: { users: PresenceUser[]; totalOnline: number; roomCounts: Record<string, number> }) => void;
+  'presence:join': (data: { user: PresenceUser }) => void;
+  'presence:leave': (data: { userId: string }) => void;
+  'presence:update': (data: { userId: string; status: string; currentRoomId?: string; lastActive?: string }) => void;
+  'presence:room_counts': (data: { roomCounts: Record<string, number>; totalOnline: number }) => void;
   'error': (data: { message: string }) => void;
 }
 
@@ -91,4 +108,5 @@ export interface ClientToServerEvents {
   'room:leave': (data: { roomId: string }) => void;
   'typing:start': (data: { roomId: string }) => void;
   'typing:stop': (data: { roomId: string }) => void;
+  'presence:request': () => void;
 }
