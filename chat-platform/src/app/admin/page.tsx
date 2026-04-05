@@ -231,6 +231,14 @@ export default function AdminPage() {
               {tab.label}
             </button>
           ))}
+          {/* Team Management - separate page */}
+          <Link
+            href="/admin/team"
+            className="w-full text-right px-3 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all text-gray-400 hover:bg-white/5"
+          >
+            <span>👨‍💼</span>
+            إدارة فريق العمل
+          </Link>
         </nav>
         <div className="p-3 border-t border-gray-800">
           <Link href="/chat" className="block text-center py-2 text-sm text-gray-400 hover:text-white bg-white/5 rounded-xl transition-colors">
