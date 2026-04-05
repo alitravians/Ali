@@ -140,8 +140,8 @@ export default function RainBackground() {
       </div>
 
       {/* Rain sound audio */}
-      <audio ref={audioRef} loop preload="none">
-        <source src="https://cdn.pixabay.com/audio/2022/10/30/audio_938188614f.mp3" type="audio/mpeg" />
+      <audio ref={audioRef} loop preload="auto">
+        <source src="/sounds/rain.mp3" type="audio/mpeg" />
       </audio>
     </>
   );
