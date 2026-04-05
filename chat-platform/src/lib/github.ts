@@ -289,10 +289,46 @@ export async function getCommitDiff(config: GitHubAppConfig, commitSha: string) 
 
 // ==================== Recursive Tree ====================
 export async function getRepoTreeRecursive(config: GitHubAppConfig) {
-  return ghFetch(
-    `/repos/${config.repoOwner}/${config.repoName}/git/trees/${config.defaultBranch}?recursive=1`,
-    config
-  );
+  // First resolve the branch to a commit SHA via the branches API
+  // The Git Trees API may reject branch names directly in some cases
+  try {
+    const branchData = await ghFetch(
+      `/repos/${config.repoOwner}/${config.repoName}/branches/${config.defaultBranch}`,
+      config
+    );
+    const treeSha = branchData.commit?.sha || config.defaultBranch;
+    return await ghFetch(
+      `/repos/${config.repoOwner}/${config.repoName}/git/trees/${treeSha}?recursive=1`,
+      config
+    );
+  } catch {
+    // Fallback: try repo default branch if configured branch fails
+    try {
+      const repoInfo = await ghFetch(
+        `/repos/${config.repoOwner}/${config.repoName}`,
+        config
+      );
+      const defaultBranch = repoInfo.default_branch || 'main';
+      if (defaultBranch !== config.defaultBranch) {
+        const branchData = await ghFetch(
+          `/repos/${config.repoOwner}/${config.repoName}/branches/${defaultBranch}`,
+          config
+        );
+        const treeSha = branchData.commit?.sha || defaultBranch;
+        return await ghFetch(
+          `/repos/${config.repoOwner}/${config.repoName}/git/trees/${treeSha}?recursive=1`,
+          config
+        );
+      }
+    } catch {
+      // If fallback also fails, throw original error
+    }
+    // Last resort: try with 'main' directly
+    return ghFetch(
+      `/repos/${config.repoOwner}/${config.repoName}/git/trees/main?recursive=1`,
+      config
+    );
+  }
 }
 
 // ==================== Sync Operations ====================
