@@ -267,9 +267,9 @@ app.prepare().then(() => {
           username,
           status: 'ONLINE',
           role: '',
-          roleLevel,
-          roleDisplayName: highestUserRole.displayName,
-          roleColor: highestUserRole.color,
+          roleLevel: socketInfo.roleLevel,
+          roleDisplayName: socketInfo.roleDisplayName,
+          roleColor: socketInfo.roleColor,
           permissions: [],
         },
       });
@@ -346,6 +346,12 @@ app.prepare().then(() => {
 
         // Process bold ($) for mods/admins
         const { text, isBold } = processBoldMessage(content, roleLevel >= 50);
+
+        // Reject empty messages
+        if (!text.trim()) {
+          socket.emit('error', { message: 'لا يمكن إرسال رسالة فارغة' });
+          return;
+        }
 
         // Word filter
         const bannedWords = await getBannedWords();

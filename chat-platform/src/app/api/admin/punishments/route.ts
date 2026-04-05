@@ -89,6 +89,8 @@ export async function POST(req: NextRequest) {
           metadata: { expiresAt: expiresAt?.toISOString(), duration, reason },
         },
       });
+    } else {
+      return NextResponse.json({ error: 'نوع العقوبة غير صالح' }, { status: 400 });
     }
 
     // Audit log
