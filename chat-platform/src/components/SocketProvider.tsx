@@ -34,6 +34,7 @@ export function SocketProvider({ children }: { children: ReactNode }) {
         roleLevel: user.roleLevel,
       },
       withCredentials: true,
+      transports: ['websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 10,
