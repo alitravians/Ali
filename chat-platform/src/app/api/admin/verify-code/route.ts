@@ -8,6 +8,14 @@ const attempts: Map<string, { count: number; resetAt: number }> = new Map();
 const MAX_ATTEMPTS = 5;
 const WINDOW_MS = 60000; // 1 minute
 
+// Periodically clean up expired entries to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of attempts) {
+    if (now > entry.resetAt) attempts.delete(key);
+  }
+}, WINDOW_MS);
+
 function isRateLimited(key: string): boolean {
   const now = Date.now();
   const entry = attempts.get(key);

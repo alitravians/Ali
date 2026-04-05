@@ -346,6 +346,9 @@ app.prepare().then(() => {
 
     // Leave room
     socket.on('room:leave', ({ roomId }) => {
+      const actualRoom = socketRooms.get(socket.id);
+      if (actualRoom !== roomId) return; // Ignore if not in this room
+
       socket.leave(`room:${roomId}`);
       socketRooms.delete(socket.id);
 

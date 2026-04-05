@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
-import { sanitizeInput } from "@/lib/validation";
-
 function isValidHexColor(color: string): boolean {
   return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
 }
@@ -67,11 +65,11 @@ export async function POST(req: NextRequest) {
       }
       const maxOrder = await prisma.teamDepartment.aggregate({ _max: { order: true } });
       const safeColor = color && isValidHexColor(color) ? color : "#2563eb";
-      const safeName = sanitizeInput(nameAr);
+      const trimmedName = nameAr.trim().slice(0, 200);
       const department = await prisma.teamDepartment.create({
         data: {
-          name: safeName,
-          nameAr: safeName,
+          name: trimmedName,
+          nameAr: trimmedName,
           color: safeColor,
           order: (maxOrder._max.order || 0) + 1,
         },
@@ -88,7 +86,7 @@ export async function POST(req: NextRequest) {
       const department = await prisma.teamDepartment.update({
         where: { id },
         data: {
-          ...(nameAr !== undefined && { nameAr: sanitizeInput(nameAr), name: sanitizeInput(nameAr) }),
+          ...(nameAr !== undefined && { nameAr: nameAr.trim().slice(0, 200), name: nameAr.trim().slice(0, 200) }),
           ...(color !== undefined && { color }),
           ...(isVisible !== undefined && { isVisible }),
           ...(order !== undefined && { order }),
@@ -123,8 +121,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId,
           departmentId,
-          role: roleAr ? sanitizeInput(roleAr) : "",
-          roleAr: roleAr ? sanitizeInput(roleAr) : "",
+          role: roleAr ? roleAr.trim().slice(0, 200) : "",
+          roleAr: roleAr ? roleAr.trim().slice(0, 200) : "",
           order: (maxOrder._max.order || 0) + 1,
         },
         include: {
@@ -140,7 +138,7 @@ export async function POST(req: NextRequest) {
       const member = await prisma.teamMember.update({
         where: { id },
         data: {
-          ...(roleAr !== undefined && { roleAr: sanitizeInput(roleAr), role: sanitizeInput(roleAr) }),
+          ...(roleAr !== undefined && { roleAr: roleAr.trim().slice(0, 200), role: roleAr.trim().slice(0, 200) }),
           ...(isVisible !== undefined && { isVisible }),
           ...(order !== undefined && { order }),
         },
