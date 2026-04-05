@@ -64,9 +64,12 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     await prisma.notification.create({
       data: {
         userId: ticket.userId,
-        type: 'SYSTEM',
+        type: 'TICKET',
+        category: 'TICKET',
+        priority: 'NORMAL',
         title: 'رد جديد على تذكرتك',
         content: `تم الرد على تذكرة "${ticket.title}"`,
+        link: `/support/${ticket.id}`,
         metadata: { ticketId: ticket.id },
       },
     });

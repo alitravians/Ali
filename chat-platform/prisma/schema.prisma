@@ -325,18 +325,23 @@ model Announcement {
 
 // ==================== Notifications ====================
 model Notification {
-  id        String           @id @default(cuid())
+  id        String               @id @default(cuid())
   userId    String
   type      NotificationType
+  category  NotificationCategory @default(GENERAL)
+  priority  NotificationPriority @default(NORMAL)
   title     String
   content   String?
-  isRead    Boolean          @default(false)
+  isRead    Boolean              @default(false)
+  isArchived Boolean             @default(false)
+  link      String?
   metadata  Json?
-  createdAt DateTime         @default(now())
+  createdAt DateTime             @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
+  @@index([userId, category])
   @@map("notifications")
 }
 
@@ -351,6 +356,32 @@ enum NotificationType {
   SYSTEM
   MENTION
   REACTION
+  TICKET
+  BADGE
+  LEVEL_UP
+  XP
+  PROFILE
+  ADMIN
+  ITEM
+}
+
+enum NotificationCategory {
+  ADMIN
+  TICKET
+  CHAT
+  PUNISHMENT
+  ITEM
+  BADGE
+  LEVEL
+  PROFILE
+  GENERAL
+}
+
+enum NotificationPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
 }
 
 // ==================== Admin Notes ====================
@@ -518,6 +549,7 @@ enum TicketStatus {
   WAITING_USER
   CLOSED
   ESCALATED
+  ARCHIVED
 }
 
 // ==================== User Blocks ====================

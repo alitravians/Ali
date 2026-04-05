@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId: targetUserId,
           type: 'WARNING',
+          category: 'PUNISHMENT',
+          priority: 'HIGH',
           title: 'تحذير جديد',
           content: `سبب التحذير: ${reason}`,
         },
@@ -67,6 +69,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId: targetUserId,
           type: 'MUTE',
+          category: 'PUNISHMENT',
+          priority: 'HIGH',
           title: 'تم كتمك',
           content: `السبب: ${reason}\nالمدة: ${duration} دقيقة`,
           metadata: { expiresAt: expiresAt.toISOString(), duration },
@@ -94,6 +98,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId: targetUserId,
           type: 'BAN',
+          category: 'PUNISHMENT',
+          priority: 'URGENT',
           title: 'تم حظرك',
           content: `السبب: ${reason}${duration ? `\nالمدة: ${duration} دقيقة` : '\nحظر دائم'}`,
           metadata: { expiresAt: expiresAt?.toISOString(), duration, reason },
@@ -211,6 +217,8 @@ export async function DELETE(req: NextRequest) {
         data: {
           userId: mute.userId,
           type: 'UNMUTE',
+          category: 'PUNISHMENT',
+          priority: 'NORMAL',
           title: 'تم فك الكتم',
           content: 'تم رفع الكتم عنك',
         },
@@ -238,6 +246,8 @@ export async function DELETE(req: NextRequest) {
         data: {
           userId: ban.userId,
           type: 'UNBAN',
+          category: 'PUNISHMENT',
+          priority: 'NORMAL',
           title: 'تم فك الحظر',
           content: 'تم رفع الحظر عنك',
         },

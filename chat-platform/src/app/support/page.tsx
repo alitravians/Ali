@@ -11,8 +11,9 @@ const DEPARTMENTS: Record<string, string> = {
   notifications: 'مشاكل الإشعارات',
   ranks: 'مشاكل الرتب أو الشارات',
   items: 'مشاكل الحقيبة أو العناصر',
-  suggestions: 'اقتراحات',
-  general: 'استفسارات عامة',
+  suggestions: 'الاقتراحات',
+  reports: 'البلاغات',
+  general: 'الدعم العام',
 };
 
 const TYPES: Record<string, string> = {

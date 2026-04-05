@@ -70,7 +70,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'الوصف طويل جداً' }, { status: 400 });
   }
 
-  const validDepartments = ['technical', 'account', 'chat', 'notifications', 'ranks', 'items', 'suggestions', 'general'];
+  const validDepartments = ['technical', 'account', 'chat', 'notifications', 'ranks', 'items', 'suggestions', 'reports', 'general'];
   const validTypes = ['bug', 'help', 'report', 'inquiry', 'suggestion', 'account_issue', 'feature_issue'];
   const validPriorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
@@ -97,6 +97,40 @@ export async function POST(req: Request) {
       user: { select: { id: true, username: true, displayName: true } },
     },
   });
+
+  // Create notification for ticket creator
+  await prisma.notification.create({
+    data: {
+      userId: user.id,
+      type: 'TICKET',
+      category: 'TICKET',
+      priority: 'NORMAL',
+      title: 'تم إنشاء تذكرة جديدة',
+      content: `تذكرة "${title.trim()}" تم إنشاؤها بنجاح وسيتم مراجعتها قريباً`,
+      link: `/support/${ticket.id}`,
+      metadata: { ticketId: ticket.id },
+    },
+  });
+
+  // Notify admins about new ticket
+  const admins = await prisma.user.findMany({
+    where: { userRoles: { some: { role: { level: { gte: 90 } } } } },
+    select: { id: true },
+  });
+  if (admins.length > 0) {
+    await prisma.notification.createMany({
+      data: admins.map((admin: { id: string }) => ({
+        userId: admin.id,
+        type: 'TICKET' as any,
+        category: 'TICKET' as any,
+        priority: priority === 'URGENT' ? 'HIGH' as any : 'NORMAL' as any,
+        title: 'تذكرة دعم جديدة',
+        content: `تذكرة جديدة من ${user.name || user.email}: "${title.trim()}"`,
+        link: `/support/${ticket.id}`,
+        metadata: { ticketId: ticket.id },
+      })),
+    });
+  }
 
   return NextResponse.json(ticket, { status: 201 });
 }

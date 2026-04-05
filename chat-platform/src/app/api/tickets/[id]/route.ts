@@ -59,13 +59,13 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     return NextResponse.json({ error: 'التذكرة غير موجودة' }, { status: 404 });
   }
 
-  // Regular user can only close their own ticket
+  // Regular user can close or reopen their own ticket
   if (!isAdmin && !isMod) {
     if (ticket.userId !== user.id) {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 403 });
     }
-    if (body.status !== 'CLOSED') {
-      return NextResponse.json({ error: 'يمكنك فقط إغلاق تذكرتك' }, { status: 403 });
+    if (body.status !== 'CLOSED' && body.status !== 'OPEN') {
+      return NextResponse.json({ error: 'يمكنك فقط إغلاق أو إعادة فتح تذكرتك' }, { status: 403 });
     }
   }
 
@@ -98,6 +98,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       assignee: { select: { id: true, username: true, displayName: true } },
     },
   });
+
+  // Create notification for status change
+  if (body.status && body.status !== ticket.status) {
+    const statusLabels: Record<string, string> = {
+      OPEN: 'مفتوحة', REVIEWING: 'قيد المراجعة', REPLIED: 'تم الرد',
+      WAITING_USER: 'بانتظار المستخدم', CLOSED: 'مغلقة', ESCALATED: 'مصعدة',
+    };
+    await prisma.notification.create({
+      data: {
+        userId: ticket.userId,
+        type: 'TICKET',
+        category: 'TICKET',
+        priority: body.status === 'ESCALATED' ? 'HIGH' : 'NORMAL',
+        title: 'تحديث حالة التذكرة',
+        content: `تم تغيير حالة تذكرة "${ticket.title}" إلى ${statusLabels[body.status] || body.status}`,
+        link: `/support/${ticket.id}`,
+        metadata: { ticketId: ticket.id, newStatus: body.status },
+      },
+    });
+  }
 
   return NextResponse.json(updated);
 }

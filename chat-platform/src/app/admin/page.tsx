@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
 // ==================== Types ====================
-type Tab = 'dashboard' | 'rooms' | 'users' | 'announcements' | 'reports' | 'punishments' | 'audit' | 'settings' | 'tickets';
+type Tab = 'dashboard' | 'rooms' | 'users' | 'announcements' | 'reports' | 'punishments' | 'audit' | 'settings' | 'tickets' | 'send_notifications';
 
 interface SidebarGroup {
   title: string;
@@ -57,7 +57,20 @@ export default function AdminPage() {
   const [ticketFilter, setTicketFilter] = useState('');
   const ticketFilterRef = useRef('');
   const [pendingTickets, setPendingTickets] = useState(0);
+  const [ticketSearch, setTicketSearch] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Notification sending states
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifContent, setNotifContent] = useState('');
+  const [notifType, setNotifType] = useState('ADMIN');
+  const [notifCategory, setNotifCategory] = useState('ADMIN');
+  const [notifPriority, setNotifPriority] = useState('NORMAL');
+  const [notifLink, setNotifLink] = useState('');
+  const [notifTarget, setNotifTarget] = useState('all');
+  const [notifTargetUser, setNotifTargetUser] = useState('');
+  const [notifHistory, setNotifHistory] = useState<any[]>([]);
+  const [sendingNotif, setSendingNotif] = useState(false);
 
   // Form states
   const [newRoom, setNewRoom] = useState({ name: '', description: '', type: 'PUBLIC' });
@@ -190,6 +203,14 @@ export default function AdminPage() {
             const ticketsData = await ticketsRes.json();
             setTickets(ticketsData);
             setPendingTickets(ticketsData.filter((t: any) => t.status === 'OPEN' || t.status === 'ESCALATED').length);
+          }
+          break;
+        }
+        case 'send_notifications': {
+          const histRes = await fetch('/api/admin/notifications');
+          if (histRes.ok) {
+            const histData = await histRes.json();
+            setNotifHistory(histData);
           }
           break;
         }
@@ -408,6 +429,7 @@ export default function AdminPage() {
         { id: 'punishments', label: 'العقوبات', icon: '⚖️' },
         { id: 'reports', label: 'البلاغات', icon: '🚨', badge: pendingReports },
         { id: 'tickets', label: 'التذاكر', icon: '🎫', badge: pendingTickets },
+        { id: 'send_notifications', label: 'إرسال إشعارات', icon: '🔔' },
       ],
     },
     {
@@ -467,6 +489,7 @@ export default function AdminPage() {
     audit: 'السجل الإداري',
     settings: 'الإعدادات',
     tickets: 'التذاكر',
+    send_notifications: 'إرسال إشعارات',
   };
 
   // Filtered audit logs
@@ -1115,12 +1138,34 @@ export default function AdminPage() {
                       <h2 className="text-2xl font-bold text-white mb-1">إدارة التذاكر</h2>
                       <p className="text-gray-500 text-sm">مراجعة والرد على تذاكر الدعم الفني</p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs">
+                  </div>
+
+                  {/* Stats */}
+                  <div className="grid grid-cols-4 gap-3">
+                    {[
+                      { label: 'مفتوحة', count: tickets.filter((t: any) => t.status === 'OPEN').length, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+                      { label: 'قيد المراجعة', count: tickets.filter((t: any) => t.status === 'REVIEWING').length, color: 'text-blue-400', bg: 'bg-blue-500/10' },
+                      { label: 'مصعدة', count: tickets.filter((t: any) => t.status === 'ESCALATED').length, color: 'text-red-400', bg: 'bg-red-500/10' },
+                      { label: 'الإجمالي', count: tickets.length, color: 'text-violet-400', bg: 'bg-violet-500/10' },
+                    ].map((s, i) => (
+                      <div key={i} className={`${s.bg} rounded-xl p-3 text-center`}>
+                        <p className={`text-lg font-bold ${s.color}`}>{s.count}</p>
+                        <p className="text-gray-500 text-[10px]">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Search + Filter */}
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <input type="text" value={ticketSearch} onChange={e => setTicketSearch(e.target.value)}
+                      placeholder="🔍 بحث بالعنوان أو اسم المستخدم..."
+                      className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/40 placeholder:text-gray-600" />
+                    <div className="flex items-center gap-1.5 text-xs overflow-x-auto">
                       {['', 'OPEN', 'REVIEWING', 'REPLIED', 'WAITING_USER', 'ESCALATED', 'CLOSED'].map(s => {
                         const info = s ? TICKET_STATUSES[s] : { label: 'الكل', color: 'text-white', bg: 'bg-violet-500/10' };
                         return (
                           <button key={s} onClick={() => { setTicketFilter(s); ticketFilterRef.current = s; loadTabData('tickets'); }}
-                            className={`px-2.5 py-1 rounded-lg transition-all ${ticketFilter === s ? `${info.bg} ${info.color} font-medium` : 'text-gray-500 hover:text-white'}`}>
+                            className={`px-2.5 py-1 rounded-lg transition-all whitespace-nowrap ${ticketFilter === s ? `${info.bg} ${info.color} font-medium` : 'text-gray-500 hover:text-white'}`}>
                             {info.label}
                           </button>
                         );
@@ -1141,31 +1186,64 @@ export default function AdminPage() {
                               <span className="text-gray-500">📁 {TICKET_DEPARTMENTS[selectedTicket.department] || selectedTicket.department}</span>
                               <span className="text-gray-500">👤 {selectedTicket.user?.displayName || selectedTicket.user?.username}</span>
                               <span className="text-gray-600">📅 {new Date(selectedTicket.createdAt).toLocaleDateString('ar-SA')}</span>
+                              {selectedTicket.assignee && <span className="text-violet-400">👨‍💼 {selectedTicket.assignee.displayName || selectedTicket.assignee.username}</span>}
                             </div>
                           </div>
-                          <div className="flex gap-1">
-                            {['REVIEWING', 'REPLIED', 'WAITING_USER', 'ESCALATED', 'CLOSED'].map(s => {
-                              if (selectedTicket.status === s) return null;
-                              const si = TICKET_STATUSES[s];
-                              return (
-                                <button key={s} onClick={async () => {
-                                  const res = await fetch(`/api/tickets/${selectedTicket.id}`, {
-                                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-                                    body: JSON.stringify({ status: s }),
-                                  });
-                                  if (res.ok) {
-                                    const updated = await res.json();
-                                    setSelectedTicket({ ...selectedTicket, status: updated.status });
-                                    loadTabData('tickets');
-                                    showMsg(`تم تغيير الحالة إلى ${si.label}`, 'success');
-                                  }
-                                }} className={`px-2 py-1 rounded text-[10px] ${si.bg} ${si.color} hover:opacity-80 transition-all`}>
-                                  {si.label}
-                                </button>
-                              );
-                            })}
+                        </div>
+
+                        {/* Status + Priority controls */}
+                        <div className="flex flex-wrap gap-4 mb-4 p-3 bg-white/[0.02] rounded-xl border border-white/[0.04]">
+                          <div>
+                            <p className="text-[9px] text-gray-600 mb-1">تغيير الحالة:</p>
+                            <div className="flex gap-1">
+                              {['OPEN', 'REVIEWING', 'REPLIED', 'WAITING_USER', 'ESCALATED', 'CLOSED'].map(s => {
+                                if (selectedTicket.status === s) return null;
+                                const si = TICKET_STATUSES[s];
+                                return (
+                                  <button key={s} onClick={async () => {
+                                    const res = await fetch(`/api/tickets/${selectedTicket.id}`, {
+                                      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ status: s }),
+                                    });
+                                    if (res.ok) {
+                                      const updated = await res.json();
+                                      setSelectedTicket({ ...selectedTicket, status: updated.status });
+                                      loadTabData('tickets');
+                                      showMsg(`تم تغيير الحالة إلى ${si.label}`, 'success');
+                                    }
+                                  }} className={`px-2 py-1 rounded text-[10px] ${si.bg} ${si.color} hover:opacity-80 transition-all`}>
+                                    {si.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-gray-600 mb-1">تغيير الأولوية:</p>
+                            <div className="flex gap-1">
+                              {['LOW', 'MEDIUM', 'HIGH', 'URGENT'].map(p => {
+                                if (selectedTicket.priority === p) return null;
+                                const pi = TICKET_PRIORITIES[p];
+                                return (
+                                  <button key={p} onClick={async () => {
+                                    const res = await fetch(`/api/tickets/${selectedTicket.id}`, {
+                                      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ priority: p }),
+                                    });
+                                    if (res.ok) {
+                                      setSelectedTicket({ ...selectedTicket, priority: p });
+                                      loadTabData('tickets');
+                                      showMsg(`تم تغيير الأولوية إلى ${pi.label}`, 'success');
+                                    }
+                                  }} className={`px-2 py-1 rounded text-[10px] ${pi.color} bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] transition-all`}>
+                                    {pi.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
+
                         <div className="bg-white/[0.02] rounded-xl p-4 border border-white/[0.04] mb-4">
                           <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
                         </div>
@@ -1199,7 +1277,6 @@ export default function AdminPage() {
                                   });
                                   if (res.ok) {
                                     setTicketReply('');
-                                    // Reload ticket
                                     const tRes = await fetch(`/api/tickets/${selectedTicket.id}`);
                                     if (tRes.ok) setSelectedTicket(await tRes.json());
                                     showMsg('تم إرسال الرد', 'success');
@@ -1233,7 +1310,13 @@ export default function AdminPage() {
                           <div className="text-4xl mb-3">📭</div>
                           <p className="text-gray-400">لا توجد تذاكر</p>
                         </div>
-                      ) : tickets.map((ticket) => (
+                      ) : tickets.filter((ticket: any) => {
+                        if (!ticketSearch.trim()) return true;
+                        const q = ticketSearch.toLowerCase();
+                        return ticket.title?.toLowerCase().includes(q) ||
+                          ticket.user?.displayName?.toLowerCase().includes(q) ||
+                          ticket.user?.username?.toLowerCase().includes(q);
+                      }).map((ticket) => (
                         <div key={ticket.id} onClick={async () => {
                           const res = await fetch(`/api/tickets/${ticket.id}`);
                           if (res.ok) setSelectedTicket(await res.json());
@@ -1255,6 +1338,137 @@ export default function AdminPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* ==================== SEND NOTIFICATIONS ==================== */}
+              {activeTab === 'send_notifications' && (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white mb-1">إرسال إشعارات</h2>
+                    <p className="text-gray-500 text-sm">إرسال إشعارات للمستخدمين مع تحديد النوع والأهمية</p>
+                  </div>
+
+                  {/* Send Form */}
+                  <div className="content-card p-6 space-y-4">
+                    <div>
+                      <label className="block text-gray-400 text-xs font-medium mb-1.5">عنوان الإشعار *</label>
+                      <input type="text" value={notifTitle} onChange={e => setNotifTitle(e.target.value)} maxLength={200}
+                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/40 transition-all placeholder:text-gray-600"
+                        placeholder="عنوان واضح للإشعار" />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs font-medium mb-1.5">محتوى الإشعار</label>
+                      <textarea value={notifContent} onChange={e => setNotifContent(e.target.value)} rows={3} maxLength={1000}
+                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/40 transition-all resize-none placeholder:text-gray-600"
+                        placeholder="وصف مختصر للإشعار..." />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-gray-400 text-xs font-medium mb-1.5">التصنيف</label>
+                        <select value={notifCategory} onChange={e => setNotifCategory(e.target.value)}
+                          className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/40">
+                          <option value="ADMIN" className="bg-[#0A0F1C]">👑 إدارية</option>
+                          <option value="GENERAL" className="bg-[#0A0F1C]">🔔 عامة</option>
+                          <option value="TICKET" className="bg-[#0A0F1C]">🎫 تذاكر</option>
+                          <option value="CHAT" className="bg-[#0A0F1C]">💬 دردشة</option>
+                          <option value="BADGE" className="bg-[#0A0F1C]">🏅 شارات</option>
+                          <option value="LEVEL" className="bg-[#0A0F1C]">💎 مستوى</option>
+                          <option value="ITEM" className="bg-[#0A0F1C]">🎒 عناصر</option>
+                          <option value="PROFILE" className="bg-[#0A0F1C]">👤 ملف شخصي</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-gray-400 text-xs font-medium mb-1.5">الأهمية</label>
+                        <select value={notifPriority} onChange={e => setNotifPriority(e.target.value)}
+                          className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/40">
+                          <option value="LOW" className="bg-[#0A0F1C]">منخفضة</option>
+                          <option value="NORMAL" className="bg-[#0A0F1C]">عادية</option>
+                          <option value="HIGH" className="bg-[#0A0F1C]">عالية</option>
+                          <option value="URGENT" className="bg-[#0A0F1C]">عاجلة</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs font-medium mb-1.5">رابط داخلي (اختياري)</label>
+                      <input type="text" value={notifLink} onChange={e => setNotifLink(e.target.value)}
+                        className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/40 transition-all placeholder:text-gray-600"
+                        placeholder="/chat أو /support أو أي صفحة داخلية" />
+                    </div>
+
+                    <div>
+                      <label className="block text-gray-400 text-xs font-medium mb-1.5">إرسال إلى</label>
+                      <div className="flex gap-3">
+                        <button type="button" onClick={() => setNotifTarget('all')}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-medium border transition-all ${notifTarget === 'all' ? 'bg-violet-500/15 text-violet-400 border-violet-500/25' : 'bg-white/[0.02] border-white/[0.06] text-gray-500 hover:text-white'}`}>
+                          👥 جميع المستخدمين
+                        </button>
+                        <button type="button" onClick={() => setNotifTarget('user')}
+                          className={`flex-1 py-2.5 rounded-xl text-xs font-medium border transition-all ${notifTarget === 'user' ? 'bg-violet-500/15 text-violet-400 border-violet-500/25' : 'bg-white/[0.02] border-white/[0.06] text-gray-500 hover:text-white'}`}>
+                          👤 مستخدم محدد
+                        </button>
+                      </div>
+                      {notifTarget === 'user' && (
+                        <input type="text" value={notifTargetUser} onChange={e => setNotifTargetUser(e.target.value)}
+                          className="w-full mt-2 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/40 transition-all placeholder:text-gray-600"
+                          placeholder="معرف المستخدم (User ID)" />
+                      )}
+                    </div>
+
+                    <button onClick={async () => {
+                      if (!notifTitle.trim()) { showMsg('العنوان مطلوب', 'error'); return; }
+                      setSendingNotif(true);
+                      try {
+                        const res = await fetch('/api/admin/notifications', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            title: notifTitle, content: notifContent, type: notifType,
+                            category: notifCategory, priority: notifPriority, link: notifLink,
+                            targetType: notifTarget, targetUserId: notifTarget === 'user' ? notifTargetUser : undefined,
+                          }),
+                        });
+                        if (res.ok) {
+                          showMsg('تم إرسال الإشعار بنجاح', 'success');
+                          setNotifTitle(''); setNotifContent(''); setNotifLink('');
+                          loadTabData('send_notifications');
+                        } else {
+                          const d = await res.json();
+                          showMsg(d.error || 'فشل الإرسال', 'error');
+                        }
+                      } catch { showMsg('خطأ في الاتصال', 'error'); }
+                      setSendingNotif(false);
+                    }} disabled={sendingNotif || !notifTitle.trim()}
+                      className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 rounded-xl font-semibold text-white text-sm transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50">
+                      {sendingNotif ? 'جاري الإرسال...' : '📤 إرسال الإشعار'}
+                    </button>
+                  </div>
+
+                  {/* History */}
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-3">سجل الإشعارات المرسلة</h3>
+                    {notifHistory.length === 0 ? (
+                      <div className="text-center py-10 content-card"><p className="text-gray-500 text-sm">لا توجد إشعارات مرسلة</p></div>
+                    ) : (
+                      <div className="space-y-2">
+                        {notifHistory.map((log: any) => (
+                          <div key={log.id} className="content-card p-4">
+                            <div className="flex items-center justify-between mb-1">
+                              <h4 className="text-white text-sm font-medium">{(log.details as any)?.title || 'إشعار'}</h4>
+                              <span className="text-gray-600 text-[10px]">{new Date(log.createdAt).toLocaleString('ar-SA')}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] text-gray-500">
+                              <span>👤 {log.performer?.displayName || log.performer?.username}</span>
+                              <span>📨 {(log.details as any)?.targetType === 'user' ? 'مستخدم محدد' : 'جميع المستخدمين'}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 

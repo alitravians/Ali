@@ -594,6 +594,19 @@ app.prepare().then(() => {
               where: { id: userId },
               data: { level: newLevel },
             });
+            // Send level-up notification
+            await prisma.notification.create({
+              data: {
+                userId,
+                type: 'LEVEL_UP',
+                category: 'LEVEL',
+                priority: 'NORMAL',
+                title: `مبروك! وصلت للمستوى ${newLevel}`,
+                content: `ارتقيت من المستوى ${updatedUser.level} إلى المستوى ${newLevel}! استمر في التفاعل لكسب المزيد من XP`,
+                link: '/profile',
+                metadata: { oldLevel: updatedUser.level, newLevel },
+              },
+            });
           }
         } catch { /* XP update non-critical */ }
 
@@ -615,8 +628,11 @@ app.prepare().then(() => {
               data: {
                 userId: mu.id,
                 type: 'MENTION',
+                category: 'CHAT',
+                priority: 'NORMAL',
                 title: `${username} أشار إليك في ${room?.name || 'الدردشة'}`,
                 content: filtered.slice(0, 100),
+                link: '/chat',
                 metadata: { roomId, messageId: message.id },
               },
             });
