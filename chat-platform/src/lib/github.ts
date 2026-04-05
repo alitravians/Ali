@@ -287,6 +287,14 @@ export async function getCommitDiff(config: GitHubAppConfig, commitSha: string) 
   return res.text();
 }
 
+// ==================== Recursive Tree ====================
+export async function getRepoTreeRecursive(config: GitHubAppConfig) {
+  return ghFetch(
+    `/repos/${config.repoOwner}/${config.repoName}/git/trees/${config.defaultBranch}?recursive=1`,
+    config
+  );
+}
+
 // ==================== Sync Operations ====================
 export async function syncRepository(config: GitHubAppConfig) {
   const results = {

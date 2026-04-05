@@ -125,7 +125,7 @@ export default function AdminPage() {
   const [ghAlerts, setGhAlerts] = useState<any[]>([]);
   const [ghChecks, setGhChecks] = useState<any[]>([]);
   const [ghFixes, setGhFixes] = useState<any[]>([]);
-  const [ghView, setGhView] = useState<'overview' | 'events' | 'files' | 'alerts' | 'checks' | 'fixes' | 'setup' | 'editor'>('overview');
+  const [ghView, setGhView] = useState<'overview' | 'events' | 'files' | 'alerts' | 'checks' | 'fixes' | 'setup' | 'editor' | 'scanner'>('overview');
   const [ghEventFilter, setGhEventFilter] = useState('');
   const [ghAlertFilter, setGhAlertFilter] = useState('');
   const [ghSetup, setGhSetup] = useState({ appId: '', privateKey: '', installationId: '', webhookSecret: '', repoOwner: '', repoName: '', defaultBranch: 'main' });
@@ -135,6 +135,14 @@ export default function AdminPage() {
   const [ghCommitMsg, setGhCommitMsg] = useState('');
   const [ghPrTitle, setGhPrTitle] = useState('');
   const [ghFixMode, setGhFixMode] = useState<'pr' | 'direct'>('pr');
+
+  // Scanner states
+  const [ghScanResult, setGhScanResult] = useState<any>(null);
+  const [ghScanning, setGhScanning] = useState(false);
+  const [ghScanProgress, setGhScanProgress] = useState(0);
+  const [ghScanStep, setGhScanStep] = useState('');
+  const [ghScanHistory, setGhScanHistory] = useState<any[]>([]);
+  const [ghScanFilter, setGhScanFilter] = useState<string>('');
 
   // ==================== Data Loading ====================
   const loadTabData = useCallback(async (tab: Tab) => {
@@ -1818,7 +1826,7 @@ export default function AdminPage() {
                   </div>
 
                   {/* Sub-navigation */}
-                  {ghSummary?.configured && ghView !== 'setup' && ghView !== 'editor' && (
+                  {ghSummary?.configured && ghView !== 'setup' && ghView !== 'editor' && ghView !== 'scanner' && (
                     <div className="flex gap-2 flex-wrap">
                       {[
                         { id: 'overview' as const, label: '📊 نظرة عامة' },
@@ -1832,6 +1840,9 @@ export default function AdminPage() {
                           className={`px-4 py-2 rounded-xl text-sm transition-all ${ghView === v.id ? 'bg-violet-600/20 border border-violet-500/30 text-violet-400' : 'bg-white/[0.03] text-gray-400 hover:bg-white/[0.06]'}`}
                         >{v.label}</button>
                       ))}
+                      <button onClick={() => { setGhView('scanner'); fetch('/api/admin/github?action=scan_history').then(r => r.json()).then(d => setGhScanHistory(d)).catch(() => {}); }}
+                        className={`px-4 py-2 rounded-xl text-sm transition-all bg-gradient-to-l from-emerald-600/20 to-teal-600/20 border border-emerald-500/20 text-emerald-400 hover:from-emerald-600/30 hover:to-teal-600/30`}
+                      >🔬 الفحص الذكي</button>
                     </div>
                   )}
 
@@ -2269,6 +2280,341 @@ export default function AdminPage() {
                       ))}
                       {ghFixes.length === 0 && (
                         <div className="text-center py-8"><span className="text-4xl block mb-3">🔧</span><p className="text-gray-600">لا توجد إصلاحات سابقة</p></div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ==================== Smart Scanner View ==================== */}
+                  {ghView === 'scanner' && ghSummary?.configured && (
+                    <div className="space-y-6">
+                      {/* Scanner Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <button onClick={() => setGhView('overview')} className="text-gray-400 hover:text-white text-sm">→ العودة</button>
+                          <h3 className="text-xl font-bold text-white">🔬 الفحص الذكي للمشروع</h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {ghScanResult && (
+                            <button
+                              onClick={() => {
+                                window.open('/api/admin/github?action=scan_report', '_blank');
+                              }}
+                              className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 text-sm transition-colors"
+                            >📥 تصدير التقرير</button>
+                          )}
+                          <button
+                            onClick={async () => {
+                              setGhScanning(true);
+                              setGhScanResult(null);
+                              setGhScanProgress(0);
+                              const steps = [
+                                { pct: 10, text: 'جاري تحليل بنية المشروع...' },
+                                { pct: 25, text: 'جاري فحص الأمان...' },
+                                { pct: 45, text: 'جاري فحص جودة الكود...' },
+                                { pct: 60, text: 'جاري فحص التبعيات...' },
+                                { pct: 75, text: 'جاري فحص الأداء...' },
+                                { pct: 90, text: 'جاري حساب النتائج...' },
+                              ];
+                              let stepIdx = 0;
+                              const interval = setInterval(() => {
+                                if (stepIdx < steps.length) {
+                                  setGhScanProgress(steps[stepIdx].pct);
+                                  setGhScanStep(steps[stepIdx].text);
+                                  stepIdx++;
+                                }
+                              }, 1200);
+                              try {
+                                const res = await fetch('/api/admin/github', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'scan' }),
+                                });
+                                const data = await res.json();
+                                clearInterval(interval);
+                                setGhScanProgress(100);
+                                setGhScanStep('اكتمل الفحص!');
+                                if (data.success) {
+                                  setTimeout(() => {
+                                    setGhScanResult(data.result);
+                                    setGhScanning(false);
+                                    // Reload scan history
+                                    fetch('/api/admin/github?action=scan_history').then(r => r.json()).then(d => setGhScanHistory(d)).catch(() => {});
+                                  }, 500);
+                                } else {
+                                  showMsg(data.error || 'فشل الفحص', 'error');
+                                  setGhScanning(false);
+                                }
+                              } catch {
+                                clearInterval(interval);
+                                showMsg('خطأ في الاتصال', 'error');
+                                setGhScanning(false);
+                              }
+                            }}
+                            disabled={ghScanning}
+                            className="px-6 py-2.5 bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 rounded-xl text-white font-medium text-sm transition-all disabled:opacity-50"
+                          >
+                            {ghScanning ? '⏳ جاري الفحص...' : '🔬 بدء الفحص'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Scanning Progress */}
+                      {ghScanning && (
+                        <div className="glass rounded-2xl p-8 text-center">
+                          <div className="w-24 h-24 mx-auto mb-6 relative">
+                            <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 100 100">
+                              <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                              <circle cx="50" cy="50" r="42" fill="none" stroke="url(#scanGrad)" strokeWidth="8"
+                                strokeDasharray={`${ghScanProgress * 2.64} 264`}
+                                strokeLinecap="round" className="transition-all duration-700" />
+                              <defs>
+                                <linearGradient id="scanGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                  <stop offset="0%" stopColor="#10b981" />
+                                  <stop offset="100%" stopColor="#14b8a6" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-emerald-400">
+                              {ghScanProgress}%
+                            </span>
+                          </div>
+                          <p className="text-white font-medium mb-2">{ghScanStep}</p>
+                          <div className="w-full max-w-xs mx-auto bg-white/5 rounded-full h-2 overflow-hidden">
+                            <div className="h-full bg-gradient-to-l from-emerald-500 to-teal-500 rounded-full transition-all duration-700"
+                              style={{ width: `${ghScanProgress}%` }} />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No scan results yet */}
+                      {!ghScanning && !ghScanResult && (
+                        <div className="glass rounded-2xl p-12 text-center">
+                          <div className="text-6xl mb-4">🔬</div>
+                          <h3 className="text-xl font-bold text-white mb-2">الفحص الذكي للمشروع</h3>
+                          <p className="text-gray-500 text-sm mb-2 max-w-md mx-auto">
+                            فحص شامل لملفات المشروع يشمل: الأمان، جودة الكود، التبعيات، بنية المشروع، والأداء
+                          </p>
+                          <p className="text-gray-600 text-xs mb-6">يتم تحليل الملفات مباشرة من الريبو عبر GitHub API</p>
+                          <div className="grid grid-cols-5 gap-3 max-w-lg mx-auto mb-8">
+                            {[
+                              { icon: '🔒', label: 'الأمان', desc: 'أسرار، مصادقة، XSS' },
+                              { icon: '📝', label: 'الجودة', desc: 'أنواع، أخطاء، تنظيم' },
+                              { icon: '📦', label: 'التبعيات', desc: 'ثغرات، تحديثات' },
+                              { icon: '📁', label: 'البنية', desc: 'تنظيم، اختبارات' },
+                              { icon: '⚡', label: 'الأداء', desc: 'حجم، سرعة' },
+                            ].map(c => (
+                              <div key={c.label} className="text-center p-3 rounded-xl bg-white/[0.02]">
+                                <span className="text-2xl block mb-1">{c.icon}</span>
+                                <span className="text-gray-300 text-xs block">{c.label}</span>
+                                <span className="text-gray-600 text-[10px] block">{c.desc}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Scan Results */}
+                      {!ghScanning && ghScanResult && (
+                        <div className="space-y-6">
+                          {/* Health Score + Summary */}
+                          <div className="glass rounded-2xl p-6">
+                            <div className="flex items-center gap-8">
+                              {/* Health Gauge */}
+                              <div className="flex-shrink-0">
+                                <div className="w-32 h-32 relative">
+                                  <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+                                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
+                                    <circle cx="60" cy="60" r="50" fill="none"
+                                      stroke={ghScanResult.healthScore >= 90 ? '#10b981' : ghScanResult.healthScore >= 70 ? '#3b82f6' : ghScanResult.healthScore >= 50 ? '#f59e0b' : '#ef4444'}
+                                      strokeWidth="10"
+                                      strokeDasharray={`${ghScanResult.healthScore * 3.14} 314`}
+                                      strokeLinecap="round" />
+                                  </svg>
+                                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span className={`text-3xl font-bold ${ghScanResult.healthScore >= 90 ? 'text-emerald-400' : ghScanResult.healthScore >= 70 ? 'text-blue-400' : ghScanResult.healthScore >= 50 ? 'text-amber-400' : 'text-red-400'}`}>
+                                      {ghScanResult.healthScore}%
+                                    </span>
+                                    <span className="text-gray-500 text-xs">
+                                      {ghScanResult.healthScore >= 90 ? 'ممتاز' : ghScanResult.healthScore >= 70 ? 'جيد' : ghScanResult.healthScore >= 50 ? 'متوسط' : 'ضعيف'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Summary Info */}
+                              <div className="flex-1">
+                                <h3 className="text-lg font-bold text-white mb-3">نتيجة الفحص</h3>
+                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                                  <div className="bg-red-500/5 border border-red-500/10 rounded-xl p-3 text-center">
+                                    <span className="text-2xl font-bold text-red-400 block">{ghScanResult.summary.critical}</span>
+                                    <span className="text-gray-500 text-xs">حرج</span>
+                                  </div>
+                                  <div className="bg-amber-500/5 border border-amber-500/10 rounded-xl p-3 text-center">
+                                    <span className="text-2xl font-bold text-amber-400 block">{ghScanResult.summary.warning}</span>
+                                    <span className="text-gray-500 text-xs">تحذير</span>
+                                  </div>
+                                  <div className="bg-blue-500/5 border border-blue-500/10 rounded-xl p-3 text-center">
+                                    <span className="text-2xl font-bold text-blue-400 block">{ghScanResult.summary.info}</span>
+                                    <span className="text-gray-500 text-xs">معلومة</span>
+                                  </div>
+                                  <div className="bg-white/[0.02] border border-white/[0.06] rounded-xl p-3 text-center">
+                                    <span className="text-2xl font-bold text-gray-300 block">{ghScanResult.scannedFiles}</span>
+                                    <span className="text-gray-500 text-xs">ملف مفحوص</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-4 mt-3 text-xs text-gray-600">
+                                  <span>📁 {ghScanResult.totalFiles} ملف</span>
+                                  <span>💾 {(ghScanResult.totalSize / (1024 * 1024)).toFixed(1)}MB</span>
+                                  <span>⏱️ {(ghScanResult.duration / 1000).toFixed(1)}s</span>
+                                  {ghScanResult.languages && (
+                                    <span>🔤 {Object.entries(ghScanResult.languages).sort((a: any, b: any) => b[1] - a[1]).slice(0, 3).map(([l]) => l).join(', ')}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Category Cards */}
+                          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                            {Object.entries(ghScanResult.categories).map(([key, cat]: [string, any]) => (
+                              <button key={key} onClick={() => setGhScanFilter(ghScanFilter === key ? '' : key)}
+                                className={`glass rounded-2xl p-4 text-center transition-all hover:bg-white/[0.04] ${ghScanFilter === key ? 'ring-2 ring-violet-500/50 bg-violet-500/5' : ''}`}>
+                                <span className="text-2xl block mb-1">{cat.icon}</span>
+                                <span className="text-white text-sm font-medium block">{cat.labelAr}</span>
+                                <div className="flex items-center justify-center gap-1 mt-2">
+                                  <span className={`text-lg font-bold ${cat.score >= cat.maxScore * 0.8 ? 'text-emerald-400' : cat.score >= cat.maxScore * 0.5 ? 'text-amber-400' : 'text-red-400'}`}>
+                                    {cat.score}
+                                  </span>
+                                  <span className="text-gray-600 text-xs">/{cat.maxScore}</span>
+                                </div>
+                                {cat.issues.length > 0 && (
+                                  <span className="text-gray-500 text-[10px] mt-1 block">{cat.issues.length} مشكلة</span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+
+                          {/* Issues List */}
+                          <div className="glass rounded-2xl p-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-white font-bold">
+                                📋 المشاكل المكتشفة
+                                {ghScanFilter && (
+                                  <span className="text-violet-400 text-sm font-normal mr-2">
+                                    ({ghScanResult.categories[ghScanFilter]?.labelAr})
+                                  </span>
+                                )}
+                              </h3>
+                              {ghScanFilter && (
+                                <button onClick={() => setGhScanFilter('')} className="text-gray-500 text-xs hover:text-gray-300">عرض الكل</button>
+                              )}
+                            </div>
+                            <div className="space-y-2">
+                              {(() => {
+                                const allIssues = Object.entries(ghScanResult.categories)
+                                  .filter(([key]) => !ghScanFilter || key === ghScanFilter)
+                                  .flatMap(([, cat]: [string, any]) => cat.issues)
+                                  .sort((a: any, b: any) => {
+                                    const sev = { critical: 0, warning: 1, info: 2 };
+                                    return (sev[a.severity as keyof typeof sev] || 2) - (sev[b.severity as keyof typeof sev] || 2);
+                                  });
+
+                                if (allIssues.length === 0) {
+                                  return (
+                                    <div className="text-center py-8">
+                                      <span className="text-4xl block mb-3">🎉</span>
+                                      <p className="text-gray-500">لا توجد مشاكل — المشروع بحالة ممتازة!</p>
+                                    </div>
+                                  );
+                                }
+
+                                return allIssues.map((issue: any) => (
+                                  <div key={issue.id} className="rounded-xl p-4 bg-white/[0.02] hover:bg-white/[0.04] transition-colors border-r-2"
+                                    style={{
+                                      borderColor: issue.severity === 'critical' ? '#ef4444' : issue.severity === 'warning' ? '#f59e0b' : '#6b7280',
+                                    }}>
+                                    <div className="flex items-start gap-3">
+                                      <span className="text-lg mt-0.5">
+                                        {issue.severity === 'critical' ? '🔴' : issue.severity === 'warning' ? '🟡' : 'ℹ️'}
+                                      </span>
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <p className="text-white text-sm font-medium">{issue.title}</p>
+                                          <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                                            issue.category === 'security' ? 'bg-red-500/10 text-red-400' :
+                                            issue.category === 'quality' ? 'bg-blue-500/10 text-blue-400' :
+                                            issue.category === 'dependencies' ? 'bg-amber-500/10 text-amber-400' :
+                                            issue.category === 'structure' ? 'bg-violet-500/10 text-violet-400' :
+                                            'bg-teal-500/10 text-teal-400'
+                                          }`}>
+                                            {issue.category === 'security' ? 'أمان' : issue.category === 'quality' ? 'جودة' :
+                                             issue.category === 'dependencies' ? 'تبعيات' : issue.category === 'structure' ? 'بنية' : 'أداء'}
+                                          </span>
+                                        </div>
+                                        <p className="text-gray-500 text-xs">{issue.description}</p>
+                                        {issue.filePath && (
+                                          <p className="text-blue-400/60 text-xs font-mono mt-1">
+                                            📄 {issue.filePath}{issue.line ? `:${issue.line}` : ''}
+                                          </p>
+                                        )}
+                                        {issue.suggestion && (
+                                          <p className="text-emerald-400/60 text-xs mt-1">💡 {issue.suggestion}</p>
+                                        )}
+                                      </div>
+                                      {issue.filePath && (
+                                        <button onClick={async () => {
+                                          try {
+                                            const res = await fetch(`/api/admin/github?action=file_content&path=${encodeURIComponent(issue.filePath)}`);
+                                            if (res.ok) {
+                                              const data = await res.json();
+                                              setGhFileContent({ path: issue.filePath, content: data.decodedContent || '', sha: data.sha });
+                                              setGhEditContent(data.decodedContent || '');
+                                              setGhCommitMsg(`fix: ${issue.title}`);
+                                              setGhPrTitle(`Fix: ${issue.title}`);
+                                              setGhView('editor');
+                                            }
+                                          } catch { showMsg('فشل تحميل الملف', 'error'); }
+                                        }} className="text-violet-400 text-xs hover:text-violet-300 px-2 py-1 bg-violet-500/10 rounded-lg flex-shrink-0">
+                                          فتح ←
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                ));
+                              })()}
+                            </div>
+                          </div>
+
+                          {/* Scan History */}
+                          {ghScanHistory.length > 0 && (
+                            <div className="glass rounded-2xl p-5">
+                              <h3 className="text-white font-bold mb-3">📜 سجل الفحوصات السابقة</h3>
+                              <div className="space-y-2">
+                                {ghScanHistory.map((scan: any) => (
+                                  <div key={scan.id} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.02]">
+                                    <div className="flex items-center gap-3">
+                                      <span className={`text-lg ${
+                                        (scan.details?.healthScore || 0) >= 90 ? 'text-emerald-400' :
+                                        (scan.details?.healthScore || 0) >= 70 ? 'text-blue-400' :
+                                        (scan.details?.healthScore || 0) >= 50 ? 'text-amber-400' : 'text-red-400'
+                                      }`}>
+                                        {(scan.details?.healthScore || 0) >= 70 ? '✅' : '⚠️'}
+                                      </span>
+                                      <div>
+                                        <span className="text-white text-sm font-medium">{scan.details?.healthScore || 0}% صحة</span>
+                                        <span className="text-gray-600 text-xs mr-3">
+                                          {scan.details?.total || 0} مشكلة ({scan.details?.critical || 0} حرج)
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="text-gray-600 text-xs">
+                                      {scan.performer?.username || '—'} • {new Date(scan.createdAt).toLocaleString('ar-SA')}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

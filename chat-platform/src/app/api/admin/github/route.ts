@@ -7,6 +7,7 @@ import {
   createOrUpdateFile, createBranch, createPullRequest,
   syncRepository, getCommitDiff,
 } from '@/lib/github';
+import { runFullScan, generateTextReport } from '@/lib/github-scanner';
 
 export const dynamic = 'force-dynamic';
 
@@ -189,6 +190,16 @@ export async function GET(req: NextRequest) {
 
         const diff = await getCommitDiff(config, sha);
         return NextResponse.json({ diff });
+      }
+
+      case 'scan_history': {
+        const scans = await prisma.auditLog.findMany({
+          where: { action: 'GITHUB_SCAN_COMPLETED' },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+          include: { performer: { select: { username: true, displayName: true } } },
+        });
+        return NextResponse.json(scans);
       }
 
       default:
@@ -382,6 +393,48 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json({ success: true, fix });
+      }
+
+      case 'scan': {
+        const config = await getGitHubConfig();
+        if (!config) return NextResponse.json({ error: 'GitHub غير مربوط' }, { status: 400 });
+
+        const scanResult = await runFullScan(config);
+
+        // Log scan in audit
+        await prisma.auditLog.create({
+          data: {
+            action: 'GITHUB_SCAN_COMPLETED',
+            performedBy: admin.userId,
+            details: {
+              healthScore: scanResult.healthScore,
+              totalFiles: scanResult.totalFiles,
+              scannedFiles: scanResult.scannedFiles,
+              critical: scanResult.summary.critical,
+              warning: scanResult.summary.warning,
+              info: scanResult.summary.info,
+              total: scanResult.summary.total,
+              duration: scanResult.duration,
+            },
+          },
+        });
+
+        return NextResponse.json({ success: true, result: scanResult });
+      }
+
+      case 'scan_report': {
+        const config = await getGitHubConfig();
+        if (!config) return NextResponse.json({ error: 'GitHub غير مربوط' }, { status: 400 });
+
+        const result = await runFullScan(config);
+        const report = generateTextReport(result, `${config.repoOwner}/${config.repoName}`);
+
+        return new NextResponse(report, {
+          headers: {
+            'Content-Type': 'text/plain; charset=utf-8',
+            'Content-Disposition': `attachment; filename="scan-report-${Date.now()}.txt"`,
+          },
+        });
       }
 
       case 'mark_read': {
