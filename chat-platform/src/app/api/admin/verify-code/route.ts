@@ -50,28 +50,13 @@ export async function POST(request: Request) {
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      // Not logged in — validate code silently, but always respond with needsLogin
-      // This prevents unauthenticated brute-force by not revealing code validity
-      if (code === adminCode) {
-        return NextResponse.json({
-          needsLogin: true,
-          redirect: `/login?callbackUrl=/admin`,
-          message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
-        });
-      } else if (code === moderatorCode) {
-        return NextResponse.json({
-          needsLogin: true,
-          redirect: `/login?callbackUrl=/moderator`,
-          message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
-        });
-      } else {
-        // Wrong code — return same needsLogin structure to prevent oracle
-        return NextResponse.json({
-          needsLogin: true,
-          redirect: `/login?callbackUrl=/chat`,
-          message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
-        });
-      }
+      // Not logged in — return identical response regardless of code validity
+      // to prevent unauthenticated brute-force oracle attack
+      return NextResponse.json({
+        needsLogin: true,
+        redirect: '/login?callbackUrl=/chat',
+        message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
+      });
     }
 
     // User is authenticated — now check the code
