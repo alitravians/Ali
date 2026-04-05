@@ -101,6 +101,7 @@ export interface ServerToClientEvents {
   'reaction:updated': (data: { messageId: string; reactions: { emoji: string; count: number }[]; userReactions: string[]; reactedByUserId: string }) => void;
   'message:pinned': (data: { messageId: string; roomId: string; content: string; username: string; pinnedBy: string }) => void;
   'message:unpinned': (data: { messageId: string; roomId: string }) => void;
+  'messages:cleared': (data: { roomId: string; count: number }) => void;
   'error': (data: { message: string }) => void;
 }
 
@@ -116,4 +117,5 @@ export interface ClientToServerEvents {
   'reaction:toggle': (data: { messageId: string; emoji: string }) => void;
   'message:pin': (data: { messageId: string; roomId: string }) => void;
   'message:unpin': (data: { messageId: string; roomId: string }) => void;
+  'messages:clear': (data: { roomId: string }) => void;
 }

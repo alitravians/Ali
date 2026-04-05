@@ -907,6 +907,36 @@ app.prepare().then(() => {
       }
     });
 
+    // Clear all messages in a room (admin only)
+    socket.on('messages:clear', async ({ roomId }) => {
+      try {
+        await refreshRoleLevel();
+        if (roleLevel < 90) {
+          socket.emit('error', { message: 'صلاحية غير كافية — يتطلب صلاحية إدارية' });
+          return;
+        }
+        const room = await prisma.room.findUnique({ where: { id: roomId } });
+        if (!room) {
+          socket.emit('error', { message: 'الغرفة غير موجودة' });
+          return;
+        }
+        const result = await prisma.message.updateMany({
+          where: { roomId, isDeleted: false },
+          data: { isDeleted: true },
+        });
+        io.to(`room:${roomId}`).emit('messages:cleared', { roomId, count: result.count });
+        await prisma.auditLog.create({
+          data: {
+            action: 'CLEAR_ROOM_MESSAGES',
+            performedBy: userId,
+            details: { roomId, roomName: room.name, deletedCount: result.count },
+          },
+        });
+      } catch (error) {
+        console.error('Clear messages error:', error);
+      }
+    });
+
     // Typing indicators
     socket.on('typing:start', ({ roomId }) => {
       // Verify user has joined this room

@@ -79,6 +79,11 @@ function ChatContent() {
   // Feature: Block user
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
 
+  // Feature: Bulk clear messages
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearingMessages, setClearingMessages] = useState(false);
+  const [clearToast, setClearToast] = useState<{ text: string; type: string } | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -323,6 +328,16 @@ function ChatContent() {
       }
     });
 
+    // Bulk clear messages
+    socket.on('messages:cleared', ({ roomId, count }) => {
+      if (roomId === activeRoom) {
+        setMessages([]);
+        setPinnedMessages([]);
+        setClearToast({ text: `تم مسح ${count} رسالة بنجاح`, type: 'success' });
+        setTimeout(() => setClearToast(null), 4000);
+      }
+    });
+
     // Realtime notification counter
     socket.on('notification:new', () => {
       setNotifCount(prev => prev + 1);
@@ -347,6 +362,7 @@ function ChatContent() {
       socket.off('reaction:updated');
       socket.off('message:pinned');
       socket.off('message:unpinned');
+      socket.off('messages:cleared');
       socket.off('notification:new');
     };
   }, [socket, activeRoom, user?.id]);
@@ -405,6 +421,15 @@ function ChatContent() {
   const unpinMessage = (messageId: string) => {
     if (!socket || !activeRoom) return;
     socket.emit('message:unpin', { messageId, roomId: activeRoom });
+  };
+
+  // Feature: Clear all messages in room (admin only)
+  const clearRoomMessages = () => {
+    if (!socket || !activeRoom) return;
+    setClearingMessages(true);
+    socket.emit('messages:clear', { roomId: activeRoom });
+    setShowClearConfirm(false);
+    setClearingMessages(false);
   };
 
   // Feature: Block/Unblock user
@@ -737,6 +762,16 @@ function ChatContent() {
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
             </button>
+            {/* Bulk clear messages (admin only) */}
+            {(user?.roleLevel || 0) >= 90 && activeRoom && (
+              <button
+                onClick={() => setShowClearConfirm(true)}
+                className="p-1.5 rounded-lg text-xs text-gray-400 bg-white/[0.03] hover:bg-red-500/10 hover:text-red-400 transition-all"
+                title="مسح جميع الرسائل"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            )}
             {/* Notifications badge */}
             <Link
               href="/notifications"
@@ -1267,6 +1302,54 @@ function ChatContent() {
                 إغلاق
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Clear Confirmation Modal */}
+      {showClearConfirm && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowClearConfirm(false)}>
+          <div className="bg-[#0F1629] border border-red-500/20 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl shadow-red-500/10" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-center w-14 h-14 mx-auto mb-4 rounded-full bg-red-500/10 border border-red-500/20">
+              <svg className="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-white text-center mb-2">مسح جميع الرسائل</h3>
+            <p className="text-sm text-gray-400 text-center mb-1">
+              هل أنت متأكد من مسح جميع الرسائل في غرفة
+            </p>
+            <p className="text-sm text-violet-400 font-bold text-center mb-4">
+              &quot;{activeRoomData?.name}&quot;؟
+            </p>
+            <p className="text-xs text-red-400/80 text-center mb-6 bg-red-500/5 rounded-lg py-2 px-3 border border-red-500/10">
+              ⚠️ هذا الإجراء لا يمكن التراجع عنه — سيتم حذف جميع الرسائل نهائياً
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowClearConfirm(false)}
+                className="flex-1 py-2.5 bg-white/[0.05] hover:bg-white/[0.08] border border-white/[0.08] rounded-xl text-sm text-gray-300 transition-all font-medium"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={clearRoomMessages}
+                disabled={clearingMessages}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl text-sm text-white transition-all font-medium disabled:opacity-50 shadow-lg shadow-red-500/20"
+              >
+                {clearingMessages ? '⏳ جاري المسح...' : '🗑️ مسح الكل'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear Messages Toast */}
+      {clearToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] animate-[fadeInUp_0.3s_ease-out]">
+          <div className="bg-emerald-600/90 backdrop-blur-sm text-white px-5 py-3 rounded-xl text-sm font-medium shadow-lg shadow-emerald-500/20 border border-emerald-500/30 flex items-center gap-2">
+            <span>✓</span>
+            <span>{clearToast.text}</span>
           </div>
         </div>
       )}
