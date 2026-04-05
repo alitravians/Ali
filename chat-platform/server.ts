@@ -246,6 +246,9 @@ app.prepare().then(() => {
 
     // Join room
     socket.on('room:join', async ({ roomId }) => {
+      // Refresh role level for authorization checks
+      await refreshRoleLevel();
+
       // Check if room exists and enforce private room access control
       const room = await prisma.room.findUnique({ where: { id: roomId } });
       if (!room) {
@@ -572,6 +575,7 @@ app.prepare().then(() => {
     // Disconnect
     socket.on('disconnect', async () => {
       // Clean up socket maps BEFORE broadcasting so counts are accurate
+      const hadRoom = socketToUser.get(socket.id)?.currentRoomId;
       socketToUser.delete(socket.id);
       socketRooms.delete(socket.id);
 
@@ -588,6 +592,9 @@ app.prepare().then(() => {
           io.emit('user:status', { userId, status: 'OFFLINE', lastActive: now.toISOString() });
           // Broadcast presence leave
           io.emit('presence:leave', { userId });
+          broadcastPresenceCounts(io);
+        } else if (hadRoom) {
+          // User still online but a room socket disconnected — update room counts
           broadcastPresenceCounts(io);
         }
       }

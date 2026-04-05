@@ -86,7 +86,7 @@ export default function AdminPage() {
           break;
         }
         case 'users': {
-          const usersRes = await fetch(`/api/admin/users?search=${searchUserRef.current}`);
+          const usersRes = await fetch(`/api/admin/users?search=${encodeURIComponent(searchUserRef.current)}`);
           const usersData = await usersRes.json();
           setUsers(usersData.users || []);
           // Also load roles for role management
