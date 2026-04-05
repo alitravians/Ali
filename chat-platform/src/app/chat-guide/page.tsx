@@ -4,145 +4,150 @@ import Link from 'next/link';
 
 export default function ChatGuidePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#060B18] via-[#0A1128]/20 to-[#060B18] px-4 py-12">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+    <div className="page-container bg-[#030711]">
+      <div className="page-bg">
+        <div className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-emerald-600/[0.04] rounded-full blur-[120px] bg-orb-1" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[400px] h-[400px] bg-violet-600/[0.04] rounded-full blur-[100px] bg-orb-2" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.012)_1px,transparent_1px)] bg-[size:50px_50px]" />
       </div>
 
-      <div className="relative max-w-4xl mx-auto">
+      <nav className="top-nav">
+        <div className="top-nav-inner">
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <div className="flex items-center gap-1">
+            {[
+              { href: '/welcome', label: 'الترحيب' },
+              { href: '/rules', label: 'القوانين' },
+              { href: '/instructions', label: 'التعليمات' },
+            ].map(l => (
+              <Link key={l.href} href={l.href} className="text-gray-500 hover:text-white text-[13px] px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">{l.label}</Link>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      <div className="page-content max-w-3xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
-          <Link href="/" className="text-3xl font-bold gradient-text">ChatZone</Link>
-          <h1 className="text-2xl font-bold text-white mt-4">📖 دليل استخدام الدردشة</h1>
-          <p className="text-gray-400 mt-2">تعرف على جميع مميزات الدردشة وكيفية استخدامها</p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/[0.06] border border-emerald-500/10 text-emerald-400 text-xs mb-6">
+            <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+            دليل شامل
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight">دليل استخدام الدردشة</h1>
+          <p className="text-gray-500 text-sm">تعرف على جميع مميزات الدردشة وكيفية استخدامها</p>
         </div>
 
-        {/* Section 1: Interface Overview */}
-        <div className="glass rounded-2xl p-6 border border-gray-700/30 mb-6">
-          <h2 className="text-xl font-bold text-violet-400 mb-4 flex items-center gap-2">
-            <span>🖥️</span> واجهة الدردشة
-          </h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            <div className="bg-gray-800/40 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-2">الشريط الجانبي</h3>
-              <ul className="text-gray-400 text-sm space-y-1">
-                <li>• قائمة الغرف المتاحة</li>
-                <li>• عدد الرسائل غير المقروءة</li>
-                <li>• التنقل بين الغرف بضغطة واحدة</li>
-                <li>• يمكن إخفاؤه على الجوال</li>
-              </ul>
+        {/* Interface Overview */}
+        <div className="content-card p-6 mb-4">
+          <div className="section-header">
+            <div className="section-icon bg-violet-500/[0.08] border border-violet-500/10">🖥️</div>
+            <div>
+              <h2 className="text-lg font-bold text-white">واجهة الدردشة</h2>
+              <p className="text-gray-500 text-xs">تعرف على أجزاء واجهة الدردشة</p>
             </div>
-            <div className="bg-gray-800/40 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-2">منطقة الرسائل</h3>
-              <ul className="text-gray-400 text-sm space-y-1">
-                <li>• عرض جميع الرسائل بالترتيب الزمني</li>
-                <li>• التمرير لأعلى لتحميل المزيد</li>
-                <li>• عرض اسم المرسل ورتبته</li>
-                <li>• مؤشر الكتابة للمستخدمين الآخرين</li>
-              </ul>
+          </div>
+          <div className="grid md:grid-cols-3 gap-3">
+            {[
+              { title: 'الشريط الجانبي', items: ['قائمة الغرف المتاحة', 'عدد الرسائل غير المقروءة', 'التنقل بين الغرف بضغطة واحدة', 'يمكن إخفاؤه على الجوال'] },
+              { title: 'منطقة الرسائل', items: ['عرض جميع الرسائل بالترتيب الزمني', 'التمرير لأعلى لتحميل المزيد', 'عرض اسم المرسل ورتبته', 'مؤشر الكتابة للمستخدمين الآخرين'] },
+              { title: 'حقل الإدخال', items: ['اكتب رسالتك واضغط Enter', 'أو اضغط زر الإرسال', 'يظهر حالة الكتم إن كنت مكتوماً', 'يدعم الرد على رسالة محددة'] },
+            ].map((col, i) => (
+              <div key={i} className="rounded-xl p-4 bg-white/[0.02] border border-white/[0.04]">
+                <h3 className="text-white font-semibold text-sm mb-3">{col.title}</h3>
+                <div className="space-y-1.5">
+                  {col.items.map((item, j) => (
+                    <div key={j} className="flex items-start gap-2 text-gray-500 text-xs">
+                      <span className="text-violet-400/50 mt-0.5">●</span>
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Messaging Features */}
+        <div className="content-card p-6 mb-4">
+          <div className="section-header">
+            <div className="section-icon bg-emerald-500/[0.08] border border-emerald-500/10">💬</div>
+            <div>
+              <h2 className="text-lg font-bold text-white">مميزات الرسائل</h2>
+              <p className="text-gray-500 text-xs">كل ما تحتاج معرفته عن التعامل مع الرسائل</p>
             </div>
-            <div className="bg-gray-800/40 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-2">حقل الإدخال</h3>
-              <ul className="text-gray-400 text-sm space-y-1">
-                <li>• اكتب رسالتك واضغط Enter</li>
-                <li>• أو اضغط زر الإرسال</li>
-                <li>• يظهر حالة الكتم إن كنت مكتوماً</li>
-                <li>• يدعم الرد على رسالة محددة</li>
-              </ul>
+          </div>
+          <div className="space-y-2.5">
+            {[
+              { icon: '📨', title: 'إرسال الرسائل', desc: 'اكتب رسالتك واضغط Enter أو زر الإرسال. الرسائل تظهر فوراً لجميع المتواجدين في الغرفة.' },
+              { icon: '↩️', title: 'الرد على رسالة', desc: 'اضغط على زر الرد بجانب أي رسالة للرد عليها مباشرة. سيظهر اقتباس من الرسالة الأصلية فوق ردك.' },
+              { icon: '✏️', title: 'تعديل الرسالة', desc: 'يمكنك تعديل رسائلك الخاصة بالضغط على زر التعديل. ستظهر علامة "معدّلة" بجانب الرسالة.' },
+              { icon: '🗑️', title: 'حذف الرسالة', desc: 'يمكنك حذف رسائلك الخاصة. المشرفون والإداريون يمكنهم حذف أي رسالة مخالفة.' },
+              { icon: '🚨', title: 'التبليغ عن رسالة', desc: 'إذا رأيت رسالة مخالفة، اضغط زر التبليغ واختر السبب. سيتم إرسال البلاغ لفريق الإشراف.' },
+            ].map((feature, i) => (
+              <div key={i} className="flex items-start gap-3 rounded-xl p-4 bg-white/[0.02] border border-white/[0.03] hover:border-white/[0.06] transition-all">
+                <span className="text-xl flex-shrink-0">{feature.icon}</span>
+                <div>
+                  <h3 className="text-white font-semibold text-sm mb-0.5">{feature.title}</h3>
+                  <p className="text-gray-500 text-xs leading-relaxed">{feature.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rooms */}
+        <div className="content-card p-6 mb-4">
+          <div className="section-header">
+            <div className="section-icon bg-indigo-500/[0.08] border border-indigo-500/10">🏠</div>
+            <div>
+              <h2 className="text-lg font-bold text-white">الغرف</h2>
+              <p className="text-gray-500 text-xs">أنواع الغرف وحالاتها</p>
+            </div>
+          </div>
+          <div className="grid md:grid-cols-2 gap-3">
+            <div className="rounded-xl p-4 bg-white/[0.02] border border-white/[0.04]">
+              <h3 className="text-white font-semibold text-sm mb-3">أنواع الغرف</h3>
+              <div className="space-y-2">
+                {[
+                  { dot: 'bg-emerald-400', label: 'عامة:', desc: 'متاحة لجميع الأعضاء', color: 'text-emerald-400' },
+                  { dot: 'bg-amber-400', label: 'خاصة:', desc: 'تتطلب دعوة أو إذن', color: 'text-amber-400' },
+                  { dot: 'bg-blue-400', label: 'إعلانات:', desc: 'للإعلانات الإدارية فقط', color: 'text-blue-400' },
+                ].map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className={`w-1.5 h-1.5 rounded-full ${r.dot}`} />
+                    <span className={`font-semibold ${r.color}`}>{r.label}</span>
+                    <span className="text-gray-500 text-xs">{r.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-xl p-4 bg-white/[0.02] border border-white/[0.04]">
+              <h3 className="text-white font-semibold text-sm mb-3">حالات الغرفة</h3>
+              <div className="space-y-2">
+                {[
+                  { dot: 'bg-emerald-400', label: 'نشطة:', desc: 'يمكن إرسال واستقبال الرسائل', color: 'text-emerald-400' },
+                  { dot: 'bg-blue-400', label: 'مجمدة:', desc: 'للقراءة فقط (يحددها المشرف)', color: 'text-blue-400' },
+                ].map((r, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <span className={`w-1.5 h-1.5 rounded-full ${r.dot}`} />
+                    <span className={`font-semibold ${r.color}`}>{r.label}</span>
+                    <span className="text-gray-500 text-xs">{r.desc}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Section 2: Messaging Features */}
-        <div className="glass rounded-2xl p-6 border border-gray-700/30 mb-6">
-          <h2 className="text-xl font-bold text-green-400 mb-4 flex items-center gap-2">
-            <span>💬</span> مميزات الرسائل
-          </h2>
-          <div className="space-y-4">
-            <div className="flex items-start gap-4 bg-gray-800/30 rounded-xl p-4">
-              <span className="text-2xl">📨</span>
-              <div>
-                <h3 className="text-white font-semibold">إرسال الرسائل</h3>
-                <p className="text-gray-400 text-sm">اكتب رسالتك واضغط Enter أو زر الإرسال. الرسائل تظهر فوراً لجميع المتواجدين في الغرفة.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4 bg-gray-800/30 rounded-xl p-4">
-              <span className="text-2xl">↩️</span>
-              <div>
-                <h3 className="text-white font-semibold">الرد على رسالة</h3>
-                <p className="text-gray-400 text-sm">اضغط على زر الرد بجانب أي رسالة للرد عليها مباشرة. سيظهر اقتباس من الرسالة الأصلية فوق ردك.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4 bg-gray-800/30 rounded-xl p-4">
-              <span className="text-2xl">✏️</span>
-              <div>
-                <h3 className="text-white font-semibold">تعديل الرسالة</h3>
-                <p className="text-gray-400 text-sm">يمكنك تعديل رسائلك الخاصة بالضغط على زر التعديل. ستظهر علامة &quot;معدّلة&quot; بجانب الرسالة.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4 bg-gray-800/30 rounded-xl p-4">
-              <span className="text-2xl">🗑️</span>
-              <div>
-                <h3 className="text-white font-semibold">حذف الرسالة</h3>
-                <p className="text-gray-400 text-sm">يمكنك حذف رسائلك الخاصة. المشرفون والإداريون يمكنهم حذف أي رسالة مخالفة.</p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4 bg-gray-800/30 rounded-xl p-4">
-              <span className="text-2xl">🚨</span>
-              <div>
-                <h3 className="text-white font-semibold">التبليغ عن رسالة</h3>
-                <p className="text-gray-400 text-sm">إذا رأيت رسالة مخالفة، اضغط زر التبليغ واختر السبب. سيتم إرسال البلاغ لفريق الإشراف.</p>
-              </div>
+        {/* Roles */}
+        <div className="content-card p-6 mb-4">
+          <div className="section-header">
+            <div className="section-icon bg-amber-500/[0.08] border border-amber-500/10">⭐</div>
+            <div>
+              <h2 className="text-lg font-bold text-white">نظام الرتب</h2>
+              <p className="text-gray-500 text-xs">لكل عضو رتبة تحدد صلاحياته في المنصة</p>
             </div>
           </div>
-        </div>
-
-        {/* Section 3: Rooms */}
-        <div className="glass rounded-2xl p-6 border border-gray-700/30 mb-6">
-          <h2 className="text-xl font-bold text-purple-400 mb-4 flex items-center gap-2">
-            <span>🏠</span> الغرف
-          </h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-gray-800/30 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-2">أنواع الغرف</h3>
-              <ul className="text-gray-400 text-sm space-y-2">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  <strong className="text-green-400">عامة:</strong> متاحة لجميع الأعضاء
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                  <strong className="text-yellow-400">خاصة:</strong> تتطلب دعوة أو إذن
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                  <strong className="text-blue-400">إعلانات:</strong> للإعلانات الإدارية فقط
-                </li>
-              </ul>
-            </div>
-            <div className="bg-gray-800/30 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-2">حالات الغرفة</h3>
-              <ul className="text-gray-400 text-sm space-y-2">
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  <strong className="text-green-400">نشطة:</strong> يمكن إرسال واستقبال الرسائل
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-blue-400 rounded-full"></span>
-                  <strong className="text-blue-400">مجمدة:</strong> للقراءة فقط (يحددها المشرف)
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Roles */}
-        <div className="glass rounded-2xl p-6 border border-gray-700/30 mb-6">
-          <h2 className="text-xl font-bold text-yellow-400 mb-4 flex items-center gap-2">
-            <span>⭐</span> نظام الرتب
-          </h2>
-          <p className="text-gray-400 text-sm mb-4">لكل عضو رتبة تحدد صلاحياته في المنصة. الرتب مرتبة من الأعلى للأقل:</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {[
               { name: 'المالك', color: '#FFD700', level: 100 },
               { name: 'مدير', color: '#FF4444', level: 90 },
@@ -153,81 +158,75 @@ export default function ChatGuidePage() {
               { name: 'مكتوم', color: '#666666', level: 5 },
               { name: 'محظور', color: '#333333', level: 0 },
             ].map((role) => (
-              <div key={role.name} className="bg-gray-800/40 rounded-xl p-3 text-center">
-                <div className="font-bold text-sm mb-1" style={{ color: role.color }}>{role.name}</div>
-                <div className="text-gray-500 text-xs">المستوى {role.level}</div>
+              <div key={role.name} className="rounded-xl p-3 text-center bg-white/[0.02] border border-white/[0.04]">
+                <div className="font-bold text-sm mb-0.5" style={{ color: role.color }}>{role.name}</div>
+                <div className="text-gray-600 text-[10px]">المستوى {role.level}</div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Section 5: Bold Messages */}
-        <div className="glass rounded-2xl p-6 border border-gray-700/30 mb-6">
-          <h2 className="text-xl font-bold text-orange-400 mb-4 flex items-center gap-2">
-            <span>✨</span> مميزات خاصة
-          </h2>
-          <div className="space-y-3">
-            <div className="bg-gray-800/30 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-1">الكتابة بالخط العريض (المشرفين والإداريين)</h3>
-              <p className="text-gray-400 text-sm">
-                يمكن للمشرفين والإداريين كتابة رسائل بخط عريض ومميز عبر وضع رمز <code className="bg-gray-700 px-1 rounded text-yellow-400">$</code> قبل النص.
-                مثال: <code className="bg-gray-700 px-1 rounded text-yellow-400">$مرحباً بالجميع</code>
-              </p>
+        {/* Special features */}
+        <div className="content-card p-6 mb-4">
+          <div className="section-header">
+            <div className="section-icon bg-pink-500/[0.08] border border-pink-500/10">✨</div>
+            <div>
+              <h2 className="text-lg font-bold text-white">مميزات خاصة</h2>
+              <p className="text-gray-500 text-xs">مميزات إضافية متاحة للمشرفين والإداريين</p>
             </div>
-            <div className="bg-gray-800/30 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-1">مؤشر الكتابة</h3>
-              <p className="text-gray-400 text-sm">عندما يكتب شخص ما في الغرفة، سترى اسمه مع مؤشر &quot;يكتب...&quot; أسفل الرسائل.</p>
-            </div>
-            <div className="bg-gray-800/30 rounded-xl p-4">
-              <h3 className="text-white font-semibold mb-1">حالة الاتصال</h3>
-              <p className="text-gray-400 text-sm">يمكنك رؤية من متصل حالياً ومن غير متصل من خلال مؤشرات الحالة بجانب الأسماء.</p>
-            </div>
+          </div>
+          <div className="space-y-2.5">
+            {[
+              { title: 'الكتابة بالخط العريض (المشرفين والإداريين)', desc: 'يمكن للمشرفين والإداريين كتابة رسائل بخط عريض ومميز عبر وضع رمز $ قبل النص. مثال: $مرحباً بالجميع' },
+              { title: 'مؤشر الكتابة', desc: 'عندما يكتب شخص ما في الغرفة، سترى اسمه مع مؤشر "يكتب..." أسفل الرسائل.' },
+              { title: 'حالة الاتصال', desc: 'يمكنك رؤية من متصل حالياً ومن غير متصل من خلال مؤشرات الحالة بجانب الأسماء.' },
+            ].map((f, i) => (
+              <div key={i} className="rounded-xl p-4 bg-white/[0.02] border border-white/[0.03]">
+                <h3 className="text-white font-semibold text-sm mb-1">{f.title}</h3>
+                <p className="text-gray-500 text-xs leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Section 6: Punishments */}
-        <div className="glass rounded-2xl p-6 border border-red-500/20 mb-8">
-          <h2 className="text-xl font-bold text-red-400 mb-4 flex items-center gap-2">
-            <span>⛔</span> نظام العقوبات
-          </h2>
-          <p className="text-gray-400 text-sm mb-4">في حال مخالفة القوانين، قد تتعرض لإحدى العقوبات التالية:</p>
-          <div className="space-y-3">
-            <div className="flex items-start gap-3 bg-yellow-500/5 rounded-xl p-3 border border-yellow-500/10">
-              <span className="text-xl">⚠️</span>
-              <div>
-                <h3 className="text-yellow-400 font-semibold text-sm">تحذير</h3>
-                <p className="text-gray-400 text-xs">تنبيه رسمي يسجل في ملفك. لا يمنعك من الكتابة لكنه ينذرك.</p>
-              </div>
+        {/* Punishments */}
+        <div className="content-card p-6 mb-8">
+          <div className="section-header">
+            <div className="section-icon bg-red-500/[0.08] border border-red-500/10">⛔</div>
+            <div>
+              <h2 className="text-lg font-bold text-white">نظام العقوبات</h2>
+              <p className="text-gray-500 text-xs">في حال مخالفة القوانين</p>
             </div>
-            <div className="flex items-start gap-3 bg-orange-500/5 rounded-xl p-3 border border-orange-500/10">
-              <span className="text-xl">🔇</span>
-              <div>
-                <h3 className="text-orange-400 font-semibold text-sm">كتم مؤقت</h3>
-                <p className="text-gray-400 text-xs">يمنعك من إرسال الرسائل لمدة محددة. ستظهر لك مدة الكتم المتبقية.</p>
+          </div>
+          <div className="space-y-2">
+            {[
+              { icon: '⚠️', title: 'تحذير', desc: 'تنبيه رسمي يسجل في ملفك. لا يمنعك من الكتابة لكنه ينذرك.', color: 'amber' },
+              { icon: '🔇', title: 'كتم مؤقت', desc: 'يمنعك من إرسال الرسائل لمدة محددة. ستظهر لك مدة الكتم المتبقية.', color: 'orange' },
+              { icon: '🚫', title: 'حظر', desc: 'يمنعك من دخول المنصة لمدة محددة أو بشكل دائم. ستظهر لك صفحة الحظر مع السبب والمدة.', color: 'red' },
+            ].map((p, i) => (
+              <div key={i} className={`flex items-start gap-3 rounded-xl p-3.5 bg-${p.color}-500/[0.03] border border-${p.color}-500/[0.06]`}>
+                <span className="text-lg">{p.icon}</span>
+                <div>
+                  <h3 className={`text-${p.color}-400 font-semibold text-sm`}>{p.title}</h3>
+                  <p className="text-gray-500 text-xs">{p.desc}</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-start gap-3 bg-red-500/5 rounded-xl p-3 border border-red-500/10">
-              <span className="text-xl">🚫</span>
-              <div>
-                <h3 className="text-red-400 font-semibold text-sm">حظر</h3>
-                <p className="text-gray-400 text-xs">يمنعك من دخول المنصة لمدة محددة أو بشكل دائم. ستظهر لك صفحة الحظر مع السبب والمدة.</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        <div className="text-center space-x-4 space-x-reverse">
-          <Link href="/rules" className="text-violet-400 hover:text-indigo-300 transition-colors text-sm">
-            قوانين الدردشة
-          </Link>
-          <span className="text-gray-600">|</span>
-          <Link href="/instructions" className="text-violet-400 hover:text-indigo-300 transition-colors text-sm">
-            التعليمات
-          </Link>
-          <span className="text-gray-600">|</span>
-          <Link href="/" className="text-violet-400 hover:text-indigo-300 transition-colors text-sm">
-            ← الرئيسية
-          </Link>
+        {/* Nav links */}
+        <div className="flex items-center justify-center gap-4 text-sm">
+          {[
+            { href: '/rules', label: 'قوانين الدردشة' },
+            { href: '/instructions', label: 'التعليمات' },
+            { href: '/', label: '← الرئيسية' },
+          ].map((l, i) => (
+            <span key={l.href} className="flex items-center gap-4">
+              {i > 0 && <span className="text-gray-700">·</span>}
+              <Link href={l.href} className="text-gray-500 hover:text-white transition-colors">{l.label}</Link>
+            </span>
+          ))}
         </div>
       </div>
     </div>

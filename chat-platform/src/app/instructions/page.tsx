@@ -7,6 +7,7 @@ export default function InstructionsPage() {
     {
       icon: '📝',
       title: 'إنشاء حساب',
+      color: 'violet',
       steps: [
         'اضغط على "إنشاء حساب جديد" من الصفحة الرئيسية',
         'أدخل اسم المستخدم (3-20 حرف)',
@@ -18,6 +19,7 @@ export default function InstructionsPage() {
     {
       icon: '🔑',
       title: 'تسجيل الدخول',
+      color: 'indigo',
       steps: [
         'اضغط على "تسجيل الدخول" من الصفحة الرئيسية',
         'أدخل البريد الإلكتروني وكلمة المرور',
@@ -27,6 +29,7 @@ export default function InstructionsPage() {
     {
       icon: '💬',
       title: 'استخدام الدردشة',
+      color: 'emerald',
       steps: [
         'بعد تسجيل الدخول ستنتقل تلقائياً لصفحة الدردشة',
         'اختر غرفة من الشريط الجانبي',
@@ -38,6 +41,7 @@ export default function InstructionsPage() {
     {
       icon: '🏠',
       title: 'الغرف',
+      color: 'blue',
       steps: [
         'الغرف العامة متاحة لجميع الأعضاء',
         'يمكنك التنقل بين الغرف بالضغط على اسم الغرفة',
@@ -48,6 +52,7 @@ export default function InstructionsPage() {
     {
       icon: '🔔',
       title: 'الإشعارات',
+      color: 'amber',
       steps: [
         'ستصلك إشعارات عند صدور تحذيرات أو عقوبات',
         'يمكنك الوصول للإشعارات من صفحة الإشعارات',
@@ -57,6 +62,7 @@ export default function InstructionsPage() {
     {
       icon: '👤',
       title: 'الملف الشخصي',
+      color: 'pink',
       steps: [
         'اضغط على اسمك في أعلى الصفحة للوصول لملفك الشخصي',
         'يعرض الملف الشخصي اسمك وبريدك ورتبتك',
@@ -66,6 +72,7 @@ export default function InstructionsPage() {
     {
       icon: '⚠️',
       title: 'التبليغ عن مخالفة',
+      color: 'red',
       steps: [
         'اضغط على زر التبليغ بجانب الرسالة المخالفة',
         'اختر سبب التبليغ واكتب تفاصيل إضافية',
@@ -76,44 +83,63 @@ export default function InstructionsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120] px-4 py-12">
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 right-1/3 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 left-1/3 w-96 h-96 bg-purple-500/5 rounded-full blur-3xl" />
+    <div className="page-container bg-[#030711]">
+      <div className="page-bg">
+        <div className="absolute top-[-15%] left-1/2 -translate-x-1/2 w-[800px] h-[500px] bg-violet-600/[0.05] rounded-full blur-[120px] bg-orb-1" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-indigo-600/[0.04] rounded-full blur-[100px] bg-orb-2" />
+        <div className="absolute inset-0 bg-[linear-gradient(rgba(139,92,246,0.012)_1px,transparent_1px),linear-gradient(90deg,rgba(139,92,246,0.012)_1px,transparent_1px)] bg-[size:50px_50px]" />
       </div>
 
-      <div className="relative max-w-4xl mx-auto">
+      <nav className="top-nav">
+        <div className="top-nav-inner">
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <div className="flex items-center gap-1">
+            {[
+              { href: '/welcome', label: 'الترحيب' },
+              { href: '/rules', label: 'القوانين' },
+              { href: '/chat-guide', label: 'الدليل' },
+            ].map(l => (
+              <Link key={l.href} href={l.href} className="text-gray-500 hover:text-white text-[13px] px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">{l.label}</Link>
+            ))}
+          </div>
+        </div>
+      </nav>
+
+      <div className="page-content max-w-3xl mx-auto px-6 py-16">
         <div className="text-center mb-12">
-          <Link href="/" className="text-3xl font-bold gradient-text">ChatZone</Link>
-          <h1 className="text-2xl font-bold text-white mt-4">تعليمات الاستخدام</h1>
-          <p className="text-gray-400 mt-2">دليلك الشامل لاستخدام منصة ChatZone</p>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-violet-500/[0.06] border border-violet-500/10 text-violet-400 text-xs mb-6">
+            <span className="w-1.5 h-1.5 bg-violet-400 rounded-full" />
+            دليل شامل
+          </div>
+          <h1 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight">تعليمات الاستخدام</h1>
+          <p className="text-gray-500 text-sm">دليلك الشامل لاستخدام منصة ChatZone</p>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4">
           {instructions.map((section, index) => (
-            <div key={index} className="glass rounded-2xl p-6 border border-gray-700/30">
+            <div key={index} className="content-card p-6">
               <div className="flex items-center gap-3 mb-4">
-                <span className="text-3xl">{section.icon}</span>
-                <h2 className="text-xl font-bold text-white">{section.title}</h2>
+                <div className={`w-10 h-10 rounded-xl bg-${section.color}-500/[0.08] border border-${section.color}-500/10 flex items-center justify-center text-xl`}>
+                  {section.icon}
+                </div>
+                <h2 className="text-base font-bold text-white">{section.title}</h2>
               </div>
-              <ol className="space-y-3 pr-4">
+              <div className="space-y-2.5 pr-2">
                 {section.steps.map((step, stepIndex) => (
-                  <li key={stepIndex} className="flex items-start gap-3">
-                    <span className="flex-shrink-0 w-6 h-6 bg-violet-500/20 text-violet-400 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">
+                  <div key={stepIndex} className="flex items-start gap-3">
+                    <span className={`flex-shrink-0 w-5 h-5 bg-${section.color}-500/[0.08] text-${section.color}-400 rounded-md flex items-center justify-center text-[10px] font-bold mt-0.5`}>
                       {stepIndex + 1}
                     </span>
-                    <span className="text-gray-300 text-sm leading-relaxed">{step}</span>
-                  </li>
+                    <span className="text-gray-400 text-sm leading-relaxed">{step}</span>
+                  </div>
                 ))}
-              </ol>
+              </div>
             </div>
           ))}
         </div>
 
-        <div className="mt-8 text-center">
-          <Link href="/" className="text-violet-400 hover:text-indigo-300 transition-colors">
-            ← العودة للصفحة الرئيسية
-          </Link>
+        <div className="mt-10 text-center">
+          <Link href="/" className="text-gray-500 hover:text-white text-sm transition-colors">← العودة للصفحة الرئيسية</Link>
         </div>
       </div>
     </div>

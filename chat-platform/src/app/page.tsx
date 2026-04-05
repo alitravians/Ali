@@ -111,7 +111,7 @@ export default function HomePage() {
     { href: '/team', label: 'الفريق', show: true },
     { href: '/chat', label: 'الدردشة', show: isLoggedIn, icon: '💬' },
     { href: '/support', label: 'الدعم الفني', show: isLoggedIn, icon: '🎫' },
-    { href: '/ambiance', label: 'الأجواء', show: true, icon: '🌧️' },
+
   ];
 
   const memberFeatures = [
@@ -155,14 +155,7 @@ export default function HomePage() {
       gradient: 'from-rose-500/15 to-rose-500/[0.02]',
       border: 'border-rose-500/15 hover:border-rose-500/30',
     },
-    {
-      href: '/ambiance',
-      icon: '🌧️',
-      title: 'أجواء هادئة',
-      desc: 'استمتع بأجواء المطر والزجاج الهادئة',
-      gradient: 'from-sky-500/15 to-sky-500/[0.02]',
-      border: 'border-sky-500/15 hover:border-sky-500/30',
-    },
+
   ];
 
   return (
@@ -366,7 +359,7 @@ export default function HomePage() {
                   { icon: '🎫', title: 'دعم فني', desc: 'نظام تذاكر متكامل' },
                   { icon: '📢', title: 'إعلانات', desc: 'تابع آخر الأخبار' },
                   { icon: '⭐', title: 'مستويات', desc: 'ارتقِ بمستواك' },
-                  { icon: '🌧️', title: 'أجواء هادئة', desc: 'استرخِ واستمتع' },
+                  { icon: '🔒', title: 'حماية', desc: 'نظام آمن ومحمي' },
                 ].map((f, i) => (
                   <div key={i} className="text-center p-5 rounded-xl bg-white/[0.02] border border-white/[0.04] hover:border-white/[0.08] transition-all group">
                     <div className="text-2xl mb-2">{f.icon}</div>
