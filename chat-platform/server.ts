@@ -464,13 +464,25 @@ app.prepare().then(() => {
           { level: 0, name: 'member', displayName: 'عضو', color: '#808080' }
         ) || { level: 0, name: 'member', displayName: 'عضو', color: '#808080' };
 
+        // Validate replyToId belongs to same room and isn't deleted
+        let validReplyToId = replyToId || null;
+        if (validReplyToId) {
+          const replyTarget = await prisma.message.findUnique({
+            where: { id: validReplyToId },
+            select: { roomId: true, isDeleted: true },
+          });
+          if (!replyTarget || replyTarget.roomId !== roomId || replyTarget.isDeleted) {
+            validReplyToId = null;
+          }
+        }
+
         // Save message
         const message = await prisma.message.create({
           data: {
             content: filtered,
             userId,
             roomId,
-            replyToId: replyToId || null,
+            replyToId: validReplyToId,
             isBold,
           },
           include: {
@@ -517,10 +529,54 @@ app.prepare().then(() => {
         // Refresh role level for authorization checks
         await refreshRoleLevel();
 
+        // Reject empty content
+        if (!content || !content.trim()) {
+          socket.emit('error', { message: 'لا يمكن إرسال رسالة فارغة' });
+          return;
+        }
+
+        // Enforce message length limit
+        if (content.length > 5000) {
+          socket.emit('error', { message: 'الرسالة طويلة جداً' });
+          return;
+        }
+
         const message = await prisma.message.findUnique({ where: { id: messageId } });
         if (!message) return;
         if (message.userId !== userId && roleLevel < 90) {
           socket.emit('error', { message: 'لا تملك صلاحية تعديل هذه الرسالة' });
+          return;
+        }
+
+        // Check if chat is open
+        const chatSetting = await prisma.siteSetting.findUnique({ where: { key: 'chat_enabled' } });
+        if (chatSetting && chatSetting.value === 'false') {
+          socket.emit('error', { message: 'الدردشة مغلقة حالياً' });
+          return;
+        }
+
+        // Check room frozen
+        const room = await prisma.room.findUnique({ where: { id: message.roomId } });
+        if (room?.isFrozen && roleLevel < 50) {
+          socket.emit('error', { message: 'الغرفة مجمدة حالياً' });
+          return;
+        }
+
+        // Check mute
+        const activeMute = await prisma.mute.findFirst({
+          where: { userId, isActive: true, expiresAt: { gt: new Date() } },
+        });
+        if (activeMute) {
+          socket.emit('error', { message: `أنت مكتوم حتى ${activeMute.expiresAt.toISOString()} – السبب: ${activeMute.reason}` });
+          return;
+        }
+
+        // Check ban
+        const activeBan = await prisma.ban.findFirst({
+          where: { userId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+        });
+        if (activeBan) {
+          socket.emit('error', { message: 'أنت محظور من الدردشة' });
           return;
         }
 
