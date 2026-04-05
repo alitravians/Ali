@@ -70,8 +70,12 @@ export async function POST(req: NextRequest) {
         },
       });
     } else if (type === 'ban') {
+      const MAX_MOD_BAN_MINUTES = 43200; // 30 days
       if (performerLevel < 90 && !duration) {
         return NextResponse.json({ error: 'المشرفون يمكنهم الحظر المؤقت فقط' }, { status: 403 });
+      }
+      if (performerLevel < 90 && duration > MAX_MOD_BAN_MINUTES) {
+        return NextResponse.json({ error: 'المشرفون لا يمكنهم الحظر لأكثر من 30 يوماً' }, { status: 403 });
       }
 
       const expiresAt = duration ? new Date(Date.now() + duration * 60 * 1000) : null;

@@ -172,7 +172,7 @@ app.prepare().then(() => {
 
     // Check if user is banned — prevent banned users from connecting
     const activeBan = await prisma.ban.findFirst({
-      where: { userId: verifiedUserId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      where: { userId: verifiedUserId, isActive: true, isGlobal: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     });
     if (activeBan) {
       socket.emit('error', { message: 'أنت محظور من الدردشة' });
@@ -460,7 +460,7 @@ app.prepare().then(() => {
 
         // Check ban
         const activeBan = await prisma.ban.findFirst({
-          where: { userId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          where: { userId, isActive: true, isGlobal: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
         });
         if (activeBan) {
           socket.emit('error', { message: 'أنت محظور من الدردشة' });
@@ -602,7 +602,7 @@ app.prepare().then(() => {
 
         // Check ban
         const activeBan = await prisma.ban.findFirst({
-          where: { userId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          where: { userId, isActive: true, isGlobal: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
         });
         if (activeBan) {
           socket.emit('error', { message: 'أنت محظور من الدردشة' });
