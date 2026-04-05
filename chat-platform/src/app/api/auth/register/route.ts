@@ -19,7 +19,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, { status: 400 });
     }
 
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    const normalizedEmail = email.toLowerCase().trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
       return NextResponse.json({ error: 'البريد الإلكتروني غير صالح' }, { status: 400 });
     }
 
@@ -30,11 +31,11 @@ export async function POST(req: NextRequest) {
     }
 
     const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username: trimmedUsername }] },
+      where: { OR: [{ email: normalizedEmail }, { username: trimmedUsername }] },
     });
 
     if (existingUser) {
-      if (existingUser.email === email) {
+      if (existingUser.email === normalizedEmail) {
         return NextResponse.json({ error: 'البريد الإلكتروني مسجل مسبقاً' }, { status: 400 });
       }
       return NextResponse.json({ error: 'اسم المستخدم مسجل مسبقاً' }, { status: 400 });
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
     const user = await prisma.user.create({
       data: {
         username: trimmedUsername,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         displayName: trimmedUsername,
         userRoles: defaultRole

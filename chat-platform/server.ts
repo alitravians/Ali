@@ -571,7 +571,7 @@ app.prepare().then(() => {
         }
 
         const message = await prisma.message.findUnique({ where: { id: messageId } });
-        if (!message) return;
+        if (!message || message.isDeleted) return;
         if (message.userId !== userId && roleLevel < 90) {
           socket.emit('error', { message: 'لا تملك صلاحية تعديل هذه الرسالة' });
           return;
@@ -637,9 +637,16 @@ app.prepare().then(() => {
         await refreshRoleLevel();
 
         const message = await prisma.message.findUnique({ where: { id: messageId } });
-        if (!message) return;
+        if (!message || message.isDeleted) return;
+
+        // Regular users can only delete their own messages in rooms they've joined
         if (message.userId !== userId && roleLevel < 50) {
           socket.emit('error', { message: 'لا تملك صلاحية حذف هذه الرسالة' });
+          return;
+        }
+        // Non-mods must be in the room to delete their own messages
+        if (roleLevel < 50 && socketRooms.get(socket.id) !== message.roomId) {
+          socket.emit('error', { message: 'يجب الانضمام للغرفة أولاً' });
           return;
         }
 

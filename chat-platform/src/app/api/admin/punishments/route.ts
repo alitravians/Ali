@@ -171,6 +171,7 @@ export async function DELETE(req: NextRequest) {
 
     const { type, id } = await req.json();
     const performerId = (session.user as any).id;
+    const performerLevel = (session.user as any).roleLevel;
 
     // Validate type
     if (type !== 'mute' && type !== 'ban') {
@@ -178,7 +179,20 @@ export async function DELETE(req: NextRequest) {
     }
 
     if (type === 'mute') {
-      const mute = await prisma.mute.update({
+      // Check issuer's role level before allowing lift
+      const mute = await prisma.mute.findUnique({
+        where: { id },
+        include: { issuer: { include: { userRoles: { include: { role: true }, orderBy: { role: { level: 'desc' } } } } } },
+      });
+      if (!mute) {
+        return NextResponse.json({ error: 'العقوبة غير موجودة' }, { status: 404 });
+      }
+      const issuerLevel = mute.issuer?.userRoles[0]?.role.level || 0;
+      if (issuerLevel >= performerLevel && performerLevel < 100) {
+        return NextResponse.json({ error: 'لا يمكنك رفع عقوبة صادرة من مستخدم بنفس رتبتك أو أعلى' }, { status: 403 });
+      }
+
+      await prisma.mute.update({
         where: { id },
         data: { isActive: false, liftedBy: performerId, liftedAt: new Date() },
       });
@@ -192,7 +206,20 @@ export async function DELETE(req: NextRequest) {
         },
       });
     } else if (type === 'ban') {
-      const ban = await prisma.ban.update({
+      // Check issuer's role level before allowing lift
+      const ban = await prisma.ban.findUnique({
+        where: { id },
+        include: { issuer: { include: { userRoles: { include: { role: true }, orderBy: { role: { level: 'desc' } } } } } },
+      });
+      if (!ban) {
+        return NextResponse.json({ error: 'العقوبة غير موجودة' }, { status: 404 });
+      }
+      const issuerLevel = ban.issuer?.userRoles[0]?.role.level || 0;
+      if (issuerLevel >= performerLevel && performerLevel < 100) {
+        return NextResponse.json({ error: 'لا يمكنك رفع عقوبة صادرة من مستخدم بنفس رتبتك أو أعلى' }, { status: 403 });
+      }
+
+      await prisma.ban.update({
         where: { id },
         data: { isActive: false, liftedBy: performerId, liftedAt: new Date() },
       });
