@@ -582,7 +582,7 @@ app.prepare().then(() => {
         });
 
         // Detect @mentions and notify
-        const mentionRegex = /@(\S+)/g;
+        const mentionRegex = /@(\w+)/g;
         let match;
         const mentionedUsernames = new Set<string>();
         while ((match = mentionRegex.exec(filtered)) !== null) {
