@@ -35,7 +35,10 @@ export default function HomePage() {
         body: JSON.stringify({ code: adminCode }),
       });
       const data = await res.json();
-      if (res.ok && data.redirect) {
+      if (data.needsLogin) {
+        // Code is correct but user needs to log in first
+        router.push(data.redirect);
+      } else if (res.ok && data.redirect) {
         router.push(data.redirect);
       } else {
         setCodeError(data.error || 'رمز الدخول غير صحيح');
