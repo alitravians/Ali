@@ -27,6 +27,35 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Auto-retry admin code after login redirect
+  useEffect(() => {
+    const savedCode = sessionStorage.getItem('pendingAdminCode');
+    if (savedCode) {
+      sessionStorage.removeItem('pendingAdminCode');
+      setAdminCode(savedCode);
+      // Auto-submit the saved code
+      (async () => {
+        try {
+          const res = await fetch('/api/admin/verify-code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: savedCode }),
+          });
+          const data = await res.json();
+          if (res.ok && data.redirect) {
+            router.push(data.redirect);
+          } else if (data.error) {
+            setShowAdminModal(true);
+            setCodeError(data.error);
+          }
+        } catch {
+          setShowAdminModal(true);
+          setCodeError('حدث خطأ في الاتصال');
+        }
+      })();
+    }
+  }, [router]);
+
   const handleAdminAccess = async () => {
     try {
       const res = await fetch('/api/admin/verify-code', {
@@ -36,7 +65,8 @@ export default function HomePage() {
       });
       const data = await res.json();
       if (data.needsLogin) {
-        // Code is correct but user needs to log in first
+        // User needs to log in first — save code for auto-retry after login
+        sessionStorage.setItem('pendingAdminCode', adminCode);
         router.push(data.redirect);
       } else if (res.ok && data.redirect) {
         router.push(data.redirect);

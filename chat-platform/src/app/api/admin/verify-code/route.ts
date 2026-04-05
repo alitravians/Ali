@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       // No rate limiting for unauthenticated users to prevent DoS against admin IPs
       return NextResponse.json({
         needsLogin: true,
-        redirect: '/login?callbackUrl=/chat',
+        redirect: '/login?callbackUrl=/',
         message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
       });
     }
