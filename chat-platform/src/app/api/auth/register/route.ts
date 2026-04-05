@@ -10,8 +10,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'جميع الحقول مطلوبة' }, { status: 400 });
     }
 
-    if (username.length < 3 || username.length > 20) {
-      return NextResponse.json({ error: 'اسم المستخدم يجب أن يكون بين 3 و 20 حرف' }, { status: 400 });
+    const trimmedUsername = username.trim();
+    if (trimmedUsername.length < 3 || trimmedUsername.length > 20) {
+      return NextResponse.json({ error: 'اسم المستخدم يجب أن يكون بين 3 و 20 حرف ولا يمكن أن يكون فارغاً' }, { status: 400 });
     }
 
     if (password.length < 6) {
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     }
 
     const existingUser = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] },
+      where: { OR: [{ email }, { username: trimmedUsername }] },
     });
 
     if (existingUser) {
@@ -45,10 +46,10 @@ export async function POST(req: NextRequest) {
 
     const user = await prisma.user.create({
       data: {
-        username,
+        username: trimmedUsername,
         email,
         password: hashedPassword,
-        displayName: username,
+        displayName: trimmedUsername,
         userRoles: defaultRole
           ? { create: { roleId: defaultRole.id } }
           : undefined,

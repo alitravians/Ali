@@ -652,6 +652,9 @@ app.prepare().then(() => {
 
     // Typing indicators
     socket.on('typing:start', ({ roomId }) => {
+      // Verify user has joined this room
+      if (socketRooms.get(socket.id) !== roomId) return;
+
       if (!typingUsers.has(roomId)) typingUsers.set(roomId, new Map());
       const roomTyping = typingUsers.get(roomId)!;
 
@@ -672,6 +675,9 @@ app.prepare().then(() => {
     });
 
     socket.on('typing:stop', ({ roomId }) => {
+      // Verify user has joined this room
+      if (socketRooms.get(socket.id) !== roomId) return;
+
       const roomTyping = typingUsers.get(roomId);
       if (roomTyping) {
         const existing = roomTyping.get(userId);
