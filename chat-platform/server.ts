@@ -236,6 +236,22 @@ app.prepare().then(() => {
 
     // Join room
     socket.on('room:join', async ({ roomId }) => {
+      // Check if room exists and enforce private room access control
+      const room = await prisma.room.findUnique({ where: { id: roomId } });
+      if (!room) {
+        socket.emit('error', { message: 'الغرفة غير موجودة' });
+        return;
+      }
+      if (room.isPrivate || room.type === 'PRIVATE') {
+        const isMember = await prisma.roomMember.findUnique({
+          where: { userId_roomId: { userId, roomId } },
+        });
+        if (!isMember && roleLevel < 50) {
+          socket.emit('error', { message: 'هذه الغرفة خاصة' });
+          return;
+        }
+      }
+
       // Leave previous room if any
       const prevRoom = socketRooms.get(socket.id);
       if (prevRoom && prevRoom !== roomId) {
@@ -304,6 +320,14 @@ app.prepare().then(() => {
       try {
         // Refresh role level for authorization checks
         await refreshRoleLevel();
+
+        // Enforce message length limit
+        const maxLenSetting = await prisma.siteSetting.findUnique({ where: { key: 'max_message_length' } });
+        const maxLen = parseInt(maxLenSetting?.value || '2000', 10);
+        if (content.length > maxLen) {
+          socket.emit('error', { message: 'الرسالة طويلة جداً' });
+          return;
+        }
 
         // Check if chat is open
         const chatSetting = await prisma.siteSetting.findUnique({ where: { key: 'chat_enabled' } });

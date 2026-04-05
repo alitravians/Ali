@@ -39,7 +39,14 @@ export async function PUT(req: NextRequest) {
 
     const room = await prisma.room.update({
       where: { id },
-      data: { name, description, type, isPrivate, isFrozen, maxMembers },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(type !== undefined && { type }),
+        ...(isPrivate !== undefined && { isPrivate }),
+        ...(isFrozen !== undefined && { isFrozen }),
+        ...(maxMembers !== undefined && { maxMembers }),
+      },
     });
 
     await prisma.auditLog.create({

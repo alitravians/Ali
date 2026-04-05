@@ -45,6 +45,17 @@ export function checkSpam(userId: string): boolean {
   return false; // Not spam
 }
 
+// Periodically clean up stale spam tracking entries
+setInterval(() => {
+  const now = Date.now();
+  for (const [userId, timestamps] of messageTimestamps) {
+    const recent = timestamps.filter((t) => now - t < INTERVAL_MS);
+    if (recent.length === 0) {
+      messageTimestamps.delete(userId);
+    }
+  }
+}, 60_000); // Clean up every minute
+
 export function processBoldMessage(content: string, hasPermission: boolean): { text: string; isBold: boolean } {
   if (content.startsWith('$') && hasPermission) {
     return { text: content.substring(1).trim(), isBold: true };
