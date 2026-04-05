@@ -229,8 +229,7 @@ export default function HomePage() {
 
             {/* Title */}
             <h2 className="text-6xl md:text-8xl font-black mb-4 tracking-tight leading-none">
-              <span className="gradient-text-animated">Chat</span>
-              <span className="text-white">Zone</span>
+              <span className="gradient-text-animated">{siteName}</span>
             </h2>
 
             {/* Subtitle */}
