@@ -5,12 +5,34 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
 // ==================== Types ====================
-type Tab = 'dashboard' | 'rooms' | 'users' | 'announcements' | 'reports' | 'punishments' | 'audit' | 'settings';
+type Tab = 'dashboard' | 'rooms' | 'users' | 'announcements' | 'reports' | 'punishments' | 'audit' | 'settings' | 'tickets';
 
 interface SidebarGroup {
   title: string;
   items: { id: Tab | 'team'; label: string; icon: string; badge?: number; href?: string }[];
 }
+
+const TICKET_STATUSES: Record<string, { label: string; color: string; bg: string }> = {
+  OPEN: { label: 'مفتوحة', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+  REVIEWING: { label: 'قيد المراجعة', color: 'text-blue-400', bg: 'bg-blue-500/10' },
+  REPLIED: { label: 'تم الرد', color: 'text-violet-400', bg: 'bg-violet-500/10' },
+  WAITING_USER: { label: 'بانتظار المستخدم', color: 'text-amber-400', bg: 'bg-amber-500/10' },
+  CLOSED: { label: 'مغلقة', color: 'text-gray-400', bg: 'bg-gray-500/10' },
+  ESCALATED: { label: 'مصعدة', color: 'text-red-400', bg: 'bg-red-500/10' },
+};
+
+const TICKET_PRIORITIES: Record<string, { label: string; color: string }> = {
+  LOW: { label: 'منخفضة', color: 'text-gray-400' },
+  MEDIUM: { label: 'متوسطة', color: 'text-blue-400' },
+  HIGH: { label: 'عالية', color: 'text-amber-400' },
+  URGENT: { label: 'عاجلة', color: 'text-red-400' },
+};
+
+const TICKET_DEPARTMENTS: Record<string, string> = {
+  technical: 'مشاكل تقنية', account: 'مشاكل الحساب', chat: 'مشاكل الدردشة',
+  notifications: 'مشاكل الإشعارات', ranks: 'مشاكل الرتب', items: 'مشاكل العناصر',
+  suggestions: 'اقتراحات', general: 'استفسارات عامة',
+};
 
 // ==================== Component ====================
 export default function AdminPage() {
@@ -29,6 +51,11 @@ export default function AdminPage() {
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
   const [bannedWords, setBannedWords] = useState<string[]>([]);
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [selectedTicket, setSelectedTicket] = useState<any>(null);
+  const [ticketReply, setTicketReply] = useState('');
+  const [ticketFilter, setTicketFilter] = useState('');
+  const [pendingTickets, setPendingTickets] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Form states
@@ -153,6 +180,16 @@ export default function AdminPage() {
           setPageWelcome(s.page_welcome || '');
           setPageAbout(s.page_about || '');
           setPagePrivacy(s.page_privacy || '');
+          break;
+        }
+        case 'tickets': {
+          const url = ticketFilter ? `/api/tickets?status=${ticketFilter}` : '/api/tickets';
+          const ticketsRes = await fetch(url);
+          if (ticketsRes.ok) {
+            const ticketsData = await ticketsRes.json();
+            setTickets(ticketsData);
+            setPendingTickets(ticketsData.filter((t: any) => t.status === 'OPEN' || t.status === 'ESCALATED').length);
+          }
           break;
         }
       }
@@ -369,6 +406,7 @@ export default function AdminPage() {
         { id: 'users', label: 'المستخدمين', icon: '👥' },
         { id: 'punishments', label: 'العقوبات', icon: '⚖️' },
         { id: 'reports', label: 'البلاغات', icon: '🚨', badge: pendingReports },
+        { id: 'tickets', label: 'التذاكر', icon: '🎫', badge: pendingTickets },
       ],
     },
     {
@@ -427,6 +465,7 @@ export default function AdminPage() {
     punishments: 'العقوبات',
     audit: 'السجل الإداري',
     settings: 'الإعدادات',
+    tickets: 'التذاكر',
   };
 
   // Filtered audit logs
@@ -1064,6 +1103,157 @@ export default function AdminPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* ==================== TICKETS ==================== */}
+              {activeTab === 'tickets' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-1">إدارة التذاكر</h2>
+                      <p className="text-gray-500 text-sm">مراجعة والرد على تذاكر الدعم الفني</p>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      {['', 'OPEN', 'REVIEWING', 'REPLIED', 'WAITING_USER', 'ESCALATED', 'CLOSED'].map(s => {
+                        const info = s ? TICKET_STATUSES[s] : { label: 'الكل', color: 'text-white', bg: 'bg-violet-500/10' };
+                        return (
+                          <button key={s} onClick={() => { setTicketFilter(s); loadTabData('tickets'); }}
+                            className={`px-2.5 py-1 rounded-lg transition-all ${ticketFilter === s ? `${info.bg} ${info.color} font-medium` : 'text-gray-500 hover:text-white'}`}>
+                            {info.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {selectedTicket ? (
+                    <div className="space-y-4">
+                      <button onClick={() => setSelectedTicket(null)} className="text-gray-500 hover:text-white text-xs">← العودة للقائمة</button>
+                      <div className="content-card p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-bold text-white mb-1">{selectedTicket.title}</h3>
+                            <div className="flex flex-wrap gap-2 text-[11px]">
+                              <span className={`px-2 py-0.5 rounded ${TICKET_STATUSES[selectedTicket.status]?.bg} ${TICKET_STATUSES[selectedTicket.status]?.color}`}>{TICKET_STATUSES[selectedTicket.status]?.label}</span>
+                              <span className={TICKET_PRIORITIES[selectedTicket.priority]?.color}>⚡ {TICKET_PRIORITIES[selectedTicket.priority]?.label}</span>
+                              <span className="text-gray-500">📁 {TICKET_DEPARTMENTS[selectedTicket.department] || selectedTicket.department}</span>
+                              <span className="text-gray-500">👤 {selectedTicket.user?.displayName || selectedTicket.user?.username}</span>
+                              <span className="text-gray-600">📅 {new Date(selectedTicket.createdAt).toLocaleDateString('ar-SA')}</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-1">
+                            {['REVIEWING', 'REPLIED', 'WAITING_USER', 'ESCALATED', 'CLOSED'].map(s => {
+                              if (selectedTicket.status === s) return null;
+                              const si = TICKET_STATUSES[s];
+                              return (
+                                <button key={s} onClick={async () => {
+                                  const res = await fetch(`/api/tickets/${selectedTicket.id}`, {
+                                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ status: s }),
+                                  });
+                                  if (res.ok) {
+                                    const updated = await res.json();
+                                    setSelectedTicket({ ...selectedTicket, status: updated.status });
+                                    loadTabData('tickets');
+                                    showMsg(`تم تغيير الحالة إلى ${si.label}`, 'success');
+                                  }
+                                }} className={`px-2 py-1 rounded text-[10px] ${si.bg} ${si.color} hover:opacity-80 transition-all`}>
+                                  {si.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                        <div className="bg-white/[0.02] rounded-xl p-4 border border-white/[0.04] mb-4">
+                          <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap">{selectedTicket.description}</p>
+                        </div>
+
+                        {/* Replies */}
+                        <h4 className="text-sm font-medium text-gray-400 mb-3">الردود ({selectedTicket.replies?.length || 0})</h4>
+                        <div className="space-y-3 mb-4">
+                          {selectedTicket.replies?.map((reply: any) => (
+                            <div key={reply.id} className={`rounded-xl p-3 border ${reply.isStaff ? 'bg-violet-500/[0.04] border-violet-500/10' : 'bg-white/[0.02] border-white/[0.06]'}`}>
+                              <div className="flex items-center gap-2 mb-1.5">
+                                <span className="text-white text-xs font-medium">{reply.user?.displayName || reply.user?.username}</span>
+                                {reply.isStaff && <span className="text-[9px] px-1.5 py-0.5 rounded bg-violet-500/15 text-violet-400">فريق الدعم</span>}
+                                <span className="text-gray-600 text-[10px] mr-auto">{new Date(reply.createdAt).toLocaleString('ar-SA')}</span>
+                              </div>
+                              <p className="text-gray-300 text-sm whitespace-pre-wrap">{reply.content}</p>
+                            </div>
+                          ))}
+                        </div>
+
+                        {selectedTicket.status !== 'CLOSED' && (
+                          <div className="flex gap-2">
+                            <input
+                              type="text" value={ticketReply} onChange={e => setTicketReply(e.target.value)}
+                              placeholder="اكتب ردك هنا..."
+                              className="flex-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/40 placeholder:text-gray-600"
+                              onKeyDown={e => { if (e.key === 'Enter' && ticketReply.trim()) {
+                                (async () => {
+                                  const res = await fetch(`/api/tickets/${selectedTicket.id}/replies`, {
+                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ content: ticketReply }),
+                                  });
+                                  if (res.ok) {
+                                    setTicketReply('');
+                                    // Reload ticket
+                                    const tRes = await fetch(`/api/tickets/${selectedTicket.id}`);
+                                    if (tRes.ok) setSelectedTicket(await tRes.json());
+                                    showMsg('تم إرسال الرد', 'success');
+                                  }
+                                })();
+                              }}}
+                            />
+                            <button onClick={async () => {
+                              if (!ticketReply.trim()) return;
+                              const res = await fetch(`/api/tickets/${selectedTicket.id}/replies`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ content: ticketReply }),
+                              });
+                              if (res.ok) {
+                                setTicketReply('');
+                                const tRes = await fetch(`/api/tickets/${selectedTicket.id}`);
+                                if (tRes.ok) setSelectedTicket(await tRes.json());
+                                showMsg('تم إرسال الرد', 'success');
+                              }
+                            }} className="px-5 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-white text-sm font-medium transition-colors">
+                              إرسال
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {tickets.length === 0 ? (
+                        <div className="text-center py-16 content-card">
+                          <div className="text-4xl mb-3">📭</div>
+                          <p className="text-gray-400">لا توجد تذاكر</p>
+                        </div>
+                      ) : tickets.map((ticket) => (
+                        <div key={ticket.id} onClick={async () => {
+                          const res = await fetch(`/api/tickets/${ticket.id}`);
+                          if (res.ok) setSelectedTicket(await res.json());
+                        }} className="content-card p-4 cursor-pointer hover:bg-white/[0.04] transition-all">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="text-white text-sm font-medium truncate mb-1">{ticket.title}</h4>
+                              <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                                <span className={`px-1.5 py-0.5 rounded ${TICKET_STATUSES[ticket.status]?.bg} ${TICKET_STATUSES[ticket.status]?.color}`}>{TICKET_STATUSES[ticket.status]?.label}</span>
+                                <span className={TICKET_PRIORITIES[ticket.priority]?.color}>{TICKET_PRIORITIES[ticket.priority]?.label}</span>
+                                <span className="text-gray-600">{TICKET_DEPARTMENTS[ticket.department] || ticket.department}</span>
+                                <span className="text-gray-600">👤 {ticket.user?.displayName || ticket.user?.username}</span>
+                                <span className="text-gray-700">{new Date(ticket.createdAt).toLocaleDateString('ar-SA')}</span>
+                              </div>
+                            </div>
+                            <span className="text-gray-600 text-[11px]">💬 {ticket._count?.replies || 0}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 

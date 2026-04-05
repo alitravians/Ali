@@ -55,6 +55,7 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
             username: true,
             displayName: true,
             avatar: true,
+            level: true,
             userRoles: {
               include: { role: true },
               orderBy: { role: { level: 'desc' } },
@@ -104,6 +105,7 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
           roleDisplayName: highestRole?.displayName || 'عضو',
           roleColor: highestRole?.color || '#808080',
           roleLevel: highestRole?.level || 0,
+          level: (msg.user as any).level || 1,
         },
         replyTo: msg.replyTo
           ? { id: msg.replyTo.id, content: msg.replyTo.content, user: { username: msg.replyTo.user.username } }

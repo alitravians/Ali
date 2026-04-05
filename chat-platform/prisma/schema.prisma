@@ -17,6 +17,8 @@ model User {
   displayName   String?
   avatar        String?
   bio           String?
+  level         Int       @default(1)
+  xp            Int       @default(0)
   status        UserStatus @default(OFFLINE)
   lastActive    DateTime?
   createdAt     DateTime  @default(now())
@@ -48,6 +50,9 @@ model User {
   reactions       Reaction[]
   blockedUsers    UserBlock[]    @relation("BlockedByUser")
   blockedBy       UserBlock[]    @relation("BlockedUser")
+  tickets         Ticket[]       @relation("TicketCreator")
+  assignedTickets Ticket[]       @relation("TicketAssignee")
+  ticketReplies   TicketReply[]
 
   @@map("users")
 }
@@ -459,6 +464,60 @@ model Reaction {
   @@unique([userId, messageId, emoji])
   @@index([messageId])
   @@map("reactions")
+}
+
+// ==================== Support Tickets ====================
+model Ticket {
+  id          String         @id @default(cuid())
+  title       String
+  department  String         // e.g. "technical", "account", "chat", etc.
+  type        String         // e.g. "bug", "help", "report", "inquiry", "suggestion"
+  priority    TicketPriority @default(MEDIUM)
+  status      TicketStatus   @default(OPEN)
+  description String
+  userId      String
+  assignedTo  String?
+  closedAt    DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  user     User           @relation("TicketCreator", fields: [userId], references: [id], onDelete: Cascade)
+  assignee User?          @relation("TicketAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  replies  TicketReply[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("tickets")
+}
+
+model TicketReply {
+  id        String   @id @default(cuid())
+  ticketId  String
+  userId    String
+  content   String
+  isStaff   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ticket_replies")
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  REVIEWING
+  REPLIED
+  WAITING_USER
+  CLOSED
+  ESCALATED
 }
 
 // ==================== User Blocks ====================

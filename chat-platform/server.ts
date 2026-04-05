@@ -581,6 +581,22 @@ app.prepare().then(() => {
             : undefined,
         });
 
+        // Award XP for sending a message (5 XP per message, level up every 100 XP)
+        try {
+          const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: { xp: { increment: 5 } },
+            select: { xp: true, level: true },
+          });
+          const newLevel = Math.floor(updatedUser.xp / 100) + 1;
+          if (newLevel !== updatedUser.level) {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { level: newLevel },
+            });
+          }
+        } catch { /* XP update non-critical */ }
+
         // Detect @mentions and notify
         const mentionRegex = /@(\w+)/g;
         let match;

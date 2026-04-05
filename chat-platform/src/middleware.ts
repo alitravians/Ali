@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
-const protectedPaths = ['/chat', '/rooms', '/profile', '/notifications', '/admin', '/moderator'];
+const protectedPaths = ['/chat', '/rooms', '/profile', '/notifications', '/admin', '/moderator', '/support'];
 const authPaths = ['/login', '/register'];
 
 export async function middleware(request: NextRequest) {
@@ -19,23 +19,30 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // After login, redirect to homepage (not /chat)
   if (isAuthPath && token) {
-    return NextResponse.redirect(new URL('/chat', request.url));
+    return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Admin panel protection
+  // Admin panel protection - must be logged in AND have admin role
   if (pathname.startsWith('/admin')) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login?callbackUrl=/admin', request.url));
+    }
     const roleLevel = (token as any)?.roleLevel || 0;
     if (roleLevel < 90) {
-      return NextResponse.redirect(new URL('/chat', request.url));
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
   // Moderator panel protection
   if (pathname.startsWith('/moderator')) {
+    if (!token) {
+      return NextResponse.redirect(new URL('/login?callbackUrl=/moderator', request.url));
+    }
     const roleLevel = (token as any)?.roleLevel || 0;
     if (roleLevel < 50) {
-      return NextResponse.redirect(new URL('/chat', request.url));
+      return NextResponse.redirect(new URL('/', request.url));
     }
   }
 
@@ -43,5 +50,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/chat/:path*', '/rooms/:path*', '/profile/:path*', '/notifications/:path*', '/admin/:path*', '/moderator/:path*', '/login', '/register'],
+  matcher: ['/chat/:path*', '/rooms/:path*', '/profile/:path*', '/notifications/:path*', '/admin/:path*', '/moderator/:path*', '/login', '/register', '/support/:path*'],
 };

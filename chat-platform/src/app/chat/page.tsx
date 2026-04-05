@@ -902,6 +902,11 @@ function ChatContent() {
                                 {getRoleBadge(msg.user.roleLevel).icon} {msg.user.roleDisplayName}
                               </span>
                             )}
+                            {(msg.user as any).level > 0 && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-gradient-to-r from-amber-500/10 to-yellow-500/10 border border-amber-500/15 text-amber-400 font-bold flex items-center gap-0.5" title={`المستوى ${(msg.user as any).level || 1}`}>
+                                💎 {(msg.user as any).level || 1}
+                              </span>
+                            )}
                             <span className="text-[10px] text-gray-600">
                               {new Date(msg.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                             </span>
