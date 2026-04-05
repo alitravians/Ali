@@ -22,24 +22,35 @@ export default function RainBackground() {
     }));
   }, []);
 
-  // Start audio on first user interaction (browser autoplay policy)
+  // Start audio - called on user interaction
   const startAudio = useCallback(() => {
     if (audioStartedRef.current) return;
     audioStartedRef.current = true;
 
-    // Start rain sound
-    if (rainAudioRef.current) {
-      rainAudioRef.current.volume = 0.25;
-      rainAudioRef.current.play().catch(() => {});
-    }
+    // Create fresh audio elements inside the gesture handler for mobile compatibility
+    const rainAudio = new Audio('/sounds/rain.mp3');
+    rainAudio.loop = true;
+    rainAudio.volume = 0.25;
+    rainAudio.setAttribute('playsinline', '');
+    rainAudioRef.current = rainAudio;
 
-    // Play glass breaking sound once at start
-    if (glassAudioRef.current) {
-      glassAudioRef.current.volume = 0.15;
-      glassAudioRef.current.play().catch(() => {});
-    }
+    const glassAudio = new Audio('/sounds/glass.mp3');
+    glassAudio.volume = 0.15;
+    glassAudio.setAttribute('playsinline', '');
+    glassAudioRef.current = glassAudio;
 
-    // Repeat glass breaking sound every 45-90 seconds randomly
+    // Play rain immediately
+    rainAudio.play().catch(() => {
+      // If this still fails, reset so we can try again
+      audioStartedRef.current = false;
+    });
+
+    // Play glass after 2 seconds
+    setTimeout(() => {
+      glassAudio.play().catch(() => {});
+    }, 2000);
+
+    // Repeat glass breaking every 45-90 seconds
     glassIntervalRef.current = setInterval(() => {
       if (glassAudioRef.current) {
         glassAudioRef.current.currentTime = 0;
@@ -90,50 +101,60 @@ export default function RainBackground() {
     };
   }, [initDrops]);
 
-  // Auto-play audio on first user interaction
+  // Auto-play audio: try immediately, fallback to first user interaction
   useEffect(() => {
-    // Create audio elements programmatically
-    const rainAudio = new Audio('/sounds/rain.mp3');
-    rainAudio.loop = true;
-    rainAudio.preload = 'auto';
-    rainAudioRef.current = rainAudio;
-
-    const glassAudio = new Audio('/sounds/glass.mp3');
-    glassAudio.preload = 'auto';
-    glassAudioRef.current = glassAudio;
-
-    // Try to play immediately (works if browser allows)
-    rainAudio.volume = 0.25;
-    rainAudio.play().then(() => {
+    // Try to autoplay immediately (works on desktop if browser allows)
+    const tryAutoplay = new Audio('/sounds/rain.mp3');
+    tryAutoplay.loop = true;
+    tryAutoplay.volume = 0.25;
+    tryAutoplay.play().then(() => {
+      // Autoplay worked (desktop)
       audioStartedRef.current = true;
-      // Also play glass after a short delay
+      rainAudioRef.current = tryAutoplay;
+
+      const glassAudio = new Audio('/sounds/glass.mp3');
+      glassAudio.volume = 0.15;
+      glassAudioRef.current = glassAudio;
+
       setTimeout(() => {
-        glassAudio.volume = 0.15;
         glassAudio.play().catch(() => {});
       }, 2000);
-      // Set up glass interval
+
       glassIntervalRef.current = setInterval(() => {
         glassAudio.currentTime = 0;
         glassAudio.volume = 0.1 + Math.random() * 0.1;
         glassAudio.play().catch(() => {});
       }, 45000 + Math.random() * 45000);
     }).catch(() => {
-      // Browser blocked autoplay - wait for first interaction
+      // Autoplay blocked (mobile) - clean up and wait for interaction
+      tryAutoplay.pause();
+      tryAutoplay.src = '';
     });
 
-    // Listen for first user interaction to start audio
-    const events = ['click', 'touchstart', 'keydown', 'scroll'];
+    // Listen for user interaction to unlock audio (mobile)
+    // IMPORTANT: On Android Chrome, 'click' works but 'touchstart' does NOT
     const handler = () => {
       startAudio();
-      events.forEach(e => document.removeEventListener(e, handler));
+      // Remove all listeners after first successful start
+      interactionEvents.forEach(e => document.removeEventListener(e, handler));
     };
-    events.forEach(e => document.addEventListener(e, handler, { once: false, passive: true }));
+
+    const interactionEvents = ['click', 'touchend', 'keydown'];
+    interactionEvents.forEach(e => {
+      document.addEventListener(e, handler, { passive: true });
+    });
 
     return () => {
-      events.forEach(e => document.removeEventListener(e, handler));
+      interactionEvents.forEach(e => document.removeEventListener(e, handler));
       if (glassIntervalRef.current) clearInterval(glassIntervalRef.current);
-      rainAudio.pause();
-      glassAudio.pause();
+      if (rainAudioRef.current) {
+        rainAudioRef.current.pause();
+        rainAudioRef.current.src = '';
+      }
+      if (glassAudioRef.current) {
+        glassAudioRef.current.pause();
+        glassAudioRef.current.src = '';
+      }
     };
   }, [startAudio]);
 
