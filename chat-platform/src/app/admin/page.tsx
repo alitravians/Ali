@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -35,6 +35,7 @@ export default function AdminPage() {
   const [newRoom, setNewRoom] = useState({ name: '', description: '', type: 'PUBLIC' });
   const [newAnnouncement, setNewAnnouncement] = useState({ title: '', content: '', isPinned: false });
   const [searchUser, setSearchUser] = useState('');
+  const searchUserRef = useRef('');
   const [newBannedWord, setNewBannedWord] = useState('');
   const [auditFilter, setAuditFilter] = useState('all');
 
@@ -85,7 +86,7 @@ export default function AdminPage() {
           break;
         }
         case 'users': {
-          const usersRes = await fetch(`/api/admin/users?search=${searchUser}`);
+          const usersRes = await fetch(`/api/admin/users?search=${searchUserRef.current}`);
           const usersData = await usersRes.json();
           setUsers(usersData.users || []);
           // Also load roles for role management
@@ -143,7 +144,7 @@ export default function AdminPage() {
       }
     } catch (e) { console.error(e); }
     setLoading(false);
-  }, [searchUser]);
+  }, []);
 
   useEffect(() => { loadTabData(activeTab); }, [activeTab, loadTabData]);
 
@@ -694,7 +695,7 @@ export default function AdminPage() {
                     <div className="flex-1 relative">
                       <input
                         value={searchUser}
-                        onChange={e => setSearchUser(e.target.value)}
+                        onChange={e => { setSearchUser(e.target.value); searchUserRef.current = e.target.value; }}
                         onKeyDown={e => e.key === 'Enter' && loadTabData('users')}
                         placeholder="بحث بالاسم أو البريد الإلكتروني..."
                         className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 pr-10 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"

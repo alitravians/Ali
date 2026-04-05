@@ -64,6 +64,9 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
       },
     });
 
+    // Compute nextCursor BEFORE reverse — messages[messages.length-1] is the oldest in desc order
+    const nextCursor = messages.length === limit ? messages[messages.length - 1]?.id : null;
+
     const result = messages.reverse().map((msg) => {
       const highestRole = msg.user.userRoles[0]?.role;
       return {
@@ -93,7 +96,7 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
 
     return NextResponse.json({
       messages: result,
-      nextCursor: messages.length === limit ? messages[messages.length - 1]?.id : null,
+      nextCursor,
     });
   } catch (error) {
     console.error('Error fetching messages:', error);
