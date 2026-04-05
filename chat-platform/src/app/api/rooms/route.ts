@@ -11,9 +11,16 @@ export async function GET() {
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
+    const userId = (session.user as any).id;
+    const roleLevel = (session.user as any).roleLevel || 0;
+
     const rooms = await prisma.room.findMany({
       include: {
         _count: { select: { members: true, messages: true } },
+        members: {
+          where: { userId },
+          select: { userId: true },
+        },
         messages: {
           take: 1,
           orderBy: { createdAt: 'desc' },
@@ -25,25 +32,31 @@ export async function GET() {
       orderBy: { sortOrder: 'asc' },
     });
 
-    const result = rooms.map((room) => ({
-      id: room.id,
-      name: room.name,
-      description: room.description,
-      type: room.type,
-      isPrivate: room.isPrivate,
-      isFrozen: room.isFrozen,
-      maxMembers: room.maxMembers,
-      sortOrder: room.sortOrder,
-      memberCount: room._count.members,
-      messageCount: room._count.messages,
-      lastMessage: room.messages[0]
-        ? {
-            content: room.messages[0].content,
-            username: room.messages[0].user.username,
-            createdAt: room.messages[0].createdAt,
-          }
-        : null,
-    }));
+    const result = rooms.map((room) => {
+      const isPrivateRoom = room.isPrivate || room.type === 'PRIVATE';
+      const isMember = room.members.length > 0;
+      const hasAccess = !isPrivateRoom || isMember || roleLevel >= 50;
+
+      return {
+        id: room.id,
+        name: room.name,
+        description: hasAccess ? room.description : null,
+        type: room.type,
+        isPrivate: room.isPrivate,
+        isFrozen: room.isFrozen,
+        maxMembers: room.maxMembers,
+        sortOrder: room.sortOrder,
+        memberCount: room._count.members,
+        messageCount: hasAccess ? room._count.messages : 0,
+        lastMessage: hasAccess && room.messages[0]
+          ? {
+              content: room.messages[0].content,
+              username: room.messages[0].user.username,
+              createdAt: room.messages[0].createdAt,
+            }
+          : null,
+      };
+    });
 
     return NextResponse.json(result);
   } catch (error) {

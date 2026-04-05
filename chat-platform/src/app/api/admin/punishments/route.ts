@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'المستخدم غير موجود' }, { status: 404 });
     }
 
-    const targetLevel = targetUser.userRoles[0]?.role.level || 10;
+    const targetLevel = targetUser.userRoles[0]?.role.level || 0;
     if (targetLevel >= performerLevel) {
       return NextResponse.json({ error: 'لا يمكنك تطبيق عقوبة على مستخدم بنفس رتبتك أو أعلى' }, { status: 403 });
     }

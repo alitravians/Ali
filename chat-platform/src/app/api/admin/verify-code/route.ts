@@ -46,42 +46,54 @@ export async function POST(request: Request) {
     const adminCode = process.env.ADMIN_ACCESS_CODE || '3131';
     const moderatorCode = process.env.MODERATOR_ACCESS_CODE || '2121';
 
-    // Check if code is valid first
-    let targetPath = '';
-    let requiredLevel = 0;
-
-    if (code === adminCode) {
-      targetPath = '/admin';
-      requiredLevel = 90;
-    } else if (code === moderatorCode) {
-      targetPath = '/moderator';
-      requiredLevel = 50;
-    } else {
-      return NextResponse.json({ error: 'رمز الدخول غير صحيح' }, { status: 401 });
-    }
-
-    // Code is correct — now check if user is logged in
+    // Check authentication FIRST before revealing whether code is correct
     const session = await getServerSession(authOptions);
 
     if (!session?.user) {
-      // Not logged in — tell them to log in first, then redirect to admin
-      return NextResponse.json({
-        needsLogin: true,
-        redirect: `/login?callbackUrl=${targetPath}`,
-        message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
-      });
+      // Not logged in — validate code silently, but always respond with needsLogin
+      // This prevents unauthenticated brute-force by not revealing code validity
+      if (code === adminCode) {
+        return NextResponse.json({
+          needsLogin: true,
+          redirect: `/login?callbackUrl=/admin`,
+          message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
+        });
+      } else if (code === moderatorCode) {
+        return NextResponse.json({
+          needsLogin: true,
+          redirect: `/login?callbackUrl=/moderator`,
+          message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
+        });
+      } else {
+        // Wrong code — return same needsLogin structure to prevent oracle
+        return NextResponse.json({
+          needsLogin: true,
+          redirect: `/login?callbackUrl=/chat`,
+          message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
+        });
+      }
     }
 
-    // Logged in — check role level
+    // User is authenticated — now check the code
     const roleLevel = (session.user as any).roleLevel || 0;
-    if (roleLevel < requiredLevel) {
-      return NextResponse.json({
-        error: 'ليس لديك الصلاحية للوصول لهذه اللوحة',
-      }, { status: 403 });
-    }
 
-    // All good — redirect to panel
-    return NextResponse.json({ redirect: targetPath });
+    if (code === adminCode) {
+      if (roleLevel < 90) {
+        return NextResponse.json({
+          error: 'ليس لديك الصلاحية للوصول لهذه اللوحة',
+        }, { status: 403 });
+      }
+      return NextResponse.json({ redirect: '/admin' });
+    } else if (code === moderatorCode) {
+      if (roleLevel < 50) {
+        return NextResponse.json({
+          error: 'ليس لديك الصلاحية للوصول لهذه اللوحة',
+        }, { status: 403 });
+      }
+      return NextResponse.json({ redirect: '/moderator' });
+    } else {
+      return NextResponse.json({ error: 'رمز الدخول غير صحيح' }, { status: 401 });
+    }
   } catch {
     return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 });
   }
