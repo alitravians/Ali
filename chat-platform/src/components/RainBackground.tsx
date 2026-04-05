@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 export default function RainBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [soundOn, setSoundOn] = useState(false);
-  const [volume, setVolume] = useState(0.3);
-  const [showControls, setShowControls] = useState(false);
+  const rainAudioRef = useRef<HTMLAudioElement | null>(null);
+  const glassAudioRef = useRef<HTMLAudioElement | null>(null);
   const animFrameRef = useRef<number>(0);
   const dropsRef = useRef<Array<{ x: number; y: number; speed: number; length: number; opacity: number }>>([]);
+  const audioStartedRef = useRef(false);
+  const glassIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const initDrops = useCallback((width: number, height: number) => {
-    const count = 100;
+    const count = 120;
     dropsRef.current = Array.from({ length: count }, () => ({
       x: Math.random() * width,
       y: Math.random() * height,
@@ -20,6 +20,33 @@ export default function RainBackground() {
       length: 8 + Math.random() * 15,
       opacity: 0.05 + Math.random() * 0.2,
     }));
+  }, []);
+
+  // Start audio on first user interaction (browser autoplay policy)
+  const startAudio = useCallback(() => {
+    if (audioStartedRef.current) return;
+    audioStartedRef.current = true;
+
+    // Start rain sound
+    if (rainAudioRef.current) {
+      rainAudioRef.current.volume = 0.25;
+      rainAudioRef.current.play().catch(() => {});
+    }
+
+    // Play glass breaking sound once at start
+    if (glassAudioRef.current) {
+      glassAudioRef.current.volume = 0.15;
+      glassAudioRef.current.play().catch(() => {});
+    }
+
+    // Repeat glass breaking sound every 45-90 seconds randomly
+    glassIntervalRef.current = setInterval(() => {
+      if (glassAudioRef.current) {
+        glassAudioRef.current.currentTime = 0;
+        glassAudioRef.current.volume = 0.1 + Math.random() * 0.1;
+        glassAudioRef.current.play().catch(() => {});
+      }
+    }, 45000 + Math.random() * 45000);
   }, []);
 
   // Rain animation
@@ -63,86 +90,58 @@ export default function RainBackground() {
     };
   }, [initDrops]);
 
-  // Sound control
+  // Auto-play audio on first user interaction
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = volume;
-      if (soundOn) {
-        audioRef.current.play().catch(() => {});
-      } else {
-        audioRef.current.pause();
-      }
-    }
-  }, [soundOn, volume]);
+    // Create audio elements programmatically
+    const rainAudio = new Audio('/sounds/rain.mp3');
+    rainAudio.loop = true;
+    rainAudio.preload = 'auto';
+    rainAudioRef.current = rainAudio;
 
-  // Persist preferences
-  useEffect(() => {
-    const saved = localStorage.getItem('rain_bg_prefs');
-    if (saved) {
-      try {
-        const prefs = JSON.parse(saved);
-        if (prefs.volume !== undefined) setVolume(prefs.volume);
-        if (prefs.soundOn !== undefined) setSoundOn(prefs.soundOn);
-      } catch { /* ignore */ }
-    }
-  }, []);
+    const glassAudio = new Audio('/sounds/glass.mp3');
+    glassAudio.preload = 'auto';
+    glassAudioRef.current = glassAudio;
 
-  useEffect(() => {
-    localStorage.setItem('rain_bg_prefs', JSON.stringify({ volume, soundOn }));
-  }, [volume, soundOn]);
+    // Try to play immediately (works if browser allows)
+    rainAudio.volume = 0.25;
+    rainAudio.play().then(() => {
+      audioStartedRef.current = true;
+      // Also play glass after a short delay
+      setTimeout(() => {
+        glassAudio.volume = 0.15;
+        glassAudio.play().catch(() => {});
+      }, 2000);
+      // Set up glass interval
+      glassIntervalRef.current = setInterval(() => {
+        glassAudio.currentTime = 0;
+        glassAudio.volume = 0.1 + Math.random() * 0.1;
+        glassAudio.play().catch(() => {});
+      }, 45000 + Math.random() * 45000);
+    }).catch(() => {
+      // Browser blocked autoplay - wait for first interaction
+    });
+
+    // Listen for first user interaction to start audio
+    const events = ['click', 'touchstart', 'keydown', 'scroll'];
+    const handler = () => {
+      startAudio();
+      events.forEach(e => document.removeEventListener(e, handler));
+    };
+    events.forEach(e => document.addEventListener(e, handler, { once: false, passive: true }));
+
+    return () => {
+      events.forEach(e => document.removeEventListener(e, handler));
+      if (glassIntervalRef.current) clearInterval(glassIntervalRef.current);
+      rainAudio.pause();
+      glassAudio.pause();
+    };
+  }, [startAudio]);
 
   return (
-    <>
-      {/* Rain canvas - fixed behind everything */}
-      <canvas
-        ref={canvasRef}
-        className="fixed inset-0 z-0 pointer-events-none"
-        style={{ opacity: 0.6 }}
-      />
-
-      {/* Floating sound control button - bottom left */}
-      <div className="fixed bottom-4 left-4 z-50">
-        <button
-          onClick={() => setShowControls(!showControls)}
-          className="w-10 h-10 rounded-full backdrop-blur-xl bg-white/[0.06] border border-white/[0.1] flex items-center justify-center text-lg hover:bg-white/[0.1] transition-all shadow-lg"
-          title={soundOn ? 'صوت المطر مفعّل' : 'تشغيل صوت المطر'}
-        >
-          {soundOn ? '🔊' : '🌧️'}
-        </button>
-
-        {/* Controls popup */}
-        {showControls && (
-          <div className="absolute bottom-12 left-0 w-56 backdrop-blur-xl bg-gray-900/90 border border-white/[0.1] rounded-2xl p-4 shadow-2xl space-y-3">
-            <button
-              onClick={() => setSoundOn(!soundOn)}
-              className={`w-full py-2.5 rounded-xl font-medium text-xs transition-all flex items-center justify-center gap-2 ${
-                soundOn
-                  ? 'bg-violet-500/15 border border-violet-500/25 text-violet-300'
-                  : 'bg-white/[0.04] border border-white/[0.08] text-gray-400 hover:text-white'
-              }`}
-            >
-              <span>{soundOn ? '🔊' : '🔇'}</span>
-              <span>{soundOn ? 'صوت المطر مفعّل' : 'تشغيل صوت المطر'}</span>
-            </button>
-
-            {/* Volume slider */}
-            <div className="flex items-center gap-2">
-              <span className="text-gray-500 text-[10px]">🔈</span>
-              <input
-                type="range" min="0" max="1" step="0.05" value={volume}
-                onChange={e => setVolume(parseFloat(e.target.value))}
-                className="flex-1 h-1 bg-white/[0.08] rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-violet-500"
-              />
-              <span className="text-gray-500 text-[10px]">🔊</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Rain sound audio */}
-      <audio ref={audioRef} loop preload="auto">
-        <source src="/sounds/rain.mp3" type="audio/mpeg" />
-      </audio>
-    </>
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 z-0 pointer-events-none"
+      style={{ opacity: 0.6 }}
+    />
   );
 }
