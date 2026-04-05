@@ -10,13 +10,21 @@ export default function HomePage() {
   const [adminCode, setAdminCode] = useState('');
   const [codeError, setCodeError] = useState('');
 
-  const handleAdminAccess = () => {
-    if (adminCode === '3131') {
-      router.push('/admin');
-    } else if (adminCode === '2121') {
-      router.push('/moderator');
-    } else {
-      setCodeError('رمز الدخول غير صحيح');
+  const handleAdminAccess = async () => {
+    try {
+      const res = await fetch('/api/admin/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: adminCode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.redirect) {
+        router.push(data.redirect);
+      } else {
+        setCodeError(data.error || 'رمز الدخول غير صحيح');
+      }
+    } catch {
+      setCodeError('حدث خطأ في الاتصال');
     }
   };
 

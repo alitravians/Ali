@@ -176,7 +176,7 @@ export default function AdminPage() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        settings: { chat_enabled: String(chatEnabled), registration_enabled: String(regEnabled), ...settings },
+        settings: { ...settings, chat_enabled: String(chatEnabled), registration_enabled: String(regEnabled) },
         bannedWords,
       }),
     });
