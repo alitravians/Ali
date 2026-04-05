@@ -399,7 +399,7 @@ export default function AdminPage() {
       </div>
       <button
         onClick={onChange}
-        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-cyan-500' : 'bg-gray-700'}`}
+        className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${enabled ? 'bg-violet-500' : 'bg-gray-700'}`}
       >
         <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-md transition-transform duration-200 ${enabled ? 'right-0.5' : 'right-[22px]'}`} />
       </button>
@@ -490,7 +490,7 @@ export default function AdminPage() {
                       onClick={() => setActiveTab(item.id as Tab)}
                       className={`w-full text-right px-3 py-2.5 rounded-xl text-sm flex items-center gap-2.5 transition-all ${
                         isActive
-                          ? 'bg-gradient-to-l from-cyan-500/15 to-teal-500/10 text-white border border-cyan-500/20 shadow-lg shadow-cyan-500/5'
+                          ? 'bg-gradient-to-l from-violet-500/15 to-indigo-500/10 text-white border border-violet-500/20 shadow-lg shadow-violet-500/5'
                           : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
                       }`}
                       title={!sidebarOpen ? item.label : undefined}
@@ -570,7 +570,7 @@ export default function AdminPage() {
           {loading ? (
             <div className="flex items-center justify-center h-64">
               <div className="flex flex-col items-center gap-3">
-                <div className="w-10 h-10 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                <div className="w-10 h-10 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
                 <p className="text-gray-500 text-sm">جاري التحميل...</p>
               </div>
             </div>
@@ -649,11 +649,11 @@ export default function AdminPage() {
                       {stats.recentActivity?.map((log: any, i: number) => (
                         <div key={i} className="px-5 py-3.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-xs text-cyan-400 font-bold">
+                            <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-xs text-violet-400 font-bold">
                               {log.performedBy?.[0]?.toUpperCase()}
                             </div>
                             <div>
-                              <span className="text-cyan-400 font-medium text-sm">{log.performedBy}</span>
+                              <span className="text-violet-400 font-medium text-sm">{log.performedBy}</span>
                               <span className="text-gray-600 mx-2">•</span>
                               <span className="text-gray-300 text-sm">{log.action}</span>
                             </div>
@@ -681,15 +681,15 @@ export default function AdminPage() {
                       إنشاء غرفة جديدة
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <input value={newRoom.name} onChange={e => setNewRoom({ ...newRoom, name: e.target.value })} placeholder="اسم الغرفة" className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
-                      <input value={newRoom.description} onChange={e => setNewRoom({ ...newRoom, description: e.target.value })} placeholder="وصف الغرفة (اختياري)" className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20" />
-                      <select value={newRoom.type} onChange={e => setNewRoom({ ...newRoom, type: e.target.value })} className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50">
+                      <input value={newRoom.name} onChange={e => setNewRoom({ ...newRoom, name: e.target.value })} placeholder="اسم الغرفة" className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20" />
+                      <input value={newRoom.description} onChange={e => setNewRoom({ ...newRoom, description: e.target.value })} placeholder="وصف الغرفة (اختياري)" className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20" />
+                      <select value={newRoom.type} onChange={e => setNewRoom({ ...newRoom, type: e.target.value })} className="bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50">
                         <option value="PUBLIC">عامة</option>
                         <option value="PRIVATE">خاصة</option>
                         <option value="ANNOUNCEMENT">إعلانات</option>
                       </select>
                     </div>
-                    <button onClick={createRoom} className="mt-4 px-6 py-2.5 bg-gradient-to-l from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 rounded-xl text-sm text-white font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/20">
+                    <button onClick={createRoom} className="mt-4 px-6 py-2.5 bg-gradient-to-l from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl text-sm text-white font-medium transition-all hover:shadow-lg hover:shadow-violet-500/20">
                       إنشاء الغرفة
                     </button>
                   </div>
@@ -700,7 +700,7 @@ export default function AdminPage() {
                     {rooms.map((room: any) => (
                       <div key={room.id} className="glass rounded-2xl p-5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${room.isFrozen ? 'bg-blue-500/10 text-blue-400' : 'bg-cyan-500/10 text-cyan-400'}`}>
+                          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg ${room.isFrozen ? 'bg-blue-500/10 text-blue-400' : 'bg-violet-500/10 text-violet-400'}`}>
                             {room.type === 'PRIVATE' ? '🔒' : room.type === 'ANNOUNCEMENT' ? '📢' : '🏠'}
                           </div>
                           <div>
@@ -747,11 +747,11 @@ export default function AdminPage() {
                         onChange={e => { setSearchUser(e.target.value); searchUserRef.current = e.target.value; }}
                         onKeyDown={e => e.key === 'Enter' && loadTabData('users')}
                         placeholder="بحث بالاسم أو البريد الإلكتروني..."
-                        className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 pr-10 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                        className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 pr-10 text-white text-sm focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500">🔍</span>
                     </div>
-                    <button onClick={() => loadTabData('users')} className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm text-white font-medium transition-colors">
+                    <button onClick={() => loadTabData('users')} className="px-6 py-3 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm text-white font-medium transition-colors">
                       بحث
                     </button>
                   </div>
@@ -763,7 +763,7 @@ export default function AdminPage() {
                       <div key={u.id} className="glass rounded-2xl p-4 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="relative">
-                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-sm font-bold overflow-hidden">
+                            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-sm font-bold overflow-hidden">
                               {u.avatar ? <img src={u.avatar} alt="" className="w-full h-full object-cover" /> : u.username[0]?.toUpperCase()}
                             </div>
                             <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-gray-900 ${u.status === 'ONLINE' ? 'bg-green-400' : 'bg-gray-600'}`} />
@@ -784,7 +784,7 @@ export default function AdminPage() {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => { setSelectedUserForRole(u); setShowRoleModal(true); setRoleChangeRole(''); }}
-                            className="px-3 py-1.5 bg-cyan-500/15 text-cyan-400 hover:bg-cyan-500/25 rounded-lg text-xs font-medium transition-colors"
+                            className="px-3 py-1.5 bg-violet-500/15 text-violet-400 hover:bg-violet-500/25 rounded-lg text-xs font-medium transition-colors"
                           >
                             تغيير الرتبة
                           </button>
@@ -813,21 +813,21 @@ export default function AdminPage() {
                       value={newAnnouncement.title}
                       onChange={e => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })}
                       placeholder="عنوان الإعلان"
-                      className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm mb-3 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                      className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm mb-3 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
                     />
                     <textarea
                       value={newAnnouncement.content}
                       onChange={e => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })}
                       placeholder="محتوى الإعلان..."
                       rows={3}
-                      className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm mb-3 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 resize-none"
+                      className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm mb-3 focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none"
                     />
                     <div className="flex items-center justify-between">
                       <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer">
                         <input type="checkbox" checked={newAnnouncement.isPinned} onChange={e => setNewAnnouncement({ ...newAnnouncement, isPinned: e.target.checked })} className="rounded" />
                         📌 تثبيت الإعلان
                       </label>
-                      <button onClick={createAnnouncement} className="px-6 py-2.5 bg-gradient-to-l from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 rounded-xl text-sm text-white font-medium transition-all">
+                      <button onClick={createAnnouncement} className="px-6 py-2.5 bg-gradient-to-l from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl text-sm text-white font-medium transition-all">
                         نشر الإعلان
                       </button>
                     </div>
@@ -876,7 +876,7 @@ export default function AdminPage() {
                       <div key={report.id} className={`glass rounded-2xl p-5 hover:bg-white/[0.02] transition-colors ${report.status === 'PENDING' ? 'border-r-2 border-r-orange-500/50' : ''}`}>
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-2 text-sm">
-                            <span className="text-cyan-400 font-medium">{report.reporter?.username}</span>
+                            <span className="text-violet-400 font-medium">{report.reporter?.username}</span>
                             <span className="text-gray-600">أبلغ عن</span>
                             <span className="text-orange-400 font-medium">{report.targetUser?.username || 'غير محدد'}</span>
                           </div>
@@ -923,7 +923,7 @@ export default function AdminPage() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-gray-400 text-xs mb-1.5 block">نوع العقوبة</label>
-                        <select value={punishForm.type} onChange={e => setPunishForm({ ...punishForm, type: e.target.value })} className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50">
+                        <select value={punishForm.type} onChange={e => setPunishForm({ ...punishForm, type: e.target.value })} className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50">
                           <option value="warning">⚠️ تحذير</option>
                           <option value="mute">🔇 كتم</option>
                           <option value="ban">🚫 حظر</option>
@@ -931,19 +931,19 @@ export default function AdminPage() {
                       </div>
                       <div>
                         <label className="text-gray-400 text-xs mb-1.5 block">المستخدم المستهدف</label>
-                        <select value={punishForm.targetUserId} onChange={e => setPunishForm({ ...punishForm, targetUserId: e.target.value })} className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50">
+                        <select value={punishForm.targetUserId} onChange={e => setPunishForm({ ...punishForm, targetUserId: e.target.value })} className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50">
                           <option value="">اختر المستخدم</option>
                           {users.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                         </select>
                       </div>
                       <div>
                         <label className="text-gray-400 text-xs mb-1.5 block">السبب</label>
-                        <input value={punishForm.reason} onChange={e => setPunishForm({ ...punishForm, reason: e.target.value })} placeholder="سبب العقوبة" className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50" />
+                        <input value={punishForm.reason} onChange={e => setPunishForm({ ...punishForm, reason: e.target.value })} placeholder="سبب العقوبة" className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50" />
                       </div>
                       {punishForm.type !== 'warning' && (
                         <div>
                           <label className="text-gray-400 text-xs mb-1.5 block">المدة (بالدقائق)</label>
-                          <input type="number" value={punishForm.duration} onChange={e => setPunishForm({ ...punishForm, duration: Number(e.target.value) })} placeholder="المدة بالدقائق" className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50" />
+                          <input type="number" value={punishForm.duration} onChange={e => setPunishForm({ ...punishForm, duration: Number(e.target.value) })} placeholder="المدة بالدقائق" className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50" />
                         </div>
                       )}
                     </div>
@@ -954,8 +954,8 @@ export default function AdminPage() {
 
                   {/* Filter */}
                   <div className="flex gap-2">
-                    <button onClick={() => setPunishFilter('all')} className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${punishFilter === 'all' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>الكل</button>
-                    <button onClick={() => setPunishFilter('active')} className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${punishFilter === 'active' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>النشطة فقط</button>
+                    <button onClick={() => setPunishFilter('all')} className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${punishFilter === 'all' ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>الكل</button>
+                    <button onClick={() => setPunishFilter('active')} className={`px-4 py-2 rounded-lg text-xs font-medium transition-colors ${punishFilter === 'active' ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>النشطة فقط</button>
                   </div>
 
                   {/* Bans */}
@@ -1031,11 +1031,11 @@ export default function AdminPage() {
 
                   {/* Filters */}
                   <div className="flex flex-wrap gap-2">
-                    <button onClick={() => setAuditFilter('all')} className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${auditFilter === 'all' ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>
+                    <button onClick={() => setAuditFilter('all')} className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${auditFilter === 'all' ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>
                       الكل ({auditLogs.length})
                     </button>
                     {auditActions.map(action => (
-                      <button key={action} onClick={() => setAuditFilter(action)} className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${auditFilter === action ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>
+                      <button key={action} onClick={() => setAuditFilter(action)} className={`px-3.5 py-2 rounded-lg text-xs font-medium transition-colors ${auditFilter === action ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30' : 'bg-gray-800/40 text-gray-400 hover:bg-gray-800/60'}`}>
                         {action} ({auditLogs.filter((l: any) => l.action === action).length})
                       </button>
                     ))}
@@ -1047,12 +1047,12 @@ export default function AdminPage() {
                     {filteredAuditLogs.map((log: any) => (
                       <div key={log.id} className="px-5 py-3.5 flex items-center justify-between hover:bg-white/[0.02] transition-colors">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-xs text-cyan-400 font-bold flex-shrink-0">
+                          <div className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-xs text-violet-400 font-bold flex-shrink-0">
                             {log.performerName?.[0]?.toUpperCase()}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-cyan-400 text-sm font-medium">{log.performerName}</span>
+                              <span className="text-violet-400 text-sm font-medium">{log.performerName}</span>
                               <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-800 text-gray-400">{log.action}</span>
                             </div>
                             {log.details && typeof log.details === 'object' && (
@@ -1083,7 +1083,7 @@ export default function AdminPage() {
                         onClick={() => setSettingsSection(section.id)}
                         className={`p-4 rounded-xl text-right transition-all ${
                           settingsSection === section.id
-                            ? 'bg-gradient-to-bl from-cyan-500/15 to-teal-500/10 border border-cyan-500/25 shadow-lg shadow-cyan-500/5'
+                            ? 'bg-gradient-to-bl from-violet-500/15 to-indigo-500/10 border border-violet-500/25 shadow-lg shadow-violet-500/5'
                             : 'glass hover:bg-white/[0.04]'
                         }`}
                       >
@@ -1099,7 +1099,7 @@ export default function AdminPage() {
                     <div className="space-y-4">
                       <div className="glass rounded-2xl p-6">
                         <h3 className="text-base font-semibold text-white mb-5 flex items-center gap-2">
-                          <span className="w-8 h-8 rounded-lg bg-cyan-500/10 flex items-center justify-center text-sm">🌐</span>
+                          <span className="w-8 h-8 rounded-lg bg-violet-500/10 flex items-center justify-center text-sm">🌐</span>
                           إعدادات الموقع
                         </h3>
                         <div className="space-y-4">
@@ -1109,7 +1109,7 @@ export default function AdminPage() {
                               value={siteName}
                               onChange={e => setSiteName(e.target.value)}
                               placeholder="اسم الموقع"
-                              className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20"
+                              className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20"
                             />
                           </div>
                           <div>
@@ -1119,7 +1119,7 @@ export default function AdminPage() {
                               onChange={e => setWelcomeMessage(e.target.value)}
                               placeholder="رسالة ترحيب تظهر للمستخدمين الجدد..."
                               rows={3}
-                              className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 resize-none"
+                              className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none"
                             />
                           </div>
                         </div>
@@ -1285,7 +1285,7 @@ export default function AdminPage() {
                               onClick={() => setActivePageTab(pt.id)}
                               className={`px-4 py-2 rounded-lg text-sm transition-all ${
                                 activePageTab === pt.id
-                                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                                  ? 'bg-violet-500/20 text-violet-400 border border-violet-500/30'
                                   : 'bg-white/[0.03] text-gray-400 hover:bg-white/[0.06]'
                               }`}
                             >
@@ -1314,7 +1314,7 @@ export default function AdminPage() {
                             activePageTab === 'about' ? 'عن الموقع' : 'الخصوصية'
                           }...`}
                           rows={10}
-                          className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 resize-none font-mono leading-relaxed"
+                          className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50 focus:ring-1 focus:ring-violet-500/20 resize-none font-mono leading-relaxed"
                           dir="auto"
                         />
                         <p className="text-gray-600 text-[10px] mt-2">يمكنك استخدام نص عادي. المحتوى يُحفظ مع باقي الإعدادات عند الضغط على &quot;حفظ الإعدادات&quot;</p>
@@ -1325,7 +1325,7 @@ export default function AdminPage() {
                   {/* Save Button */}
                   <div className="flex items-center justify-between pt-2">
                     <p className="text-gray-600 text-xs">يتم حفظ جميع الإعدادات في قسم واحد</p>
-                    <button onClick={saveSettings} className="px-8 py-3 bg-gradient-to-l from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 rounded-xl text-white font-medium transition-all hover:shadow-lg hover:shadow-cyan-500/20">
+                    <button onClick={saveSettings} className="px-8 py-3 bg-gradient-to-l from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl text-white font-medium transition-all hover:shadow-lg hover:shadow-violet-500/20">
                       حفظ الإعدادات
                     </button>
                   </div>
@@ -1341,7 +1341,7 @@ export default function AdminPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowRoleModal(false)}>
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-lg font-bold text-white mb-2">تغيير رتبة المستخدم</h3>
-            <p className="text-gray-500 text-sm mb-5">تغيير رتبة <span className="text-cyan-400 font-medium">{selectedUserForRole.username}</span></p>
+            <p className="text-gray-500 text-sm mb-5">تغيير رتبة <span className="text-violet-400 font-medium">{selectedUserForRole.username}</span></p>
 
             <div className="mb-4">
               <p className="text-gray-400 text-xs mb-2">الرتبة الحالية:</p>
@@ -1355,7 +1355,7 @@ export default function AdminPage() {
               <select
                 value={roleChangeRole}
                 onChange={e => setRoleChangeRole(e.target.value)}
-                className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500/50"
               >
                 <option value="">اختر الرتبة</option>
                 {roles.map((r: any) => (
@@ -1365,7 +1365,7 @@ export default function AdminPage() {
             </div>
 
             <div className="flex gap-3">
-              <button onClick={changeUserRole} disabled={!roleChangeRole} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:hover:bg-cyan-600 rounded-xl text-sm text-white font-medium transition-colors">
+              <button onClick={changeUserRole} disabled={!roleChangeRole} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:hover:bg-violet-600 rounded-xl text-sm text-white font-medium transition-colors">
                 تأكيد التغيير
               </button>
               <button onClick={() => setShowRoleModal(false)} className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-300 font-medium transition-colors">

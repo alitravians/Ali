@@ -111,7 +111,7 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526] to-[#0b1120] p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#060B18] via-[#0A1128] to-[#060B18] p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold gradient-text">الملف الشخصي</h1>
@@ -126,7 +126,7 @@ export default function ProfilePage() {
                 {avatar ? (
                   <img src={avatar} alt="الصورة الشخصية" className="w-full h-full object-cover" />
                 ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-5xl font-bold text-white">
+                  <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-5xl font-bold text-white">
                     {user?.name?.[0]?.toUpperCase() || '?'}
                   </div>
                 )}
@@ -187,7 +187,7 @@ export default function ProfilePage() {
                 onChange={e => setDisplayName(e.target.value)}
                 maxLength={50}
                 placeholder="اسم معروض (اختياري)"
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500/50"
                 dir="auto"
               />
             </div>
@@ -200,7 +200,7 @@ export default function ProfilePage() {
                 maxLength={200}
                 placeholder="اكتب نبذة مختصرة عنك..."
                 rows={3}
-                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50 resize-none"
+                className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500/50 resize-none"
                 dir="auto"
               />
               <p className="text-[10px] text-gray-600 mt-1 text-left">{bio.length}/200</p>
@@ -210,7 +210,7 @@ export default function ProfilePage() {
             <div className="bg-white/[0.03] rounded-xl p-4 border border-white/[0.06]">
               <button
                 onClick={() => setShowPasswordChange(!showPasswordChange)}
-                className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors"
+                className="text-violet-400 text-sm hover:text-violet-300 transition-colors"
               >
                 {showPasswordChange ? '✕ إلغاء تغيير كلمة المرور' : '🔒 تغيير كلمة المرور'}
               </button>
@@ -222,14 +222,14 @@ export default function ProfilePage() {
                     value={currentPassword}
                     onChange={e => setCurrentPassword(e.target.value)}
                     placeholder="كلمة المرور الحالية"
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500/50"
                   />
                   <input
                     type="password"
                     value={newPassword}
                     onChange={e => setNewPassword(e.target.value)}
                     placeholder="كلمة المرور الجديدة (6 أحرف على الأقل)"
-                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                    className="w-full bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-violet-500/50"
                   />
                 </div>
               )}
@@ -239,7 +239,7 @@ export default function ProfilePage() {
             <button
               onClick={handleSaveProfile}
               disabled={editLoading}
-              className="w-full py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 text-white rounded-xl font-medium transition-all disabled:opacity-50"
+              className="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white rounded-xl font-medium transition-all disabled:opacity-50"
             >
               {editLoading ? 'جاري الحفظ...' : 'حفظ التغييرات'}
             </button>

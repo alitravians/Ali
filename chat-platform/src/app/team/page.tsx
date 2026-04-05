@@ -59,17 +59,17 @@ export default function TeamPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120]">
-        <div className="w-16 h-16 border-4 border-cyan-500/20 border-t-cyan-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#060B18] via-[#0A1128]/20 to-[#060B18]">
+        <div className="w-16 h-16 border-4 border-violet-500/20 border-t-violet-500 rounded-full animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120]" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-br from-[#060B18] via-[#0A1128]/20 to-[#060B18]" dir="rtl">
       {/* Header */}
       <nav className="relative z-10 flex items-center justify-between p-6 max-w-6xl mx-auto">
-        <h1 className="text-2xl font-bold gradient-text">ChatZone</h1>
+        <h1 className="text-2xl font-bold gradient-text-animated">ChatZone</h1>
         <Link href="/" className="text-gray-400 hover:text-white text-sm transition-colors">← الرئيسية</Link>
       </nav>
 
@@ -134,7 +134,7 @@ export default function TeamPage() {
                                   </div>
                                 </td>
                                 <td className="px-6 py-4 text-center">
-                                  <span className="text-sm font-medium text-cyan-400">
+                                  <span className="text-sm font-medium text-violet-400">
                                     {member.roleAr || member.role || 'عضو فريق'}
                                   </span>
                                 </td>
@@ -148,7 +148,7 @@ export default function TeamPage() {
                                           className="w-full h-full object-cover"
                                         />
                                       ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-white text-lg font-bold">
+                                        <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-lg font-bold">
                                           {member.user.username.charAt(0).toUpperCase()}
                                         </div>
                                       )}

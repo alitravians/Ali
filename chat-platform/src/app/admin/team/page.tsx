@@ -230,7 +230,7 @@ export default function AdminTeamPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-950">
-        <div className="w-12 h-12 border-4 border-cyan-500/20 border-t-indigo-500 rounded-full animate-spin" />
+        <div className="w-12 h-12 border-4 border-violet-500/20 border-t-indigo-500 rounded-full animate-spin" />
       </div>
     );
   }
@@ -250,7 +250,7 @@ export default function AdminTeamPage() {
           <Link href="/admin" className="text-gray-400 hover:text-white text-sm">لوحة التحكم</Link>
           <span className="text-gray-600">/</span>
           <span className="text-white font-medium text-sm">إدارة فريق العمل</span>
-          <Link href="/team" className="mr-auto text-cyan-400 hover:text-indigo-300 text-sm" target="_blank">معاينة الصفحة ↗</Link>
+          <Link href="/team" className="mr-auto text-violet-400 hover:text-indigo-300 text-sm" target="_blank">معاينة الصفحة ↗</Link>
         </div>
       </nav>
 
@@ -271,7 +271,7 @@ export default function AdminTeamPage() {
             </button>
             <button
               onClick={() => { setShowDeptForm(true); setDeptNameAr(''); setDeptColor('#2563eb'); }}
-              className="bg-cyan-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-indigo-700 transition-colors"
+              className="bg-violet-600 text-white px-4 py-2 rounded-xl text-sm hover:bg-indigo-700 transition-colors"
             >
               + قسم جديد
             </button>
@@ -281,7 +281,7 @@ export default function AdminTeamPage() {
         {/* Stats Cards */}
         <div className="grid grid-cols-3 gap-4 mb-8">
           <div className="glass rounded-xl p-4 text-center">
-            <p className="text-2xl font-bold text-cyan-400">{departments.length}</p>
+            <p className="text-2xl font-bold text-violet-400">{departments.length}</p>
             <p className="text-gray-500 text-sm">قسم</p>
           </div>
           <div className="glass rounded-xl p-4 text-center">
@@ -324,7 +324,7 @@ export default function AdminTeamPage() {
                     <button onClick={() => handleToggleDeptVisibility(dept)} className={`px-3 py-1.5 rounded-lg text-xs font-medium ${dept.isVisible ? 'bg-yellow-500/20 text-yellow-400' : 'bg-green-500/20 text-green-400'}`}>
                       {dept.isVisible ? 'إخفاء' : 'إظهار'}
                     </button>
-                    <button onClick={() => { setEditDept(dept); setDeptNameAr(dept.nameAr); setDeptColor(dept.color); }} className="px-3 py-1.5 bg-cyan-500/20 text-cyan-400 rounded-lg text-xs font-medium">تعديل</button>
+                    <button onClick={() => { setEditDept(dept); setDeptNameAr(dept.nameAr); setDeptColor(dept.color); }} className="px-3 py-1.5 bg-violet-500/20 text-violet-400 rounded-lg text-xs font-medium">تعديل</button>
                     <button onClick={() => { setShowMemberForm(true); setMemberDeptId(dept.id); }} className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs font-medium">+ عضو</button>
                     <button onClick={() => handleDeleteDept(dept.id)} className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs font-medium">حذف</button>
                   </div>
@@ -357,7 +357,7 @@ export default function AdminTeamPage() {
                           </td>
                           <td className="px-6 py-3 text-white text-sm font-medium">{member.user.username}</td>
                           <td className="px-6 py-3 text-gray-500 text-xs">{member.user.email}</td>
-                          <td className="px-6 py-3 text-cyan-400 text-sm">{member.roleAr || 'عضو فريق'}</td>
+                          <td className="px-6 py-3 text-violet-400 text-sm">{member.roleAr || 'عضو فريق'}</td>
                           <td className="px-6 py-3 text-center">
                             {member.isVisible ? (
                               <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full">ظاهر</span>
@@ -376,7 +376,7 @@ export default function AdminTeamPage() {
                               <button onClick={() => handleToggleMemberVisibility(member)} className="p-1 text-gray-500 hover:text-yellow-400" title={member.isVisible ? 'إخفاء' : 'إظهار'}>
                                 {member.isVisible ? '👁' : '👁‍🗨'}
                               </button>
-                              <button onClick={() => { setEditMember(member); setMemberRoleAr(member.roleAr); }} className="p-1 text-gray-500 hover:text-cyan-400" title="تعديل">✏️</button>
+                              <button onClick={() => { setEditMember(member); setMemberRoleAr(member.roleAr); }} className="p-1 text-gray-500 hover:text-violet-400" title="تعديل">✏️</button>
                               <button onClick={() => handleRemoveMember(member.id)} className="p-1 text-gray-500 hover:text-red-400" title="إزالة">🗑</button>
                             </div>
                           </td>
@@ -402,7 +402,7 @@ export default function AdminTeamPage() {
               value={deptNameAr}
               onChange={e => setDeptNameAr(e.target.value)}
               placeholder="اسم القسم بالعربي"
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 mb-4"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 mb-4"
               autoFocus
             />
             <p className="text-gray-400 text-xs mb-2">لون القسم:</p>
@@ -425,7 +425,7 @@ export default function AdminTeamPage() {
               <span className="text-white font-bold">{deptNameAr || 'معاينة القسم'}</span>
             </div>
             <div className="flex gap-3">
-              <button onClick={handleCreateDept} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm text-white font-medium">إنشاء</button>
+              <button onClick={handleCreateDept} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm text-white font-medium">إنشاء</button>
               <button onClick={() => setShowDeptForm(false)} className="px-6 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-400">إلغاء</button>
             </div>
           </div>
@@ -441,7 +441,7 @@ export default function AdminTeamPage() {
               value={deptNameAr}
               onChange={e => setDeptNameAr(e.target.value)}
               placeholder="اسم القسم بالعربي"
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 mb-4"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 mb-4"
               autoFocus
             />
             <p className="text-gray-400 text-xs mb-2">لون القسم:</p>
@@ -464,7 +464,7 @@ export default function AdminTeamPage() {
               <span className="text-white font-bold">{deptNameAr || 'معاينة القسم'}</span>
             </div>
             <div className="flex gap-3">
-              <button onClick={handleUpdateDept} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm text-white font-medium">حفظ</button>
+              <button onClick={handleUpdateDept} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm text-white font-medium">حفظ</button>
               <button onClick={() => setEditDept(null)} className="px-6 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-400">إلغاء</button>
             </div>
           </div>
@@ -479,7 +479,7 @@ export default function AdminTeamPage() {
             <select
               value={memberDeptId}
               onChange={e => setMemberDeptId(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 mb-3"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 mb-3"
             >
               <option value="">اختر القسم</option>
               {departments.map(d => <option key={d.id} value={d.id}>{d.nameAr}</option>)}
@@ -487,7 +487,7 @@ export default function AdminTeamPage() {
             <select
               value={memberUserId}
               onChange={e => setMemberUserId(e.target.value)}
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 mb-3"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 mb-3"
             >
               <option value="">اختر المستخدم</option>
               {users.map(u => <option key={u.id} value={u.id}>{u.username} ({u.email})</option>)}
@@ -496,7 +496,7 @@ export default function AdminTeamPage() {
               value={memberRoleAr}
               onChange={e => setMemberRoleAr(e.target.value)}
               placeholder="المنصب (مثال: المدير العام، مشرف دردشة)"
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 mb-4"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 mb-4"
             />
             <div className="flex gap-3">
               <button onClick={handleAddMember} className="flex-1 py-2.5 bg-green-600 hover:bg-green-500 rounded-xl text-sm text-white font-medium">إضافة</button>
@@ -515,11 +515,11 @@ export default function AdminTeamPage() {
               value={memberRoleAr}
               onChange={e => setMemberRoleAr(e.target.value)}
               placeholder="المنصب بالعربي"
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500 mb-4"
+              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-violet-500 mb-4"
               autoFocus
             />
             <div className="flex gap-3">
-              <button onClick={handleUpdateMember} className="flex-1 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm text-white font-medium">حفظ</button>
+              <button onClick={handleUpdateMember} className="flex-1 py-2.5 bg-violet-600 hover:bg-violet-500 rounded-xl text-sm text-white font-medium">حفظ</button>
               <button onClick={() => setEditMember(null)} className="px-6 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm text-gray-400">إلغاء</button>
             </div>
           </div>

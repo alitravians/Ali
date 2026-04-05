@@ -21,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
-      <body className="font-cairo bg-gray-950 text-white antialiased min-h-screen">
+      <body className="font-cairo bg-[#060B18] text-white antialiased min-h-screen">
         <Providers>
           {children}
         </Providers>
