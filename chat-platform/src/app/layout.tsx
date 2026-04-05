@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
+import RainBackground from "@/components/RainBackground";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -21,9 +22,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className={cairo.variable}>
-      <body className="font-cairo bg-[#060B18] text-white antialiased min-h-screen">
+      <body className="font-cairo bg-[#030711] text-white antialiased min-h-screen">
         <Providers>
-          {children}
+          <RainBackground />
+          <div className="relative z-[1]">
+            {children}
+          </div>
         </Providers>
       </body>
     </html>

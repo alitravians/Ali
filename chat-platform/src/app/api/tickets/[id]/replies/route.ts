@@ -53,7 +53,7 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   });
 
   // Update ticket status based on who replied
-  const newStatus = isStaff ? 'REPLIED' : 'WAITING_USER';
+  const newStatus = isStaff ? 'REPLIED' : 'REVIEWING';
   await prisma.ticket.update({
     where: { id: params.id },
     data: { status: newStatus as any },

@@ -55,6 +55,7 @@ export default function AdminPage() {
   const [selectedTicket, setSelectedTicket] = useState<any>(null);
   const [ticketReply, setTicketReply] = useState('');
   const [ticketFilter, setTicketFilter] = useState('');
+  const ticketFilterRef = useRef('');
   const [pendingTickets, setPendingTickets] = useState(0);
   const [loading, setLoading] = useState(false);
 
@@ -183,7 +184,7 @@ export default function AdminPage() {
           break;
         }
         case 'tickets': {
-          const url = ticketFilter ? `/api/tickets?status=${ticketFilter}` : '/api/tickets';
+          const url = ticketFilterRef.current ? `/api/tickets?status=${ticketFilterRef.current}` : '/api/tickets';
           const ticketsRes = await fetch(url);
           if (ticketsRes.ok) {
             const ticketsData = await ticketsRes.json();
@@ -1118,7 +1119,7 @@ export default function AdminPage() {
                       {['', 'OPEN', 'REVIEWING', 'REPLIED', 'WAITING_USER', 'ESCALATED', 'CLOSED'].map(s => {
                         const info = s ? TICKET_STATUSES[s] : { label: 'الكل', color: 'text-white', bg: 'bg-violet-500/10' };
                         return (
-                          <button key={s} onClick={() => { setTicketFilter(s); loadTabData('tickets'); }}
+                          <button key={s} onClick={() => { setTicketFilter(s); ticketFilterRef.current = s; loadTabData('tickets'); }}
                             className={`px-2.5 py-1 rounded-lg transition-all ${ticketFilter === s ? `${info.bg} ${info.color} font-medium` : 'text-gray-500 hover:text-white'}`}>
                             {info.label}
                           </button>
