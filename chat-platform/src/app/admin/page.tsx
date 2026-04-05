@@ -2297,7 +2297,43 @@ export default function AdminPage() {
                           {ghScanResult && (
                             <button
                               onClick={() => {
-                                window.open('/api/admin/github?action=scan_report', '_blank');
+                                if (!ghScanResult) return;
+                                const r = ghScanResult;
+                                const lines: string[] = [];
+                                lines.push('='.repeat(60));
+                                lines.push('تقرير الفحص الذكي للمشروع');
+                                lines.push('='.repeat(60));
+                                lines.push(`التاريخ: ${new Date(r.scannedAt).toLocaleString('ar-SA')}`);
+                                lines.push(`المدة: ${r.duration}`);
+                                lines.push(`إجمالي الملفات: ${r.totalFiles}`);
+                                lines.push(`الحجم: ${(r.totalSize / 1024 / 1024).toFixed(1)}MB`);
+                                lines.push(`اللغات: ${Object.keys(r.languages || {}).join(', ')}`);
+                                lines.push('');
+                                lines.push(`نسبة الصحة: ${r.healthScore}%`);
+                                lines.push('');
+                                lines.push('-'.repeat(40));
+                                lines.push('النتائج حسب الفئة:');
+                                lines.push('-'.repeat(40));
+                                r.categories.forEach((cat: { labelAr: string; score: number; maxScore: number; issues: { severity: string; title: string; description: string; file?: string; suggestion?: string }[] }) => {
+                                  lines.push(`${cat.labelAr}: ${cat.score}/${cat.maxScore}`);
+                                  if (cat.issues.length > 0) {
+                                    cat.issues.forEach((issue: { severity: string; title: string; description: string; file?: string; suggestion?: string }) => {
+                                      const sev = issue.severity === 'critical' ? '🔴 حرج' : issue.severity === 'warning' ? '🟡 تحذير' : 'ℹ️ معلومة';
+                                      lines.push(`  ${sev}: ${issue.title}`);
+                                      lines.push(`    ${issue.description}`);
+                                      if (issue.file) lines.push(`    📄 ${issue.file}`);
+                                      if (issue.suggestion) lines.push(`    💡 ${issue.suggestion}`);
+                                    });
+                                  }
+                                  lines.push('');
+                                });
+                                const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `scan-report-${Date.now()}.txt`;
+                                a.click();
+                                URL.revokeObjectURL(url);
                               }}
                               className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 text-sm transition-colors"
                             >📥 تصدير التقرير</button>
