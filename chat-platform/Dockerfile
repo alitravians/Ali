@@ -1,5 +1,5 @@
-FROM node:18-alpine AS base
-RUN apk add --no-cache openssl
+FROM node:18-slim AS base
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies only when needed
 FROM base AS deps
