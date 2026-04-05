@@ -31,7 +31,7 @@ export async function PUT(req: NextRequest) {
         data: { isRead: true },
       });
     } else if (id) {
-      await prisma.notification.update({ where: { id }, data: { isRead: true } });
+      await prisma.notification.updateMany({ where: { id, userId: (session.user as any).id }, data: { isRead: true } });
     }
     return NextResponse.json({ success: true });
   } catch (_error) {
