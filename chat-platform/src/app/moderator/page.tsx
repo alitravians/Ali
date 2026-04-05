@@ -33,7 +33,7 @@ export default function ModeratorPage() {
       } else if (activeTab === 'actions') {
         const [punRes, usersRes] = await Promise.all([
           fetch('/api/admin/punishments'),
-          fetch('/api/admin/users'),
+          fetch('/api/admin/users?limit=100'),
         ]);
         setPunishments(await punRes.json());
         const usersData = await usersRes.json();

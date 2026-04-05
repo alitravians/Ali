@@ -108,7 +108,7 @@ export default function AdminPage() {
           const punRes = await fetch('/api/admin/punishments');
           setPunishments(await punRes.json());
           // Load users for punishment form
-          const usersForPun = await fetch('/api/admin/users?search=');
+          const usersForPun = await fetch('/api/admin/users?search=&limit=100');
           const usersDataPun = await usersForPun.json();
           setUsers(usersDataPun.users || []);
           break;

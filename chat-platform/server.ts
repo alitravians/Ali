@@ -610,6 +610,13 @@ app.prepare().then(() => {
         }
 
         const { text: processedText, isBold } = processBoldMessage(content, roleLevel >= 50);
+
+        // Reject empty content after bold processing
+        if (!processedText.trim()) {
+          socket.emit('error', { message: 'لا يمكن إرسال رسالة فارغة' });
+          return;
+        }
+
         const bannedWords = await getBannedWords();
         const { filtered } = filterMessage(processedText, bannedWords);
 

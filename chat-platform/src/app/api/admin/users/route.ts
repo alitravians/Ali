@@ -16,7 +16,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const search = searchParams.get('search') || '';
     const page = parseInt(searchParams.get('page') || '1');
-    const limit = 20;
+    const requestedLimit = parseInt(searchParams.get('limit') || '20');
+    const limit = Math.min(Math.max(requestedLimit, 1), 100);
 
     const where = search
       ? { OR: [{ username: { contains: search, mode: 'insensitive' as const } }, { email: { contains: search, mode: 'insensitive' as const } }] }
