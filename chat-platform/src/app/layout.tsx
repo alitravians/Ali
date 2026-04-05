@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import RainBackground from "@/components/RainBackground";
+import DynamicTitle from "@/components/DynamicTitle";
 import prisma from "@/lib/prisma";
 
 const cairo = Cairo({
@@ -32,6 +33,7 @@ export default function RootLayout({
     <html lang="ar" dir="rtl" className={cairo.variable}>
       <body className="font-cairo bg-[#030711] text-white antialiased min-h-screen">
         <Providers>
+          <DynamicTitle />
           <RainBackground />
           <div className="relative z-[1]">
             {children}
