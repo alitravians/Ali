@@ -89,7 +89,69 @@ export const authOptions: NextAuthOptions = {
         token.roleDisplayName = (user as any).roleDisplayName;
         token.roleColor = (user as any).roleColor;
         token.permissions = (user as any).permissions;
+        token.roleRefreshedAt = Date.now();
       }
+
+      // Refresh role data from DB every 5 minutes to catch demotions/promotions
+      const ROLE_REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+      if (token.id && (!token.roleRefreshedAt || Date.now() - (token.roleRefreshedAt as number) > ROLE_REFRESH_INTERVAL)) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            include: {
+              userRoles: {
+                include: {
+                  role: {
+                    include: {
+                      rolePermissions: {
+                        include: { permission: true },
+                      },
+                    },
+                  },
+                },
+              },
+              bans: {
+                where: { isActive: true, isGlobal: true },
+              },
+            },
+          });
+
+          if (dbUser) {
+            // Check if user is now banned
+            const activeBan = dbUser.bans.find(
+              (ban) => ban.isActive && (!ban.expiresAt || ban.expiresAt > new Date())
+            );
+            if (activeBan) {
+              // Force session invalidation by clearing role
+              token.roleLevel = 0;
+              token.role = 'banned';
+              token.roleDisplayName = 'محظور';
+              token.permissions = [];
+            } else {
+              // Update role data
+              const highestRole = dbUser.userRoles.reduce(
+                (highest, ur) => (ur.role.level > highest.level ? ur.role : highest),
+                { level: 0, name: 'member', displayName: 'عضو', color: '#808080' } as { level: number; name: string; displayName: string; color: string }
+              );
+              const permissions = [...new Set(
+                dbUser.userRoles.flatMap((ur) =>
+                  ur.role.rolePermissions.map((rp) => rp.permission.name)
+                )
+              )];
+
+              token.role = highestRole.name;
+              token.roleLevel = highestRole.level;
+              token.roleDisplayName = highestRole.displayName;
+              token.roleColor = highestRole.color;
+              token.permissions = permissions;
+            }
+          }
+          token.roleRefreshedAt = Date.now();
+        } catch {
+          // If DB query fails, keep existing token data
+        }
+      }
+
       return token;
     },
     async session({ session, token }) {

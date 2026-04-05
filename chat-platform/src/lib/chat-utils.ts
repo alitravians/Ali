@@ -14,9 +14,10 @@ export function filterMessage(content: string, bannedWords: string[]): { filtere
   for (const word of bannedWords) {
     const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp(escaped, 'gi');
-    if (regex.test(filtered)) {
+    const newFiltered = filtered.replace(regex, '***');
+    if (newFiltered !== filtered) {
       containsBanned = true;
-      filtered = filtered.replace(regex, '***');
+      filtered = newFiltered;
     }
   }
 
