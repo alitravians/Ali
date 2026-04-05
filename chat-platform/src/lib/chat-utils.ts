@@ -6,6 +6,12 @@ let bannedWordsCache: string[] | null = null;
 let bannedWordsCacheTime = 0;
 const BANNED_WORDS_CACHE_TTL = 60_000; // 1 minute
 
+/** Invalidate the banned words cache so the next call fetches fresh data from DB */
+export function invalidateBannedWordsCache(): void {
+  bannedWordsCache = null;
+  bannedWordsCacheTime = 0;
+}
+
 export async function getBannedWords(): Promise<string[]> {
   const now = Date.now();
   if (bannedWordsCache && now - bannedWordsCacheTime < BANNED_WORDS_CACHE_TTL) {

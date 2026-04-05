@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
+import { invalidateBannedWordsCache } from '@/lib/chat-utils';
 
 // GET /api/admin/settings
 export async function GET() {
@@ -66,6 +67,8 @@ export async function PUT(req: NextRequest) {
           });
         }
       });
+      // Invalidate cache so socket server picks up changes immediately
+      invalidateBannedWordsCache();
     }
 
     await prisma.auditLog.create({
