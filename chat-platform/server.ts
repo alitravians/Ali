@@ -3,6 +3,7 @@ import { parse } from 'url';
 import next from 'next';
 import { Server as SocketIOServer } from 'socket.io';
 import { PrismaClient } from '@prisma/client';
+import { decode } from 'next-auth/jwt';
 import type { ClientToServerEvents, ServerToClientEvents, PresenceUser } from './src/types/chat';
 import { filterMessage, checkSpam, processBoldMessage, getBannedWords } from './src/lib/chat-utils';
 
@@ -114,34 +115,64 @@ app.prepare().then(() => {
   });
 
   const io = new SocketIOServer<ClientToServerEvents, ServerToClientEvents>(httpServer, {
-    cors: { origin: '*', methods: ['GET', 'POST'] },
+    cors: { origin: dev ? '*' : ['https://chatzone-platform.fly.dev'], methods: ['GET', 'POST'], credentials: true },
     pingTimeout: 60000,
     pingInterval: 25000,
   });
 
-  io.on('connection', async (socket) => {
-    const clientUserId = socket.handshake.auth.userId as string;
-    const clientUsername = socket.handshake.auth.username as string;
+  // Socket.IO middleware: verify NextAuth JWT before allowing connection
+  io.use(async (socket, next) => {
+    try {
+      const cookieHeader = socket.handshake.headers.cookie || '';
+      // Parse the next-auth session token from cookies
+      const cookies = Object.fromEntries(
+        cookieHeader.split(';').map(c => {
+          const [key, ...vals] = c.trim().split('=');
+          return [key, vals.join('=')];
+        })
+      );
+      const sessionToken = cookies['next-auth.session-token'] || cookies['__Secure-next-auth.session-token'];
+      if (!sessionToken) {
+        return next(new Error('غير مصرح: لا يوجد رمز جلسة'));
+      }
+      const secret = process.env.NEXTAUTH_SECRET;
+      if (!secret) {
+        return next(new Error('خطأ في إعدادات السيرفر'));
+      }
+      const token = await decode({ token: sessionToken, secret });
+      if (!token || !token.sub) {
+        return next(new Error('غير مصرح: رمز الجلسة غير صالح'));
+      }
+      // Attach verified userId to socket data for use in connection handler
+      (socket as any).verifiedUserId = token.sub;
+      next();
+    } catch {
+      next(new Error('غير مصرح: فشل التحقق من الجلسة'));
+    }
+  });
 
-    if (!clientUserId || !clientUsername) {
+  io.on('connection', async (socket) => {
+    // Use verified userId from JWT instead of trusting client-provided data
+    const verifiedUserId = (socket as any).verifiedUserId as string;
+    if (!verifiedUserId) {
       socket.disconnect();
       return;
     }
 
-    // Server-side verification: look up user and role from database
+    // Server-side verification: look up user and role from database using verified identity
     const dbUser = await prisma.user.findUnique({
-      where: { id: clientUserId },
+      where: { id: verifiedUserId },
       include: { userRoles: { include: { role: true } } },
     });
 
-    if (!dbUser || dbUser.username !== clientUsername) {
+    if (!dbUser) {
       socket.disconnect();
       return;
     }
 
     // Check if user is banned — prevent banned users from connecting
     const activeBan = await prisma.ban.findFirst({
-      where: { userId: clientUserId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+      where: { userId: verifiedUserId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
     });
     if (activeBan) {
       socket.emit('error', { message: 'أنت محظور من الدردشة' });
