@@ -18,6 +18,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'كلمة المرور يجب أن تكون 6 أحرف على الأقل' }, { status: 400 });
     }
 
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'البريد الإلكتروني غير صالح' }, { status: 400 });
+    }
+
     // Check registration setting
     const regSetting = await prisma.siteSetting.findUnique({ where: { key: 'registration_enabled' } });
     if (regSetting && regSetting.value === 'false') {

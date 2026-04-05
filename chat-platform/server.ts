@@ -365,10 +365,28 @@ app.prepare().then(() => {
     // Send message
     socket.on('message:send', async ({ content, roomId, replyToId }) => {
       try {
+        // Reject empty messages
+        if (!content || !content.trim()) {
+          socket.emit('error', { message: 'لا يمكن إرسال رسالة فارغة' });
+          return;
+        }
+
+        // Spam check first (in-memory, no DB) to prevent DB DoS
+        if (checkSpam(userId)) {
+          socket.emit('error', { message: 'أنت ترسل رسائل بسرعة كبيرة. انتظر قليلاً' });
+          return;
+        }
+
+        // Enforce message length limit (cheap check before DB queries)
+        if (content.length > 5000) {
+          socket.emit('error', { message: 'الرسالة طويلة جداً' });
+          return;
+        }
+
         // Refresh role level for authorization checks
         await refreshRoleLevel();
 
-        // Enforce message length limit
+        // Enforce configurable message length limit
         const maxLenSetting = await prisma.siteSetting.findUnique({ where: { key: 'max_message_length' } });
         const maxLen = parseInt(maxLenSetting?.value || '2000', 10);
         if (content.length > maxLen) {
@@ -417,12 +435,6 @@ app.prepare().then(() => {
         });
         if (activeBan) {
           socket.emit('error', { message: 'أنت محظور من الدردشة' });
-          return;
-        }
-
-        // Spam check
-        if (checkSpam(userId)) {
-          socket.emit('error', { message: 'أنت ترسل رسائل بسرعة كبيرة. انتظر قليلاً' });
           return;
         }
 
