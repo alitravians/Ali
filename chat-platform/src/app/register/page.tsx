@@ -47,10 +47,10 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-950 via-indigo-950/20 to-gray-950 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b1120] via-[#0d1526]/20 to-[#0b1120] px-4">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 left-1/4 w-72 h-72 bg-purple-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/3 right-1/4 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/3 left-1/4 w-72 h-72 bg-teal-500/10 rounded-full blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-md">
@@ -72,7 +72,7 @@ export default function RegisterPage() {
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
               placeholder="اختر اسم مستخدم"
               required
               minLength={3}
@@ -86,7 +86,7 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
               placeholder="example@email.com"
               required
               dir="ltr"
@@ -99,7 +99,7 @@ export default function RegisterPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
               placeholder="6 أحرف على الأقل"
               required
               minLength={6}
@@ -112,7 +112,7 @@ export default function RegisterPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-gray-800/50 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors"
               placeholder="أعد كتابة كلمة المرور"
               required
             />
@@ -121,7 +121,7 @@ export default function RegisterPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl font-semibold text-white transition-all disabled:opacity-50"
+            className="w-full py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl font-semibold text-white transition-all disabled:opacity-50"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -133,7 +133,7 @@ export default function RegisterPage() {
 
           <p className="text-center text-gray-400 text-sm">
             لديك حساب بالفعل؟{' '}
-            <Link href="/login" className="text-indigo-400 hover:text-indigo-300">تسجيل الدخول</Link>
+            <Link href="/login" className="text-cyan-400 hover:text-indigo-300">تسجيل الدخول</Link>
           </p>
         </form>
       </div>

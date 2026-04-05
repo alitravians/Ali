@@ -44,6 +44,7 @@ model User {
   notifications   Notification[]
   auditLogs       AuditLog[]
   createdRooms    Room[]         @relation("RoomCreator")
+  teamMemberships TeamMember[]
 
   @@map("users")
 }
@@ -403,4 +404,36 @@ model BannedWord {
   createdAt DateTime @default(now())
 
   @@map("banned_words")
+}
+
+// ==================== Team System ====================
+model TeamDepartment {
+  id        String   @id @default(cuid())
+  name      String   @default("")
+  nameAr    String
+  color     String   @default("#2563eb")
+  order     Int      @default(0)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  members   TeamMember[]
+
+  @@map("team_departments")
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  userId       String
+  departmentId String
+  role         String   @default("")
+  roleAr       String   @default("")
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   TeamDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@map("team_members")
 }

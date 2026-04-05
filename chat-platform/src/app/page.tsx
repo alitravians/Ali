@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,6 +9,23 @@ export default function HomePage() {
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [adminCode, setAdminCode] = useState('');
   const [codeError, setCodeError] = useState('');
+  const [onlineCount, setOnlineCount] = useState(0);
+
+  // Fetch online count for homepage
+  useEffect(() => {
+    const fetchOnline = async () => {
+      try {
+        const res = await fetch('/api/presence/count');
+        if (res.ok) {
+          const data = await res.json();
+          setOnlineCount(data.totalOnline || 0);
+        }
+      } catch { /* ignore */ }
+    };
+    fetchOnline();
+    const interval = setInterval(fetchOnline, 15000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleAdminAccess = async () => {
     try {
@@ -29,12 +46,12 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-indigo-950/30 to-gray-950 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526] to-[#0b1120] relative overflow-hidden">
       {/* Background effects */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/4 -right-32 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -right-32 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/5 rounded-full blur-3xl" />
       </div>
 
       {/* Navigation */}
@@ -51,16 +68,16 @@ export default function HomePage() {
             className="text-gray-600 hover:text-gray-400 transition-colors text-xs"
             title="دخول الإدارة"
           >
-            ⚙
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
           </button>
         </div>
       </nav>
 
       {/* Hero section */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] px-6 text-center">
-        <div className="mb-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-sm">
-          <span className="w-2 h-2 bg-green-400 rounded-full online-indicator" />
-          منصة الدردشة الاحترافية
+        <div className="mb-4 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-sm">
+          <span className="w-2 h-2 bg-emerald-400 rounded-full online-indicator" />
+          {onlineCount > 0 ? `${onlineCount} متواجد الآن` : 'منصة الدردشة الاحترافية'}
         </div>
 
         <h2 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
@@ -76,7 +93,7 @@ export default function HomePage() {
         <div className="flex flex-col sm:flex-row gap-4">
           <Link
             href="/register"
-            className="px-8 py-3.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 hover:-translate-y-0.5"
+            className="px-8 py-3.5 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 rounded-xl font-semibold text-white transition-all duration-300 shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:-translate-y-0.5"
           >
             إنشاء حساب جديد
           </Link>
@@ -107,7 +124,7 @@ export default function HomePage() {
       {/* Admin Access Modal */}
       {showAdminModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setShowAdminModal(false)}>
-          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-8 w-full max-w-sm mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-[#111827] border border-white/[0.08] rounded-2xl p-8 w-full max-w-sm mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-xl font-bold text-white mb-6 text-center">دخول لوحة التحكم</h3>
             <input
               type="password"
@@ -115,13 +132,13 @@ export default function HomePage() {
               onChange={(e) => { setAdminCode(e.target.value); setCodeError(''); }}
               onKeyDown={(e) => e.key === 'Enter' && handleAdminAccess()}
               placeholder="أدخل رمز الدخول"
-              className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-center text-lg tracking-widest focus:outline-none focus:border-indigo-500 mb-4"
+              className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-center text-lg tracking-widest focus:outline-none focus:border-cyan-500/50 mb-4"
               autoFocus
             />
             {codeError && <p className="text-red-400 text-sm text-center mb-4">{codeError}</p>}
             <button
               onClick={handleAdminAccess}
-              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-white transition-colors"
+              className="w-full py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 rounded-xl font-semibold text-white transition-colors"
             >
               دخول
             </button>
@@ -131,7 +148,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="relative z-10 text-center py-6 text-gray-600 text-sm">
-        ChatZone © {new Date().getFullYear()} - جميع الحقوق محفوظة
+        ChatZone &copy; {new Date().getFullYear()} - جميع الحقوق محفوظة
       </footer>
     </div>
   );

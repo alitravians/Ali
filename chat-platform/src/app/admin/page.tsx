@@ -27,6 +27,10 @@ export default function AdminPage() {
   const [newBannedWord, setNewBannedWord] = useState('');
   const [chatEnabled, setChatEnabled] = useState(true);
   const [regEnabled, setRegEnabled] = useState(true);
+  const [presenceEnabled, setPresenceEnabled] = useState(true);
+  const [presencePublic, setPresencePublic] = useState(true);
+  const [showLastSeen, setShowLastSeen] = useState(true);
+  const [showRoomPresence, setShowRoomPresence] = useState(true);
   const [punishForm, setPunishForm] = useState({ type: 'warning', targetUserId: '', reason: '', duration: 30 });
   const [message, setMessage] = useState({ text: '', type: '' });
 
@@ -75,6 +79,10 @@ export default function AdminPage() {
           setBannedWords(setData.bannedWords?.map((w: any) => w.word) || []);
           setChatEnabled(setData.settings?.chat_enabled !== 'false');
           setRegEnabled(setData.settings?.registration_enabled !== 'false');
+          setPresenceEnabled(setData.settings?.presence_enabled !== 'false');
+          setPresencePublic(setData.settings?.presence_public !== 'false');
+          setShowLastSeen(setData.settings?.show_last_seen !== 'false');
+          setShowRoomPresence(setData.settings?.show_room_presence !== 'false');
           break;
       }
     } catch (e) { console.error(e); }
@@ -176,7 +184,15 @@ export default function AdminPage() {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        settings: { ...settings, chat_enabled: String(chatEnabled), registration_enabled: String(regEnabled) },
+        settings: {
+          ...settings,
+          chat_enabled: String(chatEnabled),
+          registration_enabled: String(regEnabled),
+          presence_enabled: String(presenceEnabled),
+          presence_public: String(presencePublic),
+          show_last_seen: String(showLastSeen),
+          show_room_presence: String(showRoomPresence),
+        },
         bannedWords,
       }),
     });
@@ -208,7 +224,7 @@ export default function AdminPage() {
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`w-full text-right px-3 py-2.5 rounded-xl text-sm flex items-center gap-2 transition-all ${
-                activeTab === tab.id ? 'bg-indigo-500/20 text-white border border-indigo-500/30' : 'text-gray-400 hover:bg-white/5'
+                activeTab === tab.id ? 'bg-cyan-500/20 text-white border border-cyan-500/30' : 'text-gray-400 hover:bg-white/5'
               }`}
             >
               <span>{tab.icon}</span>
@@ -234,7 +250,7 @@ export default function AdminPage() {
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-2 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
           </div>
         ) : (
           <>
@@ -263,7 +279,7 @@ export default function AdminPage() {
                   {stats.recentActivity?.map((log: any, i: number) => (
                     <div key={i} className="px-4 py-3 flex items-center justify-between text-sm">
                       <div>
-                        <span className="text-indigo-400 font-medium">{log.performedBy}</span>
+                        <span className="text-cyan-400 font-medium">{log.performedBy}</span>
                         <span className="text-gray-400 mx-2">-</span>
                         <span className="text-gray-300">{log.action}</span>
                       </div>
@@ -281,15 +297,15 @@ export default function AdminPage() {
                 <div className="glass rounded-xl p-6 mb-6">
                   <h3 className="text-lg font-semibold text-white mb-4">إنشاء غرفة جديدة</h3>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <input value={newRoom.name} onChange={e => setNewRoom({ ...newRoom, name: e.target.value })} placeholder="اسم الغرفة" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500" />
-                    <input value={newRoom.description} onChange={e => setNewRoom({ ...newRoom, description: e.target.value })} placeholder="وصف الغرفة" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500" />
-                    <select value={newRoom.type} onChange={e => setNewRoom({ ...newRoom, type: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                    <input value={newRoom.name} onChange={e => setNewRoom({ ...newRoom, name: e.target.value })} placeholder="اسم الغرفة" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
+                    <input value={newRoom.description} onChange={e => setNewRoom({ ...newRoom, description: e.target.value })} placeholder="وصف الغرفة" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
+                    <select value={newRoom.type} onChange={e => setNewRoom({ ...newRoom, type: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500">
                       <option value="PUBLIC">عامة</option>
                       <option value="PRIVATE">خاصة</option>
                       <option value="ANNOUNCEMENT">إعلانات</option>
                     </select>
                   </div>
-                  <button onClick={createRoom} className="mt-4 px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm text-white font-medium transition-colors">إنشاء الغرفة</button>
+                  <button onClick={createRoom} className="mt-4 px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm text-white font-medium transition-colors">إنشاء الغرفة</button>
                 </div>
                 <div className="space-y-3">
                   {rooms.map((room: any) => (
@@ -319,26 +335,26 @@ export default function AdminPage() {
               <div>
                 <h2 className="text-2xl font-bold text-white mb-6">إدارة المستخدمين</h2>
                 <div className="flex gap-3 mb-6">
-                  <input value={searchUser} onChange={e => setSearchUser(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadTabData('users')} placeholder="بحث بالاسم أو البريد..." className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500" />
-                  <button onClick={() => loadTabData('users')} className="px-6 py-2.5 bg-indigo-600 rounded-xl text-sm text-white font-medium">بحث</button>
+                  <input value={searchUser} onChange={e => setSearchUser(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadTabData('users')} placeholder="بحث بالاسم أو البريد..." className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
+                  <button onClick={() => loadTabData('users')} className="px-6 py-2.5 bg-cyan-600 rounded-xl text-sm text-white font-medium">بحث</button>
                 </div>
 
                 {/* Punishment form */}
                 <div className="glass rounded-xl p-6 mb-6">
                   <h3 className="text-lg font-semibold text-white mb-4">تطبيق عقوبة</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <select value={punishForm.type} onChange={e => setPunishForm({ ...punishForm, type: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                    <select value={punishForm.type} onChange={e => setPunishForm({ ...punishForm, type: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500">
                       <option value="warning">تحذير</option>
                       <option value="mute">كتم</option>
                       <option value="ban">حظر</option>
                     </select>
-                    <select value={punishForm.targetUserId} onChange={e => setPunishForm({ ...punishForm, targetUserId: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500">
+                    <select value={punishForm.targetUserId} onChange={e => setPunishForm({ ...punishForm, targetUserId: e.target.value })} className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500">
                       <option value="">اختر المستخدم</option>
                       {users.map(u => <option key={u.id} value={u.id}>{u.username}</option>)}
                     </select>
-                    <input value={punishForm.reason} onChange={e => setPunishForm({ ...punishForm, reason: e.target.value })} placeholder="السبب" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500" />
+                    <input value={punishForm.reason} onChange={e => setPunishForm({ ...punishForm, reason: e.target.value })} placeholder="السبب" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
                     {punishForm.type !== 'warning' && (
-                      <input type="number" value={punishForm.duration} onChange={e => setPunishForm({ ...punishForm, duration: Number(e.target.value) })} placeholder="المدة (بالدقائق)" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500" />
+                      <input type="number" value={punishForm.duration} onChange={e => setPunishForm({ ...punishForm, duration: Number(e.target.value) })} placeholder="المدة (بالدقائق)" className="bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
                     )}
                   </div>
                   <button onClick={issuePunishment} className="mt-4 px-6 py-2.5 bg-red-600 hover:bg-red-500 rounded-xl text-sm text-white font-medium transition-colors">تطبيق العقوبة</button>
@@ -348,7 +364,7 @@ export default function AdminPage() {
                   {users.map((u: any) => (
                     <div key={u.id} className="glass rounded-xl p-4 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold">{u.username[0]?.toUpperCase()}</div>
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-teal-600 flex items-center justify-center text-sm font-bold">{u.username[0]?.toUpperCase()}</div>
                         <div>
                           <p className="text-white font-medium flex items-center gap-2">
                             {u.username}
@@ -372,14 +388,14 @@ export default function AdminPage() {
                 <h2 className="text-2xl font-bold text-white mb-6">الإعلانات</h2>
                 <div className="glass rounded-xl p-6 mb-6">
                   <h3 className="text-lg font-semibold text-white mb-4">إعلان جديد</h3>
-                  <input value={newAnnouncement.title} onChange={e => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })} placeholder="عنوان الإعلان" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm mb-3 focus:outline-none focus:border-indigo-500" />
-                  <textarea value={newAnnouncement.content} onChange={e => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })} placeholder="محتوى الإعلان" rows={3} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm mb-3 focus:outline-none focus:border-indigo-500 resize-none" />
+                  <input value={newAnnouncement.title} onChange={e => setNewAnnouncement({ ...newAnnouncement, title: e.target.value })} placeholder="عنوان الإعلان" className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm mb-3 focus:outline-none focus:border-cyan-500" />
+                  <textarea value={newAnnouncement.content} onChange={e => setNewAnnouncement({ ...newAnnouncement, content: e.target.value })} placeholder="محتوى الإعلان" rows={3} className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm mb-3 focus:outline-none focus:border-cyan-500 resize-none" />
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 text-sm text-gray-400">
                       <input type="checkbox" checked={newAnnouncement.isPinned} onChange={e => setNewAnnouncement({ ...newAnnouncement, isPinned: e.target.checked })} className="rounded" />
                       تثبيت الإعلان
                     </label>
-                    <button onClick={createAnnouncement} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-sm text-white font-medium transition-colors">نشر الإعلان</button>
+                    <button onClick={createAnnouncement} className="px-6 py-2.5 bg-cyan-600 hover:bg-cyan-500 rounded-xl text-sm text-white font-medium transition-colors">نشر الإعلان</button>
                   </div>
                 </div>
                 <div className="space-y-3">
@@ -408,7 +424,7 @@ export default function AdminPage() {
                     <div key={report.id} className="glass rounded-xl p-4">
                       <div className="flex items-center justify-between mb-2">
                         <div>
-                          <span className="text-indigo-400 text-sm font-medium">{report.reporter?.username}</span>
+                          <span className="text-cyan-400 text-sm font-medium">{report.reporter?.username}</span>
                           <span className="text-gray-500 text-sm mx-2">أبلغ عن</span>
                           <span className="text-orange-400 text-sm font-medium">{report.targetUser?.username || 'غير محدد'}</span>
                         </div>
@@ -491,7 +507,7 @@ export default function AdminPage() {
                   {auditLogs.map((log: any) => (
                     <div key={log.id} className="px-4 py-3 flex items-center justify-between">
                       <div>
-                        <span className="text-indigo-400 text-sm font-medium">{log.performerName}</span>
+                        <span className="text-cyan-400 text-sm font-medium">{log.performerName}</span>
                         <span className="text-gray-400 text-sm mx-2">•</span>
                         <span className="text-white text-sm">{log.action}</span>
                         {log.details && typeof log.details === 'object' && (
@@ -526,13 +542,49 @@ export default function AdminPage() {
                           <div className={`w-5 h-5 bg-white rounded-full transition-transform ${regEnabled ? '-translate-x-6' : '-translate-x-0.5'}`} />
                         </button>
                       </label>
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-gray-300">عرض المتواجدين حالياً</span>
+                          <p className="text-gray-500 text-xs mt-0.5">إظهار قائمة المتواجدين في الدردشة</p>
+                        </div>
+                        <button onClick={() => setPresenceEnabled(!presenceEnabled)} className={`w-12 h-6 rounded-full transition-colors ${presenceEnabled ? 'bg-green-500' : 'bg-gray-700'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full transition-transform ${presenceEnabled ? '-translate-x-6' : '-translate-x-0.5'}`} />
+                        </button>
+                      </label>
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-gray-300">المتواجدون للجميع</span>
+                          <p className="text-gray-500 text-xs mt-0.5">إظهار القائمة لجميع الأعضاء أو فقط للمشرفين</p>
+                        </div>
+                        <button onClick={() => setPresencePublic(!presencePublic)} className={`w-12 h-6 rounded-full transition-colors ${presencePublic ? 'bg-green-500' : 'bg-gray-700'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full transition-transform ${presencePublic ? '-translate-x-6' : '-translate-x-0.5'}`} />
+                        </button>
+                      </label>
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-gray-300">إظهار آخر ظهور</span>
+                          <p className="text-gray-500 text-xs mt-0.5">عرض وقت آخر ظهور للمستخدمين غير المتصلين</p>
+                        </div>
+                        <button onClick={() => setShowLastSeen(!showLastSeen)} className={`w-12 h-6 rounded-full transition-colors ${showLastSeen ? 'bg-green-500' : 'bg-gray-700'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full transition-transform ${showLastSeen ? '-translate-x-6' : '-translate-x-0.5'}`} />
+                        </button>
+                      </label>
+                      <label className="flex items-center justify-between">
+                        <div>
+                          <span className="text-gray-300">المتواجدون في كل غرفة</span>
+                          <p className="text-gray-500 text-xs mt-0.5">إظهار عدد المتواجدين داخل كل غرفة</p>
+                        </div>
+                        <button onClick={() => setShowRoomPresence(!showRoomPresence)} className={`w-12 h-6 rounded-full transition-colors ${showRoomPresence ? 'bg-green-500' : 'bg-gray-700'}`}>
+                          <div className={`w-5 h-5 bg-white rounded-full transition-transform ${showRoomPresence ? '-translate-x-6' : '-translate-x-0.5'}`} />
+                        </button>
+                      </label>
                     </div>
                   </div>
 
                   <div className="glass rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4">الكلمات الممنوعة</h3>
                     <div className="flex gap-3 mb-4">
-                      <input value={newBannedWord} onChange={e => setNewBannedWord(e.target.value)} placeholder="أضف كلمة ممنوعة" className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500" />
+                      <input value={newBannedWord} onChange={e => setNewBannedWord(e.target.value)} placeholder="أضف كلمة ممنوعة" className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-cyan-500" />
                       <button onClick={() => { if (newBannedWord) { setBannedWords([...bannedWords, newBannedWord]); setNewBannedWord(''); } }} className="px-4 py-2.5 bg-red-600 rounded-xl text-sm text-white font-medium">إضافة</button>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -545,7 +597,7 @@ export default function AdminPage() {
                     </div>
                   </div>
 
-                  <button onClick={saveSettings} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl text-white font-medium transition-colors">
+                  <button onClick={saveSettings} className="px-8 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-500 hover:to-teal-500 rounded-xl text-white font-medium transition-colors">
                     حفظ الإعدادات
                   </button>
                 </div>
