@@ -898,6 +898,8 @@ app.prepare().then(() => {
           socket.emit('error', { message: 'صلاحية غير كافية' });
           return;
         }
+        const msg = await prisma.message.findUnique({ where: { id: messageId }, select: { roomId: true, isDeleted: true } });
+        if (!msg || msg.isDeleted || msg.roomId !== unpinRoomId) return;
         await prisma.message.update({ where: { id: messageId }, data: { isPinned: false } });
         io.to(`room:${unpinRoomId}`).emit('message:unpinned', { messageId, roomId: unpinRoomId });
       } catch (error) {
