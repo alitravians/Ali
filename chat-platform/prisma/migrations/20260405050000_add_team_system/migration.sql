@@ -1,14 +1,12 @@
 -- CreateTable
 CREATE TABLE "team_departments" (
     "id" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "description" TEXT,
-    "color" TEXT NOT NULL DEFAULT '#3B82F6',
-    "icon" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
+    "name" TEXT NOT NULL DEFAULT '',
+    "nameAr" TEXT NOT NULL,
+    "color" TEXT NOT NULL DEFAULT '#2563eb',
+    "order" INTEGER NOT NULL DEFAULT 0,
     "isVisible" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "team_departments_pkey" PRIMARY KEY ("id")
 );
@@ -18,9 +16,11 @@ CREATE TABLE "team_members" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "departmentId" TEXT NOT NULL,
-    "title" TEXT,
-    "sortOrder" INTEGER NOT NULL DEFAULT 0,
-    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "role" TEXT NOT NULL DEFAULT '',
+    "roleAr" TEXT NOT NULL DEFAULT '',
+    "order" INTEGER NOT NULL DEFAULT 0,
+    "isVisible" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "team_members_pkey" PRIMARY KEY ("id")
 );
