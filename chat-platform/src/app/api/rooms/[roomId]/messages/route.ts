@@ -11,6 +11,23 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
       return NextResponse.json({ error: 'غير مصرح' }, { status: 401 });
     }
 
+    // Check private room access
+    const room = await prisma.room.findUnique({ where: { id: params.roomId } });
+    if (!room) {
+      return NextResponse.json({ error: 'الغرفة غير موجودة' }, { status: 404 });
+    }
+    if (room.isPrivate || room.type === 'PRIVATE') {
+      const userRoleLevel = (session.user as any).roleLevel || 0;
+      if (userRoleLevel < 50) {
+        const isMember = await prisma.roomMember.findUnique({
+          where: { userId_roomId: { userId: (session.user as any).id, roomId: params.roomId } },
+        });
+        if (!isMember) {
+          return NextResponse.json({ error: 'هذه الغرفة خاصة' }, { status: 403 });
+        }
+      }
+    }
+
     const { searchParams } = new URL(req.url);
     const cursor = searchParams.get('cursor');
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50') || 50, 1), 100);
@@ -76,7 +93,7 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
 
     return NextResponse.json({
       messages: result,
-      nextCursor: messages.length === limit ? messages[0]?.id : null,
+      nextCursor: messages.length === limit ? messages[messages.length - 1]?.id : null,
     });
   } catch (error) {
     console.error('Error fetching messages:', error);

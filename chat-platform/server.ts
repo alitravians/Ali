@@ -139,6 +139,16 @@ app.prepare().then(() => {
       return;
     }
 
+    // Check if user is banned — prevent banned users from connecting
+    const activeBan = await prisma.ban.findFirst({
+      where: { userId: clientUserId, isActive: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+    });
+    if (activeBan) {
+      socket.emit('error', { message: 'أنت محظور من الدردشة' });
+      socket.disconnect();
+      return;
+    }
+
     const highestUserRole = dbUser.userRoles.reduce(
       (h, ur) => (ur.role.level > h.level ? ur.role : h),
       { level: 0, name: 'member', displayName: 'عضو', color: '#808080' }
@@ -342,6 +352,17 @@ app.prepare().then(() => {
         if (room.isFrozen && roleLevel < 50) {
           socket.emit('error', { message: 'الغرفة مجمدة حالياً' });
           return;
+        }
+
+        // Check private room access
+        if (room.isPrivate || room.type === 'PRIVATE') {
+          const isMember = await prisma.roomMember.findUnique({
+            where: { userId_roomId: { userId, roomId } },
+          });
+          if (!isMember && roleLevel < 50) {
+            socket.emit('error', { message: 'هذه الغرفة خاصة' });
+            return;
+          }
         }
 
         // Check mute
