@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { sanitizeInput } from "@/lib/validation";
 
 function isValidHexColor(color: string): boolean {
-  return /^#[0-9a-fA-F]{3,8}$/.test(color);
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
 }
 
 // GET - Get all departments with members (admin view - includes hidden)

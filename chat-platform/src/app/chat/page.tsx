@@ -57,6 +57,7 @@ function ChatContent() {
   useEffect(() => {
     if (!activeRoom) return;
     setMessages([]);
+    setTypingUsers(new Map());
     fetch(`/api/rooms/${activeRoom}/messages`)
       .then(res => res.json())
       .then(data => {
