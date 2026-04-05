@@ -2,6 +2,7 @@ import { NextAuthOptions } from 'next-auth';
 import CredentialsProvider from 'next-auth/providers/credentials';
 import bcrypt from 'bcryptjs';
 import prisma from './prisma';
+import { checkLoginRateLimit } from './rate-limit';
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -11,9 +12,17 @@ export const authOptions: NextAuthOptions = {
         email: { label: 'Email', type: 'email' },
         password: { label: 'Password', type: 'password' },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials?.password) {
           throw new Error('يرجى إدخال البريد الإلكتروني وكلمة المرور');
+        }
+
+        // Rate limit: 5 login attempts per 15 minutes per IP
+        const ip = (req?.headers as any)?.['x-forwarded-for']?.split(',')[0]?.trim() || 'unknown';
+        const rateCheck = checkLoginRateLimit(ip);
+        if (!rateCheck.allowed) {
+          const retryMin = Math.ceil(rateCheck.retryAfterMs / 60000);
+          throw new Error(`محاولات دخول كثيرة. حاول بعد ${retryMin} دقيقة`);
         }
 
         const user = await prisma.user.findUnique({

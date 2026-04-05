@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
-// GET /api/rooms/[roomId]/messages
+// GET /api/rooms/[roomId]/messages/search?q=...
 export async function GET(req: NextRequest, { params }: { params: { roomId: string } }) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,16 +29,18 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
     }
 
     const { searchParams } = new URL(req.url);
-    const cursor = searchParams.get('cursor');
-    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '50') || 50, 1), 100);
+    const query = searchParams.get('q')?.trim();
+    if (!query || query.length < 2) {
+      return NextResponse.json({ messages: [] });
+    }
 
     const messages = await prisma.message.findMany({
       where: {
         roomId: params.roomId,
         isDeleted: false,
+        content: { contains: query, mode: 'insensitive' },
       },
-      take: limit,
-      ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      take: 30,
       orderBy: { createdAt: 'desc' },
       include: {
         user: {
@@ -54,31 +56,18 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
             },
           },
         },
-        replyTo: {
-          select: {
-            id: true,
-            content: true,
-            user: { select: { username: true } },
-          },
-        },
       },
     });
 
-    // Compute nextCursor BEFORE reverse — messages[messages.length-1] is the oldest in desc order
-    const nextCursor = messages.length === limit ? messages[messages.length - 1]?.id : null;
-
-    const result = messages.reverse().map((msg) => {
+    const result = messages.map((msg) => {
       const highestRole = msg.user.userRoles[0]?.role;
       return {
         id: msg.id,
         content: msg.content,
         userId: msg.userId,
         roomId: msg.roomId,
-        replyToId: msg.replyToId,
         isEdited: msg.isEdited,
-        isDeleted: msg.isDeleted,
         isBold: msg.isBold,
-        isPinned: msg.isPinned,
         createdAt: msg.createdAt.toISOString(),
         user: {
           id: msg.user.id,
@@ -89,18 +78,12 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
           roleColor: highestRole?.color || '#808080',
           roleLevel: highestRole?.level || 10,
         },
-        replyTo: msg.replyTo
-          ? { id: msg.replyTo.id, content: msg.replyTo.content, user: { username: msg.replyTo.user.username } }
-          : null,
       };
     });
 
-    return NextResponse.json({
-      messages: result,
-      nextCursor,
-    });
+    return NextResponse.json({ messages: result });
   } catch (error) {
-    console.error('Error fetching messages:', error);
-    return NextResponse.json({ error: 'خطأ في جلب الرسائل' }, { status: 500 });
+    console.error('Error searching messages:', error);
+    return NextResponse.json({ error: 'خطأ في البحث' }, { status: 500 });
   }
 }

@@ -33,6 +33,7 @@ export interface ChatMessage {
   isEdited: boolean;
   isDeleted: boolean;
   isBold: boolean;
+  isPinned?: boolean;
   createdAt: string;
   user: {
     id: string;
@@ -97,6 +98,9 @@ export interface ServerToClientEvents {
   'presence:leave': (data: { userId: string }) => void;
   'presence:update': (data: { userId: string; status: string; currentRoomId?: string; lastActive?: string }) => void;
   'presence:room_counts': (data: { roomCounts: Record<string, number>; totalOnline: number }) => void;
+  'reaction:updated': (data: { messageId: string; reactions: { emoji: string; count: number }[]; userReactions: string[]; reactedByUserId: string }) => void;
+  'message:pinned': (data: { messageId: string; roomId: string; content: string; username: string; pinnedBy: string }) => void;
+  'message:unpinned': (data: { messageId: string; roomId: string }) => void;
   'error': (data: { message: string }) => void;
 }
 
@@ -109,4 +113,7 @@ export interface ClientToServerEvents {
   'typing:start': (data: { roomId: string }) => void;
   'typing:stop': (data: { roomId: string }) => void;
   'presence:request': () => void;
+  'reaction:toggle': (data: { messageId: string; emoji: string }) => void;
+  'message:pin': (data: { messageId: string; roomId: string }) => void;
+  'message:unpin': (data: { messageId: string; roomId: string }) => void;
 }

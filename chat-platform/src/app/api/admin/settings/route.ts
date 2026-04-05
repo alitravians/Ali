@@ -39,6 +39,7 @@ export async function PUT(req: NextRequest) {
       'chat_enabled', 'registration_enabled', 'presence_enabled', 'presence_public',
       'show_last_seen', 'show_room_presence', 'maintenance_mode', 'maintenance_message',
       'site_name', 'welcome_message', 'max_message_length',
+      'page_rules', 'page_welcome', 'page_about', 'page_privacy',
     ]);
     if (settings) {
       for (const [key, value] of Object.entries(settings)) {

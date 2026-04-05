@@ -45,6 +45,9 @@ model User {
   auditLogs       AuditLog[]
   createdRooms    Room[]         @relation("RoomCreator")
   teamMemberships TeamMember[]
+  reactions       Reaction[]
+  blockedUsers    UserBlock[]    @relation("BlockedByUser")
+  blockedBy       UserBlock[]    @relation("BlockedUser")
 
   @@map("users")
 }
@@ -180,6 +183,7 @@ model Message {
   isEdited  Boolean  @default(false)
   isDeleted Boolean  @default(false)
   isBold    Boolean  @default(false)
+  isPinned  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -190,6 +194,7 @@ model Message {
   replies  Message[]     @relation("MessageReply")
   edits    MessageEdit[]
   reports  Report[]
+  reactions Reaction[]
 
   @@index([roomId, createdAt])
   @@map("messages")
@@ -339,6 +344,8 @@ enum NotificationType {
   ANNOUNCEMENT
   REPORT_STATUS
   SYSTEM
+  MENTION
+  REACTION
 }
 
 // ==================== Admin Notes ====================
@@ -436,4 +443,34 @@ model TeamMember {
 
   @@unique([userId, departmentId])
   @@map("team_members")
+}
+
+// ==================== Reactions ====================
+model Reaction {
+  id        String   @id @default(cuid())
+  emoji     String
+  userId    String
+  messageId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, emoji])
+  @@index([messageId])
+  @@map("reactions")
+}
+
+// ==================== User Blocks ====================
+model UserBlock {
+  id            String   @id @default(cuid())
+  blockedById   String
+  blockedUserId String
+  createdAt     DateTime @default(now())
+
+  blockedBy   User @relation("BlockedByUser", fields: [blockedById], references: [id], onDelete: Cascade)
+  blockedUser User @relation("BlockedUser", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([blockedById, blockedUserId])
+  @@map("user_blocks")
 }

@@ -580,6 +580,44 @@ app.prepare().then(() => {
             ? { id: message.replyTo.id, content: message.replyTo.content, user: { username: message.replyTo.user.username } }
             : undefined,
         });
+
+        // Detect @mentions and notify
+        const mentionRegex = /@(\S+)/g;
+        let match;
+        const mentionedUsernames = new Set<string>();
+        while ((match = mentionRegex.exec(filtered)) !== null) {
+          mentionedUsernames.add(match[1].toLowerCase());
+        }
+        if (mentionedUsernames.size > 0) {
+          const mentionedUsers = await prisma.user.findMany({
+            where: { username: { in: Array.from(mentionedUsernames), mode: 'insensitive' } },
+            select: { id: true, username: true },
+          });
+          for (const mu of mentionedUsers) {
+            if (mu.id === userId) continue; // Don't notify self
+            await prisma.notification.create({
+              data: {
+                userId: mu.id,
+                type: 'MENTION',
+                title: `${username} أشار إليك في ${room?.name || 'الدردشة'}`,
+                content: filtered.slice(0, 100),
+                metadata: { roomId, messageId: message.id },
+              },
+            });
+            // Send realtime notification
+            const mentionedSockets = onlineUsers.get(mu.id);
+            if (mentionedSockets) {
+              for (const sid of mentionedSockets) {
+                io.to(sid).emit('notification:new', {
+                  id: `mention-${Date.now()}`,
+                  type: 'MENTION',
+                  title: `${username} أشار إليك`,
+                  content: filtered.slice(0, 100),
+                });
+              }
+            }
+          }
+        }
       } catch (error) {
         console.error('Message send error:', error);
         socket.emit('error', { message: 'فشل إرسال الرسالة' });
@@ -729,6 +767,109 @@ app.prepare().then(() => {
         }
       } catch (error) {
         console.error('Message delete error:', error);
+      }
+    });
+
+    // Reaction toggle
+    socket.on('reaction:toggle', async ({ messageId, emoji }) => {
+      try {
+        const ALLOWED_EMOJIS = ['❤️', '👍', '😂', '😮', '😢'];
+        if (!ALLOWED_EMOJIS.includes(emoji)) {
+          socket.emit('error', { message: 'رمز تعبيري غير مدعوم' });
+          return;
+        }
+        const message = await prisma.message.findUnique({ where: { id: messageId }, select: { roomId: true, isDeleted: true, userId: true } });
+        if (!message || message.isDeleted) return;
+
+        // Must be in the room
+        if (socketRooms.get(socket.id) !== message.roomId && roleLevel < 50) {
+          socket.emit('error', { message: 'يجب الانضمام للغرفة أولاً' });
+          return;
+        }
+
+        // Check existing reaction
+        const existing = await prisma.reaction.findUnique({
+          where: { userId_messageId_emoji: { userId, messageId, emoji } },
+        });
+
+        if (existing) {
+          await prisma.reaction.delete({ where: { id: existing.id } });
+        } else {
+          await prisma.reaction.create({ data: { userId, messageId, emoji } });
+
+          // Notify message owner if different user
+          if (message.userId !== userId) {
+            await prisma.notification.create({
+              data: {
+                userId: message.userId,
+                type: 'REACTION',
+                title: `${username} تفاعل مع رسالتك ${emoji}`,
+              },
+            });
+          }
+        }
+
+        // Fetch updated reactions for this message
+        const reactions = await prisma.reaction.groupBy({
+          by: ['emoji'],
+          where: { messageId },
+          _count: { emoji: true },
+        });
+        const userReactions = await prisma.reaction.findMany({
+          where: { messageId, userId },
+          select: { emoji: true },
+        });
+
+        io.to(`room:${message.roomId}`).emit('reaction:updated', {
+          messageId,
+          reactions: reactions.map(r => ({ emoji: r.emoji, count: r._count.emoji })),
+          userReactions: userReactions.map(r => r.emoji),
+          reactedByUserId: userId,
+        });
+      } catch (error) {
+        console.error('Reaction error:', error);
+      }
+    });
+
+    // Pin/Unpin message (moderators only)
+    socket.on('message:pin', async ({ messageId, roomId: pinRoomId }) => {
+      try {
+        await refreshRoleLevel();
+        if (roleLevel < 50) {
+          socket.emit('error', { message: 'صلاحية غير كافية لتثبيت الرسائل' });
+          return;
+        }
+        const msg = await prisma.message.findUnique({
+          where: { id: messageId },
+          select: { id: true, roomId: true, isDeleted: true, content: true, userId: true, user: { select: { username: true } } },
+        });
+        if (!msg || msg.isDeleted || msg.roomId !== pinRoomId) return;
+
+        await prisma.message.update({ where: { id: messageId }, data: { isPinned: true } });
+
+        io.to(`room:${pinRoomId}`).emit('message:pinned', {
+          messageId,
+          roomId: pinRoomId,
+          content: msg.content,
+          username: msg.user.username,
+          pinnedBy: username,
+        });
+      } catch (error) {
+        console.error('Pin error:', error);
+      }
+    });
+
+    socket.on('message:unpin', async ({ messageId, roomId: unpinRoomId }) => {
+      try {
+        await refreshRoleLevel();
+        if (roleLevel < 50) {
+          socket.emit('error', { message: 'صلاحية غير كافية' });
+          return;
+        }
+        await prisma.message.update({ where: { id: messageId }, data: { isPinned: false } });
+        io.to(`room:${unpinRoomId}`).emit('message:unpinned', { messageId, roomId: unpinRoomId });
+      } catch (error) {
+        console.error('Unpin error:', error);
       }
     });
 

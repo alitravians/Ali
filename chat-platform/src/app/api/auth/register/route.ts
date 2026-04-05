@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
+import { checkRegisterRateLimit } from '@/lib/rate-limit';
 
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit: 3 registrations per hour per IP
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rateCheck = checkRegisterRateLimit(ip);
+    if (!rateCheck.allowed) {
+      const retryMin = Math.ceil(rateCheck.retryAfterMs / 60000);
+      return NextResponse.json(
+        { error: `محاولات تسجيل كثيرة. حاول بعد ${retryMin} دقيقة` },
+        { status: 429 }
+      );
+    }
+
     const { username, email, password } = await req.json();
 
     if (!username || !email || !password) {

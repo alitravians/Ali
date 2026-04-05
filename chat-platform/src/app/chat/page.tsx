@@ -33,9 +33,85 @@ function ChatContent() {
   const [selectedProfile, setSelectedProfile] = useState<PresenceUser | null>(null);
   const [presenceFilter, setPresenceFilter] = useState('');
 
+  // Feature: Chat disabled check
+  const [chatDisabled, setChatDisabled] = useState(false);
+
+  // Feature: Message editing
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
+
+  // Feature: Infinite scroll
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [oldestCursor, setOldestCursor] = useState<string | null>(null);
+
+  // Feature: Message search
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<ChatMessage[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Feature: Notification badge
+  const [notifCount, setNotifCount] = useState(0);
+
+  // Feature: Sound notifications
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Feature: Reactions
+  const [messageReactions, setMessageReactions] = useState<Map<string, { emoji: string; count: number }[]>>(new Map());
+  const [userReactions, setUserReactions] = useState<Map<string, string[]>>(new Map());
+  const [showReactionPicker, setShowReactionPicker] = useState<string | null>(null);
+  const REACTION_EMOJIS = ['❤️', '👍', '😂', '😮', '😢'];
+
+  // Feature: Pinned messages
+  const [pinnedMessages, setPinnedMessages] = useState<{ id: string; content: string; username: string }[]>([]);
+  const [showPinned, setShowPinned] = useState(false);
+
+  // Feature: Block user
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Initialize notification sound
+  useEffect(() => {
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdW2MkZOQgo5+aXN/g4eCfnx/iISLi4mGg4aJhYWIi4mGiYqHiYuIiImKh4mHhoiKiIiHiIeJhoiKiYiHh4eIh4aIioiHhoeIiIeGiImJh4aHh4eHhoiIiIeGh4eHh4eIiIiHhoeHh4eHiIeHhoeHh4eHh4eHhoeHh4eHh4eIh4eGh4eHh4eHh4eHhoeHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eH');
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Check chat enabled status
+  useEffect(() => {
+    fetch('/api/site-status')
+      .then(res => res.json())
+      .then(data => { if (!data.chatEnabled) setChatDisabled(true); })
+      .catch(() => {});
+  }, []);
+
+  // Fetch notification count
+  useEffect(() => {
+    fetch('/api/notifications')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setNotifCount(data.filter((n: any) => !n.isRead).length);
+        }
+      })
+      .catch(() => {});
+    // Load blocked users
+    fetch('/api/blocks')
+      .then(res => res.json())
+      .then(data => {
+        if (data.blocks) {
+          setBlockedUserIds(new Set(data.blocks.map((u: any) => u.id)));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Fetch rooms
   useEffect(() => {
@@ -53,15 +129,32 @@ function ChatContent() {
       .catch(() => setLoading(false));
   }, []);
 
-  // Fetch messages when room changes
+  // Fetch messages when room changes (with infinite scroll support)
   useEffect(() => {
     if (!activeRoom) return;
     setMessages([]);
     setTypingUsers(new Map());
-    fetch(`/api/rooms/${activeRoom}/messages`)
+    setHasMore(true);
+    setOldestCursor(null);
+    setShowSearch(false);
+    setSearchQuery('');
+    setSearchResults([]);
+    setPinnedMessages([]);
+    setShowPinned(false);
+    setShowReactionPicker(null);
+    fetch(`/api/rooms/${activeRoom}/messages?limit=50`)
       .then(res => res.json())
       .then(data => {
-        if (data.messages) setMessages(data.messages);
+        if (data.messages) {
+          setMessages(data.messages);
+          setHasMore(!!data.nextCursor);
+          setOldestCursor(data.nextCursor || null);
+          // Load pinned messages from fetched data
+          const pinned = data.messages.filter((m: any) => m.isPinned).map((m: any) => ({
+            id: m.id, content: m.content, username: m.user.username,
+          }));
+          if (pinned.length > 0) setPinnedMessages(pinned);
+        }
       });
 
     if (socket) {
@@ -92,6 +185,19 @@ function ChatContent() {
           newMap.set(msg.roomId, (newMap.get(msg.roomId) || 0) + 1);
           return newMap;
         });
+      }
+      // Sound + Browser notifications for messages from others
+      if (msg.userId !== user?.id) {
+        if (soundEnabled && audioRef.current) {
+          audioRef.current.play().catch(() => {});
+        }
+        if ('Notification' in window && Notification.permission === 'granted' && document.hidden) {
+          new Notification(`${msg.user.username}`, {
+            body: msg.content.slice(0, 100),
+            icon: '/favicon.ico',
+            tag: msg.id,
+          });
+        }
       }
     });
 
@@ -168,6 +274,42 @@ function ChatContent() {
       setTimeout(() => setError(''), 5000);
     });
 
+    // Reaction updates
+    socket.on('reaction:updated', ({ messageId, reactions, userReactions: myReactions, reactedByUserId }) => {
+      setMessageReactions(prev => {
+        const newMap = new Map(prev);
+        newMap.set(messageId, reactions);
+        return newMap;
+      });
+      if (reactedByUserId === user?.id) {
+        setUserReactions(prev => {
+          const newMap = new Map(prev);
+          newMap.set(messageId, myReactions);
+          return newMap;
+        });
+      }
+    });
+
+    // Pinned messages
+    socket.on('message:pinned', ({ messageId, content, username, roomId }) => {
+      if (roomId === activeRoom) {
+        setPinnedMessages(prev => [...prev.filter(p => p.id !== messageId), { id: messageId, content, username }]);
+      }
+    });
+    socket.on('message:unpinned', ({ messageId, roomId }) => {
+      if (roomId === activeRoom) {
+        setPinnedMessages(prev => prev.filter(p => p.id !== messageId));
+      }
+    });
+
+    // Realtime notification counter
+    socket.on('notification:new', () => {
+      setNotifCount(prev => prev + 1);
+      if (soundEnabled && audioRef.current) {
+        audioRef.current.play().catch(() => {});
+      }
+    });
+
     return () => {
       socket.off('message:new');
       socket.off('message:edited');
@@ -181,6 +323,10 @@ function ChatContent() {
       socket.off('presence:update');
       socket.off('presence:room_counts');
       socket.off('error');
+      socket.off('reaction:updated');
+      socket.off('message:pinned');
+      socket.off('message:unpinned');
+      socket.off('notification:new');
     };
   }, [socket, activeRoom, user?.id]);
 
@@ -222,6 +368,124 @@ function ChatContent() {
     if (!socket) return;
     socket.emit('message:delete', { messageId });
   };
+
+  // Feature: Toggle reaction
+  const toggleReaction = (messageId: string, emoji: string) => {
+    if (!socket) return;
+    socket.emit('reaction:toggle', { messageId, emoji });
+    setShowReactionPicker(null);
+  };
+
+  // Feature: Pin/Unpin message
+  const pinMessage = (messageId: string) => {
+    if (!socket || !activeRoom) return;
+    socket.emit('message:pin', { messageId, roomId: activeRoom });
+  };
+  const unpinMessage = (messageId: string) => {
+    if (!socket || !activeRoom) return;
+    socket.emit('message:unpin', { messageId, roomId: activeRoom });
+  };
+
+  // Feature: Block/Unblock user
+  const blockUser = async (targetUserId: string) => {
+    try {
+      await fetch('/api/blocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blockedUserId: targetUserId }),
+      });
+      setBlockedUserIds(prev => new Set([...prev, targetUserId]));
+    } catch { /* ignore */ }
+  };
+  const unblockUser = async (targetUserId: string) => {
+    try {
+      await fetch(`/api/blocks?userId=${targetUserId}`, { method: 'DELETE' });
+      setBlockedUserIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(targetUserId);
+        return newSet;
+      });
+    } catch { /* ignore */ }
+  };
+
+  // Render message content with @mention highlighting
+  const renderMessageContent = (content: string) => {
+    const parts = content.split(/(@\S+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('@')) {
+        const mentionedName = part.slice(1);
+        const isSelf = mentionedName.toLowerCase() === user?.name?.toLowerCase();
+        return (
+          <span key={i} className={`font-semibold ${isSelf ? 'text-yellow-300 bg-yellow-500/20 px-0.5 rounded' : 'text-cyan-300'}`}>
+            {part}
+          </span>
+        );
+      }
+      return part;
+    });
+  };
+
+  // Feature: Edit message
+  const startEdit = (msg: ChatMessage) => {
+    setEditingMessageId(msg.id);
+    setEditContent(msg.content);
+  };
+  const cancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+  const submitEdit = () => {
+    if (!socket || !editingMessageId || !editContent.trim()) return;
+    socket.emit('message:edit', { messageId: editingMessageId, content: editContent });
+    cancelEdit();
+  };
+
+  // Feature: Load more messages (infinite scroll)
+  const loadMoreMessages = useCallback(() => {
+    if (!activeRoom || loadingMore || !hasMore || !oldestCursor) return;
+    setLoadingMore(true);
+    fetch(`/api/rooms/${activeRoom}/messages?cursor=${oldestCursor}&limit=50`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.messages && data.messages.length > 0) {
+          setMessages(prev => [...data.messages, ...prev]);
+          setHasMore(!!data.nextCursor);
+          setOldestCursor(data.nextCursor || null);
+        } else {
+          setHasMore(false);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoadingMore(false));
+  }, [activeRoom, loadingMore, hasMore, oldestCursor]);
+
+  // Infinite scroll handler
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      if (container.scrollTop < 100 && hasMore && !loadingMore) {
+        loadMoreMessages();
+      }
+    };
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [hasMore, loadingMore, loadMoreMessages]);
+
+  // Feature: Search messages
+  const searchMessages = useCallback(async () => {
+    if (!searchQuery.trim() || !activeRoom) return;
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/rooms/${activeRoom}/messages/search?q=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      setSearchResults(data.messages || []);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearching(false);
+    }
+  }, [searchQuery, activeRoom]);
 
   const activeRoomData = rooms.find(r => r.id === activeRoom);
 
@@ -423,6 +687,33 @@ function ChatContent() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {/* Sound toggle */}
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`p-1.5 rounded-lg text-xs transition-all ${soundEnabled ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-500 bg-white/[0.03]'}`}
+              title={soundEnabled ? 'إيقاف الصوت' : 'تفعيل الصوت'}
+            >
+              {soundEnabled ? '🔔' : '🔕'}
+            </button>
+            {/* Search toggle */}
+            <button
+              onClick={() => setShowSearch(!showSearch)}
+              className={`p-1.5 rounded-lg text-xs transition-all ${showSearch ? 'text-cyan-400 bg-cyan-500/10 border border-cyan-500/20' : 'text-gray-400 bg-white/[0.03] hover:bg-white/[0.06]'}`}
+              title="بحث في الرسائل"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+            </button>
+            {/* Notifications badge */}
+            <Link
+              href="/notifications"
+              className="relative p-1.5 rounded-lg text-gray-400 bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+              title="الإشعارات"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+              {notifCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-[9px] text-white flex items-center justify-center font-bold">{notifCount > 9 ? '9+' : notifCount}</span>
+              )}
+            </Link>
             {/* Online count badge */}
             <button
               onClick={() => setShowPresencePanel(!showPresencePanel)}
@@ -443,7 +734,96 @@ function ChatContent() {
         <div className="flex-1 flex overflow-hidden">
           {/* Messages Area */}
           <div className="flex-1 flex flex-col min-w-0">
+            {/* Search bar */}
+            {showSearch && (
+              <div className="px-4 py-2 border-b border-white/[0.06] bg-[#0d1526]/60">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && searchMessages()}
+                    placeholder="ابحث في رسائل الغرفة..."
+                    className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-cyan-500/50"
+                    dir="auto"
+                    autoFocus
+                  />
+                  <button onClick={searchMessages} disabled={searching} className="px-3 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-sm text-white transition-colors disabled:opacity-50">
+                    {searching ? '...' : 'بحث'}
+                  </button>
+                  <button onClick={() => { setShowSearch(false); setSearchResults([]); setSearchQuery(''); }} className="p-2 text-gray-400 hover:text-white transition-colors">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+                {searchResults.length > 0 && (
+                  <div className="mt-2 max-h-60 overflow-y-auto space-y-1">
+                    <p className="text-[10px] text-gray-500 mb-1">{searchResults.length} نتيجة</p>
+                    {searchResults.map(sr => (
+                      <div key={sr.id} className="bg-white/[0.03] rounded-lg px-3 py-2 text-sm">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-[11px] font-medium" style={{ color: sr.user.roleColor }}>{sr.user.username}</span>
+                          <span className="text-[9px] text-gray-600">{new Date(sr.createdAt).toLocaleString('ar-SA')}</span>
+                        </div>
+                        <p className="text-gray-300 text-[12px]">{sr.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {searchQuery && searchResults.length === 0 && !searching && (
+                  <p className="text-gray-500 text-xs mt-2 text-center">لا توجد نتائج</p>
+                )}
+              </div>
+            )}
+
+            {/* Chat disabled notice */}
+            {chatDisabled && (
+              <div className="mx-4 mt-2 bg-yellow-500/10 border border-yellow-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+                <span className="text-yellow-400 text-lg">⚠️</span>
+                <span className="text-yellow-300 text-sm">الدردشة معطّلة حالياً من قبل الإدارة</span>
+              </div>
+            )}
+
+            {/* Pinned messages bar */}
+            {pinnedMessages.length > 0 && (
+              <div className="mx-4 mt-2">
+                <button
+                  onClick={() => setShowPinned(!showPinned)}
+                  className="w-full bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-2 flex items-center gap-2 hover:bg-amber-500/15 transition-colors"
+                >
+                  <span className="text-amber-400">📌</span>
+                  <span className="text-amber-300 text-sm font-medium">{pinnedMessages.length} رسالة مثبتة</span>
+                  <svg className={`w-3 h-3 text-amber-400 mr-auto transition-transform ${showPinned ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                </button>
+                {showPinned && (
+                  <div className="mt-1 space-y-1 max-h-40 overflow-y-auto">
+                    {pinnedMessages.map(pm => (
+                      <div key={pm.id} className="bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2 flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] text-amber-400 font-medium">{pm.username}</span>
+                          <p className="text-gray-300 text-xs truncate max-w-[300px]">{pm.content}</p>
+                        </div>
+                        {(user?.roleLevel || 0) >= 50 && (
+                          <button onClick={() => unpinMessage(pm.id)} className="text-gray-500 hover:text-red-400 text-xs p-1" title="إلغاء التثبيت">✕</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-0.5 chat-messages-area">
+              {/* Infinite scroll: load more indicator */}
+              {loadingMore && (
+                <div className="flex justify-center py-3">
+                  <div className="w-5 h-5 border-2 border-cyan-500/30 border-t-cyan-500 rounded-full animate-spin" />
+                </div>
+              )}
+              {hasMore && !loadingMore && messages.length > 0 && (
+                <button onClick={loadMoreMessages} className="w-full text-center py-2 text-gray-500 hover:text-cyan-400 text-xs transition-colors">
+                  ▲ تحميل رسائل أقدم
+                </button>
+              )}
               {messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-3">
                   <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
@@ -455,6 +835,13 @@ function ChatContent() {
               {messages.map((msg, index) => {
                 const isOwn = msg.userId === user?.id;
                 const showAvatar = index === 0 || messages[index - 1]?.userId !== msg.userId;
+                const isBlocked = blockedUserIds.has(msg.userId);
+                // Hide blocked user messages
+                if (isBlocked && !isOwn) {
+                  return null;
+                }
+                const msgReactions = messageReactions.get(msg.id) || [];
+                const myReactions = userReactions.get(msg.id) || [];
                 return (
                   <div key={msg.id} className={`message-enter ${!showAvatar ? 'mt-0.5' : 'mt-3 first:mt-0'}`}>
                     <div className={`flex items-start gap-2.5 ${isOwn ? 'flex-row-reverse' : ''}`}>
@@ -502,18 +889,59 @@ function ChatContent() {
                               ? 'bg-gradient-to-l from-cyan-600 to-teal-700 text-white shadow-lg shadow-cyan-500/10'
                               : 'bg-white/[0.05] backdrop-blur-sm text-gray-100 border border-white/[0.06]'
                         }`}>
-                          <p className="text-[13px] leading-relaxed break-words">{msg.content}</p>
+                          {editingMessageId === msg.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={editContent}
+                                onChange={e => setEditContent(e.target.value)}
+                                onKeyDown={e => { if (e.key === 'Enter') submitEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                                className="flex-1 bg-black/20 rounded-lg px-2 py-1 text-sm text-white focus:outline-none"
+                                dir="auto"
+                                autoFocus
+                              />
+                              <button onClick={submitEdit} className="text-emerald-400 hover:text-emerald-300 text-xs">✓</button>
+                              <button onClick={cancelEdit} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+                            </div>
+                          ) : (
+                            <p className="text-[13px] leading-relaxed break-words">{renderMessageContent(msg.content)}</p>
+                          )}
 
                           {/* Message actions */}
                           <div className={`absolute top-1/2 -translate-y-1/2 flex items-center gap-1 opacity-0 group-hover/msg:opacity-100 transition-all ${
-                            isOwn ? '-left-20' : '-right-20'
+                            isOwn ? '-left-32' : '-right-32'
                           }`}>
+                            {/* Reaction picker trigger */}
+                            <button onClick={() => setShowReactionPicker(showReactionPicker === msg.id ? null : msg.id)} className="p-1 rounded-lg bg-[#111827]/90 text-gray-400 hover:text-yellow-400 transition-all" title="تفاعل">
+                              <span className="text-xs">😀</span>
+                            </button>
                             <button onClick={() => setReplyTo(msg)} className="p-1 rounded-lg bg-[#111827]/90 text-gray-400 hover:text-cyan-400 transition-all" title="رد">
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" /></svg>
                             </button>
+                            {isOwn && (
+                              <button onClick={() => startEdit(msg)} className="p-1 rounded-lg bg-[#111827]/90 text-gray-400 hover:text-emerald-400 transition-all" title="تعديل">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                              </button>
+                            )}
                             {(isOwn || (user?.roleLevel || 0) >= 50) && (
                               <button onClick={() => deleteMessage(msg.id)} className="p-1 rounded-lg bg-[#111827]/90 text-gray-400 hover:text-red-400 transition-all" title="حذف">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                              </button>
+                            )}
+                            {/* Pin button for moderators */}
+                            {(user?.roleLevel || 0) >= 50 && (
+                              <button onClick={() => pinMessage(msg.id)} className="p-1 rounded-lg bg-[#111827]/90 text-gray-400 hover:text-amber-400 transition-all" title="تثبيت">
+                                <span className="text-xs">📌</span>
+                              </button>
+                            )}
+                            {/* Block user (not own messages) */}
+                            {!isOwn && (
+                              <button
+                                onClick={() => blockUser(msg.userId)}
+                                className="p-1 rounded-lg bg-[#111827]/90 text-gray-400 hover:text-red-400 transition-all"
+                                title="حظر شخصي"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                               </button>
                             )}
                             <button
@@ -533,7 +961,42 @@ function ChatContent() {
                               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
                             </button>
                           </div>
+
+                          {/* Reaction picker popup */}
+                          {showReactionPicker === msg.id && (
+                            <div className={`absolute -bottom-10 flex gap-1 bg-[#111827] border border-white/10 rounded-xl px-2 py-1 shadow-xl z-20 ${isOwn ? 'left-0' : 'right-0'}`}>
+                              {REACTION_EMOJIS.map(emoji => (
+                                <button
+                                  key={emoji}
+                                  onClick={() => toggleReaction(msg.id, emoji)}
+                                  className={`text-lg hover:scale-125 transition-transform px-0.5 ${myReactions.includes(emoji) ? 'opacity-100' : 'opacity-70 hover:opacity-100'}`}
+                                >
+                                  {emoji}
+                                </button>
+                              ))}
+                            </div>
+                          )}
                         </div>
+
+                        {/* Reactions display */}
+                        {msgReactions.length > 0 && (
+                          <div className={`flex flex-wrap gap-1 mt-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+                            {msgReactions.map(r => (
+                              <button
+                                key={r.emoji}
+                                onClick={() => toggleReaction(msg.id, r.emoji)}
+                                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[11px] transition-all ${
+                                  myReactions.includes(r.emoji)
+                                    ? 'bg-cyan-500/20 border border-cyan-500/30 text-cyan-300'
+                                    : 'bg-white/[0.04] border border-white/[0.06] text-gray-400 hover:bg-white/[0.08]'
+                                }`}
+                              >
+                                <span>{r.emoji}</span>
+                                <span className="text-[10px]">{r.count}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

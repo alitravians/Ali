@@ -50,14 +50,23 @@ export default function AdminPage() {
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [siteName, setSiteName] = useState('ChatZone');
   const [welcomeMessage, setWelcomeMessage] = useState('');
-  const [settingsSection, setSettingsSection] = useState<'site' | 'chat' | 'presence' | 'security'>('site');
+  const [settingsSection, setSettingsSection] = useState<'site' | 'chat' | 'presence' | 'security' | 'pages'>('site');
+
+  // Dynamic pages
+  const [pageRules, setPageRules] = useState('');
+  const [pageWelcome, setPageWelcome] = useState('');
+  const [pageAbout, setPageAbout] = useState('');
+  const [pagePrivacy, setPagePrivacy] = useState('');
+  const [activePageTab, setActivePageTab] = useState<'rules' | 'welcome' | 'about' | 'privacy'>('rules');
+  const [_pageSaving, _setPageSaving] = useState(false);
+  const [_pageMessage, _setPageMessage] = useState('');
 
   // Punishment form
   const [punishForm, setPunishForm] = useState({ type: 'warning', targetUserId: '', reason: '', duration: 30 });
   const [punishFilter, setPunishFilter] = useState<'all' | 'active'>('all');
 
   // Role change
-  const [roleChangeUser, setRoleChangeUser] = useState<string>('');
+  const [_roleChangeUser, _setRoleChangeUser] = useState<string>('');
   const [roleChangeRole, setRoleChangeRole] = useState<string>('');
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [selectedUserForRole, setSelectedUserForRole] = useState<any>(null);
@@ -139,6 +148,11 @@ export default function AdminPage() {
           setMaintenanceMessage(s.maintenance_message || '');
           setSiteName(s.site_name || 'ChatZone');
           setWelcomeMessage(s.welcome_message || '');
+          // Load dynamic pages
+          setPageRules(s.page_rules || '');
+          setPageWelcome(s.page_welcome || '');
+          setPageAbout(s.page_about || '');
+          setPagePrivacy(s.page_privacy || '');
           break;
         }
       }
@@ -293,6 +307,10 @@ export default function AdminPage() {
           maintenance_message: maintenanceMessage,
           site_name: siteName,
           welcome_message: welcomeMessage,
+          page_rules: pageRules,
+          page_welcome: pageWelcome,
+          page_about: pageAbout,
+          page_privacy: pagePrivacy,
         },
         bannedWords,
       }),
@@ -339,6 +357,7 @@ export default function AdminPage() {
     { id: 'chat' as const, label: 'إعدادات الدردشة', icon: '💬', desc: 'تفعيل الدردشة، الكلمات الممنوعة' },
     { id: 'presence' as const, label: 'إعدادات المتواجدين', icon: '👁', desc: 'التحكم بعرض المتواجدين وآخر ظهور' },
     { id: 'security' as const, label: 'الأمان والتسجيل', icon: '🔒', desc: 'تفعيل التسجيل وإعدادات الأمان' },
+    { id: 'pages' as const, label: 'صفحات المحتوى', icon: '📄', desc: 'القوانين، الترحيب، عن الموقع' },
   ];
 
   // ==================== Toggle Component ====================
@@ -1209,6 +1228,66 @@ export default function AdminPage() {
                           label="تفعيل التسجيل"
                           desc="السماح للمستخدمين الجدد بإنشاء حسابات"
                         />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dynamic Pages Editor */}
+                  {settingsSection === 'pages' && (
+                    <div className="space-y-4">
+                      <div className="glass rounded-2xl p-6">
+                        <h3 className="text-base font-semibold text-white mb-5 flex items-center gap-2">
+                          <span className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-sm">📄</span>
+                          صفحات المحتوى الديناميكية
+                        </h3>
+                        <p className="text-gray-500 text-xs mb-4">تعديل محتوى الصفحات العامة (القوانين، الترحيب، عن الموقع، الخصوصية)</p>
+
+                        {/* Page tabs */}
+                        <div className="flex gap-2 mb-4 flex-wrap">
+                          {[
+                            { id: 'rules' as const, label: 'القوانين', icon: '📜' },
+                            { id: 'welcome' as const, label: 'الترحيب', icon: '👋' },
+                            { id: 'about' as const, label: 'عن الموقع', icon: 'ℹ️' },
+                            { id: 'privacy' as const, label: 'الخصوصية', icon: '🔐' },
+                          ].map(pt => (
+                            <button
+                              key={pt.id}
+                              onClick={() => setActivePageTab(pt.id)}
+                              className={`px-4 py-2 rounded-lg text-sm transition-all ${
+                                activePageTab === pt.id
+                                  ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                                  : 'bg-white/[0.03] text-gray-400 hover:bg-white/[0.06]'
+                              }`}
+                            >
+                              {pt.icon} {pt.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {/* Editor */}
+                        <textarea
+                          value={
+                            activePageTab === 'rules' ? pageRules :
+                            activePageTab === 'welcome' ? pageWelcome :
+                            activePageTab === 'about' ? pageAbout : pagePrivacy
+                          }
+                          onChange={e => {
+                            const v = e.target.value;
+                            if (activePageTab === 'rules') setPageRules(v);
+                            else if (activePageTab === 'welcome') setPageWelcome(v);
+                            else if (activePageTab === 'about') setPageAbout(v);
+                            else setPagePrivacy(v);
+                          }}
+                          placeholder={`اكتب محتوى صفحة ${
+                            activePageTab === 'rules' ? 'القوانين' :
+                            activePageTab === 'welcome' ? 'الترحيب' :
+                            activePageTab === 'about' ? 'عن الموقع' : 'الخصوصية'
+                          }...`}
+                          rows={10}
+                          className="w-full bg-gray-800/60 border border-gray-700/60 rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 resize-none font-mono leading-relaxed"
+                          dir="auto"
+                        />
+                        <p className="text-gray-600 text-[10px] mt-2">يمكنك استخدام نص عادي. المحتوى يُحفظ مع باقي الإعدادات عند الضغط على &quot;حفظ الإعدادات&quot;</p>
                       </div>
                     </div>
                   )}
