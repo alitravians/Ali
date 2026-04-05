@@ -365,6 +365,12 @@ app.prepare().then(() => {
     // Send message
     socket.on('message:send', async ({ content, roomId, replyToId }) => {
       try {
+        // Verify user has joined this room via room:join
+        if (socketRooms.get(socket.id) !== roomId) {
+          socket.emit('error', { message: 'يجب الانضمام للغرفة أولاً' });
+          return;
+        }
+
         // Reject empty messages
         if (!content || !content.trim()) {
           socket.emit('error', { message: 'لا يمكن إرسال رسالة فارغة' });
@@ -418,6 +424,12 @@ app.prepare().then(() => {
             socket.emit('error', { message: 'هذه الغرفة خاصة' });
             return;
           }
+        }
+
+        // Check announcement room - only mods and above can send
+        if (room.type === 'ANNOUNCEMENT' && roleLevel < 50) {
+          socket.emit('error', { message: 'غرفة الإعلانات مخصصة للإدارة فقط' });
+          return;
         }
 
         // Check mute
