@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
+import { useSiteName } from '@/hooks/useSiteName';
 
 // Pages that admins can always access
 const ADMIN_BYPASS_PATHS = ['/admin', '/api', '/login', '/register'];
@@ -10,6 +11,7 @@ const ADMIN_BYPASS_PATHS = ['/admin', '/api', '/login', '/register'];
 export default function MaintenanceGuard({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession();
   const pathname = usePathname();
+  const siteName = useSiteName();
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
   const [checked, setChecked] = useState(false);
@@ -66,7 +68,7 @@ export default function MaintenanceGuard({ children }: { children: React.ReactNo
             </svg>
             لوحة التحكم
           </a>
-          <p className="text-gray-600 text-xs mt-3">ChatZone — نعود قريباً</p>
+          <p className="text-gray-600 text-xs mt-3">{siteName} — نعود قريباً</p>
         </div>
       </div>
     );

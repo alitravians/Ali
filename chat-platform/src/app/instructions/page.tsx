@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 export default function InstructionsPage() {
+  const siteName = useSiteName();
   const instructions = [
     {
       icon: '📝',
@@ -92,7 +94,7 @@ export default function InstructionsPage() {
 
       <nav className="top-nav">
         <div className="top-nav-inner">
-          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">{siteName}</Link>
           <div className="flex items-center gap-1">
             {[
               { href: '/welcome', label: 'الترحيب' },
@@ -112,7 +114,7 @@ export default function InstructionsPage() {
             دليل شامل
           </div>
           <h1 className="text-3xl md:text-4xl font-black text-white mb-3 tracking-tight">تعليمات الاستخدام</h1>
-          <p className="text-gray-500 text-sm">دليلك الشامل لاستخدام منصة ChatZone</p>
+          <p className="text-gray-500 text-sm">دليلك الشامل لاستخدام منصة {siteName}</p>
         </div>
 
         <div className="space-y-4">

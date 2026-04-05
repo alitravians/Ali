@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 export default function WelcomePage() {
+  const siteName = useSiteName();
+
   return (
     <div className="page-container bg-[#030711]">
       {/* Background */}
@@ -15,7 +18,7 @@ export default function WelcomePage() {
       {/* Nav */}
       <nav className="top-nav">
         <div className="top-nav-inner">
-          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">{siteName}</Link>
           <div className="flex items-center gap-1">
             {[
               { href: '/rules', label: 'القوانين' },
@@ -36,7 +39,7 @@ export default function WelcomePage() {
             مرحباً بك
           </div>
           <h1 className="text-4xl md:text-5xl font-black text-white mb-4 tracking-tight">أهلاً وسهلاً بك!</h1>
-          <p className="text-gray-500 text-lg">مرحباً بك في منصة ChatZone للدردشة الاحترافية</p>
+          <p className="text-gray-500 text-lg">مرحباً بك في منصة {siteName} للدردشة الاحترافية</p>
         </div>
 
         {/* Welcome card */}
@@ -44,7 +47,7 @@ export default function WelcomePage() {
           <div className="text-center mb-8">
             <h2 className="text-xl font-bold text-white mb-3">نحن سعداء بانضمامك!</h2>
             <p className="text-gray-500 text-sm leading-relaxed max-w-lg mx-auto">
-              ChatZone هي منصة دردشة احترافية مصممة لتوفير تجربة تواصل مميزة وآمنة. نحرص على توفير بيئة محترمة ومنظمة لجميع الأعضاء.
+              {siteName} هي منصة دردشة احترافية مصممة لتوفير تجربة تواصل مميزة وآمنة. نحرص على توفير بيئة محترمة ومنظمة لجميع الأعضاء.
             </p>
           </div>
 

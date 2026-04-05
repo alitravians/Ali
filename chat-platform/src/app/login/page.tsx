@@ -4,11 +4,13 @@ import { Suspense, useState } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const siteName = useSiteName();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -84,7 +86,7 @@ function LoginForm() {
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-[400px]">
           <div className="text-center mb-8 lg:hidden">
-            <Link href="/" className="text-2xl font-black gradient-text-animated">ChatZone</Link>
+            <Link href="/" className="text-2xl font-black gradient-text-animated">{siteName}</Link>
           </div>
 
           <div className="mb-8">

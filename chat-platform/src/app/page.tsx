@@ -19,6 +19,7 @@ export default function HomePage() {
   const [onlineCount, setOnlineCount] = useState(0);
   const [maintenanceMode, setMaintenanceMode] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  const [siteName, setSiteName] = useState('ChatZone');
 
   useEffect(() => {
     const checkMaintenance = async () => {
@@ -28,6 +29,7 @@ export default function HomePage() {
           const data = await res.json();
           setMaintenanceMode(data.maintenanceMode || false);
           setMaintenanceMessage(data.maintenanceMessage || 'الموقع تحت الصيانة');
+          setSiteName(data.siteName || 'ChatZone');
         }
       } catch { /* ignore */ }
     };
@@ -172,7 +174,7 @@ export default function HomePage() {
       {/* Navigation */}
       <nav className="relative z-20 border-b border-white/[0.04] backdrop-blur-sm bg-[#030711]/80">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-3.5">
-          <Link href="/" className="text-xl font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <Link href="/" className="text-xl font-black gradient-text-animated tracking-tight">{siteName}</Link>
           <div className="flex items-center gap-0.5">
             {navLinks.filter(l => l.show).map((link) => (
               <Link
@@ -319,7 +321,7 @@ export default function HomePage() {
           {!isLoggedIn && (
             <div className="pb-20 -mt-4">
               <div className="text-center mb-10">
-                <h3 className="text-xl font-bold text-white mb-2">لماذا تختار ChatZone؟</h3>
+                <h3 className="text-xl font-bold text-white mb-2">لماذا تختار {siteName}؟</h3>
                 <p className="text-gray-500 text-sm">منصة مصممة لتوفير أفضل تجربة تواصل</p>
               </div>
 
@@ -420,7 +422,7 @@ export default function HomePage() {
 
       {/* Footer */}
       <footer className="relative z-10 text-center py-8 text-gray-600 text-xs border-t border-white/[0.03]">
-        ChatZone &copy; {new Date().getFullYear()}
+        {siteName} &copy; {new Date().getFullYear()}
       </footer>
     </div>
   );

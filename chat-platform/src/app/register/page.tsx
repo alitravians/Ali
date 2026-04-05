@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const siteName = useSiteName();
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,7 +77,7 @@ export default function RegisterPage() {
           </div>
           <h2 className="text-4xl font-black text-white mb-4 tracking-tight">انضم إلينا</h2>
           <p className="text-gray-500 text-lg leading-relaxed max-w-sm mx-auto">
-            أنشئ حسابك وابدأ التواصل مع مجتمع ChatZone
+            أنشئ حسابك وابدأ التواصل مع مجتمع {siteName}
           </p>
           <div className="mt-12 grid grid-cols-2 gap-3 max-w-xs mx-auto">
             {[
@@ -97,7 +99,7 @@ export default function RegisterPage() {
       <div className="flex-1 flex items-center justify-center px-6 py-8">
         <div className="w-full max-w-[400px]">
           <div className="text-center mb-8 lg:hidden">
-            <Link href="/" className="text-2xl font-black gradient-text-animated">ChatZone</Link>
+            <Link href="/" className="text-2xl font-black gradient-text-animated">{siteName}</Link>
           </div>
 
           {checkingStatus ? (
@@ -126,7 +128,7 @@ export default function RegisterPage() {
           <>
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-white mb-1">إنشاء حساب جديد</h1>
-            <p className="text-gray-500 text-sm">أدخل بياناتك لإنشاء حسابك في ChatZone</p>
+            <p className="text-gray-500 text-sm">أدخل بياناتك لإنشاء حسابك في {siteName}</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

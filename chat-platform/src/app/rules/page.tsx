@@ -1,6 +1,10 @@
+'use client';
+
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 export default function RulesPage() {
+  const siteName = useSiteName();
   const generalRules = [
     { icon: '🤝', title: 'الاحترام المتبادل', desc: 'يجب احترام جميع الأعضاء والمشرفين. لا يُسمح بالإهانة أو التنمر أو التحرش بأي شكل من الأشكال.', severity: 'critical' },
     { icon: '🚫', title: 'المحتوى المناسب', desc: 'يُمنع نشر أي محتوى غير لائق أو إباحي أو عنيف أو مخالف للآداب العامة.', severity: 'critical' },
@@ -38,7 +42,7 @@ export default function RulesPage() {
 
       <nav className="top-nav">
         <div className="top-nav-inner">
-          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">{siteName}</Link>
           <div className="flex items-center gap-1">
             {[
               { href: '/welcome', label: 'الترحيب' },
@@ -65,7 +69,7 @@ export default function RulesPage() {
         {/* Intro */}
         <div className="content-card p-6 mb-8 text-center">
           <p className="text-gray-400 text-sm leading-relaxed">
-            مرحباً بك في <span className="text-violet-400 font-semibold">ChatZone</span>. لضمان بيئة آمنة ومريحة ومحترمة لجميع الأعضاء،
+            مرحباً بك في <span className="text-violet-400 font-semibold">{siteName}</span>. لضمان بيئة آمنة ومريحة ومحترمة لجميع الأعضاء،
             يرجى قراءة والالتزام بالقوانين التالية. مخالفة هذه القوانين ستؤدي لعقوبات تتدرج حسب شدة المخالفة.
           </p>
         </div>

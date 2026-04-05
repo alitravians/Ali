@@ -6,11 +6,13 @@ import { useRouter } from 'next/navigation';
 import { SocketProvider, useSocket } from '@/components/SocketProvider';
 import type { ChatMessage, ChatRoom, PresenceUser } from '@/types/chat';
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 function ChatContent() {
   const { data: session } = useSession();
   const { socket, isConnected } = useSocket();
   const _router = useRouter();
+  const siteName = useSiteName();
   const user = session?.user as any;
 
   const [rooms, setRooms] = useState<ChatRoom[]>([]);
@@ -586,7 +588,7 @@ function ChatContent() {
                 <span className="text-white font-bold text-sm">C</span>
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-base font-bold text-white">ChatZone</h2>
+                <h2 className="text-base font-bold text-white">{siteName}</h2>
                 <div className="flex items-center gap-1.5">
                   <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 online-indicator' : 'bg-red-400'}`} />
                   <span className="text-[10px] text-gray-500">{isConnected ? 'متصل' : 'غير متصل'}</span>

@@ -1,8 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 export default function ChatGuidePage() {
+  const siteName = useSiteName();
+
   return (
     <div className="page-container bg-[#030711]">
       <div className="page-bg">
@@ -13,7 +16,7 @@ export default function ChatGuidePage() {
 
       <nav className="top-nav">
         <div className="top-nav-inner">
-          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">{siteName}</Link>
           <div className="flex items-center gap-1">
             {[
               { href: '/welcome', label: 'الترحيب' },

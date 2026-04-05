@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSiteName } from '@/hooks/useSiteName';
 
 interface TeamMember {
   id: string;
@@ -28,6 +29,7 @@ interface TeamDepartment {
 export default function TeamPage() {
   const [departments, setDepartments] = useState<TeamDepartment[]>([]);
   const [loading, setLoading] = useState(true);
+  const siteName = useSiteName();
 
   const fetchTeamData = () => {
     fetch('/api/team')
@@ -75,7 +77,7 @@ export default function TeamPage() {
 
       <nav className="top-nav">
         <div className="top-nav-inner">
-          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">ChatZone</Link>
+          <Link href="/" className="text-lg font-black gradient-text-animated tracking-tight">{siteName}</Link>
           <Link href="/" className="text-gray-500 hover:text-white text-[13px] px-3 py-2 rounded-lg hover:bg-white/[0.04] transition-all">← الرئيسية</Link>
         </div>
       </nav>
@@ -167,7 +169,7 @@ export default function TeamPage() {
         )}
 
         <footer className="text-center py-10 text-gray-600 text-xs">
-          ChatZone © {new Date().getFullYear()} - جميع الحقوق محفوظة
+          {siteName} © {new Date().getFullYear()} - جميع الحقوق محفوظة
         </footer>
       </div>
     </div>
