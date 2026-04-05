@@ -581,6 +581,12 @@ app.prepare().then(() => {
           return;
         }
 
+        // Regular users must be in the message's room to edit
+        if (!isModeratingOthersMessage && socketRooms.get(socket.id) !== message.roomId) {
+          socket.emit('error', { message: 'يجب الانضمام للغرفة أولاً' });
+          return;
+        }
+
         // Check if chat is open
         const chatSetting = await prisma.siteSetting.findUnique({ where: { key: 'chat_enabled' } });
         if (chatSetting && chatSetting.value === 'false') {
@@ -756,17 +762,22 @@ app.prepare().then(() => {
         }
       }
 
-      // Clean up typing — only for the disconnected socket's room, not all rooms
-      // This prevents clearing typing state from other tabs that are still active
+      // Clean up typing — only for the disconnected socket's room
+      // Check if user has other sockets still in the same room before clearing
       if (hadRoom) {
-        const roomTyping = typingUsers.get(hadRoom);
-        if (roomTyping) {
-          const existing = roomTyping.get(userId);
-          if (existing) {
-            clearTimeout(existing.timeout);
-            roomTyping.delete(userId);
-            // Notify room members to clear the typing indicator
-            io.to(`room:${hadRoom}`).emit('typing:update', { roomId: hadRoom, userId, username, isTyping: false });
+        const userStillInRoom = userSockets && Array.from(userSockets).some(sid => {
+          const info = socketToUser.get(sid);
+          return info?.currentRoomId === hadRoom;
+        });
+        if (!userStillInRoom) {
+          const roomTyping = typingUsers.get(hadRoom);
+          if (roomTyping) {
+            const existing = roomTyping.get(userId);
+            if (existing) {
+              clearTimeout(existing.timeout);
+              roomTyping.delete(userId);
+              io.to(`room:${hadRoom}`).emit('typing:update', { roomId: hadRoom, userId, username, isTyping: false });
+            }
           }
         }
       }

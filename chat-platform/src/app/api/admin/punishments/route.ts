@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
     }
 
     const targetLevel = targetUser.userRoles[0]?.role.level || 0;
+    if (targetUserId === performerId) {
+      return NextResponse.json({ error: 'لا يمكنك تطبيق عقوبة على نفسك' }, { status: 400 });
+    }
     if (targetLevel >= performerLevel) {
       return NextResponse.json({ error: 'لا يمكنك تطبيق عقوبة على مستخدم بنفس رتبتك أو أعلى' }, { status: 403 });
     }

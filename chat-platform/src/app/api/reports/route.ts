@@ -57,6 +57,12 @@ export async function PUT(req: NextRequest) {
     }
     const { id, status, resolution } = await req.json();
 
+    // Validate status against allowed enum values
+    const VALID_STATUSES = ['PENDING', 'REVIEWING', 'RESOLVED', 'DISMISSED', 'ESCALATED'];
+    if (status && !VALID_STATUSES.includes(status)) {
+      return NextResponse.json({ error: 'حالة البلاغ غير صالحة' }, { status: 400 });
+    }
+
     await prisma.report.update({
       where: { id },
       data: {

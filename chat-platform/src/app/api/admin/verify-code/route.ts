@@ -34,13 +34,6 @@ function isRateLimited(key: string): boolean {
 
 export async function POST(request: Request) {
   try {
-    // Rate limit by IP
-    const headersList = headers();
-    const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
-    if (isRateLimited(ip)) {
-      return NextResponse.json({ error: 'محاولات كثيرة، حاول لاحقاً' }, { status: 429 });
-    }
-
     const { code } = await request.json();
 
     const adminCode = process.env.ADMIN_ACCESS_CODE || '3131';
@@ -51,12 +44,19 @@ export async function POST(request: Request) {
 
     if (!session?.user) {
       // Not logged in — return identical response regardless of code validity
-      // to prevent unauthenticated brute-force oracle attack
+      // No rate limiting for unauthenticated users to prevent DoS against admin IPs
       return NextResponse.json({
         needsLogin: true,
         redirect: '/login?callbackUrl=/chat',
         message: 'يجب تسجيل الدخول أولاً للوصول للوحة التحكم',
       });
+    }
+
+    // Rate limit only authenticated users (by userId) to prevent brute-force
+    // This prevents unauthenticated attackers from exhausting rate limit slots
+    const userId = (session.user as any).id || 'unknown';
+    if (isRateLimited(userId)) {
+      return NextResponse.json({ error: 'محاولات كثيرة، حاول لاحقاً' }, { status: 429 });
     }
 
     // User is authenticated — check code + role together
