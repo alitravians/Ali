@@ -3,6 +3,7 @@ import { Cairo } from "next/font/google";
 import "./globals.css";
 import Providers from "@/components/Providers";
 import RainBackground from "@/components/RainBackground";
+import prisma from "@/lib/prisma";
 
 const cairo = Cairo({
   subsets: ["arabic", "latin"],
@@ -10,10 +11,17 @@ const cairo = Cairo({
   variable: "--font-cairo",
 });
 
-export const metadata: Metadata = {
-  title: "ChatZone - منصة الدردشة الاحترافية",
-  description: "منصة دردشة احترافية مع نظام غرف وصلاحيات ومشرفين",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  let siteName = 'ChatZone';
+  try {
+    const setting = await prisma.siteSetting.findUnique({ where: { key: 'site_name' } });
+    if (setting?.value) siteName = setting.value;
+  } catch { /* fallback */ }
+  return {
+    title: `${siteName} - منصة الدردشة الاحترافية`,
+    description: "منصة دردشة احترافية مع نظام غرف وصلاحيات ومشرفين",
+  };
+}
 
 export default function RootLayout({
   children,
