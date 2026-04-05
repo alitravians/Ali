@@ -110,8 +110,8 @@ function ChatContent() {
     fetch('/api/notifications')
       .then(res => res.json())
       .then(data => {
-        if (Array.isArray(data)) {
-          setNotifCount(data.filter((n: any) => !n.isRead).length);
+        if (data && typeof data.unreadCount === 'number') {
+          setNotifCount(data.unreadCount);
         }
       })
       .catch(() => {});
