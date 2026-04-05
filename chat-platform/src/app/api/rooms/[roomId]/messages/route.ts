@@ -3,6 +3,14 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import prisma from '@/lib/prisma';
 
+function aggregateReactions(reactions: { emoji: string; userId: string }[]): { emoji: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const r of reactions) {
+    counts.set(r.emoji, (counts.get(r.emoji) || 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([emoji, count]) => ({ emoji, count }));
+}
+
 // GET /api/rooms/[roomId]/messages
 export async function GET(req: NextRequest, { params }: { params: { roomId: string } }) {
   try {
@@ -61,8 +69,16 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
             user: { select: { username: true } },
           },
         },
+        reactions: {
+          select: {
+            emoji: true,
+            userId: true,
+          },
+        },
       },
     });
+
+    const currentUserId = (session.user as any).id;
 
     // Compute nextCursor BEFORE reverse — messages[messages.length-1] is the oldest in desc order
     const nextCursor = messages.length === limit ? messages[messages.length - 1]?.id : null;
@@ -87,11 +103,13 @@ export async function GET(req: NextRequest, { params }: { params: { roomId: stri
           avatar: msg.user.avatar,
           roleDisplayName: highestRole?.displayName || 'عضو',
           roleColor: highestRole?.color || '#808080',
-          roleLevel: highestRole?.level || 10,
+          roleLevel: highestRole?.level || 0,
         },
         replyTo: msg.replyTo
           ? { id: msg.replyTo.id, content: msg.replyTo.content, user: { username: msg.replyTo.user.username } }
           : null,
+        reactions: aggregateReactions(msg.reactions),
+        userReactions: msg.reactions.filter(r => r.userId === currentUserId).map(r => r.emoji),
       };
     });
 

@@ -191,19 +191,29 @@ export default function AdminPage() {
 
   const deleteRoom = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذه الغرفة؟')) return;
-    await fetch('/api/admin/rooms', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
-    showMsg('تم حذف الغرفة', 'success');
-    loadTabData('rooms');
+    const res = await fetch('/api/admin/rooms', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) });
+    if (res.ok) {
+      showMsg('تم حذف الغرفة', 'success');
+      loadTabData('rooms');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showMsg(data.error || 'فشل في حذف الغرفة', 'error');
+    }
   };
 
   const toggleFreezeRoom = async (id: string, currentState: boolean) => {
-    await fetch('/api/admin/rooms', {
+    const res = await fetch('/api/admin/rooms', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, isFrozen: !currentState }),
     });
-    showMsg(currentState ? 'تم فتح الغرفة' : 'تم تجميد الغرفة', 'success');
-    loadTabData('rooms');
+    if (res.ok) {
+      showMsg(currentState ? 'تم فتح الغرفة' : 'تم تجميد الغرفة', 'success');
+      loadTabData('rooms');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showMsg(data.error || 'فشل في تحديث حالة الغرفة', 'error');
+    }
   };
 
   const createAnnouncement = async () => {
@@ -222,13 +232,18 @@ export default function AdminPage() {
 
   const deleteAnnouncement = async (id: string) => {
     if (!confirm('هل تريد حذف هذا الإعلان؟')) return;
-    await fetch('/api/announcements', {
+    const res = await fetch('/api/announcements', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id }),
     });
-    showMsg('تم حذف الإعلان', 'success');
-    loadTabData('announcements');
+    if (res.ok) {
+      showMsg('تم حذف الإعلان', 'success');
+      loadTabData('announcements');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showMsg(data.error || 'فشل في حذف الإعلان', 'error');
+    }
   };
 
   const issuePunishment = async () => {
@@ -252,23 +267,33 @@ export default function AdminPage() {
   };
 
   const liftPunishment = async (type: string, id: string) => {
-    await fetch('/api/admin/punishments', {
+    const res = await fetch('/api/admin/punishments', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type, id }),
     });
-    showMsg('تم رفع العقوبة', 'success');
-    loadTabData('punishments');
+    if (res.ok) {
+      showMsg('تم رفع العقوبة', 'success');
+      loadTabData('punishments');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showMsg(data.error || 'فشل في رفع العقوبة', 'error');
+    }
   };
 
   const resolveReport = async (id: string, status: string) => {
-    await fetch('/api/reports', {
+    const res = await fetch('/api/reports', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, status, resolution: status === 'RESOLVED' ? 'تمت المعالجة' : 'تم الرفض' }),
     });
-    showMsg('تم تحديث حالة البلاغ', 'success');
-    loadTabData('reports');
+    if (res.ok) {
+      showMsg('تم تحديث حالة البلاغ', 'success');
+      loadTabData('reports');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showMsg(data.error || 'فشل في تحديث البلاغ', 'error');
+    }
   };
 
   const changeUserRole = async () => {
@@ -291,7 +316,7 @@ export default function AdminPage() {
   };
 
   const saveSettings = async () => {
-    await fetch('/api/admin/settings', {
+    const res = await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -315,7 +340,12 @@ export default function AdminPage() {
         bannedWords,
       }),
     });
-    showMsg('تم حفظ الإعدادات بنجاح', 'success');
+    if (res.ok) {
+      showMsg('تم حفظ الإعدادات بنجاح', 'success');
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showMsg(data.error || 'فشل في حفظ الإعدادات', 'error');
+    }
   };
 
   // ==================== Sidebar Config ====================

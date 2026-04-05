@@ -54,8 +54,14 @@ function ChatContent() {
   // Feature: Notification badge
   const [notifCount, setNotifCount] = useState(0);
 
-  // Feature: Sound notifications
-  const [soundEnabled, setSoundEnabled] = useState(true);
+  // Feature: Sound notifications (persisted in localStorage)
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chatzone_sound_enabled');
+      return saved !== null ? saved === 'true' : true;
+    }
+    return true;
+  });
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Feature: Reactions
@@ -154,6 +160,19 @@ function ChatContent() {
             id: m.id, content: m.content, username: m.user.username,
           }));
           if (pinned.length > 0) setPinnedMessages(pinned);
+          // Load reactions from fetched data
+          const reactionsMap = new Map<string, { emoji: string; count: number }[]>();
+          const userReactionsMap = new Map<string, string[]>();
+          for (const m of data.messages) {
+            if (m.reactions && m.reactions.length > 0) {
+              reactionsMap.set(m.id, m.reactions);
+            }
+            if (m.userReactions && m.userReactions.length > 0) {
+              userReactionsMap.set(m.id, m.userReactions);
+            }
+          }
+          setMessageReactions(reactionsMap);
+          setUserReactions(userReactionsMap);
         }
       });
 
@@ -451,6 +470,15 @@ function ChatContent() {
           setMessages(prev => [...data.messages, ...prev]);
           setHasMore(!!data.nextCursor);
           setOldestCursor(data.nextCursor || null);
+          // Merge reactions from older messages
+          for (const m of data.messages) {
+            if (m.reactions && m.reactions.length > 0) {
+              setMessageReactions(prev => { const n = new Map(prev); n.set(m.id, m.reactions); return n; });
+            }
+            if (m.userReactions && m.userReactions.length > 0) {
+              setUserReactions(prev => { const n = new Map(prev); n.set(m.id, m.userReactions); return n; });
+            }
+          }
         } else {
           setHasMore(false);
         }
@@ -689,7 +717,11 @@ function ChatContent() {
           <div className="flex items-center gap-2">
             {/* Sound toggle */}
             <button
-              onClick={() => setSoundEnabled(!soundEnabled)}
+              onClick={() => {
+              const newVal = !soundEnabled;
+              setSoundEnabled(newVal);
+              localStorage.setItem('chatzone_sound_enabled', String(newVal));
+            }}
               className={`p-1.5 rounded-lg text-xs transition-all ${soundEnabled ? 'text-cyan-400 bg-cyan-500/10' : 'text-gray-500 bg-white/[0.03]'}`}
               title={soundEnabled ? 'إيقاف الصوت' : 'تفعيل الصوت'}
             >
@@ -832,14 +864,16 @@ function ChatContent() {
                   <p className="text-sm">لا توجد رسائل بعد. ابدأ المحادثة!</p>
                 </div>
               )}
-              {messages.map((msg, index) => {
+              {(() => {
+                // Filter out blocked messages before rendering to fix avatar grouping
+                const visibleMessages = messages.filter(msg => {
+                  const isOwn = msg.userId === user?.id;
+                  const isBlocked = blockedUserIds.has(msg.userId);
+                  return !(isBlocked && !isOwn);
+                });
+                return visibleMessages.map((msg, index) => {
                 const isOwn = msg.userId === user?.id;
-                const showAvatar = index === 0 || messages[index - 1]?.userId !== msg.userId;
-                const isBlocked = blockedUserIds.has(msg.userId);
-                // Hide blocked user messages
-                if (isBlocked && !isOwn) {
-                  return null;
-                }
+                const showAvatar = index === 0 || visibleMessages[index - 1]?.userId !== msg.userId;
                 const msgReactions = messageReactions.get(msg.id) || [];
                 const myReactions = userReactions.get(msg.id) || [];
                 return (
@@ -1001,7 +1035,8 @@ function ChatContent() {
                     </div>
                   </div>
                 );
-              })}
+              });
+              })()}
               <div ref={messagesEndRef} />
             </div>
 
