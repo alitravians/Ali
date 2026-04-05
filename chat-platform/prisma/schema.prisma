@@ -1,0 +1,405 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== Users ====================
+model User {
+  id            String    @id @default(cuid())
+  username      String    @unique
+  email         String    @unique
+  password      String
+  displayName   String?
+  avatar        String?
+  bio           String?
+  status        UserStatus @default(OFFLINE)
+  lastActive    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  userRoles       UserRole[]
+  roomMemberships RoomMember[]
+  roomModerators  RoomModerator[]
+  messages        Message[]
+  messageEdits    MessageEdit[]
+  sentReports     Report[]       @relation("ReportSender")
+  receivedReports Report[]       @relation("ReportTarget")
+  warnings        Warning[]      @relation("WarningTarget")
+  issuedWarnings  Warning[]      @relation("WarningIssuer")
+  mutes           Mute[]         @relation("MuteTarget")
+  issuedMutes     Mute[]         @relation("MuteIssuer")
+  bans            Ban[]          @relation("BanTarget")
+  issuedBans      Ban[]          @relation("BanIssuer")
+  adminNotes      AdminNote[]    @relation("AdminNoteTarget")
+  createdAdminNotes AdminNote[]  @relation("AdminNoteCreator")
+  modNotes        ModeratorNote[] @relation("ModNoteTarget")
+  createdModNotes ModeratorNote[] @relation("ModNoteCreator")
+  announcements   Announcement[]
+  notifications   Notification[]
+  auditLogs       AuditLog[]
+  createdRooms    Room[]         @relation("RoomCreator")
+
+  @@map("users")
+}
+
+enum UserStatus {
+  ONLINE
+  OFFLINE
+  AWAY
+  DO_NOT_DISTURB
+}
+
+// ==================== Roles & Permissions ====================
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  displayName String
+  level       Int      @default(0)
+  color       String   @default("#808080")
+  icon        String?
+  isDefault   Boolean  @default(false)
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  rolePermissions RolePermission[]
+  userRoles       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  category    String   @default("general")
+  createdAt   DateTime @default(now())
+
+  // Relations
+  rolePermissions RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id        String   @id @default(cuid())
+  userId    String
+  roleId    String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+}
+
+// ==================== Rooms ====================
+model Room {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  type        RoomType @default(PUBLIC)
+  isPrivate   Boolean  @default(false)
+  isFrozen    Boolean  @default(false)
+  maxMembers  Int?
+  sortOrder   Int      @default(0)
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  createdBy    User?          @relation("RoomCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  members      RoomMember[]
+  moderators   RoomModerator[]
+  messages     Message[]
+  reports      Report[]
+
+  @@map("rooms")
+}
+
+enum RoomType {
+  PUBLIC
+  PRIVATE
+  ANNOUNCEMENT
+}
+
+model RoomMember {
+  id       String   @id @default(cuid())
+  userId   String
+  roomId   String
+  joinedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@map("room_members")
+}
+
+model RoomModerator {
+  id         String   @id @default(cuid())
+  userId     String
+  roomId     String
+  assignedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@map("room_moderators")
+}
+
+// ==================== Messages ====================
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  roomId    String
+  replyToId String?
+  isEdited  Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  isBold    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room     Room          @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  replyTo  Message?      @relation("MessageReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies  Message[]     @relation("MessageReply")
+  edits    MessageEdit[]
+  reports  Report[]
+
+  @@index([roomId, createdAt])
+  @@map("messages")
+}
+
+model MessageEdit {
+  id         String   @id @default(cuid())
+  messageId  String
+  editedById String
+  oldContent String
+  newContent String
+  editedAt   DateTime @default(now())
+
+  message  Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  editedBy User    @relation(fields: [editedById], references: [id], onDelete: Cascade)
+
+  @@map("message_edits")
+}
+
+// ==================== Reports ====================
+model Report {
+  id           String       @id @default(cuid())
+  reporterId   String
+  targetUserId String?
+  messageId    String?
+  roomId       String?
+  reason       String
+  details      String?
+  status       ReportStatus @default(PENDING)
+  resolvedById String?
+  resolvedAt   DateTime?
+  resolution   String?
+  createdAt    DateTime     @default(now())
+
+  reporter   User     @relation("ReportSender", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser User?    @relation("ReportTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+  message    Message? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  room       Room?    @relation(fields: [roomId], references: [id], onDelete: SetNull)
+
+  @@map("reports")
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWING
+  RESOLVED
+  DISMISSED
+  ESCALATED
+}
+
+// ==================== Warnings ====================
+model Warning {
+  id        String   @id @default(cuid())
+  userId    String
+  issuedBy  String
+  reason    String
+  roomId    String?
+  createdAt DateTime @default(now())
+
+  user   User @relation("WarningTarget", fields: [userId], references: [id], onDelete: Cascade)
+  issuer User @relation("WarningIssuer", fields: [issuedBy], references: [id], onDelete: Cascade)
+
+  @@map("warnings")
+}
+
+// ==================== Mutes ====================
+model Mute {
+  id        String   @id @default(cuid())
+  userId    String
+  issuedBy  String
+  reason    String
+  roomId    String?
+  duration  Int      // in minutes
+  startsAt  DateTime @default(now())
+  expiresAt DateTime
+  isActive  Boolean  @default(true)
+  liftedBy  String?
+  liftedAt  DateTime?
+  createdAt DateTime @default(now())
+
+  user   User @relation("MuteTarget", fields: [userId], references: [id], onDelete: Cascade)
+  issuer User @relation("MuteIssuer", fields: [issuedBy], references: [id], onDelete: Cascade)
+
+  @@map("mutes")
+}
+
+// ==================== Bans ====================
+model Ban {
+  id        String   @id @default(cuid())
+  userId    String
+  issuedBy  String
+  reason    String
+  duration  Int?     // in minutes, null = permanent
+  startsAt  DateTime @default(now())
+  expiresAt DateTime?
+  isActive  Boolean  @default(true)
+  isGlobal  Boolean  @default(true)
+  liftedBy  String?
+  liftedAt  DateTime?
+  createdAt DateTime @default(now())
+
+  user   User @relation("BanTarget", fields: [userId], references: [id], onDelete: Cascade)
+  issuer User @relation("BanIssuer", fields: [issuedBy], references: [id], onDelete: Cascade)
+
+  @@map("bans")
+}
+
+// ==================== Announcements ====================
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  createdBy String
+  isPinned  Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  author User @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+
+  @@map("announcements")
+}
+
+// ==================== Notifications ====================
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  content   String?
+  isRead    Boolean          @default(false)
+  metadata  Json?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  WARNING
+  MUTE
+  BAN
+  UNMUTE
+  UNBAN
+  ANNOUNCEMENT
+  REPORT_STATUS
+  SYSTEM
+}
+
+// ==================== Admin Notes ====================
+model AdminNote {
+  id           String   @id @default(cuid())
+  content      String
+  createdBy    String
+  targetUserId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  author     User  @relation("AdminNoteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  targetUser User? @relation("AdminNoteTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@map("admin_notes")
+}
+
+// ==================== Moderator Notes ====================
+model ModeratorNote {
+  id           String   @id @default(cuid())
+  content      String
+  createdBy    String
+  targetUserId String?
+  createdAt    DateTime @default(now())
+
+  author     User  @relation("ModNoteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  targetUser User? @relation("ModNoteTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@map("moderator_notes")
+}
+
+// ==================== Audit Logs ====================
+model AuditLog {
+  id           String   @id @default(cuid())
+  action       String
+  performedBy  String
+  targetUserId String?
+  details      Json?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+
+  performer User @relation(fields: [performedBy], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ==================== Site Settings ====================
+model SiteSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+// ==================== Banned Words ====================
+model BannedWord {
+  id        String   @id @default(cuid())
+  word      String   @unique
+  createdBy String?
+  createdAt DateTime @default(now())
+
+  @@map("banned_words")
+}
