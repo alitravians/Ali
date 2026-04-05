@@ -10,6 +10,23 @@ export default function HomePage() {
   const [adminCode, setAdminCode] = useState('');
   const [codeError, setCodeError] = useState('');
   const [onlineCount, setOnlineCount] = useState(0);
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+
+  // Fetch site status (maintenance mode check)
+  useEffect(() => {
+    const checkMaintenance = async () => {
+      try {
+        const res = await fetch('/api/site-status');
+        if (res.ok) {
+          const data = await res.json();
+          setMaintenanceMode(data.maintenanceMode || false);
+          setMaintenanceMessage(data.maintenanceMessage || 'الموقع تحت الصيانة');
+        }
+      } catch { /* ignore */ }
+    };
+    checkMaintenance();
+  }, []);
 
   // Fetch online count for homepage
   useEffect(() => {
@@ -57,6 +74,30 @@ export default function HomePage() {
       setCodeError('حدث خطأ في الاتصال');
     }
   };
+
+  // Maintenance mode view
+  if (maintenanceMode) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526] to-[#0b1120] flex items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-1/4 -right-32 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/4 -left-32 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl" />
+        </div>
+        <div className="relative z-10 text-center px-6 max-w-lg">
+          <div className="text-6xl mb-6">🔧</div>
+          <h1 className="text-3xl font-bold text-white mb-4">الموقع تحت الصيانة</h1>
+          <p className="text-gray-400 text-lg mb-8 leading-relaxed">{maintenanceMessage}</p>
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] rounded-xl text-gray-400 hover:text-cyan-400 transition-all duration-300 text-sm"
+          >
+            <span>⚙️</span>
+            <span>لوحة التحكم</span>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0b1120] via-[#0d1526] to-[#0b1120] relative overflow-hidden">

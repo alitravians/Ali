@@ -905,7 +905,7 @@ function ChatContent() {
                             <span className="text-[10px] text-gray-600">
                               {new Date(msg.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
                             </span>
-                            {msg.isEdited && <span className="text-[10px] text-gray-600 italic">(معدّل)</span>}
+                            {msg.isEdited && <span className="text-[10px] text-gray-500 italic">(معدّل)</span>}
                           </div>
                         )}
 
