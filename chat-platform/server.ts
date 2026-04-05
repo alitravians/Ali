@@ -341,7 +341,14 @@ app.prepare().then(() => {
           info.currentRoomId = roomId;
         }
 
-        // Ensure membership
+        // Ensure membership (enforce maxMembers limit, moderators bypass)
+        if (room.maxMembers && roleLevel < 50) {
+          const memberCount = await prisma.roomMember.count({ where: { roomId } });
+          if (memberCount >= room.maxMembers) {
+            socket.emit('error', { message: 'الغرفة ممتلئة' });
+            return;
+          }
+        }
         await prisma.roomMember.upsert({
           where: { userId_roomId: { userId, roomId } },
           create: { userId, roomId },

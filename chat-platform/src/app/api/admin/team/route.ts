@@ -86,7 +86,7 @@ export async function POST(req: NextRequest) {
       const department = await prisma.teamDepartment.update({
         where: { id },
         data: {
-          ...(nameAr !== undefined && { nameAr: nameAr.trim().slice(0, 200), name: nameAr.trim().slice(0, 200) }),
+          ...(nameAr !== undefined && nameAr.trim() && { nameAr: nameAr.trim().slice(0, 200), name: nameAr.trim().slice(0, 200) }),
           ...(color !== undefined && { color }),
           ...(isVisible !== undefined && { isVisible }),
           ...(order !== undefined && { order }),

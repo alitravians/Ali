@@ -2,9 +2,19 @@ import prisma from './prisma';
 
 const defaultBannedWords = ['كلمة_ممنوعة'];
 
+let bannedWordsCache: string[] | null = null;
+let bannedWordsCacheTime = 0;
+const BANNED_WORDS_CACHE_TTL = 60_000; // 1 minute
+
 export async function getBannedWords(): Promise<string[]> {
+  const now = Date.now();
+  if (bannedWordsCache && now - bannedWordsCacheTime < BANNED_WORDS_CACHE_TTL) {
+    return bannedWordsCache;
+  }
   const words = await prisma.bannedWord.findMany();
-  return words.map((w) => w.word);
+  bannedWordsCache = words.map((w) => w.word);
+  bannedWordsCacheTime = now;
+  return bannedWordsCache;
 }
 
 export function filterMessage(content: string, bannedWords: string[]): { filtered: string; containsBanned: boolean } {
