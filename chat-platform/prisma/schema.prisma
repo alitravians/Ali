@@ -53,6 +53,7 @@ model User {
   tickets         Ticket[]       @relation("TicketCreator")
   assignedTickets Ticket[]       @relation("TicketAssignee")
   ticketReplies   TicketReply[]
+  githubFixes     GitHubFix[]
 
   @@map("users")
 }
@@ -564,4 +565,184 @@ model UserBlock {
 
   @@unique([blockedById, blockedUserId])
   @@map("user_blocks")
+}
+
+// ==================== GitHub Monitor ====================
+model GitHubAppConfig {
+  id              String   @id @default(cuid())
+  appId           String
+  privateKey      String   // Encrypted server-side
+  installationId  String
+  webhookSecret   String
+  repoOwner       String
+  repoName        String
+  defaultBranch   String   @default("main")
+  isActive        Boolean  @default(true)
+  lastSyncAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("github_app_config")
+}
+
+model GitHubEvent {
+  id          String              @id @default(cuid())
+  eventType   GitHubEventType
+  title       String
+  description String?
+  actor       String?
+  branch      String?
+  commitSha   String?
+  metadata    Json?
+  severity    GitHubSeverity      @default(INFO)
+  isRead      Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+
+  fileChanges GitHubFileChange[]
+
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("github_events")
+}
+
+enum GitHubEventType {
+  PUSH
+  PULL_REQUEST
+  CHECK_RUN
+  CHECK_SUITE
+  CODE_SCAN_ALERT
+  SECRET_SCAN_ALERT
+  DEPENDABOT_ALERT
+  WORKFLOW_RUN
+  MANUAL_SYNC
+}
+
+enum GitHubSeverity {
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model GitHubFileChange {
+  id          String               @id @default(cuid())
+  eventId     String
+  filePath    String
+  changeType  GitHubFileChangeType
+  oldPath     String?
+  additions   Int                  @default(0)
+  deletions   Int                  @default(0)
+  commitSha   String?
+  author      String?
+  createdAt   DateTime             @default(now())
+
+  event GitHubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("github_file_changes")
+}
+
+enum GitHubFileChangeType {
+  ADDED
+  MODIFIED
+  DELETED
+  RENAMED
+}
+
+model GitHubAlert {
+  id                String            @id @default(cuid())
+  alertType         GitHubAlertType
+  title             String
+  description       String?
+  severity          GitHubSeverity    @default(WARNING)
+  filePath          String?
+  lineNumber        Int?
+  state             GitHubAlertState  @default(OPEN)
+  githubAlertNumber Int?
+  ruleId            String?
+  metadata          Json?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([alertType])
+  @@index([state])
+  @@map("github_alerts")
+}
+
+enum GitHubAlertType {
+  CODE_SCAN
+  SECRET_SCAN
+  DEPENDABOT
+}
+
+enum GitHubAlertState {
+  OPEN
+  FIXED
+  DISMISSED
+}
+
+model GitHubCheck {
+  id          String             @id @default(cuid())
+  name        String
+  status      GitHubCheckStatus
+  conclusion  GitHubCheckConclusion?
+  branch      String?
+  commitSha   String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  detailsUrl  String?
+  output      Json?
+  createdAt   DateTime           @default(now())
+
+  @@index([commitSha])
+  @@map("github_checks")
+}
+
+enum GitHubCheckStatus {
+  QUEUED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum GitHubCheckConclusion {
+  SUCCESS
+  FAILURE
+  NEUTRAL
+  CANCELLED
+  TIMED_OUT
+  ACTION_REQUIRED
+  SKIPPED
+  STALE
+}
+
+model GitHubFix {
+  id            String          @id @default(cuid())
+  filePath      String
+  oldContent    String?
+  newContent    String
+  commitMessage String
+  fixType       GitHubFixType
+  branch        String?
+  prNumber      Int?
+  prUrl         String?
+  performedBy   String
+  status        GitHubFixStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+
+  performer User @relation(fields: [performedBy], references: [id], onDelete: Cascade)
+
+  @@index([performedBy])
+  @@map("github_fixes")
+}
+
+enum GitHubFixType {
+  DIRECT
+  PR
+}
+
+enum GitHubFixStatus {
+  PENDING
+  COMMITTED
+  MERGED
+  FAILED
 }

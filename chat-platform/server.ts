@@ -1030,5 +1030,26 @@ app.prepare().then(() => {
 
   httpServer.listen(port, () => {
     console.log(`> Server ready on http://${hostname}:${port}`);
+
+    // ==================== GitHub Monitor: Periodic Sync ====================
+    const GITHUB_SYNC_INTERVAL = 15 * 60 * 1000; // 15 minutes
+    async function runGitHubSync() {
+      try {
+        const config = await prisma.gitHubAppConfig.findFirst({ where: { isActive: true } });
+        if (!config) return;
+        const { getGitHubConfig, syncRepository } = await import('./src/lib/github');
+        const ghConfig = await getGitHubConfig();
+        if (!ghConfig) return;
+        const results = await syncRepository(ghConfig);
+        if (results.commits > 0 || results.alerts > 0 || results.checks > 0) {
+          console.log(`[GitHub Sync] commits=${results.commits} alerts=${results.alerts} checks=${results.checks}`);
+        }
+      } catch (err) {
+        console.error('[GitHub Sync] Error:', err);
+      }
+    }
+    // Run first sync after 30 seconds, then every 15 minutes
+    setTimeout(runGitHubSync, 30000);
+    setInterval(runGitHubSync, GITHUB_SYNC_INTERVAL);
   });
 });

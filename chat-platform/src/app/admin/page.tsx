@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 
 // ==================== Types ====================
-type Tab = 'dashboard' | 'rooms' | 'users' | 'announcements' | 'reports' | 'punishments' | 'audit' | 'settings' | 'tickets' | 'send_notifications';
+type Tab = 'dashboard' | 'rooms' | 'users' | 'announcements' | 'reports' | 'punishments' | 'audit' | 'settings' | 'tickets' | 'send_notifications' | 'github_monitor';
 
 interface SidebarGroup {
   title: string;
@@ -118,6 +118,24 @@ export default function AdminPage() {
   // Pending counts for badges
   const [pendingReports, setPendingReports] = useState(0);
 
+  // GitHub Monitor states
+  const [ghSummary, setGhSummary] = useState<any>(null);
+  const [ghEvents, setGhEvents] = useState<any[]>([]);
+  const [ghFiles, setGhFiles] = useState<any[]>([]);
+  const [ghAlerts, setGhAlerts] = useState<any[]>([]);
+  const [ghChecks, setGhChecks] = useState<any[]>([]);
+  const [ghFixes, setGhFixes] = useState<any[]>([]);
+  const [ghView, setGhView] = useState<'overview' | 'events' | 'files' | 'alerts' | 'checks' | 'fixes' | 'setup' | 'editor'>('overview');
+  const [ghEventFilter, setGhEventFilter] = useState('');
+  const [ghAlertFilter, setGhAlertFilter] = useState('');
+  const [ghSetup, setGhSetup] = useState({ appId: '', privateKey: '', installationId: '', webhookSecret: '', repoOwner: '', repoName: '', defaultBranch: 'main' });
+  const [ghSyncing, setGhSyncing] = useState(false);
+  const [ghFileContent, setGhFileContent] = useState<any>(null);
+  const [ghEditContent, setGhEditContent] = useState('');
+  const [ghCommitMsg, setGhCommitMsg] = useState('');
+  const [ghPrTitle, setGhPrTitle] = useState('');
+  const [ghFixMode, setGhFixMode] = useState<'pr' | 'direct'>('pr');
+
   // ==================== Data Loading ====================
   const loadTabData = useCallback(async (tab: Tab) => {
     setLoading(true);
@@ -212,6 +230,23 @@ export default function AdminPage() {
             const histData = await histRes.json();
             setNotifHistory(histData);
           }
+          break;
+        }
+        case 'github_monitor': {
+          const [summaryRes, eventsRes, filesRes, alertsRes, checksRes, fixesRes] = await Promise.all([
+            fetch('/api/admin/github?action=summary'),
+            fetch('/api/admin/github?action=events&limit=30'),
+            fetch('/api/admin/github?action=files&limit=30'),
+            fetch('/api/admin/github?action=alerts'),
+            fetch('/api/admin/github?action=checks'),
+            fetch('/api/admin/github?action=fixes'),
+          ]);
+          if (summaryRes.ok) setGhSummary(await summaryRes.json());
+          if (eventsRes.ok) setGhEvents(await eventsRes.json());
+          if (filesRes.ok) setGhFiles(await filesRes.json());
+          if (alertsRes.ok) setGhAlerts(await alertsRes.json());
+          if (checksRes.ok) setGhChecks(await checksRes.json());
+          if (fixesRes.ok) setGhFixes(await fixesRes.json());
           break;
         }
       }
@@ -440,6 +475,12 @@ export default function AdminPage() {
         { id: 'settings', label: 'الإعدادات', icon: '⚙️' },
       ],
     },
+    {
+      title: 'المطور',
+      items: [
+        { id: 'github_monitor', label: 'مراقبة الكود', icon: '🔍' },
+      ],
+    },
   ];
 
   // ==================== Settings Sub-sections ====================
@@ -490,6 +531,7 @@ export default function AdminPage() {
     settings: 'الإعدادات',
     tickets: 'التذاكر',
     send_notifications: 'إرسال إشعارات',
+    github_monitor: 'مراقبة الكود',
   };
 
   // Filtered audit logs
@@ -1734,6 +1776,601 @@ export default function AdminPage() {
                       حفظ الإعدادات
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* ==================== GITHUB MONITOR ==================== */}
+              {activeTab === 'github_monitor' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white mb-1">🔍 مراقبة الكود</h2>
+                      <p className="text-gray-500 text-sm">مركز مراقبة GitHub — الأحداث، التنبيهات، الفحوصات، والإصلاحات</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {ghSummary?.configured && (
+                        <button
+                          onClick={async () => {
+                            setGhSyncing(true);
+                            try {
+                              const res = await fetch('/api/admin/github', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'sync' }),
+                              });
+                              if (res.ok) { showMsg('تمت المزامنة بنجاح', 'success'); loadTabData('github_monitor'); }
+                              else { const d = await res.json(); showMsg(d.error || 'فشلت المزامنة', 'error'); }
+                            } catch { showMsg('خطأ في المزامنة', 'error'); }
+                            setGhSyncing(false);
+                          }}
+                          disabled={ghSyncing}
+                          className="px-4 py-2 bg-blue-600/20 border border-blue-500/20 text-blue-400 rounded-xl text-sm hover:bg-blue-600/30 transition-colors disabled:opacity-50"
+                        >
+                          {ghSyncing ? '⏳ جاري المزامنة...' : '🔄 مزامنة الآن'}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setGhView('setup')}
+                        className={`px-4 py-2 rounded-xl text-sm transition-colors ${ghView === 'setup' ? 'bg-violet-600 text-white' : 'bg-white/5 text-gray-400 hover:bg-white/10'}`}
+                      >
+                        ⚙️ الإعداد
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Sub-navigation */}
+                  {ghSummary?.configured && ghView !== 'setup' && ghView !== 'editor' && (
+                    <div className="flex gap-2 flex-wrap">
+                      {[
+                        { id: 'overview' as const, label: '📊 نظرة عامة' },
+                        { id: 'events' as const, label: '📋 الأحداث' },
+                        { id: 'files' as const, label: '📁 الملفات' },
+                        { id: 'alerts' as const, label: `🔔 التنبيهات ${ghSummary?.openAlerts > 0 ? `(${ghSummary.openAlerts})` : ''}` },
+                        { id: 'checks' as const, label: '✅ الفحوصات' },
+                        { id: 'fixes' as const, label: '🔧 الإصلاحات' },
+                      ].map(v => (
+                        <button key={v.id} onClick={() => setGhView(v.id)}
+                          className={`px-4 py-2 rounded-xl text-sm transition-all ${ghView === v.id ? 'bg-violet-600/20 border border-violet-500/30 text-violet-400' : 'bg-white/[0.03] text-gray-400 hover:bg-white/[0.06]'}`}
+                        >{v.label}</button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Setup View */}
+                  {ghView === 'setup' && (
+                    <div className="space-y-6">
+                      <div className="glass rounded-2xl p-6">
+                        <h3 className="text-lg font-bold text-white mb-2">🔗 ربط GitHub App</h3>
+                        <p className="text-gray-500 text-sm mb-6">أدخل بيانات تطبيق GitHub الخاص بك للربط مع الريبو</p>
+
+                        {/* Setup Instructions */}
+                        <div className="mb-6 p-4 bg-blue-500/5 border border-blue-500/10 rounded-xl">
+                          <h4 className="text-blue-400 text-sm font-bold mb-3">📖 خطوات الإعداد:</h4>
+                          <ol className="text-gray-400 text-xs space-y-2 list-decimal pr-5">
+                            <li>اذهب إلى <a href="https://github.com/settings/apps/new" target="_blank" rel="noopener" className="text-blue-400 underline">github.com/settings/apps/new</a></li>
+                            <li>اكتب اسم التطبيق (مثل: ChatZone Monitor)</li>
+                            <li>Webhook URL: <code className="bg-white/10 px-1 rounded text-xs">{typeof window !== 'undefined' ? window.location.origin : ''}/api/github/webhook</code></li>
+                            <li>اختر الصلاحيات: Contents (R/W), Pull requests (R/W), Checks (R), Actions (R), Security events (R)</li>
+                            <li>اشترك بالأحداث: Push, Pull request, Check run, Check suite, Code scanning alert, Secret scanning alert, Dependabot alert</li>
+                            <li>أنشئ التطبيق ← انسخ App ID</li>
+                            <li>اضغط &quot;Generate a private key&quot; ← حمّل الملف وانسخ محتواه</li>
+                            <li>ثبّت التطبيق على الريبو ← انسخ Installation ID من الرابط</li>
+                          </ol>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">App ID *</label>
+                            <input value={ghSetup.appId} onChange={e => setGhSetup(s => ({ ...s, appId: e.target.value }))}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50" placeholder="123456" />
+                          </div>
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Installation ID *</label>
+                            <input value={ghSetup.installationId} onChange={e => setGhSetup(s => ({ ...s, installationId: e.target.value }))}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50" placeholder="78901234" />
+                          </div>
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Repo Owner *</label>
+                            <input value={ghSetup.repoOwner} onChange={e => setGhSetup(s => ({ ...s, repoOwner: e.target.value }))}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50" placeholder="alitravians" />
+                          </div>
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Repo Name *</label>
+                            <input value={ghSetup.repoName} onChange={e => setGhSetup(s => ({ ...s, repoName: e.target.value }))}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50" placeholder="Ali" />
+                          </div>
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Default Branch</label>
+                            <input value={ghSetup.defaultBranch} onChange={e => setGhSetup(s => ({ ...s, defaultBranch: e.target.value }))}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50" placeholder="main" />
+                          </div>
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">Webhook Secret</label>
+                            <input value={ghSetup.webhookSecret} onChange={e => setGhSetup(s => ({ ...s, webhookSecret: e.target.value }))}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50" placeholder="اختياري — لتأمين الـ Webhooks" />
+                          </div>
+                        </div>
+
+                        <div className="mt-4">
+                          <label className="text-gray-400 text-xs mb-1 block">Private Key * (محتوى ملف .pem)</label>
+                          <textarea value={ghSetup.privateKey} onChange={e => setGhSetup(s => ({ ...s, privateKey: e.target.value }))}
+                            rows={4} className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-xs font-mono focus:outline-none focus:border-violet-500/50 resize-none"
+                            placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----" />
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                          <button
+                            onClick={async () => {
+                              if (!ghSetup.appId || !ghSetup.privateKey || !ghSetup.installationId || !ghSetup.repoOwner || !ghSetup.repoName) {
+                                showMsg('جميع الحقول المطلوبة (*) يجب تعبئتها', 'error'); return;
+                              }
+                              setGhSyncing(true);
+                              try {
+                                const res = await fetch('/api/admin/github', {
+                                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'save_config', ...ghSetup }),
+                                });
+                                const data = await res.json();
+                                if (data.success) {
+                                  showMsg(data.warning || 'تم ربط GitHub بنجاح وبدأت المزامنة', 'success');
+                                  setGhView('overview');
+                                  loadTabData('github_monitor');
+                                } else { showMsg(data.error || 'فشل الربط', 'error'); }
+                              } catch { showMsg('خطأ في الاتصال', 'error'); }
+                              setGhSyncing(false);
+                            }}
+                            disabled={ghSyncing}
+                            className="flex-1 py-3 bg-gradient-to-l from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 rounded-xl text-white font-medium transition-all disabled:opacity-50"
+                          >
+                            {ghSyncing ? '⏳ جاري الربط...' : '🔗 ربط وبدء المزامنة'}
+                          </button>
+                          {ghSummary?.configured && (
+                            <button onClick={() => setGhView('overview')} className="px-6 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-gray-400 text-sm transition-colors">
+                              العودة
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Not Configured */}
+                  {!ghSummary?.configured && ghView !== 'setup' && (
+                    <div className="glass rounded-2xl p-12 text-center">
+                      <div className="text-6xl mb-4">🔗</div>
+                      <h3 className="text-xl font-bold text-white mb-2">لم يتم ربط GitHub بعد</h3>
+                      <p className="text-gray-500 text-sm mb-6">اربط تطبيق GitHub الخاص بك لبدء مراقبة الكود والملفات والتنبيهات الأمنية</p>
+                      <button onClick={() => setGhView('setup')} className="px-8 py-3 bg-gradient-to-l from-violet-600 to-indigo-600 rounded-xl text-white font-medium hover:from-violet-500 hover:to-indigo-500 transition-all">
+                        ⚙️ إعداد الربط
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Overview */}
+                  {ghView === 'overview' && ghSummary?.configured && (
+                    <div className="space-y-6">
+                      {/* Summary Cards */}
+                      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="glass rounded-2xl p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl">🔔</span>
+                            <span className={`text-3xl font-bold ${ghSummary.openAlerts > 0 ? 'text-red-400' : 'text-green-400'}`}>{ghSummary.openAlerts}</span>
+                          </div>
+                          <p className="text-gray-400 text-sm">تنبيهات مفتوحة</p>
+                        </div>
+                        <div className="glass rounded-2xl p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl">🔴</span>
+                            <span className={`text-3xl font-bold ${ghSummary.criticalAlerts > 0 ? 'text-red-400' : 'text-green-400'}`}>{ghSummary.criticalAlerts}</span>
+                          </div>
+                          <p className="text-gray-400 text-sm">تنبيهات حرجة</p>
+                        </div>
+                        <div className="glass rounded-2xl p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl">❌</span>
+                            <span className={`text-3xl font-bold ${ghSummary.failedChecks > 0 ? 'text-red-400' : 'text-green-400'}`}>{ghSummary.failedChecks}</span>
+                          </div>
+                          <p className="text-gray-400 text-sm">فحوصات فاشلة</p>
+                        </div>
+                        <div className="glass rounded-2xl p-5">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-2xl">📝</span>
+                            <span className="text-3xl font-bold text-blue-400">{ghSummary.todayChanges}</span>
+                          </div>
+                          <p className="text-gray-400 text-sm">تغييرات اليوم</p>
+                        </div>
+                      </div>
+
+                      {/* Repo Info */}
+                      {ghSummary.repoInfo && (
+                        <div className="glass rounded-2xl p-5">
+                          <h3 className="text-white font-bold mb-3">📦 معلومات الريبو</h3>
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                            <div><span className="text-gray-500">الاسم:</span> <span className="text-white mr-2">{ghSummary.repoInfo.fullName}</span></div>
+                            <div><span className="text-gray-500">الفرع:</span> <span className="text-violet-400 mr-2">{ghSummary.repoInfo.defaultBranch}</span></div>
+                            <div><span className="text-gray-500">اللغة:</span> <span className="text-blue-400 mr-2">{ghSummary.repoInfo.language || '—'}</span></div>
+                            <div><span className="text-gray-500">الرؤية:</span> <span className="text-green-400 mr-2">{ghSummary.repoInfo.visibility}</span></div>
+                          </div>
+                          <p className="text-gray-600 text-xs mt-3">آخر مزامنة: {ghSummary.lastSyncAt ? new Date(ghSummary.lastSyncAt).toLocaleString('ar-SA') : 'لم تتم بعد'}</p>
+                        </div>
+                      )}
+
+                      {/* Recent Events */}
+                      <div className="glass rounded-2xl p-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-white font-bold">📋 آخر الأحداث</h3>
+                          <button onClick={() => setGhView('events')} className="text-violet-400 text-xs hover:text-violet-300">عرض الكل ←</button>
+                        </div>
+                        {ghSummary.recentEvents?.length === 0 ? (
+                          <p className="text-gray-600 text-sm text-center py-4">لا توجد أحداث بعد</p>
+                        ) : (
+                          <div className="space-y-2">
+                            {(ghSummary.recentEvents || []).slice(0, 5).map((ev: any) => (
+                              <div key={ev.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                                <span className="text-lg">
+                                  {ev.eventType === 'PUSH' ? '📤' : ev.eventType === 'PULL_REQUEST' ? '🔀' : ev.eventType.includes('ALERT') ? '🔔' : ev.eventType.includes('CHECK') ? (ev.severity === 'ERROR' ? '❌' : '✅') : '⚙️'}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-sm truncate">{ev.title}</p>
+                                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                                    <span>{ev.actor || '—'}</span>
+                                    {ev.branch && <><span>•</span><span className="text-violet-400">{ev.branch}</span></>}
+                                    <span>•</span>
+                                    <span>{new Date(ev.createdAt).toLocaleString('ar-SA')}</span>
+                                  </div>
+                                </div>
+                                <span className={`text-xs px-2 py-1 rounded-lg ${
+                                  ev.severity === 'CRITICAL' ? 'bg-red-500/10 text-red-400' :
+                                  ev.severity === 'ERROR' ? 'bg-orange-500/10 text-orange-400' :
+                                  ev.severity === 'WARNING' ? 'bg-yellow-500/10 text-yellow-400' :
+                                  'bg-gray-500/10 text-gray-400'
+                                }`}>{ev.severity === 'CRITICAL' ? 'حرج' : ev.severity === 'ERROR' ? 'خطأ' : ev.severity === 'WARNING' ? 'تحذير' : 'معلومة'}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Events View */}
+                  {ghView === 'events' && ghSummary?.configured && (
+                    <div className="space-y-4">
+                      <div className="flex gap-2 flex-wrap">
+                        {['', 'PUSH', 'PULL_REQUEST', 'CHECK_RUN', 'WORKFLOW_RUN'].map(t => (
+                          <button key={t} onClick={() => setGhEventFilter(t)}
+                            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${ghEventFilter === t ? 'bg-violet-600/20 text-violet-400 border border-violet-500/30' : 'bg-white/[0.03] text-gray-500 hover:text-gray-300'}`}
+                          >{t === '' ? 'الكل' : t === 'PUSH' ? '📤 Push' : t === 'PULL_REQUEST' ? '🔀 PR' : t === 'CHECK_RUN' ? '✅ Checks' : '⚙️ Workflows'}</button>
+                        ))}
+                      </div>
+                      <div className="space-y-2">
+                        {ghEvents.filter(e => !ghEventFilter || e.eventType === ghEventFilter).map((ev: any) => (
+                          <div key={ev.id} className="glass rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className="text-xl mt-0.5">
+                                {ev.eventType === 'PUSH' ? '📤' : ev.eventType === 'PULL_REQUEST' ? '🔀' : ev.eventType.includes('ALERT') ? '🔔' : ev.eventType.includes('CHECK') ? '✅' : '⚙️'}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white text-sm font-medium">{ev.title}</p>
+                                {ev.description && <p className="text-gray-500 text-xs mt-1 line-clamp-2">{ev.description}</p>}
+                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+                                  {ev.actor && <span>👤 {ev.actor}</span>}
+                                  {ev.branch && <span className="text-violet-400/60">🌿 {ev.branch}</span>}
+                                  {ev.commitSha && (
+                                    <button onClick={async () => {
+                                      try {
+                                        const res = await fetch(`/api/admin/github?action=diff&sha=${ev.commitSha}`);
+                                        if (res.ok) { const d = await res.json(); alert(d.diff || 'No diff'); }
+                                      } catch {}
+                                    }} className="text-blue-400 hover:underline">#{ev.commitSha.slice(0, 7)}</button>
+                                  )}
+                                  <span>{new Date(ev.createdAt).toLocaleString('ar-SA')}</span>
+                                </div>
+                                {ev.fileChanges?.length > 0 && (
+                                  <div className="mt-2 flex flex-wrap gap-1">
+                                    {ev.fileChanges.slice(0, 5).map((fc: any) => (
+                                      <span key={fc.id} className={`text-[10px] px-2 py-0.5 rounded ${
+                                        fc.changeType === 'ADDED' ? 'bg-green-500/10 text-green-400' :
+                                        fc.changeType === 'DELETED' ? 'bg-red-500/10 text-red-400' :
+                                        fc.changeType === 'RENAMED' ? 'bg-blue-500/10 text-blue-400' :
+                                        'bg-yellow-500/10 text-yellow-400'
+                                      }`}>
+                                        {fc.changeType === 'ADDED' ? '+' : fc.changeType === 'DELETED' ? '−' : fc.changeType === 'RENAMED' ? '→' : '~'} {fc.filePath.split('/').pop()}
+                                      </span>
+                                    ))}
+                                    {ev.fileChanges.length > 5 && <span className="text-[10px] text-gray-600">+{ev.fileChanges.length - 5} ملفات</span>}
+                                  </div>
+                                )}
+                              </div>
+                              <span className={`text-xs px-2 py-1 rounded-lg flex-shrink-0 ${
+                                ev.severity === 'CRITICAL' ? 'bg-red-500/10 text-red-400' :
+                                ev.severity === 'ERROR' ? 'bg-orange-500/10 text-orange-400' :
+                                ev.severity === 'WARNING' ? 'bg-yellow-500/10 text-yellow-400' :
+                                'bg-gray-500/10 text-gray-400'
+                              }`}>{ev.severity === 'CRITICAL' ? 'حرج' : ev.severity === 'ERROR' ? 'خطأ' : ev.severity === 'WARNING' ? 'تحذير' : 'معلومة'}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {ghEvents.filter(e => !ghEventFilter || e.eventType === ghEventFilter).length === 0 && (
+                          <p className="text-center text-gray-600 py-8">لا توجد أحداث</p>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Files View */}
+                  {ghView === 'files' && ghSummary?.configured && (
+                    <div className="space-y-2">
+                      {ghFiles.map((fc: any) => (
+                        <div key={fc.id} className="glass rounded-xl p-4 flex items-center gap-4 hover:bg-white/[0.04] transition-colors">
+                          <span className={`text-lg ${
+                            fc.changeType === 'ADDED' ? 'text-green-400' : fc.changeType === 'DELETED' ? 'text-red-400' :
+                            fc.changeType === 'RENAMED' ? 'text-blue-400' : 'text-yellow-400'
+                          }`}>
+                            {fc.changeType === 'ADDED' ? '🟢' : fc.changeType === 'DELETED' ? '🔴' : fc.changeType === 'RENAMED' ? '🔄' : '🟡'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-mono truncate">{fc.filePath}</p>
+                            <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
+                              <span>{fc.changeType === 'ADDED' ? 'مُضاف' : fc.changeType === 'DELETED' ? 'محذوف' : fc.changeType === 'RENAMED' ? 'مُعاد تسمية' : 'مُعدل'}</span>
+                              {fc.author && <><span>•</span><span>{fc.author}</span></>}
+                              {(fc.additions > 0 || fc.deletions > 0) && <><span>•</span><span className="text-green-500">+{fc.additions}</span><span className="text-red-500">-{fc.deletions}</span></>}
+                              <span>•</span><span>{new Date(fc.createdAt).toLocaleString('ar-SA')}</span>
+                            </div>
+                          </div>
+                          <button onClick={async () => {
+                            try {
+                              const res = await fetch(`/api/admin/github?action=file_content&path=${encodeURIComponent(fc.filePath)}`);
+                              if (res.ok) {
+                                const data = await res.json();
+                                setGhFileContent({ path: fc.filePath, content: data.decodedContent || '', sha: data.sha });
+                                setGhEditContent(data.decodedContent || '');
+                                setGhCommitMsg(''); setGhPrTitle('');
+                                setGhView('editor');
+                              }
+                            } catch { showMsg('فشل تحميل الملف', 'error'); }
+                          }} className="text-violet-400 text-xs hover:text-violet-300 px-3 py-1.5 bg-violet-500/10 rounded-lg">
+                            فتح ←
+                          </button>
+                        </div>
+                      ))}
+                      {ghFiles.length === 0 && <p className="text-center text-gray-600 py-8">لا توجد تغييرات في الملفات</p>}
+                    </div>
+                  )}
+
+                  {/* Alerts View */}
+                  {ghView === 'alerts' && ghSummary?.configured && (
+                    <div className="space-y-4">
+                      <div className="flex gap-2 flex-wrap">
+                        {['', 'CODE_SCAN', 'SECRET_SCAN', 'DEPENDABOT'].map(t => (
+                          <button key={t} onClick={() => setGhAlertFilter(t)}
+                            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${ghAlertFilter === t ? 'bg-violet-600/20 text-violet-400 border border-violet-500/30' : 'bg-white/[0.03] text-gray-500 hover:text-gray-300'}`}
+                          >{t === '' ? 'الكل' : t === 'CODE_SCAN' ? '🔍 فحص الكود' : t === 'SECRET_SCAN' ? '🔑 الأسرار' : '📦 التبعيات'}</button>
+                        ))}
+                      </div>
+                      <div className="space-y-2">
+                        {ghAlerts.filter(a => !ghAlertFilter || a.alertType === ghAlertFilter).map((alert: any) => (
+                          <div key={alert.id} className="glass rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+                            <div className="flex items-start gap-3">
+                              <span className="text-xl mt-0.5">
+                                {alert.alertType === 'CODE_SCAN' ? '🔍' : alert.alertType === 'SECRET_SCAN' ? '🔑' : '📦'}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-white text-sm font-medium">{alert.title}</p>
+                                {alert.description && <p className="text-gray-500 text-xs mt-1 line-clamp-2">{alert.description}</p>}
+                                <div className="flex items-center gap-3 mt-2 text-xs text-gray-600">
+                                  {alert.filePath && <span className="font-mono text-blue-400/60">📄 {alert.filePath}{alert.lineNumber ? `:${alert.lineNumber}` : ''}</span>}
+                                  {alert.ruleId && <span>Rule: {alert.ruleId}</span>}
+                                  <span>{new Date(alert.createdAt).toLocaleString('ar-SA')}</span>
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                <span className={`text-xs px-2 py-1 rounded-lg ${
+                                  alert.severity === 'CRITICAL' ? 'bg-red-500/10 text-red-400' :
+                                  alert.severity === 'ERROR' ? 'bg-orange-500/10 text-orange-400' :
+                                  alert.severity === 'WARNING' ? 'bg-yellow-500/10 text-yellow-400' :
+                                  'bg-gray-500/10 text-gray-400'
+                                }`}>{alert.severity === 'CRITICAL' ? 'حرج' : alert.severity === 'ERROR' ? 'خطأ' : alert.severity === 'WARNING' ? 'تحذير' : 'معلومة'}</span>
+                                <span className={`text-[10px] ${alert.state === 'OPEN' ? 'text-red-400' : alert.state === 'FIXED' ? 'text-green-400' : 'text-gray-500'}`}>
+                                  {alert.state === 'OPEN' ? '🔴 مفتوح' : alert.state === 'FIXED' ? '✅ مُصلح' : '⬜ مرفوض'}
+                                </span>
+                              </div>
+                            </div>
+                            {alert.filePath && alert.state === 'OPEN' && (
+                              <button onClick={async () => {
+                                try {
+                                  const res = await fetch(`/api/admin/github?action=file_content&path=${encodeURIComponent(alert.filePath)}`);
+                                  if (res.ok) {
+                                    const data = await res.json();
+                                    setGhFileContent({ path: alert.filePath, content: data.decodedContent || '', sha: data.sha });
+                                    setGhEditContent(data.decodedContent || '');
+                                    setGhCommitMsg(`fix: ${alert.title}`);
+                                    setGhPrTitle(`Fix: ${alert.title}`);
+                                    setGhView('editor');
+                                  }
+                                } catch { showMsg('فشل تحميل الملف', 'error'); }
+                              }} className="mt-3 text-violet-400 text-xs hover:text-violet-300 bg-violet-500/10 px-3 py-1.5 rounded-lg">
+                                🔧 فتح الملف وإصلاح
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {ghAlerts.filter(a => !ghAlertFilter || a.alertType === ghAlertFilter).length === 0 && (
+                          <div className="text-center py-8">
+                            <span className="text-4xl block mb-3">🛡️</span>
+                            <p className="text-gray-600">لا توجد تنبيهات أمنية</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Checks View */}
+                  {ghView === 'checks' && ghSummary?.configured && (
+                    <div className="space-y-2">
+                      {ghChecks.map((check: any) => (
+                        <div key={check.id} className="glass rounded-xl p-4 flex items-center gap-4 hover:bg-white/[0.04] transition-colors">
+                          <span className="text-2xl">
+                            {check.conclusion === 'SUCCESS' ? '✅' : check.conclusion === 'FAILURE' ? '❌' :
+                             check.status === 'IN_PROGRESS' ? '⏳' : check.status === 'QUEUED' ? '⏸️' : '⬜'}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium">{check.name}</p>
+                            <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
+                              {check.branch && <span className="text-violet-400/60">🌿 {check.branch}</span>}
+                              {check.commitSha && <span className="font-mono">#{check.commitSha.slice(0, 7)}</span>}
+                              {check.completedAt && <span>{new Date(check.completedAt).toLocaleString('ar-SA')}</span>}
+                            </div>
+                          </div>
+                          <span className={`text-xs px-3 py-1.5 rounded-lg font-medium ${
+                            check.conclusion === 'SUCCESS' ? 'bg-green-500/10 text-green-400' :
+                            check.conclusion === 'FAILURE' ? 'bg-red-500/10 text-red-400' :
+                            check.status === 'IN_PROGRESS' ? 'bg-blue-500/10 text-blue-400' :
+                            'bg-gray-500/10 text-gray-400'
+                          }`}>
+                            {check.conclusion === 'SUCCESS' ? 'نجح' : check.conclusion === 'FAILURE' ? 'فشل' :
+                             check.status === 'IN_PROGRESS' ? 'قيد التنفيذ' : check.status === 'QUEUED' ? 'بالانتظار' : check.conclusion || check.status}
+                          </span>
+                          {check.detailsUrl && (
+                            <a href={check.detailsUrl} target="_blank" rel="noopener" className="text-blue-400 text-xs hover:underline">تفاصيل ↗</a>
+                          )}
+                        </div>
+                      ))}
+                      {ghChecks.length === 0 && (
+                        <div className="text-center py-8"><span className="text-4xl block mb-3">✅</span><p className="text-gray-600">لا توجد فحوصات</p></div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Fixes History View */}
+                  {ghView === 'fixes' && ghSummary?.configured && (
+                    <div className="space-y-2">
+                      {ghFixes.map((fix: any) => (
+                        <div key={fix.id} className="glass rounded-xl p-4 hover:bg-white/[0.04] transition-colors">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">{fix.fixType === 'PR' ? '🔀' : '⚡'}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white text-sm font-medium font-mono">{fix.filePath}</p>
+                              <div className="flex items-center gap-3 text-xs text-gray-600 mt-1">
+                                <span>{fix.commitMessage}</span>
+                                <span>•</span>
+                                <span>{fix.performer?.username || fix.performer?.displayName || '—'}</span>
+                                <span>•</span>
+                                <span>{new Date(fix.createdAt).toLocaleString('ar-SA')}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className={`text-xs px-2 py-1 rounded-lg ${fix.fixType === 'PR' ? 'bg-blue-500/10 text-blue-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                                {fix.fixType === 'PR' ? 'Pull Request' : 'مباشر'}
+                              </span>
+                              {fix.prUrl && <a href={fix.prUrl} target="_blank" rel="noopener" className="text-blue-400 text-xs hover:underline">PR ↗</a>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                      {ghFixes.length === 0 && (
+                        <div className="text-center py-8"><span className="text-4xl block mb-3">🔧</span><p className="text-gray-600">لا توجد إصلاحات سابقة</p></div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* File Editor View */}
+                  {ghView === 'editor' && ghFileContent && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => { setGhView('files'); setGhFileContent(null); }} className="text-gray-400 hover:text-white text-sm">→ العودة</button>
+                        <h3 className="text-white font-bold font-mono text-sm">{ghFileContent.path}</h3>
+                      </div>
+
+                      {/* Editor */}
+                      <div className="glass rounded-2xl overflow-hidden">
+                        <div className="bg-white/[0.02] px-4 py-2 border-b border-white/[0.06] flex items-center justify-between">
+                          <span className="text-gray-400 text-xs font-mono">محرر الملف</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => setGhEditContent(ghFileContent.content)} className="text-xs text-gray-500 hover:text-gray-300">↩ استعادة الأصل</button>
+                          </div>
+                        </div>
+                        <textarea
+                          value={ghEditContent}
+                          onChange={e => setGhEditContent(e.target.value)}
+                          className="w-full bg-transparent text-white text-xs font-mono p-4 focus:outline-none resize-none leading-relaxed"
+                          rows={Math.min(30, Math.max(15, ghEditContent.split('\n').length + 2))}
+                          dir="ltr"
+                          spellCheck={false}
+                        />
+                      </div>
+
+                      {/* Fix Options */}
+                      <div className="glass rounded-2xl p-5 space-y-4">
+                        <div className="flex gap-3">
+                          <button onClick={() => setGhFixMode('pr')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${ghFixMode === 'pr' ? 'bg-blue-600/20 border border-blue-500/30 text-blue-400' : 'bg-white/[0.03] text-gray-500'}`}>
+                            🔀 إرسال كـ Pull Request (آمن)
+                          </button>
+                          <button onClick={() => setGhFixMode('direct')}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${ghFixMode === 'direct' ? 'bg-amber-600/20 border border-amber-500/30 text-amber-400' : 'bg-white/[0.03] text-gray-500'}`}>
+                            ⚡ تعديل مباشر (محدود)
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="text-gray-400 text-xs mb-1 block">رسالة التعديل (Commit Message) *</label>
+                          <input value={ghCommitMsg} onChange={e => setGhCommitMsg(e.target.value)}
+                            className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50"
+                            placeholder="fix: وصف التعديل" dir="ltr" />
+                        </div>
+
+                        {ghFixMode === 'pr' && (
+                          <div>
+                            <label className="text-gray-400 text-xs mb-1 block">عنوان Pull Request</label>
+                            <input value={ghPrTitle} onChange={e => setGhPrTitle(e.target.value)}
+                              className="w-full bg-white/[0.03] border border-white/[0.06] rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-violet-500/50"
+                              placeholder={`Fix: ${ghFileContent.path}`} dir="ltr" />
+                          </div>
+                        )}
+
+                        {ghFixMode === 'direct' && (
+                          <div className="p-3 bg-amber-500/5 border border-amber-500/10 rounded-xl">
+                            <p className="text-amber-400/80 text-xs">⚠️ التعديل المباشر يرسل التغييرات مباشرة للفرع الرئيسي. يُنصح باستخدام PR للسلامة.</p>
+                          </div>
+                        )}
+
+                        <button
+                          onClick={async () => {
+                            if (!ghCommitMsg) { showMsg('رسالة التعديل مطلوبة', 'error'); return; }
+                            if (ghEditContent === ghFileContent.content) { showMsg('لم يتم إجراء أي تعديل', 'error'); return; }
+                            setGhSyncing(true);
+                            try {
+                              const res = await fetch('/api/admin/github', {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  action: ghFixMode === 'pr' ? 'fix_pr' : 'fix_direct',
+                                  filePath: ghFileContent.path,
+                                  newContent: ghEditContent,
+                                  commitMessage: ghCommitMsg,
+                                  prTitle: ghPrTitle || `Fix: ${ghFileContent.path}`,
+                                  prBody: `تعديل من لوحة الإدارة\n\nالملف: ${ghFileContent.path}\n${ghCommitMsg}`,
+                                }),
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                showMsg(data.prUrl ? `تم إنشاء PR بنجاح: #${data.prNumber}` : 'تم التعديل المباشر بنجاح', 'success');
+                                setGhView('fixes');
+                                loadTabData('github_monitor');
+                              } else { showMsg(data.error || 'فشل الإرسال', 'error'); }
+                            } catch { showMsg('خطأ في الاتصال', 'error'); }
+                            setGhSyncing(false);
+                          }}
+                          disabled={ghSyncing || !ghCommitMsg}
+                          className={`w-full py-3 rounded-xl text-white font-medium transition-all disabled:opacity-50 ${
+                            ghFixMode === 'pr' ? 'bg-gradient-to-l from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500' :
+                            'bg-gradient-to-l from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500'
+                          }`}
+                        >
+                          {ghSyncing ? '⏳ جاري الإرسال...' : ghFixMode === 'pr' ? '🔀 إنشاء Pull Request' : '⚡ إرسال مباشر'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </>
