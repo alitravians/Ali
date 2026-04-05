@@ -59,25 +59,18 @@ export async function POST(request: Request) {
       });
     }
 
-    // User is authenticated — now check the code
+    // User is authenticated — check code + role together
+    // Return identical error for wrong code AND right code with wrong role
+    // to prevent authenticated users from enumerating valid codes
     const roleLevel = (session.user as any).roleLevel || 0;
+    const genericError = 'رمز الدخول غير صحيح أو ليس لديك الصلاحية';
 
-    if (code === adminCode) {
-      if (roleLevel < 90) {
-        return NextResponse.json({
-          error: 'ليس لديك الصلاحية للوصول لهذه اللوحة',
-        }, { status: 403 });
-      }
+    if (code === adminCode && roleLevel >= 90) {
       return NextResponse.json({ redirect: '/admin' });
-    } else if (code === moderatorCode) {
-      if (roleLevel < 50) {
-        return NextResponse.json({
-          error: 'ليس لديك الصلاحية للوصول لهذه اللوحة',
-        }, { status: 403 });
-      }
+    } else if (code === moderatorCode && roleLevel >= 50) {
       return NextResponse.json({ redirect: '/moderator' });
     } else {
-      return NextResponse.json({ error: 'رمز الدخول غير صحيح' }, { status: 401 });
+      return NextResponse.json({ error: genericError }, { status: 401 });
     }
   } catch {
     return NextResponse.json({ error: 'حدث خطأ' }, { status: 500 });

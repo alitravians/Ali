@@ -743,14 +743,18 @@ app.prepare().then(() => {
         }
       }
 
-      // Clean up typing
-      for (const [roomId, roomTyping] of typingUsers) {
-        const existing = roomTyping.get(userId);
-        if (existing) {
-          clearTimeout(existing.timeout);
-          roomTyping.delete(userId);
-          // Notify room members to clear the typing indicator
-          io.to(`room:${roomId}`).emit('typing:update', { roomId, userId, username, isTyping: false });
+      // Clean up typing — only for the disconnected socket's room, not all rooms
+      // This prevents clearing typing state from other tabs that are still active
+      if (hadRoom) {
+        const roomTyping = typingUsers.get(hadRoom);
+        if (roomTyping) {
+          const existing = roomTyping.get(userId);
+          if (existing) {
+            clearTimeout(existing.timeout);
+            roomTyping.delete(userId);
+            // Notify room members to clear the typing indicator
+            io.to(`room:${hadRoom}`).emit('typing:update', { roomId: hadRoom, userId, username, isTyping: false });
+          }
         }
       }
     });
