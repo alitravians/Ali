@@ -33,6 +33,9 @@ export default function HomePage() {
       <nav className="relative z-10 flex items-center justify-between p-6 max-w-7xl mx-auto">
         <h1 className="text-2xl font-bold gradient-text">ChatZone</h1>
         <div className="flex items-center gap-4">
+          <Link href="/welcome" className="text-gray-400 hover:text-white transition-colors text-sm">الترحيب</Link>
+          <Link href="/instructions" className="text-gray-400 hover:text-white transition-colors text-sm">التعليمات</Link>
+          <Link href="/chat-guide" className="text-gray-400 hover:text-white transition-colors text-sm">دليل الدردشة</Link>
           <Link href="/rules" className="text-gray-400 hover:text-white transition-colors text-sm">القوانين</Link>
           <Link href="/team" className="text-gray-400 hover:text-white transition-colors text-sm">فريق العمل</Link>
           <button
