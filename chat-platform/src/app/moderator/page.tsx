@@ -18,7 +18,7 @@ export default function ModeratorPage() {
   const [punishForm, setPunishForm] = useState({ type: 'warning', targetUserId: '', reason: '', duration: 30 });
   const [users, setUsers] = useState<any[]>([]);
 
-  useEffect(() => { loadData(); }, [activeTab]);
+  useEffect(() => { if (user?.id || activeTab !== 'mylog') loadData(); }, [activeTab, user?.id]);
 
   const loadData = async () => {
     setLoading(true);

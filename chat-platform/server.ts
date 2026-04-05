@@ -123,10 +123,13 @@ app.prepare().then(() => {
   // Socket.IO middleware: verify NextAuth JWT before allowing connection
   io.use(async (socket, next) => {
     try {
-      const cookieHeader = socket.handshake.headers.cookie || '';
+      const cookieHeader = socket.handshake.headers.cookie;
+      if (!cookieHeader) {
+        return next(new Error('غير مصرح: لا يوجد رمز جلسة'));
+      }
       // Parse the next-auth session token from cookies
       const cookies = Object.fromEntries(
-        cookieHeader.split(';').map(c => {
+        cookieHeader.split(';').filter(c => c.trim()).map(c => {
           const [key, ...vals] = c.trim().split('=');
           return [key, vals.join('=')];
         })
@@ -572,6 +575,7 @@ app.prepare().then(() => {
 
         const message = await prisma.message.findUnique({ where: { id: messageId } });
         if (!message || message.isDeleted) return;
+        const isModeratingOthersMessage = message.userId !== userId && roleLevel >= 90;
         if (message.userId !== userId && roleLevel < 90) {
           socket.emit('error', { message: 'لا تملك صلاحية تعديل هذه الرسالة' });
           return;
@@ -591,22 +595,24 @@ app.prepare().then(() => {
           return;
         }
 
-        // Check mute
-        const activeMute = await prisma.mute.findFirst({
-          where: { userId, isActive: true, expiresAt: { gt: new Date() } },
-        });
-        if (activeMute) {
-          socket.emit('error', { message: `أنت مكتوم حتى ${activeMute.expiresAt.toISOString()} – السبب: ${activeMute.reason}` });
-          return;
-        }
+        // Check mute and ban — skip for admins moderating others' messages
+        if (!isModeratingOthersMessage) {
+          const activeMute = await prisma.mute.findFirst({
+            where: { userId, isActive: true, expiresAt: { gt: new Date() } },
+          });
+          if (activeMute) {
+            socket.emit('error', { message: `أنت مكتوم حتى ${activeMute.expiresAt.toISOString()} – السبب: ${activeMute.reason}` });
+            return;
+          }
 
-        // Check ban
-        const activeBan = await prisma.ban.findFirst({
-          where: { userId, isActive: true, isGlobal: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-        });
-        if (activeBan) {
-          socket.emit('error', { message: 'أنت محظور من الدردشة' });
-          return;
+          // Check ban
+          const activeBan = await prisma.ban.findFirst({
+            where: { userId, isActive: true, isGlobal: true, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
+          });
+          if (activeBan) {
+            socket.emit('error', { message: 'أنت محظور من الدردشة' });
+            return;
+          }
         }
 
         const { text: processedText, isBold } = processBoldMessage(content, roleLevel >= 50);

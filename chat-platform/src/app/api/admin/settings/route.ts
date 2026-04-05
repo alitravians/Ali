@@ -34,9 +34,15 @@ export async function PUT(req: NextRequest) {
 
     const { settings, bannedWords } = await req.json();
 
-    // Update settings
+    // Update settings — only allow known keys
+    const ALLOWED_KEYS = new Set([
+      'chat_enabled', 'registration_enabled', 'presence_enabled', 'presence_public',
+      'show_last_seen', 'show_room_presence', 'maintenance_mode', 'maintenance_message',
+      'site_name', 'welcome_message', 'max_message_length',
+    ]);
     if (settings) {
       for (const [key, value] of Object.entries(settings)) {
+        if (!ALLOWED_KEYS.has(key)) continue;
         await prisma.siteSetting.upsert({
           where: { key },
           create: { key, value: String(value) },

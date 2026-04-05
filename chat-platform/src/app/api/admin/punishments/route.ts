@@ -74,6 +74,9 @@ export async function POST(req: NextRequest) {
       if (performerLevel < 90 && !duration) {
         return NextResponse.json({ error: 'المشرفون يمكنهم الحظر المؤقت فقط' }, { status: 403 });
       }
+      if (duration !== undefined && duration !== null && duration < 1) {
+        return NextResponse.json({ error: 'مدة الحظر يجب أن تكون دقيقة واحدة على الأقل' }, { status: 400 });
+      }
       if (performerLevel < 90 && duration > MAX_MOD_BAN_MINUTES) {
         return NextResponse.json({ error: 'المشرفون لا يمكنهم الحظر لأكثر من 30 يوماً' }, { status: 403 });
       }
