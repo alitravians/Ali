@@ -134,7 +134,24 @@ app.prepare().then(() => {
           return [key, vals.join('=')];
         })
       );
-      const sessionToken = cookies['next-auth.session-token'] || cookies['__Secure-next-auth.session-token'];
+      // Support both regular and chunked NextAuth cookies
+      // NextAuth splits large JWTs across multiple cookies: .0, .1, .2, etc.
+      let sessionToken = cookies['next-auth.session-token'] || cookies['__Secure-next-auth.session-token'];
+      if (!sessionToken) {
+        // Try chunked cookies
+        for (const prefix of ['next-auth.session-token', '__Secure-next-auth.session-token']) {
+          let chunked = '';
+          let i = 0;
+          while (cookies[`${prefix}.${i}`] !== undefined) {
+            chunked += cookies[`${prefix}.${i}`];
+            i++;
+          }
+          if (chunked) {
+            sessionToken = chunked;
+            break;
+          }
+        }
+      }
       if (!sessionToken) {
         return next(new Error('غير مصرح: لا يوجد رمز جلسة'));
       }
