@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { SocketProvider, useSocket } from '@/components/SocketProvider';
 import type { ChatMessage, ChatRoom, PresenceUser } from '@/types/chat';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSiteName } from '@/hooks/useSiteName';
 
 function ChatContent() {
@@ -917,9 +918,9 @@ function ChatContent() {
                   <div key={msg.id} className={`message-enter ${!showAvatar ? 'mt-0.5' : 'mt-3 first:mt-0'}`}>
                     <div className={`flex items-start gap-2.5 ${isOwn ? 'flex-row-reverse' : ''}`}>
                       {showAvatar ? (
-                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-lg shadow-violet-500/10 mt-1">
+                        <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-lg shadow-violet-500/10 mt-1">
                           {msg.user.avatar ? (
-                            <img src={msg.user.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                            <Image src={msg.user.avatar} alt="" fill className="rounded-lg object-cover" sizes="32px" />
                           ) : (
                             msg.user.username[0]?.toUpperCase()
                           )}
@@ -1186,8 +1187,8 @@ function ChatContent() {
                         className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-white/[0.04] transition-all text-right group"
                       >
                         <div className="relative flex-shrink-0">
-                          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
-                            {pu.avatar ? <img src={pu.avatar} alt="" className="w-full h-full rounded-lg object-cover" /> : pu.username[0]?.toUpperCase()}
+                          <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-xs font-bold text-white">
+                            {pu.avatar ? <Image src={pu.avatar} alt="" fill className="rounded-lg object-cover" sizes="32px" /> : pu.username[0]?.toUpperCase()}
                           </div>
                           <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[#0A0F1C] ${getStatusColor(pu.status)}`} />
                         </div>
@@ -1223,7 +1224,7 @@ function ChatContent() {
                       >
                         <div className="relative flex-shrink-0">
                           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-500/70 to-indigo-600/70 flex items-center justify-center text-xs font-bold text-white">
-                            {pu.avatar ? <img src={pu.avatar} alt="" className="w-full h-full rounded-lg object-cover" /> : pu.username[0]?.toUpperCase()}
+                            {pu.avatar ? <Image src={pu.avatar} alt="" fill className="rounded-lg object-cover" sizes="32px" /> : pu.username[0]?.toUpperCase()}
                           </div>
                           <span className={`absolute -bottom-0.5 -left-0.5 w-3 h-3 rounded-full border-2 border-[#0A0F1C] ${getStatusColor(pu.status)}`} />
                         </div>
@@ -1260,7 +1261,7 @@ function ChatContent() {
               <div className="relative mb-4">
                 <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white shadow-xl shadow-violet-500/20">
                   {selectedProfile.avatar ? (
-                    <img src={selectedProfile.avatar} alt="" className="w-full h-full rounded-2xl object-cover" />
+                    <Image src={selectedProfile.avatar} alt="" fill className="rounded-2xl object-cover" sizes="80px" />
                   ) : (
                     selectedProfile.username[0]?.toUpperCase()
                   )}

@@ -3,6 +3,15 @@ import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
+// Structured logger for seed operations
+const logger = {
+  info: (msg: string) => process.stdout.write(`${msg}\n`),
+  success: (msg: string) => process.stdout.write(`  ✓ ${msg}\n`),
+  section: (msg: string) => process.stdout.write(`\n📌 ${msg}\n`),
+  error: (msg: string) => process.stderr.write(`❌ ${msg}\n`),
+  divider: () => process.stdout.write('─'.repeat(37) + '\n'),
+};
+
 const DEFAULT_ROLES = [
   { name: 'owner', displayName: 'المالك', level: 100, color: '#FFD700', isSystem: true, isDefault: false },
   { name: 'admin', displayName: 'مدير', level: 90, color: '#FF4444', isSystem: true, isDefault: false },
@@ -31,10 +40,10 @@ const DEFAULT_SETTINGS = [
 ];
 
 async function main() {
-  console.log('🌱 Starting seed...');
+  logger.info('🌱 Starting seed...');
 
   // Create roles
-  console.log('Creating roles...');
+  logger.section('Creating roles...');
   const createdRoles: Record<string, string> = {};
   for (const role of DEFAULT_ROLES) {
     const created = await prisma.role.upsert({
@@ -43,11 +52,11 @@ async function main() {
       create: role,
     });
     createdRoles[role.name] = created.id;
-    console.log(`  ✓ Role: ${role.displayName} (${role.name})`);
+    logger.success(`Role: ${role.displayName} (${role.name})`);
   }
 
   // Create admin user
-  console.log('Creating admin user...');
+  logger.section('Creating admin user...');
   const adminPassword = await bcrypt.hash('admin123', 12);
   const admin = await prisma.user.upsert({
     where: { email: 'admin@chatzone.com' },
@@ -66,10 +75,10 @@ async function main() {
     update: {},
     create: { userId: admin.id, roleId: createdRoles['owner'] },
   });
-  console.log('  ✓ Admin user created (admin@chatzone.com / admin123)');
+  logger.success('Admin user created (admin@chatzone.com / admin123)');
 
   // Create rooms
-  console.log('Creating rooms...');
+  logger.section('Creating rooms...');
   for (const room of DEFAULT_ROOMS) {
     const created = await prisma.room.upsert({
       where: { name: room.name },
@@ -83,11 +92,11 @@ async function main() {
       update: {},
       create: { userId: admin.id, roomId: created.id },
     });
-    console.log(`  ✓ Room: ${room.name}`);
+    logger.success(`Room: ${room.name}`);
   }
 
   // Create site settings
-  console.log('Creating site settings...');
+  logger.section('Creating site settings...');
   for (const setting of DEFAULT_SETTINGS) {
     await prisma.siteSetting.upsert({
       where: { key: setting.key },
@@ -95,10 +104,10 @@ async function main() {
       create: setting,
     });
   }
-  console.log('  ✓ Settings created');
+  logger.success('Settings created');
 
   // Create some banned words
-  console.log('Creating banned words...');
+  logger.section('Creating banned words...');
   const bannedWords = ['كلمة_سيئة', 'spam', 'test_banned'];
   for (const word of bannedWords) {
     await prisma.bannedWord.upsert({
@@ -107,21 +116,21 @@ async function main() {
       create: { word, createdBy: admin.id },
     });
   }
-  console.log('  ✓ Banned words created');
+  logger.success('Banned words created');
 
-  console.log('\n✅ Seed completed successfully!');
-  console.log('─────────────────────────────────────');
-  console.log('Admin Login:');
-  console.log('  Email: admin@chatzone.com');
-  console.log('  Password: admin123');
-  console.log('Admin Panel Code: 3131');
-  console.log('Moderator Panel Code: 2121');
-  console.log('─────────────────────────────────────');
+  logger.info('\n✅ Seed completed successfully!');
+  logger.divider();
+  logger.info('Admin Login:');
+  logger.info('  Email: admin@chatzone.com');
+  logger.info('  Password: admin123');
+  logger.info('Admin Panel Code: 3131');
+  logger.info('Moderator Panel Code: 2121');
+  logger.divider();
 }
 
 main()
   .catch((e) => {
-    console.error('❌ Seed error:', e);
+    logger.error(`Seed error: ${e}`);
     process.exit(1);
   })
   .finally(async () => {

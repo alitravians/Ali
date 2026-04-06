@@ -165,14 +165,22 @@ function scanSecurity(
   for (const [filePath, content] of fileContents) {
     if (!isApiRoute(filePath)) continue;
 
+    // Skip auth/register/login routes — they are designed to be public
+    const isAuthRoute = filePath.includes('/auth/') ||
+      filePath.includes('/login') ||
+      filePath.includes('/register') ||
+      filePath.includes('/signup') ||
+      filePath.includes('nextauth');
+
     const hasAuthCheck = content.includes('getServerSession') ||
       content.includes('requireAdmin') ||
       content.includes('getSession') ||
       content.includes('auth(') ||
       content.includes('authenticated') ||
-      content.includes('authorize');
+      content.includes('authorize') ||
+      content.includes('NextAuth');
 
-    if (!hasAuthCheck) {
+    if (!hasAuthCheck && !isAuthRoute) {
       issues.push({
         id: nextId(),
         category: 'security',

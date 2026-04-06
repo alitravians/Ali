@@ -2304,7 +2304,7 @@ export default function AdminPage() {
                                 lines.push('تقرير الفحص الذكي للمشروع');
                                 lines.push('='.repeat(60));
                                 lines.push(`التاريخ: ${new Date(r.scannedAt).toLocaleString('ar-SA')}`);
-                                lines.push(`المدة: ${typeof r.duration === 'number' ? r.duration.toFixed(1) + 's' : r.duration}`);
+                                lines.push(`المدة: ${typeof r.duration === 'number' ? (r.duration / 1000).toFixed(1) + 's' : r.duration}`);
                                 lines.push(`إجمالي الملفات: ${r.totalFiles}`);
                                 lines.push(`الحجم: ${(r.totalSize / 1024 / 1024).toFixed(1)}MB`);
                                 lines.push(`اللغات: ${Object.keys(r.languages || {}).join(', ')}`);
