@@ -728,9 +728,17 @@ function scanPerformance(
     }
   }
 
-  // 4. Check for missing Next.js Image component
+  // 4. Check for missing Next.js Image component (only in Next.js projects)
   for (const [filePath, content] of fileContents) {
     if (!filePath.endsWith('.tsx') && !filePath.endsWith('.jsx')) continue;
+    // Only flag <img> in Next.js projects (check if file is under a folder with next.config)
+    const isNextProject = filePath.startsWith('chat-platform/') ||
+      files.some(f => {
+        const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+        return f.path?.startsWith(dir.split('/')[0] + '/') &&
+          (f.path?.includes('next.config') || f.path?.includes('next.config.mjs') || f.path?.includes('next.config.js'));
+      });
+    if (!isNextProject) continue;
     if (content.includes('<img ') && !content.includes('next/image')) {
       const imgCount = (content.match(/<img\s/g) || []).length;
       if (imgCount > 0) {
