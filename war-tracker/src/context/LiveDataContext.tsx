@@ -188,6 +188,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
   // Fallback mock event generator (runs when no backend data)
   const addFallbackEvent = useCallback(() => {
+    if (connectionStatusRef.current === 'connected') {
+      // WebSocket reconnected, stop generating mock events
+      return;
+    }
     const newEvent = generateLiveEvent();
     setEvents(prev => [newEvent, ...prev].slice(0, 500));
     setNewEventCount(prev => prev + 1);

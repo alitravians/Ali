@@ -32,7 +32,7 @@ Return ONLY a JSON object with "titleAr" and "descriptionAr" keys. No markdown.
 Title: {event.title}
 Description: {event.description}"""
 
-        response = model.generate_content(prompt)
+        response = await model.generate_content_async(prompt)
         text = response.text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
@@ -78,7 +78,7 @@ Provide analysis in BOTH English and Arabic. Return ONLY a JSON object with thes
 
 No markdown, just valid JSON."""
 
-        response = model.generate_content(prompt)
+        response = await model.generate_content_async(prompt)
         text = response.text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
@@ -121,7 +121,7 @@ Location: {event.location.name}
 
 Return ONLY JSON: {{"whyItMatters": "...", "whyItMattersAr": "..."}}"""
 
-        response = model.generate_content(prompt)
+        response = await model.generate_content_async(prompt)
         text = response.text.strip()
         if text.startswith("```"):
             text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
