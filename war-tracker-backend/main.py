@@ -384,7 +384,8 @@ async def get_event(event_id: str):
     for event in store.events:
         if event.id == event_id:
             return event.model_dump(mode="json")
-    return {"error": "Event not found"}, 404
+    from fastapi import HTTPException
+    raise HTTPException(status_code=404, detail="Event not found")
 
 
 @app.get("/api/alerts")

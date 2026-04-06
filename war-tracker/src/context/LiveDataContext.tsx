@@ -100,6 +100,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [newEventCount, setNewEventCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'fallback'>('connecting');
+  const connectionStatusRef = useRef<'connected' | 'connecting' | 'disconnected' | 'fallback'>('connecting');
   const isLive = true;
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -147,6 +148,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     ws.onopen = () => {
       console.log('[WS] Connected to backend');
+      connectionStatusRef.current = 'connected';
       setConnectionStatus('connected');
     };
 
@@ -154,6 +156,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     ws.onclose = () => {
       console.log('[WS] Disconnected, will reconnect in 10s...');
+      connectionStatusRef.current = 'disconnected';
       setConnectionStatus('disconnected');
       reconnectTimer.current = setTimeout(connectWs, 10000);
     };
@@ -209,8 +212,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     // Start fallback mock generator after 30s if no backend data arrives
     const fallbackStart = setTimeout(() => {
-      if (connectionStatus !== 'connected') {
+      if (connectionStatusRef.current !== 'connected') {
         console.log('[Fallback] No backend connection, starting mock event generator');
+        connectionStatusRef.current = 'fallback';
         setConnectionStatus('fallback');
         const initialDelay = 5000 + Math.random() * 10000;
         fallbackTimer.current = setTimeout(addFallbackEvent, initialDelay);
@@ -231,7 +235,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
       if (wsRef.current) wsRef.current.close();
     };
-  }, [connectWs, fetchInitialData, addFallbackEvent, connectionStatus]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectWs, fetchInitialData, addFallbackEvent]);
 
   const clearNewCount = useCallback(() => {
     setNewEventCount(0);
