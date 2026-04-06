@@ -240,7 +240,7 @@ async def poll_news():
 
             if new_events:
                 all_events = new_events + store.events
-                store.events = deduplicate_and_merge(all_events)[:200]
+                store.events = deduplicate_and_merge(all_events)[:500]
 
                 if GEMINI_API_KEY:
                     for ev in new_events[:3]:
