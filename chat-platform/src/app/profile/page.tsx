@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 type ProfileTab = 'info' | 'badges' | 'level' | 'tickets' | 'notifications' | 'settings';
 
@@ -162,9 +163,9 @@ export default function ProfilePage() {
           <div className="flex items-center gap-5">
             {/* Avatar */}
             <div className="relative group shrink-0">
-              <div className="w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/[0.06] shadow-lg">
+              <div className="relative w-20 h-20 rounded-2xl overflow-hidden border-2 border-white/[0.06] shadow-lg">
                 {avatar ? (
-                  <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                  <Image src={avatar} alt="avatar" fill className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-2xl font-bold text-white">
                     {user?.name?.[0]?.toUpperCase() || '?'}
@@ -402,9 +403,9 @@ export default function ProfilePage() {
               <div className="rounded-xl bg-white/[0.02] border border-white/[0.04] p-4">
                 <p className="text-gray-400 text-xs font-medium mb-3">📷 الصورة الشخصية</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/[0.06]">
+                  <div className="relative w-14 h-14 rounded-xl overflow-hidden border border-white/[0.06]">
                     {avatar ? (
-                      <img src={avatar} alt="avatar" className="w-full h-full object-cover" />
+                      <Image src={avatar} alt="avatar" fill className="object-cover" />
                     ) : (
                       <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-lg font-bold text-white">
                         {user?.name?.[0]?.toUpperCase() || '?'}

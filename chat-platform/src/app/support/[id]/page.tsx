@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 
@@ -229,9 +230,9 @@ export default function TicketDetailPage() {
             {/* Original message as first thread item */}
             <div className="rounded-xl p-4 border bg-white/[0.02] border-white/[0.06]">
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-br from-gray-600 to-gray-700 shrink-0">
+                <div className="relative w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white bg-gradient-to-br from-gray-600 to-gray-700 shrink-0">
                   {ticket.user?.avatar ? (
-                    <img src={ticket.user.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                    <Image src={ticket.user.avatar} alt="" fill className="rounded-lg object-cover" />
                   ) : (
                     ticket.user?.username?.[0]?.toUpperCase() || '?'
                   )}
@@ -256,11 +257,11 @@ export default function TicketDetailPage() {
                     : 'bg-white/[0.02] border-white/[0.06] ml-0 mr-4'
                 }`}>
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${
+                  <div className={`relative w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold text-white shrink-0 ${
                     reply.isStaff ? 'bg-gradient-to-br from-violet-500 to-indigo-600' : 'bg-gradient-to-br from-gray-600 to-gray-700'
                   }`}>
                     {reply.user?.avatar ? (
-                      <img src={reply.user.avatar} alt="" className="w-full h-full rounded-lg object-cover" />
+                      <Image src={reply.user.avatar} alt="" fill className="rounded-lg object-cover" />
                     ) : (
                       reply.user?.username?.[0]?.toUpperCase() || '?'
                     )}

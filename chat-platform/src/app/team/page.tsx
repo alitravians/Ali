@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useSiteName } from '@/hooks/useSiteName';
 
 interface TeamMember {
@@ -141,9 +142,9 @@ export default function TeamPage() {
                               </td>
                               <td className="px-6 py-4">
                                 <div className="flex justify-center">
-                                  <div className="w-11 h-11 rounded-xl overflow-hidden border border-white/[0.08]">
+                                  <div className="relative w-11 h-11 rounded-xl overflow-hidden border border-white/[0.08]">
                                     {member.user.avatar ? (
-                                      <img src={member.user.avatar} alt={member.user.username} className="w-full h-full object-cover" />
+                                      <Image src={member.user.avatar} alt={member.user.username} fill className="object-cover" />
                                     ) : (
                                       <div className="w-full h-full bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center text-white text-sm font-bold">
                                         {member.user.username.charAt(0).toUpperCase()}
