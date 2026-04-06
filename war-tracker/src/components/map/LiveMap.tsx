@@ -2,7 +2,7 @@ import { MapContainer, TileLayer, Circle, useMap } from 'react-leaflet';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { TrackerEvent } from '../../types';
-import { categoryColor, categoryTextAr, trustLevelText } from '../../utils/helpers';
+import { categoryColor, categoryTextAr, trustLevelText, escapeHtml } from '../../utils/helpers';
 import { mapLayers } from '../../data/mockData';
 import { Layers, Eye, EyeOff } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
@@ -46,19 +46,19 @@ function PulsingMarker({ event }: { event: TrackerEvent }) {
       <div class="event-popup" dir="rtl">
         <div class="popup-header">
           <span class="popup-category" style="color: ${color}; background: ${color}20;">
-            ${categoryTextAr(event.category)}
+            ${escapeHtml(categoryTextAr(event.category))}
           </span>
           ${event.isBreaking ? '<span class="popup-breaking">عاجل</span>' : ''}
         </div>
-        <h3 class="popup-title">${event.titleAr}</h3>
-        <p class="popup-desc">${event.descriptionAr}</p>
+        <h3 class="popup-title">${escapeHtml(event.titleAr)}</h3>
+        <p class="popup-desc">${escapeHtml(event.descriptionAr)}</p>
         <div class="popup-meta">
           <span>${event.sources.length} مصادر</span>
           <span>•</span>
-          <span>${trustLevelText(event.trustLevel)}</span>
+          <span>${escapeHtml(trustLevelText(event.trustLevel))}</span>
         </div>
-        <div class="popup-location">📍 ${event.location.nameAr}</div>
-        ${event.whyItMattersAr ? `<div class="popup-importance">⚡ ${event.whyItMattersAr}</div>` : ''}
+        <div class="popup-location">📍 ${escapeHtml(event.location.nameAr)}</div>
+        ${event.whyItMattersAr ? `<div class="popup-importance">⚡ ${escapeHtml(event.whyItMattersAr)}</div>` : ''}
       </div>
     `;
 

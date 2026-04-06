@@ -84,7 +84,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const addLiveEvent = useCallback(() => {
     const newEvent = generateLiveEvent();
 
-    setEvents(prev => [newEvent, ...prev]);
+    setEvents(prev => [newEvent, ...prev].slice(0, 500));
     setNewEventCount(prev => prev + 1);
     setLastUpdate(new Date());
     setIndicators(prev => updateIndicators(prev, newEvent));

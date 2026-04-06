@@ -2,6 +2,15 @@ import { formatDistanceToNow } from 'date-fns';
 import { ar } from 'date-fns/locale';
 import type { TrustLevel, EventCategory, RiskLevel, AlertSeverity } from '../types';
 
+export function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function timeAgo(date: Date): string {
   return formatDistanceToNow(date, { addSuffix: true, locale: ar });
 }

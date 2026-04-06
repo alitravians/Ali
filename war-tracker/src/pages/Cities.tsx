@@ -181,7 +181,7 @@ export default function Cities() {
                 <Clock className="w-3 h-3" />
                 {timeAgo(city.lastUpdate)}
               </span>
-              <span>{city.recentEvents.length} أحداث</span>
+              <span>{events.filter(e => e.relatedCities.includes(city.id)).length} أحداث</span>
             </div>
           </Link>
         ))}
