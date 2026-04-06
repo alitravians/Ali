@@ -390,8 +390,22 @@ function scanDependencies(
 ): ScanIssue[] {
   const issues: ScanIssue[] = [];
 
-  // Find package.json
-  const pkgContent = fileContents.get('package.json') || fileContents.get('chat-platform/package.json');
+  // Find package.json — prefer main project over monorepo workspace root
+  const rootPkgContent = fileContents.get('package.json');
+  const projectPkgContent = fileContents.get('chat-platform/package.json');
+  
+  // Detect if root is a monorepo workspace (has "workspaces" field)
+  let isWorkspaceRoot = false;
+  if (rootPkgContent) {
+    try {
+      const rootPkg = JSON.parse(rootPkgContent);
+      isWorkspaceRoot = !!rootPkg.workspaces;
+    } catch { /* ignore parse errors */ }
+  }
+  
+  // Use project-level package.json for dependency analysis if root is workspace
+  const pkgContent = (isWorkspaceRoot && projectPkgContent) ? projectPkgContent : (rootPkgContent || projectPkgContent);
+  
   if (!pkgContent) {
     issues.push({
       id: nextId(),
@@ -523,9 +537,10 @@ function scanDependencies(
     }
   }
 
-  // 5. Check for lockfile
+  // 5. Check for lockfile (check root and sub-project directories)
   const hasLockfile = tree.some(t =>
-    t.path === 'package-lock.json' || t.path === 'yarn.lock' || t.path === 'pnpm-lock.yaml'
+    t.path === 'package-lock.json' || t.path === 'yarn.lock' || t.path === 'pnpm-lock.yaml' ||
+    t.path === 'chat-platform/package-lock.json' || t.path === 'chat-platform/yarn.lock' || t.path === 'chat-platform/pnpm-lock.yaml'
   );
   if (!hasLockfile) {
     issues.push({
@@ -891,6 +906,7 @@ export async function runFullScan(config: GitHubAppConfig): Promise<ScanResult> 
 
   // Always fetch package.json and tsconfig.json
   if (tree.some(t => t.path === 'package.json')) filesToFetch.push('package.json');
+  if (tree.some(t => t.path === 'chat-platform/package.json')) filesToFetch.push('chat-platform/package.json');
   if (tree.some(t => t.path === 'tsconfig.json')) filesToFetch.push('tsconfig.json');
 
   // Fetch all API routes (security critical)
