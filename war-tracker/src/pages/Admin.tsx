@@ -6,8 +6,11 @@ import TrustBadge from '../components/shared/TrustBadge';
 import {
   Shield, Database, Layers, FileSearch, Bell,
   Brain, Wifi, AlertTriangle, Settings, Server, BarChart3,
-  Eye, EyeOff, Plus, Trash2, Edit3, RefreshCw, Search, CheckCircle2, XCircle
+  Eye, EyeOff, Plus, Trash2, Edit3, RefreshCw, Search, CheckCircle2, XCircle,
+  Lock, LogOut
 } from 'lucide-react';
+
+const ADMIN_PASSWORD = 'warscope2024';
 
 type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system';
 
@@ -15,6 +18,69 @@ export default function Admin() {
   const { events, alerts } = useLiveData();
   const [activeTab, setActiveTab] = useState<AdminTab>('sources');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return sessionStorage.getItem('warscope_admin_auth') === 'true';
+  });
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('warscope_admin_auth', 'true');
+      setLoginError(false);
+    } else {
+      setLoginError(true);
+      setPassword('');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('warscope_admin_auth');
+  };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="w-full max-w-sm">
+          <div className="rounded-2xl border border-gray-800 bg-[#12121a] p-8 shadow-2xl">
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-purple-500/15 border border-purple-500/30 flex items-center justify-center mb-4">
+                <Lock className="w-8 h-8 text-purple-400" />
+              </div>
+              <h1 className="text-lg font-bold text-white">لوحة الإدارة</h1>
+              <p className="text-xs text-gray-500 mt-1">أدخل كلمة المرور للوصول</p>
+            </div>
+            <form onSubmit={handleLogin}>
+              <div className="mb-4">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => { setPassword(e.target.value); setLoginError(false); }}
+                  placeholder="كلمة المرور"
+                  className={`w-full bg-[#0a0a0f] border ${loginError ? 'border-red-500' : 'border-gray-700'} rounded-xl px-4 py-3 text-sm text-white placeholder-gray-500 focus:border-purple-500 focus:outline-none text-center`}
+                  autoFocus
+                  dir="ltr"
+                />
+                {loginError && (
+                  <p className="text-xs text-red-400 text-center mt-2">كلمة المرور غير صحيحة</p>
+                )}
+              </div>
+              <button
+                type="submit"
+                className="w-full py-3 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-xl text-sm font-bold hover:bg-purple-500/30 transition-colors flex items-center justify-center gap-2"
+              >
+                <Shield className="w-4 h-4" />
+                دخول
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tabs: { id: AdminTab; label: string; icon: typeof Shield }[] = [
     { id: 'sources', label: 'إدارة المصادر', icon: Database },
@@ -40,6 +106,13 @@ export default function Admin() {
             <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-[10px] font-semibold text-green-400">النظام يعمل</span>
           </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-1 px-2.5 py-1 bg-red-500/10 border border-red-500/30 rounded-full text-[10px] font-semibold text-red-400 hover:bg-red-500/20 transition-colors"
+          >
+            <LogOut className="w-3 h-3" />
+            خروج
+          </button>
         </div>
       </div>
 
