@@ -19,7 +19,7 @@ async def fetch_mediastack_events(api_key: str, max_results: int = 25) -> list[T
     keywords = "iran israel conflict,middle east military,hezbollah missile,iran nuclear"
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, headers={"User-Agent": "WarScope/1.0"}) as client:
             params = {
                 "access_key": api_key,
                 "keywords": keywords,

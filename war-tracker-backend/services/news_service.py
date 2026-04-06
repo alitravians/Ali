@@ -30,7 +30,7 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
     ]
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        async with httpx.AsyncClient(timeout=30.0, headers={"User-Agent": "WarScope/1.0"}) as client:
             for query in queries:
                 params = {
                     "q": query,

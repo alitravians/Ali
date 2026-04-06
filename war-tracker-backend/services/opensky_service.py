@@ -18,7 +18,7 @@ async def fetch_aircraft_positions() -> list[AircraftPosition]:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers={"User-Agent": "WarScope/1.0"}) as client:
             resp = await client.get(url, params=params)
 
             if resp.status_code == 429:

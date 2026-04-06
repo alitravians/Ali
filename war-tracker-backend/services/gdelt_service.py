@@ -102,7 +102,8 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
         }
 
         try:
-            async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            headers = {"User-Agent": "WarScope/1.0 (conflict-tracker; research)"}
+            async with httpx.AsyncClient(timeout=45.0, follow_redirects=True, headers=headers) as client:
                 resp = await client.get(url, params=params)
                 resp.raise_for_status()
 

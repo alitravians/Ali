@@ -173,7 +173,7 @@ async def poll_gdelt():
 
                 # Merge with existing
                 all_events = events + store.events
-                store.events = deduplicate_and_merge(all_events)[:200]  # Keep max 200
+                store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
 
                 # Translate top events with Gemini if available
                 if GEMINI_API_KEY:
