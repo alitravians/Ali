@@ -1,13 +1,21 @@
 import { useParams, Link } from 'react-router-dom';
 import { cities } from '../data/mockData';
+import { useLiveData } from '../context/LiveDataContext';
 import { riskLevelColor, riskLevelTextAr, scoreColor, scoreTextColor, timeAgo } from '../utils/helpers';
 import EventCard from '../components/shared/EventCard';
 import LiveMap from '../components/map/LiveMap';
 import { Building2, Clock, ArrowRight, Activity, Plane, Users } from 'lucide-react';
 
 export default function Cities() {
+  const { events } = useLiveData();
   const { cityId } = useParams();
   const selectedCity = cityId ? cities.find(c => c.id === cityId) : null;
+
+  // Get live events for city
+  const getCityEvents = (cId: string) => {
+    const cityEvents = events.filter(e => e.relatedCities.includes(cId));
+    return cityEvents.slice(0, 10);
+  };
 
   if (selectedCity) {
     return (
@@ -84,15 +92,15 @@ export default function Cities() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <h2 className="text-sm font-bold text-white mb-3">موقع المدينة</h2>
-            <LiveMap events={selectedCity.recentEvents} height="350px" showControls={false} />
+            <LiveMap events={getCityEvents(selectedCity.id)} height="350px" showControls={false} />
           </div>
           <div>
             <h2 className="text-sm font-bold text-white mb-3">
-              آخر الأحداث ({selectedCity.recentEvents.length})
+              آخر الأحداث ({getCityEvents(selectedCity.id).length})
             </h2>
             <div className="space-y-3 max-h-[350px] overflow-y-auto">
-              {selectedCity.recentEvents.length > 0 ? (
-                selectedCity.recentEvents.map(event => (
+              {getCityEvents(selectedCity.id).length > 0 ? (
+                getCityEvents(selectedCity.id).map(event => (
                   <EventCard key={event.id} event={event} />
                 ))
               ) : (

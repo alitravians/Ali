@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, Radio, BarChart3, Globe2, Building2, Bell, Shield } from 'lucide-react';
+import { useLiveData } from '../../context/LiveDataContext';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -17,6 +18,7 @@ const navLinks = [
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const location = useLocation();
+  const { newEventCount } = useLiveData();
 
   return (
     <nav className="fixed top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50">
@@ -60,6 +62,11 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
           {/* Live indicator + Mobile menu */}
           <div className="flex items-center gap-3">
+            {newEventCount > 0 && (
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded-full animate-pulse">
+                <span className="text-[10px] font-bold text-green-400">+{newEventCount}</span>
+              </span>
+            )}
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30">
               <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
               <span className="text-[11px] font-semibold text-red-400">LIVE</span>

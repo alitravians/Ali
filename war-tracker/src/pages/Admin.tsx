@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { sources, events, alerts, mapLayers } from '../data/mockData';
+import { sources, mapLayers } from '../data/mockData';
+import { useLiveData } from '../context/LiveDataContext';
 import { timeAgo, sourceTypeAr } from '../utils/helpers';
 import TrustBadge from '../components/shared/TrustBadge';
 import {
@@ -11,6 +12,7 @@ import {
 type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system';
 
 export default function Admin() {
+  const { events, alerts } = useLiveData();
   const [activeTab, setActiveTab] = useState<AdminTab>('sources');
   const [searchQuery, setSearchQuery] = useState('');
 

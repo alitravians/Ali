@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { alerts } from '../data/mockData';
+import { useLiveData } from '../context/LiveDataContext';
 import { timeAgo, severityColor } from '../utils/helpers';
 import { Bell, AlertTriangle, TrendingUp, Info, Filter, Clock, MapPin, ChevronDown, ChevronUp } from 'lucide-react';
 import type { AlertSeverity } from '../types';
 
 export default function Alerts() {
+  const { alerts } = useLiveData();
   const [severityFilter, setSeverityFilter] = useState<AlertSeverity | 'all'>('all');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);

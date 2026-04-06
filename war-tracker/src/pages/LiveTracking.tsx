@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { events, indicators, mapLayers } from '../data/mockData';
+import { mapLayers } from '../data/mockData';
+import { useLiveData } from '../context/LiveDataContext';
 import LiveMap from '../components/map/LiveMap';
 import Timeline from '../components/timeline/Timeline';
 import EventCard from '../components/shared/EventCard';
@@ -8,6 +9,7 @@ import { Filter, Clock, List, LayoutGrid, Radio } from 'lucide-react';
 import type { EventCategory, TrustLevel } from '../types';
 
 export default function LiveTracking() {
+  const { events, indicators, newEventCount, lastUpdate, clearNewCount } = useLiveData();
   const [categoryFilter, setCategoryFilter] = useState<EventCategory | 'all'>('all');
   const [trustFilter, setTrustFilter] = useState<TrustLevel | 'all'>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
@@ -33,10 +35,18 @@ export default function LiveTracking() {
             <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
             <span className="text-[10px] font-bold text-red-400">LIVE</span>
           </div>
+          {newEventCount > 0 && (
+            <button
+              onClick={clearNewCount}
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/30 rounded-full animate-pulse"
+            >
+              <span className="text-[10px] font-bold text-green-400">+{newEventCount} جديد</span>
+            </button>
+          )}
         </div>
         <div className="text-[11px] text-gray-500 flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" />
-          {new Date().toLocaleString('ar-SA')}
+          آخر تحديث: {lastUpdate.toLocaleString('ar-SA')}
         </div>
       </div>
 

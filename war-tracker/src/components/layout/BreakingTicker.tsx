@@ -1,8 +1,9 @@
 import { AlertTriangle } from 'lucide-react';
-import { events } from '../../data/mockData';
+import { useLiveData } from '../../context/LiveDataContext';
 
 export default function BreakingTicker() {
-  const breakingEvents = events.filter(e => e.isBreaking);
+  const { events } = useLiveData();
+  const breakingEvents = events.filter(e => e.isBreaking).slice(0, 10);
 
   return (
     <div className="fixed top-0 right-0 left-0 z-50 h-8 bg-gradient-to-l from-red-900/90 to-red-800/90 backdrop-blur-sm border-b border-red-700/50 overflow-hidden">

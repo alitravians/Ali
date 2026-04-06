@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Radio, Map, Bell, ArrowLeft, Zap, Eye, Brain, TrendingUp } from 'lucide-react';
-import { events, indicators, alerts } from '../data/mockData';
+import { useLiveData } from '../context/LiveDataContext';
 import IndicatorCard from '../components/shared/IndicatorCard';
 import EventCard from '../components/shared/EventCard';
 import LiveMap from '../components/map/LiveMap';
 
 export default function Home() {
+  const { events, indicators, alerts } = useLiveData();
   const breakingEvents = events.filter(e => e.isBreaking).slice(0, 4);
   const unreadAlerts = alerts.filter(a => !a.isRead).length;
 

@@ -1,4 +1,5 @@
-import { aiSummary, events, indicators } from '../data/mockData';
+import { aiSummary } from '../data/mockData';
+import { useLiveData } from '../context/LiveDataContext';
 import AISummaryComponent from '../components/ai/AISummary';
 import IndicatorCard from '../components/shared/IndicatorCard';
 import { BarChart3, TrendingUp, Clock, AlertTriangle, ShieldCheck, Activity } from 'lucide-react';
@@ -6,6 +7,8 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip, PieCha
 import { categoryTextAr } from '../utils/helpers';
 
 export default function Analysis() {
+  const { events, indicators } = useLiveData();
+
   // Category distribution data
   const categoryCount: Record<string, number> = {};
   events.forEach(e => {
