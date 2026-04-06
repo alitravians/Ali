@@ -22,11 +22,11 @@ function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLay
         <CircleMarker
           key={event.id}
           center={[event.location.lat, event.location.lng]}
-          radius={event.isBreaking ? 12 : 8}
+          radius={event.isBreaking ? 14 : 10}
           pathOptions={{
-            color: categoryColor(event.category),
+            color: '#ffffff',
             fillColor: categoryColor(event.category),
-            fillOpacity: event.isBreaking ? 0.6 : 0.4,
+            fillOpacity: event.isBreaking ? 0.8 : 0.6,
             weight: event.isBreaking ? 3 : 2,
           }}
         >
@@ -44,13 +44,13 @@ function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLay
                 </span>
                 <TrustBadge level={event.trustLevel} />
               </div>
-              <h3 className="text-sm font-bold text-white mb-1">{event.titleAr}</h3>
-              <p className="text-[11px] text-gray-400 mb-2">{event.descriptionAr}</p>
+              <h3 className="text-sm font-bold text-gray-900 mb-1">{event.titleAr}</h3>
+              <p className="text-[11px] text-gray-600 mb-2">{event.descriptionAr}</p>
               <div className="text-[10px] text-gray-500">
                 {event.sources.length} مصادر • {trustLevelText(event.trustLevel)}
               </div>
               {event.whyItMattersAr && (
-                <div className="mt-2 p-2 bg-blue-500/10 rounded text-[10px] text-blue-300">
+                <div className="mt-2 p-2 bg-blue-50 rounded text-[10px] text-blue-700">
                   {event.whyItMattersAr}
                 </div>
               )}
@@ -81,8 +81,12 @@ export default function LiveMap({ events, height = '500px', showControls = true 
         zoomControl={false}
       >
         <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+        />
+        <TileLayer
+          attribution=''
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
         />
         <MapEvents events={events} activeLayers={activeLayers} />
       </MapContainer>
