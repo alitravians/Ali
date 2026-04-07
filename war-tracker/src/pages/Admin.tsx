@@ -137,10 +137,10 @@ export default function Admin() {
   const pendingReviewEvents = events.filter(e => e.trustLevel === 'low' || e.trustLevel === 'medium');
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-lg font-bold text-white flex items-center gap-2">
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <h1 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
           <Shield className="w-5 h-5 text-purple-400" />
           لوحة الإدارة
         </h1>
@@ -160,7 +160,7 @@ export default function Admin() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4 sm:mb-6">
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
           <div className="flex items-center gap-2 mb-1">
             <Database className="w-4 h-4 text-blue-400" />
@@ -192,7 +192,8 @@ export default function Admin() {
       </div>
 
       {/* Tabs */}
-      <div className="flex flex-wrap gap-1 mb-6 bg-[#12121a] rounded-xl border border-gray-800 p-2">
+      <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 mb-4 sm:mb-6">
+        <div className="flex gap-1 bg-[#12121a] rounded-xl border border-gray-800 p-1.5 sm:p-2 min-w-max">
         {tabs.map(tab => {
           const Icon = tab.icon;
           return (
@@ -210,24 +211,25 @@ export default function Admin() {
             </button>
           );
         })}
+        </div>
       </div>
 
       {/* Tab Content */}
       <div className="rounded-xl border border-gray-800 bg-[#12121a]">
         {/* Sources Management */}
         {activeTab === 'sources' && (
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-3 sm:p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-4">
               <h2 className="text-sm font-bold text-white">إدارة المصادر</h2>
-              <div className="flex items-center gap-2">
-                <div className="relative">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative flex-1 sm:flex-initial">
                   <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
                   <input
                     type="text"
                     placeholder="بحث..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    className="bg-[#0a0a0f] border border-gray-700 rounded-lg pr-8 pl-3 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none w-40"
+                    className="bg-[#0a0a0f] border border-gray-700 rounded-lg pr-8 pl-3 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none w-full sm:w-40"
                   />
                 </div>
                 <button className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs hover:bg-blue-500/30 transition-colors">
@@ -296,17 +298,17 @@ export default function Admin() {
 
         {/* Map Layers */}
         {activeTab === 'layers' && (
-          <div className="p-5">
+          <div className="p-3 sm:p-5">
             <h2 className="text-sm font-bold text-white mb-4">إدارة طبقات الخريطة</h2>
             <div className="space-y-2">
               {mapLayers.map(layer => (
-                <div key={layer.id} className="flex items-center justify-between p-3 bg-[#0a0a0f] rounded-xl border border-gray-800">
+                <div key={layer.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-[#0a0a0f] rounded-xl border border-gray-800">
                   <div className="flex items-center gap-3">
                     <span className="w-4 h-4 rounded-full" style={{ backgroundColor: layer.color }} />
                     <span className="text-sm font-medium text-white">{layer.nameAr}</span>
                     <span className="text-[11px] text-gray-500">{layer.name}</span>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 mt-2 sm:mt-0">
                     <span className="text-[11px] text-gray-500">
                       {events.filter(e => e.category === layer.id).length} أحداث
                     </span>
@@ -327,7 +329,7 @@ export default function Admin() {
 
         {/* Event Review */}
         {activeTab === 'events' && (
-          <div className="p-5">
+          <div className="p-3 sm:p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-sm font-bold text-white">مراجعة الأحداث</h2>
               <span className="text-[11px] text-yellow-400 bg-yellow-500/10 px-2.5 py-1 rounded-full border border-yellow-500/20">
@@ -336,7 +338,7 @@ export default function Admin() {
             </div>
             <div className="space-y-3">
               {pendingReviewEvents.map(event => (
-                <div key={event.id} className="flex items-start gap-4 p-4 bg-[#0a0a0f] rounded-xl border border-gray-800">
+                <div key={event.id} className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4 p-3 sm:p-4 bg-[#0a0a0f] rounded-xl border border-gray-800">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <TrustBadge level={event.trustLevel} reason={event.trustReasonAr} />
@@ -348,16 +350,16 @@ export default function Admin() {
                       المصادر: {event.sources.map(s => s.sourceNameAr).join('، ')}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <button className="px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs hover:bg-green-500/30 transition-colors flex items-center gap-1">
+                  <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
+                    <button className="flex-1 sm:flex-initial px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs hover:bg-green-500/30 transition-colors flex items-center justify-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
                       تأكيد
                     </button>
-                    <button className="px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-colors flex items-center gap-1">
+                    <button className="flex-1 sm:flex-initial px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1">
                       <XCircle className="w-3 h-3" />
                       رفض
                     </button>
-                    <button className="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 transition-colors flex items-center gap-1">
+                    <button className="flex-1 sm:flex-initial px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 transition-colors flex items-center justify-center gap-1">
                       <Edit3 className="w-3 h-3" />
                       تعديل
                     </button>
@@ -370,8 +372,8 @@ export default function Admin() {
 
         {/* Alerts Management */}
         {activeTab === 'alerts' && (
-          <div className="p-5">
-            <div className="flex items-center justify-between mb-4">
+          <div className="p-3 sm:p-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-4">
               <h2 className="text-sm font-bold text-white">إدارة التنبيهات والإشعارات</h2>
               <button className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs hover:bg-blue-500/30 transition-colors">
                 <Plus className="w-3.5 h-3.5" />
@@ -423,7 +425,7 @@ export default function Admin() {
 
         {/* AI Management */}
         {activeTab === 'ai' && (
-          <div className="p-5">
+          <div className="p-3 sm:p-5">
             <h2 className="text-sm font-bold text-white mb-4">إدارة التحليلات الذكية</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="p-4 bg-[#0a0a0f] rounded-xl border border-gray-800">
@@ -481,7 +483,7 @@ export default function Admin() {
 
         {/* System */}
         {activeTab === 'system' && (
-          <div className="p-5">
+          <div className="p-3 sm:p-5">
             <h2 className="text-sm font-bold text-white mb-4">مراقبة النظام</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div className="p-4 bg-[#0a0a0f] rounded-xl border border-gray-800">

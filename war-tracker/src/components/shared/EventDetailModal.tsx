@@ -30,7 +30,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
       }
       size="lg"
     >
-      <div className="space-y-4">
+      <div className="space-y-3 sm:space-y-4">
         {/* Badges */}
         <div className="flex items-center gap-2 flex-wrap">
           {event.isBreaking && (
@@ -56,30 +56,30 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-white leading-relaxed">
+        <h3 className="text-base sm:text-lg font-bold text-white leading-relaxed">
           {event.titleAr}
         </h3>
 
         {/* Description */}
-        <p className="text-sm text-gray-300 leading-relaxed">
+        <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
           {event.descriptionAr}
         </p>
 
         {/* Location */}
-        <div className="flex items-center gap-2 px-3 py-2.5 bg-blue-500/5 border border-blue-500/20 rounded-xl">
-          <MapPin className="w-4 h-4 text-blue-400" />
-          <span className="text-sm text-blue-300 font-semibold">{event.location.nameAr}</span>
-          <span className="text-xs text-gray-500">({event.location.name})</span>
+        <div className="flex items-center gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-blue-500/5 border border-blue-500/20 rounded-xl">
+          <MapPin className="w-4 h-4 text-blue-400 flex-shrink-0" />
+          <span className="text-xs sm:text-sm text-blue-300 font-semibold">{event.location.nameAr}</span>
+          <span className="text-[10px] sm:text-xs text-gray-500">({event.location.name})</span>
         </div>
 
         {/* Why it matters */}
         {event.whyItMattersAr && (
-          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
-            <div className="flex items-center gap-2 text-sm font-semibold text-amber-400 mb-2">
+          <div className="bg-amber-500/5 border border-amber-500/20 rounded-xl p-3 sm:p-4">
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-amber-400 mb-2">
               <Lightbulb className="w-4 h-4" />
               لماذا هذا الحدث مهم الآن؟
             </div>
-            <p className="text-sm text-gray-300 leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-300 leading-relaxed">
               {event.whyItMattersAr}
             </p>
           </div>
@@ -87,15 +87,15 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
 
         {/* Sources */}
         <div>
-          <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+          <h4 className="text-xs sm:text-sm font-bold text-white mb-2 sm:mb-3 flex items-center gap-2">
             <Link2 className="w-4 h-4 text-gray-400" />
             المصادر ({event.sources.length})
           </h4>
           <div className="space-y-2">
             {event.sources.map((src, i) => (
-              <div key={i} className="flex items-center justify-between bg-[#0a0a0f] rounded-xl px-4 py-3 border border-gray-800">
+              <div key={i} className="flex items-center justify-between bg-[#0a0a0f] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-800">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-200 font-medium">{src.sourceNameAr}</span>
+                  <span className="text-xs sm:text-sm text-gray-200 font-medium">{src.sourceNameAr}</span>
                   {src.url && (
                     <a
                       href={src.url}
@@ -107,16 +107,16 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                     </a>
                   )}
                 </div>
-                <span className="text-xs text-gray-500">{timeAgo(src.timestamp)}</span>
+                <span className="text-[10px] sm:text-xs text-gray-500">{timeAgo(src.timestamp)}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Trust reason */}
-        <div className="bg-[#0a0a0f] rounded-xl px-4 py-3 border border-gray-800">
-          <span className="text-xs font-semibold text-gray-400">سبب التقييم: </span>
-          <span className="text-xs text-gray-300">{event.trustReasonAr}</span>
+        <div className="bg-[#0a0a0f] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-800">
+          <span className="text-[10px] sm:text-xs font-semibold text-gray-400">سبب التقييم: </span>
+          <span className="text-[10px] sm:text-xs text-gray-300">{event.trustReasonAr}</span>
         </div>
       </div>
     </Modal>
