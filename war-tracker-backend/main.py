@@ -501,13 +501,14 @@ async def admin_login(req: AdminLoginRequest, request: Request):
             detail="عدد محاولات تسجيل الدخول تجاوز الحد المسموح. حاول مجدداً بعد 5 دقائق."
         )
 
-    _record_attempt(client_ip)
-
     pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
     if pwd_hash == ADMIN_PASSWORD_HASH:
         token = secrets.token_hex(32)
         _admin_tokens[token] = time.time() + TOKEN_TTL_SECONDS
         return AdminLoginResponse(success=True, token=token)
+
+    # Only record failed attempts for rate limiting
+    _record_attempt(client_ip)
 
     raise HTTPException(status_code=401, detail="كلمة المرور غير صحيحة")
 
