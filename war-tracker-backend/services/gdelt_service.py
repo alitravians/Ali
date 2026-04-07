@@ -298,7 +298,6 @@ _LOCATIONS = [
     ("sitra", "Bahrain"), ("riffa", "Bahrain"), ("isa town", "Bahrain"),
     ("juffair", "Bahrain"), ("سترة", "Bahrain"), ("الرفاع", "Bahrain"),
     ("مدينة عيسى", "Bahrain"), ("الجفير", "Bahrain"),
-    ("صفارة", "Bahrain"), ("إنذار", "Bahrain"), ("صافرة", "Bahrain"),
 ]
 
 
