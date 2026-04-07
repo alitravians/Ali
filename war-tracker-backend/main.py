@@ -91,7 +91,7 @@ class ConnectionManager:
 
     async def broadcast(self, message: dict):
         dead: list[WebSocket] = []
-        for ws in self.active_connections:
+        for ws in list(self.active_connections):
             try:
                 await ws.send_json(message)
             except Exception:
@@ -177,12 +177,11 @@ async def poll_gdelt():
                 all_events = events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
 
-                # Batch-translate ALL event titles to Arabic using Gemini
-                if GEMINI_API_KEY:
-                    try:
-                        await batch_translate_events(events)
-                    except Exception as e:
-                        print(f"[Gemini] Batch translation error: {e}")
+                # Batch-translate ALL event titles to Arabic (on store.events so deduped primaries get translated)
+                try:
+                    await batch_translate_events(store.events)
+                except Exception as e:
+                    print(f"[Translation] Batch translation error: {e}")
 
                 generate_alerts_from_events(events)
                 await update_indicators()
@@ -243,12 +242,11 @@ async def poll_news():
                 all_events = new_events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Batch-translate ALL event titles to Arabic using Gemini
-                if GEMINI_API_KEY:
-                    try:
-                        await batch_translate_events(new_events)
-                    except Exception as e:
-                        print(f"[Gemini] News batch translation error: {e}")
+                # Batch-translate ALL event titles to Arabic (on store.events so deduped primaries get translated)
+                try:
+                    await batch_translate_events(store.events)
+                except Exception as e:
+                    print(f"[Translation] News batch translation error: {e}")
 
                 generate_alerts_from_events(new_events)
                 await update_indicators()

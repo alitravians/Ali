@@ -14,8 +14,8 @@ GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2"
 OPENSKY_BASE_URL = "https://opensky-network.org/api"
 
 # Polling intervals (seconds)
-GDELT_POLL_INTERVAL = 300  # 5 minutes
-NEWS_POLL_INTERVAL = 600   # 10 minutes
+GDELT_POLL_INTERVAL = 60   # 1 minute
+NEWS_POLL_INTERVAL = 120   # 2 minutes
 OPENSKY_POLL_INTERVAL = 60 # 60 seconds (rate limit friendly)
 AI_ANALYSIS_INTERVAL = 900 # 15 minutes
 

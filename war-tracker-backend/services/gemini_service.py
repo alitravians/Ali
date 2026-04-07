@@ -4,15 +4,34 @@ import json
 import asyncio
 import httpx
 from urllib.parse import quote
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from models import TrackerEvent, AISummary
 from config import GEMINI_API_KEY
 
 
 _model = None
-# Track if Gemini is rate-limited so we skip it and go straight to fallback
-_gemini_rate_limited = False
+# Track when Gemini rate-limit expires (None = not limited, datetime = limited until)
+_gemini_rate_limited_until: datetime | None = None
+
+
+def _is_gemini_rate_limited() -> bool:
+    """Check if Gemini is currently rate-limited. Automatically resets after cooldown."""
+    global _gemini_rate_limited_until
+    if _gemini_rate_limited_until is None:
+        return False
+    if datetime.now(timezone.utc) > _gemini_rate_limited_until:
+        _gemini_rate_limited_until = None
+        print("[Gemini] Rate limit cooldown expired, re-enabling Gemini")
+        return False
+    return True
+
+
+def _set_gemini_rate_limited():
+    """Set Gemini as rate-limited with a 5-minute cooldown."""
+    global _gemini_rate_limited_until
+    _gemini_rate_limited_until = datetime.now(timezone.utc) + timedelta(minutes=5)
+    print(f"[Gemini] Rate limited, will retry after {_gemini_rate_limited_until.isoformat()}")
 
 
 def _get_model():
@@ -79,11 +98,10 @@ async def translate_event(event: TrackerEvent) -> TrackerEvent:
     if _is_arabic(event.titleAr):
         return event
 
-    global _gemini_rate_limited
     model = _get_model()
 
     # Try Gemini first (if not rate-limited)
-    if model and not _gemini_rate_limited:
+    if model and not _is_gemini_rate_limited():
         try:
             prompt = f"""Translate the following news headline and description to professional Arabic.
 Return ONLY a JSON object with "titleAr" and "descriptionAr" keys. No markdown.
@@ -102,8 +120,7 @@ Description: {event.description}"""
             return event
         except Exception as e:
             if "429" in str(e) or "quota" in str(e).lower():
-                _gemini_rate_limited = True
-                print(f"[Gemini] Rate limited, switching to Google Translate fallback")
+                _set_gemini_rate_limited()
             else:
                 print(f"[Gemini] Translation error: {e}")
 
@@ -132,11 +149,10 @@ async def batch_translate_events(events: list[TrackerEvent]) -> list[TrackerEven
     if not needs_translation:
         return events
 
-    global _gemini_rate_limited
     model = _get_model()
 
     # Try Gemini batch translation first (if available and not rate-limited)
-    if model and not _gemini_rate_limited:
+    if model and not _is_gemini_rate_limited():
         batch_size = 20
         for batch_start in range(0, len(needs_translation), batch_size):
             batch = needs_translation[batch_start:batch_start + batch_size]
@@ -166,8 +182,7 @@ Return ONLY a JSON array of objects, each with "n" (number) and "ar" (Arabic tra
 
             except Exception as e:
                 if "429" in str(e) or "quota" in str(e).lower():
-                    _gemini_rate_limited = True
-                    print(f"[Gemini] Rate limited, switching to Google Translate for remaining")
+                    _set_gemini_rate_limited()
                     # Translate remaining untranslated with Google Translate
                     remaining = [(i, ev) for i, ev in needs_translation if not _is_arabic(events[i].titleAr)]
                     await _fallback_translate_batch(events, remaining)
