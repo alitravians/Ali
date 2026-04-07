@@ -5,6 +5,7 @@ import LiveMap from '../components/map/LiveMap';
 import Timeline from '../components/timeline/Timeline';
 import EventCard from '../components/shared/EventCard';
 import IndicatorCard from '../components/shared/IndicatorCard';
+import MaritimePanel from '../components/maritime/MaritimePanel';
 import { Filter, Clock, List, LayoutGrid, Radio } from 'lucide-react';
 import type { EventCategory, TrustLevel } from '../types';
 
@@ -152,6 +153,13 @@ export default function LiveTracking() {
               <Timeline events={sortedEvents} />
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Maritime Tracking Panel */}
+      <div className="mt-6">
+        <div className="bg-[#12121a] rounded-xl border border-gray-800 p-4">
+          <MaritimePanel />
         </div>
       </div>
 

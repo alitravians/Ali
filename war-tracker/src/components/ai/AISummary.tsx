@@ -94,7 +94,7 @@ export default function AISummary({ summary }: AISummaryProps) {
       </div>
 
       {/* Conflicts */}
-      {summary.conflictsDetected.length > 0 && (
+      {summary.conflictsDetected && summary.conflictsDetected.length > 0 && (
         <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 p-4">
           <h4 className="text-xs font-bold text-yellow-400 mb-3 flex items-center gap-1.5">
             <GitCompareArrows className="w-4 h-4" />

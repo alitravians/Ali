@@ -1,10 +1,11 @@
 import { MapContainer, TileLayer, Circle, useMap } from 'react-leaflet';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { TrackerEvent } from '../../types';
+import type { TrackerEvent, VesselPosition } from '../../types';
 import { categoryColor, categoryTextAr, trustLevelText, escapeHtml } from '../../utils/helpers';
 import { mapLayers } from '../../data/staticConfig';
-import { Layers, Eye, EyeOff } from 'lucide-react';
+import { useLiveData } from '../../context/LiveDataContext';
+import { Layers, Eye, EyeOff, Ship } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 interface LiveMapProps {
@@ -130,8 +131,111 @@ function AlertZones({ events }: { events: TrackerEvent[] }) {
   );
 }
 
+// 3D ship marker for vessels
+function VesselMarker({ vessel }: { vessel: VesselPosition }) {
+  const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    const rotation = vessel.heading ?? vessel.course ?? 0;
+    const typeColors: Record<string, string> = {
+      tanker: '#f59e0b',
+      cargo: '#3b82f6',
+      military: '#ef4444',
+      passenger: '#22c55e',
+      fishing: '#06b6d4',
+      other: '#8b5cf6',
+    };
+    const color = typeColors[vessel.shipType] || '#8b5cf6';
+    const size = vessel.shipType === 'military' ? 18 : vessel.shipType === 'tanker' ? 16 : 14;
+
+    const icon = L.divIcon({
+      className: 'vessel-marker-container',
+      html: `
+        <div class="vessel-marker-3d" style="--vessel-color: ${color}; --vessel-rotation: ${rotation}deg; --vessel-size: ${size}px;">
+          <div class="vessel-body">
+            <svg viewBox="0 0 24 32" width="${size}" height="${Math.round(size * 1.33)}" style="transform: rotate(${rotation}deg); filter: drop-shadow(0 0 4px ${color}80);">
+              <path d="M12 1 L20 12 L18 28 L12 32 L6 28 L4 12 Z" fill="${color}" stroke="${color}" stroke-width="0.5" opacity="0.9"/>
+              <path d="M12 1 L20 12 L12 8 Z" fill="white" opacity="0.3"/>
+              <path d="M12 1 L4 12 L12 8 Z" fill="white" opacity="0.15"/>
+              <circle cx="12" cy="16" r="2" fill="white" opacity="0.6"/>
+            </svg>
+          </div>
+          <div class="vessel-wake" style="--vessel-color: ${color};"></div>
+        </div>
+      `,
+      iconSize: [size * 2, size * 2],
+      iconAnchor: [size, size],
+    });
+
+    const speedText = vessel.speed !== undefined && vessel.speed !== null ? `${vessel.speed.toFixed(1)} عقدة` : 'غير متوفر';
+    const courseText = vessel.course !== undefined && vessel.course !== null ? `${vessel.course.toFixed(0)}°` : '-';
+
+    const popupContent = `
+      <div class="vessel-popup" dir="rtl">
+        <div class="vessel-popup-header" style="border-bottom-color: ${color}40;">
+          <span class="vessel-type-badge" style="color: ${color}; background: ${color}20; border: 1px solid ${color}40;">
+            ${escapeHtml(vessel.shipTypeAr)}
+          </span>
+          <span class="vessel-status-badge">${escapeHtml(vessel.statusAr)}</span>
+        </div>
+        <h3 class="vessel-name">${escapeHtml(vessel.name || 'MMSI: ' + vessel.mmsi)}</h3>
+        <div class="vessel-info-grid">
+          <div class="vessel-info-item">
+            <span class="vessel-info-label">السرعة</span>
+            <span class="vessel-info-value">${speedText}</span>
+          </div>
+          <div class="vessel-info-item">
+            <span class="vessel-info-label">الاتجاه</span>
+            <span class="vessel-info-value">${courseText}</span>
+          </div>
+          <div class="vessel-info-item">
+            <span class="vessel-info-label">المنطقة</span>
+            <span class="vessel-info-value">${escapeHtml(vessel.zoneAr)}</span>
+          </div>
+          ${vessel.destination ? `
+          <div class="vessel-info-item">
+            <span class="vessel-info-label">الوجهة</span>
+            <span class="vessel-info-value">${escapeHtml(vessel.destination)}</span>
+          </div>` : ''}
+          ${vessel.length ? `
+          <div class="vessel-info-item">
+            <span class="vessel-info-label">الطول</span>
+            <span class="vessel-info-value">${vessel.length}م</span>
+          </div>` : ''}
+          ${vessel.flag ? `
+          <div class="vessel-info-item">
+            <span class="vessel-info-label">العلم</span>
+            <span class="vessel-info-value">${escapeHtml(vessel.flag)}</span>
+          </div>` : ''}
+        </div>
+        <div class="vessel-mmsi">MMSI: ${escapeHtml(vessel.mmsi)}</div>
+      </div>
+    `;
+
+    const marker = L.marker([vessel.lat, vessel.lng], { icon });
+    marker.bindPopup(popupContent, {
+      maxWidth: 280,
+      className: 'vessel-custom-popup',
+    });
+
+    marker.addTo(map);
+    markerRef.current = marker;
+
+    return () => {
+      if (markerRef.current) {
+        map.removeLayer(markerRef.current);
+      }
+    };
+  }, [map, vessel]);
+
+  return null;
+}
+
 function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLayers: string[] }) {
   const filteredEvents = events.filter(e => activeLayers.includes(e.category));
+  const { vessels } = useLiveData();
+  const showVessels = activeLayers.includes('maritime');
 
   return (
     <>
@@ -139,6 +243,9 @@ function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLay
       <AlertZones events={filteredEvents} />
       {filteredEvents.map(event => (
         <PulsingMarker key={event.id} event={event} />
+      ))}
+      {showVessels && vessels.map(vessel => (
+        <VesselMarker key={vessel.mmsi} vessel={vessel} />
       ))}
     </>
   );
@@ -242,6 +349,10 @@ export default function LiveMap({ events, height = '500px', showControls = true 
           <div className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-green-500" />
             <span className="text-green-300">إنساني</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Ship className="w-2.5 h-2.5 text-cyan-400" />
+            <span className="text-cyan-300">سفن</span>
           </div>
         </div>
       </div>

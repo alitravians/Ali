@@ -316,3 +316,123 @@ body {
 .score-bar {
   transition: width 1s ease-in-out;
 }
+
+/* ── Vessel 3D markers ── */
+.vessel-marker-container {
+  background: none !important;
+  border: none !important;
+}
+
+.vessel-marker-3d {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vessel-body {
+  position: relative;
+  z-index: 2;
+}
+
+.vessel-wake {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vessel-color);
+  opacity: 0;
+  animation: vessel-pulse 2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes vessel-pulse {
+  0% { opacity: 0.4; transform: scale(1); }
+  100% { opacity: 0; transform: scale(4); }
+}
+
+/* Vessel popup styles */
+.vessel-custom-popup .leaflet-popup-content-wrapper {
+  background: rgba(10, 10, 15, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(6, 182, 212, 0.1) !important;
+  color: #e2e8f0 !important;
+  padding: 0 !important;
+}
+
+.vessel-custom-popup .leaflet-popup-tip {
+  background: rgba(10, 10, 15, 0.95) !important;
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+}
+
+.vessel-popup {
+  padding: 12px;
+  font-family: 'Cairo', sans-serif;
+}
+
+.vessel-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vessel-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.vessel-status-badge {
+  font-size: 10px;
+  color: #94a3b8;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.vessel-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: white;
+  margin: 4px 0 8px;
+}
+
+.vessel-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.vessel-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.vessel-info-label {
+  font-size: 9px;
+  color: #64748b;
+}
+
+.vessel-info-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.vessel-mmsi {
+  font-size: 9px;
+  color: #475569;
+  margin-top: 8px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}

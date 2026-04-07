@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import type { TrackerEvent, Alert, DashboardIndicator } from '../types';
+import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats } from '../types';
 
 const BACKEND_WS_URL = 'wss://war-tracker-backend-kriplmgy.fly.dev/ws';
 const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
@@ -8,6 +8,8 @@ interface LiveDataContextType {
   events: TrackerEvent[];
   alerts: Alert[];
   indicators: DashboardIndicator[];
+  vessels: VesselPosition[];
+  maritimeZones: MaritimeZoneStats[];
   newEventCount: number;
   isLive: boolean;
   lastUpdate: Date;
@@ -48,6 +50,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [events, setEvents] = useState<TrackerEvent[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [indicators, setIndicators] = useState<DashboardIndicator[]>([]);
+  const [vessels, setVessels] = useState<VesselPosition[]>([]);
+  const [maritimeZones, setMaritimeZones] = useState<MaritimeZoneStats[]>([]);
   const [newEventCount, setNewEventCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
@@ -85,6 +89,21 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
         if (data.sources) {
           setSourceStatus(data.sources);
+        }
+        if (data.vessels) {
+          setVessels(data.vessels as VesselPosition[]);
+        }
+        if (data.maritimeZones) {
+          setMaritimeZones(data.maritimeZones as MaritimeZoneStats[]);
+        }
+      }
+
+      if (data.type === 'maritime_update') {
+        if (data.vessels) {
+          setVessels(data.vessels as VesselPosition[]);
+        }
+        if (data.zones) {
+          setMaritimeZones(data.zones as MaritimeZoneStats[]);
         }
       }
     } catch (e) {
@@ -206,7 +225,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ events, alerts, indicators, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus, sourceStatus }}>
+    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus, sourceStatus }}>
       {children}
     </LiveDataContext.Provider>
   );

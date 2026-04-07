@@ -14,7 +14,8 @@ from config import (
     FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
     OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, GEMINI_API_KEY, NEWSAPI_KEY,
 )
-from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator
+from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats
+from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
@@ -44,6 +45,7 @@ class DataStore:
             "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
             "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
             "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
+            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
             "gemini": {"active": bool(GEMINI_API_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0},
         }
 
@@ -315,6 +317,28 @@ async def poll_ai_analysis():
             print(f"[AI] Analysis error: {e}")
 
 
+async def poll_maritime_broadcast():
+    """Background task: Broadcast maritime vessel positions every 30 seconds."""
+    while True:
+        await asyncio.sleep(30)
+        try:
+            vessels = get_vessels()
+            zones = get_zone_stats()
+            if vessels:
+                store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                store.source_status["aisstream"]["eventCount"] = len(vessels)
+
+                await ws_manager.broadcast({
+                    "type": "maritime_update",
+                    "vessels": [v.model_dump(mode="json") for v in vessels[:200]],
+                    "zones": [z.model_dump(mode="json") for z in zones],
+                    "totalVessels": len(vessels),
+                })
+        except Exception as e:
+            store.source_status["aisstream"]["errors"] += 1
+            print(f"[Maritime] Broadcast error: {e}")
+
+
 # ──────────────────────────────────────────────
 # App lifecycle
 # ──────────────────────────────────────────────
@@ -327,6 +351,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         asyncio.create_task(poll_news()),
         asyncio.create_task(poll_opensky()),
         asyncio.create_task(poll_ai_analysis()),
+        asyncio.create_task(connect_aisstream()),
+        asyncio.create_task(poll_maritime_broadcast()),
     ]
     yield
     print("[WarScope] Shutting down background tasks...")
@@ -420,6 +446,25 @@ async def get_sources():
     return {"sources": store.source_status}
 
 
+@app.get("/api/vessels")
+async def get_vessels_endpoint():
+    """Get current vessel positions in monitored waterways."""
+    vessels = get_vessels()
+    zones = get_zone_stats()
+    return {
+        "vessels": [v.model_dump(mode="json") for v in vessels[:200]],
+        "zones": [z.model_dump(mode="json") for z in zones],
+        "totalVessels": len(vessels),
+    }
+
+
+@app.get("/api/maritime/zones")
+async def get_maritime_zones():
+    """Get maritime zone statistics."""
+    zones = get_zone_stats()
+    return {"zones": [z.model_dump(mode="json") for z in zones]}
+
+
 @app.post("/api/analysis/trigger")
 async def trigger_analysis():
     """Manually trigger AI analysis."""
@@ -449,6 +494,8 @@ async def websocket_endpoint(ws: WebSocket):
             "indicators": [i.model_dump(mode="json") for i in store.indicators],
             "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
             "aircraft": [a.model_dump(mode="json") for a in store.aircraft[:200]],
+            "vessels": [v.model_dump(mode="json") for v in get_vessels()[:200]],
+            "maritimeZones": [z.model_dump(mode="json") for z in get_zone_stats()],
             "summaries": [s.model_dump(mode="json") for s in store.ai_summaries],
             "sources": store.source_status,
         })
@@ -473,6 +520,13 @@ async def websocket_endpoint(ws: WebSocket):
                 await ws.send_json({
                     "type": "aircraft_update",
                     "aircraft": [a.model_dump(mode="json") for a in store.aircraft[:500]],
+                })
+            elif msg_type == "request_vessels":
+                await ws.send_json({
+                    "type": "maritime_update",
+                    "vessels": [v.model_dump(mode="json") for v in get_vessels()[:200]],
+                    "zones": [z.model_dump(mode="json") for z in get_zone_stats()],
+                    "totalVessels": len(get_vessels()),
                 })
 
     except WebSocketDisconnect:

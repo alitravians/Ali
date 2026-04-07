@@ -107,6 +107,40 @@ class AISummary(BaseModel):
     confirmedOnlyAr: list[str] = []
 
 
+class VesselPosition(BaseModel):
+    mmsi: str
+    name: Optional[str] = None
+    shipType: str = "cargo"  # cargo, tanker, passenger, military, fishing, other
+    shipTypeAr: str = "شحن"
+    flag: Optional[str] = None
+    lat: float
+    lng: float
+    speed: Optional[float] = None  # knots
+    course: Optional[float] = None  # degrees
+    heading: Optional[float] = None  # degrees
+    destination: Optional[str] = None
+    length: Optional[float] = None  # meters
+    width: Optional[float] = None  # meters
+    draught: Optional[float] = None  # meters
+    zone: str = "unknown"  # hormuz, red_sea, suez
+    zoneAr: str = "غير محدد"
+    status: str = "underway"  # underway, anchored, moored
+    statusAr: str = "مبحر"
+    timestamp: datetime
+
+
+class MaritimeZoneStats(BaseModel):
+    id: str  # hormuz, red_sea, suez
+    name: str
+    nameAr: str
+    vesselCount: int = 0
+    tankerCount: int = 0
+    cargoCount: int = 0
+    militaryCount: int = 0
+    avgSpeed: float = 0.0
+    lastUpdate: Optional[datetime] = None
+
+
 class AircraftPosition(BaseModel):
     icao24: str
     callsign: Optional[str] = None

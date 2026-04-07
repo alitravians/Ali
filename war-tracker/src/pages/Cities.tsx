@@ -11,9 +11,12 @@ export default function Cities() {
   const { cityId } = useParams();
   const selectedCity = cityId ? cities.find(c => c.id === cityId) : null;
 
-  // Get live events for city
+  // Get live events for city (backend stores Arabic names in relatedCities)
   const getCityEvents = (cId: string) => {
-    const cityEvents = events.filter(e => e.relatedCities.includes(cId));
+    const city = cities.find(c => c.id === cId);
+    const cityEvents = events.filter(e =>
+      city ? e.relatedCities.includes(city.nameAr) || e.relatedCities.includes(city.name) : false
+    );
     return cityEvents.slice(0, 10);
   };
 
@@ -181,7 +184,7 @@ export default function Cities() {
                 <Clock className="w-3 h-3" />
                 {timeAgo(city.lastUpdate)}
               </span>
-              <span>{events.filter(e => e.relatedCities.includes(city.id)).length} أحداث</span>
+              <span>{events.filter(e => e.relatedCities.includes(city.nameAr) || e.relatedCities.includes(city.name)).length} أحداث</span>
             </div>
           </Link>
         ))}

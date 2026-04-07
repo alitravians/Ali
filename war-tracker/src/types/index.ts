@@ -131,3 +131,37 @@ export interface MapLayer {
   icon: string;
   isActive: boolean;
 }
+
+export interface VesselPosition {
+  mmsi: string;
+  name?: string;
+  shipType: string;
+  shipTypeAr: string;
+  flag?: string;
+  lat: number;
+  lng: number;
+  speed?: number;
+  course?: number;
+  heading?: number;
+  destination?: string;
+  length?: number;
+  width?: number;
+  draught?: number;
+  zone: string;
+  zoneAr: string;
+  status: string;
+  statusAr: string;
+  timestamp: Date;
+}
+
+export interface MaritimeZoneStats {
+  id: string;
+  name: string;
+  nameAr: string;
+  vesselCount: number;
+  tankerCount: number;
+  cargoCount: number;
+  militaryCount: number;
+  avgSpeed: number;
+  lastUpdate?: Date;
+}
