@@ -525,8 +525,7 @@ async def admin_verify(authorization: str = Header(default="")):
 @app.get("/api/stats")
 async def get_stats():
     """Get public stats (connected clients, today's events)."""
-    from datetime import date
-    today = date.today()
+    today = datetime.now(timezone.utc).date()
     today_events = sum(1 for e in store.events if e.timestamp.date() == today)
     return {
         "connectedClients": len(ws_manager.active_connections),
