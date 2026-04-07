@@ -87,7 +87,8 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
     queries = [
         '(iran OR israel) (military OR missile OR strike OR attack)',
         'iran israel conflict',
-        '(bahrain OR manama OR kuwait OR qatar OR doha) (military OR security OR conflict)',
+        '(bahrain OR manama) (siren OR alert OR military OR security OR conflict OR missile OR attack OR warning)',
+        '(kuwait OR qatar OR doha) (military OR security OR conflict)',
         '(yemen OR houthi OR sanaa) (military OR strike OR attack)',
         '(lebanon OR hezbollah OR beirut) (military OR strike OR attack)',
         '(syria OR damascus) (military OR conflict OR strike)',
