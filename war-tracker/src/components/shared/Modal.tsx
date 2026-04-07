@@ -43,17 +43,17 @@ export default function Modal({ isOpen, onClose, title, titleIcon, children, siz
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fadeIn" />
 
       {/* Modal */}
-      <div className={`relative w-full ${sizeClasses[size]} bg-[#12121a] border border-gray-700 rounded-2xl shadow-2xl shadow-black/50 animate-modalIn max-h-[85vh] flex flex-col`}>
+      <div className={`relative w-full ${sizeClasses[size]} bg-[#12121a] border border-gray-700 rounded-2xl shadow-2xl shadow-black/50 animate-modalIn max-h-[90vh] sm:max-h-[85vh] flex flex-col`}>
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between p-4 border-b border-gray-800 flex-shrink-0">
+          <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-800 flex-shrink-0">
             <div className="flex items-center gap-2">
               {titleIcon}
               <h2 className="text-sm font-bold text-white">{title}</h2>
@@ -78,7 +78,7 @@ export default function Modal({ isOpen, onClose, title, titleIcon, children, siz
         )}
 
         {/* Body */}
-        <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-4'}`}>
+        <div className={`flex-1 overflow-y-auto ${noPadding ? '' : 'p-3 sm:p-4'}`}>
           {children}
         </div>
       </div>

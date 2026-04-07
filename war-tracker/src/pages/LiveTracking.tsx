@@ -80,9 +80,9 @@ export default function LiveTracking() {
       <>
 
       {/* Header Bar */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-base font-bold text-white flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <h1 className="text-sm sm:text-base font-bold text-white flex items-center gap-2">
             <Radio className="w-4 h-4 text-red-400" />
             التتبع المباشر
           </h1>
@@ -111,16 +111,16 @@ export default function LiveTracking() {
             </button>
           )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           {/* AI Analysis Button */}
           <button
             onClick={() => setShowAIModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-[11px] text-purple-400 hover:bg-purple-500/20 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-[11px] text-purple-400 hover:bg-purple-500/20 transition-colors"
           >
             <Brain className="w-3.5 h-3.5" />
-            تحليل AI
+            <span className="hidden sm:inline">تحليل</span> AI
           </button>
-          <div className="text-[10px] text-gray-500 flex items-center gap-1">
+          <div className="hidden sm:flex text-[10px] text-gray-500 items-center gap-1">
             <Clock className="w-3 h-3" />
             {lastUpdate.toLocaleString('ar-SA')}
           </div>
@@ -128,7 +128,7 @@ export default function LiveTracking() {
       </div>
 
       {/* Quick Stats Bar */}
-      <div className="grid grid-cols-5 gap-2 mb-3">
+      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3">
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
           <Activity className="w-4 h-4 text-blue-400" />
           <div>
@@ -150,14 +150,14 @@ export default function LiveTracking() {
             <span className="text-[9px] text-gray-500 block">مؤكد</span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2 hidden sm:flex">
           <Ship className="w-4 h-4 text-cyan-400" />
           <div>
             <span className="text-lg font-black text-cyan-400">{vessels.length}</span>
             <span className="text-[9px] text-gray-500 block">سفينة مرصودة</span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2 hidden sm:flex">
           <Bell className="w-4 h-4 text-yellow-400" />
           <div>
             <span className="text-lg font-black text-yellow-400">{alerts.filter(a => !a.isRead).length}</span>
@@ -172,7 +172,7 @@ export default function LiveTracking() {
         {/* ── LEFT: Map (8 cols) ── */}
         <div className="lg:col-span-8">
           <div className="rounded-xl border border-gray-800 overflow-hidden relative">
-            <LiveMap events={filteredEvents} height="calc(100vh - 280px)" showControls={true} />
+            <LiveMap events={filteredEvents} height="min(calc(100vh - 280px), 60vh)" showControls={true} />
             <button
               onClick={() => setIsFullscreen(true)}
               className="absolute top-3 left-3 z-[1000] flex items-center gap-1.5 px-2.5 py-1.5 bg-[#12121a]/80 backdrop-blur-sm border border-gray-700 rounded-lg text-[11px] text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
@@ -210,7 +210,7 @@ export default function LiveTracking() {
         </div>
 
         {/* ── RIGHT: Events Panel (4 cols) ── */}
-        <div className="lg:col-span-4 flex flex-col" style={{ height: 'calc(100vh - 280px)' }}>
+        <div className="lg:col-span-4 flex flex-col" style={{ height: 'auto', maxHeight: 'calc(100vh - 280px)' }}>
           {/* Filters */}
           <div className="bg-[#12121a] rounded-xl border border-gray-800 p-3 mb-2 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">

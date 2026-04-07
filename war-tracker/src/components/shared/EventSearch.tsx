@@ -46,7 +46,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
           onChange={e => { setQuery(e.target.value); setIsOpen(true); }}
           onFocus={() => setIsOpen(true)}
           placeholder="بحث في الأحداث..."
-          className="bg-transparent text-xs text-white placeholder-gray-500 focus:outline-none w-32 md:w-48"
+          className="bg-transparent text-xs text-white placeholder-gray-500 focus:outline-none w-24 sm:w-32 md:w-48"
         />
         {query && (
           <button onClick={() => { setQuery(''); setIsOpen(false); }} className="text-gray-500 hover:text-white">
@@ -57,7 +57,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
 
       {/* Results dropdown */}
       {isOpen && query.trim().length >= 2 && (
-        <div className="absolute top-full mt-1 left-0 right-0 w-80 bg-[#12121a] border border-gray-700 rounded-xl shadow-2xl z-50 max-h-[400px] overflow-y-auto">
+        <div className="absolute top-full mt-1 left-0 right-0 w-[calc(100vw-2rem)] sm:w-80 bg-[#12121a] border border-gray-700 rounded-xl shadow-2xl z-50 max-h-[60vh] sm:max-h-[400px] overflow-y-auto">
           {results.length === 0 ? (
             <div className="p-4 text-center text-xs text-gray-500">لا توجد نتائج لـ "{query}"</div>
           ) : (

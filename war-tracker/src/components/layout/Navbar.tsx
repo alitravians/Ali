@@ -46,9 +46,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
     : `منذ ${Math.floor(secondsAgo / 3600)} س`;
 
   return (
-    <nav className="fixed top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50">
-      <div className="max-w-[1920px] mx-auto px-4">
-        <div className="flex items-center justify-between h-14">
+    <nav className="fixed top-[28px] sm:top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50">
+      <div className="max-w-[1920px] mx-auto px-3 sm:px-4">
+        <div className="flex items-center justify-between h-12 sm:h-14">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
@@ -86,9 +86,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           </div>
 
           {/* Search + Controls */}
-          <div className="flex items-center gap-2">
-            {/* Search (desktop only) */}
-            <div className="hidden md:block">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Search */}
+            <div className="hidden sm:block">
               <EventSearch events={events} />
             </div>
 
@@ -112,7 +112,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                 <span className="text-[10px] font-bold text-green-400">+{newEventCount}</span>
               </span>
             )}
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30">
               <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
               <span className="text-[11px] font-semibold text-red-400">LIVE</span>
             </div>

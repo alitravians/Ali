@@ -21,14 +21,14 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-red-900/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_70%)]" />
 
-        <div className="relative max-w-7xl mx-auto px-4 py-12 md:py-16">
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-4 py-8 sm:py-12 md:py-16">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full mb-4">
               <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
               <span className="text-xs font-semibold text-red-400">تتبع مباشر • LIVE</span>
             </div>
 
-            <h1 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-5xl font-black text-white mb-3 sm:mb-4 leading-tight">
               مركز التتبع المباشر
               <br />
               <span className="bg-gradient-to-l from-red-400 via-orange-400 to-yellow-400 bg-clip-text text-transparent">
@@ -36,7 +36,7 @@ export default function Home() {
               </span>
             </h1>
 
-            <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm md:text-base text-gray-400 max-w-2xl mx-auto leading-relaxed mb-4 sm:mb-6 px-2 sm:px-0">
               منصة تحليل وتتبع مباشر للأحداث لحظة بلحظة، مع خريطة تفاعلية وتحليلات ذكية
               بالذكاء الاصطناعي وتنظيم احترافي للأحداث
             </p>
@@ -52,7 +52,7 @@ export default function Home() {
           </div>
 
           {/* Indicators */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-8">
             {indicators.map(ind => (
               <IndicatorCard key={ind.id} indicator={ind} />
             ))}
@@ -61,7 +61,7 @@ export default function Home() {
       </section>
 
       {/* Map Preview + Breaking Events */}
-      <section className="max-w-7xl mx-auto px-4 pb-8">
+      <section className="max-w-7xl mx-auto px-3 sm:px-4 pb-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Map */}
           <div className="lg:col-span-2">
@@ -74,7 +74,7 @@ export default function Home() {
                 عرض كامل <ArrowLeft className="w-3 h-3" />
               </Link>
             </div>
-            <LiveMap events={events} height="400px" showControls={false} />
+            <LiveMap events={events} height="min(400px, 50vh)" showControls={false} />
           </div>
 
           {/* Breaking Events */}
@@ -105,8 +105,8 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="max-w-7xl mx-auto px-4 pb-12">
-        <h2 className="text-lg font-bold text-white text-center mb-8">مزايا المنصة</h2>
+      <section className="max-w-7xl mx-auto px-3 sm:px-4 pb-12">
+        <h2 className="text-base sm:text-lg font-bold text-white text-center mb-6 sm:mb-8">مزايا المنصة</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { icon: Radio, title: 'تتبع مباشر', desc: 'تحديثات فورية لحظة بلحظة بدون تحديث الصفحة', color: 'red' },
@@ -116,7 +116,7 @@ export default function Home() {
           ].map((feat, i) => {
             const Icon = feat.icon;
             return (
-              <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-5 hover:border-gray-700 transition-all group">
+              <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-4 sm:p-5 hover:border-gray-700 transition-all group">
                 <div className={`w-10 h-10 rounded-xl bg-${feat.color}-500/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                   <Icon className={`w-5 h-5 text-${feat.color}-400`} />
                 </div>
