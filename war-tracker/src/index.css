@@ -463,3 +463,13 @@ body {
 .animate-slideUp { animation: slideUp 0.3s ease-out; }
 .animate-toastIn { animation: toastIn 0.3s ease-out; }
 .animate-toastOut { animation: toastOut 0.3s ease-out; }
+
+/* Loading screen bar animation */
+@keyframes loadingBar {
+  0% { width: 0; }
+  50% { width: 70%; }
+  100% { width: 100%; }
+}
+.loading-bar {
+  animation: loadingBar 2.5s ease-in-out infinite;
+}

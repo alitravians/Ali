@@ -8,7 +8,7 @@ import MaritimePanel from '../components/maritime/MaritimePanel';
 import EventDetailModal from '../components/shared/EventDetailModal';
 import AISummaryModal from '../components/ai/AISummaryModal';
 import AlertToast from '../components/shared/AlertToast';
-import { Filter, Clock, List, LayoutGrid, Radio, Brain, Ship, ChevronDown, ChevronUp, Bell, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Filter, Clock, List, LayoutGrid, Radio, Brain, Ship, ChevronDown, ChevronUp, Bell, Activity, AlertTriangle, ShieldCheck, Maximize2, Minimize2, Share2 } from 'lucide-react';
 import type { EventCategory, TrustLevel, TrackerEvent } from '../types';
 
 export default function LiveTracking() {
@@ -24,6 +24,8 @@ export default function LiveTracking() {
   // Collapsible panels
   const [showMaritime, setShowMaritime] = useState(true);
   const [showTimeline, setShowTimeline] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [shareToast, setShareToast] = useState('');
 
   // Quick stats
   const confirmedCount = events.filter(e => e.trustLevel === 'confirmed').length;
@@ -37,10 +39,45 @@ export default function LiveTracking() {
 
   const sortedEvents = [...filteredEvents].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
+  const handleShareEvent = (event: TrackerEvent) => {
+    const url = `https://dist-mu-taupe-70.vercel.app/live?event=${event.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setShareToast('تم نسخ الرابط!');
+      setTimeout(() => setShareToast(''), 2000);
+    }).catch(() => {
+      setShareToast('فشل نسخ الرابط');
+      setTimeout(() => setShareToast(''), 2000);
+    });
+  };
+
   return (
     <div className="max-w-[1920px] mx-auto px-3 py-3">
       {/* Alert Toast Notifications */}
       <AlertToast alerts={alerts} />
+
+      {/* Share toast */}
+      {shareToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-green-500/90 text-white text-xs font-bold rounded-lg shadow-lg">
+          {shareToast}
+        </div>
+      )}
+
+      {/* Fullscreen Map Mode */}
+      {isFullscreen ? (
+        <div className="fixed inset-0 z-50 bg-[#0a0a0f]">
+          <div className="relative w-full h-full">
+            <LiveMap events={filteredEvents} height="100vh" showControls={true} />
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="absolute top-4 left-4 z-[1000] flex items-center gap-1.5 px-3 py-2 bg-[#12121a]/90 backdrop-blur-sm border border-gray-700 rounded-lg text-xs text-white hover:bg-gray-700 transition-colors"
+            >
+              <Minimize2 className="w-4 h-4" />
+              خروج ملء الشاشة
+            </button>
+          </div>
+        </div>
+      ) : (
+      <>
 
       {/* Header Bar */}
       <div className="flex items-center justify-between mb-3">
@@ -134,8 +171,15 @@ export default function LiveTracking() {
 
         {/* ── LEFT: Map (8 cols) ── */}
         <div className="lg:col-span-8">
-          <div className="rounded-xl border border-gray-800 overflow-hidden">
+          <div className="rounded-xl border border-gray-800 overflow-hidden relative">
             <LiveMap events={filteredEvents} height="calc(100vh - 280px)" showControls={true} />
+            <button
+              onClick={() => setIsFullscreen(true)}
+              className="absolute top-3 left-3 z-[1000] flex items-center gap-1.5 px-2.5 py-1.5 bg-[#12121a]/80 backdrop-blur-sm border border-gray-700 rounded-lg text-[11px] text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              ملء الشاشة
+            </button>
           </div>
 
           {/* Maritime Panel (collapsible below map) */}
@@ -247,8 +291,17 @@ export default function LiveTracking() {
             </div>
             {viewMode === 'cards' ? (
               sortedEvents.map(event => (
-                <div key={event.id} onClick={() => setSelectedEvent(event)} className="cursor-pointer">
-                  <EventCard event={event} />
+                <div key={event.id} className="relative group">
+                  <div onClick={() => setSelectedEvent(event)} className="cursor-pointer">
+                    <EventCard event={event} />
+                  </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleShareEvent(event); }}
+                    className="absolute top-2 left-2 opacity-0 group-hover:opacity-100 p-1.5 bg-gray-800/80 backdrop-blur-sm rounded-lg text-gray-400 hover:text-white transition-all z-10"
+                    title="مشاركة الحدث"
+                  >
+                    <Share2 className="w-3 h-3" />
+                  </button>
                 </div>
               ))
             ) : (
@@ -287,6 +340,9 @@ export default function LiveTracking() {
         isOpen={showAIModal}
         onClose={() => setShowAIModal(false)}
       />
+
+      </>
+      )}
     </div>
   );
 }

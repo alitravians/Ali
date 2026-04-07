@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { sources, mapLayers } from '../data/staticConfig';
 import { useLiveData } from '../context/LiveDataContext';
 import { timeAgo, sourceTypeAr } from '../utils/helpers';
@@ -7,10 +7,10 @@ import {
   Shield, Database, Layers, FileSearch, Bell,
   Brain, Wifi, AlertTriangle, Settings, Server, BarChart3,
   Eye, EyeOff, Plus, Trash2, Edit3, RefreshCw, Search, CheckCircle2, XCircle,
-  Lock, LogOut
+  Lock, LogOut, Loader2
 } from 'lucide-react';
 
-const ADMIN_PASSWORD = 'warscope2024';
+const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
 
 type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system';
 
@@ -18,27 +18,49 @@ export default function Admin() {
   const { events, alerts } = useLiveData();
   const [activeTab, setActiveTab] = useState<AdminTab>('sources');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    return sessionStorage.getItem('warscope_admin_auth') === 'true';
-  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  // Check existing token on mount
+  useEffect(() => {
+    const token = sessionStorage.getItem('warscope_admin_token');
+    if (token) {
+      fetch(`${BACKEND_API_URL}/api/admin/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } })
+        .then(r => { if (r.ok) setIsAuthenticated(true); else sessionStorage.removeItem('warscope_admin_token'); })
+        .catch(() => sessionStorage.removeItem('warscope_admin_token'));
+    }
+  }, []);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setIsAuthenticated(true);
-      sessionStorage.setItem('warscope_admin_auth', 'true');
-      setLoginError(false);
-    } else {
+    setIsLoggingIn(true);
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        sessionStorage.setItem('warscope_admin_token', data.token);
+        setIsAuthenticated(true);
+        setLoginError(false);
+      } else {
+        setLoginError(true);
+        setPassword('');
+      }
+    } catch {
       setLoginError(true);
       setPassword('');
     }
+    setIsLoggingIn(false);
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    sessionStorage.removeItem('warscope_admin_auth');
+    sessionStorage.removeItem('warscope_admin_token');
   };
 
   if (!isAuthenticated) {
@@ -70,10 +92,11 @@ export default function Admin() {
               </div>
               <button
                 type="submit"
-                className="w-full py-3 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-xl text-sm font-bold hover:bg-purple-500/30 transition-colors flex items-center justify-center gap-2"
+                disabled={isLoggingIn}
+                className="w-full py-3 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-xl text-sm font-bold hover:bg-purple-500/30 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
               >
-                <Shield className="w-4 h-4" />
-                دخول
+                {isLoggingIn ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" />}
+                {isLoggingIn ? 'جاري التحقق...' : 'دخول'}
               </button>
             </form>
           </div>
