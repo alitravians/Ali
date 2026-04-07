@@ -1,6 +1,9 @@
+import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Radio, BarChart3, Globe2, Building2, Bell, Shield } from 'lucide-react';
+import { Menu, Radio, BarChart3, Globe2, Building2, Bell, Shield, Volume2, VolumeX, Clock } from 'lucide-react';
 import { useLiveData } from '../../context/LiveDataContext';
+import EventSearch from '../shared/EventSearch';
+import { useAlertSound } from '../../hooks/useAlertSound';
 
 interface NavbarProps {
   onToggleSidebar: () => void;
@@ -18,7 +21,29 @@ const navLinks = [
 
 export default function Navbar({ onToggleSidebar }: NavbarProps) {
   const location = useLocation();
-  const { newEventCount } = useLiveData();
+  const { events, newEventCount, lastUpdate } = useLiveData();
+  const { isMuted, toggleMute, checkAndPlay } = useAlertSound();
+  const [secondsAgo, setSecondsAgo] = useState(0);
+
+  // Live update timer
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastUpdate.getTime()) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lastUpdate]);
+
+  // Play sound on new breaking events
+  useEffect(() => {
+    const breakingCount = events.filter(e => e.isBreaking).length;
+    checkAndPlay(breakingCount);
+  }, [events, checkAndPlay]);
+
+  const timerText = secondsAgo < 60
+    ? `منذ ${secondsAgo} ث`
+    : secondsAgo < 3600
+    ? `منذ ${Math.floor(secondsAgo / 60)} د`
+    : `منذ ${Math.floor(secondsAgo / 3600)} س`;
 
   return (
     <nav className="fixed top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50">
@@ -60,8 +85,28 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             })}
           </div>
 
-          {/* Live indicator + Mobile menu */}
-          <div className="flex items-center gap-3">
+          {/* Search + Controls */}
+          <div className="flex items-center gap-2">
+            {/* Search (desktop only) */}
+            <div className="hidden md:block">
+              <EventSearch events={events} />
+            </div>
+
+            {/* Live update timer */}
+            <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800/50 text-[10px] text-gray-400">
+              <Clock className="w-3 h-3" />
+              <span>{timerText}</span>
+            </div>
+
+            {/* Mute toggle */}
+            <button
+              onClick={toggleMute}
+              className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+              title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+
             {newEventCount > 0 && (
               <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded-full animate-pulse">
                 <span className="text-[10px] font-bold text-green-400">+{newEventCount}</span>

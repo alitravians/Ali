@@ -7,7 +7,11 @@ import LiveMap from '../components/map/LiveMap';
 
 export default function Home() {
   const { events, indicators, alerts } = useLiveData();
+  // Show breaking events first, then fall back to recent events
   const breakingEvents = events.filter(e => e.isBreaking).slice(0, 4);
+  const recentEvents = breakingEvents.length > 0
+    ? breakingEvents
+    : [...events].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 4);
   const unreadAlerts = alerts.filter(a => !a.isRead).length;
 
   return (
@@ -78,7 +82,7 @@ export default function Home() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <Zap className="w-4 h-4 text-red-400" />
-                أهم الأحداث الآن
+                {breakingEvents.length > 0 ? 'أهم الأحداث الآن' : 'آخر الأحداث'}
               </h2>
               {unreadAlerts > 0 && (
                 <Link to="/alerts" className="flex items-center gap-1 px-2 py-0.5 bg-red-500/15 border border-red-500/30 rounded-full">
@@ -88,9 +92,13 @@ export default function Home() {
               )}
             </div>
             <div className="space-y-3">
-              {breakingEvents.map(event => (
-                <EventCard key={event.id} event={event} compact />
-              ))}
+              {recentEvents.length > 0 ? (
+                recentEvents.map(event => (
+                  <EventCard key={event.id} event={event} compact />
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-500 text-xs">جاري تحميل الأحداث...</div>
+              )}
             </div>
           </div>
         </div>
