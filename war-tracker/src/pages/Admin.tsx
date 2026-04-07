@@ -27,7 +27,7 @@ export default function Admin() {
   useEffect(() => {
     const token = sessionStorage.getItem('warscope_admin_token');
     if (token) {
-      fetch(`${BACKEND_API_URL}/api/admin/verify?token=${token}`, { method: 'POST' })
+      fetch(`${BACKEND_API_URL}/api/admin/verify`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } })
         .then(r => { if (r.ok) setIsAuthenticated(true); else sessionStorage.removeItem('warscope_admin_token'); })
         .catch(() => sessionStorage.removeItem('warscope_admin_token'));
     }

@@ -25,6 +25,8 @@ function playAlertBeep() {
     gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.65);
     osc2.start(ctx.currentTime + 0.15);
     osc2.stop(ctx.currentTime + 0.65);
+    // Close AudioContext after all oscillators finish to avoid resource leak
+    osc2.onended = () => ctx.close();
   } catch {
     // Audio not available
   }
