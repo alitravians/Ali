@@ -27,6 +27,7 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
         "Hezbollah missile",
         "Iran nuclear",
         "Israel defense",
+        "Bahrain military security",
     ]
 
     try:

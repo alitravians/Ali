@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { TrackerEvent } from '../../types';
 import { categoryColor, categoryTextAr, trustLevelText, escapeHtml } from '../../utils/helpers';
-import { mapLayers } from '../../data/mockData';
+import { mapLayers } from '../../data/staticConfig';
 import { Layers, Eye, EyeOff } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 

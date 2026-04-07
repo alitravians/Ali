@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { mapLayers } from '../data/mockData';
+import { mapLayers } from '../data/staticConfig';
 import { useLiveData } from '../context/LiveDataContext';
 import LiveMap from '../components/map/LiveMap';
 import Timeline from '../components/timeline/Timeline';

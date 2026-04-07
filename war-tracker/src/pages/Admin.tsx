@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { sources, mapLayers } from '../data/mockData';
+import { sources, mapLayers } from '../data/staticConfig';
 import { useLiveData } from '../context/LiveDataContext';
 import { timeAgo, sourceTypeAr } from '../utils/helpers';
 import TrustBadge from '../components/shared/TrustBadge';

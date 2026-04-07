@@ -22,6 +22,7 @@ AI_ANALYSIS_INTERVAL = 900 # 15 minutes
 # CORS
 FRONTEND_ORIGINS = [
     "https://dist-mvivermt.devinapps.com",
+    "https://dist-danynpxi.devinapps.com",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
@@ -41,9 +42,11 @@ CONFLICT_KEYWORDS = [
     "tehran", "tel aviv", "haifa", "isfahan",
     "beirut", "damascus", "hormuz",
     "nuclear", "irgc", "iron dome",
+    "bahrain", "manama",
     "إيران", "إسرائيل", "حزب الله", "حماس",
     "صاروخ", "ضربة", "هجوم", "عسكري",
     "طهران", "تل أبيب", "حيفا", "أصفهان",
     "بيروت", "دمشق", "هرمز",
+    "البحرين", "المنامة",
     "نووي", "الحرس الثوري", "القبة الحديدية",
 ]

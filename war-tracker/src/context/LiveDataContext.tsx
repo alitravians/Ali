@@ -1,10 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { TrackerEvent, Alert, DashboardIndicator } from '../types';
-import { events as initialEvents, alerts as initialAlerts, indicators as initialIndicators } from '../data/mockData';
-import { generateLiveEvent } from '../data/liveEventGenerator';
 
-const BACKEND_WS_URL = 'wss://war-tracker-backend-hosfftpp.fly.dev/ws';
-const BACKEND_API_URL = 'https://war-tracker-backend-hosfftpp.fly.dev';
+const BACKEND_WS_URL = 'wss://war-tracker-backend-kriplmgy.fly.dev/ws';
+const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
 
 interface LiveDataContextType {
   events: TrackerEvent[];
@@ -14,7 +12,8 @@ interface LiveDataContextType {
   isLive: boolean;
   lastUpdate: Date;
   clearNewCount: () => void;
-  connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'fallback';
+  connectionStatus: 'connected' | 'connecting' | 'disconnected';
+  sourceStatus: Record<string, { active: boolean; lastUpdate: string | null; eventCount: number; errors: number }>;
 }
 
 const LiveDataContext = createContext<LiveDataContextType | null>(null);
@@ -44,68 +43,19 @@ function parseAlert(raw: Record<string, unknown>): Alert {
   } as Alert;
 }
 
-// Generate a new alert from a live event (fallback mode)
-function createAlertFromEvent(event: TrackerEvent): Alert | null {
-  if (!event.isBreaking) return null;
-  return {
-    id: `alert-${event.id}`,
-    title: event.title,
-    titleAr: event.titleAr,
-    description: event.description,
-    descriptionAr: event.descriptionAr,
-    severity: event.trustLevel === 'confirmed' ? 'critical' : event.trustLevel === 'high' ? 'high' : 'medium',
-    type: event.category === 'military' ? 'urgent' : event.category === 'alert' ? 'escalation' : 'change',
-    timestamp: event.timestamp,
-    relatedEventIds: [event.id],
-    isRead: false,
-    city: event.location.name,
-    cityAr: event.location.nameAr,
-  };
-}
-
-// Slightly randomize indicator scores for live feel (fallback mode)
-function updateIndicators(indicators: DashboardIndicator[], newEvent: TrackerEvent): DashboardIndicator[] {
-  return indicators.map(ind => {
-    let delta = 0;
-    if (ind.id === 'military' && (newEvent.category === 'military' || newEvent.category === 'fire')) {
-      delta = Math.floor(Math.random() * 5) + 1;
-    } else if (ind.id === 'airspace' && (newEvent.category === 'airspace' || newEvent.category === 'alert')) {
-      delta = Math.floor(Math.random() * 4) + 1;
-    } else if (ind.id === 'shipping' && newEvent.category === 'maritime') {
-      delta = Math.floor(Math.random() * 6) + 1;
-    } else if (ind.id === 'civilian' && (newEvent.category === 'alert' || newEvent.category === 'humanitarian')) {
-      delta = Math.floor(Math.random() * 3) + 1;
-    } else if (ind.id === 'uncertainty' && (newEvent.trustLevel === 'low' || newEvent.trustLevel === 'medium')) {
-      delta = Math.floor(Math.random() * 4) + 1;
-    } else {
-      delta = Math.random() > 0.5 ? 1 : -1;
-    }
-    const newScore = Math.max(0, Math.min(100, ind.score + delta));
-    return {
-      ...ind,
-      previousScore: ind.score,
-      score: newScore,
-      trend: newScore > ind.score ? 'up' as const : newScore < ind.score ? 'down' as const : 'stable' as const,
-    };
-  });
-}
-
-const EVENT_INTERVAL_MIN = 15000;
-const EVENT_INTERVAL_MAX = 45000;
-
 export function LiveDataProvider({ children }: { children: ReactNode }) {
-  const [events, setEvents] = useState<TrackerEvent[]>(initialEvents);
-  const [alerts, setAlerts] = useState<Alert[]>(initialAlerts);
-  const [indicators, setIndicators] = useState<DashboardIndicator[]>(initialIndicators);
+  // Start with empty arrays — NO mock data, only real data from backend
+  const [events, setEvents] = useState<TrackerEvent[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [indicators, setIndicators] = useState<DashboardIndicator[]>([]);
   const [newEventCount, setNewEventCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
-  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected' | 'fallback'>('connecting');
-  const connectionStatusRef = useRef<'connected' | 'connecting' | 'disconnected' | 'fallback'>('connecting');
+  const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const [sourceStatus, setSourceStatus] = useState<Record<string, { active: boolean; lastUpdate: string | null; eventCount: number; errors: number }>>({});
   const isLive = true;
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const fallbackTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const prevEventCountRef = useRef(initialEvents.length);
+  const prevEventCountRef = useRef(0);
 
   // WebSocket message handler
   const handleWsMessage = useCallback((msg: MessageEvent) => {
@@ -130,6 +80,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         if (data.alerts) {
           setAlerts((data.alerts || []).map(parseAlert));
         }
+        if (data.sources) {
+          setSourceStatus(data.sources);
+        }
       }
     } catch (e) {
       console.error('[WS] Error parsing message:', e);
@@ -147,8 +100,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('[WS] Connected to backend');
-      connectionStatusRef.current = 'connected';
+      console.log('[WS] Connected to backend — real data only, no mock data');
       setConnectionStatus('connected');
     };
 
@@ -156,7 +108,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     ws.onclose = () => {
       console.log('[WS] Disconnected, will reconnect in 10s...');
-      connectionStatusRef.current = 'disconnected';
       setConnectionStatus('disconnected');
       reconnectTimer.current = setTimeout(connectWs, 10000);
     };
@@ -167,7 +118,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     };
   }, [handleWsMessage]);
 
-  // Fallback: also try REST API fetch on initial load
+  // Also try REST API fetch on initial load for immediate data
   const fetchInitialData = useCallback(async () => {
     try {
       const resp = await fetch(`${BACKEND_API_URL}/api/events?limit=100`);
@@ -178,33 +129,51 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           setEvents(apiEvents);
           prevEventCountRef.current = apiEvents.length;
           setLastUpdate(new Date());
-          console.log(`[API] Fetched ${apiEvents.length} events via REST`);
+          console.log(`[API] Fetched ${apiEvents.length} real events via REST`);
         }
       }
     } catch {
-      console.log('[API] REST fetch failed, using mock data as fallback');
-    }
-  }, []);
-
-  // Fallback mock event generator (runs when no backend data)
-  const addFallbackEvent = useCallback(() => {
-    if (connectionStatusRef.current === 'connected') {
-      // WebSocket reconnected, stop generating mock events
-      return;
-    }
-    const newEvent = generateLiveEvent();
-    setEvents(prev => [newEvent, ...prev].slice(0, 500));
-    setNewEventCount(prev => prev + 1);
-    setLastUpdate(new Date());
-    setIndicators(prev => updateIndicators(prev, newEvent));
-
-    const newAlert = createAlertFromEvent(newEvent);
-    if (newAlert) {
-      setAlerts(prev => [newAlert, ...prev]);
+      console.log('[API] REST fetch failed — waiting for WebSocket connection');
     }
 
-    const nextInterval = EVENT_INTERVAL_MIN + Math.random() * (EVENT_INTERVAL_MAX - EVENT_INTERVAL_MIN);
-    fallbackTimer.current = setTimeout(addFallbackEvent, nextInterval);
+    // Fetch source status
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/sources`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.sources) {
+          setSourceStatus(data.sources);
+        }
+      }
+    } catch {
+      // silently ignore
+    }
+
+    // Fetch alerts
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/alerts`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.alerts) {
+          setAlerts(data.alerts.map(parseAlert));
+        }
+      }
+    } catch {
+      // silently ignore
+    }
+
+    // Fetch indicators
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/indicators`);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.indicators) {
+          setIndicators(data.indicators);
+        }
+      }
+    } catch {
+      // silently ignore
+    }
   }, []);
 
   useEffect(() => {
@@ -214,17 +183,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     // Also fetch via REST for immediate data
     fetchInitialData();
 
-    // Start fallback mock generator after 30s if no backend data arrives
-    const fallbackStart = setTimeout(() => {
-      if (connectionStatusRef.current !== 'connected') {
-        console.log('[Fallback] No backend connection, starting mock event generator');
-        connectionStatusRef.current = 'fallback';
-        setConnectionStatus('fallback');
-        const initialDelay = 5000 + Math.random() * 10000;
-        fallbackTimer.current = setTimeout(addFallbackEvent, initialDelay);
-      }
-    }, 30000);
-
     // Ping WebSocket every 30s to keep alive
     const pingInterval = setInterval(() => {
       if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -233,21 +191,19 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }, 30000);
 
     return () => {
-      clearTimeout(fallbackStart);
       clearInterval(pingInterval);
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (fallbackTimer.current) clearTimeout(fallbackTimer.current);
       if (wsRef.current) wsRef.current.close();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [connectWs, fetchInitialData, addFallbackEvent]);
+  }, [connectWs, fetchInitialData]);
 
   const clearNewCount = useCallback(() => {
     setNewEventCount(0);
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ events, alerts, indicators, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus }}>
+    <LiveDataContext.Provider value={{ events, alerts, indicators, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus, sourceStatus }}>
       {children}
     </LiveDataContext.Provider>
   );

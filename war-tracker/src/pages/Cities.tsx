@@ -1,5 +1,5 @@
 import { useParams, Link } from 'react-router-dom';
-import { cities } from '../data/mockData';
+import { cities } from '../data/staticConfig';
 import { useLiveData } from '../context/LiveDataContext';
 import { riskLevelColor, riskLevelTextAr, scoreColor, scoreTextColor, timeAgo } from '../utils/helpers';
 import EventCard from '../components/shared/EventCard';
