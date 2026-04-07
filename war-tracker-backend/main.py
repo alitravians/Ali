@@ -615,6 +615,124 @@ async def get_sources():
     return {"sources": store.source_status}
 
 
+# City definitions matching frontend staticConfig
+_CITY_DEFS = [
+    {"id": "tehran", "name": "Tehran", "nameAr": "طهران", "country": "Iran", "countryAr": "إيران", "lat": 35.6892, "lng": 51.3890},
+    {"id": "telaviv", "name": "Tel Aviv", "nameAr": "تل أبيب", "country": "Israel", "countryAr": "إسرائيل", "lat": 32.0853, "lng": 34.7818},
+    {"id": "haifa", "name": "Haifa", "nameAr": "حيفا", "country": "Israel", "countryAr": "إسرائيل", "lat": 32.7940, "lng": 34.9896},
+    {"id": "damascus", "name": "Damascus", "nameAr": "دمشق", "country": "Syria", "countryAr": "سوريا", "lat": 33.5138, "lng": 36.2765},
+    {"id": "beirut", "name": "Beirut", "nameAr": "بيروت", "country": "Lebanon", "countryAr": "لبنان", "lat": 33.8938, "lng": 35.5018},
+    {"id": "bahrain", "name": "Bahrain", "nameAr": "البحرين", "country": "Bahrain", "countryAr": "مملكة البحرين", "lat": 26.0667, "lng": 50.5577},
+    {"id": "isfahan", "name": "Isfahan", "nameAr": "أصفهان", "country": "Iran", "countryAr": "إيران", "lat": 32.6546, "lng": 51.6680},
+    {"id": "baghdad", "name": "Baghdad", "nameAr": "بغداد", "country": "Iraq", "countryAr": "العراق", "lat": 33.3152, "lng": 44.3661},
+    {"id": "sanaa", "name": "Sanaa", "nameAr": "صنعاء", "country": "Yemen", "countryAr": "اليمن", "lat": 15.3694, "lng": 44.1910},
+    {"id": "gaza", "name": "Gaza", "nameAr": "غزة", "country": "Palestine", "countryAr": "فلسطين", "lat": 31.5017, "lng": 34.4668},
+    {"id": "jerusalem", "name": "Jerusalem", "nameAr": "القدس", "country": "Palestine", "countryAr": "فلسطين", "lat": 31.7683, "lng": 35.2137},
+    {"id": "kuwait", "name": "Kuwait City", "nameAr": "الكويت", "country": "Kuwait", "countryAr": "الكويت", "lat": 29.3759, "lng": 47.9774},
+    {"id": "doha", "name": "Doha", "nameAr": "الدوحة", "country": "Qatar", "countryAr": "قطر", "lat": 25.2854, "lng": 51.5310},
+    {"id": "riyadh", "name": "Riyadh", "nameAr": "الرياض", "country": "Saudi Arabia", "countryAr": "السعودية", "lat": 24.7136, "lng": 46.6753},
+    {"id": "abudhabi", "name": "Abu Dhabi", "nameAr": "أبو ظبي", "country": "UAE", "countryAr": "الإمارات", "lat": 24.4539, "lng": 54.6534},
+    {"id": "amman", "name": "Amman", "nameAr": "عمّان", "country": "Jordan", "countryAr": "الأردن", "lat": 31.9454, "lng": 35.9284},
+]
+
+# Country name → city IDs mapping for event matching
+_COUNTRY_TO_CITY_IDS: dict[str, list[str]] = {}
+for _cd in _CITY_DEFS:
+    _COUNTRY_TO_CITY_IDS.setdefault(_cd["country"], []).append(_cd["id"])
+    _COUNTRY_TO_CITY_IDS.setdefault(_cd["countryAr"], []).append(_cd["id"])
+# Also map Arabic country names used by _get_city_ar
+_COUNTRY_AR_EXTRA = {
+    "إيران": "Iran", "إسرائيل": "Israel", "سوريا": "Syria", "لبنان": "Lebanon",
+    "العراق": "Iraq", "اليمن": "Yemen", "فلسطين": "Palestine", "البحرين": "Bahrain",
+    "الكويت": "Kuwait", "قطر": "Qatar", "الإمارات": "UAE", "السعودية": "Saudi Arabia",
+    "الأردن": "Jordan",
+}
+for _ar, _en in _COUNTRY_AR_EXTRA.items():
+    if _ar not in _COUNTRY_TO_CITY_IDS and _en in _COUNTRY_TO_CITY_IDS:
+        _COUNTRY_TO_CITY_IDS[_ar] = _COUNTRY_TO_CITY_IDS[_en]
+
+
+def _is_event_related_to_city(event: TrackerEvent, city_def: dict) -> bool:
+    """Check if an event is related to a specific city (direct or country-level match)."""
+    city_id = city_def["id"]
+    name = city_def["name"]
+    name_ar = city_def["nameAr"]
+    for rc in event.relatedCities:
+        if rc == name_ar or rc == name:
+            return True
+        city_ids = _COUNTRY_TO_CITY_IDS.get(rc, [])
+        if city_id in city_ids:
+            return True
+    return False
+
+
+def _compute_city_risk(event_count: int, events: list[TrackerEvent]) -> str:
+    """Compute dynamic risk level from event count and categories."""
+    has_breaking = any(e.isBreaking for e in events)
+    has_military = any(e.category in ("military", "fire") for e in events)
+    if event_count >= 10 or (event_count >= 5 and has_breaking):
+        return "critical"
+    if event_count >= 6 or (event_count >= 3 and has_military):
+        return "high"
+    if event_count >= 3:
+        return "elevated"
+    if event_count >= 1:
+        return "moderate"
+    return "low"
+
+
+def _compute_city_indicators(events: list[TrackerEvent]) -> dict:
+    """Compute dynamic indicators from events."""
+    if not events:
+        return {"military": 0, "airspace": 0, "civilian": 0}
+    mil = air = civ = 0.0
+    for e in events:
+        cat = e.category
+        if cat in ("military", "fire"):
+            mil += 1
+        elif cat == "airspace":
+            air += 1
+        elif cat == "humanitarian":
+            civ += 1
+        elif cat == "alert":
+            mil += 1; civ += 1
+        elif cat == "maritime":
+            mil += 1
+        elif cat == "official":
+            mil += 0.5
+    scale = lambda c: min(100, round(c * 15))
+    return {"military": scale(mil), "airspace": scale(air), "civilian": scale(civ)}
+
+
+@app.get("/api/cities")
+async def get_cities():
+    """Get dynamic city data with real event counts, indicators, and risk levels."""
+    result = []
+    for cd in _CITY_DEFS:
+        city_events = [e for e in store.events if _is_event_related_to_city(e, cd)]
+        count = len(city_events)
+        indicators = _compute_city_indicators(city_events)
+        risk = _compute_city_risk(count, city_events)
+        last_update = None
+        if city_events:
+            last_update = max(e.timestamp for e in city_events).isoformat()
+        result.append({
+            "id": cd["id"],
+            "name": cd["name"],
+            "nameAr": cd["nameAr"],
+            "country": cd["country"],
+            "countryAr": cd["countryAr"],
+            "location": {"lat": cd["lat"], "lng": cd["lng"], "name": cd["name"], "nameAr": cd["nameAr"]},
+            "riskLevel": risk,
+            "lastUpdate": last_update,
+            "eventCount": count,
+            "indicators": indicators,
+        })
+    # Sort by event count descending (most active cities first)
+    result.sort(key=lambda c: c["eventCount"], reverse=True)
+    return {"cities": result}
+
+
 @app.get("/api/vessels")
 async def get_vessels_endpoint():
     """Get current vessel positions in monitored waterways."""

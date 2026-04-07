@@ -3,7 +3,7 @@ import httpx
 import hashlib
 from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
-from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords
+from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_all_related_cities
 from services.news_service import _guess_location
 
 MEDIASTACK_URL = "https://api.mediastack.com/v1/news"
@@ -85,7 +85,7 @@ async def fetch_mediastack_events(api_key: str, max_results: int = 25) -> list[T
                     )],
                     isBreaking=is_breaking,
                     isDuplicate=False,
-                    relatedCities=[location_ar],
+                    relatedCities=_extract_all_related_cities(f"{title} {desc}"),
                 )
                 events.append(event)
 

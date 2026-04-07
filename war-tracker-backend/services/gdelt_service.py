@@ -20,6 +20,12 @@ CITY_AR_MAP = {
     "egypt": "مصر", "turkey": "تركيا", "saudi arabia": "السعودية",
     "bahrain": "البحرين", "qatar": "قطر", "uae": "الإمارات",
     "oman": "عُمان", "yemen": "اليمن", "palestine": "فلسطين",
+    "sanaa": "صنعاء", "aden": "عدن", "aleppo": "حلب",
+    "erbil": "أربيل", "basra": "البصرة", "bushehr": "بوشهر",
+    "dimona": "ديمونا", "jeddah": "جدة", "abu dhabi": "أبو ظبي",
+    "dubai": "دبي", "west bank": "الضفة الغربية",
+    "hormuz": "هرمز", "red sea": "البحر الأحمر", "suez": "السويس",
+    "muharraq": "المحرق", "sitra": "سترة", "riffa": "الرفاع",
 }
 
 # Category detection keywords
@@ -98,6 +104,9 @@ _RELEVANCE_TERMS = {
     # Arabic
     "إيران", "إسرائيل", "حزب الله", "حماس", "غزة", "البحرين",
     "اليمن", "سوريا", "العراق", "لبنان", "فلسطين", "السعودية",
+    "قطر", "الكويت", "الإمارات", "الأردن", "المنامة", "المحرق",
+    "طهران", "بيروت", "دمشق", "بغداد", "صنعاء", "القدس",
+    "صفارة", "إنذار", "صافرة", "صاروخ", "قصف", "غارة",
     # Military terms specific to this conflict
     "irgc", "idf", "iron dome", "القبة الحديدية", "الحرس الثوري",
 }
@@ -227,7 +236,7 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
                 )],
                 isBreaking=is_breaking,
                 isDuplicate=False,
-                relatedCities=[location_ar],
+                relatedCities=_extract_all_related_cities(title),
             )
             events.append(event)
 
@@ -237,46 +246,90 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
     return events
 
 
+# Shared location lookup table — cities first (most specific), then countries
+_LOCATIONS = [
+    # Cities
+    ("tehran", "Tehran"), ("tel aviv", "Tel Aviv"), ("haifa", "Haifa"),
+    ("isfahan", "Isfahan"), ("beirut", "Beirut"), ("damascus", "Damascus"),
+    ("jerusalem", "Jerusalem"), ("baghdad", "Baghdad"), ("gaza", "Gaza"),
+    ("ramallah", "Ramallah"), ("manama", "Manama"), ("doha", "Doha"),
+    ("riyadh", "Riyadh"), ("jeddah", "Jeddah"), ("abu dhabi", "Abu Dhabi"),
+    ("dubai", "Dubai"), ("amman", "Amman"), ("muscat", "Muscat"),
+    ("sanaa", "Sanaa"), ("aden", "Aden"), ("aleppo", "Aleppo"),
+    ("erbil", "Erbil"), ("basra", "Basra"), ("tabriz", "Tabriz"),
+    ("shiraz", "Shiraz"), ("mashhad", "Mashhad"), ("bushehr", "Bushehr"),
+    ("dimona", "Dimona"),
+    # Waterways
+    ("hormuz", "Hormuz"), ("red sea", "Red Sea"), ("suez", "Suez"),
+    ("bab el-mandeb", "Red Sea"),
+    # Countries
+    ("iran", "Iran"), ("israel", "Israel"), ("lebanon", "Lebanon"),
+    ("syria", "Syria"), ("iraq", "Iraq"), ("yemen", "Yemen"),
+    ("bahrain", "Bahrain"), ("qatar", "Qatar"), ("kuwait", "Kuwait"),
+    ("saudi", "Saudi Arabia"), ("emirates", "UAE"), ("uae", "UAE"),
+    ("jordan", "Jordan"), ("oman", "Oman"), ("palestine", "Palestine"),
+    ("west bank", "West Bank"),
+    # Arabic — Countries
+    ("إيران", "Iran"), ("إسرائيل", "Israel"), ("لبنان", "Lebanon"),
+    ("سوريا", "Syria"), ("العراق", "Iraq"), ("اليمن", "Yemen"),
+    ("البحرين", "Bahrain"), ("قطر", "Qatar"), ("الكويت", "Kuwait"),
+    ("السعودية", "Saudi Arabia"), ("الإمارات", "UAE"), ("الأردن", "Jordan"),
+    ("عُمان", "Oman"), ("عمان", "Oman"), ("فلسطين", "Palestine"),
+    # Arabic — Cities
+    ("طهران", "Tehran"), ("تل أبيب", "Tel Aviv"), ("حيفا", "Haifa"),
+    ("أصفهان", "Isfahan"), ("بيروت", "Beirut"), ("دمشق", "Damascus"),
+    ("القدس", "Jerusalem"), ("بغداد", "Baghdad"), ("غزة", "Gaza"),
+    ("المنامة", "Manama"), ("المحرق", "Bahrain"), ("الدوحة", "Doha"),
+    ("الرياض", "Riyadh"), ("جدة", "Jeddah"), ("أبو ظبي", "Abu Dhabi"),
+    ("أبوظبي", "Abu Dhabi"), ("دبي", "Dubai"), ("عمّان", "Amman"),
+    ("صنعاء", "Sanaa"), ("عدن", "Aden"), ("حلب", "Aleppo"),
+    ("أربيل", "Erbil"), ("البصرة", "Basra"), ("تبريز", "Tabriz"),
+    ("شيراز", "Shiraz"), ("مشهد", "Mashhad"), ("بوشهر", "Bushehr"),
+    ("ديمونا", "Dimona"), ("رام الله", "Ramallah"), ("مسقط", "Muscat"),
+    # Arabic — Organizations / factions (mapped to their region)
+    ("حزب الله", "Lebanon"), ("حماس", "Gaza"), ("الحوثي", "Yemen"),
+    ("الحوثيين", "Yemen"), ("أنصار الله", "Yemen"),
+    # Arabic — Waterways
+    ("هرمز", "Hormuz"), ("مضيق هرمز", "Hormuz"),
+    ("البحر الأحمر", "Red Sea"), ("قناة السويس", "Suez"),
+    ("باب المندب", "Red Sea"),
+    # Bahrain-specific keywords for enhanced monitoring
+    ("bahraini", "Bahrain"), ("manama", "Manama"), ("muharraq", "Bahrain"),
+    ("sitra", "Bahrain"), ("riffa", "Bahrain"), ("isa town", "Bahrain"),
+    ("juffair", "Bahrain"), ("سترة", "Bahrain"), ("الرفاع", "Bahrain"),
+    ("مدينة عيسى", "Bahrain"), ("الجفير", "Bahrain"),
+    ("صفارة", "Bahrain"), ("إنذار", "Bahrain"), ("صافرة", "Bahrain"),
+]
+
+
 def _extract_location(title: str) -> str:
     """Extract the most specific Middle East location mentioned in a title."""
-    # Order: cities first (most specific), then countries (least specific)
-    LOCATIONS = [
-        # Cities
-        ("tehran", "Tehran"), ("tel aviv", "Tel Aviv"), ("haifa", "Haifa"),
-        ("isfahan", "Isfahan"), ("beirut", "Beirut"), ("damascus", "Damascus"),
-        ("jerusalem", "Jerusalem"), ("baghdad", "Baghdad"), ("gaza", "Gaza"),
-        ("ramallah", "Ramallah"), ("manama", "Manama"), ("doha", "Doha"),
-        ("riyadh", "Riyadh"), ("jeddah", "Jeddah"), ("abu dhabi", "Abu Dhabi"),
-        ("dubai", "Dubai"), ("amman", "Amman"), ("muscat", "Muscat"),
-        ("sanaa", "Sanaa"), ("aden", "Aden"), ("aleppo", "Aleppo"),
-        ("erbil", "Erbil"), ("basra", "Basra"), ("tabriz", "Tabriz"),
-        ("shiraz", "Shiraz"), ("mashhad", "Mashhad"), ("bushehr", "Bushehr"),
-        ("dimona", "Dimona"),
-        # Waterways
-        ("hormuz", "Hormuz"), ("red sea", "Red Sea"), ("suez", "Suez"),
-        ("bab el-mandeb", "Red Sea"),
-        # Countries
-        ("iran", "Iran"), ("israel", "Israel"), ("lebanon", "Lebanon"),
-        ("syria", "Syria"), ("iraq", "Iraq"), ("yemen", "Yemen"),
-        ("bahrain", "Bahrain"), ("qatar", "Qatar"), ("kuwait", "Kuwait"),
-        ("saudi", "Saudi Arabia"), ("emirates", "UAE"), ("uae", "UAE"),
-        ("jordan", "Jordan"), ("oman", "Oman"), ("palestine", "Palestine"),
-        ("west bank", "West Bank"),
-        # Arabic
-        ("إيران", "Iran"), ("إسرائيل", "Israel"), ("لبنان", "Lebanon"),
-        ("سوريا", "Syria"), ("العراق", "Iraq"), ("اليمن", "Yemen"),
-        ("البحرين", "Bahrain"), ("غزة", "Gaza"), ("القدس", "Jerusalem"),
-        ("طهران", "Tehran"), ("بيروت", "Beirut"), ("دمشق", "Damascus"),
-        ("بغداد", "Baghdad"), ("صنعاء", "Sanaa"), ("الرياض", "Riyadh"),
-        ("فلسطين", "Palestine"), ("السعودية", "Saudi Arabia"),
-        ("حزب الله", "Lebanon"), ("حماس", "Gaza"), ("الحوثي", "Yemen"),
-        ("هرمز", "Hormuz"),
-    ]
     title_lower = title.lower()
-    for term, name in LOCATIONS:
+    for term, name in _LOCATIONS:
         if term in title_lower:
             return name
     return ""
+
+
+def _extract_all_related_cities(text: str) -> list[str]:
+    """Extract ALL mentioned locations from text — returns Arabic names for relatedCities.
+
+    This ensures country-level mentions (e.g. 'Iran') produce the Arabic country name,
+    and city-level mentions (e.g. 'Tehran') produce the Arabic city name.
+    Both are included so the frontend can match events to city cards.
+    """
+    text_lower = text.lower()
+    found: list[str] = []
+    seen_english: set[str] = set()
+
+    for term, english_name in _LOCATIONS:
+        if term in text_lower and english_name not in seen_english:
+            seen_english.add(english_name)
+            arabic = _get_city_ar(english_name)
+            if arabic not in found:
+                found.append(arabic)
+
+    return found if found else ["الشرق الأوسط"]
 
 
 def _estimate_coords(title: str, country: str) -> tuple[float, float]:
