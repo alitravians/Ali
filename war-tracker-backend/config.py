@@ -37,16 +37,52 @@ REGION_BBOX = {
 
 # Keywords for filtering
 CONFLICT_KEYWORDS = [
+    # Core conflict parties
     "iran", "israel", "hezbollah", "hamas", "idf",
     "missile", "strike", "attack", "military",
-    "tehran", "tel aviv", "haifa", "isfahan",
-    "beirut", "damascus", "hormuz",
     "nuclear", "irgc", "iron dome",
+    # Iran cities
+    "tehran", "isfahan", "shiraz", "tabriz", "mashhad", "bushehr",
+    # Israel cities
+    "tel aviv", "haifa", "jerusalem", "dimona",
+    # Lebanon
+    "beirut", "lebanon",
+    # Syria
+    "damascus", "syria", "aleppo",
+    # Iraq
+    "baghdad", "iraq", "erbil", "basra",
+    # Yemen
+    "yemen", "sanaa", "houthi", "aden",
+    # Palestine
+    "palestine", "gaza", "ramallah", "west bank",
+    # Bahrain
     "bahrain", "manama",
+    # Kuwait
+    "kuwait",
+    # Qatar
+    "qatar", "doha",
+    # UAE
+    "uae", "emirates", "abu dhabi", "dubai",
+    # Saudi Arabia
+    "saudi", "riyadh", "jeddah",
+    # Jordan
+    "jordan", "amman",
+    # Oman
+    "oman", "muscat",
+    # Key waterways
+    "hormuz", "red sea", "suez",
+    # Arabic keywords
     "إيران", "إسرائيل", "حزب الله", "حماس",
     "صاروخ", "ضربة", "هجوم", "عسكري",
     "طهران", "تل أبيب", "حيفا", "أصفهان",
-    "بيروت", "دمشق", "هرمز",
-    "البحرين", "المنامة",
+    "بيروت", "دمشق", "بغداد", "صنعاء",
+    "غزة", "القدس", "رام الله",
+    "البحرين", "المنامة", "الكويت", "قطر", "الدوحة",
+    "الإمارات", "أبو ظبي", "دبي",
+    "السعودية", "الرياض", "جدة",
+    "الأردن", "عمّان", "عُمان", "مسقط",
+    "اليمن", "الحوثيين", "عدن",
+    "هرمز", "البحر الأحمر", "السويس",
     "نووي", "الحرس الثوري", "القبة الحديدية",
+    "لبنان", "سوريا", "العراق", "فلسطين",
 ]

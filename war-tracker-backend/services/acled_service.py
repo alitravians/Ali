@@ -18,7 +18,11 @@ ACLED_CATEGORY_MAP = {
 }
 
 # ACLED countries of interest
-ACLED_COUNTRIES = ["Iran", "Israel", "Lebanon", "Syria", "Iraq", "Yemen", "Palestine", "Bahrain"]
+ACLED_COUNTRIES = [
+    "Iran", "Israel", "Lebanon", "Syria", "Iraq", "Yemen", "Palestine",
+    "Bahrain", "Kuwait", "Qatar", "Saudi Arabia", "Jordan", "Oman",
+    "United Arab Emirates", "Egypt",
+]
 
 
 async def fetch_acled_events(api_key: str, email: str, max_results: int = 50) -> list[TrackerEvent]:

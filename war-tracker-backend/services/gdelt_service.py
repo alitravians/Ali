@@ -87,7 +87,14 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
     queries = [
         '(iran OR israel) (military OR missile OR strike OR attack)',
         'iran israel conflict',
-        '(bahrain OR manama) (military OR security OR conflict)',
+        '(bahrain OR manama OR kuwait OR qatar OR doha) (military OR security OR conflict)',
+        '(yemen OR houthi OR sanaa) (military OR strike OR attack)',
+        '(lebanon OR hezbollah OR beirut) (military OR strike OR attack)',
+        '(syria OR damascus) (military OR conflict OR strike)',
+        '(iraq OR baghdad) (military OR security OR attack)',
+        '(gaza OR palestine OR west bank) (military OR strike OR conflict)',
+        '(saudi OR riyadh) (military OR security OR iran)',
+        '(uae OR emirates OR abu dhabi) (military OR security OR iran)',
         " OR ".join(CONFLICT_KEYWORDS[:10]),
     ]
 
@@ -205,6 +212,16 @@ def _estimate_coords(title: str, country: str) -> tuple[float, float]:
         "syria": (34.80, 38.99), "iraq": (33.22, 43.68), "yemen": (15.55, 48.52),
         "bahrain": (26.07, 50.55), "hormuz": (26.59, 56.28), "dimona": (31.07, 35.21),
         "amman": (31.95, 35.93), "riyadh": (24.71, 46.67),
+        "kuwait": (29.37, 47.98), "doha": (25.29, 51.53), "qatar": (25.29, 51.53),
+        "abu dhabi": (24.45, 54.65), "dubai": (25.20, 55.27), "uae": (24.45, 54.65), "emirates": (24.45, 54.65),
+        "sanaa": (15.37, 44.19), "aden": (12.78, 45.04), "houthi": (15.37, 44.19),
+        "jeddah": (21.54, 39.17), "saudi": (24.71, 46.67),
+        "muscat": (23.59, 58.54), "oman": (23.59, 58.54),
+        "aleppo": (36.20, 37.16), "erbil": (36.19, 44.01), "basra": (30.51, 47.81),
+        "ramallah": (31.90, 35.20), "west bank": (31.95, 35.30), "palestine": (31.90, 35.20),
+        "jordan": (31.95, 35.93), "manama": (26.23, 50.59),
+        "tabriz": (38.08, 46.29), "shiraz": (29.59, 52.58), "mashhad": (36.30, 59.61), "bushehr": (28.97, 50.84),
+        "red sea": (20.00, 38.00), "suez": (29.97, 32.55),
     }
     text_lower = f"{title} {country}".lower()
     for place, coords in COORDS.items():

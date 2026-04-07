@@ -24,10 +24,16 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
     queries = [
         "Iran Israel conflict",
         "Middle East military strike",
-        "Hezbollah missile",
+        "Hezbollah missile Lebanon",
         "Iran nuclear",
-        "Israel defense",
-        "Bahrain military security",
+        "Israel defense Gaza",
+        "Yemen Houthi attack",
+        "Iraq Baghdad military",
+        "Syria conflict strike",
+        "Bahrain Kuwait Qatar security",
+        "Saudi Arabia UAE Iran",
+        "Palestine Gaza West Bank",
+        "Hormuz Red Sea shipping",
     ]
 
     try:
@@ -119,8 +125,13 @@ def _guess_location(text: str) -> str:
     """Guess the primary location from article text."""
     locations = [
         "Tehran", "Tel Aviv", "Haifa", "Isfahan", "Beirut", "Damascus",
-        "Jerusalem", "Baghdad", "Gaza", "Iran", "Israel", "Lebanon",
-        "Syria", "Iraq", "Yemen", "Bahrain", "Hormuz",
+        "Jerusalem", "Baghdad", "Gaza", "Ramallah", "West Bank",
+        "Sanaa", "Aden", "Aleppo", "Erbil", "Basra",
+        "Kuwait", "Doha", "Manama", "Abu Dhabi", "Dubai", "Riyadh", "Jeddah",
+        "Amman", "Muscat", "Tabriz", "Shiraz", "Mashhad", "Bushehr",
+        "Iran", "Israel", "Lebanon", "Syria", "Iraq", "Yemen",
+        "Bahrain", "Qatar", "UAE", "Emirates", "Saudi", "Jordan", "Oman",
+        "Palestine", "Hormuz", "Red Sea", "Suez",
     ]
     text_lower = text.lower()
     for loc in locations:
