@@ -2,12 +2,17 @@
 import asyncio
 import os
 import json
+import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+import hashlib
+import secrets
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from config import (
@@ -406,18 +411,127 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 # ──────────────────────────────────────────────
 app = FastAPI(
     title="WarScope API",
-    description="Real-time war tracking backend with GDELT, NewsAPI, OpenSky, ACLED, MediaStack, and Gemini AI",
+    description="Real-time war tracking backend",
     version="1.0.0",
     lifespan=lifespan,
+    docs_url=None,   # Disable Swagger UI in production
+    redoc_url=None,  # Disable ReDoc in production
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=FRONTEND_ORIGINS + ["*"],  # Allow all for now, restrict later
+    allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
 )
+
+
+# ──────────────────────────────────────────────
+# Rate limiter (in-memory, per-IP)
+# ──────────────────────────────────────────────
+_rate_limit_store: dict[str, list[float]] = {}
+RATE_LIMIT_MAX_ATTEMPTS = 5       # max login attempts
+RATE_LIMIT_WINDOW_SECONDS = 300   # per 5-minute window
+
+
+def _check_rate_limit(ip: str) -> bool:
+    """Return True if the IP is rate-limited (too many attempts)."""
+    now = time.time()
+    attempts = _rate_limit_store.get(ip, [])
+    # Prune old attempts outside the window
+    attempts = [t for t in attempts if now - t < RATE_LIMIT_WINDOW_SECONDS]
+    _rate_limit_store[ip] = attempts
+    return len(attempts) >= RATE_LIMIT_MAX_ATTEMPTS
+
+
+def _record_attempt(ip: str):
+    """Record a login attempt for rate limiting."""
+    now = time.time()
+    if ip not in _rate_limit_store:
+        _rate_limit_store[ip] = []
+    _rate_limit_store[ip].append(now)
+
+
+# ──────────────────────────────────────────────
+# Admin authentication (server-side)
+# ──────────────────────────────────────────────
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
+if not ADMIN_PASSWORD_HASH:
+    # Fallback — should be overridden via env var in production
+    ADMIN_PASSWORD_HASH = hashlib.sha256(b"warscope2024").hexdigest()
+
+# Token store with expiration: token -> expiry timestamp
+_admin_tokens: dict[str, float] = {}
+TOKEN_TTL_SECONDS = 3600  # Tokens expire after 1 hour
+
+
+def _cleanup_expired_tokens():
+    """Remove expired tokens from the store."""
+    now = time.time()
+    expired = [t for t, exp in _admin_tokens.items() if now > exp]
+    for t in expired:
+        del _admin_tokens[t]
+
+
+def _verify_token(token: str) -> bool:
+    """Check if a token is valid and not expired."""
+    _cleanup_expired_tokens()
+    return token in _admin_tokens
+
+
+class AdminLoginRequest(BaseModel):
+    password: str
+
+
+class AdminLoginResponse(BaseModel):
+    success: bool
+    token: str | None = None
+
+
+@app.post("/api/admin/login")
+async def admin_login(req: AdminLoginRequest, request: Request):
+    """Validate admin password server-side and return a session token."""
+    client_ip = request.client.host if request.client else "unknown"
+
+    # Rate limit check
+    if _check_rate_limit(client_ip):
+        raise HTTPException(
+            status_code=429,
+            detail="عدد محاولات تسجيل الدخول تجاوز الحد المسموح. حاول مجدداً بعد 5 دقائق."
+        )
+
+    _record_attempt(client_ip)
+
+    pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
+    if pwd_hash == ADMIN_PASSWORD_HASH:
+        token = secrets.token_hex(32)
+        _admin_tokens[token] = time.time() + TOKEN_TTL_SECONDS
+        return AdminLoginResponse(success=True, token=token)
+
+    raise HTTPException(status_code=401, detail="كلمة المرور غير صحيحة")
+
+
+@app.post("/api/admin/verify")
+async def admin_verify(authorization: str = Header(default="")):
+    """Verify an admin session token from Authorization header."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if token and _verify_token(token):
+        return {"valid": True}
+    raise HTTPException(status_code=401, detail="غير مصرح")
+
+
+@app.get("/api/stats")
+async def get_stats():
+    """Get public stats (connected clients, today's events)."""
+    from datetime import date
+    today = date.today()
+    today_events = sum(1 for e in store.events if e.timestamp.date() == today)
+    return {
+        "connectedClients": len(ws_manager.active_connections),
+        "todayEvents": today_events,
+        "totalEvents": len(store.events),
+    }
 
 
 # ──────────────────────────────────────────────
@@ -439,10 +553,14 @@ async def root():
 @app.get("/api/events")
 async def get_events(limit: int = 50, category: str | None = None, trust: str | None = None):
     """Get all events with optional filters."""
+    # Clamp limit to prevent abuse
+    limit = max(1, min(limit, 500))
     events = store.events
-    if category:
+    valid_categories = {"military", "alert", "official", "airspace", "maritime", "fire", "humanitarian"}
+    valid_trust = {"confirmed", "high", "medium", "low"}
+    if category and category in valid_categories:
         events = [e for e in events if e.category.value == category]
-    if trust:
+    if trust and trust in valid_trust:
         events = [e for e in events if e.trustLevel.value == trust]
     return {"events": [e.model_dump(mode="json") for e in events[:limit]], "total": len(events)}
 
@@ -453,13 +571,13 @@ async def get_event(event_id: str):
     for event in store.events:
         if event.id == event_id:
             return event.model_dump(mode="json")
-    from fastapi import HTTPException
     raise HTTPException(status_code=404, detail="Event not found")
 
 
 @app.get("/api/alerts")
 async def get_alerts(limit: int = 20):
     """Get alerts."""
+    limit = max(1, min(limit, 100))
     return {"alerts": [a.model_dump(mode="json") for a in store.alerts[:limit]]}
 
 
@@ -507,8 +625,11 @@ async def get_maritime_zones():
 
 
 @app.post("/api/analysis/trigger")
-async def trigger_analysis():
-    """Manually trigger AI analysis (Gemini AI with statistical fallback)."""
+async def trigger_analysis(authorization: str = Header(default="")):
+    """Manually trigger AI analysis (requires admin token to prevent API quota abuse)."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="يتطلب تسجيل دخول المسؤول")
     summary = await analyze_events(store.events[:20])
     if summary:
         store.ai_summaries.insert(0, summary)
@@ -521,8 +642,14 @@ async def trigger_analysis():
 # ──────────────────────────────────────────────
 # WebSocket endpoint
 # ──────────────────────────────────────────────
+MAX_WS_CONNECTIONS = 100  # Limit total concurrent WebSocket connections
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    if len(ws_manager.active_connections) >= MAX_WS_CONNECTIONS:
+        await ws.close(code=1013, reason="Server too busy")
+        return
     await ws_manager.connect(ws)
 
     # Send initial data
