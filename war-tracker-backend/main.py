@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 import hashlib
+import hmac
 import secrets
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Header
@@ -441,7 +442,10 @@ def _check_rate_limit(ip: str) -> bool:
     attempts = _rate_limit_store.get(ip, [])
     # Prune old attempts outside the window
     attempts = [t for t in attempts if now - t < RATE_LIMIT_WINDOW_SECONDS]
-    _rate_limit_store[ip] = attempts
+    if attempts:
+        _rate_limit_store[ip] = attempts
+    else:
+        _rate_limit_store.pop(ip, None)
     return len(attempts) >= RATE_LIMIT_MAX_ATTEMPTS
 
 
@@ -502,7 +506,7 @@ async def admin_login(req: AdminLoginRequest, request: Request):
         )
 
     pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
-    if pwd_hash == ADMIN_PASSWORD_HASH:
+    if hmac.compare_digest(pwd_hash, ADMIN_PASSWORD_HASH):
         token = secrets.token_hex(32)
         _admin_tokens[token] = time.time() + TOKEN_TTL_SECONDS
         return AdminLoginResponse(success=True, token=token)
