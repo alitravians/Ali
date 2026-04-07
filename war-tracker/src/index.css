@@ -632,11 +632,11 @@ body {
   }
 }
 
-/* Avatar container */
+/* Avatar container — oval for full portrait */
 .dev-sig-avatar-wrap {
   position: relative;
   width: 120px;
-  height: 120px;
+  height: 180px;
   border-radius: 50%;
 }
 
@@ -741,8 +741,8 @@ body {
 /* Responsive: smaller avatar on mobile */
 @media (max-width: 640px) {
   .dev-sig-avatar-wrap {
-    width: 100px;
-    height: 100px;
+    width: 95px;
+    height: 142px;
   }
   .dev-sig-name {
     font-size: 1.4rem;
