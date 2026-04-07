@@ -3,7 +3,7 @@ import httpx
 import hashlib
 from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
-from services.gdelt_service import _get_city_ar, _compute_trust
+from services.gdelt_service import _get_city_ar, _compute_trust, _extract_all_related_cities
 
 ACLED_URL = "https://api.acleddata.com/acled/read"
 
@@ -112,7 +112,7 @@ async def fetch_acled_events(api_key: str, email: str, max_results: int = 50) ->
                     )],
                     isBreaking=is_breaking,
                     isDuplicate=False,
-                    relatedCities=[location_ar],
+                    relatedCities=_extract_all_related_cities(f"{title} {location} {country}"),
                 )
                 events.append(event)
 

@@ -4,7 +4,7 @@ import hashlib
 import feedparser
 from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
-from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_location, _is_relevant
+from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_location, _extract_all_related_cities, _is_relevant
 
 
 # Trusted RSS feeds — ranked by global credibility
@@ -144,7 +144,7 @@ async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
                         )],
                         isBreaking=is_breaking,
                         isDuplicate=False,
-                        relatedCities=[location_ar],
+                        relatedCities=_extract_all_related_cities(full_text),
                     )
                     events.append(event)
                     feed_count += 1

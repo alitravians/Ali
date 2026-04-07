@@ -4,7 +4,7 @@ import hashlib
 from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
 from config import NEWSAPI_KEY
-from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords
+from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_all_related_cities
 
 
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
@@ -100,7 +100,7 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
                         )],
                         isBreaking=is_breaking,
                         isDuplicate=False,
-                        relatedCities=[location_ar],
+                        relatedCities=_extract_all_related_cities(f"{title} {desc}"),
                     )
                     events.append(event)
 
