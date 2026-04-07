@@ -132,7 +132,7 @@ function getSeverityAr(severity: string): string {
 // ──────────────────────────────────────────────
 // Mini Response Time Chart
 // ──────────────────────────────────────────────
-function ResponseTimeChart({ data }: { data: number[] }) {
+function ResponseTimeChart({ data, id }: { data: number[]; id: string }) {
   if (!data || data.length < 2) return null;
   const max = Math.max(...data, 1);
   const h = 40;
@@ -152,13 +152,13 @@ function ResponseTimeChart({ data }: { data: number[] }) {
         <polyline
           points={points}
           fill="none"
-          stroke="url(#chartGrad)"
+          stroke={`url(#chartGrad-${id})`}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
         <defs>
-          <linearGradient id="chartGrad" x1="0" y1="0" x2="1" y2="0">
+          <linearGradient id={`chartGrad-${id}`} x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#3b82f6" />
             <stop offset="100%" stopColor="#8b5cf6" />
           </linearGradient>
@@ -410,7 +410,7 @@ export default function StatusPage() {
               </div>
 
               {/* Response Time Chart */}
-              <ResponseTimeChart data={svc.response_times_history} />
+              <ResponseTimeChart data={svc.response_times_history} id={svc.id} />
 
               {/* Footer */}
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/50">

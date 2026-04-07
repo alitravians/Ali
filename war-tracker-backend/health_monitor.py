@@ -380,7 +380,7 @@ class HealthMonitor:
         svc.uptime_24h = svc.success_rate_24h
 
         # Detect transitions → create incidents
-        if old_status == ServiceStatus.operational and result.status in (
+        if old_status not in (ServiceStatus.partial_outage, ServiceStatus.major_outage) and result.status in (
             ServiceStatus.partial_outage,
             ServiceStatus.major_outage,
         ):

@@ -732,7 +732,7 @@ function StatusAdmin() {
                     disabled={updating === svc.id}
                     className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer ${svc.enabled ? 'bg-green-500' : 'bg-gray-700'}`}
                   >
-                    <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow transition-all ${svc.enabled ? 'left-0.5' : 'left-[18px]'}`} />
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow transition-all ${svc.enabled ? 'left-[18px]' : 'left-0.5'}`} />
                   </button>
                 </td>
                 <td className="py-2.5 px-3">
