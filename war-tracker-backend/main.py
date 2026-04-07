@@ -19,7 +19,7 @@ from services.maritime_service import connect_aisstream, get_vessels, get_zone_s
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
-from services.gemini_service import translate_event, analyze_events, generate_why_it_matters
+from services.gemini_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
 from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
 from services.dedup_engine import deduplicate_and_merge
@@ -177,14 +177,12 @@ async def poll_gdelt():
                 all_events = events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
 
-                # Translate top events with Gemini if available
+                # Batch-translate ALL event titles to Arabic using Gemini
                 if GEMINI_API_KEY:
-                    for ev in events[:5]:
-                        try:
-                            await translate_event(ev)
-                            await generate_why_it_matters(ev)
-                        except Exception as e:
-                            print(f"[Gemini] Error translating: {e}")
+                    try:
+                        await batch_translate_events(events)
+                    except Exception as e:
+                        print(f"[Gemini] Batch translation error: {e}")
 
                 generate_alerts_from_events(events)
                 await update_indicators()
@@ -245,12 +243,12 @@ async def poll_news():
                 all_events = new_events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]
 
+                # Batch-translate ALL event titles to Arabic using Gemini
                 if GEMINI_API_KEY:
-                    for ev in new_events[:3]:
-                        try:
-                            await translate_event(ev)
-                        except Exception:
-                            pass
+                    try:
+                        await batch_translate_events(new_events)
+                    except Exception as e:
+                        print(f"[Gemini] News batch translation error: {e}")
 
                 generate_alerts_from_events(new_events)
                 await update_indicators()

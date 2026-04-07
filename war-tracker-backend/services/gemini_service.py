@@ -1,6 +1,7 @@
 """Google Gemini AI integration for event analysis and Arabic translation."""
 import google.generativeai as genai
 import json
+import re
 from datetime import datetime, timezone
 from typing import Optional
 from models import TrackerEvent, AISummary
@@ -19,10 +20,23 @@ def _get_model():
     return _model
 
 
+def _is_arabic(text: str) -> bool:
+    """Check if text is already predominantly Arabic."""
+    arabic_chars = sum(1 for c in text if '\u0600' <= c <= '\u06FF' or '\u0750' <= c <= '\u077F')
+    total_alpha = sum(1 for c in text if c.isalpha())
+    if total_alpha == 0:
+        return False
+    return arabic_chars / total_alpha > 0.5
+
+
 async def translate_event(event: TrackerEvent) -> TrackerEvent:
     """Translate event title and description to Arabic using Gemini."""
     model = _get_model()
     if not model:
+        return event
+
+    # Skip if already Arabic
+    if _is_arabic(event.titleAr):
         return event
 
     try:
@@ -44,6 +58,60 @@ Description: {event.description}"""
         print(f"[Gemini] Translation error: {e}")
 
     return event
+
+
+async def batch_translate_events(events: list[TrackerEvent]) -> list[TrackerEvent]:
+    """Batch-translate multiple event titles to Arabic in a single Gemini call.
+    
+    Much more efficient than translating one-by-one. Handles up to ~25 titles per call.
+    """
+    model = _get_model()
+    if not model or not events:
+        return events
+
+    # Filter out events that already have Arabic titles
+    needs_translation = [(i, ev) for i, ev in enumerate(events) if not _is_arabic(ev.titleAr)]
+    if not needs_translation:
+        return events
+
+    # Process in batches of 20 to stay within token limits
+    batch_size = 20
+    for batch_start in range(0, len(needs_translation), batch_size):
+        batch = needs_translation[batch_start:batch_start + batch_size]
+        
+        # Build numbered list of titles
+        titles_list = "\n".join(f"{j+1}. {ev.title}" for j, (_, ev) in enumerate(batch))
+
+        prompt = f"""Translate these news headlines to professional Arabic. 
+Return ONLY a JSON array of objects, each with "n" (number) and "ar" (Arabic translation). No markdown.
+
+{titles_list}"""
+
+        try:
+            response = await model.generate_content_async(prompt)
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+
+            translations = json.loads(text)
+            
+            # Apply translations back to events
+            for item in translations:
+                idx = item.get("n", 0) - 1  # Convert 1-based to 0-based
+                if 0 <= idx < len(batch):
+                    original_idx = batch[idx][0]
+                    ar_text = item.get("ar", "")
+                    if ar_text:
+                        events[original_idx].titleAr = ar_text
+
+            print(f"[Gemini] Batch translated {len(translations)}/{len(batch)} titles to Arabic")
+
+        except Exception as e:
+            print(f"[Gemini] Batch translation error: {e}")
+            # Fall back to keeping original titles — they'll show in English
+            # but won't crash the app
+
+    return events
 
 
 async def analyze_events(events: list[TrackerEvent]) -> Optional[AISummary]:
