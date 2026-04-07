@@ -4,7 +4,7 @@ import { Bot, AlertTriangle, MapPin, ShieldCheck, Clock, Sparkles, RefreshCw, Br
 import { timeAgo } from '../../utils/helpers';
 import type { AISummary } from '../../types';
 
-const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
+import { BACKEND_API_URL } from '../../config/api';
 
 interface AISummaryModalProps {
   isOpen: boolean;
@@ -29,7 +29,7 @@ export default function AISummaryModal({ isOpen, onClose }: AISummaryModalProps)
           }
         }
       } catch {
-        console.log('[Analysis] Failed to fetch');
+        // Analysis fetch failed silently
       }
       setFetched(true);
     }
@@ -47,7 +47,7 @@ export default function AISummaryModal({ isOpen, onClose }: AISummaryModalProps)
         }
       }
     } catch {
-      console.log('[Analysis] Failed to trigger');
+      // Analysis trigger failed silently
     }
     setLoading(false);
   };

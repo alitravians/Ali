@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Activity, Wifi } from 'lucide-react';
 import { useLiveData } from '../../context/LiveDataContext';
 
-const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
+import { BACKEND_API_URL } from '../../config/api';
 
 export default function FooterStats() {
   const { events, connectionStatus } = useLiveData();

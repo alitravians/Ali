@@ -1,8 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats } from '../types';
-
-const BACKEND_WS_URL = 'wss://war-tracker-backend-kriplmgy.fly.dev/ws';
-const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
+import { BACKEND_API_URL, BACKEND_WS_URL } from '../config/api';
 
 interface LiveDataContextType {
   events: TrackerEvent[];
@@ -113,7 +111,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         // Currently consumed by components that read from the LiveData context
       }
     } catch (e) {
-      console.error('[WS] Error parsing message:', e);
+      // WS parse error silenced in production
     }
   }, []);
 
@@ -122,26 +120,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
     setConnectionStatus('connecting');
-    console.log('[WS] Connecting to backend...');
+    // WS connecting
 
     const ws = new WebSocket(BACKEND_WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('[WS] Connected to backend — real data only, no mock data');
+      // WS connected
       setConnectionStatus('connected');
     };
 
     ws.onmessage = handleWsMessage;
 
     ws.onclose = () => {
-      console.log('[WS] Disconnected, will reconnect in 10s...');
+      // WS disconnected, reconnecting
       setConnectionStatus('disconnected');
       reconnectTimer.current = setTimeout(connectWs, 10000);
     };
 
-    ws.onerror = (err) => {
-      console.error('[WS] Error:', err);
+    ws.onerror = () => {
+      // WS error
       ws.close();
     };
   }, [handleWsMessage]);
@@ -163,14 +161,13 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
             setEvents(apiEvents);
             prevEventCountRef.current = data.total ?? apiEvents.length;
             setLastUpdate(new Date());
-            console.log(`[API] Fetched ${apiEvents.length} real events via REST`);
+            // API fetch success
           }
           break; // Success — stop retrying
         }
-        console.warn(`[API] REST fetch returned ${resp.status} (attempt ${attempt + 1}/${maxRetries})`);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : 'unknown error';
-        console.warn(`[API] REST fetch failed: ${errMsg} (attempt ${attempt + 1}/${maxRetries})`);
+        // REST fetch returned non-OK status, retrying
+      } catch {
+        // REST fetch failed, retrying
       }
       if (attempt < maxRetries - 1) {
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
@@ -187,7 +184,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      console.warn('[API] Source status fetch failed');
+      // Source status fetch failed silently
     }
 
     // Fetch alerts
@@ -200,7 +197,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      console.warn('[API] Alerts fetch failed');
+      // Alerts fetch failed silently
     }
 
     // Fetch indicators
@@ -213,7 +210,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      console.warn('[API] Indicators fetch failed');
+      // Indicators fetch failed silently
     }
   }, []);
 
