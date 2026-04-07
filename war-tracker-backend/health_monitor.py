@@ -389,6 +389,7 @@ class HealthMonitor:
         elif old_status in (
             ServiceStatus.partial_outage,
             ServiceStatus.major_outage,
+            ServiceStatus.degraded,
         ) and result.status == ServiceStatus.operational:
             self._resolve_incidents(service_id)
 
