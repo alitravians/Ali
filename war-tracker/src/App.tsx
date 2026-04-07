@@ -9,6 +9,7 @@ import Sources from './pages/Sources';
 import Cities from './pages/Cities';
 import Alerts from './pages/Alerts';
 import Admin from './pages/Admin';
+import StatusPage from './pages/StatusPage';
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
           <Route path="/cities" element={<Cities />} />
           <Route path="/cities/:cityId" element={<Cities />} />
           <Route path="/alerts" element={<Alerts />} />
+          <Route path="/status" element={<StatusPage />} />
           <Route path="/admin" element={<Admin />} />
         </Route>
       </Routes>

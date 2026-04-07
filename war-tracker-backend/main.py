@@ -31,6 +31,7 @@ from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
 from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
+from health_monitor import HealthMonitor
 
 
 # ──────────────────────────────────────────────
@@ -79,6 +80,7 @@ class DataStore:
 
 
 store = DataStore()
+health_monitor = HealthMonitor()
 
 
 # ──────────────────────────────────────────────
@@ -401,8 +403,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         asyncio.create_task(connect_aisstream()),
         asyncio.create_task(poll_maritime_broadcast()),
     ]
+    # Start health monitor
+    await health_monitor.start(store)
+    print("[WarScope] Health monitor started.")
     yield
     print("[WarScope] Shutting down background tasks...")
+    await health_monitor.stop()
     for task in tasks:
         task.cancel()
 
@@ -626,6 +632,66 @@ async def get_maritime_zones():
     """Get maritime zone statistics."""
     zones = get_zone_stats()
     return {"zones": [z.model_dump(mode="json") for z in zones]}
+
+
+# ──────────────────────────────────────────────
+# Status Page endpoints
+# ──────────────────────────────────────────────
+@app.get("/api/status")
+async def get_status():
+    """Public status page data — no auth required."""
+    return health_monitor.get_status_summary()
+
+
+@app.get("/api/status/admin")
+async def get_status_admin(authorization: str = Header(default="")):
+    """Admin: full status config including disabled services."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return health_monitor.get_admin_config()
+
+
+@app.post("/api/status/admin/service/{service_id}")
+async def update_service_status(service_id: str, request: Request, authorization: str = Header(default="")):
+    """Admin: update service monitoring config."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    body = await request.json()
+    ok = health_monitor.update_service_config(service_id, body)
+    if not ok:
+        raise HTTPException(status_code=404, detail="الخدمة غير موجودة")
+    return {"success": True}
+
+
+@app.post("/api/status/admin/incident/{incident_id}/note")
+async def add_incident_note(incident_id: str, request: Request, authorization: str = Header(default="")):
+    """Admin: add manual note to an incident."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    body = await request.json()
+    ok = health_monitor.add_manual_incident_note(
+        incident_id,
+        body.get("message", ""),
+        body.get("message_ar", ""),
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="الحادث غير موجود")
+    return {"success": True}
+
+
+@app.post("/api/status/admin/check/{service_id}")
+async def trigger_health_check(service_id: str, authorization: str = Header(default="")):
+    """Admin: trigger immediate health check for a service."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    if service_id not in health_monitor.services:
+        raise HTTPException(status_code=404, detail="الخدمة غير موجودة")
+    result = await health_monitor.check_service(service_id, store)
+    return result.model_dump(mode="json")
 
 
 @app.post("/api/analysis/trigger")
