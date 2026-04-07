@@ -3,7 +3,7 @@ import {
   Activity, Server, Wifi, Globe2, Brain, Anchor, Rss,
   CheckCircle2, AlertTriangle, XCircle, Clock, RefreshCw,
   ChevronDown, ChevronUp, Wrench, Shield, Zap, TrendingUp,
-  Radio, Newspaper, Plane
+  Radio, Newspaper, Plane, Database, Users, Bell, MapPin
 } from 'lucide-react';
 import { BACKEND_API_URL } from '../config/api';
 
@@ -58,12 +58,46 @@ interface Incident {
   notes: IncidentNote[];
 }
 
+interface SourceMonitor {
+  id: string;
+  active: boolean;
+  event_count: number;
+  errors: number;
+  last_update: string | null;
+  success_rate: number;
+}
+
+interface BahrainEvent {
+  id: string;
+  title: string;
+  titleAr: string;
+  category: string;
+  timestamp: string;
+  isBreaking: boolean;
+}
+
+interface BahrainMonitor {
+  event_count_today: number;
+  events: BahrainEvent[];
+  has_active_alert: boolean;
+  has_military_activity: boolean;
+  risk_level: string;
+}
+
+interface WebSocketHealth {
+  active_connections: number;
+  max_connections: number;
+}
+
 interface StatusData {
   overall_status: string;
   overall_status_ar: string;
   services: ServiceData[];
   incidents: Incident[];
   last_updated: string;
+  source_monitoring?: SourceMonitor[];
+  websocket_health?: WebSocketHealth;
+  bahrain_monitor?: BahrainMonitor;
 }
 
 // ──────────────────────────────────────────────
@@ -92,7 +126,7 @@ function getServiceIcon(id: string) {
     gdelt: Globe2,
     rss_feeds: Rss,
     opensky: Plane,
-    gemini_ai: Brain,
+    devin_ai: Brain,
     aisstream: Anchor,
     newsapi: Newspaper,
     mediastack: Newspaper,
@@ -431,6 +465,199 @@ export default function StatusPage() {
             </div>
           );
         })}
+      </div>
+
+      {/* ──────────────────────────────────────────────
+          Advanced Monitoring Sections
+          ────────────────────────────────────────────── */}
+
+      {/* Bahrain Monitor Widget */}
+      {data.bahrain_monitor && (
+        <div className="mb-8">
+          <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-red-400" />
+            مراقبة البحرين
+            {data.bahrain_monitor.has_active_alert && (
+              <span className="px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-[10px] font-semibold text-red-400 animate-pulse">
+                تنبيه نشط
+              </span>
+            )}
+          </h2>
+          <div className={`rounded-2xl border ${
+            data.bahrain_monitor.has_active_alert ? 'border-red-500/40 bg-gradient-to-r from-red-500/10 to-orange-500/5' :
+            data.bahrain_monitor.has_military_activity ? 'border-orange-500/30 bg-gradient-to-r from-orange-500/10 to-yellow-500/5' :
+            'border-gray-800 bg-[#12121a]'
+          } p-5`}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                  data.bahrain_monitor.has_active_alert ? 'bg-red-500/20' :
+                  data.bahrain_monitor.has_military_activity ? 'bg-orange-500/20' : 'bg-blue-500/20'
+                }`}>
+                  <Bell className={`w-6 h-6 ${
+                    data.bahrain_monitor.has_active_alert ? 'text-red-400 animate-pulse' :
+                    data.bahrain_monitor.has_military_activity ? 'text-orange-400' : 'text-blue-400'
+                  }`} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">مملكة البحرين</h3>
+                  <span className={`text-[10px] font-semibold ${
+                    data.bahrain_monitor.risk_level === 'critical' ? 'text-red-400' :
+                    data.bahrain_monitor.risk_level === 'high' ? 'text-orange-400' :
+                    data.bahrain_monitor.risk_level === 'elevated' ? 'text-yellow-400' :
+                    data.bahrain_monitor.risk_level === 'moderate' ? 'text-blue-400' : 'text-green-400'
+                  }`}>
+                    مستوى الخطر: {
+                      data.bahrain_monitor.risk_level === 'critical' ? 'حرج' :
+                      data.bahrain_monitor.risk_level === 'high' ? 'مرتفع' :
+                      data.bahrain_monitor.risk_level === 'elevated' ? 'متصاعد' :
+                      data.bahrain_monitor.risk_level === 'moderate' ? 'متوسط' : 'منخفض'
+                    }
+                  </span>
+                </div>
+              </div>
+              <div className="text-center">
+                <div className={`text-2xl font-black ${data.bahrain_monitor.event_count_today > 0 ? 'text-orange-400' : 'text-green-400'}`}>
+                  {data.bahrain_monitor.event_count_today}
+                </div>
+                <div className="text-[10px] text-gray-500">أحداث مرصودة</div>
+              </div>
+            </div>
+
+            {data.bahrain_monitor.events.length > 0 && (
+              <div className="space-y-2 border-t border-gray-800/50 pt-3">
+                {data.bahrain_monitor.events.slice(0, 5).map(ev => (
+                  <div key={ev.id} className={`flex items-start gap-2 text-[11px] ${ev.isBreaking ? 'text-red-300' : 'text-gray-400'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
+                      ev.isBreaking ? 'bg-red-500 animate-pulse' :
+                      ev.category === 'military' ? 'bg-orange-500' : 'bg-blue-500'
+                    }`} />
+                    <span className="flex-1">{ev.titleAr || ev.title}</span>
+                    <span className="text-[9px] text-gray-600 shrink-0">{timeAgo(ev.timestamp)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {data.bahrain_monitor.events.length === 0 && (
+              <div className="text-center py-3 text-gray-500 text-xs border-t border-gray-800/50 mt-2 pt-3">
+                <CheckCircle2 className="w-5 h-5 mx-auto mb-1 text-green-400" />
+                لا توجد أحداث مرصودة حالياً — الوضع مستقر
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Source Monitoring + WebSocket Health */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+        {/* Source Monitoring */}
+        {data.source_monitoring && (
+          <div className="lg:col-span-2">
+            <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+              <Database className="w-4 h-4 text-blue-400" />
+              مراقبة مصادر البيانات
+            </h2>
+            <div className="rounded-xl border border-gray-800 bg-[#12121a] overflow-hidden">
+              <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-gray-900/50 text-[10px] text-gray-500 font-semibold border-b border-gray-800">
+                <span className="col-span-2">المصدر</span>
+                <span className="text-center">الحالة</span>
+                <span className="text-center">الأحداث</span>
+                <span className="text-center">الأخطاء</span>
+                <span className="text-center">نسبة النجاح</span>
+              </div>
+              {data.source_monitoring.map(src => {
+                const sourceNames: Record<string, string> = {
+                  gdelt: 'GDELT', rss: 'RSS', opensky: 'OpenSky', devin_ai: 'Devin AI',
+                  aisstream: 'AIS Maritime', newsapi: 'NewsAPI', mediastack: 'MediaStack', acled: 'ACLED',
+                };
+                return (
+                  <div key={src.id} className="grid grid-cols-6 gap-2 px-4 py-2.5 border-b border-gray-800/50 last:border-0 hover:bg-white/[0.02] transition-colors items-center">
+                    <div className="col-span-2 flex items-center gap-2">
+                      <span className={`w-1.5 h-1.5 rounded-full ${src.active ? 'bg-green-500' : 'bg-gray-600'}`} />
+                      <span className="text-[11px] text-white font-medium">{sourceNames[src.id] || src.id}</span>
+                    </div>
+                    <div className="text-center">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${src.active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                        {src.active ? 'نشط' : 'معطّل'}
+                      </span>
+                    </div>
+                    <div className="text-center text-[11px] text-white font-medium">{src.event_count}</div>
+                    <div className={`text-center text-[11px] font-medium ${src.errors > 0 ? 'text-red-400' : 'text-green-400'}`}>{src.errors}</div>
+                    <div className="text-center">
+                      <span className={`text-[11px] font-bold ${
+                        src.success_rate >= 95 ? 'text-green-400' :
+                        src.success_rate >= 80 ? 'text-yellow-400' : 'text-red-400'
+                      }`}>{src.success_rate}%</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* WebSocket Health */}
+        {data.websocket_health && (
+          <div>
+            <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+              <Users className="w-4 h-4 text-green-400" />
+              صحة WebSocket
+            </h2>
+            <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Wifi className={`w-5 h-5 ${data.websocket_health.active_connections > 0 ? 'text-green-400' : 'text-gray-500'}`} />
+                  <span className="text-xs text-gray-400">الاتصالات النشطة</span>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                  data.websocket_health.active_connections > 0 ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-gray-800 border border-gray-700 text-gray-500'
+                }`}>
+                  {data.websocket_health.active_connections > 0 ? 'متصل' : 'لا اتصالات'}
+                </span>
+              </div>
+
+              <div className="text-center mb-4">
+                <div className="text-3xl font-black text-white">{data.websocket_health.active_connections}</div>
+                <div className="text-[10px] text-gray-500">من {data.websocket_health.max_connections} كحد أقصى</div>
+              </div>
+
+              {/* Connection usage bar */}
+              <div className="mb-3">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-gray-500">استخدام الاتصالات</span>
+                  <span className="text-[10px] text-gray-400">
+                    {Math.round((data.websocket_health.active_connections / data.websocket_health.max_connections) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      (data.websocket_health.active_connections / data.websocket_health.max_connections) > 0.8 ? 'bg-red-500' :
+                      (data.websocket_health.active_connections / data.websocket_health.max_connections) > 0.5 ? 'bg-yellow-500' : 'bg-green-500'
+                    }`}
+                    style={{ width: `${Math.max(2, (data.websocket_health.active_connections / data.websocket_health.max_connections) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800/50">
+                <div className="text-center">
+                  <div className="text-xs font-bold text-white">{data.websocket_health.max_connections}</div>
+                  <div className="text-[9px] text-gray-500">الحد الأقصى</div>
+                </div>
+                <div className="text-center">
+                  <div className={`text-xs font-bold ${
+                    data.websocket_health.max_connections - data.websocket_health.active_connections < 10 ? 'text-red-400' : 'text-green-400'
+                  }`}>
+                    {data.websocket_health.max_connections - data.websocket_health.active_connections}
+                  </div>
+                  <div className="text-[9px] text-gray-500">متاح</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Incident History */}

@@ -19,14 +19,14 @@ from pydantic import BaseModel
 from config import (
     FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
     OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, RSS_POLL_INTERVAL,
-    GEMINI_API_KEY, NEWSAPI_KEY,
+    DEVIN_API_KEY, NEWSAPI_KEY,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats
 from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
-from services.gemini_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
+from services.ai_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
 from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
 from services.rss_service import fetch_rss_events
@@ -56,7 +56,7 @@ class DataStore:
             "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
             "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
             "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "gemini": {"active": bool(GEMINI_API_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0},
+            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
         }
 
     def _default_indicators(self) -> list[DashboardIndicator]:
@@ -311,17 +311,17 @@ async def poll_ai_analysis():
                 if summary:
                     store.ai_summaries.insert(0, summary)
                     store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
-                    store.source_status["gemini"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                    store.source_status["gemini"]["eventCount"] += 1
+                    store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                    store.source_status["devin_ai"]["eventCount"] += 1
 
                     await ws_manager.broadcast({
                         "type": "ai_analysis",
                         "summary": summary.model_dump(mode="json"),
                     })
-                    print("[AI] Analysis generated successfully")
+                    print("[Devin AI] Analysis generated successfully")
         except Exception as e:
-            store.source_status["gemini"]["errors"] += 1
-            print(f"[AI] Analysis error: {e}")
+            store.source_status["devin_ai"]["errors"] += 1
+            print(f"[Devin AI] Analysis error: {e}")
 
 
 async def poll_rss():
@@ -758,7 +758,64 @@ async def get_maritime_zones():
 @app.get("/api/status")
 async def get_status():
     """Public status page data — no auth required."""
-    return health_monitor.get_status_summary()
+    summary = health_monitor.get_status_summary()
+
+    # Add advanced monitoring data
+    summary["source_monitoring"] = _get_source_monitoring()
+    summary["websocket_health"] = {
+        "active_connections": len(ws_manager.active_connections),
+        "max_connections": MAX_WS_CONNECTIONS,
+    }
+    summary["bahrain_monitor"] = _get_bahrain_monitor()
+
+    return summary
+
+
+def _get_source_monitoring() -> list[dict]:
+    """Get per-source monitoring metrics for Status Page."""
+    result = []
+    for key, info in store.source_status.items():
+        total_checks = info.get("eventCount", 0) + info.get("errors", 0)
+        success_rate = round((info["eventCount"] / total_checks * 100) if total_checks > 0 else 100, 1)
+        result.append({
+            "id": key,
+            "active": info.get("active", False),
+            "event_count": info.get("eventCount", 0),
+            "errors": info.get("errors", 0),
+            "last_update": info.get("lastUpdate"),
+            "success_rate": success_rate,
+        })
+    return result
+
+
+def _get_bahrain_monitor() -> dict:
+    """Get Bahrain-specific monitoring data."""
+    bahrain_keywords = {"bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
+                        "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
+                        "مملكة البحرين"}
+    bahrain_events = []
+    for e in store.events:
+        text = f"{e.title} {e.titleAr} {e.description} {e.location.name} {e.location.nameAr}".lower()
+        if any(kw in text for kw in bahrain_keywords):
+            bahrain_events.append({
+                "id": e.id,
+                "title": e.title,
+                "titleAr": e.titleAr,
+                "category": e.category.value,
+                "timestamp": e.timestamp.isoformat(),
+                "isBreaking": e.isBreaking,
+            })
+
+    has_alert = any(e["isBreaking"] for e in bahrain_events)
+    has_military = any(e["category"] in ("military", "fire", "alert") for e in bahrain_events)
+
+    return {
+        "event_count_today": len(bahrain_events),
+        "events": bahrain_events[:10],
+        "has_active_alert": has_alert,
+        "has_military_activity": has_military,
+        "risk_level": "critical" if has_alert else "high" if has_military else "elevated" if len(bahrain_events) >= 3 else "moderate" if len(bahrain_events) >= 1 else "low",
+    }
 
 
 @app.get("/api/status/admin")
@@ -822,7 +879,7 @@ async def trigger_analysis(authorization: str = Header(default="")):
     if summary:
         store.ai_summaries.insert(0, summary)
         store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
-        store.source_status["gemini"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+        store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
         return summary.model_dump(mode="json")
     return {"error": "No events available for analysis"}
 

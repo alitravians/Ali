@@ -20,7 +20,7 @@ export const sources: Source[] = [
   { id: 'gdelt', name: 'GDELT Project', nameAr: 'مشروع GDELT', type: 'technical', trustLevel: 'confirmed', url: 'https://gdeltproject.org', lastUpdate: new Date(), isActive: true, eventCount: 0 },
   { id: 'newsapi', name: 'NewsAPI (Reuters, BBC, Al Jazeera)', nameAr: 'NewsAPI (رويترز، بي بي سي، الجزيرة)', type: 'media', trustLevel: 'high', url: 'https://newsapi.org', lastUpdate: new Date(), isActive: true, eventCount: 0 },
   { id: 'opensky', name: 'OpenSky Network', nameAr: 'شبكة OpenSky', type: 'technical', trustLevel: 'confirmed', url: 'https://opensky-network.org', lastUpdate: new Date(), isActive: true, eventCount: 0 },
-  { id: 'gemini', name: 'Google Gemini AI', nameAr: 'جوجل جيميناي', type: 'technical', trustLevel: 'high', url: 'https://ai.google.dev', lastUpdate: new Date(), isActive: true, eventCount: 0 },
+  { id: 'devin_ai', name: 'Devin AI', nameAr: 'تحليلات Devin الذكية', type: 'technical', trustLevel: 'high', url: 'https://devin.ai', lastUpdate: new Date(), isActive: true, eventCount: 0 },
 ];
 
 export const cities: CityData[] = [

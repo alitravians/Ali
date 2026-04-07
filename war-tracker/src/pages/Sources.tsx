@@ -7,7 +7,7 @@ const SOURCE_META: Record<string, { nameAr: string; type: string; url?: string }
   newsapi: { nameAr: 'NewsAPI — رويترز، بي بي سي، الجزيرة', type: 'media', url: 'https://newsapi.org' },
   rss: { nameAr: 'RSS — الجزيرة، بي بي سي، رويترز (مباشر)', type: 'media', url: 'https://www.aljazeera.net' },
   opensky: { nameAr: 'OpenSky — تتبع الطائرات', type: 'technical', url: 'https://opensky-network.org' },
-  gemini: { nameAr: 'Google Gemini — تحليل ذكي', type: 'technical', url: 'https://ai.google.dev' },
+  devin_ai: { nameAr: 'Devin AI — تحليلات ذكية', type: 'technical', url: 'https://devin.ai' },
   mediastack: { nameAr: 'MediaStack — مصادر إخبارية', type: 'media', url: 'https://mediastack.com' },
   acled: { nameAr: 'ACLED — بيانات النزاعات', type: 'technical', url: 'https://acleddata.com' },
 };

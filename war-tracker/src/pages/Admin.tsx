@@ -467,11 +467,11 @@ export default function Admin() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-gray-400">المحرك:</span>
-                    <span className="text-[11px] text-white">Gemini / Groq Llama 3.3</span>
+                    <span className="text-[11px] text-white">Devin AI / Groq Llama 3.3</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-gray-400">النظام:</span>
-                    <span className="text-[11px] text-gray-300">Gemini → Groq → إحصائي</span>
+                    <span className="text-[11px] text-gray-300">Devin AI → Groq → إحصائي</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-gray-400">الأحداث المحملة:</span>
