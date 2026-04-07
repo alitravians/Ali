@@ -106,6 +106,12 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           setMaritimeZones(data.zones as MaritimeZoneStats[]);
         }
       }
+
+      if (data.type === 'aircraft_update') {
+        // Handle aircraft position updates from OpenSky
+        // Aircraft data is included in initial_data but also sent as separate updates
+        // Currently consumed by components that read from the LiveData context
+      }
     } catch (e) {
       console.error('[WS] Error parsing message:', e);
     }

@@ -1,4 +1,7 @@
-"""Google Gemini AI integration for event analysis and Arabic translation."""
+"""AI integration for event analysis and Arabic translation.
+
+Uses Gemini AI (primary), Groq/Llama (secondary), and statistical analysis (fallback).
+"""
 import google.generativeai as genai
 import json
 import asyncio
@@ -7,7 +10,12 @@ from urllib.parse import quote
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from models import TrackerEvent, AISummary
-from config import GEMINI_API_KEY
+from config import GEMINI_API_KEY, GROQ_API_KEY
+
+# Groq API configuration
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = "llama-3.3-70b-versatile"
+_groq_rate_limited_until: datetime | None = None
 
 
 _model = None
@@ -32,6 +40,64 @@ def _set_gemini_rate_limited():
     global _gemini_rate_limited_until
     _gemini_rate_limited_until = datetime.now(timezone.utc) + timedelta(minutes=5)
     print(f"[Gemini] Rate limited, will retry after {_gemini_rate_limited_until.isoformat()}")
+
+
+def _is_groq_rate_limited() -> bool:
+    """Check if Groq is currently rate-limited."""
+    global _groq_rate_limited_until
+    if _groq_rate_limited_until is None:
+        return False
+    if datetime.now(timezone.utc) > _groq_rate_limited_until:
+        _groq_rate_limited_until = None
+        print("[Groq] Rate limit cooldown expired, re-enabling Groq")
+        return False
+    return True
+
+
+def _set_groq_rate_limited():
+    """Set Groq as rate-limited with a 5-minute cooldown."""
+    global _groq_rate_limited_until
+    _groq_rate_limited_until = datetime.now(timezone.utc) + timedelta(minutes=5)
+    print(f"[Groq] Rate limited, will retry after {_groq_rate_limited_until.isoformat()}")
+
+
+async def _groq_chat(prompt: str, system_prompt: str = "") -> Optional[str]:
+    """Send a chat completion request to Groq API. Returns the response text."""
+    if not GROQ_API_KEY or _is_groq_rate_limited():
+        return None
+
+    headers = {
+        "Authorization": f"Bearer {GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": GROQ_MODEL,
+        "messages": messages,
+        "temperature": 0.3,
+        "max_tokens": 2000,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(GROQ_API_URL, headers=headers, json=payload)
+            if resp.status_code == 200:
+                data = resp.json()
+                return data["choices"][0]["message"]["content"].strip()
+            elif resp.status_code == 429:
+                _set_groq_rate_limited()
+                print("[Groq] Rate limited (429)")
+                return None
+            else:
+                print(f"[Groq] Error {resp.status_code}: {resp.text[:200]}")
+                return None
+    except Exception as e:
+        print(f"[Groq] Request error: {e}")
+        return None
 
 
 def _get_model():
@@ -286,23 +352,17 @@ def _build_statistical_analysis(events: list[TrackerEvent]) -> Optional[AISummar
 async def analyze_events(events: list[TrackerEvent]) -> Optional[AISummary]:
     """Generate AI analysis summary of recent events.
     
-    Uses Gemini AI when available. Falls back to statistical analysis
-    when Gemini quota is exhausted.
+    Fallback chain: Gemini AI → Groq/Llama AI → Statistical analysis.
     """
     if not events:
         return None
 
-    model = _get_model()
+    events_text = "\n".join([
+        f"- [{e.category.value}] {e.title} ({e.location.name}, {e.timestamp.strftime('%H:%M')})"
+        for e in events[:20]
+    ])
 
-    # Try Gemini AI first (if available and not rate-limited)
-    if model and not _is_gemini_rate_limited():
-        try:
-            events_text = "\n".join([
-                f"- [{e.category.value}] {e.title} ({e.location.name}, {e.timestamp.strftime('%H:%M')})"
-                for e in events[:20]
-            ])
-
-            prompt = f"""You are a military intelligence analyst. Analyze these recent events from the Iran-Israel conflict region.
+    analysis_prompt = f"""You are a military intelligence analyst. Analyze these recent events from the Iran-Israel conflict region.
 
 Events:
 {events_text}
@@ -322,29 +382,21 @@ Provide analysis in BOTH English and Arabic. Return ONLY a JSON object with thes
 
 No markdown, just valid JSON."""
 
-            response = await model.generate_content_async(prompt)
+    system_prompt = "You are a military intelligence analyst specializing in Middle East geopolitics. Always respond with valid JSON only."
+
+    model = _get_model()
+
+    # 1) Try Gemini AI first
+    if model and not _is_gemini_rate_limited():
+        try:
+            response = await model.generate_content_async(analysis_prompt)
             text = response.text.strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
             data = json.loads(text)
-
             print("[Gemini] AI analysis generated successfully")
-            return AISummary(
-                id=f"analysis-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-                timestamp=datetime.now(timezone.utc),
-                whatHappened=data.get("whatHappened", ""),
-                whatHappenedAr=data.get("whatHappenedAr", ""),
-                whatsNew=data.get("whatsNew", ""),
-                whatsNewAr=data.get("whatsNewAr", ""),
-                isEscalation=data.get("isEscalation", False),
-                escalationDetails=data.get("escalationDetails"),
-                escalationDetailsAr=data.get("escalationDetailsAr"),
-                hotspots=data.get("hotspots", []),
-                hotspotsAr=data.get("hotspotsAr", []),
-                confirmedOnly=data.get("confirmedOnly", []),
-                confirmedOnlyAr=data.get("confirmedOnlyAr", []),
-            )
+            return _parse_ai_analysis(data)
 
         except Exception as e:
             if "429" in str(e) or "quota" in str(e).lower():
@@ -352,9 +404,44 @@ No markdown, just valid JSON."""
             else:
                 print(f"[Gemini] Analysis error: {e}")
 
-    # Fallback: statistical analysis (always available, no API needed)
-    print("[Analysis] Using statistical fallback (Gemini unavailable)")
+    # 2) Try Groq/Llama AI (free alternative)
+    if GROQ_API_KEY and not _is_groq_rate_limited():
+        try:
+            groq_response = await _groq_chat(analysis_prompt, system_prompt)
+            if groq_response:
+                text = groq_response
+                if text.startswith("```"):
+                    text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+                data = json.loads(text)
+                print("[Groq] AI analysis generated successfully (Llama 3.3 70B)")
+                return _parse_ai_analysis(data)
+        except json.JSONDecodeError as e:
+            print(f"[Groq] JSON parse error: {e}")
+        except Exception as e:
+            print(f"[Groq] Analysis error: {e}")
+
+    # 3) Fallback: statistical analysis (always available, no API needed)
+    print("[Analysis] Using statistical fallback (AI services unavailable)")
     return _build_statistical_analysis(events)
+
+
+def _parse_ai_analysis(data: dict) -> AISummary:
+    """Parse AI response JSON into AISummary model."""
+    return AISummary(
+        id=f"analysis-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        timestamp=datetime.now(timezone.utc),
+        whatHappened=data.get("whatHappened", ""),
+        whatHappenedAr=data.get("whatHappenedAr", ""),
+        whatsNew=data.get("whatsNew", ""),
+        whatsNewAr=data.get("whatsNewAr", ""),
+        isEscalation=data.get("isEscalation", False),
+        escalationDetails=data.get("escalationDetails"),
+        escalationDetailsAr=data.get("escalationDetailsAr"),
+        hotspots=data.get("hotspots", []),
+        hotspotsAr=data.get("hotspotsAr", []),
+        confirmedOnly=data.get("confirmedOnly", []),
+        confirmedOnlyAr=data.get("confirmedOnlyAr", []),
+    )
 
 
 async def generate_why_it_matters(event: TrackerEvent) -> TrackerEvent:

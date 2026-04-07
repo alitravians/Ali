@@ -238,6 +238,9 @@ def _process_ais_message(data: dict):
             if ship_name:
                 v.name = ship_name
         else:
+            # Only create new vessel if we have valid position data
+            if lat == 0 and lng == 0:
+                return
             _vessels[mmsi] = VesselPosition(
                 mmsi=mmsi,
                 name=ship_name or f"VESSEL-{mmsi[-4:]}",
