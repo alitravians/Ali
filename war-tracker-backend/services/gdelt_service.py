@@ -66,8 +66,13 @@ def _get_city_ar(name: str) -> str:
 def _compute_trust(num_sources: int, source_domain: str) -> tuple[TrustLevel, str, str]:
     """Compute trust level based on source count and domain."""
     official_domains = ["reuters.com", "apnews.com", "bbc.com", "aljazeera.com",
-                        "gov.il", "irna.ir", "presstv.ir", "timesofisrael.com"]
-    is_official = any(d in source_domain.lower() for d in official_domains) if source_domain else False
+                        "gov.il", "irna.ir", "presstv.ir", "timesofisrael.com",
+                        "bbc.co.uk", "aljazeera.net", "france24.com", "dw.com"]
+    # Also match human-readable source names (from NewsAPI/MediaStack)
+    official_names = ["reuters", "ap news", "apnews", "bbc", "al jazeera", "aljazeera",
+                      "times of israel", "france 24", "france24", "dw"]
+    source_lower = source_domain.lower() if source_domain else ""
+    is_official = any(d in source_lower for d in official_domains + official_names) if source_lower else False
 
     if num_sources >= 3 and is_official:
         return TrustLevel.confirmed, "Confirmed by multiple official sources", "مؤكد من عدة مصادر رسمية"

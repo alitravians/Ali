@@ -164,16 +164,16 @@ def _parse_feed_date(entry) -> datetime:
     # Try published_parsed first
     if hasattr(entry, "published_parsed") and entry.published_parsed:
         try:
-            from time import mktime
-            return datetime.fromtimestamp(mktime(entry.published_parsed), tz=timezone.utc)
+            from calendar import timegm
+            return datetime.fromtimestamp(timegm(entry.published_parsed), tz=timezone.utc)
         except (ValueError, OverflowError, TypeError):
             pass
 
     # Try updated_parsed
     if hasattr(entry, "updated_parsed") and entry.updated_parsed:
         try:
-            from time import mktime
-            return datetime.fromtimestamp(mktime(entry.updated_parsed), tz=timezone.utc)
+            from calendar import timegm
+            return datetime.fromtimestamp(timegm(entry.updated_parsed), tz=timezone.utc)
         except (ValueError, OverflowError, TypeError):
             pass
 
