@@ -118,7 +118,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             </div>
             <button
               onClick={onToggleSidebar}
-              className="md:hidden p-2 text-gray-400 hover:text-white"
+              className="md:hidden pm-show-mobile p-2 text-gray-400 hover:text-white"
             >
               <Menu className="w-5 h-5" />
             </button>

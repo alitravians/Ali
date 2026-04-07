@@ -545,6 +545,14 @@ body {
   height: min(400px, 50vh) !important;
 }
 
+/* Show mobile-only elements in phone mode on desktop */
+.phone-mode .pm-show-mobile {
+  display: flex !important;
+}
+.phone-mode .pm-show-mobile-block {
+  display: block !important;
+}
+
 /* Phone mode indicator glow */
 .phone-mode .pm-toggle-btn {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);

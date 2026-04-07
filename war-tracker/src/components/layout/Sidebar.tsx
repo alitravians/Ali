@@ -23,12 +23,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <>
       {/* Overlay */}
       {isOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 md:hidden" onClick={onClose} />
+        <div className="fixed inset-0 bg-black/60 z-50 md:hidden pm-show-mobile-block" onClick={onClose} />
       )}
 
       {/* Sidebar */}
       <div
-        className={`fixed top-0 right-0 h-full w-72 bg-[#12121a] border-l border-gray-800/50 z-50 transform transition-transform duration-300 md:hidden ${
+        className={`fixed top-0 right-0 h-full w-72 bg-[#12121a] border-l border-gray-800/50 z-50 transform transition-transform duration-300 md:hidden pm-show-mobile-block ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
