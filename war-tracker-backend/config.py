@@ -18,6 +18,7 @@ GDELT_POLL_INTERVAL = 120  # 2 minutes (avoid GDELT 429 rate limits)
 NEWS_POLL_INTERVAL = 900   # 15 minutes (conserve free tier: 100 requests/day)
 OPENSKY_POLL_INTERVAL = 60 # 60 seconds (rate limit friendly)
 AI_ANALYSIS_INTERVAL = 900 # 15 minutes
+RSS_POLL_INTERVAL = 180    # 3 minutes (RSS feeds are free, no rate limits)
 
 # CORS
 FRONTEND_ORIGINS = [

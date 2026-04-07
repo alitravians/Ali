@@ -5,6 +5,7 @@ import { Globe2, Clock, Wifi, WifiOff, BarChart3, Shield, AlertTriangle } from '
 const SOURCE_META: Record<string, { nameAr: string; type: string; url?: string }> = {
   gdelt: { nameAr: 'GDELT — رصد الأحداث العالمية', type: 'technical', url: 'https://gdeltproject.org' },
   newsapi: { nameAr: 'NewsAPI — رويترز، بي بي سي، الجزيرة', type: 'media', url: 'https://newsapi.org' },
+  rss: { nameAr: 'RSS — الجزيرة، بي بي سي، رويترز (مباشر)', type: 'media', url: 'https://www.aljazeera.net' },
   opensky: { nameAr: 'OpenSky — تتبع الطائرات', type: 'technical', url: 'https://opensky-network.org' },
   gemini: { nameAr: 'Google Gemini — تحليل ذكي', type: 'technical', url: 'https://ai.google.dev' },
   mediastack: { nameAr: 'MediaStack — مصادر إخبارية', type: 'media', url: 'https://mediastack.com' },

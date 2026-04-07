@@ -12,7 +12,8 @@ from pydantic import BaseModel
 
 from config import (
     FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
-    OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, GEMINI_API_KEY, NEWSAPI_KEY,
+    OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, RSS_POLL_INTERVAL,
+    GEMINI_API_KEY, NEWSAPI_KEY,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats
 from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
@@ -22,6 +23,7 @@ from services.opensky_service import fetch_aircraft_positions
 from services.gemini_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
 from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
+from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
 
 
@@ -46,6 +48,7 @@ class DataStore:
             "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
             "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
             "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
+            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
             "gemini": {"active": bool(GEMINI_API_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0},
         }
 
@@ -313,6 +316,47 @@ async def poll_ai_analysis():
             print(f"[AI] Analysis error: {e}")
 
 
+async def poll_rss():
+    """Background task: Poll RSS feeds from trusted sources (Al Jazeera, BBC, Reuters)."""
+    while True:
+        try:
+            print("[Scheduler] Fetching RSS feed events...")
+            rss_events = await fetch_rss_events(max_results=50)
+            if rss_events:
+                store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                store.source_status["rss"]["eventCount"] += len(rss_events)
+
+                all_events = rss_events + store.events
+                store.events = deduplicate_and_merge(all_events)[:500]
+
+                # Batch-translate event titles to Arabic
+                try:
+                    await batch_translate_events(store.events)
+                except Exception as e:
+                    print(f"[Translation] RSS batch translation error: {e}")
+
+                generate_alerts_from_events(rss_events)
+                await update_indicators()
+
+                await ws_manager.broadcast({
+                    "type": "events_update",
+                    "events": [e.model_dump(mode="json") for e in store.events[:50]],
+                    "totalEvents": len(store.events),
+                    "indicators": [i.model_dump(mode="json") for i in store.indicators],
+                    "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
+                })
+
+                print(f"[RSS] Fetched {len(rss_events)} events, total unique: {len(store.events)}")
+            else:
+                print("[RSS] No relevant events from feeds")
+
+        except Exception as e:
+            store.source_status["rss"]["errors"] += 1
+            print(f"[RSS] Poll error: {e}")
+
+        await asyncio.sleep(RSS_POLL_INTERVAL)
+
+
 async def poll_maritime_broadcast():
     """Background task: Broadcast maritime vessel positions every 30 seconds."""
     while True:
@@ -345,6 +389,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     tasks = [
         asyncio.create_task(poll_gdelt()),
         asyncio.create_task(poll_news()),
+        asyncio.create_task(poll_rss()),
         asyncio.create_task(poll_opensky()),
         asyncio.create_task(poll_ai_analysis()),
         asyncio.create_task(connect_aisstream()),
