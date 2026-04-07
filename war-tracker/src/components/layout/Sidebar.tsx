@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { X, Radio, BarChart3, Globe2, Building2, Bell, Shield, Home } from 'lucide-react';
+import { X, Radio, BarChart3, Globe2, Building2, Bell, Shield, Home, Activity } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ const navLinks = [
   { path: '/sources', label: 'المصادر', icon: Globe2 },
   { path: '/cities', label: 'المدن', icon: Building2 },
   { path: '/alerts', label: 'التنبيهات', icon: Bell },
+  { path: '/status', label: 'حالة النظام', icon: Activity },
   { path: '/admin', label: 'لوحة الإدارة', icon: Shield },
 ];
 

@@ -7,12 +7,32 @@ import {
   Shield, Database, Layers, FileSearch, Bell,
   Brain, Wifi, Settings, Server, BarChart3,
   Eye, EyeOff, Plus, Trash2, Edit3, RefreshCw, Search, CheckCircle2, XCircle,
-  Lock, LogOut, Loader2
+  Lock, LogOut, Loader2, Activity, Zap, AlertTriangle
 } from 'lucide-react';
 
 import { BACKEND_API_URL } from '../config/api';
 
-type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system';
+type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system' | 'status';
+
+interface StatusAdminService {
+  id: string;
+  name: string;
+  name_ar: string;
+  type: string;
+  endpoint: string | null;
+  check_interval_seconds: number;
+  enabled: boolean;
+  auto_heal: boolean;
+  timeout_ms: number;
+  degraded_threshold_ms: number;
+  status: string;
+}
+
+interface StatusAdminData {
+  services: StatusAdminService[];
+  incidents_count: number;
+  active_incidents: number;
+}
 
 export default function Admin() {
   const { events, alerts, connectionStatus } = useLiveData();
@@ -135,6 +155,7 @@ export default function Admin() {
     { id: 'alerts', label: 'التنبيهات', icon: Bell },
     { id: 'ai', label: 'التحليلات الذكية', icon: Brain },
     { id: 'system', label: 'النظام', icon: Server },
+    { id: 'status', label: 'حالة الخدمات', icon: Activity },
   ];
 
   const pendingReviewEvents = events.filter(e => e.trustLevel === 'low' || e.trustLevel === 'medium');
@@ -552,6 +573,199 @@ export default function Admin() {
             </div>
           </div>
         )}
+
+        {/* Status Admin */}
+        {activeTab === 'status' && (
+          <StatusAdmin />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Status Admin Sub-component
+// ──────────────────────────────────────────────
+function StatusAdmin() {
+  const [statusData, setStatusData] = useState<StatusAdminData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState<string | null>(null);
+
+  const token = sessionStorage.getItem('warscope_admin_token') || '';
+
+  const fetchStatusAdmin = async () => {
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/status/admin`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        setStatusData(await resp.json());
+      }
+    } catch { /* ignore */ }
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchStatusAdmin(); }, []);
+
+  const updateService = async (serviceId: string, updates: Record<string, unknown>) => {
+    setUpdating(serviceId);
+    try {
+      await fetch(`${BACKEND_API_URL}/api/status/admin/service/${serviceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify(updates),
+      });
+      await fetchStatusAdmin();
+    } catch { /* ignore */ }
+    setUpdating(null);
+  };
+
+  const triggerCheck = async (serviceId: string) => {
+    setUpdating(serviceId);
+    try {
+      await fetch(`${BACKEND_API_URL}/api/status/admin/check/${serviceId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      await fetchStatusAdmin();
+    } catch { /* ignore */ }
+    setUpdating(null);
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'operational': return 'text-green-400';
+      case 'degraded': return 'text-yellow-400';
+      case 'partial_outage': return 'text-orange-400';
+      case 'major_outage': return 'text-red-400';
+      default: return 'text-gray-400';
+    }
+  };
+
+  const getStatusAr = (status: string) => {
+    return { operational: 'يعمل', degraded: 'بطيء', partial_outage: 'انقطاع جزئي', major_outage: 'متوقف', maintenance: 'صيانة' }[status] || status;
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center">
+        <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!statusData) {
+    return (
+      <div className="p-5 text-center text-sm text-gray-400">تعذّر تحميل بيانات الحالة</div>
+    );
+  }
+
+  return (
+    <div className="p-3 sm:p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-bold text-white flex items-center gap-2">
+          <Activity className="w-4 h-4 text-blue-400" />
+          إدارة مراقبة الخدمات
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-gray-500">
+            {statusData.active_incidents > 0 ? (
+              <span className="text-red-400 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" />
+                {statusData.active_incidents} حادث نشط
+              </span>
+            ) : (
+              <span className="text-green-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3 h-3" />
+                لا حوادث نشطة
+              </span>
+            )}
+          </span>
+          <button
+            onClick={fetchStatusAdmin}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-gray-800">
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">الخدمة</th>
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">النوع</th>
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">الحالة</th>
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">الفحص كل</th>
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">مفعّل</th>
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">إصلاح تلقائي</th>
+              <th className="text-right py-2 px-3 text-gray-500 font-medium">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {statusData.services.map(svc => (
+              <tr key={svc.id} className="border-b border-gray-800/50 hover:bg-white/2">
+                <td className="py-2.5 px-3">
+                  <div>
+                    <div className="font-semibold text-white">{svc.name_ar}</div>
+                    <div className="text-[10px] text-gray-500">{svc.name}</div>
+                  </div>
+                </td>
+                <td className="py-2.5 px-3">
+                  <span className="px-2 py-0.5 bg-gray-800 rounded-full text-gray-300">
+                    {svc.type === 'api' ? 'واجهة برمجة' : svc.type === 'websocket' ? 'ويب سوكت' : svc.type === 'external' ? 'خدمة خارجية' : svc.type}
+                  </span>
+                </td>
+                <td className="py-2.5 px-3">
+                  <span className={`flex items-center gap-1 ${getStatusColor(svc.status)}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${svc.status === 'operational' ? 'bg-green-500' : svc.status === 'degraded' ? 'bg-yellow-500' : 'bg-red-500'}`} />
+                    {getStatusAr(svc.status)}
+                  </span>
+                </td>
+                <td className="py-2.5 px-3 text-gray-400">
+                  {svc.check_interval_seconds < 60 ? `${svc.check_interval_seconds}ث` : `${Math.round(svc.check_interval_seconds / 60)}د`}
+                </td>
+                <td className="py-2.5 px-3">
+                  <button
+                    onClick={() => updateService(svc.id, { enabled: !svc.enabled })}
+                    disabled={updating === svc.id}
+                    className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer ${svc.enabled ? 'bg-green-500' : 'bg-gray-700'}`}
+                  >
+                    <div className={`w-4 h-4 bg-white rounded-full absolute top-0.5 shadow transition-all ${svc.enabled ? 'left-[18px]' : 'left-0.5'}`} />
+                  </button>
+                </td>
+                <td className="py-2.5 px-3">
+                  <button
+                    onClick={() => updateService(svc.id, { auto_heal: !svc.auto_heal })}
+                    disabled={updating === svc.id}
+                    className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${svc.auto_heal ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-gray-800 text-gray-500 border border-gray-700'}`}
+                  >
+                    <Zap className="w-2.5 h-2.5" />
+                    {svc.auto_heal ? 'مفعّل' : 'معطّل'}
+                  </button>
+                </td>
+                <td className="py-2.5 px-3">
+                  <button
+                    onClick={() => triggerCheck(svc.id)}
+                    disabled={updating === svc.id}
+                    className="p-1 text-gray-500 hover:text-blue-400 transition-colors disabled:opacity-50"
+                    title="فحص فوري"
+                  >
+                    {updating === svc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 p-3 bg-[#0a0a0f] rounded-xl border border-gray-800">
+        <p className="text-[11px] text-gray-500">
+          💡 صفحة الحالة العامة متاحة للجميع على <a href="/status" className="text-blue-400 hover:underline">/status</a>
+          — يمكن للمستخدمين مراقبة حالة الخدمات وسجل الحوادث.
+        </p>
       </div>
     </div>
   );
