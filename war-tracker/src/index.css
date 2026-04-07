@@ -695,7 +695,8 @@ body {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  object-position: top;
+  object-position: center top;
+  background: #0a0a0f;
   z-index: 1;
   border: 3px solid #0a0a0f;
 }
