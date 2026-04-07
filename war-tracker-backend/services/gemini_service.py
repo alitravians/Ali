@@ -199,19 +199,110 @@ Return ONLY a JSON array of objects, each with "n" (number) and "ar" (Arabic tra
     return events
 
 
-async def analyze_events(events: list[TrackerEvent]) -> Optional[AISummary]:
-    """Generate AI analysis summary of recent events."""
-    model = _get_model()
-    if not model or not events:
+def _build_statistical_analysis(events: list[TrackerEvent]) -> Optional[AISummary]:
+    """Build a statistical analysis summary when Gemini AI is unavailable.
+    
+    Analyzes events by location, category, trust level, and source count
+    to produce a structured intelligence summary without AI.
+    """
+    if not events:
         return None
 
-    try:
-        events_text = "\n".join([
-            f"- [{e.category.value}] {e.title} ({e.location.name}, {e.timestamp.strftime('%H:%M')})"
-            for e in events[:20]
-        ])
+    from collections import Counter
 
-        prompt = f"""You are a military intelligence analyst. Analyze these recent events from the Iran-Israel conflict region.
+    # Location analysis
+    location_counts: Counter = Counter()
+    location_ar_map: dict[str, str] = {}
+    for e in events:
+        loc = e.location.name
+        location_counts[loc] += 1
+        location_ar_map[loc] = e.location.nameAr
+
+    # Category analysis
+    category_counts: Counter = Counter()
+    for e in events:
+        category_counts[e.category.value] += 1
+
+    # Trust level analysis
+    confirmed_events = [e for e in events if e.trustLevel in ("confirmed", "high")]
+    breaking_events = [e for e in events if e.isBreaking]
+    multi_source = [e for e in events if len(e.sources) >= 2]
+
+    # Top hotspots
+    top_locations = location_counts.most_common(5)
+    hotspots = [loc for loc, _ in top_locations]
+    hotspots_ar = [location_ar_map.get(loc, loc) for loc in hotspots]
+
+    # Determine escalation
+    military_count = category_counts.get("military", 0)
+    alert_count = category_counts.get("alert", 0)
+    is_escalation = military_count >= 5 or alert_count >= 3 or len(breaking_events) >= 2
+
+    # Build summary text
+    total = len(events)
+    cat_ar = {"military": "عسكري", "alert": "إنذار", "official": "رسمي",
+              "airspace": "مجال جوي", "maritime": "بحري", "fire": "حريق",
+              "humanitarian": "إنساني"}
+
+    top_cats = category_counts.most_common(3)
+    cats_en = ", ".join(f"{c} ({n})" for c, n in top_cats)
+    cats_ar = ", ".join(f"{cat_ar.get(c, c)} ({n})" for c, n in top_cats)
+
+    locs_en = ", ".join(f"{loc} ({n})" for loc, n in top_locations[:3])
+    locs_ar = ", ".join(f"{location_ar_map.get(loc, loc)} ({n})" for loc, n in top_locations[:3])
+
+    what_happened = f"{total} events tracked across the Middle East. Most active areas: {locs_en}. Primary categories: {cats_en}."
+    what_happened_ar = f"تم رصد {total} حدث في الشرق الأوسط. المناطق الأكثر نشاطاً: {locs_ar}. التصنيفات الرئيسية: {cats_ar}."
+
+    whats_new = f"{len(confirmed_events)} events from trusted sources, {len(multi_source)} corroborated by multiple sources."
+    whats_new_ar = f"{len(confirmed_events)} حدث من مصادر موثوقة، {len(multi_source)} مؤكد من عدة مصادر."
+
+    escalation_details = None
+    escalation_details_ar = None
+    if is_escalation:
+        escalation_details = f"Elevated activity: {military_count} military events, {alert_count} alerts, {len(breaking_events)} breaking news."
+        escalation_details_ar = f"نشاط مرتفع: {military_count} أحداث عسكرية، {alert_count} إنذارات، {len(breaking_events)} أخبار عاجلة."
+
+    confirmed_titles = [e.title for e in confirmed_events[:5]]
+    confirmed_titles_ar = [e.titleAr for e in confirmed_events[:5]]
+
+    return AISummary(
+        id=f"analysis-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+        timestamp=datetime.now(timezone.utc),
+        whatHappened=what_happened,
+        whatHappenedAr=what_happened_ar,
+        whatsNew=whats_new,
+        whatsNewAr=whats_new_ar,
+        isEscalation=is_escalation,
+        escalationDetails=escalation_details,
+        escalationDetailsAr=escalation_details_ar,
+        hotspots=hotspots,
+        hotspotsAr=hotspots_ar,
+        confirmedOnly=confirmed_titles,
+        confirmedOnlyAr=confirmed_titles_ar,
+    )
+
+
+async def analyze_events(events: list[TrackerEvent]) -> Optional[AISummary]:
+    """Generate AI analysis summary of recent events.
+    
+    Uses Gemini AI when available. Falls back to statistical analysis
+    when Gemini quota is exhausted.
+    """
+    if not events:
+        return None
+
+    model = _get_model()
+
+    # Try Gemini AI first (if available and not rate-limited)
+    if model and not _is_gemini_rate_limited():
+        try:
+            events_text = "\n".join([
+                f"- [{e.category.value}] {e.title} ({e.location.name}, {e.timestamp.strftime('%H:%M')})"
+                for e in events[:20]
+            ])
+
+            prompt = f"""You are a military intelligence analyst. Analyze these recent events from the Iran-Israel conflict region.
 
 Events:
 {events_text}
@@ -231,32 +322,39 @@ Provide analysis in BOTH English and Arabic. Return ONLY a JSON object with thes
 
 No markdown, just valid JSON."""
 
-        response = await model.generate_content_async(prompt)
-        text = response.text.strip()
-        if text.startswith("```"):
-            text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+            response = await model.generate_content_async(prompt)
+            text = response.text.strip()
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1].rsplit("```", 1)[0].strip()
 
-        data = json.loads(text)
+            data = json.loads(text)
 
-        return AISummary(
-            id=f"analysis-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
-            timestamp=datetime.now(timezone.utc),
-            whatHappened=data.get("whatHappened", ""),
-            whatHappenedAr=data.get("whatHappenedAr", ""),
-            whatsNew=data.get("whatsNew", ""),
-            whatsNewAr=data.get("whatsNewAr", ""),
-            isEscalation=data.get("isEscalation", False),
-            escalationDetails=data.get("escalationDetails"),
-            escalationDetailsAr=data.get("escalationDetailsAr"),
-            hotspots=data.get("hotspots", []),
-            hotspotsAr=data.get("hotspotsAr", []),
-            confirmedOnly=data.get("confirmedOnly", []),
-            confirmedOnlyAr=data.get("confirmedOnlyAr", []),
-        )
+            print("[Gemini] AI analysis generated successfully")
+            return AISummary(
+                id=f"analysis-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}",
+                timestamp=datetime.now(timezone.utc),
+                whatHappened=data.get("whatHappened", ""),
+                whatHappenedAr=data.get("whatHappenedAr", ""),
+                whatsNew=data.get("whatsNew", ""),
+                whatsNewAr=data.get("whatsNewAr", ""),
+                isEscalation=data.get("isEscalation", False),
+                escalationDetails=data.get("escalationDetails"),
+                escalationDetailsAr=data.get("escalationDetailsAr"),
+                hotspots=data.get("hotspots", []),
+                hotspotsAr=data.get("hotspotsAr", []),
+                confirmedOnly=data.get("confirmedOnly", []),
+                confirmedOnlyAr=data.get("confirmedOnlyAr", []),
+            )
 
-    except Exception as e:
-        print(f"[Gemini] Analysis error: {e}")
-        return None
+        except Exception as e:
+            if "429" in str(e) or "quota" in str(e).lower():
+                _set_gemini_rate_limited()
+            else:
+                print(f"[Gemini] Analysis error: {e}")
+
+    # Fallback: statistical analysis (always available, no API needed)
+    print("[Analysis] Using statistical fallback (Gemini unavailable)")
+    return _build_statistical_analysis(events)
 
 
 async def generate_why_it_matters(event: TrackerEvent) -> TrackerEvent:

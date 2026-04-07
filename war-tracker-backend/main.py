@@ -297,7 +297,7 @@ async def poll_ai_analysis():
     while True:
         await asyncio.sleep(AI_ANALYSIS_INTERVAL)
         try:
-            if GEMINI_API_KEY and store.events:
+            if store.events:
                 print("[Scheduler] Running AI analysis...")
                 summary = await analyze_events(store.events[:20])
                 if summary:
@@ -508,15 +508,14 @@ async def get_maritime_zones():
 
 @app.post("/api/analysis/trigger")
 async def trigger_analysis():
-    """Manually trigger AI analysis."""
-    if not GEMINI_API_KEY:
-        return {"error": "Gemini API key not configured"}
+    """Manually trigger AI analysis (Gemini AI with statistical fallback)."""
     summary = await analyze_events(store.events[:20])
     if summary:
         store.ai_summaries.insert(0, summary)
         store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
+        store.source_status["gemini"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
         return summary.model_dump(mode="json")
-    return {"error": "Analysis failed"}
+    return {"error": "No events available for analysis"}
 
 
 # ──────────────────────────────────────────────
