@@ -46,9 +46,9 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
     : `منذ ${Math.floor(secondsAgo / 3600)} س`;
 
   return (
-    <nav className="fixed top-[28px] sm:top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50">
+    <nav className="fixed top-[28px] sm:top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50 pm-navbar">
       <div className="max-w-[1920px] mx-auto px-3 sm:px-4">
-        <div className="flex items-center justify-between h-12 sm:h-14">
+        <div className="flex items-center justify-between h-12 sm:h-14 pm-navbar-inner">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center">
@@ -61,7 +61,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
           </Link>
 
           {/* Desktop Nav */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center gap-1 pm-hide">
             {navLinks.map(link => {
               const Icon = link.icon;
               const isActive = location.pathname === link.path;
@@ -93,7 +93,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             </div>
 
             {/* Live update timer */}
-            <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800/50 text-[10px] text-gray-400">
+            <div className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full bg-gray-800/50 text-[10px] text-gray-400 pm-hide">
               <Clock className="w-3 h-3" />
               <span>{timerText}</span>
             </div>
@@ -112,7 +112,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
                 <span className="text-[10px] font-bold text-green-400">+{newEventCount}</span>
               </span>
             )}
-            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30">
+            <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30 pm-hide">
               <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
               <span className="text-[11px] font-semibold text-red-400">LIVE</span>
             </div>

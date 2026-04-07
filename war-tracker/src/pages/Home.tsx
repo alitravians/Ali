@@ -52,7 +52,7 @@ export default function Home() {
           </div>
 
           {/* Indicators */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-8 pm-grid-2">
             {indicators.map(ind => (
               <IndicatorCard key={ind.id} indicator={ind} />
             ))}
@@ -62,7 +62,7 @@ export default function Home() {
 
       {/* Map Preview + Breaking Events */}
       <section className="max-w-7xl mx-auto px-3 sm:px-4 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pm-grid-single">
           {/* Map */}
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-3">
@@ -107,7 +107,7 @@ export default function Home() {
       {/* Features */}
       <section className="max-w-7xl mx-auto px-3 sm:px-4 pb-12">
         <h2 className="text-base sm:text-lg font-bold text-white text-center mb-6 sm:mb-8">مزايا المنصة</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pm-grid-2">
           {[
             { icon: Radio, title: 'تتبع مباشر', desc: 'تحديثات فورية لحظة بلحظة بدون تحديث الصفحة', color: 'red' },
             { icon: Brain, title: 'تحليلات AI', desc: 'تحليلات ذكية بالذكاء الاصطناعي مع كشف التضارب', color: 'purple' },

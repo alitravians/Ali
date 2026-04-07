@@ -473,3 +473,79 @@ body {
 .loading-bar {
   animation: loadingBar 2.5s ease-in-out infinite;
 }
+
+/* ══ Phone Mode Overrides ══ */
+/* When phone-mode is active, force mobile-like layout regardless of viewport */
+
+.phone-mode body {
+  overflow-x: hidden;
+}
+
+/* Constrain main layout to mobile width */
+.phone-mode .phone-mode-container {
+  max-width: 480px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Force single column on dashboard grid */
+.phone-mode .pm-grid-single {
+  grid-template-columns: 1fr !important;
+}
+
+/* Force 3-column stats grid */
+.phone-mode .pm-grid-stats {
+  grid-template-columns: repeat(3, 1fr) !important;
+}
+
+/* Hide elements in phone mode */
+.phone-mode .pm-hide {
+  display: none !important;
+}
+
+/* Force smaller text */
+.phone-mode .pm-text-sm {
+  font-size: 0.875rem !important;
+}
+.phone-mode .pm-text-xs {
+  font-size: 0.75rem !important;
+}
+
+/* Force smaller padding */
+.phone-mode .pm-px-3 {
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
+}
+
+/* Force ticker to mobile size */
+.phone-mode .pm-ticker {
+  height: 1.75rem !important;
+}
+
+/* Force navbar to mobile size */
+.phone-mode .pm-navbar {
+  top: 28px !important;
+}
+.phone-mode .pm-navbar-inner {
+  height: 3rem !important;
+}
+
+/* Force main content padding for phone mode */
+.phone-mode .pm-main {
+  padding-top: 76px !important;
+}
+
+/* Force 2-col grid on home features */
+.phone-mode .pm-grid-2 {
+  grid-template-columns: repeat(2, 1fr) !important;
+}
+
+/* Force smaller map height */
+.phone-mode .pm-map {
+  height: min(400px, 50vh) !important;
+}
+
+/* Phone mode indicator glow */
+.phone-mode .pm-toggle-btn {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
+}

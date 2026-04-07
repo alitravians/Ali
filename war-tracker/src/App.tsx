@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import { LiveDataProvider } from './context/LiveDataContext';
+import { PhoneModeProvider } from './context/PhoneModeContext';
 import Layout from './components/layout/Layout';
 import Home from './pages/Home';
 import LiveTracking from './pages/LiveTracking';
@@ -11,6 +12,7 @@ import Admin from './pages/Admin';
 
 export default function App() {
   return (
+    <PhoneModeProvider>
     <LiveDataProvider>
       <Routes>
         <Route element={<Layout />}>
@@ -25,5 +27,6 @@ export default function App() {
         </Route>
       </Routes>
     </LiveDataProvider>
+    </PhoneModeProvider>
   );
 }

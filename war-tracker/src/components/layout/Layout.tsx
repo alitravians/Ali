@@ -5,6 +5,7 @@ import Sidebar from './Sidebar';
 import BreakingTicker from './BreakingTicker';
 import FooterStats from './FooterStats';
 import LoadingScreen from '../shared/LoadingScreen';
+import PhoneModeToggle from '../shared/PhoneModeToggle';
 import { useLiveData } from '../../context/LiveDataContext';
 
 export default function Layout() {
@@ -23,15 +24,16 @@ export default function Layout() {
   }, [connectionStatus, events.length]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-200 font-[Cairo] flex flex-col">
+    <div className="min-h-screen bg-[#0a0a0f] text-gray-200 font-[Cairo] flex flex-col phone-mode-container">
       {showLoading && <LoadingScreen />}
       <BreakingTicker />
       <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="pt-[76px] sm:pt-[88px] md:pr-0 transition-all duration-300 flex-1">
+      <main className="pt-[76px] sm:pt-[88px] md:pr-0 transition-all duration-300 flex-1 pm-main">
         <Outlet />
       </main>
       <FooterStats />
+      <PhoneModeToggle />
     </div>
   );
 }
