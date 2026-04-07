@@ -1,0 +1,124 @@
+import { Link } from 'react-router-dom';
+import { Radio, Map, Bell, ArrowLeft, Zap, Eye, Brain, TrendingUp } from 'lucide-react';
+import { useLiveData } from '../context/LiveDataContext';
+import IndicatorCard from '../components/shared/IndicatorCard';
+import EventCard from '../components/shared/EventCard';
+import LiveMap from '../components/map/LiveMap';
+
+export default function Home() {
+  const { events, indicators, alerts } = useLiveData();
+  const breakingEvents = events.filter(e => e.isBreaking).slice(0, 4);
+  const unreadAlerts = alerts.filter(a => !a.isRead).length;
+
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-b from-red-900/10 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_70%)]" />
+
+        <div className="relative max-w-7xl mx-auto px-4 py-12 md:py-16">
+          <div className="text-center mb-10">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full mb-4">
+              <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
+              <span className="text-xs font-semibold text-red-400">تتبع مباشر • LIVE</span>
+            </div>
+
+            <h1 className="text-3xl md:text-5xl font-black text-white mb-4 leading-tight">
+              مركز التتبع المباشر
+              <br />
+              <span className="bg-gradient-to-l from-red-400 via-orange-400 to-yellow-400 bg-clip-text text-transparent">
+                حرب إيران وإسرائيل
+              </span>
+            </h1>
+
+            <p className="text-sm md:text-base text-gray-400 max-w-2xl mx-auto leading-relaxed mb-6">
+              منصة تحليل وتتبع مباشر للأحداث لحظة بلحظة، مع خريطة تفاعلية وتحليلات ذكية
+              بالذكاء الاصطناعي وتنظيم احترافي للأحداث
+            </p>
+
+            <Link
+              to="/live"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-l from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white rounded-xl font-bold text-sm transition-all shadow-lg shadow-red-500/20 hover:shadow-red-500/40"
+            >
+              <Radio className="w-4 h-4" />
+              ادخل الوضع المباشر
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {/* Indicators */}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
+            {indicators.map(ind => (
+              <IndicatorCard key={ind.id} indicator={ind} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Map Preview + Breaking Events */}
+      <section className="max-w-7xl mx-auto px-4 pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Map */}
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Map className="w-4 h-4 text-blue-400" />
+                الخريطة المباشرة
+              </h2>
+              <Link to="/live" className="text-[11px] text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                عرض كامل <ArrowLeft className="w-3 h-3" />
+              </Link>
+            </div>
+            <LiveMap events={events} height="400px" showControls={false} />
+          </div>
+
+          {/* Breaking Events */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Zap className="w-4 h-4 text-red-400" />
+                أهم الأحداث الآن
+              </h2>
+              {unreadAlerts > 0 && (
+                <Link to="/alerts" className="flex items-center gap-1 px-2 py-0.5 bg-red-500/15 border border-red-500/30 rounded-full">
+                  <Bell className="w-3 h-3 text-red-400" />
+                  <span className="text-[10px] font-bold text-red-400">{unreadAlerts}</span>
+                </Link>
+              )}
+            </div>
+            <div className="space-y-3">
+              {breakingEvents.map(event => (
+                <EventCard key={event.id} event={event} compact />
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Features */}
+      <section className="max-w-7xl mx-auto px-4 pb-12">
+        <h2 className="text-lg font-bold text-white text-center mb-8">مزايا المنصة</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: Radio, title: 'تتبع مباشر', desc: 'تحديثات فورية لحظة بلحظة بدون تحديث الصفحة', color: 'red' },
+            { icon: Brain, title: 'تحليلات AI', desc: 'تحليلات ذكية بالذكاء الاصطناعي مع كشف التضارب', color: 'purple' },
+            { icon: Eye, title: 'تقييم الثقة', desc: 'تمييز دقيق بين الأخبار المؤكدة وغير المؤكدة', color: 'green' },
+            { icon: TrendingUp, title: 'مؤشرات حية', desc: 'مؤشرات ديناميكية لحالة الوضع العام', color: 'blue' },
+          ].map((feat, i) => {
+            const Icon = feat.icon;
+            return (
+              <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-5 hover:border-gray-700 transition-all group">
+                <div className={`w-10 h-10 rounded-xl bg-${feat.color}-500/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
+                  <Icon className={`w-5 h-5 text-${feat.color}-400`} />
+                </div>
+                <h3 className="text-sm font-bold text-white mb-1">{feat.title}</h3>
+                <p className="text-xs text-gray-400 leading-relaxed">{feat.desc}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}

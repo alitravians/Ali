@@ -1,0 +1,465 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+
+@theme {
+  --font-cairo: 'Cairo', sans-serif;
+  --color-primary: #3b82f6;
+  --color-danger: #ef4444;
+  --color-warning: #f59e0b;
+  --color-success: #22c55e;
+  --color-info: #06b6d4;
+  --color-dark-900: #0a0a0f;
+  --color-dark-800: #12121a;
+  --color-dark-700: #1a1a25;
+  --color-dark-600: #252530;
+  --color-dark-500: #30303d;
+}
+
+* {
+  font-family: 'Cairo', sans-serif;
+}
+
+body {
+  background-color: #0a0a0f;
+  color: #e2e8f0;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #12121a;
+}
+::-webkit-scrollbar-thumb {
+  background: #30303d;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
+
+.ticker-scroll {
+  animation: ticker 30s linear infinite;
+}
+@keyframes ticker {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.5); }
+}
+
+.glow-red {
+  box-shadow: 0 0 15px rgba(239, 68, 68, 0.3);
+}
+.glow-blue {
+  box-shadow: 0 0 15px rgba(59, 130, 246, 0.3);
+}
+.glow-green {
+  box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+}
+
+.leaflet-container {
+  background: #0a1628 !important;
+  border-radius: 0.75rem;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(0.85) contrast(1.15) saturate(1.1);
+}
+
+.leaflet-popup-content-wrapper {
+  background: rgba(10, 15, 30, 0.95) !important;
+  color: #e2e8f0 !important;
+  border-radius: 12px !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 0 20px rgba(59, 130, 246, 0.1) !important;
+}
+.leaflet-popup-tip {
+  background: rgba(10, 15, 30, 0.95) !important;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+
+/* Event popup styling */
+.event-popup {
+  font-family: 'Cairo', sans-serif;
+  padding: 12px 14px;
+  text-align: right;
+}
+.popup-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.popup-category {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+.popup-breaking {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  animation: pulse-text 2s ease-in-out infinite;
+}
+.popup-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 4px;
+  line-height: 1.5;
+}
+.popup-desc {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+.popup-meta {
+  display: flex;
+  gap: 6px;
+  font-size: 10px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+.popup-location {
+  font-size: 10px;
+  color: #3b82f6;
+  margin-bottom: 4px;
+}
+.popup-importance {
+  font-size: 10px;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+  padding: 6px 8px;
+  border-radius: 8px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+@keyframes pulse-text {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Custom marker container */
+.custom-marker-container {
+  background: none !important;
+  border: none !important;
+}
+
+/* Event marker - standard pulsing */
+.event-marker, .strike-marker {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marker-core {
+  position: absolute;
+  width: var(--marker-size);
+  height: var(--marker-size);
+  border-radius: 50%;
+  background: var(--marker-color);
+  box-shadow: 0 0 12px var(--marker-color), 0 0 24px var(--marker-color);
+  z-index: 3;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.marker-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--marker-color);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Standard event - gentle pulse */
+.event-marker .marker-ring.ring-1 {
+  width: calc(var(--marker-size) * 2);
+  height: calc(var(--marker-size) * 2);
+  animation: ring-pulse 3s ease-out infinite;
+  opacity: 0.4;
+}
+.event-marker .marker-ring.ring-2 {
+  width: calc(var(--marker-size) * 2.8);
+  height: calc(var(--marker-size) * 2.8);
+  animation: ring-pulse 3s ease-out infinite 0.5s;
+  opacity: 0.2;
+}
+
+/* Strike marker - aggressive radar pulse */
+.strike-marker .marker-core {
+  animation: strike-glow 1.5s ease-in-out infinite;
+}
+.strike-marker .marker-ring.ring-1 {
+  width: calc(var(--marker-size) * 2);
+  height: calc(var(--marker-size) * 2);
+  animation: strike-ring 2s ease-out infinite;
+  border-color: var(--marker-color);
+}
+.strike-marker .marker-ring.ring-2 {
+  width: calc(var(--marker-size) * 3);
+  height: calc(var(--marker-size) * 3);
+  animation: strike-ring 2s ease-out infinite 0.4s;
+  border-color: var(--marker-color);
+}
+.strike-marker .marker-ring.ring-3 {
+  width: calc(var(--marker-size) * 4);
+  height: calc(var(--marker-size) * 4);
+  animation: strike-ring 2s ease-out infinite 0.8s;
+  border-color: var(--marker-color);
+}
+
+/* Breaking event glow */
+.marker-breaking-glow {
+  position: absolute;
+  width: calc(var(--marker-size) * 5);
+  height: calc(var(--marker-size) * 5);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--marker-color) 0%, transparent 70%);
+  opacity: 0.15;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  animation: glow-breathe 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes ring-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes strike-ring {
+  0% {
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.8;
+    border-width: 3px;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 0;
+    border-width: 1px;
+  }
+}
+
+@keyframes strike-glow {
+  0%, 100% {
+    box-shadow: 0 0 12px var(--marker-color), 0 0 24px var(--marker-color);
+    transform: translate(-50%, -50%) scale(1);
+  }
+  50% {
+    box-shadow: 0 0 20px var(--marker-color), 0 0 40px var(--marker-color), 0 0 60px var(--marker-color);
+    transform: translate(-50%, -50%) scale(1.15);
+  }
+}
+
+@keyframes glow-breathe {
+  0%, 100% { opacity: 0.1; transform: translate(-50%, -50%) scale(1); }
+  50% { opacity: 0.25; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* Map container overlay gradient for depth */
+.map-container-wrapper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 500;
+  border-radius: inherit;
+  box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.4);
+}
+
+.gradient-border {
+  position: relative;
+}
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, #3b82f6, #ef4444, #f59e0b);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.score-bar {
+  transition: width 1s ease-in-out;
+}
+
+/* ── Vessel 3D markers ── */
+.vessel-marker-container {
+  background: none !important;
+  border: none !important;
+}
+
+.vessel-marker-3d {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vessel-body {
+  position: relative;
+  z-index: 2;
+}
+
+.vessel-wake {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--vessel-color);
+  opacity: 0;
+  animation: vessel-pulse 2s ease-out infinite;
+  z-index: 1;
+}
+
+@keyframes vessel-pulse {
+  0% { opacity: 0.4; transform: scale(1); }
+  100% { opacity: 0; transform: scale(4); }
+}
+
+/* Vessel popup styles */
+.vessel-custom-popup .leaflet-popup-content-wrapper {
+  background: rgba(10, 10, 15, 0.95) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 20px rgba(6, 182, 212, 0.1) !important;
+  color: #e2e8f0 !important;
+  padding: 0 !important;
+}
+
+.vessel-custom-popup .leaflet-popup-tip {
+  background: rgba(10, 10, 15, 0.95) !important;
+  border: 1px solid rgba(6, 182, 212, 0.3) !important;
+}
+
+.vessel-popup {
+  padding: 12px;
+  font-family: 'Cairo', sans-serif;
+}
+
+.vessel-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.vessel-type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.vessel-status-badge {
+  font-size: 10px;
+  color: #94a3b8;
+  padding: 2px 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+}
+
+.vessel-name {
+  font-size: 13px;
+  font-weight: 800;
+  color: white;
+  margin: 4px 0 8px;
+}
+
+.vessel-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.vessel-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+}
+
+.vessel-info-label {
+  font-size: 9px;
+  color: #64748b;
+}
+
+.vessel-info-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.vessel-mmsi {
+  font-size: 9px;
+  color: #475569;
+  margin-top: 8px;
+  text-align: center;
+  letter-spacing: 0.5px;
+}
+
+/* ── Modal animations ── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(100%); }
+}
+.animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+.animate-modalIn { animation: modalIn 0.3s ease-out; }
+.animate-slideUp { animation: slideUp 0.3s ease-out; }
+.animate-toastIn { animation: toastIn 0.3s ease-out; }
+.animate-toastOut { animation: toastOut 0.3s ease-out; }
