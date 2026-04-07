@@ -2,16 +2,13 @@
 import google.generativeai as genai
 import json
 import asyncio
+import httpx
+from urllib.parse import quote
 from datetime import datetime, timezone
 from typing import Optional
 from models import TrackerEvent, AISummary
 from config import GEMINI_API_KEY
 
-try:
-    from deep_translator import GoogleTranslator
-    _has_deep_translator = True
-except ImportError:
-    _has_deep_translator = False
 
 _model = None
 # Track if Gemini is rate-limited so we skip it and go straight to fallback
@@ -36,14 +33,22 @@ def _is_arabic(text: str) -> bool:
     return arabic_chars / total_alpha > 0.5
 
 
-def _translate_with_google(text: str) -> str:
-    """Translate text to Arabic using free Google Translate."""
-    if not _has_deep_translator or not text:
+async def _google_translate(text: str, target: str = "ar") -> str:
+    """Translate text using Google Translate's free API via httpx."""
+    if not text or len(text.strip()) == 0:
         return text
     try:
-        return GoogleTranslator(source='auto', target='ar').translate(text)
-    except Exception:
-        return text
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={target}&dt=t&q={quote(text)}"
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                data = resp.json()
+                # Response format: [[["translated text","original text",...],...],...]
+                if data and data[0]:
+                    return "".join(part[0] for part in data[0] if part[0])
+    except Exception as e:
+        print(f"[GoogleTranslate] Error: {e}")
+    return text
 
 
 async def _fallback_translate_batch(events: list, indices_and_events: list) -> int:
@@ -51,19 +56,15 @@ async def _fallback_translate_batch(events: list, indices_and_events: list) -> i
     
     Returns the number of successfully translated events.
     """
-    if not _has_deep_translator:
-        print("[Translation] deep-translator not available, skipping fallback")
-        return 0
-
     translated = 0
     for original_idx, ev in indices_and_events:
         try:
-            ar_title = await asyncio.to_thread(_translate_with_google, ev.title)
-            if ar_title and ar_title != ev.title:
+            ar_title = await _google_translate(ev.title)
+            if ar_title and ar_title != ev.title and _is_arabic(ar_title):
                 events[original_idx].titleAr = ar_title
                 translated += 1
-            # Small delay to avoid hitting Google rate limits
-            await asyncio.sleep(0.3)
+            # Small delay to avoid hitting rate limits
+            await asyncio.sleep(0.2)
         except Exception:
             pass
 
@@ -106,11 +107,11 @@ Description: {event.description}"""
             else:
                 print(f"[Gemini] Translation error: {e}")
 
-    # Fallback: Google Translate (free, no API key needed)
-    ar_title = await asyncio.to_thread(_translate_with_google, event.title)
+    # Fallback: Google Translate (free, no API key needed, uses httpx)
+    ar_title = await _google_translate(event.title)
     if ar_title and ar_title != event.title:
         event.titleAr = ar_title
-    ar_desc = await asyncio.to_thread(_translate_with_google, event.description)
+    ar_desc = await _google_translate(event.description)
     if ar_desc and ar_desc != event.description:
         event.descriptionAr = ar_desc
 
@@ -137,7 +138,6 @@ async def batch_translate_events(events: list[TrackerEvent]) -> list[TrackerEven
     # Try Gemini batch translation first (if available and not rate-limited)
     if model and not _gemini_rate_limited:
         batch_size = 20
-        gemini_success = True
         for batch_start in range(0, len(needs_translation), batch_size):
             batch = needs_translation[batch_start:batch_start + batch_size]
             titles_list = "\n".join(f"{j+1}. {ev.title}" for j, (_, ev) in enumerate(batch))
@@ -168,7 +168,6 @@ Return ONLY a JSON array of objects, each with "n" (number) and "ar" (Arabic tra
                 if "429" in str(e) or "quota" in str(e).lower():
                     _gemini_rate_limited = True
                     print(f"[Gemini] Rate limited, switching to Google Translate for remaining")
-                    gemini_success = False
                     # Translate remaining untranslated with Google Translate
                     remaining = [(i, ev) for i, ev in needs_translation if not _is_arabic(events[i].titleAr)]
                     await _fallback_translate_batch(events, remaining)
