@@ -79,58 +79,92 @@ def _compute_trust(num_sources: int, source_domain: str) -> tuple[TrustLevel, st
         return TrustLevel.low, "Unverified report", "تقرير غير مؤكد"
 
 
+# Relevance keywords — an article must mention at least one to be kept
+_RELEVANCE_TERMS = {
+    # Countries/regions
+    "iran", "israel", "lebanon", "hezbollah", "hamas", "houthi",
+    "syria", "iraq", "yemen", "palestine", "gaza", "west bank",
+    "bahrain", "kuwait", "qatar", "uae", "emirates", "saudi",
+    "jordan", "oman", "tehran", "isfahan", "tel aviv", "haifa",
+    "beirut", "damascus", "baghdad", "sanaa", "aden", "aleppo",
+    "erbil", "basra", "manama", "doha", "riyadh", "jeddah",
+    "abu dhabi", "dubai", "amman", "muscat", "jerusalem", "ramallah",
+    "hormuz", "red sea", "suez", "middle east", "mideast",
+    # Arabic
+    "إيران", "إسرائيل", "حزب الله", "حماس", "غزة", "البحرين",
+    "اليمن", "سوريا", "العراق", "لبنان", "فلسطين", "السعودية",
+    # Military terms specific to this conflict
+    "irgc", "idf", "iron dome", "القبة الحديدية", "الحرس الثوري",
+}
+
+
+def _is_relevant(title: str) -> bool:
+    """Check if article is relevant to Middle East conflict."""
+    title_lower = title.lower()
+    return any(term in title_lower for term in _RELEVANCE_TERMS)
+
+
 async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
     """Fetch recent conflict events from GDELT GKG/DOC API."""
     events: list[TrackerEvent] = []
 
-    # Try multiple query strategies
+    # Focused queries — each must include a Middle East location + conflict term
     queries = [
-        '(iran OR israel) (military OR missile OR strike OR attack)',
-        'iran israel conflict',
-        '(bahrain OR manama) (siren OR alert OR military OR security OR conflict OR missile OR attack OR warning)',
-        '(kuwait OR qatar OR doha) (military OR security OR conflict)',
-        '(yemen OR houthi OR sanaa) (military OR strike OR attack)',
-        '(lebanon OR hezbollah OR beirut) (military OR strike OR attack)',
-        '(syria OR damascus) (military OR conflict OR strike)',
-        '(iraq OR baghdad) (military OR security OR attack)',
-        '(gaza OR palestine OR west bank) (military OR strike OR conflict)',
-        '(saudi OR riyadh) (military OR security OR iran)',
-        '(uae OR emirates OR abu dhabi) (military OR security OR iran)',
-        " OR ".join(CONFLICT_KEYWORDS[:10]),
+        '(iran OR tehran OR isfahan) (military OR missile OR strike OR attack OR nuclear OR war)',
+        '(israel OR "tel aviv" OR haifa OR jerusalem) (military OR missile OR strike OR attack OR idf)',
+        '(bahrain OR manama) (siren OR alert OR military OR attack OR warning OR conflict)',
+        '(yemen OR houthi OR sanaa) (military OR strike OR attack OR missile)',
+        '(lebanon OR hezbollah OR beirut) (military OR strike OR attack OR missile)',
+        '(gaza OR palestine OR hamas) (military OR strike OR conflict)',
+        '(syria OR damascus) (military OR conflict OR strike OR attack)',
+        '(iraq OR baghdad) (military OR attack OR security)',
+        '(hormuz OR "red sea" OR suez) (military OR shipping OR threat OR attack)',
+        '("middle east" OR "saudi" OR qatar OR kuwait OR uae) (military OR conflict OR iran)',
     ]
 
-    articles = []
-    for keywords_query in queries:
-        url = f"{GDELT_BASE_URL}/doc/doc"
-        params = {
-            "query": keywords_query,
-            "mode": "ArtList",
-            "maxrecords": str(max_results),
-            "format": "json",
-            "sort": "DateDesc",
-        }
+    all_articles = []
+    seen_urls = set()
+    headers = {"User-Agent": "WarScope/1.0 (conflict-tracker; research)"}
 
-        try:
-            headers = {"User-Agent": "WarScope/1.0 (conflict-tracker; research)"}
-            async with httpx.AsyncClient(timeout=45.0, follow_redirects=True, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=45.0, follow_redirects=True, headers=headers) as client:
+        for keywords_query in queries:
+            url = f"{GDELT_BASE_URL}/doc/doc"
+            params = {
+                "query": keywords_query,
+                "mode": "ArtList",
+                "maxrecords": "15",
+                "format": "json",
+                "sort": "DateDesc",
+            }
+
+            try:
                 resp = await client.get(url, params=params)
                 resp.raise_for_status()
 
-                # Check if response is actually JSON
                 content_type = resp.headers.get('content-type', '')
                 text = resp.text.strip()
                 if not text or text.startswith('<') or 'text/html' in content_type:
-                    print(f"[GDELT] Got HTML/empty response for query: {keywords_query[:40]}...")
                     continue
 
                 data = resp.json()
                 articles = data.get("articles", [])
-                if articles:
-                    print(f"[GDELT] Got {len(articles)} articles from query: {keywords_query[:40]}...")
-                    break
-        except Exception as e:
-            print(f"[GDELT] Query failed ({keywords_query[:30]}...): {e}")
-            continue
+                for art in articles:
+                    art_url = art.get("url", "")
+                    if art_url not in seen_urls:
+                        seen_urls.add(art_url)
+                        all_articles.append(art)
+
+            except Exception as e:
+                print(f"[GDELT] Query failed ({keywords_query[:30]}...): {e}")
+                continue
+
+            # Stop once we have enough articles
+            if len(all_articles) >= max_results * 2:
+                break
+
+    # Filter for relevance — remove articles that don't mention any Middle East entity
+    articles = [a for a in all_articles if _is_relevant(a.get("title", ""))]
+    print(f"[GDELT] {len(all_articles)} raw → {len(articles)} relevant articles")
 
     if not articles:
         return events
@@ -157,8 +191,8 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
             # Detect category
             category = _detect_category(title)
 
-            # Determine location (GDELT doesn't always provide coordinates in doc API)
-            location_name = source_country or "Middle East"
+            # Determine location from title content (not source_country which is the publisher's country)
+            location_name = _extract_location(title) or "Middle East"
             location_ar = _get_city_ar(location_name)
 
             # Default coordinates for the region if not available
@@ -201,6 +235,48 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
         print(f"[GDELT] Error processing articles: {e}")
 
     return events
+
+
+def _extract_location(title: str) -> str:
+    """Extract the most specific Middle East location mentioned in a title."""
+    # Order: cities first (most specific), then countries (least specific)
+    LOCATIONS = [
+        # Cities
+        ("tehran", "Tehran"), ("tel aviv", "Tel Aviv"), ("haifa", "Haifa"),
+        ("isfahan", "Isfahan"), ("beirut", "Beirut"), ("damascus", "Damascus"),
+        ("jerusalem", "Jerusalem"), ("baghdad", "Baghdad"), ("gaza", "Gaza"),
+        ("ramallah", "Ramallah"), ("manama", "Manama"), ("doha", "Doha"),
+        ("riyadh", "Riyadh"), ("jeddah", "Jeddah"), ("abu dhabi", "Abu Dhabi"),
+        ("dubai", "Dubai"), ("amman", "Amman"), ("muscat", "Muscat"),
+        ("sanaa", "Sanaa"), ("aden", "Aden"), ("aleppo", "Aleppo"),
+        ("erbil", "Erbil"), ("basra", "Basra"), ("tabriz", "Tabriz"),
+        ("shiraz", "Shiraz"), ("mashhad", "Mashhad"), ("bushehr", "Bushehr"),
+        ("dimona", "Dimona"),
+        # Waterways
+        ("hormuz", "Hormuz"), ("red sea", "Red Sea"), ("suez", "Suez"),
+        ("bab el-mandeb", "Red Sea"),
+        # Countries
+        ("iran", "Iran"), ("israel", "Israel"), ("lebanon", "Lebanon"),
+        ("syria", "Syria"), ("iraq", "Iraq"), ("yemen", "Yemen"),
+        ("bahrain", "Bahrain"), ("qatar", "Qatar"), ("kuwait", "Kuwait"),
+        ("saudi", "Saudi Arabia"), ("emirates", "UAE"), ("uae", "UAE"),
+        ("jordan", "Jordan"), ("oman", "Oman"), ("palestine", "Palestine"),
+        ("west bank", "West Bank"),
+        # Arabic
+        ("إيران", "Iran"), ("إسرائيل", "Israel"), ("لبنان", "Lebanon"),
+        ("سوريا", "Syria"), ("العراق", "Iraq"), ("اليمن", "Yemen"),
+        ("البحرين", "Bahrain"), ("غزة", "Gaza"), ("القدس", "Jerusalem"),
+        ("طهران", "Tehran"), ("بيروت", "Beirut"), ("دمشق", "Damascus"),
+        ("بغداد", "Baghdad"), ("صنعاء", "Sanaa"), ("الرياض", "Riyadh"),
+        ("فلسطين", "Palestine"), ("السعودية", "Saudi Arabia"),
+        ("حزب الله", "Lebanon"), ("حماس", "Gaza"), ("الحوثي", "Yemen"),
+        ("هرمز", "Hormuz"),
+    ]
+    title_lower = title.lower()
+    for term, name in LOCATIONS:
+        if term in title_lower:
+            return name
+    return ""
 
 
 def _estimate_coords(title: str, country: str) -> tuple[float, float]:

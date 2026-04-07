@@ -15,7 +15,7 @@ OPENSKY_BASE_URL = "https://opensky-network.org/api"
 
 # Polling intervals (seconds)
 GDELT_POLL_INTERVAL = 60   # 1 minute
-NEWS_POLL_INTERVAL = 120   # 2 minutes
+NEWS_POLL_INTERVAL = 900   # 15 minutes (conserve free tier: 100 requests/day)
 OPENSKY_POLL_INTERVAL = 60 # 60 seconds (rate limit friendly)
 AI_ANALYSIS_INTERVAL = 900 # 15 minutes
 
@@ -23,6 +23,7 @@ AI_ANALYSIS_INTERVAL = 900 # 15 minutes
 FRONTEND_ORIGINS = [
     "https://dist-mvivermt.devinapps.com",
     "https://dist-danynpxi.devinapps.com",
+    "https://dist-mu-taupe-70.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
 ]

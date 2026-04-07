@@ -21,20 +21,10 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
 
     events: list[TrackerEvent] = []
 
+    # Use fewer queries to conserve free tier quota (100 requests/day)
     queries = [
-        "Iran Israel conflict",
-        "Middle East military strike",
-        "Hezbollah missile Lebanon",
-        "Iran nuclear",
-        "Israel defense Gaza",
-        "Yemen Houthi attack",
-        "Iraq Baghdad military",
-        "Syria conflict strike",
-        "Bahrain siren alert military",
-        "Kuwait Qatar security",
-        "Saudi Arabia UAE Iran",
-        "Palestine Gaza West Bank",
-        "Hormuz Red Sea shipping",
+        "Iran Israel military strike missile attack",
+        "Middle East conflict Bahrain Yemen Houthi Gaza Hezbollah",
     ]
 
     try:
@@ -45,7 +35,7 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
                     "apiKey": NEWSAPI_KEY,
                     "language": "en",
                     "sortBy": "publishedAt",
-                    "pageSize": str(max_results // len(queries)),
+                    "pageSize": str(min(15, max_results // len(queries))),
                     "domains": TRUSTED_DOMAINS,
                 }
                 resp = await client.get(NEWSAPI_URL, params=params)
