@@ -190,6 +190,7 @@ async def poll_gdelt():
                 await ws_manager.broadcast({
                     "type": "events_update",
                     "events": [e.model_dump(mode="json") for e in store.events[:50]],
+                    "totalEvents": len(store.events),
                     "indicators": [i.model_dump(mode="json") for i in store.indicators],
                     "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
                 })
@@ -255,6 +256,7 @@ async def poll_news():
                 await ws_manager.broadcast({
                     "type": "events_update",
                     "events": [e.model_dump(mode="json") for e in store.events[:50]],
+                    "totalEvents": len(store.events),
                     "indicators": [i.model_dump(mode="json") for i in store.indicators],
                     "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
                 })
@@ -426,6 +428,7 @@ async def trigger_analysis():
     summary = await analyze_events(store.events[:20])
     if summary:
         store.ai_summaries.insert(0, summary)
+        store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
         return summary.model_dump(mode="json")
     return {"error": "Analysis failed"}
 
@@ -442,6 +445,7 @@ async def websocket_endpoint(ws: WebSocket):
         await ws.send_json({
             "type": "initial_data",
             "events": [e.model_dump(mode="json") for e in store.events[:50]],
+            "totalEvents": len(store.events),
             "indicators": [i.model_dump(mode="json") for i in store.indicators],
             "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
             "aircraft": [a.model_dump(mode="json") for a in store.aircraft[:200]],

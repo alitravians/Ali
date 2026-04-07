@@ -66,11 +66,14 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         const newEvents = (data.events || []).map(parseEvent);
         if (newEvents.length > 0) {
           setEvents(newEvents);
-          const diff = newEvents.length - prevEventCountRef.current;
+          // Use totalEvents from backend (not array length) to detect new events
+          // because the backend caps the broadcast at 50 events
+          const totalFromBackend = data.totalEvents ?? newEvents.length;
+          const diff = totalFromBackend - prevEventCountRef.current;
           if (diff > 0 && data.type === 'events_update') {
             setNewEventCount(prev => prev + diff);
           }
-          prevEventCountRef.current = newEvents.length;
+          prevEventCountRef.current = totalFromBackend;
           setLastUpdate(new Date());
         }
 
