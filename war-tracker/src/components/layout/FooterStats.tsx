@@ -38,6 +38,48 @@ export default function FooterStats() {
 
   return (
     <footer className="border-t border-gray-800/50 bg-[#0a0a0f]/80 backdrop-blur-sm">
+      {/* Developer Signature — Holographic Spotlight */}
+      <div className="dev-signature">
+        {/* Ambient glow */}
+        <div className="dev-sig-ambient" aria-hidden="true" />
+
+        <div className="max-w-[1920px] mx-auto flex flex-col items-center px-4 py-8 sm:py-12 relative z-10">
+          {/* Decorative separator */}
+          <div className="flex items-center gap-3 mb-6 sm:mb-8 w-44 sm:w-56">
+            <span className="flex-1 h-px bg-gradient-to-r from-transparent via-indigo-500/30 to-transparent" />
+            <span className="dev-sig-diamond" />
+            <span className="flex-1 h-px bg-gradient-to-r from-transparent via-purple-500/30 to-transparent" />
+          </div>
+
+          {/* Avatar with rotating ring */}
+          <div className="dev-sig-avatar-wrap">
+            <div className="dev-sig-avatar-ring" />
+            <img
+              src="/developer-ali.png"
+              alt="Ali — Developer"
+              className="dev-sig-avatar-img"
+              width={120}
+              height={120}
+              loading="lazy"
+            />
+          </div>
+
+          {/* Credit text */}
+          <p className="text-[11px] sm:text-xs text-gray-400/70 tracking-wide mt-5 sm:mt-6 font-light">
+            تم تصميم و برمجة هذا التطبيق بواسطة
+          </p>
+
+          {/* Holographic name */}
+          <span className="dev-sig-name">Ali</span>
+
+          {/* Copyright */}
+          <p className="text-[9px] sm:text-[10px] text-gray-600/50 tracking-[0.2em] mt-3">
+            جميع الحقوق محفوظة &copy; 2026
+          </p>
+        </div>
+      </div>
+
+      {/* Stats bar */}
       <div className="max-w-[1920px] mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between text-[9px] sm:text-[10px]">
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-1.5 text-gray-500">

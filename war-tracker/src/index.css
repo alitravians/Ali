@@ -557,3 +557,197 @@ body {
 .phone-mode .pm-toggle-btn {
   box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(99, 102, 241, 0.2);
 }
+
+/* ══ Premium Developer Signature — Holographic Spotlight ══ */
+
+.dev-signature {
+  position: relative;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  overflow: hidden;
+}
+
+/* Holographic shimmer sweep across signature */
+.dev-signature::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0.05) 50%,
+    rgba(255, 255, 255, 0.02) 55%,
+    transparent 60%
+  );
+  animation: shimmerSweep 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 20;
+}
+
+@keyframes shimmerSweep {
+  0% { left: -100%; }
+  40%, 100% { left: 200%; }
+}
+
+/* Ambient radial glow behind avatar */
+.dev-sig-ambient {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 40% 70% at 50% 45%,
+    rgba(99, 102, 241, 0.07) 0%,
+    rgba(139, 92, 246, 0.03) 40%,
+    transparent 70%
+  );
+  animation: ambientBreath 5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ambientBreath {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}
+
+/* Diamond separator accent */
+.dev-sig-diamond {
+  width: 7px;
+  height: 7px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  transform: rotate(45deg);
+  animation: diamondGlow 3s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes diamondGlow {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(99, 102, 241, 0.3);
+    opacity: 0.5;
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(99, 102, 241, 0.6), 0 0 28px rgba(139, 92, 246, 0.2);
+    opacity: 1;
+  }
+}
+
+/* Avatar container */
+.dev-sig-avatar-wrap {
+  position: relative;
+  width: 100px;
+  height: 100px;
+}
+
+/* Rotating conic-gradient ring */
+.dev-sig-avatar-ring {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #3b82f6,
+    #6366f1,
+    #8b5cf6,
+    #a855f7,
+    #ec4899,
+    #f43f5e,
+    #f59e0b,
+    #22c55e,
+    #3b82f6
+  );
+  animation: ringSpin 6s linear infinite;
+}
+
+/* Inner cutout to make ring hollow */
+.dev-sig-avatar-ring::after {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: #0a0a0f;
+}
+
+@keyframes ringSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Glow pulse behind avatar */
+.dev-sig-avatar-wrap::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+  animation: avatarGlow 4s ease-in-out infinite;
+  z-index: -1;
+}
+
+@keyframes avatarGlow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.1); }
+}
+
+/* Avatar image */
+.dev-sig-avatar-img {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+  z-index: 1;
+  border: 3px solid #0a0a0f;
+}
+
+/* Holographic animated name */
+.dev-sig-name {
+  font-size: 1.75rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin-top: 8px;
+  display: inline-block;
+  background: linear-gradient(
+    90deg,
+    #60a5fa 0%,
+    #818cf8 12%,
+    #a78bfa 24%,
+    #c084fc 36%,
+    #f472b6 48%,
+    #fb923c 60%,
+    #fbbf24 72%,
+    #34d399 84%,
+    #60a5fa 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: holoShift 4s linear infinite, nameFloat 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 14px rgba(99, 102, 241, 0.45));
+}
+
+@keyframes holoShift {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
+@keyframes nameFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Responsive: smaller avatar on mobile */
+@media (max-width: 640px) {
+  .dev-sig-avatar-wrap {
+    width: 80px;
+    height: 80px;
+  }
+  .dev-sig-name {
+    font-size: 1.4rem;
+  }
+  .dev-sig-diamond {
+    width: 5px;
+    height: 5px;
+  }
+}
