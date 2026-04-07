@@ -40,7 +40,7 @@ export default function LiveTracking() {
   const sortedEvents = [...filteredEvents].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
   const handleShareEvent = (event: TrackerEvent) => {
-    const url = `https://dist-mu-taupe-70.vercel.app/live?event=${event.id}`;
+    const url = `${window.location.origin}/live?event=${event.id}`;
     navigator.clipboard.writeText(url).then(() => {
       setShareToast('تم نسخ الرابط!');
       setTimeout(() => setShareToast(''), 2000);

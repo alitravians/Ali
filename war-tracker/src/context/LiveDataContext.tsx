@@ -148,20 +148,33 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
   // Also try REST API fetch on initial load for immediate data
   const fetchInitialData = useCallback(async () => {
-    try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/events?limit=100`);
-      if (resp.ok) {
-        const data = await resp.json();
-        const apiEvents = (data.events || []).map(parseEvent);
-        if (apiEvents.length > 0) {
-          setEvents(apiEvents);
-          prevEventCountRef.current = data.total ?? apiEvents.length;
-          setLastUpdate(new Date());
-          console.log(`[API] Fetched ${apiEvents.length} real events via REST`);
+    // Retry with exponential backoff for initial event load
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 10000);
+        const resp = await fetch(`${BACKEND_API_URL}/api/events?limit=100`, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (resp.ok) {
+          const data = await resp.json();
+          const apiEvents = (data.events || []).map(parseEvent);
+          if (apiEvents.length > 0) {
+            setEvents(apiEvents);
+            prevEventCountRef.current = data.total ?? apiEvents.length;
+            setLastUpdate(new Date());
+            console.log(`[API] Fetched ${apiEvents.length} real events via REST`);
+          }
+          break; // Success — stop retrying
         }
+        console.warn(`[API] REST fetch returned ${resp.status} (attempt ${attempt + 1}/${maxRetries})`);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : 'unknown error';
+        console.warn(`[API] REST fetch failed: ${errMsg} (attempt ${attempt + 1}/${maxRetries})`);
       }
-    } catch {
-      console.log('[API] REST fetch failed — waiting for WebSocket connection');
+      if (attempt < maxRetries - 1) {
+        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      }
     }
 
     // Fetch source status
@@ -174,7 +187,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      // silently ignore
+      console.warn('[API] Source status fetch failed');
     }
 
     // Fetch alerts
@@ -187,7 +200,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      // silently ignore
+      console.warn('[API] Alerts fetch failed');
     }
 
     // Fetch indicators
@@ -200,7 +213,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         }
       }
     } catch {
-      // silently ignore
+      console.warn('[API] Indicators fetch failed');
     }
   }, []);
 
@@ -223,7 +236,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) wsRef.current.close();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectWs, fetchInitialData]);
 
   const clearNewCount = useCallback(() => {

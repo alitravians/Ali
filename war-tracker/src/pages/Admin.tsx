@@ -5,7 +5,7 @@ import { timeAgo, sourceTypeAr } from '../utils/helpers';
 import TrustBadge from '../components/shared/TrustBadge';
 import {
   Shield, Database, Layers, FileSearch, Bell,
-  Brain, Wifi, AlertTriangle, Settings, Server, BarChart3,
+  Brain, Wifi, Settings, Server, BarChart3,
   Eye, EyeOff, Plus, Trash2, Edit3, RefreshCw, Search, CheckCircle2, XCircle,
   Lock, LogOut, Loader2
 } from 'lucide-react';
@@ -15,13 +15,15 @@ const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
 type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system';
 
 export default function Admin() {
-  const { events, alerts } = useLiveData();
+  const { events, alerts, connectionStatus } = useLiveData();
   const [activeTab, setActiveTab] = useState<AdminTab>('sources');
   const [searchQuery, setSearchQuery] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState(false);
+  const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
+  const [backendLatency, setBackendLatency] = useState<number | null>(null);
 
   // Check existing token on mount
   useEffect(() => {
@@ -31,6 +33,24 @@ export default function Admin() {
         .then(r => { if (r.ok) setIsAuthenticated(true); else sessionStorage.removeItem('warscope_admin_token'); })
         .catch(() => sessionStorage.removeItem('warscope_admin_token'));
     }
+  }, []);
+
+  // Check backend health for System tab
+  useEffect(() => {
+    async function checkHealth() {
+      const start = Date.now();
+      try {
+        const resp = await fetch(`${BACKEND_API_URL}/api/events?limit=1`);
+        setBackendLatency(Date.now() - start);
+        setBackendHealthy(resp.ok);
+      } catch {
+        setBackendLatency(null);
+        setBackendHealthy(false);
+      }
+    }
+    checkHealth();
+    const interval = setInterval(checkHealth, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -421,15 +441,15 @@ export default function Admin() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-gray-400">المحرك:</span>
-                    <span className="text-[11px] text-white">Google Gemini</span>
+                    <span className="text-[11px] text-white">Gemini / Groq Llama 3.3</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400">آخر تحليل:</span>
-                    <span className="text-[11px] text-gray-300">منذ 5 دقائق</span>
+                    <span className="text-[11px] text-gray-400">النظام:</span>
+                    <span className="text-[11px] text-gray-300">Gemini → Groq → إحصائي</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-gray-400">التحليلات اليوم:</span>
-                    <span className="text-[11px] text-white font-bold">47</span>
+                    <span className="text-[11px] text-gray-400">الأحداث المحملة:</span>
+                    <span className="text-[11px] text-white font-bold">{events.length}</span>
                   </div>
                 </div>
               </div>
@@ -472,35 +492,37 @@ export default function Admin() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-[11px]">
                     <span className="text-gray-500">الحالة:</span>
-                    <span className="text-green-400">يعمل</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">وقت التشغيل:</span>
-                    <span className="text-white">99.9%</span>
+                    <span className={backendHealthy === null ? 'text-yellow-400' : backendHealthy ? 'text-green-400' : 'text-red-400'}>
+                      {backendHealthy === null ? 'جاري الفحص...' : backendHealthy ? 'يعمل' : 'غير متصل'}
+                    </span>
                   </div>
                   <div className="flex justify-between text-[11px]">
                     <span className="text-gray-500">الاستجابة:</span>
-                    <span className="text-white">45ms</span>
+                    <span className="text-white">{backendLatency !== null ? `${backendLatency}ms` : '—'}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px]">
+                    <span className="text-gray-500">العنوان:</span>
+                    <span className="text-gray-400 text-[10px]">Fly.io</span>
                   </div>
                 </div>
               </div>
               <div className="p-4 bg-[#0a0a0f] rounded-xl border border-gray-800">
                 <div className="flex items-center gap-2 mb-3">
                   <Database className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs font-bold text-white">قاعدة البيانات</span>
+                  <span className="text-xs font-bold text-white">البيانات</span>
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">الحالة:</span>
-                    <span className="text-green-400">متصلة</span>
+                    <span className="text-gray-500">الأحداث المحملة:</span>
+                    <span className="text-white font-bold">{events.length}</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">النوع:</span>
-                    <span className="text-white">Firestore</span>
+                    <span className="text-gray-500">التنبيهات:</span>
+                    <span className="text-white">{alerts.length}</span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">السجلات:</span>
-                    <span className="text-white">1,247</span>
+                    <span className="text-gray-500">المصادر النشطة:</span>
+                    <span className="text-white">{sources.filter(s => s.isActive).length}</span>
                   </div>
                 </div>
               </div>
@@ -512,46 +534,15 @@ export default function Admin() {
                 <div className="space-y-2">
                   <div className="flex justify-between text-[11px]">
                     <span className="text-gray-500">الحالة:</span>
-                    <span className="text-green-400">متصل</span>
+                    <span className={connectionStatus === 'connected' ? 'text-green-400' : connectionStatus === 'connecting' ? 'text-yellow-400' : 'text-red-400'}>
+                      {connectionStatus === 'connected' ? 'متصل' : connectionStatus === 'connecting' ? 'جاري الاتصال...' : 'غير متصل'}
+                    </span>
                   </div>
                   <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">المتصلون:</span>
-                    <span className="text-white">12</span>
-                  </div>
-                  <div className="flex justify-between text-[11px]">
-                    <span className="text-gray-500">الرسائل/ثانية:</span>
-                    <span className="text-white">3.2</span>
+                    <span className="text-gray-500">البروتوكول:</span>
+                    <span className="text-white">WSS</span>
                   </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Error Log */}
-            <div className="p-4 bg-[#0a0a0f] rounded-xl border border-gray-800">
-              <h3 className="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                سجل الأخطاء الأخيرة
-              </h3>
-              <div className="space-y-2">
-                {[
-                  { time: 'منذ 15 دقيقة', msg: 'تأخر في الاستجابة من مصدر IRNA (> 5 ثوانٍ)', level: 'warning' },
-                  { time: 'منذ 45 دقيقة', msg: 'فشل في تحليل AI لحدث #e234 - تمت إعادة المحاولة بنجاح', level: 'info' },
-                  { time: 'منذ ساعتين', msg: 'تعذر الوصول لمصدر OSINT مؤقتاً - تم إعادة الاتصال', level: 'warning' },
-                ].map((log, i) => (
-                  <div key={i} className={`flex items-start gap-3 p-2 rounded-lg ${
-                    log.level === 'warning' ? 'bg-yellow-500/5' : 'bg-blue-500/5'
-                  }`}>
-                    <span className={`text-[10px] mt-0.5 ${
-                      log.level === 'warning' ? 'text-yellow-400' : 'text-blue-400'
-                    }`}>
-                      {log.level === 'warning' ? '⚠️' : 'ℹ️'}
-                    </span>
-                    <div className="flex-1">
-                      <p className="text-[11px] text-gray-300">{log.msg}</p>
-                      <span className="text-[10px] text-gray-500">{log.time}</span>
-                    </div>
-                  </div>
-                ))}
               </div>
             </div>
           </div>

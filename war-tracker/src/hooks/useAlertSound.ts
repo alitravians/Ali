@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 
 // Generate alert beep using Web Audio API (no external files needed)
 function playAlertBeep() {
@@ -37,6 +37,11 @@ export function useAlertSound() {
     return localStorage.getItem('warscope_muted') === 'true';
   });
   const prevBreakingCount = useRef(0);
+  const isMutedRef = useRef(isMuted);
+
+  useEffect(() => {
+    isMutedRef.current = isMuted;
+  }, [isMuted]);
 
   const toggleMute = useCallback(() => {
     setIsMuted(prev => {
@@ -47,11 +52,11 @@ export function useAlertSound() {
   }, []);
 
   const checkAndPlay = useCallback((breakingCount: number) => {
-    if (breakingCount > prevBreakingCount.current && !isMuted) {
+    if (breakingCount > prevBreakingCount.current && !isMutedRef.current) {
       playAlertBeep();
     }
     prevBreakingCount.current = breakingCount;
-  }, [isMuted]);
+  }, []);
 
   return { isMuted, toggleMute, checkAndPlay };
 }
