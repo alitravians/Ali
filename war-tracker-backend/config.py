@@ -29,6 +29,7 @@ FRONTEND_ORIGINS = [
     "https://dist-mvivermt.devinapps.com",
     "https://dist-danynpxi.devinapps.com",
     "https://dist-mu-taupe-70.vercel.app",
+    "https://war-tracker-backend-v2.fly.dev",
 ]
 
 if os.getenv("CORS_DEV"):

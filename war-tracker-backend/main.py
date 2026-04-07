@@ -49,14 +49,14 @@ class DataStore:
         self.last_opensky_fetch: datetime | None = None
         self.last_ai_analysis: datetime | None = None
         self.source_status: dict[str, dict] = {
-            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
+            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
         }
 
     def _default_indicators(self) -> list[DashboardIndicator]:
@@ -183,6 +183,7 @@ async def poll_gdelt():
             if events:
                 store.source_status["gdelt"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["gdelt"]["eventCount"] += len(events)
+                store.source_status["gdelt"]["successfulPolls"] += 1
 
                 # Merge with existing
                 all_events = events + store.events
@@ -229,6 +230,7 @@ async def poll_news():
                 new_events.extend(news)
                 store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["newsapi"]["eventCount"] += len(news)
+                store.source_status["newsapi"]["successfulPolls"] += 1
 
             # MediaStack
             ms_key = os.getenv("MEDIASTACK_KEY", "")
@@ -238,6 +240,7 @@ async def poll_news():
                 new_events.extend(ms)
                 store.source_status["mediastack"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["mediastack"]["eventCount"] += len(ms)
+                store.source_status["mediastack"]["successfulPolls"] += 1
 
             # ACLED
             acled_key = os.getenv("ACLED_KEY", "")
@@ -248,6 +251,7 @@ async def poll_news():
                 new_events.extend(acled)
                 store.source_status["acled"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["acled"]["eventCount"] += len(acled)
+                store.source_status["acled"]["successfulPolls"] += 1
 
             if new_events:
                 all_events = new_events + store.events
@@ -286,6 +290,7 @@ async def poll_opensky():
             store.aircraft = positions
             store.source_status["opensky"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
             store.source_status["opensky"]["eventCount"] = len(positions)
+            store.source_status["opensky"]["successfulPolls"] += 1
 
             if positions and ws_manager.active_connections:
                 await ws_manager.broadcast({
@@ -313,6 +318,7 @@ async def poll_ai_analysis():
                     store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
                     store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                     store.source_status["devin_ai"]["eventCount"] += 1
+                    store.source_status["devin_ai"]["successfulPolls"] += 1
 
                     await ws_manager.broadcast({
                         "type": "ai_analysis",
@@ -333,6 +339,7 @@ async def poll_rss():
             if rss_events:
                 store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["rss"]["eventCount"] += len(rss_events)
+                store.source_status["rss"]["successfulPolls"] += 1
 
                 all_events = rss_events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]
@@ -775,13 +782,16 @@ def _get_source_monitoring() -> list[dict]:
     """Get per-source monitoring metrics for Status Page."""
     result = []
     for key, info in store.source_status.items():
-        total_checks = info.get("eventCount", 0) + info.get("errors", 0)
-        success_rate = round((info["eventCount"] / total_checks * 100) if total_checks > 0 else 100, 1)
+        successful = info.get("successfulPolls", 0)
+        errors = info.get("errors", 0)
+        total_polls = successful + errors
+        success_rate = round((successful / total_polls * 100) if total_polls > 0 else 100, 1)
         result.append({
             "id": key,
             "active": info.get("active", False),
             "event_count": info.get("eventCount", 0),
-            "errors": info.get("errors", 0),
+            "errors": errors,
+            "successful_polls": successful,
             "last_update": info.get("lastUpdate"),
             "success_rate": success_rate,
         })
