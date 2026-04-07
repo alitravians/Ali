@@ -150,14 +150,14 @@ export default function LiveTracking() {
             <span className="text-[9px] text-gray-500 block">مؤكد</span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2 hidden sm:flex">
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 hidden sm:flex items-center gap-2">
           <Ship className="w-4 h-4 text-cyan-400" />
           <div>
             <span className="text-lg font-black text-cyan-400">{vessels.length}</span>
             <span className="text-[9px] text-gray-500 block">سفينة مرصودة</span>
           </div>
         </div>
-        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2 hidden sm:flex">
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 hidden sm:flex items-center gap-2">
           <Bell className="w-4 h-4 text-yellow-400" />
           <div>
             <span className="text-lg font-black text-yellow-400">{alerts.filter(a => !a.isRead).length}</span>

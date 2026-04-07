@@ -28,7 +28,7 @@ export default function Layout() {
       <BreakingTicker />
       <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="pt-[84px] sm:pt-[88px] md:pr-0 transition-all duration-300 flex-1">
+      <main className="pt-[76px] sm:pt-[88px] md:pr-0 transition-all duration-300 flex-1">
         <Outlet />
       </main>
       <FooterStats />
