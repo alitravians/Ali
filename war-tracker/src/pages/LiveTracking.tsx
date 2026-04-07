@@ -4,16 +4,30 @@ import { useLiveData } from '../context/LiveDataContext';
 import LiveMap from '../components/map/LiveMap';
 import Timeline from '../components/timeline/Timeline';
 import EventCard from '../components/shared/EventCard';
-import IndicatorCard from '../components/shared/IndicatorCard';
 import MaritimePanel from '../components/maritime/MaritimePanel';
-import { Filter, Clock, List, LayoutGrid, Radio } from 'lucide-react';
-import type { EventCategory, TrustLevel } from '../types';
+import EventDetailModal from '../components/shared/EventDetailModal';
+import AISummaryModal from '../components/ai/AISummaryModal';
+import AlertToast from '../components/shared/AlertToast';
+import { Filter, Clock, List, LayoutGrid, Radio, Brain, Ship, ChevronDown, ChevronUp, Bell, Activity, AlertTriangle, ShieldCheck } from 'lucide-react';
+import type { EventCategory, TrustLevel, TrackerEvent } from '../types';
 
 export default function LiveTracking() {
-  const { events, indicators, newEventCount, lastUpdate, clearNewCount } = useLiveData();
+  const { events, alerts, newEventCount, lastUpdate, clearNewCount, vessels, connectionStatus } = useLiveData();
   const [categoryFilter, setCategoryFilter] = useState<EventCategory | 'all'>('all');
   const [trustFilter, setTrustFilter] = useState<TrustLevel | 'all'>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
+
+  // Modal states
+  const [selectedEvent, setSelectedEvent] = useState<TrackerEvent | null>(null);
+  const [showAIModal, setShowAIModal] = useState(false);
+
+  // Collapsible panels
+  const [showMaritime, setShowMaritime] = useState(true);
+  const [showTimeline, setShowTimeline] = useState(false);
+
+  // Quick stats
+  const confirmedCount = events.filter(e => e.trustLevel === 'confirmed').length;
+  const breakingCount = events.filter(e => e.isBreaking).length;
 
   const filteredEvents = events.filter(e => {
     if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
@@ -24,17 +38,32 @@ export default function LiveTracking() {
   const sortedEvents = [...filteredEvents].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
 
   return (
-    <div className="max-w-[1920px] mx-auto px-4 py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="max-w-[1920px] mx-auto px-3 py-3">
+      {/* Alert Toast Notifications */}
+      <AlertToast alerts={alerts} />
+
+      {/* Header Bar */}
+      <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Radio className="w-5 h-5 text-red-400" />
+          <h1 className="text-base font-bold text-white flex items-center gap-2">
+            <Radio className="w-4 h-4 text-red-400" />
             التتبع المباشر
           </h1>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-500/10 border border-red-500/30 rounded-full">
+          <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-500/10 border border-red-500/30 rounded-full">
             <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
             <span className="text-[10px] font-bold text-red-400">LIVE</span>
+          </div>
+          <div className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+            connectionStatus === 'connected' ? 'bg-green-500/10 text-green-400 border border-green-500/30' :
+            connectionStatus === 'connecting' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/30' :
+            'bg-red-500/10 text-red-400 border border-red-500/30'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${
+              connectionStatus === 'connected' ? 'bg-green-400' :
+              connectionStatus === 'connecting' ? 'bg-yellow-400 animate-pulse' :
+              'bg-red-400'
+            }`} />
+            {connectionStatus === 'connected' ? 'متصل' : connectionStatus === 'connecting' ? 'جاري الاتصال...' : 'غير متصل'}
           </div>
           {newEventCount > 0 && (
             <button
@@ -45,32 +74,103 @@ export default function LiveTracking() {
             </button>
           )}
         </div>
-        <div className="text-[11px] text-gray-500 flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5" />
-          آخر تحديث: {lastUpdate.toLocaleString('ar-SA')}
+        <div className="flex items-center gap-3">
+          {/* AI Analysis Button */}
+          <button
+            onClick={() => setShowAIModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-500/10 border border-purple-500/30 rounded-lg text-[11px] text-purple-400 hover:bg-purple-500/20 transition-colors"
+          >
+            <Brain className="w-3.5 h-3.5" />
+            تحليل AI
+          </button>
+          <div className="text-[10px] text-gray-500 flex items-center gap-1">
+            <Clock className="w-3 h-3" />
+            {lastUpdate.toLocaleString('ar-SA')}
+          </div>
         </div>
       </div>
 
-      {/* Indicators Bar */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4">
-        {indicators.map(ind => (
-          <IndicatorCard key={ind.id} indicator={ind} />
-        ))}
+      {/* Quick Stats Bar */}
+      <div className="grid grid-cols-5 gap-2 mb-3">
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+          <Activity className="w-4 h-4 text-blue-400" />
+          <div>
+            <span className="text-lg font-black text-white">{events.length}</span>
+            <span className="text-[9px] text-gray-500 block">إجمالي الأحداث</span>
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-red-400" />
+          <div>
+            <span className="text-lg font-black text-red-400">{breakingCount}</span>
+            <span className="text-[9px] text-gray-500 block">عاجل</span>
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-green-400" />
+          <div>
+            <span className="text-lg font-black text-green-400">{confirmedCount}</span>
+            <span className="text-[9px] text-gray-500 block">مؤكد</span>
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+          <Ship className="w-4 h-4 text-cyan-400" />
+          <div>
+            <span className="text-lg font-black text-cyan-400">{vessels.length}</span>
+            <span className="text-[9px] text-gray-500 block">سفينة مرصودة</span>
+          </div>
+        </div>
+        <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
+          <Bell className="w-4 h-4 text-yellow-400" />
+          <div>
+            <span className="text-lg font-black text-yellow-400">{alerts.filter(a => !a.isRead).length}</span>
+            <span className="text-[9px] text-gray-500 block">تنبيهات</span>
+          </div>
+        </div>
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Map - takes 2/3 */}
-        <div className="lg:col-span-2">
-          <LiveMap events={filteredEvents} height="550px" showControls={true} />
+      {/* ═══ MAIN DASHBOARD LAYOUT ═══ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
+
+        {/* ── LEFT: Map (8 cols) ── */}
+        <div className="lg:col-span-8">
+          <div className="rounded-xl border border-gray-800 overflow-hidden">
+            <LiveMap events={filteredEvents} height="calc(100vh - 280px)" showControls={true} />
+          </div>
+
+          {/* Maritime Panel (collapsible below map) */}
+          <div className="mt-3">
+            <button
+              onClick={() => setShowMaritime(!showMaritime)}
+              className="w-full flex items-center justify-between bg-[#12121a] rounded-xl border border-gray-800 px-4 py-3 hover:border-gray-700 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center">
+                  <Ship className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-sm font-bold text-white">البث المباشر البحري</span>
+                {vessels.length > 0 && (
+                  <span className="text-[10px] font-semibold text-cyan-400 bg-cyan-500/10 px-2 py-0.5 rounded-full border border-cyan-500/30">
+                    {vessels.length} سفينة
+                  </span>
+                )}
+              </div>
+              {showMaritime ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+            </button>
+            {showMaritime && (
+              <div className="bg-[#12121a] rounded-b-xl border border-t-0 border-gray-800 p-4 animate-slideUp">
+                <MaritimePanel />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Events Panel - takes 1/3 */}
-        <div className="flex flex-col h-[550px]">
+        {/* ── RIGHT: Events Panel (4 cols) ── */}
+        <div className="lg:col-span-4 flex flex-col" style={{ height: 'calc(100vh - 280px)' }}>
           {/* Filters */}
-          <div className="bg-[#12121a] rounded-xl border border-gray-800 p-3 mb-3">
+          <div className="bg-[#12121a] rounded-xl border border-gray-800 p-3 mb-2 flex-shrink-0">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-gray-400 flex items-center gap-1.5">
+              <span className="text-[11px] font-semibold text-gray-400 flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
                 الفلاتر
               </span>
@@ -141,38 +241,52 @@ export default function LiveTracking() {
           </div>
 
           {/* Events list */}
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-            <div className="text-[11px] text-gray-500 mb-2">
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
+            <div className="text-[11px] text-gray-500 mb-1">
               {sortedEvents.length} حدث
             </div>
             {viewMode === 'cards' ? (
               sortedEvents.map(event => (
-                <EventCard key={event.id} event={event} />
+                <div key={event.id} onClick={() => setSelectedEvent(event)} className="cursor-pointer">
+                  <EventCard event={event} />
+                </div>
               ))
             ) : (
               <Timeline events={sortedEvents} />
             )}
           </div>
+
+          {/* Timeline toggle at bottom */}
+          <div className="mt-2 flex-shrink-0">
+            <button
+              onClick={() => setShowTimeline(!showTimeline)}
+              className="w-full flex items-center justify-between bg-[#12121a] rounded-xl border border-gray-800 px-3 py-2 hover:border-gray-700 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-[11px] font-bold text-white">الخط الزمني - آخر 24 ساعة</span>
+              </div>
+              {showTimeline ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
+            </button>
+            {showTimeline && (
+              <div className="bg-[#12121a] rounded-b-xl border border-t-0 border-gray-800 p-3 max-h-[300px] overflow-y-auto animate-slideUp">
+                <Timeline events={events} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Maritime Tracking Panel */}
-      <div className="mt-6">
-        <div className="bg-[#12121a] rounded-xl border border-gray-800 p-4">
-          <MaritimePanel />
-        </div>
-      </div>
-
-      {/* Timeline Section */}
-      <div className="mt-6">
-        <div className="flex items-center gap-2 mb-3">
-          <Clock className="w-4 h-4 text-blue-400" />
-          <h2 className="text-sm font-bold text-white">الخط الزمني - آخر 24 ساعة</h2>
-        </div>
-        <div className="bg-[#12121a] rounded-xl border border-gray-800 p-4">
-          <Timeline events={events} />
-        </div>
-      </div>
+      {/* ═══ MODALS ═══ */}
+      <EventDetailModal
+        event={selectedEvent}
+        isOpen={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+      />
+      <AISummaryModal
+        isOpen={showAIModal}
+        onClose={() => setShowAIModal(false)}
+      />
     </div>
   );
 }
