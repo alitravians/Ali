@@ -21,14 +21,18 @@ OPENSKY_POLL_INTERVAL = 60 # 60 seconds (rate limit friendly)
 AI_ANALYSIS_INTERVAL = 900 # 15 minutes
 RSS_POLL_INTERVAL = 180    # 3 minutes (RSS feeds are free, no rate limits)
 
-# CORS
+# CORS — production origins only; set CORS_DEV=1 to include localhost
 FRONTEND_ORIGINS = [
     "https://dist-mvivermt.devinapps.com",
     "https://dist-danynpxi.devinapps.com",
     "https://dist-mu-taupe-70.vercel.app",
-    "http://localhost:5173",
-    "http://localhost:3000",
 ]
+
+if os.getenv("CORS_DEV"):
+    FRONTEND_ORIGINS += [
+        "http://localhost:5173",
+        "http://localhost:3000",
+    ]
 
 # Region of interest
 REGION_BBOX = {

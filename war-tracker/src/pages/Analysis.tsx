@@ -6,7 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip, PieCha
 import { categoryTextAr } from '../utils/helpers';
 import type { AISummary } from '../types';
 
-const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
+import { BACKEND_API_URL } from '../config/api';
 
 export default function Analysis() {
   const { events, indicators } = useLiveData();
@@ -29,7 +29,7 @@ export default function Analysis() {
           }
         }
       } catch {
-        console.log('[Analysis] Failed to fetch AI analysis');
+        // Analysis fetch failed silently
       }
     }
     fetchAnalysis();
@@ -38,7 +38,10 @@ export default function Analysis() {
   const triggerAnalysis = async () => {
     setLoadingAi(true);
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/analysis/trigger`, { method: 'POST' });
+      const token = sessionStorage.getItem('warscope_admin_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const resp = await fetch(`${BACKEND_API_URL}/api/analysis/trigger`, { method: 'POST', headers });
       if (resp.ok) {
         const data = await resp.json();
         if (data && !data.error) {
@@ -49,7 +52,7 @@ export default function Analysis() {
         }
       }
     } catch {
-      console.log('[Analysis] Failed to trigger AI analysis');
+      // Analysis trigger failed silently
     }
     setLoadingAi(false);
   };

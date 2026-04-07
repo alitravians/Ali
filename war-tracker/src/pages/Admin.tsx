@@ -10,7 +10,7 @@ import {
   Lock, LogOut, Loader2
 } from 'lucide-react';
 
-const BACKEND_API_URL = 'https://war-tracker-backend-kriplmgy.fly.dev';
+import { BACKEND_API_URL } from '../config/api';
 
 type AdminTab = 'sources' | 'layers' | 'events' | 'alerts' | 'ai' | 'system';
 
@@ -21,7 +21,7 @@ export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [password, setPassword] = useState('');
-  const [loginError, setLoginError] = useState(false);
+  const [loginError, setLoginError] = useState<string | false>(false);
   const [backendHealthy, setBackendHealthy] = useState<boolean | null>(null);
   const [backendLatency, setBackendLatency] = useState<number | null>(null);
 
@@ -67,12 +67,15 @@ export default function Admin() {
         sessionStorage.setItem('warscope_admin_token', data.token);
         setIsAuthenticated(true);
         setLoginError(false);
+      } else if (resp.status === 429) {
+        setLoginError('تم تجاوز عدد المحاولات المسموح. حاول مجدداً بعد 5 دقائق.');
+        setPassword('');
       } else {
-        setLoginError(true);
+        setLoginError('كلمة المرور غير صحيحة');
         setPassword('');
       }
     } catch {
-      setLoginError(true);
+      setLoginError('خطأ في الاتصال بالخادم');
       setPassword('');
     }
     setIsLoggingIn(false);
@@ -107,7 +110,7 @@ export default function Admin() {
                   dir="ltr"
                 />
                 {loginError && (
-                  <p className="text-xs text-red-400 text-center mt-2">كلمة المرور غير صحيحة</p>
+                  <p className="text-xs text-red-400 text-center mt-2">{loginError}</p>
                 )}
               </div>
               <button
