@@ -38,7 +38,10 @@ export default function Analysis() {
   const triggerAnalysis = async () => {
     setLoadingAi(true);
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/analysis/trigger`, { method: 'POST' });
+      const token = sessionStorage.getItem('warscope_admin_token');
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const resp = await fetch(`${BACKEND_API_URL}/api/analysis/trigger`, { method: 'POST', headers });
       if (resp.ok) {
         const data = await resp.json();
         if (data && !data.error) {
