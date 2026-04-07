@@ -106,20 +106,14 @@ def _is_relevant(title: str) -> bool:
 
 async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
     """Fetch recent conflict events from GDELT GKG/DOC API."""
+    import asyncio
     events: list[TrackerEvent] = []
 
-    # Focused queries — each must include a Middle East location + conflict term
+    # Use 3 broad queries instead of 10 to avoid GDELT 429 rate limits
     queries = [
-        '(iran OR tehran OR isfahan) (military OR missile OR strike OR attack OR nuclear OR war)',
-        '(israel OR "tel aviv" OR haifa OR jerusalem) (military OR missile OR strike OR attack OR idf)',
-        '(bahrain OR manama) (siren OR alert OR military OR attack OR warning OR conflict)',
-        '(yemen OR houthi OR sanaa) (military OR strike OR attack OR missile)',
-        '(lebanon OR hezbollah OR beirut) (military OR strike OR attack OR missile)',
-        '(gaza OR palestine OR hamas) (military OR strike OR conflict)',
-        '(syria OR damascus) (military OR conflict OR strike OR attack)',
-        '(iraq OR baghdad) (military OR attack OR security)',
-        '(hormuz OR "red sea" OR suez) (military OR shipping OR threat OR attack)',
-        '("middle east" OR "saudi" OR qatar OR kuwait OR uae) (military OR conflict OR iran)',
+        '(iran OR israel OR tehran OR jerusalem OR "tel aviv") (military OR missile OR strike OR attack OR war)',
+        '(bahrain OR yemen OR houthi OR lebanon OR hezbollah OR gaza OR hamas OR syria OR iraq) (military OR strike OR attack OR conflict)',
+        '(hormuz OR "red sea" OR suez OR "middle east" OR saudi OR qatar OR kuwait OR uae) (military OR conflict OR attack OR threat)',
     ]
 
     all_articles = []
@@ -127,12 +121,16 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
     headers = {"User-Agent": "WarScope/1.0 (conflict-tracker; research)"}
 
     async with httpx.AsyncClient(timeout=45.0, follow_redirects=True, headers=headers) as client:
-        for keywords_query in queries:
+        for i, keywords_query in enumerate(queries):
+            # Add delay between queries to avoid GDELT rate limiting
+            if i > 0:
+                await asyncio.sleep(2)
+
             url = f"{GDELT_BASE_URL}/doc/doc"
             params = {
                 "query": keywords_query,
                 "mode": "ArtList",
-                "maxrecords": "15",
+                "maxrecords": "30",
                 "format": "json",
                 "sort": "DateDesc",
             }
@@ -153,14 +151,11 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
                     if art_url not in seen_urls:
                         seen_urls.add(art_url)
                         all_articles.append(art)
+                print(f"[GDELT] Query {i+1}: got {len(articles)} articles")
 
             except Exception as e:
-                print(f"[GDELT] Query failed ({keywords_query[:30]}...): {e}")
+                print(f"[GDELT] Query {i+1} failed: {e}")
                 continue
-
-            # Stop once we have enough articles
-            if len(all_articles) >= max_results * 2:
-                break
 
     # Filter for relevance — remove articles that don't mention any Middle East entity
     articles = [a for a in all_articles if _is_relevant(a.get("title", ""))]
