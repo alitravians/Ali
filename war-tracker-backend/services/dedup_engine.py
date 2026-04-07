@@ -46,7 +46,7 @@ def _are_similar(e1: TrackerEvent, e2: TrackerEvent) -> bool:
     time_close = _time_close(e1, e2)
 
     # High title similarity = almost certainly same event
-    if title_sim > 0.7:
+    if title_sim > 0.7 and _time_close(e1, e2):
         return True
 
     # Same category + close location + close time = likely same event

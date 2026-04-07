@@ -149,7 +149,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         const apiEvents = (data.events || []).map(parseEvent);
         if (apiEvents.length > 0) {
           setEvents(apiEvents);
-          prevEventCountRef.current = apiEvents.length;
+          prevEventCountRef.current = data.total ?? apiEvents.length;
           setLastUpdate(new Date());
           console.log(`[API] Fetched ${apiEvents.length} real events via REST`);
         }
