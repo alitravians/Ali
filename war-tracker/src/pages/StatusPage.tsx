@@ -569,7 +569,7 @@ export default function StatusPage() {
                         className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-[11px] font-semibold hover:bg-green-500/20 transition-colors"
                       >
                         <ExternalLink className="w-3 h-3" />
-                        تم إنشاء جلسة الإصلاح — اضغط للمتابعة
+                        تم إرسال طلب الإصلاح — اضغط للمتابعة
                       </a>
                     ) : (
                       <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-[10px]">
