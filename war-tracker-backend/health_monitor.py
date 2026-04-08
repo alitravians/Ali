@@ -5,7 +5,7 @@ and self-healing for all backend services and external APIs.
 import asyncio
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from enum import Enum
 from typing import Any
 
@@ -113,6 +113,10 @@ class ServiceHealth(BaseModel):
 # Health Monitor
 # ──────────────────────────────────────────────
 class HealthMonitor:
+    # Grace period after startup before marking uninitialised external
+    # services as degraded.  Gives pollers time to complete their first fetch.
+    _STARTUP_GRACE_SECONDS = 300  # 5 minutes
+
     def __init__(self):
         self.services: dict[str, ServiceHealth] = {}
         self.incidents: list[Incident] = []
@@ -120,6 +124,7 @@ class HealthMonitor:
         self._check_counts: dict[str, dict] = {}  # per-service 24h tracking
         self._running = False
         self._tasks: list[asyncio.Task] = []
+        self._started_at: datetime = datetime.now(timezone.utc)
 
         # Initialize default services
         self._init_default_services()
@@ -295,8 +300,14 @@ class HealthMonitor:
                     status = ServiceStatus.degraded
                     success = True
                 elif last_update is None and event_count == 0:
-                    # Never fetched yet — might be initializing
-                    status = ServiceStatus.degraded
+                    # Never fetched yet — might be initializing.
+                    # Give pollers a grace period after startup before
+                    # flagging the service as degraded.
+                    age = datetime.now(timezone.utc) - self._started_at
+                    if age < timedelta(seconds=self._STARTUP_GRACE_SECONDS):
+                        status = ServiceStatus.operational
+                    else:
+                        status = ServiceStatus.degraded
                     success = True
                 else:
                     status = ServiceStatus.operational

@@ -138,7 +138,7 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
         for i, keywords_query in enumerate(queries):
             # Add delay between queries to avoid GDELT rate limiting
             if i > 0:
-                await asyncio.sleep(2)
+                await asyncio.sleep(5)
 
             url = f"{GDELT_BASE_URL}/doc/doc"
             params = {
@@ -149,27 +149,39 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
                 "sort": "DateDesc",
             }
 
-            try:
-                resp = await client.get(url, params=params)
-                resp.raise_for_status()
+            # Retry with exponential back-off on 429 (rate-limit) responses
+            for attempt in range(3):
+                try:
+                    resp = await client.get(url, params=params)
 
-                content_type = resp.headers.get('content-type', '')
-                text = resp.text.strip()
-                if not text or text.startswith('<') or 'text/html' in content_type:
+                    if resp.status_code == 429:
+                        wait = 5 * (2 ** attempt)  # 5s, 10s, 20s
+                        print(f"[GDELT] Query {i+1}: 429 rate-limited, retrying in {wait}s (attempt {attempt+1}/3)")
+                        await asyncio.sleep(wait)
+                        continue
+
+                    resp.raise_for_status()
+
+                    content_type = resp.headers.get('content-type', '')
+                    text = resp.text.strip()
+                    if not text or text.startswith('<') or 'text/html' in content_type:
+                        break  # non-JSON response, skip this query
+
+                    data = resp.json()
+                    articles = data.get("articles", [])
+                    for art in articles:
+                        art_url = art.get("url", "")
+                        if art_url not in seen_urls:
+                            seen_urls.add(art_url)
+                            all_articles.append(art)
+                    print(f"[GDELT] Query {i+1}: got {len(articles)} articles")
+                    break  # success
+
+                except Exception as e:
+                    print(f"[GDELT] Query {i+1} failed (attempt {attempt+1}/3): {e}")
+                    if attempt < 2:
+                        await asyncio.sleep(3 * (attempt + 1))
                     continue
-
-                data = resp.json()
-                articles = data.get("articles", [])
-                for art in articles:
-                    art_url = art.get("url", "")
-                    if art_url not in seen_urls:
-                        seen_urls.add(art_url)
-                        all_articles.append(art)
-                print(f"[GDELT] Query {i+1}: got {len(articles)} articles")
-
-            except Exception as e:
-                print(f"[GDELT] Query {i+1} failed: {e}")
-                continue
 
     # Filter for relevance — remove articles that don't mention any Middle East entity
     articles = [a for a in all_articles if _is_relevant(a.get("title", ""))]
