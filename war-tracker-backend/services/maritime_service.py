@@ -98,6 +98,11 @@ def get_zone_stats() -> list[MaritimeZoneStats]:
     return list(_zone_stats.values())
 
 
+def is_ws_connected() -> bool:
+    """Return whether the AISStream WebSocket is currently connected."""
+    return _ws_connected
+
+
 def _update_zone_stats():
     """Recalculate zone statistics from current vessel data."""
     for zone_id in _zone_stats:

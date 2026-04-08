@@ -22,7 +22,7 @@ from config import (
     NEWSAPI_KEY,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
-from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
+from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats, is_ws_connected
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
@@ -433,11 +433,15 @@ async def poll_maritime_broadcast():
         try:
             vessels = get_vessels()
             zones = get_zone_stats()
-            if vessels:
+
+            # Update source status whenever WebSocket is connected,
+            # even if no vessels are currently in the monitored zones.
+            if is_ws_connected():
                 store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["aisstream"]["eventCount"] = len(vessels)
                 store.source_status["aisstream"]["successfulPolls"] += 1
 
+            if vessels:
                 await ws_manager.broadcast({
                     "type": "maritime_update",
                     "vessels": [v.model_dump(mode="json") for v in vessels[:200]],
