@@ -431,13 +431,19 @@ async def poll_maritime_broadcast():
     while True:
         await asyncio.sleep(30)
         try:
+            from services.maritime_service import _ws_connected as ws_connected
             vessels = get_vessels()
             zones = get_zone_stats()
-            if vessels:
+
+            # Update source_status when WebSocket is connected, even without vessels.
+            # This prevents the health monitor from marking the service as "degraded"
+            # just because no vessels are in the monitored zones yet.
+            if ws_connected or vessels:
                 store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["aisstream"]["eventCount"] = len(vessels)
                 store.source_status["aisstream"]["successfulPolls"] += 1
 
+            if vessels:
                 await ws_manager.broadcast({
                     "type": "maritime_update",
                     "vessels": [v.model_dump(mode="json") for v in vessels[:200]],
