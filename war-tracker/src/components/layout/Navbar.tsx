@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, Radio, BarChart3, Globe2, Building2, Bell, Shield, Volume2, VolumeX, Clock, Activity } from 'lucide-react';
+import { Menu, Radio, BarChart3, Globe2, Building2, Bell, Shield, Volume2, VolumeX, Clock, Activity, TrendingUp } from 'lucide-react';
 import { useLiveData } from '../../context/LiveDataContext';
 import EventSearch from '../shared/EventSearch';
 import { useAlertSound } from '../../hooks/useAlertSound';
@@ -13,6 +13,7 @@ const navLinks = [
   { path: '/', label: 'الرئيسية', icon: Globe2 },
   { path: '/live', label: 'التتبع المباشر', icon: Radio },
   { path: '/analysis', label: 'التحليلات', icon: BarChart3 },
+  { path: '/analytics', label: 'الإحصائيات', icon: TrendingUp },
   { path: '/sources', label: 'المصادر', icon: Globe2 },
   { path: '/cities', label: 'المدن', icon: Building2 },
   { path: '/alerts', label: 'التنبيهات', icon: Bell },
