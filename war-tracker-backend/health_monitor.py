@@ -211,6 +211,30 @@ class HealthMonitor:
                 check_interval_seconds=300,
                 enabled=bool(ACLED_KEY),
             ),
+            ServiceConfig(
+                id="ai_chat",
+                name="AI Chat Assistant",
+                name_ar="المساعد الذكي",
+                type="api",
+                endpoint="/api/chat",
+                check_interval_seconds=120,
+            ),
+            ServiceConfig(
+                id="analytics",
+                name="Analytics Dashboard",
+                name_ar="لوحة الإحصائيات",
+                type="api",
+                endpoint="/api/events",
+                check_interval_seconds=180,
+            ),
+            ServiceConfig(
+                id="pwa",
+                name="PWA Service Worker",
+                name_ar="تطبيق الجوال PWA",
+                type="api",
+                endpoint="/manifest.json",
+                check_interval_seconds=300,
+            ),
         ]
 
         for cfg in defaults:
@@ -256,16 +280,52 @@ class HealthMonitor:
 
         try:
             if svc.config.type == "api":
-                # Check backend API by verifying store exists and has data
-                is_ok = store is not None
-                elapsed = (time.time() - start) * 1000
-                result = HealthCheckResult(
-                    service_id=service_id,
-                    status=ServiceStatus.operational if is_ok else ServiceStatus.major_outage,
-                    response_time_ms=round(elapsed, 1),
-                    checked_at=now_iso,
-                    success=is_ok,
-                )
+                # Check backend API services
+                if svc.config.endpoint in ("/api/chat", "/api/events", "/manifest.json"):
+                    # Check these via HTTP request to self
+                    import httpx
+                    try:
+                        async with httpx.AsyncClient(timeout=10.0) as client:
+                            if svc.config.endpoint == "/api/chat":
+                                # Test chat endpoint with a simple request
+                                resp = await client.post(
+                                    "http://localhost:8080/api/chat",
+                                    json={"message": "ping", "context": {}},
+                                )
+                                is_ok = resp.status_code in (200, 429)  # 429 = rate limited but working
+                            else:
+                                resp = await client.get(f"http://localhost:8080{svc.config.endpoint}")
+                                is_ok = resp.status_code == 200
+                            elapsed = (time.time() - start) * 1000
+                            result = HealthCheckResult(
+                                service_id=service_id,
+                                status=ServiceStatus.operational if is_ok else ServiceStatus.degraded,
+                                response_time_ms=round(elapsed, 1),
+                                checked_at=now_iso,
+                                success=is_ok,
+                                error=None if is_ok else f"HTTP {resp.status_code}",
+                            )
+                    except Exception as e:
+                        elapsed = (time.time() - start) * 1000
+                        result = HealthCheckResult(
+                            service_id=service_id,
+                            status=ServiceStatus.degraded,
+                            response_time_ms=round(elapsed, 1),
+                            checked_at=now_iso,
+                            success=False,
+                            error=str(e)[:100],
+                        )
+                else:
+                    # Default API check — verify store exists
+                    is_ok = store is not None
+                    elapsed = (time.time() - start) * 1000
+                    result = HealthCheckResult(
+                        service_id=service_id,
+                        status=ServiceStatus.operational if is_ok else ServiceStatus.major_outage,
+                        response_time_ms=round(elapsed, 1),
+                        checked_at=now_iso,
+                        success=is_ok,
+                    )
 
             elif svc.config.type == "websocket":
                 # Check WebSocket by verifying ws_manager is available
