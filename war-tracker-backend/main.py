@@ -1047,8 +1047,135 @@ async def chat_endpoint(request: Request):
     except Exception as e:
         print(f"[Chat] Groq error: {e}")
 
-    # Fallback: simple response
-    return {"reply": f"📊 الوضع الحالي:\n\n• إجمالي الأحداث: {context.get('total_events', 0)}\n• أحداث عاجلة: {context.get('breaking_count', 0)}\n\nللأسف لم أتمكن من الاتصال بمحرك التحليل الذكي. جرّب مرة أخرى."}
+    # Smart fallback: analyze the question and context locally
+    reply = _generate_smart_fallback(user_message, context)
+    return {"reply": reply}
+
+
+def _generate_smart_fallback(question: str, context: dict) -> str:
+    """Generate a smart response using available context data (no AI needed)."""
+    q = question.strip()
+    q_lower = q.lower()
+    total = context.get("total_events", 0)
+    breaking_count = context.get("breaking_count", 0)
+    categories = context.get("categories", {})
+    top_locations = context.get("top_locations", [])
+    recent_events = context.get("recent_events", [])
+    breaking_events = context.get("breaking_events", [])
+
+    cat_names = {
+        "military": "عسكري", "alert": "إنذار", "official": "رسمي",
+        "airspace": "أجواء", "maritime": "بحري", "fire": "حراري",
+        "humanitarian": "إنساني"
+    }
+
+    # 1) General status / summary queries
+    if any(kw in q for kw in ["وضع", "ملخص", "حالي", "عام", "شو صاير", "اخبار", "أخبار"]):
+        cat_summary = "، ".join(
+            f"{cat_names.get(c, c)}: {n}" for c, n in sorted(categories.items(), key=lambda x: -x[1])[:4]
+        )
+        locs = "\n".join(f"• {loc[0]} ({loc[1]} حدث)" for loc in top_locations[:5]) if top_locations else "لا توجد بيانات"
+        latest = ""
+        if recent_events:
+            latest = "\n\n📰 آخر الأحداث:\n" + "\n".join(
+                f"• {e.get('title', '')}" + (" 🔴" if e.get("isBreaking") else "")
+                for e in recent_events[:5]
+            )
+        return f"📊 ملخص الوضع الحالي:\n\n• إجمالي الأحداث: {total}\n• أحداث عاجلة: {breaking_count}\n• التصنيف: {cat_summary}\n\n📍 أكثر المواقع نشاطاً:\n{locs}{latest}"
+
+    # 2) Breaking news queries
+    if any(kw in q for kw in ["عاجل", "عاجلة", "breaking", "طوارئ"]):
+        if not breaking_events:
+            return "✅ لا توجد أحداث عاجلة حالياً."
+        items = "\n\n".join(f"• {e.get('title', '')}\n  📍 {e.get('location', '')}" for e in breaking_events[:5])
+        return f"🔴 الأحداث العاجلة ({len(breaking_events)}):\n\n{items}"
+
+    # 3) Location-specific queries — search in Arabic and English
+    location_keywords = {
+        "البحرين": ["البحرين", "bahrain", "manama", "المنامة"],
+        "إيران": ["إيران", "iran", "طهران", "tehran", "أصفهان"],
+        "إسرائيل": ["إسرائيل", "israel", "تل أبيب", "tel aviv", "حيفا"],
+        "غزة": ["غزة", "gaza"],
+        "لبنان": ["لبنان", "lebanon", "بيروت", "beirut"],
+        "سوريا": ["سوريا", "syria", "دمشق", "damascus"],
+        "العراق": ["العراق", "iraq", "بغداد", "baghdad", "البصرة"],
+        "اليمن": ["اليمن", "yemen", "صنعاء", "عدن"],
+        "هرمز": ["هرمز", "hormuz"],
+        "الكويت": ["الكويت", "kuwait"],
+        "السعودية": ["السعودية", "saudi", "الرياض"],
+        "قطر": ["قطر", "qatar", "الدوحة"],
+    }
+
+    matched_location = None
+    matched_label = None
+    for label, keywords in location_keywords.items():
+        for kw in keywords:
+            if kw in q or kw in q_lower:
+                matched_location = keywords
+                matched_label = label
+                break
+        if matched_location:
+            break
+
+    if matched_location:
+        # Search events matching any of the location keywords
+        loc_events = [
+            e for e in recent_events
+            if any(kw in e.get("location", "").lower() or kw in e.get("title", "").lower() or kw in e.get("location", "") or kw in e.get("title", "")
+                   for kw in matched_location)
+        ]
+        if loc_events:
+            items = "\n\n".join(
+                f"• {e.get('title', '')}\n  📍 {e.get('location', '')}" + (" 🔴" if e.get("isBreaking") else "")
+                for e in loc_events[:7]
+            )
+            return f"📍 أحداث {matched_label} ({len(loc_events)} حدث):\n\n{items}"
+        else:
+            # Check top_locations for the location
+            loc_count = 0
+            for loc in top_locations:
+                if any(kw in str(loc[0]).lower() or kw in str(loc[0]) for kw in matched_location):
+                    loc_count = loc[1]
+                    break
+            if loc_count > 0:
+                return f"📍 {matched_label}: {loc_count} حدث مسجّل. لم أجد تفاصيل محددة بالأحداث الأخيرة."
+            return f"📍 لم أجد أحداث حالية تخص {matched_label} في البيانات المتاحة."
+
+    # 4) Category-specific queries
+    cat_keywords = {
+        "military": ["عسكري", "عسكرية", "قصف", "ضربة", "هجوم", "حرب"],
+        "maritime": ["بحري", "بحرية", "سفن", "سفينة", "ملاحة"],
+        "alert": ["إنذار", "تحذير", "صفارة", "صفارات"],
+        "official": ["رسمي", "تصريح", "تصريحات", "سياسي"],
+        "humanitarian": ["إنساني", "إنسانية", "إغاثة"],
+        "fire": ["حريق", "حرائق", "حراري"],
+        "airspace": ["جوي", "طيران", "أجواء", "طائرة"],
+    }
+
+    for cat_id, keywords in cat_keywords.items():
+        if any(kw in q for kw in keywords):
+            count = categories.get(cat_id, 0)
+            cat_events = [e for e in recent_events if e.get("category") == cat_id]
+            if cat_events:
+                items = "\n".join(f"• {e.get('title', '')}" for e in cat_events[:5])
+                return f"📂 أحداث {cat_names.get(cat_id, cat_id)} ({count} حدث):\n\n{items}"
+            elif count > 0:
+                return f"📂 يوجد {count} حدث من نوع {cat_names.get(cat_id, cat_id)}."
+            break
+
+    # 5) Search in event titles
+    matching = [e for e in recent_events if q in e.get("title", "") or q_lower in e.get("title", "").lower()]
+    if matching:
+        items = "\n\n".join(
+            f"• {e.get('title', '')}\n  📍 {e.get('location', '')}" + (" 🔴" if e.get("isBreaking") else "")
+            for e in matching[:5]
+        )
+        return f"🔍 نتائج البحث ({len(matching)}):\n\n{items}"
+
+    # 6) General fallback with useful info
+    locs_str = "، ".join(loc[0] for loc in top_locations[:3]) if top_locations else "غير متوفر"
+    latest_titles = "\n".join(f"• {e.get('title', '')}" for e in recent_events[:3]) if recent_events else ""
+    return f"📊 الوضع الحالي:\n\n• إجمالي الأحداث: {total}\n• أحداث عاجلة: {breaking_count}\n• أكثر المواقع نشاطاً: {locs_str}\n\n📰 آخر الأحداث:\n{latest_titles}\n\nجرّب أسئلة مثل:\n• \"ما الوضع الحالي؟\"\n• \"أحداث عاجلة\"\n• \"أحداث البحرين\"\n• \"ملخص الأحداث\""
 
 
 # ──────────────────────────────────────────────
