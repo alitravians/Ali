@@ -953,6 +953,7 @@ async def trigger_health_check(service_id: str, authorization: str = Header(defa
 
 
 _last_public_analysis = None  # Rate limit for public analysis trigger
+_last_chat_request: dict[str, datetime] = {}  # Rate limit per IP for chat
 
 @app.post("/api/analysis/trigger")
 async def trigger_analysis():
@@ -970,6 +971,84 @@ async def trigger_analysis():
         store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
         return summary.model_dump(mode="json")
     return {"error": "No events available for analysis"}
+
+
+# ──────────────────────────────────────────────
+# AI Chat endpoint
+# ──────────────────────────────────────────────
+@app.post("/api/chat")
+async def chat_endpoint(request: Request):
+    """AI chat assistant — answers questions about current events using Groq/Llama."""
+    body = await request.json()
+    user_message = body.get("message", "")
+    context = body.get("context", {})
+
+    if not user_message.strip():
+        raise HTTPException(status_code=400, detail="الرسالة فارغة")
+
+    # Rate limit: 1 request per 5 seconds per IP
+    client_ip = request.client.host if request.client else "unknown"
+    now = datetime.now(timezone.utc)
+    last = _last_chat_request.get(client_ip)
+    if last and (now - last).total_seconds() < 5:
+        raise HTTPException(status_code=429, detail="يرجى الانتظار قبل إرسال رسالة جديدة")
+    _last_chat_request[client_ip] = now
+
+    # Build prompt with context
+    events_summary = ""
+    if context:
+        events_summary = f"""
+معلومات حالية عن الأحداث:
+- إجمالي الأحداث: {context.get('total_events', 0)}
+- أحداث عاجلة: {context.get('breaking_count', 0)}
+- التصنيفات: {json.dumps(context.get('categories', {}), ensure_ascii=False)}
+- أكثر المواقع: {json.dumps(context.get('top_locations', []), ensure_ascii=False)}
+
+آخر الأحداث:
+{json.dumps(context.get('recent_events', [])[:10], ensure_ascii=False, indent=1)}
+
+الأحداث العاجلة:
+{json.dumps(context.get('breaking_events', []), ensure_ascii=False, indent=1)}
+"""
+
+    system_prompt = f"""أنت مساعد WarScope الذكي — منصة تتبع مباشر لأحداث الشرق الأوسط.
+أجب باللغة العربية بشكل مختصر ومفيد.
+استخدم البيانات المتاحة للإجابة على أسئلة المستخدم.
+لا تختلق معلومات — إذا لم تجد إجابة بالبيانات، قل ذلك.
+
+{events_summary}"""
+
+    # Try Groq API
+    try:
+        from config import GROQ_API_KEY
+        if GROQ_API_KEY:
+            import httpx
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.post(
+                    "https://api.groq.com/openai/v1/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {GROQ_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "llama-3.3-70b-versatile",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_message},
+                        ],
+                        "max_tokens": 500,
+                        "temperature": 0.7,
+                    }
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    reply = data["choices"][0]["message"]["content"]
+                    return {"reply": reply}
+    except Exception as e:
+        print(f"[Chat] Groq error: {e}")
+
+    # Fallback: simple response
+    return {"reply": f"📊 الوضع الحالي:\n\n• إجمالي الأحداث: {context.get('total_events', 0)}\n• أحداث عاجلة: {context.get('breaking_count', 0)}\n\nللأسف لم أتمكن من الاتصال بمحرك التحليل الذكي. جرّب مرة أخرى."}
 
 
 # ──────────────────────────────────────────────
