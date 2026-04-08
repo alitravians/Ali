@@ -242,6 +242,26 @@ export default function StatusPage() {
   const [fixingSvc, setFixingSvc] = useState<string | null>(null);
   const [fixSessions, setFixSessions] = useState<FixSession[]>([]);
   const [fixResult, setFixResult] = useState<{ svcId: string; success: boolean; url?: string; error?: string } | null>(null);
+  const [showCodePrompt, setShowCodePrompt] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState('');
+
+  const requestFix = (serviceId: string) => {
+    setShowCodePrompt(serviceId);
+    setCodeInput('');
+  };
+
+  const confirmFixCode = (serviceId: string) => {
+    if (codeInput === '3131') {
+      setShowCodePrompt(null);
+      setCodeInput('');
+      triggerDevinFix(serviceId);
+    } else {
+      setFixResult({ svcId: serviceId, success: false, error: 'رمز التحقق غير صحيح' });
+      setShowCodePrompt(null);
+      setCodeInput('');
+      setTimeout(() => setFixResult(null), 5000);
+    }
+  };
 
   const triggerDevinFix = async (serviceId: string) => {
     const token = sessionStorage.getItem('warscope_admin_token');
@@ -522,10 +542,34 @@ export default function StatusPage() {
                 </div>
               </div>
 
-              {/* Devin Auto-Fix Button — only show for failing services */}
+              {/* Auto-Fix Button — only show for failing services */}
               {svc.status !== 'operational' && (
                 <div className="mt-2 pt-2 border-t border-gray-800/50">
-                  {fixResult && fixResult.svcId === svc.id ? (
+                  {showCodePrompt === svc.id ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="password"
+                        value={codeInput}
+                        onChange={e => setCodeInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && confirmFixCode(svc.id)}
+                        placeholder="أدخل رمز التحقق"
+                        className="flex-1 px-3 py-1.5 rounded-lg bg-gray-900 border border-purple-500/30 text-white text-[11px] placeholder-gray-500 focus:outline-none focus:border-purple-500"
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => confirmFixCode(svc.id)}
+                        className="px-3 py-1.5 rounded-lg bg-purple-500/20 border border-purple-500/30 text-purple-400 text-[11px] font-semibold hover:bg-purple-500/30 transition-colors"
+                      >
+                        تأكيد
+                      </button>
+                      <button
+                        onClick={() => { setShowCodePrompt(null); setCodeInput(''); }}
+                        className="px-2 py-1.5 rounded-lg text-gray-500 hover:text-gray-300 text-[11px] transition-colors"
+                      >
+                        إلغاء
+                      </button>
+                    </div>
+                  ) : fixResult && fixResult.svcId === svc.id ? (
                     fixResult.success ? (
                       <a
                         href={fixResult.url}
@@ -544,7 +588,7 @@ export default function StatusPage() {
                     )
                   ) : (
                     <button
-                      onClick={() => triggerDevinFix(svc.id)}
+                      onClick={() => requestFix(svc.id)}
                       disabled={fixingSvc === svc.id}
                       className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 text-[11px] font-semibold hover:bg-purple-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
@@ -553,7 +597,7 @@ export default function StatusPage() {
                       ) : (
                         <Bot className="w-3.5 h-3.5" />
                       )}
-                      {fixingSvc === svc.id ? 'جاري إنشاء جلسة الإصلاح...' : 'إصلاح بواسطة Devin AI'}
+                      {fixingSvc === svc.id ? 'جاري إنشاء جلسة الإصلاح...' : 'إصلاح بواسطة إدارة النظام'}
                     </button>
                   )}
                 </div>
@@ -582,7 +626,7 @@ export default function StatusPage() {
         <div className="mb-8">
           <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <Bot className="w-4 h-4 text-purple-400" />
-            جلسات الإصلاح بواسطة Devin AI
+            جلسات الإصلاح بواسطة إدارة النظام
             <span className="text-[10px] text-gray-500 font-normal">({fixSessions.length} جلسة)</span>
           </h2>
           <div className="rounded-xl border border-gray-800 bg-[#12121a] overflow-hidden">
@@ -724,7 +768,7 @@ export default function StatusPage() {
               </div>
               {data.source_monitoring.map(src => {
                 const sourceNames: Record<string, string> = {
-                  gdelt: 'GDELT', rss: 'RSS', opensky: 'OpenSky', devin_ai: 'Devin AI',
+                  gdelt: 'GDELT', rss: 'RSS', opensky: 'OpenSky', devin_ai: 'إدارة النظام',
                   aisstream: 'AIS Maritime', newsapi: 'NewsAPI', mediastack: 'MediaStack', acled: 'ACLED',
                 };
                 return (
