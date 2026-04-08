@@ -544,10 +544,8 @@ class HealthMonitor:
     # API response helpers
     # ──────────────────────────────────────────────
     def get_status_summary(self) -> dict:
-        """Full status page data."""
-        active_services = [
-            s for s in self.services.values() if s.config.enabled
-        ]
+        """Full status page data (includes disabled services)."""
+        all_services = list(self.services.values())
         return {
             "overall_status": self.get_overall_status().value,
             "overall_status_ar": _status_ar(self.get_overall_status().value),
@@ -557,8 +555,8 @@ class HealthMonitor:
                     "name": s.config.name,
                     "name_ar": s.config.name_ar,
                     "type": s.config.type,
-                    "status": s.current_status.value,
-                    "status_ar": _service_status_ar(s.current_status.value),
+                    "status": "disabled" if not s.config.enabled else s.current_status.value,
+                    "status_ar": "غير مفعّل" if not s.config.enabled else _service_status_ar(s.current_status.value),
                     "last_check": s.last_check,
                     "last_success": s.last_success,
                     "last_failure": s.last_failure,
@@ -574,7 +572,7 @@ class HealthMonitor:
                     "auto_heal": s.config.auto_heal,
                     "enabled": s.config.enabled,
                 }
-                for s in active_services
+                for s in all_services
             ],
             "incidents": [inc.model_dump(mode="json") for inc in self.incidents[:20]],
             "last_updated": datetime.now(timezone.utc).isoformat(),
