@@ -176,28 +176,9 @@ async def create_fix_session(
     if not DEVIN_API_KEY:
         return {"success": False, "error": "DEVIN_API_KEY not configured", "error_ar": "مفتاح Devin API غير مُعرّف"}
 
-    # Check concurrent session limit
-    active_count = sum(1 for s in _fix_sessions if s.get("status") in ("running", "pending"))
-    if active_count >= _MAX_CONCURRENT_SESSIONS:
-        return {
-            "success": False,
-            "error": f"Too many active fix sessions ({active_count}/{_MAX_CONCURRENT_SESSIONS})",
-            "error_ar": f"عدد جلسات الإصلاح النشطة وصل الحد الأقصى ({active_count}/{_MAX_CONCURRENT_SESSIONS})",
-        }
-
-    # Check if there's already an active session for this service
-    for s in _fix_sessions:
-        if s.get("service_id") == service_id and s.get("status") in ("running", "pending"):
-            return {
-                "success": False,
-                "error": f"A fix session is already active for {service_name}",
-                "error_ar": f"يوجد جلسة إصلاح نشطة بالفعل لـ {service_name}",
-                "existing_session": s,
-            }
-
     prompt = _build_fix_prompt(service_id, service_name, error_details, incident_info)
 
-    # Step 1: Try sending to the linked session first
+    # Step 1: Try sending to the linked session first (skip duplicate check — just messaging)
     linked_result = await _send_to_linked_session(prompt)
     if linked_result:
         session_info = {
@@ -214,7 +195,24 @@ async def create_fix_session(
             _fix_sessions.pop()
         return session_info
 
-    # Step 2: Fallback — create a new session
+    # Step 2: Fallback — create a new session (with duplicate/limit checks)
+    active_count = sum(1 for s in _fix_sessions if s.get("status") in ("running", "pending") and not s.get("linked"))
+    if active_count >= _MAX_CONCURRENT_SESSIONS:
+        return {
+            "success": False,
+            "error": f"Too many active fix sessions ({active_count}/{_MAX_CONCURRENT_SESSIONS})",
+            "error_ar": f"عدد جلسات الإصلاح النشطة وصل الحد الأقصى ({active_count}/{_MAX_CONCURRENT_SESSIONS})",
+        }
+
+    for s in _fix_sessions:
+        if s.get("service_id") == service_id and s.get("status") in ("running", "pending") and not s.get("linked"):
+            return {
+                "success": False,
+                "error": f"A fix session is already active for {service_name}",
+                "error_ar": f"يوجد جلسة إصلاح نشطة بالفعل لـ {service_name}",
+                "existing_session": s,
+            }
+
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
