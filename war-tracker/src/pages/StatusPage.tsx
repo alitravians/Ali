@@ -539,8 +539,8 @@ export default function StatusPage() {
                 </div>
               </div>
 
-              {/* Auto-Fix Button — only show for truly down services (outage), not just slow/degraded */}
-              {(svc.status === 'outage' || svc.status === 'major_outage' || svc.status === 'partial_outage') && (
+              {/* Auto-Fix Button — show for down or disabled services */}
+              {(svc.status === 'outage' || svc.status === 'major_outage' || svc.status === 'partial_outage' || svc.status === 'disabled') && (
                 <div className="mt-2 pt-2 border-t border-gray-800/50">
                   {showCodePrompt === svc.id ? (
                     <div className="flex items-center gap-2">
@@ -601,7 +601,7 @@ export default function StatusPage() {
               )}
 
               {/* Active fix session link for this service */}
-              {fixSessions.some(s => s.service_id === svc.id && s.status === 'running') && (svc.status === 'outage' || svc.status === 'major_outage' || svc.status === 'partial_outage') && !(fixResult && fixResult.svcId === svc.id && fixResult.success) && (
+              {fixSessions.some(s => s.service_id === svc.id && s.status === 'running') && (svc.status === 'outage' || svc.status === 'major_outage' || svc.status === 'partial_outage' || svc.status === 'disabled') && !(fixResult && fixResult.svcId === svc.id && fixResult.success) && (
                 <a
                   href={fixSessions.find(s => s.service_id === svc.id && s.status === 'running')?.session_url}
                   target="_blank"
