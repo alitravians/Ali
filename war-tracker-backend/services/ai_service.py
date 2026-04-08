@@ -1,7 +1,7 @@
 """AI integration for event analysis and Arabic translation.
 
-Uses Groq/Llama AI (primary), Devin API (deep analysis), and statistical analysis (fallback).
-Gemini has been removed — all analysis is now branded as "Devin AI".
+Uses Groq/Llama AI (primary) and statistical analysis (fallback).
+All analysis is branded as "Devin AI".
 """
 import json
 import asyncio
@@ -10,7 +10,7 @@ from urllib.parse import quote
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 from models import TrackerEvent, AISummary
-from config import GROQ_API_KEY, DEVIN_API_KEY, DEVIN_API_URL
+from config import GROQ_API_KEY
 
 # Groq API configuration (primary AI engine — fast & free)
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"

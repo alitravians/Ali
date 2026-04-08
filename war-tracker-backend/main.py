@@ -19,9 +19,9 @@ from pydantic import BaseModel
 from config import (
     FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
     OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, RSS_POLL_INTERVAL,
-    DEVIN_API_KEY, NEWSAPI_KEY,
+    NEWSAPI_KEY,
 )
-from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats
+from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
 from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
@@ -414,7 +414,7 @@ async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
 
             print(f"[BAHRAIN ALERT] {severity}: {event.title}")
             event.isBreaking = True
-            event.category = "alert"
+            event.category = EventCategory.alert
             await ws_manager.broadcast({
                 "type": "bahrain_alert",
                 "severity": severity,
@@ -1009,3 +1009,4 @@ async def websocket_endpoint(ws: WebSocket):
         ws_manager.disconnect(ws)
     except Exception:
         ws_manager.disconnect(ws)
+s)
