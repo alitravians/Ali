@@ -288,6 +288,8 @@ class HealthMonitor:
                 last_update = source_info.get("lastUpdate")
                 error_count = source_info.get("errors", 0)
                 event_count = source_info.get("eventCount", 0)
+                # Use actual API response time recorded during polling
+                real_response_time = source_info.get("responseTime", 0)
 
                 elapsed = (time.time() - start) * 1000
 
@@ -311,7 +313,7 @@ class HealthMonitor:
                 result = HealthCheckResult(
                     service_id=service_id,
                     status=status,
-                    response_time_ms=round(elapsed, 1),
+                    response_time_ms=round(real_response_time, 1) if real_response_time else round(elapsed, 1),
                     checked_at=now_iso,
                     success=success,
                     error=f"Errors: {error_count}" if error_count > 0 else None,

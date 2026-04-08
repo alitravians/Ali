@@ -50,14 +50,14 @@ class DataStore:
         self.last_opensky_fetch: datetime | None = None
         self.last_ai_analysis: datetime | None = None
         self.source_status: dict[str, dict] = {
-            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
         }
 
     def _default_indicators(self) -> list[DashboardIndicator]:
@@ -180,7 +180,9 @@ async def poll_gdelt():
     while True:
         try:
             print("[Scheduler] Fetching GDELT events...")
+            _t0 = time.time()
             events = await fetch_gdelt_events(max_results=40)
+            store.source_status["gdelt"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             if events:
                 store.source_status["gdelt"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["gdelt"]["eventCount"] += len(events)
@@ -228,7 +230,9 @@ async def poll_news():
             # NewsAPI
             if NEWSAPI_KEY:
                 print("[Scheduler] Fetching NewsAPI events...")
+                _t0 = time.time()
                 news = await fetch_news_events(max_results=20)
+                store.source_status["newsapi"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 new_events.extend(news)
                 store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["newsapi"]["eventCount"] += len(news)
@@ -238,7 +242,9 @@ async def poll_news():
             ms_key = os.getenv("MEDIASTACK_KEY", "")
             if ms_key:
                 print("[Scheduler] Fetching MediaStack events...")
+                _t0 = time.time()
                 ms = await fetch_mediastack_events(ms_key, max_results=15)
+                store.source_status["mediastack"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 new_events.extend(ms)
                 store.source_status["mediastack"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["mediastack"]["eventCount"] += len(ms)
@@ -249,7 +255,9 @@ async def poll_news():
             acled_email = os.getenv("ACLED_EMAIL", "")
             if acled_key and acled_email:
                 print("[Scheduler] Fetching ACLED events...")
+                _t0 = time.time()
                 acled = await fetch_acled_events(acled_key, acled_email, max_results=30)
+                store.source_status["acled"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 new_events.extend(acled)
                 store.source_status["acled"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["acled"]["eventCount"] += len(acled)
@@ -289,7 +297,9 @@ async def poll_opensky():
     """Background task: Poll OpenSky for aircraft positions."""
     while True:
         try:
+            _t0 = time.time()
             positions = await fetch_aircraft_positions()
+            store.source_status["opensky"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             store.aircraft = positions
             store.source_status["opensky"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
             store.source_status["opensky"]["eventCount"] = len(positions)
@@ -315,7 +325,9 @@ async def poll_ai_analysis():
         try:
             if store.events:
                 print("[Scheduler] Running AI analysis...")
+                _t0 = time.time()
                 summary = await analyze_events(store.events[:20])
+                store.source_status["devin_ai"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 if summary:
                     store.ai_summaries.insert(0, summary)
                     store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
@@ -338,7 +350,9 @@ async def poll_rss():
     while True:
         try:
             print("[Scheduler] Fetching RSS feed events...")
+            _t0 = time.time()
             rss_events = await fetch_rss_events(max_results=50)
+            store.source_status["rss"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             if rss_events:
                 store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["rss"]["eventCount"] += len(rss_events)
@@ -431,7 +445,9 @@ async def poll_maritime_broadcast():
     while True:
         await asyncio.sleep(30)
         try:
+            _t0 = time.time()
             vessels = get_vessels()
+            store.source_status["aisstream"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             zones = get_zone_stats()
             if vessels:
                 store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
