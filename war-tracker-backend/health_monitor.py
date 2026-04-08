@@ -313,7 +313,7 @@ class HealthMonitor:
                 result = HealthCheckResult(
                     service_id=service_id,
                     status=status,
-                    response_time_ms=round(real_response_time, 1) if real_response_time else round(elapsed, 1),
+                    response_time_ms=round(real_response_time, 1) if real_response_time > 0 else None,
                     checked_at=now_iso,
                     success=success,
                     error=f"Errors: {error_count}" if error_count > 0 else None,
