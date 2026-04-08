@@ -1009,4 +1009,3 @@ async def websocket_endpoint(ws: WebSocket):
         ws_manager.disconnect(ws)
     except Exception:
         ws_manager.disconnect(ws)
-s)
