@@ -31,6 +31,7 @@ from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
 from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
+from services.devin_autofix import create_fix_session, get_session_status, get_fix_sessions, is_devin_configured
 from health_monitor import HealthMonitor
 
 
@@ -858,6 +859,7 @@ def _get_bahrain_monitor() -> dict:
                         "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
                         "مملكة البحرين"}
     bahrain_events = []
+    today = datetime.now(timezone.utc).date()
     for e in store.events:
         text = f"{e.title} {e.titleAr} {e.description} {e.location.name} {e.location.nameAr}".lower()
         if any(kw in text for kw in bahrain_keywords):
@@ -870,15 +872,16 @@ def _get_bahrain_monitor() -> dict:
                 "isBreaking": e.isBreaking,
             })
 
+    today_bahrain_events = [e for e in bahrain_events if datetime.fromisoformat(e["timestamp"]).date() == today]
     has_alert = any(e["isBreaking"] for e in bahrain_events)
     has_military = any(e["category"] in ("military", "fire", "alert") for e in bahrain_events)
 
     return {
-        "event_count_today": len(bahrain_events),
+        "event_count_today": len(today_bahrain_events),
         "events": bahrain_events[:10],
         "has_active_alert": has_alert,
         "has_military_activity": has_military,
-        "risk_level": "critical" if has_alert else "high" if has_military else "elevated" if len(bahrain_events) >= 3 else "moderate" if len(bahrain_events) >= 1 else "low",
+        "risk_level": "critical" if has_alert else "high" if has_military else "elevated" if len(today_bahrain_events) >= 3 else "moderate" if len(today_bahrain_events) >= 1 else "low",
     }
 
 
@@ -946,6 +949,99 @@ async def trigger_analysis(authorization: str = Header(default="")):
         store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
         return summary.model_dump(mode="json")
     return {"error": "No events available for analysis"}
+
+
+# ──────────────────────────────────────────────
+# Devin Auto-Fix endpoints
+# ──────────────────────────────────────────────
+@app.post("/api/autofix/trigger/{service_id}")
+async def trigger_devin_fix(service_id: str, authorization: str = Header(default="")):
+    """Admin: trigger a Devin session to investigate and fix a failing service."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+
+    if not is_devin_configured():
+        raise HTTPException(status_code=503, detail="Devin API غير مُعرّف — يرجى إضافة DEVIN_API_KEY")
+
+    # Get service info from health monitor
+    svc = health_monitor.services.get(service_id)
+    if not svc:
+        raise HTTPException(status_code=404, detail="الخدمة غير موجودة")
+
+    # Collect error context
+    error_details = f"Service: {svc.config.name} ({svc.config.name_ar})\n"
+    error_details += f"Status: {svc.current_status.value}\n"
+    error_details += f"Consecutive failures: {svc.consecutive_failures}\n"
+    error_details += f"Last check: {svc.last_check or 'Never'}\n"
+    error_details += f"Last failure: {svc.last_failure or 'Never'}\n"
+    error_details += f"Response time: {svc.response_time_ms}ms\n"
+    error_details += f"Errors (24h): {svc.errors_24h}\n"
+    error_details += f"Success rate (24h): {svc.success_rate_24h}%\n"
+    error_details += f"Auto-heal attempts: {svc.heal_attempts}\n"
+
+    # Get last check result error if available
+    for check in reversed(health_monitor.check_history):
+        if check.service_id == service_id and check.error:
+            error_details += f"Last error: {check.error}\n"
+            break
+
+    # Collect incident info
+    incident_info = None
+    for inc in health_monitor.incidents:
+        if service_id in inc.affected_services and inc.status.value != "resolved":
+            incident_info = {
+                "started_at": inc.started_at,
+                "severity": inc.severity.value,
+                "heal_attempts": svc.heal_attempts,
+                "notes": " | ".join(n.message for n in inc.notes[-3:]),
+            }
+            break
+
+    result = await create_fix_session(
+        service_id=service_id,
+        service_name=f"{svc.config.name} ({svc.config.name_ar})",
+        error_details=error_details,
+        incident_info=incident_info,
+    )
+
+    if result.get("success"):
+        # Add incident note about Devin session
+        for inc in health_monitor.incidents:
+            if service_id in inc.affected_services and inc.status.value != "resolved":
+                from health_monitor import IncidentNote, IncidentStatus
+                import uuid
+                inc.notes.append(IncidentNote(
+                    id=f"note-{uuid.uuid4().hex[:8]}",
+                    message=f"Devin AI fix session started: {result.get('session_url', '')}",
+                    message_ar=f"تم بدء جلسة إصلاح Devin AI: {result.get('session_url', '')}",
+                    status=IncidentStatus.identified,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                ))
+                break
+
+    return result
+
+
+@app.get("/api/autofix/sessions")
+async def get_autofix_sessions(authorization: str = Header(default="")):
+    """Admin: get all Devin fix session history."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return {
+        "sessions": get_fix_sessions(),
+        "devin_configured": is_devin_configured(),
+    }
+
+
+@app.get("/api/autofix/session/{session_id}")
+async def get_autofix_session_status(session_id: str, authorization: str = Header(default="")):
+    """Admin: check status of a specific Devin fix session."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return await get_session_status(session_id)
 
 
 # ──────────────────────────────────────────────

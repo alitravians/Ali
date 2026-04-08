@@ -6,6 +6,10 @@ load_dotenv()
 # API Keys
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+DEVIN_API_KEY = os.getenv("DEVIN_API_KEY", "")
+
+# Devin API (for auto-fix sessions)
+DEVIN_API_URL = "https://api.devin.ai/v1"
 
 # GDELT (no key needed)
 GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2"

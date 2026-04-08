@@ -3,7 +3,8 @@ import {
   Activity, Server, Wifi, Globe2, Brain, Anchor, Rss,
   CheckCircle2, AlertTriangle, XCircle, Clock, RefreshCw,
   ChevronDown, ChevronUp, Wrench, Shield, Zap, TrendingUp,
-  Radio, Newspaper, Plane, Database, Users, Bell, MapPin
+  Radio, Newspaper, Plane, Database, Users, Bell, MapPin,
+  Bot, ExternalLink, Loader2
 } from 'lucide-react';
 import { BACKEND_API_URL } from '../config/api';
 
@@ -87,6 +88,17 @@ interface BahrainMonitor {
 interface WebSocketHealth {
   active_connections: number;
   max_connections: number;
+}
+
+interface FixSession {
+  success: boolean;
+  session_id: string;
+  session_url: string;
+  service_id: string;
+  service_name: string;
+  status: string;
+  created_at: string;
+  error_details: string;
 }
 
 interface StatusData {
@@ -227,6 +239,52 @@ export default function StatusPage() {
   const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
   const [showAllIncidents, setShowAllIncidents] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const [fixingSvc, setFixingSvc] = useState<string | null>(null);
+  const [fixSessions, setFixSessions] = useState<FixSession[]>([]);
+  const [fixResult, setFixResult] = useState<{ svcId: string; success: boolean; url?: string; error?: string } | null>(null);
+
+  const triggerDevinFix = async (serviceId: string) => {
+    const token = sessionStorage.getItem('warscope_admin_token');
+    if (!token) {
+      setFixResult({ svcId: serviceId, success: false, error: 'يرجى تسجيل الدخول كمسؤول أولاً' });
+      setTimeout(() => setFixResult(null), 5000);
+      return;
+    }
+    setFixingSvc(serviceId);
+    setFixResult(null);
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/autofix/trigger/${serviceId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setFixResult({ svcId: serviceId, success: true, url: data.session_url });
+        setFixSessions(prev => [data, ...prev].slice(0, 10));
+      } else {
+        setFixResult({ svcId: serviceId, success: false, error: data.error_ar || data.error || 'فشل إنشاء جلسة الإصلاح' });
+      }
+    } catch {
+      setFixResult({ svcId: serviceId, success: false, error: 'تعذّر الاتصال بالسيرفر' });
+    } finally {
+      setFixingSvc(null);
+      setTimeout(() => setFixResult(null), 10000);
+    }
+  };
+
+  const fetchFixSessions = useCallback(async () => {
+    const token = sessionStorage.getItem('warscope_admin_token');
+    if (!token) return;
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/api/autofix/sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setFixSessions(data.sessions || []);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -244,10 +302,11 @@ export default function StatusPage() {
 
   useEffect(() => {
     fetchStatus();
+    fetchFixSessions();
     if (!autoRefresh) return;
     const interval = setInterval(fetchStatus, 30000);
     return () => clearInterval(interval);
-  }, [fetchStatus, autoRefresh]);
+  }, [fetchStatus, fetchFixSessions, autoRefresh]);
 
   if (loading) {
     return (
@@ -462,10 +521,107 @@ export default function StatusPage() {
                   <span className="text-[9px] text-gray-600">كل {svc.check_interval < 60 ? `${svc.check_interval}ث` : `${Math.round(svc.check_interval / 60)}د`}</span>
                 </div>
               </div>
+
+              {/* Devin Auto-Fix Button — only show for failing services */}
+              {svc.status !== 'operational' && (
+                <div className="mt-2 pt-2 border-t border-gray-800/50">
+                  {fixResult && fixResult.svcId === svc.id ? (
+                    fixResult.success ? (
+                      <a
+                        href={fixResult.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-[11px] font-semibold hover:bg-green-500/20 transition-colors"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        تم إنشاء جلسة الإصلاح — اضغط للمتابعة
+                      </a>
+                    ) : (
+                      <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-[10px]">
+                        <XCircle className="w-3 h-3" />
+                        {fixResult.error}
+                      </div>
+                    )
+                  ) : (
+                    <button
+                      onClick={() => triggerDevinFix(svc.id)}
+                      disabled={fixingSvc === svc.id}
+                      className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 text-[11px] font-semibold hover:bg-purple-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {fixingSvc === svc.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Bot className="w-3.5 h-3.5" />
+                      )}
+                      {fixingSvc === svc.id ? 'جاري إنشاء جلسة الإصلاح...' : 'إصلاح بواسطة Devin AI'}
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Active fix session link for this service */}
+              {fixSessions.some(s => s.service_id === svc.id && s.status === 'running') && svc.status !== 'operational' && !(fixResult && fixResult.svcId === svc.id && fixResult.success) && (
+                <a
+                  href={fixSessions.find(s => s.service_id === svc.id && s.status === 'running')?.session_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-1 mt-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  <Bot className="w-3 h-3" />
+                  جلسة إصلاح نشطة — اضغط للمتابعة
+                  <ExternalLink className="w-2.5 h-2.5" />
+                </a>
+              )}
             </div>
           );
         })}
       </div>
+
+      {/* Devin Fix Sessions */}
+      {fixSessions.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+            <Bot className="w-4 h-4 text-purple-400" />
+            جلسات الإصلاح بواسطة Devin AI
+            <span className="text-[10px] text-gray-500 font-normal">({fixSessions.length} جلسة)</span>
+          </h2>
+          <div className="rounded-xl border border-gray-800 bg-[#12121a] overflow-hidden">
+            {fixSessions.slice(0, 5).map((session, idx) => (
+              <div key={session.session_id || idx} className="flex items-center justify-between p-3 border-b border-gray-800/50 last:border-0 hover:bg-white/[0.02] transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${
+                    session.status === 'running' ? 'bg-purple-500 animate-pulse' :
+                    session.status === 'finished' ? 'bg-green-500' : 'bg-gray-500'
+                  }`} />
+                  <div className="min-w-0">
+                    <div className="text-[11px] text-white font-medium truncate">{session.service_name}</div>
+                    <div className="text-[10px] text-gray-500 truncate">{session.error_details?.slice(0, 80)}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`text-[9px] px-1.5 py-0.5 rounded ${
+                    session.status === 'running' ? 'bg-purple-500/15 text-purple-400' :
+                    session.status === 'finished' ? 'bg-green-500/15 text-green-400' : 'bg-gray-700/50 text-gray-400'
+                  }`}>
+                    {session.status === 'running' ? 'قيد العمل' : session.status === 'finished' ? 'اكتمل' : session.status}
+                  </span>
+                  <span className="text-[9px] text-gray-600">{timeAgo(session.created_at)}</span>
+                  {session.session_url && (
+                    <a
+                      href={session.session_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-purple-400 hover:text-purple-300 transition-colors"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ──────────────────────────────────────────────
           Advanced Monitoring Sections
