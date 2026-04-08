@@ -936,12 +936,17 @@ async def trigger_health_check(service_id: str, authorization: str = Header(defa
     return result.model_dump(mode="json")
 
 
+_last_public_analysis = None  # Rate limit for public analysis trigger
+
 @app.post("/api/analysis/trigger")
-async def trigger_analysis(authorization: str = Header(default="")):
-    """Manually trigger AI analysis (requires admin token to prevent API quota abuse)."""
-    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-    if not token or not _verify_token(token):
-        raise HTTPException(status_code=401, detail="يتطلب تسجيل دخول المسؤول")
+async def trigger_analysis():
+    """Trigger AI analysis — public with rate limiting (max once per 2 minutes)."""
+    global _last_public_analysis
+    now = datetime.now(timezone.utc)
+    if _last_public_analysis and (now - _last_public_analysis).total_seconds() < 120:
+        remaining = 120 - int((now - _last_public_analysis).total_seconds())
+        raise HTTPException(status_code=429, detail=f"يرجى الانتظار {remaining} ثانية قبل طلب تحليل جديد")
+    _last_public_analysis = now
     summary = await analyze_events(store.events[:20])
     if summary:
         store.ai_summaries.insert(0, summary)
