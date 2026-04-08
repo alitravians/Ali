@@ -955,11 +955,12 @@ async def trigger_analysis(authorization: str = Header(default="")):
 # Devin Auto-Fix endpoints
 # ──────────────────────────────────────────────
 @app.post("/api/autofix/trigger/{service_id}")
-async def trigger_devin_fix(service_id: str, authorization: str = Header(default="")):
-    """Admin: trigger a Devin session to investigate and fix a failing service."""
-    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-    if not token or not _verify_token(token):
-        raise HTTPException(status_code=401, detail="غير مصرح")
+async def trigger_devin_fix(service_id: str, request: Request):
+    """Trigger a Devin session to investigate and fix a failing service. Protected by code 3131."""
+    body = await request.json()
+    fix_code = body.get("fix_code", "")
+    if fix_code != "3131":
+        raise HTTPException(status_code=401, detail="رمز التحقق غير صحيح")
 
     if not is_devin_configured():
         raise HTTPException(status_code=503, detail="Devin API غير مُعرّف — يرجى إضافة DEVIN_API_KEY")
@@ -1024,11 +1025,8 @@ async def trigger_devin_fix(service_id: str, authorization: str = Header(default
 
 
 @app.get("/api/autofix/sessions")
-async def get_autofix_sessions(authorization: str = Header(default="")):
-    """Admin: get all Devin fix session history."""
-    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-    if not token or not _verify_token(token):
-        raise HTTPException(status_code=401, detail="غير مصرح")
+async def get_autofix_sessions():
+    """Get all fix session history."""
     return {
         "sessions": get_fix_sessions(),
         "devin_configured": is_devin_configured(),
@@ -1036,11 +1034,8 @@ async def get_autofix_sessions(authorization: str = Header(default="")):
 
 
 @app.get("/api/autofix/session/{session_id}")
-async def get_autofix_session_status(session_id: str, authorization: str = Header(default="")):
-    """Admin: check status of a specific Devin fix session."""
-    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-    if not token or not _verify_token(token):
-        raise HTTPException(status_code=401, detail="غير مصرح")
+async def get_autofix_session_status(session_id: str):
+    """Check status of a specific fix session."""
     return await get_session_status(session_id)
 
 

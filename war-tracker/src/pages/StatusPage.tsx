@@ -264,18 +264,13 @@ export default function StatusPage() {
   };
 
   const triggerDevinFix = async (serviceId: string) => {
-    const token = sessionStorage.getItem('warscope_admin_token');
-    if (!token) {
-      setFixResult({ svcId: serviceId, success: false, error: 'يرجى تسجيل الدخول كمسؤول أولاً' });
-      setTimeout(() => setFixResult(null), 5000);
-      return;
-    }
     setFixingSvc(serviceId);
     setFixResult(null);
     try {
       const resp = await fetch(`${BACKEND_API_URL}/api/autofix/trigger/${serviceId}`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fix_code: '3131' }),
       });
       const data = await resp.json();
       if (data.success) {
@@ -293,12 +288,8 @@ export default function StatusPage() {
   };
 
   const fetchFixSessions = useCallback(async () => {
-    const token = sessionStorage.getItem('warscope_admin_token');
-    if (!token) return;
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/autofix/sessions`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const resp = await fetch(`${BACKEND_API_URL}/api/autofix/sessions`);
       if (resp.ok) {
         const data = await resp.json();
         setFixSessions(data.sessions || []);
