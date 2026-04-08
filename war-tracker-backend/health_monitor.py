@@ -167,11 +167,11 @@ class HealthMonitor:
                 check_interval_seconds=180,
             ),
             ServiceConfig(
-                id="gemini_ai",
-                name="Gemini AI Analysis",
-                name_ar="تحليل Gemini الذكي",
+                id="devin_ai",
+                name="Devin AI Analysis",
+                name_ar="تحليلات Devin الذكية",
                 type="external",
-                endpoint="gemini",
+                endpoint="devin_ai",
                 check_interval_seconds=300,
             ),
             ServiceConfig(

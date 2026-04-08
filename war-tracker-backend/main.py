@@ -19,18 +19,19 @@ from pydantic import BaseModel
 from config import (
     FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
     OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, RSS_POLL_INTERVAL,
-    GEMINI_API_KEY, NEWSAPI_KEY,
+    NEWSAPI_KEY,
 )
-from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats
+from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
 from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
-from services.gemini_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
+from services.ai_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
 from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
 from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
+from services.devin_autofix import create_fix_session, get_session_status, get_fix_sessions, is_devin_configured
 from health_monitor import HealthMonitor
 
 
@@ -49,14 +50,14 @@ class DataStore:
         self.last_opensky_fetch: datetime | None = None
         self.last_ai_analysis: datetime | None = None
         self.source_status: dict[str, dict] = {
-            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0},
-            "gemini": {"active": bool(GEMINI_API_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0},
+            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
         }
 
     def _default_indicators(self) -> list[DashboardIndicator]:
@@ -183,6 +184,7 @@ async def poll_gdelt():
             if events:
                 store.source_status["gdelt"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["gdelt"]["eventCount"] += len(events)
+                store.source_status["gdelt"]["successfulPolls"] += 1
 
                 # Merge with existing
                 all_events = events + store.events
@@ -196,6 +198,7 @@ async def poll_gdelt():
 
                 generate_alerts_from_events(events)
                 await update_indicators()
+                await _check_bahrain_critical_alert(events)
 
                 await ws_manager.broadcast({
                     "type": "events_update",
@@ -229,6 +232,7 @@ async def poll_news():
                 new_events.extend(news)
                 store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["newsapi"]["eventCount"] += len(news)
+                store.source_status["newsapi"]["successfulPolls"] += 1
 
             # MediaStack
             ms_key = os.getenv("MEDIASTACK_KEY", "")
@@ -238,6 +242,7 @@ async def poll_news():
                 new_events.extend(ms)
                 store.source_status["mediastack"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["mediastack"]["eventCount"] += len(ms)
+                store.source_status["mediastack"]["successfulPolls"] += 1
 
             # ACLED
             acled_key = os.getenv("ACLED_KEY", "")
@@ -248,6 +253,7 @@ async def poll_news():
                 new_events.extend(acled)
                 store.source_status["acled"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["acled"]["eventCount"] += len(acled)
+                store.source_status["acled"]["successfulPolls"] += 1
 
             if new_events:
                 all_events = new_events + store.events
@@ -261,6 +267,7 @@ async def poll_news():
 
                 generate_alerts_from_events(new_events)
                 await update_indicators()
+                await _check_bahrain_critical_alert(new_events)
 
                 await ws_manager.broadcast({
                     "type": "events_update",
@@ -286,6 +293,7 @@ async def poll_opensky():
             store.aircraft = positions
             store.source_status["opensky"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
             store.source_status["opensky"]["eventCount"] = len(positions)
+            store.source_status["opensky"]["successfulPolls"] += 1
 
             if positions and ws_manager.active_connections:
                 await ws_manager.broadcast({
@@ -311,17 +319,18 @@ async def poll_ai_analysis():
                 if summary:
                     store.ai_summaries.insert(0, summary)
                     store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
-                    store.source_status["gemini"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                    store.source_status["gemini"]["eventCount"] += 1
+                    store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                    store.source_status["devin_ai"]["eventCount"] += 1
+                    store.source_status["devin_ai"]["successfulPolls"] += 1
 
                     await ws_manager.broadcast({
                         "type": "ai_analysis",
                         "summary": summary.model_dump(mode="json"),
                     })
-                    print("[AI] Analysis generated successfully")
+                    print("[Devin AI] Analysis generated successfully")
         except Exception as e:
-            store.source_status["gemini"]["errors"] += 1
-            print(f"[AI] Analysis error: {e}")
+            store.source_status["devin_ai"]["errors"] += 1
+            print(f"[Devin AI] Analysis error: {e}")
 
 
 async def poll_rss():
@@ -333,6 +342,7 @@ async def poll_rss():
             if rss_events:
                 store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["rss"]["eventCount"] += len(rss_events)
+                store.source_status["rss"]["successfulPolls"] += 1
 
                 all_events = rss_events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]
@@ -345,6 +355,7 @@ async def poll_rss():
 
                 generate_alerts_from_events(rss_events)
                 await update_indicators()
+                await _check_bahrain_critical_alert(rss_events)
 
                 await ws_manager.broadcast({
                     "type": "events_update",
@@ -365,6 +376,56 @@ async def poll_rss():
         await asyncio.sleep(RSS_POLL_INTERVAL)
 
 
+# Bahrain siren/alert keywords for instant detection
+BAHRAIN_ALERT_KEYWORDS = [
+    "صفارة", "إنذار", "صافرة", "siren", "alarm", "air raid",
+    "ملجأ", "إخلاء", "shelter", "evacuate", "تحذير أمني",
+    "زوال الخطر", "انتهاء التهديد", "all clear",
+    "اعتراض", "شظايا", "دفاع جوي", "مكان آمن",
+    "intercept", "shrapnel", "air defense",
+    "الدفاع المدني", "civil defense", "civil defence",
+    "الاتصال الوطني", "national communication",
+]
+BAHRAIN_LOCATION_KEYWORDS = [
+    "bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
+    "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
+    "مدينة عيسى", "isa town",
+]
+
+
+async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
+    """Check if any events contain critical Bahrain alerts (sirens, evacuations).
+    Broadcasts an immediate WebSocket alert if detected."""
+    ALL_CLEAR_KEYWORDS = ["زوال الخطر", "انتهاء التهديد", "all clear", "زوال"]
+    for event in events:
+        text = f"{event.title} {event.titleAr or ''} {event.description or ''}".lower()
+        has_bahrain = any(kw in text for kw in BAHRAIN_LOCATION_KEYWORDS)
+        has_alert = any(kw in text for kw in BAHRAIN_ALERT_KEYWORDS)
+        if has_bahrain and has_alert:
+            # Determine if this is an "all clear" or "danger" siren
+            is_all_clear = any(kw in text for kw in ALL_CLEAR_KEYWORDS)
+            if is_all_clear:
+                severity = "info"
+                message = "تنبيه: صفارة زوال الخطر في البحرين — الوضع آمن"
+                message_en = "NOTICE: All-clear siren in Bahrain — situation is safe"
+            else:
+                severity = "critical"
+                message = "تنبيه عاجل: تم رصد صفارة إنذار في البحرين"
+                message_en = "URGENT: Air raid siren detected in Bahrain"
+
+            print(f"[BAHRAIN ALERT] {severity}: {event.title}")
+            event.isBreaking = True
+            event.category = EventCategory.alert
+            await ws_manager.broadcast({
+                "type": "bahrain_alert",
+                "severity": severity,
+                "event": event.model_dump(mode="json"),
+                "message": message,
+                "messageEn": message_en,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
+
 async def poll_maritime_broadcast():
     """Background task: Broadcast maritime vessel positions every 30 seconds."""
     while True:
@@ -375,6 +436,7 @@ async def poll_maritime_broadcast():
             if vessels:
                 store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["aisstream"]["eventCount"] = len(vessels)
+                store.source_status["aisstream"]["successfulPolls"] += 1
 
                 await ws_manager.broadcast({
                     "type": "maritime_update",
@@ -758,7 +820,69 @@ async def get_maritime_zones():
 @app.get("/api/status")
 async def get_status():
     """Public status page data — no auth required."""
-    return health_monitor.get_status_summary()
+    summary = health_monitor.get_status_summary()
+
+    # Add advanced monitoring data
+    summary["source_monitoring"] = _get_source_monitoring()
+    summary["websocket_health"] = {
+        "active_connections": len(ws_manager.active_connections),
+        "max_connections": MAX_WS_CONNECTIONS,
+    }
+    summary["bahrain_monitor"] = _get_bahrain_monitor()
+
+    return summary
+
+
+def _get_source_monitoring() -> list[dict]:
+    """Get per-source monitoring metrics for Status Page."""
+    result = []
+    for key, info in store.source_status.items():
+        successful = info.get("successfulPolls", 0)
+        errors = info.get("errors", 0)
+        total_polls = successful + errors
+        success_rate = round((successful / total_polls * 100) if total_polls > 0 else 100, 1)
+        result.append({
+            "id": key,
+            "active": info.get("active", False),
+            "event_count": info.get("eventCount", 0),
+            "errors": errors,
+            "successful_polls": successful,
+            "last_update": info.get("lastUpdate"),
+            "success_rate": success_rate,
+        })
+    return result
+
+
+def _get_bahrain_monitor() -> dict:
+    """Get Bahrain-specific monitoring data."""
+    bahrain_keywords = {"bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
+                        "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
+                        "مملكة البحرين"}
+    bahrain_events = []
+    today = datetime.now(timezone.utc).date()
+    for e in store.events:
+        text = f"{e.title} {e.titleAr} {e.description} {e.location.name} {e.location.nameAr}".lower()
+        if any(kw in text for kw in bahrain_keywords):
+            bahrain_events.append({
+                "id": e.id,
+                "title": e.title,
+                "titleAr": e.titleAr,
+                "category": e.category.value,
+                "timestamp": e.timestamp.isoformat(),
+                "isBreaking": e.isBreaking,
+            })
+
+    today_bahrain_events = [e for e in bahrain_events if datetime.fromisoformat(e["timestamp"]).date() == today]
+    has_alert = any(e["isBreaking"] for e in bahrain_events)
+    has_military = any(e["category"] in ("military", "fire", "alert") for e in bahrain_events)
+
+    return {
+        "event_count_today": len(today_bahrain_events),
+        "events": bahrain_events[:10],
+        "has_active_alert": has_alert,
+        "has_military_activity": has_military,
+        "risk_level": "critical" if has_alert else "high" if has_military else "elevated" if len(today_bahrain_events) >= 3 else "moderate" if len(today_bahrain_events) >= 1 else "low",
+    }
 
 
 @app.get("/api/status/admin")
@@ -822,9 +946,102 @@ async def trigger_analysis(authorization: str = Header(default="")):
     if summary:
         store.ai_summaries.insert(0, summary)
         store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
-        store.source_status["gemini"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+        store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
         return summary.model_dump(mode="json")
     return {"error": "No events available for analysis"}
+
+
+# ──────────────────────────────────────────────
+# Devin Auto-Fix endpoints
+# ──────────────────────────────────────────────
+@app.post("/api/autofix/trigger/{service_id}")
+async def trigger_devin_fix(service_id: str, authorization: str = Header(default="")):
+    """Admin: trigger a Devin session to investigate and fix a failing service."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+
+    if not is_devin_configured():
+        raise HTTPException(status_code=503, detail="Devin API غير مُعرّف — يرجى إضافة DEVIN_API_KEY")
+
+    # Get service info from health monitor
+    svc = health_monitor.services.get(service_id)
+    if not svc:
+        raise HTTPException(status_code=404, detail="الخدمة غير موجودة")
+
+    # Collect error context
+    error_details = f"Service: {svc.config.name} ({svc.config.name_ar})\n"
+    error_details += f"Status: {svc.current_status.value}\n"
+    error_details += f"Consecutive failures: {svc.consecutive_failures}\n"
+    error_details += f"Last check: {svc.last_check or 'Never'}\n"
+    error_details += f"Last failure: {svc.last_failure or 'Never'}\n"
+    error_details += f"Response time: {svc.response_time_ms}ms\n"
+    error_details += f"Errors (24h): {svc.errors_24h}\n"
+    error_details += f"Success rate (24h): {svc.success_rate_24h}%\n"
+    error_details += f"Auto-heal attempts: {svc.heal_attempts}\n"
+
+    # Get last check result error if available
+    for check in reversed(health_monitor.check_history):
+        if check.service_id == service_id and check.error:
+            error_details += f"Last error: {check.error}\n"
+            break
+
+    # Collect incident info
+    incident_info = None
+    for inc in health_monitor.incidents:
+        if service_id in inc.affected_services and inc.status.value != "resolved":
+            incident_info = {
+                "started_at": inc.started_at,
+                "severity": inc.severity.value,
+                "heal_attempts": svc.heal_attempts,
+                "notes": " | ".join(n.message for n in inc.notes[-3:]),
+            }
+            break
+
+    result = await create_fix_session(
+        service_id=service_id,
+        service_name=f"{svc.config.name} ({svc.config.name_ar})",
+        error_details=error_details,
+        incident_info=incident_info,
+    )
+
+    if result.get("success"):
+        # Add incident note about Devin session
+        for inc in health_monitor.incidents:
+            if service_id in inc.affected_services and inc.status.value != "resolved":
+                from health_monitor import IncidentNote, IncidentStatus
+                import uuid
+                inc.notes.append(IncidentNote(
+                    id=f"note-{uuid.uuid4().hex[:8]}",
+                    message=f"Devin AI fix session started: {result.get('session_url', '')}",
+                    message_ar=f"تم بدء جلسة إصلاح Devin AI: {result.get('session_url', '')}",
+                    status=IncidentStatus.identified,
+                    timestamp=datetime.now(timezone.utc).isoformat(),
+                ))
+                break
+
+    return result
+
+
+@app.get("/api/autofix/sessions")
+async def get_autofix_sessions(authorization: str = Header(default="")):
+    """Admin: get all Devin fix session history."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return {
+        "sessions": get_fix_sessions(),
+        "devin_configured": is_devin_configured(),
+    }
+
+
+@app.get("/api/autofix/session/{session_id}")
+async def get_autofix_session_status(session_id: str, authorization: str = Header(default="")):
+    """Admin: check status of a specific Devin fix session."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return await get_session_status(session_id)
 
 
 # ──────────────────────────────────────────────

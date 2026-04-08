@@ -1,7 +1,7 @@
 [project]
 name = "war-tracker-backend"
 version = "0.1.0"
-description = "WarScope - Real-time war tracking backend with GDELT, NewsAPI, OpenSky, and Gemini AI"
+description = "WarScope - Real-time war tracking backend with GDELT, NewsAPI, OpenSky, and Devin AI"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.115.0",

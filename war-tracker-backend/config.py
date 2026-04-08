@@ -5,8 +5,11 @@ load_dotenv()
 
 # API Keys
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+DEVIN_API_KEY = os.getenv("DEVIN_API_KEY", "")
+
+# Devin API (for auto-fix sessions)
+DEVIN_API_URL = "https://api.devin.ai/v1"
 
 # GDELT (no key needed)
 GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2"
@@ -26,6 +29,7 @@ FRONTEND_ORIGINS = [
     "https://dist-mvivermt.devinapps.com",
     "https://dist-danynpxi.devinapps.com",
     "https://dist-mu-taupe-70.vercel.app",
+    "https://war-tracker-backend-v2.fly.dev",
 ]
 
 if os.getenv("CORS_DEV"):

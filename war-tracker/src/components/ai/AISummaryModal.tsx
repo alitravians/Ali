@@ -72,7 +72,7 @@ export default function AISummaryModal({ isOpen, onClose }: AISummaryModalProps)
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-purple-500/10 border border-purple-500/30 rounded-full">
             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-            <span className="text-[10px] font-semibold text-purple-400">Gemini / Groq AI</span>
+            <span className="text-[10px] font-semibold text-purple-400">إدارة النظام</span>
           </div>
           <button
             onClick={triggerAnalysis}
