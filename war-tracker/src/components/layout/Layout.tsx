@@ -6,6 +6,7 @@ import BreakingTicker from './BreakingTicker';
 import FooterStats from './FooterStats';
 import LoadingScreen from '../shared/LoadingScreen';
 import PhoneModeToggle from '../shared/PhoneModeToggle';
+import BahrainAlertBanner from '../shared/BahrainAlertBanner';
 import { useLiveData } from '../../context/LiveDataContext';
 
 export default function Layout() {
@@ -26,6 +27,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-gray-200 font-[Cairo] flex flex-col phone-mode-container">
       {showLoading && <LoadingScreen />}
+      <BahrainAlertBanner />
       <BreakingTicker />
       <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

@@ -197,6 +197,7 @@ async def poll_gdelt():
 
                 generate_alerts_from_events(events)
                 await update_indicators()
+                await _check_bahrain_critical_alert(events)
 
                 await ws_manager.broadcast({
                     "type": "events_update",
@@ -265,6 +266,7 @@ async def poll_news():
 
                 generate_alerts_from_events(new_events)
                 await update_indicators()
+                await _check_bahrain_critical_alert(new_events)
 
                 await ws_manager.broadcast({
                     "type": "events_update",
@@ -352,6 +354,7 @@ async def poll_rss():
 
                 generate_alerts_from_events(rss_events)
                 await update_indicators()
+                await _check_bahrain_critical_alert(rss_events)
 
                 await ws_manager.broadcast({
                     "type": "events_update",
@@ -372,6 +375,41 @@ async def poll_rss():
         await asyncio.sleep(RSS_POLL_INTERVAL)
 
 
+# Bahrain siren/alert keywords for instant detection
+BAHRAIN_ALERT_KEYWORDS = [
+    "صفارة", "إنذار", "صافرة", "siren", "alarm", "air raid",
+    "ملجأ", "إخلاء", "shelter", "evacuate", "تحذير أمني",
+]
+BAHRAIN_LOCATION_KEYWORDS = [
+    "bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
+    "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
+    "مدينة عيسى", "isa town",
+]
+
+
+async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
+    """Check if any events contain critical Bahrain alerts (sirens, evacuations).
+    Broadcasts an immediate WebSocket alert if detected."""
+    for event in events:
+        text = f"{event.title} {event.titleAr or ''} {event.description or ''}".lower()
+        has_bahrain = any(kw in text for kw in BAHRAIN_LOCATION_KEYWORDS)
+        has_alert = any(kw in text for kw in BAHRAIN_ALERT_KEYWORDS)
+        if has_bahrain and has_alert:
+            print(f"[BAHRAIN ALERT] Critical event detected: {event.title}")
+            # Force event to breaking + alert category
+            event.isBreaking = True
+            event.category = "alert"
+            # Broadcast immediate Bahrain alert via WebSocket
+            await ws_manager.broadcast({
+                "type": "bahrain_alert",
+                "severity": "critical",
+                "event": event.model_dump(mode="json"),
+                "message": "تنبيه عاجل: تم رصد صفارة إنذار في البحرين",
+                "messageEn": "URGENT: Air raid siren detected in Bahrain",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
+
 async def poll_maritime_broadcast():
     """Background task: Broadcast maritime vessel positions every 30 seconds."""
     while True:
@@ -382,6 +420,7 @@ async def poll_maritime_broadcast():
             if vessels:
                 store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["aisstream"]["eventCount"] = len(vessels)
+                store.source_status["aisstream"]["successfulPolls"] += 1
 
                 await ws_manager.broadcast({
                     "type": "maritime_update",

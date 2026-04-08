@@ -2,6 +2,14 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef, ty
 import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats } from '../types';
 import { BACKEND_API_URL, BACKEND_WS_URL } from '../config/api';
 
+interface BahrainAlert {
+  severity: string;
+  message: string;
+  messageEn: string;
+  timestamp: string;
+  event: TrackerEvent;
+}
+
 interface LiveDataContextType {
   events: TrackerEvent[];
   alerts: Alert[];
@@ -14,6 +22,8 @@ interface LiveDataContextType {
   clearNewCount: () => void;
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
   sourceStatus: Record<string, { active: boolean; lastUpdate: string | null; eventCount: number; errors: number }>;
+  bahrainAlert: BahrainAlert | null;
+  dismissBahrainAlert: () => void;
 }
 
 const LiveDataContext = createContext<LiveDataContextType | null>(null);
@@ -54,6 +64,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
   const [sourceStatus, setSourceStatus] = useState<Record<string, { active: boolean; lastUpdate: string | null; eventCount: number; errors: number }>>({});
+  const [bahrainAlert, setBahrainAlert] = useState<BahrainAlert | null>(null);
   const isLive = true;
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -107,8 +118,17 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
       if (data.type === 'aircraft_update') {
         // Handle aircraft position updates from OpenSky
-        // Aircraft data is included in initial_data but also sent as separate updates
-        // Currently consumed by components that read from the LiveData context
+      }
+
+      if (data.type === 'bahrain_alert') {
+        const alertEvent = data.event ? parseEvent(data.event) : null;
+        setBahrainAlert({
+          severity: data.severity || 'critical',
+          message: data.message || 'تنبيه عاجل من البحرين',
+          messageEn: data.messageEn || 'URGENT: Bahrain alert',
+          timestamp: data.timestamp || new Date().toISOString(),
+          event: alertEvent as TrackerEvent,
+        });
       }
     } catch (e) {
       // WS parse error silenced in production
@@ -239,8 +259,12 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     setNewEventCount(0);
   }, []);
 
+  const dismissBahrainAlert = useCallback(() => {
+    setBahrainAlert(null);
+  }, []);
+
   return (
-    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus, sourceStatus }}>
+    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
       {children}
     </LiveDataContext.Provider>
   );
