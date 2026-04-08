@@ -1,11 +1,12 @@
 import { MapContainer, TileLayer, Circle, useMap } from 'react-leaflet';
 import { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
+import 'leaflet.heat';
 import type { TrackerEvent, VesselPosition } from '../../types';
 import { categoryColor, categoryTextAr, trustLevelText, escapeHtml } from '../../utils/helpers';
 import { mapLayers } from '../../data/staticConfig';
 import { useLiveData } from '../../context/LiveDataContext';
-import { Layers, Eye, EyeOff, Ship } from 'lucide-react';
+import { Layers, Eye, EyeOff, Ship, Flame } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 interface LiveMapProps {
@@ -232,18 +233,86 @@ function VesselMarker({ vessel }: { vessel: VesselPosition }) {
   return null;
 }
 
-function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLayers: string[] }) {
+// Heatmap layer using leaflet.heat
+function HeatmapLayer({ events }: { events: TrackerEvent[] }) {
+  const map = useMap();
+  const heatLayerRef = useRef<L.Layer | null>(null);
+
+  useEffect(() => {
+    // Remove existing heatmap layer
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
+
+    if (events.length === 0) return;
+
+    // Create heatmap data points [lat, lng, intensity]
+    const heatData: [number, number, number][] = events.map(event => {
+      // Intensity based on category and breaking status
+      let intensity = 0.4;
+      if (event.category === 'military' || event.category === 'fire') intensity = 0.9;
+      else if (event.category === 'alert') intensity = 0.7;
+      else if (event.category === 'official') intensity = 0.5;
+      else if (event.category === 'maritime') intensity = 0.5;
+      else if (event.category === 'humanitarian') intensity = 0.6;
+
+      if (event.isBreaking) intensity = Math.min(1.0, intensity + 0.2);
+      if (event.trustLevel === 'confirmed') intensity = Math.min(1.0, intensity + 0.1);
+
+      // Multiple sources = higher intensity
+      if (event.sources.length > 5) intensity = Math.min(1.0, intensity + 0.15);
+      else if (event.sources.length > 2) intensity = Math.min(1.0, intensity + 0.1);
+
+      return [event.location.lat, event.location.lng, intensity];
+    });
+
+    // Create heatmap layer with custom gradient
+    const heat = (L as any).heatLayer(heatData, {
+      radius: 35,
+      blur: 25,
+      maxZoom: 10,
+      max: 1.0,
+      minOpacity: 0.3,
+      gradient: {
+        0.0: '#1a1a2e',
+        0.2: '#16213e',
+        0.4: '#e94560',
+        0.6: '#ff6b35',
+        0.8: '#ff4500',
+        1.0: '#ffcc00',
+      },
+    });
+
+    heat.addTo(map);
+    heatLayerRef.current = heat;
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+      }
+    };
+  }, [map, events]);
+
+  return null;
+}
+
+function MapEvents({ events, activeLayers, showHeatmap }: { events: TrackerEvent[]; activeLayers: string[]; showHeatmap: boolean }) {
   const filteredEvents = events.filter(e => activeLayers.includes(e.category));
   const { vessels } = useLiveData();
   const showVessels = activeLayers.includes('maritime');
 
   return (
     <>
-      <DangerZones events={filteredEvents} />
-      <AlertZones events={filteredEvents} />
-      {filteredEvents.map(event => (
-        <PulsingMarker key={event.id} event={event} />
-      ))}
+      {showHeatmap && <HeatmapLayer events={filteredEvents} />}
+      {!showHeatmap && (
+        <>
+          <DangerZones events={filteredEvents} />
+          <AlertZones events={filteredEvents} />
+          {filteredEvents.map(event => (
+            <PulsingMarker key={event.id} event={event} />
+          ))}
+        </>
+      )}
       {showVessels && vessels.map(vessel => (
         <VesselMarker key={vessel.mmsi} vessel={vessel} />
       ))}
@@ -254,6 +323,7 @@ function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLay
 export default function LiveMap({ events, height = '500px', showControls = true }: LiveMapProps) {
   const [activeLayers, setActiveLayers] = useState<string[]>(mapLayers.map(l => l.id));
   const [showLayerPanel, setShowLayerPanel] = useState(false);
+  const [showHeatmap, setShowHeatmap] = useState(false);
 
   const toggleLayer = (layerId: string) => {
     setActiveLayers(prev =>
@@ -279,19 +349,32 @@ export default function LiveMap({ events, height = '500px', showControls = true 
           attribution=''
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
         />
-        <MapEvents events={events} activeLayers={activeLayers} />
+        <MapEvents events={events} activeLayers={activeLayers} showHeatmap={showHeatmap} />
       </MapContainer>
 
       {/* Layer controls */}
       {showControls && (
         <div className="absolute top-3 left-3 z-[1000]">
-          <button
-            onClick={() => setShowLayerPanel(!showLayerPanel)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-black/70 backdrop-blur-md border border-white/20 rounded-lg text-xs text-white hover:bg-black/80 transition-colors shadow-lg"
-          >
-            <Layers className="w-4 h-4" />
-            الطبقات
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowLayerPanel(!showLayerPanel)}
+              className="flex items-center gap-1.5 px-3 py-2 bg-black/70 backdrop-blur-md border border-white/20 rounded-lg text-xs text-white hover:bg-black/80 transition-colors shadow-lg"
+            >
+              <Layers className="w-4 h-4" />
+              الطبقات
+            </button>
+            <button
+              onClick={() => setShowHeatmap(!showHeatmap)}
+              className={`flex items-center gap-1.5 px-3 py-2 backdrop-blur-md border rounded-lg text-xs transition-colors shadow-lg ${
+                showHeatmap
+                  ? 'bg-orange-500/30 border-orange-500/50 text-orange-300 hover:bg-orange-500/40'
+                  : 'bg-black/70 border-white/20 text-white hover:bg-black/80'
+              }`}
+            >
+              <Flame className="w-4 h-4" />
+              خريطة حرارية
+            </button>
+          </div>
 
           {showLayerPanel && (
             <div className="mt-2 bg-black/80 backdrop-blur-md border border-white/20 rounded-xl p-3 min-w-[200px] shadow-xl">
@@ -333,28 +416,43 @@ export default function LiveMap({ events, height = '500px', showControls = true 
 
       {/* Map legend */}
       <div className="absolute bottom-3 left-3 z-[1000] bg-black/70 backdrop-blur-md border border-white/20 rounded-lg px-3 py-2 shadow-lg">
-        <div className="flex items-center gap-3 text-[9px]">
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-            <span className="text-red-300">ضربات</span>
+        {showHeatmap ? (
+          <div className="flex items-center gap-2 text-[9px]">
+            <span className="text-gray-400">كثافة الأحداث:</span>
+            <div className="flex items-center gap-0.5">
+              <span className="text-[8px] text-blue-300">منخفض</span>
+              <div className="w-20 h-2 rounded-full" style={{ background: 'linear-gradient(to right, #1a1a2e, #16213e, #e94560, #ff6b35, #ff4500, #ffcc00)' }} />
+              <span className="text-[8px] text-yellow-300">مرتفع</span>
+            </div>
+            <div className="flex items-center gap-1 mr-2">
+              <Ship className="w-2.5 h-2.5 text-cyan-400" />
+              <span className="text-cyan-300">سفن</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-orange-500" />
-            <span className="text-orange-300">إنذارات</span>
+        ) : (
+          <div className="flex items-center gap-3 text-[9px]">
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-red-300">ضربات</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-500" />
+              <span className="text-orange-300">إنذارات</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-blue-300">رسمي</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              <span className="text-green-300">إنساني</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Ship className="w-2.5 h-2.5 text-cyan-400" />
+              <span className="text-cyan-300">سفن</span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-blue-500" />
-            <span className="text-blue-300">رسمي</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <span className="w-2 h-2 rounded-full bg-green-500" />
-            <span className="text-green-300">إنساني</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Ship className="w-2.5 h-2.5 text-cyan-400" />
-            <span className="text-cyan-300">سفن</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
