@@ -70,8 +70,26 @@ body {
   border-radius: 0.75rem;
 }
 
+/* Fix Tailwind CSS preflight breaking Leaflet tiles (especially Firefox) */
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+.leaflet-tile {
+  max-width: none !important;
+  max-height: none !important;
+}
+
 .leaflet-tile-pane {
   filter: brightness(0.85) contrast(1.15) saturate(1.1);
+}
+
+.leaflet-tile-pane img {
+  max-width: none !important;
+  height: auto !important;
 }
 
 .leaflet-popup-content-wrapper {
