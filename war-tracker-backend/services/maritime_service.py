@@ -86,6 +86,7 @@ _zone_stats: dict[str, MaritimeZoneStats] = {
     for zone_id, zone in MARITIME_ZONES.items()
 }
 _ws_connected = False
+_ws_last_connected: datetime | None = None
 
 
 def get_vessels() -> list[VesselPosition]:
@@ -96,6 +97,16 @@ def get_vessels() -> list[VesselPosition]:
 def get_zone_stats() -> list[MaritimeZoneStats]:
     """Get stats for each maritime zone."""
     return list(_zone_stats.values())
+
+
+def is_ws_connected() -> bool:
+    """Return whether the AISStream WebSocket is currently connected."""
+    return _ws_connected
+
+
+def get_ws_last_connected() -> datetime | None:
+    """Return the timestamp of the last successful WebSocket connection."""
+    return _ws_last_connected
 
 
 def _update_zone_stats():
@@ -114,7 +125,7 @@ def _update_zone_stats():
 
 async def connect_aisstream():
     """Connect to AISStream.io WebSocket and stream vessel data."""
-    global _ws_connected
+    global _ws_connected, _ws_last_connected
 
     if not AISSTREAM_API_KEY:
         print("[Maritime] No AISSTREAM_API_KEY configured, skipping vessel tracking")
@@ -137,6 +148,7 @@ async def connect_aisstream():
                 }
                 await ws.send(json.dumps(subscribe_msg))
                 _ws_connected = True
+                _ws_last_connected = datetime.now(timezone.utc)
                 print(f"[Maritime] Connected! Monitoring {len(MARITIME_ZONES)} zones")
 
                 async for message in ws:
