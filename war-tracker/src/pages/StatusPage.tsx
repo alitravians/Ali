@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Activity, Server, Wifi, Globe2, Brain, Anchor, Rss,
   CheckCircle2, AlertTriangle, XCircle, Clock, RefreshCw,
   ChevronDown, ChevronUp, Wrench, Shield, Zap, TrendingUp,
   Radio, Newspaper, Plane, Database, Users, Bell, MapPin,
-  Bot, ExternalLink, Loader2
+  Bot, ExternalLink, Loader2, BellRing, Volume2, VolumeX,
+  History
 } from 'lucide-react';
 import { BACKEND_API_URL } from '../config/api';
 
@@ -181,21 +182,40 @@ function getSeverityAr(severity: string): string {
 // ──────────────────────────────────────────────
 function ResponseTimeChart({ data, id }: { data: number[]; id: string }) {
   if (!data || data.length < 2) return null;
-  const max = Math.max(...data, 1);
-  const h = 40;
+  const filtered = data.filter(v => v > 0);
+  if (filtered.length < 2) return null;
+  const max = Math.max(...filtered, 1);
+  const min = Math.min(...filtered);
+  const h = 48;
   const w = 200;
-  const step = w / (data.length - 1);
+  const step = w / (filtered.length - 1);
 
-  const points = data.map((v, i) => `${i * step},${h - (v / max) * (h - 4)}`).join(' ');
-  const avg = Math.round(data.reduce((a, b) => a + b, 0) / data.length);
+  const points = filtered.map((v, i) => `${i * step},${h - (v / max) * (h - 8)}`).join(' ');
+  const areaPoints = `0,${h} ${points} ${(filtered.length - 1) * step},${h}`;
+  const avg = Math.round(filtered.reduce((a, b) => a + b, 0) / filtered.length);
 
   return (
     <div className="mt-2">
       <div className="flex items-center justify-between mb-1">
         <span className="text-[10px] text-gray-500">زمن الاستجابة</span>
-        <span className="text-[10px] text-gray-400">متوسط: {avg}ms</span>
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] text-green-400/70">أقل: {Math.round(min)}ms</span>
+          <span className="text-[9px] text-gray-400">متوسط: {avg}ms</span>
+          <span className="text-[9px] text-orange-400/70">أعلى: {Math.round(max)}ms</span>
+        </div>
       </div>
-      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-10 overflow-visible">
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-12 overflow-visible">
+        <defs>
+          <linearGradient id={`chartGrad-${id}`} x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="100%" stopColor="#8b5cf6" />
+          </linearGradient>
+          <linearGradient id={`areaGrad-${id}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.15" />
+            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon points={areaPoints} fill={`url(#areaGrad-${id})`} />
         <polyline
           points={points}
           fill="none"
@@ -204,12 +224,16 @@ function ResponseTimeChart({ data, id }: { data: number[]; id: string }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        <defs>
-          <linearGradient id={`chartGrad-${id}`} x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#3b82f6" />
-            <stop offset="100%" stopColor="#8b5cf6" />
-          </linearGradient>
-        </defs>
+        {filtered.length > 0 && (
+          <circle
+            cx={(filtered.length - 1) * step}
+            cy={h - (filtered[filtered.length - 1] / max) * (h - 8)}
+            r="3"
+            fill="#8b5cf6"
+            stroke="#12121a"
+            strokeWidth="1.5"
+          />
+        )}
       </svg>
     </div>
   );
@@ -245,6 +269,38 @@ export default function StatusPage() {
   const [fixResult, setFixResult] = useState<{ svcId: string; success: boolean; url?: string; error?: string } | null>(null);
   const [showCodePrompt, setShowCodePrompt] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState('');
+  const [countdown, setCountdown] = useState(30);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const prevServicesRef = useRef<ServiceData[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize notification audio
+  useEffect(() => {
+    audioRef.current = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdGKRo5h7X1x3Z5S0rZJ3bHF0grC7sZZ7cXV4gqm0qI93bnd8gqiyrIt4bnl7f6SvpYx4b3p7gKKtoo15cHt8gKCroI16cHx8f5+qn418cX19f56pnY59cn59fp2onI9+c399fp2nnJB/dH9+fp2mnJGAdX9+fZ2lm5KBdn9+fZykmZOCd39+fZujmJSDeH99fZqimJWEeX99fJmhmJaFen58fJigmJeGe358e5efmJiHfH57e5aemJmIfX56e5WdmJqJfn55epScmJuKf355epOcl5yLgH54eZKbl52MgX53eZGalp6Ngn52eJCZlZ+Og312eI+YlKCPg3x1d46XlKGQhHt1d42Wk6KRhXp0do2VkqOShXp0doyUkaSThXl0doyTkKWUhnl0dYuSj6aVhnh0dYqRjqeXh3h0dImQjaiYiHhzdIiPjKmZiXhzc4eOi6qainhzc4aNiaubiXlzcoWMiKyci3pzcYSLh62djHpzcYOKhq6ejntzcoKJha+fj3xzcYGIhLCgkH1zcICHg7Ghkn5zcH+GgrKik390cX6FgbOjlIB0cH2EgLSkloF0cHyDf7Wml4J1cHuCframmYN1b3qBfbenmYR2b3mAfLiomYV3b3h/e7mpmoZ3b3d+erm');
+  }, []);
+
+  // Play notification sound when a service goes down
+  const playAlertSound = useCallback(() => {
+    if (soundEnabled && audioRef.current) {
+      audioRef.current.play().catch(() => {});
+    }
+  }, [soundEnabled]);
+
+  // Request browser notification permission
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationsEnabled(permission === 'granted');
+    }
+  }, []);
+
+  // Send browser notification
+  const sendNotification = useCallback((title: string, body: string) => {
+    if (notificationsEnabled && 'Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/favicon.ico' });
+    }
+  }, [notificationsEnabled]);
 
   const requestFix = (serviceId: string) => {
     setShowCodePrompt(serviceId);
@@ -303,14 +359,29 @@ export default function StatusPage() {
       const resp = await fetch(`${BACKEND_API_URL}/api/status`);
       if (!resp.ok) throw new Error('فشل تحميل بيانات الحالة');
       const json = await resp.json();
+
+      // Detect services that just went down
+      if (prevServicesRef.current.length > 0 && json.services) {
+        const downStatuses = ['outage', 'major_outage', 'partial_outage'];
+        for (const svc of json.services) {
+          const prev = prevServicesRef.current.find(s => s.id === svc.id);
+          if (prev && !downStatuses.includes(prev.status) && downStatuses.includes(svc.status)) {
+            playAlertSound();
+            sendNotification('⚠️ خدمة متوقفة — WarScope', `${svc.name_ar} (${svc.name}) تعطلت`);
+          }
+        }
+      }
+      if (json.services) prevServicesRef.current = json.services;
+
       setData(json);
       setError(null);
+      setCountdown(30);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [playAlertSound, sendNotification]);
 
   useEffect(() => {
     fetchStatus();
@@ -319,6 +390,22 @@ export default function StatusPage() {
     const interval = setInterval(fetchStatus, 30000);
     return () => clearInterval(interval);
   }, [fetchStatus, fetchFixSessions, autoRefresh]);
+
+  // Countdown timer
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const timer = setInterval(() => {
+      setCountdown(prev => (prev <= 1 ? 30 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [autoRefresh]);
+
+  // Check notification permission on mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      setNotificationsEnabled(true);
+    }
+  }, []);
 
   if (loading) {
     return (
@@ -360,7 +447,24 @@ export default function StatusPage() {
           <Activity className="w-5 h-5 text-blue-400" />
           <h1 className="text-base sm:text-lg font-bold text-white">حالة النظام</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Sound toggle */}
+          <button
+            onClick={() => setSoundEnabled(!soundEnabled)}
+            className={`p-1.5 rounded-lg transition-colors ${soundEnabled ? 'text-green-400 hover:bg-green-500/10' : 'text-gray-600 hover:bg-gray-800'}`}
+            title={soundEnabled ? 'إيقاف الصوت' : 'تفعيل الصوت'}
+          >
+            {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+          </button>
+          {/* Browser notification toggle */}
+          <button
+            onClick={() => notificationsEnabled ? setNotificationsEnabled(false) : requestNotificationPermission()}
+            className={`p-1.5 rounded-lg transition-colors ${notificationsEnabled ? 'text-blue-400 hover:bg-blue-500/10' : 'text-gray-600 hover:bg-gray-800'}`}
+            title={notificationsEnabled ? 'إيقاف الإشعارات' : 'تفعيل إشعارات المتصفح'}
+          >
+            {notificationsEnabled ? <BellRing className="w-3.5 h-3.5" /> : <Bell className="w-3.5 h-3.5" />}
+          </button>
+          {/* Auto-refresh with countdown */}
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-semibold transition-colors ${
@@ -368,10 +472,10 @@ export default function StatusPage() {
             }`}
           >
             <RefreshCw className={`w-3 h-3 ${autoRefresh ? 'animate-spin' : ''}`} style={autoRefresh ? { animationDuration: '3s' } : undefined} />
-            {autoRefresh ? 'تحديث تلقائي' : 'تحديث متوقف'}
+            {autoRefresh ? `تحديث خلال ${countdown}ث` : 'تحديث متوقف'}
           </button>
           <button
-            onClick={fetchStatus}
+            onClick={() => { fetchStatus(); setCountdown(30); }}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
             title="تحديث الآن"
           >
@@ -381,21 +485,21 @@ export default function StatusPage() {
       </div>
 
       {/* Overall Status Banner */}
-      <div className={`rounded-2xl border ${overallStyle.border} bg-gradient-to-r ${overallStyle.bg} p-5 sm:p-6 mb-6`}>
-        <div className="flex items-center gap-4">
-          <div className={`w-14 h-14 rounded-2xl bg-black/20 flex items-center justify-center`}>
-            <OverallIcon className={`w-7 h-7 ${overallStyle.text}`} />
+      <div className={`rounded-2xl border ${overallStyle.border} bg-gradient-to-r ${overallStyle.bg} p-4 sm:p-6 mb-6`}>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
+          <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-black/20 flex items-center justify-center shrink-0`}>
+            <OverallIcon className={`w-6 h-6 sm:w-7 sm:h-7 ${overallStyle.text}`} />
           </div>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <h2 className={`text-lg sm:text-xl font-black ${overallStyle.text}`}>{data.overall_status_ar}</h2>
-            <p className="text-xs text-gray-400 mt-1">
+            <p className="text-[10px] sm:text-xs text-gray-400 mt-1">
               آخر تحديث: {timeAgo(data.last_updated)} • {data.services.length} خدمة مراقبة
               {activeIncidents.length > 0 && (
                 <span className="text-red-400"> • {activeIncidents.length} حادث نشط</span>
               )}
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {data.services.filter(s => s.status === 'operational').length > 0 && (
               <span className="px-2.5 py-1 rounded-full bg-green-500/10 border border-green-500/30 text-[10px] font-semibold text-green-400">
                 {data.services.filter(s => s.status === 'operational').length} تعمل
@@ -498,7 +602,7 @@ export default function StatusPage() {
               <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
                   <div className="text-[10px] text-gray-500 mb-0.5">الاستجابة</div>
-                  <div className="text-xs font-bold text-white">{svc.response_time_ms ? `${Math.round(svc.response_time_ms)}ms` : '-'}</div>
+                  <div className="text-xs font-bold text-white">{svc.response_time_ms && svc.response_time_ms > 0 ? `${Math.round(svc.response_time_ms)}ms` : '-'}</div>
                 </div>
                 <div className="text-center">
                   <div className="text-[10px] text-gray-500 mb-0.5">أخطاء 24س</div>
@@ -510,11 +614,16 @@ export default function StatusPage() {
                 </div>
               </div>
 
-              {/* Uptime Bar */}
+              {/* Uptime Bar + Success Rate */}
               <div className="mb-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-500">التشغيل المستمر (24 ساعة)</span>
-                  <span className="text-[10px] text-gray-500">{svc.checks_24h} فحص</span>
+                  <span className="text-[10px] text-gray-500">التشغيل (24 ساعة)</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-gray-500">{svc.checks_24h} فحص</span>
+                    <span className={`text-[10px] font-bold ${svc.success_rate_24h >= 95 ? 'text-green-400' : svc.success_rate_24h >= 80 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {svc.success_rate_24h}%
+                    </span>
+                  </div>
                 </div>
                 <UptimeBar percent={svc.uptime_24h} />
               </div>
@@ -859,10 +968,13 @@ export default function StatusPage() {
 
       {/* Incident History */}
       <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-        <Shield className="w-4 h-4 text-purple-400" />
+        <History className="w-4 h-4 text-purple-400" />
         سجل الحوادث
         {data.incidents.length > 0 && (
           <span className="text-[10px] text-gray-500 font-normal">({data.incidents.length} حادث)</span>
+        )}
+        {resolvedIncidents.length > 0 && (
+          <span className="text-[10px] text-green-400/70 font-normal mr-1">• {resolvedIncidents.length} تم حلها</span>
         )}
       </h2>
 
@@ -972,8 +1084,14 @@ export default function StatusPage() {
       </div>
 
       {/* Footer */}
-      <div className="text-center text-[10px] text-gray-600 mt-4">
-        يتم فحص الخدمات تلقائياً كل 1-5 دقائق • آخر تحديث: {timeAgo(data.last_updated)}
+      <div className="text-center text-[10px] text-gray-600 mt-4 space-y-1">
+        <div>يتم فحص الخدمات تلقائياً كل 1-5 دقائق • آخر تحديث: {timeAgo(data.last_updated)}</div>
+        {autoRefresh && (
+          <div className="flex items-center justify-center gap-1 text-gray-500">
+            <RefreshCw className="w-2.5 h-2.5 animate-spin" style={{ animationDuration: '3s' }} />
+            <span>التحديث التالي خلال {countdown} ثانية</span>
+          </div>
+        )}
       </div>
     </div>
   );
