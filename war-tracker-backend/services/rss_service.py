@@ -82,6 +82,33 @@ RSS_FEEDS = [
         "type": "إعلامي",
         "trust": "verified",
     },
+    {
+        "name": "Al Watan Bahrain",
+        "nameAr": "صحيفة الوطن البحرينية",
+        "url": "https://alwatannews.net/rssFeed/100",
+        "domain": "alwatannews.net",
+        "lang": "ar",
+        "type": "إعلامي",
+        "trust": "official",
+    },
+    {
+        "name": "Al Bilad Bahrain",
+        "nameAr": "صحيفة البلاد البحرينية",
+        "url": "https://albiladpress.com/rss",
+        "domain": "albiladpress.com",
+        "lang": "ar",
+        "type": "إعلامي",
+        "trust": "verified",
+    },
+    {
+        "name": "Gulf Insider",
+        "nameAr": "غلف إنسايدر",
+        "url": "https://www.gulf-insider.com/feed",
+        "domain": "gulf-insider.com",
+        "lang": "en",
+        "type": "إعلامي",
+        "trust": "verified",
+    },
     # Gulf region feeds for broader coverage
     {
         "name": "Al Arabiya",
@@ -132,7 +159,7 @@ async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
 
                     # Check relevance to Middle East conflict
                     # Bahrain-specific feeds bypass relevance filter (all local news is relevant)
-                    is_bahrain_feed = feed_info["domain"] in ("alayam.com", "bna.bh", "gdnonline.com")
+                    is_bahrain_feed = feed_info["domain"] in ("alayam.com", "bna.bh", "gdnonline.com", "alwatannews.net", "albiladpress.com", "gulf-insider.com")
                     full_text = f"{title} {summary}"
                     if not is_bahrain_feed and not _is_relevant(full_text):
                         continue
@@ -158,7 +185,9 @@ async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
                     is_breaking = any(kw in title.lower() for kw in
                                       ["breaking", "urgent", "عاجل", "explosion", "strike", "missile",
                                        "صاروخ", "ضربة", "هجوم", "انفجار", "صفارة", "إنذار", "صافرة",
-                                       "siren", "alarm", "shelter", "ملجأ", "إخلاء"])
+                                       "siren", "alarm", "shelter", "ملجأ", "إخلاء", "زوال الخطر",
+                                       "اعتراض", "شظايا", "دفاع جوي", "مكان آمن",
+                                       "intercept", "shrapnel", "air defense", "all clear"])
 
                     # For Arabic feeds, title is already in Arabic
                     title_ar = title if feed_info["lang"] == "ar" else title

@@ -379,6 +379,11 @@ async def poll_rss():
 BAHRAIN_ALERT_KEYWORDS = [
     "صفارة", "إنذار", "صافرة", "siren", "alarm", "air raid",
     "ملجأ", "إخلاء", "shelter", "evacuate", "تحذير أمني",
+    "زوال الخطر", "انتهاء التهديد", "all clear",
+    "اعتراض", "شظايا", "دفاع جوي", "مكان آمن",
+    "intercept", "shrapnel", "air defense",
+    "الدفاع المدني", "civil defense", "civil defence",
+    "الاتصال الوطني", "national communication",
 ]
 BAHRAIN_LOCATION_KEYWORDS = [
     "bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
@@ -390,22 +395,32 @@ BAHRAIN_LOCATION_KEYWORDS = [
 async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
     """Check if any events contain critical Bahrain alerts (sirens, evacuations).
     Broadcasts an immediate WebSocket alert if detected."""
+    ALL_CLEAR_KEYWORDS = ["زوال الخطر", "انتهاء التهديد", "all clear", "زوال"]
     for event in events:
         text = f"{event.title} {event.titleAr or ''} {event.description or ''}".lower()
         has_bahrain = any(kw in text for kw in BAHRAIN_LOCATION_KEYWORDS)
         has_alert = any(kw in text for kw in BAHRAIN_ALERT_KEYWORDS)
         if has_bahrain and has_alert:
-            print(f"[BAHRAIN ALERT] Critical event detected: {event.title}")
-            # Force event to breaking + alert category
+            # Determine if this is an "all clear" or "danger" siren
+            is_all_clear = any(kw in text for kw in ALL_CLEAR_KEYWORDS)
+            if is_all_clear:
+                severity = "info"
+                message = "تنبيه: صفارة زوال الخطر في البحرين — الوضع آمن"
+                message_en = "NOTICE: All-clear siren in Bahrain — situation is safe"
+            else:
+                severity = "critical"
+                message = "تنبيه عاجل: تم رصد صفارة إنذار في البحرين"
+                message_en = "URGENT: Air raid siren detected in Bahrain"
+
+            print(f"[BAHRAIN ALERT] {severity}: {event.title}")
             event.isBreaking = True
             event.category = "alert"
-            # Broadcast immediate Bahrain alert via WebSocket
             await ws_manager.broadcast({
                 "type": "bahrain_alert",
-                "severity": "critical",
+                "severity": severity,
                 "event": event.model_dump(mode="json"),
-                "message": "تنبيه عاجل: تم رصد صفارة إنذار في البحرين",
-                "messageEn": "URGENT: Air raid siren detected in Bahrain",
+                "message": message,
+                "messageEn": message_en,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             })
 
