@@ -76,8 +76,6 @@ body {
    We override ALL img-related Tailwind resets inside .leaflet-container. */
 .leaflet-container img,
 .leaflet-container .leaflet-tile,
-.leaflet-container .leaflet-marker-icon,
-.leaflet-container .leaflet-shadow,
 .leaflet-container .leaflet-image-layer {
   max-width: none !important;
   max-height: none !important;
