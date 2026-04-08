@@ -217,6 +217,7 @@ class HealthMonitor:
     def get_overall_status(self) -> OverallStatus:
         """Determine overall system status from individual service statuses."""
         active = [s for s in self.services.values() if s.config.enabled]
+        disabled = [s for s in self.services.values() if not s.config.enabled]
         if not active:
             return OverallStatus.operational
 
@@ -229,6 +230,9 @@ class HealthMonitor:
         if any(s == ServiceStatus.partial_outage for s in statuses):
             return OverallStatus.partial_outage
         if any(s == ServiceStatus.degraded for s in statuses):
+            return OverallStatus.degraded
+        # If some services are disabled, show degraded overall
+        if disabled:
             return OverallStatus.degraded
         return OverallStatus.operational
 
