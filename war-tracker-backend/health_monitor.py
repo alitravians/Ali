@@ -11,6 +11,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from config import NEWSAPI_KEY, MEDIASTACK_KEY, ACLED_KEY
+
 
 # ──────────────────────────────────────────────
 # Enums & Models
@@ -189,7 +191,7 @@ class HealthMonitor:
                 type="external",
                 endpoint="newsapi",
                 check_interval_seconds=300,
-                enabled=False,  # Disabled by default unless key is set
+                enabled=bool(NEWSAPI_KEY),  # Auto-enable when key is set
             ),
             ServiceConfig(
                 id="mediastack",
@@ -198,7 +200,7 @@ class HealthMonitor:
                 type="external",
                 endpoint="mediastack",
                 check_interval_seconds=300,
-                enabled=False,
+                enabled=bool(MEDIASTACK_KEY),
             ),
             ServiceConfig(
                 id="acled",
@@ -207,7 +209,7 @@ class HealthMonitor:
                 type="external",
                 endpoint="acled",
                 check_interval_seconds=300,
-                enabled=False,
+                enabled=bool(ACLED_KEY),
             ),
         ]
 
