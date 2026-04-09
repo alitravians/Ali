@@ -11,6 +11,9 @@ DEVIN_API_KEY = os.getenv("DEVIN_API_KEY", "")
 # Devin API (for auto-fix sessions)
 DEVIN_API_URL = "https://api.devin.ai/v1"
 
+# Target Devin session for bug reports (send message to existing session instead of creating new ones)
+DEVIN_TARGET_SESSION_ID = os.getenv("DEVIN_TARGET_SESSION_ID", "")
+
 # GDELT (no key needed)
 GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2"
 

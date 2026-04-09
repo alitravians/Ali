@@ -16,10 +16,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
+import httpx as _httpx
 from config import (
     FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
     OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, RSS_POLL_INTERVAL,
-    NEWSAPI_KEY,
+    NEWSAPI_KEY, DEVIN_API_KEY, DEVIN_TARGET_SESSION_ID,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
 from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
@@ -1090,9 +1091,12 @@ async def submit_bug_report(report: BugReport):
         "session_url": None,
     }
 
-    # Try to create a Devin session
-    if is_devin_configured():
-        prompt = f"""## WarScope بلاغ مشكلة تقنية من المستخدم
+    # Send bug report as a message to the active Devin session
+    import logging
+    logger = logging.getLogger("bug_report")
+    devin_error = None
+
+    message = f"""## WarScope بلاغ مشكلة تقنية من المستخدم
 
 ### وصف المشكلة
 {report.description[:1000]}
@@ -1103,43 +1107,79 @@ async def submit_bug_report(report: BugReport):
 ### المتصفح
 {report.browser or 'غير محدد'}
 
-### Repository
-https://github.com/alitravians/Ali
-Branch: `arabic-localization`
-
 ### تعليمات
 1. افحص المشكلة المذكورة أعلاه
 2. ابحث عن السبب الجذري بالكود
 3. أصلح المشكلة
-4. انشر التحديث مباشرة على Fly.io: `fly deploy --app war-tracker-backend-v2`
-5. تأكد من أن الإصلاح لا يكسر وظائف أخرى
+4. انشر التحديث مباشرة
+5. تأكد من أن الإصلاح لا يكسر وظائف أخرى"""
 
-### مهم
-- لا تكسر خدمات أخرى أثناء الإصلاح
-- حافظ على التغييرات بسيطة ومركّزة
-- انشر مباشرة بعد الإصلاح — لا تسأل عن إذن
-"""
+    if is_devin_configured() and DEVIN_TARGET_SESSION_ID:
+        # Send message to existing Devin session (arrives in active conversation)
+        try:
+            async with _httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.post(
+                    f"https://api.devin.ai/v1/sessions/{DEVIN_TARGET_SESSION_ID}/message",
+                    headers={
+                        "Authorization": f"Bearer {DEVIN_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={"message": message},
+                )
+                logger.info(f"[BugReport] Message sent to session {DEVIN_TARGET_SESSION_ID}: status={resp.status_code}")
+                if resp.status_code in (200, 201):
+                    report_entry["status"] = "investigating"
+                    report_entry["session_url"] = f"https://app.devin.ai/sessions/{DEVIN_TARGET_SESSION_ID}"
+                else:
+                    error_text = resp.text[:200]
+                    logger.error(f"[BugReport] Failed to send message: {resp.status_code} {error_text}")
+                    # Fallback: create a new session
+                    result = await create_fix_session(
+                        service_id="user_bug_report",
+                        service_name=f"بلاغ مستخدم: {report.description[:50]}",
+                        error_details=f"الصفحة: {report.page}\nالمتصفح: {report.browser}\n\nالوصف: {report.description}",
+                    )
+                    if result.get("success"):
+                        report_entry["status"] = "investigating"
+                        report_entry["session_url"] = result.get("session_url", "")
+                    else:
+                        devin_error = result.get("error", "Unknown error")
+                        report_entry["status"] = "received_no_session"
+        except Exception as e:
+            logger.error(f"[BugReport] Exception sending message: {e}")
+            devin_error = str(e)
+            report_entry["status"] = "received_no_session"
+    elif is_devin_configured():
+        # No target session configured, create a new session (fallback)
         result = await create_fix_session(
             service_id="user_bug_report",
             service_name=f"بلاغ مستخدم: {report.description[:50]}",
             error_details=f"الصفحة: {report.page}\nالمتصفح: {report.browser}\n\nالوصف: {report.description}",
         )
+        logger.info(f"[BugReport] Devin session result: {result}")
         if result.get("success"):
             report_entry["status"] = "investigating"
             report_entry["session_url"] = result.get("session_url", "")
+        else:
+            devin_error = result.get("error", "Unknown error")
+            report_entry["status"] = "received_no_session"
     else:
         report_entry["status"] = "received"
+        devin_error = "DEVIN_API_KEY not configured"
 
     _bug_reports.insert(0, report_entry)
     while len(_bug_reports) > 50:
         _bug_reports.pop()
 
-    return {
+    response = {
         "success": True,
         "message": "تم إرسال البلاغ بنجاح! الفريق التقني سيراجعه قريباً.",
         "report_id": report_entry["id"],
         "session_url": report_entry.get("session_url"),
     }
+    if devin_error:
+        response["devin_error"] = devin_error
+    return response
 
 
 @app.get("/api/bug-reports")
