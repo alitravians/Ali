@@ -71,9 +71,9 @@ body {
 }
 
 /* Fix Tailwind CSS v4 preflight breaking Leaflet tiles (especially Firefox).
-   Tailwind preflight sets: img { display: block; max-width: 100%; height: auto; }
-   This collapses Leaflet's absolute-positioned 256×256 tile images to 0×0.
-   We override ALL img-related Tailwind resets inside .leaflet-container. */
+   Tailwind preflight (in @layer base) sets: img { max-width: 100%; height: auto; }
+   We only undo max-width/max-height — do NOT override width/height with !important
+   because Leaflet controls tile dimensions via inline styles that must take effect. */
 .leaflet-container img,
 .leaflet-container .leaflet-tile,
 .leaflet-container .leaflet-marker-icon,
@@ -81,18 +81,6 @@ body {
 .leaflet-container .leaflet-image-layer {
   max-width: none !important;
   max-height: none !important;
-  width: auto !important;
-  height: auto !important;
-  padding: 0 !important;
-  border: none !important;
-}
-
-/* Tile images specifically need Leaflet's inline width/height to take effect.
-   Leaflet sets style="width:256px; height:256px" on each tile — we let that win. */
-.leaflet-tile-pane img.leaflet-tile {
-  width: 256px !important;
-  height: 256px !important;
-  object-fit: none !important;
 }
 
 .leaflet-tile-pane {
