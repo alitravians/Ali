@@ -132,12 +132,15 @@ export default function BugReportButton() {
     try {
       const browserInfo = collectBrowserInfo();
       const pageSnapshot = collectPageSnapshot();
+      const desc = description.trim();
+      const page = location.pathname;
+
       const res = await fetch(`${BACKEND_API_URL}/api/bug-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          description: description.trim(),
-          page: location.pathname,
+          description: desc,
+          page,
           browser: navigator.userAgent,
           console_errors: _collectedErrors.slice(-15),
           user_actions: _userActions.slice(-15),
@@ -146,21 +149,28 @@ export default function BugReportButton() {
         }),
       });
 
+      console.log('[BugReport] Response status:', res.status, 'ok:', res.ok);
+
       if (res.ok) {
-        setStatus('success');
-        setSubmittedDescription(description.trim());
-        setSubmittedPage(location.pathname);
+        console.log('[BugReport] Success! Opening RepairTracker3D...');
+        setSubmittedDescription(desc);
+        setSubmittedPage(page);
         setDescription('');
-        // Close the form modal and open the 3D repair tracker
         setIsOpen(false);
         setStatus('idle');
-        setShowRepairTracker(true);
+        // Small delay to ensure form modal unmounts before RepairTracker mounts
+        setTimeout(() => {
+          console.log('[BugReport] Setting showRepairTracker = true');
+          setShowRepairTracker(true);
+        }, 100);
       } else {
         const data = await res.json().catch(() => ({}));
+        console.log('[BugReport] Error response:', data);
         setErrorMsg(data.detail || 'حدث خطأ أثناء إرسال البلاغ');
         setStatus('error');
       }
-    } catch {
+    } catch (err) {
+      console.log('[BugReport] Fetch error:', err);
       setErrorMsg('تعذر الاتصال بالخادم');
       setStatus('error');
     }

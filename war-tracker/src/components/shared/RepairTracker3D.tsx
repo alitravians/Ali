@@ -350,6 +350,7 @@ function DataParticles({ active }: { active: boolean }) {
 
 
 export default function RepairTracker3D({ isOpen, onClose, problemDescription, pagePath }: RepairTrackerProps) {
+  console.log('[RepairTracker3D] render, isOpen:', isOpen);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [progress, setProgress] = useState(0);
   const [statusLines, setStatusLines] = useState<string[]>([]);
