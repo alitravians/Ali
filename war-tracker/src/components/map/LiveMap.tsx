@@ -8,6 +8,70 @@ import { useLiveData } from '../../context/LiveDataContext';
 import { Layers, Eye, EyeOff, Ship } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
+// Firefox + Tailwind CSS v4 fix: force tile dimensions via JS after render
+// Tailwind preflight sets img { max-width:100%; height:auto } which collapses tiles to 0×0
+function TileStyleFixer() {
+  const map = useMap();
+
+  useEffect(() => {
+    const container = map.getContainer();
+
+    const fixTiles = () => {
+      const tiles = container.querySelectorAll<HTMLImageElement>('.leaflet-tile-pane img');
+      tiles.forEach(img => {
+        img.style.setProperty('max-width', 'none', 'important');
+        img.style.setProperty('max-height', 'none', 'important');
+        img.style.setProperty('width', '256px', 'important');
+        img.style.setProperty('height', '256px', 'important');
+        img.style.setProperty('padding', '0', 'important');
+        img.style.setProperty('margin', '0', 'important');
+        img.style.setProperty('display', 'block', 'important');
+      });
+    };
+
+    // Fix tiles on various map events
+    map.on('load', fixTiles);
+    map.on('moveend', fixTiles);
+    map.on('zoomend', fixTiles);
+    map.on('tileload', fixTiles);
+
+    // Also use MutationObserver to catch dynamically added tiles
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.addedNodes.length > 0) {
+          fixTiles();
+          break;
+        }
+      }
+    });
+
+    const tilePane = container.querySelector('.leaflet-tile-pane');
+    if (tilePane) {
+      observer.observe(tilePane, { childList: true, subtree: true });
+    }
+
+    // Initial fix
+    fixTiles();
+    // Delayed fix for tiles that load after initial render
+    const t1 = setTimeout(fixTiles, 500);
+    const t2 = setTimeout(fixTiles, 1500);
+    const t3 = setTimeout(fixTiles, 3000);
+
+    return () => {
+      map.off('load', fixTiles);
+      map.off('moveend', fixTiles);
+      map.off('zoomend', fixTiles);
+      map.off('tileload', fixTiles);
+      observer.disconnect();
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [map]);
+
+  return null;
+}
+
 interface LiveMapProps {
   events: TrackerEvent[];
   height?: string;
@@ -279,6 +343,7 @@ export default function LiveMap({ events, height = '500px', showControls = true 
           attribution=''
           url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
         />
+        <TileStyleFixer />
         <MapEvents events={events} activeLayers={activeLayers} />
       </MapContainer>
 
