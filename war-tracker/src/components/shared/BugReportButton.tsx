@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Bug, Send, X, CheckCircle, Loader2 } from 'lucide-react';
+import { Bug, Send, X, Loader2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { BACKEND_API_URL } from '../../config/api';
+import RepairTracker3D from './RepairTracker3D';
 
 // ── Global console error collector ──
 const _collectedErrors: string[] = [];
@@ -114,6 +115,9 @@ export default function BugReportButton() {
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [showRepairTracker, setShowRepairTracker] = useState(false);
+  const [submittedDescription, setSubmittedDescription] = useState('');
+  const [submittedPage, setSubmittedPage] = useState('');
   const location = useLocation();
 
   const handleSubmit = async () => {
@@ -144,11 +148,13 @@ export default function BugReportButton() {
 
       if (res.ok) {
         setStatus('success');
+        setSubmittedDescription(description.trim());
+        setSubmittedPage(location.pathname);
         setDescription('');
-        setTimeout(() => {
-          setIsOpen(false);
-          setStatus('idle');
-        }, 3000);
+        // Close the form modal and open the 3D repair tracker
+        setIsOpen(false);
+        setStatus('idle');
+        setShowRepairTracker(true);
       } else {
         const data = await res.json().catch(() => ({}));
         setErrorMsg(data.detail || 'حدث خطأ أثناء إرسال البلاغ');
@@ -162,6 +168,14 @@ export default function BugReportButton() {
 
   return (
     <>
+      {/* 3D Repair Tracker */}
+      <RepairTracker3D
+        isOpen={showRepairTracker}
+        onClose={() => setShowRepairTracker(false)}
+        problemDescription={submittedDescription}
+        pagePath={submittedPage}
+      />
+
       {/* Floating bug report button */}
       <button
         onClick={() => setIsOpen(true)}
@@ -220,16 +234,6 @@ export default function BugReportButton() {
 
             {/* Body */}
             <div className="p-5">
-              {status === 'success' ? (
-                <div className="flex flex-col items-center gap-3 py-6">
-                  <div className="w-14 h-14 rounded-full bg-green-500/20 flex items-center justify-center">
-                    <CheckCircle className="w-7 h-7 text-green-400" />
-                  </div>
-                  <p className="text-sm font-bold text-green-400">تم إرسال البلاغ بنجاح!</p>
-                  <p className="text-xs text-gray-400 text-center">الفريق التقني سيراجع المشكلة ويعمل على حلها</p>
-                </div>
-              ) : (
-                <>
                   {/* Current page indicator */}
                   <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-white/5 border border-gray-700/30">
                     <span className="text-[10px] text-gray-500">الصفحة الحالية:</span>
@@ -299,8 +303,6 @@ export default function BugReportButton() {
                   <p className="mt-3 text-[10px] text-gray-500 text-center">
                     البلاغ سيُرسل مباشرة للفريق التقني وسيتم مراجعته وحله بأسرع وقت
                   </p>
-                </>
-              )}
             </div>
           </div>
         </div>
