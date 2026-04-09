@@ -212,6 +212,14 @@ class HealthMonitor:
                 enabled=bool(ACLED_KEY),
             ),
             ServiceConfig(
+                id="user_bug_report",
+                name="User Bug Reports",
+                name_ar="بلاغات المستخدمين",
+                type="api",
+                endpoint="/api/bug-report",
+                check_interval_seconds=180,
+            ),
+            ServiceConfig(
                 id="ai_chat",
                 name="AI Chat Assistant",
                 name_ar="المساعد الذكي",
