@@ -1046,10 +1046,50 @@ async def get_autofix_session_status(session_id: str, authorization: str = Heade
 
 
 # ──────────────────────────────────────────────
-# Bug Report endpoint (public — no auth required)
+# Bug Report Ticket System with Live WebSocket Updates
 # ──────────────────────────────────────────────
 _bug_report_timestamps: list[float] = []  # simple rate-limit tracker
 _bug_reports: list[dict] = []  # store reports in-memory
+
+# Ticket system for live repair tracking
+import uuid as _uuid
+
+# Valid ticket phases (matching frontend RepairTracker3D)
+TICKET_PHASES = [
+    {"phase": 0, "label": "استلام البلاغ", "label_en": "Report Received"},
+    {"phase": 1, "label": "تحليل المشكلة", "label_en": "Analyzing Problem"},
+    {"phase": 2, "label": "تحديد السبب", "label_en": "Identifying Cause"},
+    {"phase": 3, "label": "جاري الإصلاح", "label_en": "Implementing Fix"},
+    {"phase": 4, "label": "التحقق من الحل", "label_en": "Verifying Solution"},
+    {"phase": 5, "label": "نشر التحديث", "label_en": "Deploying Update"},
+    {"phase": 6, "label": "تم الحل!", "label_en": "Resolved"},
+]
+
+# In-memory ticket store: ticket_id -> ticket data
+_tickets: dict[str, dict] = {}
+
+# WebSocket connections per ticket: ticket_id -> list of WebSocket connections
+_ticket_ws_connections: dict[str, list[WebSocket]] = {}
+
+
+class TicketStatusUpdate(BaseModel):
+    phase: int  # 0-6 matching TICKET_PHASES
+    status_message: str = ""  # Safe, user-facing status message
+    progress: int = -1  # 0-100, -1 means auto-calculate from phase
+
+
+async def _broadcast_ticket_update(ticket_id: str, update: dict):
+    """Broadcast a status update to all WebSocket connections watching a ticket."""
+    connections = _ticket_ws_connections.get(ticket_id, [])
+    dead: list[WebSocket] = []
+    for ws in list(connections):
+        try:
+            await ws.send_json(update)
+        except Exception:
+            dead.append(ws)
+    for ws in dead:
+        if ws in connections:
+            connections.remove(ws)
 
 
 class BugReport(BaseModel):
@@ -1083,9 +1123,13 @@ async def submit_bug_report(report: BugReport):
 
     _bug_report_timestamps.append(now)
 
+    # Generate unique ticket ID
+    ticket_id = f"TKT-{_uuid.uuid4().hex[:8].upper()}"
+
     # Store report
     report_entry = {
         "id": len(_bug_reports) + 1,
+        "ticket_id": ticket_id,
         "description": report.description[:1000],
         "page": report.page[:200],
         "browser": report.browser[:200],
@@ -1093,6 +1137,26 @@ async def submit_bug_report(report: BugReport):
         "created_at": datetime.now(timezone.utc).isoformat(),
         "status": "pending",
         "session_url": None,
+    }
+
+    # Create ticket for live tracking
+    _tickets[ticket_id] = {
+        "id": ticket_id,
+        "description": report.description[:1000],
+        "page": report.page[:200],
+        "current_phase": 0,
+        "progress": 0,
+        "status_message": "تم استلام البلاغ بنجاح",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "is_complete": False,
+        "status_history": [
+            {
+                "phase": 0,
+                "message": "تم استلام البلاغ بنجاح",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        ],
     }
 
     # Send bug report as a message to the active Devin session
@@ -1218,6 +1282,7 @@ async def submit_bug_report(report: BugReport):
         "success": True,
         "message": "تم إرسال البلاغ بنجاح! الفريق التقني سيراجعه قريباً.",
         "report_id": report_entry["id"],
+        "ticket_id": ticket_id,
         "session_url": report_entry.get("session_url"),
     }
     if devin_error:
@@ -1232,6 +1297,145 @@ async def get_bug_reports(authorization: str = Header(default="")):
     if not token or not _verify_token(token):
         raise HTTPException(status_code=401, detail="غير مصرح")
     return {"reports": _bug_reports}
+
+
+# ──────────────────────────────────────────────
+# Ticket Status Update API (admin-authenticated)
+# ──────────────────────────────────────────────
+@app.get("/api/tickets/{ticket_id}")
+async def get_ticket_status(ticket_id: str):
+    """Public: get current status of a repair ticket."""
+    ticket = _tickets.get(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+    return ticket
+
+
+@app.post("/api/tickets/{ticket_id}/update")
+async def update_ticket_status(ticket_id: str, update: TicketStatusUpdate, authorization: str = Header(default="")):
+    """Admin: update ticket phase and broadcast to connected WebSocket clients."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+
+    ticket = _tickets.get(ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
+
+    if update.phase < 0 or update.phase > 6:
+        raise HTTPException(status_code=400, detail="المرحلة يجب أن تكون بين 0 و 6")
+
+    # Calculate progress from phase if not provided
+    progress = update.progress if update.progress >= 0 else int((update.phase / 6) * 100)
+
+    # Default status message from phase if not provided
+    status_message = update.status_message or TICKET_PHASES[update.phase]["label"]
+
+    # Update ticket
+    ticket["current_phase"] = update.phase
+    ticket["progress"] = progress
+    ticket["status_message"] = status_message
+    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+    ticket["is_complete"] = update.phase >= 6
+
+    # Add to status history
+    ticket["status_history"].append({
+        "phase": update.phase,
+        "message": status_message,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    # Broadcast to all connected WebSocket clients watching this ticket
+    ws_update = {
+        "type": "ticket_update",
+        "ticket_id": ticket_id,
+        "phase": update.phase,
+        "progress": progress,
+        "status_message": status_message,
+        "is_complete": update.phase >= 6,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    await _broadcast_ticket_update(ticket_id, ws_update)
+
+    print(f"[Ticket] {ticket_id} updated to phase {update.phase}: {status_message}")
+    return {"success": True, "ticket": ticket}
+
+
+@app.get("/api/tickets")
+async def list_tickets(authorization: str = Header(default="")):
+    """Admin: list all tickets."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return {"tickets": list(_tickets.values())}
+
+
+# ──────────────────────────────────────────────
+# WebSocket endpoint for ticket live tracking
+# ──────────────────────────────────────────────
+@app.websocket("/ws/ticket/{ticket_id}")
+async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
+    """WebSocket endpoint for live ticket status updates.
+    Clients connect here after submitting a bug report to receive real-time phase updates."""
+    ticket = _tickets.get(ticket_id)
+    if not ticket:
+        await ws.close(code=4004, reason="Ticket not found")
+        return
+
+    await ws.accept()
+
+    # Register this connection for the ticket
+    if ticket_id not in _ticket_ws_connections:
+        _ticket_ws_connections[ticket_id] = []
+    _ticket_ws_connections[ticket_id].append(ws)
+    print(f"[Ticket WS] Client connected for ticket {ticket_id}. Total watchers: {len(_ticket_ws_connections[ticket_id])}")
+
+    # Send current ticket state immediately
+    try:
+        await ws.send_json({
+            "type": "ticket_status",
+            "ticket_id": ticket_id,
+            "phase": ticket["current_phase"],
+            "progress": ticket["progress"],
+            "status_message": ticket["status_message"],
+            "is_complete": ticket["is_complete"],
+            "status_history": ticket["status_history"],
+            "timestamp": ticket["updated_at"],
+        })
+    except Exception:
+        if ws in _ticket_ws_connections.get(ticket_id, []):
+            _ticket_ws_connections[ticket_id].remove(ws)
+        return
+
+    # Keep connection alive, handle pings
+    try:
+        while True:
+            data = await ws.receive_text()
+            msg = json.loads(data)
+            if msg.get("type") == "ping":
+                await ws.send_json({"type": "pong"})
+            elif msg.get("type") == "request_status":
+                # Re-send current ticket state
+                t = _tickets.get(ticket_id)
+                if t:
+                    await ws.send_json({
+                        "type": "ticket_status",
+                        "ticket_id": ticket_id,
+                        "phase": t["current_phase"],
+                        "progress": t["progress"],
+                        "status_message": t["status_message"],
+                        "is_complete": t["is_complete"],
+                        "status_history": t["status_history"],
+                        "timestamp": t["updated_at"],
+                    })
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        pass
+    finally:
+        if ws in _ticket_ws_connections.get(ticket_id, []):
+            _ticket_ws_connections[ticket_id].remove(ws)
+        print(f"[Ticket WS] Client disconnected from ticket {ticket_id}")
 
 
 # ──────────────────────────────────────────────
