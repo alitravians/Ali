@@ -154,6 +154,7 @@ function getStatusColor(status: string) {
     case 'partial_outage': return { bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-500' };
     case 'major_outage': return { bg: 'bg-red-500/15', border: 'border-red-500/30', text: 'text-red-400', dot: 'bg-red-500' };
     case 'maintenance': return { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-400', dot: 'bg-blue-500' };
+    case 'disabled': return { bg: 'bg-gray-500/10', border: 'border-gray-700/30', text: 'text-gray-500', dot: 'bg-gray-600' };
     default: return { bg: 'bg-gray-500/15', border: 'border-gray-500/30', text: 'text-gray-400', dot: 'bg-gray-500' };
   }
 }
@@ -409,9 +410,14 @@ export default function StatusPage() {
                 {data.services.filter(s => s.status === 'operational').length} تعمل
               </span>
             )}
-            {data.services.filter(s => s.status !== 'operational').length > 0 && (
+            {data.services.filter(s => s.status !== 'operational' && s.status !== 'disabled').length > 0 && (
               <span className="px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-[10px] font-semibold text-red-400">
-                {data.services.filter(s => s.status !== 'operational').length} متأثرة
+                {data.services.filter(s => s.status !== 'operational' && s.status !== 'disabled').length} متأثرة
+              </span>
+            )}
+            {data.services.filter(s => s.status === 'disabled').length > 0 && (
+              <span className="px-2.5 py-1 rounded-full bg-gray-500/10 border border-gray-500/30 text-[10px] font-semibold text-gray-400">
+                {data.services.filter(s => s.status === 'disabled').length} معطّلة
               </span>
             )}
           </div>
@@ -479,7 +485,7 @@ export default function StatusPage() {
           const statusStyle = getStatusColor(svc.status);
           const Icon = getServiceIcon(svc.id);
           return (
-            <div key={svc.id} className="rounded-xl border border-gray-800 bg-[#12121a] p-4 hover:border-gray-700 transition-colors">
+            <div key={svc.id} className={`rounded-xl border bg-[#12121a] p-4 transition-colors ${svc.status === 'disabled' ? 'border-gray-800/50 opacity-60' : 'border-gray-800 hover:border-gray-700'}`}>
               {/* Service Header */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
@@ -487,17 +493,19 @@ export default function StatusPage() {
                     <Icon className={`w-4.5 h-4.5 ${statusStyle.text}`} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-white">{svc.name_ar}</h3>
+                    <h3 className={`text-sm font-bold ${svc.status === 'disabled' ? 'text-gray-400' : 'text-white'}`}>{svc.name_ar}</h3>
                     <span className="text-[10px] text-gray-500">{svc.name}</span>
                   </div>
                 </div>
                 <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${statusStyle.bg} border ${statusStyle.border}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot} ${svc.status === 'operational' ? '' : 'animate-pulse'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${statusStyle.dot} ${svc.status === 'operational' || svc.status === 'disabled' ? '' : 'animate-pulse'}`} />
                   <span className={`text-[10px] font-semibold ${statusStyle.text}`}>{svc.status_ar}</span>
                 </span>
               </div>
 
-              {/* Stats Row */}
+              {/* Stats Row — hide for disabled services */}
+              {svc.status !== 'disabled' && (
+              <>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
                   <div className="text-[10px] text-gray-500 mb-0.5">الاستجابة</div>
@@ -524,15 +532,24 @@ export default function StatusPage() {
 
               {/* Response Time Chart */}
               <ResponseTimeChart data={svc.response_times_history} id={svc.id} />
+              </>
+              )}
+
+              {/* Disabled message */}
+              {svc.status === 'disabled' && (
+                <div className="text-center py-3 text-[11px] text-gray-500">
+                  هذه الخدمة معطّلة حالياً
+                </div>
+              )}
 
               {/* Footer */}
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/50">
                 <div className="flex items-center gap-1 text-[10px] text-gray-500">
                   <Clock className="w-3 h-3" />
-                  {timeAgo(svc.last_check)}
+                  {svc.status === 'disabled' ? 'معطّلة' : timeAgo(svc.last_check)}
                 </div>
                 <div className="flex items-center gap-1.5">
-                  {svc.auto_heal && (
+                  {svc.auto_heal && svc.status !== 'disabled' && (
                     <span className="flex items-center gap-0.5 text-[9px] text-blue-400">
                       <Zap className="w-2.5 h-2.5" />
                       إصلاح تلقائي
@@ -542,8 +559,8 @@ export default function StatusPage() {
                 </div>
               </div>
 
-              {/* Auto-Fix Button — only show for failing services */}
-              {svc.status !== 'operational' && (
+              {/* Auto-Fix Button — only show for failing services (not disabled) */}
+              {svc.status !== 'operational' && svc.status !== 'disabled' && (
                 <div className="mt-2 pt-2 border-t border-gray-800/50">
                   {showCodePrompt === svc.id ? (
                     <div className="flex items-center gap-2">
@@ -953,7 +970,7 @@ export default function StatusPage() {
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4 text-center">
           <TrendingUp className="w-5 h-5 text-green-400 mx-auto mb-1" />
           <div className="text-lg font-black text-white">
-            {data.services.length > 0 ? Math.round(data.services.reduce((a, s) => a + s.uptime_24h, 0) / data.services.length) : 100}%
+            {data.services.filter(s => s.status !== 'disabled').length > 0 ? Math.round(data.services.filter(s => s.status !== 'disabled').reduce((a, s) => a + s.uptime_24h, 0) / data.services.filter(s => s.status !== 'disabled').length) : 100}%
           </div>
           <div className="text-[10px] text-gray-500">متوسط التشغيل</div>
         </div>
