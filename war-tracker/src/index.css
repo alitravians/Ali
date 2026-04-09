@@ -73,24 +73,43 @@ body {
 /* Fix Tailwind CSS v4 preflight breaking Leaflet tiles (especially Firefox).
    Tailwind preflight sets: img { display: block; max-width: 100%; height: auto; }
    This collapses Leaflet's absolute-positioned 256×256 tile images to 0×0.
-   We override ALL img-related Tailwind resets inside .leaflet-container. */
+   We must reset ALL img-related Tailwind resets inside .leaflet-container.
+   Using very high specificity to guarantee override on all browsers. */
 .leaflet-container img,
 .leaflet-container .leaflet-tile,
-.leaflet-container .leaflet-image-layer {
+.leaflet-container .leaflet-image-layer,
+.leaflet-container .leaflet-tile-pane img,
+.leaflet-container .leaflet-overlay-pane img,
+.leaflet-container .leaflet-marker-pane img,
+.leaflet-container .leaflet-shadow-pane img {
   max-width: none !important;
   max-height: none !important;
   width: auto !important;
   height: auto !important;
   padding: 0 !important;
+  margin: 0 !important;
   border: none !important;
+  display: block !important;
+  image-rendering: auto !important;
 }
 
 /* Tile images specifically need Leaflet's inline width/height to take effect.
-   Leaflet sets style="width:256px; height:256px" on each tile — we let that win. */
+   Leaflet sets style="width:256px; height:256px" on each tile — we let that win.
+   Double-class selector ensures this beats the generic rule above. */
+.leaflet-container .leaflet-tile-pane img.leaflet-tile,
 .leaflet-tile-pane img.leaflet-tile {
   width: 256px !important;
   height: 256px !important;
   object-fit: none !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure tile pane itself is visible and properly positioned */
+.leaflet-container .leaflet-tile-pane,
+.leaflet-container .leaflet-tile-container {
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 
 .leaflet-tile-pane {
