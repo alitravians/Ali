@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Bug, Send, X, CheckCircle, Loader2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { BACKEND_API_URL } from '../../config/api';
-import html2canvas from 'html2canvas';
 
 // ── Global console error collector ──
 const _collectedErrors: string[] = [];
@@ -76,20 +75,37 @@ function collectBrowserInfo() {
   };
 }
 
-// ── Helper: capture screenshot as base64 ──
-async function captureScreenshot(): Promise<string | null> {
+// ── Helper: collect DOM snapshot (lightweight alternative to screenshot) ──
+function collectPageSnapshot(): string {
   try {
-    const canvas = await html2canvas(document.body, {
-      scale: 0.5,
-      logging: false,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#0a0a0f',
-      ignoreElements: (el) => el.classList.contains('bug-report-modal'),
+    const errors = document.querySelectorAll('.error, [class*="error"], [class*="fail"]');
+    const visibleText: string[] = [];
+    if (errors.length > 0) {
+      errors.forEach(el => {
+        const text = (el as HTMLElement).innerText?.trim().slice(0, 100);
+        if (text) visibleText.push(`[visible-error] ${text}`);
+      });
+    }
+    // Check for broken images
+    const images = document.querySelectorAll('img');
+    let brokenImages = 0;
+    images.forEach(img => {
+      if (!img.complete || img.naturalWidth === 0) brokenImages++;
     });
-    return canvas.toDataURL('image/jpeg', 0.5);
+    if (brokenImages > 0) visibleText.push(`[broken-images] ${brokenImages} صور معطوبة`);
+    
+    // Check for empty map tiles
+    const tiles = document.querySelectorAll('.leaflet-tile');
+    let emptyTiles = 0;
+    tiles.forEach(tile => {
+      const img = tile as HTMLImageElement;
+      if (!img.complete || img.naturalWidth === 0) emptyTiles++;
+    });
+    if (emptyTiles > 0) visibleText.push(`[empty-tiles] ${emptyTiles} tile خريطة فارغة`);
+    
+    return visibleText.join('\n') || 'لا توجد أخطاء مرئية';
   } catch {
-    return null;
+    return 'تعذر جمع معلومات الصفحة';
   }
 }
 
@@ -98,21 +114,7 @@ export default function BugReportButton() {
   const [description, setDescription] = useState('');
   const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const location = useLocation();
-  const screenshotTaken = useRef(false);
-
-  // Capture screenshot when modal opens
-  useEffect(() => {
-    if (isOpen && !screenshotTaken.current) {
-      screenshotTaken.current = true;
-      captureScreenshot().then(setScreenshotPreview);
-    }
-    if (!isOpen) {
-      screenshotTaken.current = false;
-      setScreenshotPreview(null);
-    }
-  }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!description.trim() || description.trim().length < 5) {
@@ -125,6 +127,7 @@ export default function BugReportButton() {
 
     try {
       const browserInfo = collectBrowserInfo();
+      const pageSnapshot = collectPageSnapshot();
       const res = await fetch(`${BACKEND_API_URL}/api/bug-report`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -135,7 +138,7 @@ export default function BugReportButton() {
           console_errors: _collectedErrors.slice(-15),
           user_actions: _userActions.slice(-15),
           browser_info: browserInfo,
-          screenshot: screenshotPreview,
+          screenshot: pageSnapshot,
         }),
       });
 
@@ -175,7 +178,7 @@ export default function BugReportButton() {
 
       {/* Modal overlay */}
       {isOpen && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bug-report-modal">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-black/60 backdrop-blur-sm"
@@ -227,16 +230,6 @@ export default function BugReportButton() {
                 </div>
               ) : (
                 <>
-                  {/* Screenshot preview */}
-                  {screenshotPreview && (
-                    <div className="mb-3 rounded-lg overflow-hidden border border-gray-700/30">
-                      <div className="flex items-center justify-between px-3 py-1.5 bg-white/5">
-                        <span className="text-[10px] text-gray-400">📸 لقطة شاشة تلقائية</span>
-                      </div>
-                      <img src={screenshotPreview} alt="screenshot" className="w-full h-24 object-cover object-top opacity-70" />
-                    </div>
-                  )}
-
                   {/* Current page indicator */}
                   <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-white/5 border border-gray-700/30">
                     <span className="text-[10px] text-gray-500">الصفحة الحالية:</span>
@@ -256,11 +249,9 @@ export default function BugReportButton() {
                     <span className="text-[9px] px-2 py-0.5 rounded-full bg-gray-500/15 text-gray-400 border border-gray-500/20">
                       🖥️ معلومات المتصفح
                     </span>
-                    {screenshotPreview && (
-                      <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
-                        📸 لقطة شاشة
-                      </span>
-                    )}
+                    <span className="text-[9px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/20">
+                      🔍 فحص الصفحة
+                    </span>
                   </div>
 
                   {/* Description textarea */}
