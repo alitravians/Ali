@@ -1045,6 +1045,113 @@ async def get_autofix_session_status(session_id: str, authorization: str = Heade
 
 
 # ──────────────────────────────────────────────
+# Bug Report endpoint (public — no auth required)
+# ──────────────────────────────────────────────
+_bug_report_timestamps: list[float] = []  # simple rate-limit tracker
+_bug_reports: list[dict] = []  # store reports in-memory
+
+
+class BugReport(BaseModel):
+    description: str
+    page: str = ""
+    browser: str = ""
+    screenshot_url: str = ""
+
+
+@app.post("/api/bug-report")
+async def submit_bug_report(report: BugReport):
+    """Public: submit a bug report which creates a Devin session to investigate."""
+    import time as _time
+
+    # Rate limit: max 1 report per 2 minutes globally
+    now = _time.time()
+    _bug_report_timestamps[:] = [t for t in _bug_report_timestamps if now - t < 120]
+    if len(_bug_report_timestamps) >= 1:
+        remaining = int(120 - (now - _bug_report_timestamps[0]))
+        raise HTTPException(
+            status_code=429,
+            detail=f"يرجى الانتظار {remaining} ثانية قبل إرسال بلاغ آخر"
+        )
+
+    if not report.description or len(report.description.strip()) < 5:
+        raise HTTPException(status_code=400, detail="يرجى كتابة وصف المشكلة (5 أحرف على الأقل)")
+
+    _bug_report_timestamps.append(now)
+
+    # Store report
+    report_entry = {
+        "id": len(_bug_reports) + 1,
+        "description": report.description[:1000],
+        "page": report.page[:200],
+        "browser": report.browser[:200],
+        "screenshot_url": report.screenshot_url[:500] if report.screenshot_url else "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending",
+        "session_url": None,
+    }
+
+    # Try to create a Devin session
+    if is_devin_configured():
+        prompt = f"""## WarScope بلاغ مشكلة تقنية من المستخدم
+
+### وصف المشكلة
+{report.description[:1000]}
+
+### الصفحة
+{report.page or 'غير محدد'}
+
+### المتصفح
+{report.browser or 'غير محدد'}
+
+### Repository
+https://github.com/alitravians/Ali
+Branch: `arabic-localization`
+
+### تعليمات
+1. افحص المشكلة المذكورة أعلاه
+2. ابحث عن السبب الجذري بالكود
+3. أصلح المشكلة
+4. انشر التحديث مباشرة على Fly.io: `fly deploy --app war-tracker-backend-v2`
+5. تأكد من أن الإصلاح لا يكسر وظائف أخرى
+
+### مهم
+- لا تكسر خدمات أخرى أثناء الإصلاح
+- حافظ على التغييرات بسيطة ومركّزة
+- انشر مباشرة بعد الإصلاح — لا تسأل عن إذن
+"""
+        result = await create_fix_session(
+            service_id="user_bug_report",
+            service_name=f"بلاغ مستخدم: {report.description[:50]}",
+            error_details=f"الصفحة: {report.page}\nالمتصفح: {report.browser}\n\nالوصف: {report.description}",
+        )
+        if result.get("success"):
+            report_entry["status"] = "investigating"
+            report_entry["session_url"] = result.get("session_url", "")
+    else:
+        report_entry["status"] = "received"
+
+    _bug_reports.insert(0, report_entry)
+    while len(_bug_reports) > 50:
+        _bug_reports.pop()
+
+    return {
+        "success": True,
+        "message": "تم إرسال البلاغ بنجاح! الفريق التقني سيراجعه قريباً.",
+        "report_id": report_entry["id"],
+        "session_url": report_entry.get("session_url"),
+    }
+
+
+@app.get("/api/bug-reports")
+async def get_bug_reports(authorization: str = Header(default="")):
+    """Admin: get all bug reports."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return {"reports": _bug_reports}
+
+
+# ──────────────────────────────────────────────
 # WebSocket endpoint
 # ──────────────────────────────────────────────
 MAX_WS_CONNECTIONS = 100  # Limit total concurrent WebSocket connections
