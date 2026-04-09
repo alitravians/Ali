@@ -7,6 +7,7 @@ import FooterStats from './FooterStats';
 import LoadingScreen from '../shared/LoadingScreen';
 import PhoneModeToggle from '../shared/PhoneModeToggle';
 import BahrainAlertBanner from '../shared/BahrainAlertBanner';
+import BugReportButton from '../shared/BugReportButton';
 import { useLiveData } from '../../context/LiveDataContext';
 
 export default function Layout() {
@@ -36,6 +37,7 @@ export default function Layout() {
       </main>
       <FooterStats />
       <PhoneModeToggle />
+      <BugReportButton />
     </div>
   );
 }

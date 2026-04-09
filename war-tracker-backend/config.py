@@ -7,8 +7,6 @@ load_dotenv()
 NEWSAPI_KEY = os.getenv("NEWSAPI_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 DEVIN_API_KEY = os.getenv("DEVIN_API_KEY", "")
-MEDIASTACK_KEY = os.getenv("MEDIASTACK_KEY", "")
-ACLED_KEY = os.getenv("ACLED_KEY", "")
 
 # Devin API (for auto-fix sessions)
 DEVIN_API_URL = "https://api.devin.ai/v1"

@@ -50,14 +50,14 @@ class DataStore:
         self.last_opensky_fetch: datetime | None = None
         self.last_ai_analysis: datetime | None = None
         self.source_status: dict[str, dict] = {
-            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
-            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0, "responseTime": 0},
+            "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+            "devin_ai": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
         }
 
     def _default_indicators(self) -> list[DashboardIndicator]:
@@ -180,9 +180,7 @@ async def poll_gdelt():
     while True:
         try:
             print("[Scheduler] Fetching GDELT events...")
-            _t0 = time.time()
             events = await fetch_gdelt_events(max_results=40)
-            store.source_status["gdelt"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             if events:
                 store.source_status["gdelt"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["gdelt"]["eventCount"] += len(events)
@@ -230,9 +228,7 @@ async def poll_news():
             # NewsAPI
             if NEWSAPI_KEY:
                 print("[Scheduler] Fetching NewsAPI events...")
-                _t0 = time.time()
                 news = await fetch_news_events(max_results=20)
-                store.source_status["newsapi"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 new_events.extend(news)
                 store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["newsapi"]["eventCount"] += len(news)
@@ -242,9 +238,7 @@ async def poll_news():
             ms_key = os.getenv("MEDIASTACK_KEY", "")
             if ms_key:
                 print("[Scheduler] Fetching MediaStack events...")
-                _t0 = time.time()
                 ms = await fetch_mediastack_events(ms_key, max_results=15)
-                store.source_status["mediastack"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 new_events.extend(ms)
                 store.source_status["mediastack"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["mediastack"]["eventCount"] += len(ms)
@@ -255,9 +249,7 @@ async def poll_news():
             acled_email = os.getenv("ACLED_EMAIL", "")
             if acled_key and acled_email:
                 print("[Scheduler] Fetching ACLED events...")
-                _t0 = time.time()
                 acled = await fetch_acled_events(acled_key, acled_email, max_results=30)
-                store.source_status["acled"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 new_events.extend(acled)
                 store.source_status["acled"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["acled"]["eventCount"] += len(acled)
@@ -297,9 +289,7 @@ async def poll_opensky():
     """Background task: Poll OpenSky for aircraft positions."""
     while True:
         try:
-            _t0 = time.time()
             positions = await fetch_aircraft_positions()
-            store.source_status["opensky"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             store.aircraft = positions
             store.source_status["opensky"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
             store.source_status["opensky"]["eventCount"] = len(positions)
@@ -325,9 +315,7 @@ async def poll_ai_analysis():
         try:
             if store.events:
                 print("[Scheduler] Running AI analysis...")
-                _t0 = time.time()
                 summary = await analyze_events(store.events[:20])
-                store.source_status["devin_ai"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
                 if summary:
                     store.ai_summaries.insert(0, summary)
                     store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
@@ -350,9 +338,7 @@ async def poll_rss():
     while True:
         try:
             print("[Scheduler] Fetching RSS feed events...")
-            _t0 = time.time()
             rss_events = await fetch_rss_events(max_results=50)
-            store.source_status["rss"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             if rss_events:
                 store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["rss"]["eventCount"] += len(rss_events)
@@ -445,9 +431,7 @@ async def poll_maritime_broadcast():
     while True:
         await asyncio.sleep(30)
         try:
-            _t0 = time.time()
             vessels = get_vessels()
-            store.source_status["aisstream"]["responseTime"] = round((time.time() - _t0) * 1000, 1)
             zones = get_zone_stats()
             if vessels:
                 store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
@@ -952,18 +936,12 @@ async def trigger_health_check(service_id: str, authorization: str = Header(defa
     return result.model_dump(mode="json")
 
 
-_last_public_analysis = None  # Rate limit for public analysis trigger
-_last_chat_request: dict[str, datetime] = {}  # Rate limit per IP for chat
-
 @app.post("/api/analysis/trigger")
-async def trigger_analysis():
-    """Trigger AI analysis — public with rate limiting (max once per 2 minutes)."""
-    global _last_public_analysis
-    now = datetime.now(timezone.utc)
-    if _last_public_analysis and (now - _last_public_analysis).total_seconds() < 120:
-        remaining = 120 - int((now - _last_public_analysis).total_seconds())
-        raise HTTPException(status_code=429, detail=f"يرجى الانتظار {remaining} ثانية قبل طلب تحليل جديد")
-    _last_public_analysis = now
+async def trigger_analysis(authorization: str = Header(default="")):
+    """Manually trigger AI analysis (requires admin token to prevent API quota abuse)."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="يتطلب تسجيل دخول المسؤول")
     summary = await analyze_events(store.events[:20])
     if summary:
         store.ai_summaries.insert(0, summary)
@@ -974,220 +952,14 @@ async def trigger_analysis():
 
 
 # ──────────────────────────────────────────────
-# AI Chat endpoint
-# ──────────────────────────────────────────────
-@app.post("/api/chat")
-async def chat_endpoint(request: Request):
-    """AI chat assistant — answers questions about current events using Groq/Llama."""
-    body = await request.json()
-    user_message = body.get("message", "")
-    context = body.get("context", {})
-
-    if not user_message.strip():
-        raise HTTPException(status_code=400, detail="الرسالة فارغة")
-
-    # Rate limit: 1 request per 5 seconds per IP
-    client_ip = request.client.host if request.client else "unknown"
-    now = datetime.now(timezone.utc)
-    last = _last_chat_request.get(client_ip)
-    if last and (now - last).total_seconds() < 5:
-        raise HTTPException(status_code=429, detail="يرجى الانتظار قبل إرسال رسالة جديدة")
-    _last_chat_request[client_ip] = now
-
-    # Build prompt with context
-    events_summary = ""
-    if context:
-        events_summary = f"""
-معلومات حالية عن الأحداث:
-- إجمالي الأحداث: {context.get('total_events', 0)}
-- أحداث عاجلة: {context.get('breaking_count', 0)}
-- التصنيفات: {json.dumps(context.get('categories', {}), ensure_ascii=False)}
-- أكثر المواقع: {json.dumps(context.get('top_locations', []), ensure_ascii=False)}
-
-آخر الأحداث:
-{json.dumps(context.get('recent_events', [])[:10], ensure_ascii=False, indent=1)}
-
-الأحداث العاجلة:
-{json.dumps(context.get('breaking_events', []), ensure_ascii=False, indent=1)}
-"""
-
-    system_prompt = f"""أنت مساعد WarScope الذكي — منصة تتبع مباشر لأحداث الشرق الأوسط.
-أجب باللغة العربية بشكل مختصر ومفيد.
-استخدم البيانات المتاحة للإجابة على أسئلة المستخدم.
-لا تختلق معلومات — إذا لم تجد إجابة بالبيانات، قل ذلك.
-
-{events_summary}"""
-
-    # Try Groq API
-    try:
-        from config import GROQ_API_KEY
-        if GROQ_API_KEY:
-            import httpx
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={
-                        "Authorization": f"Bearer {GROQ_API_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": "llama-3.3-70b-versatile",
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_message},
-                        ],
-                        "max_tokens": 500,
-                        "temperature": 0.7,
-                    }
-                )
-                if resp.status_code == 200:
-                    data = resp.json()
-                    reply = data["choices"][0]["message"]["content"]
-                    return {"reply": reply}
-    except Exception as e:
-        print(f"[Chat] Groq error: {e}")
-
-    # Smart fallback: analyze the question and context locally
-    reply = _generate_smart_fallback(user_message, context)
-    return {"reply": reply}
-
-
-def _generate_smart_fallback(question: str, context: dict) -> str:
-    """Generate a smart response using available context data (no AI needed)."""
-    q = question.strip()
-    q_lower = q.lower()
-    total = context.get("total_events", 0)
-    breaking_count = context.get("breaking_count", 0)
-    categories = context.get("categories", {})
-    top_locations = context.get("top_locations", [])
-    recent_events = context.get("recent_events", [])
-    breaking_events = context.get("breaking_events", [])
-
-    cat_names = {
-        "military": "عسكري", "alert": "إنذار", "official": "رسمي",
-        "airspace": "أجواء", "maritime": "بحري", "fire": "حراري",
-        "humanitarian": "إنساني"
-    }
-
-    # 1) General status / summary queries
-    if any(kw in q for kw in ["وضع", "ملخص", "حالي", "عام", "شو صاير", "اخبار", "أخبار"]):
-        cat_summary = "، ".join(
-            f"{cat_names.get(c, c)}: {n}" for c, n in sorted(categories.items(), key=lambda x: -x[1])[:4]
-        )
-        locs = "\n".join(f"• {loc[0]} ({loc[1]} حدث)" for loc in top_locations[:5]) if top_locations else "لا توجد بيانات"
-        latest = ""
-        if recent_events:
-            latest = "\n\n📰 آخر الأحداث:\n" + "\n".join(
-                f"• {e.get('title', '')}" + (" 🔴" if e.get("isBreaking") else "")
-                for e in recent_events[:5]
-            )
-        return f"📊 ملخص الوضع الحالي:\n\n• إجمالي الأحداث: {total}\n• أحداث عاجلة: {breaking_count}\n• التصنيف: {cat_summary}\n\n📍 أكثر المواقع نشاطاً:\n{locs}{latest}"
-
-    # 2) Breaking news queries
-    if any(kw in q for kw in ["عاجل", "عاجلة", "breaking", "طوارئ"]):
-        if not breaking_events:
-            return "✅ لا توجد أحداث عاجلة حالياً."
-        items = "\n\n".join(f"• {e.get('title', '')}\n  📍 {e.get('location', '')}" for e in breaking_events[:5])
-        return f"🔴 الأحداث العاجلة ({len(breaking_events)}):\n\n{items}"
-
-    # 3) Location-specific queries — search in Arabic and English
-    location_keywords = {
-        "البحرين": ["البحرين", "bahrain", "manama", "المنامة"],
-        "إيران": ["إيران", "iran", "طهران", "tehran", "أصفهان"],
-        "إسرائيل": ["إسرائيل", "israel", "تل أبيب", "tel aviv", "حيفا"],
-        "غزة": ["غزة", "gaza"],
-        "لبنان": ["لبنان", "lebanon", "بيروت", "beirut"],
-        "سوريا": ["سوريا", "syria", "دمشق", "damascus"],
-        "العراق": ["العراق", "iraq", "بغداد", "baghdad", "البصرة"],
-        "اليمن": ["اليمن", "yemen", "صنعاء", "عدن"],
-        "هرمز": ["هرمز", "hormuz"],
-        "الكويت": ["الكويت", "kuwait"],
-        "السعودية": ["السعودية", "saudi", "الرياض"],
-        "قطر": ["قطر", "qatar", "الدوحة"],
-    }
-
-    matched_location = None
-    matched_label = None
-    for label, keywords in location_keywords.items():
-        for kw in keywords:
-            if kw in q or kw in q_lower:
-                matched_location = keywords
-                matched_label = label
-                break
-        if matched_location:
-            break
-
-    if matched_location:
-        # Search events matching any of the location keywords
-        loc_events = [
-            e for e in recent_events
-            if any(kw in e.get("location", "").lower() or kw in e.get("title", "").lower() or kw in e.get("location", "") or kw in e.get("title", "")
-                   for kw in matched_location)
-        ]
-        if loc_events:
-            items = "\n\n".join(
-                f"• {e.get('title', '')}\n  📍 {e.get('location', '')}" + (" 🔴" if e.get("isBreaking") else "")
-                for e in loc_events[:7]
-            )
-            return f"📍 أحداث {matched_label} ({len(loc_events)} حدث):\n\n{items}"
-        else:
-            # Check top_locations for the location
-            loc_count = 0
-            for loc in top_locations:
-                if any(kw in str(loc[0]).lower() or kw in str(loc[0]) for kw in matched_location):
-                    loc_count = loc[1]
-                    break
-            if loc_count > 0:
-                return f"📍 {matched_label}: {loc_count} حدث مسجّل. لم أجد تفاصيل محددة بالأحداث الأخيرة."
-            return f"📍 لم أجد أحداث حالية تخص {matched_label} في البيانات المتاحة."
-
-    # 4) Category-specific queries
-    cat_keywords = {
-        "military": ["عسكري", "عسكرية", "قصف", "ضربة", "هجوم", "حرب"],
-        "maritime": ["بحري", "بحرية", "سفن", "سفينة", "ملاحة"],
-        "alert": ["إنذار", "تحذير", "صفارة", "صفارات"],
-        "official": ["رسمي", "تصريح", "تصريحات", "سياسي"],
-        "humanitarian": ["إنساني", "إنسانية", "إغاثة"],
-        "fire": ["حريق", "حرائق", "حراري"],
-        "airspace": ["جوي", "طيران", "أجواء", "طائرة"],
-    }
-
-    for cat_id, keywords in cat_keywords.items():
-        if any(kw in q for kw in keywords):
-            count = categories.get(cat_id, 0)
-            cat_events = [e for e in recent_events if e.get("category") == cat_id]
-            if cat_events:
-                items = "\n".join(f"• {e.get('title', '')}" for e in cat_events[:5])
-                return f"📂 أحداث {cat_names.get(cat_id, cat_id)} ({count} حدث):\n\n{items}"
-            elif count > 0:
-                return f"📂 يوجد {count} حدث من نوع {cat_names.get(cat_id, cat_id)}."
-            break
-
-    # 5) Search in event titles
-    matching = [e for e in recent_events if q in e.get("title", "") or q_lower in e.get("title", "").lower()]
-    if matching:
-        items = "\n\n".join(
-            f"• {e.get('title', '')}\n  📍 {e.get('location', '')}" + (" 🔴" if e.get("isBreaking") else "")
-            for e in matching[:5]
-        )
-        return f"🔍 نتائج البحث ({len(matching)}):\n\n{items}"
-
-    # 6) General fallback with useful info
-    locs_str = "، ".join(loc[0] for loc in top_locations[:3]) if top_locations else "غير متوفر"
-    latest_titles = "\n".join(f"• {e.get('title', '')}" for e in recent_events[:3]) if recent_events else ""
-    return f"📊 الوضع الحالي:\n\n• إجمالي الأحداث: {total}\n• أحداث عاجلة: {breaking_count}\n• أكثر المواقع نشاطاً: {locs_str}\n\n📰 آخر الأحداث:\n{latest_titles}\n\nجرّب أسئلة مثل:\n• \"ما الوضع الحالي؟\"\n• \"أحداث عاجلة\"\n• \"أحداث البحرين\"\n• \"ملخص الأحداث\""
-
-
-# ──────────────────────────────────────────────
 # Devin Auto-Fix endpoints
 # ──────────────────────────────────────────────
 @app.post("/api/autofix/trigger/{service_id}")
-async def trigger_devin_fix(service_id: str, request: Request):
-    """Trigger a Devin session to investigate and fix a failing service. Protected by code 3131."""
-    body = await request.json()
-    fix_code = body.get("fix_code", "")
-    if fix_code != "3131":
-        raise HTTPException(status_code=401, detail="رمز التحقق غير صحيح")
+async def trigger_devin_fix(service_id: str, authorization: str = Header(default="")):
+    """Admin: trigger a Devin session to investigate and fix a failing service."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
 
     if not is_devin_configured():
         raise HTTPException(status_code=503, detail="Devin API غير مُعرّف — يرجى إضافة DEVIN_API_KEY")
@@ -1252,8 +1024,11 @@ async def trigger_devin_fix(service_id: str, request: Request):
 
 
 @app.get("/api/autofix/sessions")
-async def get_autofix_sessions():
-    """Get all fix session history."""
+async def get_autofix_sessions(authorization: str = Header(default="")):
+    """Admin: get all Devin fix session history."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
     return {
         "sessions": get_fix_sessions(),
         "devin_configured": is_devin_configured(),
@@ -1261,9 +1036,119 @@ async def get_autofix_sessions():
 
 
 @app.get("/api/autofix/session/{session_id}")
-async def get_autofix_session_status(session_id: str):
-    """Check status of a specific fix session."""
+async def get_autofix_session_status(session_id: str, authorization: str = Header(default="")):
+    """Admin: check status of a specific Devin fix session."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
     return await get_session_status(session_id)
+
+
+# ──────────────────────────────────────────────
+# Bug Report endpoint (public — no auth required)
+# ──────────────────────────────────────────────
+_bug_report_timestamps: list[float] = []  # simple rate-limit tracker
+_bug_reports: list[dict] = []  # store reports in-memory
+
+
+class BugReport(BaseModel):
+    description: str
+    page: str = ""
+    browser: str = ""
+    screenshot_url: str = ""
+
+
+@app.post("/api/bug-report")
+async def submit_bug_report(report: BugReport):
+    """Public: submit a bug report which creates a Devin session to investigate."""
+    import time as _time
+
+    # Rate limit: max 1 report per 2 minutes globally
+    now = _time.time()
+    _bug_report_timestamps[:] = [t for t in _bug_report_timestamps if now - t < 120]
+    if len(_bug_report_timestamps) >= 1:
+        remaining = int(120 - (now - _bug_report_timestamps[0]))
+        raise HTTPException(
+            status_code=429,
+            detail=f"يرجى الانتظار {remaining} ثانية قبل إرسال بلاغ آخر"
+        )
+
+    if not report.description or len(report.description.strip()) < 5:
+        raise HTTPException(status_code=400, detail="يرجى كتابة وصف المشكلة (5 أحرف على الأقل)")
+
+    _bug_report_timestamps.append(now)
+
+    # Store report
+    report_entry = {
+        "id": len(_bug_reports) + 1,
+        "description": report.description[:1000],
+        "page": report.page[:200],
+        "browser": report.browser[:200],
+        "screenshot_url": report.screenshot_url[:500] if report.screenshot_url else "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "status": "pending",
+        "session_url": None,
+    }
+
+    # Try to create a Devin session
+    if is_devin_configured():
+        prompt = f"""## WarScope بلاغ مشكلة تقنية من المستخدم
+
+### وصف المشكلة
+{report.description[:1000]}
+
+### الصفحة
+{report.page or 'غير محدد'}
+
+### المتصفح
+{report.browser or 'غير محدد'}
+
+### Repository
+https://github.com/alitravians/Ali
+Branch: `arabic-localization`
+
+### تعليمات
+1. افحص المشكلة المذكورة أعلاه
+2. ابحث عن السبب الجذري بالكود
+3. أصلح المشكلة
+4. انشر التحديث مباشرة على Fly.io: `fly deploy --app war-tracker-backend-v2`
+5. تأكد من أن الإصلاح لا يكسر وظائف أخرى
+
+### مهم
+- لا تكسر خدمات أخرى أثناء الإصلاح
+- حافظ على التغييرات بسيطة ومركّزة
+- انشر مباشرة بعد الإصلاح — لا تسأل عن إذن
+"""
+        result = await create_fix_session(
+            service_id="user_bug_report",
+            service_name=f"بلاغ مستخدم: {report.description[:50]}",
+            error_details=f"الصفحة: {report.page}\nالمتصفح: {report.browser}\n\nالوصف: {report.description}",
+        )
+        if result.get("success"):
+            report_entry["status"] = "investigating"
+            report_entry["session_url"] = result.get("session_url", "")
+    else:
+        report_entry["status"] = "received"
+
+    _bug_reports.insert(0, report_entry)
+    while len(_bug_reports) > 50:
+        _bug_reports.pop()
+
+    return {
+        "success": True,
+        "message": "تم إرسال البلاغ بنجاح! الفريق التقني سيراجعه قريباً.",
+        "report_id": report_entry["id"],
+        "session_url": report_entry.get("session_url"),
+    }
+
+
+@app.get("/api/bug-reports")
+async def get_bug_reports(authorization: str = Header(default="")):
+    """Admin: get all bug reports."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not token or not _verify_token(token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+    return {"reports": _bug_reports}
 
 
 # ──────────────────────────────────────────────

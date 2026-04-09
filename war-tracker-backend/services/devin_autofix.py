@@ -1,9 +1,9 @@
 """
-Devin API Auto-Fix Service — Sends fix requests to the linked Devin session,
-or creates new sessions as fallback.
+Devin API Auto-Fix Service — Creates Devin sessions to investigate and fix
+failing services detected by the WarScope health monitor.
 
-Uses the Devin API v1 to send messages to an existing session or create new
-sessions with context about the failing service.
+Uses the Devin API v1 to create sessions with context about the failing service,
+error details, and repository information so Devin can diagnose and fix issues.
 """
 import httpx
 from datetime import datetime, timezone
@@ -15,9 +15,6 @@ from config import DEVIN_API_KEY, DEVIN_API_URL
 _fix_sessions: list[dict] = []
 _MAX_CONCURRENT_SESSIONS = 3  # Prevent creating too many sessions at once
 _REPO_URL = "https://github.com/alitravians/Ali"
-
-# Linked session — fix requests go here first
-_LINKED_SESSION_ID = "9e1ad247188248028901652f27903c73"
 
 # Service context for better prompts
 _SERVICE_CONTEXT = {
@@ -129,40 +126,6 @@ Branch: `devin/1775605997-devin-analysis-status-page`
     return prompt
 
 
-async def _send_to_linked_session(prompt: str) -> Optional[dict]:
-    """Try to send a fix message to the linked Devin session.
-    Returns session info dict on success, None on failure."""
-    if not DEVIN_API_KEY or not _LINKED_SESSION_ID:
-        return None
-
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            # Send message to the existing session
-            resp = await client.post(
-                f"{DEVIN_API_URL}/session/{_LINKED_SESSION_ID}/message",
-                headers={
-                    "Authorization": f"Bearer {DEVIN_API_KEY}",
-                    "Content-Type": "application/json",
-                },
-                json={"message": prompt},
-            )
-
-            if resp.status_code == 200:
-                return {
-                    "success": True,
-                    "session_id": _LINKED_SESSION_ID,
-                    "session_url": f"https://app.devin.ai/sessions/{_LINKED_SESSION_ID}",
-                    "linked": True,
-                }
-            else:
-                print(f"[AUTOFIX] Linked session message failed ({resp.status_code}): {resp.text[:200]}")
-                return None
-
-    except Exception as e:
-        print(f"[AUTOFIX] Linked session error: {e}")
-        return None
-
-
 async def create_fix_session(
     service_id: str,
     service_name: str,
@@ -176,27 +139,8 @@ async def create_fix_session(
     if not DEVIN_API_KEY:
         return {"success": False, "error": "DEVIN_API_KEY not configured", "error_ar": "مفتاح Devin API غير مُعرّف"}
 
-    prompt = _build_fix_prompt(service_id, service_name, error_details, incident_info)
-
-    # Step 1: Try sending to the linked session first (skip duplicate check — just messaging)
-    linked_result = await _send_to_linked_session(prompt)
-    if linked_result:
-        session_info = {
-            **linked_result,
-            "service_id": service_id,
-            "service_name": service_name,
-            "status": "running",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-            "error_details": error_details[:500],
-            "linked": True,
-        }
-        _fix_sessions.insert(0, session_info)
-        while len(_fix_sessions) > 20:
-            _fix_sessions.pop()
-        return session_info
-
-    # Step 2: Fallback — create a new session (with duplicate/limit checks)
-    active_count = sum(1 for s in _fix_sessions if s.get("status") in ("running", "pending") and not s.get("linked"))
+    # Check concurrent session limit
+    active_count = sum(1 for s in _fix_sessions if s.get("status") in ("running", "pending"))
     if active_count >= _MAX_CONCURRENT_SESSIONS:
         return {
             "success": False,
@@ -204,14 +148,17 @@ async def create_fix_session(
             "error_ar": f"عدد جلسات الإصلاح النشطة وصل الحد الأقصى ({active_count}/{_MAX_CONCURRENT_SESSIONS})",
         }
 
+    # Check if there's already an active session for this service
     for s in _fix_sessions:
-        if s.get("service_id") == service_id and s.get("status") in ("running", "pending") and not s.get("linked"):
+        if s.get("service_id") == service_id and s.get("status") in ("running", "pending"):
             return {
                 "success": False,
                 "error": f"A fix session is already active for {service_name}",
                 "error_ar": f"يوجد جلسة إصلاح نشطة بالفعل لـ {service_name}",
                 "existing_session": s,
             }
+
+    prompt = _build_fix_prompt(service_id, service_name, error_details, incident_info)
 
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
