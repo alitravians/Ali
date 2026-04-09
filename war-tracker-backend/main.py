@@ -1057,6 +1057,10 @@ class BugReport(BaseModel):
     page: str = ""
     browser: str = ""
     screenshot_url: str = ""
+    console_errors: list[str] = []
+    user_actions: list[str] = []
+    browser_info: dict = {}
+    screenshot: str = ""  # base64 screenshot data
 
 
 @app.post("/api/bug-report")
@@ -1105,7 +1109,46 @@ async def submit_bug_report(report: BugReport):
 {report.page or 'غير محدد'}
 
 ### المتصفح
-{report.browser or 'غير محدد'}
+{report.browser or 'غير محدد'}"""
+
+    # Add browser info if available
+    if report.browser_info:
+        bi = report.browser_info
+        message += f"""
+
+### معلومات البيئة
+- **الشاشة:** {bi.get('screenWidth', '?')}×{bi.get('screenHeight', '?')} (viewport: {bi.get('viewportWidth', '?')}×{bi.get('viewportHeight', '?')})
+- **DPR:** {bi.get('devicePixelRatio', '?')}
+- **اللغة:** {bi.get('language', '?')}
+- **المنطقة الزمنية:** {bi.get('timezone', '?')}
+- **الاتصال:** {'متصل' if bi.get('online', True) else 'غير متصل'}
+- **URL:** {bi.get('url', '?')}
+- **الذاكرة:** {str(bi.get('memoryMB', '?')) + ' MB' if bi.get('memoryMB') else 'غير متوفر'}"""
+
+    # Add console errors if available
+    if report.console_errors:
+        errors_text = '\n'.join(f'  - {e[:200]}' for e in report.console_errors[-10:])
+        message += f"""
+
+### سجل الأخطاء (Console Errors)
+{errors_text}"""
+
+    # Add user actions if available
+    if report.user_actions:
+        actions_text = '\n'.join(f'  - {a[:200]}' for a in report.user_actions[-10:])
+        message += f"""
+
+### آخر إجراءات المستخدم
+{actions_text}"""
+
+    # Note about screenshot
+    if report.screenshot:
+        message += """
+
+### لقطة شاشة
+📸 تم إرفاق لقطة شاشة تلقائية مع البلاغ (base64 في بيانات الطلب)"""
+
+    message += """
 
 ### تعليمات
 1. افحص المشكلة المذكورة أعلاه
