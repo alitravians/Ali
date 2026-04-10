@@ -638,7 +638,7 @@ export default function StatusPage() {
         })}
       </div>
 
-      {/* Devin Fix Sessions */}
+      {/* Technical Support Fix Sessions */}
       {fixSessions.length > 0 && (
         <div className="mb-8">
           <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">

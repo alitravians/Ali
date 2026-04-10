@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { CheckCircle, Volume2, VolumeX } from 'lucide-react';
+import { CheckCircle, Volume2, VolumeX, WifiOff, RefreshCw } from 'lucide-react';
+import { BACKEND_API_URL, BACKEND_WS_URL } from '../../config/api';
 
 interface RepairTrackerProps {
   isOpen: boolean;
   onClose: () => void;
   problemDescription: string;
   pagePath: string;
+  ticketId?: string;
 }
 
 // ── Safe, user-friendly repair phases (NO internal system details) ──
@@ -16,16 +18,16 @@ const REPAIR_PHASES = [
     statusUpdates: [
       'تم استلام البلاغ بنجاح',
       'جاري تسجيل التفاصيل...',
-      'تم تعيين الفريق المختص',
+      'تم تعيين الدعم الفني المختص',
     ],
   },
   {
     label: 'تحليل المشكلة',
-    detail: 'الفريق يحلل المشكلة ويحدد أسبابها',
+    detail: 'الدعم الفني المختص يحلل المشكلة ويحدد أسبابها',
     statusUpdates: [
       'بدأ تحليل المشكلة المُبلّغ عنها',
       'جاري فحص النظام للتعرف على السبب...',
-      'تم تحديد 3 عوامل محتملة',
+      'تم تحديد عوامل محتملة',
       'جاري التحقق من السبب الرئيسي...',
     ],
   },
@@ -40,7 +42,7 @@ const REPAIR_PHASES = [
   },
   {
     label: 'جاري الإصلاح',
-    detail: 'الفريق التقني يعمل على حل المشكلة',
+    detail: 'الدعم الفني المختص يعمل على حل المشكلة',
     statusUpdates: [
       'بدأ تطبيق الإصلاح',
       'جاري تعديل الإعدادات المتأثرة...',
@@ -349,8 +351,8 @@ function DataParticles({ active }: { active: boolean }) {
 }
 
 
-export default function RepairTracker3D({ isOpen, onClose, problemDescription, pagePath }: RepairTrackerProps) {
-  console.log('[RepairTracker3D] render, isOpen:', isOpen);
+export default function RepairTracker3D({ isOpen, onClose, problemDescription, pagePath, ticketId }: RepairTrackerProps) {
+  console.log('[RepairTracker3D] render, isOpen:', isOpen, 'ticketId:', ticketId);
   const [currentPhase, setCurrentPhase] = useState(0);
   const [progress, setProgress] = useState(0);
   const [statusLines, setStatusLines] = useState<string[]>([]);
@@ -359,7 +361,12 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
   const [lastUpdateTime, setLastUpdateTime] = useState('');
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [phaseTransition, setPhaseTransition] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState<'connecting' | 'live' | 'syncing' | 'polling'>('connecting');
   const logRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reducedMotion = useReducedMotion();
   const { phaseAdvance, completion, statusUpdate, enabledRef } = useSoundEffects();
 
@@ -374,69 +381,216 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
     setLastUpdateTime(new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
   }, []);
 
-  // Main animation loop
+  // Apply ticket data from any source (WebSocket or HTTP polling)
+  const applyTicketData = useCallback((data: {
+    phase: number;
+    progress: number;
+    status_message: string;
+    is_complete: boolean;
+    status_history?: Array<{ message: string }>;
+  }) => {
+    const newPhase = data.phase;
+    const newProgress = data.progress;
+    const statusMsg = data.status_message;
+
+    // Update phase with transition animation
+    setCurrentPhase(prev => {
+      if (newPhase > prev) {
+        setPhaseTransition(true);
+        setTimeout(() => setPhaseTransition(false), 600);
+        phaseAdvance();
+      }
+      return newPhase;
+    });
+
+    // Update progress
+    if (newProgress >= 0) {
+      setProgress(newProgress);
+    }
+
+    // Update status
+    if (statusMsg) {
+      setCurrentStatus(statusMsg);
+    }
+
+    // Load status history if provided
+    if (data.status_history && data.status_history.length > 0) {
+      setStatusLines(prev => {
+        const existingSet = new Set(prev);
+        const newLines = data.status_history!
+          .map((h) => h.message)
+          .filter((msg) => !existingSet.has(msg));
+        if (newLines.length > 0) {
+          statusUpdate();
+          scrollToBottom();
+          return [...prev, ...newLines];
+        }
+        return prev;
+      });
+    }
+
+    updateTimestamp();
+
+    // Check completion
+    if (data.is_complete) {
+      setIsComplete(true);
+      setProgress(100);
+      setCurrentStatus('تم حل المشكلة بنجاح!');
+      completion();
+    }
+  }, [phaseAdvance, completion, statusUpdate, scrollToBottom, updateTimestamp]);
+
+  // HTTP polling fallback — fetches ticket status when WebSocket is not available
+  const startPolling = useCallback(() => {
+    if (!ticketId) return;
+    // Clear any existing poll timer
+    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+
+    console.log('[RepairTracker3D] Starting HTTP polling for ticket:', ticketId);
+    setConnectionState('polling');
+
+    const poll = async () => {
+      try {
+        const resp = await fetch(`${BACKEND_API_URL}/api/tickets/${ticketId}`);
+        if (resp.ok) {
+          const ticket = await resp.json();
+          applyTicketData({
+            phase: ticket.current_phase,
+            progress: ticket.progress,
+            status_message: ticket.status_message,
+            is_complete: ticket.is_complete,
+            status_history: ticket.status_history,
+          });
+        }
+      } catch (err) {
+        console.error('[RepairTracker3D] Poll error:', err);
+      }
+    };
+
+    // Poll immediately, then every 10 seconds
+    poll();
+    pollTimerRef.current = setInterval(poll, 10000);
+  }, [ticketId, applyTicketData]);
+
+  // WebSocket connection with reconnect logic
+  const connectWebSocket = useCallback(() => {
+    if (!ticketId) return;
+
+    const wsUrl = `${BACKEND_WS_URL.replace('/ws', '')}/ws/ticket/${ticketId}`;
+    console.log('[RepairTracker3D] Connecting to WebSocket:', wsUrl);
+    setConnectionState('connecting');
+
+    try {
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
+      let pingInterval: ReturnType<typeof setInterval> | null = null;
+
+      ws.onopen = () => {
+        console.log('[RepairTracker3D] WebSocket connected for ticket:', ticketId);
+        setWsConnected(true);
+        setConnectionState('live');
+
+        // Stop HTTP polling since WS is connected
+        if (pollTimerRef.current) {
+          clearInterval(pollTimerRef.current);
+          pollTimerRef.current = null;
+        }
+
+        // Keep alive ping every 30s
+        pingInterval = setInterval(() => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+          }
+        }, 30000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('[RepairTracker3D] WS message:', data);
+
+          if (data.type === 'ticket_status' || data.type === 'ticket_update') {
+            applyTicketData({
+              phase: data.phase,
+              progress: data.progress,
+              status_message: data.status_message,
+              is_complete: data.is_complete,
+              status_history: data.type === 'ticket_status' ? data.status_history : undefined,
+            });
+          }
+        } catch (err) {
+          console.error('[RepairTracker3D] WS parse error:', err);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log('[RepairTracker3D] WebSocket disconnected');
+        setWsConnected(false);
+        if (pingInterval) clearInterval(pingInterval);
+
+        // If not complete, switch to syncing state and start polling + reconnect attempt
+        setIsComplete(prev => {
+          if (!prev) {
+            setConnectionState('syncing');
+            startPolling();
+            // Try to reconnect WebSocket after 15 seconds
+            wsReconnectTimerRef.current = setTimeout(() => {
+              connectWebSocket();
+            }, 15000);
+          }
+          return prev;
+        });
+      };
+
+      ws.onerror = (err) => {
+        console.error('[RepairTracker3D] WebSocket error:', err);
+      };
+    } catch (err) {
+      console.error('[RepairTracker3D] WebSocket connection failed:', err);
+      setConnectionState('syncing');
+      startPolling();
+    }
+  }, [ticketId, applyTicketData, startPolling]);
+
+  // Main effect — initializes tracking (NO auto-progression)
   useEffect(() => {
     if (!isOpen) return;
 
+    // Reset state
     setCurrentPhase(0);
     setProgress(0);
-    setStatusLines([]);
+    setStatusLines(['تم استلام البلاغ بنجاح']);
     setIsComplete(false);
-    setCurrentStatus(REPAIR_PHASES[0].statusUpdates[0]);
+    setCurrentStatus('تم استلام البلاغ — في انتظار بدء المعالجة');
+    setWsConnected(false);
+    setConnectionState('connecting');
     updateTimestamp();
 
-    let phaseIdx = 0;
-    let prog = 0;
+    if (ticketId) {
+      // Try WebSocket first, will fallback to polling if fails
+      connectWebSocket();
+    } else {
+      // No ticket ID — show waiting state
+      setCurrentStatus('في انتظار تسجيل البلاغ...');
+      setConnectionState('syncing');
+    }
 
-    // Add initial status updates
-    const addPhaseUpdates = (pIdx: number, delayStart = 0) => {
-      const updates = REPAIR_PHASES[pIdx].statusUpdates;
-      updates.forEach((update, i) => {
-        setTimeout(() => {
-          setStatusLines(prev => [...prev, update]);
-          setCurrentStatus(update);
-          updateTimestamp();
-          statusUpdate();
-          scrollToBottom();
-        }, delayStart + i * 1000);
-      });
-    };
-
-    addPhaseUpdates(0, 500);
-
-    // Phase advancement
-    const phaseTimer = setInterval(() => {
-      if (phaseIdx < REPAIR_PHASES.length - 1) {
-        phaseIdx++;
-        setPhaseTransition(true);
-        setTimeout(() => setPhaseTransition(false), 600);
-        setCurrentPhase(phaseIdx);
-        phaseAdvance();
-        updateTimestamp();
-
-        addPhaseUpdates(phaseIdx, 300);
-      } else {
-        setIsComplete(true);
-        setCurrentStatus('تم حل المشكلة بنجاح!');
-        updateTimestamp();
-        completion();
-        clearInterval(phaseTimer);
-      }
-    }, 4000);
-
-    // Progress advancement
-    const progTimer = setInterval(() => {
-      if (prog < 100) {
-        prog += 0.6 + Math.random() * 0.4;
-        setProgress(Math.min(prog, 100));
-      }
-    }, 150);
-
+    // Cleanup
     return () => {
-      clearInterval(phaseTimer);
-      clearInterval(progTimer);
+      if (pollTimerRef.current) {
+        clearInterval(pollTimerRef.current);
+        pollTimerRef.current = null;
+      }
+      if (wsReconnectTimerRef.current) {
+        clearTimeout(wsReconnectTimerRef.current);
+        wsReconnectTimerRef.current = null;
+      }
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
     };
-  }, [isOpen, scrollToBottom, updateTimestamp, phaseAdvance, completion, statusUpdate]);
+  }, [isOpen, ticketId, connectWebSocket, updateTimestamp]);
 
   if (!isOpen) return null;
 
@@ -482,6 +636,29 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
             </h2>
           </div>
           <span className="text-[9px] text-gray-600 font-mono mr-auto hidden md:block" dir="ltr">TECHNICAL REPAIR CENTER</span>
+
+          {/* Ticket ID + Live indicator */}
+          {ticketId && (
+            <span className="text-[8px] font-mono px-2 py-0.5 rounded-full hidden md:block" style={{
+              background: connectionState === 'live' ? 'rgba(34,197,94,0.1)' 
+                : connectionState === 'syncing' ? 'rgba(239,68,68,0.1)'
+                : connectionState === 'polling' ? 'rgba(245,158,11,0.1)'
+                : 'rgba(59,130,246,0.1)',
+              color: connectionState === 'live' ? '#34d399' 
+                : connectionState === 'syncing' ? '#f87171'
+                : connectionState === 'polling' ? '#fbbf24'
+                : '#60a5fa',
+              border: `1px solid ${connectionState === 'live' ? 'rgba(34,197,94,0.2)' 
+                : connectionState === 'syncing' ? 'rgba(239,68,68,0.2)'
+                : connectionState === 'polling' ? 'rgba(245,158,11,0.2)'
+                : 'rgba(59,130,246,0.2)'}`,
+            }} dir="ltr">
+              {connectionState === 'live' ? '⚡ LIVE' 
+                : connectionState === 'syncing' ? '◌ SYNCING'
+                : connectionState === 'polling' ? '↻ POLLING'
+                : '◉ CONNECTING'} — {ticketId}
+            </span>
+          )}
 
           {/* Sound toggle */}
           <button
@@ -530,8 +707,27 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
               background: 'rgba(0,0,0,0.5)',
               backdropFilter: 'blur(8px)',
             }}>
-              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-              <span className="text-[9px] text-green-400/80">البث المباشر — غرفة العمليات</span>
+              {connectionState === 'syncing' ? (
+                <>
+                  <WifiOff className="w-3 h-3 text-amber-400" />
+                  <span className="text-[9px] text-amber-400/80">جاري مزامنة الحالة...</span>
+                </>
+              ) : connectionState === 'polling' ? (
+                <>
+                  <RefreshCw className="w-3 h-3 text-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
+                  <span className="text-[9px] text-amber-400/80">تحديث دوري — كل 10 ثوانٍ</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                  <span className="text-[9px] text-green-400/80">
+                    {connectionState === 'live' ? 'تحديثات حية — مباشر' : 'جاري الاتصال...'}
+                  </span>
+                  {wsConnected && (
+                    <span className="text-[8px] text-emerald-400/60 mr-1">⚡</span>
+                  )}
+                </>
+              )}
             </div>
 
             {/* Last update indicator */}
@@ -755,8 +951,27 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                 </div>
                 <span className="text-[9px] text-gray-600 mr-1">سجل التحديثات</span>
                 <div className="mr-auto flex items-center gap-1">
-                  <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-[8px] text-green-500/60">مباشر</span>
+                  {connectionState === 'live' ? (
+                    <>
+                      <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" />
+                      <span className="text-[8px] text-green-500/60">تحديثات حية</span>
+                    </>
+                  ) : connectionState === 'syncing' ? (
+                    <>
+                      <WifiOff className="w-2.5 h-2.5 text-amber-500/60" />
+                      <span className="text-[8px] text-amber-500/60">جاري المزامنة</span>
+                    </>
+                  ) : connectionState === 'polling' ? (
+                    <>
+                      <RefreshCw className="w-2.5 h-2.5 text-amber-500/60 animate-spin" style={{ animationDuration: '3s' }} />
+                      <span className="text-[8px] text-amber-500/60">تحديث دوري</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-1 h-1 rounded-full bg-blue-500 animate-pulse" />
+                      <span className="text-[8px] text-blue-500/60">جاري الاتصال</span>
+                    </>
+                  )}
                 </div>
               </div>
               <div ref={logRef} className="p-2.5 overflow-y-auto text-[9px] md:text-[10px] leading-relaxed space-y-1 custom-scrollbar" dir="rtl" style={{ maxHeight: '200px' }}>
@@ -791,10 +1006,26 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                 ))}
                 {!isComplete && (
                   <div className="flex items-center gap-2 px-2 py-1">
-                    <div className="w-3 h-3 rounded-full bg-blue-500/20 flex items-center justify-center">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                    </div>
-                    <span className="text-blue-400/60">جاري المعالجة...</span>
+                    {connectionState === 'syncing' ? (
+                      <>
+                        <WifiOff className="w-3 h-3 text-amber-400/60" />
+                        <span className="text-amber-400/60">ما زالت المشكلة قيد المتابعة — جاري مزامنة الحالة...</span>
+                      </>
+                    ) : connectionState === 'polling' ? (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-amber-500/20 flex items-center justify-center">
+                          <RefreshCw className="w-2 h-2 text-amber-400 animate-spin" style={{ animationDuration: '3s' }} />
+                        </div>
+                        <span className="text-amber-400/60">قيد المتابعة — تحديث دوري</span>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-blue-500/20 flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                        </div>
+                        <span className="text-blue-400/60">جاري المعالجة...</span>
+                      </>
+                    )}
                   </div>
                 )}
               </div>
