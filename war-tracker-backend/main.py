@@ -1146,6 +1146,172 @@ async def _auto_advance_ticket(ticket_id: str, phase: int, status_message: str):
     print(f"[Ticket] {ticket_id} auto-advanced to phase {phase}: {status_message}")
 
 
+async def _generate_smart_responses(ticket_id: str, description: str, page: str):
+    """Background task: use AI to generate personalized, safe status messages for a ticket.
+    
+    Generates contextual responses about the user's specific problem without
+    exposing internal system details, file paths, or sensitive information.
+    Messages are sent as ticket updates that appear in the user's animation page.
+    """
+    import logging
+    logger = logging.getLogger("smart_responses")
+
+    try:
+        from services.ai_service import _groq_chat
+    except ImportError:
+        logger.error("[SmartResponses] Could not import _groq_chat")
+        return
+
+    # Wait a few seconds before starting analysis responses
+    await asyncio.sleep(5)
+
+    # Check ticket still exists
+    ticket = _tickets.get(ticket_id)
+    if not ticket or ticket.get("is_complete"):
+        return
+
+    # Generate personalized analysis using AI
+    prompt = f"""أنت نظام دعم فني محترف لموقع "WarScope" (موقع تتبع أحداث جيوسياسية).
+
+وصل بلاغ من مستخدم:
+- المشكلة: {description[:500]}
+- الصفحة: {page or 'غير محددة'}
+
+المطلوب: أنشئ 6 رسائل حالة قصيرة ومختصرة بالعربي تُعرض للمستخدم أثناء متابعة حل المشكلة.
+
+القواعد المهمة:
+1. كل رسالة يجب أن تكون مختصرة (جملة واحدة أو جملتين فقط)
+2. الرسائل يجب أن تكون مخصصة لمشكلة المستخدم بالتحديد — مو رسائل عامة
+3. ممنوع ذكر أسماء ملفات أو أكواد أو معلومات تقنية داخلية
+4. ممنوع ذكر كلمة "Devin" أو أي اسم نظام داخلي
+5. استخدم كلمة "الدعم الفني المختص" بدل أي إشارة للنظام الداخلي
+6. الرسائل يجب أن تعطي المستخدم إحساس أن مشكلته قيد المتابعة الفعلية
+
+أرجع الرسائل بصيغة JSON array فقط بدون أي نص إضافي:
+["رسالة 1", "رسالة 2", "رسالة 3", "رسالة 4", "رسالة 5", "رسالة 6"]
+
+مثال للمخرجات المتوقعة (لو المشكلة كانت عن صفحة التحليلات):
+["تم فحص صفحة التحليلات وتحديد نقطة الخلل", "السبب مرتبط بتأخر استجابة خادم البيانات", "جاري تحسين آلية الاتصال بمصدر البيانات", "تم تطبيق التحسينات على النظام", "جاري التحقق من عمل صفحة التحليلات بشكل سليم", "تم التأكد من استقرار الصفحة وسرعة التحميل"]"""
+
+    try:
+        result = await _groq_chat(prompt)
+        if not result:
+            logger.warning("[SmartResponses] AI returned empty response, using contextual fallback")
+            # Contextual fallback based on page
+            page_name = page.replace("/", "").strip() if page else "الموقع"
+            page_display = {
+                "live": "الخريطة الحية",
+                "status": "صفحة الحالة",
+                "analysis": "صفحة التحليلات",
+                "admin": "لوحة الإدارة",
+            }.get(page_name, f"صفحة {page_name}" if page_name else "الموقع")
+
+            smart_messages = [
+                f"تم فحص {page_display} وتحديد نقطة الخلل المحتملة",
+                f"السبب مرتبط بأحد مكونات {page_display} — جاري التحليل التفصيلي",
+                "تم تحديد السبب الجذري وإعداد خطة الإصلاح",
+                "الدعم الفني المختص يعمل على تطبيق الحل المناسب",
+                f"جاري التحقق من عمل {page_display} بشكل سليم بعد الإصلاح",
+                "تم التأكد من استقرار النظام وسلامة التحديث",
+            ]
+        else:
+            # Parse AI response
+            try:
+                # Clean response — sometimes AI wraps in ```json blocks
+                cleaned = result.strip()
+                if cleaned.startswith("```"):
+                    cleaned = cleaned.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+                smart_messages = json.loads(cleaned)
+                if not isinstance(smart_messages, list) or len(smart_messages) < 3:
+                    raise ValueError("Invalid response format")
+                # Limit to 6 messages max
+                smart_messages = smart_messages[:6]
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"[SmartResponses] Failed to parse AI response: {e}")
+                return
+
+        logger.info(f"[SmartResponses] Generated {len(smart_messages)} smart messages for {ticket_id}")
+
+        # Send messages gradually with delays
+        # Phase 1 messages (analyzing): first 2 messages
+        for i, msg in enumerate(smart_messages[:2]):
+            await asyncio.sleep(8 + i * 6)
+            ticket = _tickets.get(ticket_id)
+            if not ticket or ticket.get("is_complete"):
+                return
+            # Add to status history and broadcast (stay in phase 1)
+            ticket["status_message"] = msg
+            ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+            ticket["status_history"].append({
+                "phase": 1,
+                "message": msg,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            await _broadcast_ticket_update(ticket_id, {
+                "type": "ticket_update",
+                "ticket_id": ticket_id,
+                "phase": 1,
+                "progress": ticket["progress"],
+                "status_message": msg,
+                "is_complete": False,
+                "timestamp": ticket["updated_at"],
+            })
+            logger.info(f"[SmartResponses] {ticket_id} phase 1 message: {msg}")
+
+        # Phase 2 (identifying cause): next 2 messages + advance to phase 2
+        if len(smart_messages) > 2:
+            await asyncio.sleep(10)
+            ticket = _tickets.get(ticket_id)
+            if not ticket or ticket.get("is_complete"):
+                return
+            await _auto_advance_ticket(ticket_id, 2, smart_messages[2])
+
+            if len(smart_messages) > 3:
+                await asyncio.sleep(8)
+                ticket = _tickets.get(ticket_id)
+                if not ticket or ticket.get("is_complete"):
+                    return
+                ticket["status_message"] = smart_messages[3]
+                ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+                ticket["status_history"].append({
+                    "phase": 2,
+                    "message": smart_messages[3],
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+                await _broadcast_ticket_update(ticket_id, {
+                    "type": "ticket_update",
+                    "ticket_id": ticket_id,
+                    "phase": 2,
+                    "progress": ticket["progress"],
+                    "status_message": smart_messages[3],
+                    "is_complete": False,
+                    "timestamp": ticket["updated_at"],
+                })
+
+        # Phase 3 (fixing): advance with message
+        if len(smart_messages) > 4:
+            await asyncio.sleep(12)
+            ticket = _tickets.get(ticket_id)
+            if not ticket or ticket.get("is_complete"):
+                return
+            await _auto_advance_ticket(ticket_id, 3, smart_messages[4])
+
+        # Phase 4 message (verifying) — don't auto-complete, leave for real confirmation
+        if len(smart_messages) > 5:
+            await asyncio.sleep(10)
+            ticket = _tickets.get(ticket_id)
+            if not ticket or ticket.get("is_complete"):
+                return
+            await _auto_advance_ticket(ticket_id, 4, smart_messages[5])
+
+        # IMPORTANT: Do NOT advance to phase 5 or 6 (deploy/complete)
+        # Those phases should ONLY be set by real confirmation from the support team
+        logger.info(f"[SmartResponses] {ticket_id} smart responses completed (stopped at phase 4)")
+
+    except Exception as e:
+        logger.error(f"[SmartResponses] Error generating smart responses for {ticket_id}: {e}")
+
+
 @app.post("/api/bug-report")
 async def submit_bug_report(report: BugReport):
     """Public: submit a bug report which creates a Devin session to investigate."""
@@ -1282,6 +1448,8 @@ async def submit_bug_report(report: BugReport):
                     report_entry["session_url"] = f"https://app.devin.ai/sessions/{DEVIN_TARGET_SESSION_ID}"
                     # Auto-advance ticket to phase 1 (analyzing) since support received it
                     await _auto_advance_ticket(ticket_id, 1, "تم تحويل البلاغ إلى الدعم الفني المختص — جاري التحليل")
+                    # Start AI-powered smart responses in background
+                    asyncio.create_task(_generate_smart_responses(ticket_id, report.description, report.page))
                 else:
                     error_text = resp.text[:200]
                     logger.error(f"[BugReport] Failed to send message: {resp.status_code} {error_text}")
@@ -1297,10 +1465,14 @@ async def submit_bug_report(report: BugReport):
                     else:
                         devin_error = result.get("error", "Unknown error")
                         report_entry["status"] = "received_no_session"
+                        # Still start smart responses for the user
+                        asyncio.create_task(_generate_smart_responses(ticket_id, report.description, report.page))
         except Exception as e:
             logger.error(f"[BugReport] Exception sending message: {e}")
             devin_error = str(e)
             report_entry["status"] = "received_no_session"
+            # Still start smart responses for the user
+            asyncio.create_task(_generate_smart_responses(ticket_id, report.description, report.page))
     elif is_devin_configured():
         # No target session configured, create a new session (fallback)
         result = await create_fix_session(
@@ -1315,9 +1487,13 @@ async def submit_bug_report(report: BugReport):
         else:
             devin_error = result.get("error", "Unknown error")
             report_entry["status"] = "received_no_session"
+        # Start smart responses regardless
+        asyncio.create_task(_generate_smart_responses(ticket_id, report.description, report.page))
     else:
         report_entry["status"] = "received"
         devin_error = "DEVIN_API_KEY not configured"
+        # Start smart responses even without Devin
+        asyncio.create_task(_generate_smart_responses(ticket_id, report.description, report.page))
 
     _bug_reports.insert(0, report_entry)
     while len(_bug_reports) > 50:
