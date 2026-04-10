@@ -5,7 +5,7 @@ import { useLiveData } from '../context/LiveDataContext';
 import { riskLevelColor, riskLevelTextAr, scoreColor, scoreTextColor, timeAgo } from '../utils/helpers';
 import EventCard from '../components/shared/EventCard';
 import LiveMap from '../components/map/LiveMap';
-import { Building2, Clock, ArrowRight, Activity, Plane, Users } from 'lucide-react';
+import { Building2, Clock, ArrowRight, Activity, Plane, Users, CheckCircle } from 'lucide-react';
 import type { TrackerEvent, RiskLevel } from '../types';
 
 // Map country names (Arabic & English) to all city IDs within that country
@@ -236,8 +236,12 @@ export default function Cities() {
                   <EventCard key={event.id} event={event} />
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500 text-sm">
-                  لا توجد أحداث حالية لهذه المدينة
+                <div className="text-center py-8 rounded-xl border border-gray-800/50 bg-gray-900/30">
+                  <div className="w-10 h-10 rounded-full bg-green-500/10 mx-auto mb-3 flex items-center justify-center">
+                    <CheckCircle className="w-5 h-5 text-green-500/60" />
+                  </div>
+                  <p className="text-sm text-gray-400 font-bold mb-1">لا توجد أحداث حالياً</p>
+                  <p className="text-[11px] text-gray-600">لم تُسجّل أحداث تخص {selectedCity.nameAr} في الفترة الأخيرة — وهذا مؤشر إيجابي</p>
                 </div>
               )}
             </div>
