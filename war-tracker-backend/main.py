@@ -1060,8 +1060,9 @@ async def get_autofix_session_status(session_id: str, authorization: str = Heade
 # ──────────────────────────────────────────────
 # Bug Report Ticket System with Live WebSocket Updates
 # ──────────────────────────────────────────────
-_bug_report_timestamps: list[float] = []  # simple rate-limit tracker
+_bug_report_timestamps: list[float] = []  # simple global rate-limit tracker
 _bug_reports: list[dict] = []  # store reports in-memory
+_bug_report_ip_tracker: dict[str, list[float]] = {}  # per-IP rate limit: IP -> list of timestamps
 
 # Ticket system for live repair tracking
 import uuid as _uuid
@@ -1359,12 +1360,28 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 
 
 @app.post("/api/bug-report")
-async def submit_bug_report(report: BugReport):
+async def submit_bug_report(report: BugReport, request: Request):
     """Public: submit a bug report which creates a Devin session to investigate."""
     import time as _time
 
-    # Rate limit: max 1 report per 2 minutes globally
     now = _time.time()
+
+    # Per-IP rate limit: max 3 reports per 24 hours per user
+    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    ip_timestamps = _bug_report_ip_tracker.get(client_ip, [])
+    ip_timestamps = [t for t in ip_timestamps if now - t < 86400]  # Keep only last 24 hours
+    _bug_report_ip_tracker[client_ip] = ip_timestamps
+
+    if len(ip_timestamps) >= 3:
+        oldest = min(ip_timestamps)
+        hours_remaining = int((86400 - (now - oldest)) / 3600)
+        minutes_remaining = int(((86400 - (now - oldest)) % 3600) / 60)
+        raise HTTPException(
+            status_code=429,
+            detail=f"لقد وصلت للحد الأقصى من البلاغات (3 بلاغات خلال 24 ساعة). يرجى المحاولة بعد {hours_remaining} ساعة و{minutes_remaining} دقيقة."
+        )
+
+    # Global rate limit: max 1 report per 2 minutes
     _bug_report_timestamps[:] = [t for t in _bug_report_timestamps if now - t < 120]
     if len(_bug_report_timestamps) >= 1:
         remaining = int(120 - (now - _bug_report_timestamps[0]))
@@ -1385,6 +1402,8 @@ async def submit_bug_report(report: BugReport):
         )
 
     _bug_report_timestamps.append(now)
+    ip_timestamps.append(now)
+    _bug_report_ip_tracker[client_ip] = ip_timestamps
 
     # Generate unique ticket ID
     ticket_id = f"TKT-{_uuid.uuid4().hex[:8].upper()}"
