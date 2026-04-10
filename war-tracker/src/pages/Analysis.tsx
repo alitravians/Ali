@@ -1,23 +1,33 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLiveData } from '../context/LiveDataContext';
 import IndicatorCard from '../components/shared/IndicatorCard';
-import { BarChart3, TrendingUp, Clock, AlertTriangle, ShieldCheck, Activity, Brain, RefreshCw } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, AlertTriangle, ShieldCheck, Activity, Brain, RefreshCw, WifiOff, AlertCircle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Cell, Tooltip, PieChart, Pie } from 'recharts';
 import { categoryTextAr } from '../utils/helpers';
 import type { AISummary } from '../types';
 
 import { BACKEND_API_URL } from '../config/api';
 
+/** Fetch with AbortController timeout */
+function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
 export default function Analysis() {
   const { events, indicators } = useLiveData();
   const [aiSummary, setAiSummary] = useState<AISummary | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [fetchingInitial, setFetchingInitial] = useState(true);
+  const triggerAbort = useRef<AbortController | null>(null);
 
   // Fetch AI analysis from backend
   useEffect(() => {
     async function fetchAnalysis() {
       try {
-        const resp = await fetch(`${BACKEND_API_URL}/api/analysis`);
+        const resp = await fetchWithTimeout(`${BACKEND_API_URL}/api/analysis`, {}, 15000);
         if (resp.ok) {
           const data = await resp.json();
           if (data.summaries && data.summaries.length > 0) {
@@ -29,19 +39,29 @@ export default function Analysis() {
           }
         }
       } catch {
-        // Analysis fetch failed silently
+        // Initial fetch failed — not critical, user can trigger manually
       }
+      setFetchingInitial(false);
     }
     fetchAnalysis();
   }, []);
 
   const triggerAnalysis = async () => {
+    // Cancel any in-flight trigger
+    if (triggerAbort.current) triggerAbort.current.abort();
+    triggerAbort.current = new AbortController();
+
     setLoadingAi(true);
+    setAiError(null);
     try {
       const token = sessionStorage.getItem('warscope_admin_token');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
-      const resp = await fetch(`${BACKEND_API_URL}/api/analysis/trigger`, { method: 'POST', headers });
+      const resp = await fetchWithTimeout(
+        `${BACKEND_API_URL}/api/analysis/trigger`,
+        { method: 'POST', headers, signal: triggerAbort.current.signal },
+        30000,
+      );
       if (resp.ok) {
         const data = await resp.json();
         if (data && !data.error) {
@@ -49,10 +69,24 @@ export default function Analysis() {
             ...data,
             timestamp: new Date(data.timestamp),
           });
+          setAiError(null);
+        } else {
+          setAiError(data?.error || 'لا توجد أحداث كافية للتحليل');
         }
+      } else if (resp.status === 429) {
+        const errData = await resp.json().catch(() => null);
+        setAiError(errData?.detail || 'يرجى الانتظار قبل طلب تحليل جديد');
+      } else if (resp.status === 401) {
+        setAiError('يتطلب تسجيل دخول المسؤول لتشغيل التحليل');
+      } else {
+        setAiError('فشل الاتصال بخادم التحليل — حاول مرة أخرى');
       }
-    } catch {
-      // Analysis trigger failed silently
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        // Request was cancelled by user clicking again — ignore
+      } else {
+        setAiError('تعذر الاتصال بالخادم — تحقق من اتصال الإنترنت وحاول مرة أخرى');
+      }
     }
     setLoadingAi(false);
   };
@@ -157,7 +191,25 @@ export default function Analysis() {
             </button>
           </div>
 
-          {aiSummary ? (
+          {/* Error banner */}
+          {aiError && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg bg-red-500/10 border border-red-500/20 px-3 py-2">
+              {aiError.includes('الاتصال') || aiError.includes('الخادم') ? (
+                <WifiOff className="w-4 h-4 text-red-400 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+              )}
+              <p className="text-[11px] text-red-300">{aiError}</p>
+            </div>
+          )}
+
+          {/* Loading state for initial fetch */}
+          {fetchingInitial && !aiSummary ? (
+            <div className="text-center py-8 text-gray-500">
+              <RefreshCw className="w-8 h-8 mx-auto mb-3 opacity-30 animate-spin" />
+              <p className="text-xs">جاري تحميل آخر تحليل...</p>
+            </div>
+          ) : aiSummary ? (
             <div className="space-y-3">
               {aiSummary.whatHappenedAr && (
                 <div>
