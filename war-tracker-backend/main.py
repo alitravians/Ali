@@ -1115,6 +1115,65 @@ class BugReport(BaseModel):
     screenshot: str = ""  # base64 screenshot data
 
 
+async def _validate_bug_report(description: str) -> bool:
+    """Use AI to check if the submission is actually a bug report (not a suggestion/idea/question).
+    
+    Returns True if it's a valid bug report, False if it's a suggestion/idea/question.
+    Falls back to True (allow) if AI is unavailable to avoid blocking legitimate reports.
+    """
+    try:
+        from services.ai_service import _groq_chat
+    except ImportError:
+        return True  # Allow if AI unavailable
+
+    # Quick keyword-based pre-filter for obvious bug reports (skip AI call)
+    bug_keywords = [
+        "مشكلة", "خطأ", "لا يعمل", "ما يشتغل", "معلق", "بطيء", "توقف",
+        "خلل", "عطل", "كراش", "crash", "error", "bug", "broken", "stuck",
+        "لا يستجيب", "ما يفتح", "لا يظهر", "اختفى", "مكسور", "ما يحمل",
+        "فشل", "تجمد", "يعلق", "ما يرد", "404", "500", "تحميل",
+        "not working", "doesn't work", "failed", "loading", "blank", "frozen",
+    ]
+    desc_lower = description.lower().strip()
+    if any(kw in desc_lower for kw in bug_keywords):
+        return True  # Clearly a bug report, skip AI
+
+    # Quick keyword-based pre-filter for obvious non-bug reports
+    suggestion_keywords = [
+        "اقتراح", "فكرة", "أقترح", "ليش ما تضيف", "ياليت", "حبيت لو",
+        "ممكن تضيف", "عندي فكره", "عندي فكرة", "أتمنى", "اتمنى",
+        "suggestion", "idea", "feature request", "would be nice",
+        "يا ريت", "ياريت", "حلو لو", "أفضل لو",
+    ]
+    if any(kw in desc_lower for kw in suggestion_keywords):
+        return False  # Clearly a suggestion
+
+    # Use AI for ambiguous cases
+    prompt = f"""أنت مصنّف بلاغات لموقع تقني. حدد هل النص التالي هو بلاغ عن مشكلة تقنية أم اقتراح/فكرة/سؤال عام.
+
+النص: "{description[:300]}"
+
+أجب بكلمة واحدة فقط:
+- "bug" إذا كان بلاغ عن مشكلة تقنية (شي ما يشتغل، خطأ، خلل، بطء، توقف)
+- "not_bug" إذا كان اقتراح أو فكرة أو سؤال عام أو طلب ميزة جديدة أو تعليق عام
+
+الجواب (كلمة واحدة فقط):"""
+
+    try:
+        result = await _groq_chat(prompt)
+        if result:
+            cleaned = result.strip().lower().replace('"', '').replace("'", "")
+            if "not_bug" in cleaned:
+                return False
+            # Default to True (it's a bug report) for any other response
+            return True
+    except Exception:
+        pass
+
+    # Default: allow (don't block legitimate reports if AI fails)
+    return True
+
+
 async def _auto_advance_ticket(ticket_id: str, phase: int, status_message: str):
     """Internal helper: advance a ticket to a given phase and broadcast via WebSocket."""
     ticket = _tickets.get(ticket_id)
@@ -1329,6 +1388,14 @@ async def submit_bug_report(report: BugReport):
 
     if not report.description or len(report.description.strip()) < 5:
         raise HTTPException(status_code=400, detail="يرجى كتابة وصف المشكلة (5 أحرف على الأقل)")
+
+    # AI-powered filter: reject non-bug submissions (suggestions, ideas, questions)
+    is_valid_bug = await _validate_bug_report(report.description)
+    if not is_valid_bug:
+        raise HTTPException(
+            status_code=400,
+            detail="هذا الزر مخصص للإبلاغ عن مشاكل تقنية فقط. إذا كان لديك اقتراح أو فكرة أو استفسار، يرجى التواصل عبر القنوات المخصصة لذلك."
+        )
 
     _bug_report_timestamps.append(now)
 
