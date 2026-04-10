@@ -937,19 +937,31 @@ async def trigger_health_check(service_id: str, authorization: str = Header(defa
     return result.model_dump(mode="json")
 
 
+_last_public_analysis: float = 0.0  # rate-limit for non-admin triggers
+
 @app.post("/api/analysis/trigger")
 async def trigger_analysis(authorization: str = Header(default="")):
-    """Manually trigger AI analysis (requires admin token to prevent API quota abuse)."""
+    """Trigger AI analysis. Admins bypass rate limit; public users limited to once per 60s."""
+    global _last_public_analysis
     token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
-    if not token or not _verify_token(token):
-        raise HTTPException(status_code=401, detail="يتطلب تسجيل دخول المسؤول")
+    is_admin = bool(token) and _verify_token(token)
+
+    # Rate-limit non-admin users to 1 request per 60 seconds
+    if not is_admin:
+        import time as _time
+        now = _time.time()
+        if now - _last_public_analysis < 60:
+            remaining = int(60 - (now - _last_public_analysis))
+            raise HTTPException(status_code=429, detail=f"يرجى الانتظار {remaining} ثانية قبل طلب تحليل جديد")
+        _last_public_analysis = now
+
     summary = await analyze_events(store.events[:20])
     if summary:
         store.ai_summaries.insert(0, summary)
         store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
         store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
         return summary.model_dump(mode="json")
-    return {"error": "No events available for analysis"}
+    return {"error": "لا توجد أحداث كافية للتحليل حالياً"}
 
 
 # ──────────────────────────────────────────────
