@@ -975,7 +975,7 @@ async def trigger_devin_fix(service_id: str, authorization: str = Header(default
         raise HTTPException(status_code=401, detail="غير مصرح")
 
     if not is_devin_configured():
-        raise HTTPException(status_code=503, detail="Devin API غير مُعرّف — يرجى إضافة DEVIN_API_KEY")
+        raise HTTPException(status_code=503, detail="نظام الإصلاح التلقائي غير مُعرّف — يرجى التواصل مع الدعم الفني")
 
     # Get service info from health monitor
     svc = health_monitor.services.get(service_id)
@@ -1026,8 +1026,8 @@ async def trigger_devin_fix(service_id: str, authorization: str = Header(default
                 import uuid
                 inc.notes.append(IncidentNote(
                     id=f"note-{uuid.uuid4().hex[:8]}",
-                    message=f"Devin AI fix session started: {result.get('session_url', '')}",
-                    message_ar=f"تم بدء جلسة إصلاح Devin AI: {result.get('session_url', '')}",
+                    message=f"Technical support fix session started: {result.get('session_url', '')}",
+                    message_ar=f"تم بدء جلسة إصلاح بواسطة الدعم الفني المختص: {result.get('session_url', '')}",
                     status=IncidentStatus.identified,
                     timestamp=datetime.now(timezone.utc).isoformat(),
                 ))
@@ -1113,6 +1113,37 @@ class BugReport(BaseModel):
     user_actions: list[str] = []
     browser_info: dict = {}
     screenshot: str = ""  # base64 screenshot data
+
+
+async def _auto_advance_ticket(ticket_id: str, phase: int, status_message: str):
+    """Internal helper: advance a ticket to a given phase and broadcast via WebSocket."""
+    ticket = _tickets.get(ticket_id)
+    if not ticket or ticket["current_phase"] >= phase:
+        return  # Already at or past this phase
+
+    progress = int((phase / 6) * 100)
+    ticket["current_phase"] = phase
+    ticket["progress"] = progress
+    ticket["status_message"] = status_message
+    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+    ticket["is_complete"] = phase >= 6
+    ticket["status_history"].append({
+        "phase": phase,
+        "message": status_message,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    ws_update = {
+        "type": "ticket_update",
+        "ticket_id": ticket_id,
+        "phase": phase,
+        "progress": progress,
+        "status_message": status_message,
+        "is_complete": ticket["is_complete"],
+        "timestamp": ticket["updated_at"],
+    }
+    await _broadcast_ticket_update(ticket_id, ws_update)
+    print(f"[Ticket] {ticket_id} auto-advanced to phase {phase}: {status_message}")
 
 
 @app.post("/api/bug-report")
@@ -1249,6 +1280,8 @@ async def submit_bug_report(report: BugReport):
                 if resp.status_code in (200, 201):
                     report_entry["status"] = "investigating"
                     report_entry["session_url"] = f"https://app.devin.ai/sessions/{DEVIN_TARGET_SESSION_ID}"
+                    # Auto-advance ticket to phase 1 (analyzing) since support received it
+                    await _auto_advance_ticket(ticket_id, 1, "تم تحويل البلاغ إلى الدعم الفني المختص — جاري التحليل")
                 else:
                     error_text = resp.text[:200]
                     logger.error(f"[BugReport] Failed to send message: {resp.status_code} {error_text}")
