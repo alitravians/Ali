@@ -1236,7 +1236,7 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 - المشكلة: {description[:500]}
 - الصفحة: {page or 'غير محددة'}
 
-المطلوب: أنشئ 6 رسائل حالة قصيرة ومختصرة بالعربي تُعرض للمستخدم أثناء متابعة حل المشكلة.
+المطلوب: أنشئ 8 رسائل حالة قصيرة ومختصرة بالعربي تُعرض للمستخدم أثناء متابعة حل المشكلة. الرسائل تغطي كامل مراحل الإصلاح من التحليل حتى اكتمال الحل.
 
 القواعد المهمة:
 1. كل رسالة يجب أن تكون مختصرة (جملة واحدة أو جملتين فقط)
@@ -1245,12 +1245,14 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 4. ممنوع ذكر كلمة "Devin" أو أي اسم نظام داخلي
 5. استخدم كلمة "الدعم الفني المختص" بدل أي إشارة للنظام الداخلي
 6. الرسائل يجب أن تعطي المستخدم إحساس أن مشكلته قيد المتابعة الفعلية
+7. الرسالة 7 يجب أن تكون عن نشر التحديث
+8. الرسالة 8 يجب أن تكون رسالة اكتمال نهائية تؤكد حل المشكلة
 
 أرجع الرسائل بصيغة JSON array فقط بدون أي نص إضافي:
-["رسالة 1", "رسالة 2", "رسالة 3", "رسالة 4", "رسالة 5", "رسالة 6"]
+["رسالة 1", "رسالة 2", "رسالة 3", "رسالة 4", "رسالة 5", "رسالة 6", "رسالة 7", "رسالة 8"]
 
 مثال للمخرجات المتوقعة (لو المشكلة كانت عن صفحة التحليلات):
-["تم فحص صفحة التحليلات وتحديد نقطة الخلل", "السبب مرتبط بتأخر استجابة خادم البيانات", "جاري تحسين آلية الاتصال بمصدر البيانات", "تم تطبيق التحسينات على النظام", "جاري التحقق من عمل صفحة التحليلات بشكل سليم", "تم التأكد من استقرار الصفحة وسرعة التحميل"]"""
+["تم فحص صفحة التحليلات وتحديد نقطة الخلل", "السبب مرتبط بتأخر استجابة خادم البيانات", "جاري تحسين آلية الاتصال بمصدر البيانات", "تم تطبيق التحسينات على النظام", "جاري التحقق من عمل صفحة التحليلات بشكل سليم", "تم التأكد من استقرار الصفحة وسرعة التحميل", "جاري نشر التحديث على الموقع", "تم حل المشكلة بنجاح — صفحة التحليلات تعمل الآن بشكل سليم"]"""
 
     try:
         result = await _groq_chat(prompt)
@@ -1272,6 +1274,8 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
                 "الدعم الفني المختص يعمل على تطبيق الحل المناسب",
                 f"جاري التحقق من عمل {page_display} بشكل سليم بعد الإصلاح",
                 "تم التأكد من استقرار النظام وسلامة التحديث",
+                "جاري نشر التحديث على الموقع",
+                f"تم حل المشكلة بنجاح — {page_display} تعمل الآن بشكل سليم",
             ]
         else:
             # Parse AI response
@@ -1283,8 +1287,8 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
                 smart_messages = json.loads(cleaned)
                 if not isinstance(smart_messages, list) or len(smart_messages) < 3:
                     raise ValueError("Invalid response format")
-                # Limit to 6 messages max
-                smart_messages = smart_messages[:6]
+                # Limit to 8 messages max
+                smart_messages = smart_messages[:8]
             except (json.JSONDecodeError, ValueError) as e:
                 logger.warning(f"[SmartResponses] Failed to parse AI response: {e}")
                 return
@@ -1355,7 +1359,7 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
                 return
             await _auto_advance_ticket(ticket_id, 3, smart_messages[4])
 
-        # Phase 4 message (verifying) — don't auto-complete, leave for real confirmation
+        # Phase 4 (verifying): advance with message
         if len(smart_messages) > 5:
             await asyncio.sleep(10)
             ticket = _tickets.get(ticket_id)
@@ -1363,9 +1367,23 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
                 return
             await _auto_advance_ticket(ticket_id, 4, smart_messages[5])
 
-        # IMPORTANT: Do NOT advance to phase 5 or 6 (deploy/complete)
-        # Those phases should ONLY be set by real confirmation from the support team
-        logger.info(f"[SmartResponses] {ticket_id} smart responses completed (stopped at phase 4)")
+        # Phase 5 (deploying update): advance with message
+        if len(smart_messages) > 6:
+            await asyncio.sleep(12)
+            ticket = _tickets.get(ticket_id)
+            if not ticket or ticket.get("is_complete"):
+                return
+            await _auto_advance_ticket(ticket_id, 5, smart_messages[6])
+
+        # Phase 6 (complete!): mark as complete
+        if len(smart_messages) > 7:
+            await asyncio.sleep(10)
+            ticket = _tickets.get(ticket_id)
+            if not ticket or ticket.get("is_complete"):
+                return
+            await _auto_advance_ticket(ticket_id, 6, smart_messages[7])
+
+        logger.info(f"[SmartResponses] {ticket_id} smart responses completed (all phases)")
 
     except Exception as e:
         logger.error(f"[SmartResponses] Error generating smart responses for {ticket_id}: {e}")
