@@ -1295,93 +1295,61 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 
         logger.info(f"[SmartResponses] Generated {len(smart_messages)} smart messages for {ticket_id}")
 
-        # Send messages gradually with delays
-        # Phase 1 messages (analyzing): first 2 messages
-        for i, msg in enumerate(smart_messages[:2]):
-            await asyncio.sleep(8 + i * 6)
+        # ── Phase-by-phase delivery with professional timing ──
+        # Each phase maps to specific message indices:
+        # Phase 1 (تحليل المشكلة): messages 0-1
+        # Phase 2 (تحديد السبب): messages 2-3
+        # Phase 3 (جاري الإصلاح): message 4
+        # Phase 4 (التحقق من الحل): message 5
+        # Phase 5 (نشر التحديث): message 6
+        # Phase 6 (تم الحل!): message 7
+
+        phase_plan = [
+            # (phase, message_index, delay_before_seconds)
+            (1, 0, 8),     # First analysis message
+            (1, 1, 10),    # Second analysis message
+            (2, 2, 12),    # Advance to cause identification
+            (2, 3, 8),     # More details on cause
+            (3, 4, 14),    # Advance to fixing
+            (4, 5, 12),    # Advance to verification
+            (5, 6, 15),    # Advance to deploying
+            (6, 7, 12),    # Complete!
+        ]
+
+        for target_phase, msg_idx, delay in phase_plan:
+            if msg_idx >= len(smart_messages):
+                break
+
+            await asyncio.sleep(delay)
             ticket = _tickets.get(ticket_id)
             if not ticket or ticket.get("is_complete"):
                 return
-            # Add to status history and broadcast (stay in phase 1)
-            ticket["status_message"] = msg
-            ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
-            ticket["status_history"].append({
-                "phase": 1,
-                "message": msg,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
-            await _broadcast_ticket_update(ticket_id, {
-                "type": "ticket_update",
-                "ticket_id": ticket_id,
-                "phase": 1,
-                "progress": ticket["progress"],
-                "status_message": msg,
-                "is_complete": False,
-                "timestamp": ticket["updated_at"],
-            })
-            logger.info(f"[SmartResponses] {ticket_id} phase 1 message: {msg}")
 
-        # Phase 2 (identifying cause): next 2 messages + advance to phase 2
-        if len(smart_messages) > 2:
-            await asyncio.sleep(10)
-            ticket = _tickets.get(ticket_id)
-            if not ticket or ticket.get("is_complete"):
-                return
-            await _auto_advance_ticket(ticket_id, 2, smart_messages[2])
+            msg = smart_messages[msg_idx]
 
-            if len(smart_messages) > 3:
-                await asyncio.sleep(8)
-                ticket = _tickets.get(ticket_id)
-                if not ticket or ticket.get("is_complete"):
-                    return
-                ticket["status_message"] = smart_messages[3]
+            if target_phase > ticket["current_phase"]:
+                # Advance to new phase
+                await _auto_advance_ticket(ticket_id, target_phase, msg)
+            else:
+                # Stay in current phase, just add message
+                ticket["status_message"] = msg
                 ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
                 ticket["status_history"].append({
-                    "phase": 2,
-                    "message": smart_messages[3],
+                    "phase": target_phase,
+                    "message": msg,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 })
                 await _broadcast_ticket_update(ticket_id, {
                     "type": "ticket_update",
                     "ticket_id": ticket_id,
-                    "phase": 2,
+                    "phase": target_phase,
                     "progress": ticket["progress"],
-                    "status_message": smart_messages[3],
+                    "status_message": msg,
                     "is_complete": False,
                     "timestamp": ticket["updated_at"],
                 })
 
-        # Phase 3 (fixing): advance with message
-        if len(smart_messages) > 4:
-            await asyncio.sleep(12)
-            ticket = _tickets.get(ticket_id)
-            if not ticket or ticket.get("is_complete"):
-                return
-            await _auto_advance_ticket(ticket_id, 3, smart_messages[4])
-
-        # Phase 4 (verifying): advance with message
-        if len(smart_messages) > 5:
-            await asyncio.sleep(10)
-            ticket = _tickets.get(ticket_id)
-            if not ticket or ticket.get("is_complete"):
-                return
-            await _auto_advance_ticket(ticket_id, 4, smart_messages[5])
-
-        # Phase 5 (deploying update): advance with message
-        if len(smart_messages) > 6:
-            await asyncio.sleep(12)
-            ticket = _tickets.get(ticket_id)
-            if not ticket or ticket.get("is_complete"):
-                return
-            await _auto_advance_ticket(ticket_id, 5, smart_messages[6])
-
-        # Phase 6 (complete!): mark as complete
-        if len(smart_messages) > 7:
-            await asyncio.sleep(10)
-            ticket = _tickets.get(ticket_id)
-            if not ticket or ticket.get("is_complete"):
-                return
-            await _auto_advance_ticket(ticket_id, 6, smart_messages[7])
+            logger.info(f"[SmartResponses] {ticket_id} phase {target_phase} message: {msg}")
 
         logger.info(f"[SmartResponses] {ticket_id} smart responses completed (all phases)")
 
