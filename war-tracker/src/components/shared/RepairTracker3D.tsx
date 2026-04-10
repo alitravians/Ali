@@ -408,12 +408,12 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
       setProgress(newProgress);
     }
 
-    // Update status
+    // Update current status display
     if (statusMsg) {
       setCurrentStatus(statusMsg);
     }
 
-    // Load status history if provided
+    // Load full status history if provided (initial connection / polling)
     if (data.status_history && data.status_history.length > 0) {
       setStatusLines(prev => {
         const existingSet = new Set(prev);
@@ -422,8 +422,18 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
           .filter((msg) => !existingSet.has(msg));
         if (newLines.length > 0) {
           statusUpdate();
-          scrollToBottom();
+          setTimeout(() => scrollToBottom(), 100);
           return [...prev, ...newLines];
+        }
+        return prev;
+      });
+    } else if (statusMsg) {
+      // Individual update (WebSocket ticket_update) — add message to log
+      setStatusLines(prev => {
+        if (!prev.includes(statusMsg)) {
+          statusUpdate();
+          setTimeout(() => scrollToBottom(), 100);
+          return [...prev, statusMsg];
         }
         return prev;
       });
@@ -435,7 +445,12 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
     if (data.is_complete) {
       setIsComplete(true);
       setProgress(100);
-      setCurrentStatus('تم حل المشكلة بنجاح!');
+      setCurrentPhase(6);
+      if (statusMsg) {
+        setCurrentStatus(statusMsg);
+      } else {
+        setCurrentStatus('تم حل المشكلة بنجاح!');
+      }
       completion();
     }
   }, [phaseAdvance, completion, statusUpdate, scrollToBottom, updateTimestamp]);
