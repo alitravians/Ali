@@ -76,6 +76,8 @@ interface LiveMapProps {
   events: TrackerEvent[];
   height?: string;
   showControls?: boolean;
+  center?: [number, number];
+  zoom?: number;
 }
 
 // Animated pulsing marker using Leaflet DivIcon
@@ -315,7 +317,7 @@ function MapEvents({ events, activeLayers }: { events: TrackerEvent[]; activeLay
   );
 }
 
-export default function LiveMap({ events, height = '500px', showControls = true }: LiveMapProps) {
+export default function LiveMap({ events, height = '500px', showControls = true, center, zoom }: LiveMapProps) {
   const [activeLayers, setActiveLayers] = useState<string[]>(mapLayers.map(l => l.id));
   const [showLayerPanel, setShowLayerPanel] = useState(false);
 
@@ -328,8 +330,8 @@ export default function LiveMap({ events, height = '500px', showControls = true 
   return (
     <div className="relative rounded-xl overflow-hidden border border-gray-800 map-container-wrapper" style={{ height }}>
       <MapContainer
-        center={[31.5, 40]}
-        zoom={5}
+        center={center || [31.5, 40]}
+        zoom={zoom ?? 5}
         style={{ height: '100%', width: '100%' }}
         zoomControl={false}
       >

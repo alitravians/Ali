@@ -218,7 +218,13 @@ export default function Cities() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
             <h2 className="text-sm font-bold text-white mb-3">موقع المدينة</h2>
-            <LiveMap events={getCityEvents(selectedCity.id)} height="350px" showControls={false} />
+            <LiveMap
+              events={getCityEvents(selectedCity.id)}
+              height="350px"
+              showControls={false}
+              center={[selectedCity.location.lat, selectedCity.location.lng]}
+              zoom={11}
+            />
           </div>
           <div>
             <h2 className="text-sm font-bold text-white mb-3">
