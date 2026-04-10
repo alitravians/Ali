@@ -1140,10 +1140,11 @@ async def _validate_bug_report(description: str) -> bool:
 
     # Quick keyword-based pre-filter for obvious non-bug reports
     suggestion_keywords = [
-        "اقتراح", "فكرة", "أقترح", "ليش ما تضيف", "ياليت", "حبيت لو",
+        "اقتراح", "فكرة", "أقترح", "اقترح", "ليش ما تضيف", "ياليت", "حبيت لو",
         "ممكن تضيف", "عندي فكره", "عندي فكرة", "أتمنى", "اتمنى",
         "suggestion", "idea", "feature request", "would be nice",
-        "يا ريت", "ياريت", "حلو لو", "أفضل لو",
+        "يا ريت", "ياريت", "حلو لو", "أفضل لو", "تسوون", "تضيفون",
+        "نبي", "نبغى", "ابغى", "ابي", "لو تسوون", "لو تضيفون",
     ]
     if any(kw in desc_lower for kw in suggestion_keywords):
         return False  # Clearly a suggestion
