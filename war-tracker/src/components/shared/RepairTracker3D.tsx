@@ -363,15 +363,40 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
   const [phaseTransition, setPhaseTransition] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'live' | 'syncing' | 'polling'>('connecting');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const logRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reducedMotion = useReducedMotion();
   const { phaseAdvance, completion, statusUpdate, enabledRef } = useSoundEffects();
 
   // Sync sound enabled state
   useEffect(() => { enabledRef.current = soundEnabled; }, [soundEnabled, enabledRef]);
+
+  // Elapsed time counter
+  useEffect(() => {
+    if (isOpen && !isComplete) {
+      setElapsedSeconds(0);
+      elapsedTimerRef.current = setInterval(() => {
+        setElapsedSeconds(prev => prev + 1);
+      }, 1000);
+      return () => {
+        if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      };
+    } else if (isComplete && elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+  }, [isOpen, isComplete]);
+
+  // Format elapsed time
+  const formatElapsed = useCallback((secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = secs % 60;
+    return m > 0 ? `${m} د ${s} ث` : `${s} ث`;
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
@@ -600,6 +625,10 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
         clearTimeout(wsReconnectTimerRef.current);
         wsReconnectTimerRef.current = null;
       }
+      if (elapsedTimerRef.current) {
+        clearInterval(elapsedTimerRef.current);
+        elapsedTimerRef.current = null;
+      }
       if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
         wsRef.current.close();
       }
@@ -674,6 +703,15 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                 : '◉ CONNECTING'} — {ticketId}
             </span>
           )}
+
+          {/* Elapsed time */}
+          <span className="text-[9px] font-mono px-2 py-0.5 rounded-full hidden md:block" style={{
+            background: 'rgba(255,255,255,0.03)',
+            color: isComplete ? '#34d399' : '#94a3b8',
+            border: '1px solid rgba(255,255,255,0.05)',
+          }}>
+            {isComplete ? `اكتمل في ${formatElapsed(elapsedSeconds)}` : `⏱ ${formatElapsed(elapsedSeconds)}`}
+          </span>
 
           {/* Sound toggle */}
           <button
@@ -1055,12 +1093,13 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
             background: 'rgba(59,130,246,0.08)',
             boxShadow: isComplete ? '0 0 15px rgba(34,197,94,0.2)' : '0 0 10px rgba(59,130,246,0.1)',
           }}>
-            <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-300" style={{
+            <div className="absolute inset-y-0 left-0 rounded-full" style={{
               width: `${isComplete ? 100 : progress}%`,
               background: isComplete ? 'linear-gradient(90deg, #22c55e, #34d399)' : 'linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6)',
               backgroundSize: '200% 100%',
               animation: isComplete ? 'none' : 'shimmerBar 2s linear infinite',
               boxShadow: isComplete ? '0 0 10px rgba(34,197,94,0.5)' : '0 0 8px rgba(59,130,246,0.4)',
+              transition: 'width 1.5s cubic-bezier(0.4, 0, 0.2, 1)',
             }} />
           </div>
           <div className="flex items-center justify-between">
@@ -1097,7 +1136,8 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                 <CheckCircle className="w-6 h-6 text-green-400" />
               </div>
               <h3 className="text-base font-bold text-green-400 mb-1">تم حل المشكلة بنجاح!</h3>
-              <p className="text-[11px] text-gray-400 mb-3">تم تطبيق الإصلاح ونشر التحديث — يمكنك إغلاق هذه النافذة</p>
+              <p className="text-[11px] text-gray-400 mb-1">تم تطبيق الإصلاح ونشر التحديث — يمكنك إغلاق هذه النافذة</p>
+              <p className="text-[9px] text-gray-600 mb-3">مدة الإصلاح: {formatElapsed(elapsedSeconds)} • {statusLines.length} تحديث</p>
 
               {/* Safe summary */}
               <div className="mb-4 mx-auto max-w-xs">
