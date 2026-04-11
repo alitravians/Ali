@@ -180,6 +180,7 @@ export class EVAScene {
     this.suitCO2 = 0;
     this.tasksCompleted = 0;
     this.time = 0;
+    this.repairProgress = 0;
 
     this._onClickLock = () => {
       this.gs.input.requestPointerLock(document.getElementById('game-canvas'));

@@ -541,9 +541,10 @@ export class PreLaunchScene {
       </div>
     `);
 
-    const interval = setInterval(() => {
+    this._systemsCheckInterval = setInterval(() => {
       if (checkIndex >= checks.length) {
-        clearInterval(interval);
+        clearInterval(this._systemsCheckInterval);
+        this._systemsCheckInterval = null;
         const statusEl = document.getElementById('check-status');
         if (statusEl) {
           statusEl.innerHTML = '<span style="color:#00ff88;">جميع الأنظمة جاهزة للإطلاق ✓</span>';
@@ -775,6 +776,10 @@ export class PreLaunchScene {
 
   async cleanup() {
     window.removeEventListener('resize', this._onResize);
+    if (this._systemsCheckInterval) {
+      clearInterval(this._systemsCheckInterval);
+      this._systemsCheckInterval = null;
+    }
     this.gs.ui.clear();
   }
 }

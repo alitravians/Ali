@@ -582,9 +582,10 @@ export class ISSInteriorScene {
     ];
 
     let stepIndex = 0;
-    const interval = setInterval(() => {
+    this._suitingInterval = setInterval(() => {
       if (stepIndex >= steps.length) {
-        clearInterval(interval);
+        clearInterval(this._suitingInterval);
+        this._suitingInterval = null;
         this.suitEquipped = true;
         this.suitUpProgress = 100;
         this.airlockPhase = null;
@@ -1061,6 +1062,10 @@ export class ISSInteriorScene {
   async cleanup() {
     window.removeEventListener('resize', this._onResize);
     document.getElementById('game-canvas')?.removeEventListener('click', this._onClickLock);
+    if (this._suitingInterval) {
+      clearInterval(this._suitingInterval);
+      this._suitingInterval = null;
+    }
     if (document.pointerLockElement) document.exitPointerLock();
     this.gs.ui.clear();
   }

@@ -472,6 +472,25 @@ export class LandingScene {
         diver.rotation.y = angle + Math.PI;
       });
 
+      // Animate splash particles (water spray effect)
+      if (this.splashParticles && this.splashParticles.visible) {
+        const pos = this.splashParticles.geometry.attributes.position.array;
+        const vels = this.splashParticles.userData.velocities;
+        let allDone = true;
+        for (let i = 0; i < vels.length; i++) {
+          pos[i * 3] += vels[i].x * delta;
+          pos[i * 3 + 1] += vels[i].y * delta;
+          pos[i * 3 + 2] += vels[i].z * delta;
+          vels[i].y -= 9.8 * delta; // gravity
+          if (pos[i * 3 + 1] > -5) allDone = false;
+        }
+        this.splashParticles.geometry.attributes.position.needsUpdate = true;
+        this.splashParticles.material.opacity = Math.max(0, this.splashParticles.material.opacity - delta * 0.3);
+        if (allDone || this.splashParticles.material.opacity <= 0) {
+          this.splashParticles.visible = false;
+        }
+      }
+
       // Gentle camera
       this.camera.position.lerp(new THREE.Vector3(15, 3, 20), delta * 0.5);
       this.camera.lookAt(this.spacecraft.position);
