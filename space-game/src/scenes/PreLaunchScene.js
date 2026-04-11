@@ -9,37 +9,46 @@ export class PreLaunchScene {
     this.scene = null;
     this.camera = null;
     this.rocket = null;
-    this.phase = 'briefing';
+    this.phase = 'walking'; // walking, boarding, briefing, systems, countdown
     this.countdownValue = 10;
     this.countdownTimer = 0;
     this.time = 0;
     this.mode = 'story';
+    this.astronaut = null;
+    this.walkProgress = 0; // 0 to 1
+    this.walkPath = [];
+    this.boardingProgress = 0;
+    this.cameraShake = 0;
+    this.engineGlow = null;
+    this.smokeParticles = [];
+    this.launchPadLights = [];
   }
 
   async init(data = {}) {
     this.mode = data.mode || 'story';
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
-    this.camera.position.set(15, 12, 25);
-    this.camera.lookAt(0, 10, 0);
+    this.camera.position.set(25, 8, 30);
+    this.camera.lookAt(0, 5, 0);
 
     window.addEventListener('resize', this._onResize = () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
     });
 
-    // Sky gradient
+    // Sky gradient - dawn/sunrise feel
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 2;
     skyCanvas.height = 512;
     const sctx = skyCanvas.getContext('2d');
     const skyGrad = sctx.createLinearGradient(0, 0, 0, 512);
     skyGrad.addColorStop(0, '#000011');
-    skyGrad.addColorStop(0.3, '#001133');
-    skyGrad.addColorStop(0.5, '#003366');
-    skyGrad.addColorStop(0.7, '#1a5276');
-    skyGrad.addColorStop(0.85, '#d35400');
-    skyGrad.addColorStop(1, '#ff6600');
+    skyGrad.addColorStop(0.2, '#001133');
+    skyGrad.addColorStop(0.4, '#003366');
+    skyGrad.addColorStop(0.6, '#1a5276');
+    skyGrad.addColorStop(0.75, '#d35400');
+    skyGrad.addColorStop(0.85, '#ff6600');
+    skyGrad.addColorStop(1, '#ff8833');
     sctx.fillStyle = skyGrad;
     sctx.fillRect(0, 0, 2, 512);
     const skyTex = new THREE.CanvasTexture(skyCanvas);
@@ -50,55 +59,330 @@ export class PreLaunchScene {
     sunLight.position.set(50, 30, 20);
     sunLight.castShadow = true;
     this.scene.add(sunLight);
-    this.scene.add(new THREE.AmbientLight(0x334455, 0.5));
-    this.scene.add(new THREE.HemisphereLight(0x88aacc, 0x443322, 0.3));
+    this.scene.add(new THREE.AmbientLight(0x334455, 0.6));
+    this.scene.add(new THREE.HemisphereLight(0x88aacc, 0x443322, 0.4));
 
-    // Ground / launch pad
-    const groundGeo = new THREE.PlaneGeometry(200, 200);
+    // Ground - concrete launch facility
+    const groundGeo = new THREE.PlaneGeometry(400, 400, 20, 20);
     const groundMat = new THREE.MeshPhongMaterial({ color: 0x555544 });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     this.scene.add(ground);
 
-    // Launch pad
-    const padGeo = new THREE.CylinderGeometry(8, 8, 0.5, 32);
-    const padMat = new THREE.MeshPhongMaterial({ color: 0x777766 });
-    const pad = new THREE.Mesh(padGeo, padMat);
-    pad.position.y = 0.25;
-    this.scene.add(pad);
+    // Concrete road from crew building to pad
+    const roadGeo = new THREE.PlaneGeometry(6, 120);
+    const roadMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
+    const road = new THREE.Mesh(roadGeo, roadMat);
+    road.rotation.x = -Math.PI / 2;
+    road.position.set(0, 0.02, 30);
+    this.scene.add(road);
 
-    // Launch tower
-    const towerGeo = new THREE.BoxGeometry(1, 35, 1);
-    const towerMat = new THREE.MeshPhongMaterial({ color: 0x994422 });
-    const tower = new THREE.Mesh(towerGeo, towerMat);
-    tower.position.set(6, 17.5, 0);
-    this.scene.add(tower);
-
-    // Tower arm
-    const armGeo = new THREE.BoxGeometry(6, 0.5, 0.5);
-    const arm = new THREE.Mesh(armGeo, towerMat);
-    arm.position.set(3, 25, 0);
-    this.scene.add(arm);
-
-    // Rocket
-    this.rocket = createRocket();
-    this.rocket.position.set(0, 0.5, 0);
-    this.scene.add(this.rocket);
-
-    // Buildings in background
-    for (let i = 0; i < 8; i++) {
-      const bGeo = new THREE.BoxGeometry(5 + Math.random() * 5, 3 + Math.random() * 8, 5 + Math.random() * 5);
-      const bMat = new THREE.MeshPhongMaterial({ color: 0x444433 + Math.floor(Math.random() * 0x222222) });
-      const b = new THREE.Mesh(bGeo, bMat);
-      const angle = (i / 8) * Math.PI * 2;
-      b.position.set(Math.cos(angle) * (40 + Math.random() * 30), bGeo.parameters.height / 2, Math.sin(angle) * (40 + Math.random() * 30));
-      this.scene.add(b);
+    // Road markings
+    for (let z = -25; z <= 85; z += 6) {
+      const markGeo = new THREE.PlaneGeometry(0.3, 3);
+      const markMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+      const mark = new THREE.Mesh(markGeo, markMat);
+      mark.rotation.x = -Math.PI / 2;
+      mark.position.set(0, 0.03, z);
+      this.scene.add(mark);
     }
 
-    this.phase = 'briefing';
+    // Launch pad - elevated concrete platform
+    const padBaseGeo = new THREE.BoxGeometry(20, 2, 20);
+    const padBaseMat = new THREE.MeshPhongMaterial({ color: 0x777766 });
+    const padBase = new THREE.Mesh(padBaseGeo, padBaseMat);
+    padBase.position.set(0, 1, -25);
+    this.scene.add(padBase);
+
+    // Launch pad surface
+    const padTopGeo = new THREE.BoxGeometry(22, 0.3, 22);
+    const padTopMat = new THREE.MeshPhongMaterial({ color: 0x888877 });
+    const padTop = new THREE.Mesh(padTopGeo, padTopMat);
+    padTop.position.set(0, 2.15, -25);
+    this.scene.add(padTop);
+
+    // Flame trench
+    const trenchGeo = new THREE.BoxGeometry(6, 3, 15);
+    const trenchMat = new THREE.MeshPhongMaterial({ color: 0x333322, side: THREE.BackSide });
+    const trench = new THREE.Mesh(trenchGeo, trenchMat);
+    trench.position.set(0, 0.5, -25);
+    this.scene.add(trench);
+
+    // Launch tower (taller, more detailed)
+    const towerGeo = new THREE.BoxGeometry(2, 50, 2);
+    const towerMat = new THREE.MeshPhongMaterial({ color: 0x994422 });
+    const tower = new THREE.Mesh(towerGeo, towerMat);
+    tower.position.set(10, 25, -25);
+    this.scene.add(tower);
+
+    // Tower cross beams
+    for (let y = 5; y < 50; y += 8) {
+      const beamGeo = new THREE.BoxGeometry(10, 0.5, 0.5);
+      const beam = new THREE.Mesh(beamGeo, towerMat);
+      beam.position.set(5, y, -25);
+      this.scene.add(beam);
+    }
+
+    // Swing arm (access to rocket at top)
+    const swingArmGeo = new THREE.BoxGeometry(10, 1, 2);
+    const swingArm = new THREE.Mesh(swingArmGeo, new THREE.MeshPhongMaterial({ color: 0x886633 }));
+    swingArm.position.set(5, 35, -25);
+    this.scene.add(swingArm);
+    this.swingArm = swingArm;
+
+    // Crew access arm (white, cleaner)
+    const accessArmGeo = new THREE.BoxGeometry(8, 0.8, 1.5);
+    const accessArmMat = new THREE.MeshPhongMaterial({ color: 0xddddcc });
+    const accessArm = new THREE.Mesh(accessArmGeo, accessArmMat);
+    accessArm.position.set(4, 32, -25);
+    this.scene.add(accessArm);
+
+    // Lightning protection towers
+    const lightningGeo = new THREE.CylinderGeometry(0.2, 0.3, 60, 6);
+    const lightningMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+    [[-15, -15], [15, -15], [-15, -35], [15, -35]].forEach(([x, z]) => {
+      const lt = new THREE.Mesh(lightningGeo, lightningMat);
+      lt.position.set(x, 30, z);
+      this.scene.add(lt);
+    });
+
+    // Launch pad warning lights (flashing red)
+    const warnLightGeo = new THREE.SphereGeometry(0.3, 8, 8);
+    const warnLightMat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    [[-10, 2.5, -15], [10, 2.5, -15], [-10, 2.5, -35], [10, 2.5, -35]].forEach(([x, y, z]) => {
+      const wl = new THREE.Mesh(warnLightGeo, warnLightMat);
+      wl.position.set(x, y, z);
+      this.scene.add(wl);
+      this.launchPadLights.push(wl);
+    });
+
+    // Rocket (on the launch pad)
+    this.rocket = createRocket();
+    this.rocket.position.set(0, 2.5, -25);
+    this.rocket.scale.setScalar(1.3);
+    this.scene.add(this.rocket);
+
+    // Water deluge system pipes
+    for (let side = -1; side <= 1; side += 2) {
+      const pipeGeo = new THREE.CylinderGeometry(0.3, 0.3, 15, 8);
+      const pipeMat = new THREE.MeshPhongMaterial({ color: 0x4477aa });
+      const pipe = new THREE.Mesh(pipeGeo, pipeMat);
+      pipe.position.set(side * 8, 7.5, -25);
+      this.scene.add(pipe);
+    }
+
+    // Crew preparation building
+    const buildingGeo = new THREE.BoxGeometry(15, 8, 12);
+    const buildingMat = new THREE.MeshPhongMaterial({ color: 0xccccbb });
+    const building = new THREE.Mesh(buildingGeo, buildingMat);
+    building.position.set(0, 4, 75);
+    this.scene.add(building);
+
+    // Building door
+    const doorGeo = new THREE.BoxGeometry(3, 4, 0.2);
+    const doorMat = new THREE.MeshPhongMaterial({ color: 0x666655 });
+    const door = new THREE.Mesh(doorGeo, doorMat);
+    door.position.set(0, 2.5, 69);
+    this.scene.add(door);
+
+    // NASA logo on building (blue circle)
+    const logoGeo = new THREE.CircleGeometry(2, 24);
+    const logoMat = new THREE.MeshBasicMaterial({ color: 0x0033aa });
+    const logo = new THREE.Mesh(logoGeo, logoMat);
+    logo.position.set(0, 6, 68.9);
+    this.scene.add(logo);
+
+    // Transport vehicle (crew van)
+    const vanGroup = new THREE.Group();
+    const vanBodyGeo = new THREE.BoxGeometry(3, 2, 5);
+    const vanBodyMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee });
+    const vanBody = new THREE.Mesh(vanBodyGeo, vanBodyMat);
+    vanBody.position.y = 1.5;
+    vanGroup.add(vanBody);
+    // Van wheels
+    const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 12);
+    const wheelMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+    [[-1.2, 0.4, -1.8], [1.2, 0.4, -1.8], [-1.2, 0.4, 1.8], [1.2, 0.4, 1.8]].forEach(([x, y, z]) => {
+      const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+      wheel.position.set(x, y, z);
+      wheel.rotation.z = Math.PI / 2;
+      vanGroup.add(wheel);
+    });
+    vanGroup.position.set(5, 0, 60);
+    this.scene.add(vanGroup);
+
+    // Spectator area with barriers
+    for (let z = 40; z <= 80; z += 5) {
+      const barrierGeo = new THREE.BoxGeometry(0.2, 1, 0.2);
+      const barrierMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+      const barrier = new THREE.Mesh(barrierGeo, barrierMat);
+      barrier.position.set(15, 0.5, z);
+      this.scene.add(barrier);
+    }
+
+    // Flood lights on towers
+    for (let i = 0; i < 6; i++) {
+      const floodLight = new THREE.SpotLight(0xffffdd, 2, 80, Math.PI / 6, 0.5);
+      const angle = (i / 6) * Math.PI * 2;
+      floodLight.position.set(Math.cos(angle) * 30, 15, -25 + Math.sin(angle) * 30);
+      floodLight.target.position.set(0, 10, -25);
+      this.scene.add(floodLight);
+      this.scene.add(floodLight.target);
+    }
+
+    // Background buildings (VAB, processing facilities)
+    const vabGeo = new THREE.BoxGeometry(25, 40, 20);
+    const vabMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee });
+    const vab = new THREE.Mesh(vabGeo, vabMat);
+    vab.position.set(-60, 20, 30);
+    this.scene.add(vab);
+    // VAB flag
+    const flagGeo = new THREE.PlaneGeometry(8, 5);
+    const flagMat = new THREE.MeshBasicMaterial({ color: 0x0033aa, side: THREE.DoubleSide });
+    const flag = new THREE.Mesh(flagGeo, flagMat);
+    flag.position.set(-47.4, 30, 30);
+    flag.rotation.y = Math.PI / 2;
+    this.scene.add(flag);
+
+    // More background structures
+    for (let i = 0; i < 6; i++) {
+      const bgGeo = new THREE.BoxGeometry(8 + Math.random() * 10, 4 + Math.random() * 8, 8 + Math.random() * 10);
+      const bgMat = new THREE.MeshPhongMaterial({ color: 0x444433 + Math.floor(Math.random() * 0x222222) });
+      const bg = new THREE.Mesh(bgGeo, bgMat);
+      const angle = (i / 6) * Math.PI * 2;
+      bg.position.set(Math.cos(angle) * (60 + Math.random() * 30), bgGeo.parameters.height / 2, Math.sin(angle) * (60 + Math.random() * 30));
+      this.scene.add(bg);
+    }
+
+    // Create astronaut character
+    this._createAstronaut();
+
+    // Define walking path: from crew building to launch pad (Bezier-like points)
+    this.walkPath = [
+      new THREE.Vector3(0, 0, 65),    // Start: crew building exit
+      new THREE.Vector3(0, 0, 50),    // Walking down road
+      new THREE.Vector3(0, 0, 35),    // Midpoint
+      new THREE.Vector3(0, 0, 15),    // Approaching pad
+      new THREE.Vector3(0, 0, 0),     // Near pad base
+      new THREE.Vector3(0, 0, -10),   // At pad entrance
+      new THREE.Vector3(2, 2.5, -20), // Climbing stairs
+      new THREE.Vector3(2, 2.5, -25), // On pad
+      new THREE.Vector3(0, 2.5, -25), // At rocket base
+    ];
+
+    this.phase = 'walking';
+    this.walkProgress = 0;
+    this.boardingProgress = 0;
     this.time = 0;
-    this._showBriefing();
+
+    this.gs.ui.clear();
+    this.gs.ui.addGlobalStyles();
+
+    // Show initial walking instruction
+    this.gs.ui.showCenterText('مركز كينيدي للفضاء', 'يوم الإطلاق — التوجه إلى منصة الإطلاق', 4000);
+
+    setTimeout(() => {
+      this.gs.ui.showComm('مركز التحكم', 'صباح الخير يا رائد الفضاء! حان وقت التوجه إلى منصة الإطلاق. الصاروخ جاهز ومنتظرك.', 6000);
+    }, 2000);
+
+    this.gs.ui.showControls([
+      { key: 'W/↑', action: 'المشي للأمام' },
+      { key: 'تلقائي', action: 'التوجه للصاروخ' },
+    ]);
+  }
+
+  _createAstronaut() {
+    this.astronaut = new THREE.Group();
+
+    // Orange launch/entry suit (ACES - like real astronauts wear to the pad)
+    const suitColor = 0xff6600;
+    const suitMat = new THREE.MeshPhongMaterial({ color: suitColor, specular: 0x884400, shininess: 30 });
+
+    // Torso
+    const torsoGeo = new THREE.CylinderGeometry(0.3, 0.28, 0.8, 8);
+    const torso = new THREE.Mesh(torsoGeo, suitMat);
+    this.astronaut.add(torso);
+
+    // Helmet (white, carrying it or wearing it)
+    const helmetGeo = new THREE.SphereGeometry(0.22, 12, 12);
+    const helmetMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x888888, shininess: 100 });
+    const helmet = new THREE.Mesh(helmetGeo, helmetMat);
+    helmet.position.y = 0.55;
+    this.astronaut.add(helmet);
+
+    // Visor
+    const visorGeo = new THREE.SphereGeometry(0.19, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
+    const visorMat = new THREE.MeshPhongMaterial({
+      color: 0x223344, specular: 0x88aacc, shininess: 150,
+      transparent: true, opacity: 0.6
+    });
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.y = 0.58;
+    visor.rotation.x = Math.PI * 0.25;
+    this.astronaut.add(visor);
+
+    // Arms
+    const armGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.55, 6);
+    [-1, 1].forEach(side => {
+      const arm = new THREE.Mesh(armGeo, suitMat);
+      arm.position.set(side * 0.35, -0.05, 0);
+      arm.rotation.z = side * 0.15;
+      arm.userData.side = side;
+      this.astronaut.add(arm);
+
+      // Gloves
+      const gloveGeo = new THREE.SphereGeometry(0.07, 6, 6);
+      const gloveMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+      const glove = new THREE.Mesh(gloveGeo, gloveMat);
+      glove.position.set(side * 0.38, -0.32, 0);
+      this.astronaut.add(glove);
+    });
+
+    // Legs
+    const legGeo = new THREE.CylinderGeometry(0.1, 0.09, 0.6, 6);
+    [-1, 1].forEach(side => {
+      const leg = new THREE.Mesh(legGeo, suitMat);
+      leg.position.set(side * 0.14, -0.65, 0);
+      leg.userData.side = side;
+      leg.userData.isLeg = true;
+      this.astronaut.add(leg);
+
+      // Boots
+      const bootGeo = new THREE.BoxGeometry(0.12, 0.08, 0.18);
+      const bootMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
+      const boot = new THREE.Mesh(bootGeo, bootMat);
+      boot.position.set(side * 0.14, -0.97, 0.02);
+      this.astronaut.add(boot);
+    });
+
+    // NASA patch on chest
+    const patchGeo = new THREE.CircleGeometry(0.06, 12);
+    const patchMat = new THREE.MeshBasicMaterial({ color: 0x0033aa });
+    const patch = new THREE.Mesh(patchGeo, patchMat);
+    patch.position.set(0.15, 0.15, -0.28);
+    this.astronaut.add(patch);
+
+    // Mission patch on arm
+    const missionPatchGeo = new THREE.BoxGeometry(0.1, 0.07, 0.01);
+    const missionPatchMat = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
+    const missionPatch = new THREE.Mesh(missionPatchGeo, missionPatchMat);
+    missionPatch.position.set(0.4, 0.1, 0);
+    this.astronaut.add(missionPatch);
+
+    this.astronaut.scale.setScalar(1.5);
+    this.astronaut.position.copy(this.walkPath[0]);
+    this.scene.add(this.astronaut);
+  }
+
+  _getPathPosition(t) {
+    t = Math.max(0, Math.min(1, t));
+    const totalSegments = this.walkPath.length - 1;
+    const segment = Math.min(Math.floor(t * totalSegments), totalSegments - 1);
+    const segT = (t * totalSegments) - segment;
+    const p1 = this.walkPath[segment];
+    const p2 = this.walkPath[segment + 1];
+    return new THREE.Vector3().lerpVectors(p1, p2, segT);
   }
 
   _showBriefing() {
@@ -121,25 +405,34 @@ export class PreLaunchScene {
           </div>
           <hr style="border:none;border-top:1px solid rgba(0,212,255,0.2);margin:15px 0;">
           <div style="font-size:0.85rem;color:#88aabb;">
-            <div>✓ فحص الأنظمة — جاهز</div>
-            <div>✓ الوقود — مكتمل</div>
-            <div>✓ أنظمة الحياة — تعمل</div>
-            <div>✓ الاتصالات — نشطة</div>
+            <div>✓ البدلة — تم الارتداء</div>
+            <div>✓ الفحص الطبي — مكتمل</div>
+            <div>✓ الحقيبة المدارية — جاهزة</div>
+            <div>✓ أنظمة المركبة — فحص أرضي مكتمل</div>
           </div>
           <div style="text-align:center;margin-top:20px;">
-            <button class="btn-space btn-space-primary" style="font-size:1.1rem;padding:12px 40px;" id="btn-start-countdown">
-              ▶ بدء العد التنازلي
+            <button class="btn-space btn-space-primary" style="font-size:1.1rem;padding:12px 40px;" id="btn-start-boarding">
+              ▶ صعود المركبة
             </button>
           </div>
         </div>
       </div>
     `);
     setTimeout(() => {
-      document.getElementById('btn-start-countdown')?.addEventListener('click', () => {
+      document.getElementById('btn-start-boarding')?.addEventListener('click', () => {
         this.gs.audio.playConfirm();
-        this._startSystemsCheck();
+        this._startBoarding();
       });
     }, 100);
+  }
+
+  _startBoarding() {
+    this.gs.ui.clear();
+    this.phase = 'boarding';
+    this.boardingProgress = 0;
+
+    this.gs.ui.showCenterText('صعود المركبة', 'تسلق السلم نحو الكبسولة...', 3000);
+    this.gs.ui.showComm('فني المنصة', 'مرحباً بك يا قائد! ساعدك في تأمين أحزمة الأمان. المركبة بحالة ممتازة.', 5000);
   }
 
   _startSystemsCheck() {
@@ -147,44 +440,52 @@ export class PreLaunchScene {
     this.phase = 'systems';
     let checkIndex = 0;
     const checks = [
-      { name: 'أنظمة الملاحة', status: 'جاهز' },
-      { name: 'أنظمة الاتصالات', status: 'جاهز' },
-      { name: 'نظام دعم الحياة', status: 'جاهز' },
-      { name: 'المحركات الرئيسية', status: 'جاهز' },
-      { name: 'المعززات الجانبية', status: 'جاهز' },
-      { name: 'نظام الوقود', status: 'مكتمل 100%' },
-      { name: 'الدرع الحراري', status: 'سليم' },
-      { name: 'مظلات الهبوط', status: 'جاهز' },
+      { name: 'أنظمة الملاحة', status: 'جاهز', icon: '🧭' },
+      { name: 'أنظمة الاتصالات', status: 'جاهز', icon: '📡' },
+      { name: 'نظام دعم الحياة', status: 'جاهز', icon: '🫁' },
+      { name: 'المحركات الرئيسية', status: 'جاهز', icon: '⚙️' },
+      { name: 'المعززات الجانبية', status: 'جاهز', icon: '🔥' },
+      { name: 'نظام الوقود (LOX/RP-1)', status: 'مكتمل 100%', icon: '⛽' },
+      { name: 'الدرع الحراري (PICA-X)', status: 'سليم', icon: '🛡️' },
+      { name: 'مظلات الهبوط (3 رئيسية + 2 كبح)', status: 'جاهز', icon: '🪂' },
+      { name: 'نظام الطوارئ (LES)', status: 'مسلح', icon: '🚨' },
+      { name: 'كبسولة الطاقم — ضغط المقصورة', status: '14.7 PSI', icon: '🔒' },
     ];
 
     this.gs.ui.addElement('systems-check', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
         background:rgba(0,15,30,0.92);border:1px solid rgba(0,212,255,0.3);border-radius:12px;
-        padding:25px 35px;min-width:400px;direction:rtl;">
+        padding:25px 35px;min-width:450px;direction:rtl;">
         <div style="font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:1.2rem;margin-bottom:15px;text-align:center;">
-          🔍 فحص الأنظمة
+          🔍 فحص أنظمة ما قبل الإطلاق
         </div>
         <div id="check-list" style="font-size:0.9rem;line-height:2;"></div>
+        <div id="check-status" style="text-align:center;margin-top:10px;color:#557799;font-size:0.8rem;">جاري الفحص...</div>
       </div>
     `);
 
     const interval = setInterval(() => {
       if (checkIndex >= checks.length) {
         clearInterval(interval);
+        const statusEl = document.getElementById('check-status');
+        if (statusEl) {
+          statusEl.innerHTML = '<span style="color:#00ff88;">جميع الأنظمة جاهزة للإطلاق ✓</span>';
+        }
         setTimeout(() => {
           this.gs.audio.playConfirm();
+          this.gs.ui.showComm('مدير الإطلاق', 'جميع الأنظمة GO. بدء العد التنازلي النهائي!', 4000);
           this._startCountdown();
-        }, 1000);
+        }, 1500);
         return;
       }
       const check = checks[checkIndex];
       this.gs.audio.playBeep();
       const listEl = document.getElementById('check-list');
       if (listEl) {
-        listEl.innerHTML += `<div style="color:#00ff88;">✓ ${check.name} — <span style="color:#88ffaa;">${check.status}</span></div>`;
+        listEl.innerHTML += `<div style="color:#00ff88;">${check.icon} ${check.name} — <span style="color:#88ffaa;">${check.status}</span></div>`;
       }
       checkIndex++;
-    }, 500);
+    }, 400);
   }
 
   _startCountdown() {
@@ -200,15 +501,122 @@ export class PreLaunchScene {
         </div>
         <div id="countdown-num" style="font-family:'Orbitron',sans-serif;font-size:8rem;color:#fff;
           text-shadow:0 0 60px rgba(255,100,0,0.8);">10</div>
-        <div id="countdown-status" style="color:#ffcc00;font-size:1rem;margin-top:10px;">جميع الأنظمة جاهزة</div>
+        <div id="countdown-status" style="color:#ffcc00;font-size:1rem;margin-top:10px;">T-10 — جميع الأنظمة GO</div>
       </div>
     `);
 
-    this.gs.ui.showComm('مركز التحكم', 'بدء العد التنازلي. جميع الأنظمة جاهزة للإقلاع.', 4000);
+    this.gs.ui.showComm('مركز التحكم', 'T-10 ثوانٍ. حظاً سعيداً يا رائد الفضاء! نراك في المدار.', 4000);
   }
 
   update(delta) {
     this.time += delta;
+
+    // Flashing warning lights on pad
+    this.launchPadLights.forEach(light => {
+      light.material.opacity = Math.sin(this.time * 4) > 0 ? 1 : 0.2;
+      light.material.transparent = true;
+    });
+
+    if (this.phase === 'walking') {
+      // Auto-walk with ability to speed up with W
+      const walkSpeed = this.gs.input.isForward() ? 0.08 : 0.04;
+      this.walkProgress = Math.min(1, this.walkProgress + delta * walkSpeed);
+
+      // Update astronaut position along path
+      const pos = this._getPathPosition(this.walkProgress);
+      this.astronaut.position.copy(pos);
+      this.astronaut.position.y = pos.y + Math.abs(Math.sin(this.time * 5)) * 0.05; // Walking bounce
+
+      // Walking animation for legs and arms
+      this.astronaut.children.forEach(child => {
+        if (child.userData.isLeg) {
+          child.rotation.x = Math.sin(this.time * 6 + (child.userData.side * Math.PI)) * 0.3;
+        }
+        if (child.userData.side && !child.userData.isLeg) {
+          child.rotation.x = Math.sin(this.time * 6 + (child.userData.side * Math.PI + Math.PI)) * 0.2;
+        }
+      });
+
+      // Astronaut faces forward along path
+      if (this.walkProgress < 0.99) {
+        const nextPos = this._getPathPosition(Math.min(1, this.walkProgress + 0.02));
+        const dir = nextPos.clone().sub(pos);
+        if (dir.length() > 0.01) {
+          this.astronaut.rotation.y = Math.atan2(dir.x, dir.z);
+        }
+      }
+
+      // Camera follows astronaut from behind and above
+      const camOffset = new THREE.Vector3(8, 4, 12);
+      const targetCamPos = pos.clone().add(camOffset);
+      this.camera.position.lerp(targetCamPos, delta * 2);
+      this.camera.lookAt(pos.clone().add(new THREE.Vector3(0, 2, 0)));
+
+      // Progress updates
+      if (this.walkProgress > 0.3 && !this._walkMsg1) {
+        this._walkMsg1 = true;
+        this.gs.ui.showComm('مركز التحكم', 'رائد الفضاء في الطريق إلى المنصة. الطقس مثالي للإطلاق.', 4000);
+      }
+      if (this.walkProgress > 0.6 && !this._walkMsg2) {
+        this._walkMsg2 = true;
+        this.gs.ui.showComm('مركز التحكم', 'اقتربت من منصة الإطلاق. الصاروخ بانتظارك.', 4000);
+      }
+
+      // Show walk progress bar
+      this.gs.ui.removeElement('walk-progress');
+      this.gs.ui.addElement('walk-progress', `
+        <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
+          <div style="color:#cceeff;font-size:0.85rem;margin-bottom:5px;">المسافة إلى منصة الإطلاق</div>
+          <div style="width:250px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;">
+            <div style="width:${this.walkProgress * 100}%;height:100%;background:linear-gradient(90deg,#00d4ff,#0088ff);border-radius:3px;transition:width 0.3s;"></div>
+          </div>
+          <div style="color:#557799;font-size:0.7rem;margin-top:3px;">اضغط W للمشي أسرع</div>
+        </div>
+      `);
+
+      // Reached the rocket
+      if (this.walkProgress >= 1) {
+        this.gs.ui.removeElement('walk-progress');
+        this.gs.audio.playConfirm();
+        this.gs.ui.showCenterText('وصلت إلى منصة الإطلاق', 'جاري تحضير إحاطة المهمة...', 3000);
+        this.phase = 'arrived';
+
+        setTimeout(() => {
+          this._showBriefing();
+        }, 3500);
+      }
+    }
+
+    if (this.phase === 'boarding') {
+      this.boardingProgress += delta * 0.15;
+
+      // Animate astronaut climbing into rocket
+      const boardY = 2.5 + this.boardingProgress * 30;
+      this.astronaut.position.set(2, boardY, -25);
+      this.astronaut.rotation.y = -Math.PI / 2;
+
+      // Camera follows upward
+      this.camera.position.lerp(new THREE.Vector3(12, boardY + 5, -15), delta * 2);
+      this.camera.lookAt(new THREE.Vector3(0, boardY, -25));
+
+      if (this.boardingProgress > 0.3 && !this._boardMsg1) {
+        this._boardMsg1 = true;
+        this.gs.ui.showComm('فني المنصة', 'أحزمة الأمان مثبتة. إغلاق الفتحة.', 4000);
+      }
+
+      if (this.boardingProgress >= 1) {
+        // Astronaut inside rocket, hide astronaut
+        this.astronaut.visible = false;
+        this.gs.audio.playConfirm();
+        this.gs.ui.showCenterText('داخل الكبسولة', 'إغلاق الفتحة — بدء فحص الأنظمة', 3000);
+
+        this.phase = 'seated';
+        setTimeout(() => {
+          this.gs.ui.showComm('مركز التحكم', 'الفتحة مغلقة ومؤمنة. بدء فحص أنظمة ما قبل الإطلاق.', 5000);
+          this._startSystemsCheck();
+        }, 4000);
+      }
+    }
 
     if (this.phase === 'countdown') {
       this.countdownTimer += delta;
@@ -221,17 +629,24 @@ export class PreLaunchScene {
         const statusEl = document.getElementById('countdown-status');
         if (numEl) numEl.textContent = Math.max(0, this.countdownValue);
 
+        if (this.countdownValue === 7 && statusEl) {
+          statusEl.textContent = 'T-7 — سحب ذراع الوصول';
+          // Swing arm retracts
+        }
         if (this.countdownValue === 5 && statusEl) {
-          statusEl.textContent = 'تشغيل المحركات الرئيسية';
+          statusEl.textContent = 'T-5 — تشغيل المحركات الرئيسية';
           statusEl.style.color = '#ff8800';
+          this.cameraShake = 0.3;
         }
         if (this.countdownValue === 3 && statusEl) {
-          statusEl.textContent = 'المحركات بالطاقة الكاملة';
+          statusEl.textContent = 'T-3 — المحركات بالطاقة الكاملة';
           statusEl.style.color = '#ff4400';
+          this.cameraShake = 0.8;
         }
         if (this.countdownValue === 1 && statusEl) {
-          statusEl.textContent = '!إطلاق';
+          statusEl.textContent = 'T-1 — إطلاق المشابك!';
           statusEl.style.color = '#ff0000';
+          this.cameraShake = 1.5;
         }
 
         if (this.countdownValue <= 0) {
@@ -241,17 +656,31 @@ export class PreLaunchScene {
           }, 500);
         }
       }
+
+      // Camera shake during countdown
+      if (this.cameraShake > 0) {
+        this.camera.position.x = 15 + (Math.random() - 0.5) * this.cameraShake;
+        this.camera.position.y = 12 + (Math.random() - 0.5) * this.cameraShake;
+      }
     }
 
-    // Camera gentle movement
-    if (this.phase === 'briefing' || this.phase === 'systems') {
-      this.camera.position.x = 15 + Math.sin(this.time * 0.3) * 2;
-      this.camera.position.y = 12 + Math.sin(this.time * 0.2) * 1;
-      this.camera.lookAt(0, 10, 0);
+    // Camera for briefing/systems/seated phases
+    if (this.phase === 'briefing' || this.phase === 'systems' || this.phase === 'arrived' || this.phase === 'seated') {
+      this.camera.position.lerp(new THREE.Vector3(15, 14, 20), delta * 0.5);
+      this.camera.lookAt(0, 10, -25);
     } else if (this.phase === 'countdown') {
-      const t = Math.min(1, (10 - this.countdownValue) / 10);
-      this.camera.position.lerp(new THREE.Vector3(8, 8, 15), delta * 0.5);
-      this.camera.lookAt(0, 8, 0);
+      if (this.countdownValue > 5) {
+        this.camera.position.lerp(new THREE.Vector3(10, 10, -10), delta * 0.5);
+        this.camera.lookAt(0, 12, -25);
+      } else {
+        this.camera.position.lerp(new THREE.Vector3(20, 5, -10), delta * 0.8);
+        this.camera.lookAt(0, 8, -25);
+      }
+    }
+
+    // Swing arm retraction during countdown
+    if (this.swingArm && this.phase === 'countdown' && this.countdownValue <= 7) {
+      this.swingArm.rotation.y = THREE.MathUtils.lerp(this.swingArm.rotation.y, Math.PI / 3, delta * 0.5);
     }
   }
 
