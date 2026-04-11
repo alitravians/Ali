@@ -64,6 +64,8 @@ export class SpaceNavigationScene {
     // Reset speed and transition flag to prevent residual state on replay
     this.spacecraftSpeed = new THREE.Vector3();
     this._transitioning = false;
+    this._msg30Shown = false;
+    this._msg10Shown = false;
 
     // Space ambience sound
     this.ambience = this.gs.audio.playSpaceAmbience();
@@ -151,10 +153,12 @@ export class SpaceNavigationScene {
     });
 
     // Phase messages
-    if (this.distanceToISS < 30 && this.distanceToISS > 29) {
+    if (this.distanceToISS < 30 && !this._msg30Shown) {
+      this._msg30Shown = true;
       this.gs.ui.showComm('مركز التحكم', 'المحطة على بعد 30 كم. استمر في الاقتراب.', 3000);
     }
-    if (this.distanceToISS < 10 && this.distanceToISS > 9) {
+    if (this.distanceToISS < 10 && !this._msg10Shown) {
+      this._msg10Shown = true;
       this.gs.ui.showComm('مركز التحكم', 'المحطة قريبة! ابدأ إجراءات الالتحام.', 4000);
       this.gs.ui.showObjective('استعد للالتحام بالمحطة');
     }
