@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إمبراطورية الشبكة - Empire Grid</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- شاشة التحميل -->
+    <div id="loading-screen" class="screen active">
+        <div class="loading-content">
+            <div class="logo-container">
+                <div class="logo-glow"></div>
+                <h1 class="game-logo">إمبراطورية<br><span>الشبكة</span></h1>
+                <p class="logo-subtitle">EMPIRE GRID</p>
+            </div>
+            <div class="loading-bar-container">
+                <div class="loading-bar"><div class="loading-fill"></div></div>
+                <p class="loading-text">جاري التحميل...</p>
+            </div>
+        </div>
+        <div class="particles" id="particles"></div>
+    </div>
+
+    <!-- القائمة الرئيسية -->
+    <div id="main-menu" class="screen">
+        <div class="menu-bg">
+            <div class="city-skyline"></div>
+            <div class="neon-grid"></div>
+        </div>
+        <div class="menu-content">
+            <div class="menu-logo">
+                <h1>إمبراطورية الشبكة</h1>
+                <p class="version">الإصدار 2026</p>
+            </div>
+            <div class="menu-buttons">
+                <button class="menu-btn primary" onclick="showScreen('setup-screen')">
+                    <span class="btn-icon">🎮</span>
+                    <span class="btn-text">لعبة جديدة</span>
+                </button>
+                <button class="menu-btn" onclick="showScreen('how-to-play')">
+                    <span class="btn-icon">📖</span>
+                    <span class="btn-text">كيف تلعب</span>
+                </button>
+                <button class="menu-btn" onclick="showScreen('settings-screen')">
+                    <span class="btn-icon">⚙️</span>
+                    <span class="btn-text">الإعدادات</span>
+                </button>
+            </div>
+            <div class="menu-footer">
+                <p>لعبة اقتصادية استراتيجية حديثة</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة إعداد اللعبة -->
+    <div id="setup-screen" class="screen">
+        <div class="setup-container">
+            <button class="back-btn" onclick="showScreen('main-menu')">→ رجوع</button>
+            <h2 class="setup-title">إعداد المباراة</h2>
+            
+            <!-- اختيار نمط اللعب -->
+            <div class="setup-section">
+                <h3>نمط اللعب</h3>
+                <div class="mode-cards">
+                    <div class="mode-card selected" data-mode="casual" onclick="selectMode(this)">
+                        <div class="mode-icon">⚡</div>
+                        <h4>سريع</h4>
+                        <p>15-20 دقيقة • 10 جولات</p>
+                    </div>
+                    <div class="mode-card" data-mode="standard" onclick="selectMode(this)">
+                        <div class="mode-icon">🏆</div>
+                        <h4>تنافسي</h4>
+                        <p>25-35 دقيقة • 15 جولة</p>
+                    </div>
+                    <div class="mode-card" data-mode="extended" onclick="selectMode(this)">
+                        <div class="mode-icon">👑</div>
+                        <h4>ممتد</h4>
+                        <p>40-50 دقيقة • 20 جولة</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- اختيار عدد اللاعبين -->
+            <div class="setup-section">
+                <h3>اللاعبون</h3>
+                <div class="player-setup">
+                    <div class="player-count-selector">
+                        <button class="count-btn" onclick="changePlayerCount(-1)">−</button>
+                        <span id="player-count-display">4</span>
+                        <button class="count-btn" onclick="changePlayerCount(1)">+</button>
+                    </div>
+                    <div id="player-list" class="player-list">
+                        <!-- يتم تعبئتها ديناميكيًا -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- اختيار الخريطة -->
+            <div class="setup-section">
+                <h3>الخريطة</h3>
+                <div class="map-cards">
+                    <div class="map-card selected" data-map="neon-city" onclick="selectMap(this)">
+                        <div class="map-preview neon-city-preview"></div>
+                        <h4>مدينة النيون</h4>
+                        <p>مدينة مستقبلية متطورة</p>
+                    </div>
+                    <div class="map-card" data-map="island" onclick="selectMap(this)">
+                        <div class="map-preview island-preview"></div>
+                        <h4>الجزر الاقتصادية</h4>
+                        <p>جزر متصلة بشبكة تجارية</p>
+                    </div>
+                    <div class="map-card" data-map="metro" onclick="selectMap(this)">
+                        <div class="map-preview metro-preview"></div>
+                        <h4>المتروبوليس</h4>
+                        <p>عاصمة اقتصادية عملاقة</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="start-game-btn" onclick="startGame()">
+                ابدأ المباراة
+            </button>
+        </div>
+    </div>
+
+    <!-- شاشة اختيار الشخصية -->
+    <div id="character-select" class="screen">
+        <div class="character-container">
+            <h2>اختر شخصيتك</h2>
+            <p class="char-subtitle" id="char-player-name">اللاعب 1</p>
+            <div class="character-grid" id="character-grid">
+                <!-- يتم تعبئتها ديناميكيًا -->
+            </div>
+            <div class="selected-character-info" id="selected-char-info" style="display:none;">
+                <div class="char-detail-card">
+                    <div class="char-avatar-large" id="char-avatar-large"></div>
+                    <h3 id="char-detail-name"></h3>
+                    <p class="char-detail-desc" id="char-detail-desc"></p>
+                    <div class="char-stats">
+                        <div class="stat"><span class="stat-label">القوة الخاصة</span><span class="stat-value" id="char-ability"></span></div>
+                        <div class="stat"><span class="stat-label">نقطة الضعف</span><span class="stat-value" id="char-weakness"></span></div>
+                    </div>
+                </div>
+            </div>
+            <button class="confirm-char-btn" id="confirm-char-btn" onclick="confirmCharacter()" disabled>تأكيد الاختيار</button>
+        </div>
+    </div>
+
+    <!-- شاشة اللعب الرئيسية -->
+    <div id="game-screen" class="screen">
+        <!-- الشريط العلوي -->
+        <div class="game-header">
+            <div class="header-right">
+                <div class="phase-indicator" id="phase-indicator">
+                    <span class="phase-icon">🚀</span>
+                    <span class="phase-name" id="phase-name">مرحلة التوسع</span>
+                </div>
+                <div class="round-counter">
+                    <span>الجولة</span>
+                    <span class="round-number" id="round-number">1</span>
+                    <span id="max-rounds">/ 15</span>
+                </div>
+            </div>
+            <div class="header-center">
+                <div class="market-index" id="market-index">
+                    <span class="market-label">مؤشر السوق</span>
+                    <span class="market-value" id="market-value">100</span>
+                    <span class="market-change" id="market-change">+0%</span>
+                </div>
+            </div>
+            <div class="header-left">
+                <button class="header-btn" onclick="toggleLeaderboard()" title="لوحة المتصدرين">🏆</button>
+                <button class="header-btn" onclick="openCards()" title="البطاقات">🃏</button>
+                <button class="header-btn" onclick="openMissions()" title="المهمات">📋</button>
+                <button class="header-btn" onclick="toggleSettings()" title="الإعدادات">⚙️</button>
+            </div>
+        </div>
+
+        <!-- منطقة اللعب -->
+        <div class="game-area">
+            <!-- لوحة اللاعبين -->
+            <div class="players-panel" id="players-panel">
+                <!-- يتم تعبئتها ديناميكيًا -->
+            </div>
+
+            <!-- خريطة المدينة -->
+            <div class="city-map-container">
+                <div class="city-map" id="city-map">
+                    <!-- يتم تعبئتها ديناميكيًا -->
+                </div>
+            </div>
+
+            <!-- لوحة الإجراءات -->
+            <div class="action-panel" id="action-panel">
+                <div class="current-player-info" id="current-player-info">
+                    <!-- معلومات اللاعب الحالي -->
+                </div>
+                <div class="action-buttons" id="action-buttons">
+                    <button class="action-btn dice-btn" id="roll-dice-btn" onclick="rollDice()">
+                        <span class="dice-icon">🎲</span>
+                        <span>رمي النرد</span>
+                    </button>
+                    <button class="action-btn" id="buy-btn" onclick="buyProperty()" disabled>
+                        <span>🏢</span> شراء
+                    </button>
+                    <button class="action-btn" id="upgrade-btn" onclick="openUpgradeMenu()" disabled>
+                        <span>⬆️</span> تطوير
+                    </button>
+                    <button class="action-btn" id="trade-btn" onclick="openTradeMenu()">
+                        <span>🤝</span> تداول
+                    </button>
+                    <button class="action-btn" id="card-btn" onclick="useCard()" disabled>
+                        <span>🃏</span> بطاقة
+                    </button>
+                    <button class="action-btn end-turn-btn" id="end-turn-btn" onclick="endTurn()" disabled>
+                        <span>⏭️</span> إنهاء الدور
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- شريط الأحداث -->
+        <div class="event-ticker" id="event-ticker">
+            <div class="ticker-content" id="ticker-content"></div>
+        </div>
+    </div>
+
+    <!-- نافذة تفاصيل العقار -->
+    <div id="property-modal" class="modal" style="display:none;">
+        <div class="modal-content property-detail">
+            <button class="modal-close" onclick="closeModal('property-modal')">✕</button>
+            <div class="property-header" id="prop-modal-header">
+                <div class="prop-type-badge" id="prop-type-badge"></div>
+                <h3 id="prop-name"></h3>
+                <p class="prop-district" id="prop-district"></p>
+            </div>
+            <div class="property-body">
+                <div class="prop-stats-grid">
+                    <div class="prop-stat">
+                        <span class="prop-stat-label">السعر</span>
+                        <span class="prop-stat-value" id="prop-price"></span>
+                    </div>
+                    <div class="prop-stat">
+                        <span class="prop-stat-label">العائد / جولة</span>
+                        <span class="prop-stat-value" id="prop-income"></span>
+                    </div>
+                    <div class="prop-stat">
+                        <span class="prop-stat-label">المستوى</span>
+                        <span class="prop-stat-value" id="prop-level"></span>
+                    </div>
+                    <div class="prop-stat">
+                        <span class="prop-stat-label">القيمة السوقية</span>
+                        <span class="prop-stat-value" id="prop-market-value"></span>
+                    </div>
+                </div>
+                <div class="prop-upgrade-path" id="prop-upgrade-path">
+                    <!-- مسار التطوير -->
+                </div>
+                <div class="prop-owner" id="prop-owner-info"></div>
+            </div>
+            <div class="property-actions" id="prop-actions"></div>
+        </div>
+    </div>
+
+    <!-- نافذة التداول -->
+    <div id="trade-modal" class="modal" style="display:none;">
+        <div class="modal-content trade-modal-content">
+            <button class="modal-close" onclick="closeModal('trade-modal')">✕</button>
+            <h3>المفاوضات والتداول</h3>
+            <div class="trade-layout">
+                <div class="trade-side trade-mine">
+                    <h4 id="trade-my-name">عرضك</h4>
+                    <div class="trade-money">
+                        <label>المال:</label>
+                        <input type="number" id="trade-my-money" value="0" min="0" step="100">
+                    </div>
+                    <div class="trade-assets" id="trade-my-assets"></div>
+                </div>
+                <div class="trade-arrow">⇄</div>
+                <div class="trade-side trade-theirs">
+                    <h4>اختر لاعب</h4>
+                    <div class="trade-player-select" id="trade-player-select"></div>
+                    <div class="trade-money">
+                        <label>المال المطلوب:</label>
+                        <input type="number" id="trade-their-money" value="0" min="0" step="100">
+                    </div>
+                    <div class="trade-assets" id="trade-their-assets"></div>
+                </div>
+            </div>
+            <div class="trade-buttons">
+                <button class="trade-submit-btn" onclick="submitTrade()">إرسال العرض</button>
+                <button class="trade-cancel-btn" onclick="closeModal('trade-modal')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة الحدث -->
+    <div id="event-modal" class="modal" style="display:none;">
+        <div class="modal-content event-modal-content">
+            <div class="event-icon-large" id="event-icon-large"></div>
+            <h3 id="event-title"></h3>
+            <p id="event-description"></p>
+            <div class="event-effects" id="event-effects"></div>
+            <button class="event-ok-btn" onclick="closeEventModal()">حسنًا</button>
+        </div>
+    </div>
+
+    <!-- نافذة البطاقات -->
+    <div id="cards-modal" class="modal" style="display:none;">
+        <div class="modal-content cards-modal-content">
+            <button class="modal-close" onclick="closeModal('cards-modal')">✕</button>
+            <h3>بطاقاتك</h3>
+            <div class="cards-grid" id="cards-grid"></div>
+        </div>
+    </div>
+
+    <!-- نافذة المهمات -->
+    <div id="missions-modal" class="modal" style="display:none;">
+        <div class="modal-content missions-modal-content">
+            <button class="modal-close" onclick="closeModal('missions-modal')">✕</button>
+            <h3>المهمات والأهداف</h3>
+            <div class="missions-list" id="missions-list"></div>
+        </div>
+    </div>
+
+    <!-- نافذة لوحة المتصدرين -->
+    <div id="leaderboard-modal" class="modal" style="display:none;">
+        <div class="modal-content leaderboard-content">
+            <button class="modal-close" onclick="closeModal('leaderboard-modal')">✕</button>
+            <h3>لوحة المتصدرين</h3>
+            <div class="leaderboard-list" id="leaderboard-list"></div>
+        </div>
+    </div>
+
+    <!-- نافذة نتيجة النرد -->
+    <div id="dice-modal" class="modal" style="display:none;">
+        <div class="modal-content dice-modal-content">
+            <div class="dice-display" id="dice-display">
+                <div class="dice" id="dice-1">⚀</div>
+                <div class="dice" id="dice-2">⚀</div>
+            </div>
+            <p class="dice-result" id="dice-result"></p>
+        </div>
+    </div>
+
+    <!-- نافذة عرض التجارة الواردة -->
+    <div id="trade-offer-modal" class="modal" style="display:none;">
+        <div class="modal-content trade-offer-content">
+            <h3>عرض تجاري وارد!</h3>
+            <div class="trade-offer-details" id="trade-offer-details"></div>
+            <div class="trade-offer-buttons">
+                <button class="accept-trade-btn" onclick="respondToTrade(true)">قبول</button>
+                <button class="reject-trade-btn" onclick="respondToTrade(false)">رفض</button>
+                <button class="counter-trade-btn" onclick="counterTrade()">عرض مضاد</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة المزاد -->
+    <div id="auction-modal" class="modal" style="display:none;">
+        <div class="modal-content auction-content">
+            <h3>🏛️ مزاد!</h3>
+            <div class="auction-item" id="auction-item"></div>
+            <div class="auction-current">
+                <span>أعلى عرض حالي:</span>
+                <span class="auction-price" id="auction-current-price">0</span>
+                <span class="auction-bidder" id="auction-current-bidder"></span>
+            </div>
+            <div class="auction-input">
+                <input type="number" id="auction-bid-input" placeholder="مبلغ المزايدة" step="100">
+                <button class="auction-bid-btn" onclick="placeBid()">زايد</button>
+                <button class="auction-pass-btn" onclick="passAuction()">تمرير</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة نهاية اللعبة -->
+    <div id="game-over-modal" class="modal" style="display:none;">
+        <div class="modal-content game-over-content">
+            <div class="winner-trophy">🏆</div>
+            <h2 id="winner-name">الفائز!</h2>
+            <div class="final-stats" id="final-stats"></div>
+            <div class="all-players-results" id="all-players-results"></div>
+            <div class="game-over-buttons">
+                <button class="menu-btn primary" onclick="location.reload()">لعبة جديدة</button>
+                <button class="menu-btn" onclick="showScreen('main-menu')">القائمة الرئيسية</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة التطوير -->
+    <div id="upgrade-modal" class="modal" style="display:none;">
+        <div class="modal-content upgrade-content">
+            <button class="modal-close" onclick="closeModal('upgrade-modal')">✕</button>
+            <h3>تطوير الأصول</h3>
+            <div class="upgrade-list" id="upgrade-list"></div>
+        </div>
+    </div>
+
+    <!-- شاشة كيف تلعب -->
+    <div id="how-to-play" class="screen">
+        <div class="htp-container">
+            <button class="back-btn" onclick="showScreen('main-menu')">→ رجوع</button>
+            <h2>كيف تلعب</h2>
+            <div class="htp-sections">
+                <div class="htp-section">
+                    <h3>🎯 الهدف</h3>
+                    <p>ابنِ إمبراطوريتك الاقتصادية عبر شراء الأصول وتطويرها، والتفاوض مع المنافسين، والتكيف مع أحداث السوق المتغيرة. يمكنك الفوز بعدة طرق!</p>
+                </div>
+                <div class="htp-section">
+                    <h3>🎲 الجولة</h3>
+                    <p>في كل جولة: ارمِ النرد للتحرك → اشترِ أو طوّر أو تاجر → تعامل مع الأحداث → أنهِ دورك. كل جولة تجلب فرصًا وتحديات جديدة.</p>
+                </div>
+                <div class="htp-section">
+                    <h3>🏢 الأصول</h3>
+                    <p>اشترِ مشاريع متنوعة (تجارية، تقنية، سكنية...) وطوّرها عبر 4 مستويات. كلما طوّرت أكثر، زاد عائدك ونفوذك.</p>
+                </div>
+                <div class="htp-section">
+                    <h3>📈 الاقتصاد</h3>
+                    <p>السوق يتغير كل جولة! أسعار الأصول ترتفع وتنخفض، وأحداث اقتصادية مفاجئة تؤثر على استراتيجيتك.</p>
+                </div>
+                <div class="htp-section">
+                    <h3>🏆 طرق الفوز</h3>
+                    <p>أعلى ثروة • أكبر سيطرة • أعلى نفوذ • إكمال المهمات السرية • احتكار القطاعات</p>
+                </div>
+                <div class="htp-section">
+                    <h3>🃏 البطاقات</h3>
+                    <p>استخدم بطاقات استراتيجية مثل "انهيار السوق" و"درع ضريبي" و"توسع سريع" لتغيير مجرى اللعبة!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة الإعدادات -->
+    <div id="settings-screen" class="screen">
+        <div class="settings-container">
+            <button class="back-btn" onclick="showScreen('main-menu')">→ رجوع</button>
+            <h2>الإعدادات</h2>
+            <div class="settings-list">
+                <div class="setting-item">
+                    <span>المؤثرات الصوتية</span>
+                    <label class="toggle"><input type="checkbox" id="sfx-toggle" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-item">
+                    <span>الرسوم المتحركة</span>
+                    <label class="toggle"><input type="checkbox" id="anim-toggle" checked><span class="toggle-slider"></span></label>
+                </div>
+                <div class="setting-item">
+                    <span>سرعة اللعب</span>
+                    <select id="speed-select">
+                        <option value="fast">سريع</option>
+                        <option value="normal" selected>عادي</option>
+                        <option value="slow">بطيء</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <span>صعوبة الذكاء الاصطناعي</span>
+                    <select id="ai-difficulty">
+                        <option value="easy">سهل</option>
+                        <option value="medium" selected>متوسط</option>
+                        <option value="hard">صعب</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إشعار -->
+    <div id="notification" class="notification" style="display:none;">
+        <div class="notification-content">
+            <span class="notification-icon" id="notif-icon"></span>
+            <span class="notification-text" id="notif-text"></span>
+        </div>
+    </div>
+
+    <script src="js/data.js"></script>
+    <script src="js/engine.js"></script>
+    <script src="js/ai.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
