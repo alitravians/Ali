@@ -236,7 +236,7 @@ export class ReEntryScene {
 
       // Descent
       this.altitude -= delta * (3 + Math.abs(this.entryAngle) * 2);
-      this.speed -= delta * 0.3;
+      this.speed = Math.max(0, this.speed - delta * 0.3);
 
       // Heat calculation based on altitude and speed
       if (this.altitude < 100 && this.altitude > 30) {
