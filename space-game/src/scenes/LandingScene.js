@@ -128,6 +128,7 @@ export class LandingScene {
     this.retroFired = false;
     this.dyeMarkerActive = false;
     this.bobbingPhase = 0;
+    this.missionStartTime = Date.now();
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();

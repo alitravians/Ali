@@ -132,8 +132,6 @@ export class ReEntryScene {
     this.gs.ui.showControls([
       { key: 'W/↑', action: 'رفع المقدمة' },
       { key: 'S/↓', action: 'خفض المقدمة' },
-      { key: 'A/←', action: 'ميل يسار' },
-      { key: 'D/→', action: 'ميل يمين' },
     ]);
 
     // Realistic undocking to re-entry sequence
