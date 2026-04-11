@@ -11,11 +11,19 @@ import { BACKEND_API_URL } from '../config/api';
 // ──────────────────────────────────────────────
 // Types
 // ──────────────────────────────────────────────
+interface UptimeDay {
+  date: string;
+  uptime: number;
+  incident: boolean;
+  status: string;
+}
+
 interface ServiceData {
   id: string;
   name: string;
   name_ar: string;
   type: string;
+  category: string;
   status: string;
   status_ar: string;
   last_check: string | null;
@@ -32,6 +40,8 @@ interface ServiceData {
   check_interval: number;
   auto_heal: boolean;
   enabled: boolean;
+  disabled_reason_ar: string | null;
+  uptime_history_90d: UptimeDay[];
 }
 
 interface IncidentNote {
@@ -104,6 +114,7 @@ interface FixSession {
 interface StatusData {
   overall_status: string;
   overall_status_ar: string;
+  days_without_incidents: number;
   services: ServiceData[];
   incidents: Incident[];
   last_updated: string;
@@ -117,7 +128,7 @@ interface StatusData {
 // ──────────────────────────────────────────────
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return 'لم يتم الفحص';
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  const diff = Math.max(0, (Date.now() - new Date(dateStr).getTime()) / 1000);
   if (diff < 60) return `منذ ${Math.floor(diff)} ث`;
   if (diff < 3600) return `منذ ${Math.floor(diff / 60)} د`;
   if (diff < 86400) return `منذ ${Math.floor(diff / 3600)} س`;
@@ -181,13 +192,15 @@ function getSeverityAr(severity: string): string {
 // ──────────────────────────────────────────────
 function ResponseTimeChart({ data, id }: { data: number[]; id: string }) {
   if (!data || data.length < 2) return null;
+  // Hide chart when all values are effectively 0
+  const avg = Math.round(data.reduce((a, b) => a + b, 0) / data.length);
+  if (avg <= 0) return null;
   const max = Math.max(...data, 1);
   const h = 40;
   const w = 200;
   const step = w / (data.length - 1);
 
   const points = data.map((v, i) => `${i * step},${h - (v / max) * (h - 4)}`).join(' ');
-  const avg = Math.round(data.reduce((a, b) => a + b, 0) / data.length);
 
   return (
     <div className="mt-2">
@@ -229,6 +242,56 @@ function UptimeBar({ percent }: { percent: number }) {
     </div>
   );
 }
+
+// ──────────────────────────────────────────────
+// 90-Day Uptime History Bar
+// ──────────────────────────────────────────────
+function UptimeHistory90d({ history }: { history: UptimeDay[] }) {
+  if (!history || history.length === 0) return null;
+  const totalDays = history.length;
+  const avgUptime = Math.round(history.reduce((a, d) => a + d.uptime, 0) / totalDays * 10) / 10;
+
+  return (
+    <div className="mt-3 pt-3 border-t border-gray-800/50">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] text-gray-500">{totalDays} يوم</span>
+        <span className="text-[10px] text-gray-400">متوسط التشغيل: {avgUptime}%</span>
+      </div>
+      <div className="flex gap-[1px] items-end h-6" title={`تاريخ التشغيل — ${totalDays} يوم`}>
+        {history.map((day) => {
+          const color =
+            day.status === 'disabled' ? 'bg-gray-700' :
+            day.uptime >= 99 ? 'bg-green-500' :
+            day.uptime >= 95 ? 'bg-yellow-500' :
+            day.uptime >= 80 ? 'bg-orange-500' :
+            day.uptime > 0 ? 'bg-red-500' : 'bg-gray-700';
+          const height = day.status === 'disabled' ? '30%' : `${Math.max(30, day.uptime)}%`;
+          return (
+            <div
+              key={day.date}
+              className={`flex-1 rounded-[1px] ${color} ${day.incident ? 'opacity-80' : ''} transition-all hover:opacity-70`}
+              style={{ height }}
+              title={`${day.date}: ${day.status === 'disabled' ? 'معطّل' : `${day.uptime}%`}${day.incident ? ' — حادث' : ''}`}
+            />
+          );
+        })}
+      </div>
+      <div className="flex items-center justify-between mt-1">
+        <span className="text-[9px] text-gray-600">قبل {totalDays} يوم</span>
+        <span className="text-[9px] text-gray-600">اليوم</span>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
+// Category helpers
+// ──────────────────────────────────────────────
+const CATEGORY_META: Record<string, { label: string; icon: typeof Server }> = {
+  infrastructure: { label: 'البنية التحتية', icon: Server },
+  data_sources: { label: 'مصادر البيانات', icon: Database },
+  external_apis: { label: 'خدمات خارجية', icon: Globe2 },
+};
 
 // ──────────────────────────────────────────────
 // Main Status Page
@@ -424,6 +487,25 @@ export default function StatusPage() {
         </div>
       </div>
 
+      {/* Days Without Incidents Counter */}
+      {data.days_without_incidents > 0 && activeIncidents.length === 0 && (
+        <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-4 mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center">
+              <Shield className="w-5 h-5 text-green-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-green-400">النظام مستقر</h3>
+              <p className="text-[11px] text-gray-400 mt-0.5">لا توجد حوادث مسجّلة</p>
+            </div>
+          </div>
+          <div className="text-left">
+            <div className="text-2xl font-black text-green-400">{data.days_without_incidents}</div>
+            <div className="text-[10px] text-gray-500">{data.days_without_incidents === 1 ? 'يوم بدون حوادث' : data.days_without_incidents <= 10 ? 'أيام بدون حوادث' : 'يوم بدون حوادث'}</div>
+          </div>
+        </div>
+      )}
+
       {/* Active Incidents Alert */}
       {activeIncidents.length > 0 && (
         <div className="mb-6 space-y-3">
@@ -475,13 +557,21 @@ export default function StatusPage() {
         </div>
       )}
 
-      {/* Services Grid */}
-      <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-        <Server className="w-4 h-4 text-blue-400" />
-        حالة الخدمات
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
-        {data.services.map(svc => {
+      {/* Services — Grouped by Category */}
+      {(['infrastructure', 'data_sources', 'external_apis'] as const).map(cat => {
+        const catServices = data.services.filter(s => (s.category || 'external_apis') === cat);
+        if (catServices.length === 0) return null;
+        const meta = CATEGORY_META[cat] || { label: cat, icon: Server };
+        const CatIcon = meta.icon;
+        return (
+          <div key={cat} className="mb-8">
+            <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+              <CatIcon className="w-4 h-4 text-blue-400" />
+              {meta.label}
+              <span className="text-[10px] text-gray-500 font-normal">({catServices.length})</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {catServices.map(svc => {
           const statusStyle = getStatusColor(svc.status);
           const Icon = getServiceIcon(svc.id);
           return (
@@ -535,11 +625,19 @@ export default function StatusPage() {
               </>
               )}
 
-              {/* Disabled message */}
+              {/* Disabled message with reason */}
               {svc.status === 'disabled' && (
-                <div className="text-center py-3 text-[11px] text-gray-500">
-                  هذه الخدمة معطّلة حالياً
+                <div className="text-center py-3">
+                  <div className="text-[11px] text-gray-500">هذه الخدمة معطّلة حالياً</div>
+                  {svc.disabled_reason_ar && (
+                    <div className="text-[10px] text-gray-600 mt-1">{svc.disabled_reason_ar}</div>
+                  )}
                 </div>
+              )}
+
+              {/* 90-Day Uptime History */}
+              {svc.uptime_history_90d && svc.uptime_history_90d.length > 0 && (
+                <UptimeHistory90d history={svc.uptime_history_90d} />
               )}
 
               {/* Footer */}
@@ -636,7 +734,10 @@ export default function StatusPage() {
             </div>
           );
         })}
-      </div>
+            </div>
+          </div>
+        );
+      })}
 
       {/* Technical Support Fix Sessions */}
       {fixSessions.length > 0 && (
@@ -889,7 +990,11 @@ export default function StatusPage() {
       {data.incidents.length === 0 ? (
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-8 text-center">
           <CheckCircle2 className="w-10 h-10 text-green-400 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">لا توجد حوادث مسجلة — النظام يعمل بشكل ممتاز</p>
+          <p className="text-sm text-gray-400">
+            {data.days_without_incidents > 0
+              ? `${data.days_without_incidents} ${data.days_without_incidents === 1 ? 'يوم' : data.days_without_incidents <= 10 ? 'أيام' : 'يوم'} متواصل بدون حوادث`
+              : 'لا توجد حوادث مسجلة — النظام يعمل بشكل ممتاز'}
+          </p>
         </div>
       ) : (
         <div className="space-y-2 mb-6">

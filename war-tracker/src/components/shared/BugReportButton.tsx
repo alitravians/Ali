@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Bug, Send, X, Loader2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { BACKEND_API_URL } from '../../config/api';
@@ -118,7 +118,18 @@ export default function BugReportButton() {
   const [showRepairTracker, setShowRepairTracker] = useState(false);
   const [submittedDescription, setSubmittedDescription] = useState('');
   const [submittedPage, setSubmittedPage] = useState('');
+  const [ticketId, setTicketId] = useState('');
+  const pendingRepairRef = useRef(false);
   const location = useLocation();
+
+  // Use effect to reliably open RepairTracker after form closes
+  useEffect(() => {
+    if (pendingRepairRef.current && !isOpen) {
+      console.log('[BugReport] Form closed, now opening RepairTracker3D');
+      pendingRepairRef.current = false;
+      setShowRepairTracker(true);
+    }
+  }, [isOpen]);
 
   const handleSubmit = async () => {
     if (!description.trim() || description.trim().length < 5) {
@@ -152,17 +163,17 @@ export default function BugReportButton() {
       console.log('[BugReport] Response status:', res.status, 'ok:', res.ok);
 
       if (res.ok) {
-        console.log('[BugReport] Success! Opening RepairTracker3D...');
+        const data = await res.json().catch(() => ({}));
+        console.log('[BugReport] Success! ticket_id:', data.ticket_id, 'Will open RepairTracker3D after form closes');
         setSubmittedDescription(desc);
         setSubmittedPage(page);
+        setTicketId(data.ticket_id || '');
         setDescription('');
-        setIsOpen(false);
         setStatus('idle');
-        // Small delay to ensure form modal unmounts before RepairTracker mounts
-        setTimeout(() => {
-          console.log('[BugReport] Setting showRepairTracker = true');
-          setShowRepairTracker(true);
-        }, 100);
+        // Flag that we need to open RepairTracker after form closes
+        pendingRepairRef.current = true;
+        // Close the form — useEffect will detect this and open RepairTracker
+        setIsOpen(false);
       } else {
         const data = await res.json().catch(() => ({}));
         console.log('[BugReport] Error response:', data);
@@ -184,6 +195,7 @@ export default function BugReportButton() {
         onClose={() => setShowRepairTracker(false)}
         problemDescription={submittedDescription}
         pagePath={submittedPage}
+        ticketId={ticketId}
       />
 
       {/* Floating bug report button */}

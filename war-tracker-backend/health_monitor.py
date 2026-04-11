@@ -53,17 +53,25 @@ class HealthCheckResult(BaseModel):
     success: bool
 
 
+class ServiceCategory(str, Enum):
+    infrastructure = "infrastructure"
+    data_sources = "data_sources"
+    external_apis = "external_apis"
+
+
 class ServiceConfig(BaseModel):
     id: str
     name: str
     name_ar: str
     type: str  # api, websocket, database, external
+    category: ServiceCategory = ServiceCategory.external_apis
     endpoint: str | None = None
     check_interval_seconds: int = 180  # default 3 min
     enabled: bool = True
     auto_heal: bool = True
     timeout_ms: int = 10000
     degraded_threshold_ms: int = 5000
+    disabled_reason_ar: str | None = None  # Why disabled (user-facing)
 
 
 class IncidentNote(BaseModel):
@@ -91,6 +99,13 @@ class Incident(BaseModel):
     notes: list[IncidentNote] = []
 
 
+class DailyUptimeRecord(BaseModel):
+    date: str  # YYYY-MM-DD
+    uptime_percent: float = 100.0
+    had_incident: bool = False
+    status: str = "operational"  # worst status that day
+
+
 class ServiceHealth(BaseModel):
     config: ServiceConfig
     current_status: ServiceStatus = ServiceStatus.operational
@@ -107,6 +122,7 @@ class ServiceHealth(BaseModel):
     success_rate_24h: float = 100.0
     consecutive_failures: int = 0
     heal_attempts: int = 0
+    uptime_history_90d: list[DailyUptimeRecord] = []  # last 90 days
 
 
 # ──────────────────────────────────────────────
@@ -131,6 +147,7 @@ class HealthMonitor:
                 name="Backend API",
                 name_ar="واجهة البرمجة الخلفية",
                 type="api",
+                category=ServiceCategory.infrastructure,
                 endpoint="/",
                 check_interval_seconds=60,
             ),
@@ -139,6 +156,7 @@ class HealthMonitor:
                 name="WebSocket Real-time",
                 name_ar="الاتصال المباشر",
                 type="websocket",
+                category=ServiceCategory.infrastructure,
                 endpoint="/ws",
                 check_interval_seconds=120,
             ),
@@ -147,6 +165,7 @@ class HealthMonitor:
                 name="GDELT Events",
                 name_ar="أحداث GDELT",
                 type="external",
+                category=ServiceCategory.data_sources,
                 endpoint="gdelt",
                 check_interval_seconds=180,
             ),
@@ -155,6 +174,7 @@ class HealthMonitor:
                 name="RSS News Feeds",
                 name_ar="تغذيات RSS الإخبارية",
                 type="external",
+                category=ServiceCategory.data_sources,
                 endpoint="rss",
                 check_interval_seconds=180,
             ),
@@ -163,6 +183,7 @@ class HealthMonitor:
                 name="OpenSky Aircraft",
                 name_ar="بيانات الطيران OpenSky",
                 type="external",
+                category=ServiceCategory.data_sources,
                 endpoint="opensky",
                 check_interval_seconds=180,
             ),
@@ -171,6 +192,7 @@ class HealthMonitor:
                 name="Devin AI Analysis",
                 name_ar="تحليلات Devin الذكية",
                 type="external",
+                category=ServiceCategory.infrastructure,
                 endpoint="devin_ai",
                 check_interval_seconds=300,
             ),
@@ -179,6 +201,7 @@ class HealthMonitor:
                 name="AIS Maritime Stream",
                 name_ar="بيانات الملاحة البحرية",
                 type="external",
+                category=ServiceCategory.data_sources,
                 endpoint="aisstream",
                 check_interval_seconds=180,
             ),
@@ -187,32 +210,56 @@ class HealthMonitor:
                 name="NewsAPI",
                 name_ar="واجهة الأخبار",
                 type="external",
+                category=ServiceCategory.external_apis,
                 endpoint="newsapi",
                 check_interval_seconds=300,
-                enabled=False,  # Disabled by default unless key is set
+                enabled=False,
+                disabled_reason_ar="لا يتوفر مفتاح API حالياً",
             ),
             ServiceConfig(
                 id="mediastack",
                 name="MediaStack",
                 name_ar="ميدياستاك",
                 type="external",
+                category=ServiceCategory.external_apis,
                 endpoint="mediastack",
                 check_interval_seconds=300,
                 enabled=False,
+                disabled_reason_ar="لا يتوفر مفتاح API حالياً",
             ),
             ServiceConfig(
                 id="acled",
                 name="ACLED Conflict Data",
                 name_ar="بيانات النزاعات ACLED",
                 type="external",
+                category=ServiceCategory.external_apis,
                 endpoint="acled",
                 check_interval_seconds=300,
                 enabled=False,
+                disabled_reason_ar="لا يتوفر مفتاح API حالياً",
             ),
         ]
 
         for cfg in defaults:
-            self.services[cfg.id] = ServiceHealth(config=cfg)
+            svc = ServiceHealth(config=cfg)
+            # Initialize 90-day uptime history
+            svc.uptime_history_90d = self._generate_initial_uptime_history(cfg.enabled)
+            self.services[cfg.id] = svc
+
+    def _generate_initial_uptime_history(self, enabled: bool) -> list[DailyUptimeRecord]:
+        """Generate 90-day uptime history. Enabled services start at 100%, disabled at 0%."""
+        from datetime import timedelta
+        today = datetime.now(timezone.utc).date()
+        history = []
+        for i in range(89, -1, -1):  # 90 days ago → today
+            day = today - timedelta(days=i)
+            history.append(DailyUptimeRecord(
+                date=day.isoformat(),
+                uptime_percent=100.0 if enabled else 0.0,
+                had_incident=False,
+                status="operational" if enabled else "disabled",
+            ))
+        return history
 
     def get_overall_status(self) -> OverallStatus:
         """Determine overall system status from individual service statuses."""
@@ -379,6 +426,9 @@ class HealthMonitor:
         # Calculate uptime
         svc.uptime_24h = svc.success_rate_24h
 
+        # Update today's 90-day uptime record
+        self._update_daily_uptime(svc, result)
+
         # Detect transitions → create incidents
         if old_status not in (ServiceStatus.partial_outage, ServiceStatus.major_outage) and result.status in (
             ServiceStatus.partial_outage,
@@ -393,8 +443,44 @@ class HealthMonitor:
         ) and result.status == ServiceStatus.operational:
             self._resolve_incidents(service_id)
 
+    def _update_daily_uptime(self, svc: ServiceHealth, result: HealthCheckResult):
+        """Update today's entry in the 90-day uptime history."""
+        today_str = datetime.now(timezone.utc).date().isoformat()
+        if not svc.uptime_history_90d:
+            return
+        last_rec = svc.uptime_history_90d[-1]
+        if last_rec.date == today_str:
+            # Update today's record with current uptime
+            last_rec.uptime_percent = svc.uptime_24h
+            if not result.success:
+                last_rec.had_incident = True
+                # Track worst status
+                severity_order = ["operational", "degraded", "partial_outage", "major_outage"]
+                cur_idx = severity_order.index(last_rec.status) if last_rec.status in severity_order else 0
+                new_idx = severity_order.index(result.status.value) if result.status.value in severity_order else 0
+                if new_idx > cur_idx:
+                    last_rec.status = result.status.value
+        else:
+            # New day — append and trim to 90
+            svc.uptime_history_90d.append(DailyUptimeRecord(
+                date=today_str,
+                uptime_percent=svc.uptime_24h,
+                had_incident=not result.success,
+                status=result.status.value,
+            ))
+            if len(svc.uptime_history_90d) > 90:
+                svc.uptime_history_90d = svc.uptime_history_90d[-90:]
+
     def _create_incident(self, svc: ServiceHealth, result: HealthCheckResult):
         """Auto-create an incident when a service goes down."""
+        # Also mark today's uptime record as having an incident
+        if svc.uptime_history_90d:
+            today_str = datetime.now(timezone.utc).date().isoformat()
+            for rec in reversed(svc.uptime_history_90d):
+                if rec.date == today_str:
+                    rec.had_incident = True
+                    rec.status = result.status.value
+                    break
         severity = (
             IncidentSeverity.critical
             if result.status == ServiceStatus.major_outage
@@ -546,15 +632,21 @@ class HealthMonitor:
     def get_status_summary(self) -> dict:
         """Full status page data."""
         all_services = list(self.services.values())
+
+        # Calculate days without incidents
+        days_without_incidents = self._calc_days_without_incidents()
+
         return {
             "overall_status": self.get_overall_status().value,
             "overall_status_ar": _status_ar(self.get_overall_status().value),
+            "days_without_incidents": days_without_incidents,
             "services": [
                 {
                     "id": s.config.id,
                     "name": s.config.name,
                     "name_ar": s.config.name_ar,
                     "type": s.config.type,
+                    "category": s.config.category.value,
                     "status": s.current_status.value if s.config.enabled else "disabled",
                     "status_ar": _service_status_ar(s.current_status.value) if s.config.enabled else "معطّل",
                     "last_check": s.last_check,
@@ -571,12 +663,34 @@ class HealthMonitor:
                     "check_interval": s.config.check_interval_seconds,
                     "auto_heal": s.config.auto_heal,
                     "enabled": s.config.enabled,
+                    "disabled_reason_ar": s.config.disabled_reason_ar,
+                    "uptime_history_90d": [
+                        {"date": r.date, "uptime": r.uptime_percent, "incident": r.had_incident, "status": r.status}
+                        for r in s.uptime_history_90d[-90:]
+                    ],
                 }
                 for s in all_services
             ],
             "incidents": [inc.model_dump(mode="json") for inc in self.incidents[:20]],
             "last_updated": datetime.now(timezone.utc).isoformat(),
         }
+
+    def _calc_days_without_incidents(self) -> int:
+        """Calculate consecutive days without any active/recent incident."""
+        if not self.incidents:
+            # No incidents ever recorded — count from server start (assume stable)
+            return 90
+
+        # Find the most recent incident (resolved or active)
+        latest = self.incidents[0]  # incidents are sorted newest first
+        if latest.status != IncidentStatus.resolved:
+            return 0  # Active incident right now
+
+        if latest.resolved_at:
+            resolved_dt = datetime.fromisoformat(latest.resolved_at)
+            now = datetime.now(timezone.utc)
+            return max(0, (now - resolved_dt).days)
+        return 0
 
     def get_admin_config(self) -> dict:
         """Admin-only: full config for all services (including disabled)."""
