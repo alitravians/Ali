@@ -115,6 +115,7 @@ export class ReEntryScene {
     this.heatShieldTemp = 20;
     this.modulesSeparated = false;
     this.drogueDeployed = false;
+    this._transitioning = false;
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();

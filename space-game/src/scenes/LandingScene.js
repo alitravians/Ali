@@ -512,8 +512,9 @@ export class LandingScene {
 
     // Descent with gradual deceleration
     if (this.phase === 'main') {
-      // Gradually slow down as main chutes fully inflate
+      // Gradually slow down as main chutes fully inflate, clamp at -8 m/s
       this.verticalSpeed = Math.max(-8, this.verticalSpeed + delta * 3);
+      if (this.verticalSpeed > -8) this.verticalSpeed = -8;
     }
     this.altitude += this.verticalSpeed * delta;
     const displayAlt = Math.max(0, Math.round(this.altitude));

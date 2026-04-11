@@ -276,6 +276,9 @@ export class PreLaunchScene {
     this.walkProgress = 0;
     this.boardingProgress = 0;
     this.time = 0;
+    this._walkMsg1 = false;
+    this._walkMsg2 = false;
+    this._boardMsg1 = false;
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
