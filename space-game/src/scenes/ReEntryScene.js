@@ -28,7 +28,7 @@ export class ReEntryScene {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000003);
     this.camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 5000);
-    this.camera.position.set(0, 3, 12);
+    this.camera.position.set(0, 5, 16);
 
     window.addEventListener('resize', this._onResize = () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -46,8 +46,9 @@ export class ReEntryScene {
     this.earth.position.set(0, -250, -100);
     this.scene.add(this.earth);
 
-    // Spacecraft
+    // Spacecraft (scaled up for visibility)
     this.spacecraft = createSpacecraft();
+    this.spacecraft.scale.setScalar(1.5);
     this.scene.add(this.spacecraft);
 
     // Heat shield glow effect
@@ -298,8 +299,8 @@ export class ReEntryScene {
     // Camera shake
     if (this.shakeIntensity > 0) {
       this.camera.position.x = (Math.random() - 0.5) * this.shakeIntensity;
-      this.camera.position.y = 3 + (Math.random() - 0.5) * this.shakeIntensity;
-      this.camera.position.z = 12 + (Math.random() - 0.5) * this.shakeIntensity * 0.5;
+      this.camera.position.y = 5 + (Math.random() - 0.5) * this.shakeIntensity;
+      this.camera.position.z = 16 + (Math.random() - 0.5) * this.shakeIntensity * 0.5;
     }
     this.camera.lookAt(this.spacecraft.position);
 

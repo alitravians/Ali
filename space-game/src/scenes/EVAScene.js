@@ -157,7 +157,7 @@ export class EVAScene {
     pack.position.set(0, 0, -0.35);
     group.add(pack);
 
-    group.scale.setScalar(0.5);
+    group.scale.setScalar(0.8);
     return group;
   }
 
@@ -205,18 +205,22 @@ export class EVAScene {
       this.gs.input.resetMouseDelta();
     }
 
-    // Camera
-    this.camera.position.copy(this.playerPos);
-    this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
-
-    // Astronaut follows camera slightly behind
+    // 3rd person camera - behind and above the astronaut
     this.astronaut.position.copy(this.playerPos);
-    this.astronaut.position.add(forward.clone().multiplyScalar(-0.5));
-    this.astronaut.position.y -= 0.3;
-    this.astronaut.rotation.y = this.yaw;
-    this.astronaut.visible = false; // First person
+    this.astronaut.rotation.y = this.yaw + Math.PI;
+    this.astronaut.visible = true;
+    // Gentle zero-G sway
+    this.astronaut.rotation.z = Math.sin(this.time * 0.8) * 0.05;
+
+    const camDist = 3;
+    const camHeight = 1.5;
+    const camTarget = this.playerPos.clone()
+      .sub(forward.clone().multiplyScalar(camDist))
+      .add(new THREE.Vector3(0, camHeight, 0));
+    this.camera.position.lerp(camTarget, delta * 6);
+    this.camera.lookAt(this.playerPos.clone().add(new THREE.Vector3(0, 0.3, 0)));
+    // Apply pitch
+    this.camera.rotation.x += this.pitch * 0.5;
 
     // Tether update
     const tetherPoints = [new THREE.Vector3(0, 0, 0), this.playerPos.clone()];

@@ -41,7 +41,7 @@ export class LandingScene {
     this.scene.background = new THREE.CanvasTexture(skyCanvas);
 
     this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 50000);
-    this.camera.position.set(15, 5, 20);
+    this.camera.position.set(12, 8, 18);
 
     window.addEventListener('resize', this._onResize = () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
@@ -74,9 +74,14 @@ export class LandingScene {
     this.ocean.position.y = -5;
     this.scene.add(this.ocean);
 
-    // Spacecraft (capsule coming down)
+    // Spacecraft (capsule coming down — scaled up, solar panels hidden for re-entry)
     this.spacecraft = createSpacecraft();
+    this.spacecraft.scale.setScalar(1.8);
     this.spacecraft.position.set(0, 50, 0);
+    // Hide solar panels (jettisoned before re-entry)
+    if (this.spacecraft.userData.solarPanels) {
+      this.spacecraft.userData.solarPanels.forEach(p => { p.visible = false; });
+    }
     this.scene.add(this.spacecraft);
 
     // Parachutes
@@ -234,11 +239,11 @@ export class LandingScene {
       }
     });
 
-    // Camera
+    // Camera (closer, better framing of the full capsule)
     this.camera.position.set(
-      15 + Math.sin(this.time * 0.2) * 3,
-      capsuleY + 8,
-      20 + Math.cos(this.time * 0.15) * 3
+      10 + Math.sin(this.time * 0.2) * 2,
+      capsuleY + 6,
+      15 + Math.cos(this.time * 0.15) * 2
     );
     this.camera.lookAt(this.spacecraft.position);
 
@@ -276,6 +281,11 @@ export class LandingScene {
     setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'هبوط ناجح! مرحى! سفن الإنقاذ في طريقها إليك. عمل رائع يا رائد الفضاء!', 0);
     }, 2000);
+
+    // NASA Reception message
+    setTimeout(() => {
+      this.gs.ui.showComm('وكالة ناسا', 'مبروك على العودة السالمة! فريق الاستقبال بانتظارك. ستخضع لفحص طبي أولي ثم مؤتمر صحفي.', 8000);
+    }, 6000);
 
     setTimeout(() => {
       this.gs.ui.addElement('landing-results', `

@@ -19,11 +19,14 @@ export class ISSInteriorScene {
     this.tasksCompleted = 0;
     this.totalTasks = 5;
     this.activeTask = null;
+    this.currentTaskData = null;
     this.dailySchedule = [];
     this.scheduleIndex = 0;
     this.dayTime = 0;
     this.emergencyActive = false;
     this.floatingObjects = [];
+    this.astronaut = null;
+    this.currentRoom = '';
   }
 
   async init(data = {}) {
@@ -41,8 +44,10 @@ export class ISSInteriorScene {
     this.interior = createISSInterior();
     this.scene.add(this.interior);
 
-    // Ambient light
-    this.scene.add(new THREE.AmbientLight(0x445566, 0.3));
+    // Much brighter ambient lighting
+    this.scene.add(new THREE.AmbientLight(0x889aaa, 0.7));
+    // Hemisphere light for natural feel
+    this.scene.add(new THREE.HemisphereLight(0xddeeff, 0x556666, 0.4));
 
     // Window view - stars
     this.starsOutside = createStarField(3000, 200);
@@ -53,10 +58,14 @@ export class ISSInteriorScene {
     this.earthOutside.position.set(50, -100, -50);
     this.scene.add(this.earthOutside);
 
-    // Floating objects (zero gravity feel)
+    // Reset floating objects array to prevent duplicates on replay
+    this.floatingObjects = [];
     this._createFloatingObjects();
 
-    // Player start position
+    // Create visible astronaut model (3rd person)
+    this._createAstronaut();
+
+    // Reset all state for clean re-entry
     this.playerPos.set(0, 0, 0);
     this.playerVel.set(0, 0, 0);
     this.yaw = Math.PI;
@@ -64,6 +73,10 @@ export class ISSInteriorScene {
     this.tasksCompleted = 0;
     this.time = 0;
     this.dayTime = 0;
+    this.emergencyActive = false;
+    this.activeTask = null;
+    this.currentTaskData = null;
+    this.currentRoom = 'معيشة';
 
     // Daily schedule
     this.dailySchedule = [
@@ -91,7 +104,7 @@ export class ISSInteriorScene {
     this.gs.ui.showCenterText('محطة الفضاء الدولية', 'مرحباً بك على متن المحطة', 3000);
 
     setTimeout(() => {
-      this.gs.ui.showComm('مركز التحكم', 'مرحباً بك في المحطة! ابدأ بتنفيذ جدول المهام اليومي. انقر على الشاشة للتحكم بالكاميرا.', 6000);
+      this.gs.ui.showComm('مركز التحكم', 'مرحباً بك في المحطة! استكشف الأقسام المختلفة. الممر الرئيسي يمتد يميناً ويساراً، والممر العرضي يمتد أماماً وخلفاً.', 7000);
       this._showSchedule();
       this._showISSSections();
     }, 3500);
@@ -114,6 +127,82 @@ export class ISSInteriorScene {
     }
   }
 
+  _createAstronaut() {
+    this.astronaut = new THREE.Group();
+
+    // Spacesuit body (torso)
+    const torsoGeo = new THREE.CylinderGeometry(0.25, 0.22, 0.6, 8);
+    const suitMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x444444, shininess: 40 });
+    const torso = new THREE.Mesh(torsoGeo, suitMat);
+    this.astronaut.add(torso);
+
+    // Helmet
+    const helmetGeo = new THREE.SphereGeometry(0.2, 12, 12);
+    const helmetMat = new THREE.MeshPhongMaterial({ color: 0xdddddd, specular: 0x888888, shininess: 100 });
+    const helmet = new THREE.Mesh(helmetGeo, helmetMat);
+    helmet.position.y = 0.45;
+    this.astronaut.add(helmet);
+
+    // Gold visor
+    const visorGeo = new THREE.SphereGeometry(0.18, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
+    const visorMat = new THREE.MeshPhongMaterial({
+      color: 0xcc8800, specular: 0xffaa00, shininess: 150,
+      transparent: true, opacity: 0.7
+    });
+    const visor = new THREE.Mesh(visorGeo, visorMat);
+    visor.position.y = 0.48;
+    visor.rotation.x = Math.PI * 0.3;
+    this.astronaut.add(visor);
+
+    // Life support backpack
+    const packGeo = new THREE.BoxGeometry(0.3, 0.4, 0.15);
+    const packMat = new THREE.MeshPhongMaterial({ color: 0xcccccc });
+    const pack = new THREE.Mesh(packGeo, packMat);
+    pack.position.set(0, 0.05, 0.2);
+    this.astronaut.add(pack);
+
+    // Arms
+    const armGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.5, 6);
+    [-1, 1].forEach(side => {
+      const arm = new THREE.Mesh(armGeo, suitMat);
+      arm.position.set(side * 0.32, -0.05, 0);
+      arm.rotation.z = side * 0.3;
+      this.astronaut.add(arm);
+
+      // Gloves
+      const gloveGeo = new THREE.SphereGeometry(0.06, 6, 6);
+      const gloveMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+      const glove = new THREE.Mesh(gloveGeo, gloveMat);
+      glove.position.set(side * 0.4, -0.28, 0);
+      this.astronaut.add(glove);
+    });
+
+    // Legs
+    const legGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.5, 6);
+    [-1, 1].forEach(side => {
+      const leg = new THREE.Mesh(legGeo, suitMat);
+      leg.position.set(side * 0.12, -0.52, 0);
+      this.astronaut.add(leg);
+
+      // Boots
+      const bootGeo = new THREE.BoxGeometry(0.1, 0.06, 0.15);
+      const bootMat = new THREE.MeshPhongMaterial({ color: 0x666666 });
+      const boot = new THREE.Mesh(bootGeo, bootMat);
+      boot.position.set(side * 0.12, -0.78, 0.02);
+      this.astronaut.add(boot);
+    });
+
+    // Flag patch (small colored square on arm)
+    const patchGeo = new THREE.BoxGeometry(0.08, 0.05, 0.01);
+    const patchMat = new THREE.MeshPhongMaterial({ color: 0x006633, emissive: 0x003311, emissiveIntensity: 0.3 });
+    const patch = new THREE.Mesh(patchGeo, patchMat);
+    patch.position.set(0.35, 0.1, -0.07);
+    this.astronaut.add(patch);
+
+    this.astronaut.scale.setScalar(1.2);
+    this.scene.add(this.astronaut);
+  }
+
   _createFloatingObjects() {
     const items = [
       { geo: new THREE.SphereGeometry(0.05, 8, 8), color: 0x3366ff, pos: [2, 0.5, 1] },
@@ -121,6 +210,10 @@ export class ISSInteriorScene {
       { geo: new THREE.SphereGeometry(0.04, 6, 6), color: 0x33ff66, pos: [5, -0.3, 0.8] },
       { geo: new THREE.CylinderGeometry(0.02, 0.02, 0.15, 6), color: 0xffff33, pos: [-8, 0.8, -1] },
       { geo: new THREE.BoxGeometry(0.1, 0.06, 0.03), color: 0xcccccc, pos: [10, 0.2, 0.5] },
+      // More floating objects in cross corridor
+      { geo: new THREE.SphereGeometry(0.03, 6, 6), color: 0xff33ff, pos: [0, 0.4, 6] },
+      { geo: new THREE.BoxGeometry(0.06, 0.06, 0.06), color: 0x33ffff, pos: [1, -0.2, -5] },
+      { geo: new THREE.CylinderGeometry(0.03, 0.03, 0.12, 6), color: 0xff9933, pos: [-1, 0.6, 8] },
     ];
     items.forEach(item => {
       const mesh = new THREE.Mesh(item.geo, new THREE.MeshPhongMaterial({ color: item.color }));
@@ -134,7 +227,6 @@ export class ISSInteriorScene {
 
   _showSchedule() {
     this.gs.ui.removeElement('schedule');
-    const current = this.dailySchedule[this.scheduleIndex];
     const items = this.dailySchedule.map((s, i) => {
       const state = i < this.scheduleIndex ? 'done' : i === this.scheduleIndex ? 'current' : 'pending';
       const color = state === 'done' ? '#00ff88' : state === 'current' ? '#00d4ff' : '#556677';
@@ -154,25 +246,36 @@ export class ISSInteriorScene {
 
   _showISSSections() {
     this.gs.ui.removeElement('sections-bar');
-    const sections = ['مختبر', 'معيشة', 'أبحاث', 'اتصالات', 'صيانة'];
-    const sectionX = [-15, -8, 0, 8, 15];
+    const sections = [
+      { label: 'مختبر', x: -20, z: 0 },
+      { label: 'معيشة', x: -5, z: 0 },
+      { label: 'صيانة', x: 5, z: 0 },
+      { label: 'تحكم', x: 20, z: 0 },
+      { label: 'أبحاث', x: 0, z: 8 },
+      { label: 'مراقبة', x: 0, z: -8 },
+    ];
+
     let closest = 0;
     let minDist = Infinity;
-    sectionX.forEach((x, i) => {
-      const d = Math.abs(this.playerPos.x - x);
+    sections.forEach((s, i) => {
+      const d = Math.sqrt(
+        Math.pow(this.playerPos.x - s.x, 2) +
+        Math.pow(this.playerPos.z - s.z, 2)
+      );
       if (d < minDist) { minDist = d; closest = i; }
     });
     this.currentSection = closest;
+    this.currentRoom = sections[closest].label;
 
     const bar = sections.map((s, i) =>
       `<span style="padding:4px 12px;border-radius:12px;font-size:0.75rem;
-        ${i === closest ? 'background:rgba(0,212,255,0.3);color:#00d4ff;border:1px solid rgba(0,212,255,0.4);' : 'color:#556677;'}">${s}</span>`
+        ${i === closest ? 'background:rgba(0,212,255,0.3);color:#00d4ff;border:1px solid rgba(0,212,255,0.4);' : 'color:#556677;'}">${s.label}</span>`
     ).join('');
 
     this.gs.ui.addElement('sections-bar', `
       <div style="position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
         display:flex;gap:8px;background:rgba(0,10,20,0.7);padding:6px 12px;border-radius:20px;
-        direction:rtl;">${bar}</div>
+        direction:rtl;flex-wrap:wrap;justify-content:center;">${bar}</div>
     `);
   }
 
@@ -212,7 +315,6 @@ export class ISSInteriorScene {
     if (!task) return;
 
     this.currentTaskData = task;
-
     this._renderTaskPanel(task);
   }
 
@@ -337,6 +439,41 @@ export class ISSInteriorScene {
     this._startTask('powerRepair');
   }
 
+  _clampPlayerPosition() {
+    const p = this.playerPos;
+
+    // Cross-shaped station: main corridor along X, cross corridor along Z
+    const inMainCorridor = Math.abs(p.z) <= 2.8;
+    const inCrossCorridor = Math.abs(p.x) <= 2.8;
+
+    if (inMainCorridor) {
+      p.x = THREE.MathUtils.clamp(p.x, -26, 26);
+    }
+    if (inCrossCorridor) {
+      p.z = THREE.MathUtils.clamp(p.z, -11, 11);
+    }
+
+    // If player is outside both corridors, push back to nearest valid position
+    if (!inMainCorridor && !inCrossCorridor) {
+      // Find closest corridor and snap to it
+      const distToMainZ = Math.abs(p.z) - 2.8;
+      const distToCrossX = Math.abs(p.x) - 2.8;
+      if (distToMainZ < distToCrossX) {
+        p.z = THREE.MathUtils.clamp(p.z, -2.8, 2.8);
+      } else {
+        p.x = THREE.MathUtils.clamp(p.x, -2.8, 2.8);
+      }
+    }
+
+    // Keep within cylinder radius (roughly)
+    const distFromCenter = Math.sqrt(p.y * p.y +
+      (inMainCorridor ? p.z * p.z : 0) +
+      (inCrossCorridor && !inMainCorridor ? p.x * p.x : 0)
+    );
+
+    p.y = THREE.MathUtils.clamp(p.y, -2.5, 2.5);
+  }
+
   update(delta) {
     this.time += delta;
     this.dayTime += delta;
@@ -360,10 +497,8 @@ export class ISSInteriorScene {
     // Apply velocity
     this.playerPos.add(this.playerVel.clone().multiplyScalar(delta * 10));
 
-    // Clamp inside station
-    this.playerPos.x = THREE.MathUtils.clamp(this.playerPos.x, -18, 18);
-    this.playerPos.y = THREE.MathUtils.clamp(this.playerPos.y, -2.5, 2.5);
-    this.playerPos.z = THREE.MathUtils.clamp(this.playerPos.z, -2.5, 2.5);
+    // Cross-shaped station bounds
+    this._clampPlayerPosition();
 
     // Mouse look
     if (this.gs.input.pointerLocked) {
@@ -373,11 +508,51 @@ export class ISSInteriorScene {
       this.gs.input.resetMouseDelta();
     }
 
-    // Camera
-    this.camera.position.copy(this.playerPos);
-    this.camera.rotation.order = 'YXZ';
-    this.camera.rotation.y = this.yaw;
-    this.camera.rotation.x = this.pitch;
+    // Update astronaut position and rotation
+    if (this.astronaut) {
+      this.astronaut.position.copy(this.playerPos);
+      this.astronaut.rotation.y = this.yaw + Math.PI; // face forward direction
+
+      // Gentle floating animation for zero-G feel
+      this.astronaut.position.y += Math.sin(this.time * 1.5) * 0.02;
+      this.astronaut.rotation.z = Math.sin(this.time * 0.8) * 0.03;
+    }
+
+    // 3rd person camera - behind and above the astronaut
+    const camDistance = 2.0;
+    const camHeight = 0.8;
+    const fwd = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const targetCamPos = this.playerPos.clone()
+      .sub(fwd.clone().multiplyScalar(camDistance))
+      .add(new THREE.Vector3(0, camHeight, 0));
+
+    // Clamp camera inside station too
+    const inMainForCam = Math.abs(targetCamPos.z) <= 2.8;
+    const inCrossForCam = Math.abs(targetCamPos.x) <= 2.8;
+    if (inMainForCam) {
+      targetCamPos.x = THREE.MathUtils.clamp(targetCamPos.x, -26, 26);
+    }
+    if (inCrossForCam) {
+      targetCamPos.z = THREE.MathUtils.clamp(targetCamPos.z, -11, 11);
+    }
+    if (!inMainForCam && !inCrossForCam) {
+      if (Math.abs(targetCamPos.z) - 2.8 < Math.abs(targetCamPos.x) - 2.8) {
+        targetCamPos.z = THREE.MathUtils.clamp(targetCamPos.z, -2.8, 2.8);
+      } else {
+        targetCamPos.x = THREE.MathUtils.clamp(targetCamPos.x, -2.8, 2.8);
+      }
+    }
+    targetCamPos.y = THREE.MathUtils.clamp(targetCamPos.y, -2.3, 2.5);
+
+    // Smooth camera follow
+    this.camera.position.lerp(targetCamPos, delta * 8);
+
+    // Camera looks at player with slight pitch offset
+    const lookTarget = this.playerPos.clone().add(new THREE.Vector3(0, 0.3, 0));
+    this.camera.lookAt(lookTarget);
+
+    // Apply pitch to camera
+    this.camera.rotation.x += this.pitch * 0.5;
 
     // Floating objects animation
     this.floatingObjects.forEach(obj => {
@@ -393,7 +568,7 @@ export class ISSInteriorScene {
     if (this.earthOutside) this.earthOutside.rotation.y += delta * 0.01;
 
     // Sections update
-    if (Math.floor(this.time) % 3 === 0) this._showISSSections();
+    if (Math.floor(this.time * 2) % 3 === 0) this._showISSSections();
 
     // F key for interaction
     if (input.isKey('KeyF') && !this.activeTask) {
@@ -401,7 +576,6 @@ export class ISSInteriorScene {
       if (schedule && schedule.task) {
         this._startTask(schedule.task);
       } else if (schedule && !schedule.task) {
-        // Non-task items: advance on F press
         this.gs.ui.showMessage(`${schedule.icon} ${schedule.name}`, 1500, 'info');
         this._advanceSchedule();
       }
@@ -420,7 +594,8 @@ export class ISSInteriorScene {
     this.gs.ui.showHUD({
       oxygen: this.gs.playerData.oxygen,
       energy: 95,
-      health: this.gs.playerData.health
+      health: this.gs.playerData.health,
+      section: this.currentRoom
     });
   }
 

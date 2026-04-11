@@ -77,40 +77,75 @@ export function createRocket() {
 export function createSpacecraft() {
   const group = new THREE.Group();
 
-  const capsuleGeo = new THREE.SphereGeometry(2.5, 24, 16, 0, Math.PI * 2, 0, Math.PI * 0.6);
-  const capsuleMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, specular: 0x555555, shininess: 80 });
-  const capsule = new THREE.Mesh(capsuleGeo, capsuleMat);
-  capsule.rotation.x = Math.PI;
-  group.add(capsule);
+  // Proper cone-shaped capsule (like Orion/Dragon) — no partial sphere cutoff
+  const coneGeo = new THREE.ConeGeometry(2.5, 3.5, 32);
+  const capsuleMat = new THREE.MeshPhongMaterial({ color: 0xdddddd, specular: 0x666666, shininess: 80 });
+  const cone = new THREE.Mesh(coneGeo, capsuleMat);
+  cone.position.y = 1.75;
+  group.add(cone);
 
-  const baseGeo = new THREE.CylinderGeometry(2.5, 2.2, 1.5, 24);
-  const baseMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
-  const base = new THREE.Mesh(baseGeo, baseMat);
-  base.position.y = -1;
-  group.add(base);
+  // Service/trunk section
+  const serviceGeo = new THREE.CylinderGeometry(2.5, 2.5, 1.2, 32);
+  const serviceMat = new THREE.MeshPhongMaterial({ color: 0x999999, specular: 0x333333 });
+  const service = new THREE.Mesh(serviceGeo, serviceMat);
+  service.position.y = -0.6;
+  group.add(service);
 
-  const shieldGeo = new THREE.CylinderGeometry(2.3, 2.5, 0.3, 24);
+  // Detail bands on capsule
+  const bandMat = new THREE.MeshPhongMaterial({ color: 0x555555 });
+  [0.5, 1.5, 2.5].forEach(y => {
+    const bandGeo = new THREE.TorusGeometry(1.2 + (3.5 - y) * 0.37, 0.04, 8, 32);
+    const band = new THREE.Mesh(bandGeo, bandMat);
+    band.position.y = y;
+    band.rotation.x = Math.PI / 2;
+    group.add(band);
+  });
+
+  // Heat shield (bottom)
+  const shieldGeo = new THREE.CylinderGeometry(2.5, 2.2, 0.4, 32);
   const shieldMat = new THREE.MeshPhongMaterial({ color: 0x443322, emissive: 0x110000, emissiveIntensity: 0.2 });
   const shield = new THREE.Mesh(shieldGeo, shieldMat);
-  shield.position.y = -1.8;
+  shield.position.y = -1.4;
   group.add(shield);
 
-  const windowGeo = new THREE.CircleGeometry(0.4, 16);
-  const windowMat = new THREE.MeshPhongMaterial({ color: 0x88ccff, emissive: 0x224466, transparent: true, opacity: 0.8 });
+  // Shield bottom cap
+  const shieldCapGeo = new THREE.CircleGeometry(2.2, 32);
+  const shieldCapMat = new THREE.MeshPhongMaterial({ color: 0x332211, side: THREE.DoubleSide });
+  const shieldCap = new THREE.Mesh(shieldCapGeo, shieldCapMat);
+  shieldCap.position.y = -1.6;
+  shieldCap.rotation.x = Math.PI / 2;
+  group.add(shieldCap);
+
+  // Windows (3 around the capsule at mid-height)
+  const windowGeo = new THREE.CircleGeometry(0.35, 16);
+  const windowMat = new THREE.MeshPhongMaterial({ color: 0x88ccff, emissive: 0x336688, transparent: true, opacity: 0.85 });
   for (let i = 0; i < 3; i++) {
     const win = new THREE.Mesh(windowGeo, windowMat);
     const angle = (i / 3) * Math.PI * 2;
-    win.position.set(Math.cos(angle) * 2.3, 0.5, Math.sin(angle) * 2.3);
+    win.position.set(Math.cos(angle) * 1.8, 1.2, Math.sin(angle) * 1.8);
     win.lookAt(win.position.clone().multiplyScalar(2));
     group.add(win);
   }
 
-  const dockGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.8, 16);
+  // Docking port on top
+  const dockGeo = new THREE.CylinderGeometry(0.5, 0.5, 0.8, 16);
   const dockMat = new THREE.MeshPhongMaterial({ color: 0x666666 });
   const dock = new THREE.Mesh(dockGeo, dockMat);
-  dock.position.y = 2;
+  dock.position.y = 3.9;
   group.add(dock);
 
+  // RCS thrusters (small nozzles around service module)
+  const rcsMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
+  for (let i = 0; i < 4; i++) {
+    const rcsGeo = new THREE.CylinderGeometry(0.08, 0.12, 0.2, 8);
+    const rcs = new THREE.Mesh(rcsGeo, rcsMat);
+    const angle = (i / 4) * Math.PI * 2;
+    rcs.position.set(Math.cos(angle) * 2.6, -0.3, Math.sin(angle) * 2.6);
+    rcs.rotation.z = Math.PI / 2;
+    group.add(rcs);
+  }
+
+  // Solar panels
   const solarGeo = new THREE.BoxGeometry(4, 0.05, 1.5);
   const solarMat = new THREE.MeshPhongMaterial({ color: 0x1a237e, specular: 0x4444ff, shininess: 100 });
   const solar1 = new THREE.Mesh(solarGeo, solarMat);
@@ -122,6 +157,7 @@ export function createSpacecraft() {
 
   group.userData.shield = shield;
   group.userData.shieldMat = shieldMat;
+  group.userData.solarPanels = [solar1, solar2];
 
   return group;
 }

@@ -18,8 +18,8 @@ export class InputManager {
       this.emit('keyup', e.code);
     });
     window.addEventListener('mousemove', (e) => {
-      this.mouseDX = e.movementX || 0;
-      this.mouseDY = e.movementY || 0;
+      this.mouseDX += e.movementX || 0;
+      this.mouseDY += e.movementY || 0;
       this.mouseX = e.clientX;
       this.mouseY = e.clientY;
     });
