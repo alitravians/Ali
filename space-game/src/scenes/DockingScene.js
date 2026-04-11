@@ -253,7 +253,7 @@ export class DockingScene {
 
       // Show pressure gauge
       let pressure = 0;
-      const pressInterval = setInterval(() => {
+      this._pressInterval = setInterval(() => {
         pressure += 2;
         this.gs.ui.removeElement('pressure-gauge');
         this.gs.ui.addElement('pressure-gauge', `
@@ -269,7 +269,8 @@ export class DockingScene {
         `);
 
         if (pressure >= 14.7) {
-          clearInterval(pressInterval);
+          clearInterval(this._pressInterval);
+          this._pressInterval = null;
           this._dockComplete();
         }
       }, 300);
@@ -340,6 +341,7 @@ export class DockingScene {
         });
         document.getElementById('btn-auto-dock')?.addEventListener('click', () => {
           this.gs.audio.playConfirm();
+          this.failed = false;
           this._softCapture();
         });
       }, 100));
@@ -353,6 +355,10 @@ export class DockingScene {
   async cleanup() {
     this._timeouts.forEach(t => clearTimeout(t));
     this._timeouts = [];
+    if (this._pressInterval) {
+      clearInterval(this._pressInterval);
+      this._pressInterval = null;
+    }
     window.removeEventListener('resize', this._onResize);
     this.gs.ui.clear();
   }
