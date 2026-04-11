@@ -595,8 +595,7 @@ class GameEngine {
             });
         }
 
-        // خصم التطوير ينتهي
-        this.upgradeDiscount = 0;
+        // خصم التطوير يُدار بواسطة نظام الأحداث (removeEventEffects)
 
         this.addLog(`--- الجولة ${this.round} - ${this.getPhase().name} ---`);
     }

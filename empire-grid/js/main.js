@@ -398,9 +398,14 @@ function placeBid() {
 }
 
 function passAuction() {
-    game.passAuction(game.currentPlayer.id);
-    const result = game.resolveAuction();
-    if (result) {
+    const result = game.passAuction(game.currentPlayer.id);
+    if (!result) {
+        // passAuction didn't auto-resolve, try manually
+        const manualResult = game.resolveAuction();
+        if (manualResult) {
+            ui.showNotification(`${manualResult.winner} فاز بالمزاد على ${manualResult.zone}!`, '🏛️');
+        }
+    } else {
         ui.showNotification(`${result.winner} فاز بالمزاد على ${result.zone}!`, '🏛️');
     }
     closeModal('auction-modal');

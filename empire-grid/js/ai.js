@@ -174,15 +174,15 @@ class AIPlayer {
         let myValue = offer.myMoney || 0;
         let theirValue = offer.theirMoney || 0;
 
-        if (offer.theirProperties) {
-            offer.theirProperties.forEach(zoneId => {
+        if (offer.myProperties) {
+            offer.myProperties.forEach(zoneId => {
                 const zone = game.map[zoneId];
                 myValue += (zone.currentValue || zone.price) * 1.1;
             });
         }
 
-        if (offer.myProperties) {
-            offer.myProperties.forEach(zoneId => {
+        if (offer.theirProperties) {
+            offer.theirProperties.forEach(zoneId => {
                 const zone = game.map[zoneId];
                 theirValue += (zone.currentValue || zone.price) * 1.1;
             });
