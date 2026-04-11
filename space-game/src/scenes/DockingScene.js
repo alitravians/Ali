@@ -78,6 +78,7 @@ export class DockingScene {
     this.docked = false;
     this.failed = false;
     this.time = 0;
+    this.attempts = 0;
 
     this.camera.position.set(0, 2, 5);
     this.camera.lookAt(0, 0, -50);
@@ -276,6 +277,8 @@ export class DockingScene {
             { key: 'S/↓', action: 'أسفل' },
             { key: 'A/←', action: 'يسار' },
             { key: 'D/→', action: 'يمين' },
+            { key: 'Q', action: 'تسريع الاقتراب' },
+            { key: 'E', action: 'إبطاء الاقتراب' },
           ]);
         });
         document.getElementById('btn-auto-dock')?.addEventListener('click', () => {

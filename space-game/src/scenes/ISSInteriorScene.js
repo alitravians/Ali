@@ -586,7 +586,10 @@ export class ISSInteriorScene {
       this.gs.playerData.oxygen -= delta * 0.5;
       if (this.gs.playerData.oxygen <= 0) {
         this.gs.playerData.oxygen = 0;
-        this.gs.ui.showMessage('⚠️ مستوى الأكسجين حرج!', 2000, 'danger');
+        if (!this._oxygenCriticalWarnTime || this.time - this._oxygenCriticalWarnTime > 3) {
+          this._oxygenCriticalWarnTime = this.time;
+          this.gs.ui.showMessage('⚠️ مستوى الأكسجين حرج!', 2000, 'danger');
+        }
       }
     }
 

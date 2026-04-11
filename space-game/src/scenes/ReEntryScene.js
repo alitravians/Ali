@@ -306,6 +306,7 @@ export class ReEntryScene {
 
     // Earth gets closer
     const earthScale = 1 + (408 - this.altitude) / 408 * 2;
+    this.earth.scale.setScalar(earthScale);
     this.earth.position.y = -250 + (408 - this.altitude) * 0.5;
     this.earth.rotation.y += delta * 0.005;
 
