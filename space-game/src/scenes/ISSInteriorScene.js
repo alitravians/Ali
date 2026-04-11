@@ -132,6 +132,7 @@ export class ISSInteriorScene {
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
+    this.gs.ui.showChatButton();
     this.gs.ui.showCenterText('محطة الفضاء الدولية', 'مرحباً بك على متن المحطة', 3000);
 
     setTimeout(() => {

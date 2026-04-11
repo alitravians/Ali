@@ -9,7 +9,7 @@ export class LandingScene {
     this.spacecraft = null;
     this.time = 0;
     this.altitude = 10000; // meters
-    this.verticalSpeed = -80; // m/s (after drogue)
+    this.verticalSpeed = -230; // m/s realistic drogue speed
     this.phase = 'drogue'; // drogue, main, final, retro, splashdown, recovery
     this.parachutes = [];
     this.drogueChutes = [];
@@ -21,6 +21,10 @@ export class LandingScene {
     this.recoveryHelicopters = [];
     this.dyeMarkerActive = false;
     this.retroFired = false;
+    this.retroParticles = null;
+    this.divers = [];
+    this.missionStartTime = Date.now();
+    this.bobbingPhase = 0;
   }
 
   async init(data = {}) {
@@ -31,6 +35,7 @@ export class LandingScene {
     this.parachutes = [];
     this.drogueChutes = [];
     this.recoveryHelicopters = [];
+    this.divers = [];
 
     // Sky gradient (atmospheric, getting bluer as we descend)
     const skyCanvas = document.createElement('canvas');
@@ -108,15 +113,21 @@ export class LandingScene {
     this.splashParticles.visible = false;
     this.scene.add(this.splashParticles);
 
+    // Retro rocket particles (hidden until final phase)
+    this.retroParticles = this._createRetroParticles();
+    this.retroParticles.visible = false;
+    this.scene.add(this.retroParticles);
+
     // State
     this.altitude = 10000;
-    this.verticalSpeed = -80;
+    this.verticalSpeed = -230; // realistic drogue speed
     this.phase = 'drogue';
     this.landed = false;
     this.time = 0;
     this.swayAngle = 0;
     this.retroFired = false;
     this.dyeMarkerActive = false;
+    this.bobbingPhase = 0;
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
@@ -124,8 +135,11 @@ export class LandingScene {
     this.gs.ui.showObjective('الهبوط بسلام في المحيط الهادئ');
 
     setTimeout(() => {
-      this.gs.ui.showComm('مركز التحكم', 'مظلات الكبح مفتوحة بنجاح! السرعة تنخفض من 230 م/ث إلى 80 م/ث. فتح المظلات الرئيسية على ارتفاع 3 كم.', 6000);
+      this.gs.ui.showComm('مركز التحكم — هيوستن', 'مظلات الكبح مفتوحة بنجاح! السرعة تنخفض من 230 م/ث إلى 80 م/ث. فتح المظلات الرئيسية على ارتفاع 3 كم.', 6000);
     }, 3000);
+
+    // Show chat button during landing
+    this.gs.ui.showChatButton();
   }
 
   _createDrogueChutes() {
@@ -207,7 +221,7 @@ export class LandingScene {
   }
 
   _createRecoveryFleet() {
-    // USS recovery ship
+    // USS recovery ships (3 ships at different distances)
     for (let i = 0; i < 3; i++) {
       const shipGroup = new THREE.Group();
 
@@ -229,7 +243,7 @@ export class LandingScene {
       bridge.position.set(0, 1.8, -3);
       shipGroup.add(bridge);
 
-      // Crane on deck (for capsule recovery)
+      // Crane on main ship (for capsule recovery)
       if (i === 0) {
         const craneGeo = new THREE.CylinderGeometry(0.15, 0.15, 6, 6);
         const crane = new THREE.Mesh(craneGeo, new THREE.MeshPhongMaterial({ color: 0xcc8800 }));
@@ -239,16 +253,15 @@ export class LandingScene {
         const craneArm = new THREE.Mesh(craneArmGeo, new THREE.MeshPhongMaterial({ color: 0xcc8800 }));
         craneArm.position.set(-1, 6.5, 4);
         shipGroup.add(craneArm);
-      }
 
-      // Helipad on main ship
-      if (i === 0) {
+        // Helipad
         const helipadGeo = new THREE.CircleGeometry(2, 16);
         const helipadMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
         const helipad = new THREE.Mesh(helipadGeo, helipadMat);
         helipad.rotation.x = -Math.PI / 2;
         helipad.position.set(0, 0.8, 3);
         shipGroup.add(helipad);
+
         // H marking
         const hGeo = new THREE.PlaneGeometry(1, 0.2);
         const hMat = new THREE.MeshBasicMaterial({ color: 0xffff00, side: THREE.DoubleSide });
@@ -256,6 +269,13 @@ export class LandingScene {
         h1.rotation.x = -Math.PI / 2;
         h1.position.set(0, 0.81, 3);
         shipGroup.add(h1);
+
+        // US flag on bridge
+        const flagGeo = new THREE.PlaneGeometry(0.8, 0.5);
+        const flagMat = new THREE.MeshBasicMaterial({ color: 0x0033aa, side: THREE.DoubleSide });
+        const flag = new THREE.Mesh(flagGeo, flagMat);
+        flag.position.set(0, 3.2, -3);
+        shipGroup.add(flag);
       }
 
       const angle = (i / 3) * Math.PI * 2 + 0.5;
@@ -270,6 +290,12 @@ export class LandingScene {
     heli.position.set(60, 20, 40);
     this.scene.add(heli);
     this.recoveryHelicopters.push(heli);
+
+    // Second helicopter
+    const heli2 = this._createHelicopter();
+    heli2.position.set(-50, 25, 30);
+    this.scene.add(heli2);
+    this.recoveryHelicopters.push(heli2);
   }
 
   _createHelicopter() {
@@ -291,17 +317,29 @@ export class LandingScene {
     rotor.position.y = 0.8;
     rotor.userData.isRotor = true;
     group.add(rotor);
+    // Second rotor blade
+    const rotor2 = new THREE.Mesh(rotorGeo, rotorMat);
+    rotor2.position.y = 0.8;
+    rotor2.rotation.y = Math.PI / 2;
+    rotor2.userData.isRotor = true;
+    group.add(rotor2);
     // Tail boom
     const tailGeo = new THREE.CylinderGeometry(0.15, 0.1, 3, 6);
     const tail = new THREE.Mesh(tailGeo, bodyMat);
     tail.position.set(0, 0, -2.5);
     tail.rotation.x = Math.PI / 2;
     group.add(tail);
+    // Tail rotor
+    const tailRotorGeo = new THREE.BoxGeometry(1.5, 0.03, 0.15);
+    const tailRotor = new THREE.Mesh(tailRotorGeo, rotorMat);
+    tailRotor.position.set(0, 0.3, -4);
+    tailRotor.userData.isRotor = true;
+    group.add(tailRotor);
     return group;
   }
 
   _createSplashParticles() {
-    const count = 300;
+    const count = 500;
     const geo = new THREE.BufferGeometry();
     const pos = new Float32Array(count * 3);
     const velocities = [];
@@ -311,31 +349,129 @@ export class LandingScene {
       pos[i * 3 + 1] = -4;
       pos[i * 3 + 2] = (Math.random() - 0.5) * 2;
       velocities.push({
-        x: (Math.random() - 0.5) * 8,
-        y: 3 + Math.random() * 8,
-        z: (Math.random() - 0.5) * 8
+        x: (Math.random() - 0.5) * 12,
+        y: 4 + Math.random() * 10,
+        z: (Math.random() - 0.5) * 12
       });
     }
 
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const mat = new THREE.PointsMaterial({
-      size: 0.3, color: 0xaaddff, transparent: true, opacity: 0.7
+      size: 0.35, color: 0xaaddff, transparent: true, opacity: 0.8
     });
     const points = new THREE.Points(geo, mat);
     points.userData.velocities = velocities;
     return points;
   }
 
+  _createRetroParticles() {
+    const count = 200;
+    const geo = new THREE.BufferGeometry();
+    const pos = new Float32Array(count * 3);
+    const colors = new Float32Array(count * 3);
+
+    for (let i = 0; i < count; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * 1.5;
+      pos[i * 3 + 1] = -3;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * 1.5;
+      // Orange/yellow flame colors
+      colors[i * 3] = 1;
+      colors[i * 3 + 1] = 0.4 + Math.random() * 0.5;
+      colors[i * 3 + 2] = Math.random() * 0.2;
+    }
+
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    const mat = new THREE.PointsMaterial({
+      size: 0.5, vertexColors: true, transparent: true, opacity: 0.9,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    });
+
+    return new THREE.Points(geo, mat);
+  }
+
+  _createDivers() {
+    // Create rescue divers in the water near capsule
+    for (let i = 0; i < 4; i++) {
+      const diverGroup = new THREE.Group();
+      
+      // Diver body (wetsuit)
+      const bodyGeo = new THREE.CylinderGeometry(0.12, 0.1, 0.5, 6);
+      const bodyMat = new THREE.MeshPhongMaterial({ color: 0x111111 });
+      diverGroup.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+      // Head
+      const headGeo = new THREE.SphereGeometry(0.1, 6, 6);
+      const headMat = new THREE.MeshPhongMaterial({ color: 0xddbb88 });
+      const head = new THREE.Mesh(headGeo, headMat);
+      head.position.y = 0.35;
+      diverGroup.add(head);
+
+      // Mask
+      const maskGeo = new THREE.BoxGeometry(0.12, 0.06, 0.08);
+      const maskMat = new THREE.MeshPhongMaterial({ color: 0x222222, specular: 0x888888 });
+      const mask = new THREE.Mesh(maskGeo, maskMat);
+      mask.position.set(0, 0.35, -0.08);
+      diverGroup.add(mask);
+
+      // Arms
+      [-1, 1].forEach(side => {
+        const armGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.3, 4);
+        const arm = new THREE.Mesh(armGeo, bodyMat);
+        arm.position.set(side * 0.15, 0.1, 0);
+        arm.rotation.z = side * 0.5;
+        diverGroup.add(arm);
+      });
+
+      const angle = (i / 4) * Math.PI * 2;
+      const dist = 5 + Math.random() * 3;
+      diverGroup.position.set(
+        Math.cos(angle) * dist,
+        -4.3,
+        Math.sin(angle) * dist
+      );
+      diverGroup.visible = false;
+      this.scene.add(diverGroup);
+      this.divers.push(diverGroup);
+    }
+  }
+
   update(delta) {
     if (this.phase === 'recovery') {
       this.time += delta;
+      this.bobbingPhase += delta;
+
+      // Capsule bobbing in water
+      this.spacecraft.position.y = -3.5 + Math.sin(this.bobbingPhase * 1.5) * 0.3;
+      this.spacecraft.rotation.z = Math.sin(this.bobbingPhase * 0.8) * 0.05;
+      this.spacecraft.rotation.x = Math.cos(this.bobbingPhase * 0.6) * 0.03;
+
       // Animate recovery helicopters
-      this.recoveryHelicopters.forEach(heli => {
+      this.recoveryHelicopters.forEach((heli, idx) => {
         heli.children.forEach(c => {
-          if (c.userData.isRotor) c.rotation.y += delta * 20;
+          if (c.userData.isRotor) c.rotation.y += delta * 25;
         });
-        heli.position.lerp(new THREE.Vector3(5, 8, 5), delta * 0.3);
+        const targetPos = idx === 0
+          ? new THREE.Vector3(5, 8, 5)
+          : new THREE.Vector3(-8, 12, -5);
+        heli.position.lerp(targetPos, delta * 0.3);
       });
+
+      // Animate divers swimming toward capsule
+      this.divers.forEach((diver, i) => {
+        if (!diver.visible) return;
+        const targetDist = 2 + i * 0.5;
+        const angle = (i / 4) * Math.PI * 2 + this.time * 0.1;
+        const targetPos = new THREE.Vector3(
+          this.spacecraft.position.x + Math.cos(angle) * targetDist,
+          -4.3 + Math.sin(this.time * 2 + i) * 0.1,
+          this.spacecraft.position.z + Math.sin(angle) * targetDist
+        );
+        diver.position.lerp(targetPos, delta * 0.5);
+        diver.rotation.y = angle + Math.PI;
+      });
+
       // Gentle camera
       this.camera.position.lerp(new THREE.Vector3(15, 3, 20), delta * 0.5);
       this.camera.lookAt(this.spacecraft.position);
@@ -351,7 +487,7 @@ export class LandingScene {
       this.phase = 'main';
       this.gs.audio.playConfirm();
       this.gs.ui.showCenterText('فتح المظلات الرئيسية', '3 مظلات رئيسية — إبطاء إلى 7 م/ث', 3000);
-      this.gs.ui.showComm('مركز التحكم', 'المظلات الرئيسية الثلاث مفتوحة بنجاح! انفصال مظلات الكبح. السرعة تنخفض إلى 7 م/ث.', 5000);
+      this.gs.ui.showComm('مركز التحكم — هيوستن', 'المظلات الرئيسية الثلاث مفتوحة بنجاح! انفصال مظلات الكبح. السرعة تنخفض إلى 7 م/ث. الكبسولة مستقرة.', 5000);
 
       // Hide drogue chutes
       this.drogueChutes.forEach(d => {
@@ -365,16 +501,20 @@ export class LandingScene {
         if (p.userData.lines) p.userData.lines.forEach(l => l.material.opacity = 0.6);
       });
 
-      this.verticalSpeed = -15;
+      this.verticalSpeed = -25; // main chutes slow to ~25 m/s initially
     }
 
     if (this.altitude < 300 && this.phase === 'main') {
       this.phase = 'final';
-      this.verticalSpeed = -7;
-      this.gs.ui.showComm('مركز التحكم', 'الارتفاع أقل من 300 متر! استعد للاصطدام بالماء. إطلاق صواريخ الكبح على ارتفاع متر واحد.', 5000);
+      this.verticalSpeed = -8; // final approach speed
+      this.gs.ui.showComm('مركز التحكم — هيوستن', 'الارتفاع أقل من 300 متر! استعد للاصطدام بالماء. إطلاق 6 صواريخ هبوط ناعم على ارتفاع متر واحد فوق السطح.', 5000);
     }
 
-    // Descent
+    // Descent with gradual deceleration
+    if (this.phase === 'main') {
+      // Gradually slow down as main chutes fully inflate
+      this.verticalSpeed = Math.max(-8, this.verticalSpeed + delta * 3);
+    }
     this.altitude += this.verticalSpeed * delta;
     const displayAlt = Math.max(0, Math.round(this.altitude));
 
@@ -436,17 +576,18 @@ export class LandingScene {
     this.camera.lookAt(this.spacecraft.position);
 
     // Helicopter rotor animation
-    this.recoveryHelicopters.forEach(heli => {
+    this.recoveryHelicopters.forEach((heli, idx) => {
       heli.children.forEach(c => {
-        if (c.userData.isRotor) c.rotation.y += delta * 15;
+        if (c.userData.isRotor) c.rotation.y += delta * 20;
       });
       // Helicopter circles near landing zone
       if (this.altitude < 2000) {
-        const hAngle = this.time * 0.3;
+        const hAngle = this.time * 0.3 + idx * Math.PI;
+        const dist = 35 + idx * 15;
         heli.position.set(
-          Math.cos(hAngle) * 40,
-          15 + Math.sin(this.time) * 2,
-          Math.sin(hAngle) * 40
+          Math.cos(hAngle) * dist,
+          12 + Math.sin(this.time + idx) * 3 + idx * 5,
+          Math.sin(hAngle) * dist
         );
         heli.rotation.y = hAngle + Math.PI / 2;
       }
@@ -455,12 +596,41 @@ export class LandingScene {
     // Ocean wave animation
     this._animateOcean(delta);
 
-    // Retro-rockets at 1 meter (like real Soyuz)
+    // Retro-rockets at 1 meter (like real Soyuz — 6 soft-landing engines)
     if (this.altitude <= 5 && !this.retroFired && this.phase === 'final') {
       this.retroFired = true;
-      this.verticalSpeed = -1.5; // Retro rockets slow to 1.5 m/s
+      this.verticalSpeed = -1.5; // Retro rockets cushion to 1.5 m/s like real Soyuz
       this.gs.audio.playConfirm();
-      this.gs.ui.showCenterText('🔥 صواريخ الكبح', 'Soft Landing Engines — إبطاء إلى 1.5 م/ث', 2000);
+      this.gs.ui.showCenterText('صواريخ الهبوط الناعم', '6 محركات — إبطاء إلى 1.5 م/ث', 2000);
+      this.gs.ui.showComm('مركز التحكم — هيوستن', 'صواريخ الهبوط الناعم أُطلقت! 6 محركات صلبة أبطأت السرعة إلى 5 كم/ساعة. استعد للاصطدام!', 3000);
+
+      // Show retro rocket effect
+      this.retroParticles.visible = true;
+      this.retroParticles.position.copy(this.spacecraft.position);
+      this.retroParticles.position.y -= 2;
+
+      // Retro rocket light
+      this.retroLight = new THREE.PointLight(0xff6600, 5, 15);
+      this.retroLight.position.copy(this.spacecraft.position);
+      this.retroLight.position.y -= 3;
+      this.scene.add(this.retroLight);
+    }
+
+    // Animate retro particles
+    if (this.retroParticles.visible) {
+      const pos = this.retroParticles.geometry.attributes.position.array;
+      for (let i = 0; i < pos.length; i += 3) {
+        pos[i] += (Math.random() - 0.5) * 0.3;
+        pos[i + 1] -= delta * (8 + Math.random() * 5);
+        pos[i + 2] += (Math.random() - 0.5) * 0.3;
+        if (pos[i + 1] < -8) {
+          pos[i] = this.spacecraft.position.x + (Math.random() - 0.5) * 1.5;
+          pos[i + 1] = this.spacecraft.position.y - 2;
+          pos[i + 2] = this.spacecraft.position.z + (Math.random() - 0.5) * 1.5;
+        }
+      }
+      this.retroParticles.geometry.attributes.position.needsUpdate = true;
+      this.retroParticles.position.set(0, 0, 0); // particles use world coords now
     }
 
     // HUD
@@ -472,8 +642,8 @@ export class LandingScene {
     // Phase indicator
     this.gs.ui.removeElement('landing-phase');
     const phaseText = {
-      drogue: '🪂 مظلات الكبح',
-      main: '🪂🪂🪂 المظلات الرئيسية',
+      drogue: '🪂 مظلات الكبح — 2 مظلات',
+      main: '🪂🪂🪂 المظلات الرئيسية — 3 مظلات',
       final: '⚡ الهبوط النهائي',
     }[this.phase] || '';
     if (phaseText) {
@@ -483,6 +653,7 @@ export class LandingScene {
           <div style="color:#00d4ff;font-size:0.85rem;">${phaseText}</div>
           <div style="color:#88aabb;font-size:0.7rem;">السرعة: ${Math.abs(this.verticalSpeed).toFixed(1)} م/ث</div>
           <div style="color:#88aabb;font-size:0.7rem;">الارتفاع: ${displayAlt} م</div>
+          ${this.retroFired ? '<div style="color:#ff8800;font-size:0.7rem;animation:pulse 0.5s infinite;">🔥 صواريخ الكبح — نشطة</div>' : ''}
         </div>
       `);
     }
@@ -493,6 +664,10 @@ export class LandingScene {
       this.altitude = 0;
       this.spacecraft.position.y = -3.5;
       this.gs.audio.playSuccess();
+
+      // Hide retro effects
+      this.retroParticles.visible = false;
+      if (this.retroLight) this.retroLight.intensity = 0;
 
       // Splash effect
       this.splashParticles.visible = true;
@@ -509,6 +684,9 @@ export class LandingScene {
       dye.position.set(this.spacecraft.position.x, -4.9, this.spacecraft.position.z);
       this.scene.add(dye);
 
+      // Create rescue divers
+      this._createDivers();
+
       // Hide parachutes (collapsed in water)
       setTimeout(() => {
         this.parachutes.forEach(p => {
@@ -518,7 +696,7 @@ export class LandingScene {
         });
       }, 2000);
 
-      this._showLandingComplete();
+      this._showLandingSequence();
     }
   }
 
@@ -533,71 +711,63 @@ export class LandingScene {
     this.ocean.geometry.computeVertexNormals();
   }
 
-  _showLandingComplete() {
+  _showLandingSequence() {
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
     this.gs.ui.showCenterText('هبوط ناجح!', 'Splashdown — المحيط الهادئ', 0);
 
-    // Sequence of recovery messages
+    // Sequence of realistic recovery messages
     setTimeout(() => {
-      this.gs.ui.showComm('مركز التحكم', 'هبوط ناجح! الكبسولة مستقرة في الماء. سفن الإنقاذ في طريقها إليك!', 6000);
+      this.gs.ui.showComm('مركز التحكم — هيوستن', 'هيوستن تؤكد: هبوط ناجح! الكبسولة مستقرة في وضع عمودي. إشارة البيكون نشطة. سفن الإنقاذ USS تتجه إليك.', 7000);
     }, 2000);
 
     setTimeout(() => {
-      this.gs.ui.showComm('سفينة الإنقاذ', 'نراك على الرادار! فريق الغطاسين جاهز. الوصول خلال 5 دقائق.', 5000);
+      // Show divers
+      this.divers.forEach(d => { d.visible = true; });
+      this.gs.ui.showComm('قائد فريق الإنقاذ', 'فريق الغطاسين البحرية في الماء! نقترب من الكبسولة. تأمين طوق الطفو حول الكبسولة.', 6000);
     }, 8000);
 
     setTimeout(() => {
-      this.gs.ui.showComm('وكالة ناسا', 'مبروك يا رائد الفضاء! مهمة ناجحة بالكامل. فريق الاستقبال الطبي بانتظارك على السفينة.', 8000);
+      this.gs.ui.showComm('سفينة الإنقاذ USS', 'الرافعة جاهزة لسحب الكبسولة. فتح الفتحة خلال دقائق. الفريق الطبي على أهبة الاستعداد.', 6000);
     }, 14000);
+
+    setTimeout(() => {
+      this.gs.ui.showComm('وكالة ناسا — مدير المهمة', 'مبروك يا رائد الفضاء! مهمة ناجحة بالكامل. أنت بطل! فريق الاستقبال الطبي جاهز على سطح السفينة. أحسنت!', 8000);
+    }, 20000);
 
     // Start recovery phase
     setTimeout(() => {
       this.phase = 'recovery';
     }, 5000);
 
+    // Show professional game ending after recovery sequence
     setTimeout(() => {
-      this.gs.ui.addElement('landing-results', `
-        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-          background:rgba(0,15,30,0.92);border:1px solid rgba(0,212,255,0.3);border-radius:15px;
-          padding:30px 40px;text-align:center;direction:rtl;backdrop-filter:blur(15px);max-width:500px;">
-          <div style="font-size:2rem;margin-bottom:10px;">🏆</div>
-          <div style="font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:1.5rem;margin-bottom:15px;">
-            المهمة مكتملة بنجاح!
-          </div>
-          <div style="color:#cceeff;font-size:0.9rem;line-height:2;margin-bottom:15px;">
-            <div>🚀 إطلاق ناجح من مركز كينيدي</div>
-            <div>🛸 ملاحة فضائية ومناورة مدارية</div>
-            <div>🔗 التحام دقيق بمحطة الفضاء الدولية</div>
-            <div>🔬 تنفيذ المهام العلمية والأبحاث</div>
-            <div>🧑‍🚀 خروج ناجح إلى الفضاء (EVA)</div>
-            <div>🔥 دخول الغلاف الجوي (1600°C)</div>
-            <div>🪂 هبوط بالمظلات وصواريخ الكبح</div>
-            <div>🌊 هبوط في المحيط الهادئ</div>
-          </div>
-          <div style="color:#88aabb;font-size:0.8rem;margin-bottom:15px;border-top:1px solid rgba(0,212,255,0.2);padding-top:12px;">
-            <div>📋 التقرير: سيتم نقلك لسفينة الإنقاذ</div>
-            <div>🏥 فحص طبي أولي على السفينة</div>
-            <div>📸 مؤتمر صحفي في مركز جونسون الفضائي</div>
-          </div>
-          <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
-            <button class="btn-space btn-space-primary" style="padding:10px 25px;" id="btn-new-mission">🚀 مهمة جديدة</button>
-            <button class="btn-space" style="padding:10px 25px;" id="btn-main-menu">🏠 القائمة الرئيسية</button>
-          </div>
-        </div>
-      `);
+      const missionDuration = Math.round((Date.now() - this.missionStartTime) / 60000);
+      this.gs.ui.showGameEnding({
+        missionTime: missionDuration > 0 ? `${missionDuration} دقيقة` : '4 ساعات و 23 دقيقة',
+        maxAltitude: '408 كم',
+        maxSpeed: '27,576 كم/ساعة',
+        maxGForce: '4.2G',
+        maxHeat: '1,600°C',
+        experiments: 3,
+        evaTime: '45 دقيقة'
+      });
 
       setTimeout(() => {
         document.getElementById('btn-new-mission')?.addEventListener('click', () => {
           this.gs.audio.playConfirm();
           this.gs.switchScene('preLaunch', { mode: 'story' });
         });
+        document.getElementById('btn-free-mode')?.addEventListener('click', () => {
+          this.gs.audio.playConfirm();
+          this.gs.switchScene('preLaunch', { mode: 'free' });
+        });
         document.getElementById('btn-main-menu')?.addEventListener('click', () => {
           this.gs.audio.playConfirm();
           this.gs.switchScene('mainMenu');
         });
       }, 100);
-    }, 18000);
+    }, 28000);
   }
 
   render(renderer) {

@@ -296,82 +296,155 @@ export class PreLaunchScene {
   _createAstronaut() {
     this.astronaut = new THREE.Group();
 
-    // Orange launch/entry suit (ACES - like real astronauts wear to the pad)
+    // Orange ACES (Advanced Crew Escape Suit) — worn to the pad
     const suitColor = 0xff6600;
     const suitMat = new THREE.MeshPhongMaterial({ color: suitColor, specular: 0x884400, shininess: 30 });
+    const darkMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
 
-    // Torso
-    const torsoGeo = new THREE.CylinderGeometry(0.3, 0.28, 0.8, 8);
+    // Torso (upper body)
+    const torsoGeo = new THREE.CylinderGeometry(0.32, 0.28, 0.85, 12);
     const torso = new THREE.Mesh(torsoGeo, suitMat);
     this.astronaut.add(torso);
 
-    // Helmet (white, carrying it or wearing it)
-    const helmetGeo = new THREE.SphereGeometry(0.22, 12, 12);
-    const helmetMat = new THREE.MeshPhongMaterial({ color: 0xeeeeee, specular: 0x888888, shininess: 100 });
+    // Collar / neck ring
+    const neckRingGeo = new THREE.TorusGeometry(0.2, 0.04, 8, 16);
+    const neckRingMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, metalness: 0.8 });
+    const neckRing = new THREE.Mesh(neckRingGeo, neckRingMat);
+    neckRing.position.y = 0.42;
+    neckRing.rotation.x = Math.PI / 2;
+    this.astronaut.add(neckRing);
+
+    // Helmet (white, polycarbonate)
+    const helmetGeo = new THREE.SphereGeometry(0.24, 16, 16);
+    const helmetMat = new THREE.MeshPhongMaterial({ color: 0xf0f0f0, specular: 0xaaaaaa, shininess: 120 });
     const helmet = new THREE.Mesh(helmetGeo, helmetMat);
-    helmet.position.y = 0.55;
+    helmet.position.y = 0.58;
     this.astronaut.add(helmet);
 
-    // Visor
-    const visorGeo = new THREE.SphereGeometry(0.19, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
+    // Visor (gold-tinted for sun protection)
+    const visorGeo = new THREE.SphereGeometry(0.21, 16, 10, 0, Math.PI * 2, 0, Math.PI * 0.5);
     const visorMat = new THREE.MeshPhongMaterial({
       color: 0x223344, specular: 0x88aacc, shininess: 150,
-      transparent: true, opacity: 0.6
+      transparent: true, opacity: 0.55, envMapIntensity: 0.8
     });
     const visor = new THREE.Mesh(visorGeo, visorMat);
-    visor.position.y = 0.58;
+    visor.position.y = 0.6;
     visor.rotation.x = Math.PI * 0.25;
     this.astronaut.add(visor);
 
-    // Arms
-    const armGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.55, 6);
-    [-1, 1].forEach(side => {
-      const arm = new THREE.Mesh(armGeo, suitMat);
-      arm.position.set(side * 0.35, -0.05, 0);
-      arm.rotation.z = side * 0.15;
-      arm.userData.side = side;
-      this.astronaut.add(arm);
+    // Comms cap inside helmet (visible through visor)
+    const commCapGeo = new THREE.SphereGeometry(0.16, 8, 8);
+    const commCapMat = new THREE.MeshPhongMaterial({ color: 0x553311 });
+    const commCap = new THREE.Mesh(commCapGeo, commCapMat);
+    commCap.position.set(0, 0.56, -0.02);
+    this.astronaut.add(commCap);
 
-      // Gloves
-      const gloveGeo = new THREE.SphereGeometry(0.07, 6, 6);
-      const gloveMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
-      const glove = new THREE.Mesh(gloveGeo, gloveMat);
-      glove.position.set(side * 0.38, -0.32, 0);
-      this.astronaut.add(glove);
+    // Arms with upper and lower segments for better animation
+    this._arms = [];
+    [-1, 1].forEach(side => {
+      const armGroup = new THREE.Group();
+      armGroup.position.set(side * 0.35, 0.15, 0);
+      armGroup.userData.side = side;
+      armGroup.userData.isArm = true;
+
+      // Upper arm
+      const upperArmGeo = new THREE.CylinderGeometry(0.09, 0.08, 0.32, 8);
+      const upperArm = new THREE.Mesh(upperArmGeo, suitMat);
+      upperArm.position.y = -0.16;
+      armGroup.add(upperArm);
+
+      // Lower arm
+      const lowerArmGeo = new THREE.CylinderGeometry(0.075, 0.065, 0.30, 8);
+      const lowerArm = new THREE.Mesh(lowerArmGeo, suitMat);
+      lowerArm.position.y = -0.40;
+      armGroup.add(lowerArm);
+
+      // Glove (black)
+      const gloveGeo = new THREE.SphereGeometry(0.065, 8, 8);
+      const glove = new THREE.Mesh(gloveGeo, darkMat);
+      glove.position.y = -0.55;
+      armGroup.add(glove);
+
+      // Wrist ring
+      const wristGeo = new THREE.TorusGeometry(0.06, 0.015, 6, 12);
+      const wrist = new THREE.Mesh(wristGeo, neckRingMat);
+      wrist.position.y = -0.47;
+      wrist.rotation.x = Math.PI / 2;
+      armGroup.add(wrist);
+
+      this.astronaut.add(armGroup);
+      this._arms.push(armGroup);
     });
 
-    // Legs
-    const legGeo = new THREE.CylinderGeometry(0.1, 0.09, 0.6, 6);
+    // Legs with upper and lower segments
+    this._legs = [];
     [-1, 1].forEach(side => {
-      const leg = new THREE.Mesh(legGeo, suitMat);
-      leg.position.set(side * 0.14, -0.65, 0);
-      leg.userData.side = side;
-      leg.userData.isLeg = true;
-      this.astronaut.add(leg);
+      const legGroup = new THREE.Group();
+      legGroup.position.set(side * 0.14, -0.42, 0);
+      legGroup.userData.side = side;
+      legGroup.userData.isLeg = true;
 
-      // Boots
-      const bootGeo = new THREE.BoxGeometry(0.12, 0.08, 0.18);
-      const bootMat = new THREE.MeshPhongMaterial({ color: 0x222222 });
-      const boot = new THREE.Mesh(bootGeo, bootMat);
-      boot.position.set(side * 0.14, -0.97, 0.02);
-      this.astronaut.add(boot);
+      // Upper leg (thigh)
+      const thighGeo = new THREE.CylinderGeometry(0.11, 0.10, 0.35, 8);
+      const thigh = new THREE.Mesh(thighGeo, suitMat);
+      thigh.position.y = -0.17;
+      legGroup.add(thigh);
+
+      // Lower leg (shin)
+      const shinGeo = new THREE.CylinderGeometry(0.095, 0.085, 0.35, 8);
+      const shin = new THREE.Mesh(shinGeo, suitMat);
+      shin.position.y = -0.50;
+      legGroup.add(shin);
+
+      // Boot (bulkier)
+      const bootGeo = new THREE.BoxGeometry(0.14, 0.10, 0.22);
+      const boot = new THREE.Mesh(bootGeo, darkMat);
+      boot.position.set(0, -0.70, 0.02);
+      legGroup.add(boot);
+
+      this.astronaut.add(legGroup);
+      this._legs.push(legGroup);
     });
 
-    // NASA patch on chest
-    const patchGeo = new THREE.CircleGeometry(0.06, 12);
+    // Suit details: pressure gauge on left wrist
+    const gaugeGeo = new THREE.BoxGeometry(0.06, 0.04, 0.04);
+    const gaugeMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const gauge = new THREE.Mesh(gaugeGeo, gaugeMat);
+    gauge.position.set(-0.45, -0.25, 0.06);
+    this.astronaut.add(gauge);
+
+    // NASA meatball patch on chest
+    const patchGeo = new THREE.CircleGeometry(0.07, 16);
     const patchMat = new THREE.MeshBasicMaterial({ color: 0x0033aa });
     const patch = new THREE.Mesh(patchGeo, patchMat);
-    patch.position.set(0.15, 0.15, -0.28);
+    patch.position.set(0.15, 0.18, -0.28);
     this.astronaut.add(patch);
 
-    // Mission patch on arm
-    const missionPatchGeo = new THREE.BoxGeometry(0.1, 0.07, 0.01);
-    const missionPatchMat = new THREE.MeshBasicMaterial({ color: 0xcc0000 });
+    // American flag patch on left arm
+    const flagGeo = new THREE.PlaneGeometry(0.08, 0.05);
+    const flagMat = new THREE.MeshBasicMaterial({ color: 0xcc0000, side: THREE.DoubleSide });
+    const flag = new THREE.Mesh(flagGeo, flagMat);
+    flag.position.set(-0.42, 0.08, 0);
+    flag.rotation.y = Math.PI / 2;
+    this.astronaut.add(flag);
+
+    // Mission patch on right arm
+    const missionPatchGeo = new THREE.CircleGeometry(0.05, 12);
+    const missionPatchMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 });
     const missionPatch = new THREE.Mesh(missionPatchGeo, missionPatchMat);
-    missionPatch.position.set(0.4, 0.1, 0);
+    missionPatch.position.set(0.42, 0.08, 0);
+    missionPatch.rotation.y = -Math.PI / 2;
     this.astronaut.add(missionPatch);
 
-    this.astronaut.scale.setScalar(1.5);
+    // Life support connector on chest
+    const connGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.06, 8);
+    const connMat = new THREE.MeshPhongMaterial({ color: 0x888888 });
+    const conn = new THREE.Mesh(connGeo, connMat);
+    conn.position.set(-0.1, 0.05, -0.3);
+    conn.rotation.x = Math.PI / 2;
+    this.astronaut.add(conn);
+
+    this.astronaut.scale.setScalar(1.6);
     this.astronaut.position.copy(this.walkPath[0]);
     this.scene.add(this.astronaut);
   }
@@ -528,15 +601,23 @@ export class PreLaunchScene {
       this.astronaut.position.copy(pos);
       this.astronaut.position.y = pos.y + Math.abs(Math.sin(this.time * 5)) * 0.05; // Walking bounce
 
-      // Walking animation for legs and arms
-      this.astronaut.children.forEach(child => {
-        if (child.userData.isLeg) {
-          child.rotation.x = Math.sin(this.time * 6 + (child.userData.side * Math.PI)) * 0.3;
-        }
-        if (child.userData.side && !child.userData.isLeg) {
-          child.rotation.x = Math.sin(this.time * 6 + (child.userData.side * Math.PI + Math.PI)) * 0.2;
-        }
-      });
+      // Realistic walking animation — smoother sinusoidal leg/arm swing
+      const walkCycle = this.time * 4.5; // walking cadence
+      if (this._legs) {
+        this._legs.forEach(leg => {
+          const phase = leg.userData.side * Math.PI;
+          leg.rotation.x = Math.sin(walkCycle + phase) * 0.35;
+        });
+      }
+      if (this._arms) {
+        this._arms.forEach(arm => {
+          const phase = arm.userData.side * Math.PI + Math.PI; // opposite to legs
+          arm.rotation.x = Math.sin(walkCycle + phase) * 0.25;
+          arm.rotation.z = arm.userData.side * 0.08; // slight outward angle
+        });
+      }
+      // Subtle torso sway
+      this.astronaut.rotation.z = Math.sin(walkCycle) * 0.02;
 
       // Astronaut faces forward along path
       if (this.walkProgress < 0.99) {

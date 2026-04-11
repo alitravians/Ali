@@ -118,6 +118,7 @@ export class ReEntryScene {
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
+    this.gs.ui.showChatButton();
 
     if (this.mode === 'challenge') {
       this.phase = 'deorbit';
@@ -409,9 +410,9 @@ export class ReEntryScene {
       if (input.isBackward()) this.entryAngle = Math.max(-8, this.entryAngle - delta * 2);
 
       // Descent rate depends on angle and altitude
-      const descentRate = 3 + Math.abs(this.entryAngle) * 2.5;
+      const descentRate = 5 + Math.abs(this.entryAngle) * 4;
       this.altitude -= delta * descentRate;
-      this.speed = Math.max(0, this.speed - delta * 0.25);
+      this.speed = Math.max(0, this.speed - delta * 0.4);
 
       // G-force calculation (realistic: peaks at 4-5G during re-entry)
       if (this.altitude < 100 && this.altitude > 25) {
@@ -489,9 +490,10 @@ export class ReEntryScene {
       }
 
       // Transition to descent phase
-      if (this.altitude <= 25) {
+      if (this.altitude <= 25 && this.phase !== 'descent') {
         this.phase = 'descent';
         this.heatLevel = 0;
+        this.isBlackout = false;
         this.fireParticles.visible = false;
         this.plasmaTrail.visible = false;
         this.ionTrail.visible = false;
@@ -508,8 +510,8 @@ export class ReEntryScene {
     }
 
     if (this.phase === 'descent') {
-      this.altitude -= delta * 2;
-      this.speed = Math.max(0, this.speed - delta * 0.5);
+      this.altitude -= delta * 5;
+      this.speed = Math.max(0, this.speed - delta * 0.8);
       this.shakeIntensity = Math.max(0, this.shakeIntensity - delta * 0.1);
 
       // Drogue chute at 10km
@@ -521,7 +523,8 @@ export class ReEntryScene {
       }
 
       // Transition to landing scene
-      if (this.altitude <= 5) {
+      if (this.altitude <= 5 && !this._transitioning) {
+        this._transitioning = true;
         this.gs.ui.showCenterText('المظلات الرئيسية', 'Main Chutes Deployed', 2000);
         setTimeout(() => {
           this.gs.switchScene('landing', { mode: this.mode, entryAngle: this.entryAngle });

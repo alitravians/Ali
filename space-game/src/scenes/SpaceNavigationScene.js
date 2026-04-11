@@ -71,6 +71,7 @@ export class SpaceNavigationScene {
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
+    this.gs.ui.showChatButton();
     this.gs.ui.showCenterText('الملاحة الفضائية', 'التوجه نحو محطة الفضاء الدولية', 3000);
     this.gs.ui.showObjective('اقترب من محطة الفضاء الدولية');
     this.gs.ui.showControls([

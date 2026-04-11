@@ -188,6 +188,7 @@ export class EVAScene {
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
+    this.gs.ui.showChatButton();
     this.gs.ui.showCenterText('خروج إلى الفضاء', 'EVA — نشاط خارج المركبة', 3000);
     this.gs.ui.showObjective('أصلح المواقع المحددة على المحطة — أسلاك، إلكترونيات، مستشعرات');
 
