@@ -606,18 +606,18 @@ class GameEngine {
             switch (effect.type) {
                 case 'zone_value':
                     this.map.filter(z => z.type === effect.zoneType).forEach(z => {
-                        z.tempValueBonus = Math.max(0, (z.tempValueBonus || 0) - effect.change);
+                        z.tempValueBonus = (z.tempValueBonus || 0) - effect.change;
                         z.currentValue = Math.round(z.price * (1 + z.tempValueBonus));
                     });
                     break;
                 case 'zone_income':
                     this.map.filter(z => z.type === effect.zoneType).forEach(z => {
-                        z.tempIncomeBonus = Math.max(0, (z.tempIncomeBonus || 0) - effect.change);
+                        z.tempIncomeBonus = (z.tempIncomeBonus || 0) - effect.change;
                     });
                     break;
                 case 'all_value':
                     this.map.filter(z => z.price > 0).forEach(z => {
-                        z.tempValueBonus = Math.max(0, (z.tempValueBonus || 0) - effect.change);
+                        z.tempValueBonus = (z.tempValueBonus || 0) - effect.change;
                         z.currentValue = Math.round(z.price * (1 + z.tempValueBonus));
                     });
                     break;

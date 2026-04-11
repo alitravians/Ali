@@ -13,6 +13,7 @@ let characterSelectQueue = [];
 let currentCharSelectIndex = 0;
 let takenCharacters = [];
 let setupPlayers = [];
+let previousScreen = null;
 
 // ============ التهيئة ============
 window.addEventListener('DOMContentLoaded', () => {
@@ -30,6 +31,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
 // ============ التنقل بين الشاشات ============
 function showScreen(screenId) {
+    const current = document.querySelector('.screen.active');
+    if (current) previousScreen = current.id;
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const screen = document.getElementById(screenId);
     if (screen) screen.classList.add('active');
@@ -337,6 +340,16 @@ function toggleLeaderboard() {
 
 function toggleSettings() {
     showScreen('settings-screen');
+}
+
+function goBack() {
+    if (game.gameStarted && !game.gameOver) {
+        showScreen('game-screen');
+    } else if (previousScreen) {
+        showScreen(previousScreen);
+    } else {
+        showScreen('main-menu');
+    }
 }
 
 function endTurn() {
