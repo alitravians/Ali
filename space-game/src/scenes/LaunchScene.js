@@ -20,6 +20,7 @@ export class LaunchScene {
     this.rumbleSound = null;
     this.mode = 'story';
     this.boostersSeparated = false;
+    this._timeouts = [];
   }
 
   async init(data = {}) {
@@ -81,9 +82,9 @@ export class LaunchScene {
     this.gs.ui.addGlobalStyles();
     this.gs.ui.showCenterText('إطلاق!', 'بدء الصعود', 2000);
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'الإقلاع تم بنجاح! جميع المحركات تعمل بكامل طاقتها.', 4000);
-    }, 2500);
+    }, 2500));
   }
 
   _createSmoke() {
@@ -180,9 +181,9 @@ export class LaunchScene {
       this.gs.ui.showCenterText('الوصول إلى المدار', 'انعدام الجاذبية', 3000);
       this.gs.ui.showComm('مركز التحكم', 'إيقاف المحركات الرئيسية. أنت الآن في المدار! استعد للملاحة نحو المحطة.', 5000);
 
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.gs.switchScene('spaceNavigation', { mode: this.mode });
-      }, 5000);
+      }, 5000));
     }
 
     // Camera follow
@@ -222,6 +223,8 @@ export class LaunchScene {
   }
 
   async cleanup() {
+    this._timeouts.forEach(t => clearTimeout(t));
+    this._timeouts = [];
     window.removeEventListener('resize', this._onResize);
     if (this.rumbleSound) {
       try { this.rumbleSound.source.stop(); } catch(e) {}

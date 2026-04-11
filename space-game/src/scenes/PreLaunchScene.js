@@ -24,6 +24,7 @@ export class PreLaunchScene {
     this.engineGlow = null;
     this.smokeParticles = [];
     this.launchPadLights = [];
+    this._timeouts = [];
   }
 
   async init(data = {}) {
@@ -291,9 +292,9 @@ export class PreLaunchScene {
     // Show initial walking instruction
     this.gs.ui.showCenterText('مركز كينيدي للفضاء', 'يوم الإطلاق — التوجه إلى منصة الإطلاق', 4000);
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'صباح الخير يا رائد الفضاء! حان وقت التوجه إلى منصة الإطلاق. الصاروخ جاهز ومنتظرك.', 6000);
-    }, 2000);
+    }, 2000));
 
     this.gs.ui.showControls([
       { key: 'W/↑', action: 'المشي للأمام' },
@@ -562,12 +563,12 @@ export class PreLaunchScene {
         </div>
       </div>
     `);
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       document.getElementById('btn-start-boarding')?.addEventListener('click', () => {
         this.gs.audio.playConfirm();
         this._startBoarding();
       });
-    }, 100);
+    }, 100));
   }
 
   _startBoarding() {
@@ -644,11 +645,11 @@ export class PreLaunchScene {
         if (statusEl) {
           statusEl.innerHTML = '<span style="color:rgba(0,255,120,0.8);">جميع الأنظمة جاهزة للإطلاق ✓</span>';
         }
-        setTimeout(() => {
+        this._timeouts.push(setTimeout(() => {
           this.gs.audio.playConfirm();
           this.gs.ui.showComm('مدير الإطلاق', 'جميع الأنظمة GO. بدء العد التنازلي النهائي!', 4000);
           this._startCountdown();
-        }, 1500);
+        }, 1500));
         return;
       }
       const check = checks[checkIndex];
@@ -771,9 +772,9 @@ export class PreLaunchScene {
         this.gs.ui.showCenterText('وصلت إلى برج الإطلاق', 'جاري تحضير إحاطة المهمة...', 3000);
         this.phase = 'arrived';
 
-        setTimeout(() => {
+        this._timeouts.push(setTimeout(() => {
           this._showBriefing();
-        }, 3500);
+        }, 3500));
       }
     }
 
@@ -915,10 +916,10 @@ export class PreLaunchScene {
           this.gs.ui.showCenterText('داخل الكبسولة', 'إغلاق الفتحة — بدء فحص الأنظمة', 3000);
 
           this.phase = 'seated';
-          setTimeout(() => {
+          this._timeouts.push(setTimeout(() => {
             this.gs.ui.showComm('مركز التحكم', 'الفتحة مغلقة ومؤمنة. بدء فحص أنظمة ما قبل الإطلاق.', 5000);
             this._startSystemsCheck();
-          }, 4000);
+          }, 4000));
         }
       }
     }
@@ -956,9 +957,9 @@ export class PreLaunchScene {
 
         if (this.countdownValue <= 0) {
           this.gs.audio.playConfirm();
-          setTimeout(() => {
+          this._timeouts.push(setTimeout(() => {
             this.gs.switchScene('launch', { mode: this.mode });
-          }, 500);
+          }, 500));
         }
       }
 
@@ -994,6 +995,8 @@ export class PreLaunchScene {
   }
 
   async cleanup() {
+    this._timeouts.forEach(t => clearTimeout(t));
+    this._timeouts = [];
     window.removeEventListener('resize', this._onResize);
     if (this._systemsCheckInterval) {
       clearInterval(this._systemsCheckInterval);

@@ -17,6 +17,7 @@ export class SpaceNavigationScene {
     this.spacecraftSpeed = new THREE.Vector3();
     this.mode = 'story';
     this.ambience = null;
+    this._timeouts = [];
   }
 
   async init(data = {}) {
@@ -85,9 +86,9 @@ export class SpaceNavigationScene {
       { key: 'E/Shift', action: 'أسفل' },
     ]);
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'محطة الفضاء الدولية على مسافة 50 كم. عدّل مسارك واقترب بحذر.', 5000);
-    }, 3500);
+    }, 3500));
   }
 
   update(delta) {
@@ -168,9 +169,9 @@ export class SpaceNavigationScene {
       this._transitioning = true;
       this.gs.audio.playConfirm();
       this.gs.ui.showCenterText('بدء الالتحام', 'Docking Sequence Initiated', 2000);
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.gs.switchScene('docking', { mode: this.mode });
-      }, 2500);
+      }, 2500));
     }
   }
 
@@ -179,6 +180,8 @@ export class SpaceNavigationScene {
   }
 
   async cleanup() {
+    this._timeouts.forEach(t => clearTimeout(t));
+    this._timeouts = [];
     window.removeEventListener('resize', this._onResize);
     try {
       if (this.ambience) { this.ambience.osc1.stop(); this.ambience.osc2.stop(); }

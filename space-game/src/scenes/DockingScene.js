@@ -20,6 +20,7 @@ export class DockingScene {
     this.failed = false;
     this.mode = 'story';
     this.attempts = 0;
+    this._timeouts = [];
   }
 
   async init(data = {}) {
@@ -99,9 +100,9 @@ export class DockingScene {
 
     this._showDockingHUD();
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'بدء إجراءات الالتحام. حافظ على المحاذاة مع الحلقة الخضراء واقترب ببطء.', 5000);
-    }, 3500);
+    }, 3500));
   }
 
   _showDockingHUD() {
@@ -226,11 +227,11 @@ export class DockingScene {
     this.gs.ui.clear();
     this.gs.ui.showCenterText('التحام ناجح!', 'أحسنت! تم الالتحام بمحطة الفضاء الدولية بنجاح', 0);
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'عمل ممتاز! الالتحام تم بنجاح. يمكنك الآن دخول المحطة.', 5000);
-    }, 2000);
+    }, 2000));
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.addElement('dock-continue', `
         <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);">
           <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:11px 28px;" id="btn-enter-iss">
@@ -239,13 +240,13 @@ export class DockingScene {
           </button>
         </div>
       `);
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         document.getElementById('btn-enter-iss')?.addEventListener('click', () => {
           this.gs.audio.playConfirm();
           this.gs.switchScene('issInterior', { mode: this.mode });
         });
-      }, 100);
-    }, 3000);
+      }, 100));
+    }, 3000));
   }
 
   _dockFail() {
@@ -257,7 +258,7 @@ export class DockingScene {
     this.gs.ui.showCenterText('فشل الالتحام', reason, 0);
     this.gs.ui.showMessage(`محاولة ${this.attempts} — ${reason}`, 3000, 'danger');
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.addElement('retry', `
         <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:12px;">
           <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:10px 24px;" id="btn-retry">
@@ -270,7 +271,7 @@ export class DockingScene {
           </button>
         </div>
       `);
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         document.getElementById('btn-retry')?.addEventListener('click', () => {
           this.gs.audio.playBeep();
           this.distance = 30;
@@ -294,8 +295,8 @@ export class DockingScene {
           this.gs.audio.playConfirm();
           this._dockSuccess();
         });
-      }, 100);
-    }, 2000);
+      }, 100));
+    }, 2000));
   }
 
   render(renderer) {
@@ -303,6 +304,8 @@ export class DockingScene {
   }
 
   async cleanup() {
+    this._timeouts.forEach(t => clearTimeout(t));
+    this._timeouts = [];
     window.removeEventListener('resize', this._onResize);
     this.gs.ui.clear();
   }
