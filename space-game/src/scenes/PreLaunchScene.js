@@ -18,6 +18,8 @@ export class PreLaunchScene {
     this.walkProgress = 0; // 0 to 1
     this.walkPath = [];
     this.boardingProgress = 0;
+    this.boardingPhase = 'elevator';
+    this._groundOffset = 1.87;
     this.cameraShake = 0;
     this.engineGlow = null;
     this.smokeParticles = [];
@@ -265,8 +267,8 @@ export class PreLaunchScene {
       new THREE.Vector3(0, 0, 0),     // Near pad base
       new THREE.Vector3(0, 0, -10),   // At pad entrance
       new THREE.Vector3(2, 2.5, -20), // Climbing stairs
-      new THREE.Vector3(2, 2.5, -25), // On pad
-      new THREE.Vector3(0, 2.5, -25), // At rocket base
+      new THREE.Vector3(5, 2.5, -25), // On pad, heading to tower
+      new THREE.Vector3(10, 2.5, -25), // At tower/elevator base
     ];
 
     // Create astronaut character (after walkPath is defined)
@@ -279,6 +281,9 @@ export class PreLaunchScene {
     this._walkMsg1 = false;
     this._walkMsg2 = false;
     this._boardMsg1 = false;
+    this._boardMsg2 = false;
+    this._boardMsg3 = false;
+    this.boardingPhase = 'elevator';
 
     this.gs.ui.clear();
     this.gs.ui.addGlobalStyles();
@@ -447,8 +452,64 @@ export class PreLaunchScene {
     conn.rotation.x = Math.PI / 2;
     this.astronaut.add(conn);
 
+    // Face visible through visor (skin tone)
+    const faceGeo = new THREE.SphereGeometry(0.16, 12, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    const faceMat = new THREE.MeshPhongMaterial({ color: 0xd4a574 });
+    const face = new THREE.Mesh(faceGeo, faceMat);
+    face.position.set(0, 0.56, 0.04);
+    face.rotation.x = Math.PI * 0.15;
+    this.astronaut.add(face);
+
+    // PLSS backpack (life support system)
+    const backpackGeo = new THREE.BoxGeometry(0.38, 0.42, 0.16);
+    const backpackMat = new THREE.MeshPhongMaterial({ color: 0xdd5500 });
+    const backpack = new THREE.Mesh(backpackGeo, backpackMat);
+    backpack.position.set(0, 0.10, 0.27);
+    this.astronaut.add(backpack);
+    // Backpack straps
+    [-1, 1].forEach(side => {
+      const strapGeo = new THREE.BoxGeometry(0.03, 0.55, 0.025);
+      const strap = new THREE.Mesh(strapGeo, darkMat);
+      strap.position.set(side * 0.12, 0.15, 0.12);
+      this.astronaut.add(strap);
+    });
+    // Backpack top handle
+    const handleGeo = new THREE.TorusGeometry(0.06, 0.015, 6, 12, Math.PI);
+    const handle = new THREE.Mesh(handleGeo, neckRingMat);
+    handle.position.set(0, 0.33, 0.27);
+    this.astronaut.add(handle);
+
+    // Utility belt
+    const beltGeo = new THREE.TorusGeometry(0.27, 0.025, 6, 24);
+    const beltMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
+    const belt = new THREE.Mesh(beltGeo, beltMat);
+    belt.position.y = -0.30;
+    belt.rotation.x = Math.PI / 2;
+    this.astronaut.add(belt);
+
+    // Belt pouches
+    [-1, 1].forEach(side => {
+      const pouchGeo = new THREE.BoxGeometry(0.06, 0.08, 0.05);
+      const pouch = new THREE.Mesh(pouchGeo, darkMat);
+      pouch.position.set(side * 0.25, -0.30, -0.08);
+      this.astronaut.add(pouch);
+    });
+
+    // Shoulder communication antenna
+    const antennaGeo = new THREE.CylinderGeometry(0.008, 0.008, 0.15, 6);
+    const antennaMat = new THREE.MeshPhongMaterial({ color: 0xaaaaaa });
+    const antenna = new THREE.Mesh(antennaGeo, antennaMat);
+    antenna.position.set(-0.30, 0.50, 0);
+    antenna.rotation.z = Math.PI * 0.15;
+    this.astronaut.add(antenna);
+    const antennaTipGeo = new THREE.SphereGeometry(0.015, 6, 6);
+    const antennaTip = new THREE.Mesh(antennaTipGeo, new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    antennaTip.position.set(-0.32, 0.57, 0);
+    this.astronaut.add(antennaTip);
+
     this.astronaut.scale.setScalar(1.6);
     this.astronaut.position.copy(this.walkPath[0]);
+    this.astronaut.position.y += this._groundOffset;
     this.scene.add(this.astronaut);
   }
 
@@ -489,7 +550,7 @@ export class PreLaunchScene {
           </div>
           <div style="text-align:center;margin-top:20px;">
             <button class="btn-space btn-space-primary" style="font-size:1.1rem;padding:12px 40px;" id="btn-start-boarding">
-              ▶ صعود المركبة
+              ▶ ركوب المصعد إلى الكبسولة
             </button>
           </div>
         </div>
@@ -508,8 +569,32 @@ export class PreLaunchScene {
     this.phase = 'boarding';
     this.boardingProgress = 0;
 
-    this.gs.ui.showCenterText('صعود المركبة', 'تسلق السلم نحو الكبسولة...', 3000);
-    this.gs.ui.showComm('فني المنصة', 'مرحباً بك يا قائد! ساعدك في تأمين أحزمة الأمان. المركبة بحالة ممتازة.', 5000);
+    this.gs.ui.showCenterText('ركوب المصعد', 'الصعود إلى مستوى ذراع الوصول...', 3000);
+    this.gs.ui.showComm('فني المنصة', 'المصعد جاهز. سنصعد إلى ذراع الوصول — ارتفاع 65 متر.', 5000);
+
+    // Create elevator cage visual
+    this._elevatorCage = new THREE.Group();
+    const cageFloor = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 0.1, 3),
+      new THREE.MeshPhongMaterial({ color: 0x666655 })
+    );
+    this._elevatorCage.add(cageFloor);
+    // Cage railing posts
+    const railMat = new THREE.MeshPhongMaterial({ color: 0x888877 });
+    [[-1.4, 0], [1.4, 0], [-1.4, -1.4], [1.4, -1.4], [-1.4, 1.4], [1.4, 1.4]].forEach(([x, z]) => {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 3, 6), railMat);
+      post.position.set(x, 1.5, z);
+      this._elevatorCage.add(post);
+    });
+    // Cage top
+    const cageTop = new THREE.Mesh(
+      new THREE.BoxGeometry(3, 0.08, 3),
+      new THREE.MeshPhongMaterial({ color: 0x666655 })
+    );
+    cageTop.position.y = 3;
+    this._elevatorCage.add(cageTop);
+    this._elevatorCage.position.set(10, 2.5, -25);
+    this.scene.add(this._elevatorCage);
   }
 
   _startSystemsCheck() {
@@ -603,7 +688,7 @@ export class PreLaunchScene {
       // Update astronaut position along path
       const pos = this._getPathPosition(this.walkProgress);
       this.astronaut.position.copy(pos);
-      this.astronaut.position.y = pos.y + Math.abs(Math.sin(this.time * 5)) * 0.05; // Walking bounce
+      this.astronaut.position.y = pos.y + this._groundOffset + Math.abs(Math.sin(this.time * 5)) * 0.05; // Walking bounce + height offset
 
       // Realistic walking animation — smoother sinusoidal leg/arm swing
       const walkCycle = this.time * 4.5; // walking cadence
@@ -664,7 +749,7 @@ export class PreLaunchScene {
       if (this.walkProgress >= 1) {
         this.gs.ui.removeElement('walk-progress');
         this.gs.audio.playConfirm();
-        this.gs.ui.showCenterText('وصلت إلى منصة الإطلاق', 'جاري تحضير إحاطة المهمة...', 3000);
+        this.gs.ui.showCenterText('وصلت إلى برج الإطلاق', 'جاري تحضير إحاطة المهمة...', 3000);
         this.phase = 'arrived';
 
         setTimeout(() => {
@@ -674,33 +759,143 @@ export class PreLaunchScene {
     }
 
     if (this.phase === 'boarding') {
-      this.boardingProgress += delta * 0.15;
+      this.boardingProgress += delta * 0.12;
 
-      // Animate astronaut climbing into rocket
-      const boardY = 2.5 + this.boardingProgress * 30;
-      this.astronaut.position.set(2, boardY, -25);
-      this.astronaut.rotation.y = -Math.PI / 2;
+      if (this.boardingPhase === 'elevator') {
+        // Elevator ride up the launch tower
+        const startY = 2.5;
+        const endY = 32;
+        const t = Math.min(1, this.boardingProgress);
+        // Smooth ease-in-out
+        const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        const elevatorY = THREE.MathUtils.lerp(startY, endY, eased);
 
-      // Camera follows upward
-      this.camera.position.lerp(new THREE.Vector3(12, boardY + 5, -15), delta * 2);
-      this.camera.lookAt(new THREE.Vector3(0, boardY, -25));
+        this.astronaut.position.set(10, elevatorY + this._groundOffset, -25);
+        this.astronaut.rotation.y = -Math.PI / 2; // Face outward
 
-      if (this.boardingProgress > 0.3 && !this._boardMsg1) {
-        this._boardMsg1 = true;
-        this.gs.ui.showComm('فني المنصة', 'أحزمة الأمان مثبتة. إغلاق الفتحة.', 4000);
+        // Move elevator cage with astronaut
+        if (this._elevatorCage) {
+          this._elevatorCage.position.y = elevatorY;
+        }
+
+        // Standing still in elevator — reset limbs
+        if (this._legs) this._legs.forEach(l => { l.rotation.x = 0; });
+        if (this._arms) this._arms.forEach(a => { a.rotation.x = 0; a.rotation.z = a.userData.side * 0.05; });
+
+        // Camera follows elevator from the side
+        this.camera.position.lerp(new THREE.Vector3(22, elevatorY + 5, -15), delta * 2);
+        this.camera.lookAt(new THREE.Vector3(10, elevatorY, -25));
+
+        if (!this._boardMsg1 && this.boardingProgress > 0.2) {
+          this._boardMsg1 = true;
+          this.gs.ui.showComm('فني المنصة', 'نصعد الآن... الارتفاع ' + Math.floor(elevatorY) + ' متر. منظر رائع من هنا!', 4000);
+        }
+
+        // Show elevator progress
+        this.gs.ui.removeElement('boarding-progress');
+        this.gs.ui.addElement('boarding-progress', `
+          <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
+            <div style="color:#cceeff;font-size:0.85rem;margin-bottom:5px;">المصعد — الارتفاع: ${Math.floor(elevatorY)} متر</div>
+            <div style="width:250px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;">
+              <div style="width:${t * 100}%;height:100%;background:linear-gradient(90deg,#00d4ff,#0088ff);border-radius:3px;"></div>
+            </div>
+          </div>
+        `);
+
+        if (this.boardingProgress >= 1) {
+          this.boardingPhase = 'access_arm';
+          this.boardingProgress = 0;
+          this.gs.ui.removeElement('boarding-progress');
+          this.gs.audio.playConfirm();
+          this.gs.ui.showCenterText('ذراع الوصول', 'المشي عبر ذراع الوصول إلى فتحة الكبسولة', 3000);
+          // Remove elevator cage
+          if (this._elevatorCage) {
+            this.scene.remove(this._elevatorCage);
+            this._elevatorCage = null;
+          }
+        }
       }
 
-      if (this.boardingProgress >= 1) {
-        // Astronaut inside rocket, hide astronaut
-        this.astronaut.visible = false;
-        this.gs.audio.playConfirm();
-        this.gs.ui.showCenterText('داخل الكبسولة', 'إغلاق الفتحة — بدء فحص الأنظمة', 3000);
+      else if (this.boardingPhase === 'access_arm') {
+        // Walk across crew access arm from tower (x=10) to near capsule (x=2)
+        const t = Math.min(1, this.boardingProgress * 1.5);
+        const armX = THREE.MathUtils.lerp(10, 2, t);
+        this.astronaut.position.set(armX, 32 + this._groundOffset, -25);
+        this.astronaut.rotation.y = Math.PI; // Face toward capsule
 
-        this.phase = 'seated';
-        setTimeout(() => {
-          this.gs.ui.showComm('مركز التحكم', 'الفتحة مغلقة ومؤمنة. بدء فحص أنظمة ما قبل الإطلاق.', 5000);
-          this._startSystemsCheck();
-        }, 4000);
+        // Walking animation on the arm
+        const walkCycle = this.time * 4.5;
+        if (this._legs) {
+          this._legs.forEach(leg => {
+            leg.rotation.x = Math.sin(walkCycle + leg.userData.side * Math.PI) * 0.30;
+          });
+        }
+        if (this._arms) {
+          this._arms.forEach(arm => {
+            arm.rotation.x = Math.sin(walkCycle + arm.userData.side * Math.PI + Math.PI) * 0.20;
+            arm.rotation.z = arm.userData.side * 0.08;
+          });
+        }
+        this.astronaut.rotation.z = Math.sin(walkCycle) * 0.015;
+
+        // Camera from the side showing the walk across the arm
+        this.camera.position.lerp(new THREE.Vector3(15, 35, -18), delta * 1.5);
+        this.camera.lookAt(new THREE.Vector3(5, 32, -25));
+
+        if (!this._boardMsg2 && this.boardingProgress > 0.3) {
+          this._boardMsg2 = true;
+          this.gs.ui.showComm('فني المنصة', 'الكبسولة أمامك مباشرة. استعد لدخول الفتحة.', 4000);
+        }
+
+        if (this.boardingProgress >= 0.7) {
+          this.boardingPhase = 'entering';
+          this.boardingProgress = 0;
+          this.gs.ui.showCenterText('دخول الكبسولة', 'الدخول عبر فتحة الكبسولة وتأمين المقعد', 3000);
+        }
+      }
+
+      else if (this.boardingPhase === 'entering') {
+        // Astronaut enters the capsule hatch
+        const t = Math.min(1, this.boardingProgress * 1.5);
+        const enterScale = THREE.MathUtils.lerp(1.6, 0.3, t);
+
+        // Move toward capsule center and shrink (entering hatch)
+        this.astronaut.position.set(
+          THREE.MathUtils.lerp(2, 0, t),
+          THREE.MathUtils.lerp(32 + this._groundOffset, 33, t * 0.5),
+          -25
+        );
+        this.astronaut.scale.setScalar(enterScale);
+        this.astronaut.rotation.x = t * -0.6; // Lean forward to duck into hatch
+        this.astronaut.rotation.z = 0;
+
+        // Stop limb animation — reaching forward
+        if (this._legs) this._legs.forEach(l => { l.rotation.x = 0; });
+        if (this._arms) this._arms.forEach(a => { a.rotation.x = -0.3 * t; a.rotation.z = a.userData.side * 0.15; });
+
+        // Camera zooms in on hatch area
+        this.camera.position.lerp(new THREE.Vector3(8, 34, -20), delta * 2);
+        this.camera.lookAt(new THREE.Vector3(1, 32, -25));
+
+        if (!this._boardMsg3 && this.boardingProgress > 0.2) {
+          this._boardMsg3 = true;
+          this.gs.ui.showComm('فني المنصة', 'مرحباً بك في الكبسولة! سأساعدك في تأمين أحزمة الأمان.', 5000);
+        }
+
+        if (this.boardingProgress >= 0.7) {
+          // Astronaut inside rocket
+          this.astronaut.visible = false;
+          this.astronaut.scale.setScalar(1.6); // Reset scale
+          this.astronaut.rotation.x = 0;
+          this.gs.audio.playConfirm();
+          this.gs.ui.showCenterText('داخل الكبسولة', 'إغلاق الفتحة — بدء فحص الأنظمة', 3000);
+
+          this.phase = 'seated';
+          setTimeout(() => {
+            this.gs.ui.showComm('مركز التحكم', 'الفتحة مغلقة ومؤمنة. بدء فحص أنظمة ما قبل الإطلاق.', 5000);
+            this._startSystemsCheck();
+          }, 4000);
+        }
       }
     }
 
@@ -779,6 +974,10 @@ export class PreLaunchScene {
     if (this._systemsCheckInterval) {
       clearInterval(this._systemsCheckInterval);
       this._systemsCheckInterval = null;
+    }
+    if (this._elevatorCage) {
+      this.scene.remove(this._elevatorCage);
+      this._elevatorCage = null;
     }
     this.gs.ui.clear();
   }
