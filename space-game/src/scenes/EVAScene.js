@@ -31,7 +31,7 @@ export class EVAScene {
 
   async init(data = {}) {
     this.mode = data.mode || 'story';
-    this.suitEquipped = data.suitEquipped || true;
+    this.suitEquipped = data.suitEquipped ?? true;
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000003);
     this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 0.05, 3000);
@@ -436,7 +436,7 @@ export class EVAScene {
       `);
 
       // Complete current step
-      if (stepProgress >= 100) {
+      if (this.repairProgress >= 100) {
         this.repairProgress = 0;
         nearTarget.currentStep++;
         this.gs.audio.playBeep();
