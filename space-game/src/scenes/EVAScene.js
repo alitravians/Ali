@@ -168,7 +168,10 @@ export class EVAScene {
     // Oxygen decreases
     this.oxygenTimer -= delta * 0.3;
     if (this.oxygenTimer < 20) {
-      this.gs.ui.showMessage('⚠️ أكسجين منخفض! عد إلى المحطة!', 2000, 'danger');
+      if (!this._oxygenWarnTime || this.time - this._oxygenWarnTime > 3) {
+        this._oxygenWarnTime = this.time;
+        this.gs.ui.showMessage('⚠️ أكسجين منخفض! عد إلى المحطة!', 2000, 'danger');
+      }
     }
 
     // Movement in space (zero-G)

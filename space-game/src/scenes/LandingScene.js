@@ -22,6 +22,9 @@ export class LandingScene {
     this.mode = data.mode || 'story';
     this.scene = new THREE.Scene();
 
+    // Reset parachutes array to prevent duplicates on replay
+    this.parachutes = [];
+
     // Sky gradient
     const skyCanvas = document.createElement('canvas');
     skyCanvas.width = 2;

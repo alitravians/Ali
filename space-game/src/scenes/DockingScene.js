@@ -196,9 +196,12 @@ export class DockingScene {
     // Update HUD
     this._showDockingHUD();
 
-    // Warnings
+    // Warnings (throttled to avoid DOM spam)
     if (this.approachSpeed > 1 && this.distance < 10) {
-      this.gs.ui.showMessage('⚠️ سرعة الاقتراب عالية! أبطئ!', 1000, 'warning');
+      if (!this._speedWarnTime || this.time - this._speedWarnTime > 1.5) {
+        this._speedWarnTime = this.time;
+        this.gs.ui.showMessage('⚠️ سرعة الاقتراب عالية! أبطئ!', 1000, 'warning');
+      }
     }
 
     // Check docking

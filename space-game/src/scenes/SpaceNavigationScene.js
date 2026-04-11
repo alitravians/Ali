@@ -61,6 +61,9 @@ export class SpaceNavigationScene {
     this.time = 0;
     this.distanceToISS = 50;
 
+    // Reset speed to prevent residual velocity on replay
+    this.spacecraftSpeed = new THREE.Vector3();
+
     // Space ambience sound
     this.ambience = this.gs.audio.playSpaceAmbience();
     this.engineHum = this.gs.audio.playEngineHum();
