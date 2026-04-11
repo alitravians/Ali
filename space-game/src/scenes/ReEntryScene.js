@@ -605,8 +605,8 @@ export class ReEntryScene {
 
     // Entry angle + heat + G-force display
     this.gs.ui.removeElement('angle-display');
-    const angleColor = (this.entryAngle >= -4 && this.entryAngle <= -0.5) ? '#00ff88' : '#ff4444';
-    const gColor = this.gForce > 4 ? '#ff4444' : this.gForce > 3 ? '#ffaa00' : '#00ff88';
+    const angleColor = (this.entryAngle >= -4 && this.entryAngle <= -0.5) ? '#4ade80' : '#ff4444';
+    const gColor = this.gForce > 4 ? '#ff4444' : this.gForce > 3 ? '#ffaa00' : '#4ade80';
     this.gs.ui.addElement('angle-display', `
       <div style="position:fixed;bottom:100px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
         <div style="font-family:'Orbitron',monospace;color:${angleColor};font-size:1.2rem;">

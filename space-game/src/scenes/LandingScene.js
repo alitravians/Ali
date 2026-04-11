@@ -697,8 +697,8 @@ export class LandingScene {
     if (phaseText) {
       this.gs.ui.addElement('landing-phase', `
         <div style="position:fixed;top:70px;right:15px;background:rgba(0,0,0,0.85);
-          border:1px solid rgba(255,149,0,0.15);border-radius:2px;padding:10px 14px;direction:rtl;">
-          <div style="color:rgba(255,149,0,0.7);font-size:0.8rem;font-family:'Tajawal',sans-serif;">${phaseText}</div>
+          border:1px solid rgba(100,160,255,0.15);border-radius:2px;padding:10px 14px;direction:rtl;">
+          <div style="color:rgba(100,160,255,0.7);font-size:0.8rem;font-family:'Tajawal',sans-serif;">${phaseText}</div>
           <div style="color:rgba(140,170,200,0.5);font-size:0.68rem;">السرعة: ${Math.abs(this.verticalSpeed).toFixed(1)} م/ث</div>
           <div style="color:rgba(140,170,200,0.5);font-size:0.68rem;">الارتفاع: ${displayAlt} م</div>
           ${this.retroFired ? '<div style="color:rgba(255,136,0,0.85);font-size:0.68rem;animation:pulse 0.5s infinite;">🔥 صواريخ الكبح — نشطة</div>' : ''}

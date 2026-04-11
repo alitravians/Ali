@@ -398,16 +398,16 @@ export class ISSInteriorScene {
     this.gs.ui.removeElement('schedule');
     const items = this.dailySchedule.map((s, i) => {
       const state = i < this.scheduleIndex ? 'done' : i === this.scheduleIndex ? 'current' : 'pending';
-      const color = state === 'done' ? 'rgba(0,255,120,0.6)' : state === 'current' ? 'rgba(255,149,0,0.8)' : 'rgba(80,110,140,0.4)';
+      const color = state === 'done' ? 'rgba(0,255,120,0.6)' : state === 'current' ? 'rgba(100,160,255,0.8)' : 'rgba(80,110,140,0.4)';
       const icon = state === 'done' ? '✓' : s.icon;
       return `<div style="color:${color};font-size:0.7rem;padding:2px 0;${state === 'current' ? 'font-weight:bold;' : ''}">${icon} ${s.name}</div>`;
     }).join('');
 
     this.gs.ui.addElement('schedule', `
       <div style="position:fixed;top:70px;right:15px;background:rgba(0,0,0,0.85);
-        border:1px solid rgba(255,149,0,0.15);border-radius:2px;padding:10px 14px;
+        border:1px solid rgba(100,160,255,0.15);border-radius:2px;padding:10px 14px;
         max-width:200px;direction:rtl;">
-        <div style="color:rgba(255,149,0,0.7);font-size:0.7rem;margin-bottom:5px;
+        <div style="color:rgba(100,160,255,0.7);font-size:0.7rem;margin-bottom:5px;
           font-family:'Orbitron',monospace;letter-spacing:1px;">📋 جدول اليوم</div>
         ${items}
       </div>
@@ -436,13 +436,13 @@ export class ISSInteriorScene {
 
     const bar = sections.map((s, i) =>
       `<span style="padding:4px 10px;border-radius:2px;font-size:0.7rem;font-family:'Tajawal',sans-serif;
-        ${i === closest ? 'background:rgba(255,149,0,0.1);color:#ff9500;border:1px solid rgba(255,149,0,0.2);' : 'color:rgba(255,149,0,0.3);'}">${s.label}</span>`
+        ${i === closest ? 'background:rgba(100,160,255,0.1);color:#8ab4f8;border:1px solid rgba(100,160,255,0.2);' : 'color:rgba(100,160,255,0.3);'}">${s.label}</span>`
     ).join('');
 
     this.gs.ui.addElement('sections-bar', `
       <div style="position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
         display:flex;gap:6px;background:rgba(0,0,0,0.85);
-        padding:5px 10px;border-radius:2px;border:1px solid rgba(255,149,0,0.1);
+        padding:5px 10px;border-radius:2px;border:1px solid rgba(100,160,255,0.1);
         direction:rtl;flex-wrap:wrap;justify-content:center;">${bar}</div>
     `);
   }
@@ -450,7 +450,7 @@ export class ISSInteriorScene {
   _showAirlockUI() {
     this.gs.ui.removeElement('airlock-panel');
 
-    const suitStatus = this.suitEquipped ? '<span style="color:#00ff88;">✓ البدلة مرتداة</span>' : '<span style="color:#ff6644;">✗ البدلة غير مرتداة</span>';
+    const suitStatus = this.suitEquipped ? '<span style="color:#4ade80;">✓ البدلة مرتداة</span>' : '<span style="color:#ff6644;">✗ البدلة غير مرتداة</span>';
 
     let content = '';
     if (!this.airlockPhase) {
@@ -525,13 +525,13 @@ export class ISSInteriorScene {
           ${pressure.toFixed(1)} PSI
         </div>
         <div style="width:100%;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:8px;">
-          <div style="width:${(this.depressureTimer / 10) * 100}%;height:100%;background:linear-gradient(90deg,#00ff88,#ff4400);border-radius:4px;transition:width 0.3s;"></div>
+          <div style="width:${(this.depressureTimer / 10) * 100}%;height:100%;background:linear-gradient(90deg,#4ade80,#ff4400);border-radius:4px;transition:width 0.3s;"></div>
         </div>
         <div style="color:#557799;font-size:0.7rem;text-align:center;margin-top:5px;">متبقي: ${Math.ceil(remaining)} ث</div>
       `;
     } else if (this.airlockPhase === 'ready') {
       content = `
-        <div style="font-family:'Orbitron',sans-serif;color:#00ff88;font-size:1rem;margin-bottom:12px;text-align:center;">
+        <div style="font-family:'Orbitron',sans-serif;color:#4ade80;font-size:1rem;margin-bottom:12px;text-align:center;">
           ✓ القفل الهوائي مفتوح!
         </div>
         <div style="color:#cceeff;font-size:0.8rem;margin-bottom:12px;">
@@ -645,11 +645,11 @@ export class ISSInteriorScene {
     this.gs.ui.addElement('interact-menu', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
         background:rgba(0,0,0,0.9);
-        border:1px solid rgba(255,149,0,0.15);border-radius:2px;
+        border:1px solid rgba(100,160,255,0.15);border-radius:2px;
         padding:18px 24px;min-width:280px;direction:rtl;
         box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <div style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:0.9rem;margin-bottom:10px;
-          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(255,149,0,0.2);">
+        <div style="font-family:'Orbitron',sans-serif;color:#8ab4f8;font-size:0.9rem;margin-bottom:10px;
+          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(100,160,255,0.2);">
           ${point.name}
         </div>
         <div style="color:rgba(100,150,200,0.4);font-size:0.68rem;margin-bottom:10px;
@@ -732,18 +732,18 @@ export class ISSInteriorScene {
     this.gs.ui.removeElement('task-panel');
     const stepsHTML = task.steps.map((s, i) => {
       const state = i < task.current ? '✓' : i === task.current ? '▶' : '○';
-      const color = i < task.current ? '#00ff88' : i === task.current ? '#00d4ff' : '#556677';
+      const color = i < task.current ? '#4ade80' : i === task.current ? '#00d4ff' : '#556677';
       return `<div style="color:${color};font-size:0.85rem;padding:3px 0;">${state} ${s}</div>`;
     }).join('');
 
     this.gs.ui.addElement('task-panel', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
         background:rgba(0,0,0,0.9);
-        border:1px solid rgba(255,149,0,0.15);border-radius:2px;
+        border:1px solid rgba(100,160,255,0.15);border-radius:2px;
         padding:20px 28px;min-width:320px;direction:rtl;
         box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <div style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1rem;margin-bottom:12px;
-          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(255,149,0,0.2);">
+        <div style="font-family:'Orbitron',sans-serif;color:#8ab4f8;font-size:1rem;margin-bottom:12px;
+          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(100,160,255,0.2);">
           ${task.title}
         </div>
         ${stepsHTML}
@@ -1072,7 +1072,7 @@ export class ISSInteriorScene {
       this.gs.ui.addElement('suit-status', `
         <div style="position:fixed;top:70px;left:15px;background:rgba(0,50,0,0.5);
           border:1px solid rgba(0,255,0,0.3);border-radius:6px;padding:5px 10px;">
-          <span style="color:#00ff88;font-size:0.7rem;">🧑‍🚀 بدلة EMU — نشطة</span>
+          <span style="color:#4ade80;font-size:0.7rem;">🧑‍🚀 بدلة EMU — نشطة</span>
         </div>
       `);
     }

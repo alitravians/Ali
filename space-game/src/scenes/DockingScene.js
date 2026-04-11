@@ -108,7 +108,7 @@ export class DockingScene {
   _showDockingHUD() {
     this.gs.ui.removeElement('dock-hud');
     const alignQuality = this._getAlignmentQuality();
-    const color = alignQuality > 0.8 ? '#00ff88' : alignQuality > 0.5 ? '#ffcc00' : '#ff4444';
+    const color = alignQuality > 0.8 ? '#4ade80' : alignQuality > 0.5 ? '#ffcc00' : '#ff4444';
     const status = alignQuality > 0.8 ? 'ممتاز' : alignQuality > 0.5 ? 'مقبول' : 'غير متحاذي';
 
     this.gs.ui.addElement('dock-hud', `
@@ -121,18 +121,18 @@ export class DockingScene {
           <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:${color}22;"></div>
           <div style="position:absolute;border:1px solid ${color}33;border-radius:50%;
             width:100px;height:100px;top:50px;left:50px;"></div>
-          <div style="position:absolute;width:6px;height:6px;background:rgba(255,149,0,0.8);border-radius:50%;
+          <div style="position:absolute;width:6px;height:6px;background:rgba(100,160,255,0.8);border-radius:50%;
             top:${50 - this.alignment.y * 5}%;left:${50 + this.alignment.x * 5}%;
-            transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(255,149,0,0.4);transition:all 0.1s;"></div>
+            transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(100,160,255,0.4);transition:all 0.1s;"></div>
         </div>
       </div>
       <div style="position:fixed;top:12px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
-        <div style="background:rgba(0,0,0,0.85);padding:10px 24px;border-radius:2px;border:1px solid rgba(255,149,0,0.2);box-shadow:0 2px 15px rgba(0,0,0,0.4);">
+        <div style="background:rgba(0,0,0,0.85);padding:10px 24px;border-radius:2px;border:1px solid rgba(100,160,255,0.2);box-shadow:0 2px 15px rgba(0,0,0,0.4);">
           <div style="font-family:'Orbitron',sans-serif;color:${color};font-size:0.85rem;letter-spacing:1px;">
             ALIGNMENT: <span style="color:#fff;">${Math.round(alignQuality * 100)}%</span>
             <span style="font-family:'Tajawal',sans-serif;font-size:0.8rem;color:rgba(200,220,240,0.6);margin-right:8px;">${status}</span>
           </div>
-          <div style="font-family:'Share Tech Mono',monospace;color:rgba(255,149,0,0.5);font-size:0.75rem;margin-top:5px;letter-spacing:1px;">
+          <div style="font-family:'Share Tech Mono',monospace;color:rgba(100,160,255,0.5);font-size:0.75rem;margin-top:5px;letter-spacing:1px;">
             DIST: <span style="color:rgba(255,255,255,0.9);">${this.distance.toFixed(1)}m</span>
             &nbsp;&nbsp;|&nbsp;&nbsp;
             SPD: <span style="color:rgba(255,255,255,0.9);">${this.approachSpeed.toFixed(2)}m/s</span>
