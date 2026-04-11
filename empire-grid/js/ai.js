@@ -171,8 +171,8 @@ class AIPlayer {
 
     evaluateTrade(game, player, offer) {
         // تقييم العرض التجاري
-        let myValue = offer.theirMoney || 0;
-        let theirValue = offer.myMoney || 0;
+        let myValue = offer.myMoney || 0;
+        let theirValue = offer.theirMoney || 0;
 
         if (offer.theirProperties) {
             offer.theirProperties.forEach(zoneId => {

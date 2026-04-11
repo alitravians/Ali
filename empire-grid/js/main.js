@@ -411,6 +411,7 @@ function processAIAuction() {
     if (!game.auctionState) return;
 
     game.players.forEach(p => {
+        if (!game.auctionState) return;
         if (p.isAI && !p.bankrupt && !game.auctionState.passedPlayers.has(p.id)) {
             const bid = ai.evaluateAuction(game, p, game.auctionState.zone, game.auctionState.currentBid);
             if (bid) {
