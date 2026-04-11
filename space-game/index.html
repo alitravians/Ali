@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>رحلة الفضاء - محطة الفضاء الدولية</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Orbitron:wght@400;500;700;900&display=swap');
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #000; font-family: 'Cairo', sans-serif; }
+    #game-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+    #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+    #ui-overlay > * { pointer-events: auto; }
+    .hidden { display: none !important; }
+    #loading-screen {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, #0a0a2e 0%, #000 100%);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      z-index: 1000; transition: opacity 1s;
+    }
+    #loading-screen h1 {
+      font-family: 'Orbitron', sans-serif; font-size: 3rem; color: #00d4ff;
+      text-shadow: 0 0 30px rgba(0,212,255,0.5); margin-bottom: 10px;
+    }
+    #loading-screen .subtitle {
+      font-size: 1.2rem; color: #88ccff; margin-bottom: 40px; letter-spacing: 2px;
+    }
+    .loading-bar-container {
+      width: 300px; height: 4px; background: rgba(255,255,255,0.1);
+      border-radius: 2px; overflow: hidden;
+    }
+    .loading-bar {
+      width: 0%; height: 100%; background: linear-gradient(90deg, #00d4ff, #0088ff);
+      border-radius: 2px; transition: width 0.3s;
+    }
+    .loading-text { color: #557799; font-size: 0.85rem; margin-top: 15px; }
+  </style>
+</head>
+<body>
+  <canvas id="game-canvas"></canvas>
+  <div id="ui-overlay"></div>
+  <div id="loading-screen">
+    <h1>SPACE STATION</h1>
+    <div class="subtitle">رحلة إلى محطة الفضاء الدولية</div>
+    <div class="loading-bar-container">
+      <div class="loading-bar" id="loading-bar"></div>
+    </div>
+    <div class="loading-text" id="loading-text">جاري التحميل...</div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
