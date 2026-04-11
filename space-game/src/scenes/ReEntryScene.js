@@ -135,40 +135,41 @@ export class ReEntryScene {
     ]);
 
     // Realistic undocking to re-entry sequence
+    this._timeouts = [];
     if (this.phase === 'undocking') {
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.gs.ui.showComm('مركز التحكم', 'بدء إجراءات الانفصال. فتح المشابك... فصل خراطيم الأمبيليكال.', 5000);
-      }, 2000);
+      }, 2000));
 
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.gs.audio.playConfirm();
         this.gs.ui.showCenterText('انفصال عن المحطة', 'Undocking Complete', 2500);
         this.phase = 'separation';
         this.gs.ui.showComm('مركز التحكم', 'الانفصال ناجح. ابتعاد 20 متر عن المحطة. استعداد لحرق الكبح.', 5000);
-      }, 6000);
+      }, 6000));
 
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.phase = 'deorbit';
         this.gs.audio.playBeep();
         this.gs.ui.showCenterText('حرق الكبح', 'Deorbit Burn — تخفيض السرعة المدارية', 3000);
         this.gs.ui.showComm('مركز التحكم', 'حرق الكبح لمدة 4 دقائق و 40 ثانية. تخفيض السرعة بـ 128 م/ث. مسار الدخول محسوب.', 6000);
-      }, 13000);
+      }, 13000));
 
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         // Module separation
         this.modulesSeparated = true;
         this.gs.audio.playConfirm();
         this.gs.ui.showCenterText('فصل الوحدات', 'انفصال وحدة الخدمة ووحدة المدار', 3000);
         this.gs.ui.showComm('مركز التحكم', 'وحدة الخدمة والوحدة المدارية انفصلتا. كبسولة الهبوط وحدها الآن. توجيه الدرع الحراري للأمام.', 6000);
-      }, 20000);
+      }, 20000));
 
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.phase = 'reentry';
         this.gs.audio.playWarning();
         this.gs.ui.showCenterText('⚠️ دخول الغلاف الجوي', 'ارتفاع 122 كم — بداية الاحتكاك', 3000);
         this.gs.ui.showComm('مركز التحكم', 'بداية الدخول في الغلاف الجوي! السرعة 28,000 كم/ساعة. حافظ على زاوية الدخول بين -1° و -3°! زاوية خاطئة قد تؤدي للارتداد عن الغلاف أو الاحتراق!', 8000);
         this.rumbleSound = this.gs.audio.playReEntryRumble(30);
-      }, 26000);
+      }, 26000));
     }
   }
 
@@ -636,6 +637,10 @@ export class ReEntryScene {
 
   async cleanup() {
     window.removeEventListener('resize', this._onResize);
+    if (this._timeouts) {
+      this._timeouts.forEach(t => clearTimeout(t));
+      this._timeouts = [];
+    }
     try { if (this.rumbleSound) this.rumbleSound.source.stop(); } catch(e) {}
     this.gs.ui.clear();
   }

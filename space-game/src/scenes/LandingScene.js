@@ -501,6 +501,7 @@ export class LandingScene {
     }
     if (this.landed) {
       // Continue ocean/splash animations even after landing
+      this.time += delta;
       this._animateOcean(delta);
       if (this.splashParticles && this.splashParticles.visible) {
         const pos = this.splashParticles.geometry.attributes.position.array;
