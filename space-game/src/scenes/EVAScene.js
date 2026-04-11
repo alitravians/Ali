@@ -408,11 +408,12 @@ export class EVAScene {
       const stepName = nearTarget.steps[nearTarget.currentStep];
       this.gs.ui.addElement('eva-hint', `
         <div style="position:fixed;bottom:130px;left:50%;transform:translateX(-50%);
-          background:rgba(0,15,30,0.85);border:1px solid rgba(255,136,0,0.3);border-radius:8px;
-          padding:8px 15px;direction:rtl;text-align:center;">
-          <div style="color:#ff8800;font-size:0.8rem;">${nearTarget.name}</div>
-          <div style="color:#00d4ff;font-size:0.75rem;margin-top:3px;">استمر بالضغط على F — ${stepName}</div>
-          <div style="color:#557799;font-size:0.65rem;">خطوة ${nearTarget.currentStep + 1} من ${nearTarget.steps.length}</div>
+          background:rgba(5,12,25,0.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+          border:1px solid rgba(255,136,0,0.08);border-radius:10px;
+          padding:8px 16px;direction:rtl;text-align:center;">
+          <div style="color:rgba(255,136,0,0.85);font-size:0.78rem;font-family:'Tajawal',sans-serif;">${nearTarget.name}</div>
+          <div style="color:rgba(0,200,255,0.8);font-size:0.72rem;margin-top:3px;">استمر بالضغط على F — ${stepName}</div>
+          <div style="color:rgba(100,140,180,0.4);font-size:0.62rem;">خطوة ${nearTarget.currentStep + 1} من ${nearTarget.steps.length}</div>
         </div>
       `);
     }
@@ -486,13 +487,15 @@ export class EVAScene {
     // EVA tasks panel
     this.gs.ui.removeElement('eva-tasks');
     this.gs.ui.addElement('eva-tasks', `
-      <div style="position:fixed;top:70px;right:15px;background:rgba(0,15,30,0.85);
-        border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 15px;direction:rtl;max-width:220px;">
-        <div style="color:#00d4ff;font-size:0.75rem;margin-bottom:5px;">🧑‍🚀 مهام EVA (${this.tasksCompleted}/${this.totalTasks})</div>
+      <div style="position:fixed;top:70px;right:15px;background:rgba(5,12,25,0.65);
+        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+        border:1px solid rgba(0,150,255,0.08);border-radius:10px;padding:10px 14px;direction:rtl;max-width:220px;">
+        <div style="color:rgba(0,180,255,0.8);font-size:0.7rem;margin-bottom:5px;
+          font-family:'Orbitron',monospace;letter-spacing:1px;">🧑‍🚀 مهام EVA (${this.tasksCompleted}/${this.totalTasks})</div>
         ${this.evaTaskList.map(t => {
           const typeIcons = { wiring: '⚡', electronics: '🔌', sensor: '📡', plumbing: '🔧', battery: '🔋' };
           const icon = typeIcons[t.type] || '○';
-          return `<div style="color:${t.done ? '#00ff88' : '#ff6644'};font-size:0.7rem;padding:1px 0;">
+          return `<div style="color:${t.done ? 'rgba(0,255,120,0.6)' : 'rgba(255,100,60,0.7)'};font-size:0.68rem;padding:1px 0;font-family:'Tajawal',sans-serif;">
             ${t.done ? '✓' : icon} ${t.name.split('—')[0].trim()}
             ${!t.done && t.currentStep > 0 ? `<span style="color:#ffaa00;font-size:0.6rem;">(${t.currentStep}/${t.steps.length})</span>` : ''}
           </div>`;
@@ -503,9 +506,11 @@ export class EVAScene {
     // Suit systems panel
     this.gs.ui.removeElement('suit-systems');
     this.gs.ui.addElement('suit-systems', `
-      <div style="position:fixed;top:70px;left:15px;background:rgba(0,15,30,0.85);
-        border:1px solid rgba(0,100,50,0.3);border-radius:8px;padding:10px 15px;direction:rtl;">
-        <div style="color:#00ff88;font-size:0.7rem;margin-bottom:5px;">🧑‍🚀 أنظمة البدلة (EMU)</div>
+      <div style="position:fixed;top:70px;left:15px;background:rgba(5,12,25,0.65);
+        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+        border:1px solid rgba(0,100,50,0.08);border-radius:10px;padding:10px 14px;direction:rtl;">
+        <div style="color:rgba(0,255,120,0.7);font-size:0.68rem;margin-bottom:5px;
+          font-family:'Orbitron',monospace;letter-spacing:1px;">🧑‍🚀 أنظمة البدلة (EMU)</div>
         <div style="color:${this.oxygenTimer > 30 ? '#88ff88' : '#ff4444'};font-size:0.65rem;">O₂: ${Math.round(this.oxygenTimer)}%</div>
         <div style="color:${this.suitBattery > 20 ? '#88ff88' : '#ff4444'};font-size:0.65rem;">🔋 بطارية: ${Math.round(this.suitBattery)}%</div>
         <div style="color:${this.suitCO2 < 3 ? '#88ff88' : '#ffaa00'};font-size:0.65rem;">CO₂: ${this.suitCO2.toFixed(1)}%</div>
@@ -531,9 +536,15 @@ export class EVAScene {
 
     setTimeout(() => {
       this.gs.ui.addElement('eva-continue', `
-        <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:12px;">
-          <button class="btn-space btn-space-primary" style="padding:10px 30px;" id="btn-to-return">🌍 العودة إلى الأرض</button>
-          <button class="btn-space" style="padding:10px 30px;" id="btn-back-iss">🏠 العودة للمحطة</button>
+        <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:10px;">
+          <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:10px 22px;" id="btn-to-return">
+            <div class="menu-btn-icon">🌍</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.88rem;">العودة إلى الأرض</div></div>
+          </button>
+          <button class="menu-btn" style="display:inline-flex;width:auto;padding:10px 22px;" id="btn-back-iss">
+            <div class="menu-btn-icon">🏠</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.88rem;">العودة للمحطة</div></div>
+          </button>
         </div>
       `);
       setTimeout(() => {

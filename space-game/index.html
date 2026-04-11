@@ -6,47 +6,124 @@
   <title>رحلة الفضاء - محطة الفضاء الدولية</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>" />
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Orbitron:wght@400;500;700;900&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Orbitron:wght@400;500;700;900&family=Tajawal:wght@300;400;500;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #000; font-family: 'Cairo', sans-serif; }
+    body { overflow: hidden; background: #000; font-family: 'Tajawal', 'Cairo', sans-serif; }
     #game-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
     #ui-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
     #ui-overlay > * { pointer-events: auto; }
     .hidden { display: none !important; }
+
+    /* ===== CINEMATIC LOADING SCREEN ===== */
     #loading-screen {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: radial-gradient(ellipse at center, #0a0a2e 0%, #000 100%);
+      background: radial-gradient(ellipse at 50% 40%, #0a1628 0%, #050d1a 40%, #020408 100%);
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      z-index: 1000; transition: opacity 1s;
+      z-index: 1000; transition: opacity 1.5s ease-out;
     }
+
+    /* Animated stars background */
+    #loading-screen::before {
+      content: '';
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        radial-gradient(2px 2px at 20% 30%, rgba(255,255,255,0.8), transparent),
+        radial-gradient(1px 1px at 40% 70%, rgba(200,220,255,0.6), transparent),
+        radial-gradient(2px 2px at 60% 20%, rgba(255,200,150,0.7), transparent),
+        radial-gradient(1px 1px at 80% 50%, rgba(180,200,255,0.5), transparent),
+        radial-gradient(1.5px 1.5px at 10% 60%, rgba(255,255,255,0.6), transparent),
+        radial-gradient(1px 1px at 70% 80%, rgba(200,200,255,0.4), transparent),
+        radial-gradient(2px 2px at 90% 10%, rgba(255,220,180,0.5), transparent),
+        radial-gradient(1px 1px at 30% 90%, rgba(200,220,255,0.5), transparent),
+        radial-gradient(1.5px 1.5px at 50% 50%, rgba(255,255,255,0.7), transparent),
+        radial-gradient(1px 1px at 15% 15%, rgba(180,200,255,0.6), transparent);
+      animation: twinkle 4s ease-in-out infinite alternate;
+    }
+
+    @keyframes twinkle {
+      0% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+
+    .loading-logo {
+      position: relative; text-align: center; z-index: 1;
+    }
+
+    .loading-logo .mission-badge {
+      width: 90px; height: 90px; border-radius: 50%;
+      border: 2px solid rgba(0,180,255,0.4);
+      background: radial-gradient(circle, rgba(0,40,80,0.6), rgba(0,10,30,0.8));
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 20px; font-size: 2.5rem;
+      box-shadow: 0 0 30px rgba(0,150,255,0.2), inset 0 0 20px rgba(0,100,200,0.1);
+      animation: badgePulse 3s ease-in-out infinite;
+    }
+
+    @keyframes badgePulse {
+      0%, 100% { box-shadow: 0 0 30px rgba(0,150,255,0.2), inset 0 0 20px rgba(0,100,200,0.1); }
+      50% { box-shadow: 0 0 50px rgba(0,150,255,0.4), inset 0 0 30px rgba(0,100,200,0.2); }
+    }
+
     #loading-screen h1 {
-      font-family: 'Orbitron', sans-serif; font-size: 3rem; color: #00d4ff;
-      text-shadow: 0 0 30px rgba(0,212,255,0.5); margin-bottom: 10px;
+      font-family: 'Orbitron', sans-serif; font-size: 2.8rem; color: #fff;
+      text-shadow: 0 0 60px rgba(0,180,255,0.4), 0 2px 4px rgba(0,0,0,0.5);
+      letter-spacing: 8px; margin-bottom: 8px; font-weight: 700;
     }
+
     #loading-screen .subtitle {
-      font-size: 1.2rem; color: #88ccff; margin-bottom: 40px; letter-spacing: 2px;
+      font-family: 'Tajawal', sans-serif;
+      font-size: 1.3rem; color: rgba(140,200,255,0.8); margin-bottom: 8px;
+      letter-spacing: 1px; font-weight: 300;
     }
+
+    #loading-screen .subtitle-en {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem; color: rgba(100,150,200,0.5); margin-bottom: 40px;
+      letter-spacing: 4px; text-transform: uppercase;
+    }
+
     .loading-bar-container {
-      width: 300px; height: 4px; background: rgba(255,255,255,0.1);
+      width: 280px; height: 3px;
+      background: rgba(255,255,255,0.06);
       border-radius: 2px; overflow: hidden;
+      position: relative;
     }
+
     .loading-bar {
-      width: 0%; height: 100%; background: linear-gradient(90deg, #00d4ff, #0088ff);
-      border-radius: 2px; transition: width 0.3s;
+      width: 0%; height: 100%;
+      background: linear-gradient(90deg, rgba(0,150,255,0.3), #00b4ff, rgba(0,150,255,0.3));
+      border-radius: 2px; transition: width 0.5s ease;
+      box-shadow: 0 0 12px rgba(0,180,255,0.6);
     }
-    .loading-text { color: #557799; font-size: 0.85rem; margin-top: 15px; }
+
+    .loading-text {
+      color: rgba(100,150,200,0.6); font-size: 0.8rem; margin-top: 18px;
+      font-family: 'Tajawal', sans-serif; letter-spacing: 0.5px;
+      z-index: 1; position: relative;
+    }
+
+    .loading-info {
+      position: absolute; bottom: 30px; color: rgba(80,120,160,0.4);
+      font-size: 0.65rem; text-align: center; z-index: 1;
+      font-family: 'Orbitron', sans-serif; letter-spacing: 2px;
+    }
   </style>
 </head>
 <body>
   <canvas id="game-canvas"></canvas>
   <div id="ui-overlay"></div>
   <div id="loading-screen">
-    <h1>SPACE STATION</h1>
-    <div class="subtitle">رحلة إلى محطة الفضاء الدولية</div>
+    <div class="loading-logo">
+      <div class="mission-badge">🚀</div>
+      <h1>SPACE STATION</h1>
+      <div class="subtitle">رحلة إلى محطة الفضاء الدولية</div>
+      <div class="subtitle-en">International Space Station Mission</div>
+    </div>
     <div class="loading-bar-container">
       <div class="loading-bar" id="loading-bar"></div>
     </div>
-    <div class="loading-text" id="loading-text">جاري التحميل...</div>
+    <div class="loading-text" id="loading-text">جاري تهيئة أنظمة المحاكاة...</div>
+    <div class="loading-info">ISS EXPEDITION 72 — SIMULATION v2.0</div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

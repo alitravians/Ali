@@ -695,12 +695,13 @@ export class LandingScene {
     }[this.phase] || '';
     if (phaseText) {
       this.gs.ui.addElement('landing-phase', `
-        <div style="position:fixed;top:70px;right:15px;background:rgba(0,15,30,0.85);
-          border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 15px;direction:rtl;">
-          <div style="color:#00d4ff;font-size:0.85rem;">${phaseText}</div>
-          <div style="color:#88aabb;font-size:0.7rem;">السرعة: ${Math.abs(this.verticalSpeed).toFixed(1)} م/ث</div>
-          <div style="color:#88aabb;font-size:0.7rem;">الارتفاع: ${displayAlt} م</div>
-          ${this.retroFired ? '<div style="color:#ff8800;font-size:0.7rem;animation:pulse 0.5s infinite;">🔥 صواريخ الكبح — نشطة</div>' : ''}
+        <div style="position:fixed;top:70px;right:15px;background:rgba(5,12,25,0.65);
+          backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+          border:1px solid rgba(0,150,255,0.08);border-radius:10px;padding:10px 14px;direction:rtl;">
+          <div style="color:rgba(0,200,255,0.85);font-size:0.8rem;font-family:'Tajawal',sans-serif;">${phaseText}</div>
+          <div style="color:rgba(140,170,200,0.5);font-size:0.68rem;">السرعة: ${Math.abs(this.verticalSpeed).toFixed(1)} م/ث</div>
+          <div style="color:rgba(140,170,200,0.5);font-size:0.68rem;">الارتفاع: ${displayAlt} م</div>
+          ${this.retroFired ? '<div style="color:rgba(255,136,0,0.85);font-size:0.68rem;animation:pulse 0.5s infinite;">🔥 صواريخ الكبح — نشطة</div>' : ''}
         </div>
       `);
     }

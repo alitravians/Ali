@@ -112,28 +112,31 @@ export class DockingScene {
 
     this.gs.ui.addElement('dock-hud', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;">
-        <div style="width:200px;height:200px;border:2px solid ${color};border-radius:50%;position:relative;
-          box-shadow:0 0 20px ${color}33;">
-          <div style="position:absolute;top:50%;left:50%;width:4px;height:4px;background:${color};
-            border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 10px ${color};"></div>
-          <div style="position:absolute;top:50%;left:0;width:100%;height:1px;background:${color}44;"></div>
-          <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:${color}44;"></div>
-          <div style="position:absolute;border:1px solid ${color}66;border-radius:50%;
+        <div style="width:200px;height:200px;border:1px solid ${color}88;border-radius:50%;position:relative;
+          box-shadow:0 0 30px ${color}18, inset 0 0 15px ${color}08;">
+          <div style="position:absolute;top:50%;left:50%;width:3px;height:3px;background:${color};
+            border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 12px ${color};"></div>
+          <div style="position:absolute;top:50%;left:0;width:100%;height:1px;background:${color}22;"></div>
+          <div style="position:absolute;left:50%;top:0;width:1px;height:100%;background:${color}22;"></div>
+          <div style="position:absolute;border:1px solid ${color}33;border-radius:50%;
             width:100px;height:100px;top:50px;left:50px;"></div>
-          <!-- Spacecraft indicator -->
-          <div style="position:absolute;width:8px;height:8px;background:#00d4ff;border-radius:50%;
+          <div style="position:absolute;width:6px;height:6px;background:rgba(0,180,255,0.9);border-radius:50%;
             top:${50 - this.alignment.y * 5}%;left:${50 + this.alignment.x * 5}%;
-            transform:translate(-50%,-50%);box-shadow:0 0 10px #00d4ff;transition:all 0.1s;"></div>
+            transform:translate(-50%,-50%);box-shadow:0 0 12px rgba(0,180,255,0.6);transition:all 0.1s;"></div>
         </div>
       </div>
-      <div style="position:fixed;top:15px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
-        <div style="font-family:'Orbitron',sans-serif;color:${color};font-size:1rem;">
-          المحاذاة: <span style="color:#fff;">${Math.round(alignQuality * 100)}%</span> — ${status}
-        </div>
-        <div style="font-family:'Orbitron',sans-serif;color:#88ccff;font-size:0.85rem;margin-top:5px;">
-          المسافة: <span style="color:#fff;">${this.distance.toFixed(1)}</span> م
-          &nbsp;|&nbsp;
-          السرعة: <span style="color:#fff;">${this.approachSpeed.toFixed(2)}</span> م/ث
+      <div style="position:fixed;top:12px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
+        <div style="background:rgba(5,12,25,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+          padding:10px 24px;border-radius:10px;border:1px solid rgba(0,150,255,0.08);">
+          <div style="font-family:'Orbitron',sans-serif;color:${color};font-size:0.85rem;letter-spacing:1px;">
+            ALIGNMENT: <span style="color:#fff;">${Math.round(alignQuality * 100)}%</span>
+            <span style="font-family:'Tajawal',sans-serif;font-size:0.8rem;color:rgba(200,220,240,0.6);margin-right:8px;">${status}</span>
+          </div>
+          <div style="font-family:'Orbitron',sans-serif;color:rgba(120,180,240,0.7);font-size:0.75rem;margin-top:5px;letter-spacing:1px;">
+            DIST: <span style="color:rgba(255,255,255,0.9);">${this.distance.toFixed(1)}m</span>
+            &nbsp;&nbsp;|&nbsp;&nbsp;
+            SPD: <span style="color:rgba(255,255,255,0.9);">${this.approachSpeed.toFixed(2)}m/s</span>
+          </div>
         </div>
       </div>
     `);
@@ -231,8 +234,9 @@ export class DockingScene {
     setTimeout(() => {
       this.gs.ui.addElement('dock-continue', `
         <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);">
-          <button class="btn-space btn-space-primary" style="font-size:1.1rem;padding:12px 35px;" id="btn-enter-iss">
-            🚪 دخول محطة الفضاء الدولية
+          <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:11px 28px;" id="btn-enter-iss">
+            <div class="menu-btn-icon">🚪</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.95rem;">دخول محطة الفضاء الدولية</div></div>
           </button>
         </div>
       `);
@@ -256,9 +260,15 @@ export class DockingScene {
 
     setTimeout(() => {
       this.gs.ui.addElement('retry', `
-        <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:15px;">
-          <button class="btn-space btn-space-primary" style="padding:10px 30px;" id="btn-retry">🔄 إعادة المحاولة</button>
-          <button class="btn-space" style="padding:10px 30px;" id="btn-auto-dock">🤖 التحام تلقائي</button>
+        <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:12px;">
+          <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:10px 24px;" id="btn-retry">
+            <div class="menu-btn-icon">🔄</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.9rem;">إعادة المحاولة</div></div>
+          </button>
+          <button class="menu-btn" style="display:inline-flex;width:auto;padding:10px 24px;" id="btn-auto-dock">
+            <div class="menu-btn-icon">🤖</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.9rem;">التحام تلقائي</div></div>
+          </button>
         </div>
       `);
       setTimeout(() => {

@@ -528,29 +528,35 @@ export class PreLaunchScene {
     const missionName = this.mode === 'free' ? 'مهمة حرة — استكشاف المحطة' : 'المهمة: رحلة إلى محطة الفضاء الدولية';
     this.gs.ui.addElement('briefing', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;direction:rtl;">
-        <div style="background:rgba(0,15,30,0.92);border:1px solid rgba(0,212,255,0.3);border-radius:15px;
-          padding:30px 40px;max-width:550px;backdrop-filter:blur(15px);color:#cceeff;">
-          <div style="font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:1.5rem;margin-bottom:15px;text-align:center;">
+        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.5) 100%);pointer-events:none;"></div>
+        <div style="background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+          border:1px solid rgba(0,150,255,0.12);border-radius:16px;
+          padding:28px 36px;max-width:520px;color:rgba(200,220,240,0.9);position:relative;z-index:2;
+          box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+          <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:1.3rem;margin-bottom:14px;
+            text-align:center;letter-spacing:2px;text-shadow:0 0 30px rgba(0,180,255,0.3);">
             📋 إحاطة المهمة
           </div>
-          <div style="font-size:1.1rem;color:#fff;margin-bottom:10px;text-align:center;">${missionName}</div>
-          <hr style="border:none;border-top:1px solid rgba(0,212,255,0.2);margin:15px 0;">
-          <div style="line-height:1.8;font-size:0.9rem;">
+          <div style="font-size:1.05rem;color:#fff;margin-bottom:10px;text-align:center;
+            font-family:'Tajawal',sans-serif;font-weight:600;">${missionName}</div>
+          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,150,255,0.2),transparent);margin:14px 0;"></div>
+          <div style="line-height:1.9;font-size:0.88rem;font-family:'Tajawal',sans-serif;">
             <div>🎯 <strong>الهدف:</strong> الوصول إلى محطة الفضاء الدولية وتنفيذ المهام العلمية</div>
             <div>🚀 <strong>المركبة:</strong> كبسولة فضائية متعددة المراحل</div>
             <div>⏱️ <strong>مدة المهمة:</strong> ${this.mode === 'free' ? 'غير محددة' : '72 ساعة'}</div>
             <div>👨‍🚀 <strong>رائد الفضاء:</strong> ${this.gs.playerData.name}</div>
           </div>
-          <hr style="border:none;border-top:1px solid rgba(0,212,255,0.2);margin:15px 0;">
-          <div style="font-size:0.85rem;color:#88aabb;">
+          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,150,255,0.2),transparent);margin:14px 0;"></div>
+          <div style="font-size:0.8rem;color:rgba(0,255,120,0.6);">
             <div>✓ البدلة — تم الارتداء</div>
             <div>✓ الفحص الطبي — مكتمل</div>
             <div>✓ الحقيبة المدارية — جاهزة</div>
             <div>✓ أنظمة المركبة — فحص أرضي مكتمل</div>
           </div>
-          <div style="text-align:center;margin-top:20px;">
-            <button class="btn-space btn-space-primary" style="font-size:1.1rem;padding:12px 40px;" id="btn-start-boarding">
-              ▶ ركوب المصعد إلى الكبسولة
+          <div style="text-align:center;margin-top:18px;">
+            <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:11px 32px;" id="btn-start-boarding">
+              <div class="menu-btn-icon" style="font-size:1rem;">🛗</div>
+              <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.95rem;">ركوب المصعد إلى الكبسولة</div></div>
             </button>
           </div>
         </div>
@@ -616,13 +622,17 @@ export class PreLaunchScene {
 
     this.gs.ui.addElement('systems-check', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(0,15,30,0.92);border:1px solid rgba(0,212,255,0.3);border-radius:12px;
-        padding:25px 35px;min-width:450px;direction:rtl;">
-        <div style="font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:1.2rem;margin-bottom:15px;text-align:center;">
+        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+        border:1px solid rgba(0,150,255,0.12);border-radius:14px;
+        padding:24px 32px;min-width:420px;direction:rtl;
+        box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+        <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:1.1rem;margin-bottom:14px;
+          text-align:center;letter-spacing:2px;text-shadow:0 0 30px rgba(0,180,255,0.3);">
           🔍 فحص أنظمة ما قبل الإطلاق
         </div>
-        <div id="check-list" style="font-size:0.9rem;line-height:2;"></div>
-        <div id="check-status" style="text-align:center;margin-top:10px;color:#557799;font-size:0.8rem;">جاري الفحص...</div>
+        <div id="check-list" style="font-size:0.85rem;line-height:2;font-family:'Tajawal',sans-serif;"></div>
+        <div id="check-status" style="text-align:center;margin-top:10px;color:rgba(100,150,200,0.5);font-size:0.78rem;
+          font-family:'Tajawal',sans-serif;">جاري الفحص...</div>
       </div>
     `);
 
@@ -632,7 +642,7 @@ export class PreLaunchScene {
         this._systemsCheckInterval = null;
         const statusEl = document.getElementById('check-status');
         if (statusEl) {
-          statusEl.innerHTML = '<span style="color:#00ff88;">جميع الأنظمة جاهزة للإطلاق ✓</span>';
+          statusEl.innerHTML = '<span style="color:rgba(0,255,120,0.8);">جميع الأنظمة جاهزة للإطلاق ✓</span>';
         }
         setTimeout(() => {
           this.gs.audio.playConfirm();
@@ -645,7 +655,7 @@ export class PreLaunchScene {
       this.gs.audio.playBeep();
       const listEl = document.getElementById('check-list');
       if (listEl) {
-        listEl.innerHTML += `<div style="color:#00ff88;">${check.icon} ${check.name} — <span style="color:#88ffaa;">${check.status}</span></div>`;
+        listEl.innerHTML += `<div style="color:rgba(0,255,120,0.7);">${check.icon} ${check.name} — <span style="color:rgba(100,255,150,0.8);">${check.status}</span></div>`;
       }
       checkIndex++;
     }, 400);
@@ -659,12 +669,15 @@ export class PreLaunchScene {
 
     this.gs.ui.addElement('countdown', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-        <div style="font-family:'Orbitron',sans-serif;color:#ff6600;font-size:0.9rem;margin-bottom:10px;letter-spacing:3px;">
+        <div style="font-family:'Orbitron',sans-serif;color:rgba(255,120,0,0.7);font-size:0.8rem;margin-bottom:10px;
+          letter-spacing:4px;text-transform:uppercase;">LAUNCH COUNTDOWN</div>
+        <div style="font-family:'Tajawal',sans-serif;color:rgba(255,200,100,0.6);font-size:0.85rem;margin-bottom:15px;">
           العد التنازلي للإقلاع
         </div>
-        <div id="countdown-num" style="font-family:'Orbitron',sans-serif;font-size:8rem;color:#fff;
-          text-shadow:0 0 60px rgba(255,100,0,0.8);">10</div>
-        <div id="countdown-status" style="color:#ffcc00;font-size:1rem;margin-top:10px;">T-10 — جميع الأنظمة GO</div>
+        <div id="countdown-num" style="font-family:'Orbitron',sans-serif;font-size:9rem;color:#fff;font-weight:900;
+          text-shadow:0 0 80px rgba(255,100,0,0.6), 0 0 160px rgba(255,50,0,0.3);">10</div>
+        <div id="countdown-status" style="color:rgba(255,200,80,0.8);font-size:0.9rem;margin-top:12px;
+          font-family:'Tajawal',sans-serif;">T-10 — جميع الأنظمة GO</div>
       </div>
     `);
 
@@ -737,11 +750,18 @@ export class PreLaunchScene {
       this.gs.ui.removeElement('walk-progress');
       this.gs.ui.addElement('walk-progress', `
         <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
-          <div style="color:#cceeff;font-size:0.85rem;margin-bottom:5px;">المسافة إلى منصة الإطلاق</div>
-          <div style="width:250px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;">
-            <div style="width:${this.walkProgress * 100}%;height:100%;background:linear-gradient(90deg,#00d4ff,#0088ff);border-radius:3px;transition:width 0.3s;"></div>
+          <div style="background:rgba(5,12,25,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+            padding:10px 20px;border-radius:10px;border:1px solid rgba(0,150,255,0.08);">
+            <div style="color:rgba(180,210,240,0.8);font-size:0.8rem;margin-bottom:6px;
+              font-family:'Tajawal',sans-serif;">المسافة إلى منصة الإطلاق</div>
+            <div style="width:220px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin:0 auto;">
+              <div style="width:${this.walkProgress * 100}%;height:100%;
+                background:linear-gradient(90deg,rgba(0,150,255,0.3),#00b4ff,rgba(0,150,255,0.3));
+                border-radius:2px;transition:width 0.3s;box-shadow:0 0 8px rgba(0,180,255,0.4);"></div>
+            </div>
+            <div style="color:rgba(100,150,200,0.4);font-size:0.65rem;margin-top:5px;
+              font-family:'Tajawal',sans-serif;">اضغط W للمشي أسرع</div>
           </div>
-          <div style="color:#557799;font-size:0.7rem;margin-top:3px;">اضغط W للمشي أسرع</div>
         </div>
       `);
 
@@ -795,9 +815,15 @@ export class PreLaunchScene {
         this.gs.ui.removeElement('boarding-progress');
         this.gs.ui.addElement('boarding-progress', `
           <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
-            <div style="color:#cceeff;font-size:0.85rem;margin-bottom:5px;">المصعد — الارتفاع: ${Math.floor(elevatorY)} متر</div>
-            <div style="width:250px;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;">
-              <div style="width:${t * 100}%;height:100%;background:linear-gradient(90deg,#00d4ff,#0088ff);border-radius:3px;"></div>
+            <div style="background:rgba(5,12,25,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+              padding:10px 20px;border-radius:10px;border:1px solid rgba(0,150,255,0.08);">
+              <div style="color:rgba(180,210,240,0.8);font-size:0.8rem;margin-bottom:6px;
+                font-family:'Tajawal',sans-serif;">🛗 المصعد — الارتفاع: ${Math.floor(elevatorY)} متر</div>
+              <div style="width:220px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin:0 auto;">
+                <div style="width:${t * 100}%;height:100%;
+                  background:linear-gradient(90deg,rgba(0,150,255,0.3),#00b4ff,rgba(0,150,255,0.3));
+                  border-radius:2px;box-shadow:0 0 8px rgba(0,180,255,0.4);"></div>
+              </div>
             </div>
           </div>
         `);

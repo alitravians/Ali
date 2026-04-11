@@ -398,16 +398,18 @@ export class ISSInteriorScene {
     this.gs.ui.removeElement('schedule');
     const items = this.dailySchedule.map((s, i) => {
       const state = i < this.scheduleIndex ? 'done' : i === this.scheduleIndex ? 'current' : 'pending';
-      const color = state === 'done' ? '#00ff88' : state === 'current' ? '#00d4ff' : '#556677';
+      const color = state === 'done' ? 'rgba(0,255,120,0.6)' : state === 'current' ? 'rgba(0,180,255,0.9)' : 'rgba(80,110,140,0.4)';
       const icon = state === 'done' ? '✓' : s.icon;
       return `<div style="color:${color};font-size:0.7rem;padding:2px 0;${state === 'current' ? 'font-weight:bold;' : ''}">${icon} ${s.name}</div>`;
     }).join('');
 
     this.gs.ui.addElement('schedule', `
-      <div style="position:fixed;top:70px;right:15px;background:rgba(0,15,30,0.85);
-        border:1px solid rgba(0,212,255,0.2);border-radius:8px;padding:10px 15px;
-        max-width:200px;direction:rtl;backdrop-filter:blur(5px);">
-        <div style="color:#00d4ff;font-size:0.75rem;margin-bottom:5px;font-family:'Orbitron',monospace;">📋 جدول اليوم</div>
+      <div style="position:fixed;top:70px;right:15px;background:rgba(5,12,25,0.65);
+        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+        border:1px solid rgba(0,150,255,0.08);border-radius:10px;padding:10px 14px;
+        max-width:200px;direction:rtl;">
+        <div style="color:rgba(0,180,255,0.8);font-size:0.7rem;margin-bottom:5px;
+          font-family:'Orbitron',monospace;letter-spacing:1px;">📋 جدول اليوم</div>
         ${items}
       </div>
     `);
@@ -434,13 +436,14 @@ export class ISSInteriorScene {
     this.currentRoom = sections[closest].label;
 
     const bar = sections.map((s, i) =>
-      `<span style="padding:4px 12px;border-radius:12px;font-size:0.75rem;
-        ${i === closest ? 'background:rgba(0,212,255,0.3);color:#00d4ff;border:1px solid rgba(0,212,255,0.4);' : 'color:#556677;'}">${s.label}</span>`
+      `<span style="padding:4px 10px;border-radius:8px;font-size:0.7rem;font-family:'Tajawal',sans-serif;
+        ${i === closest ? 'background:rgba(0,150,255,0.12);color:rgba(0,200,255,0.9);border:1px solid rgba(0,150,255,0.15);' : 'color:rgba(100,140,180,0.4);'}">${s.label}</span>`
     ).join('');
 
     this.gs.ui.addElement('sections-bar', `
       <div style="position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
-        display:flex;gap:8px;background:rgba(0,10,20,0.7);padding:6px 12px;border-radius:20px;
+        display:flex;gap:6px;background:rgba(5,12,25,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+        padding:5px 10px;border-radius:14px;border:1px solid rgba(0,150,255,0.06);
         direction:rtl;flex-wrap:wrap;justify-content:center;">${bar}</div>
     `);
   }
@@ -453,27 +456,33 @@ export class ISSInteriorScene {
     let content = '';
     if (!this.airlockPhase) {
       content = `
-        <div style="font-family:'Orbitron',sans-serif;color:#ff8800;font-size:1.1rem;margin-bottom:12px;text-align:center;">
+        <div style="font-family:'Orbitron',sans-serif;color:rgba(255,136,0,0.85);font-size:1rem;margin-bottom:12px;text-align:center;
+          letter-spacing:1px;text-shadow:0 0 20px rgba(255,100,0,0.2);">
           🚪 القفل الهوائي — Quest Airlock
         </div>
-        <div style="color:#cceeff;font-size:0.85rem;margin-bottom:8px;">حالة البدلة: ${suitStatus}</div>
-        <hr style="border:none;border-top:1px solid rgba(255,136,0,0.2);margin:10px 0;">
-        <div style="color:#88aabb;font-size:0.75rem;line-height:1.8;margin-bottom:12px;">
+        <div style="color:rgba(200,220,240,0.8);font-size:0.82rem;margin-bottom:8px;font-family:'Tajawal',sans-serif;">حالة البدلة: ${suitStatus}</div>
+        <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,136,0,0.15),transparent);margin:10px 0;"></div>
+        <div style="color:rgba(120,160,190,0.6);font-size:0.72rem;line-height:1.8;margin-bottom:12px;font-family:'Tajawal',sans-serif;">
           القفل الهوائي يتكون من قسمين:<br>
           1. غرفة المعدات (Equipment Lock) — لارتداء بدلة EMU<br>
           2. غرفة الطاقم (Crew Lock) — لتفريغ الضغط قبل الخروج
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;">
           ${!this.suitEquipped ? `
-            <button class="btn-space btn-space-primary" style="padding:8px 20px;" id="btn-suit-up">
-              🧑‍🚀 ارتداء بدلة EMU
+            <button class="menu-btn menu-btn-primary" style="width:100%;padding:8px 18px;" id="btn-suit-up">
+              <div class="menu-btn-icon">🧑‍🚀</div>
+              <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.88rem;">ارتداء بدلة EMU</div></div>
             </button>
           ` : `
-            <button class="btn-space btn-space-primary" style="padding:8px 20px;" id="btn-enter-crewlock">
-              🚀 دخول غرفة الطاقم وبدء التفريغ
+            <button class="menu-btn menu-btn-primary" style="width:100%;padding:8px 18px;" id="btn-enter-crewlock">
+              <div class="menu-btn-icon">🚀</div>
+              <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.88rem;">دخول غرفة الطاقم وبدء التفريغ</div></div>
             </button>
           `}
-          <button class="btn-space" style="padding:8px 20px;" id="btn-close-airlock">❌ إغلاق</button>
+          <button class="menu-btn" style="width:100%;padding:8px 18px;" id="btn-close-airlock">
+            <div class="menu-btn-icon">❌</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.85rem;">إغلاق</div></div>
+          </button>
         </div>
       `;
     } else if (this.airlockPhase === 'suitingUp') {
@@ -529,16 +538,19 @@ export class ISSInteriorScene {
         <div style="color:#cceeff;font-size:0.8rem;margin-bottom:12px;">
           الضغط صفر — الفتحة الخارجية مفتوحة. جاهز للخروج إلى الفضاء!
         </div>
-        <button class="btn-space btn-space-primary" style="padding:10px 25px;width:100%;" id="btn-start-eva">
-          🧑‍🚀 خروج إلى الفضاء (EVA)
+        <button class="menu-btn menu-btn-primary" style="width:100%;padding:10px 20px;" id="btn-start-eva">
+          <div class="menu-btn-icon">🧑‍🚀</div>
+          <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.9rem;">خروج إلى الفضاء (EVA)</div></div>
         </button>
       `;
     }
 
     this.gs.ui.addElement('airlock-panel', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(0,15,30,0.95);border:1px solid rgba(255,136,0,0.3);border-radius:12px;
-        padding:20px 30px;min-width:380px;direction:rtl;backdrop-filter:blur(15px);">
+        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+        border:1px solid rgba(255,136,0,0.1);border-radius:14px;
+        padding:20px 28px;min-width:360px;direction:rtl;
+        box-shadow:0 8px 40px rgba(0,0,0,0.4);">
         ${content}
       </div>
     `);
@@ -626,24 +638,30 @@ export class ISSInteriorScene {
     this.gs.ui.removeElement('interact-menu');
 
     const actionsHTML = point.actions.map((a, i) =>
-      `<button class="btn-space" style="padding:6px 15px;font-size:0.8rem;width:100%;text-align:right;" id="interact-btn-${i}">
-        ${a}
+      `<button class="menu-btn" style="width:100%;padding:5px 14px;" id="interact-btn-${i}">
+        <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.78rem;text-align:right;">${a}</div></div>
       </button>`
     ).join('');
 
     this.gs.ui.addElement('interact-menu', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(0,15,30,0.92);border:1px solid rgba(0,212,255,0.3);border-radius:12px;
-        padding:20px 25px;min-width:300px;direction:rtl;backdrop-filter:blur(10px);">
-        <div style="font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:0.95rem;margin-bottom:12px;text-align:center;">
+        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+        border:1px solid rgba(0,150,255,0.1);border-radius:14px;
+        padding:18px 24px;min-width:280px;direction:rtl;
+        box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+        <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:0.9rem;margin-bottom:10px;
+          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(0,180,255,0.2);">
           ${point.name}
         </div>
-        <div style="color:#557799;font-size:0.7rem;margin-bottom:10px;">القسم: ${point.section}</div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="color:rgba(100,150,200,0.4);font-size:0.68rem;margin-bottom:10px;
+          font-family:'Tajawal',sans-serif;">القسم: ${point.section}</div>
+        <div style="display:flex;flex-direction:column;gap:5px;">
           ${actionsHTML}
         </div>
-        <div style="text-align:center;margin-top:12px;">
-          <button class="btn-space" style="padding:6px 20px;font-size:0.75rem;" id="interact-close">إغلاق</button>
+        <div style="text-align:center;margin-top:10px;">
+          <button class="menu-btn" style="display:inline-flex;width:auto;padding:5px 18px;" id="interact-close">
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.72rem;">إغلاق</div></div>
+          </button>
         </div>
       </div>
     `);
@@ -721,19 +739,24 @@ export class ISSInteriorScene {
 
     this.gs.ui.addElement('task-panel', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(0,15,30,0.92);border:1px solid rgba(0,212,255,0.3);border-radius:12px;
-        padding:20px 30px;min-width:320px;direction:rtl;backdrop-filter:blur(10px);">
-        <div style="font-family:'Orbitron',sans-serif;color:#00d4ff;font-size:1.1rem;margin-bottom:12px;text-align:center;">
+        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+        border:1px solid rgba(0,150,255,0.1);border-radius:14px;
+        padding:20px 28px;min-width:320px;direction:rtl;
+        box-shadow:0 8px 40px rgba(0,0,0,0.4);">
+        <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:1rem;margin-bottom:12px;
+          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(0,180,255,0.2);">
           ${task.title}
         </div>
         ${stepsHTML}
         <div style="text-align:center;margin-top:15px;">
           ${task.current < task.steps.length ?
-            `<button class="btn-space btn-space-primary" style="padding:8px 25px;" id="btn-do-step">
-              تنفيذ: ${task.steps[task.current]}
+            `<button class="menu-btn menu-btn-primary" style="width:100%;padding:8px 20px;" id="btn-do-step">
+              <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.85rem;">تنفيذ: ${task.steps[task.current]}</div></div>
             </button>` :
-            `<div style="color:#00ff88;font-size:1rem;margin:10px 0;">✓ المهمة مكتملة!</div>
-            <button class="btn-space" style="padding:8px 25px;" id="btn-close-task">إغلاق</button>`
+            `<div style="color:rgba(0,255,120,0.7);font-size:0.95rem;margin:10px 0;">✓ المهمة مكتملة!</div>
+            <button class="menu-btn" style="width:100%;padding:8px 20px;" id="btn-close-task">
+              <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.82rem;">إغلاق</div></div>
+            </button>`
           }
         </div>
       </div>
@@ -789,10 +812,19 @@ export class ISSInteriorScene {
 
     setTimeout(() => {
       this.gs.ui.addElement('day-end', `
-        <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:12px;flex-wrap:wrap;justify-content:center;">
-          <button class="btn-space btn-space-primary" style="padding:10px 25px;" id="btn-eva">🧑‍🚀 القفل الهوائي (EVA)</button>
-          <button class="btn-space" style="padding:10px 25px;" id="btn-return">🌍 بدء العودة إلى الأرض</button>
-          <button class="btn-space" style="padding:10px 25px;" id="btn-explore">🔭 استمرار الاستكشاف</button>
+        <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+          <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:10px 20px;" id="btn-eva">
+            <div class="menu-btn-icon">🧑‍🚀</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.85rem;">القفل الهوائي (EVA)</div></div>
+          </button>
+          <button class="menu-btn" style="display:inline-flex;width:auto;padding:10px 20px;" id="btn-return">
+            <div class="menu-btn-icon">🌍</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.85rem;">بدء العودة إلى الأرض</div></div>
+          </button>
+          <button class="menu-btn" style="display:inline-flex;width:auto;padding:10px 20px;" id="btn-explore">
+            <div class="menu-btn-icon">🔭</div>
+            <div class="menu-btn-text"><div class="menu-btn-title" style="font-size:0.85rem;">استمرار الاستكشاف</div></div>
+          </button>
         </div>
       `);
       setTimeout(() => {
