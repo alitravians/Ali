@@ -255,10 +255,8 @@ export class PreLaunchScene {
       this.scene.add(bg);
     }
 
-    // Create astronaut character
-    this._createAstronaut();
-
     // Define walking path: from crew building to launch pad (Bezier-like points)
+    // MUST be defined before _createAstronaut() since it uses walkPath[0]
     this.walkPath = [
       new THREE.Vector3(0, 0, 65),    // Start: crew building exit
       new THREE.Vector3(0, 0, 50),    // Walking down road
@@ -270,6 +268,9 @@ export class PreLaunchScene {
       new THREE.Vector3(2, 2.5, -25), // On pad
       new THREE.Vector3(0, 2.5, -25), // At rocket base
     ];
+
+    // Create astronaut character (after walkPath is defined)
+    this._createAstronaut();
 
     this.phase = 'walking';
     this.walkProgress = 0;
