@@ -529,24 +529,24 @@ export class PreLaunchScene {
     this.gs.ui.addElement('briefing', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;direction:rtl;">
         <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.5) 100%);pointer-events:none;"></div>
-        <div style="background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-          border:1px solid rgba(0,150,255,0.12);border-radius:16px;
-          padding:28px 36px;max-width:520px;color:rgba(200,220,240,0.9);position:relative;z-index:2;
-          box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-          <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:1.3rem;margin-bottom:14px;
-            text-align:center;letter-spacing:2px;text-shadow:0 0 30px rgba(0,180,255,0.3);">
+        <div style="background:rgba(0,0,0,0.9);border:1px solid rgba(255,149,0,0.2);
+          border-top:2px solid #ff9500;border-radius:2px;
+          padding:28px 36px;max-width:520px;color:rgba(200,210,220,0.85);position:relative;z-index:2;
+          box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+          <div style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1.3rem;margin-bottom:14px;
+            text-align:center;letter-spacing:2px;text-shadow:0 0 30px rgba(255,149,0,0.3);">
             📋 إحاطة المهمة
           </div>
           <div style="font-size:1.05rem;color:#fff;margin-bottom:10px;text-align:center;
             font-family:'Tajawal',sans-serif;font-weight:600;">${missionName}</div>
-          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,150,255,0.2),transparent);margin:14px 0;"></div>
+          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,149,0,0.15),transparent);margin:14px 0;"></div>
           <div style="line-height:1.9;font-size:0.88rem;font-family:'Tajawal',sans-serif;">
             <div>🎯 <strong>الهدف:</strong> الوصول إلى محطة الفضاء الدولية وتنفيذ المهام العلمية</div>
             <div>🚀 <strong>المركبة:</strong> كبسولة فضائية متعددة المراحل</div>
             <div>⏱️ <strong>مدة المهمة:</strong> ${this.mode === 'free' ? 'غير محددة' : '72 ساعة'}</div>
             <div>👨‍🚀 <strong>رائد الفضاء:</strong> ${this.gs.playerData.name}</div>
           </div>
-          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(0,150,255,0.2),transparent);margin:14px 0;"></div>
+          <div style="height:1px;background:linear-gradient(90deg,transparent,rgba(255,149,0,0.15),transparent);margin:14px 0;"></div>
           <div style="font-size:0.8rem;color:rgba(0,255,120,0.6);">
             <div>✓ البدلة — تم الارتداء</div>
             <div>✓ الفحص الطبي — مكتمل</div>
@@ -622,12 +622,12 @@ export class PreLaunchScene {
 
     this.gs.ui.addElement('systems-check', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-        border:1px solid rgba(0,150,255,0.12);border-radius:14px;
+        background:rgba(0,0,0,0.9);border:1px solid rgba(255,149,0,0.2);
+        border-top:2px solid #ff9500;border-radius:2px;
         padding:24px 32px;min-width:420px;direction:rtl;
-        box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:1.1rem;margin-bottom:14px;
-          text-align:center;letter-spacing:2px;text-shadow:0 0 30px rgba(0,180,255,0.3);">
+        box-shadow:0 8px 40px rgba(0,0,0,0.5);">
+        <div style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1.1rem;margin-bottom:14px;
+          text-align:center;letter-spacing:2px;text-shadow:0 0 30px rgba(255,149,0,0.3);">
           🔍 فحص أنظمة ما قبل الإطلاق
         </div>
         <div id="check-list" style="font-size:0.85rem;line-height:2;font-family:'Tajawal',sans-serif;"></div>
@@ -750,16 +750,15 @@ export class PreLaunchScene {
       this.gs.ui.removeElement('walk-progress');
       this.gs.ui.addElement('walk-progress', `
         <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
-          <div style="background:rgba(5,12,25,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-            padding:10px 20px;border-radius:10px;border:1px solid rgba(0,150,255,0.08);">
-            <div style="color:rgba(180,210,240,0.8);font-size:0.8rem;margin-bottom:6px;
+          <div style="background:rgba(0,0,0,0.85);padding:10px 20px;border-radius:2px;border:1px solid rgba(255,149,0,0.15);">
+            <div style="color:rgba(255,200,150,0.7);font-size:0.8rem;margin-bottom:6px;
               font-family:'Tajawal',sans-serif;">المسافة إلى منصة الإطلاق</div>
             <div style="width:220px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin:0 auto;">
               <div style="width:${this.walkProgress * 100}%;height:100%;
-                background:linear-gradient(90deg,rgba(0,150,255,0.3),#00b4ff,rgba(0,150,255,0.3));
-                border-radius:2px;transition:width 0.3s;box-shadow:0 0 8px rgba(0,180,255,0.4);"></div>
+                background:linear-gradient(90deg,rgba(255,149,0,0.3),#ff9500,rgba(255,149,0,0.3));
+                border-radius:2px;transition:width 0.3s;box-shadow:0 0 8px rgba(255,149,0,0.4);"></div>
             </div>
-            <div style="color:rgba(100,150,200,0.4);font-size:0.65rem;margin-top:5px;
+            <div style="color:rgba(255,149,0,0.3);font-size:0.65rem;margin-top:5px;
               font-family:'Tajawal',sans-serif;">اضغط W للمشي أسرع</div>
           </div>
         </div>
@@ -815,14 +814,13 @@ export class PreLaunchScene {
         this.gs.ui.removeElement('boarding-progress');
         this.gs.ui.addElement('boarding-progress', `
           <div style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);text-align:center;direction:rtl;">
-            <div style="background:rgba(5,12,25,0.6);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-              padding:10px 20px;border-radius:10px;border:1px solid rgba(0,150,255,0.08);">
-              <div style="color:rgba(180,210,240,0.8);font-size:0.8rem;margin-bottom:6px;
+            <div style="background:rgba(0,0,0,0.85);padding:10px 20px;border-radius:2px;border:1px solid rgba(255,149,0,0.15);">
+              <div style="color:rgba(255,200,150,0.7);font-size:0.8rem;margin-bottom:6px;
                 font-family:'Tajawal',sans-serif;">🛗 المصعد — الارتفاع: ${Math.floor(elevatorY)} متر</div>
               <div style="width:220px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;margin:0 auto;">
                 <div style="width:${t * 100}%;height:100%;
-                  background:linear-gradient(90deg,rgba(0,150,255,0.3),#00b4ff,rgba(0,150,255,0.3));
-                  border-radius:2px;box-shadow:0 0 8px rgba(0,180,255,0.4);"></div>
+                  background:linear-gradient(90deg,rgba(255,149,0,0.3),#ff9500,rgba(255,149,0,0.3));
+                  border-radius:2px;box-shadow:0 0 8px rgba(255,149,0,0.4);"></div>
               </div>
             </div>
           </div>

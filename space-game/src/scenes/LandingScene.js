@@ -25,6 +25,7 @@ export class LandingScene {
     this.divers = [];
     this.missionStartTime = Date.now();
     this.bobbingPhase = 0;
+    this._timeouts = [];
   }
 
   async init(data = {}) {
@@ -695,10 +696,9 @@ export class LandingScene {
     }[this.phase] || '';
     if (phaseText) {
       this.gs.ui.addElement('landing-phase', `
-        <div style="position:fixed;top:70px;right:15px;background:rgba(5,12,25,0.65);
-          backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-          border:1px solid rgba(0,150,255,0.08);border-radius:10px;padding:10px 14px;direction:rtl;">
-          <div style="color:rgba(0,200,255,0.85);font-size:0.8rem;font-family:'Tajawal',sans-serif;">${phaseText}</div>
+        <div style="position:fixed;top:70px;right:15px;background:rgba(0,0,0,0.85);
+          border:1px solid rgba(255,149,0,0.15);border-radius:2px;padding:10px 14px;direction:rtl;">
+          <div style="color:rgba(255,149,0,0.7);font-size:0.8rem;font-family:'Tajawal',sans-serif;">${phaseText}</div>
           <div style="color:rgba(140,170,200,0.5);font-size:0.68rem;">السرعة: ${Math.abs(this.verticalSpeed).toFixed(1)} م/ث</div>
           <div style="color:rgba(140,170,200,0.5);font-size:0.68rem;">الارتفاع: ${displayAlt} م</div>
           ${this.retroFired ? '<div style="color:rgba(255,136,0,0.85);font-size:0.68rem;animation:pulse 0.5s infinite;">🔥 صواريخ الكبح — نشطة</div>' : ''}
@@ -764,32 +764,32 @@ export class LandingScene {
     this.gs.ui.addGlobalStyles();
     this.gs.ui.showCenterText('هبوط ناجح!', 'Splashdown — المحيط الهادئ', 0);
 
-    // Sequence of realistic recovery messages
-    setTimeout(() => {
+    // Sequence of realistic recovery messages — store all timeouts for cleanup
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم — هيوستن', 'هيوستن تؤكد: هبوط ناجح! الكبسولة مستقرة في وضع عمودي. إشارة البيكون نشطة. سفن الإنقاذ USS تتجه إليك.', 7000);
-    }, 2000);
+    }, 2000));
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       // Show divers
       this.divers.forEach(d => { d.visible = true; });
       this.gs.ui.showComm('قائد فريق الإنقاذ', 'فريق الغطاسين البحرية في الماء! نقترب من الكبسولة. تأمين طوق الطفو حول الكبسولة.', 6000);
-    }, 8000);
+    }, 8000));
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('سفينة الإنقاذ USS', 'الرافعة جاهزة لسحب الكبسولة. فتح الفتحة خلال دقائق. الفريق الطبي على أهبة الاستعداد.', 6000);
-    }, 14000);
+    }, 14000));
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('وكالة ناسا — مدير المهمة', 'مبروك يا رائد الفضاء! مهمة ناجحة بالكامل. أنت بطل! فريق الاستقبال الطبي جاهز على سطح السفينة. أحسنت!', 8000);
-    }, 20000);
+    }, 20000));
 
     // Start recovery phase
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.phase = 'recovery';
-    }, 5000);
+    }, 5000));
 
     // Show professional game ending after recovery sequence
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       const missionDuration = Math.round((Date.now() - this.missionStartTime) / 60000);
       this.gs.ui.showGameEnding({
         missionTime: missionDuration > 0 ? `${missionDuration} دقيقة` : '4 ساعات و 23 دقيقة',
@@ -801,7 +801,7 @@ export class LandingScene {
         evaTime: '45 دقيقة'
       });
 
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         document.getElementById('btn-new-mission')?.addEventListener('click', () => {
           this.gs.audio.playConfirm();
           this.gs.switchScene('preLaunch', { mode: 'story' });
@@ -814,8 +814,8 @@ export class LandingScene {
           this.gs.audio.playConfirm();
           this.gs.switchScene('mainMenu');
         });
-      }, 100);
-    }, 28000);
+      }, 100));
+    }, 28000));
   }
 
   render(renderer) {
@@ -824,6 +824,9 @@ export class LandingScene {
 
   async cleanup() {
     window.removeEventListener('resize', this._onResize);
+    // Clear all pending timeouts to prevent stale callbacks
+    this._timeouts.forEach(t => clearTimeout(t));
+    this._timeouts = [];
     this.gs.ui.clear();
   }
 }

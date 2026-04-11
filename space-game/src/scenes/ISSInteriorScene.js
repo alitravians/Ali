@@ -398,17 +398,16 @@ export class ISSInteriorScene {
     this.gs.ui.removeElement('schedule');
     const items = this.dailySchedule.map((s, i) => {
       const state = i < this.scheduleIndex ? 'done' : i === this.scheduleIndex ? 'current' : 'pending';
-      const color = state === 'done' ? 'rgba(0,255,120,0.6)' : state === 'current' ? 'rgba(0,180,255,0.9)' : 'rgba(80,110,140,0.4)';
+      const color = state === 'done' ? 'rgba(0,255,120,0.6)' : state === 'current' ? 'rgba(255,149,0,0.8)' : 'rgba(80,110,140,0.4)';
       const icon = state === 'done' ? '✓' : s.icon;
       return `<div style="color:${color};font-size:0.7rem;padding:2px 0;${state === 'current' ? 'font-weight:bold;' : ''}">${icon} ${s.name}</div>`;
     }).join('');
 
     this.gs.ui.addElement('schedule', `
-      <div style="position:fixed;top:70px;right:15px;background:rgba(5,12,25,0.65);
-        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-        border:1px solid rgba(0,150,255,0.08);border-radius:10px;padding:10px 14px;
+      <div style="position:fixed;top:70px;right:15px;background:rgba(0,0,0,0.85);
+        border:1px solid rgba(255,149,0,0.15);border-radius:2px;padding:10px 14px;
         max-width:200px;direction:rtl;">
-        <div style="color:rgba(0,180,255,0.8);font-size:0.7rem;margin-bottom:5px;
+        <div style="color:rgba(255,149,0,0.7);font-size:0.7rem;margin-bottom:5px;
           font-family:'Orbitron',monospace;letter-spacing:1px;">📋 جدول اليوم</div>
         ${items}
       </div>
@@ -436,14 +435,14 @@ export class ISSInteriorScene {
     this.currentRoom = sections[closest].label;
 
     const bar = sections.map((s, i) =>
-      `<span style="padding:4px 10px;border-radius:8px;font-size:0.7rem;font-family:'Tajawal',sans-serif;
-        ${i === closest ? 'background:rgba(0,150,255,0.12);color:rgba(0,200,255,0.9);border:1px solid rgba(0,150,255,0.15);' : 'color:rgba(100,140,180,0.4);'}">${s.label}</span>`
+      `<span style="padding:4px 10px;border-radius:2px;font-size:0.7rem;font-family:'Tajawal',sans-serif;
+        ${i === closest ? 'background:rgba(255,149,0,0.1);color:#ff9500;border:1px solid rgba(255,149,0,0.2);' : 'color:rgba(255,149,0,0.3);'}">${s.label}</span>`
     ).join('');
 
     this.gs.ui.addElement('sections-bar', `
       <div style="position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
-        display:flex;gap:6px;background:rgba(5,12,25,0.55);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-        padding:5px 10px;border-radius:14px;border:1px solid rgba(0,150,255,0.06);
+        display:flex;gap:6px;background:rgba(0,0,0,0.85);
+        padding:5px 10px;border-radius:2px;border:1px solid rgba(255,149,0,0.1);
         direction:rtl;flex-wrap:wrap;justify-content:center;">${bar}</div>
     `);
   }
@@ -547,8 +546,8 @@ export class ISSInteriorScene {
 
     this.gs.ui.addElement('airlock-panel', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-        border:1px solid rgba(255,136,0,0.1);border-radius:14px;
+        background:rgba(0,0,0,0.9);
+        border:1px solid rgba(255,136,0,0.1);border-radius:2px;
         padding:20px 28px;min-width:360px;direction:rtl;
         box-shadow:0 8px 40px rgba(0,0,0,0.4);">
         ${content}
@@ -645,12 +644,12 @@ export class ISSInteriorScene {
 
     this.gs.ui.addElement('interact-menu', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-        border:1px solid rgba(0,150,255,0.1);border-radius:14px;
+        background:rgba(0,0,0,0.9);
+        border:1px solid rgba(255,149,0,0.15);border-radius:2px;
         padding:18px 24px;min-width:280px;direction:rtl;
         box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:0.9rem;margin-bottom:10px;
-          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(0,180,255,0.2);">
+        <div style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:0.9rem;margin-bottom:10px;
+          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(255,149,0,0.2);">
           ${point.name}
         </div>
         <div style="color:rgba(100,150,200,0.4);font-size:0.68rem;margin-bottom:10px;
@@ -739,12 +738,12 @@ export class ISSInteriorScene {
 
     this.gs.ui.addElement('task-panel', `
       <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-        background:rgba(5,15,30,0.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-        border:1px solid rgba(0,150,255,0.1);border-radius:14px;
+        background:rgba(0,0,0,0.9);
+        border:1px solid rgba(255,149,0,0.15);border-radius:2px;
         padding:20px 28px;min-width:320px;direction:rtl;
         box-shadow:0 8px 40px rgba(0,0,0,0.4);">
-        <div style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);font-size:1rem;margin-bottom:12px;
-          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(0,180,255,0.2);">
+        <div style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1rem;margin-bottom:12px;
+          text-align:center;letter-spacing:1px;text-shadow:0 0 20px rgba(255,149,0,0.2);">
           ${task.title}
         </div>
         ${stepsHTML}
@@ -997,7 +996,7 @@ export class ISSInteriorScene {
     if (nearPoint && !this.activeTask && !this.airlockPhase) {
       this.gs.ui.addElement('interact-hint', `
         <div style="position:fixed;bottom:120px;left:50%;transform:translateX(-50%);
-          background:rgba(0,15,30,0.8);border:1px solid rgba(0,212,255,0.3);border-radius:8px;
+          background:rgba(0,15,30,0.8);border:1px solid rgba(0,212,255,0.3);border-radius:2px;
           padding:8px 15px;direction:rtl;">
           <span style="color:#00d4ff;font-size:0.8rem;">اضغط F — ${nearPoint.name}</span>
         </div>

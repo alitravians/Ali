@@ -586,7 +586,7 @@ export class ReEntryScene {
     if (this.isBlackout) {
       this.gs.ui.addElement('blackout-static', `
         <div style="position:fixed;top:70px;right:15px;background:rgba(255,0,0,0.2);border:1px solid rgba(255,0,0,0.5);
-          border-radius:8px;padding:8px 15px;direction:rtl;animation:blink 1s infinite;">
+          border-radius:2px;padding:8px 15px;direction:rtl;animation:blink 1s infinite;">
           <div style="color:#ff4444;font-size:0.8rem;">📡 انقطاع الاتصال</div>
           <div style="color:#ff6666;font-size:0.65rem;">بلازما مؤينة — لا يمكن الاتصال بالأرض</div>
         </div>

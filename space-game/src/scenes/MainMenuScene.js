@@ -26,35 +26,26 @@ export class MainMenuScene {
       this.camera.updateProjectionMatrix();
     });
 
-    // Deep space background
-    this.scene.background = new THREE.Color(0x020510);
+    this.scene.background = new THREE.Color(0x020408);
 
-    // Enhanced star field with multiple layers for depth
     this.scene.add(createStarField(12000, 1500));
     this.scene.add(createStarField(4000, 800));
     this.scene.add(createMilkyWay());
 
-    // Nebula clouds (colored fog patches in space)
     this._createNebulaClouds();
 
-    // Sun with enhanced lens flare effect
     const sun = createSun();
     sun.position.set(300, 150, -500);
     this.scene.add(sun);
 
-    // Detailed Earth
     this.earth = createDetailedEarth(50);
     this.earth.position.set(0, -25, 0);
     this.scene.add(this.earth);
 
-    // Mini ISS orbiting Earth
     this._createMiniISS();
-
-    // Shooting stars
     this._initShootingStars();
 
-    // Subtle fog for depth
-    this.scene.fog = new THREE.FogExp2(0x020510, 0.0006);
+    this.scene.fog = new THREE.FogExp2(0x020408, 0.0006);
 
     this.gs.ui.addGlobalStyles();
     this.gs.ui.clear();
@@ -64,14 +55,14 @@ export class MainMenuScene {
 
   _createNebulaClouds() {
     const nebulaColors = [
-      { color: 0x1a0033, pos: [200, 100, -400] },
-      { color: 0x001a33, pos: [-300, -50, -500] },
-      { color: 0x0a1a2a, pos: [100, -100, -600] },
+      { color: 0x1a0520, pos: [200, 100, -400] },
+      { color: 0x0a1520, pos: [-300, -50, -500] },
+      { color: 0x150a05, pos: [100, -100, -600] },
     ];
     nebulaColors.forEach(n => {
       const geo = new THREE.SphereGeometry(80, 16, 16);
       const mat = new THREE.MeshBasicMaterial({
-        color: n.color, transparent: true, opacity: 0.15,
+        color: n.color, transparent: true, opacity: 0.12,
         blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
       });
       const mesh = new THREE.Mesh(geo, mat);
@@ -84,11 +75,9 @@ export class MainMenuScene {
 
   _createMiniISS() {
     this.iss = new THREE.Group();
-    // Main truss
     const trussMat = new THREE.MeshPhongMaterial({ color: 0xcccccc, specular: 0x666666, shininess: 60 });
     const truss = new THREE.Mesh(new THREE.BoxGeometry(6, 0.15, 0.15), trussMat);
     this.iss.add(truss);
-    // Modules
     const modMat = new THREE.MeshPhongMaterial({ color: 0xeeeedd, specular: 0x444444, shininess: 40 });
     [0, -0.5, 0.5].forEach(z => {
       const mod = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8), modMat);
@@ -96,7 +85,6 @@ export class MainMenuScene {
       mod.rotation.x = Math.PI / 2;
       this.iss.add(mod);
     });
-    // Solar panels (gold-ish)
     const panelMat = new THREE.MeshPhongMaterial({
       color: 0x2244aa, specular: 0x88aaff, shininess: 100,
       emissive: 0x111133, emissiveIntensity: 0.3
@@ -106,7 +94,6 @@ export class MainMenuScene {
       panel.position.set(x, 0, 0);
       this.iss.add(panel);
     });
-    // Radiators
     const radMat = new THREE.MeshPhongMaterial({ color: 0xffffff, emissive: 0x222222 });
     [-1, 1].forEach(x => {
       const rad = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.01, 0.3), radMat);
@@ -128,7 +115,7 @@ export class MainMenuScene {
     const positions = new Float32Array(6);
     geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     const mat = new THREE.LineBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0,
+      color: 0xff9500, transparent: true, opacity: 0,
       blending: THREE.AdditiveBlending
     });
     const line = new THREE.Line(geo, mat);
@@ -143,40 +130,50 @@ export class MainMenuScene {
   _showMenu() {
     this.gs.ui.clear();
     this.gs.ui.addElement('main-menu', `
-      <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;direction:rtl;">
+      <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;
+        align-items:center;justify-content:center;direction:rtl;">
         
-        <!-- Cinematic gradient overlay -->
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;
-          background:linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 60%, rgba(0,5,15,0.5) 100%);
-          pointer-events:none;"></div>
-
-        <!-- Title section -->
-        <div style="text-align:center;margin-bottom:50px;position:relative;z-index:2;">
-          <div style="font-family:'Orbitron',sans-serif;font-size:3.2rem;color:#fff;
-            text-shadow:0 0 80px rgba(0,180,255,0.3), 0 0 40px rgba(0,100,200,0.2);
-            letter-spacing:10px;margin-bottom:8px;font-weight:700;">
-            SPACE STATION
+        <!-- Top bar -->
+        <div style="position:fixed;top:0;left:0;right:0;height:36px;background:rgba(0,0,0,0.85);
+          border-bottom:1px solid rgba(255,149,0,0.15);display:flex;align-items:center;
+          justify-content:space-between;padding:0 20px;z-index:5;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="color:#00ff88;font-size:0.4rem;">●</span>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(255,149,0,0.5);
+              letter-spacing:2px;">SYSTEM ONLINE</span>
           </div>
-          <div style="width:200px;height:1px;background:linear-gradient(90deg,transparent,rgba(0,180,255,0.5),transparent);
-            margin:0 auto 12px;"></div>
-          <div style="font-family:'Tajawal',sans-serif;font-size:1.4rem;color:rgba(160,210,255,0.85);
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(255,149,0,0.3);
+            letter-spacing:1px;">ISS EXPEDITION 72 — v3.0</div>
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:rgba(255,149,0,0.3);
+            letter-spacing:1px;">ALT: 408km — INC: 51.6°</div>
+        </div>
+
+        <!-- Title -->
+        <div style="text-align:center;margin-bottom:40px;position:relative;z-index:2;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:rgba(255,149,0,0.3);
+            letter-spacing:4px;margin-bottom:6px;">INTERNATIONAL SPACE STATION</div>
+          <div style="font-family:'Orbitron',sans-serif;font-size:3rem;color:#ff9500;
+            text-shadow:0 0 50px rgba(255,149,0,0.3), 0 0 100px rgba(255,149,0,0.1);
+            letter-spacing:8px;margin-bottom:6px;font-weight:900;">
+            ISS MISSION
+          </div>
+          <div style="width:180px;height:2px;background:linear-gradient(90deg,transparent,#ff9500,transparent);
+            margin:0 auto 10px;"></div>
+          <div style="font-family:'Tajawal',sans-serif;font-size:1.3rem;color:rgba(200,180,150,0.6);
             font-weight:300;letter-spacing:1px;">
             رحلة إلى محطة الفضاء الدولية
           </div>
-          <div style="font-family:'Orbitron',sans-serif;font-size:0.65rem;color:rgba(100,150,200,0.4);
-            letter-spacing:5px;margin-top:6px;text-transform:uppercase;">
-            ISS Expedition 72
-          </div>
         </div>
 
-        <!-- Main buttons -->
-        <div style="display:flex;flex-direction:column;gap:10px;align-items:center;width:360px;position:relative;z-index:2;">
+        <!-- Mission select buttons -->
+        <div style="display:flex;flex-direction:column;gap:8px;align-items:center;width:380px;position:relative;z-index:2;">
           <button class="menu-btn menu-btn-primary" id="btn-story">
             <div class="menu-btn-icon">🚀</div>
             <div class="menu-btn-text">
               <div class="menu-btn-title">نمط القصة</div>
               <div class="menu-btn-desc">رحلة متكاملة من الأرض إلى الفضاء والعودة</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,149,0,0.3);letter-spacing:1px;">STORY</span>
           </button>
           <button class="menu-btn" id="btn-missions">
             <div class="menu-btn-icon">🎯</div>
@@ -184,6 +181,7 @@ export class MainMenuScene {
               <div class="menu-btn-title">نمط المهمات</div>
               <div class="menu-btn-desc">6 مهمات مستقلة متنوعة الصعوبة</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,149,0,0.3);letter-spacing:1px;">MISSIONS</span>
           </button>
           <button class="menu-btn" id="btn-free">
             <div class="menu-btn-icon">🌍</div>
@@ -191,6 +189,7 @@ export class MainMenuScene {
               <div class="menu-btn-title">المحاكاة الحرة</div>
               <div class="menu-btn-desc">استكشف الفضاء والمحطة بحرية كاملة</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,149,0,0.3);letter-spacing:1px;">FREE</span>
           </button>
           <button class="menu-btn" id="btn-challenge">
             <div class="menu-btn-icon">🏆</div>
@@ -198,20 +197,32 @@ export class MainMenuScene {
               <div class="menu-btn-title">نمط التحديات</div>
               <div class="menu-btn-desc">التحام دقيق • إصلاح سريع • هبوط آمن</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.5rem;color:rgba(255,149,0,0.3);letter-spacing:1px;">CHALLENGE</span>
           </button>
         </div>
 
-        <!-- Bottom buttons -->
-        <div style="margin-top:25px;display:flex;gap:12px;position:relative;z-index:2;">
-          <button class="menu-btn-small" id="btn-settings">⚙️ الإعدادات</button>
-          <button class="menu-btn-small" id="btn-help">📖 دليل اللعبة</button>
+        <!-- Bottom controls -->
+        <div style="margin-top:20px;display:flex;gap:10px;position:relative;z-index:2;">
+          <button class="menu-btn-small" id="btn-settings">⚙ الإعدادات</button>
+          <button class="menu-btn-small" id="btn-help">◈ دليل اللعبة</button>
         </div>
 
         <!-- Footer -->
-        <div style="position:fixed;bottom:15px;color:rgba(80,120,160,0.4);font-size:0.65rem;
-          text-align:center;font-family:'Orbitron',sans-serif;letter-spacing:2px;z-index:2;">
-          <div>WASD / ARROWS — SPACE / Q — SHIFT / E — F INTERACT</div>
-          <div style="margin-top:4px;">SIMULATION v2.0</div>
+        <div style="position:fixed;bottom:10px;left:0;right:0;display:flex;justify-content:center;z-index:2;">
+          <div style="background:rgba(0,0,0,0.7);border:1px solid rgba(255,149,0,0.08);border-radius:2px;
+            padding:5px 15px;display:flex;gap:15px;">
+            <span style="color:rgba(255,149,0,0.25);font-size:0.55rem;font-family:'Share Tech Mono',monospace;letter-spacing:1px;">
+              WASD MOVE</span>
+            <span style="color:rgba(255,149,0,0.15);font-size:0.55rem;">|</span>
+            <span style="color:rgba(255,149,0,0.25);font-size:0.55rem;font-family:'Share Tech Mono',monospace;letter-spacing:1px;">
+              SPACE/Q UP</span>
+            <span style="color:rgba(255,149,0,0.15);font-size:0.55rem;">|</span>
+            <span style="color:rgba(255,149,0,0.25);font-size:0.55rem;font-family:'Share Tech Mono',monospace;letter-spacing:1px;">
+              SHIFT/E DOWN</span>
+            <span style="color:rgba(255,149,0,0.15);font-size:0.55rem;">|</span>
+            <span style="color:rgba(255,149,0,0.25);font-size:0.55rem;font-family:'Share Tech Mono',monospace;letter-spacing:1px;">
+              F INTERACT</span>
+          </div>
         </div>
       </div>
     `);
@@ -252,38 +263,44 @@ export class MainMenuScene {
     this.gs.ui.clear();
     this.gs.ui.addElement('missions-menu', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;direction:rtl;">
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.6) 100%);pointer-events:none;"></div>
+        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%);pointer-events:none;"></div>
         
-        <h2 style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);margin-bottom:25px;font-size:1.6rem;
-          text-shadow:0 0 30px rgba(0,180,255,0.3);letter-spacing:3px;position:relative;z-index:2;">
-          اختر المهمة
-        </h2>
-        <div style="display:flex;flex-direction:column;gap:8px;width:400px;max-height:60vh;overflow-y:auto;padding:10px;position:relative;z-index:2;">
+        <div style="text-align:center;margin-bottom:20px;position:relative;z-index:2;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.3);
+            letter-spacing:3px;margin-bottom:4px;">SELECT MISSION</div>
+          <h2 style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1.5rem;
+            text-shadow:0 0 20px rgba(255,149,0,0.2);letter-spacing:3px;font-weight:700;">
+            اختر المهمة
+          </h2>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;width:420px;max-height:60vh;overflow-y:auto;padding:8px;position:relative;z-index:2;">
           ${[
-            { id: 'mission-1', name: 'مهمة التدريب الأولى', desc: 'تعلم أساسيات الطيران والالتحام', diff: 'سهل', icon: '🎓' },
-            { id: 'mission-2', name: 'إصلاح الألواح الشمسية', desc: 'خروج إلى الفضاء لإصلاح لوح شمسي', diff: 'متوسط', icon: '🔧' },
-            { id: 'mission-3', name: 'تجربة نمو النباتات', desc: 'إجراء تجارب في مختبر المحطة', diff: 'سهل', icon: '🌱' },
-            { id: 'mission-4', name: 'إنقاذ المحطة', desc: 'التعامل مع تسرب هواء طارئ', diff: 'صعب', icon: '⚠️' },
-            { id: 'mission-5', name: 'مهمة الإمداد', desc: 'استقبال وتفريغ مركبة شحن', diff: 'متوسط', icon: '📦' },
-            { id: 'mission-6', name: 'العودة الطارئة', desc: 'هبوط اضطراري في ظروف صعبة', diff: 'صعب', icon: '🔥' },
+            { id: 'mission-1', name: 'مهمة التدريب الأولى', desc: 'تعلم أساسيات الطيران والالتحام', diff: 'سهل', icon: '🎓', tag: 'TRAINING' },
+            { id: 'mission-2', name: 'إصلاح الألواح الشمسية', desc: 'خروج إلى الفضاء لإصلاح لوح شمسي', diff: 'متوسط', icon: '🔧', tag: 'REPAIR' },
+            { id: 'mission-3', name: 'تجربة نمو النباتات', desc: 'إجراء تجارب في مختبر المحطة', diff: 'سهل', icon: '🌱', tag: 'SCIENCE' },
+            { id: 'mission-4', name: 'إنقاذ المحطة', desc: 'التعامل مع تسرب هواء طارئ', diff: 'صعب', icon: '⚠️', tag: 'EMERGENCY' },
+            { id: 'mission-5', name: 'مهمة الإمداد', desc: 'استقبال وتفريغ مركبة شحن', diff: 'متوسط', icon: '📦', tag: 'LOGISTICS' },
+            { id: 'mission-6', name: 'العودة الطارئة', desc: 'هبوط اضطراري في ظروف صعبة', diff: 'صعب', icon: '🔥', tag: 'ABORT' },
           ].map(m => `
             <button class="menu-btn" style="width:100%;" id="${m.id}">
               <div class="menu-btn-icon">${m.icon}</div>
               <div class="menu-btn-text" style="flex:1;">
                 <div style="display:flex;justify-content:space-between;align-items:center;">
                   <span class="menu-btn-title">${m.name}</span>
-                  <span style="font-size:0.65rem;padding:2px 10px;border-radius:12px;
-                    background:${m.diff === 'سهل' ? 'rgba(0,255,100,0.12)' : m.diff === 'متوسط' ? 'rgba(255,180,0,0.12)' : 'rgba(255,50,50,0.12)'};
-                    color:${m.diff === 'سهل' ? '#55ff99' : m.diff === 'متوسط' ? '#ffcc44' : '#ff6666'};
-                    border:1px solid ${m.diff === 'سهل' ? 'rgba(0,255,100,0.2)' : m.diff === 'متوسط' ? 'rgba(255,180,0,0.2)' : 'rgba(255,50,50,0.2)'};">
+                  <span style="font-size:0.55rem;padding:2px 8px;border-radius:2px;
+                    font-family:'Share Tech Mono',monospace;letter-spacing:1px;
+                    background:${m.diff === 'سهل' ? 'rgba(0,255,100,0.06)' : m.diff === 'متوسط' ? 'rgba(255,180,0,0.06)' : 'rgba(255,50,50,0.06)'};
+                    color:${m.diff === 'سهل' ? '#00ff88' : m.diff === 'متوسط' ? '#ffb800' : '#ff4444'};
+                    border:1px solid ${m.diff === 'سهل' ? 'rgba(0,255,100,0.15)' : m.diff === 'متوسط' ? 'rgba(255,180,0,0.15)' : 'rgba(255,50,50,0.15)'};">
                     ${m.diff}</span>
                 </div>
                 <div class="menu-btn-desc">${m.desc}</div>
               </div>
+              <span style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:rgba(255,149,0,0.2);letter-spacing:1px;">${m.tag}</span>
             </button>
           `).join('')}
         </div>
-        <button class="menu-btn-small" style="margin-top:18px;position:relative;z-index:2;" id="btn-back-missions">↩ العودة</button>
+        <button class="menu-btn-small" style="margin-top:14px;position:relative;z-index:2;" id="btn-back-missions">↩ العودة</button>
       </div>
     `);
     setTimeout(() => {
@@ -301,19 +318,24 @@ export class MainMenuScene {
     this.gs.ui.clear();
     this.gs.ui.addElement('challenges-menu', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;direction:rtl;">
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.6) 100%);pointer-events:none;"></div>
+        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%);pointer-events:none;"></div>
 
-        <h2 style="font-family:'Orbitron',sans-serif;color:rgba(255,200,0,0.9);margin-bottom:25px;font-size:1.6rem;
-          text-shadow:0 0 30px rgba(255,180,0,0.3);letter-spacing:3px;position:relative;z-index:2;">
-          التحديات
-        </h2>
-        <div style="display:flex;flex-direction:column;gap:10px;width:360px;position:relative;z-index:2;">
+        <div style="text-align:center;margin-bottom:20px;position:relative;z-index:2;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.3);
+            letter-spacing:3px;margin-bottom:4px;">SELECT CHALLENGE</div>
+          <h2 style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1.5rem;
+            text-shadow:0 0 20px rgba(255,149,0,0.2);letter-spacing:3px;font-weight:700;">
+            التحديات
+          </h2>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;width:380px;position:relative;z-index:2;">
           <button class="menu-btn" style="width:100%;" id="ch-dock">
             <div class="menu-btn-icon">🎯</div>
             <div class="menu-btn-text">
               <div class="menu-btn-title">تحدي الالتحام الدقيق</div>
               <div class="menu-btn-desc">التحم بالمحطة بأعلى دقة ممكنة</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:rgba(255,149,0,0.2);letter-spacing:1px;">DOCK</span>
           </button>
           <button class="menu-btn" style="width:100%;" id="ch-repair">
             <div class="menu-btn-icon">🔧</div>
@@ -321,6 +343,7 @@ export class MainMenuScene {
               <div class="menu-btn-title">تحدي أسرع إصلاح</div>
               <div class="menu-btn-desc">أكمل إصلاحات المحطة بأسرع وقت</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:rgba(255,149,0,0.2);letter-spacing:1px;">REPAIR</span>
           </button>
           <button class="menu-btn" style="width:100%;" id="ch-land">
             <div class="menu-btn-icon">🪂</div>
@@ -328,6 +351,7 @@ export class MainMenuScene {
               <div class="menu-btn-title">تحدي الهبوط الناجح</div>
               <div class="menu-btn-desc">اهبط بأمان على سطح المحيط</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:rgba(255,149,0,0.2);letter-spacing:1px;">LAND</span>
           </button>
           <button class="menu-btn" style="width:100%;" id="ch-crisis">
             <div class="menu-btn-icon">⚠️</div>
@@ -335,9 +359,10 @@ export class MainMenuScene {
               <div class="menu-btn-title">تحدي إدارة الأزمات</div>
               <div class="menu-btn-desc">تعامل مع حالة طوارئ على المحطة</div>
             </div>
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.45rem;color:rgba(255,149,0,0.2);letter-spacing:1px;">CRISIS</span>
           </button>
         </div>
-        <button class="menu-btn-small" style="margin-top:18px;position:relative;z-index:2;" id="btn-back-ch">↩ العودة</button>
+        <button class="menu-btn-small" style="margin-top:14px;position:relative;z-index:2;" id="btn-back-ch">↩ العودة</button>
       </div>
     `);
     setTimeout(() => {
@@ -365,27 +390,31 @@ export class MainMenuScene {
     this.gs.ui.clear();
     this.gs.ui.addElement('settings-menu', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;direction:rtl;">
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.6) 100%);pointer-events:none;"></div>
+        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%);pointer-events:none;"></div>
 
-        <h2 style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);margin-bottom:25px;font-size:1.4rem;
-          text-shadow:0 0 30px rgba(0,180,255,0.3);letter-spacing:3px;position:relative;z-index:2;">
-          الإعدادات
-        </h2>
-        <div style="display:flex;flex-direction:column;gap:15px;width:340px;
-          background:rgba(5,15,30,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-          padding:30px;border-radius:16px;border:1px solid rgba(0,150,255,0.12);position:relative;z-index:2;
-          box-shadow:0 8px 32px rgba(0,0,0,0.4);">
+        <div style="text-align:center;margin-bottom:20px;position:relative;z-index:2;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.3);
+            letter-spacing:3px;margin-bottom:4px;">CONFIGURATION</div>
+          <h2 style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1.4rem;
+            text-shadow:0 0 20px rgba(255,149,0,0.2);letter-spacing:3px;font-weight:700;">
+            الإعدادات
+          </h2>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px;width:350px;
+          background:rgba(0,0,0,0.85);border:1px solid rgba(255,149,0,0.15);
+          padding:24px;border-radius:2px;position:relative;z-index:2;
+          box-shadow:0 4px 30px rgba(0,0,0,0.5);">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="color:rgba(180,210,240,0.8);font-family:'Tajawal',sans-serif;font-size:0.95rem;">المؤثرات الصوتية</span>
+            <span style="color:rgba(200,180,150,0.7);font-family:'Tajawal',sans-serif;font-size:0.9rem;">المؤثرات الصوتية</span>
             <button class="menu-btn-small" id="toggle-sfx">${this.gs.settings.soundEnabled ? '🔊 مفعّل' : '🔇 مغلق'}</button>
           </div>
-          <div style="height:1px;background:rgba(255,255,255,0.05);"></div>
+          <div style="height:1px;background:rgba(255,149,0,0.08);"></div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="color:rgba(180,210,240,0.8);font-family:'Tajawal',sans-serif;font-size:0.95rem;">الصعوبة</span>
+            <span style="color:rgba(200,180,150,0.7);font-family:'Tajawal',sans-serif;font-size:0.9rem;">الصعوبة</span>
             <button class="menu-btn-small" id="toggle-diff">${this.gs.settings.difficulty === 'easy' ? 'سهل' : this.gs.settings.difficulty === 'normal' ? 'عادي' : 'صعب'}</button>
           </div>
         </div>
-        <button class="menu-btn-small" style="margin-top:18px;position:relative;z-index:2;" id="btn-back-settings">↩ العودة</button>
+        <button class="menu-btn-small" style="margin-top:14px;position:relative;z-index:2;" id="btn-back-settings">↩ العودة</button>
       </div>
     `);
     setTimeout(() => {
@@ -408,54 +437,83 @@ export class MainMenuScene {
     this.gs.ui.clear();
     this.gs.ui.addElement('help-menu', `
       <div style="position:fixed;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;direction:rtl;">
-        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.6) 100%);pointer-events:none;"></div>
+        <div style="position:absolute;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,0.7) 100%);pointer-events:none;"></div>
 
-        <h2 style="font-family:'Orbitron',sans-serif;color:rgba(0,200,255,0.9);margin-bottom:20px;font-size:1.4rem;
-          text-shadow:0 0 30px rgba(0,180,255,0.3);letter-spacing:3px;position:relative;z-index:2;">
-          دليل اللعبة
-        </h2>
+        <div style="text-align:center;margin-bottom:16px;position:relative;z-index:2;">
+          <div style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.3);
+            letter-spacing:3px;margin-bottom:4px;">MISSION GUIDE</div>
+          <h2 style="font-family:'Orbitron',sans-serif;color:#ff9500;font-size:1.4rem;
+            text-shadow:0 0 20px rgba(255,149,0,0.2);letter-spacing:3px;font-weight:700;">
+            دليل اللعبة
+          </h2>
+        </div>
         <div style="max-width:520px;max-height:60vh;overflow-y:auto;
-          background:rgba(5,15,30,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-          padding:28px;border-radius:16px;border:1px solid rgba(0,150,255,0.12);
-          line-height:1.9;color:rgba(200,220,240,0.85);position:relative;z-index:2;
-          box-shadow:0 8px 32px rgba(0,0,0,0.4);font-family:'Tajawal',sans-serif;">
+          background:rgba(0,0,0,0.85);border:1px solid rgba(255,149,0,0.15);
+          padding:24px;border-radius:2px;
+          line-height:1.9;color:rgba(200,210,220,0.7);position:relative;z-index:2;
+          box-shadow:0 4px 30px rgba(0,0,0,0.5);font-family:'Tajawal',sans-serif;">
           
-          <h3 style="color:rgba(0,200,255,0.9);margin-bottom:12px;font-size:1rem;font-weight:600;">التحكم</h3>
-          <div style="background:rgba(0,20,40,0.4);padding:12px 16px;border-radius:10px;margin-bottom:18px;font-size:0.85rem;
-            border:1px solid rgba(0,100,200,0.1);">
-            <div style="display:grid;grid-template-columns:80px 1fr;gap:6px 12px;">
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">W / ↑</span><span>التحرك للأمام</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">S / ↓</span><span>التحرك للخلف</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">A / ←</span><span>التحرك لليسار</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">D / →</span><span>التحرك لليمين</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">Q / Space</span><span>الصعود</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">E / Shift</span><span>النزول</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">F</span><span>التفاعل</span>
-              <span style="color:rgba(0,180,255,0.7);font-family:'Orbitron',monospace;font-size:0.75rem;">الفأرة</span><span>توجيه الكاميرا</span>
+          <h3 style="color:#ff9500;margin-bottom:10px;font-size:0.95rem;font-weight:600;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.4);margin-left:8px;">CTRL</span>
+            التحكم
+          </h3>
+          <div style="background:rgba(255,149,0,0.03);padding:10px 14px;border-radius:2px;margin-bottom:16px;font-size:0.82rem;
+            border:1px solid rgba(255,149,0,0.08);">
+            <div style="display:grid;grid-template-columns:70px 1fr;gap:5px 10px;">
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">W / ↑</span><span>التحرك للأمام</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">S / ↓</span><span>التحرك للخلف</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">A / ←</span><span>التحرك لليسار</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">D / →</span><span>التحرك لليمين</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">Q / Space</span><span>الصعود</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">E / Shift</span><span>النزول</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">F</span><span>التفاعل</span>
+              <span style="color:#ff9500;font-family:'Share Tech Mono',monospace;font-size:0.7rem;">الفأرة</span><span>توجيه الكاميرا</span>
             </div>
           </div>
 
-          <h3 style="color:rgba(0,200,255,0.9);margin-bottom:12px;font-size:1rem;font-weight:600;">مراحل المهمة</h3>
-          <div style="font-size:0.85rem;margin-bottom:18px;">
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">1. الاستعداد والتوجه لمنصة الإطلاق</div>
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">2. الإقلاع وصعود الصاروخ</div>
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">3. الملاحة في الفضاء نحو المحطة</div>
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">4. الالتحام بمحطة الفضاء الدولية</div>
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">5. استكشاف المحطة وتنفيذ المهام</div>
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">6. ارتداء بدلة EVA والخروج للفضاء</div>
-            <div style="padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.03);">7. دخول الغلاف الجوي والاحتراق</div>
-            <div style="padding:4px 0;">8. الهبوط في المحيط والإنقاذ</div>
+          <h3 style="color:#ff9500;margin-bottom:10px;font-size:0.95rem;font-weight:600;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.4);margin-left:8px;">PHASES</span>
+            مراحل المهمة
+          </h3>
+          <div style="font-size:0.82rem;margin-bottom:16px;">
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">01</span>
+              الاستعداد والتوجه لمنصة الإطلاق</div>
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">02</span>
+              الإقلاع وصعود الصاروخ</div>
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">03</span>
+              الملاحة في الفضاء نحو المحطة</div>
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">04</span>
+              الالتحام بمحطة الفضاء الدولية</div>
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">05</span>
+              استكشاف المحطة وتنفيذ المهام</div>
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">06</span>
+              ارتداء بدلة EVA والخروج للفضاء</div>
+            <div style="padding:3px 0;border-bottom:1px solid rgba(255,149,0,0.05);">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">07</span>
+              دخول الغلاف الجوي والاحتراق</div>
+            <div style="padding:3px 0;">
+              <span style="color:rgba(255,149,0,0.4);font-family:'Share Tech Mono',monospace;font-size:0.6rem;margin-left:6px;">08</span>
+              الهبوط في المحيط والإنقاذ</div>
           </div>
 
-          <h3 style="color:rgba(0,200,255,0.9);margin-bottom:12px;font-size:1rem;font-weight:600;">نصائح</h3>
-          <div style="font-size:0.85rem;">
-            <div style="padding:3px 0;">• راقب الأكسجين والوقود باستمرار</div>
-            <div style="padding:3px 0;">• اتبع تعليمات مركز التحكم في هيوستن</div>
-            <div style="padding:3px 0;">• اقترب ببطء أثناء الالتحام</div>
-            <div style="padding:3px 0;">• حافظ على زاوية الدخول الصحيحة عند العودة</div>
+          <h3 style="color:#ff9500;margin-bottom:10px;font-size:0.95rem;font-weight:600;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:0.55rem;color:rgba(255,149,0,0.4);margin-left:8px;">TIPS</span>
+            نصائح
+          </h3>
+          <div style="font-size:0.82rem;">
+            <div style="padding:2px 0;"><span style="color:#ff9500;font-size:0.5rem;margin-left:6px;">▸</span> راقب الأكسجين والوقود باستمرار</div>
+            <div style="padding:2px 0;"><span style="color:#ff9500;font-size:0.5rem;margin-left:6px;">▸</span> اتبع تعليمات مركز التحكم في هيوستن</div>
+            <div style="padding:2px 0;"><span style="color:#ff9500;font-size:0.5rem;margin-left:6px;">▸</span> اقترب ببطء أثناء الالتحام</div>
+            <div style="padding:2px 0;"><span style="color:#ff9500;font-size:0.5rem;margin-left:6px;">▸</span> حافظ على زاوية الدخول الصحيحة عند العودة</div>
           </div>
         </div>
-        <button class="menu-btn-small" style="margin-top:18px;position:relative;z-index:2;" id="btn-back-help">↩ العودة</button>
+        <button class="menu-btn-small" style="margin-top:14px;position:relative;z-index:2;" id="btn-back-help">↩ العودة</button>
       </div>
     `);
     setTimeout(() => {
@@ -466,12 +524,10 @@ export class MainMenuScene {
   update(delta) {
     this.time += delta;
 
-    // Earth rotation
     if (this.earth) {
       this.earth.rotation.y += delta * 0.03;
     }
 
-    // ISS orbit around Earth
     if (this.iss) {
       this.issOrbitAngle += delta * 0.15;
       const orbitRadius = 58;
@@ -483,7 +539,6 @@ export class MainMenuScene {
       this.iss.rotation.y = -this.issOrbitAngle + Math.PI / 2;
     }
 
-    // Cinematic camera orbit
     const camRadius = 120;
     const camAngle = this.time * 0.04;
     this.camera.position.x = Math.sin(camAngle) * camRadius * 0.15;
@@ -491,13 +546,11 @@ export class MainMenuScene {
     this.camera.position.z = camRadius + Math.sin(this.time * 0.06) * 10;
     this.camera.lookAt(0, -10, 0);
 
-    // Nebula clouds gentle animation
     this.nebulaClouds.forEach((cloud, i) => {
       cloud.rotation.y += delta * 0.005 * (i + 1);
-      cloud.material.opacity = 0.12 + Math.sin(this.time * 0.3 + i * 2) * 0.04;
+      cloud.material.opacity = 0.1 + Math.sin(this.time * 0.3 + i * 2) * 0.03;
     });
 
-    // Shooting stars
     this.shootingStars.forEach(ss => {
       if (!ss.active) {
         ss.timer -= delta;

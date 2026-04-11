@@ -408,12 +408,12 @@ export class EVAScene {
       const stepName = nearTarget.steps[nearTarget.currentStep];
       this.gs.ui.addElement('eva-hint', `
         <div style="position:fixed;bottom:130px;left:50%;transform:translateX(-50%);
-          background:rgba(5,12,25,0.65);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-          border:1px solid rgba(255,136,0,0.08);border-radius:10px;
+          background:rgba(0,0,0,0.85);
+          border:1px solid rgba(255,136,0,0.08);border-radius:2px;
           padding:8px 16px;direction:rtl;text-align:center;">
           <div style="color:rgba(255,136,0,0.85);font-size:0.78rem;font-family:'Tajawal',sans-serif;">${nearTarget.name}</div>
-          <div style="color:rgba(0,200,255,0.8);font-size:0.72rem;margin-top:3px;">استمر بالضغط على F — ${stepName}</div>
-          <div style="color:rgba(100,140,180,0.4);font-size:0.62rem;">خطوة ${nearTarget.currentStep + 1} من ${nearTarget.steps.length}</div>
+          <div style="color:rgba(255,149,0,0.7);font-size:0.72rem;margin-top:3px;">استمر بالضغط على F — ${stepName}</div>
+          <div style="color:rgba(255,149,0,0.3);font-size:0.62rem;">خطوة ${nearTarget.currentStep + 1} من ${nearTarget.steps.length}</div>
         </div>
       `);
     }
@@ -487,10 +487,9 @@ export class EVAScene {
     // EVA tasks panel
     this.gs.ui.removeElement('eva-tasks');
     this.gs.ui.addElement('eva-tasks', `
-      <div style="position:fixed;top:70px;right:15px;background:rgba(5,12,25,0.65);
-        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-        border:1px solid rgba(0,150,255,0.08);border-radius:10px;padding:10px 14px;direction:rtl;max-width:220px;">
-        <div style="color:rgba(0,180,255,0.8);font-size:0.7rem;margin-bottom:5px;
+      <div style="position:fixed;top:70px;right:15px;background:rgba(0,0,0,0.85);
+        border:1px solid rgba(255,149,0,0.15);border-radius:2px;padding:10px 14px;direction:rtl;max-width:220px;">
+        <div style="color:rgba(255,149,0,0.7);font-size:0.7rem;margin-bottom:5px;
           font-family:'Orbitron',monospace;letter-spacing:1px;">🧑‍🚀 مهام EVA (${this.tasksCompleted}/${this.totalTasks})</div>
         ${this.evaTaskList.map(t => {
           const typeIcons = { wiring: '⚡', electronics: '🔌', sensor: '📡', plumbing: '🔧', battery: '🔋' };
@@ -506,9 +505,8 @@ export class EVAScene {
     // Suit systems panel
     this.gs.ui.removeElement('suit-systems');
     this.gs.ui.addElement('suit-systems', `
-      <div style="position:fixed;top:70px;left:15px;background:rgba(5,12,25,0.65);
-        backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-        border:1px solid rgba(0,100,50,0.08);border-radius:10px;padding:10px 14px;direction:rtl;">
+      <div style="position:fixed;top:70px;left:15px;background:rgba(0,0,0,0.85);
+        border:1px solid rgba(0,255,100,0.1);border-radius:2px;padding:10px 14px;direction:rtl;">
         <div style="color:rgba(0,255,120,0.7);font-size:0.68rem;margin-bottom:5px;
           font-family:'Orbitron',monospace;letter-spacing:1px;">🧑‍🚀 أنظمة البدلة (EMU)</div>
         <div style="color:${this.oxygenTimer > 30 ? '#88ff88' : '#ff4444'};font-size:0.65rem;">O₂: ${Math.round(this.oxygenTimer)}%</div>
