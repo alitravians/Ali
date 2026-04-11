@@ -252,6 +252,12 @@ export class ISSInteriorScene {
           this.tasksCompleted++;
           this.gs.audio.playSuccess();
           this.gs.ui.showMessage('✓ تم إكمال المهمة بنجاح!', 2000, 'success');
+          // Stop emergency if repair was the emergency task
+          if (this.emergencyActive) {
+            this.emergencyActive = false;
+            this.gs.playerData.oxygen = Math.max(this.gs.playerData.oxygen, 70);
+            this.gs.ui.showComm('مركز التحكم', 'تم إصلاح التسرب بنجاح! مستوى الأكسجين مستقر.', 4000);
+          }
           this._advanceSchedule();
         }
         this._renderTaskPanel(task);
@@ -265,6 +271,12 @@ export class ISSInteriorScene {
 
   _advanceSchedule() {
     this.scheduleIndex++;
+    // Skip non-task items automatically
+    while (this.scheduleIndex < this.dailySchedule.length - 1 && !this.dailySchedule[this.scheduleIndex].task) {
+      const skipped = this.dailySchedule[this.scheduleIndex];
+      this.gs.ui.showMessage(`${skipped.icon} ${skipped.name}`, 1500, 'info');
+      this.scheduleIndex++;
+    }
     if (this.scheduleIndex >= this.dailySchedule.length - 1) {
       this._showDayComplete();
     } else {
@@ -388,6 +400,10 @@ export class ISSInteriorScene {
       const schedule = this.dailySchedule[this.scheduleIndex];
       if (schedule && schedule.task) {
         this._startTask(schedule.task);
+      } else if (schedule && !schedule.task) {
+        // Non-task items: advance on F press
+        this.gs.ui.showMessage(`${schedule.icon} ${schedule.name}`, 1500, 'info');
+        this._advanceSchedule();
       }
     }
 

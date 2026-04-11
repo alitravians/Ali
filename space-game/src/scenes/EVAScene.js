@@ -270,8 +270,8 @@ export class EVAScene {
     // Earth rotation
     if (this.earth) this.earth.rotation.y += delta * 0.005;
 
-    // ISS slow rotation
-    this.iss.rotation.y += delta * 0.003;
+    // ISS does not rotate since repair markers are in world space
+    // this.iss.rotation.y += delta * 0.003;
 
     // HUD
     this.gs.ui.showHUD({
