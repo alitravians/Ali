@@ -499,7 +499,32 @@ export class LandingScene {
       this._animateOcean(delta);
       return;
     }
-    if (this.landed) return;
+    if (this.landed) {
+      // Continue ocean/splash animations even after landing
+      this._animateOcean(delta);
+      if (this.splashParticles && this.splashParticles.visible) {
+        const pos = this.splashParticles.geometry.attributes.position.array;
+        const vels = this.splashParticles.userData.velocities;
+        for (let i = 0; i < vels.length; i++) {
+          pos[i * 3] += vels[i].x * delta;
+          pos[i * 3 + 1] += vels[i].y * delta;
+          pos[i * 3 + 2] += vels[i].z * delta;
+          vels[i].y -= 9.8 * delta;
+        }
+        this.splashParticles.geometry.attributes.position.needsUpdate = true;
+        this.splashParticles.material.opacity = Math.max(0, this.splashParticles.material.opacity - delta * 0.3);
+        if (this.splashParticles.material.opacity <= 0) this.splashParticles.visible = false;
+      }
+      // Capsule bobbing before recovery phase starts
+      this.bobbingPhase += delta;
+      this.spacecraft.position.y = -3.5 + Math.sin(this.bobbingPhase * 1.5) * 0.3;
+      this.spacecraft.rotation.z = Math.sin(this.bobbingPhase * 0.8) * 0.05;
+      // Helicopter rotors keep spinning
+      this.recoveryHelicopters.forEach(heli => {
+        heli.children.forEach(c => { if (c.userData.isRotor) c.rotation.y += delta * 25; });
+      });
+      return;
+    }
     this.time += delta;
 
     // Phase transitions

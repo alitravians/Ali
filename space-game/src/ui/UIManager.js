@@ -100,7 +100,7 @@ export class UIManager {
       </div>
     `);
     if (duration > 0) {
-      setTimeout(() => el.remove(), duration);
+      setTimeout(() => { el.remove(); delete this.activeElements[el.id]; }, duration);
     }
     return el;
   }
