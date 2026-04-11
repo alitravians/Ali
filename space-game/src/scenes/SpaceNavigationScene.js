@@ -61,8 +61,9 @@ export class SpaceNavigationScene {
     this.time = 0;
     this.distanceToISS = 50;
 
-    // Reset speed to prevent residual velocity on replay
+    // Reset speed and transition flag to prevent residual state on replay
     this.spacecraftSpeed = new THREE.Vector3();
+    this._transitioning = false;
 
     // Space ambience sound
     this.ambience = this.gs.audio.playSpaceAmbience();
@@ -158,13 +159,13 @@ export class SpaceNavigationScene {
     }
 
     // Transition to docking
-    if (this.distanceToISS <= 2) {
+    if (this.distanceToISS <= 2 && !this._transitioning) {
+      this._transitioning = true;
       this.gs.audio.playConfirm();
       this.gs.ui.showCenterText('بدء الالتحام', 'Docking Sequence Initiated', 2000);
       setTimeout(() => {
         this.gs.switchScene('docking', { mode: this.mode });
       }, 2500);
-      this.distanceToISS = 999; // prevent re-trigger
     }
   }
 

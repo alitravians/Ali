@@ -570,8 +570,9 @@ export class ISSInteriorScene {
     // Sections update
     if (Math.floor(this.time * 2) % 3 === 0) this._showISSSections();
 
-    // F key for interaction
-    if (input.isKey('KeyF') && !this.activeTask) {
+    // F key for interaction (only trigger on key-down, not every frame)
+    const fKeyDown = input.isKey('KeyF');
+    if (fKeyDown && !this._fKeyWasDown && !this.activeTask) {
       const schedule = this.dailySchedule[this.scheduleIndex];
       if (schedule && schedule.task) {
         this._startTask(schedule.task);
@@ -580,6 +581,7 @@ export class ISSInteriorScene {
         this._advanceSchedule();
       }
     }
+    this._fKeyWasDown = fKeyDown;
 
     // Emergency oxygen drain
     if (this.emergencyActive) {
