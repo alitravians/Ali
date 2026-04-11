@@ -310,8 +310,8 @@ export class EVAScene {
     const input = this.gs.input;
 
     // Suit systems drain
-    this.oxygenTimer -= delta * 0.25;
-    this.suitBattery -= delta * 0.08;
+    this.oxygenTimer = Math.max(0, this.oxygenTimer - delta * 0.25);
+    this.suitBattery = Math.max(0, this.suitBattery - delta * 0.08);
     this.suitCO2 = Math.min(5, this.suitCO2 + delta * 0.03);
 
     // CO2 scrubber activates periodically
@@ -415,6 +415,12 @@ export class EVAScene {
           <div style="color:#557799;font-size:0.65rem;">خطوة ${nearTarget.currentStep + 1} من ${nearTarget.steps.length}</div>
         </div>
       `);
+    }
+
+    // Reset progress when switching to a different task
+    if (nearTarget !== this._activeRepairTask) {
+      this.repairProgress = 0;
+      this._activeRepairTask = nearTarget;
     }
 
     // F key for repair (hold to progress through steps)
