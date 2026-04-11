@@ -27,6 +27,7 @@ export class EVAScene {
     this.suitBattery = 100;
     this.suitCO2 = 0;
     this.currentTool = 'wrench';
+    this._timeouts = [];
   }
 
   async init(data = {}) {
@@ -203,9 +204,9 @@ export class EVAScene {
       { key: 'F (مع الاستمرار)', action: 'إصلاح (عند الهدف)' },
     ]);
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.showComm('مركز التحكم', 'بدء نشاط خارج المركبة. لديك 5 مهام إصلاح. كل مهمة تتطلب عدة خطوات. راقب الأكسجين والبطارية. حظاً سعيداً!', 7000);
-    }, 3500);
+    }, 3500));
   }
 
   _createAstronaut() {
@@ -532,7 +533,7 @@ export class EVAScene {
     this.gs.ui.showCenterText('EVA مكتملة!', 'جميع الإصلاحات تمت بنجاح — عمل ممتاز!', 0);
     this.gs.ui.showComm('مركز التحكم', 'عمل رائع يا رائد الفضاء! جميع الإصلاحات الخارجية اكتملت. الألواح الشمسية والاتصالات والمستشعرات تعمل بشكل مثالي. عد إلى القفل الهوائي.', 7000);
 
-    setTimeout(() => {
+    this._timeouts.push(setTimeout(() => {
       this.gs.ui.addElement('eva-continue', `
         <div style="position:fixed;bottom:50px;left:50%;transform:translateX(-50%);display:flex;gap:10px;">
           <button class="menu-btn menu-btn-primary" style="display:inline-flex;width:auto;padding:10px 22px;" id="btn-to-return">
@@ -545,7 +546,7 @@ export class EVAScene {
           </button>
         </div>
       `);
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         document.getElementById('btn-to-return')?.addEventListener('click', () => {
           this.gs.audio.playConfirm();
           this.gs.switchScene('reEntry', { mode: this.mode });
@@ -554,8 +555,8 @@ export class EVAScene {
           this.gs.audio.playConfirm();
           this.gs.switchScene('issInterior', { mode: this.mode });
         });
-      }, 100);
-    }, 3000);
+      }, 100));
+    }, 3000));
   }
 
   render(renderer) {
@@ -563,6 +564,8 @@ export class EVAScene {
   }
 
   async cleanup() {
+    this._timeouts.forEach(t => clearTimeout(t));
+    this._timeouts = [];
     window.removeEventListener('resize', this._onResize);
     document.getElementById('game-canvas')?.removeEventListener('click', this._onClickLock);
     if (document.pointerLockElement) document.exitPointerLock();

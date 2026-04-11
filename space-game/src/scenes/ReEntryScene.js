@@ -526,9 +526,9 @@ export class ReEntryScene {
       if (this.altitude <= 5 && !this._transitioning) {
         this._transitioning = true;
         this.gs.ui.showCenterText('المظلات الرئيسية', 'Main Chutes Deployed', 2000);
-        setTimeout(() => {
+        this._timeouts.push(setTimeout(() => {
           this.gs.switchScene('landing', { mode: this.mode, entryAngle: this.entryAngle });
-        }, 2500);
+        }, 2500));
       }
     }
 

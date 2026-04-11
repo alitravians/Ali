@@ -736,13 +736,13 @@ export class LandingScene {
       this._createDivers();
 
       // Hide parachutes (collapsed in water)
-      setTimeout(() => {
+      this._timeouts.push(setTimeout(() => {
         this.parachutes.forEach(p => {
           p.scale.setScalar(0.5);
           p.position.y = -4;
           p.material.opacity = 0.4;
         });
-      }, 2000);
+      }, 2000));
 
       this._showLandingSequence();
     }
