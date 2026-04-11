@@ -351,6 +351,71 @@ function DataParticles({ active }: { active: boolean }) {
 }
 
 
+// ── Typewriter text component ──
+function TypewriterText({ text, className, speed = 30 }: { text: string; className?: string; speed?: number }) {
+  const [displayed, setDisplayed] = useState('');
+  const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    setDisplayed('');
+    setDone(false);
+    let i = 0;
+    const timer = setInterval(() => {
+      i++;
+      setDisplayed(text.slice(0, i));
+      if (i >= text.length) {
+        clearInterval(timer);
+        setDone(true);
+      }
+    }, speed);
+    return () => clearInterval(timer);
+  }, [text, speed]);
+
+  return (
+    <span className={className}>
+      {displayed}
+      {!done && <span className="inline-block w-[2px] h-[1em] bg-current ml-0.5 align-middle" style={{ animation: 'cursorBlink 0.7s step-end infinite' }} />}
+    </span>
+  );
+}
+
+// ── Ambient floating particles ──
+function AmbientParticles({ phase, isComplete }: { phase: number; isComplete: boolean }) {
+  const particles = useMemo(() =>
+    Array.from({ length: 20 }, (_, i) => ({
+      id: i,
+      x: 10 + Math.random() * 80,
+      y: 10 + Math.random() * 80,
+      size: 1 + Math.random() * 3,
+      duration: 4 + Math.random() * 6,
+      delay: Math.random() * 5,
+      opacity: 0.1 + Math.random() * 0.2,
+    })),
+  []);
+
+  const color = isComplete ? '#22c55e' : phase >= 3 ? '#a78bfa' : '#3b82f6';
+
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      {particles.map(p => (
+        <div
+          key={p.id}
+          className="absolute rounded-full"
+          style={{
+            left: `${p.x}%`,
+            top: `${p.y}%`,
+            width: p.size,
+            height: p.size,
+            background: color,
+            opacity: p.opacity,
+            animation: `ambientFloat ${p.duration}s ease-in-out ${p.delay}s infinite alternate, ambientPulse ${p.duration * 0.7}s ease-in-out ${p.delay}s infinite`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export default function RepairTracker3D({ isOpen, onClose, problemDescription, pagePath, ticketId }: RepairTrackerProps) {
   console.log('[RepairTracker3D] render, isOpen:', isOpen, 'ticketId:', ticketId);
   const [currentPhase, setCurrentPhase] = useState(0);
@@ -364,6 +429,8 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
   const [wsConnected, setWsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'live' | 'syncing' | 'polling'>('connecting');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [entranceReady, setEntranceReady] = useState(false);
+  const [prevPhase, setPrevPhase] = useState(-1);
   const logRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -371,6 +438,22 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reducedMotion = useReducedMotion();
   const { phaseAdvance, completion, statusUpdate, enabledRef } = useSoundEffects();
+
+  // Staggered entrance animation
+  useEffect(() => {
+    if (isOpen) {
+      setEntranceReady(false);
+      const timer = setTimeout(() => setEntranceReady(true), 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen]);
+
+  // Track previous phase for transition direction
+  useEffect(() => {
+    if (currentPhase !== prevPhase) {
+      setPrevPhase(currentPhase);
+    }
+  }, [currentPhase, prevPhase]);
 
   // Sync sound enabled state
   useEffect(() => { enabledRef.current = soundEnabled; }, [soundEnabled, enabledRef]);
@@ -647,7 +730,9 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
   ];
 
   return (
-    <div className="fixed inset-0 z-[10001] overflow-hidden" dir="rtl">
+    <div className="fixed inset-0 z-[10001] overflow-hidden" dir="rtl" style={{
+      animation: 'cinemaOpen 0.6s cubic-bezier(0.16, 1, 0.3, 1) both',
+    }}>
       {/* Background */}
       <div className="absolute inset-0" style={{
         background: 'linear-gradient(180deg, #0a0e1a 0%, #0d1321 40%, #111827 100%)',
@@ -656,8 +741,11 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
           <div className="absolute inset-0 opacity-[0.03]" style={{
             backgroundImage: 'linear-gradient(rgba(59,130,246,1) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,1) 1px, transparent 1px)',
             backgroundSize: '40px 40px',
+            animation: 'gridPulse 8s ease-in-out infinite',
           }} />
         )}
+        {/* Ambient floating particles */}
+        {!reducedMotion && <AmbientParticles phase={currentPhase} isComplete={isComplete} />}
       </div>
 
       {/* Main layout */}
@@ -666,6 +754,9 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
         {/* Top bar */}
         <div className="shrink-0 px-4 md:px-6 py-3 flex items-center gap-3 border-b border-white/5 backdrop-blur-sm" style={{
           background: 'rgba(10, 14, 26, 0.8)',
+          opacity: entranceReady ? 1 : 0,
+          transform: entranceReady ? 'translateY(0)' : 'translateY(-20px)',
+          transition: 'opacity 0.5s ease-out, transform 0.5s ease-out',
         }}>
           <div className="flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full" style={{
@@ -737,9 +828,12 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
         <div className="shrink-0 mx-4 md:mx-6 mt-3 px-4 py-2.5 rounded-xl border" style={{
           background: 'linear-gradient(135deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02))',
           borderColor: 'rgba(239,68,68,0.15)',
+          opacity: entranceReady ? 1 : 0,
+          transform: entranceReady ? 'translateY(0) scale(1)' : 'translateY(15px) scale(0.97)',
+          transition: 'opacity 0.5s ease-out 0.15s, transform 0.5s ease-out 0.15s',
         }}>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500" style={{ animation: 'pulseGlow 1.5s infinite' }} />
             <span className="text-[10px] text-red-400/80 font-bold">المشكلة:</span>
             <span className="text-xs text-gray-300 flex-1 truncate">{problemDescription}</span>
             <span className="text-[9px] text-gray-600 font-mono" dir="ltr">{pagePath}</span>
@@ -747,7 +841,11 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
         </div>
 
         {/* Main content area */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-3 p-4 md:p-6 min-h-0 overflow-hidden">
+        <div className="flex-1 flex flex-col lg:flex-row gap-3 p-4 md:p-6 min-h-0 overflow-hidden" style={{
+          opacity: entranceReady ? 1 : 0,
+          transform: entranceReady ? 'translateY(0)' : 'translateY(25px)',
+          transition: 'opacity 0.6s ease-out 0.3s, transform 0.6s ease-out 0.3s',
+        }}>
 
           {/* === LEFT: 3D Office Scene === */}
           <div className="flex-1 rounded-2xl border overflow-hidden relative" style={{
@@ -954,24 +1052,30 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                   const isDone = idx < currentPhase || isComplete;
                   const isPending = idx > currentPhase && !isComplete;
                   return (
-                    <div key={idx} className="flex items-center gap-2 px-2 py-1.5 rounded-lg transition-all duration-500" style={{
-                      background: isActive ? 'rgba(59,130,246,0.08)' : 'transparent',
+                    <div key={idx} className="flex items-center gap-2 px-2 py-1.5 rounded-lg" style={{
+                      background: isActive ? 'rgba(59,130,246,0.1)' : isDone ? 'rgba(34,197,94,0.03)' : 'transparent',
                       opacity: isPending ? 0.3 : 1,
-                      transform: isActive && phaseTransition ? 'scale(1.02)' : 'scale(1)',
+                      transform: isActive && phaseTransition ? 'scale(1.04) translateX(-4px)' : 'scale(1) translateX(0)',
+                      transition: 'all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                      boxShadow: isActive ? '0 0 15px rgba(59,130,246,0.1)' : 'none',
+                      borderRight: isActive ? '2px solid rgba(59,130,246,0.5)' : isDone ? '2px solid rgba(34,197,94,0.3)' : '2px solid transparent',
                     }}>
                       <div className="shrink-0">
                         {isDone ? (
                           <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center" style={{
-                            boxShadow: '0 0 6px rgba(34,197,94,0.3)',
+                            boxShadow: '0 0 8px rgba(34,197,94,0.4)',
+                            animation: 'phaseCheckIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
                           }}>
                             <CheckCircle className="w-3 h-3 text-green-400" />
                           </div>
                         ) : isActive ? (
                           <div className="w-5 h-5 rounded-full bg-blue-500/20 flex items-center justify-center" style={{
-                            animation: 'pulseGlow 1.5s infinite',
-                            boxShadow: '0 0 8px rgba(59,130,246,0.4)',
+                            animation: 'activePhaseGlow 2s ease-in-out infinite',
+                            boxShadow: '0 0 12px rgba(59,130,246,0.5)',
                           }}>
-                            <div className="w-2 h-2 rounded-full bg-blue-400" />
+                            <div className="w-2 h-2 rounded-full bg-blue-400" style={{
+                              animation: 'activeOrb 1.5s ease-in-out infinite',
+                            }} />
                           </div>
                         ) : (
                           <div className="w-5 h-5 rounded-full bg-white/5 flex items-center justify-center">
@@ -1028,19 +1132,28 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                 </div>
               </div>
               <div ref={logRef} className="p-2.5 overflow-y-auto text-[9px] md:text-[10px] leading-relaxed space-y-1 custom-scrollbar" dir="rtl" style={{ maxHeight: '200px' }}>
-                {statusLines.map((line, idx) => (
+                {statusLines.map((line, idx) => {
+                  const isLatest = idx === statusLines.length - 1;
+                  const isSuccess = line.includes('✓') || line.includes('ناجح') || line.includes('بنجاح') || line.includes('تم');
+                  const isProgress = line.includes('جاري');
+                  return (
                   <div key={idx} className="flex items-start gap-2 px-2 py-1 rounded-lg" style={{
-                    animation: 'statusFadeIn 0.4s ease-out',
-                    background: idx === statusLines.length - 1 ? 'rgba(59,130,246,0.05)' : 'transparent',
+                    animation: 'statusSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                    background: isLatest ? 'rgba(59,130,246,0.08)' : 'transparent',
+                    borderRight: isLatest ? '2px solid rgba(59,130,246,0.3)' : '2px solid transparent',
                   }}>
                     <div className="shrink-0 mt-0.5">
-                      {line.includes('✓') || line.includes('ناجح') || line.includes('بنجاح') || line.includes('تم') ? (
-                        <div className="w-3 h-3 rounded-full bg-green-500/20 flex items-center justify-center">
+                      {isSuccess ? (
+                        <div className="w-3 h-3 rounded-full bg-green-500/20 flex items-center justify-center" style={{
+                          boxShadow: isLatest ? '0 0 6px rgba(34,197,94,0.3)' : 'none',
+                        }}>
                           <div className="w-1.5 h-1.5 rounded-full bg-green-400" />
                         </div>
-                      ) : line.includes('جاري') ? (
+                      ) : isProgress ? (
                         <div className="w-3 h-3 rounded-full bg-blue-500/20 flex items-center justify-center">
-                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-400" style={{
+                            animation: isLatest ? 'activeOrb 1s ease-in-out infinite' : 'none',
+                          }} />
                         </div>
                       ) : (
                         <div className="w-3 h-3 rounded-full bg-gray-500/20 flex items-center justify-center">
@@ -1048,15 +1161,26 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                         </div>
                       )}
                     </div>
-                    <span className={
-                      line.includes('✓') || line.includes('ناجح') || line.includes('بنجاح')
-                        ? 'text-green-400'
-                        : line.includes('جاري')
-                        ? 'text-blue-300'
-                        : 'text-gray-400'
-                    }>{line}</span>
+                    {isLatest && !isComplete ? (
+                      <TypewriterText
+                        text={line}
+                        speed={25}
+                        className={
+                          isSuccess ? 'text-green-400'
+                            : isProgress ? 'text-blue-300'
+                            : 'text-gray-400'
+                        }
+                      />
+                    ) : (
+                      <span className={
+                        isSuccess ? 'text-green-400'
+                          : isProgress ? 'text-blue-300'
+                          : 'text-gray-400'
+                      }>{line}</span>
+                    )}
                   </div>
-                ))}
+                  );
+                })}
                 {!isComplete && (
                   <div className="flex items-center gap-2 px-2 py-1">
                     {connectionState === 'syncing' ? (
@@ -1087,20 +1211,40 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
         </div>
 
         {/* Bottom progress bar */}
-        <div className="shrink-0 px-4 md:px-6 pb-4">
-          {/* Progress bar with glow */}
-          <div className="relative h-2.5 rounded-full overflow-hidden mb-2" style={{
-            background: 'rgba(59,130,246,0.08)',
-            boxShadow: isComplete ? '0 0 15px rgba(34,197,94,0.2)' : '0 0 10px rgba(59,130,246,0.1)',
+        <div className="shrink-0 px-4 md:px-6 pb-4" style={{
+          opacity: entranceReady ? 1 : 0,
+          transform: entranceReady ? 'translateY(0)' : 'translateY(20px)',
+          transition: 'opacity 0.5s ease-out 0.45s, transform 0.5s ease-out 0.45s',
+        }}>
+          {/* Neon progress bar */}
+          <div className="relative h-3 rounded-full overflow-hidden mb-2" style={{
+            background: 'rgba(15,23,42,0.8)',
+            border: `1px solid ${isComplete ? 'rgba(34,197,94,0.3)' : 'rgba(59,130,246,0.15)'}`,
+            boxShadow: isComplete
+              ? '0 0 20px rgba(34,197,94,0.15), inset 0 1px 3px rgba(0,0,0,0.3)'
+              : '0 0 15px rgba(59,130,246,0.08), inset 0 1px 3px rgba(0,0,0,0.3)',
           }}>
             <div className="absolute inset-y-0 left-0 rounded-full" style={{
               width: `${isComplete ? 100 : progress}%`,
-              background: isComplete ? 'linear-gradient(90deg, #22c55e, #34d399)' : 'linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6)',
-              backgroundSize: '200% 100%',
-              animation: isComplete ? 'none' : 'shimmerBar 2s linear infinite',
-              boxShadow: isComplete ? '0 0 10px rgba(34,197,94,0.5)' : '0 0 8px rgba(59,130,246,0.4)',
-              transition: 'width 1.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              background: isComplete
+                ? 'linear-gradient(90deg, #22c55e, #4ade80, #22c55e)'
+                : 'linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899, #8b5cf6, #3b82f6)',
+              backgroundSize: '300% 100%',
+              animation: isComplete ? 'none' : 'neonShimmer 3s linear infinite',
+              boxShadow: isComplete
+                ? '0 0 12px rgba(34,197,94,0.6), 0 0 25px rgba(34,197,94,0.3)'
+                : '0 0 10px rgba(59,130,246,0.5), 0 0 20px rgba(139,92,246,0.3)',
+              transition: 'width 1.8s cubic-bezier(0.4, 0, 0.2, 1)',
             }} />
+            {/* Neon glow overlay */}
+            {!isComplete && progress > 0 && (
+              <div className="absolute inset-y-0 left-0 rounded-full" style={{
+                width: `${progress}%`,
+                background: 'linear-gradient(90deg, transparent 60%, rgba(255,255,255,0.15) 80%, transparent 100%)',
+                backgroundSize: '200% 100%',
+                animation: 'neonGlint 2s ease-in-out infinite',
+              }} />
+            )}
           </div>
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-gray-500">
@@ -1123,28 +1267,38 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
 
           {/* Completion card */}
           {isComplete && (
-            <div className="mt-3 px-5 py-5 rounded-2xl border text-center" style={{
+            <div className="mt-3 px-5 py-5 rounded-2xl border text-center relative overflow-hidden" style={{
               background: 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02))',
               borderColor: 'rgba(34,197,94,0.25)',
-              animation: 'fadeInScale 0.5s ease-out',
-              boxShadow: '0 0 30px rgba(34,197,94,0.1)',
+              animation: 'completionBounceIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              boxShadow: '0 0 40px rgba(34,197,94,0.12), 0 0 80px rgba(34,197,94,0.05)',
             }}>
-              <div className="w-12 h-12 rounded-full mx-auto mb-3 flex items-center justify-center" style={{
-                background: 'rgba(34,197,94,0.15)',
-                boxShadow: '0 0 20px rgba(34,197,94,0.3)',
-              }}>
-                <CheckCircle className="w-6 h-6 text-green-400" />
+              {/* Radiating rings */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <div className="absolute w-32 h-32 rounded-full border border-green-500/10" style={{ animation: 'ringExpand 2s ease-out infinite' }} />
+                <div className="absolute w-32 h-32 rounded-full border border-green-500/10" style={{ animation: 'ringExpand 2s ease-out 0.7s infinite' }} />
+                <div className="absolute w-32 h-32 rounded-full border border-green-500/10" style={{ animation: 'ringExpand 2s ease-out 1.4s infinite' }} />
               </div>
-              <h3 className="text-base font-bold text-green-400 mb-1">تم حل المشكلة بنجاح!</h3>
-              <p className="text-[11px] text-gray-400 mb-1">تم تطبيق الإصلاح ونشر التحديث — يمكنك إغلاق هذه النافذة</p>
-              <p className="text-[9px] text-gray-600 mb-3">مدة الإصلاح: {formatElapsed(elapsedSeconds)} • {statusLines.length} تحديث</p>
+              {/* Success icon with glow pulse */}
+              <div className="relative w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center" style={{
+                background: 'rgba(34,197,94,0.15)',
+                boxShadow: '0 0 25px rgba(34,197,94,0.4), 0 0 50px rgba(34,197,94,0.15)',
+                animation: 'successPulse 2s ease-in-out infinite',
+              }}>
+                <CheckCircle className="w-7 h-7 text-green-400" style={{ animation: 'checkPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both' }} />
+              </div>
+              <h3 className="text-base font-bold text-green-400 mb-1" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.4s both' }}>تم حل المشكلة بنجاح!</h3>
+              <p className="text-[11px] text-gray-400 mb-1" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.55s both' }}>تم تطبيق الإصلاح ونشر التحديث — يمكنك إغلاق هذه النافذة</p>
+              <p className="text-[9px] text-gray-600 mb-3" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.65s both' }}>مدة الإصلاح: {formatElapsed(elapsedSeconds)} • {statusLines.length} تحديث</p>
 
               {/* Safe summary */}
-              <div className="mb-4 mx-auto max-w-xs">
+              <div className="mb-4 mx-auto max-w-xs" style={{ animation: 'fadeSlideUp 0.5s ease-out 0.75s both' }}>
                 <p className="text-[9px] text-gray-600 mb-1.5 font-bold">ملخص ما تم:</p>
                 <div className="space-y-1">
                   {completionSummary.map((item, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-[9px] text-gray-500">
+                    <div key={i} className="flex items-center gap-1.5 text-[9px] text-gray-500" style={{
+                      animation: `fadeSlideUp 0.4s ease-out ${0.85 + i * 0.1}s both`,
+                    }}>
                       <CheckCircle className="w-2.5 h-2.5 text-green-500/60 shrink-0" />
                       <span>{item}</span>
                     </div>
@@ -1152,9 +1306,10 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
                 </div>
               </div>
 
-              <button onClick={onClose} className="px-8 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:scale-105 active:scale-95" style={{
+              <button onClick={onClose} className="relative px-8 py-2.5 rounded-xl text-sm font-bold text-white transition-all hover:scale-105 active:scale-95" style={{
                 background: 'linear-gradient(135deg, #22c55e, #16a34a)',
-                boxShadow: '0 4px 15px rgba(34,197,94,0.3)',
+                boxShadow: '0 4px 20px rgba(34,197,94,0.35), 0 0 10px rgba(34,197,94,0.2)',
+                animation: 'fadeSlideUp 0.5s ease-out 1.2s both',
               }}>
                 إغلاق النافذة
               </button>
@@ -1165,17 +1320,75 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
 
       {/* CSS Animations */}
       <style>{`
+        @keyframes cinemaOpen {
+          0% { opacity: 0; transform: scale(0.95); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes gridPulse {
+          0%, 100% { opacity: 0.03; }
+          50% { opacity: 0.06; }
+        }
+        @keyframes ambientFloat {
+          0% { transform: translate(0, 0); }
+          100% { transform: translate(10px, -15px); }
+        }
+        @keyframes ambientPulse {
+          0%, 100% { opacity: 0.1; }
+          50% { opacity: 0.35; }
+        }
+        @keyframes cursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
         @keyframes pulseGlow {
           0%, 100% { opacity: 0.6; }
           50% { opacity: 1; }
         }
-        @keyframes shimmerBar {
-          0% { background-position: 200% 0; }
-          100% { background-position: -200% 0; }
+        @keyframes neonShimmer {
+          0% { background-position: 300% 0; }
+          100% { background-position: -300% 0; }
         }
-        @keyframes statusFadeIn {
-          0% { opacity: 0; transform: translateY(-4px); }
+        @keyframes neonGlint {
+          0%, 100% { background-position: -200% 0; }
+          50% { background-position: 200% 0; }
+        }
+        @keyframes statusSlideIn {
+          0% { opacity: 0; transform: translateX(15px) scale(0.96); }
+          100% { opacity: 1; transform: translateX(0) scale(1); }
+        }
+        @keyframes fadeSlideUp {
+          0% { opacity: 0; transform: translateY(10px); }
           100% { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes completionBounceIn {
+          0% { opacity: 0; transform: scale(0.8) translateY(20px); }
+          60% { transform: scale(1.03) translateY(-3px); }
+          100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        @keyframes ringExpand {
+          0% { transform: scale(0.5); opacity: 0.4; }
+          100% { transform: scale(3); opacity: 0; }
+        }
+        @keyframes successPulse {
+          0%, 100% { box-shadow: 0 0 25px rgba(34,197,94,0.4), 0 0 50px rgba(34,197,94,0.15); }
+          50% { box-shadow: 0 0 35px rgba(34,197,94,0.6), 0 0 70px rgba(34,197,94,0.25); }
+        }
+        @keyframes checkPop {
+          0% { opacity: 0; transform: scale(0) rotate(-45deg); }
+          100% { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        @keyframes activePhaseGlow {
+          0%, 100% { box-shadow: 0 0 8px rgba(59,130,246,0.4); }
+          50% { box-shadow: 0 0 16px rgba(59,130,246,0.7); }
+        }
+        @keyframes activeOrb {
+          0%, 100% { transform: scale(1); opacity: 0.8; }
+          50% { transform: scale(1.4); opacity: 1; }
+        }
+        @keyframes phaseCheckIn {
+          0% { transform: scale(0); opacity: 0; }
+          60% { transform: scale(1.3); }
+          100% { transform: scale(1); opacity: 1; }
         }
         @keyframes fadeInScale {
           0% { opacity: 0; transform: scale(0.95); }
