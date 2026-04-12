@@ -664,15 +664,29 @@ class HealthMonitor:
                     "auto_heal": s.config.auto_heal,
                     "enabled": s.config.enabled,
                     "disabled_reason_ar": s.config.disabled_reason_ar,
-                    "uptime_history_90d": [
-                        {"date": r.date, "uptime": r.uptime_percent, "incident": r.had_incident, "status": r.status}
-                        for r in s.uptime_history_90d[-90:]
-                    ],
+                    "uptime_history_90d": self._compact_uptime_history(s.uptime_history_90d[-90:]),
                 }
                 for s in all_services
             ],
             "incidents": [inc.model_dump(mode="json") for inc in self.incidents[:20]],
             "last_updated": datetime.now(timezone.utc).isoformat(),
+        }
+
+    @staticmethod
+    def _compact_uptime_history(records: list[DailyUptimeRecord]) -> dict:
+        """Compress 90-day uptime history to reduce payload size.
+
+        Instead of sending 90 full objects (~7KB per service), send compact arrays (~300B).
+        Format: { s: start_date, u: [uptimes], i: [incident_indices], d: {idx: status} }
+        Frontend decompresses this back into full UptimeDay objects.
+        """
+        if not records:
+            return {"s": "", "u": [], "i": [], "d": {}}
+        return {
+            "s": records[0].date,
+            "u": [round(r.uptime_percent) for r in records],
+            "i": [idx for idx, r in enumerate(records) if r.had_incident],
+            "d": {str(idx): r.status for idx, r in enumerate(records) if r.status not in ("operational", "disabled")},
         }
 
     def _calc_days_without_incidents(self) -> int:

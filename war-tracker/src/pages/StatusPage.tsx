@@ -18,6 +18,40 @@ interface UptimeDay {
   status: string;
 }
 
+/** Compact 90-day history from backend (reduces payload ~70KB → ~3KB) */
+interface CompactUptimeHistory {
+  s: string;          // start date (YYYY-MM-DD)
+  u: number[];        // uptime percentages per day
+  i: number[];        // indices of days with incidents
+  d: Record<string, string>; // non-default statuses (index → status)
+}
+
+interface RawServiceData {
+  id: string;
+  name: string;
+  name_ar: string;
+  type: string;
+  category: string;
+  status: string;
+  status_ar: string;
+  last_check: string | null;
+  last_success: string | null;
+  last_failure: string | null;
+  response_time_ms: number | null;
+  response_times_history: number[];
+  uptime_24h: number;
+  success_rate_24h: number;
+  errors_24h: number;
+  errors_7d: number;
+  outages_24h: number;
+  checks_24h: number;
+  check_interval: number;
+  auto_heal: boolean;
+  enabled: boolean;
+  disabled_reason_ar: string | null;
+  uptime_history_90d: CompactUptimeHistory;
+}
+
 interface ServiceData {
   id: string;
   name: string;
@@ -126,6 +160,37 @@ interface StatusData {
 // ──────────────────────────────────────────────
 // Helpers
 // ──────────────────────────────────────────────
+
+/** Decompress compact 90-day uptime history from backend into full UptimeDay[] */
+function expandUptimeHistory(compact: CompactUptimeHistory, serviceEnabled: boolean): UptimeDay[] {
+  if (!compact || !compact.s || !compact.u || compact.u.length === 0) return [];
+  const startDate = new Date(compact.s + 'T00:00:00Z');
+  const incidentSet = new Set(compact.i || []);
+  const defaultStatus = serviceEnabled ? 'operational' : 'disabled';
+
+  return compact.u.map((uptime, idx) => {
+    const day = new Date(startDate);
+    day.setUTCDate(day.getUTCDate() + idx);
+    return {
+      date: day.toISOString().slice(0, 10),
+      uptime,
+      incident: incidentSet.has(idx),
+      status: compact.d?.[String(idx)] || defaultStatus,
+    };
+  });
+}
+
+/** Transform raw API response (compact uptime) into expanded StatusData */
+function expandStatusData(raw: { services: RawServiceData[] } & Omit<StatusData, 'services'>): StatusData {
+  return {
+    ...raw,
+    services: raw.services.map(s => ({
+      ...s,
+      uptime_history_90d: expandUptimeHistory(s.uptime_history_90d, s.enabled),
+    })),
+  };
+}
+
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return 'لم يتم الفحص';
   const diff = Math.max(0, (Date.now() - new Date(dateStr).getTime()) / 1000);
@@ -294,11 +359,100 @@ const CATEGORY_META: Record<string, { label: string; icon: typeof Server }> = {
 };
 
 // ──────────────────────────────────────────────
+// LocalStorage cache helpers
+// ──────────────────────────────────────────────
+const STATUS_CACHE_KEY = 'warscope_status_cache';
+const STATUS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedStatus(): StatusData | null {
+  try {
+    const raw = localStorage.getItem(STATUS_CACHE_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    // Accept cache up to 5 minutes old
+    if (Date.now() - ts > STATUS_CACHE_TTL) return null;
+    return data;
+  } catch { return null; }
+}
+
+function setCachedStatus(data: StatusData) {
+  try {
+    localStorage.setItem(STATUS_CACHE_KEY, JSON.stringify({ data, ts: Date.now() }));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+// ──────────────────────────────────────────────
+// Skeleton Loading Component
+// ──────────────────────────────────────────────
+function StatusSkeleton() {
+  const shimmer = 'animate-pulse bg-gray-800/60 rounded';
+  return (
+    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      {/* Header skeleton */}
+      <div className="flex items-center justify-between mb-4 sm:mb-6">
+        <div className="flex items-center gap-2">
+          <div className={`w-5 h-5 ${shimmer} rounded-full`} />
+          <div className={`w-28 h-5 ${shimmer}`} />
+        </div>
+        <div className={`w-24 h-7 ${shimmer} rounded-full`} />
+      </div>
+      {/* Banner skeleton */}
+      <div className={`rounded-2xl h-24 mb-6 ${shimmer}`} />
+      {/* Days without incidents skeleton */}
+      <div className={`rounded-xl h-16 mb-6 ${shimmer}`} />
+      {/* Category header */}
+      <div className={`w-32 h-4 mb-3 ${shimmer}`} />
+      {/* Service cards skeleton */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+        {[1,2,3].map(i => (
+          <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className={`w-9 h-9 rounded-lg ${shimmer}`} />
+              <div className="flex-1">
+                <div className={`w-24 h-3.5 mb-1.5 ${shimmer}`} />
+                <div className={`w-16 h-2.5 ${shimmer}`} />
+              </div>
+              <div className={`w-14 h-5 ${shimmer} rounded-full`} />
+            </div>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              {[1,2,3].map(j => <div key={j} className={`h-8 ${shimmer}`} />)}
+            </div>
+            <div className={`h-1.5 mt-2 ${shimmer} rounded-full`} />
+            <div className={`h-6 mt-3 ${shimmer}`} />
+          </div>
+        ))}
+      </div>
+      {/* Second category */}
+      <div className={`w-28 h-4 mb-3 ${shimmer}`} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+        {[1,2,3,4].map(i => (
+          <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+            <div className="flex items-center gap-2.5 mb-3">
+              <div className={`w-9 h-9 rounded-lg ${shimmer}`} />
+              <div className="flex-1">
+                <div className={`w-20 h-3.5 mb-1.5 ${shimmer}`} />
+                <div className={`w-14 h-2.5 ${shimmer}`} />
+              </div>
+            </div>
+            <div className={`h-1.5 mt-2 ${shimmer} rounded-full`} />
+          </div>
+        ))}
+      </div>
+      <div className="text-center text-[10px] text-gray-600 mt-4 animate-pulse">
+        جاري تحميل حالة النظام...
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────────────────────────
 // Main Status Page
 // ──────────────────────────────────────────────
 export default function StatusPage() {
-  const [data, setData] = useState<StatusData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedStatus();
+  const [data, setData] = useState<StatusData | null>(cached);
+  const [loading, setLoading] = useState(!cached);
+  const [isRefreshing, setIsRefreshing] = useState(!!cached);
   const [error, setError] = useState<string | null>(null);
   const [expandedIncident, setExpandedIncident] = useState<string | null>(null);
   const [showAllIncidents, setShowAllIncidents] = useState(false);
@@ -375,14 +529,20 @@ export default function StatusPage() {
       const resp = await fetch(`${BACKEND_API_URL}/api/status`);
       if (!resp.ok) throw new Error('فشل تحميل بيانات الحالة');
       const json = await resp.json();
-      setData(json);
+      const expanded = expandStatusData(json);
+      setData(expanded);
+      setCachedStatus(expanded);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
+      // Only show error if we have no cached data to display
+      if (!data) {
+        setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
+      }
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
-  }, []);
+  }, [data]);
 
   useEffect(() => {
     fetchStatus();
@@ -393,14 +553,7 @@ export default function StatusPage() {
   }, [fetchStatus, fetchFixSessions, autoRefresh]);
 
   if (loading) {
-    return (
-      <div className="min-h-[60vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-8 h-8 text-blue-400 animate-spin" />
-          <span className="text-sm text-gray-400">جاري تحميل حالة النظام...</span>
-        </div>
-      </div>
-    );
+    return <StatusSkeleton />;
   }
 
   if (error || !data) {
@@ -442,12 +595,15 @@ export default function StatusPage() {
             <RefreshCw className={`w-3 h-3 ${autoRefresh ? 'animate-spin' : ''}`} style={autoRefresh ? { animationDuration: '3s' } : undefined} />
             {autoRefresh ? 'تحديث تلقائي' : 'تحديث متوقف'}
           </button>
+          {isRefreshing && (
+            <span className="text-[10px] text-blue-400/70 animate-pulse">يتم التحديث...</span>
+          )}
           <button
             onClick={fetchStatus}
             className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
             title="تحديث الآن"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
