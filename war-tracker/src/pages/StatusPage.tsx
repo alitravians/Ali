@@ -1042,7 +1042,7 @@ export default function StatusPage() {
               </div>
               {data.source_monitoring.map(src => {
                 const sourceNames: Record<string, string> = {
-                  gdelt: 'GDELT', rss: 'RSS', opensky: 'OpenSky', devin_ai: 'إدارة النظام',
+                  gdelt: 'GDELT', rss: 'RSS', opensky: 'OpenSky', devin_ai: 'تحليلات الأنظمة',
                   aisstream: 'AIS Maritime', newsapi: 'NewsAPI', mediastack: 'MediaStack', acled: 'ACLED',
                 };
                 return (
