@@ -189,8 +189,8 @@ class HealthMonitor:
             ),
             ServiceConfig(
                 id="devin_ai",
-                name="Devin AI Analysis",
-                name_ar="تحليلات Devin الذكية",
+                name="Automated System Analysis",
+                name_ar="تحليلات الأنظمة التلقائية",
                 type="external",
                 category=ServiceCategory.infrastructure,
                 endpoint="devin_ai",
