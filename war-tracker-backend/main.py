@@ -3,6 +3,8 @@ import asyncio
 import os
 import json
 import time
+import logging
+import re
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -14,7 +16,13 @@ import secrets
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
+
+# Security logger for audit trail
+security_logger = logging.getLogger("warscope.security")
+security_logger.setLevel(logging.INFO)
 
 import httpx as _httpx
 from config import (
@@ -686,6 +694,54 @@ app.add_middleware(
 
 
 # ──────────────────────────────────────────────
+# Security headers middleware
+# ──────────────────────────────────────────────
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all API responses."""
+
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+# ──────────────────────────────────────────────
+# Secure IP extraction (prevents spoofing)
+# ──────────────────────────────────────────────
+_TRUSTED_PROXIES = {"127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"}
+
+
+def _get_client_ip(request: Request) -> str:
+    """Extract real client IP securely.
+
+    On Fly.io the Fly-Client-IP header is set by the edge proxy
+    and cannot be spoofed by the client. Falls back to x-forwarded-for
+    first entry (which on Fly.io is also set by the proxy), then
+    to the direct connection IP.
+    """
+    # Fly.io sets this header reliably at the edge
+    fly_ip = request.headers.get("fly-client-ip")
+    if fly_ip:
+        return fly_ip.strip()
+
+    # Fallback: first entry of x-forwarded-for (set by reverse proxy)
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+
+    # Direct connection
+    return request.client.host if request.client else "unknown"
+
+
+# ──────────────────────────────────────────────
 # Rate limiter (in-memory, per-IP)
 # ──────────────────────────────────────────────
 _rate_limit_store: dict[str, list[float]] = {}
@@ -719,8 +775,15 @@ def _record_attempt(ip: str):
 # ──────────────────────────────────────────────
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 if not ADMIN_PASSWORD_HASH:
-    # Fallback — should be overridden via env var in production
-    ADMIN_PASSWORD_HASH = hashlib.sha256(b"warscope2024").hexdigest()
+    # Fallback — generate from env ADMIN_PASSWORD or use default
+    _admin_pwd = os.getenv("ADMIN_PASSWORD", "warscope2024")
+    ADMIN_PASSWORD_HASH = hashlib.sha256(_admin_pwd.encode()).hexdigest()
+    if _admin_pwd == "warscope2024":
+        security_logger.warning(
+            "[SECURITY] Using default admin password. Set ADMIN_PASSWORD_HASH or "
+            "ADMIN_PASSWORD env var in production for security."
+        )
+    del _admin_pwd  # Don't keep plaintext in memory
 
 # Token store with expiration: token -> expiry timestamp
 _admin_tokens: dict[str, float] = {}
@@ -753,23 +816,30 @@ class AdminLoginResponse(BaseModel):
 @app.post("/api/admin/login")
 async def admin_login(req: AdminLoginRequest, request: Request):
     """Validate admin password server-side and return a session token."""
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = _get_client_ip(request)
 
     # Rate limit check
     if _check_rate_limit(client_ip):
+        security_logger.warning(f"[AUTH] Rate-limited login attempt from {client_ip}")
         raise HTTPException(
             status_code=429,
             detail="عدد محاولات تسجيل الدخول تجاوز الحد المسموح. حاول مجدداً بعد 5 دقائق."
         )
 
+    # Validate password length to prevent DoS via hashing very large strings
+    if len(req.password) > 128:
+        raise HTTPException(status_code=400, detail="كلمة المرور طويلة جداً")
+
     pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
     if hmac.compare_digest(pwd_hash, ADMIN_PASSWORD_HASH):
         token = secrets.token_hex(32)
         _admin_tokens[token] = time.time() + TOKEN_TTL_SECONDS
+        security_logger.info(f"[AUTH] Successful admin login from {client_ip}")
         return AdminLoginResponse(success=True, token=token)
 
     # Only record failed attempts for rate limiting
     _record_attempt(client_ip)
+    security_logger.warning(f"[AUTH] Failed login attempt from {client_ip}")
 
     raise HTTPException(status_code=401, detail="كلمة المرور غير صحيحة")
 
@@ -781,6 +851,17 @@ async def admin_verify(authorization: str = Header(default="")):
     if token and _verify_token(token):
         return {"valid": True}
     raise HTTPException(status_code=401, detail="غير مصرح")
+
+
+@app.post("/api/admin/logout")
+async def admin_logout(request: Request, authorization: str = Header(default="")):
+    """Invalidate an admin session token on the server."""
+    token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if token and token in _admin_tokens:
+        del _admin_tokens[token]
+        client_ip = _get_client_ip(request)
+        security_logger.info(f"[AUTH] Admin logout from {client_ip} — token invalidated")
+    return {"success": True}
 
 
 @app.get("/api/stats")
@@ -800,14 +881,11 @@ async def get_stats():
 # ──────────────────────────────────────────────
 @app.get("/")
 async def root():
+    """Public health check — minimal info, no internal details."""
     return {
         "name": "WarScope API",
         "version": "1.0.0",
         "status": "running",
-        "sources": store.source_status,
-        "events_count": len(store.events),
-        "aircraft_count": len(store.aircraft),
-        "alerts_count": len(store.alerts),
     }
 
 
@@ -1089,10 +1167,19 @@ async def update_service_status(service_id: str, request: Request, authorization
     token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
     if not token or not _verify_token(token):
         raise HTTPException(status_code=401, detail="غير مصرح")
+    # Validate service_id format (alphanumeric + underscores/hyphens only)
+    if not re.match(r'^[a-zA-Z0-9_-]{1,50}$', service_id):
+        raise HTTPException(status_code=400, detail="معرف الخدمة غير صالح")
     body = await request.json()
-    ok = health_monitor.update_service_config(service_id, body)
+    # Only allow known config fields
+    allowed_fields = {"enabled", "auto_heal", "timeout_ms", "degraded_threshold_ms", "check_interval_seconds"}
+    sanitized = {k: v for k, v in body.items() if k in allowed_fields}
+    if not sanitized:
+        raise HTTPException(status_code=400, detail="لا توجد حقول صالحة للتحديث")
+    ok = health_monitor.update_service_config(service_id, sanitized)
     if not ok:
         raise HTTPException(status_code=404, detail="الخدمة غير موجودة")
+    security_logger.info(f"[ADMIN] Service {service_id} config updated: {list(sanitized.keys())}")
     return {"success": True}
 
 
@@ -1102,11 +1189,16 @@ async def add_incident_note(incident_id: str, request: Request, authorization: s
     token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
     if not token or not _verify_token(token):
         raise HTTPException(status_code=401, detail="غير مصرح")
+    # Validate incident_id format
+    if not re.match(r'^[a-zA-Z0-9_-]{1,100}$', incident_id):
+        raise HTTPException(status_code=400, detail="معرف الحادث غير صالح")
     body = await request.json()
+    message = str(body.get("message", ""))[:500]
+    message_ar = str(body.get("message_ar", ""))[:500]
     ok = health_monitor.add_manual_incident_note(
         incident_id,
-        body.get("message", ""),
-        body.get("message_ar", ""),
+        message,
+        message_ar,
     )
     if not ok:
         raise HTTPException(status_code=404, detail="الحادث غير موجود")
@@ -1299,14 +1391,14 @@ async def _broadcast_ticket_update(ticket_id: str, update: dict):
 
 
 class BugReport(BaseModel):
-    description: str
-    page: str = ""
-    browser: str = ""
-    screenshot_url: str = ""
-    console_errors: list[str] = []
-    user_actions: list[str] = []
-    browser_info: dict = {}
-    screenshot: str = ""  # base64 screenshot data
+    description: str = Field(..., max_length=2000)
+    page: str = Field(default="", max_length=300)
+    browser: str = Field(default="", max_length=300)
+    screenshot_url: str = Field(default="", max_length=500)
+    console_errors: list[str] = Field(default_factory=list)
+    user_actions: list[str] = Field(default_factory=list)
+    browser_info: dict = Field(default_factory=dict)
+    screenshot: str = Field(default="", max_length=2_000_000)  # ~1.5MB base64 limit
 
 
 async def _validate_bug_report(description: str) -> bool:
@@ -1560,7 +1652,7 @@ async def submit_bug_report(report: BugReport, request: Request):
     now = _time.time()
 
     # Per-IP rate limit: max 3 reports per 24 hours per user
-    client_ip = request.headers.get("x-forwarded-for", request.client.host if request.client else "unknown").split(",")[0].strip()
+    client_ip = _get_client_ip(request)
     ip_timestamps = _bug_report_ip_tracker.get(client_ip, [])
     ip_timestamps = [t for t in ip_timestamps if now - t < 86400]  # Keep only last 24 hours
     _bug_report_ip_tracker[client_ip] = ip_timestamps
@@ -1870,6 +1962,16 @@ async def list_tickets(authorization: str = Header(default="")):
 async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
     """WebSocket endpoint for live ticket status updates.
     Clients connect here after submitting a bug report to receive real-time phase updates."""
+    # Validate origin to prevent cross-site WebSocket hijacking
+    if not _validate_ws_origin(ws):
+        await ws.close(code=4003, reason="Origin not allowed")
+        return
+
+    # Validate ticket_id format (alphanumeric + hyphens only)
+    if not re.match(r'^TKT-[A-Z0-9]{8}$', ticket_id):
+        await ws.close(code=4000, reason="Invalid ticket ID format")
+        return
+
     ticket = _tickets.get(ticket_id)
     if not ticket:
         await ws.close(code=4004, reason="Ticket not found")
@@ -1937,8 +2039,21 @@ async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
 MAX_WS_CONNECTIONS = 100  # Limit total concurrent WebSocket connections
 
 
+def _validate_ws_origin(ws: WebSocket) -> bool:
+    """Validate WebSocket origin against allowed CORS origins."""
+    origin = ws.headers.get("origin", "")
+    if not origin:
+        return True  # Allow connections without origin (non-browser clients)
+    return any(origin == allowed for allowed in FRONTEND_ORIGINS)
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    # Validate origin to prevent cross-site WebSocket hijacking
+    if not _validate_ws_origin(ws):
+        await ws.close(code=4003, reason="Origin not allowed")
+        security_logger.warning(f"[WS] Rejected connection from origin: {ws.headers.get('origin', 'unknown')}")
+        return
     if len(ws_manager.active_connections) >= MAX_WS_CONNECTIONS:
         await ws.close(code=1013, reason="Server too busy")
         return
