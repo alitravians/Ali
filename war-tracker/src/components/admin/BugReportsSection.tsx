@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import {
-  MessageSquare, Clock, Loader2, RefreshCw, ExternalLink,
+  MessageSquare, Clock, Loader2, RefreshCw, ExternalLink, Download,
 } from 'lucide-react';
 import { BACKEND_API_URL } from '../../config/api';
-import { SectionHeader } from './AdminUI';
+import { SectionHeader, showToast } from './AdminUI';
 
 interface BugReport {
   id: number;
@@ -45,6 +45,43 @@ export default function BugReportsSection() {
     } catch { return ts; }
   };
 
+  const exportCSV = () => {
+    if (reports.length === 0) {
+      showToast('لا توجد بلاغات للتصدير', 'info');
+      return;
+    }
+
+    const escapeCSV = (val: string) => {
+      if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+        return `"${val.replace(/"/g, '""')}"`;
+      }
+      return val;
+    };
+
+    const headers = ['رقم التذكرة', 'الوصف', 'الصفحة', 'المتصفح', 'التاريخ'];
+    const rows = reports.map(r => [
+      escapeCSV(r.ticket_id),
+      escapeCSV(r.description),
+      escapeCSV(r.page || ''),
+      escapeCSV(r.browser || ''),
+      escapeCSV(r.timestamp || ''),
+    ].join(','));
+
+    const bom = '\uFEFF';
+    const csv = bom + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    try {
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `bug-reports-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      showToast(`تم تصدير ${reports.length} بلاغ`, 'success');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
   if (loading) return <div className="p-12 flex justify-center"><Loader2 className="w-6 h-6 text-blue-400 animate-spin" /></div>;
 
   return (
@@ -57,6 +94,15 @@ export default function BugReportsSection() {
             <span className="text-[10px] text-gray-400 bg-gray-800 px-2 py-1 rounded-full">
               {reports.length} بلاغ
             </span>
+            {reports.length > 0 && (
+              <button
+                onClick={exportCSV}
+                className="flex items-center gap-1 px-2.5 py-1 bg-green-500/10 text-green-400 border border-green-500/20 rounded-lg text-[10px] font-bold hover:bg-green-500/20 transition-colors"
+              >
+                <Download className="w-3 h-3" />
+                CSV
+              </button>
+            )}
             <button onClick={fetchReports} className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
               <RefreshCw className="w-3.5 h-3.5" />
             </button>
