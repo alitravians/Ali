@@ -242,24 +242,65 @@ class HealthMonitor:
 
         for cfg in defaults:
             svc = ServiceHealth(config=cfg)
-            # Initialize 90-day uptime history
-            svc.uptime_history_90d = self._generate_initial_uptime_history(cfg.enabled)
+            # Start with empty uptime history — real data loaded from DB on startup
+            svc.uptime_history_90d = self._init_today_only(cfg.enabled)
             self.services[cfg.id] = svc
 
-    def _generate_initial_uptime_history(self, enabled: bool) -> list[DailyUptimeRecord]:
-        """Generate 90-day uptime history. Enabled services start at 100%, disabled at 0%."""
-        from datetime import timedelta
+    def _init_today_only(self, enabled: bool) -> list[DailyUptimeRecord]:
+        """Initialize with only today's record. Historical data is loaded from DB."""
         today = datetime.now(timezone.utc).date()
-        history = []
-        for i in range(89, -1, -1):  # 90 days ago → today
-            day = today - timedelta(days=i)
-            history.append(DailyUptimeRecord(
-                date=day.isoformat(),
-                uptime_percent=100.0 if enabled else 0.0,
-                had_incident=False,
-                status="operational" if enabled else "disabled",
-            ))
-        return history
+        return [DailyUptimeRecord(
+            date=today.isoformat(),
+            uptime_percent=100.0 if enabled else 0.0,
+            had_incident=False,
+            status="operational" if enabled else "disabled",
+        )]
+
+    async def load_uptime_from_db(self):
+        """Load persisted uptime history from database for all services."""
+        try:
+            import database as _db
+            for sid, svc in self.services.items():
+                records = await _db.load_uptime_history(sid, days=90)
+                if records:
+                    loaded = []
+                    for r in records:
+                        loaded.append(DailyUptimeRecord(
+                            date=r["date"],
+                            uptime_percent=r["uptime_percent"],
+                            had_incident=r["had_incident"],
+                            status=r["status"],
+                        ))
+                    # Check if today is already in loaded records
+                    today_str = datetime.now(timezone.utc).date().isoformat()
+                    has_today = any(r.date == today_str for r in loaded)
+                    if not has_today:
+                        loaded.append(DailyUptimeRecord(
+                            date=today_str,
+                            uptime_percent=100.0 if svc.config.enabled else 0.0,
+                            had_incident=False,
+                            status="operational" if svc.config.enabled else "disabled",
+                        ))
+                    svc.uptime_history_90d = loaded[-90:]  # Keep max 90
+                    print(f"[DB] Loaded {len(loaded)} uptime records for {sid}")
+        except Exception as e:
+            print(f"[DB] Error loading uptime history: {e}")
+
+    async def load_incidents_from_db(self):
+        """Load persisted incidents from database."""
+        try:
+            import database as _db
+            from health_monitor import Incident as _Inc
+            incident_dicts = await _db.load_incidents(limit=100)
+            if incident_dicts:
+                for d in incident_dicts:
+                    try:
+                        self.incidents.append(Incident(**d))
+                    except Exception:
+                        pass
+                print(f"[DB] Loaded {len(self.incidents)} incidents from database")
+        except Exception as e:
+            print(f"[DB] Error loading incidents: {e}")
 
     def get_overall_status(self) -> OverallStatus:
         """Determine overall system status from individual service statuses."""
@@ -692,8 +733,8 @@ class HealthMonitor:
     def _calc_days_without_incidents(self) -> int:
         """Calculate consecutive days without any active/recent incident."""
         if not self.incidents:
-            # No incidents ever recorded — count from server start (assume stable)
-            return 90
+            # No incidents ever recorded — show 0 (real data, no fake assumption)
+            return 0
 
         # Find the most recent incident (resolved or active)
         latest = self.incidents[0]  # incidents are sorted newest first

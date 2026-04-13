@@ -34,6 +34,7 @@ from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
 from services.devin_autofix import create_fix_session, get_session_status, get_fix_sessions, is_devin_configured
 from health_monitor import HealthMonitor
+import database as db
 
 
 # ──────────────────────────────────────────────
@@ -62,21 +63,22 @@ class DataStore:
         }
 
     def _default_indicators(self) -> list[DashboardIndicator]:
+        # Start at 0 — real scores are calculated from actual events
         return [
             DashboardIndicator(id="military", name="Military Activity", nameAr="النشاط العسكري",
-                               score=50, previousScore=50, trend="stable",
+                               score=0, previousScore=0, trend="stable",
                                description="Military activity level", descriptionAr="مستوى النشاط العسكري"),
             DashboardIndicator(id="airspace", name="Airspace Risk", nameAr="مخاطر الأجواء",
-                               score=40, previousScore=40, trend="stable",
+                               score=0, previousScore=0, trend="stable",
                                description="Airspace risk level", descriptionAr="مستوى مخاطر الأجواء"),
             DashboardIndicator(id="maritime", name="Maritime Risk", nameAr="مخاطر الملاحة",
-                               score=35, previousScore=35, trend="stable",
+                               score=0, previousScore=0, trend="stable",
                                description="Maritime risk level", descriptionAr="مستوى مخاطر الملاحة"),
             DashboardIndicator(id="civilian", name="Civilian Risk", nameAr="مخاطر المدنيين",
-                               score=45, previousScore=45, trend="stable",
+                               score=0, previousScore=0, trend="stable",
                                description="Civilian risk level", descriptionAr="مستوى مخاطر المدنيين"),
             DashboardIndicator(id="uncertainty", name="Information Uncertainty", nameAr="عدم يقين المعلومات",
-                               score=60, previousScore=60, trend="stable",
+                               score=0, previousScore=0, trend="stable",
                                description="Information uncertainty", descriptionAr="مستوى عدم يقين المعلومات"),
         ]
 
@@ -210,6 +212,13 @@ async def poll_gdelt():
                 })
 
                 print(f"[GDELT] Fetched {len(events)} events, total unique: {len(store.events)}")
+
+                # Persist to database
+                try:
+                    await db.save_events(store.events)
+                    await db.save_alerts(store.alerts)
+                except Exception as e:
+                    print(f"[DB] GDELT save error: {e}")
             else:
                 print("[GDELT] No new events")
 
@@ -280,6 +289,13 @@ async def poll_news():
 
                 print(f"[News] Fetched {len(new_events)} events, total unique: {len(store.events)}")
 
+                # Persist to database
+                try:
+                    await db.save_events(store.events)
+                    await db.save_alerts(store.alerts)
+                except Exception as e:
+                    print(f"[DB] News save error: {e}")
+
         except Exception as e:
             print(f"[News] Poll error: {e}")
 
@@ -329,6 +345,12 @@ async def poll_ai_analysis():
                         "summary": summary.model_dump(mode="json"),
                     })
                     print("[Devin AI] Analysis generated successfully")
+
+                    # Persist to database
+                    try:
+                        await db.save_ai_summary(summary)
+                    except Exception as e:
+                        print(f"[DB] AI summary save error: {e}")
         except Exception as e:
             store.source_status["devin_ai"]["errors"] += 1
             print(f"[Devin AI] Analysis error: {e}")
@@ -367,6 +389,13 @@ async def poll_rss():
                 })
 
                 print(f"[RSS] Fetched {len(rss_events)} events, total unique: {len(store.events)}")
+
+                # Persist to database
+                try:
+                    await db.save_events(store.events)
+                    await db.save_alerts(store.alerts)
+                except Exception as e:
+                    print(f"[DB] RSS save error: {e}")
             else:
                 print("[RSS] No relevant events from feeds")
 
@@ -453,9 +482,99 @@ async def poll_maritime_broadcast():
 # ──────────────────────────────────────────────
 # App lifecycle
 # ──────────────────────────────────────────────
+async def _load_persisted_data():
+    """Load all persisted data from SQLite into in-memory store on startup."""
+    print("[DB] Loading persisted data...")
+
+    # Load events
+    event_dicts = await db.load_events(limit=500)
+    if event_dicts:
+        for ed in event_dicts:
+            try:
+                store.events.append(TrackerEvent(**ed))
+            except Exception as e:
+                print(f"[DB] Skipping invalid event: {e}")
+        print(f"[DB] Loaded {len(store.events)} events from database")
+
+    # Load alerts
+    alert_dicts = await db.load_alerts(limit=100)
+    if alert_dicts:
+        for ad in alert_dicts:
+            try:
+                store.alerts.append(Alert(**ad))
+            except Exception:
+                pass
+        print(f"[DB] Loaded {len(store.alerts)} alerts from database")
+
+    # Load AI summaries
+    summary_dicts = await db.load_ai_summaries(limit=10)
+    if summary_dicts:
+        for sd in summary_dicts:
+            try:
+                store.ai_summaries.append(AISummary(**sd))
+            except Exception:
+                pass
+        print(f"[DB] Loaded {len(store.ai_summaries)} AI summaries from database")
+
+    # Load source stats (merge with defaults — keep active flags from config)
+    saved_stats = await db.load_source_stats()
+    for source_id, saved in saved_stats.items():
+        if source_id in store.source_status:
+            store.source_status[source_id]["eventCount"] = saved.get("eventCount", 0)
+            store.source_status[source_id]["errors"] = saved.get("errors", 0)
+            store.source_status[source_id]["successfulPolls"] = saved.get("successfulPolls", 0)
+            store.source_status[source_id]["lastUpdate"] = saved.get("lastUpdate")
+    print(f"[DB] Loaded source stats for {len(saved_stats)} sources")
+
+    # Load bug reports
+    global _bug_reports
+    saved_reports = await db.load_bug_reports(limit=50)
+    if saved_reports:
+        _bug_reports = saved_reports
+        print(f"[DB] Loaded {len(_bug_reports)} bug reports from database")
+
+    # Recalculate indicators from real events
+    if store.events:
+        await update_indicators()
+        print("[DB] Recalculated indicators from real events")
+
+
+async def _periodic_db_save():
+    """Periodically persist in-memory data to SQLite (every 5 minutes)."""
+    while True:
+        await asyncio.sleep(300)  # 5 minutes
+        try:
+            # Save source stats
+            await db.save_source_stats(store.source_status)
+
+            # Persist uptime history from health monitor
+            for sid, svc in health_monitor.services.items():
+                if svc.uptime_history_90d:
+                    await db.save_uptime_history_batch(sid, svc.uptime_history_90d)
+
+            # Persist incidents
+            for inc in health_monitor.incidents:
+                await db.save_incident(inc)
+
+            print("[DB] Periodic save completed")
+        except Exception as e:
+            print(f"[DB] Periodic save error: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Start background polling tasks on startup."""
+    # Initialize database
+    await db.init_db()
+    print("[WarScope] Database initialized.")
+
+    # Load persisted data from DB into memory
+    await _load_persisted_data()
+
+    # Load health monitor data from DB (uptime history + incidents)
+    await health_monitor.load_uptime_from_db()
+    await health_monitor.load_incidents_from_db()
+
     print("[WarScope] Starting background tasks...")
     tasks = [
         asyncio.create_task(poll_gdelt()),
@@ -465,12 +584,26 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         asyncio.create_task(poll_ai_analysis()),
         asyncio.create_task(connect_aisstream()),
         asyncio.create_task(poll_maritime_broadcast()),
+        asyncio.create_task(_periodic_db_save()),
     ]
-    # Start health monitor
+    # Start health monitor (with DB integration)
     await health_monitor.start(store)
     print("[WarScope] Health monitor started.")
     yield
-    print("[WarScope] Shutting down background tasks...")
+    print("[WarScope] Shutting down — saving data to database...")
+    # Final save before shutdown
+    try:
+        await db.save_events(store.events)
+        await db.save_alerts(store.alerts)
+        await db.save_source_stats(store.source_status)
+        for sid, svc in health_monitor.services.items():
+            if svc.uptime_history_90d:
+                await db.save_uptime_history_batch(sid, svc.uptime_history_90d)
+        for inc in health_monitor.incidents:
+            await db.save_incident(inc)
+        print("[DB] Shutdown save completed")
+    except Exception as e:
+        print(f"[DB] Shutdown save error: {e}")
     await health_monitor.stop()
     for task in tasks:
         task.cancel()
@@ -960,6 +1093,11 @@ async def trigger_analysis(authorization: str = Header(default="")):
         store.ai_summaries.insert(0, summary)
         store.ai_summaries = store.ai_summaries[:10]  # Keep last 10
         store.source_status["devin_ai"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+        # Persist to database
+        try:
+            await db.save_ai_summary(summary)
+        except Exception:
+            pass
         return summary.model_dump(mode="json")
     return {"error": "لا توجد أحداث كافية للتحليل حالياً"}
 
@@ -1571,6 +1709,12 @@ async def submit_bug_report(report: BugReport, request: Request):
     _bug_reports.insert(0, report_entry)
     while len(_bug_reports) > 50:
         _bug_reports.pop()
+
+    # Persist bug report to database
+    try:
+        await db.save_bug_report(report_entry)
+    except Exception as e:
+        print(f"[DB] Bug report save error: {e}")
 
     response = {
         "success": True,
