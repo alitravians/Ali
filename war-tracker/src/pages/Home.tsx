@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Radio, Map, Bell, ArrowLeft, Zap, Eye, Brain, TrendingUp } from 'lucide-react';
+import { Radio, Map, Bell, ArrowLeft, Zap, Eye, Brain, TrendingUp, BarChart3, Download } from 'lucide-react';
 import { useLiveData } from '../context/LiveDataContext';
 import IndicatorCard from '../components/shared/IndicatorCard';
 import EventCard from '../components/shared/EventCard';
@@ -113,16 +113,24 @@ export default function Home() {
             { icon: Brain, title: 'تحليلات AI', desc: 'تحليلات ذكية بالذكاء الاصطناعي مع كشف التضارب', color: 'purple' },
             { icon: Eye, title: 'تقييم الثقة', desc: 'تمييز دقيق بين الأخبار المؤكدة وغير المؤكدة', color: 'green' },
             { icon: TrendingUp, title: 'مؤشرات حية', desc: 'مؤشرات ديناميكية لحالة الوضع العام', color: 'blue' },
+            { icon: BarChart3, title: 'إحصائيات متقدمة', desc: 'رسوم بيانية وتحليل توزيع الأحداث حسب التصنيف والموقع', color: 'cyan', link: '/analytics' },
+            { icon: Download, title: 'تصدير البيانات', desc: 'تصدير الأحداث بصيغة CSV للباحثين والمحللين', color: 'emerald', link: '/analytics' },
           ].map((feat, i) => {
             const Icon = feat.icon;
-            return (
-              <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-4 sm:p-5 hover:border-gray-700 transition-all group">
+            const content = (
+              <>
                 <div className={`w-10 h-10 rounded-xl bg-${feat.color}-500/10 flex items-center justify-center mb-3 group-hover:scale-110 transition-transform`}>
                   <Icon className={`w-5 h-5 text-${feat.color}-400`} />
                 </div>
                 <h3 className="text-sm font-bold text-white mb-1">{feat.title}</h3>
                 <p className="text-xs text-gray-400 leading-relaxed">{feat.desc}</p>
-              </div>
+              </>
+            );
+            const cls = "rounded-xl border border-gray-800 bg-[#12121a] p-4 sm:p-5 hover:border-gray-700 transition-all group cursor-pointer block";
+            return 'link' in feat && feat.link ? (
+              <Link key={i} to={feat.link} className={cls}>{content}</Link>
+            ) : (
+              <div key={i} className={cls}>{content}</div>
             );
           })}
         </div>

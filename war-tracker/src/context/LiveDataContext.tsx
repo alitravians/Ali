@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats } from '../types';
 import { BACKEND_API_URL, BACKEND_WS_URL } from '../config/api';
+import { sendBreakingNotification } from '../components/shared/NotificationPrompt';
 
 interface BahrainAlert {
   severity: string;
@@ -85,6 +86,11 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const diff = totalFromBackend - prevEventCountRef.current;
           if (diff > 0 && data.type === 'events_update') {
             setNewEventCount(prev => prev + diff);
+            // Push notification for new breaking events
+            const breaking = newEvents.filter((e: TrackerEvent) => e.isBreaking);
+            if (breaking.length > 0) {
+              sendBreakingNotification('WarScope — خبر عاجل', breaking[0].titleAr);
+            }
           }
           prevEventCountRef.current = totalFromBackend;
           setLastUpdate(new Date());
@@ -129,6 +135,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           timestamp: data.timestamp || new Date().toISOString(),
           event: alertEvent as TrackerEvent,
         });
+        // Send push notification for Bahrain alerts
+        sendBreakingNotification('WarScope — تنبيه عاجل', data.message || 'تنبيه عاجل من البحرين');
       }
     } catch (e) {
       // WS parse error silenced in production

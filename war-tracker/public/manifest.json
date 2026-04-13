@@ -1,0 +1,21 @@
+{
+  "name": "WarScope - مركز التتبع المباشر",
+  "short_name": "WarScope",
+  "description": "منصة تحليل وتتبع مباشر للأحداث الجيوسياسية",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#ef4444",
+  "orientation": "any",
+  "dir": "rtl",
+  "lang": "ar",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["news", "security"]
+}
