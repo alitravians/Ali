@@ -102,6 +102,14 @@ export default function Admin() {
   };
 
   const handleLogout = () => {
+    // Invalidate token on server before clearing locally
+    const token = sessionStorage.getItem('warscope_admin_token');
+    if (token) {
+      fetch(`${BACKEND_API_URL}/api/admin/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+      }).catch(() => {}); // Fire-and-forget — clear locally regardless
+    }
     setIsAuthenticated(false);
     sessionStorage.removeItem('warscope_admin_token');
   };
