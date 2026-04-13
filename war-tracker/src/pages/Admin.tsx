@@ -256,7 +256,10 @@ export default function Admin() {
                     className="bg-[#0a0a0f] border border-gray-700 rounded-lg pr-8 pl-3 py-1.5 text-xs text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none w-full sm:w-40"
                   />
                 </div>
-                <button className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs hover:bg-blue-500/30 transition-colors">
+                <button
+                  onClick={() => alert('هذه الميزة قيد التطوير — إضافة المصادر تتم حالياً من إعدادات الخادم')}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-400 rounded-lg text-xs hover:bg-blue-500/30 transition-colors"
+                >
                   <Plus className="w-3.5 h-3.5" />
                   إضافة مصدر
                 </button>
@@ -375,15 +378,24 @@ export default function Admin() {
                     </div>
                   </div>
                   <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
-                    <button className="flex-1 sm:flex-initial px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs hover:bg-green-500/30 transition-colors flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => alert('هذه الميزة قيد التطوير — تأكيد الأحداث يتم تلقائياً عبر نظام الثقة')}
+                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-green-500/20 text-green-400 rounded-lg text-xs hover:bg-green-500/30 transition-colors flex items-center justify-center gap-1"
+                    >
                       <CheckCircle2 className="w-3 h-3" />
                       تأكيد
                     </button>
-                    <button className="flex-1 sm:flex-initial px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => alert('هذه الميزة قيد التطوير — رفض الأحداث يتم تلقائياً عبر نظام الثقة')}
+                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-red-500/20 text-red-400 rounded-lg text-xs hover:bg-red-500/30 transition-colors flex items-center justify-center gap-1"
+                    >
                       <XCircle className="w-3 h-3" />
                       رفض
                     </button>
-                    <button className="flex-1 sm:flex-initial px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 transition-colors flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => alert('هذه الميزة قيد التطوير — تعديل الأحداث يتم من لوحة الإدارة')}
+                      className="flex-1 sm:flex-initial px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 transition-colors flex items-center justify-center gap-1"
+                    >
                       <Edit3 className="w-3 h-3" />
                       تعديل
                     </button>
@@ -601,7 +613,9 @@ function StatusAdmin() {
       if (resp.ok) {
         setStatusData(await resp.json());
       }
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('[StatusAdmin] Failed to fetch status:', err instanceof Error ? err.message : err);
+    }
     setLoading(false);
   };
 
@@ -616,7 +630,9 @@ function StatusAdmin() {
         body: JSON.stringify(updates),
       });
       await fetchStatusAdmin();
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('[StatusAdmin] Failed to update service:', err instanceof Error ? err.message : err);
+    }
     setUpdating(null);
   };
 
@@ -628,7 +644,9 @@ function StatusAdmin() {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       await fetchStatusAdmin();
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.warn('[StatusAdmin] Failed to trigger check:', err instanceof Error ? err.message : err);
+    }
     setUpdating(null);
   };
 

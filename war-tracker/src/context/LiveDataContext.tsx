@@ -139,7 +139,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         sendBreakingNotification('WarScope — تنبيه عاجل', data.message || 'تنبيه عاجل من البحرين');
       }
     } catch (e) {
-      // WS parse error silenced in production
+      console.warn('[WS] Failed to parse message:', e instanceof Error ? e.message : e);
     }
   }, []);
 
@@ -194,8 +194,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           break; // Success — stop retrying
         }
         // REST fetch returned non-OK status, retrying
-      } catch {
-        // REST fetch failed, retrying
+      } catch (err) {
+        console.warn(`[REST] Fetch attempt ${attempt + 1}/${maxRetries} failed:`, err instanceof Error ? err.message : err);
       }
       if (attempt < maxRetries - 1) {
         await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
@@ -211,8 +211,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           setSourceStatus(data.sources);
         }
       }
-    } catch {
-      // Source status fetch failed silently
+    } catch (err) {
+      console.warn('[REST] Source status fetch failed:', err instanceof Error ? err.message : err);
     }
 
     // Fetch alerts
@@ -224,8 +224,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           setAlerts(data.alerts.map(parseAlert));
         }
       }
-    } catch {
-      // Alerts fetch failed silently
+    } catch (err) {
+      console.warn('[REST] Alerts fetch failed:', err instanceof Error ? err.message : err);
     }
 
     // Fetch indicators
@@ -237,8 +237,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           setIndicators(data.indicators);
         }
       }
-    } catch {
-      // Indicators fetch failed silently
+    } catch (err) {
+      console.warn('[REST] Indicators fetch failed:', err instanceof Error ? err.message : err);
     }
   }, []);
 

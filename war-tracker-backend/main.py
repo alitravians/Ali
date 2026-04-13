@@ -561,6 +561,60 @@ async def _periodic_db_save():
             print(f"[DB] Periodic save error: {e}")
 
 
+async def _periodic_cleanup():
+    """Periodically clean up stale in-memory data to prevent memory leaks."""
+    while True:
+        await asyncio.sleep(600)  # Every 10 minutes
+        now = time.time()
+        try:
+            # Clean up completed tickets older than 2 hours
+            stale_tickets = [
+                tid for tid, t in _tickets.items()
+                if t.get("is_complete") and
+                (now - datetime.fromisoformat(t["updated_at"]).timestamp()) > 7200
+            ]
+            for tid in stale_tickets:
+                _tickets.pop(tid, None)
+                _ticket_ws_connections.pop(tid, None)
+
+            # Clean up abandoned tickets older than 24 hours
+            abandoned = [
+                tid for tid, t in _tickets.items()
+                if (now - datetime.fromisoformat(t["created_at"]).timestamp()) > 86400
+            ]
+            for tid in abandoned:
+                _tickets.pop(tid, None)
+                _ticket_ws_connections.pop(tid, None)
+
+            # Clean up stale rate limit entries (older than window)
+            stale_ips = [
+                ip for ip, attempts in _rate_limit_store.items()
+                if all(now - ts > RATE_LIMIT_WINDOW_SECONDS for ts in attempts)
+            ]
+            for ip in stale_ips:
+                _rate_limit_store.pop(ip, None)
+
+            # Clean up stale bug report IP tracker entries (older than 24h)
+            stale_bug_ips = [
+                ip for ip, timestamps in _bug_report_ip_tracker.items()
+                if all(now - ts > 86400 for ts in timestamps)
+            ]
+            for ip in stale_bug_ips:
+                _bug_report_ip_tracker.pop(ip, None)
+
+            # Clean up empty ticket WS connection lists
+            empty_ws = [tid for tid, conns in _ticket_ws_connections.items() if not conns]
+            for tid in empty_ws:
+                _ticket_ws_connections.pop(tid, None)
+
+            cleaned = len(stale_tickets) + len(abandoned) + len(stale_ips) + len(stale_bug_ips) + len(empty_ws)
+            if cleaned > 0:
+                print(f"[Cleanup] Removed {len(stale_tickets)} completed tickets, {len(abandoned)} abandoned tickets, "
+                      f"{len(stale_ips)} rate-limit entries, {len(stale_bug_ips)} bug-report IP entries, {len(empty_ws)} empty WS lists")
+        except Exception as e:
+            print(f"[Cleanup] Error: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Start background polling tasks on startup."""
@@ -585,6 +639,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         asyncio.create_task(connect_aisstream()),
         asyncio.create_task(poll_maritime_broadcast()),
         asyncio.create_task(_periodic_db_save()),
+        asyncio.create_task(_periodic_cleanup()),
     ]
     # Start health monitor (with DB integration)
     await health_monitor.start(store)
@@ -1716,15 +1771,15 @@ async def submit_bug_report(report: BugReport, request: Request):
     except Exception as e:
         print(f"[DB] Bug report save error: {e}")
 
+    if devin_error:
+        logger.warning(f"[BugReport] Internal routing issue (not exposed to user): {devin_error}")
+
     response = {
         "success": True,
         "message": "تم إرسال البلاغ بنجاح! الفريق التقني سيراجعه قريباً.",
         "report_id": report_entry["id"],
         "ticket_id": ticket_id,
-        "session_url": report_entry.get("session_url"),
     }
-    if devin_error:
-        response["devin_error"] = devin_error
     return response
 
 
@@ -1868,8 +1923,8 @@ async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
                     })
     except WebSocketDisconnect:
         pass
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[Ticket WS] Error for ticket {ticket_id}: {e}")
     finally:
         if ws in _ticket_ws_connections.get(ticket_id, []):
             _ticket_ws_connections[ticket_id].remove(ws)
@@ -1935,5 +1990,6 @@ async def websocket_endpoint(ws: WebSocket):
 
     except WebSocketDisconnect:
         ws_manager.disconnect(ws)
-    except Exception:
+    except Exception as e:
+        print(f"[WS] Unexpected error in main websocket: {e}")
         ws_manager.disconnect(ws)

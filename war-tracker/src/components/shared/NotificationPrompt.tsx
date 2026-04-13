@@ -104,7 +104,7 @@ export async function sendBreakingNotification(title: string, body: string) {
       tag: 'warscope-breaking',
       data: { url: '/live' },
     });
-  } catch {
-    // Notification failed silently
+  } catch (err) {
+    console.warn('[Notification] Failed to send breaking notification:', err instanceof Error ? err.message : err);
   }
 }

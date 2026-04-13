@@ -10,14 +10,14 @@ export default function Analytics() {
   const { events, alerts } = useLiveData();
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
 
-  const now = new Date();
   const filteredEvents = useMemo(() => {
+    const now = Date.now();
     const cutoff = timeRange === '24h' ? 24 * 60 * 60 * 1000
       : timeRange === '7d' ? 7 * 24 * 60 * 60 * 1000
       : timeRange === '30d' ? 30 * 24 * 60 * 60 * 1000
       : Infinity;
-    return events.filter(e => now.getTime() - e.timestamp.getTime() < cutoff);
-  }, [events, timeRange, now]);
+    return events.filter(e => now - e.timestamp.getTime() < cutoff);
+  }, [events, timeRange]);
 
   // Category breakdown
   const categoryStats = useMemo(() => {
@@ -82,27 +82,39 @@ export default function Analytics() {
       .slice(0, 8);
   }, [filteredEvents]);
 
-  // Export CSV
+  // Export CSV — proper escaping and error handling
   const handleExportCSV = () => {
-    const headers = ['التاريخ', 'العنوان', 'التصنيف', 'مستوى الثقة', 'الموقع', 'عاجل', 'المصادر'];
-    const rows = filteredEvents.map(e => [
-      e.timestamp.toISOString(),
-      `"${e.titleAr.replace(/"/g, '""')}"`,
-      categoryTextAr(e.category),
-      e.trustLevel,
-      e.location.nameAr,
-      e.isBreaking ? 'نعم' : 'لا',
-      e.sources.map(s => s.sourceNameAr || s.sourceName).join(' | '),
-    ]);
-    const bom = '\uFEFF';
-    const csv = bom + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `warscope-events-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    let url: string | null = null;
+    try {
+      const escapeField = (val: string) => {
+        if (val.includes(',') || val.includes('"') || val.includes('\n')) {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      };
+      const headers = ['التاريخ', 'العنوان', 'التصنيف', 'مستوى الثقة', 'الموقع', 'عاجل', 'المصادر'];
+      const rows = filteredEvents.map(e => [
+        e.timestamp.toISOString(),
+        escapeField(e.titleAr),
+        escapeField(categoryTextAr(e.category)),
+        e.trustLevel,
+        escapeField(e.location.nameAr),
+        e.isBreaking ? 'نعم' : 'لا',
+        escapeField(e.sources.map(s => s.sourceNameAr || s.sourceName).join(' | ')),
+      ]);
+      const bom = '\uFEFF';
+      const csv = bom + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `warscope-events-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+    } catch (err) {
+      console.error('[CSV Export] Failed:', err);
+    } finally {
+      if (url) URL.revokeObjectURL(url);
+    }
   };
 
   const timeRangeLabel = timeRange === '24h' ? 'آخر 24 ساعة' : timeRange === '7d' ? 'آخر 7 أيام' : timeRange === '30d' ? 'آخر 30 يوم' : 'كل الأحداث';
