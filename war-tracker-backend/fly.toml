@@ -12,3 +12,7 @@ primary_region = "iad"
 
 [env]
   PORT = "8080"
+
+[mounts]
+  source = "warscope_data"
+  destination = "/data"
