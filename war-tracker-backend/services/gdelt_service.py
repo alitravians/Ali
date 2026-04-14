@@ -74,7 +74,7 @@ def _compute_trust(num_sources: int, source_domain: str) -> tuple[TrustLevel, st
     official_domains = ["reuters.com", "apnews.com", "bbc.com", "aljazeera.com",
                         "gov.il", "irna.ir", "presstv.ir", "timesofisrael.com",
                         "bbc.co.uk", "aljazeera.net", "france24.com", "dw.com"]
-    # Also match human-readable source names (from NewsAPI/MediaStack)
+    # Also match human-readable source names (from NewsAPI)
     official_names = ["reuters", "ap news", "apnews", "bbc", "al jazeera", "aljazeera",
                       "times of israel", "france 24", "france24", "dw"]
     source_lower = source_domain.lower() if source_domain else ""

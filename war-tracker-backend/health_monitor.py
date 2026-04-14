@@ -216,17 +216,7 @@ class HealthMonitor:
                 enabled=False,
                 disabled_reason_ar="لا يتوفر مفتاح API حالياً",
             ),
-            ServiceConfig(
-                id="mediastack",
-                name="MediaStack",
-                name_ar="ميدياستاك",
-                type="external",
-                category=ServiceCategory.external_apis,
-                endpoint="mediastack",
-                check_interval_seconds=300,
-                enabled=False,
-                disabled_reason_ar="لا يتوفر مفتاح API حالياً",
-            ),
+
             ServiceConfig(
                 id="acled",
                 name="ACLED Conflict Data",

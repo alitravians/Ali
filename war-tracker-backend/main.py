@@ -36,7 +36,6 @@ from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
 from services.ai_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
-from services.mediastack_service import fetch_mediastack_events
 from services.acled_service import fetch_acled_events
 from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
@@ -62,7 +61,6 @@ class DataStore:
         self.source_status: dict[str, dict] = {
             "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "mediastack": {"active": bool(os.getenv("MEDIASTACK_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
@@ -238,7 +236,7 @@ async def poll_gdelt():
 
 
 async def poll_news():
-    """Background task: Poll NewsAPI and MediaStack."""
+    """Background task: Poll NewsAPI and ACLED."""
     while True:
         try:
             new_events: list[TrackerEvent] = []
@@ -251,16 +249,6 @@ async def poll_news():
                 store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
                 store.source_status["newsapi"]["eventCount"] += len(news)
                 store.source_status["newsapi"]["successfulPolls"] += 1
-
-            # MediaStack
-            ms_key = os.getenv("MEDIASTACK_KEY", "")
-            if ms_key:
-                print("[Scheduler] Fetching MediaStack events...")
-                ms = await fetch_mediastack_events(ms_key, max_results=15)
-                new_events.extend(ms)
-                store.source_status["mediastack"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                store.source_status["mediastack"]["eventCount"] += len(ms)
-                store.source_status["mediastack"]["successfulPolls"] += 1
 
             # ACLED
             acled_key = os.getenv("ACLED_KEY", "")

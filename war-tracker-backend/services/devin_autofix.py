@@ -58,11 +58,6 @@ _SERVICE_CONTEXT = {
         "description": "NewsAPI.org for fetching news articles about the conflict",
         "fix_hints": "Check NEWSAPI_KEY, free tier limits (100 req/day), query parameters",
     },
-    "mediastack": {
-        "file": "war-tracker-backend/services/news_service.py",
-        "description": "MediaStack API as backup news source",
-        "fix_hints": "Check MEDIASTACK_API_KEY, API availability, response format",
-    },
     "acled": {
         "file": "war-tracker-backend/services/gdelt_service.py",
         "description": "ACLED conflict data integration",

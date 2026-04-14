@@ -8,7 +8,6 @@ const SOURCE_META: Record<string, { nameAr: string; type: string; url?: string }
   rss: { nameAr: 'RSS — الجزيرة، بي بي سي، رويترز (مباشر)', type: 'media', url: 'https://www.aljazeera.net' },
   opensky: { nameAr: 'OpenSky — تتبع الطائرات', type: 'technical', url: 'https://opensky-network.org' },
   devin_ai: { nameAr: 'تحليلات الأنظمة التلقائية', type: 'technical', url: 'https://devin.ai' },
-  mediastack: { nameAr: 'MediaStack — مصادر إخبارية', type: 'media', url: 'https://mediastack.com' },
   acled: { nameAr: 'ACLED — بيانات النزاعات', type: 'technical', url: 'https://acleddata.com' },
 };
 
