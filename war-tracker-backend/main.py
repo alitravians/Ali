@@ -36,7 +36,6 @@ from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
 from services.ai_service import translate_event, batch_translate_events, analyze_events, generate_why_it_matters
-from services.acled_service import fetch_acled_events
 from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
 from services.devin_autofix import create_fix_session, get_session_status, get_fix_sessions, is_devin_configured
@@ -61,7 +60,7 @@ class DataStore:
         self.source_status: dict[str, dict] = {
             "gdelt": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "newsapi": {"active": bool(NEWSAPI_KEY), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
-            "acled": {"active": bool(os.getenv("ACLED_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
+
             "opensky": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "aisstream": {"active": bool(os.getenv("AISSTREAM_API_KEY")), "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
             "rss": {"active": True, "lastUpdate": None, "eventCount": 0, "errors": 0, "successfulPolls": 0},
@@ -236,7 +235,7 @@ async def poll_gdelt():
 
 
 async def poll_news():
-    """Background task: Poll NewsAPI and ACLED."""
+    """Background task: Poll NewsAPI."""
     while True:
         try:
             new_events: list[TrackerEvent] = []
@@ -250,16 +249,6 @@ async def poll_news():
                 store.source_status["newsapi"]["eventCount"] += len(news)
                 store.source_status["newsapi"]["successfulPolls"] += 1
 
-            # ACLED
-            acled_key = os.getenv("ACLED_KEY", "")
-            acled_email = os.getenv("ACLED_EMAIL", "")
-            if acled_key and acled_email:
-                print("[Scheduler] Fetching ACLED events...")
-                acled = await fetch_acled_events(acled_key, acled_email, max_results=30)
-                new_events.extend(acled)
-                store.source_status["acled"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                store.source_status["acled"]["eventCount"] += len(acled)
-                store.source_status["acled"]["successfulPolls"] += 1
 
             if new_events:
                 all_events = new_events + store.events

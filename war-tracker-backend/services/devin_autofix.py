@@ -58,11 +58,6 @@ _SERVICE_CONTEXT = {
         "description": "NewsAPI.org for fetching news articles about the conflict",
         "fix_hints": "Check NEWSAPI_KEY, free tier limits (100 req/day), query parameters",
     },
-    "acled": {
-        "file": "war-tracker-backend/services/gdelt_service.py",
-        "description": "ACLED conflict data integration",
-        "fix_hints": "Check ACLED API access, data format, region filters",
-    },
 }
 
 

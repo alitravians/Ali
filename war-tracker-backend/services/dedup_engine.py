@@ -65,7 +65,7 @@ def _upgrade_trust(event: TrackerEvent) -> TrackerEvent:
     n = len(event.sources)
     source_domains = [s.sourceName.lower() for s in event.sources]
 
-    official = ["reuters", "ap ", "apnews", "bbc", "aljazeera", "acled"]
+    official = ["reuters", "ap ", "apnews", "bbc", "aljazeera"]
     has_official = any(any(o in d for o in official) for d in source_domains)
 
     if n >= 3 and has_official:

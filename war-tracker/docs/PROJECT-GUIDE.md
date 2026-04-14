@@ -112,8 +112,6 @@ war-tracker-backend/
 │   ├── gdelt_service.py         # جلب أحداث GDELT (مجاني)
 │   ├── rss_service.py           # جلب أخبار RSS (مجاني)
 │   ├── news_service.py          # NewsAPI.org (يحتاج مفتاح)
-│   ├── mediastack_service.py    # MediaStack (يحتاج مفتاح)
-│   ├── acled_service.py         # بيانات نزاعات ACLED (يحتاج مفتاح)
 │   ├── opensky_service.py       # تتبع الطيران OpenSky (مجاني)
 │   ├── maritime_service.py      # تتبع السفن AISStream (يحتاج مفتاح)
 │   ├── ai_service.py            # ترجمة وتحليل بالذكاء الاصطناعي (Groq)
@@ -247,10 +245,8 @@ war-tracker-backend/
 | **مصادر البيانات** | GDELT | مفعّلة (مجاني) |
 | | RSS Feeds | مفعّلة (مجاني) |
 | | NewsAPI | معطّلة (يحتاج مفتاح API) |
-| | MediaStack | معطّلة (يحتاج مفتاح API) |
 | **خدمات خارجية** | OpenSky | مفعّلة (مجاني) |
 | | AISStream | معطّلة (يحتاج مفتاح API) |
-| | ACLED | معطّلة (يحتاج مفتاح API) |
 
 ### الميزات
 - شريط تاريخ 90 يوم لكل خدمة (أخضر/أحمر/رمادي)
@@ -269,8 +265,6 @@ war-tracker-backend/
 | GDELT | 120 ثانية | لا | تجنب حد 429 |
 | RSS | 180 ثانية | لا | مجاني بالكامل |
 | NewsAPI | 900 ثانية | نعم | 100 طلب/يوم مجاني |
-| MediaStack | — | نعم | معطّل حالياً |
-| ACLED | — | نعم | معطّل حالياً |
 | OpenSky | 60 ثانية | لا | تتبع طيران |
 | AISStream | مستمر | نعم | معطّل حالياً |
 | تحليل AI | 900 ثانية | GROQ_API_KEY | تحليل ذكي |
@@ -285,8 +279,6 @@ war-tracker-backend/
 | `DEVIN_API_KEY` | لا | Devin API — إصلاح تلقائي |
 | `DEVIN_TARGET_SESSION_ID` | لا | جلسة Devin لتحويل البلاغات |
 | `NEWSAPI_KEY` | لا | NewsAPI.org |
-| `MEDIASTACK_KEY` | لا | MediaStack |
-| `ACLED_KEY` | لا | ACLED |
 | `AISSTREAM_API_KEY` | لا | AISStream — تتبع سفن |
 | `CORS_DEV` | لا | `1` لتفعيل localhost CORS |
 
@@ -448,8 +440,6 @@ const BACKEND_BASE = import.meta.env.VITE_BACKEND_URL || 'https://war-tracker-ba
 | 10 | **تكامل NewsAPI** | جلب أخبار كل 900 ثانية (يحتاج مفتاح، 100 طلب/يوم) |
 | 11 | **تكامل OpenSky** | تتبع حركة الطيران كل 60 ثانية (مجاني) |
 | 12 | **تكامل AISStream** | تتبع السفن والملاحة البحرية (يحتاج مفتاح) |
-| 13 | **تكامل MediaStack** | مصدر أخبار إضافي (يحتاج مفتاح) |
-| 14 | **تكامل ACLED** | بيانات نزاعات مسلحة (يحتاج مفتاح) |
 | 15 | **محرك إزالة التكرار** | `dedup_engine.py` — يكشف ويدمج الأحداث المكررة من مصادر مختلفة |
 | 16 | **التفعيل التلقائي للمصادر** | الخدمات تتفعل تلقائياً لما يتوفر مفتاح API |
 

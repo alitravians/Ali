@@ -217,7 +217,6 @@ function getServiceIcon(id: string) {
     devin_ai: Brain,
     aisstream: Anchor,
     newsapi: Newspaper,
-    acled: Radio,
   };
   return icons[id] || Activity;
 }
@@ -1042,7 +1041,7 @@ export default function StatusPage() {
               {data.source_monitoring.map(src => {
                 const sourceNames: Record<string, string> = {
                   gdelt: 'GDELT', rss: 'RSS', opensky: 'OpenSky', devin_ai: 'تحليلات الأنظمة',
-                  aisstream: 'AIS Maritime', newsapi: 'NewsAPI', acled: 'ACLED',
+                  aisstream: 'AIS Maritime', newsapi: 'NewsAPI',
                 };
                 return (
                   <div key={src.id} className="grid grid-cols-6 gap-2 px-4 py-2.5 border-b border-gray-800/50 last:border-0 hover:bg-white/[0.02] transition-colors items-center">
