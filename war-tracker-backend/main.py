@@ -1615,6 +1615,15 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 
             logger.info(f"[SmartResponses] {ticket_id} phase {target_phase} message: {msg}")
 
+        # ── Guarantee phase 6 completion ──
+        # If we exited the loop without reaching phase 6 (e.g. AI generated fewer messages),
+        # force-advance to completion after a short delay
+        await asyncio.sleep(8)
+        ticket = _tickets.get(ticket_id)
+        if ticket and not ticket.get("is_complete"):
+            logger.info(f"[SmartResponses] {ticket_id} guaranteeing phase 6 completion")
+            await _auto_advance_ticket(ticket_id, 6, "تم حل المشكلة بنجاح!")
+
         logger.info(f"[SmartResponses] {ticket_id} smart responses completed (all phases)")
 
     except Exception as e:

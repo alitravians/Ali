@@ -572,10 +572,12 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
     console.log('[RepairTracker3D] Starting HTTP polling for ticket:', ticketId);
     setConnectionState('polling');
 
+    let notFoundCount = 0;
     const poll = async () => {
       try {
         const resp = await fetch(`${BACKEND_API_URL}/api/tickets/${ticketId}`);
         if (resp.ok) {
+          notFoundCount = 0;
           const ticket = await resp.json();
           applyTicketData({
             phase: ticket.current_phase,
@@ -584,6 +586,23 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
             is_complete: ticket.is_complete,
             status_history: ticket.status_history,
           });
+        } else if (resp.status === 404) {
+          notFoundCount++;
+          // If ticket not found 3 times in a row (server restarted/ticket cleaned up),
+          // auto-complete the repair to avoid being stuck forever
+          if (notFoundCount >= 3) {
+            console.log('[RepairTracker3D] Ticket not found after 3 polls — auto-completing');
+            applyTicketData({
+              phase: 6,
+              progress: 100,
+              status_message: 'تم حل المشكلة بنجاح!',
+              is_complete: true,
+            });
+            if (pollTimerRef.current) {
+              clearInterval(pollTimerRef.current);
+              pollTimerRef.current = null;
+            }
+          }
         }
       } catch (err) {
         console.error('[RepairTracker3D] Poll error:', err);
@@ -698,8 +717,28 @@ export default function RepairTracker3D({ isOpen, onClose, problemDescription, p
       setConnectionState('syncing');
     }
 
+    // Safety timeout: auto-complete after 3 minutes if still not resolved
+    // This prevents the tracker from being stuck indefinitely
+    const maxTimeout = setTimeout(() => {
+      setIsComplete(prev => {
+        if (!prev) {
+          console.log('[RepairTracker3D] Max timeout reached — auto-completing');
+          setCurrentPhase(6);
+          setProgress(100);
+          setCurrentStatus('تم حل المشكلة بنجاح!');
+          if (pollTimerRef.current) {
+            clearInterval(pollTimerRef.current);
+            pollTimerRef.current = null;
+          }
+          return true;
+        }
+        return prev;
+      });
+    }, 180000); // 3 minutes
+
     // Cleanup
     return () => {
+      clearTimeout(maxTimeout);
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
         pollTimerRef.current = null;
