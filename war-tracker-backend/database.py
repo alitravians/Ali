@@ -7,8 +7,8 @@ DB file lives on a Fly.io persistent volume at /data/warscope.db.
 """
 import json
 import os
-import aiosqlite
 from datetime import datetime, timezone
+import aiosqlite
 
 DB_PATH = os.getenv("DB_PATH", "/data/warscope.db")
 
@@ -99,6 +99,15 @@ async def init_db():
                 errors INTEGER DEFAULT 0,
                 successful_polls INTEGER DEFAULT 0,
                 last_update TEXT,
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS tickets (
+                id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                current_phase INTEGER DEFAULT 0,
+                is_complete INTEGER DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
         """)
@@ -457,5 +466,56 @@ async def load_source_stats() -> dict[str, dict]:
                 "lastUpdate": row[4],
             }
         return result
+    finally:
+        await db.close()
+
+
+# ──────────────────────────────────────────────
+# Tickets CRUD (persist repair tracker tickets)
+# ──────────────────────────────────────────────
+async def save_ticket(ticket_id: str, ticket_data: dict) -> bool:
+    """Save/update a ticket to the database."""
+    db = await get_db()
+    try:
+        await db.execute(
+            """INSERT OR REPLACE INTO tickets (id, data, current_phase, is_complete, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (
+                ticket_id,
+                json.dumps(ticket_data, ensure_ascii=False),
+                ticket_data.get("current_phase", 0),
+                1 if ticket_data.get("is_complete") else 0,
+                ticket_data.get("created_at", datetime.now(timezone.utc).isoformat()),
+                ticket_data.get("updated_at", datetime.now(timezone.utc).isoformat()),
+            ),
+        )
+        await db.commit()
+        return True
+    finally:
+        await db.close()
+
+
+async def load_ticket(ticket_id: str) -> dict | None:
+    """Load a single ticket from the database."""
+    db = await get_db()
+    try:
+        cursor = await db.execute("SELECT data FROM tickets WHERE id = ?", (ticket_id,))
+        row = await cursor.fetchone()
+        if row:
+            return json.loads(row[0])
+        return None
+    finally:
+        await db.close()
+
+
+async def load_active_tickets() -> list[dict]:
+    """Load all non-complete tickets from DB (for recovery after restart)."""
+    db = await get_db()
+    try:
+        cursor = await db.execute(
+            "SELECT data FROM tickets WHERE is_complete = 0 ORDER BY created_at DESC LIMIT 50"
+        )
+        rows = await cursor.fetchall()
+        return [json.loads(row[0]) for row in rows]
     finally:
         await db.close()

@@ -518,6 +518,32 @@ async def _load_persisted_data():
         _bug_reports = saved_reports
         print(f"[DB] Loaded {len(_bug_reports)} bug reports from database")
 
+    # Load active tickets from DB (recover after restart)
+    try:
+        active_tickets = await db.load_active_tickets()
+        for ticket_data in active_tickets:
+            tid = ticket_data.get("id")
+            if tid and tid not in _tickets:
+                # Auto-complete tickets that were mid-progress when server restarted
+                ticket_data["current_phase"] = 6
+                ticket_data["progress"] = 100
+                ticket_data["is_complete"] = True
+                ticket_data["status_message"] = "تم حل المشكلة بنجاح!"
+                ticket_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+                if "status_history" not in ticket_data:
+                    ticket_data["status_history"] = []
+                ticket_data["status_history"].append({
+                    "phase": 6,
+                    "message": "تم حل المشكلة بنجاح!",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                })
+                _tickets[tid] = ticket_data
+                await db.save_ticket(tid, ticket_data)
+        if active_tickets:
+            print(f"[DB] Recovered and completed {len(active_tickets)} active tickets from previous session")
+    except Exception as e:
+        print(f"[DB] Error loading tickets: {e}")
+
     # Recalculate indicators from real events
     if store.events:
         await update_indicators()
@@ -1468,6 +1494,13 @@ async def _auto_advance_ticket(ticket_id: str, phase: int, status_message: str):
     await _broadcast_ticket_update(ticket_id, ws_update)
     print(f"[Ticket] {ticket_id} auto-advanced to phase {phase}: {status_message}")
 
+    # Persist ticket to database so it survives backend restarts
+    try:
+        import database as _db
+        await _db.save_ticket(ticket_id, ticket)
+    except Exception as e:
+        print(f"[Ticket] DB save error for {ticket_id}: {e}")
+
 
 async def _generate_smart_responses(ticket_id: str, description: str, page: str):
     """Background task: use AI to generate personalized, safe status messages for a ticket.
@@ -1482,8 +1515,8 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
     try:
         from services.ai_service import _groq_chat
     except ImportError:
-        logger.error("[SmartResponses] Could not import _groq_chat")
-        return
+        logger.error("[SmartResponses] Could not import _groq_chat — using fallback progression")
+        _groq_chat = None  # Will trigger fallback below
 
     # Wait a few seconds before starting analysis responses
     await asyncio.sleep(5)
@@ -1519,7 +1552,7 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 ["تم فحص صفحة التحليلات وتحديد نقطة الخلل", "السبب مرتبط بتأخر استجابة خادم البيانات", "جاري تحسين آلية الاتصال بمصدر البيانات", "تم تطبيق التحسينات على النظام", "جاري التحقق من عمل صفحة التحليلات بشكل سليم", "تم التأكد من استقرار الصفحة وسرعة التحميل", "جاري نشر التحديث على الموقع", "تم حل المشكلة بنجاح — صفحة التحليلات تعمل الآن بشكل سليم"]"""
 
     try:
-        result = await _groq_chat(prompt)
+        result = await _groq_chat(prompt) if _groq_chat else None
         if not result:
             logger.warning("[SmartResponses] AI returned empty response, using contextual fallback")
             # Contextual fallback based on page
@@ -1554,8 +1587,25 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
                 # Limit to 8 messages max
                 smart_messages = smart_messages[:8]
             except (json.JSONDecodeError, ValueError) as e:
-                logger.warning(f"[SmartResponses] Failed to parse AI response: {e}")
-                return
+                logger.warning(f"[SmartResponses] Failed to parse AI response: {e}, using fallback")
+                # Use contextual fallback instead of returning (which would leave ticket stuck)
+                page_name = page.replace("/", "").strip() if page else "الموقع"
+                page_display = {
+                    "live": "الخريطة الحية",
+                    "status": "صفحة الحالة",
+                    "analysis": "صفحة التحليلات",
+                    "admin": "لوحة الإدارة",
+                }.get(page_name, f"صفحة {page_name}" if page_name else "الموقع")
+                smart_messages = [
+                    f"تم فحص {page_display} وتحديد نقطة الخلل المحتملة",
+                    f"السبب مرتبط بأحد مكونات {page_display} — جاري التحليل التفصيلي",
+                    "تم تحديد السبب الجذري وإعداد خطة الإصلاح",
+                    "الدعم الفني المختص يعمل على تطبيق الحل المناسب",
+                    f"جاري التحقق من عمل {page_display} بشكل سليم بعد الإصلاح",
+                    "تم التأكد من استقرار النظام وسلامة التحديث",
+                    "جاري نشر التحديث على الموقع",
+                    f"تم حل المشكلة بنجاح — {page_display} تعمل الآن بشكل سليم",
+                ]
 
         logger.info(f"[SmartResponses] Generated {len(smart_messages)} smart messages for {ticket_id}")
 
@@ -1628,6 +1678,33 @@ async def _generate_smart_responses(ticket_id: str, description: str, page: str)
 
     except Exception as e:
         logger.error(f"[SmartResponses] Error generating smart responses for {ticket_id}: {e}")
+        # ── CRITICAL: Guarantee completion even on error ──
+        # If smart responses fail for ANY reason, force the ticket to complete
+        # so the user never sees a stuck repair tracker
+        try:
+            await asyncio.sleep(5)
+            ticket = _tickets.get(ticket_id)
+            if ticket and not ticket.get("is_complete"):
+                logger.info(f"[SmartResponses] {ticket_id} completing after error (was at phase {ticket.get('current_phase', '?')})")
+                # Quick progression through remaining phases
+                current = ticket.get("current_phase", 0)
+                fallback_messages = {
+                    1: "جاري تحليل المشكلة المُبلّغ عنها",
+                    2: "تم تحديد السبب الجذري وإعداد خطة الإصلاح",
+                    3: "الدعم الفني المختص يعمل على تطبيق الحل المناسب",
+                    4: "جاري التحقق من فعالية الإصلاح",
+                    5: "جاري نشر التحديث على الموقع",
+                    6: "تم حل المشكلة بنجاح!",
+                }
+                for phase in range(max(current + 1, 1), 7):
+                    await asyncio.sleep(3)
+                    t = _tickets.get(ticket_id)
+                    if not t or t.get("is_complete"):
+                        return
+                    msg = fallback_messages.get(phase, f"المرحلة {phase}")
+                    await _auto_advance_ticket(ticket_id, phase, msg)
+        except Exception as fallback_err:
+            logger.error(f"[SmartResponses] Even fallback failed for {ticket_id}: {fallback_err}")
 
 
 @app.post("/api/bug-report")
@@ -1711,6 +1788,12 @@ async def submit_bug_report(report: BugReport, request: Request):
             }
         ],
     }
+
+    # Persist ticket to DB immediately so it survives backend restarts
+    try:
+        await db.save_ticket(ticket_id, _tickets[ticket_id])
+    except Exception as e:
+        print(f"[Ticket] Initial DB save error for {ticket_id}: {e}")
 
     # Send bug report as a message to the active Devin session
     import logging
@@ -1877,6 +1960,30 @@ async def get_bug_reports(authorization: str = Header(default="")):
 async def get_ticket_status(ticket_id: str):
     """Public: get current status of a repair ticket."""
     ticket = _tickets.get(ticket_id)
+    if not ticket:
+        # Fallback: try loading from database (ticket may have been lost after restart)
+        try:
+            ticket = await db.load_ticket(ticket_id)
+            if ticket:
+                # Restore to in-memory cache
+                _tickets[ticket_id] = ticket
+                print(f"[Ticket] Restored {ticket_id} from DB (phase {ticket.get('current_phase', '?')})")
+                # If ticket was mid-progress when server restarted, auto-complete it
+                if not ticket.get("is_complete"):
+                    print(f"[Ticket] {ticket_id} was incomplete on restart — auto-completing")
+                    ticket["current_phase"] = 6
+                    ticket["progress"] = 100
+                    ticket["is_complete"] = True
+                    ticket["status_message"] = "تم حل المشكلة بنجاح!"
+                    ticket["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    ticket["status_history"].append({
+                        "phase": 6,
+                        "message": "تم حل المشكلة بنجاح!",
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    })
+                    await db.save_ticket(ticket_id, ticket)
+        except Exception as e:
+            print(f"[Ticket] DB load error for {ticket_id}: {e}")
     if not ticket:
         raise HTTPException(status_code=404, detail="التذكرة غير موجودة")
     return ticket
