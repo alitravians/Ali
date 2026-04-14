@@ -280,6 +280,17 @@ async def load_incidents(limit: int = 100) -> list[dict]:
         await db.close()
 
 
+async def delete_incident(incident_id: str) -> bool:
+    """Delete an incident by ID."""
+    db = await get_db()
+    try:
+        await db.execute("DELETE FROM incidents WHERE id = ?", (incident_id,))
+        await db.commit()
+        return True
+    finally:
+        await db.close()
+
+
 # ──────────────────────────────────────────────
 # Uptime History CRUD
 # ──────────────────────────────────────────────

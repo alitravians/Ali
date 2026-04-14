@@ -3,6 +3,7 @@ WarScope Health Monitor — Periodic service health checking, incident tracking,
 and self-healing for all backend services and external APIs.
 """
 import asyncio
+import os
 import time
 import uuid
 from datetime import datetime, timezone
@@ -213,8 +214,8 @@ class HealthMonitor:
                 category=ServiceCategory.external_apis,
                 endpoint="newsapi",
                 check_interval_seconds=300,
-                enabled=False,
-                disabled_reason_ar="لا يتوفر مفتاح API حالياً",
+                enabled=bool(os.getenv("NEWSAPI_KEY")),
+                disabled_reason_ar="لا يتوفر مفتاح API حالياً" if not os.getenv("NEWSAPI_KEY") else None,
             ),
 
         ]
@@ -266,15 +267,27 @@ class HealthMonitor:
             print(f"[DB] Error loading uptime history: {e}")
 
     async def load_incidents_from_db(self):
-        """Load persisted incidents from database."""
+        """Load persisted incidents from database, filtering out removed services."""
         try:
             import database as _db
             from health_monitor import Incident as _Inc
             incident_dicts = await _db.load_incidents(limit=100)
+            valid_service_ids = set(self.services.keys())
             if incident_dicts:
                 for d in incident_dicts:
                     try:
-                        self.incidents.append(Incident(**d))
+                        inc = Incident(**d)
+                        # Skip incidents for services that no longer exist
+                        affected = inc.affected_services or []
+                        if any(sid not in valid_service_ids for sid in affected):
+                            # Delete orphaned incident from DB
+                            try:
+                                await _db.delete_incident(inc.id)
+                                print(f"[DB] Removed orphaned incident for removed service: {affected}")
+                            except Exception:
+                                pass
+                            continue
+                        self.incidents.append(inc)
                     except Exception:
                         pass
                 print(f"[DB] Loaded {len(self.incidents)} incidents from database")
