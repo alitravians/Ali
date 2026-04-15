@@ -11,12 +11,11 @@ primary_region = "iad"
   min_machines_running = 1
 
   [http_service.checks]
-    [http_service.checks.health]
-      interval = "30s"
-      timeout = "10s"
-      grace_period = "30s"
-      method = "GET"
-      path = "/api/health"
+    interval = "30s"
+    timeout = "10s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/api/health"
 
 [env]
   PORT = "8080"
