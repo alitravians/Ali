@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Eclipse/IDE files
+.project
+.settings/
+.classpath
+
+# Keystore files (secrets)
+*.jks
+*.keystore
+
+# Temp files
+src/utils/tts_part1.txt

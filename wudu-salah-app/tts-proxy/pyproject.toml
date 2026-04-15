@@ -1,0 +1,18 @@
+[project]
+name = "tts-proxy"
+version = "0.1.0"
+description = "TTS proxy for Arabic text-to-speech"
+authors = [
+    {name = "Devin"}
+]
+requires-python = "^3.10"
+dependencies = [
+    "fastapi[standard] (>=0.135.2,<0.136.0)",
+    "uvicorn (>=0.42.0,<0.43.0)",
+    "httpx (>=0.28.1,<0.29.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
