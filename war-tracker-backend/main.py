@@ -208,21 +208,21 @@ async def poll_gdelt():
                     store.source_status["gdelt"]["eventCount"] += len(events)
                     store.source_status["gdelt"]["successfulPolls"] += 1
 
-                    # Merge with existing
+                    # RADICAL FIX: Run CPU-heavy dedup in a thread
+                    # deduplicate_and_merge uses O(n²) SequenceMatcher — was blocking event loop 20s+
                     all_events = events + store.events
-                    store.events = deduplicate_and_merge(all_events)[:500]
+                    store.events = await asyncio.to_thread(deduplicate_and_merge, all_events)
+                    store.events = store.events[:500]
 
-                    # Yield to event loop before translation
                     await asyncio.sleep(0)
 
-                    # Batch-translate with lock
                     async with _translation_lock:
                         try:
                             await batch_translate_events(store.events)
                         except Exception as e:
                             print(f"[Translation] Batch translation error: {e}")
 
-                    generate_alerts_from_events(events)
+                    await asyncio.to_thread(generate_alerts_from_events, events)
                     await update_indicators()
                     await _check_bahrain_critical_alert(events)
 
@@ -272,7 +272,8 @@ async def poll_news():
 
                 if new_events:
                     all_events = new_events + store.events
-                    store.events = deduplicate_and_merge(all_events)[:500]
+                    store.events = await asyncio.to_thread(deduplicate_and_merge, all_events)
+                    store.events = store.events[:500]
 
                     await asyncio.sleep(0)
 
@@ -282,7 +283,7 @@ async def poll_news():
                         except Exception as e:
                             print(f"[Translation] News batch translation error: {e}")
 
-                    generate_alerts_from_events(new_events)
+                    await asyncio.to_thread(generate_alerts_from_events, new_events)
                     await update_indicators()
                     await _check_bahrain_critical_alert(new_events)
 
@@ -378,7 +379,8 @@ async def poll_rss():
                     store.source_status["rss"]["successfulPolls"] += 1
 
                     all_events = rss_events + store.events
-                    store.events = deduplicate_and_merge(all_events)[:500]
+                    store.events = await asyncio.to_thread(deduplicate_and_merge, all_events)
+                    store.events = store.events[:500]
 
                     await asyncio.sleep(0)
 
@@ -388,7 +390,7 @@ async def poll_rss():
                         except Exception as e:
                             print(f"[Translation] RSS batch translation error: {e}")
 
-                    generate_alerts_from_events(rss_events)
+                    await asyncio.to_thread(generate_alerts_from_events, rss_events)
                     await update_indicators()
                     await _check_bahrain_critical_alert(rss_events)
 
