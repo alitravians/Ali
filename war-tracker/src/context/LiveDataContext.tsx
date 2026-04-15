@@ -19,6 +19,7 @@ interface LiveDataContextType {
   maritimeZones: MaritimeZoneStats[];
   newEventCount: number;
   isLive: boolean;
+  isLoading: boolean;
   lastUpdate: Date;
   clearNewCount: () => void;
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
@@ -58,6 +59,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   // Start with empty arrays — NO mock data, only real data from backend
   const [events, setEvents] = useState<TrackerEvent[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [indicators, setIndicators] = useState<DashboardIndicator[]>([]);
   const [vessels, setVessels] = useState<VesselPosition[]>([]);
   const [maritimeZones, setMaritimeZones] = useState<MaritimeZoneStats[]>([]);
@@ -80,6 +82,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         const newEvents = (data.events || []).map(parseEvent);
         if (newEvents.length > 0) {
           setEvents(newEvents);
+          setIsLoading(false);
           // Use totalEvents from backend (not array length) to detect new events
           // because the backend caps the broadcast at 50 events
           const totalFromBackend = data.totalEvents ?? newEvents.length;
@@ -179,7 +182,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 10000);
+        const timeout = setTimeout(() => controller.abort(), 30000);
         const resp = await fetch(`${BACKEND_API_URL}/api/events?limit=100`, { signal: controller.signal });
         clearTimeout(timeout);
         if (resp.ok) {
@@ -189,7 +192,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
             setEvents(apiEvents);
             prevEventCountRef.current = data.total ?? apiEvents.length;
             setLastUpdate(new Date());
-            // API fetch success
+            setIsLoading(false);
           }
           break; // Success — stop retrying
         }
@@ -198,9 +201,11 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         console.warn(`[REST] Fetch attempt ${attempt + 1}/${maxRetries} failed:`, err instanceof Error ? err.message : err);
       }
       if (attempt < maxRetries - 1) {
-        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+        await new Promise(r => setTimeout(r, 2000 * Math.pow(2, attempt)));
       }
     }
+    // Even if REST failed, mark loading as done (WebSocket may deliver data)
+    setIsLoading(false);
 
     // Fetch source status
     try {
@@ -272,7 +277,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, newEventCount, isLive, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
+    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, newEventCount, isLive, isLoading, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
       {children}
     </LiveDataContext.Provider>
   );

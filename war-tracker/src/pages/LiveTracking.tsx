@@ -8,11 +8,11 @@ import MaritimePanel from '../components/maritime/MaritimePanel';
 import EventDetailModal from '../components/shared/EventDetailModal';
 import AISummaryModal from '../components/ai/AISummaryModal';
 import AlertToast from '../components/shared/AlertToast';
-import { Filter, Clock, List, LayoutGrid, Radio, Brain, Ship, ChevronDown, ChevronUp, Bell, Activity, AlertTriangle, ShieldCheck, Maximize2, Minimize2, Share2 } from 'lucide-react';
+import { Filter, Clock, List, LayoutGrid, Radio, Brain, Ship, ChevronDown, ChevronUp, Bell, Activity, AlertTriangle, ShieldCheck, Maximize2, Minimize2, Share2, Loader2 } from 'lucide-react';
 import type { EventCategory, TrustLevel, TrackerEvent } from '../types';
 
 export default function LiveTracking() {
-  const { events, alerts, newEventCount, lastUpdate, clearNewCount, vessels, connectionStatus } = useLiveData();
+  const { events, alerts, newEventCount, lastUpdate, clearNewCount, vessels, connectionStatus, isLoading } = useLiveData();
   const [categoryFilter, setCategoryFilter] = useState<EventCategory | 'all'>('all');
   const [trustFilter, setTrustFilter] = useState<TrustLevel | 'all'>('all');
   const [viewMode, setViewMode] = useState<'cards' | 'timeline'>('cards');
@@ -130,23 +130,23 @@ export default function LiveTracking() {
       {/* Quick Stats Bar */}
       <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 mb-3 pm-grid-stats">
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
-          <Activity className="w-4 h-4 text-blue-400" />
+          {isLoading ? <Loader2 className="w-4 h-4 text-blue-400 animate-spin" /> : <Activity className="w-4 h-4 text-blue-400" />}
           <div>
-            <span className="text-lg font-black text-white">{events.length}</span>
+            <span className="text-lg font-black text-white">{isLoading ? '...' : events.length}</span>
             <span className="text-[9px] text-gray-500 block">إجمالي الأحداث</span>
           </div>
         </div>
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-400" />
+          {isLoading ? <Loader2 className="w-4 h-4 text-red-400 animate-spin" /> : <AlertTriangle className="w-4 h-4 text-red-400" />}
           <div>
-            <span className="text-lg font-black text-red-400">{breakingCount}</span>
+            <span className="text-lg font-black text-red-400">{isLoading ? '...' : breakingCount}</span>
             <span className="text-[9px] text-gray-500 block">عاجل</span>
           </div>
         </div>
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-green-400" />
+          {isLoading ? <Loader2 className="w-4 h-4 text-green-400 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-400" />}
           <div>
-            <span className="text-lg font-black text-green-400">{confirmedCount}</span>
+            <span className="text-lg font-black text-green-400">{isLoading ? '...' : confirmedCount}</span>
             <span className="text-[9px] text-gray-500 block">مؤكد</span>
           </div>
         </div>
@@ -287,9 +287,15 @@ export default function LiveTracking() {
           {/* Events list */}
           <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
             <div className="text-[11px] text-gray-500 mb-1">
-              {sortedEvents.length} حدث
+              {isLoading ? 'جاري تحميل الأحداث...' : `${sortedEvents.length} حدث`}
             </div>
-            {viewMode === 'cards' ? (
+            {isLoading && events.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Loader2 className="w-8 h-8 text-blue-400 animate-spin mb-3" />
+                <p className="text-sm text-gray-400 font-semibold">جاري تحميل البيانات...</p>
+                <p className="text-[10px] text-gray-600 mt-1">يتم الاتصال بالخادم</p>
+              </div>
+            ) : viewMode === 'cards' ? (
               sortedEvents.map(event => (
                 <div key={event.id} className="relative group">
                   <div onClick={() => setSelectedEvent(event)} className="cursor-pointer">
