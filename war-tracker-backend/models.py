@@ -141,6 +141,24 @@ class MaritimeZoneStats(BaseModel):
     lastUpdate: Optional[datetime] = None
 
 
+class HormuzBlockadeStatus(BaseModel):
+    """Real-time Hormuz blockade monitoring status."""
+    isActive: bool = False  # Is blockade detected?
+    threatLevel: str = "low"  # low, medium, high, critical
+    threatLevelAr: str = "منخفض"
+    militaryVesselCount: int = 0
+    usNavyCount: int = 0
+    totalVesselsInZone: int = 0
+    tankerCount: int = 0
+    blockedTankers: int = 0  # Anchored/moored tankers (possibly blocked)
+    avgTransitSpeed: float = 0.0
+    militaryVessels: list[dict] = []  # List of military vessel summaries
+    relatedNews: list[dict] = []  # Related news events
+    lastUpdate: Optional[datetime] = None
+    statusMessage: str = "الوضع طبيعي"
+    statusMessageEn: str = "Normal conditions"
+
+
 class AircraftPosition(BaseModel):
     icao24: str
     callsign: Optional[str] = None

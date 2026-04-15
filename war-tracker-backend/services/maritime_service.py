@@ -2,6 +2,7 @@
 
 Uses real AIS (Automatic Identification System) data to track vessels
 in three critical waterways: Strait of Hormuz, Red Sea, and Suez Canal.
+Includes Hormuz Blockade Monitor for detecting US Navy presence.
 """
 import os
 import json
@@ -9,10 +10,18 @@ import asyncio
 import websockets
 from datetime import datetime, timezone
 from typing import Optional
-from models import VesselPosition, MaritimeZoneStats
+from models import VesselPosition, MaritimeZoneStats, HormuzBlockadeStatus
 
 AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY", "")
 AISSTREAM_WS_URL = "wss://stream.aisstream.io/v0/stream"
+
+# US Navy MMSI prefixes (Maritime Mobile Service Identity)
+# US MID codes: 303, 338, 366, 367, 368, 369
+US_MMSI_PREFIXES = ("303", "338", "366", "367", "368", "369")
+
+# NATO/Allied navy MMSI prefixes for additional detection
+# UK: 232-235, France: 226-228, Germany: 211, Canada: 316
+ALLIED_MMSI_PREFIXES = ("232", "233", "234", "235", "226", "227", "228", "211", "316")
 
 # AIS ship type codes to our categories
 # https://coast.noaa.gov/data/marinecadastre/ais/VesselTypeCodes2018.pdf
@@ -205,6 +214,7 @@ def _process_ais_message(data: dict):
             _vessels[mmsi] = VesselPosition(
                 mmsi=mmsi,
                 name=ship_name or f"VESSEL-{mmsi[-4:]}",
+                flag=_get_flag_from_mmsi(mmsi) or None,
                 lat=lat,
                 lng=lng,
                 speed=speed,
@@ -244,6 +254,7 @@ def _process_ais_message(data: dict):
             _vessels[mmsi] = VesselPosition(
                 mmsi=mmsi,
                 name=ship_name or f"VESSEL-{mmsi[-4:]}",
+                flag=_get_flag_from_mmsi(mmsi) or None,
                 shipType=ship_type,
                 shipTypeAr=ship_type_ar,
                 lat=lat,
@@ -265,3 +276,149 @@ def _process_ais_message(data: dict):
     stale = [k for k, v in _vessels.items() if (now - v.timestamp).total_seconds() > 600]
     for k in stale:
         del _vessels[k]
+
+
+def _is_us_vessel(mmsi: str) -> bool:
+    """Check if a vessel MMSI belongs to a US-registered ship."""
+    return mmsi.startswith(US_MMSI_PREFIXES)
+
+
+def _is_allied_vessel(mmsi: str) -> bool:
+    """Check if a vessel MMSI belongs to a NATO/allied navy."""
+    return mmsi.startswith(ALLIED_MMSI_PREFIXES)
+
+
+def _get_flag_from_mmsi(mmsi: str) -> str:
+    """Determine country flag from MMSI prefix."""
+    mid_flags = {
+        "303": "🇺🇸", "338": "🇺🇸", "366": "🇺🇸", "367": "🇺🇸", "368": "🇺🇸", "369": "🇺🇸",
+        "232": "🇬🇧", "233": "🇬🇧", "234": "🇬🇧", "235": "🇬🇧",
+        "226": "🇫🇷", "227": "🇫🇷", "228": "🇫🇷",
+        "211": "🇩🇪",
+        "316": "🇨🇦",
+        "401": "🇦🇫", "422": "🇮🇷", "416": "🇮🇱",
+        "470": "🇦🇪", "447": "🇰🇼", "408": "🇧🇭",
+        "466": "🇶🇦", "461": "🇸🇦", "473": "🇴🇲",
+    }
+    prefix3 = mmsi[:3]
+    return mid_flags.get(prefix3, "")
+
+
+def get_hormuz_blockade_status(related_events: list = None) -> HormuzBlockadeStatus:
+    """Analyze current Hormuz situation and return blockade status.
+    
+    Factors analyzed:
+    - Military vessel count (especially US Navy)
+    - Tanker traffic disruption (anchored/moored tankers = potential blockade)
+    - Average transit speed (slowdown = congestion/blockade)
+    - Related news events about Hormuz
+    """
+    hormuz_vessels = [v for v in _vessels.values() if v.zone == "hormuz"]
+    
+    military_vessels = [v for v in hormuz_vessels if v.shipType == "military"]
+    us_navy_vessels = [v for v in hormuz_vessels if _is_us_vessel(v.mmsi) and v.shipType == "military"]
+    allied_military = [v for v in hormuz_vessels if _is_allied_vessel(v.mmsi) and v.shipType == "military"]
+    tankers = [v for v in hormuz_vessels if v.shipType == "tanker"]
+    blocked_tankers = [v for v in tankers if v.status in ("anchored", "moored")]
+    
+    # Calculate average transit speed for moving vessels
+    moving = [v for v in hormuz_vessels if v.speed and v.speed > 0.5]
+    avg_speed = round(sum(v.speed for v in moving) / len(moving), 1) if moving else 0.0
+    
+    # Determine threat level based on multiple factors
+    threat_score = 0
+    
+    # Military presence scoring
+    threat_score += len(military_vessels) * 15
+    threat_score += len(us_navy_vessels) * 25  # US Navy vessels weigh more
+    threat_score += len(allied_military) * 10  # Allied military also significant
+    
+    # Tanker disruption scoring
+    if len(tankers) > 0:
+        blocked_ratio = len(blocked_tankers) / len(tankers)
+        threat_score += int(blocked_ratio * 40)  # High blocked ratio = blockade signal
+    
+    # Speed anomaly scoring
+    if avg_speed > 0 and avg_speed < 5:  # Very slow transit = congestion
+        threat_score += 20
+    
+    # Determine threat level
+    if threat_score >= 80:
+        threat_level = "critical"
+        threat_level_ar = "حرج"
+        status_msg = "حصار بحري نشط — وجود عسكري كثيف في مضيق هرمز"
+        status_en = "Active naval blockade — heavy military presence in Hormuz"
+        is_active = True
+    elif threat_score >= 50:
+        threat_level = "high"
+        threat_level_ar = "عالي"
+        status_msg = "تصعيد عسكري — وجود قطع بحرية عسكرية في مضيق هرمز"
+        status_en = "Military escalation — naval assets detected in Hormuz"
+        is_active = True
+    elif threat_score >= 25:
+        threat_level = "medium"
+        threat_level_ar = "متوسط"
+        status_msg = "نشاط عسكري ملحوظ — مراقبة مستمرة لمضيق هرمز"
+        status_en = "Notable military activity — continuous monitoring of Hormuz"
+        is_active = False
+    else:
+        threat_level = "low"
+        threat_level_ar = "منخفض"
+        status_msg = "الوضع طبيعي — حركة ملاحية اعتيادية"
+        status_en = "Normal conditions — routine maritime traffic"
+        is_active = False
+    
+    # Build military vessel summaries
+    mil_summaries = []
+    for v in military_vessels:
+        flag = _get_flag_from_mmsi(v.mmsi) or v.flag or ""
+        is_us = _is_us_vessel(v.mmsi)
+        mil_summaries.append({
+            "mmsi": v.mmsi,
+            "name": v.name or f"VESSEL-{v.mmsi[-4:]}",
+            "flag": flag,
+            "isUS": is_us,
+            "isAllied": _is_allied_vessel(v.mmsi),
+            "lat": v.lat,
+            "lng": v.lng,
+            "speed": v.speed,
+            "status": v.status,
+            "statusAr": v.statusAr,
+            "heading": v.heading,
+            "lastSeen": v.timestamp.isoformat(),
+        })
+    
+    # Get related news about Hormuz from events
+    related_news = []
+    if related_events:
+        hormuz_keywords = ["hormuz", "هرمز", "blockade", "حصار", "strait", "مضيق", "navy", "بحرية"]
+        for ev in related_events[:100]:
+            text = f"{ev.title} {ev.titleAr} {ev.description}".lower()
+            if any(kw in text for kw in hormuz_keywords):
+                related_news.append({
+                    "id": ev.id,
+                    "title": ev.titleAr or ev.title,
+                    "titleEn": ev.title,
+                    "timestamp": ev.timestamp.isoformat(),
+                    "category": ev.category,
+                    "trustLevel": ev.trustLevel,
+                })
+                if len(related_news) >= 5:
+                    break
+    
+    return HormuzBlockadeStatus(
+        isActive=is_active,
+        threatLevel=threat_level,
+        threatLevelAr=threat_level_ar,
+        militaryVesselCount=len(military_vessels),
+        usNavyCount=len(us_navy_vessels),
+        totalVesselsInZone=len(hormuz_vessels),
+        tankerCount=len(tankers),
+        blockedTankers=len(blocked_tankers),
+        avgTransitSpeed=avg_speed,
+        militaryVessels=mil_summaries,
+        relatedNews=related_news,
+        lastUpdate=datetime.now(timezone.utc),
+        statusMessage=status_msg,
+        statusMessageEn=status_en,
+    )

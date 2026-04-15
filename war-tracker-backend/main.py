@@ -31,7 +31,7 @@ from config import (
     NEWSAPI_KEY, DEVIN_API_KEY, DEVIN_TARGET_SESSION_ID,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
-from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
+from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats, get_hormuz_blockade_status
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
@@ -1116,6 +1116,17 @@ async def get_maritime_zones():
     """Get maritime zone statistics."""
     zones = get_zone_stats()
     return {"zones": [z.model_dump(mode="json") for z in zones]}
+
+
+@app.get("/api/hormuz-blockade")
+async def get_hormuz_blockade():
+    """Get Hormuz Strait blockade monitoring status.
+    
+    Analyzes military presence, tanker disruption, and related news
+    to provide real-time blockade intelligence.
+    """
+    status = get_hormuz_blockade_status(related_events=store.events)
+    return status.model_dump(mode="json")
 
 
 # ──────────────────────────────────────────────
