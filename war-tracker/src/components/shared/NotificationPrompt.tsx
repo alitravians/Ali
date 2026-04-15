@@ -6,6 +6,7 @@ type PermissionState = 'default' | 'granted' | 'denied' | 'unsupported';
 export default function NotificationPrompt() {
   const [permission, setPermission] = useState<PermissionState>('default');
   const [dismissed, setDismissed] = useState(false);
+  const [delayDone, setDelayDone] = useState(false);
 
   useEffect(() => {
     if (!('Notification' in window) || !('serviceWorker' in navigator)) {
@@ -17,6 +18,12 @@ export default function NotificationPrompt() {
     if (localStorage.getItem('warscope_notif_dismissed') === '1') {
       setDismissed(true);
     }
+  }, []);
+
+  // Delay showing the prompt by 20 seconds so it doesn't appear immediately
+  useEffect(() => {
+    const timer = setTimeout(() => setDelayDone(true), 20000);
+    return () => clearTimeout(timer);
   }, []);
 
   const requestPermission = useCallback(async () => {
@@ -45,8 +52,8 @@ export default function NotificationPrompt() {
     localStorage.setItem('warscope_notif_dismissed', '1');
   };
 
-  // Don't show if already granted, denied, unsupported, or dismissed
-  if (permission !== 'default' || dismissed) return null;
+  // Don't show if already granted, denied, unsupported, dismissed, or delay not done
+  if (permission !== 'default' || dismissed || !delayDone) return null;
 
   return (
     <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:w-80 z-50 animate-slideUp">

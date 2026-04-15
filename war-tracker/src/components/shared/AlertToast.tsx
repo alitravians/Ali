@@ -13,22 +13,54 @@ interface ToastItem {
   visible: boolean;
 }
 
+// Detect mobile viewport
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
+}
+
 export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) {
+  const isMobile = useIsMobile();
+  const effectiveMax = isMobile ? 1 : maxVisible; // Only 1 toast on mobile
+  const dismissTime = isMobile ? 4000 : 6000; // 4s on mobile, 6s on desktop
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const shownIdsRef = useRef<Set<string>>(new Set());
+  const lastToastTimeRef = useRef<number>(0);
 
-  // Track new alerts and show toasts
+  // Track new alerts and show toasts (with throttling on mobile)
   useEffect(() => {
     const newAlerts = alerts.filter(a => !shownIdsRef.current.has(a.id) && !a.isRead);
     if (newAlerts.length === 0) return;
 
+    // Throttle on mobile: min 5s between new toasts
+    const now = Date.now();
+    if (isMobile && now - lastToastTimeRef.current < 5000) {
+      // Mark as shown so they don't queue up
+      newAlerts.forEach(a => shownIdsRef.current.add(a.id));
+      return;
+    }
+    lastToastTimeRef.current = now;
+
     newAlerts.forEach(a => shownIdsRef.current.add(a.id));
 
-    const newToasts = newAlerts.slice(0, maxVisible).map(alert => ({ alert, visible: true }));
-    setToasts(prev => [...newToasts, ...prev].slice(0, maxVisible));
-  }, [alerts, maxVisible]);
+    // On mobile, only show the most important (highest severity) alert
+    const sortedNew = isMobile
+      ? [...newAlerts].sort((a, b) => {
+          const sev = { critical: 4, high: 3, medium: 2, low: 1 };
+          return (sev[b.severity as keyof typeof sev] || 0) - (sev[a.severity as keyof typeof sev] || 0);
+        })
+      : newAlerts;
 
-  // Auto-dismiss after 8 seconds
+    const newToasts = sortedNew.slice(0, effectiveMax).map(alert => ({ alert, visible: true }));
+    setToasts(prev => [...newToasts, ...prev].slice(0, effectiveMax));
+  }, [alerts, effectiveMax, isMobile]);
+
+  // Auto-dismiss
   useEffect(() => {
     if (toasts.length === 0) return;
     const timer = setTimeout(() => {
@@ -42,9 +74,9 @@ export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) 
       setTimeout(() => {
         setToasts(prev => prev.slice(0, -1));
       }, 300);
-    }, 8000);
+    }, dismissTime);
     return () => clearTimeout(timer);
-  }, [toasts]);
+  }, [toasts, dismissTime]);
 
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.map(t => t.alert.id === id ? { ...t, visible: false } : t));
@@ -63,7 +95,11 @@ export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) 
   if (toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-24 left-4 z-[9998] flex flex-col gap-2 max-w-sm">
+    <div className={`fixed z-[9998] flex flex-col gap-2 ${
+      isMobile
+        ? 'bottom-20 left-3 right-3' // Bottom on mobile, above bug report button
+        : 'top-24 left-4 max-w-sm' // Top-left on desktop
+    }`}>
       {toasts.map(({ alert, visible }) => {
         const Icon = typeIcons[alert.type] || Bell;
         return (

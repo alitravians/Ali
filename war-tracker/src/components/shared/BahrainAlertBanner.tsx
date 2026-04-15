@@ -22,7 +22,7 @@ export default function BahrainAlertBanner() {
   const Icon = isCritical ? AlertTriangle : ShieldCheck;
 
   return (
-    <div className={`fixed top-0 left-0 right-0 z-[9999] ${isCritical ? 'animate-pulse' : ''}`}>
+    <div className="fixed top-0 left-0 right-0 z-[9999]">
       <div className={bgClass}>
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 flex-1">

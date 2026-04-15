@@ -110,7 +110,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             </button>
 
             {newEventCount > 0 && (
-              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded-full animate-pulse">
+              <span className="flex items-center gap-1 px-2 py-0.5 bg-green-500/10 border border-green-500/30 rounded-full">
                 <span className="text-[10px] font-bold text-green-400">+{newEventCount}</span>
               </span>
             )}

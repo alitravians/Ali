@@ -105,7 +105,7 @@ export default function LiveTracking() {
           {newEventCount > 0 && (
             <button
               onClick={clearNewCount}
-              className="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/30 rounded-full animate-pulse"
+              className="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/30 rounded-full"
             >
               <span className="text-[10px] font-bold text-green-400">+{newEventCount} جديد</span>
             </button>
