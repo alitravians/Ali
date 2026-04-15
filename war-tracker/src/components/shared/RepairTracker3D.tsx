@@ -136,52 +136,174 @@ function useSoundEffects() {
   return { phaseAdvance, completion, statusUpdate, enabledRef };
 }
 
-/* ─── Isometric person SVG (small cartoon engineer) ─── */
-function IsoPerson({ color, x, y, typing, walking, scale = 1, delay = 0, celebrating = false }: {
-  color: string; x: number; y: number; typing?: boolean; walking?: boolean; scale?: number; delay?: number; celebrating?: boolean;
+
+/* ─── Isometric person SVG (enhanced, more realistic support team) ─── */
+function IsoPerson({
+  color,
+  x,
+  y,
+  typing,
+  walking,
+  scale = 1,
+  delay = 0,
+  celebrating = false,
+  roleLabel,
+  accentColor,
+  active = false,
+  variant = 'engineer',
+}: {
+  color: string;
+  x: number;
+  y: number;
+  typing?: boolean;
+  walking?: boolean;
+  scale?: number;
+  delay?: number;
+  celebrating?: boolean;
+  roleLabel?: string;
+  accentColor?: string;
+  active?: boolean;
+  variant?: 'lead' | 'frontend' | 'backend' | 'qa' | 'engineer';
 }) {
-  const hairColors = ['#2c1810', '#4a3728', '#1a1a2e', '#3d2b1f'];
+  const hairColors = ['#2c1810', '#4a3728', '#1a1a2e', '#3d2b1f', '#2f2a24'];
+  const skinTones = ['#f4c7a3', '#ddb08f', '#c98f69', '#a86f4d'];
   const hairColor = hairColors[Math.abs(x) % hairColors.length];
+  const skinTone = skinTones[Math.abs(y) % skinTones.length];
+  const accent = accentColor ?? color;
+  const hasHeadset = variant === 'lead' || variant === 'frontend' || variant === 'backend';
+  const hasTablet = variant === 'qa';
+  const hasBadge = variant !== 'qa';
+
   return (
     <g transform={`translate(${x}, ${y}) scale(${scale})`} style={{
       animation: celebrating
-        ? `celebrate 0.5s ease-in-out infinite alternate ${delay}s`
+        ? `celebrate 0.55s ease-in-out infinite alternate ${delay}s`
         : walking
-          ? `personWalk 2s ease-in-out infinite ${delay}s`
+          ? `personWalk 2.6s ease-in-out infinite ${delay}s`
           : typing
-            ? `personType 0.4s ease-in-out infinite ${delay}s`
-            : 'none',
+            ? `personType 0.55s ease-in-out infinite ${delay}s`
+            : `idleBreath 3.4s ease-in-out infinite ${delay}s`,
     }}>
-      <ellipse cx="0" cy="42" rx="10" ry="4" fill="rgba(0,0,0,0.3)" />
-      <rect x="-7" y="15" width="14" height="20" rx="3" fill={color} />
-      <rect x="-12" y="17" width="6" height="3" rx="1.5" fill={color} style={{
-        transformOrigin: '-7px 18px',
-        animation: typing ? `armType 0.3s ease-in-out infinite alternate ${delay}s` : 'none',
-      }} />
-      <rect x="6" y="17" width="6" height="3" rx="1.5" fill={color} style={{
-        transformOrigin: '7px 18px',
-        animation: typing ? `armType 0.3s ease-in-out infinite alternate-reverse ${delay + 0.15}s` : 'none',
-      }} />
-      <circle cx="0" cy="10" r="8" fill="#f4c7a3" />
-      <ellipse cx="0" cy="5" rx="8" ry="5" fill={hairColor} />
-      <circle cx="-3" cy="10" r="1.2" fill="#1a1a2e" />
-      <circle cx="3" cy="10" r="1.2" fill="#1a1a2e" />
-      {celebrating ? (
-        <path d="M-3,14 Q0,17 3,14" stroke="#c0392b" strokeWidth="1" fill="none" />
-      ) : (
-        <line x1="-2" y1="14" x2="2" y2="14" stroke="#c0392b" strokeWidth="0.8" />
+      {active && (
+        <>
+          <ellipse cx="0" cy="45" rx="18" ry="6" fill="rgba(59,130,246,0.08)" style={{
+            animation: 'focusRing 1.8s ease-in-out infinite',
+          }} />
+          <ellipse cx="0" cy="45" rx="12" ry="4.2" fill="rgba(59,130,246,0.14)" />
+        </>
       )}
-      <rect x="-6" y="35" width="5" height="8" rx="2" fill="#2c3e50" />
-      <rect x="1" y="35" width="5" height="8" rx="2" fill="#2c3e50" />
-      <rect x="-7" y="41" width="6" height="3" rx="1.5" fill="#1a1a2e" />
-      <rect x="1" y="41" width="6" height="3" rx="1.5" fill="#1a1a2e" />
+
+      {/* chair */}
+      {!walking && (
+        <g opacity="0.92">
+          <path d="M-11,20 Q0,14 11,20 L9,32 Q0,28 -9,32 Z" fill="#253044" stroke="#364152" strokeWidth="0.7" />
+          <rect x="-1.3" y="28" width="2.6" height="13" rx="1.2" fill="#4b5563" />
+          <path d="M-9,41 L9,41" stroke="#475569" strokeWidth="1.4" />
+          <path d="M0,41 L-8,46 M0,41 L8,46" stroke="#475569" strokeWidth="1" />
+        </g>
+      )}
+
+      <ellipse cx="0" cy="47" rx="11" ry="4.2" fill="rgba(0,0,0,0.28)" />
+      <g style={{ transformOrigin: 'center 24px' }}>
+        {/* torso */}
+        <path d="M-9,17 Q0,12 9,17 L8,34 Q0,38 -8,34 Z" fill={color} stroke="rgba(255,255,255,0.12)" strokeWidth="0.7" />
+        <path d="M-3,18 L3,18 L2,30 L-2,30 Z" fill="rgba(255,255,255,0.08)" opacity="0.7" />
+        {hasBadge && (
+          <rect x="3.5" y="21.5" width="4.5" height="6" rx="1" fill="#e5f3ff" opacity="0.95" />
+        )}
+
+        {/* neck */}
+        <rect x="-1.8" y="13.5" width="3.6" height="4" rx="1.6" fill={skinTone} />
+
+        {/* arms */}
+        <g style={{
+          transformOrigin: '-7px 19px',
+          animation: typing ? `armTypeLeft 0.34s ease-in-out infinite alternate ${delay}s` : 'none',
+        }}>
+          <rect x="-13" y="18" width="6.8" height="3.6" rx="1.8" fill={color} />
+          <rect x="-14.5" y="20.2" width="4.2" height="2.4" rx="1.2" fill={skinTone} />
+        </g>
+        <g style={{
+          transformOrigin: '7px 19px',
+          animation: typing ? `armTypeRight 0.34s ease-in-out infinite alternate ${delay + 0.14}s` : 'none',
+        }}>
+          <rect x="6.2" y="18" width="6.8" height="3.6" rx="1.8" fill={color} />
+          <rect x="10.2" y="20.2" width="4.2" height="2.4" rx="1.2" fill={skinTone} />
+        </g>
+
+        {/* head */}
+        <g style={{
+          transformOrigin: 'center 10px',
+          animation: walking ? `headBob 0.7s ease-in-out infinite ${delay}s` : `headTilt 4s ease-in-out infinite ${delay}s`,
+        }}>
+          <circle cx="0" cy="10" r="8.2" fill={skinTone} />
+          <path d="M-8,8 Q0,-1 8,8 L8,4 Q0,-1 -8,4 Z" fill={hairColor} />
+          <path d="M-8,8 Q-7,1 0,0 Q7,1 8,8" fill={hairColor} />
+          <circle cx="-3.2" cy="10.2" r="1.05" fill="#111827" />
+          <circle cx="3.2" cy="10.2" r="1.05" fill="#111827" />
+          <path d={celebrating ? 'M-3,14 Q0,17.5 3,14' : 'M-2.6,14.2 Q0,15.3 2.6,14.2'} stroke="#8b1e3f" strokeWidth="0.8" fill="none" />
+          {hasHeadset && (
+            <>
+              <path d="M-7,7 Q0,1 7,7" stroke="#94a3b8" strokeWidth="1.1" fill="none" />
+              <circle cx="7.5" cy="10.8" r="1.1" fill="#cbd5e1" />
+              <path d="M7.2,11.5 Q9.8,12.6 9.4,15.2" stroke="#cbd5e1" strokeWidth="0.75" fill="none" />
+            </>
+          )}
+        </g>
+
+        {/* legs */}
+        <g style={{
+          animation: walking ? `legStride 0.6s ease-in-out infinite ${delay}s` : `legRest 3s ease-in-out infinite ${delay}s`,
+        }}>
+          <rect x="-6.2" y="34" width="5.2" height="9.5" rx="2.2" fill="#334155" />
+          <rect x="1" y="34" width="5.2" height="9.5" rx="2.2" fill="#334155" />
+          <rect x="-7.2" y="41.5" width="6.4" height="2.8" rx="1.4" fill="#0f172a" />
+          <rect x="0.8" y="41.5" width="6.4" height="2.8" rx="1.4" fill="#0f172a" />
+        </g>
+      </g>
+
+      {/* handheld device for QA */}
+      {hasTablet && (
+        <g transform="translate(12,24) rotate(-12)">
+          <rect x="-4.5" y="-7" width="9" height="13.5" rx="1.6" fill="#0f172a" stroke={accent} strokeWidth="0.8" />
+          <rect x="-3.2" y="-5.2" width="6.4" height="9.2" rx="0.8" fill="#082032">
+            <animate attributeName="opacity" values="0.85;1;0.85" dur="1.7s" repeatCount="indefinite" />
+          </rect>
+          <circle cx="0" cy="5.2" r="0.8" fill="#94a3b8" />
+        </g>
+      )}
+
+      {roleLabel && (
+        <g transform="translate(0,-10)">
+          <rect x={-Math.max(11, roleLabel.length * 1.8)} y="-6.5" width={Math.max(22, roleLabel.length * 3.6)} height="9.5" rx="4.5" fill="rgba(2,6,23,0.72)" stroke="rgba(255,255,255,0.1)" strokeWidth="0.5" />
+          <text x="0" y="0.6" textAnchor="middle" fill="#cbd5e1" fontSize="3.2" fontFamily="sans-serif" fontWeight="bold">
+            {roleLabel}
+          </text>
+        </g>
+      )}
     </g>
   );
 }
 
-/* ─── Isometric desk with monitor ─── */
-function IsoDesk({ x, y, screenGlow, phase }: { x: number; y: number; screenGlow: boolean; phase: number }) {
-  // Safe status lines (no internal details)
+
+/* ─── Isometric desk with richer devices ─── */
+function IsoDesk({
+  x,
+  y,
+  screenGlow,
+  phase,
+  active = false,
+  accentColor = '#3b82f6',
+  compact = false,
+}: {
+  x: number;
+  y: number;
+  screenGlow: boolean;
+  phase: number;
+  active?: boolean;
+  accentColor?: string;
+  compact?: boolean;
+}) {
   const safeLines = useMemo(() => {
     if (phase <= 0) return ['جاري التحميل...'];
     if (phase === 1) return ['فحص النظام...', 'تحليل البيانات...'];
@@ -194,35 +316,112 @@ function IsoDesk({ x, y, screenGlow, phase }: { x: number; y: number; screenGlow
 
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <path d="M-35,0 L0,-12 L35,0 L0,12 Z" fill="#5d4e37" stroke="#4a3f2e" strokeWidth="1" />
-      <path d="M-35,0 L-35,5 L0,17 L0,12 Z" fill="#4a3f2e" />
-      <path d="M35,0 L35,5 L0,17 L0,12 Z" fill="#3d3425" />
-      <rect x="-2" y="-8" width="4" height="8" fill="#555" />
-      <rect x="-5" y="-4" width="10" height="3" rx="1" fill="#444" />
-      <rect x="-16" y="-32" width="32" height="24" rx="2" fill="#1a1a2e" stroke="#333" strokeWidth="1.5" />
-      <rect x="-14" y="-30" width="28" height="20" rx="1" fill={screenGlow ? '#0a1628' : '#111'}>
-        {screenGlow && <animate attributeName="opacity" values="0.8;1;0.8" dur="2s" repeatCount="indefinite" />}
+      {active && (
+        <ellipse cx="0" cy="8" rx="40" ry="13" fill="rgba(59,130,246,0.06)" style={{ animation: 'deskAura 2s ease-in-out infinite' }} />
+      )}
+
+      {/* desk top */}
+      <path d="M-36,0 L0,-13 L36,0 L0,13 Z" fill="#6b5742" stroke="#4a3f2e" strokeWidth="1" />
+      <path d="M-36,0 L-36,6 L0,19 L0,13 Z" fill="#4a3f2e" />
+      <path d="M36,0 L36,6 L0,19 L0,13 Z" fill="#3f3426" />
+
+      {/* underframe */}
+      <path d="M-24,5 L-18,9 L-18,22 L-24,18 Z" fill="#475569" opacity="0.9" />
+      <path d="M24,5 L18,9 L18,22 L24,18 Z" fill="#334155" opacity="0.9" />
+
+      {/* desk mat */}
+      <path d="M-15,-2 L0,-7 L16,-2 L1,3 Z" fill="rgba(15,23,42,0.8)" stroke="rgba(96,165,250,0.18)" strokeWidth="0.5" />
+
+      {/* main monitor */}
+      <rect x="-18" y="-36" width="30" height="22" rx="2.4" fill="#0f172a" stroke="#334155" strokeWidth="1.5" />
+      <rect x="-16.2" y="-34.2" width="26.4" height="18.4" rx="1.4" fill={screenGlow ? '#081426' : '#111827'}>
+        {screenGlow && <animate attributeName="opacity" values="0.82;1;0.86" dur="2.4s" repeatCount="indefinite" />}
       </rect>
-      {screenGlow && safeLines.map((line, i) => (
-        <text key={i} x="-12" y={-26 + i * 6} fill={
-          line.includes('✓') ? '#34d399' : '#60a5fa'
-        } fontSize="3" fontFamily="sans-serif" style={{
-          animation: `fadeInCode 0.3s ease-out ${i * 0.2}s both`,
-        }}>{line}</text>
+
+      {/* second monitor */}
+      {!compact && phase >= 2 && (
+        <>
+          <rect x="12" y="-31" width="15" height="16" rx="1.6" fill="#111827" stroke="#334155" strokeWidth="1" />
+          <rect x="13.3" y="-29.6" width="12.4" height="12.8" rx="0.8" fill="#0a1628">
+            <animate attributeName="opacity" values="0.75;0.95;0.75" dur="1.8s" repeatCount="indefinite" />
+          </rect>
+          <rect x="18.5" y="-14.7" width="2" height="6" rx="0.8" fill="#64748b" />
+          <path d="M15,-8.8 L24,-8.8 L20,-6.2 L11,-6.2 Z" fill="#334155" />
+        </>
+      )}
+
+      {/* main monitor stand */}
+      <rect x="-2.2" y="-14" width="4.4" height="9" rx="1.2" fill="#64748b" />
+      <path d="M-10,-4 L0,-8 L11,-4 L1,1 Z" fill="#334155" stroke="#475569" strokeWidth="0.5" />
+
+      {/* on-screen lines */}
+      {screenGlow && safeLines.slice(0, compact ? 2 : 3).map((line, i) => (
+        <text
+          key={i}
+          x="-13.7"
+          y={-29 + i * 5.5}
+          fill={line.includes('✓') ? '#34d399' : '#60a5fa'}
+          fontSize="2.8"
+          fontFamily="sans-serif"
+          style={{ animation: `fadeInCode 0.35s ease-out ${i * 0.2}s both` }}
+        >
+          {line}
+        </text>
       ))}
+
+      {/* keyboard */}
+      <path d="M-10,0 L0,-3.8 L10,0 L0,3.2 Z" fill="#1e293b" stroke="#334155" strokeWidth="0.5" />
+      {[-7, -4, -1, 2, 5].map((kx) => (
+        <line key={kx} x1={kx} y1={-1.4} x2={kx + 2} y2={-0.6} stroke="#64748b" strokeWidth="0.35" />
+      ))}
+
+      {/* laptop */}
+      {!compact && (
+        <>
+          <path d="M-25,-1 L-15,-4.8 L-6,-0.8 L-16,2.8 Z" fill="#0f172a" stroke="#334155" strokeWidth="0.6" />
+          <path d="M-24.5,-10 L-15,-13.6 L-15,-4.8 L-24.5,-1 Z" fill="#111827" stroke="#334155" strokeWidth="0.6" />
+          <path d="M-23,-8.8 L-16.2,-11.3 L-16.2,-5.4 L-23,-3 Z" fill="#082032">
+            <animate attributeName="opacity" values="0.7;1;0.75" dur="2.2s" repeatCount="indefinite" />
+          </path>
+        </>
+      )}
+
+      {/* phone */}
+      <g transform="translate(21,1)">
+        <path d="M-3,-3 L0,-4.2 L3,-3 L0,-1.8 Z" fill="#0f172a" stroke="#475569" strokeWidth="0.35" />
+        {active && <circle cx="0" cy="-2.9" r="0.6" fill="#22c55e"><animate attributeName="opacity" values="0.4;1;0.4" dur="1.2s" repeatCount="indefinite" /></circle>}
+      </g>
+
+      {/* mug + steam */}
+      <g transform="translate(17,-4)">
+        <path d="M-2,0 L1.5,-1.3 L4.5,0.2 L1,1.5 Z" fill="#7c3aed" opacity="0.9" />
+        <path d="M4.4,0.1 Q5.8,0.1 5.5,1.3" fill="none" stroke="#c4b5fd" strokeWidth="0.4" />
+        {screenGlow && (
+          <>
+            <path d="M0.2,-3.8 Q1.1,-5.2 0.3,-6.8" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.45" style={{ animation: 'steamLift 1.6s ease-in-out infinite' }} />
+            <path d="M1.6,-3.3 Q2.5,-4.7 1.9,-6.1" fill="none" stroke="rgba(255,255,255,0.24)" strokeWidth="0.45" style={{ animation: 'steamLift 1.8s ease-in-out 0.2s infinite' }} />
+          </>
+        )}
+      </g>
+
+      {/* lamp */}
+      <g opacity={0.95}>
+        <path d="M28,-2 L31,-10" stroke="#64748b" strokeWidth="1" />
+        <path d="M29,-10 L34,-12 L32,-6 Z" fill="#94a3b8" />
+        <path d="M33,-10 L39,-5" stroke="rgba(250,204,21,0.18)" strokeWidth="3" />
+      </g>
+
       {screenGlow && (
-        <rect x="-14" y="-30" width="28" height="20" rx="1" fill="none" stroke="#3b82f6" strokeWidth="0.5" opacity="0.4">
-          <animate attributeName="opacity" values="0.2;0.5;0.2" dur="1.5s" repeatCount="indefinite" />
+        <rect x="-16.2" y="-34.2" width="26.4" height="18.4" rx="1.4" fill="none" stroke={accentColor} strokeWidth="0.6" opacity="0.35">
+          <animate attributeName="opacity" values="0.18;0.45;0.18" dur="1.9s" repeatCount="indefinite" />
         </rect>
       )}
-      <path d="M-10,2 L0,-2 L10,2 L0,6 Z" fill="#333" stroke="#444" strokeWidth="0.5" />
-      <circle cx="18" cy="-2" r="3" fill="#8b4513" />
-      <circle cx="18" cy="-2" r="2" fill="#3d1f00" />
     </g>
   );
 }
 
-/* ─── Server rack ─── */
+
+/* ─── Server rack with subtle fan activity ─── */
 function ServerRack({ x, y, active }: { x: number; y: number; active: boolean }) {
   return (
     <g transform={`translate(${x}, ${y})`}>
@@ -239,6 +438,12 @@ function ServerRack({ x, y, active }: { x: number; y: number; active: boolean })
           {[0, 1, 2].map(j => (
             <line key={j} x1={3 + j * 3} y1={-44 + i * 9} x2={3 + j * 3} y2={-41 + i * 9} stroke="#2d2d4e" strokeWidth="0.5" />
           ))}
+          {active && (
+            <g transform={`translate(8, ${-42.5 + i * 9})`} style={{ animation: `rackFan 1.8s linear ${i * 0.1}s infinite` }}>
+              <path d="M0,-1.4 Q1.3,-1.8 1,0 Q0.6,1 -0.4,0.7 Z" fill="rgba(148,163,184,0.45)" />
+              <path d="M1.4,0 Q1.8,1.2 0,1 Q-1,0.6 -0.7,-0.4 Z" fill="rgba(148,163,184,0.35)" transform="rotate(90)" />
+            </g>
+          )}
         </g>
       ))}
     </g>
@@ -279,6 +484,69 @@ function Whiteboard({ x, y, phase }: { x: number; y: number; phase: number }) {
   );
 }
 
+/* ─── Wall operations dashboard ─── */
+function OpsWallPanel({ x, y, phase, isComplete }: { x: number; y: number; phase: number; isComplete: boolean }) {
+  const bars = [phase >= 1 ? 10 : 4, phase >= 2 ? 16 : 6, phase >= 4 ? 22 : 8, isComplete ? 26 : phase >= 5 ? 20 : 10];
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      <rect x="-42" y="-22" width="84" height="44" rx="4" fill="#0b1220" stroke="rgba(96,165,250,0.22)" strokeWidth="1" />
+      <rect x="-38" y="-18" width="76" height="36" rx="3" fill="#07111f" />
+      <text x="-34" y="-10" fill="#93c5fd" fontSize="4" fontFamily="sans-serif" fontWeight="bold">لوحة العمليات</text>
+      <text x="9" y="-10" fill={isComplete ? '#4ade80' : '#fbbf24'} fontSize="3.6" fontFamily="sans-serif">
+        {isComplete ? 'مستقر' : 'نشط'}
+      </text>
+      {bars.map((bar, i) => (
+        <g key={i} transform={`translate(${-32 + i * 16}, 12)`}>
+          <rect x="0" y={-bar} width="8" height={bar} rx="1.2" fill={['#38bdf8', '#818cf8', '#22c55e', '#f59e0b'][i]} opacity="0.85" />
+          <rect x="0" y="-24" width="8" height="24" rx="1.2" fill="none" stroke="rgba(148,163,184,0.18)" strokeWidth="0.5" />
+        </g>
+      ))}
+      <path d="M-30,0 Q-12,-10 0,-2 T30,-5" fill="none" stroke="rgba(34,197,94,0.6)" strokeWidth="1.1" strokeDasharray="2 2">
+        <animate attributeName="stroke-dashoffset" values="8;0" dur="1.4s" repeatCount="indefinite" />
+      </path>
+      <circle cx="29" cy="-5" r="2.1" fill={isComplete ? '#22c55e' : '#60a5fa'} />
+    </g>
+  );
+}
+
+/* ─── Extra device bench ─── */
+function DeviceBench({ x, y, phase }: { x: number; y: number; phase: number }) {
+  const active = phase >= 2;
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      <path d="M-22,0 L0,-8 L22,0 L0,8 Z" fill="#475569" />
+      <path d="M-22,0 L-22,3.5 L0,11.5 L0,8 Z" fill="#334155" />
+      <path d="M22,0 L22,3.5 L0,11.5 L0,8 Z" fill="#1e293b" />
+
+      {/* tablet dock */}
+      <g transform="translate(-8,-7)">
+        <rect x="-6" y="-9" width="12" height="16" rx="2" fill="#0f172a" stroke="rgba(96,165,250,0.3)" strokeWidth="0.8" />
+        <rect x="-4.5" y="-7.2" width="9" height="11.8" rx="1" fill="#082032">
+          {active && <animate attributeName="opacity" values="0.7;1;0.8" dur="1.8s" repeatCount="indefinite" />}
+        </rect>
+      </g>
+
+      {/* spare screen */}
+      <g transform="translate(8,-5)">
+        <rect x="-8" y="-8" width="16" height="10.5" rx="1.2" fill="#111827" stroke="#334155" strokeWidth="0.7" />
+        <rect x="-6.7" y="-6.7" width="13.4" height="7.8" rx="0.6" fill={phase >= 4 ? '#052e16' : '#0a1628'} />
+        <rect x="-1" y="2.2" width="2" height="4.2" rx="1" fill="#64748b" />
+      </g>
+
+      {/* network puck */}
+      <g transform="translate(0,3)">
+        <ellipse cx="0" cy="0" rx="4.5" ry="2.1" fill="#1e293b" stroke="#475569" strokeWidth="0.5" />
+        <circle cx="-1.2" cy="0" r="0.7" fill="#22c55e">
+          <animate attributeName="opacity" values="0.2;1;0.2" dur="1s" repeatCount="indefinite" />
+        </circle>
+        <circle cx="1.2" cy="0" r="0.7" fill="#3b82f6">
+          <animate attributeName="opacity" values="1;0.2;1" dur="1.2s" repeatCount="indefinite" />
+        </circle>
+      </g>
+    </g>
+  );
+}
+
 /* ─── Floating 3D file/folder element ─── */
 function FloatingFile({ x, y, phase, type, delay = 0 }: {
   x: number; y: number; phase: number; type: 'file' | 'folder' | 'gear'; delay?: number;
@@ -294,7 +562,6 @@ function FloatingFile({ x, y, phase, type, delay = 0 }: {
     <g transform={`translate(${x}, ${y})`} style={{
       animation: `floatFile 3s ease-in-out infinite ${delay}s`,
     }}>
-      {/* Glow */}
       <circle cx="0" cy="0" r="12" fill={glowColor} opacity="0.3">
         <animate attributeName="r" values="10;14;10" dur="2s" repeatCount="indefinite" />
       </circle>
@@ -444,6 +711,28 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const reducedMotion = useReducedMotion();
   const { phaseAdvance, completion, statusUpdate, enabledRef } = useSoundEffects();
+
+  const confettiParticles = useMemo(() =>
+    Array.from({ length: 25 }, (_, i) => ({
+      id: i,
+      cx: 80 + Math.random() * 340,
+      cy: 60 + Math.random() * 180,
+      r: 1.5 + Math.random() * 2.5,
+      duration: 1 + Math.random() * 2,
+      delay: Math.random() * 0.5,
+      color: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a78bfa', '#ec4899'][i % 6],
+    })),
+  []);
+  const activeCrewLabel = useMemo(() => {
+    if (isComplete) return 'الفريق أكمل المهمة';
+    if (currentPhase <= 1) return 'التحليل الأولي';
+    if (currentPhase === 2) return 'فريق التشخيص';
+    if (currentPhase === 3) return 'فريق التنفيذ';
+    if (currentPhase === 4) return 'فريق التحقق';
+    if (currentPhase === 5) return 'فريق النشر';
+    return 'الفريق الفني';
+  }, [currentPhase, isComplete]);
+  const sceneAccent = isComplete ? '#22c55e' : currentPhase >= 4 ? '#a78bfa' : '#3b82f6';
 
   // Staggered entrance animation
   useEffect(() => {
@@ -878,6 +1167,13 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
           transition: 'opacity 0.5s ease-out 0.15s, transform 0.5s ease-out 0.15s',
         }}>
           <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] px-2 py-0.5 rounded-full border" style={{
+              background: 'rgba(59,130,246,0.06)',
+              color: isComplete ? '#4ade80' : '#93c5fd',
+              borderColor: 'rgba(96,165,250,0.12)',
+            }}>
+              {activeCrewLabel}
+            </span>
             <div className="w-1.5 h-1.5 rounded-full bg-red-500" style={{ animation: 'pulseGlow 1.5s infinite' }} />
             <span className="text-[10px] text-red-400/80 font-bold">المشكلة:</span>
             <span className="text-xs text-gray-300 flex-1 truncate">{problemDescription}</span>
@@ -924,6 +1220,16 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
                   )}
                 </>
               )}
+            </div>
+
+            <div className="absolute bottom-3 right-3 z-10 px-3 py-2 rounded-2xl border" style={{
+              background: 'rgba(2,6,23,0.62)',
+              borderColor: 'rgba(96,165,250,0.12)',
+              backdropFilter: 'blur(10px)',
+              boxShadow: '0 10px 30px rgba(2,6,23,0.25)',
+            }}>
+              <div className="text-[8px] text-blue-300/70 mb-1">القسم النشط الآن</div>
+              <div className="text-[10px] font-bold" style={{ color: isComplete ? '#4ade80' : '#e2e8f0' }}>{activeCrewLabel}</div>
             </div>
 
             {/* Last update indicator */}
@@ -1003,8 +1309,10 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
                 <ServerRack x={420} y={140} active={currentPhase >= 1} />
                 <ServerRack x={455} y={140} active={currentPhase >= 5} />
 
-                {/* Whiteboard */}
+                {/* Wall dashboard + planning surface */}
+                <OpsWallPanel x={250} y={72} phase={currentPhase} isComplete={isComplete} />
                 <Whiteboard x={80} y={100} phase={currentPhase} />
+                <DeviceBench x={430} y={235} phase={currentPhase} />
 
                 {/* Floating 3D files/folders */}
                 <FloatingFile x={160} y={130} phase={currentPhase} type="file" delay={0} />
@@ -1016,41 +1324,90 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
                 <DataParticles active={currentPhase >= 2 && !isComplete} />
 
                 {/* Desk 1: Lead Engineer (center) */}
-                <IsoDesk x={250} y={220} screenGlow={currentPhase >= 0} phase={currentPhase} />
-                <IsoPerson color="#3b82f6" x={250} y={172}
+                <IsoDesk x={250} y={220} screenGlow={currentPhase >= 0} phase={currentPhase} active={!isComplete} accentColor={sceneAccent} />
+                <IsoPerson
+                  color="#3b82f6"
+                  x={250}
+                  y={171}
                   typing={currentPhase >= 1 && currentPhase <= 5 && !isComplete}
-                  celebrating={isComplete} delay={0} />
+                  celebrating={isComplete}
+                  delay={0}
+                  active={currentPhase === 1 || currentPhase === 3 || isComplete}
+                  roleLabel="قائد الدعم"
+                  variant="lead"
+                  accentColor={sceneAccent}
+                />
 
                 {/* Desk 2: Frontend Dev (left) */}
-                <IsoDesk x={120} y={240} screenGlow={currentPhase >= 2} phase={currentPhase} />
-                <IsoPerson color="#8b5cf6" x={120} y={192}
+                <IsoDesk x={120} y={240} screenGlow={currentPhase >= 2} phase={currentPhase} active={currentPhase === 2 || currentPhase === 4} accentColor="#8b5cf6" compact />
+                <IsoPerson
+                  color="#8b5cf6"
+                  x={120}
+                  y={192}
                   typing={currentPhase >= 2 && currentPhase <= 4 && !isComplete}
-                  celebrating={isComplete} delay={0.2} />
+                  celebrating={isComplete}
+                  delay={0.2}
+                  active={currentPhase === 2 || currentPhase === 4}
+                  roleLabel="واجهة المستخدم"
+                  variant="frontend"
+                  accentColor="#c084fc"
+                />
 
                 {/* Desk 3: Backend Dev (right) */}
-                <IsoDesk x={370} y={240} screenGlow={currentPhase >= 1} phase={currentPhase} />
-                <IsoPerson color="#22c55e" x={370} y={192}
+                <IsoDesk x={370} y={240} screenGlow={currentPhase >= 1} phase={currentPhase} active={currentPhase === 3 || currentPhase === 5} accentColor="#22c55e" />
+                <IsoPerson
+                  color="#22c55e"
+                  x={370}
+                  y={192}
                   typing={currentPhase >= 1 && currentPhase <= 5 && !isComplete}
-                  celebrating={isComplete} delay={0.4} />
+                  celebrating={isComplete}
+                  delay={0.4}
+                  active={currentPhase === 3 || currentPhase === 5}
+                  roleLabel="الخوادم و الربط"
+                  variant="backend"
+                  accentColor="#4ade80"
+                />
 
                 {/* Walking QA Tester */}
                 {currentPhase >= 3 && currentPhase <= 5 && !isComplete && (
-                  <IsoPerson color="#f59e0b" x={200} y={260} walking={true} scale={0.85} delay={0.1} />
+                  <IsoPerson
+                    color="#f59e0b"
+                    x={200}
+                    y={260}
+                    walking
+                    scale={0.92}
+                    delay={0.1}
+                    active={currentPhase === 4}
+                    roleLabel="اختبار الجودة"
+                    variant="qa"
+                    accentColor="#fbbf24"
+                  />
                 )}
 
-                {/* Tech Lead at whiteboard */}
+                {/* Tech lead at whiteboard */}
                 {currentPhase <= 2 && !isComplete && (
-                  <IsoPerson color="#ef4444" x={80} y={138} scale={0.8} delay={0.3} />
+                  <IsoPerson
+                    color="#ef4444"
+                    x={80}
+                    y={138}
+                    scale={0.84}
+                    delay={0.3}
+                    active={currentPhase <= 1}
+                    roleLabel="تنسيق الخطة"
+                    variant="lead"
+                    accentColor="#fb7185"
+                  />
                 )}
 
                 {/* Celebration confetti */}
-                {isComplete && Array.from({ length: 25 }).map((_, i) => (
-                  <circle key={`confetti-${i}`}
-                    cx={80 + Math.random() * 340}
-                    cy={60 + Math.random() * 180}
-                    r={1.5 + Math.random() * 2.5}
-                    fill={['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#a78bfa', '#ec4899'][i % 6]}
-                    style={{ animation: `confettiFall ${1 + Math.random() * 2}s ease-out ${Math.random() * 0.5}s infinite` }}
+                {isComplete && confettiParticles.map((particle) => (
+                  <circle
+                    key={`confetti-${particle.id}`}
+                    cx={particle.cx}
+                    cy={particle.cy}
+                    r={particle.r}
+                    fill={particle.color}
+                    style={{ animation: `confettiFall ${particle.duration}s ease-out ${particle.delay}s infinite` }}
                   />
                 ))}
 
@@ -1477,6 +1834,51 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
         @keyframes phaseFlash {
           0% { opacity: 0.8; }
           100% { opacity: 0; }
+        }
+        @keyframes idleBreath {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-1.5px); }
+        }
+        @keyframes headTilt {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(-2deg); }
+        }
+        @keyframes headBob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-1px); }
+        }
+        @keyframes legStride {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateY(-0.5px); }
+        }
+        @keyframes legRest {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(0.4px); }
+        }
+        @keyframes armTypeLeft {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(-10deg) translateY(0.4px); }
+        }
+        @keyframes armTypeRight {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(8deg) translateY(-0.4px); }
+        }
+        @keyframes steamLift {
+          0% { opacity: 0.1; transform: translateY(0); }
+          50% { opacity: 0.4; }
+          100% { opacity: 0; transform: translateY(-4px); }
+        }
+        @keyframes deskAura {
+          0%, 100% { opacity: 0.18; transform: scale(1); }
+          50% { opacity: 0.34; transform: scale(1.04); }
+        }
+        @keyframes rackFan {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes focusRing {
+          0%, 100% { opacity: 0.2; transform: scale(1); }
+          50% { opacity: 0.45; transform: scale(1.14); }
         }
         @keyframes updatePulse {
           0% { transform: scale(1); opacity: 1; }
