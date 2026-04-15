@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { wuduIntro } from '../data/wuduData';
 import SubSectionCard from '../components/SubSectionCard';
 import { useProgress } from '../contexts/ProgressContext';
-import SpeakButton from '../components/SpeakButton';
+import TappableText from '../components/TappableText';
 
 export default function WuduIntroPage() {
   const { completeLesson, progress } = useProgress();
@@ -20,14 +20,25 @@ export default function WuduIntroPage() {
     <div className="px-4 py-4 space-y-4 animate-fade-in">
       {/* Intro Card */}
       <div className="bg-gradient-to-br from-primary to-primary-dark rounded-2xl p-5 text-white shadow-lg">
-        <div className="flex items-start gap-2">
-          <div className="flex-1">
+        {isChild ? (
+          <>
+            <TappableText text={wuduIntro.title} speakText={`${wuduIntro.title}. ${wuduIntro.definition}`} as="h2" className="text-xl font-bold mb-2 text-white" iconSize={18}>
+              {wuduIntro.title}
+            </TappableText>
+            <TappableText text={wuduIntro.definition} as="p" className="text-white/90 text-sm leading-relaxed mb-3" iconSize={14}>
+              {wuduIntro.definition}
+            </TappableText>
+            <TappableText text={wuduIntro.importance} as="p" className="text-white/80 text-sm leading-relaxed" iconSize={14}>
+              {wuduIntro.importance}
+            </TappableText>
+          </>
+        ) : (
+          <>
             <h2 className="text-xl font-bold mb-2">{wuduIntro.title}</h2>
             <p className="text-white/90 text-sm leading-relaxed mb-3">{wuduIntro.definition}</p>
             <p className="text-white/80 text-sm leading-relaxed">{wuduIntro.importance}</p>
-          </div>
-          {isChild && <SpeakButton text={`${wuduIntro.title}. ${wuduIntro.definition}`} size={22} />}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Virtues */}
@@ -37,7 +48,13 @@ export default function WuduIntroPage() {
           {wuduIntro.virtues.map((v, i) => (
             <li key={i} className="flex items-start gap-2 text-sm text-text-secondary dark:text-dark-text-secondary">
               <span className="text-primary mt-0.5">●</span>
-              <span>{v}</span>
+              {isChild ? (
+                <TappableText text={v} as="span" iconSize={12}>
+                  {v}
+                </TappableText>
+              ) : (
+                <span>{v}</span>
+              )}
             </li>
           ))}
         </ul>

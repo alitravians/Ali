@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { salahIntro } from '../data/salahData';
 import SubSectionCard from '../components/SubSectionCard';
 import { useProgress } from '../contexts/ProgressContext';
-import SpeakButton from '../components/SpeakButton';
+import TappableText from '../components/TappableText';
 
 export default function SalahIntroPage() {
   const { completeLesson, progress } = useProgress();
@@ -22,14 +22,25 @@ export default function SalahIntroPage() {
   return (
     <div className="px-4 py-4 space-y-4 animate-fade-in">
       <div className="bg-gradient-to-br from-secondary to-secondary-light rounded-2xl p-5 text-white shadow-lg">
-        <div className="flex items-start gap-2">
-          <div className="flex-1">
+        {isChild ? (
+          <>
+            <TappableText text={salahIntro.title} speakText={`${salahIntro.title}. ${salahIntro.definition}`} as="h2" className="text-xl font-bold mb-2 text-white" iconSize={18}>
+              {salahIntro.title}
+            </TappableText>
+            <TappableText text={salahIntro.definition} as="p" className="text-white/90 text-sm leading-relaxed mb-3" iconSize={14}>
+              {salahIntro.definition}
+            </TappableText>
+            <TappableText text={salahIntro.importance} as="p" className="text-white/80 text-sm leading-relaxed" iconSize={14}>
+              {salahIntro.importance}
+            </TappableText>
+          </>
+        ) : (
+          <>
             <h2 className="text-xl font-bold mb-2">{salahIntro.title}</h2>
             <p className="text-white/90 text-sm leading-relaxed mb-3">{salahIntro.definition}</p>
             <p className="text-white/80 text-sm leading-relaxed">{salahIntro.importance}</p>
-          </div>
-          {isChild && <SpeakButton text={`${salahIntro.title}. ${salahIntro.definition}`} size={22} />}
-        </div>
+          </>
+        )}
       </div>
 
       <div className="bg-white dark:bg-dark-surface rounded-2xl p-4 shadow-sm">
@@ -38,10 +49,17 @@ export default function SalahIntroPage() {
           {salahIntro.prayerTimes.map((pt, i) => (
             <div key={i} className="flex items-center gap-2 bg-secondary/5 dark:bg-secondary/10 rounded-lg p-2">
               <span className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold text-xs">{i + 1}</span>
-              <div>
-                <span className="font-bold text-text-primary dark:text-dark-text text-sm">{pt.name}</span>
-                <span className="text-text-secondary dark:text-dark-text-secondary text-xs mr-2"> - {pt.rakaat}</span>
-              </div>
+              {isChild ? (
+                <TappableText text={`${pt.name}. ${pt.rakaat}`} as="div" className="text-sm" iconSize={12}>
+                  <span className="font-bold text-text-primary dark:text-dark-text">{pt.name}</span>
+                  <span className="text-text-secondary dark:text-dark-text-secondary text-xs mr-2"> - {pt.rakaat}</span>
+                </TappableText>
+              ) : (
+                <div>
+                  <span className="font-bold text-text-primary dark:text-dark-text text-sm">{pt.name}</span>
+                  <span className="text-text-secondary dark:text-dark-text-secondary text-xs mr-2"> - {pt.rakaat}</span>
+                </div>
+              )}
             </div>
           ))}
         </div>

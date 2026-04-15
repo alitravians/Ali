@@ -1,6 +1,6 @@
 import { Heart } from 'lucide-react';
 import { useProgress } from '../contexts/ProgressContext';
-import SpeakButton from './SpeakButton';
+import TappableText from './TappableText';
 
 interface StepCardProps {
   id: string;
@@ -27,11 +27,23 @@ export default function StepCard({ id, number, title, description, details, icon
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xl">{icon}</span>
-            <h3 className="font-bold text-text-primary dark:text-dark-text">{title}</h3>
+            {isChild ? (
+              <TappableText text={title} speakText={`${title}. ${childDescription || description}`} as="h3" className="font-bold text-text-primary dark:text-dark-text">
+                {title}
+              </TappableText>
+            ) : (
+              <h3 className="font-bold text-text-primary dark:text-dark-text">{title}</h3>
+            )}
           </div>
-          <p className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">
-            {isChild && childDescription ? childDescription : description}
-          </p>
+          {isChild ? (
+            <TappableText text={childDescription || description} as="p" className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">
+              {childDescription || description}
+            </TappableText>
+          ) : (
+            <p className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">
+              {description}
+            </p>
+          )}
           {!isChild && <p className="text-text-tertiary dark:text-dark-text-secondary text-xs mt-2 leading-relaxed">{details}</p>}
           {saying && !isChild && (
             <div className="mt-2 bg-primary/10 dark:bg-primary/20 rounded-lg p-2">
@@ -41,9 +53,6 @@ export default function StepCard({ id, number, title, description, details, icon
         </div>
       </div>
       <div className="flex items-center gap-2 mt-3 justify-end">
-        {isChild && (
-          <SpeakButton text={`${title}. ${childDescription || description}`} />
-        )}
         <button onClick={() => toggleFavorite(id)} className={`p-2 rounded-full transition-colors ${fav ? 'text-danger' : 'text-text-tertiary hover:text-danger'}`}>
           <Heart size={18} fill={fav ? 'currentColor' : 'none'} />
         </button>
