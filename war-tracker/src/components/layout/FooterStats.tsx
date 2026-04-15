@@ -69,7 +69,7 @@ export default function FooterStats() {
 
           {/* Credit text */}
           <p className="text-[11px] sm:text-xs text-gray-400/70 tracking-wide mt-5 sm:mt-6 font-light">
-            تم تصميم و برمجة هذا التطبيق بواسطة
+            تم تصميم و برمجة هذا الموقع بواسطة
           </p>
 
           {/* Holographic name */}
