@@ -59,7 +59,7 @@ async def _groq_chat(prompt: str, system_prompt: str = "") -> Optional[str]:
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(GROQ_API_URL, headers=headers, json=payload)
             if resp.status_code == 200:
                 data = resp.json()
@@ -167,13 +167,14 @@ async def batch_translate_events(events: list[TrackerEvent]) -> list[TrackerEven
         return events
 
     # Limit translations per cycle to avoid blocking the event loop
-    max_per_cycle = 60  # Max 3 batches of 20 per cycle
+    # CRITICAL: Keep this small — each Groq API call takes 5-15s and blocks the event loop
+    max_per_cycle = 10  # Max 1 batch of 10 per cycle — prevents health check failures
     if len(needs_translation) > max_per_cycle:
         needs_translation = needs_translation[:max_per_cycle]
 
     # Try Groq AI batch translation
     if GROQ_API_KEY and not _is_groq_rate_limited():
-        batch_size = 20
+        batch_size = 10  # Smaller batches = faster API response = less event loop blocking
         for batch_start in range(0, len(needs_translation), batch_size):
             batch = needs_translation[batch_start:batch_start + batch_size]
             titles_list = "\n".join(f"{j+1}. {ev.title}" for j, (_, ev) in enumerate(batch))
@@ -185,7 +186,8 @@ Return ONLY a JSON array of objects, each with "n" (number) and "ar" (Arabic tra
 
             try:
                 # Yield to event loop between batches to keep health checks responsive
-                await asyncio.sleep(0)
+                # Use 2s delay to give event loop plenty of breathing room for health checks
+                await asyncio.sleep(2)
                 response = await _groq_chat(prompt)
                 if response:
                     text = response.strip()

@@ -44,6 +44,11 @@ import database as db
 
 
 # ──────────────────────────────────────────────
+# Translation lock — prevents concurrent batch translations from blocking event loop
+# ──────────────────────────────────────────────
+_translation_lock = asyncio.Lock()
+
+# ──────────────────────────────────────────────
 # In-memory store
 # ──────────────────────────────────────────────
 class DataStore:
@@ -185,7 +190,7 @@ def generate_alerts_from_events(new_events: list[TrackerEvent]):
 
 async def poll_gdelt():
     """Background task: Poll GDELT for new events."""
-    await asyncio.sleep(5)  # Stagger: let server stabilize before first heavy poll
+    await asyncio.sleep(15)  # Stagger: let server fully stabilize + pass first health check
     while True:
         try:
             print("[Scheduler] Fetching GDELT events...")
@@ -199,11 +204,16 @@ async def poll_gdelt():
                 all_events = events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
 
-                # Batch-translate ALL event titles to Arabic (on store.events so deduped primaries get translated)
-                try:
-                    await batch_translate_events(store.events)
-                except Exception as e:
-                    print(f"[Translation] Batch translation error: {e}")
+                # Yield to event loop before translation
+                await asyncio.sleep(0)
+
+                # Batch-translate with lock — only one poller translates at a time
+                # This prevents GDELT + NewsAPI from simultaneously blocking the event loop
+                async with _translation_lock:
+                    try:
+                        await batch_translate_events(store.events)
+                    except Exception as e:
+                        print(f"[Translation] Batch translation error: {e}")
 
                 generate_alerts_from_events(events)
                 await update_indicators()
@@ -237,7 +247,7 @@ async def poll_gdelt():
 
 async def poll_news():
     """Background task: Poll NewsAPI."""
-    await asyncio.sleep(10)  # Stagger: start 10s after server up
+    await asyncio.sleep(30)  # Stagger: start 30s after server up (after GDELT's first cycle)
     while True:
         try:
             new_events: list[TrackerEvent] = []
@@ -256,11 +266,15 @@ async def poll_news():
                 all_events = new_events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Batch-translate ALL event titles to Arabic (on store.events so deduped primaries get translated)
-                try:
-                    await batch_translate_events(store.events)
-                except Exception as e:
-                    print(f"[Translation] News batch translation error: {e}")
+                # Yield to event loop before translation
+                await asyncio.sleep(0)
+
+                # Batch-translate with lock — only one poller translates at a time
+                async with _translation_lock:
+                    try:
+                        await batch_translate_events(store.events)
+                    except Exception as e:
+                        print(f"[Translation] News batch translation error: {e}")
 
                 generate_alerts_from_events(new_events)
                 await update_indicators()
@@ -346,7 +360,7 @@ async def poll_ai_analysis():
 
 async def poll_rss():
     """Background task: Poll RSS feeds from trusted sources (Al Jazeera, BBC, Reuters)."""
-    await asyncio.sleep(15)  # Stagger: start 15s after server up
+    await asyncio.sleep(45)  # Stagger: start 45s after server up (well after GDELT + NewsAPI)
     while True:
         try:
             print("[Scheduler] Fetching RSS feed events...")
@@ -359,11 +373,15 @@ async def poll_rss():
                 all_events = rss_events + store.events
                 store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Batch-translate event titles to Arabic
-                try:
-                    await batch_translate_events(store.events)
-                except Exception as e:
-                    print(f"[Translation] RSS batch translation error: {e}")
+                # Yield to event loop before translation
+                await asyncio.sleep(0)
+
+                # Batch-translate with lock — only one poller translates at a time
+                async with _translation_lock:
+                    try:
+                        await batch_translate_events(store.events)
+                    except Exception as e:
+                        print(f"[Translation] RSS batch translation error: {e}")
 
                 generate_alerts_from_events(rss_events)
                 await update_indicators()
