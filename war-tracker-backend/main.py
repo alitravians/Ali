@@ -892,6 +892,12 @@ async def root():
     }
 
 
+@app.get("/api/health")
+async def health_check():
+    """Lightweight health check for Fly.io monitoring — fast response, no DB queries."""
+    return {"status": "ok"}
+
+
 @app.get("/api/events")
 async def get_events(limit: int = 50, category: str | None = None, trust: str | None = None):
     """Get all events with optional filters."""
