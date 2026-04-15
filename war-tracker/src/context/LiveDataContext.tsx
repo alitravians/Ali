@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
-import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats } from '../types';
+import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats, HormuzBlockadeStatus } from '../types';
 import { BACKEND_API_URL, BACKEND_WS_URL } from '../config/api';
 import { sendBreakingNotification } from '../components/shared/NotificationPrompt';
 
@@ -17,6 +17,7 @@ interface LiveDataContextType {
   indicators: DashboardIndicator[];
   vessels: VesselPosition[];
   maritimeZones: MaritimeZoneStats[];
+  hormuzBlockade: HormuzBlockadeStatus | null;
   newEventCount: number;
   isLive: boolean;
   isLoading: boolean;
@@ -63,6 +64,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [indicators, setIndicators] = useState<DashboardIndicator[]>([]);
   const [vessels, setVessels] = useState<VesselPosition[]>([]);
   const [maritimeZones, setMaritimeZones] = useState<MaritimeZoneStats[]>([]);
+  const [hormuzBlockade, setHormuzBlockade] = useState<HormuzBlockadeStatus | null>(null);
   const [newEventCount, setNewEventCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
@@ -273,6 +275,20 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn('[REST] Vessels fetch failed:', err instanceof Error ? err.message : err);
     }
+
+    // Fetch Hormuz blockade status
+    try {
+      const blockadeController = new AbortController();
+      const blockadeTimeout = setTimeout(() => blockadeController.abort(), 10000);
+      const resp = await fetch(`${BACKEND_API_URL}/api/hormuz-blockade`, { signal: blockadeController.signal });
+      clearTimeout(blockadeTimeout);
+      if (resp.ok) {
+        const data = await resp.json();
+        setHormuzBlockade(data as HormuzBlockadeStatus);
+      }
+    } catch (err) {
+      console.warn('[REST] Hormuz blockade fetch failed:', err instanceof Error ? err.message : err);
+    }
   }, []);
 
   useEffect(() => {
@@ -308,9 +324,24 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       } catch { /* silent — WS will handle if REST fails */ }
     }, 30000);
 
+    // Refresh Hormuz blockade status every 60s
+    const blockadeRefresh = setInterval(async () => {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 10000);
+        const resp = await fetch(`${BACKEND_API_URL}/api/hormuz-blockade`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (resp.ok) {
+          const data = await resp.json();
+          setHormuzBlockade(data as HormuzBlockadeStatus);
+        }
+      } catch { /* silent */ }
+    }, 60000);
+
     return () => {
       clearInterval(pingInterval);
       clearInterval(vesselRefresh);
+      clearInterval(blockadeRefresh);
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) wsRef.current.close();
     };
@@ -325,7 +356,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, newEventCount, isLive, isLoading, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
+    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, hormuzBlockade, newEventCount, isLive, isLoading, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
       {children}
     </LiveDataContext.Provider>
   );

@@ -165,3 +165,40 @@ export interface MaritimeZoneStats {
   avgSpeed: number;
   lastUpdate?: Date;
 }
+
+export interface HormuzBlockadeStatus {
+  isActive: boolean;
+  threatLevel: 'low' | 'medium' | 'high' | 'critical';
+  threatLevelAr: string;
+  militaryVesselCount: number;
+  usNavyCount: number;
+  totalVesselsInZone: number;
+  tankerCount: number;
+  blockedTankers: number;
+  avgTransitSpeed: number;
+  militaryVessels: Array<{
+    mmsi: string;
+    name: string;
+    flag: string;
+    isUS: boolean;
+    isAllied: boolean;
+    lat: number;
+    lng: number;
+    speed: number | null;
+    status: string;
+    statusAr: string;
+    heading: number | null;
+    lastSeen: string;
+  }>;
+  relatedNews: Array<{
+    id: string;
+    title: string;
+    titleEn: string;
+    timestamp: string;
+    category: string;
+    trustLevel: string;
+  }>;
+  lastUpdate?: string;
+  statusMessage: string;
+  statusMessageEn: string;
+}

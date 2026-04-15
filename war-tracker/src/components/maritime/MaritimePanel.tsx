@@ -1,6 +1,7 @@
 import { useLiveData } from '../../context/LiveDataContext';
 import { Ship, Anchor, Navigation, Gauge, ChevronDown, ChevronUp, Waves, Clock } from 'lucide-react';
 import { useState } from 'react';
+import HormuzBlockadeMonitor from './HormuzBlockadeMonitor';
 
 /** Format a timestamp to relative Arabic time (e.g. "منذ 2 دقيقة") */
 function timeAgo(ts: string | Date | undefined): string {
@@ -217,6 +218,9 @@ export default function MaritimePanel() {
           </div>
         ) : null;
       })()}
+
+      {/* Hormuz Blockade Monitor */}
+      <HormuzBlockadeMonitor />
 
       {/* Zone Stats */}
       <div className="space-y-2">
