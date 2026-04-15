@@ -254,6 +254,25 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       console.warn('[REST] Indicators fetch failed:', err instanceof Error ? err.message : err);
     }
+
+    // Fetch vessels (REST fallback — critical for maritime panel)
+    try {
+      const vesselController = new AbortController();
+      const vesselTimeout = setTimeout(() => vesselController.abort(), 15000);
+      const resp = await fetch(`${BACKEND_API_URL}/api/vessels`, { signal: vesselController.signal });
+      clearTimeout(vesselTimeout);
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.vessels && Array.isArray(data.vessels)) {
+          setVessels(data.vessels as VesselPosition[]);
+        }
+        if (data.zones && Array.isArray(data.zones)) {
+          setMaritimeZones(data.zones as MaritimeZoneStats[]);
+        }
+      }
+    } catch (err) {
+      console.warn('[REST] Vessels fetch failed:', err instanceof Error ? err.message : err);
+    }
   }, []);
 
   useEffect(() => {
@@ -270,8 +289,28 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       }
     }, 30000);
 
+    // Refresh vessels via REST every 30s as fallback (in case WS is unstable)
+    const vesselRefresh = setInterval(async () => {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 10000);
+        const resp = await fetch(`${BACKEND_API_URL}/api/vessels`, { signal: ctrl.signal });
+        clearTimeout(t);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.vessels && Array.isArray(data.vessels)) {
+            setVessels(data.vessels as VesselPosition[]);
+          }
+          if (data.zones && Array.isArray(data.zones)) {
+            setMaritimeZones(data.zones as MaritimeZoneStats[]);
+          }
+        }
+      } catch { /* silent — WS will handle if REST fails */ }
+    }, 30000);
+
     return () => {
       clearInterval(pingInterval);
+      clearInterval(vesselRefresh);
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
       if (wsRef.current) wsRef.current.close();
     };

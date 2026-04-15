@@ -1,6 +1,28 @@
 import { useLiveData } from '../../context/LiveDataContext';
-import { Ship, Anchor, Navigation, Gauge, ChevronDown, ChevronUp, Waves } from 'lucide-react';
+import { Ship, Anchor, Navigation, Gauge, ChevronDown, ChevronUp, Waves, Clock } from 'lucide-react';
 import { useState } from 'react';
+
+/** Format a timestamp to relative Arabic time (e.g. "منذ 2 دقيقة") */
+function timeAgo(ts: string | Date | undefined): string {
+  if (!ts) return '';
+  const now = Date.now();
+  const then = typeof ts === 'string' ? new Date(ts).getTime() : ts.getTime();
+  if (isNaN(then)) return '';
+  const diffSec = Math.floor((now - then) / 1000);
+  if (diffSec < 60) return 'الآن';
+  const mins = Math.floor(diffSec / 60);
+  if (mins < 60) {
+    if (mins === 1) return 'منذ دقيقة';
+    if (mins === 2) return 'منذ دقيقتين';
+    if (mins <= 10) return `منذ ${mins} دقائق`;
+    return `منذ ${mins} دقيقة`;
+  }
+  const hrs = Math.floor(mins / 60);
+  if (hrs === 1) return 'منذ ساعة';
+  if (hrs === 2) return 'منذ ساعتين';
+  if (hrs <= 10) return `منذ ${hrs} ساعات`;
+  return `منذ ${hrs} ساعة`;
+}
 import type { VesselPosition, MaritimeZoneStats } from '../../types';
 
 const ZONE_COLORS: Record<string, string> = {
@@ -98,6 +120,7 @@ function ZoneCard({ zone }: { zone: MaritimeZoneStats }) {
 }
 
 function VesselRow({ vessel }: { vessel: VesselPosition }) {
+  const lastSeen = timeAgo(vessel.timestamp);
   return (
     <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors border border-gray-800/50">
       <ShipTypeIcon type={vessel.shipType} />
@@ -116,6 +139,15 @@ function VesselRow({ vessel }: { vessel: VesselPosition }) {
               <span className="flex items-center gap-0.5">
                 <Navigation className="w-2.5 h-2.5" />
                 {vessel.destination}
+              </span>
+            </>
+          )}
+          {lastSeen && (
+            <>
+              <span>•</span>
+              <span className="flex items-center gap-0.5 text-gray-600">
+                <Clock className="w-2.5 h-2.5" />
+                {lastSeen}
               </span>
             </>
           )}
@@ -157,12 +189,34 @@ export default function MaritimePanel() {
               <span className="text-[10px] font-semibold text-cyan-400">{totalVessels} سفينة</span>
             </div>
           )}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-green-500/10 border border-green-500/30 rounded-full">
-            <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] font-semibold text-green-400">AIS مباشر</span>
+          <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
+            totalVessels > 0
+              ? 'bg-green-500/10 border border-green-500/30'
+              : 'bg-yellow-500/10 border border-yellow-500/30'
+          }`}>
+            <span className={`w-2 h-2 rounded-full animate-pulse ${totalVessels > 0 ? 'bg-green-400' : 'bg-yellow-400'}`} />
+            <span className={`text-[10px] font-semibold ${totalVessels > 0 ? 'text-green-400' : 'text-yellow-400'}`}>
+              {totalVessels > 0 ? 'AIS مباشر' : 'جاري الاتصال...'}
+            </span>
           </div>
         </div>
       </div>
+
+      {/* Last update indicator */}
+      {maritimeZones.length > 0 && (() => {
+        const latestZone = maritimeZones.reduce((latest, z) => {
+          if (!z.lastUpdate) return latest;
+          const t = typeof z.lastUpdate === 'string' ? new Date(z.lastUpdate).getTime() : z.lastUpdate.getTime();
+          return t > (latest || 0) ? t : latest;
+        }, 0 as number);
+        const ago = latestZone ? timeAgo(new Date(latestZone)) : '';
+        return ago ? (
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+            <Clock className="w-3 h-3" />
+            <span>آخر تحديث: {ago}</span>
+          </div>
+        ) : null;
+      })()}
 
       {/* Zone Stats */}
       <div className="space-y-2">
