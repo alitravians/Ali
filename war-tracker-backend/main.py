@@ -44,8 +44,13 @@ import database as db
 
 
 # ──────────────────────────────────────────────
-# Translation lock — prevents concurrent batch translations from blocking event loop
+# Poller concurrency controls — RADICAL FIX for event loop blocking
 # ──────────────────────────────────────────────
+# Semaphore(1) = only ONE heavy poller (GDELT/RSS/NewsAPI) can run at a time
+# This is the #1 fix: even if poll intervals accidentally align, they queue up
+# instead of all blocking the event loop simultaneously
+_poller_semaphore = asyncio.Semaphore(1)
+# Translation lock — prevents concurrent batch translations from blocking event loop
 _translation_lock = asyncio.Lock()
 
 # ──────────────────────────────────────────────
@@ -193,50 +198,52 @@ async def poll_gdelt():
     await asyncio.sleep(15)  # Stagger: let server fully stabilize + pass first health check
     while True:
         try:
-            print("[Scheduler] Fetching GDELT events...")
-            events = await fetch_gdelt_events(max_results=40)
-            if events:
-                store.source_status["gdelt"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                store.source_status["gdelt"]["eventCount"] += len(events)
-                store.source_status["gdelt"]["successfulPolls"] += 1
+            # RADICAL FIX: Semaphore ensures only ONE heavy poller runs at a time
+            # If RSS or NewsAPI is already running, GDELT waits its turn
+            async with _poller_semaphore:
+                print("[Scheduler] Fetching GDELT events...")
+                events = await fetch_gdelt_events(max_results=40)
+                if events:
+                    store.source_status["gdelt"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                    store.source_status["gdelt"]["eventCount"] += len(events)
+                    store.source_status["gdelt"]["successfulPolls"] += 1
 
-                # Merge with existing
-                all_events = events + store.events
-                store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
+                    # Merge with existing
+                    all_events = events + store.events
+                    store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Yield to event loop before translation
-                await asyncio.sleep(0)
+                    # Yield to event loop before translation
+                    await asyncio.sleep(0)
 
-                # Batch-translate with lock — only one poller translates at a time
-                # This prevents GDELT + NewsAPI from simultaneously blocking the event loop
-                async with _translation_lock:
+                    # Batch-translate with lock
+                    async with _translation_lock:
+                        try:
+                            await batch_translate_events(store.events)
+                        except Exception as e:
+                            print(f"[Translation] Batch translation error: {e}")
+
+                    generate_alerts_from_events(events)
+                    await update_indicators()
+                    await _check_bahrain_critical_alert(events)
+
+                    await ws_manager.broadcast({
+                        "type": "events_update",
+                        "events": [e.model_dump(mode="json") for e in store.events[:50]],
+                        "totalEvents": len(store.events),
+                        "indicators": [i.model_dump(mode="json") for i in store.indicators],
+                        "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
+                    })
+
+                    print(f"[GDELT] Fetched {len(events)} events, total unique: {len(store.events)}")
+
+                    # Persist to database
                     try:
-                        await batch_translate_events(store.events)
+                        await db.save_events(store.events)
+                        await db.save_alerts(store.alerts)
                     except Exception as e:
-                        print(f"[Translation] Batch translation error: {e}")
-
-                generate_alerts_from_events(events)
-                await update_indicators()
-                await _check_bahrain_critical_alert(events)
-
-                await ws_manager.broadcast({
-                    "type": "events_update",
-                    "events": [e.model_dump(mode="json") for e in store.events[:50]],
-                    "totalEvents": len(store.events),
-                    "indicators": [i.model_dump(mode="json") for i in store.indicators],
-                    "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
-                })
-
-                print(f"[GDELT] Fetched {len(events)} events, total unique: {len(store.events)}")
-
-                # Persist to database
-                try:
-                    await db.save_events(store.events)
-                    await db.save_alerts(store.alerts)
-                except Exception as e:
-                    print(f"[DB] GDELT save error: {e}")
-            else:
-                print("[GDELT] No new events")
+                        print(f"[DB] GDELT save error: {e}")
+                else:
+                    print("[GDELT] No new events")
 
         except Exception as e:
             store.source_status["gdelt"]["errors"] += 1
@@ -250,52 +257,50 @@ async def poll_news():
     await asyncio.sleep(30)  # Stagger: start 30s after server up (after GDELT's first cycle)
     while True:
         try:
-            new_events: list[TrackerEvent] = []
+            # RADICAL FIX: Semaphore ensures only ONE heavy poller runs at a time
+            async with _poller_semaphore:
+                new_events: list[TrackerEvent] = []
 
-            # NewsAPI
-            if NEWSAPI_KEY:
-                print("[Scheduler] Fetching NewsAPI events...")
-                news = await fetch_news_events(max_results=20)
-                new_events.extend(news)
-                store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                store.source_status["newsapi"]["eventCount"] += len(news)
-                store.source_status["newsapi"]["successfulPolls"] += 1
+                # NewsAPI
+                if NEWSAPI_KEY:
+                    print("[Scheduler] Fetching NewsAPI events...")
+                    news = await fetch_news_events(max_results=20)
+                    new_events.extend(news)
+                    store.source_status["newsapi"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                    store.source_status["newsapi"]["eventCount"] += len(news)
+                    store.source_status["newsapi"]["successfulPolls"] += 1
 
+                if new_events:
+                    all_events = new_events + store.events
+                    store.events = deduplicate_and_merge(all_events)[:500]
 
-            if new_events:
-                all_events = new_events + store.events
-                store.events = deduplicate_and_merge(all_events)[:500]
+                    await asyncio.sleep(0)
 
-                # Yield to event loop before translation
-                await asyncio.sleep(0)
+                    async with _translation_lock:
+                        try:
+                            await batch_translate_events(store.events)
+                        except Exception as e:
+                            print(f"[Translation] News batch translation error: {e}")
 
-                # Batch-translate with lock — only one poller translates at a time
-                async with _translation_lock:
+                    generate_alerts_from_events(new_events)
+                    await update_indicators()
+                    await _check_bahrain_critical_alert(new_events)
+
+                    await ws_manager.broadcast({
+                        "type": "events_update",
+                        "events": [e.model_dump(mode="json") for e in store.events[:50]],
+                        "totalEvents": len(store.events),
+                        "indicators": [i.model_dump(mode="json") for i in store.indicators],
+                        "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
+                    })
+
+                    print(f"[News] Fetched {len(new_events)} events, total unique: {len(store.events)}")
+
                     try:
-                        await batch_translate_events(store.events)
+                        await db.save_events(store.events)
+                        await db.save_alerts(store.alerts)
                     except Exception as e:
-                        print(f"[Translation] News batch translation error: {e}")
-
-                generate_alerts_from_events(new_events)
-                await update_indicators()
-                await _check_bahrain_critical_alert(new_events)
-
-                await ws_manager.broadcast({
-                    "type": "events_update",
-                    "events": [e.model_dump(mode="json") for e in store.events[:50]],
-                    "totalEvents": len(store.events),
-                    "indicators": [i.model_dump(mode="json") for i in store.indicators],
-                    "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
-                })
-
-                print(f"[News] Fetched {len(new_events)} events, total unique: {len(store.events)}")
-
-                # Persist to database
-                try:
-                    await db.save_events(store.events)
-                    await db.save_alerts(store.alerts)
-                except Exception as e:
-                    print(f"[DB] News save error: {e}")
+                        print(f"[DB] News save error: {e}")
 
         except Exception as e:
             print(f"[News] Poll error: {e}")
@@ -363,48 +368,47 @@ async def poll_rss():
     await asyncio.sleep(45)  # Stagger: start 45s after server up (well after GDELT + NewsAPI)
     while True:
         try:
-            print("[Scheduler] Fetching RSS feed events...")
-            rss_events = await fetch_rss_events(max_results=50)
-            if rss_events:
-                store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                store.source_status["rss"]["eventCount"] += len(rss_events)
-                store.source_status["rss"]["successfulPolls"] += 1
+            # RADICAL FIX: Semaphore ensures only ONE heavy poller runs at a time
+            async with _poller_semaphore:
+                print("[Scheduler] Fetching RSS feed events...")
+                rss_events = await fetch_rss_events(max_results=50)
+                if rss_events:
+                    store.source_status["rss"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                    store.source_status["rss"]["eventCount"] += len(rss_events)
+                    store.source_status["rss"]["successfulPolls"] += 1
 
-                all_events = rss_events + store.events
-                store.events = deduplicate_and_merge(all_events)[:500]
+                    all_events = rss_events + store.events
+                    store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Yield to event loop before translation
-                await asyncio.sleep(0)
+                    await asyncio.sleep(0)
 
-                # Batch-translate with lock — only one poller translates at a time
-                async with _translation_lock:
+                    async with _translation_lock:
+                        try:
+                            await batch_translate_events(store.events)
+                        except Exception as e:
+                            print(f"[Translation] RSS batch translation error: {e}")
+
+                    generate_alerts_from_events(rss_events)
+                    await update_indicators()
+                    await _check_bahrain_critical_alert(rss_events)
+
+                    await ws_manager.broadcast({
+                        "type": "events_update",
+                        "events": [e.model_dump(mode="json") for e in store.events[:50]],
+                        "totalEvents": len(store.events),
+                        "indicators": [i.model_dump(mode="json") for i in store.indicators],
+                        "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
+                    })
+
+                    print(f"[RSS] Fetched {len(rss_events)} events, total unique: {len(store.events)}")
+
                     try:
-                        await batch_translate_events(store.events)
+                        await db.save_events(store.events)
+                        await db.save_alerts(store.alerts)
                     except Exception as e:
-                        print(f"[Translation] RSS batch translation error: {e}")
-
-                generate_alerts_from_events(rss_events)
-                await update_indicators()
-                await _check_bahrain_critical_alert(rss_events)
-
-                await ws_manager.broadcast({
-                    "type": "events_update",
-                    "events": [e.model_dump(mode="json") for e in store.events[:50]],
-                    "totalEvents": len(store.events),
-                    "indicators": [i.model_dump(mode="json") for i in store.indicators],
-                    "alerts": [a.model_dump(mode="json") for a in store.alerts[:20]],
-                })
-
-                print(f"[RSS] Fetched {len(rss_events)} events, total unique: {len(store.events)}")
-
-                # Persist to database
-                try:
-                    await db.save_events(store.events)
-                    await db.save_alerts(store.alerts)
-                except Exception as e:
-                    print(f"[DB] RSS save error: {e}")
-            else:
-                print("[RSS] No relevant events from feeds")
+                        print(f"[DB] RSS save error: {e}")
+                else:
+                    print("[RSS] No relevant events from feeds")
 
         except Exception as e:
             store.source_status["rss"]["errors"] += 1

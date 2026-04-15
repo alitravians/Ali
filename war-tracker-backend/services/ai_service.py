@@ -86,12 +86,15 @@ def _is_arabic(text: str) -> bool:
 
 
 async def _google_translate(text: str, target: str = "ar") -> str:
-    """Translate text using Google Translate's free API via httpx."""
+    """Translate text using Google Translate's free API via httpx.
+    
+    RADICAL FIX: Added timeout reduction (10s→5s) to prevent long hangs.
+    """
     if not text or len(text.strip()) == 0:
         return text
     try:
         url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl={target}&dt=t&q={quote(text)}"
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(url)
             if resp.status_code == 200:
                 data = resp.json()
@@ -103,15 +106,19 @@ async def _google_translate(text: str, target: str = "ar") -> str:
 
 
 async def _fallback_translate_batch(events: list, indices_and_events: list) -> int:
-    """Translate events using free Google Translate as fallback."""
+    """Translate events using free Google Translate as fallback.
+    
+    RADICAL FIX: Added asyncio.sleep(0) yield between translations to keep event loop alive.
+    """
     translated = 0
-    for original_idx, ev in indices_and_events:
+    for idx, (original_idx, ev) in enumerate(indices_and_events):
         try:
             ar_title = await _google_translate(ev.title)
             if ar_title and ar_title != ev.title and _is_arabic(ar_title):
                 events[original_idx].titleAr = ar_title
                 translated += 1
-            await asyncio.sleep(0.2)
+            # Yield to event loop every translation + small delay to avoid Google rate limiting
+            await asyncio.sleep(0.3)
         except Exception:
             pass
 

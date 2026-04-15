@@ -20,12 +20,14 @@ GDELT_BASE_URL = "https://api.gdeltproject.org/api/v2"
 # OpenSky (no key needed for basic)
 OPENSKY_BASE_URL = "https://opensky-network.org/api"
 
-# Polling intervals (seconds)
-GDELT_POLL_INTERVAL = 120  # 2 minutes (avoid GDELT 429 rate limits)
-NEWS_POLL_INTERVAL = 900   # 15 minutes (conserve free tier: 100 requests/day)
-OPENSKY_POLL_INTERVAL = 60 # 60 seconds (rate limit friendly)
-AI_ANALYSIS_INTERVAL = 900 # 15 minutes
-RSS_POLL_INTERVAL = 180    # 3 minutes (RSS feeds are free, no rate limits)
+# Polling intervals (seconds) — CRITICAL: Use prime numbers so intervals NEVER align
+# LCM of primes is their product, meaning pollers won't collide for hours/days
+# This prevents multiple pollers from blocking the event loop simultaneously
+GDELT_POLL_INTERVAL = 127   # ~2 minutes (prime — avoids GDELT 429 rate limits)
+NEWS_POLL_INTERVAL = 907     # ~15 minutes (prime — conserve free tier: 100 requests/day)
+OPENSKY_POLL_INTERVAL = 61   # ~60 seconds (prime — rate limit friendly)
+AI_ANALYSIS_INTERVAL = 911   # ~15 minutes (prime — different from NEWS)
+RSS_POLL_INTERVAL = 181      # ~3 minutes (prime — RSS feeds are free, no rate limits)
 
 # CORS — production origins only; set CORS_DEV=1 to include localhost
 FRONTEND_ORIGINS = [

@@ -1,4 +1,5 @@
 """RSS Feed integration for trusted news sources (Al Jazeera, BBC, Reuters, AP)."""
+import asyncio
 import httpx
 import hashlib
 import feedparser
@@ -123,13 +124,19 @@ RSS_FEEDS = [
 
 
 async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
-    """Fetch news from trusted RSS feeds (Al Jazeera, BBC, Reuters)."""
+    """Fetch news from trusted RSS feeds (Al Jazeera, BBC, Reuters).
+    
+    RADICAL FIX: 
+    - feedparser.parse() runs in a thread (CPU-bound XML parsing was blocking event loop)
+    - Reduced timeout from 30s to 10s per feed
+    - Yields to event loop between feeds
+    """
     events: list[TrackerEvent] = []
     seen_urls: set[str] = set()
 
     headers = {"User-Agent": "WarScope/1.0 (conflict-tracker; research)"}
 
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers=headers) as client:
+    async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers) as client:
         for feed_info in RSS_FEEDS:
             try:
                 resp = await client.get(feed_info["url"])
@@ -137,7 +144,9 @@ async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
                     print(f"[RSS] {feed_info['name']}: HTTP {resp.status_code}")
                     continue
 
-                feed = feedparser.parse(resp.text)
+                # RADICAL FIX: Run feedparser in a thread — it's CPU-bound XML parsing
+                # that was blocking the event loop for seconds per feed (12 feeds = disaster)
+                feed = await asyncio.to_thread(feedparser.parse, resp.text)
 
                 if not feed.entries:
                     print(f"[RSS] {feed_info['name']}: No entries found")
@@ -224,6 +233,9 @@ async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
             except Exception as e:
                 print(f"[RSS] {feed_info['name']} error: {e}")
                 continue
+
+            # Yield to event loop between feeds — prevents blocking
+            await asyncio.sleep(0)
 
     print(f"[RSS] Total: {len(events)} relevant events from {len(RSS_FEEDS)} feeds")
     return events[:max_results]
