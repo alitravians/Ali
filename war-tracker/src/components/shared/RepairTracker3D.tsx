@@ -417,7 +417,13 @@ function AmbientParticles({ phase, isComplete }: { phase: number; isComplete: bo
 }
 
 export default function RepairTracker3D({ isOpen, onClose, problemDescription, pagePath, ticketId }: RepairTrackerProps) {
-  console.log('[RepairTracker3D] render, isOpen:', isOpen, 'ticketId:', ticketId);
+  // Early return when closed — prevents 30+ unnecessary renders per navigation
+  if (!isOpen) return null;
+
+  return <RepairTrackerInner isOpen={isOpen} onClose={onClose} problemDescription={problemDescription} pagePath={pagePath} ticketId={ticketId} />;
+}
+
+function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, ticketId }: RepairTrackerProps) {
   const [currentPhase, setCurrentPhase] = useState(0);
   const [progress, setProgress] = useState(0);
   const [statusLines, setStatusLines] = useState<string[]>([]);

@@ -524,7 +524,10 @@ export default function StatusPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/status`);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      const resp = await fetch(`${BACKEND_API_URL}/api/status`, { signal: controller.signal });
+      clearTimeout(timeout);
       if (!resp.ok) throw new Error('فشل تحميل بيانات الحالة');
       const json = await resp.json();
       const expanded = expandStatusData(json);
@@ -534,7 +537,10 @@ export default function StatusPage() {
     } catch (err) {
       // Only show error if we have no cached data to display
       if (!data) {
-        setError(err instanceof Error ? err.message : 'خطأ غير متوقع');
+        const msg = err instanceof DOMException && err.name === 'AbortError'
+          ? 'انتهت مهلة الاتصال بالخادم — يرجى المحاولة لاحقاً'
+          : (err instanceof Error ? err.message : 'خطأ غير متوقع');
+        setError(msg);
       }
     } finally {
       setLoading(false);

@@ -11,7 +11,10 @@ export default function FooterStats() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const resp = await fetch(`${BACKEND_API_URL}/api/stats`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
+        const resp = await fetch(`${BACKEND_API_URL}/api/stats`, { signal: controller.signal });
+        clearTimeout(timeout);
         if (resp.ok) {
           const data = await resp.json();
           setStats(data);

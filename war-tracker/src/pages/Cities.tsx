@@ -51,6 +51,29 @@ function isEventRelatedToCity(event: TrackerEvent, cityId: string, cityName: str
       return true;
     }
   }
+  // Location match: event's location name matches city name
+  const locName = event.location?.name?.toLowerCase() || '';
+  const locNameAr = event.location?.nameAr || '';
+  if (locName && (locName.includes(cityName.toLowerCase()) || cityName.toLowerCase().includes(locName))) {
+    return true;
+  }
+  if (locNameAr && (locNameAr.includes(cityNameAr) || cityNameAr.includes(locNameAr))) {
+    return true;
+  }
+  // Country-level location match: event's location is in the same country as the city
+  for (const [country, cityIds] of Object.entries(COUNTRY_TO_CITIES)) {
+    if (cityIds.includes(cityId)) {
+      if (locName.includes(country.toLowerCase()) || locNameAr.includes(country)) {
+        return true;
+      }
+    }
+  }
+  // Title match: event title mentions city name
+  const titleAr = event.titleAr || '';
+  const title = event.title || '';
+  if (titleAr.includes(cityNameAr) || title.toLowerCase().includes(cityName.toLowerCase())) {
+    return true;
+  }
   return false;
 }
 

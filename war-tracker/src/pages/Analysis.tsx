@@ -272,7 +272,7 @@ export default function Analysis() {
             </h3>
             <div className="h-[200px]">
               {events.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                   <BarChart data={hourlyData}>
                     <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#6b7280' }} />
                     <YAxis tick={{ fontSize: 10, fill: '#6b7280' }} />
@@ -301,7 +301,7 @@ export default function Analysis() {
               <h3 className="text-[11px] font-bold text-white mb-2">توزيع الأحداث حسب النوع</h3>
               <div className="h-[160px]">
                 {categoryData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie
                         data={categoryData}
@@ -330,7 +330,7 @@ export default function Analysis() {
               <h3 className="text-[11px] font-bold text-white mb-2">توزيع مستوى الثقة</h3>
               <div className="h-[160px]">
                 {events.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                     <PieChart>
                       <Pie
                         data={trustData}

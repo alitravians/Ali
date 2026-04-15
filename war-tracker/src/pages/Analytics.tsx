@@ -8,7 +8,7 @@ type TimeRange = '24h' | '7d' | '30d' | 'all';
 
 export default function Analytics() {
   const { events, alerts } = useLiveData();
-  const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
 
   const filteredEvents = useMemo(() => {
     const now = Date.now();

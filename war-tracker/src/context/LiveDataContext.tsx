@@ -209,7 +209,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     // Fetch source status
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/sources`);
+      const srcController = new AbortController();
+      const srcTimeout = setTimeout(() => srcController.abort(), 10000);
+      const resp = await fetch(`${BACKEND_API_URL}/api/sources`, { signal: srcController.signal });
+      clearTimeout(srcTimeout);
       if (resp.ok) {
         const data = await resp.json();
         if (data.sources) {
@@ -222,7 +225,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     // Fetch alerts
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/alerts`);
+      const alertController = new AbortController();
+      const alertTimeout = setTimeout(() => alertController.abort(), 10000);
+      const resp = await fetch(`${BACKEND_API_URL}/api/alerts`, { signal: alertController.signal });
+      clearTimeout(alertTimeout);
       if (resp.ok) {
         const data = await resp.json();
         if (data.alerts) {
@@ -235,7 +241,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     // Fetch indicators
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/indicators`);
+      const indController = new AbortController();
+      const indTimeout = setTimeout(() => indController.abort(), 10000);
+      const resp = await fetch(`${BACKEND_API_URL}/api/indicators`, { signal: indController.signal });
+      clearTimeout(indTimeout);
       if (resp.ok) {
         const data = await resp.json();
         if (data.indicators) {
