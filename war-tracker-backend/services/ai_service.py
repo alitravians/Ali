@@ -166,6 +166,11 @@ async def batch_translate_events(events: list[TrackerEvent]) -> list[TrackerEven
     if not needs_translation:
         return events
 
+    # Limit translations per cycle to avoid blocking the event loop
+    max_per_cycle = 60  # Max 3 batches of 20 per cycle
+    if len(needs_translation) > max_per_cycle:
+        needs_translation = needs_translation[:max_per_cycle]
+
     # Try Groq AI batch translation
     if GROQ_API_KEY and not _is_groq_rate_limited():
         batch_size = 20
@@ -179,6 +184,8 @@ Return ONLY a JSON array of objects, each with "n" (number) and "ar" (Arabic tra
 {titles_list}"""
 
             try:
+                # Yield to event loop between batches to keep health checks responsive
+                await asyncio.sleep(0)
                 response = await _groq_chat(prompt)
                 if response:
                     text = response.strip()
