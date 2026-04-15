@@ -185,6 +185,7 @@ def generate_alerts_from_events(new_events: list[TrackerEvent]):
 
 async def poll_gdelt():
     """Background task: Poll GDELT for new events."""
+    await asyncio.sleep(5)  # Stagger: let server stabilize before first heavy poll
     while True:
         try:
             print("[Scheduler] Fetching GDELT events...")
@@ -236,6 +237,7 @@ async def poll_gdelt():
 
 async def poll_news():
     """Background task: Poll NewsAPI."""
+    await asyncio.sleep(10)  # Stagger: start 10s after server up
     while True:
         try:
             new_events: list[TrackerEvent] = []
@@ -289,6 +291,7 @@ async def poll_news():
 
 async def poll_opensky():
     """Background task: Poll OpenSky for aircraft positions."""
+    await asyncio.sleep(20)  # Stagger: start 20s after server up
     while True:
         try:
             positions = await fetch_aircraft_positions()
@@ -343,6 +346,7 @@ async def poll_ai_analysis():
 
 async def poll_rss():
     """Background task: Poll RSS feeds from trusted sources (Al Jazeera, BBC, Reuters)."""
+    await asyncio.sleep(15)  # Stagger: start 15s after server up
     while True:
         try:
             print("[Scheduler] Fetching RSS feed events...")
