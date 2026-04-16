@@ -1,11 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { AlertTriangle, TrendingUp, Bell, Info, X } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Bell, Info, X, BellOff } from 'lucide-react';
 import type { Alert } from '../../types';
 import { timeAgo } from '../../utils/helpers';
 
 interface AlertToastProps {
   alerts: Alert[];
-  maxVisible?: number;
 }
 
 interface ToastItem {
@@ -13,144 +12,141 @@ interface ToastItem {
   visible: boolean;
 }
 
-// Detect mobile viewport
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 640);
-    window.addEventListener('resize', handler);
-    return () => window.removeEventListener('resize', handler);
-  }, []);
-  return isMobile;
-}
-
-export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) {
-  const isMobile = useIsMobile();
-  const effectiveMax = isMobile ? 1 : maxVisible; // Only 1 toast on mobile
-  const dismissTime = isMobile ? 4000 : 6000; // 4s on mobile, 6s on desktop
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
+/**
+ * AlertToast — Radical fix for annoying notifications
+ * 
+ * Rules:
+ * 1. Max 1 toast at a time on ALL devices
+ * 2. Only show critical/high severity (ignore medium/low)
+ * 3. Min 30 seconds between toasts (throttle)
+ * 4. Auto-dismiss after 4 seconds
+ * 5. Users can mute toasts via X long-press or localStorage
+ * 6. First 10 seconds after page load = no toasts (let page settle)
+ */
+export default function AlertToast({ alerts }: AlertToastProps) {
+  const [toast, setToast] = useState<ToastItem | null>(null);
+  const [muted, setMuted] = useState(() => localStorage.getItem('warscope_toasts_muted') === '1');
   const shownIdsRef = useRef<Set<string>>(new Set());
   const lastToastTimeRef = useRef<number>(0);
+  const mountTimeRef = useRef<number>(Date.now());
 
-  // Track new alerts and show toasts (with throttling on mobile)
+  // Track new alerts and show toast (heavily throttled, only critical/high)
   useEffect(() => {
-    const newAlerts = alerts.filter(a => !shownIdsRef.current.has(a.id) && !a.isRead);
-    if (newAlerts.length === 0) return;
+    if (muted) return;
 
-    // Throttle on mobile: min 5s between new toasts
+    // Don't show toasts for first 10 seconds after page load
+    if (Date.now() - mountTimeRef.current < 10000) return;
+
+    const newAlerts = alerts.filter(a =>
+      !shownIdsRef.current.has(a.id) &&
+      !a.isRead &&
+      (a.severity === 'critical' || a.severity === 'high') // Only important alerts
+    );
+    if (newAlerts.length === 0) {
+      // Still mark non-critical as shown so they don't queue up
+      alerts.forEach(a => shownIdsRef.current.add(a.id));
+      return;
+    }
+
+    // Throttle: min 30 seconds between toasts
     const now = Date.now();
-    if (isMobile && now - lastToastTimeRef.current < 5000) {
-      // Mark as shown so they don't queue up
+    if (now - lastToastTimeRef.current < 30000) {
       newAlerts.forEach(a => shownIdsRef.current.add(a.id));
       return;
     }
+
+    // Show only the most important alert
+    const sorted = [...newAlerts].sort((a, b) => {
+      const sev = { critical: 4, high: 3, medium: 2, low: 1 };
+      return (sev[b.severity as keyof typeof sev] || 0) - (sev[a.severity as keyof typeof sev] || 0);
+    });
+
+    // Mark all as shown
+    newAlerts.forEach(a => shownIdsRef.current.add(a.id));
     lastToastTimeRef.current = now;
 
-    newAlerts.forEach(a => shownIdsRef.current.add(a.id));
+    setToast({ alert: sorted[0], visible: true });
+  }, [alerts, muted]);
 
-    // On mobile, only show the most important (highest severity) alert
-    const sortedNew = isMobile
-      ? [...newAlerts].sort((a, b) => {
-          const sev = { critical: 4, high: 3, medium: 2, low: 1 };
-          return (sev[b.severity as keyof typeof sev] || 0) - (sev[a.severity as keyof typeof sev] || 0);
-        })
-      : newAlerts;
-
-    const newToasts = sortedNew.slice(0, effectiveMax).map(alert => ({ alert, visible: true }));
-    setToasts(prev => [...newToasts, ...prev].slice(0, effectiveMax));
-  }, [alerts, effectiveMax, isMobile]);
-
-  // Auto-dismiss
+  // Auto-dismiss after 4 seconds
   useEffect(() => {
-    if (toasts.length === 0) return;
+    if (!toast || !toast.visible) return;
     const timer = setTimeout(() => {
-      setToasts(prev => {
-        if (prev.length === 0) return prev;
-        const updated = [...prev];
-        updated[updated.length - 1] = { ...updated[updated.length - 1], visible: false };
-        return updated;
-      });
-      // Remove after animation
-      setTimeout(() => {
-        setToasts(prev => prev.slice(0, -1));
-      }, 300);
-    }, dismissTime);
+      setToast(prev => prev ? { ...prev, visible: false } : null);
+      setTimeout(() => setToast(null), 300);
+    }, 4000);
     return () => clearTimeout(timer);
-  }, [toasts, dismissTime]);
+  }, [toast]);
 
-  const dismissToast = useCallback((id: string) => {
-    setToasts(prev => prev.map(t => t.alert.id === id ? { ...t, visible: false } : t));
-    setTimeout(() => {
-      setToasts(prev => prev.filter(t => t.alert.id !== id));
-    }, 300);
+  const dismissToast = useCallback(() => {
+    setToast(prev => prev ? { ...prev, visible: false } : null);
+    setTimeout(() => setToast(null), 300);
   }, []);
 
-  const typeIcons = {
+  const muteToasts = useCallback(() => {
+    setMuted(true);
+    localStorage.setItem('warscope_toasts_muted', '1');
+    setToast(null);
+  }, []);
+
+  const typeIcons: Record<string, typeof Bell> = {
     urgent: AlertTriangle,
     escalation: TrendingUp,
     change: Bell,
     info: Info,
   };
 
-  if (toasts.length === 0) return null;
+  if (!toast || muted) return null;
+
+  const { alert, visible } = toast;
+  const Icon = typeIcons[alert.type] || Bell;
 
   return (
-    <div className={`fixed z-[9998] flex flex-col gap-2 ${
-      isMobile
-        ? 'bottom-20 left-3 right-3' // Bottom on mobile, above bug report button
-        : 'top-24 left-4 max-w-sm' // Top-left on desktop
-    }`}>
-      {toasts.map(({ alert, visible }) => {
-        const Icon = typeIcons[alert.type] || Bell;
-        return (
-          <div
-            key={alert.id}
-            className={`${visible ? 'animate-toastIn' : 'animate-toastOut'} rounded-xl border shadow-2xl shadow-black/50 p-3 backdrop-blur-sm ${
-              alert.severity === 'critical'
-                ? 'bg-red-500/10 border-red-500/40'
-                : alert.severity === 'high'
-                ? 'bg-orange-500/10 border-orange-500/40'
-                : alert.severity === 'medium'
-                ? 'bg-yellow-500/10 border-yellow-500/40'
-                : 'bg-blue-500/10 border-blue-500/40'
-            }`}
-          >
-            <div className="flex items-start gap-3">
-              <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                alert.severity === 'critical' ? 'bg-red-500/20' :
-                alert.severity === 'high' ? 'bg-orange-500/20' :
-                alert.severity === 'medium' ? 'bg-yellow-500/20' : 'bg-blue-500/20'
-              }`}>
-                <Icon className={`w-4 h-4 ${
-                  alert.severity === 'critical' ? 'text-red-400' :
-                  alert.severity === 'high' ? 'text-orange-400' :
-                  alert.severity === 'medium' ? 'text-yellow-400' : 'text-blue-400'
-                }`} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                    alert.severity === 'critical' ? 'text-red-400 bg-red-500/15' :
-                    alert.severity === 'high' ? 'text-orange-400 bg-orange-500/15' :
-                    alert.severity === 'medium' ? 'text-yellow-400 bg-yellow-500/15' : 'text-blue-400 bg-blue-500/15'
-                  }`}>
-                    {alert.severity === 'critical' ? 'حرج' : alert.severity === 'high' ? 'عالي' : alert.severity === 'medium' ? 'متوسط' : 'منخفض'}
-                  </span>
-                  <span className="text-[10px] text-gray-500">{timeAgo(alert.timestamp)}</span>
-                </div>
-                <p className="text-xs font-bold text-white truncate">{alert.titleAr}</p>
-                <p className="text-[11px] text-gray-400 line-clamp-2 mt-0.5">{alert.descriptionAr}</p>
-              </div>
-              <button
-                onClick={() => dismissToast(alert.id)}
-                className="w-6 h-6 rounded-lg hover:bg-white/10 flex items-center justify-center flex-shrink-0 transition-colors"
-              >
-                <X className="w-3.5 h-3.5 text-gray-500" />
-              </button>
-            </div>
+    <div className="fixed z-[9998] bottom-20 left-4 right-4 sm:left-4 sm:right-auto sm:bottom-auto sm:top-24 sm:max-w-xs">
+      <div
+        className={`${visible ? 'animate-toastIn' : 'animate-toastOut'} rounded-xl border shadow-2xl shadow-black/50 p-3 backdrop-blur-sm ${
+          alert.severity === 'critical'
+            ? 'bg-red-500/10 border-red-500/40'
+            : 'bg-orange-500/10 border-orange-500/40'
+        }`}
+      >
+        <div className="flex items-start gap-2">
+          <div className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 ${
+            alert.severity === 'critical' ? 'bg-red-500/20' : 'bg-orange-500/20'
+          }`}>
+            <Icon className={`w-3.5 h-3.5 ${
+              alert.severity === 'critical' ? 'text-red-400' : 'text-orange-400'
+            }`} />
           </div>
-        );
-      })}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                alert.severity === 'critical' ? 'text-red-400 bg-red-500/15' : 'text-orange-400 bg-orange-500/15'
+              }`}>
+                {alert.severity === 'critical' ? 'حرج' : 'عالي'}
+              </span>
+              <span className="text-[10px] text-gray-500">{timeAgo(alert.timestamp)}</span>
+            </div>
+            <p className="text-xs font-bold text-white truncate">{alert.titleAr}</p>
+          </div>
+          <div className="flex flex-col gap-1 flex-shrink-0">
+            <button
+              onClick={dismissToast}
+              className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center transition-colors"
+              title="إغلاق"
+            >
+              <X className="w-3 h-3 text-gray-500" />
+            </button>
+            <button
+              onClick={muteToasts}
+              className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center transition-colors"
+              title="إيقاف الإشعارات"
+            >
+              <BellOff className="w-3 h-3 text-gray-600" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

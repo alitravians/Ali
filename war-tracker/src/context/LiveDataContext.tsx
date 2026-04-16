@@ -3,6 +3,16 @@ import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZ
 import { BACKEND_API_URL, BACKEND_WS_URL } from '../config/api';
 import { sendBreakingNotification } from '../components/shared/NotificationPrompt';
 
+// Throttle push notifications: max 1 every 2 minutes
+let lastPushTime = 0;
+const PUSH_THROTTLE_MS = 120000; // 2 minutes
+function throttledPush(title: string, body: string) {
+  const now = Date.now();
+  if (now - lastPushTime < PUSH_THROTTLE_MS) return;
+  lastPushTime = now;
+  sendBreakingNotification(title, body);
+}
+
 interface BahrainAlert {
   severity: string;
   message: string;
@@ -91,10 +101,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           const diff = totalFromBackend - prevEventCountRef.current;
           if (diff > 0 && data.type === 'events_update') {
             setNewEventCount(prev => prev + diff);
-            // Push notification for new breaking events
+            // Push notification for new breaking events (throttled: max 1 per 2 min)
             const breaking = newEvents.filter((e: TrackerEvent) => e.isBreaking);
             if (breaking.length > 0) {
-              sendBreakingNotification('WarScope — خبر عاجل', breaking[0].titleAr);
+              throttledPush('WarScope — خبر عاجل', breaking[0].titleAr);
             }
           }
           prevEventCountRef.current = totalFromBackend;
@@ -140,8 +150,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           timestamp: data.timestamp || new Date().toISOString(),
           event: alertEvent as TrackerEvent,
         });
-        // Send push notification for Bahrain alerts
-        sendBreakingNotification('WarScope — تنبيه عاجل', data.message || 'تنبيه عاجل من البحرين');
+        // Send push notification for Bahrain alerts (throttled)
+        throttledPush('WarScope — تنبيه عاجل', data.message || 'تنبيه عاجل من البحرين');
       }
     } catch (e) {
       console.warn('[WS] Failed to parse message:', e instanceof Error ? e.message : e);
