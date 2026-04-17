@@ -646,6 +646,24 @@ async def _periodic_cleanup():
             for tid in empty_ws:
                 _ticket_ws_connections.pop(tid, None)
 
+            # ── Memory optimization: cap in-memory data ──
+            # Cap alerts to 200 (oldest alerts are least useful)
+            if len(store.alerts) > 200:
+                store.alerts = store.alerts[:200]
+
+            # Cap events to 500 (already done in pollers, but enforce here too)
+            if len(store.events) > 500:
+                store.events = store.events[:500]
+
+            # Cap bug reports in memory to 100
+            global _bug_reports
+            if len(_bug_reports) > 100:
+                _bug_reports = _bug_reports[:100]
+
+            # Cap AI summaries to 10
+            if len(store.ai_summaries) > 10:
+                store.ai_summaries = store.ai_summaries[:10]
+
             cleaned = len(stale_tickets) + len(abandoned) + len(stale_ips) + len(stale_bug_ips) + len(empty_ws)
             if cleaned > 0:
                 print(f"[Cleanup] Removed {len(stale_tickets)} completed tickets, {len(abandoned)} abandoned tickets, "
@@ -725,10 +743,34 @@ app.add_middleware(
 
 
 # ──────────────────────────────────────────────
+# Request size limit middleware (prevent large payload attacks)
+# ──────────────────────────────────────────────
+MAX_REQUEST_BODY_BYTES = 3 * 1024 * 1024  # 3MB (screenshot base64 can be ~1.5MB)
+
+
+class RequestSizeLimitMiddleware(BaseHTTPMiddleware):
+    """Reject requests with bodies larger than MAX_REQUEST_BODY_BYTES."""
+
+    async def dispatch(self, request: Request, call_next):
+        if request.method in ("POST", "PUT", "PATCH"):
+            content_length = request.headers.get("content-length")
+            if content_length and int(content_length) > MAX_REQUEST_BODY_BYTES:
+                return Response(
+                    content='{"detail":"حجم الطلب كبير جداً — الحد الأقصى 3 ميجابايت"}',
+                    status_code=413,
+                    media_type="application/json",
+                )
+        return await call_next(request)
+
+
+app.add_middleware(RequestSizeLimitMiddleware)
+
+
+# ──────────────────────────────────────────────
 # Security headers middleware
 # ──────────────────────────────────────────────
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Add security headers to all API responses."""
+    """Add comprehensive security headers to all API responses."""
 
     async def dispatch(self, request: Request, call_next):
         response: Response = await call_next(request)
@@ -738,6 +780,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
         response.headers["Pragma"] = "no-cache"
+        # Permissions-Policy: restrict browser features the API doesn't need
+        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+        # Strict-Transport-Security: enforce HTTPS for 1 year + subdomains
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Content-Security-Policy for API responses: only allow JSON
+        response.headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'"
         return response
 
 
