@@ -83,12 +83,35 @@ public class AlertActivity extends Activity {
             });
         }
 
-        // Play siren sound
-        mediaPlayer = MediaPlayer.create(this, R.raw.siren);
-        if (mediaPlayer != null) {
-            mediaPlayer.setLooping(true);
-            mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-            mediaPlayer.start();
+        // Play custom audio or default siren
+        String audioUrl = getIntent().getStringExtra("audio");
+        if (audioUrl != null && !audioUrl.isEmpty()) {
+            // Play custom audio from URL
+            try {
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+                mediaPlayer.setDataSource(audioUrl);
+                mediaPlayer.setLooping(true);
+                mediaPlayer.setOnPreparedListener(mp -> mp.start());
+                mediaPlayer.prepareAsync();
+            } catch (Exception e) {
+                e.printStackTrace();
+                // Fallback to default siren
+                mediaPlayer = MediaPlayer.create(this, R.raw.siren);
+                if (mediaPlayer != null) {
+                    mediaPlayer.setLooping(true);
+                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+                    mediaPlayer.start();
+                }
+            }
+        } else {
+            // Default siren sound
+            mediaPlayer = MediaPlayer.create(this, R.raw.siren);
+            if (mediaPlayer != null) {
+                mediaPlayer.setLooping(true);
+                mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+                mediaPlayer.start();
+            }
         }
 
         // Strong vibration pattern

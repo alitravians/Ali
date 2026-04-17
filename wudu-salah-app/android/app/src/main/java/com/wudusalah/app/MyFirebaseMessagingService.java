@@ -30,6 +30,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         String title = "";
         String body = "";
         String imageUrl = "";
+        String audioUrl = "";
 
         // Handle data messages (from admin panel - works in background too)
         if (remoteMessage.getData().size() > 0) {
@@ -37,6 +38,8 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             body = remoteMessage.getData().get("body");
             String img = remoteMessage.getData().get("image");
             if (img != null) imageUrl = img;
+            String aud = remoteMessage.getData().get("audio");
+            if (aud != null) audioUrl = aud;
         }
 
         // Handle notification messages (from Firebase Console - foreground only)
@@ -55,6 +58,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         alertIntent.putExtra("title", title != null ? title : "");
         alertIntent.putExtra("body", body != null ? body : "");
         alertIntent.putExtra("image", imageUrl);
+        alertIntent.putExtra("audio", audioUrl);
 
         PendingIntent fullScreenIntent = PendingIntent.getActivity(
             this, 0, alertIntent,
