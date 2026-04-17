@@ -21,7 +21,7 @@ import java.net.URL;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
-    private static final String CHANNEL_ID = "fcm_default_channel";
+    private static final String CHANNEL_ID = "fcm_silent_channel";
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
@@ -78,8 +78,6 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             .setAutoCancel(true)
             .setFullScreenIntent(fullScreenIntent, true);
 
-        // No sound on notification - AlertActivity handles all audio playback
-        builder.setSound(null);
 
         // Add big picture if image URL is available
         if (imageUrl != null && !imageUrl.isEmpty()) {
