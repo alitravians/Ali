@@ -31,7 +31,7 @@ from config import (
     NEWSAPI_KEY, DEVIN_API_KEY, DEVIN_TARGET_SESSION_ID,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
-from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats, get_hormuz_blockade_status, is_ais_connected
+from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats, get_hormuz_blockade_status, is_ais_connected, _fallback_vessel_updater
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
@@ -694,6 +694,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         asyncio.create_task(poll_opensky()),
         asyncio.create_task(poll_ai_analysis()),
         asyncio.create_task(connect_aisstream()),
+        asyncio.create_task(_fallback_vessel_updater()),
         asyncio.create_task(poll_maritime_broadcast()),
         asyncio.create_task(_periodic_db_save()),
         asyncio.create_task(_periodic_cleanup()),

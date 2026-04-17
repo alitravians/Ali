@@ -172,6 +172,7 @@ export interface HormuzBlockadeStatus {
   threatLevelAr: string;
   militaryVesselCount: number;
   usNavyCount: number;
+  iranNavyCount: number;
   totalVesselsInZone: number;
   tankerCount: number;
   blockedTankers: number;
@@ -181,6 +182,7 @@ export interface HormuzBlockadeStatus {
     name: string;
     flag: string;
     isUS: boolean;
+    isIran: boolean;
     isAllied: boolean;
     lat: number;
     lng: number;

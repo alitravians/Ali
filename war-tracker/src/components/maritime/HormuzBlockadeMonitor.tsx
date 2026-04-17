@@ -104,7 +104,7 @@ export default function HormuzBlockadeMonitor() {
             </div>
             <div className="text-right">
               <h3 className="text-sm font-bold text-white">مراقب حصار هرمز</h3>
-              <span className="text-[10px] text-gray-500">الحصار الأمريكي — مضيق هرمز</span>
+              <span className="text-[10px] text-gray-500">المواجهة الأمريكية-الإيرانية — مضيق هرمز</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function HormuzBlockadeMonitor() {
       {expanded && (
         <div className="border-t border-gray-800 p-4 space-y-4">
           {/* Quick stats grid */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg bg-[#0a0a0f] p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Ship className="w-3.5 h-3.5 text-cyan-400" />
@@ -152,17 +152,34 @@ export default function HormuzBlockadeMonitor() {
             </div>
             <div className="rounded-lg bg-[#0a0a0f] p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
-                <span className="text-sm">🇺🇸</span>
-                <span className="text-lg font-black text-orange-400">{hormuzBlockade.usNavyCount}</span>
-              </div>
-              <span className="text-[9px] text-gray-500">بحرية أمريكية</span>
-            </div>
-            <div className="rounded-lg bg-[#0a0a0f] p-3 text-center">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Anchor className="w-3.5 h-3.5 text-yellow-400" />
                 <span className="text-lg font-black text-yellow-400">{hormuzBlockade.blockedTankers}</span>
               </div>
               <span className="text-[9px] text-gray-500">ناقلات محتجزة</span>
+            </div>
+          </div>
+
+          {/* US vs Iran naval presence */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-[#0a0a0f] p-3 border border-blue-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm">🇺🇸</span>
+                <span className="text-lg font-black text-blue-400">{hormuzBlockade.usNavyCount}</span>
+              </div>
+              <span className="text-[9px] text-gray-500">البحرية الأمريكية</span>
+              <div className="mt-1.5 w-full h-1 rounded-full bg-gray-800">
+                <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.min(100, hormuzBlockade.usNavyCount * 25)}%` }} />
+              </div>
+            </div>
+            <div className="rounded-lg bg-[#0a0a0f] p-3 border border-emerald-500/20">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm">🇮🇷</span>
+                <span className="text-lg font-black text-emerald-400">{hormuzBlockade.iranNavyCount || 0}</span>
+              </div>
+              <span className="text-[9px] text-gray-500">البحرية الإيرانية / الحرس الثوري</span>
+              <div className="mt-1.5 w-full h-1 rounded-full bg-gray-800">
+                <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, (hormuzBlockade.iranNavyCount || 0) * 25)}%` }} />
+              </div>
             </div>
           </div>
 
@@ -223,7 +240,9 @@ export default function HormuzBlockadeMonitor() {
                       key={mv.mmsi}
                       className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${
                         mv.isUS
-                          ? 'bg-red-500/5 border-red-500/20'
+                          ? 'bg-blue-500/5 border-blue-500/20'
+                          : mv.isIran
+                          ? 'bg-emerald-500/5 border-emerald-500/20'
                           : mv.isAllied
                           ? 'bg-orange-500/5 border-orange-500/20'
                           : 'bg-gray-800/50 border-gray-800'
@@ -233,7 +252,8 @@ export default function HormuzBlockadeMonitor() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-bold text-white truncate">{mv.name}</span>
-                          {mv.isUS && <span className="text-[8px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold">US NAVY</span>}
+                          {mv.isUS && <span className="text-[8px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold">US NAVY</span>}
+                          {mv.isIran && <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">إيران</span>}
                           {mv.isAllied && !mv.isUS && <span className="text-[8px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold">NATO</span>}
                         </div>
                         <div className="flex items-center gap-2 text-[9px] text-gray-500 mt-0.5">

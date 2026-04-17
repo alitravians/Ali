@@ -148,6 +148,7 @@ class HormuzBlockadeStatus(BaseModel):
     threatLevelAr: str = "منخفض"
     militaryVesselCount: int = 0
     usNavyCount: int = 0
+    iranNavyCount: int = 0
     totalVesselsInZone: int = 0
     tankerCount: int = 0
     blockedTankers: int = 0  # Anchored/moored tankers (possibly blocked)
