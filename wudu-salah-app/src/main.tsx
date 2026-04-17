@@ -8,6 +8,7 @@ import WelcomePage from './pages/WelcomePage';
 import App from './App';
 import { initPushNotifications } from './utils/pushNotifications';
 import { initLocalNotifications } from './utils/notificationService';
+import { initPrayerTimes } from './utils/prayerTimesService';
 import './index.css';
 
 declare global {
@@ -25,6 +26,7 @@ function Root() {
     }
     initPushNotifications();
     initLocalNotifications();
+    initPrayerTimes();
   }, []);
 
   const handleLoadingComplete = useCallback(() => {

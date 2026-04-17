@@ -1,13 +1,17 @@
 import { useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useProgress } from '../contexts/ProgressContext';
-import { Sun, Moon, Baby, RotateCcw, Info, Bell, BellOff, BookOpen, Clock } from 'lucide-react';
+import { Sun, Moon, Baby, RotateCcw, Info, Bell, BellOff, BookOpen, Clock, MapPin, Loader2 } from 'lucide-react';
 import { loadSettings, saveSettings, scheduleNotifications, type NotificationSettings } from '../utils/notificationService';
+import { loadPrayerSettings, enablePrayerTimes, disablePrayerTimes, type PrayerTimesSettings } from '../utils/prayerTimesService';
 
 export default function SettingsPage() {
   const { isDark, toggleTheme } = useTheme();
   const { progress, toggleChildMode, resetProgress, getOverallProgress } = useProgress();
   const [notifSettings, setNotifSettings] = useState<NotificationSettings>(loadSettings);
+  const [prayerSettings, setPrayerSettings] = useState<PrayerTimesSettings>(loadPrayerSettings);
+  const [prayerLoading, setPrayerLoading] = useState(false);
+  const [prayerError, setPrayerError] = useState<string | null>(null);
 
   const updateNotifSetting = (updates: Partial<NotificationSettings>) => {
     const newSettings = { ...notifSettings, ...updates };
@@ -164,6 +168,80 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Prayer Times */}
+      <div className="bg-white dark:bg-dark-surface rounded-2xl p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <MapPin size={18} className="text-primary" />
+          <h3 className="font-bold text-text-primary dark:text-dark-text">مواقيت الصلاة</h3>
+        </div>
+
+        <div className="p-3 rounded-xl bg-surface-secondary dark:bg-dark-surface-secondary">
+          <button
+            onClick={async () => {
+              if (prayerSettings.enabled) {
+                await disablePrayerTimes();
+                setPrayerSettings({ ...prayerSettings, enabled: false });
+                setPrayerError(null);
+              } else {
+                setPrayerLoading(true);
+                setPrayerError(null);
+                try {
+                  const updated = await enablePrayerTimes();
+                  setPrayerSettings(updated);
+                } catch (err) {
+                  const msg = err instanceof Error ? err.message : '';
+                  if (msg === 'LOCATION_DENIED') {
+                    setPrayerError('يرجى السماح بالوصول للموقع لتحديد أوقات الصلاة');
+                  } else {
+                    setPrayerError('تعذر جلب مواقيت الصلاة. تأكد من الاتصال بالإنترنت.');
+                  }
+                } finally {
+                  setPrayerLoading(false);
+                }
+              }
+            }}
+            className="w-full flex items-center justify-between"
+            disabled={prayerLoading}
+          >
+            <div className="flex items-center gap-3">
+              {prayerLoading
+                ? <Loader2 size={18} className="text-primary animate-spin" />
+                : <span className="text-lg">🕌</span>
+              }
+              <div className="text-right">
+                <span className="text-text-primary dark:text-dark-text text-sm font-medium block">
+                  {prayerLoading ? 'جاري تحديد الموقع...' : 'تذكير بمواقيت الصلاة'}
+                </span>
+                <span className="text-text-tertiary text-xs">إشعار قبل كل صلاة بـ 10 دقائق حسب موقعك</span>
+              </div>
+            </div>
+            <div className={`w-12 h-6 rounded-full transition-colors relative ${prayerSettings.enabled ? 'bg-primary' : 'bg-surface-tertiary'}`}>
+              <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-all shadow ${prayerSettings.enabled ? 'left-0.5' : 'left-6'}`} />
+            </div>
+          </button>
+
+          {prayerError && (
+            <p className="mt-2 text-danger text-xs">{prayerError}</p>
+          )}
+
+          {prayerSettings.enabled && prayerSettings.cachedTimes && (
+            <div className="mt-3 space-y-1.5">
+              {(['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'] as const).map((prayer) => {
+                const nameAr: Record<string, string> = {
+                  Fajr: 'الفجر', Dhuhr: 'الظهر', Asr: 'العصر', Maghrib: 'المغرب', Isha: 'العشاء'
+                };
+                return (
+                  <div key={prayer} className="flex justify-between items-center px-2 py-1 rounded-lg bg-white/50 dark:bg-dark-surface/50">
+                    <span className="text-text-primary dark:text-dark-text text-sm font-medium">{nameAr[prayer]}</span>
+                    <span className="text-primary text-sm font-bold">{prayerSettings.cachedTimes![prayer]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Progress */}
       <div className="bg-white dark:bg-dark-surface rounded-2xl p-4 shadow-sm">
         <h3 className="font-bold text-text-primary dark:text-dark-text mb-3">التقدم</h3>
@@ -208,7 +286,7 @@ export default function SettingsPage() {
         <p className="text-text-secondary dark:text-dark-text-secondary text-sm leading-relaxed">
           تطبيق تعلم الوضوء والصلاة - تعليم سهل وواضح للجميع
         </p>
-        <p className="text-text-tertiary text-xs mt-2">الإصدار 1.6.0</p>
+        <p className="text-text-tertiary text-xs mt-2">الإصدار 1.7.0</p>
       </div>
     </div>
   );
