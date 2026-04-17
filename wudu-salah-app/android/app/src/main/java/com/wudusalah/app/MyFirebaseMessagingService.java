@@ -24,9 +24,20 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         String title = "";
         String body = "";
 
+        // Handle data messages (from admin panel - works in background too)
+        if (remoteMessage.getData().size() > 0) {
+            title = remoteMessage.getData().get("title");
+            body = remoteMessage.getData().get("body");
+        }
+
+        // Handle notification messages (from Firebase Console - foreground only)
         if (remoteMessage.getNotification() != null) {
-            title = remoteMessage.getNotification().getTitle();
-            body = remoteMessage.getNotification().getBody();
+            if (title == null || title.isEmpty()) {
+                title = remoteMessage.getNotification().getTitle();
+            }
+            if (body == null || body.isEmpty()) {
+                body = remoteMessage.getNotification().getBody();
+            }
         }
 
         // Launch full-screen alert activity

@@ -9,6 +9,7 @@ import android.os.Build;
 import android.os.Bundle;
 
 import com.getcapacitor.BridgeActivity;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends BridgeActivity {
 
@@ -16,6 +17,11 @@ public class MainActivity extends BridgeActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         createHighPriorityNotificationChannel();
+        subscribeToAlerts();
+    }
+
+    private void subscribeToAlerts() {
+        FirebaseMessaging.getInstance().subscribeToTopic("all");
     }
 
     private void createHighPriorityNotificationChannel() {
