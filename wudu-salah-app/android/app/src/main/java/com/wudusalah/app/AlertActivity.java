@@ -1,6 +1,7 @@
 package com.wudusalah.app;
 
 import android.app.Activity;
+import android.app.NotificationManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioAttributes;
@@ -89,6 +90,10 @@ public class AlertActivity extends Activity {
         String audioUrl = getIntent().getStringExtra("audio");
         Log.d("AlertActivity", "Audio URL: " + audioUrl);
         if (audioUrl != null && !audioUrl.isEmpty()) {
+            // Cancel notification to stop siren sound from notification channel
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm != null) nm.cancel(9999);
+
             // Play custom audio from URL
             try {
                 mediaPlayer = new MediaPlayer();

@@ -21,7 +21,8 @@ import java.net.URL;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
-    private static final String CHANNEL_ID = "fcm_silent_channel";
+    private static final String SIREN_CHANNEL_ID = "fcm_siren_channel";
+    private static final String CUSTOM_AUDIO_CHANNEL_ID = "fcm_custom_audio_channel";
 
     @Override
     public void onMessageReceived(RemoteMessage remoteMessage) {
@@ -65,10 +66,12 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
-        // Build notification with full-screen intent
-        // Only set siren sound on notification if no custom audio
-        // (AlertActivity handles all audio playback)
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+        // Use silent channel for custom audio (AlertActivity plays it)
+        // Use siren channel for default (siren plays from notification)
+        boolean hasCustomAudio = audioUrl != null && !audioUrl.isEmpty();
+        String channelId = hasCustomAudio ? CUSTOM_AUDIO_CHANNEL_ID : SIREN_CHANNEL_ID;
+
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
