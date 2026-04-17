@@ -3,8 +3,10 @@ package com.wudusalah.app;
 import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.AudioManager;
+import android.util.Log;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -85,33 +87,39 @@ public class AlertActivity extends Activity {
 
         // Play custom audio or default siren
         String audioUrl = getIntent().getStringExtra("audio");
+        Log.d("AlertActivity", "Audio URL: " + audioUrl);
         if (audioUrl != null && !audioUrl.isEmpty()) {
             // Play custom audio from URL
             try {
                 mediaPlayer = new MediaPlayer();
-                mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
+                AudioAttributes attrs = new AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build();
+                mediaPlayer.setAudioAttributes(attrs);
                 mediaPlayer.setDataSource(audioUrl);
                 mediaPlayer.setLooping(true);
-                mediaPlayer.setOnPreparedListener(mp -> mp.start());
+                mediaPlayer.setOnPreparedListener(mp -> {
+                    Log.d("AlertActivity", "Custom audio prepared, starting playback");
+                    mp.start();
+                });
+                mediaPlayer.setOnErrorListener((mp, what, extra) -> {
+                    Log.e("AlertActivity", "MediaPlayer error: " + what + " extra: " + extra);
+                    // Fallback to default siren on error
+                    mp.release();
+                    playSiren();
+                    return true;
+                });
                 mediaPlayer.prepareAsync();
             } catch (Exception e) {
+                Log.e("AlertActivity", "Failed to set custom audio", e);
                 e.printStackTrace();
                 // Fallback to default siren
-                mediaPlayer = MediaPlayer.create(this, R.raw.siren);
-                if (mediaPlayer != null) {
-                    mediaPlayer.setLooping(true);
-                    mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-                    mediaPlayer.start();
-                }
+                playSiren();
             }
         } else {
             // Default siren sound
-            mediaPlayer = MediaPlayer.create(this, R.raw.siren);
-            if (mediaPlayer != null) {
-                mediaPlayer.setLooping(true);
-                mediaPlayer.setAudioStreamType(AudioManager.STREAM_ALARM);
-                mediaPlayer.start();
-            }
+            playSiren();
         }
 
         // Strong vibration pattern
@@ -131,6 +139,19 @@ public class AlertActivity extends Activity {
             stopAlarm();
             finish();
         });
+    }
+
+    private void playSiren() {
+        mediaPlayer = MediaPlayer.create(this, R.raw.siren);
+        if (mediaPlayer != null) {
+            mediaPlayer.setLooping(true);
+            AudioAttributes attrs = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build();
+            mediaPlayer.setAudioAttributes(attrs);
+            mediaPlayer.start();
+        }
     }
 
     private void stopAlarm() {
