@@ -21,12 +21,7 @@ import android.os.VibrationEffect;
 import android.os.Build;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.Animation;
-import android.view.animation.AnimationSet;
-import android.view.animation.BounceInterpolator;
 import android.view.animation.OvershootInterpolator;
-import android.view.animation.TranslateAnimation;
 import android.net.Uri;
 import android.os.CountDownTimer;
 import android.widget.Button;
@@ -259,22 +254,17 @@ public class AlertActivity extends Activity {
             }
         }
 
-        // Entrance animation - slide from top with bounce
+        // Entrance animation - slide from top with bounce (ViewPropertyAnimator)
         LinearLayout alertCard = findViewById(R.id.alertCard);
-        alertCard.setVisibility(View.INVISIBLE);
-        alertCard.post(() -> {
-            alertCard.setVisibility(View.VISIBLE);
-            TranslateAnimation slideAnim = new TranslateAnimation(
-                Animation.RELATIVE_TO_SELF, 0f,
-                Animation.RELATIVE_TO_SELF, 0f,
-                Animation.ABSOLUTE, -alertCard.getTop() - alertCard.getHeight(),
-                Animation.ABSOLUTE, 0f
-            );
-            slideAnim.setDuration(800);
-            slideAnim.setInterpolator(new OvershootInterpolator(0.8f));
-            slideAnim.setFillAfter(true);
-            alertCard.startAnimation(slideAnim);
-        });
+        alertCard.setTranslationY(-1500f);
+        alertCard.setAlpha(0f);
+        alertCard.animate()
+            .translationY(0f)
+            .alpha(1f)
+            .setDuration(900)
+            .setStartDelay(150)
+            .setInterpolator(new OvershootInterpolator(1.0f))
+            .start();
 
         // Dismiss button
         dismissButton.setOnClickListener(v -> {
