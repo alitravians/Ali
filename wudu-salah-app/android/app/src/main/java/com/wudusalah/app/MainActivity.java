@@ -2,11 +2,13 @@ package com.wudusalah.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 
 import com.getcapacitor.BridgeActivity;
 import com.google.firebase.messaging.FirebaseMessaging;
@@ -18,6 +20,17 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         createHighPriorityNotificationChannel();
         subscribeToAlerts();
+        requestOverlayPermission();
+    }
+
+    private void requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            Intent intent = new Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:" + getPackageName())
+            );
+            startActivity(intent);
+        }
     }
 
     private void subscribeToAlerts() {

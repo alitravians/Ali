@@ -3,12 +3,16 @@ package com.wudusalah.app;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
+import android.os.PowerManager;
+import android.provider.Settings;
+import android.util.Log;
 
 import androidx.core.app.NotificationCompat;
 
@@ -107,7 +111,22 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             manager.notify(9999, builder.build());
         }
 
-        // Also start the alert activity directly for foreground
-        startActivity(alertIntent);
+        // Force launch alert activity directly (wake screen + overlay)
+        try {
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            PowerManager.WakeLock wl = powerManager.newWakeLock(
+                PowerManager.FULL_WAKE_LOCK |
+                PowerManager.ACQUIRE_CAUSES_WAKEUP |
+                PowerManager.ON_AFTER_RELEASE,
+                "wudusalah:fcm_wake"
+            );
+            wl.acquire(10 * 1000L); // 10 seconds
+
+            // Start activity directly - works with SYSTEM_ALERT_WINDOW permission
+            startActivity(alertIntent);
+            Log.d("FCMService", "Alert activity started directly");
+        } catch (Exception e) {
+            Log.e("FCMService", "Failed to start alert activity directly", e);
+        }
     }
 }
