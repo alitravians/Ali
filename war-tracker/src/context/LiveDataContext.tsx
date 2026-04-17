@@ -28,6 +28,7 @@ interface LiveDataContextType {
   vessels: VesselPosition[];
   maritimeZones: MaritimeZoneStats[];
   hormuzBlockade: HormuzBlockadeStatus | null;
+  aisConnected: boolean;
   newEventCount: number;
   isLive: boolean;
   isLoading: boolean;
@@ -75,6 +76,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const [vessels, setVessels] = useState<VesselPosition[]>([]);
   const [maritimeZones, setMaritimeZones] = useState<MaritimeZoneStats[]>([]);
   const [hormuzBlockade, setHormuzBlockade] = useState<HormuzBlockadeStatus | null>(null);
+  const [aisConnected, setAisConnected] = useState(false);
   const [newEventCount, setNewEventCount] = useState(0);
   const [lastUpdate, setLastUpdate] = useState(new Date());
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
@@ -281,6 +283,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         if (data.zones && Array.isArray(data.zones)) {
           setMaritimeZones(data.zones as MaritimeZoneStats[]);
         }
+        if (typeof data.aisConnected === 'boolean') {
+          setAisConnected(data.aisConnected);
+        }
       }
     } catch (err) {
       console.warn('[REST] Vessels fetch failed:', err instanceof Error ? err.message : err);
@@ -330,6 +335,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
           if (data.zones && Array.isArray(data.zones)) {
             setMaritimeZones(data.zones as MaritimeZoneStats[]);
           }
+          if (typeof data.aisConnected === 'boolean') {
+            setAisConnected(data.aisConnected);
+          }
         }
       } catch { /* silent — WS will handle if REST fails */ }
     }, 30000);
@@ -366,7 +374,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, hormuzBlockade, newEventCount, isLive, isLoading, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
+    <LiveDataContext.Provider value={{ events, alerts, indicators, vessels, maritimeZones, hormuzBlockade, aisConnected, newEventCount, isLive, isLoading, lastUpdate, clearNewCount, connectionStatus, sourceStatus, bahrainAlert, dismissBahrainAlert }}>
       {children}
     </LiveDataContext.Provider>
   );

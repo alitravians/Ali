@@ -164,7 +164,7 @@ function VesselRow({ vessel }: { vessel: VesselPosition }) {
 }
 
 export default function MaritimePanel() {
-  const { vessels, maritimeZones } = useLiveData();
+  const { vessels, maritimeZones, aisConnected } = useLiveData();
   const [showAllVessels, setShowAllVessels] = useState(false);
 
   const totalVessels = vessels.length;
@@ -193,11 +193,12 @@ export default function MaritimePanel() {
           <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${
             totalVessels > 0
               ? 'bg-green-500/10 border border-green-500/30'
+              : aisConnected ? 'bg-blue-500/10 border border-blue-500/30'
               : 'bg-yellow-500/10 border border-yellow-500/30'
           }`}>
-            <span className={`w-2 h-2 rounded-full animate-pulse ${totalVessels > 0 ? 'bg-green-400' : 'bg-yellow-400'}`} />
-            <span className={`text-[10px] font-semibold ${totalVessels > 0 ? 'text-green-400' : 'text-yellow-400'}`}>
-              {totalVessels > 0 ? 'AIS مباشر' : 'جاري الاتصال...'}
+            <span className={`w-2 h-2 rounded-full animate-pulse ${totalVessels > 0 ? 'bg-green-400' : aisConnected ? 'bg-blue-400' : 'bg-yellow-400'}`} />
+            <span className={`text-[10px] font-semibold ${totalVessels > 0 ? 'text-green-400' : aisConnected ? 'text-blue-400' : 'text-yellow-400'}`}>
+              {totalVessels > 0 ? 'AIS مباشر' : aisConnected ? 'متصل — بانتظار البيانات' : 'جاري الاتصال...'}
             </span>
           </div>
         </div>
@@ -232,9 +233,13 @@ export default function MaritimePanel() {
       {/* No data message */}
       {totalVessels === 0 && (
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-6 text-center">
-          <Anchor className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-          <p className="text-sm text-gray-400">جاري الاتصال بنظام AIS...</p>
-          <p className="text-[10px] text-gray-600 mt-1">بيانات السفن الحقيقية ستظهر قريباً</p>
+          <Anchor className={`w-8 h-8 mx-auto mb-2 ${aisConnected ? 'text-blue-500' : 'text-gray-600'}`} />
+          <p className="text-sm text-gray-400">
+            {aisConnected ? 'النظام متصل — لا توجد سفن مرصودة حالياً في المناطق المراقبة' : 'جاري الاتصال بنظام AIS...'}
+          </p>
+          <p className="text-[10px] text-gray-600 mt-1">
+            {aisConnected ? 'ستظهر السفن تلقائياً عند دخولها نطاق المراقبة' : 'بيانات السفن الحقيقية ستظهر قريباً'}
+          </p>
         </div>
       )}
 
