@@ -19,8 +19,9 @@
         android:clipChildren="false"
         android:clipToPadding="false">
 
-        <!-- Green Header with gradient -->
+        <!-- Header with gradient (color changes dynamically by type) -->
         <RelativeLayout
+            android:id="@+id/alertHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/header_gradient"
@@ -34,8 +35,9 @@
                 android:orientation="vertical"
                 android:gravity="center">
 
-                <!-- App Icon -->
+                <!-- Type Icon -->
                 <ImageView
+                    android:id="@+id/alertTypeIcon"
                     android:layout_width="64dp"
                     android:layout_height="64dp"
                     android:src="@mipmap/ic_launcher"
@@ -52,6 +54,16 @@
                     android:textColor="#FFFFFF"
                     android:textSize="24sp"
                     android:textStyle="bold" />
+
+                <!-- Sender Name (hidden by default) -->
+                <TextView
+                    android:id="@+id/alertSender"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="14sp"
+                    android:layout_marginTop="6dp"
+                    android:visibility="gone" />
 
             </LinearLayout>
 
@@ -87,6 +99,16 @@
                 android:scaleType="centerCrop"
                 android:visibility="gone"
                 android:layout_marginBottom="20dp" />
+
+            <!-- Auto-dismiss countdown (hidden by default) -->
+            <TextView
+                android:id="@+id/countdownText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="#999999"
+                android:textSize="13sp"
+                android:layout_marginBottom="12dp"
+                android:visibility="gone" />
 
             <!-- Divider line -->
             <View

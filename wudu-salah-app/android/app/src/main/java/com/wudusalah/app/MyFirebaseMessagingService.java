@@ -36,6 +36,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         String body = "";
         String imageUrl = "";
         String audioUrl = "";
+        String notifType = "";
+        String sender = "";
+        String actionUrl = "";
+        String autoDismiss = "";
 
         // Handle data messages (from admin panel - works in background too)
         if (remoteMessage.getData().size() > 0) {
@@ -45,6 +49,14 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             if (img != null) imageUrl = img;
             String aud = remoteMessage.getData().get("audio");
             if (aud != null) audioUrl = aud;
+            String type = remoteMessage.getData().get("notif_type");
+            if (type != null) notifType = type;
+            String snd = remoteMessage.getData().get("sender");
+            if (snd != null) sender = snd;
+            String act = remoteMessage.getData().get("action_url");
+            if (act != null) actionUrl = act;
+            String ad = remoteMessage.getData().get("auto_dismiss");
+            if (ad != null) autoDismiss = ad;
         }
 
         // Handle notification messages (from Firebase Console - foreground only)
@@ -64,6 +76,10 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         alertIntent.putExtra("body", body != null ? body : "");
         alertIntent.putExtra("image", imageUrl);
         alertIntent.putExtra("audio", audioUrl);
+        alertIntent.putExtra("notif_type", notifType);
+        alertIntent.putExtra("sender", sender);
+        alertIntent.putExtra("action_url", actionUrl);
+        alertIntent.putExtra("auto_dismiss", autoDismiss);
 
         PendingIntent fullScreenIntent = PendingIntent.getActivity(
             this, 0, alertIntent,

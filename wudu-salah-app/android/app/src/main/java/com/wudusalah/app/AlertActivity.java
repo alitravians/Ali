@@ -21,14 +21,18 @@ import android.os.VibrationEffect;
 import android.os.Build;
 import android.view.View;
 import android.view.WindowManager;
-import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.AlphaAnimation;
 import android.view.animation.Animation;
 import android.view.animation.AnimationSet;
-import android.view.animation.ScaleAnimation;
+import android.view.animation.BounceInterpolator;
+import android.view.animation.OvershootInterpolator;
+import android.view.animation.TranslateAnimation;
+import android.net.Uri;
+import android.os.CountDownTimer;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 
 import java.io.InputStream;
@@ -82,15 +86,94 @@ public class AlertActivity extends Activity {
         // Get notification data
         String title = getIntent().getStringExtra("title");
         String body = getIntent().getStringExtra("body");
+        String notifType = getIntent().getStringExtra("notif_type");
+        String sender = getIntent().getStringExtra("sender");
+        String actionUrl = getIntent().getStringExtra("action_url");
+        String autoDismissStr = getIntent().getStringExtra("auto_dismiss");
 
         TextView alertTitle = findViewById(R.id.alertTitle);
         TextView alertBody = findViewById(R.id.alertBody);
+        RelativeLayout alertHeader = findViewById(R.id.alertHeader);
+        TextView alertSender = findViewById(R.id.alertSender);
+        Button openAppButton = findViewById(R.id.openAppButton);
+        Button dismissButton = findViewById(R.id.dismissButton);
 
         if (title != null && !title.isEmpty()) {
             alertTitle.setText(title);
         }
         if (body != null && !body.isEmpty()) {
             alertBody.setText(body);
+        }
+
+        // Apply notification type colors
+        if (notifType != null) {
+            switch (notifType) {
+                case "urgent":
+                    alertHeader.setBackgroundResource(R.drawable.header_gradient_red);
+                    openAppButton.setTextColor(0xFFE53935);
+                    openAppButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFFEBEE));
+                    dismissButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFE53935));
+                    break;
+                case "reminder":
+                    alertHeader.setBackgroundResource(R.drawable.header_gradient_blue);
+                    openAppButton.setTextColor(0xFF1E88E5);
+                    openAppButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFE3F2FD));
+                    dismissButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFF1E88E5));
+                    break;
+                case "good_news":
+                    alertHeader.setBackgroundResource(R.drawable.header_gradient_gold);
+                    openAppButton.setTextColor(0xFFF9A825);
+                    openAppButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFFFF8E1));
+                    dismissButton.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFF9A825));
+                    break;
+                default: // "update" or any other - keep green default
+                    break;
+            }
+        }
+
+        // Show sender name if provided
+        if (sender != null && !sender.isEmpty()) {
+            alertSender.setText(sender);
+            alertSender.setVisibility(View.VISIBLE);
+        }
+
+        // Setup action URL button
+        if (actionUrl != null && !actionUrl.isEmpty()) {
+            openAppButton.setText("اقرأ المزيد");
+            final String url = actionUrl;
+            openAppButton.setOnClickListener(v -> {
+                stopAlarm();
+                try {
+                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    startActivity(browserIntent);
+                } catch (Exception e) {
+                    Log.e("AlertActivity", "Failed to open URL", e);
+                }
+                finish();
+            });
+        }
+
+        // Auto-dismiss countdown
+        if (autoDismissStr != null && !autoDismissStr.isEmpty()) {
+            try {
+                int seconds = Integer.parseInt(autoDismissStr);
+                if (seconds > 0 && seconds <= 120) {
+                    TextView countdownText = findViewById(R.id.countdownText);
+                    countdownText.setVisibility(View.VISIBLE);
+                    new CountDownTimer(seconds * 1000L, 1000) {
+                        public void onTick(long millisUntilFinished) {
+                            int secs = (int) (millisUntilFinished / 1000);
+                            countdownText.setText("يغلق تلقائياً بعد " + secs + " ثانية");
+                        }
+                        public void onFinish() {
+                            stopAlarm();
+                            finish();
+                        }
+                    }.start();
+                }
+            } catch (NumberFormatException e) {
+                // ignore invalid number
+            }
         }
 
         // Load notification image if available
@@ -176,40 +259,42 @@ public class AlertActivity extends Activity {
             }
         }
 
-        // Entrance animation - card scales up from center
+        // Entrance animation - slide from top with bounce
         LinearLayout alertCard = findViewById(R.id.alertCard);
-        ScaleAnimation scaleAnim = new ScaleAnimation(
-            0.7f, 1.0f, 0.7f, 1.0f,
-            Animation.RELATIVE_TO_SELF, 0.5f,
-            Animation.RELATIVE_TO_SELF, 0.5f
+        TranslateAnimation slideAnim = new TranslateAnimation(
+            Animation.RELATIVE_TO_PARENT, 0f,
+            Animation.RELATIVE_TO_PARENT, 0f,
+            Animation.RELATIVE_TO_PARENT, -1.0f,
+            Animation.RELATIVE_TO_PARENT, 0f
         );
         AlphaAnimation fadeAnim = new AlphaAnimation(0.0f, 1.0f);
-        AnimationSet animSet = new AnimationSet(true);
-        animSet.addAnimation(scaleAnim);
+        fadeAnim.setDuration(300);
+        AnimationSet animSet = new AnimationSet(false);
+        animSet.addAnimation(slideAnim);
         animSet.addAnimation(fadeAnim);
-        animSet.setDuration(350);
-        animSet.setInterpolator(new AccelerateDecelerateInterpolator());
+        animSet.setDuration(600);
+        animSet.setInterpolator(new OvershootInterpolator(1.2f));
         alertCard.startAnimation(animSet);
 
         // Dismiss button
-        Button dismissButton = findViewById(R.id.dismissButton);
         dismissButton.setOnClickListener(v -> {
             stopAlarm();
             finish();
         });
 
-        // Open App button
-        Button openAppButton = findViewById(R.id.openAppButton);
-        openAppButton.setOnClickListener(v -> {
-            stopAlarm();
-            PackageManager pkgMgr = getPackageManager();
-            Intent launchIntent = pkgMgr.getLaunchIntentForPackage(getPackageName());
-            if (launchIntent != null) {
-                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-                startActivity(launchIntent);
-            }
-            finish();
-        });
+        // Open App button (only set default handler if no action URL was set)
+        if (actionUrl == null || actionUrl.isEmpty()) {
+            openAppButton.setOnClickListener(v -> {
+                stopAlarm();
+                PackageManager pkgMgr = getPackageManager();
+                Intent launchIntent = pkgMgr.getLaunchIntentForPackage(getPackageName());
+                if (launchIntent != null) {
+                    launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    startActivity(launchIntent);
+                }
+                finish();
+            });
+        }
     }
 
     private void playSiren() {
