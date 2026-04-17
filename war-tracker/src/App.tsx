@@ -1,35 +1,42 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { LiveDataProvider } from './context/LiveDataContext';
 import { PhoneModeProvider } from './context/PhoneModeContext';
 import Layout from './components/layout/Layout';
-import Home from './pages/Home';
-import LiveTracking from './pages/LiveTracking';
-import Analysis from './pages/Analysis';
-import Sources from './pages/Sources';
-import Cities from './pages/Cities';
-import Alerts from './pages/Alerts';
-import Admin from './pages/Admin';
-import StatusPage from './pages/StatusPage';
-import Analytics from './pages/Analytics';
+import LoadingScreen from './components/shared/LoadingScreen';
+
+// Lazy-load all pages — each becomes a separate chunk
+// This reduces initial bundle from ~1MB to ~400KB (core) + on-demand chunks
+const Home = lazy(() => import('./pages/Home'));
+const LiveTracking = lazy(() => import('./pages/LiveTracking'));
+const Analysis = lazy(() => import('./pages/Analysis'));
+const Sources = lazy(() => import('./pages/Sources'));
+const Cities = lazy(() => import('./pages/Cities'));
+const Alerts = lazy(() => import('./pages/Alerts'));
+const Admin = lazy(() => import('./pages/Admin'));
+const StatusPage = lazy(() => import('./pages/StatusPage'));
+const Analytics = lazy(() => import('./pages/Analytics'));
 
 export default function App() {
   return (
     <PhoneModeProvider>
     <LiveDataProvider>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Home />} />
-          <Route path="/live" element={<LiveTracking />} />
-          <Route path="/analysis" element={<Analysis />} />
-          <Route path="/sources" element={<Sources />} />
-          <Route path="/cities" element={<Cities />} />
-          <Route path="/cities/:cityId" element={<Cities />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/status" element={<StatusPage />} />
-          <Route path="/admin" element={<Admin />} />
-        </Route>
-      </Routes>
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/live" element={<LiveTracking />} />
+            <Route path="/analysis" element={<Analysis />} />
+            <Route path="/sources" element={<Sources />} />
+            <Route path="/cities" element={<Cities />} />
+            <Route path="/cities/:cityId" element={<Cities />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/status" element={<StatusPage />} />
+            <Route path="/admin" element={<Admin />} />
+          </Route>
+        </Routes>
+      </Suspense>
     </LiveDataProvider>
     </PhoneModeProvider>
   );
