@@ -2,6 +2,8 @@ package com.wudusalah.app;
 
 import android.app.Activity;
 import android.app.NotificationManager;
+import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.AudioAttributes;
@@ -16,8 +18,14 @@ import android.os.VibrationEffect;
 import android.os.Build;
 import android.view.View;
 import android.view.WindowManager;
+import android.view.animation.AccelerateDecelerateInterpolator;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
+import android.view.animation.AnimationSet;
+import android.view.animation.ScaleAnimation;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import java.io.InputStream;
@@ -138,10 +146,38 @@ public class AlertActivity extends Activity {
             }
         }
 
+        // Entrance animation - card scales up from center
+        LinearLayout alertCard = findViewById(R.id.alertCard);
+        ScaleAnimation scaleAnim = new ScaleAnimation(
+            0.7f, 1.0f, 0.7f, 1.0f,
+            Animation.RELATIVE_TO_SELF, 0.5f,
+            Animation.RELATIVE_TO_SELF, 0.5f
+        );
+        AlphaAnimation fadeAnim = new AlphaAnimation(0.0f, 1.0f);
+        AnimationSet animSet = new AnimationSet(true);
+        animSet.addAnimation(scaleAnim);
+        animSet.addAnimation(fadeAnim);
+        animSet.setDuration(350);
+        animSet.setInterpolator(new AccelerateDecelerateInterpolator());
+        alertCard.startAnimation(animSet);
+
         // Dismiss button
         Button dismissButton = findViewById(R.id.dismissButton);
         dismissButton.setOnClickListener(v -> {
             stopAlarm();
+            finish();
+        });
+
+        // Open App button
+        Button openAppButton = findViewById(R.id.openAppButton);
+        openAppButton.setOnClickListener(v -> {
+            stopAlarm();
+            PackageManager pm = getPackageManager();
+            Intent launchIntent = pm.getLaunchIntentForPackage(getPackageName());
+            if (launchIntent != null) {
+                launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                startActivity(launchIntent);
+            }
             finish();
         });
     }

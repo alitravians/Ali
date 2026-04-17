@@ -2,62 +2,135 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#CC000000"
+    android:background="#99000000"
     android:gravity="center">
 
+    <!-- Card Container -->
     <LinearLayout
+        android:id="@+id/alertCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
-        android:gravity="center"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
         android:orientation="vertical"
-        android:padding="32dp">
+        android:background="@drawable/card_background"
+        android:elevation="16dp"
+        android:clipChildren="false"
+        android:clipToPadding="false">
 
-        <ImageView
-            android:layout_width="80dp"
-            android:layout_height="80dp"
-            android:src="@mipmap/ic_launcher"
-            android:layout_marginBottom="24dp" />
-
-        <TextView
-            android:id="@+id/alertTitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="تنبيه هام!"
-            android:textColor="#FFFFFF"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="16dp" />
-
-        <TextView
-            android:id="@+id/alertBody"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text=""
-            android:textColor="#DDDDDD"
-            android:textSize="18sp"
-            android:gravity="center"
-            android:layout_marginBottom="16dp" />
-
-        <ImageView
-            android:id="@+id/alertImage"
+        <!-- Green Header with gradient -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:adjustViewBounds="true"
-            android:maxHeight="250dp"
-            android:scaleType="centerCrop"
-            android:visibility="gone"
-            android:layout_marginBottom="24dp" />
+            android:background="@drawable/header_gradient"
+            android:padding="24dp"
+            android:gravity="center">
 
-        <Button
-            android:id="@+id/dismissButton"
-            android:layout_width="200dp"
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerInParent="true"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <!-- App Icon -->
+                <ImageView
+                    android:layout_width="64dp"
+                    android:layout_height="64dp"
+                    android:src="@mipmap/ic_launcher"
+                    android:layout_marginBottom="12dp"
+                    android:background="@drawable/icon_circle_bg"
+                    android:padding="8dp" />
+
+                <!-- Alert Title -->
+                <TextView
+                    android:id="@+id/alertTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="تنبيه هام!"
+                    android:textColor="#FFFFFF"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </RelativeLayout>
+
+        <!-- Content Area (white) -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="حسناً"
-            android:textSize="18sp"
-            android:textColor="#FFFFFF"
-            android:backgroundTint="#4CAF50"
-            android:padding="12dp" />
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center">
+
+            <!-- Alert Body -->
+            <TextView
+                android:id="@+id/alertBody"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#333333"
+                android:textSize="17sp"
+                android:gravity="center"
+                android:lineSpacingExtra="4dp"
+                android:layout_marginBottom="16dp" />
+
+            <!-- Notification Image (hidden by default) -->
+            <ImageView
+                android:id="@+id/alertImage"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:adjustViewBounds="true"
+                android:maxHeight="220dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                android:layout_marginBottom="20dp" />
+
+            <!-- Divider line -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E0E0E0"
+                android:layout_marginBottom="20dp" />
+
+            <!-- Buttons Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center">
+
+                <!-- Open App Button -->
+                <Button
+                    android:id="@+id/openAppButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="فتح التطبيق"
+                    android:textSize="15sp"
+                    android:textColor="#2E7D5B"
+                    android:backgroundTint="#E8F5E9"
+                    android:layout_marginEnd="8dp"
+                    android:textStyle="bold" />
+
+                <!-- Dismiss Button -->
+                <Button
+                    android:id="@+id/dismissButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="حسناً"
+                    android:textSize="15sp"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#2E7D5B"
+                    android:layout_marginStart="8dp"
+                    android:textStyle="bold" />
+
+            </LinearLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 
