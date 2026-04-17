@@ -261,20 +261,20 @@ public class AlertActivity extends Activity {
 
         // Entrance animation - slide from top with bounce
         LinearLayout alertCard = findViewById(R.id.alertCard);
-        TranslateAnimation slideAnim = new TranslateAnimation(
-            Animation.RELATIVE_TO_PARENT, 0f,
-            Animation.RELATIVE_TO_PARENT, 0f,
-            Animation.RELATIVE_TO_PARENT, -1.0f,
-            Animation.RELATIVE_TO_PARENT, 0f
-        );
-        AlphaAnimation fadeAnim = new AlphaAnimation(0.0f, 1.0f);
-        fadeAnim.setDuration(300);
-        AnimationSet animSet = new AnimationSet(false);
-        animSet.addAnimation(slideAnim);
-        animSet.addAnimation(fadeAnim);
-        animSet.setDuration(600);
-        animSet.setInterpolator(new OvershootInterpolator(1.2f));
-        alertCard.startAnimation(animSet);
+        alertCard.setVisibility(View.INVISIBLE);
+        alertCard.post(() -> {
+            alertCard.setVisibility(View.VISIBLE);
+            TranslateAnimation slideAnim = new TranslateAnimation(
+                Animation.RELATIVE_TO_SELF, 0f,
+                Animation.RELATIVE_TO_SELF, 0f,
+                Animation.ABSOLUTE, -alertCard.getTop() - alertCard.getHeight(),
+                Animation.ABSOLUTE, 0f
+            );
+            slideAnim.setDuration(800);
+            slideAnim.setInterpolator(new OvershootInterpolator(0.8f));
+            slideAnim.setFillAfter(true);
+            alertCard.startAnimation(slideAnim);
+        });
 
         // Dismiss button
         dismissButton.setOnClickListener(v -> {
