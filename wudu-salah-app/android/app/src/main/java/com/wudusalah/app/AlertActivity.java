@@ -1,7 +1,9 @@
 package com.wudusalah.app;
 
 import android.app.Activity;
+import android.app.KeyguardManager;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -13,6 +15,7 @@ import android.util.Log;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.os.Vibrator;
 import android.os.VibrationEffect;
 import android.os.Build;
@@ -38,10 +41,29 @@ public class AlertActivity extends Activity {
 
     private MediaPlayer mediaPlayer;
     private Vibrator vibrator;
+    private PowerManager.WakeLock wakeLock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // Wake up the screen
+        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        wakeLock = pm.newWakeLock(
+            PowerManager.FULL_WAKE_LOCK |
+            PowerManager.ACQUIRE_CAUSES_WAKEUP |
+            PowerManager.ON_AFTER_RELEASE,
+            "wudusalah:alert"
+        );
+        wakeLock.acquire(60 * 1000L); // 60 seconds max
+
+        // Dismiss keyguard (unlock screen)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+            if (km != null) {
+                km.requestDismissKeyguard(this, null);
+            }
+        }
 
         // Show over lock screen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -51,7 +73,8 @@ public class AlertActivity extends Activity {
         getWindow().addFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
             WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+            WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
         );
 
         setContentView(R.layout.activity_alert);
@@ -72,6 +95,7 @@ public class AlertActivity extends Activity {
 
         // Load notification image if available
         String imageUrl = getIntent().getStringExtra("image");
+        Log.d("AlertActivity", "Image URL: " + imageUrl);
         if (imageUrl != null && !imageUrl.isEmpty()) {
             ImageView alertImage = findViewById(R.id.alertImage);
             ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -81,14 +105,20 @@ public class AlertActivity extends Activity {
                     URL url = new URL(imageUrl);
                     HttpURLConnection connection = (HttpURLConnection) url.openConnection();
                     connection.setDoInput(true);
+                    connection.setConnectTimeout(10000);
+                    connection.setReadTimeout(10000);
                     connection.connect();
                     InputStream input = connection.getInputStream();
                     Bitmap bitmap = BitmapFactory.decodeStream(input);
+                    Log.d("AlertActivity", "Image loaded: " + (bitmap != null));
                     handler.post(() -> {
-                        alertImage.setImageBitmap(bitmap);
-                        alertImage.setVisibility(View.VISIBLE);
+                        if (bitmap != null) {
+                            alertImage.setImageBitmap(bitmap);
+                            alertImage.setVisibility(View.VISIBLE);
+                        }
                     });
                 } catch (Exception e) {
+                    Log.e("AlertActivity", "Failed to load image", e);
                     e.printStackTrace();
                 }
             });
@@ -172,8 +202,8 @@ public class AlertActivity extends Activity {
         Button openAppButton = findViewById(R.id.openAppButton);
         openAppButton.setOnClickListener(v -> {
             stopAlarm();
-            PackageManager pm = getPackageManager();
-            Intent launchIntent = pm.getLaunchIntentForPackage(getPackageName());
+            PackageManager pkgMgr = getPackageManager();
+            Intent launchIntent = pkgMgr.getLaunchIntentForPackage(getPackageName());
             if (launchIntent != null) {
                 launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 startActivity(launchIntent);
@@ -210,5 +240,8 @@ public class AlertActivity extends Activity {
     protected void onDestroy() {
         super.onDestroy();
         stopAlarm();
+        if (wakeLock != null && wakeLock.isHeld()) {
+            wakeLock.release();
+        }
     }
 }
