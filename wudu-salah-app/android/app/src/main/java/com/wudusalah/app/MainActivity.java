@@ -34,13 +34,13 @@ public class MainActivity extends BridgeActivity {
             channel.enableLights(true);
             channel.setShowBadge(true);
 
-            // Set default notification sound
-            Uri soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            // Set custom siren alarm sound
+            Uri sirenUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.siren);
             AudioAttributes audioAttributes = new AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .setUsage(AudioAttributes.USAGE_ALARM)
                 .build();
-            channel.setSound(soundUri, audioAttributes);
+            channel.setSound(sirenUri, audioAttributes);
 
             manager.createNotificationChannel(channel);
         }
