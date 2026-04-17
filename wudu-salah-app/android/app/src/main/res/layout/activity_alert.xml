@@ -37,7 +37,17 @@
             android:textColor="#DDDDDD"
             android:textSize="18sp"
             android:gravity="center"
-            android:layout_marginBottom="32dp" />
+            android:layout_marginBottom="16dp" />
+
+        <ImageView
+            android:id="@+id/alertImage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:maxHeight="250dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            android:layout_marginBottom="24dp" />
 
         <Button
             android:id="@+id/dismissButton"

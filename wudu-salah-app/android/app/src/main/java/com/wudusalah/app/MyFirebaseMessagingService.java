@@ -4,6 +4,8 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.AudioAttributes;
 import android.net.Uri;
 import android.os.Build;
@@ -12,6 +14,10 @@ import androidx.core.app.NotificationCompat;
 
 import com.google.firebase.messaging.FirebaseMessagingService;
 import com.google.firebase.messaging.RemoteMessage;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
@@ -23,11 +29,14 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
 
         String title = "";
         String body = "";
+        String imageUrl = "";
 
         // Handle data messages (from admin panel - works in background too)
         if (remoteMessage.getData().size() > 0) {
             title = remoteMessage.getData().get("title");
             body = remoteMessage.getData().get("body");
+            String img = remoteMessage.getData().get("image");
+            if (img != null) imageUrl = img;
         }
 
         // Handle notification messages (from Firebase Console - foreground only)
@@ -45,6 +54,7 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         alertIntent.putExtra("title", title != null ? title : "");
         alertIntent.putExtra("body", body != null ? body : "");
+        alertIntent.putExtra("image", imageUrl);
 
         PendingIntent fullScreenIntent = PendingIntent.getActivity(
             this, 0, alertIntent,
@@ -64,6 +74,26 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
             .setVibrate(new long[]{0, 1000, 500, 1000, 500, 1000})
             .setAutoCancel(true)
             .setFullScreenIntent(fullScreenIntent, true);
+
+        // Add big picture if image URL is available
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            try {
+                URL url = new URL(imageUrl);
+                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                connection.setDoInput(true);
+                connection.connect();
+                InputStream input = connection.getInputStream();
+                Bitmap bitmap = BitmapFactory.decodeStream(input);
+                if (bitmap != null) {
+                    builder.setStyle(new NotificationCompat.BigPictureStyle()
+                        .bigPicture(bitmap)
+                        .bigLargeIcon((Bitmap) null));
+                    builder.setLargeIcon(bitmap);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
 
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (manager != null) {

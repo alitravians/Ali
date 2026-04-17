@@ -1,15 +1,27 @@
 package com.wudusalah.app;
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.MediaPlayer;
 import android.media.AudioManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.os.Vibrator;
 import android.os.VibrationEffect;
 import android.os.Build;
+import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class AlertActivity extends Activity {
 
@@ -45,6 +57,30 @@ public class AlertActivity extends Activity {
         }
         if (body != null && !body.isEmpty()) {
             alertBody.setText(body);
+        }
+
+        // Load notification image if available
+        String imageUrl = getIntent().getStringExtra("image");
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            ImageView alertImage = findViewById(R.id.alertImage);
+            ExecutorService executor = Executors.newSingleThreadExecutor();
+            Handler handler = new Handler(Looper.getMainLooper());
+            executor.execute(() -> {
+                try {
+                    URL url = new URL(imageUrl);
+                    HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+                    connection.setDoInput(true);
+                    connection.connect();
+                    InputStream input = connection.getInputStream();
+                    Bitmap bitmap = BitmapFactory.decodeStream(input);
+                    handler.post(() -> {
+                        alertImage.setImageBitmap(bitmap);
+                        alertImage.setVisibility(View.VISIBLE);
+                    });
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
         }
 
         // Play siren sound
