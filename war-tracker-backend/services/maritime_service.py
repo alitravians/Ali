@@ -102,6 +102,11 @@ def get_vessels() -> list[VesselPosition]:
     return list(_vessels.values())
 
 
+def is_ais_connected() -> bool:
+    """Return whether the AIS WebSocket is currently connected."""
+    return _ws_connected
+
+
 def get_zone_stats() -> list[MaritimeZoneStats]:
     """Get stats for each maritime zone."""
     return list(_zone_stats.values())
