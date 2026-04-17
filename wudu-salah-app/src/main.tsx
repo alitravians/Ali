@@ -6,6 +6,7 @@ import { ProgressProvider } from './contexts/ProgressContext';
 import LoadingScreen from './components/LoadingScreen';
 import WelcomePage from './pages/WelcomePage';
 import App from './App';
+import { initPushNotifications } from './utils/pushNotifications';
 import './index.css';
 
 declare global {
@@ -21,6 +22,7 @@ function Root() {
     if (window.__splashDone) {
       window.__splashDone();
     }
+    initPushNotifications();
   }, []);
 
   const handleLoadingComplete = useCallback(() => {

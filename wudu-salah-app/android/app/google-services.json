@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "504806213832",
+    "project_id": "wudu-salah-app",
+    "storage_bucket": "wudu-salah-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:504806213832:android:5f16c698132069c7b53dfd",
+        "android_client_info": {
+          "package_name": "com.wudusalah.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDxr71O--Nc2bsV3gdmaeh4WkBMnxBqMBo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
