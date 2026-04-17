@@ -40,13 +40,9 @@ public class MainActivity extends BridgeActivity {
             channel.enableLights(true);
             channel.setShowBadge(true);
 
-            // Set custom siren alarm sound
-            Uri sirenUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.siren);
-            AudioAttributes audioAttributes = new AudioAttributes.Builder()
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .setUsage(AudioAttributes.USAGE_ALARM)
-                .build();
-            channel.setSound(sirenUri, audioAttributes);
+            // No sound on notification channel - AlertActivity handles audio playback
+            // This prevents double audio (notification sound + AlertActivity sound)
+            channel.setSound(null, null);
 
             manager.createNotificationChannel(channel);
         }

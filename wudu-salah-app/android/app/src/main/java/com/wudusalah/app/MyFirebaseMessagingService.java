@@ -66,18 +66,20 @@ public class MyFirebaseMessagingService extends FirebaseMessagingService {
         );
 
         // Build notification with full-screen intent
-        Uri sirenUri = Uri.parse("android.resource://" + getPackageName() + "/" + R.raw.siren);
-
+        // Only set siren sound on notification if no custom audio
+        // (AlertActivity handles all audio playback)
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setSound(sirenUri)
             .setVibrate(new long[]{0, 1000, 500, 1000, 500, 1000})
             .setAutoCancel(true)
             .setFullScreenIntent(fullScreenIntent, true);
+
+        // No sound on notification - AlertActivity handles all audio playback
+        builder.setSound(null);
 
         // Add big picture if image URL is available
         if (imageUrl != null && !imageUrl.isEmpty()) {
