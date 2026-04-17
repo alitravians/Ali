@@ -28,7 +28,10 @@ public class MainActivity extends BridgeActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationManager manager = getSystemService(NotificationManager.class);
 
-            // Default FCM channel with high priority
+            // Delete old channel (Android won't update existing channel settings)
+            manager.deleteNotificationChannel("fcm_default_channel");
+
+            // Recreate channel without sound - AlertActivity handles audio
             NotificationChannel channel = new NotificationChannel(
                 "fcm_default_channel",
                 "\u0625\u0634\u0639\u0627\u0631\u0627\u062a \u0627\u0644\u062a\u0637\u0628\u064a\u0642",
