@@ -136,19 +136,19 @@ class Game {
     });
 
     document.getElementById('btn-gas-confirm')?.addEventListener('click', () => {
-      const { cost, litersAdded } = this.fuel.fillFull();
-      if (cost > this.money) {
-        // Partial fill based on money
-        const refundLiters = litersAdded - cost / this.fuel.pricePerLiterForStage;
-        this.fuel.level = Math.max(0, this.fuel.capacity - refundLiters);
-        const actualCost = (this.fuel.capacity - this.fuel.level === 0
-          ? this.money
-          : Math.round((this.fuel.capacity - this.fuel.level) * 0));
-        this.money = 0;
-        this.hud.toast(`رصيدك لم يكفِ — تعبئة جزئية (-${Math.round(actualCost)} $)`, 'warn');
+      const missing = this.fuel.capacity - this.fuel.level;
+      const fullCost = missing * this.fuel.pricePerLiterForStage;
+      if (fullCost > this.money) {
+        // Partial fill — only as much as the player can afford
+        const affordableLiters = this.money / this.fuel.pricePerLiterForStage;
+        const spent = Math.min(this.money, affordableLiters * this.fuel.pricePerLiterForStage);
+        this.fuel.level = Math.min(this.fuel.capacity, this.fuel.level + affordableLiters);
+        this.money = Math.max(0, this.money - spent);
+        this.hud.toast(`رصيدك لم يكفِ — تعبئة جزئية (-${Math.round(spent)} $)`, 'warn');
       } else {
-        this.money -= cost;
-        this.hud.toast(`تعبئة كاملة — خُصم ${Math.round(cost)} $`, 'success');
+        this.fuel.fillFull();
+        this.money -= fullCost;
+        this.hud.toast(`تعبئة كاملة — خُصم ${Math.round(fullCost)} $`, 'success');
       }
       this.audio.pump(1500);
       this.hud.setMoney(this.money);
@@ -277,6 +277,7 @@ class Game {
       const dist = this.player.root.position.distanceTo(this.car.root.position);
       if (dist < 3.5) {
         this.driving = true;
+        this.phase = 'driving';
         this.player.root.visible = false;
         this.camera.setMode('chase');
         this.hud.toast('ركبت السيارة — انطلق!', 'success');
@@ -289,6 +290,7 @@ class Game {
       this.player.root.position.copy(pos);
       this.player.root.visible = true;
       this.driving = false;
+      this.phase = 'walking';
       this.camera.setMode('walk');
       this.hud.toast('نزلت من السيارة', 'info');
     }
@@ -338,12 +340,13 @@ class Game {
     for (const ped of this.pedestrians) ped.update(dt);
     this.gasAttendant?.update(dt);
 
+    // E behavior priority while driving: refuel > exit vehicle.
+    // While walking: enter vehicle.
+    const nearGas = this.driving && this.phase === 'driving' && this.checkNearGasStation();
     if (this.phase === 'walking' || this.phase === 'driving') {
-      // Input: interact
-      if (this.input.interactPressed) {
+      if (this.input.interactPressed && !nearGas) {
         this.tryEnterExitVehicle();
       }
-      // Cam switch
       if (this.input.switchCamPressed && this.driving) {
         this.camera.cycleCarMode();
       }
@@ -379,8 +382,8 @@ class Game {
         this.showStageEnd();
       }
 
-      // Gas station proximity
-      if (this.checkNearGasStation() && this.phase === 'driving') {
+      // Gas station proximity — E opens gas dialog instead of exiting car
+      if (nearGas) {
         this.hud.showInteract(true, 'اضغط <kbd>E</kbd> للتعبئة');
         if (this.input.interactPressed) {
           this.showGasDialog();
