@@ -360,11 +360,14 @@ async def connect_aisstream():
             break
         except Exception as e:
             _ws_connected = False
+            had_data_before = _ais_data_received
             _ais_data_received = False
             print(f"[Maritime] WebSocket error: {e}")
-            
-            # If we never received data, the key is likely invalid
-            if not _ais_data_received and _ais_key_valid:
+
+            # If we never received data, the key is likely invalid.
+            # Use the pre-reset value so a temporary disconnect on a previously
+            # healthy stream does NOT mark the key invalid or overwrite real data.
+            if not had_data_before and _ais_key_valid:
                 _ais_key_valid = False
                 print("[Maritime] WARNING: API key may be expired — no data received. Using fallback.")
                 _generate_fallback_vessels()

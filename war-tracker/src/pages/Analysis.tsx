@@ -8,10 +8,18 @@ import type { AISummary } from '../types';
 
 import { BACKEND_API_URL } from '../config/api';
 
-/** Fetch with AbortController timeout */
+/** Fetch with AbortController timeout. Chains caller-provided signals so manual aborts still work. */
 function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = 15000): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const callerSignal = options.signal;
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort();
+    } else {
+      callerSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
   return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
 }
 
