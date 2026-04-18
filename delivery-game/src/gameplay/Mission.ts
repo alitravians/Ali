@@ -65,8 +65,9 @@ export class Mission {
   }
 
   currentObjectivePos(carPos: THREE.Vector3, fuelLow: boolean): THREE.Vector3 {
-    if (fuelLow && this.currentTarget !== 'office') {
-      // route to nearest gas pump
+    // Route to nearest gas pump only while employees remain to be picked up.
+    // Once every employee is in the car, the office is the correct objective even when fuel is low.
+    if (fuelLow && this.activeEmployeeIndex() >= 0) {
       const d1 = carPos.distanceTo(this.gasPos);
       const d2 = carPos.distanceTo(this.gasPos2);
       return d2 < d1 ? this.gasPos2 : this.gasPos;

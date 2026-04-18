@@ -101,7 +101,10 @@ export class MiniMap {
     // heading triangle
     ctx.save();
     ctx.translate(pcx, pcy);
-    ctx.rotate(carHeading);
+    // Canvas Y axis is inverted relative to world Z axis: world +Z (heading=0) maps to canvas +Y (downward).
+    // The local triangle tip is defined pointing upward at (0, -8), so we rotate by (pi - carHeading)
+    // to make it point along the world-forward direction in canvas space.
+    ctx.rotate(Math.PI - carHeading);
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.moveTo(0, -8);
@@ -124,7 +127,8 @@ export class MiniMap {
 
     ctx.save();
     ctx.translate(ax, ay);
-    ctx.rotate(ang);
+    // Same Y-inversion correction as the heading triangle above.
+    ctx.rotate(Math.PI - ang);
     ctx.fillStyle = fuelLow ? '#ff8833' : (mission.activeEmployeeIndex() < 0 ? '#4eff8a' : '#ffcc33');
     ctx.shadowColor = ctx.fillStyle;
     ctx.shadowBlur = 10;

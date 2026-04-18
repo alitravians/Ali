@@ -241,7 +241,12 @@ export class City {
           b.position.set(slot.x, 0, slot.z);
           b.rotation.y = slot.rot;
           this.root.add(b);
-          this.buildingColliders.push({ x: slot.x, z: slot.z, sx: b.meta.sizeX, sz: b.meta.sizeZ });
+          // When a building is rotated by ±π/2, its world footprint swaps sizeX and sizeZ,
+          // so the collider AABB must match the rotated orientation.
+          const isRotated90 = Math.abs(Math.abs(slot.rot) - Math.PI / 2) < 0.01;
+          const colSx = isRotated90 ? b.meta.sizeZ : b.meta.sizeX;
+          const colSz = isRotated90 ? b.meta.sizeX : b.meta.sizeZ;
+          this.buildingColliders.push({ x: slot.x, z: slot.z, sx: colSx, sz: colSz });
         }
       }
     }
