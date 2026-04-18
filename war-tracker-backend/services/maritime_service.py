@@ -102,6 +102,11 @@ _ws_connected = False
 _ais_data_received = False  # True only after we actually receive vessel data
 _last_ais_message_time: Optional[datetime] = None
 _ais_key_valid = True  # Track if the key seems valid
+_ais_disconnected_since: Optional[datetime] = None  # When real AIS stopped flowing
+_using_fallback = False  # True when _vessels is populated from fallback templates
+
+# Grace period before fallback kicks in on disconnect (avoid flapping on brief network blips)
+FALLBACK_GRACE_SECONDS = 180
 
 
 def get_vessels() -> list[VesselPosition]:
@@ -282,21 +287,36 @@ def _generate_fallback_vessels():
             )
             generated[tmpl["mmsi"]] = vessel
     
+    # Replace (not merge) to avoid mixing fake vessels with stale real ones.
+    # This is safe because fallback mode is only entered after the grace period
+    # and all real data will be replaced on reconnection anyway.
+    global _using_fallback
+    _vessels.clear()
     _vessels.update(generated)
+    _using_fallback = True
     _update_zone_stats()
     print(f"[Maritime] Fallback: generated {len(generated)} estimated vessel positions")
 
 
+def _should_activate_fallback() -> bool:
+    """Return True only if the real AIS stream has been unavailable long enough."""
+    if _ais_data_received:
+        return False
+    if _ais_disconnected_since is None:
+        # No connection attempt has succeeded yet → activate immediately on first call
+        return True
+    elapsed = (datetime.now(timezone.utc) - _ais_disconnected_since).total_seconds()
+    return elapsed >= FALLBACK_GRACE_SECONDS
+
+
 async def _fallback_vessel_updater():
     """Background task: update fallback vessel positions every 60 seconds
-    when AIS data is not available."""
-    global _ais_data_received
-    
+    when AIS data is not available (and only after the disconnect grace period)."""
     # Wait 90 seconds for AIS to start providing data
     await asyncio.sleep(90)
-    
+
     while True:
-        if not _ais_data_received:
+        if _should_activate_fallback():
             _generate_fallback_vessels()
         await asyncio.sleep(60)
 
@@ -304,6 +324,7 @@ async def _fallback_vessel_updater():
 async def connect_aisstream():
     """Connect to AISStream.io WebSocket and stream vessel data."""
     global _ws_connected, _ais_data_received, _last_ais_message_time, _ais_key_valid
+    global _ais_disconnected_since, _using_fallback
 
     if not AISSTREAM_API_KEY:
         print("[Maritime] No AISSTREAM_API_KEY configured — using fallback vessel data")
@@ -345,9 +366,16 @@ async def connect_aisstream():
                             first_message_received = True
                             _ais_data_received = True
                             _ais_key_valid = True
+                            _ais_disconnected_since = None
+                            # If we were in fallback mode, purge the fake vessels
+                            # so real data replaces them cleanly.
+                            if _using_fallback:
+                                _vessels.clear()
+                                _using_fallback = False
+                                print("[Maritime] Real AIS data resumed — cleared fallback vessels")
                             elapsed = (datetime.now(timezone.utc) - connect_time).total_seconds()
                             print(f"[Maritime] First AIS data received after {elapsed:.1f}s — API key is valid!")
-                        
+
                         _last_ais_message_time = datetime.now(timezone.utc)
                         _process_ais_message(data)
                     except json.JSONDecodeError:
@@ -362,6 +390,10 @@ async def connect_aisstream():
             _ws_connected = False
             had_data_before = _ais_data_received
             _ais_data_received = False
+            # Mark when the stream went silent so the fallback updater can apply
+            # its grace period before clobbering real data with fake vessels.
+            if _ais_disconnected_since is None:
+                _ais_disconnected_since = datetime.now(timezone.utc)
             print(f"[Maritime] WebSocket error: {e}")
 
             # If we never received data, the key is likely invalid.
@@ -556,12 +588,18 @@ def get_hormuz_blockade_status(related_events: list = None) -> HormuzBlockadeSta
     
     # Determine threat level based on multiple factors
     threat_score = 0
-    
-    # Military presence scoring
-    threat_score += len(military_vessels) * 15
-    threat_score += len(us_navy_vessels) * 25  # US Navy vessels weigh more
-    threat_score += len(iran_navy_vessels) * 20  # Iranian Navy vessels also significant
-    threat_score += len(allied_military) * 10  # Allied military also significant
+
+    # Military presence scoring.
+    # NOTE: us_navy_vessels / iran_navy_vessels / allied_military are SUBSETS of
+    # military_vessels. Scoring the general list AND the subsets would double-count
+    # each identified vessel. Instead, score identified vessels via their country
+    # weights and score only the *unidentified* remainder with the generic 15 pts.
+    identified_mmsis = {v.mmsi for v in us_navy_vessels + iran_navy_vessels + allied_military}
+    unidentified_military = [v for v in military_vessels if v.mmsi not in identified_mmsis]
+    threat_score += len(unidentified_military) * 15  # Unknown-flag military
+    threat_score += len(us_navy_vessels) * 25        # US Navy vessels weigh more
+    threat_score += len(iran_navy_vessels) * 20      # Iranian Navy vessels also significant
+    threat_score += len(allied_military) * 10        # Allied military also significant
     
     # Tanker disruption scoring
     if len(tankers) > 0:
