@@ -129,7 +129,10 @@ export class MiniMap {
     ctx.translate(ax, ay);
     // Same Y-inversion correction as the heading triangle above.
     ctx.rotate(Math.PI - ang);
-    ctx.fillStyle = fuelLow ? '#ff8833' : (mission.activeEmployeeIndex() < 0 ? '#4eff8a' : '#ffcc33');
+    // Color must match the routing condition in Mission.currentObjectivePos: the arrow is only
+    // actually pointing at a gas station when fuel is low AND employees remain to be picked up.
+    const routingToGas = fuelLow && mission.activeEmployeeIndex() >= 0;
+    ctx.fillStyle = routingToGas ? '#ff8833' : (mission.activeEmployeeIndex() < 0 ? '#4eff8a' : '#ffcc33');
     ctx.shadowColor = ctx.fillStyle;
     ctx.shadowBlur = 10;
     ctx.beginPath();
