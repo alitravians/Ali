@@ -79,15 +79,34 @@ self.addEventListener('push', (event) => {
 // Notification click handler
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const targetUrl = event.notification.data?.url || '/';
+  // Resolve against the service worker scope so we can compare pathnames
+  // correctly and pass a fully-qualified URL to client.navigate().
+  const absoluteUrl = new URL(targetUrl, self.location.origin).href;
+
   event.waitUntil(
-    self.clients.matchAll({ type: 'window' }).then((clients) => {
-      for (const client of clients) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          return client.focus();
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Prefer an existing same-origin window. If its current location
+      // doesn't already match the notification target, navigate it there —
+      // otherwise clicking a breaking-news ping silently returns users to
+      // whichever page they had open last, making the notification useless.
+      for (const client of clientList) {
+        if (!client.url.startsWith(self.location.origin)) continue;
+        if ('focus' in client) {
+          const focused = client.focus();
+          try {
+            const currentPath = new URL(client.url).pathname;
+            const targetPath = new URL(absoluteUrl).pathname;
+            if (currentPath !== targetPath && 'navigate' in client) {
+              return Promise.resolve(focused).then(() => client.navigate(absoluteUrl));
+            }
+          } catch (_) {
+            // Malformed URL — fall through to plain focus.
+          }
+          return focused;
         }
       }
-      return self.clients.openWindow(url);
+      return self.clients.openWindow(absoluteUrl);
     })
   );
 });

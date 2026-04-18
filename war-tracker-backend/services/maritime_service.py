@@ -398,6 +398,24 @@ async def connect_aisstream():
                     try:
                         data = json.loads(message)
                         _last_ais_message_time = datetime.now(timezone.utc)
+                        # Second source-of-truth for "we are back online".
+                        # The first-message handler above is the normal path,
+                        # but if its JSON parse raised (or the first message
+                        # arrived after a streaming-loop reconnect without
+                        # re-entering the setup block), `_ais_data_received`
+                        # would stay False, `_ais_disconnected_since` would
+                        # stay non-null, and the fallback updater would
+                        # clobber real vessels once the 180s grace expired.
+                        # So any successfully-parsed streaming message also
+                        # flips the live-data flag and clears fallback state.
+                        if not _ais_data_received:
+                            _ais_data_received = True
+                            _ais_key_valid = True
+                            _ais_disconnected_since = None
+                            if _using_fallback:
+                                _vessels.clear()
+                                _using_fallback = False
+                                print("[Maritime] Real AIS data resumed (streaming loop) — cleared fallback vessels")
                         _process_ais_message(data)
                     except json.JSONDecodeError:
                         continue
