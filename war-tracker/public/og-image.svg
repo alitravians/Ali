@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="WarScope — منصة التتبع المباشر للأحداث الجيوسياسية">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0b0b14"/>
+      <stop offset="0.55" stop-color="#141327"/>
+      <stop offset="1" stop-color="#1a0f1f"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.2" cy="0.25" r="0.7">
+      <stop offset="0" stop-color="#ef4444" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ef4444" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow2" cx="0.85" cy="0.8" r="0.6">
+      <stop offset="0" stop-color="#6366f1" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#6366f1" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="ring" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ef4444"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect width="1200" height="630" fill="url(#glow)"/>
+  <rect width="1200" height="630" fill="url(#glow2)"/>
+
+  <!-- Faint grid -->
+  <g stroke="#ffffff" stroke-opacity="0.05" stroke-width="1">
+    <path d="M0 105 H1200 M0 210 H1200 M0 315 H1200 M0 420 H1200 M0 525 H1200"/>
+    <path d="M150 0 V630 M300 0 V630 M450 0 V630 M600 0 V630 M750 0 V630 M900 0 V630 M1050 0 V630"/>
+  </g>
+
+  <!-- Radar rings (right side) -->
+  <g transform="translate(930,315)" fill="none" stroke="url(#ring)" stroke-opacity="0.5">
+    <circle r="40" stroke-width="2"/>
+    <circle r="90" stroke-width="1.5" stroke-opacity="0.4"/>
+    <circle r="150" stroke-width="1" stroke-opacity="0.28"/>
+    <circle r="215" stroke-width="1" stroke-opacity="0.18"/>
+    <circle r="4" fill="#ef4444" stroke="none"/>
+  </g>
+
+  <!-- Sweep line -->
+  <line x1="930" y1="315" x2="1145" y2="230" stroke="#ef4444" stroke-opacity="0.6" stroke-width="2"/>
+
+  <!-- Brand text (Arabic, RTL-friendly positioning) -->
+  <g font-family="Cairo, 'Segoe UI', system-ui, sans-serif" fill="#ffffff">
+    <text x="80" y="235" font-size="110" font-weight="800" letter-spacing="-2">WarScope</text>
+    <text x="80" y="300" font-size="44" font-weight="700" fill="#fca5a5" direction="rtl">وارسكوب — التتبع المباشر</text>
+    <text x="80" y="370" font-size="32" font-weight="500" fill="#e5e7eb" direction="rtl">منصة تحليل الأحداث الجيوسياسية والعسكرية</text>
+    <text x="80" y="415" font-size="28" font-weight="400" fill="#c7d2fe" direction="rtl">بث بحري مباشر • مضيق هرمز • البحر الأحمر • تحليلات بالذكاء الاصطناعي</text>
+  </g>
+
+  <!-- Bottom tag row -->
+  <g font-family="Cairo, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="600">
+    <rect x="80" y="500" rx="14" width="155" height="46" fill="#ef4444" fill-opacity="0.15" stroke="#ef4444" stroke-opacity="0.6"/>
+    <text x="157" y="531" fill="#fecaca" text-anchor="middle" direction="rtl">تنبيهات فورية</text>
+
+    <rect x="255" y="500" rx="14" width="180" height="46" fill="#6366f1" fill-opacity="0.15" stroke="#6366f1" stroke-opacity="0.6"/>
+    <text x="345" y="531" fill="#c7d2fe" text-anchor="middle" direction="rtl">رصد بحري مباشر</text>
+
+    <rect x="455" y="500" rx="14" width="195" height="46" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-opacity="0.6"/>
+    <text x="552" y="531" fill="#a7f3d0" text-anchor="middle" direction="rtl">تحليلات ذكية AI</text>
+
+    <rect x="670" y="500" rx="14" width="165" height="46" fill="#f59e0b" fill-opacity="0.15" stroke="#f59e0b" stroke-opacity="0.6"/>
+    <text x="752" y="531" fill="#fde68a" text-anchor="middle" direction="rtl">خريطة المدن</text>
+  </g>
+
+  <!-- URL bottom-right -->
+  <text x="1120" y="590" font-family="Cairo, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="500" fill="#9ca3af" text-anchor="end">dist-mu-taupe-70.vercel.app</text>
+</svg>
