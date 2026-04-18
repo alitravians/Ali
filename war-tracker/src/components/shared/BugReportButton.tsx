@@ -139,6 +139,11 @@ export default function BugReportButton() {
 
     setStatus('sending');
     setErrorMsg('');
+    // Always clear any previous ticket id up front so a failed submission never
+    // reuses a stale id from a prior successful report (which would cause
+    // RepairTracker3D to connect to the old ticket's WebSocket and show its
+    // already-completed status as if it were this new report).
+    setTicketId('');
 
     const desc = description.trim();
     const page = location.pathname;
@@ -178,7 +183,9 @@ export default function BugReportButton() {
       }
     } catch (err) {
       console.log('[BugReport] Fetch error (will still open RepairTracker):', err);
-      // RADICAL FIX: Don't block — we'll open RepairTracker regardless
+      // RADICAL FIX: Don't block — we'll open RepairTracker regardless.
+      // ticketId stays '' (cleared above) so RepairTracker3D runs in its
+      // backend-less/offline visualization mode instead of re-opening an old ticket.
     }
 
     // RADICAL FIX: ALWAYS open RepairTracker3D after submission attempt

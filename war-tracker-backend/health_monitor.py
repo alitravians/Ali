@@ -712,6 +712,12 @@ class HealthMonitor:
         Instead of sending 90 full objects (~7KB per service), send compact arrays (~300B).
         Format: { s: start_date, u: [uptimes], i: [incident_indices], d: {idx: status} }
         Frontend decompresses this back into full UptimeDay objects.
+
+        Only the most common status ("operational") is omitted from `d` and
+        reconstructed on the frontend as the default. Every other status
+        (including "disabled") is preserved explicitly so historical days
+        aren't misclassified when a service's current enabled state differs
+        from its state on a given historical day.
         """
         if not records:
             return {"s": "", "u": [], "i": [], "d": {}}
@@ -719,7 +725,7 @@ class HealthMonitor:
             "s": records[0].date,
             "u": [round(r.uptime_percent) for r in records],
             "i": [idx for idx, r in enumerate(records) if r.had_incident],
-            "d": {str(idx): r.status for idx, r in enumerate(records) if r.status not in ("operational", "disabled")},
+            "d": {str(idx): r.status for idx, r in enumerate(records) if r.status != "operational"},
         }
 
     def _calc_days_without_incidents(self) -> int:

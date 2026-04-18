@@ -161,12 +161,18 @@ interface StatusData {
 // Helpers
 // ──────────────────────────────────────────────
 
-/** Decompress compact 90-day uptime history from backend into full UptimeDay[] */
-function expandUptimeHistory(compact: CompactUptimeHistory, serviceEnabled: boolean): UptimeDay[] {
+/** Decompress compact 90-day uptime history from backend into full UptimeDay[].
+ *
+ * The backend omits ONLY the most common status ("operational") from `compact.d`
+ * and includes every other historical status explicitly (including "disabled").
+ * We therefore default missing days to "operational" — NOT to the service's
+ * current enabled state, which would corrupt history whenever a service was
+ * disabled/enabled during the 90-day window.
+ */
+function expandUptimeHistory(compact: CompactUptimeHistory, _serviceEnabled: boolean): UptimeDay[] {
   if (!compact || !compact.s || !compact.u || compact.u.length === 0) return [];
   const startDate = new Date(compact.s + 'T00:00:00Z');
   const incidentSet = new Set(compact.i || []);
-  const defaultStatus = serviceEnabled ? 'operational' : 'disabled';
 
   return compact.u.map((uptime, idx) => {
     const day = new Date(startDate);
@@ -175,7 +181,7 @@ function expandUptimeHistory(compact: CompactUptimeHistory, serviceEnabled: bool
       date: day.toISOString().slice(0, 10),
       uptime,
       incident: incidentSet.has(idx),
-      status: compact.d?.[String(idx)] || defaultStatus,
+      status: compact.d?.[String(idx)] || 'operational',
     };
   });
 }
