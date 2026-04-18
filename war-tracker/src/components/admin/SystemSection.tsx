@@ -74,15 +74,17 @@ export default function SystemSection({ backendHealthy, backendLatency, connecti
   };
 
   const clearCache = () => {
+    // Only touch keys that belong to this app (warscope_*) and never the admin
+    // session/settings keys. The previous implementation also swept ALL other
+    // localStorage entries, which would delete data belonging to unrelated apps
+    // sharing the same origin (e.g. other dev apps on localhost).
     const keys = Object.keys(localStorage);
-    const wsKeys = keys.filter(k => k.startsWith('warscope_'));
-    wsKeys.forEach(k => {
-      if (k !== 'warscope_admin_token' && k !== 'warscope_admin_section' && k !== 'warscope_admin_sidebar') {
-        localStorage.removeItem(k);
-      }
-    });
-    // Clear all caches except admin session
-    const cachesToClear = keys.filter(k => !k.startsWith('warscope_admin'));
+    const cachesToClear = keys.filter(k =>
+      k.startsWith('warscope_') &&
+      k !== 'warscope_admin_token' &&
+      k !== 'warscope_admin_section' &&
+      k !== 'warscope_admin_sidebar'
+    );
     cachesToClear.forEach(k => localStorage.removeItem(k));
     showToast(`تم مسح ${cachesToClear.length} عنصر من الذاكرة المؤقتة`, 'success');
   };

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLiveData } from '../context/LiveDataContext';
 import {
   Shield, Database, FileSearch,
@@ -17,6 +17,9 @@ import EventsSection from '../components/admin/EventsSection';
 import ServiceStatusSection from '../components/admin/ServiceStatusSection';
 import BugReportsSection from '../components/admin/BugReportsSection';
 import SystemSection from '../components/admin/SystemSection';
+
+const SESSION_WARN_MS = 50 * 60 * 1000; // 50 minutes
+const SESSION_EXPIRE_MS = 60 * 60 * 1000; // 60 minutes
 
 // ──────────────────────────────────────────────
 // Types
@@ -107,17 +110,30 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, []);
 
-  // Session timeout warning (warn at 50 minutes, token expires at 60)
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const warnTimer = setTimeout(() => setSessionWarning(true), 50 * 60 * 1000);
-    const expireTimer = setTimeout(() => {
+  // Session timeout warning (warn at 50 minutes, token expires at 60).
+  // Timer refs allow handleRenewSession to actually reset the countdown.
+  const warnTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const expireTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const scheduleSessionTimers = useCallback(() => {
+    if (warnTimerRef.current) clearTimeout(warnTimerRef.current);
+    if (expireTimerRef.current) clearTimeout(expireTimerRef.current);
+    warnTimerRef.current = setTimeout(() => setSessionWarning(true), SESSION_WARN_MS);
+    expireTimerRef.current = setTimeout(() => {
       sessionStorage.removeItem('warscope_admin_token');
       setIsAuthenticated(false);
       setSessionWarning(false);
-    }, 60 * 60 * 1000);
-    return () => { clearTimeout(warnTimer); clearTimeout(expireTimer); };
-  }, [isAuthenticated]);
+    }, SESSION_EXPIRE_MS);
+  }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    scheduleSessionTimers();
+    return () => {
+      if (warnTimerRef.current) clearTimeout(warnTimerRef.current);
+      if (expireTimerRef.current) clearTimeout(expireTimerRef.current);
+    };
+  }, [isAuthenticated, scheduleSessionTimers]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,6 +187,9 @@ export default function Admin() {
       });
       if (resp.ok) {
         setSessionWarning(false);
+        // Actually reset the auto-logout countdown — otherwise the user is
+        // still kicked out at the original 60-minute mark.
+        scheduleSessionTimers();
       } else {
         handleLogout();
       }
