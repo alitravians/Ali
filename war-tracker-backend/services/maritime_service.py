@@ -717,4 +717,6 @@ def get_hormuz_blockade_status(related_events: list = None) -> HormuzBlockadeSta
         lastUpdate=datetime.now(timezone.utc),
         statusMessage=status_msg,
         statusMessageEn=status_en,
+        dataSource=data_source,
+        dataSourceAr=data_source_ar,
     )
