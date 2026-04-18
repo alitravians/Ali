@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Adv-1a: E press near car enters driving phase",
+    "passed": false,
+    "details": {
+      "phase": "walking",
+      "driving": false,
+      "playerVisible": true
+    }
+  },
+  {
+    "name": "Adv-1b: E press while driving (away from gas) exits to walking phase (BugFix #2)",
+    "passed": true,
+    "details": {
+      "phase": "walking",
+      "driving": false,
+      "playerVisible": true,
+      "gasDialogShown": false
+    }
+  },
+  {
+    "name": "Adv-2a: E re-arms cleanly and enters car again (BugFix #1 repeatability)",
+    "passed": false,
+    "details": {
+      "phase": "walking",
+      "driving": false
+    }
+  },
+  {
+    "name": "Adv-2b: E near gas station opens gas dialog (BugFix #4: E priority)",
+    "passed": false,
+    "details": {
+      "phase": "walking",
+      "driving": false,
+      "gasDialogShown": false,
+      "playerVisible": true
+    }
+  },
+  {
+    "name": "Adv-3: Partial fuel fill button present",
+    "passed": false,
+    "details": {
+      "note": "could not locate partial fill button",
+      "allBtns": [
+        {
+          "id": "btn-gas-confirm",
+          "text": "تعبئة كاملة"
+        },
+        {
+          "id": "btn-gas-cancel",
+          "text": "لاحقاً"
+        }
+      ]
+    }
+  }
+]

@@ -132,7 +132,7 @@ class Game {
     document.getElementById('btn-start-stage')?.addEventListener('click', () => {
       DialogManager.hide('dialog-stage-intro');
       this.phase = 'walking';
-      this.hud.toast(`ابدأ بالخروج من البيت (W/A/S/D، Shift للركض، E لدخول السيارة)`, 'info');
+      this.hud.toast(`ابدأ بالخروج من البيت — W/A/S/D للحركة، الفأرة لتوجيه الكاميرا (انقر اللعبة لتفعيلها)، Shift للركض، E لدخول السيارة`, 'info');
     });
 
     document.getElementById('btn-gas-confirm')?.addEventListener('click', () => {
@@ -292,6 +292,10 @@ class Game {
       this.driving = false;
       this.phase = 'walking';
       this.camera.setMode('walk');
+      // Seed the mouse-look yaw with the car's heading so the walking camera doesn't snap
+      // to a different direction when the player steps out.
+      this.input.mouseYaw = this.car.heading;
+      this.input.mousePitch = 0.15;
       this.hud.toast('نزلت من السيارة', 'info');
     }
   }
@@ -395,9 +399,12 @@ class Game {
       // Camera
       this.camera.updateForCar(this.car, dt);
     } else if (this.phase === 'walking') {
-      const yaw = this.camera.getYaw();
+      // Mouse-driven yaw/pitch feed both the walking camera and camera-relative WASD movement
+      // so the direction the player faces always matches where the camera is looking.
+      const yaw = this.input.mouseYaw;
+      const pitch = this.input.mousePitch;
       this.player.update(dt, this.input, yaw, this.city.buildingColliders);
-      this.camera.updateForWalk(this.player.root, dt);
+      this.camera.updateForWalk(this.player.root, dt, yaw, pitch);
       this.audio.setEngineRPM(0, false);
 
       // Show interact prompt when near car

@@ -1,0 +1,110 @@
+{
+  "tests": [
+    {
+      "name": "Fix 1a: heading triangle points toward world +Z (downward on minimap) when heading=0",
+      "passed": false,
+      "details": {
+        "aboveWhite": 0,
+        "belowWhite": 0
+      }
+    },
+    {
+      "name": "Fix 1b: heading triangle points toward world -Z (upward on minimap) when heading=pi",
+      "passed": true,
+      "details": {
+        "aboveWhite": 8,
+        "belowWhite": 0
+      }
+    },
+    {
+      "name": "Fix 2a: fuelLow + employee remaining → route to gas",
+      "passed": true,
+      "details": {
+        "chosen": {
+          "x": -88,
+          "y": 0,
+          "z": -88
+        },
+        "gasPos": {
+          "x": -88,
+          "z": -88
+        }
+      }
+    },
+    {
+      "name": "Fix 2b: fuelLow + ALL PICKED → route to office (was the bug)",
+      "passed": true,
+      "details": {
+        "chosen": {
+          "x": 1.3471114790620886e-15,
+          "y": 0,
+          "z": -11
+        },
+        "officePos": {
+          "x": 1.3471114790620886e-15,
+          "z": -11
+        }
+      }
+    },
+    {
+      "name": "Fix 2c: not fuelLow + all picked → route to office",
+      "passed": true,
+      "details": {
+        "chosen": {
+          "x": 1.3471114790620886e-15,
+          "y": 0,
+          "z": -11
+        }
+      }
+    },
+    {
+      "name": "Fix 3: rotated-building colliders have swapped sx/sz",
+      "passed": true,
+      "details": {
+        "sampledCount": 5,
+        "samples": [
+          {
+            "rot": 1.5707963267948966,
+            "metaSizeX": 8.965135498118489,
+            "metaSizeZ": 7.249358089725655,
+            "colSx": 7.249358089725655,
+            "colSz": 8.965135498118489,
+            "swapped": true
+          },
+          {
+            "rot": -1.5707963267948966,
+            "metaSizeX": 7.556603506113391,
+            "metaSizeZ": 9.09321508311498,
+            "colSx": 9.09321508311498,
+            "colSz": 7.556603506113391,
+            "swapped": true
+          },
+          {
+            "rot": 1.5707963267948966,
+            "metaSizeX": 8.525254596251289,
+            "metaSizeZ": 8.897334104277874,
+            "colSx": 8.897334104277874,
+            "colSz": 8.525254596251289,
+            "swapped": true
+          },
+          {
+            "rot": -1.5707963267948966,
+            "metaSizeX": 6.793005404710202,
+            "metaSizeZ": 7.4404832618301695,
+            "colSx": 7.4404832618301695,
+            "colSz": 6.793005404710202,
+            "swapped": true
+          },
+          {
+            "rot": 1.5707963267948966,
+            "metaSizeX": 6.577377787001095,
+            "metaSizeZ": 9.386343256012983,
+            "colSx": 9.386343256012983,
+            "colSz": 6.577377787001095,
+            "swapped": true
+          }
+        ]
+      }
+    }
+  ]
+}

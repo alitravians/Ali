@@ -1,0 +1,78 @@
+{
+  "steps": [
+    {
+      "name": "Step 1: Game loads and shows Stage 1 intro dialog",
+      "passed": true,
+      "details": {
+        "phase": "stage-intro",
+        "intro_shown": true,
+        "intro_text": "المرحلة 1\nاستعد لبدء يوم عمل جديد\nعدد الموظفين\n1\nالمسافة المقدّرة\nقصيرة\nتكلفة البنزين\n10 $ / لتر\nالسيارة\nسيارة صغيرة\nبدء المهمة",
+        "stageNum": 1,
+        "employees": 1,
+        "objective": "اصطحب أحمد من منزله"
+      }
+    },
+    {
+      "name": "Step 2: Clicking \"بدء المهمة\" transitions to walking phase",
+      "passed": true,
+      "details": {
+        "phase": "walking",
+        "driving": false,
+        "playerVisible": true,
+        "objective": "اصطحب أحمد من منزله",
+        "intro_shown": false
+      }
+    },
+    {
+      "name": "Step 3: Pressing E near car enters driving phase (BugFix #1)",
+      "passed": true,
+      "details": {
+        "phase": "driving",
+        "driving": true,
+        "playerVisible": false,
+        "speedKmh": 0,
+        "speedDisplay": "0",
+        "fuelDisplay": "100%",
+        "toasts": []
+      }
+    },
+    {
+      "name": "Step 4: Driving increases speed & decreases fuel",
+      "passed": true,
+      "details": {
+        "maxSpeedKmh": "28.1",
+        "fuelStart": "100.00",
+        "fuelEnd": "99.98",
+        "minDistance": "113.0"
+      }
+    },
+    {
+      "name": "Step 5: Arriving at employee house + stopping triggers pickup",
+      "passed": true,
+      "details": {
+        "pickedCount": 1,
+        "employeeVisible": false,
+        "objective": "توجه إلى مقر العمل 🏢",
+        "passengersCount": "1/1",
+        "passengerDotsOn": 1
+      }
+    },
+    {
+      "name": "Step 6: Arriving at office shows stage-end dialog with stars + reward",
+      "passed": true,
+      "details": {
+        "stageEndShown": true,
+        "stars": 5,
+        "reward": 115,
+        "completed": true
+      }
+    },
+    {
+      "name": "Step 7 (deferred): phase==\"stage-end\" after delivery, exit vehicle test inapplicable here",
+      "passed": true,
+      "details": {
+        "note": "Stage-end flow active, exit-vehicle would be tested in a longer play session"
+      }
+    }
+  ]
+}

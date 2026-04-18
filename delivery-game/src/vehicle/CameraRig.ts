@@ -45,14 +45,23 @@ export class CameraRig {
     this.camera.lookAt(this.currentLook);
   }
 
-  /** Follow walking player (third-person). */
-  updateForWalk(target: THREE.Object3D, _dt: number) {
-    const yaw = this.getYaw();
-    const offset = new THREE.Vector3(0, 3.2, -5.0).applyAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+  /** Follow walking player (third-person) using mouse-driven yaw + pitch. */
+  updateForWalk(target: THREE.Object3D, _dt: number, yaw: number, pitch: number) {
+    // Base offset: camera sits behind the player at yaw=0 (looking along world +Z).
+    const distance = 5.0;
+    const baseHeight = 1.6;
+    // Orbit around the player: position = target + distance * direction(yaw) shifted by pitch.
+    // Using a spherical offset lets the pitch smoothly raise the camera + tilt its look direction.
+    const horizontal = distance * Math.cos(pitch);
+    const offset = new THREE.Vector3(
+      -Math.sin(yaw) * horizontal,
+      baseHeight + distance * Math.sin(pitch),
+      -Math.cos(yaw) * horizontal
+    );
     const targetPos = target.position.clone().add(offset);
-    const look = target.position.clone().add(new THREE.Vector3(0, 1.2, 0));
-    this.currentPos.lerp(targetPos, 0.15);
-    this.currentLook.lerp(look, 0.18);
+    const look = target.position.clone().add(new THREE.Vector3(0, 1.25, 0));
+    this.currentPos.lerp(targetPos, 0.2);
+    this.currentLook.lerp(look, 0.25);
     this.camera.position.copy(this.currentPos);
     this.camera.lookAt(this.currentLook);
   }
