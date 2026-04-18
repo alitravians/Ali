@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#0a0e1a" />
+    <title>لعبة توصيل الموظفين 3D | Delivery Game</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0e1a; font-family: 'Segoe UI', Tahoma, Arial, sans-serif; color: #fff; user-select: none; }
+      canvas { display: block; outline: none; }
+
+      #app { position: relative; width: 100vw; height: 100vh; }
+
+      /* Loading */
+      #loading {
+        position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: linear-gradient(160deg, #0a0e1a 0%, #1b2540 100%); z-index: 1000;
+      }
+      #loading .logo { font-size: 48px; font-weight: 800; letter-spacing: 2px; color: #ffcc33; text-shadow: 0 4px 20px rgba(255,204,51,0.4); margin-bottom: 10px; }
+      #loading .sub { opacity: 0.7; margin-bottom: 30px; }
+      #loading .bar { width: 320px; height: 8px; background: #1a2344; border-radius: 4px; overflow: hidden; }
+      #loading .bar > div { height: 100%; width: 0; background: linear-gradient(90deg, #ffcc33, #ff9933); transition: width 0.3s; }
+      #loading .status { margin-top: 12px; font-size: 13px; opacity: 0.6; }
+
+      /* HUD */
+      #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+      #hud .panel { pointer-events: auto; }
+
+      #top-bar {
+        position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+        display: flex; gap: 10px; align-items: center;
+        background: rgba(10, 14, 26, 0.75); backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 14px;
+        padding: 10px 18px; min-width: 420px; max-width: 90vw;
+      }
+      #objective { flex: 1; font-size: 14px; font-weight: 600; color: #ffcc33; text-align: center; }
+      #objective .arrow { display: inline-block; margin: 0 6px; animation: pulse 1.4s infinite; }
+      @keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } }
+
+      #top-right {
+        position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 8px;
+      }
+      .chip {
+        background: rgba(10, 14, 26, 0.75); backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+        padding: 8px 14px; display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600;
+        min-width: 120px;
+      }
+      .chip .ico { font-size: 18px; }
+      .chip.money { color: #66ff99; }
+      .chip.timer { color: #99ccff; }
+      .chip.stage { color: #ffaa66; }
+
+      #bottom-right {
+        position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
+      }
+      #fuel-panel, #speed-panel, #passengers-panel {
+        background: rgba(10, 14, 26, 0.8); backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 12px;
+        padding: 10px 14px; min-width: 200px;
+      }
+      .panel-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; }
+      .fuel-bar { width: 100%; height: 10px; background: #1a2344; border-radius: 5px; margin-top: 6px; overflow: hidden; position: relative; }
+      .fuel-bar > div { height: 100%; transition: width 0.2s, background-color 0.3s; border-radius: 5px; }
+      .speed-value { font-size: 28px; font-weight: 800; color: #fff; line-height: 1; }
+      .speed-unit { font-size: 11px; opacity: 0.6; }
+      .passengers-dots { display: flex; gap: 4px; margin-top: 6px; }
+      .passengers-dots .dot { width: 16px; height: 16px; border-radius: 50%; background: #1a2344; border: 2px solid #2a3455; }
+      .passengers-dots .dot.on { background: #66ff99; border-color: #66ff99; box-shadow: 0 0 8px rgba(102,255,153,0.6); }
+
+      #minimap-wrap {
+        position: absolute; bottom: 20px; left: 20px;
+        width: 230px; height: 230px; border-radius: 50%;
+        background: rgba(10, 14, 26, 0.9);
+        border: 3px solid rgba(255,204,51,0.3);
+        box-shadow: 0 0 30px rgba(0,0,0,0.5), inset 0 0 20px rgba(0,0,0,0.6);
+        overflow: hidden;
+      }
+      #minimap { width: 100%; height: 100%; display: block; }
+      #minimap-label {
+        position: absolute; top: -28px; left: 50%; transform: translateX(-50%);
+        font-size: 11px; font-weight: 700; letter-spacing: 2px; opacity: 0.7;
+      }
+
+      /* Dialogs */
+      .dialog-backdrop {
+        position: fixed; inset: 0; background: rgba(5, 8, 18, 0.75); backdrop-filter: blur(6px);
+        display: none; align-items: center; justify-content: center; z-index: 100; pointer-events: auto;
+      }
+      .dialog-backdrop.show { display: flex; }
+      .dialog {
+        background: linear-gradient(160deg, #1b2540 0%, #0f1629 100%);
+        border: 1px solid rgba(255,204,51,0.3);
+        border-radius: 20px;
+        padding: 36px 40px; min-width: 420px; max-width: 92vw;
+        box-shadow: 0 20px 80px rgba(0,0,0,0.7);
+        text-align: center;
+      }
+      .dialog h2 { font-size: 28px; margin-bottom: 6px; color: #ffcc33; }
+      .dialog .sub { opacity: 0.7; margin-bottom: 24px; font-size: 14px; }
+      .dialog .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; margin-bottom: 24px; text-align: right; }
+      .dialog .stats .lbl { opacity: 0.6; font-size: 13px; }
+      .dialog .stats .val { font-weight: 700; font-size: 16px; color: #fff; }
+      .dialog .stars { font-size: 24px; color: #ffcc33; letter-spacing: 3px; margin: 10px 0; }
+      .dialog .actions { display: flex; gap: 12px; justify-content: center; margin-top: 10px; }
+      .btn {
+        background: linear-gradient(180deg, #ffcc33, #ff9933);
+        color: #0a0e1a; font-weight: 800; font-size: 15px;
+        border: none; border-radius: 10px; padding: 12px 28px;
+        cursor: pointer; transition: transform 0.15s, box-shadow 0.15s;
+        box-shadow: 0 6px 20px rgba(255,153,51,0.3);
+      }
+      .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,153,51,0.5); }
+      .btn.ghost { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2); box-shadow: none; }
+
+      /* Toast */
+      #toast-wrap { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: 50; pointer-events: none; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+      .toast {
+        background: rgba(10, 14, 26, 0.9); backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,0.1); border-radius: 10px;
+        padding: 10px 20px; font-size: 14px; font-weight: 600;
+        animation: toast-in 0.3s ease-out, toast-out 0.3s ease-in 2.4s forwards;
+      }
+      .toast.warn { border-color: #ffaa33; color: #ffcc66; }
+      .toast.error { border-color: #ff5544; color: #ff8877; }
+      .toast.success { border-color: #66ff99; color: #99ffbb; }
+      @keyframes toast-in { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes toast-out { to { opacity: 0; transform: translateY(-10px); } }
+
+      /* Controls hint */
+      #controls-hint {
+        position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+        background: rgba(10, 14, 26, 0.75); backdrop-filter: blur(6px);
+        border: 1px solid rgba(255,255,255,0.08); border-radius: 10px;
+        padding: 8px 18px; font-size: 12px; opacity: 0.85;
+        display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; max-width: 580px;
+      }
+      #controls-hint kbd {
+        background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 4px; padding: 2px 6px; font-family: monospace; font-size: 11px;
+      }
+
+      /* Interact prompt */
+      #interact-prompt {
+        position: absolute; top: 55%; left: 50%; transform: translate(-50%,-50%);
+        background: rgba(255,204,51,0.95); color: #0a0e1a;
+        padding: 10px 22px; border-radius: 10px; font-weight: 800; font-size: 15px;
+        box-shadow: 0 6px 20px rgba(255,204,51,0.4);
+        display: none; z-index: 20;
+      }
+      #interact-prompt.show { display: block; animation: pulse 1.2s infinite; }
+
+      /* Mobile */
+      @media (max-width: 768px) {
+        #top-bar { min-width: unset; width: calc(100vw - 24px); font-size: 12px; }
+        #bottom-right { bottom: 10px; right: 10px; }
+        #minimap-wrap { width: 150px; height: 150px; bottom: 10px; left: 10px; }
+        #fuel-panel, #speed-panel, #passengers-panel { min-width: 140px; padding: 6px 10px; }
+        .speed-value { font-size: 20px; }
+        #controls-hint { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="loading">
+        <div class="logo">DELIVERY 3D</div>
+        <div class="sub">توصيل الموظفين — لعبة القيادة الواقعية</div>
+        <div class="bar"><div id="loading-bar-fill"></div></div>
+        <div class="status" id="loading-status">جاري تحميل الموارد…</div>
+      </div>
+
+      <div id="hud">
+        <div id="top-bar" class="panel">
+          <div id="objective"><span class="arrow">➜</span> <span id="objective-text">الاستعداد…</span></div>
+        </div>
+        <div id="top-right">
+          <div class="chip stage panel"><span class="ico">🎯</span><span>المرحلة <span id="stage-num">1</span></span></div>
+          <div class="chip money panel"><span class="ico">💰</span><span id="money">0 $</span></div>
+          <div class="chip timer panel"><span class="ico">⏱</span><span id="timer">00:00</span></div>
+        </div>
+        <div id="bottom-right">
+          <div id="speed-panel" class="panel">
+            <div class="panel-row"><span>السرعة</span><span class="speed-value"><span id="speed">0</span> <span class="speed-unit">km/h</span></span></div>
+          </div>
+          <div id="fuel-panel" class="panel">
+            <div class="panel-row"><span>⛽ الوقود</span><span id="fuel-pct">100%</span></div>
+            <div class="fuel-bar"><div id="fuel-fill" style="width:100%; background:#66ff99;"></div></div>
+          </div>
+          <div id="passengers-panel" class="panel">
+            <div class="panel-row"><span>👥 الموظفون</span><span id="passengers-count">0/0</span></div>
+            <div class="passengers-dots" id="passengers-dots"></div>
+          </div>
+        </div>
+        <div id="minimap-wrap" class="panel">
+          <div id="minimap-label">خريطة</div>
+          <canvas id="minimap" width="230" height="230"></canvas>
+        </div>
+        <div id="interact-prompt">اضغط <kbd>E</kbd></div>
+        <div id="controls-hint" class="panel">
+          <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> حركة</span>
+          <span><kbd>H</kbd> بوق</span>
+          <span><kbd>Space</kbd> فرامل يد</span>
+          <span><kbd>E</kbd> دخول/خروج</span>
+          <span><kbd>C</kbd> كاميرا</span>
+          <span><kbd>Shift</kbd> ركض</span>
+        </div>
+      </div>
+
+      <div id="toast-wrap"></div>
+
+      <!-- Dialogs -->
+      <div id="dialog-gas" class="dialog-backdrop">
+        <div class="dialog">
+          <h2>⛽ محطة البنزين</h2>
+          <div class="sub">موظف البنزين: مرحباً! هل تريد تعبئة الخزان؟</div>
+          <div class="stats">
+            <div class="lbl">الوقود الحالي</div><div class="val" id="gas-current">--</div>
+            <div class="lbl">السعر للّتر</div><div class="val" id="gas-price">--</div>
+            <div class="lbl">التكلفة الإجمالية</div><div class="val" id="gas-total">--</div>
+            <div class="lbl">رصيدك</div><div class="val" id="gas-balance">--</div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btn-gas-confirm">تعبئة كاملة</button>
+            <button class="btn ghost" id="btn-gas-cancel">لاحقاً</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dialog-stage-intro" class="dialog-backdrop">
+        <div class="dialog">
+          <h2 id="si-title">المرحلة 1</h2>
+          <div class="sub" id="si-sub">استعد ليوم عمل جديد</div>
+          <div class="stats">
+            <div class="lbl">عدد الموظفين</div><div class="val" id="si-emp">--</div>
+            <div class="lbl">المسافة المقدّرة</div><div class="val" id="si-dist">--</div>
+            <div class="lbl">تكلفة البنزين</div><div class="val" id="si-gas">--</div>
+            <div class="lbl">السيارة</div><div class="val" id="si-car">--</div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btn-start-stage">بدء المهمة</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dialog-stage-end" class="dialog-backdrop">
+        <div class="dialog">
+          <h2 id="se-title">المرحلة مكتملة</h2>
+          <div class="sub" id="se-sub">أحسنت!</div>
+          <div class="stars" id="se-stars">★★★★★</div>
+          <div class="stats">
+            <div class="lbl">الوقت</div><div class="val" id="se-time">--</div>
+            <div class="lbl">الوقود المستهلك</div><div class="val" id="se-fuel">--</div>
+            <div class="lbl">الموظفون الموصلون</div><div class="val" id="se-emp">--</div>
+            <div class="lbl">جودة القيادة</div><div class="val" id="se-drive">--</div>
+            <div class="lbl">المكافأة</div><div class="val" id="se-reward">--</div>
+          </div>
+          <div class="actions">
+            <button class="btn" id="btn-next-stage">المرحلة التالية</button>
+            <button class="btn ghost" id="btn-retry">إعادة</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="dialog-game-over" class="dialog-backdrop">
+        <div class="dialog">
+          <h2 style="color:#ff6655;">انتهت المهمة</h2>
+          <div class="sub" id="go-reason">--</div>
+          <div class="actions">
+            <button class="btn" id="btn-retry-fail">إعادة المحاولة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
