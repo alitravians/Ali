@@ -180,7 +180,12 @@ export class Car {
   }
 
   /** Main update. */
-  update(dt: number, input: Input | null, isControlling: boolean) {
+  update(
+    dt: number,
+    input: Input | null,
+    isControlling: boolean,
+    colliders: { x: number; z: number; sx: number; sz: number }[] = []
+  ) {
     const s = this.spec;
     const maxSpeed = s.maxSpeedKmh / 3.6;
 
@@ -246,6 +251,35 @@ export class Car {
     this.root.position.x += dx;
     this.root.position.z += dz;
     this.root.rotation.y = this.heading;
+
+    // Building collision (AABB pushback). Treat the car as an AABB oriented to the world axes
+    // using its longest side as the effective half-extent — it is a conservative approximation
+    // but it reliably keeps the car out of buildings at any heading.
+    if (colliders.length) {
+      const carHalf = Math.max(s.bodyW, s.bodyL) * 0.5 + 0.25;
+      let collided = false;
+      for (const c of colliders) {
+        const px = this.root.position.x - c.x;
+        const pz = this.root.position.z - c.z;
+        const hx = c.sx / 2 + carHalf;
+        const hz = c.sz / 2 + carHalf;
+        if (Math.abs(px) < hx && Math.abs(pz) < hz) {
+          collided = true;
+          const overlapX = hx - Math.abs(px);
+          const overlapZ = hz - Math.abs(pz);
+          if (overlapX < overlapZ) {
+            this.root.position.x = c.x + Math.sign(px || 1) * hx;
+          } else {
+            this.root.position.z = c.z + Math.sign(pz || 1) * hz;
+          }
+        }
+      }
+      if (collided) {
+        // Bleed most of the forward momentum so the car doesn't grind along the wall forever,
+        // but keep a small reverse-allowed residue so the driver can back out.
+        this.speed *= 0.25;
+      }
+    }
 
     // Spin wheels visually
     const rot = this.speed * dt / s.wheelRadius;

@@ -230,6 +230,11 @@ class Game {
     // Update traffic density
     this.driving = false;
     this.camera.setMode('walk');
+    // Reset mouse-look to face along the car's forward direction; otherwise stale yaw from
+    // the previous stage's driving phase would leave the walking camera pointing somewhere
+    // unrelated to the player's starting orientation.
+    this.input.mouseYaw = this.car.heading;
+    this.input.mousePitch = 0.15;
   }
 
   private showStageIntro() {
@@ -357,7 +362,7 @@ class Game {
     }
 
     if (this.driving && this.phase === 'driving') {
-      this.car.update(dt, this.input, true);
+      this.car.update(dt, this.input, true, this.city.buildingColliders);
       // Horn
       if (this.input.hornPressed) {
         this.audio.honk();

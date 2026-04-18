@@ -83,6 +83,11 @@ export class HUD {
 
 export class DialogManager {
   static show(id: string, cb?: () => void) {
+    // Any UI dialog must be interactable, so release pointer lock first — otherwise all click
+    // events stay captured by the canvas and the player can't press dialog buttons.
+    if (document.pointerLockElement) {
+      document.exitPointerLock?.();
+    }
     const el = document.getElementById(id);
     if (el) {
       el.classList.add('show');

@@ -20,16 +20,27 @@ export class Player {
   update(dt: number, input: Input, cameraYaw: number, colliders: { x: number; z: number; sx: number; sz: number }[]) {
     if (!this.root.visible) return;
 
-    const forward = input.state.forward ? 1 : 0;
-    const back = input.state.back ? 1 : 0;
+    const forwardK = input.state.forward ? 1 : 0;
+    const backK = input.state.back ? 1 : 0;
     const strafeL = input.state.left ? 1 : 0;
     const strafeR = input.state.right ? 1 : 0;
 
-    const move = new THREE.Vector3(strafeR - strafeL, 0, back - forward);
+    // Standard third-person controls: derive the forward and right world-space axes
+    // from the mouse-driven camera yaw, then compose motion as (W−S)·forward + (D−A)·right.
+    // At yaw=0 the camera sits at world −Z looking toward +Z, so forward must be +Z and right +X.
+    const sinY = Math.sin(cameraYaw);
+    const cosY = Math.cos(cameraYaw);
+    const fwdAxis = new THREE.Vector3(sinY, 0, cosY);
+    const rightAxis = new THREE.Vector3(cosY, 0, -sinY);
+    const moveAmt = forwardK - backK;
+    const strafeAmt = strafeR - strafeL;
+    const move = new THREE.Vector3()
+      .addScaledVector(fwdAxis, moveAmt)
+      .addScaledVector(rightAxis, strafeAmt);
+
     const moving = move.lengthSq() > 0.001;
     if (moving) {
       move.normalize();
-      move.applyAxisAngle(new THREE.Vector3(0, 1, 0), cameraYaw);
       const sp = input.state.run ? this.runSpeed : this.speed;
       this.velocity.lerp(move.multiplyScalar(sp), 0.25);
     } else {
