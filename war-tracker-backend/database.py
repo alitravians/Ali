@@ -18,11 +18,22 @@ if not os.path.isdir(os.path.dirname(DB_PATH)) and DB_PATH.startswith("/data"):
 
 
 async def get_db() -> aiosqlite.Connection:
-    """Get a database connection."""
+    """Get a database connection.
+
+    If any of the PRAGMA statements raise (disk I/O error, corrupted DB,
+    etc.) we MUST close the already-opened connection before re-raising —
+    otherwise callers never see the `db` binding, their `try/finally`
+    never runs, and the connection leaks. Under WAL mode a leaked
+    connection can also hold a WAL lock and block checkpointing.
+    """
     db = await aiosqlite.connect(DB_PATH)
-    db.row_factory = aiosqlite.Row
-    await db.execute("PRAGMA journal_mode=WAL")  # better concurrent reads
-    await db.execute("PRAGMA busy_timeout=5000")
+    try:
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA journal_mode=WAL")  # better concurrent reads
+        await db.execute("PRAGMA busy_timeout=5000")
+    except Exception:
+        await db.close()
+        raise
     return db
 
 

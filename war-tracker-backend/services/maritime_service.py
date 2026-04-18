@@ -354,28 +354,49 @@ async def connect_aisstream():
                 reconnect_delay = 30  # Reset on successful connect
                 print(f"[Maritime] WebSocket connected! Monitoring {len(MARITIME_ZONES)} zones. Waiting for data...")
 
-                # Set a timeout: if no data in 120s, the key is probably invalid
+                # Enforce a hard timeout on receiving the first message. If the
+                # AIS server accepts the connection and keeps it alive via ping/
+                # pong but never forwards data (common symptom of an invalid API
+                # key or bad subscription params), the naïve `async for` loop
+                # would hang forever, leaking a coroutine + a WebSocket.
                 first_message_received = False
                 connect_time = datetime.now(timezone.utc)
+                FIRST_MESSAGE_TIMEOUT = 120.0  # seconds
+
+                try:
+                    first_raw = await asyncio.wait_for(ws.recv(), timeout=FIRST_MESSAGE_TIMEOUT)
+                except asyncio.TimeoutError:
+                    elapsed = (datetime.now(timezone.utc) - connect_time).total_seconds()
+                    print(
+                        f"[Maritime] No AIS data received in {elapsed:.0f}s — "
+                        "API key likely invalid or subscription empty. Closing socket."
+                    )
+                    # Force the outer except to run the invalid-key branch and
+                    # schedule a reconnect with backoff.
+                    raise RuntimeError("AIS first-message timeout")
+
+                # Process the first message synchronously using the same path
+                # used below, then fall through to the streaming loop.
+                try:
+                    data = json.loads(first_raw)
+                    first_message_received = True
+                    _ais_data_received = True
+                    _ais_key_valid = True
+                    _ais_disconnected_since = None
+                    if _using_fallback:
+                        _vessels.clear()
+                        _using_fallback = False
+                        print("[Maritime] Real AIS data resumed — cleared fallback vessels")
+                    elapsed = (datetime.now(timezone.utc) - connect_time).total_seconds()
+                    print(f"[Maritime] First AIS data received after {elapsed:.1f}s — API key is valid!")
+                    _last_ais_message_time = datetime.now(timezone.utc)
+                    _process_ais_message(data)
+                except json.JSONDecodeError:
+                    pass
 
                 async for message in ws:
                     try:
                         data = json.loads(message)
-                        
-                        if not first_message_received:
-                            first_message_received = True
-                            _ais_data_received = True
-                            _ais_key_valid = True
-                            _ais_disconnected_since = None
-                            # If we were in fallback mode, purge the fake vessels
-                            # so real data replaces them cleanly.
-                            if _using_fallback:
-                                _vessels.clear()
-                                _using_fallback = False
-                                print("[Maritime] Real AIS data resumed — cleared fallback vessels")
-                            elapsed = (datetime.now(timezone.utc) - connect_time).total_seconds()
-                            print(f"[Maritime] First AIS data received after {elapsed:.1f}s — API key is valid!")
-
                         _last_ais_message_time = datetime.now(timezone.utc)
                         _process_ais_message(data)
                     except json.JSONDecodeError:
