@@ -158,6 +158,12 @@ class HormuzBlockadeStatus(BaseModel):
     lastUpdate: Optional[datetime] = None
     statusMessage: str = "الوضع طبيعي"
     statusMessageEn: str = "Normal conditions"
+    # Indicates whether the assessment is based on real AIS data ("live") or
+    # synthetic fallback templates ("estimated"). Frontend MUST show a
+    # disclaimer badge when dataSource != "live" because the fallback
+    # vessels are not real-time intelligence.
+    dataSource: str = "live"  # "live" | "estimated"
+    dataSourceAr: str = "بيانات حية"
 
 
 class AircraftPosition(BaseModel):

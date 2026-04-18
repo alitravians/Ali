@@ -203,4 +203,9 @@ export interface HormuzBlockadeStatus {
   lastUpdate?: string;
   statusMessage: string;
   statusMessageEn: string;
+  // "live" when computed from real AIS positions; "estimated" when the
+  // backend is running on synthetic fallback vessel templates and users
+  // must NOT interpret the assessment as real-time intelligence.
+  dataSource?: 'live' | 'estimated';
+  dataSourceAr?: string;
 }

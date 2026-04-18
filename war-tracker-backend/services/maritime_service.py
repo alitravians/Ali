@@ -635,6 +635,30 @@ def get_hormuz_blockade_status(related_events: list = None) -> HormuzBlockadeSta
         status_msg = "الوضع طبيعي — حركة ملاحية اعتيادية"
         status_en = "Normal conditions — routine maritime traffic"
         is_active = False
+
+    # IMPORTANT: when the vessel list is synthetic fallback, the hardcoded
+    # military templates (3 US, 4 Iranian, 2 Allied) alone score ~175 —
+    # far beyond the 80-point "critical" threshold. Publishing a genuine-
+    # looking "حصار بحري نشط" assessment based on fabricated positions
+    # would mislead users. So we cap the assessment and tag the payload as
+    # "estimated" so the frontend can render a disclaimer.
+    if _using_fallback:
+        data_source = "estimated"
+        data_source_ar = "بيانات تقديرية"
+        threat_level = "low"
+        threat_level_ar = "منخفض (تقديري)"
+        is_active = False
+        status_msg = (
+            "بيانات تقديرية — بث AIS المباشر غير متوفر حالياً، "
+            "التقييم مبني على أنماط حركة ملاحية معتادة وليس استخباراتياً"
+        )
+        status_en = (
+            "Estimated data — live AIS feed unavailable. Assessment is based on "
+            "typical shipping patterns, not real-time intelligence."
+        )
+    else:
+        data_source = "live"
+        data_source_ar = "بيانات حية"
     
     # Build military vessel summaries
     mil_summaries = []

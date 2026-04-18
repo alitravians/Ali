@@ -80,6 +80,7 @@ export default function HormuzBlockadeMonitor() {
   }
 
   const threat = THREAT_CONFIG[hormuzBlockade.threatLevel] || THREAT_CONFIG.low;
+  const isEstimated = hormuzBlockade.dataSource === 'estimated';
 
   return (
     <div className="rounded-xl border border-gray-800 bg-[#12121a] overflow-hidden">
@@ -95,7 +96,7 @@ export default function HormuzBlockadeMonitor() {
               style={{ backgroundColor: `${threat.color}15`, border: `1px solid ${threat.color}40` }}
             >
               <Shield className="w-5 h-5" style={{ color: threat.color }} />
-              {threat.pulse && (
+              {threat.pulse && !isEstimated && (
                 <span
                   className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse"
                   style={{ backgroundColor: threat.color }}
@@ -108,6 +109,17 @@ export default function HormuzBlockadeMonitor() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isEstimated && (
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/40"
+                title="بث AIS المباشر غير متوفر — التقييم تقديري"
+              >
+                <AlertTriangle className="w-3 h-3 text-amber-400" />
+                <span className="text-[10px] font-bold text-amber-400">
+                  {hormuzBlockade.dataSourceAr || 'تقديري'}
+                </span>
+              </div>
+            )}
             <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full ${threat.bg} border ${threat.border}`}>
               <span className="text-xs">{threat.icon}</span>
               <span className="text-[10px] font-bold" style={{ color: threat.color }}>
@@ -121,6 +133,14 @@ export default function HormuzBlockadeMonitor() {
             )}
           </div>
         </div>
+
+        {/* Estimated-data disclaimer — shown only when backend is on fallback */}
+        {isEstimated && (
+          <div className="mt-3 text-right text-[11px] font-medium px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+            تنبيه: بث AIS المباشر غير متوفر حالياً. البيانات المعروضة تقديرية
+            مبنية على أنماط حركة ملاحية معتادة، وليست تحديثات استخباراتية في الوقت الفعلي.
+          </div>
+        )}
 
         {/* Status message — always visible */}
         <div
