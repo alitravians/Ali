@@ -729,21 +729,38 @@ class HealthMonitor:
         }
 
     def _calc_days_without_incidents(self) -> int:
-        """Calculate consecutive days without any active/recent incident."""
+        """Calculate consecutive days without any active/recent incident.
+
+        Incidents are stored newest-first *by creation time* (see `insert(0, …)`).
+        That ordering is NOT the same as ordering by `resolved_at`: a newer
+        incident can be resolved before an older one that is still active, or
+        an older incident can be resolved after a newer one. Both cases require
+        scanning every stored incident — we cannot rely on `incidents[0]`.
+        """
         if not self.incidents:
             # No incidents ever recorded — show 0 (real data, no fake assumption)
             return 0
 
-        # Find the most recent incident (resolved or active)
-        latest = self.incidents[0]  # incidents are sorted newest first
-        if latest.status != IncidentStatus.resolved:
-            return 0  # Active incident right now
+        # If ANY incident is still unresolved, we are in an active-incident window.
+        if any(inc.status != IncidentStatus.resolved for inc in self.incidents):
+            return 0
 
-        if latest.resolved_at:
-            resolved_dt = datetime.fromisoformat(latest.resolved_at)
-            now = datetime.now(timezone.utc)
-            return max(0, (now - resolved_dt).days)
-        return 0
+        # All incidents are resolved — measure from the most recent resolution,
+        # which may belong to any incident, not just incidents[0].
+        resolved_times: list[datetime] = []
+        for inc in self.incidents:
+            if inc.resolved_at:
+                try:
+                    resolved_times.append(datetime.fromisoformat(inc.resolved_at))
+                except ValueError:
+                    continue
+
+        if not resolved_times:
+            return 0
+
+        last_resolution = max(resolved_times)
+        now = datetime.now(timezone.utc)
+        return max(0, (now - last_resolution).days)
 
     def get_admin_config(self) -> dict:
         """Admin-only: full config for all services (including disabled)."""
