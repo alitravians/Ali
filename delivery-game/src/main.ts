@@ -433,6 +433,7 @@ class Game {
 }
 
 const game = new Game();
+(window as unknown as { __game: Game }).__game = game;
 game.init().catch((e) => {
   console.error('Game init failed', e);
   const status = document.getElementById('loading-status');
