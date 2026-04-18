@@ -1,5 +1,30 @@
+# robots.txt for WarScope - https://dist-mu-taupe-70.vercel.app
+# Allow all well-behaved crawlers, block admin surface.
+
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+
+# Explicit opt-in for major crawlers
+User-agent: Googlebot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: YandexBot
+Allow: /
+
+# Host hint
+Host: dist-mu-taupe-70.vercel.app
 
 Sitemap: https://dist-mu-taupe-70.vercel.app/sitemap.xml
