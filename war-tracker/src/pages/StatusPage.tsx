@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Activity, Server, Wifi, Globe2, Brain, Anchor, Rss,
   CheckCircle2, AlertTriangle, XCircle, Clock, RefreshCw,
@@ -528,6 +528,13 @@ export default function StatusPage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Use a ref to access latest `data` in fetchStatus without adding it to the
+  // dependency array. If `data` were a dep, every successful fetch would
+  // recreate fetchStatus → retrigger the useEffect below → fetch again,
+  // causing an infinite request loop against /api/status.
+  const dataRef = useRef(data);
+  useEffect(() => { dataRef.current = data; }, [data]);
+
   const fetchStatus = useCallback(async () => {
     try {
       const controller = new AbortController();
@@ -542,7 +549,7 @@ export default function StatusPage() {
       setError(null);
     } catch (err) {
       // Only show error if we have no cached data to display
-      if (!data) {
+      if (!dataRef.current) {
         const msg = err instanceof DOMException && err.name === 'AbortError'
           ? 'انتهت مهلة الاتصال بالخادم — يرجى المحاولة لاحقاً'
           : (err instanceof Error ? err.message : 'خطأ غير متوقع');
@@ -552,7 +559,7 @@ export default function StatusPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
-  }, [data]);
+  }, []);
 
   useEffect(() => {
     fetchStatus();
