@@ -339,14 +339,19 @@ async def connect_aisstream():
 
     if not AISSTREAM_API_KEY:
         print("[Maritime] No AISSTREAM_API_KEY configured — using fallback vessel data")
-        # Mark the stream as "disconnected as of now" so the background
-        # `_fallback_vessel_updater` task passes its `_should_activate_fallback`
-        # guard (which requires `_ais_disconnected_since` to be set) and keeps
-        # refreshing vessel positions every 60s. Without this the initial
-        # fallback snapshot would be frozen at startup forever because
-        # `_ais_disconnected_since` only gets set inside the reconnect loop's
-        # exception handler, which never runs when we return early here.
-        _ais_disconnected_since = datetime.now(timezone.utc)
+        # Backdate `_ais_disconnected_since` past the grace period so the
+        # background `_fallback_vessel_updater` task regenerates positions on
+        # its very first wake-up (t=90s) instead of waiting another ~120s for
+        # the grace period to elapse. Without backdating, the initial
+        # fallback snapshot would sit frozen for ~210s (90s initial sleep +
+        # 60s × 2 ticks before elapsed ≥ 180s), leaving vessels labelled
+        # "underway" but motionless on the map. Using `timedelta` here is
+        # intentional: it preserves the single-source-of-truth grace-period
+        # check in `_should_activate_fallback` without adding a parallel
+        # no-key special case in the updater.
+        _ais_disconnected_since = datetime.now(timezone.utc) - timedelta(
+            seconds=FALLBACK_GRACE_SECONDS
+        )
         _generate_fallback_vessels()
         return
 

@@ -124,6 +124,13 @@ class ServiceHealth(BaseModel):
     consecutive_failures: int = 0
     heal_attempts: int = 0
     uptime_history_90d: list[DailyUptimeRecord] = []  # last 90 days
+    # Daily counters (reset at UTC midnight by `_update_daily_uptime`) used to
+    # compute today's entry in `uptime_history_90d`. Unlike `checks_24h` /
+    # `errors_24h` — which are monotonic lifetime counters that drift toward
+    # the all-time success rate — these are scoped to the current UTC day so
+    # the 90-day bars reflect actual daily uptime.
+    daily_checks: int = 0
+    daily_errors: int = 0
 
 
 # ──────────────────────────────────────────────
@@ -445,6 +452,7 @@ class HealthMonitor:
 
         # Track 24h stats
         svc.checks_24h += 1
+        svc.daily_checks += 1
 
         if result.success:
             svc.last_success = result.checked_at
@@ -455,6 +463,7 @@ class HealthMonitor:
             svc.consecutive_failures += 1
             svc.errors_24h += 1
             svc.errors_7d += 1
+            svc.daily_errors += 1
 
         # Calculate success rate
         if svc.checks_24h > 0:
@@ -483,14 +492,28 @@ class HealthMonitor:
             self._resolve_incidents(service_id)
 
     def _update_daily_uptime(self, svc: ServiceHealth, result: HealthCheckResult):
-        """Update today's entry in the 90-day uptime history."""
+        """Update today's entry in the 90-day uptime history.
+
+        Uses the scoped `daily_checks` / `daily_errors` counters rather than
+        `svc.uptime_24h`, which is derived from monotonic lifetime counters
+        (`checks_24h` / `errors_24h` are never reset) and therefore drifts
+        toward the all-time success rate, making the 90-day bars increasingly
+        stale over days/weeks of uptime. The daily counters are reset below
+        when the UTC day rolls over.
+        """
         today_str = datetime.now(timezone.utc).date().isoformat()
+        if svc.daily_checks > 0:
+            daily_uptime = round(
+                ((svc.daily_checks - svc.daily_errors) / svc.daily_checks) * 100, 1
+            )
+        else:
+            daily_uptime = 100.0
         if not svc.uptime_history_90d:
             return
         last_rec = svc.uptime_history_90d[-1]
         if last_rec.date == today_str:
-            # Update today's record with current uptime
-            last_rec.uptime_percent = svc.uptime_24h
+            # Update today's record with today's actual uptime
+            last_rec.uptime_percent = daily_uptime
             if not result.success:
                 last_rec.had_incident = True
                 # Track worst status
@@ -500,10 +523,14 @@ class HealthMonitor:
                 if new_idx > cur_idx:
                     last_rec.status = result.status.value
         else:
-            # New day — append and trim to 90
+            # New UTC day — reset the daily counters so today's bar reflects
+            # only checks performed on this date. `daily_checks` starts at 1
+            # because we count the current check here.
+            svc.daily_checks = 1
+            svc.daily_errors = 0 if result.success else 1
             svc.uptime_history_90d.append(DailyUptimeRecord(
                 date=today_str,
-                uptime_percent=svc.uptime_24h,
+                uptime_percent=100.0 if result.success else 0.0,
                 had_incident=not result.success,
                 status=result.status.value,
             ))
