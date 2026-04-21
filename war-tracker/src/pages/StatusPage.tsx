@@ -7,6 +7,7 @@ import {
   Bot, ExternalLink, Loader2
 } from 'lucide-react';
 import { BACKEND_API_URL } from '../config/api';
+import { decodeHtmlEntities } from '../utils/helpers';
 
 // ──────────────────────────────────────────────
 // Types
@@ -693,7 +694,7 @@ export default function StatusPage() {
                   <div className="flex items-center gap-3">
                     <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
                     <div>
-                      <h3 className="text-sm font-bold text-red-400">{inc.title_ar}</h3>
+                      <h3 className="text-sm font-bold text-red-400">{decodeHtmlEntities(inc.title_ar)}</h3>
                       <p className="text-[10px] text-gray-400 mt-0.5">
                         {getSeverityAr(inc.severity)} • {getIncidentStatusAr(inc.status)} • {timeAgo(inc.started_at)}
                       </p>
@@ -703,7 +704,7 @@ export default function StatusPage() {
                 </button>
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-red-500/10">
-                    <p className="text-xs text-gray-400 mt-3 mb-3">{inc.description_ar}</p>
+                    <p className="text-xs text-gray-400 mt-3 mb-3">{decodeHtmlEntities(inc.description_ar)}</p>
                     <div className="space-y-2">
                       {inc.notes.map(note => (
                         <div key={note.id} className="flex gap-2 text-[11px]">
@@ -1023,7 +1024,7 @@ export default function StatusPage() {
                       ev.isBreaking ? 'bg-red-500 animate-pulse' :
                       ev.category === 'military' ? 'bg-orange-500' : 'bg-blue-500'
                     }`} />
-                    <span className="flex-1">{ev.titleAr || ev.title}</span>
+                    <span className="flex-1">{decodeHtmlEntities(ev.titleAr || ev.title)}</span>
                     <span className="text-[9px] text-gray-600 shrink-0">{timeAgo(ev.timestamp)}</span>
                   </div>
                 ))}
@@ -1183,7 +1184,7 @@ export default function StatusPage() {
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${isResolved ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
                     <div className="min-w-0">
-                      <h3 className={`text-xs font-bold truncate ${isResolved ? 'text-gray-300' : 'text-orange-400'}`}>{inc.title_ar}</h3>
+                      <h3 className={`text-xs font-bold truncate ${isResolved ? 'text-gray-300' : 'text-orange-400'}`}>{decodeHtmlEntities(inc.title_ar)}</h3>
                       <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500 flex-wrap">
                         <span>{getSeverityAr(inc.severity)}</span>
                         <span>•</span>
@@ -1209,7 +1210,7 @@ export default function StatusPage() {
                 </button>
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t border-gray-800/50">
-                    <p className="text-[11px] text-gray-400 mt-2 mb-2">{inc.description_ar}</p>
+                    <p className="text-[11px] text-gray-400 mt-2 mb-2">{decodeHtmlEntities(inc.description_ar)}</p>
                     <div className="space-y-1.5">
                       {inc.notes.map(note => (
                         <div key={note.id} className="flex gap-2 items-start text-[10px]">

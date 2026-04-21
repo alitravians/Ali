@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import type { TrackerEvent, Alert, DashboardIndicator, VesselPosition, MaritimeZoneStats, HormuzBlockadeStatus } from '../types';
 import { BACKEND_API_URL, BACKEND_WS_URL } from '../config/api';
+import { decodeHtmlEntities } from '../utils/helpers';
 import { sendBreakingNotification } from '../components/shared/NotificationPrompt';
 
 // Throttle push notifications: max 1 every 2 minutes
@@ -48,12 +49,26 @@ export function useLiveData() {
   return ctx;
 }
 
+/** Decode HTML entities in common text fields of a raw object (mutates nothing). */
+function decodeTextFields<T extends Record<string, unknown>>(obj: T, keys: string[]): T {
+  const copy = { ...obj };
+  for (const k of keys) {
+    if (typeof copy[k] === 'string') {
+      (copy as Record<string, unknown>)[k] = decodeHtmlEntities(copy[k] as string);
+    }
+  }
+  return copy;
+}
+
+const TEXT_FIELDS = ['title', 'titleAr', 'description', 'descriptionAr', 'summary', 'summaryAr'];
+
 // Parse event timestamps from JSON
 function parseEvent(raw: Record<string, unknown>): TrackerEvent {
+  const decoded = decodeTextFields(raw, TEXT_FIELDS);
   return {
-    ...raw,
-    timestamp: new Date(raw.timestamp as string),
-    sources: ((raw.sources as Record<string, unknown>[]) || []).map((s) => ({
+    ...decoded,
+    timestamp: new Date(decoded.timestamp as string),
+    sources: ((decoded.sources as Record<string, unknown>[]) || []).map((s) => ({
       ...s,
       timestamp: new Date(s.timestamp as string),
     })),
@@ -61,9 +76,10 @@ function parseEvent(raw: Record<string, unknown>): TrackerEvent {
 }
 
 function parseAlert(raw: Record<string, unknown>): Alert {
+  const decoded = decodeTextFields(raw, TEXT_FIELDS);
   return {
-    ...raw,
-    timestamp: new Date(raw.timestamp as string),
+    ...decoded,
+    timestamp: new Date(decoded.timestamp as string),
   } as Alert;
 }
 

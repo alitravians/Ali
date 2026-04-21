@@ -1,6 +1,7 @@
 import { useLiveData } from '../../context/LiveDataContext';
 import { useState } from 'react';
 import { Shield, AlertTriangle, Anchor, Ship, ChevronDown, ChevronUp, Crosshair, Gauge, Clock, Newspaper } from 'lucide-react';
+import { decodeHtmlEntities } from '../../utils/helpers';
 
 const THREAT_CONFIG = {
   low: {
@@ -301,7 +302,7 @@ export default function HormuzBlockadeMonitor() {
                   <div key={news.id} className="flex items-start gap-2 px-3 py-2 rounded-lg bg-[#0a0a0f] border border-gray-800/50">
                     <span className="text-[10px] mt-0.5">📰</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] text-gray-300 leading-relaxed line-clamp-2">{news.title}</p>
+                      <p className="text-[11px] text-gray-300 leading-relaxed line-clamp-2">{decodeHtmlEntities(news.title)}</p>
                       <div className="flex items-center gap-2 mt-1 text-[9px] text-gray-600">
                         <Clock className="w-2.5 h-2.5" />
                         <span>{timeAgo(news.timestamp)}</span>

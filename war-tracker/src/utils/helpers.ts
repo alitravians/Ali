@@ -11,6 +11,22 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+/** Decode common HTML entities back to their characters.
+ *  Needed because RSS / news-API payloads often arrive pre-encoded. */
+export function decodeHtmlEntities(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    .replace(/&amp;/g, '&'); // must be last so earlier replacements aren't double-decoded
+}
+
 export function timeAgo(date: Date): string {
   return formatDistanceToNow(date, { addSuffix: true, locale: ar });
 }
