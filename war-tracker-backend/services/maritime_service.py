@@ -224,8 +224,8 @@ def _generate_fallback_vessels():
     Uses known shipping lanes and realistic patterns. Vessels move slightly
     each time this is called to simulate real maritime traffic.
     """
-    global _vessels, _ais_data_received
-    
+    global _vessels
+
     now = datetime.now(timezone.utc)
     generated = {}
     
@@ -565,17 +565,33 @@ def _process_ais_message(data: dict):
 
 
 def _is_us_vessel(mmsi: str) -> bool:
-    """Check if a vessel MMSI belongs to a US-registered ship."""
+    """Check if an MMSI is US-flagged.
+
+    NOTE: MMSI prefixes 366/367/368/369/338 cover *all* US-registered
+    vessels (commercial + military). This function only checks nationality
+    — callers must combine with `shipType == "military"` before treating
+    the vessel as navy (see existing `us_navy_vessels` filter).
+    """
     return mmsi.startswith(US_MMSI_PREFIXES)
 
 
 def _is_iranian_vessel(mmsi: str) -> bool:
-    """Check if a vessel MMSI belongs to an Iranian-registered ship."""
+    """Check if an MMSI is Iran-flagged.
+
+    NOTE: Prefix `422` covers both Iranian commercial tankers (IRAN
+    DAMAVAND, SABITI, NOOR-1) and IRIN/IRGC navy vessels. This only
+    checks nationality — combine with `shipType == "military"` to
+    identify navy ships.
+    """
     return mmsi.startswith(IRAN_MMSI_PREFIXES)
 
 
 def _is_allied_vessel(mmsi: str) -> bool:
-    """Check if a vessel MMSI belongs to a NATO/allied navy."""
+    """Check if an MMSI is NATO/allied-flagged.
+
+    NOTE: Nationality check only — combine with `shipType == "military"`
+    to identify allied navy vessels.
+    """
     return mmsi.startswith(ALLIED_MMSI_PREFIXES)
 
 

@@ -277,16 +277,22 @@ class HealthMonitor:
                 for d in incident_dicts:
                     try:
                         inc = Incident(**d)
-                        # Skip incidents for services that no longer exist
+                        # Only drop an incident if *every* affected service was
+                        # removed. If some affected services still exist, keep
+                        # the incident but strip the stale service IDs —
+                        # otherwise a multi-service outage would be lost just
+                        # because one of its services was retired.
                         affected = inc.affected_services or []
-                        if any(sid not in valid_service_ids for sid in affected):
-                            # Delete orphaned incident from DB
+                        valid_affected = [sid for sid in affected if sid in valid_service_ids]
+                        if affected and not valid_affected:
                             try:
                                 await _db.delete_incident(inc.id)
                                 print(f"[DB] Removed orphaned incident for removed service: {affected}")
                             except Exception:
                                 pass
                             continue
+                        if valid_affected != affected:
+                            inc.affected_services = valid_affected
                         self.incidents.append(inc)
                     except Exception:
                         pass
