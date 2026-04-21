@@ -734,8 +734,8 @@ def get_hormuz_blockade_status(related_events: list = None) -> HormuzBlockadeSta
                     "title": ev.titleAr or ev.title,
                     "titleEn": ev.title,
                     "timestamp": ev.timestamp.isoformat(),
-                    "category": ev.category,
-                    "trustLevel": ev.trustLevel,
+                    "category": ev.category.value,
+                    "trustLevel": ev.trustLevel.value,
                 })
                 if len(related_news) >= 5:
                     break

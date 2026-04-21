@@ -933,6 +933,30 @@ async def admin_verify(authorization: str = Header(default="")):
     raise HTTPException(status_code=401, detail="غير مصرح")
 
 
+@app.post("/api/admin/renew")
+async def admin_renew(request: Request, authorization: str = Header(default="")):
+    """Renew an admin session: rotate token and extend server-side TTL.
+
+    Without this, calling /verify alone only resets client-side timers while
+    the server-side token silently expires at its original login time — the
+    UI would show the session as active but all authenticated API calls
+    would start failing with 401.
+    """
+    old_token = authorization.replace("Bearer ", "") if authorization.startswith("Bearer ") else authorization
+    if not old_token or not _verify_token(old_token):
+        raise HTTPException(status_code=401, detail="غير مصرح")
+
+    # Rotate the token (invalidate old, issue new) — prevents token reuse if
+    # the old one was ever exposed (e.g. logged, shared).
+    new_token = secrets.token_hex(32)
+    _admin_tokens[new_token] = time.time() + TOKEN_TTL_SECONDS
+    del _admin_tokens[old_token]
+
+    client_ip = _get_client_ip(request)
+    security_logger.info(f"[AUTH] Admin session renewed from {client_ip}")
+    return {"success": True, "token": new_token}
+
+
 @app.post("/api/admin/logout")
 async def admin_logout(request: Request, authorization: str = Header(default="")):
     """Invalidate an admin session token on the server."""

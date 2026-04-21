@@ -181,14 +181,20 @@ export default function Admin() {
     const oldToken = sessionStorage.getItem('warscope_admin_token');
     if (!oldToken) return;
     try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/admin/verify`, {
+      // Call /renew (not /verify) so the server-side TTL is actually extended
+      // and we receive a rotated token. /verify only confirms validity and
+      // would leave the server token expiring at its original login time,
+      // causing subsequent authenticated calls to fail with 401.
+      const resp = await fetch(`${BACKEND_API_URL}/api/admin/renew`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${oldToken}` },
       });
       if (resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        if (body?.token) {
+          sessionStorage.setItem('warscope_admin_token', body.token);
+        }
         setSessionWarning(false);
-        // Actually reset the auto-logout countdown — otherwise the user is
-        // still kicked out at the original 60-minute mark.
         scheduleSessionTimers();
       } else {
         handleLogout();
