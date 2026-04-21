@@ -244,32 +244,67 @@ class HealthMonitor:
         )]
 
     async def load_uptime_from_db(self):
-        """Load persisted uptime history from database for all services."""
+        """Load persisted uptime history from database for all services.
+
+        Fills gaps in the loaded date sequence with placeholder ``no_data``
+        records so the downstream compact encoding (`_compact_uptime_history`
+        → frontend `expandUptimeHistory`) can continue to reconstruct dates
+        via `start_date + idx`. Without gap-filling, a server outage lasting
+        a full UTC day leaves a hole in the stored records, which shifts
+        every subsequent bar's tooltip date to the left by the number of
+        missing days.
+        """
         try:
             import database as _db
+            from datetime import timedelta as _td
             for sid, svc in self.services.items():
                 records = await _db.load_uptime_history(sid, days=90)
                 if records:
-                    loaded = []
-                    for r in records:
-                        loaded.append(DailyUptimeRecord(
+                    by_date: dict[str, DailyUptimeRecord] = {
+                        r["date"]: DailyUptimeRecord(
                             date=r["date"],
                             uptime_percent=r["uptime_percent"],
                             had_incident=r["had_incident"],
                             status=r["status"],
-                        ))
-                    # Check if today is already in loaded records
-                    today_str = datetime.now(timezone.utc).date().isoformat()
-                    has_today = any(r.date == today_str for r in loaded)
-                    if not has_today:
-                        loaded.append(DailyUptimeRecord(
-                            date=today_str,
-                            uptime_percent=100.0 if svc.config.enabled else 0.0,
-                            had_incident=False,
-                            status="operational" if svc.config.enabled else "disabled",
-                        ))
+                        )
+                        for r in records
+                    }
+                    today = datetime.now(timezone.utc).date()
+                    # Derive the inclusive range from the earliest persisted
+                    # record to today, then densify with placeholders for any
+                    # missing days so the sequence is truly contiguous.
+                    earliest_str = min(by_date.keys())
+                    try:
+                        earliest = datetime.fromisoformat(earliest_str).date()
+                    except ValueError:
+                        earliest = today
+                    loaded: list[DailyUptimeRecord] = []
+                    cursor = earliest
+                    while cursor <= today:
+                        key = cursor.isoformat()
+                        if key in by_date:
+                            loaded.append(by_date[key])
+                        elif key == today.isoformat():
+                            # Today itself — seed with a fresh operational/disabled entry
+                            loaded.append(DailyUptimeRecord(
+                                date=key,
+                                uptime_percent=100.0 if svc.config.enabled else 0.0,
+                                had_incident=False,
+                                status="operational" if svc.config.enabled else "disabled",
+                            ))
+                        else:
+                            # Gap day — server was down and no checks ran.
+                            # Use `no_data` with 0% uptime so the bar is visually
+                            # distinct and dates remain aligned downstream.
+                            loaded.append(DailyUptimeRecord(
+                                date=key,
+                                uptime_percent=0.0,
+                                had_incident=False,
+                                status="no_data",
+                            ))
+                        cursor = cursor + _td(days=1)
                     svc.uptime_history_90d = loaded[-90:]  # Keep max 90
-                    print(f"[DB] Loaded {len(loaded)} uptime records for {sid}")
+                    print(f"[DB] Loaded {len(records)} uptime records for {sid} ({len(loaded) - len(records)} gap-filled)")
         except Exception as e:
             print(f"[DB] Error loading uptime history: {e}")
 
