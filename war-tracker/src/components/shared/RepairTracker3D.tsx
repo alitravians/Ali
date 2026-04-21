@@ -967,8 +967,14 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
 
       ws.onclose = () => {
         console.log('[RepairTracker3D] WebSocket disconnected');
-        setWsConnected(false);
         if (pingInterval) clearInterval(pingInterval);
+        // `onclose` is queued asynchronously when we call ws.close() during
+        // effect cleanup — the cleanup has already run at that point, so if
+        // we don't guard here we'll arm a fresh setInterval + setTimeout
+        // (below) with nothing to ever clear them. Bail out if the component
+        // is gone.
+        if (!isMountedRef.current) return;
+        setWsConnected(false);
 
         // If not complete, switch to syncing state and start polling + reconnect attempt
         setIsComplete(prev => {
