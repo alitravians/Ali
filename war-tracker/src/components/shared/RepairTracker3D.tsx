@@ -709,6 +709,11 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const wsReconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Tracks whether the component is still mounted so that async callbacks
+  // fired after cleanup (notably `ws.onclose`, which runs *after* the effect
+  // cleanup has closed the socket) don't schedule orphaned poll intervals or
+  // reconnect timeouts that nothing will ever clear.
+  const isMountedRef = useRef(true);
   const reducedMotion = useReducedMotion();
   const { phaseAdvance, completion, statusUpdate, enabledRef } = useSoundEffects();
 
@@ -993,6 +998,7 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
   useEffect(() => {
     if (!isOpen) return;
 
+    isMountedRef.current = true;
     // Reset state
     setCurrentPhase(0);
     setProgress(0);

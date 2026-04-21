@@ -299,12 +299,23 @@ def _generate_fallback_vessels():
 
 
 def _should_activate_fallback() -> bool:
-    """Return True only if the real AIS stream has been unavailable long enough."""
+    """Return True only if the real AIS stream has been unavailable long enough.
+
+    Before this guard, fallback would activate 90s into cold start even though
+    `connect_aisstream` waits up to FIRST_MESSAGE_TIMEOUT (120s) for the first
+    real AIS message. That served ~30s of synthesized vessel positions to
+    clients while the real connection was still legitimately negotiating.
+    `_ais_disconnected_since` is only set *after* a disconnect has been
+    observed, so `None` means we are still inside the initial connection
+    attempt and must not synthesize data yet.
+    """
     if _ais_data_received:
         return False
     if _ais_disconnected_since is None:
-        # No connection attempt has succeeded yet → activate immediately on first call
-        return True
+        # Still on the very first connection attempt — let
+        # connect_aisstream's FIRST_MESSAGE_TIMEOUT drive the fallback
+        # instead of firing early.
+        return False
     elapsed = (datetime.now(timezone.utc) - _ais_disconnected_since).total_seconds()
     return elapsed >= FALLBACK_GRACE_SECONDS
 
