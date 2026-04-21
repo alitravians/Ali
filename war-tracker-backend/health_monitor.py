@@ -304,6 +304,38 @@ class HealthMonitor:
                             ))
                         cursor = cursor + _td(days=1)
                     svc.uptime_history_90d = loaded[-90:]  # Keep max 90
+
+                    # Restore today's in-memory counters from the loaded
+                    # record so a mid-day restart does not reset today's bar
+                    # to 100%. Without this step the first post-restart check
+                    # would compute `daily_uptime = 100%` (1 check / 0 errors)
+                    # and overwrite the persisted record, silently discarding
+                    # any pre-restart failures for the current UTC day.
+                    #
+                    # `daily_checks` isn't persisted (only the percentage is),
+                    # so we estimate it from time-of-day and the service's
+                    # check interval, then derive `daily_errors` to preserve
+                    # the loaded percentage. Real post-restart checks blend
+                    # with this baseline as the day continues.
+                    today_rec = next(
+                        (r for r in svc.uptime_history_90d if r.date == today.isoformat()),
+                        None,
+                    )
+                    if today_rec is not None and today_rec.status != "no_data":
+                        now_utc = datetime.now(timezone.utc)
+                        seconds_since_midnight = (
+                            now_utc - now_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+                        ).total_seconds()
+                        interval = max(1, svc.config.check_interval_seconds)
+                        estimated_checks = max(1, int(seconds_since_midnight // interval))
+                        svc.daily_checks = estimated_checks
+                        svc.daily_errors = max(
+                            0,
+                            min(
+                                estimated_checks,
+                                round(estimated_checks * (1 - today_rec.uptime_percent / 100.0)),
+                            ),
+                        )
                     print(f"[DB] Loaded {len(records)} uptime records for {sid} ({len(loaded) - len(records)} gap-filled)")
         except Exception as e:
             print(f"[DB] Error loading uptime history: {e}")
