@@ -107,6 +107,12 @@ class ServiceHealth(BaseModel):
     success_rate_24h: float = 100.0
     consecutive_failures: int = 0
     heal_attempts: int = 0
+    # Monotonic timestamps (seconds) of the current rolling windows. When the
+    # window elapses, the corresponding counters are reset so that
+    # success_rate_24h / uptime_24h stay meaningful over long-running
+    # processes instead of drifting toward a lifetime average.
+    window_24h_started: float = 0.0
+    window_7d_started: float = 0.0
 
 
 # ──────────────────────────────────────────────
@@ -356,6 +362,25 @@ class HealthMonitor:
             svc.response_times_history.append(result.response_time_ms)
             if len(svc.response_times_history) > 50:
                 svc.response_times_history = svc.response_times_history[-50:]
+
+        # Roll the rolling 24h / 7d windows before incrementing counters so
+        # uptime and success-rate reflect the actual recent window instead of
+        # accumulating indefinitely across the lifetime of the process.
+        now_mono = time.monotonic()
+        if svc.window_24h_started == 0.0:
+            svc.window_24h_started = now_mono
+        elif now_mono - svc.window_24h_started >= 24 * 3600:
+            svc.checks_24h = 0
+            svc.errors_24h = 0
+            svc.outages_24h = 0
+            svc.success_rate_24h = 100.0
+            svc.uptime_24h = 100.0
+            svc.window_24h_started = now_mono
+        if svc.window_7d_started == 0.0:
+            svc.window_7d_started = now_mono
+        elif now_mono - svc.window_7d_started >= 7 * 24 * 3600:
+            svc.errors_7d = 0
+            svc.window_7d_started = now_mono
 
         # Track 24h stats
         svc.checks_24h += 1

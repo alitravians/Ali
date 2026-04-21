@@ -5,6 +5,7 @@ in three critical waterways: Strait of Hormuz, Red Sea, and Suez Canal.
 """
 import os
 import json
+import time
 import asyncio
 import websockets
 from datetime import datetime, timezone
@@ -86,6 +87,15 @@ _zone_stats: dict[str, MaritimeZoneStats] = {
     for zone_id, zone in MARITIME_ZONES.items()
 }
 _ws_connected = False
+
+# Throttle expensive per-message work (zone stats recompute + stale prune).
+# AIS streams can deliver many messages per second; doing an O(N) recompute
+# on each one pinned the event loop under load. We coalesce these into at
+# most one recompute every _STATS_THROTTLE_SECONDS.
+_STATS_THROTTLE_SECONDS = 5.0
+_last_stats_update: float = 0.0
+_last_stale_prune: float = 0.0
+_STALE_PRUNE_THROTTLE_SECONDS = 30.0
 
 
 def get_vessels() -> list[VesselPosition]:
@@ -257,11 +267,18 @@ def _process_ais_message(data: dict):
                 timestamp=ts,
             )
 
-    # Recalculate zone stats periodically
-    _update_zone_stats()
+    # Recalculate zone stats periodically — throttled to protect the event loop
+    # when the AIS stream bursts (thousands of messages per minute).
+    global _last_stats_update, _last_stale_prune
+    now_monotonic = time.monotonic()
+    if now_monotonic - _last_stats_update >= _STATS_THROTTLE_SECONDS:
+        _update_zone_stats()
+        _last_stats_update = now_monotonic
 
-    # Prune stale vessels (>10 minutes old)
-    now = datetime.now(timezone.utc)
-    stale = [k for k, v in _vessels.items() if (now - v.timestamp).total_seconds() > 600]
-    for k in stale:
-        del _vessels[k]
+    # Prune stale vessels (>10 minutes old) less aggressively.
+    if now_monotonic - _last_stale_prune >= _STALE_PRUNE_THROTTLE_SECONDS:
+        now = datetime.now(timezone.utc)
+        stale = [k for k, v in _vessels.items() if (now - v.timestamp).total_seconds() > 600]
+        for k in stale:
+            del _vessels[k]
+        _last_stale_prune = now_monotonic
