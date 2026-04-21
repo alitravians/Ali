@@ -339,6 +339,14 @@ async def connect_aisstream():
 
     if not AISSTREAM_API_KEY:
         print("[Maritime] No AISSTREAM_API_KEY configured — using fallback vessel data")
+        # Mark the stream as "disconnected as of now" so the background
+        # `_fallback_vessel_updater` task passes its `_should_activate_fallback`
+        # guard (which requires `_ais_disconnected_since` to be set) and keeps
+        # refreshing vessel positions every 60s. Without this the initial
+        # fallback snapshot would be frozen at startup forever because
+        # `_ais_disconnected_since` only gets set inside the reconnect loop's
+        # exception handler, which never runs when we return early here.
+        _ais_disconnected_since = datetime.now(timezone.utc)
         _generate_fallback_vessels()
         return
 

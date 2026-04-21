@@ -178,6 +178,19 @@ export default function BugReportButton() {
         const data = await res.json().catch(() => ({}));
         console.log('[BugReport] Success! ticket_id:', data.ticket_id);
         setTicketId(data.ticket_id || '');
+      } else if (res.status === 429 || res.status === 400) {
+        // Server-side validation rejects (rate limit 3/24h or 2-min cooldown,
+        // and the AI content filter that rejects suggestions/ideas). Keep the
+        // form open with the backend's error detail instead of showing the
+        // misleading "repair in progress" animation that would otherwise imply
+        // the report was accepted.
+        const data = await res.json().catch(() => ({}));
+        console.log('[BugReport] Rejected by server:', res.status, data);
+        setErrorMsg(data.detail || (res.status === 429
+          ? 'تم تجاوز الحد المسموح. حاول لاحقاً.'
+          : 'تعذّر قبول البلاغ. يرجى توضيح المشكلة أكثر.'));
+        setStatus('error');
+        return;
       } else {
         console.log('[BugReport] Server error:', res.status);
       }
@@ -190,7 +203,9 @@ export default function BugReportButton() {
 
     // RADICAL FIX: ALWAYS open RepairTracker3D after submission attempt
     // Even if the backend is down, the user sees the repair center working
-    // This prevents the "stuck on sending" experience completely
+    // This prevents the "stuck on sending" experience completely.
+    // Exception: server-side validation rejects (429/400) returned early above
+    // so those users see the real error message instead of a fake repair.
     setSubmittedDescription(desc);
     setSubmittedPage(page);
     setDescription('');
