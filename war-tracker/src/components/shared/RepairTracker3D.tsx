@@ -1045,6 +1045,11 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
 
     // Cleanup
     return () => {
+      // Flip the mount flag *before* closing the socket so the async
+      // `ws.onclose` callback triggered below early-returns via its
+      // isMountedRef guard instead of arming a fresh poll interval +
+      // 15s reconnect timeout that nothing would ever clear.
+      isMountedRef.current = false;
       clearTimeout(maxTimeout);
       if (pollTimerRef.current) {
         clearInterval(pollTimerRef.current);
