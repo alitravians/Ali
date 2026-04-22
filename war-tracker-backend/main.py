@@ -527,6 +527,37 @@ _rate_limit_store: dict[str, list[float]] = {}
 RATE_LIMIT_MAX_ATTEMPTS = 5       # max login attempts
 RATE_LIMIT_WINDOW_SECONDS = 300   # per 5-minute window
 
+# When the backend sits behind a reverse proxy (Fly.io, Cloudflare, nginx,
+# etc.) ``request.client.host`` is the proxy's IP — identical for every
+# real user — which silently collapses every per-IP rate limit on this
+# server (bug reports, admin login, …) into a global bucket. Operators
+# who terminate TLS on a trusted proxy should set ``TRUST_FORWARDED_FOR=1``
+# so we honour the left-most entry of the ``X-Forwarded-For`` header
+# instead. Default is off because trusting that header on a
+# direct-exposed server lets any client spoof its own IP and bypass the
+# limit.
+_TRUST_FORWARDED_FOR = os.getenv("TRUST_FORWARDED_FOR", "").lower() in ("1", "true", "yes")
+
+
+def _client_ip_for_rate_limit(request: Request) -> str:
+    """Return a stable per-user identifier for rate-limit bucketing.
+
+    Falls back to the socket peer address when no trusted proxy header
+    is configured or the header is missing/blank.
+    """
+    if _TRUST_FORWARDED_FOR:
+        fwd = request.headers.get("x-forwarded-for", "")
+        if fwd:
+            # Left-most entry is the original client; the rest are each
+            # proxy hop in order. Strip whitespace defensively.
+            first = fwd.split(",", 1)[0].strip()
+            if first:
+                return first
+        real_ip = request.headers.get("x-real-ip", "").strip()
+        if real_ip:
+            return real_ip
+    return request.client.host if request.client else "unknown"
+
 
 def _check_rate_limit(ip: str) -> bool:
     """Return True if the IP is rate-limited (too many attempts)."""
@@ -626,7 +657,12 @@ class AdminLoginResponse(BaseModel):
 @app.post("/api/admin/login")
 async def admin_login(req: AdminLoginRequest, request: Request):
     """Validate admin password server-side and return a session token."""
-    client_ip = request.client.host if request.client else "unknown"
+    # Behind a reverse proxy ``request.client.host`` is the proxy's IP, so
+    # failed attempts from *any* client share a single bucket and either
+    # (a) one user's typos lock out every admin for 5 minutes, or
+    # (b) a distributed attacker never trips the limit for a specific IP
+    # at all. Route through the proxy-aware helper instead.
+    client_ip = _client_ip_for_rate_limit(request)
 
     # Rate limit check
     if _check_rate_limit(client_ip):
@@ -1121,36 +1157,6 @@ _bug_report_timestamps_by_ip: dict[str, list[float]] = {}
 BUG_REPORT_WINDOW_SECONDS = 120.0
 BUG_REPORT_MAX_PER_WINDOW = 1
 _bug_reports: list[dict] = []  # store reports in-memory
-
-# When the backend sits behind a reverse proxy (Fly.io, Cloudflare, nginx,
-# etc.) ``request.client.host`` is the proxy's IP — identical for every
-# real user — which silently collapses the per-IP rate limit back into a
-# global one. Operators who terminate TLS on a trusted proxy should set
-# ``TRUST_FORWARDED_FOR=1`` so we honour the left-most entry of the
-# ``X-Forwarded-For`` header instead. Default is off because trusting
-# that header on a direct-exposed server lets any client spoof its own
-# IP and bypass the limit.
-_TRUST_FORWARDED_FOR = os.getenv("TRUST_FORWARDED_FOR", "").lower() in ("1", "true", "yes")
-
-
-def _client_ip_for_rate_limit(request: Request) -> str:
-    """Return a stable per-user identifier for rate-limit bucketing.
-
-    Falls back to the socket peer address when no trusted proxy header
-    is configured or the header is missing/blank.
-    """
-    if _TRUST_FORWARDED_FOR:
-        fwd = request.headers.get("x-forwarded-for", "")
-        if fwd:
-            # Left-most entry is the original client; the rest are each
-            # proxy hop in order. Strip whitespace defensively.
-            first = fwd.split(",", 1)[0].strip()
-            if first:
-                return first
-        real_ip = request.headers.get("x-real-ip", "").strip()
-        if real_ip:
-            return real_ip
-    return request.client.host if request.client else "unknown"
 
 # Ticket system for live repair tracking
 import uuid as _uuid
