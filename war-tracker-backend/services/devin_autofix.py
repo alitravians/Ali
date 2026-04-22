@@ -86,7 +86,7 @@ WarScope is a real-time Middle East conflict tracker. The health monitor detecte
 
 ### Repository
 {_REPO_URL}
-Branch: `devin/1775605997-devin-analysis-status-page`
+Base branch: `arabic-localization` (create a new `devin/autofix-<date>-<service>` branch from this)
 
 ### Service Details
 - **Service ID:** {service_id}
@@ -112,16 +112,23 @@ Branch: `devin/1775605997-devin-analysis-status-page`
 1. Clone the repository and check the relevant service file
 2. Look at recent commits for any breaking changes
 3. Check environment variables and API keys on Fly.io (app: war-tracker-backend-v2)
-4. Identify the root cause of the failure
-5. Implement a fix
-6. Test the fix locally if possible
-7. Commit the fix and deploy to Fly.io: `fly deploy --app war-tracker-backend-v2`
-8. Verify the service is working after deployment
+4. Identify the **root cause** of the failure — not just the symptom
+5. Implement a radical & complete fix with multi-layer protection
+   (persistence, fallback, retry, validation) per project policy
+6. Test the fix locally (`ast.parse` on modified Python files,
+   `tsc -b --noEmit` on frontend, plus a smoke test for the critical
+   path) — do NOT skip this step
+7. Open a pull request against `arabic-localization` with a detailed
+   description covering root cause, fix, and considered failure
+   scenarios
 
 ### Important
 - Do NOT break other services while fixing this one
 - Keep changes minimal and focused on the fix
-- Deploy immediately after fixing — do not ask for permission
+- **Do NOT deploy directly.** Open a PR and wait for owner review
+  (@alitravians). The owner is the only gatekeeper for production.
+- Do NOT touch `chat-platform/` or `chat-system/` — out of scope
+- Do NOT modify `.env` or other secret files
 """
     return prompt
 
