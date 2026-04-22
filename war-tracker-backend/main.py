@@ -725,6 +725,17 @@ async def root():
     }
 
 
+@app.get("/api/health")
+async def health_check():
+    """Lightweight liveness probe consumed by the Fly.io HTTP health check
+    (configured at ``/api/health`` in ``fly.toml``). Must stay cheap: no DB
+    queries, no upstream API calls — only confirms the event loop is alive.
+    Removing this endpoint causes the proxy to mark the machine unhealthy
+    and pull it from the load-balancer pool, which takes the entire backend
+    offline."""
+    return {"status": "ok"}
+
+
 @app.get("/api/events")
 async def get_events(limit: int = 50, category: str | None = None, trust: str | None = None):
     """Get all events with optional filters."""
