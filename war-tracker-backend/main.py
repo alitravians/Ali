@@ -1,5 +1,6 @@
 """WarScope Backend — Real-time war tracking API with multiple source integrations."""
 import asyncio
+import logging
 import os
 import sys
 import json
@@ -35,6 +36,17 @@ from services.rss_service import fetch_rss_events
 from services.dedup_engine import deduplicate_and_merge
 from services.devin_autofix import create_fix_session, get_session_status, get_fix_sessions, is_devin_configured
 from health_monitor import HealthMonitor
+import persistence
+
+# Module-level logger. We keep the existing `print()` calls elsewhere (they
+# already go to stdout and are picked up by the process manager) but route
+# new diagnostics and error paths through `logging` so operators can filter
+# by level. Configured here so every module that imports `main` inherits it.
+logging.basicConfig(
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("warscope")
 
 
 # ──────────────────────────────────────────────
@@ -434,9 +446,13 @@ async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
 
 
 async def poll_maritime_broadcast():
-    """Background task: Broadcast maritime vessel positions every 30 seconds."""
+    """Background task: Broadcast maritime vessel positions every 30 seconds.
+
+    The broadcast runs *before* the sleep so that on cold start any vessels
+    already delivered by the AISStream socket during backend startup are
+    pushed to connected clients immediately rather than 30 seconds later.
+    """
     while True:
-        await asyncio.sleep(30)
         try:
             vessels = get_vessels()
             zones = get_zone_stats()
@@ -453,7 +469,8 @@ async def poll_maritime_broadcast():
                 })
         except Exception as e:
             store.source_status["aisstream"]["errors"] += 1
-            print(f"[Maritime] Broadcast error: {e}")
+            logger.error("[Maritime] Broadcast error: %s", e)
+        await asyncio.sleep(30)
 
 
 # ──────────────────────────────────────────────
@@ -564,17 +581,24 @@ if not ADMIN_PASSWORD_HASH:
             flush=True,
         )
 
-# Token store with expiration: token -> expiry timestamp
-_admin_tokens: dict[str, float] = {}
+# Token store with expiration: token -> expiry timestamp. Persisted to a
+# local SQLite file (via `persistence.py`) so admin sessions survive a
+# backend restart — without this, every deploy forces every admin to
+# re-authenticate and any in-flight admin action returns 401.
+_admin_tokens: dict[str, float] = persistence.load_tokens()
 TOKEN_TTL_SECONDS = 3600  # Tokens expire after 1 hour
 
 
 def _cleanup_expired_tokens():
-    """Remove expired tokens from the store."""
+    """Remove expired tokens from the store (memory + on-disk)."""
     now = time.time()
     expired = [t for t, exp in _admin_tokens.items() if now > exp]
     for t in expired:
         del _admin_tokens[t]
+        persistence.delete_token(t)
+    if expired:
+        # Cheap belt-and-suspenders sweep in case memory drifted from disk.
+        persistence.purge_expired_tokens(now)
 
 
 def _verify_token(token: str) -> bool:
@@ -607,7 +631,9 @@ async def admin_login(req: AdminLoginRequest, request: Request):
     pwd_hash = hashlib.sha256(req.password.encode()).hexdigest()
     if hmac.compare_digest(pwd_hash, ADMIN_PASSWORD_HASH):
         token = secrets.token_hex(32)
-        _admin_tokens[token] = time.time() + TOKEN_TTL_SECONDS
+        expires_at = time.time() + TOKEN_TTL_SECONDS
+        _admin_tokens[token] = expires_at
+        persistence.save_token(token, expires_at)
         return AdminLoginResponse(success=True, token=token)
 
     # Only record failed attempts for rate limiting
@@ -1078,7 +1104,12 @@ async def get_autofix_session_status(session_id: str, authorization: str = Heade
 # ──────────────────────────────────────────────
 # Bug Report Ticket System with Live WebSocket Updates
 # ──────────────────────────────────────────────
-_bug_report_timestamps: list[float] = []  # simple rate-limit tracker
+# Per-IP rate-limit tracker: a single noisy client can no longer block every
+# other user from submitting a report for two minutes. Keyed by client IP and
+# pruned on access so the dict cannot grow unbounded under a spam attack.
+_bug_report_timestamps_by_ip: dict[str, list[float]] = {}
+BUG_REPORT_WINDOW_SECONDS = 120.0
+BUG_REPORT_MAX_PER_WINDOW = 1
 _bug_reports: list[dict] = []  # store reports in-memory
 
 # Ticket system for live repair tracking
@@ -1095,8 +1126,10 @@ TICKET_PHASES = [
     {"phase": 6, "label": "تم الحل!", "label_en": "Resolved"},
 ]
 
-# In-memory ticket store: ticket_id -> ticket data
-_tickets: dict[str, dict] = {}
+# Ticket store: ticket_id -> ticket data. Loaded from the persistence layer
+# on startup so that a user who just submitted a bug report does not lose
+# their live-tracking modal (RepairTracker3D) across a backend restart.
+_tickets: dict[str, dict] = persistence.load_tickets()
 
 # WebSocket connections per ticket: ticket_id -> list of WebSocket connections
 _ticket_ws_connections: dict[str, list[WebSocket]] = {}
@@ -1134,24 +1167,38 @@ class BugReport(BaseModel):
 
 
 @app.post("/api/bug-report")
-async def submit_bug_report(report: BugReport):
+async def submit_bug_report(report: BugReport, request: Request):
     """Public: submit a bug report which creates a Devin session to investigate."""
     import time as _time
 
-    # Rate limit: max 1 report per 2 minutes globally
+    # Per-IP rate limit: a single noisy client cannot block other users.
+    client_ip = request.client.host if request.client else "unknown"
     now = _time.time()
-    _bug_report_timestamps[:] = [t for t in _bug_report_timestamps if now - t < 120]
-    if len(_bug_report_timestamps) >= 1:
-        remaining = int(120 - (now - _bug_report_timestamps[0]))
+    ip_hits = [t for t in _bug_report_timestamps_by_ip.get(client_ip, []) if now - t < BUG_REPORT_WINDOW_SECONDS]
+    if ip_hits:
+        _bug_report_timestamps_by_ip[client_ip] = ip_hits
+    else:
+        _bug_report_timestamps_by_ip.pop(client_ip, None)
+    if len(ip_hits) >= BUG_REPORT_MAX_PER_WINDOW:
+        remaining = int(BUG_REPORT_WINDOW_SECONDS - (now - ip_hits[0]))
         raise HTTPException(
             status_code=429,
-            detail=f"يرجى الانتظار {remaining} ثانية قبل إرسال بلاغ آخر"
+            detail=f"يرجى الانتظار {remaining} ثانية قبل إرسال بلاغ آخر",
         )
 
     if not report.description or len(report.description.strip()) < 5:
         raise HTTPException(status_code=400, detail="يرجى كتابة وصف المشكلة (5 أحرف على الأقل)")
 
-    _bug_report_timestamps.append(now)
+    _bug_report_timestamps_by_ip.setdefault(client_ip, []).append(now)
+    # Opportunistic prune: bound overall memory usage under a spam attack
+    # by clearing cohorts that have fully aged out.
+    if len(_bug_report_timestamps_by_ip) > 1024:
+        stale_ips = [
+            ip for ip, hits in _bug_report_timestamps_by_ip.items()
+            if not any(now - t < BUG_REPORT_WINDOW_SECONDS for t in hits)
+        ]
+        for ip in stale_ips:
+            _bug_report_timestamps_by_ip.pop(ip, None)
 
     # Generate unique ticket ID
     ticket_id = f"TKT-{_uuid.uuid4().hex[:8].upper()}"
@@ -1169,8 +1216,9 @@ async def submit_bug_report(report: BugReport):
         "session_url": None,
     }
 
-    # Create ticket for live tracking
-    _tickets[ticket_id] = {
+    # Create ticket for live tracking (persisted so the user's repair modal
+    # survives a backend restart).
+    new_ticket = {
         "id": ticket_id,
         "description": report.description[:1000],
         "page": report.page[:200],
@@ -1188,6 +1236,8 @@ async def submit_bug_report(report: BugReport):
             }
         ],
     }
+    _tickets[ticket_id] = new_ticket
+    persistence.save_ticket(ticket_id, new_ticket)
 
     # Send bug report as a message to the active Devin session
     import logging
@@ -1374,6 +1424,7 @@ async def update_ticket_status(ticket_id: str, update: TicketStatusUpdate, autho
         "message": status_message,
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
+    persistence.save_ticket(ticket_id, ticket)
 
     # Broadcast to all connected WebSocket clients watching this ticket
     ws_update = {

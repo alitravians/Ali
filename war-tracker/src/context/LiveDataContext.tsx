@@ -34,23 +34,70 @@ export function useLiveData() {
   return ctx;
 }
 
-// Parse event timestamps from JSON
-function parseEvent(raw: Record<string, unknown>): TrackerEvent {
+// Lightweight runtime validator: we don't want a single malformed server
+// payload to crash the whole dashboard, so instead of a blind cast we check
+// the fields the UI actually reads and drop events that would render as
+// broken rows. Anything beyond these required fields is forwarded as-is.
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseEvent(raw: unknown): TrackerEvent | null {
+  if (!isPlainObject(raw)) return null;
+  const { id, title, timestamp } = raw;
+  if (typeof id !== 'string' || id.length === 0) return null;
+  if (typeof title !== 'string') return null;
+  if (typeof timestamp !== 'string') return null;
+
+  const parsedTimestamp = new Date(timestamp);
+  if (Number.isNaN(parsedTimestamp.getTime())) return null;
+
+  const rawSources = Array.isArray(raw.sources) ? raw.sources : [];
+  const sources = rawSources
+    .filter(isPlainObject)
+    .map((s) => ({
+      ...s,
+      timestamp: typeof s.timestamp === 'string' ? new Date(s.timestamp) : new Date(),
+    }));
+
   return {
     ...raw,
-    timestamp: new Date(raw.timestamp as string),
-    sources: ((raw.sources as Record<string, unknown>[]) || []).map((s) => ({
-      ...s,
-      timestamp: new Date(s.timestamp as string),
-    })),
+    timestamp: parsedTimestamp,
+    sources,
   } as TrackerEvent;
 }
 
-function parseAlert(raw: Record<string, unknown>): Alert {
+function parseEvents(raw: unknown): TrackerEvent[] {
+  if (!Array.isArray(raw)) return [];
+  const out: TrackerEvent[] = [];
+  for (const item of raw) {
+    const parsed = parseEvent(item);
+    if (parsed) out.push(parsed);
+  }
+  return out;
+}
+
+function parseAlert(raw: unknown): Alert | null {
+  if (!isPlainObject(raw)) return null;
+  const { id, timestamp } = raw;
+  if (typeof id !== 'string' || id.length === 0) return null;
+  if (typeof timestamp !== 'string') return null;
+  const parsedTimestamp = new Date(timestamp);
+  if (Number.isNaN(parsedTimestamp.getTime())) return null;
   return {
     ...raw,
-    timestamp: new Date(raw.timestamp as string),
+    timestamp: parsedTimestamp,
   } as Alert;
+}
+
+function parseAlerts(raw: unknown): Alert[] {
+  if (!Array.isArray(raw)) return [];
+  const out: Alert[] = [];
+  for (const item of raw) {
+    const parsed = parseAlert(item);
+    if (parsed) out.push(parsed);
+  }
+  return out;
 }
 
 export function LiveDataProvider({ children }: { children: ReactNode }) {
@@ -68,6 +115,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const isLive = true;
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const reconnectAttemptRef = useRef(0);
   const prevEventCountRef = useRef(0);
 
   // WebSocket message handler
@@ -76,25 +124,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       const data = JSON.parse(msg.data);
 
       if (data.type === 'initial_data' || data.type === 'events_update') {
-        const newEvents = (data.events || []).map(parseEvent);
-        if (newEvents.length > 0) {
-          setEvents(newEvents);
-          // Use totalEvents from backend (not array length) to detect new events
-          // because the backend caps the broadcast at 50 events
-          const totalFromBackend = data.totalEvents ?? newEvents.length;
-          const diff = totalFromBackend - prevEventCountRef.current;
-          if (diff > 0 && data.type === 'events_update') {
-            setNewEventCount(prev => prev + diff);
-          }
-          prevEventCountRef.current = totalFromBackend;
-          setLastUpdate(new Date());
+        const newEvents = parseEvents(data.events);
+        // Always call setEvents — even with an empty array — so that a
+        // legitimate backend clear (e.g. all events expired from the
+        // rolling window) is reflected in the UI instead of leaving stale
+        // events on screen indefinitely. The "new events" badge still
+        // uses the totalEvents counter so it does not false-positive.
+        setEvents(newEvents);
+        const totalFromBackend = data.totalEvents ?? newEvents.length;
+        const diff = totalFromBackend - prevEventCountRef.current;
+        if (diff > 0 && data.type === 'events_update') {
+          setNewEventCount(prev => prev + diff);
         }
+        prevEventCountRef.current = totalFromBackend;
+        setLastUpdate(new Date());
 
         if (data.indicators) {
           setIndicators(data.indicators);
         }
         if (data.alerts) {
-          setAlerts((data.alerts || []).map(parseAlert));
+          setAlerts(parseAlerts(data.alerts));
         }
         if (data.sources) {
           setSourceStatus(data.sources);
@@ -121,14 +170,21 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       }
 
       if (data.type === 'bahrain_alert') {
-        const alertEvent = data.event ? parseEvent(data.event) : null;
-        setBahrainAlert({
-          severity: data.severity || 'critical',
-          message: data.message || 'تنبيه عاجل من البحرين',
-          messageEn: data.messageEn || 'URGENT: Bahrain alert',
-          timestamp: data.timestamp || new Date().toISOString(),
-          event: alertEvent as TrackerEvent,
-        });
+        const alertEvent = parseEvent(data.event);
+        // Drop the alert entirely if we could not parse its event payload —
+        // the modal needs a well-formed event to render, and showing a
+        // placeholder with blank fields would be worse than missing the
+        // toast for one cycle (the backend re-broadcasts on the next
+        // poll).
+        if (alertEvent) {
+          setBahrainAlert({
+            severity: typeof data.severity === 'string' ? data.severity : 'critical',
+            message: typeof data.message === 'string' ? data.message : 'تنبيه عاجل من البحرين',
+            messageEn: typeof data.messageEn === 'string' ? data.messageEn : 'URGENT: Bahrain alert',
+            timestamp: typeof data.timestamp === 'string' ? data.timestamp : new Date().toISOString(),
+            event: alertEvent,
+          });
+        }
       }
     } catch (e) {
       // WS parse error silenced in production
@@ -136,8 +192,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Connect to WebSocket. Guards against duplicate/leaked connections when
-  // called while a previous socket is still OPEN or CONNECTING, and cancels
-  // any pending reconnect timer before scheduling a new one.
+  // called while a previous socket is still OPEN or CONNECTING, cancels
+  // any pending reconnect timer before scheduling a new one, and uses a
+  // capped exponential backoff so a long backend outage does not burn the
+  // browser's socket quota with a 10-second retry storm.
   const connectWs = useCallback(() => {
     const existing = wsRef.current;
     if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
@@ -156,6 +214,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
 
     ws.onopen = () => {
       setConnectionStatus('connected');
+      reconnectAttemptRef.current = 0;
     };
 
     ws.onmessage = handleWsMessage;
@@ -167,7 +226,14 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         wsRef.current = null;
         setConnectionStatus('disconnected');
         if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-        reconnectTimer.current = setTimeout(connectWs, 10000);
+        // Exponential backoff: 2s, 4s, 8s, … capped at 60s, with ±25% jitter
+        // so many clients don't reconnect in a synchronized stampede after
+        // the server comes back.
+        const attempt = reconnectAttemptRef.current;
+        reconnectAttemptRef.current = attempt + 1;
+        const base = Math.min(2000 * Math.pow(2, attempt), 60000);
+        const jitter = base * (0.75 + Math.random() * 0.5);
+        reconnectTimer.current = setTimeout(connectWs, jitter);
       }
     };
 
@@ -188,7 +254,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         clearTimeout(timeout);
         if (resp.ok) {
           const data = await resp.json();
-          const apiEvents = (data.events || []).map(parseEvent);
+          const apiEvents = parseEvents(data.events);
           if (apiEvents.length > 0) {
             setEvents(apiEvents);
             prevEventCountRef.current = data.total ?? apiEvents.length;
@@ -225,7 +291,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       if (resp.ok) {
         const data = await resp.json();
         if (data.alerts) {
-          setAlerts(data.alerts.map(parseAlert));
+          setAlerts(parseAlerts(data.alerts));
         }
       }
     } catch {
