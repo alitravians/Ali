@@ -174,8 +174,22 @@ def _process_ais_message(data: dict):
     if not mmsi:
         return
 
-    lat = metadata.get("latitude", 0)
-    lng = metadata.get("longitude", 0)
+    # Reject messages missing latitude/longitude. Previously we defaulted to
+    # 0 which would place vessels at (0, 0) — a point in the Gulf of Guinea
+    # thousands of kilometres from our monitored zones — and pollute the
+    # zone stats. For PositionReport messages, lat/lng are mandatory; we
+    # still accept ShipStaticData updates for known vessels even when their
+    # MetaData does not include fresh position fields.
+    lat_raw = metadata.get("latitude")
+    lng_raw = metadata.get("longitude")
+    try:
+        lat = float(lat_raw) if lat_raw is not None else None
+        lng = float(lng_raw) if lng_raw is not None else None
+    except (TypeError, ValueError):
+        lat = None
+        lng = None
+    if (lat is None or lng is None) and msg_type == "PositionReport":
+        return
     ship_name = metadata.get("ShipName", "").strip()
     timestamp_str = metadata.get("time_utc", "")
 
@@ -184,9 +198,11 @@ def _process_ais_message(data: dict):
     except (ValueError, AttributeError):
         ts = datetime.now(timezone.utc)
 
-    zone_id, zone_ar = _determine_zone(lat, lng)
+    have_position = lat is not None and lng is not None
+    zone_id, zone_ar = _determine_zone(lat, lng) if have_position else ("unknown", "غير محدد")
 
     if msg_type == "PositionReport":
+        # Guaranteed to have position here (earlier guard returns if missing).
         pos_report = message.get("PositionReport", {})
         speed = pos_report.get("Sog", None)  # Speed over ground
         course = pos_report.get("Cog", None)  # Course over ground
@@ -248,8 +264,10 @@ def _process_ais_message(data: dict):
             if ship_name:
                 v.name = ship_name
         else:
-            # Only create new vessel if we have valid position data
-            if lat == 0 and lng == 0:
+            # Only create new vessel if we have a real position. Refuse both
+            # missing and the (0, 0) fallback — the latter would park a
+            # vessel thousands of km off Africa in the Gulf of Guinea.
+            if not have_position or (lat == 0 and lng == 0):
                 return
             _vessels[mmsi] = VesselPosition(
                 mmsi=mmsi,

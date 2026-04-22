@@ -21,6 +21,7 @@ class ServiceStatus(str, Enum):
     partial_outage = "partial_outage"
     major_outage = "major_outage"
     maintenance = "maintenance"
+    disabled = "disabled"  # service intentionally turned off via admin config
 
 
 class OverallStatus(str, Enum):
@@ -457,7 +458,15 @@ class HealthMonitor:
             self.incidents = self.incidents[:100]
 
     def _resolve_incidents(self, service_id: str):
-        """Auto-resolve open incidents for a service that recovered."""
+        """Auto-resolve open incidents for a service that recovered.
+
+        Also decrements the service's ``outages_24h`` counter (floor 0) so
+        the status page reflects *currently active* outages rather than a
+        monotonically-rising lifetime total. The 24h window rollover in
+        ``_update_service_health`` still takes precedence when a full day
+        has elapsed.
+        """
+        svc = self.services.get(service_id)
         now = datetime.now(timezone.utc)
         for inc in self.incidents:
             if (
@@ -477,6 +486,8 @@ class HealthMonitor:
                         timestamp=now.isoformat(),
                     )
                 )
+                if svc is not None and svc.outages_24h > 0:
+                    svc.outages_24h -= 1
 
     async def attempt_self_heal(self, service_id: str, store: Any) -> bool:
         """Attempt safe self-healing actions for a failing service."""
@@ -684,4 +695,5 @@ def _service_status_ar(status: str) -> str:
         "partial_outage": "انقطاع جزئي",
         "major_outage": "متوقف",
         "maintenance": "صيانة",
+        "disabled": "معطّل",
     }.get(status, status)
