@@ -58,10 +58,18 @@ def _get_conn() -> Optional[sqlite3.Connection]:
             """
             CREATE TABLE IF NOT EXISTS admin_tokens (
                 token TEXT PRIMARY KEY,
-                expires_at REAL NOT NULL
+                expires_at REAL NOT NULL,
+                password_hash TEXT NOT NULL DEFAULT ''
             )
             """
         )
+        # Additive migration for older DBs created before password_hash
+        # binding existed. Safe to run on every startup — SQLite ignores
+        # duplicate-column errors only when we catch them ourselves.
+        try:
+            _conn.execute("ALTER TABLE admin_tokens ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''")
+        except sqlite3.OperationalError:
+            pass
         _conn.execute(
             """
             CREATE TABLE IF NOT EXISTS tickets (
@@ -83,8 +91,19 @@ def _get_conn() -> Optional[sqlite3.Connection]:
 # ──────────────────────────────────────────────
 # Admin tokens
 # ──────────────────────────────────────────────
-def load_tokens() -> dict[str, float]:
-    """Load non-expired tokens from disk."""
+def load_tokens(current_password_hash: str = "") -> dict[str, float]:
+    """Load non-expired tokens from disk that were issued under the current
+    admin password hash.
+
+    ``current_password_hash`` binds every persisted token to the exact
+    admin password that authorized its creation. On restart, tokens whose
+    stored ``password_hash`` no longer matches the current environment's
+    hash are discarded and deleted. This preserves the per-process
+    security contract when ``ADMIN_PASSWORD_HASH`` is unset (random
+    password regenerated every start) and also rotates sessions cleanly
+    when an operator changes the password. Passing an empty string
+    disables the check (for callers that don't care or for tests).
+    """
     conn = _get_conn()
     if conn is None:
         return {}
@@ -92,25 +111,43 @@ def load_tokens() -> dict[str, float]:
     try:
         with _lock:
             cur = conn.execute(
-                "SELECT token, expires_at FROM admin_tokens WHERE expires_at > ?",
+                "SELECT token, expires_at, password_hash FROM admin_tokens WHERE expires_at > ?",
                 (now,),
             )
             rows = cur.fetchall()
-        return {token: expires for token, expires in rows}
+        valid: dict[str, float] = {}
+        stale: list[str] = []
+        for token, expires, stored_hash in rows:
+            if current_password_hash and stored_hash and stored_hash != current_password_hash:
+                stale.append(token)
+                continue
+            if current_password_hash and not stored_hash:
+                # Legacy row persisted before binding was introduced — cannot
+                # verify which password authorized it, so drop it rather than
+                # trust it.
+                stale.append(token)
+                continue
+            valid[token] = expires
+        if stale:
+            with _lock:
+                conn.executemany("DELETE FROM admin_tokens WHERE token = ?", [(t,) for t in stale])
+                conn.commit()
+            logger.info("discarded %d stale token(s) from previous password", len(stale))
+        return valid
     except Exception as exc:  # noqa: BLE001
         logger.warning("failed to load tokens: %s", exc)
         return {}
 
 
-def save_token(token: str, expires_at: float) -> None:
+def save_token(token: str, expires_at: float, password_hash: str = "") -> None:
     conn = _get_conn()
     if conn is None:
         return
     try:
         with _lock:
             conn.execute(
-                "INSERT OR REPLACE INTO admin_tokens (token, expires_at) VALUES (?, ?)",
-                (token, expires_at),
+                "INSERT OR REPLACE INTO admin_tokens (token, expires_at, password_hash) VALUES (?, ?, ?)",
+                (token, expires_at, password_hash),
             )
             conn.commit()
     except Exception as exc:  # noqa: BLE001

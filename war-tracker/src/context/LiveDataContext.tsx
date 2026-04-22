@@ -70,9 +70,20 @@ function parseEvent(raw: unknown): TrackerEvent | null {
 function parseEvents(raw: unknown): TrackerEvent[] {
   if (!Array.isArray(raw)) return [];
   const out: TrackerEvent[] = [];
+  let dropped = 0;
   for (const item of raw) {
     const parsed = parseEvent(item);
-    if (parsed) out.push(parsed);
+    if (parsed) {
+      out.push(parsed);
+    } else {
+      dropped++;
+    }
+  }
+  if (dropped > 0 && import.meta.env.DEV) {
+    // Surface malformed payloads in development so backend schema drift
+    // is caught early. In production we stay silent — dropping a bad row
+    // is preferable to a console flood the user cannot do anything about.
+    console.warn(`[LiveData] dropped ${dropped} malformed event(s)`);
   }
   return out;
 }
@@ -93,9 +104,17 @@ function parseAlert(raw: unknown): Alert | null {
 function parseAlerts(raw: unknown): Alert[] {
   if (!Array.isArray(raw)) return [];
   const out: Alert[] = [];
+  let dropped = 0;
   for (const item of raw) {
     const parsed = parseAlert(item);
-    if (parsed) out.push(parsed);
+    if (parsed) {
+      out.push(parsed);
+    } else {
+      dropped++;
+    }
+  }
+  if (dropped > 0 && import.meta.env.DEV) {
+    console.warn(`[LiveData] dropped ${dropped} malformed alert(s)`);
   }
   return out;
 }
