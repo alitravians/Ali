@@ -135,32 +135,44 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Connect to WebSocket
+  // Connect to WebSocket. Guards against duplicate/leaked connections when
+  // called while a previous socket is still OPEN or CONNECTING, and cancels
+  // any pending reconnect timer before scheduling a new one.
   const connectWs = useCallback(() => {
-    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    const existing = wsRef.current;
+    if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current);
+      reconnectTimer.current = undefined;
+    }
 
     setConnectionStatus('connecting');
-    // WS connecting
 
     const ws = new WebSocket(BACKEND_WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // WS connected
       setConnectionStatus('connected');
     };
 
     ws.onmessage = handleWsMessage;
 
     ws.onclose = () => {
-      // WS disconnected, reconnecting
-      setConnectionStatus('disconnected');
-      reconnectTimer.current = setTimeout(connectWs, 10000);
+      // Only clear ref if this is still the current socket — otherwise a
+      // newer connection has already taken over and we must not clobber it.
+      if (wsRef.current === ws) {
+        wsRef.current = null;
+        setConnectionStatus('disconnected');
+        if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = setTimeout(connectWs, 10000);
+      }
     };
 
     ws.onerror = () => {
-      // WS error
-      ws.close();
+      try { ws.close(); } catch { /* ignore */ }
     };
   }, [handleWsMessage]);
 

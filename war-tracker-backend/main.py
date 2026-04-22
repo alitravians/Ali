@@ -1,6 +1,7 @@
 """WarScope Backend — Real-time war tracking API with multiple source integrations."""
 import asyncio
 import os
+import sys
 import json
 import time
 from datetime import datetime, timezone
@@ -399,7 +400,12 @@ async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
     Broadcasts an immediate WebSocket alert if detected."""
     ALL_CLEAR_KEYWORDS = ["زوال الخطر", "انتهاء التهديد", "all clear", "زوال"]
     for event in events:
-        text = f"{event.title} {event.titleAr or ''} {event.description or ''}".lower()
+        text = " ".join([
+            event.title or "",
+            event.titleAr or "",
+            event.description or "",
+            event.descriptionAr or "",
+        ]).lower()
         has_bahrain = any(kw in text for kw in BAHRAIN_LOCATION_KEYWORDS)
         has_alert = any(kw in text for kw in BAHRAIN_ALERT_KEYWORDS)
         if has_bahrain and has_alert:
@@ -531,8 +537,32 @@ def _record_attempt(ip: str):
 # ──────────────────────────────────────────────
 ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH", "")
 if not ADMIN_PASSWORD_HASH:
-    # Fallback — should be overridden via env var in production
-    ADMIN_PASSWORD_HASH = hashlib.sha256(b"warscope2024").hexdigest()
+    # SECURITY: no hardcoded fallback. A publicly-known default password would
+    # allow anyone reading the source to authenticate as admin on any deploy
+    # that forgot to set the env var. Instead, generate a random admin password
+    # valid only for this process and print it to stderr so the operator must
+    # actively retrieve it from the logs to use the admin API. Deployments
+    # should always set ADMIN_PASSWORD_HASH (sha256 hex of the password) or
+    # ADMIN_PASSWORD (raw password, hashed at startup) in their environment.
+    _env_admin_pwd = os.getenv("ADMIN_PASSWORD", "")
+    if _env_admin_pwd:
+        ADMIN_PASSWORD_HASH = hashlib.sha256(_env_admin_pwd.encode()).hexdigest()
+    else:
+        _generated_pwd = secrets.token_urlsafe(24)
+        ADMIN_PASSWORD_HASH = hashlib.sha256(_generated_pwd.encode()).hexdigest()
+        print(
+            "[SECURITY] ADMIN_PASSWORD_HASH and ADMIN_PASSWORD are both unset. "
+            "Generated a one-time random admin password for this process only. "
+            "Set ADMIN_PASSWORD_HASH in the deployment environment to persist "
+            "admin access across restarts.",
+            file=sys.stderr,
+            flush=True,
+        )
+        print(
+            f"[SECURITY] TEMPORARY ADMIN PASSWORD (valid until restart): {_generated_pwd}",
+            file=sys.stderr,
+            flush=True,
+        )
 
 # Token store with expiration: token -> expiry timestamp
 _admin_tokens: dict[str, float] = {}
