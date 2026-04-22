@@ -7,6 +7,7 @@ import {
   Bot, ExternalLink, Loader2
 } from 'lucide-react';
 import { BACKEND_API_URL } from '../config/api';
+import { safeExternalUrl } from '../utils/helpers';
 
 // ──────────────────────────────────────────────
 // Types
@@ -587,9 +588,9 @@ export default function StatusPage() {
                       </button>
                     </div>
                   ) : fixResult && fixResult.svcId === svc.id ? (
-                    fixResult.success ? (
+                    fixResult.success && safeExternalUrl(fixResult.url) ? (
                       <a
-                        href={fixResult.url}
+                        href={safeExternalUrl(fixResult.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-[11px] font-semibold hover:bg-green-500/20 transition-colors"
@@ -597,6 +598,14 @@ export default function StatusPage() {
                         <ExternalLink className="w-3 h-3" />
                         تم إنشاء جلسة الإصلاح — اضغط للمتابعة
                       </a>
+                    ) : fixResult.success ? (
+                      // Success flag but URL missing/unsafe — surface a
+                      // non-link confirmation instead of rendering nothing,
+                      // so the operator still sees that the request landed.
+                      <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-green-500/10 border border-green-500/30 text-green-400 text-[10px]">
+                        <ExternalLink className="w-3 h-3" />
+                        تم إنشاء جلسة الإصلاح
+                      </div>
                     ) : (
                       <div className="flex items-center justify-center gap-1.5 w-full py-2 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-[10px]">
                         <XCircle className="w-3 h-3" />
@@ -621,18 +630,25 @@ export default function StatusPage() {
               )}
 
               {/* Active fix session link for this service */}
-              {fixSessions.some(s => s.service_id === svc.id && s.status === 'running') && svc.status !== 'operational' && !(fixResult && fixResult.svcId === svc.id && fixResult.success) && (
-                <a
-                  href={fixSessions.find(s => s.service_id === svc.id && s.status === 'running')?.session_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1 mt-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  <Bot className="w-3 h-3" />
-                  جلسة إصلاح نشطة — اضغط للمتابعة
-                  <ExternalLink className="w-2.5 h-2.5" />
-                </a>
-              )}
+              {(() => {
+                if (svc.status === 'operational') return null;
+                if (fixResult && fixResult.svcId === svc.id && fixResult.success) return null;
+                const running = fixSessions.find(s => s.service_id === svc.id && s.status === 'running');
+                const safeUrl = safeExternalUrl(running?.session_url);
+                if (!running || !safeUrl) return null;
+                return (
+                  <a
+                    href={safeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-1 mt-1.5 text-[10px] text-purple-400 hover:text-purple-300 transition-colors"
+                  >
+                    <Bot className="w-3 h-3" />
+                    جلسة إصلاح نشطة — اضغط للمتابعة
+                    <ExternalLink className="w-2.5 h-2.5" />
+                  </a>
+                );
+              })()}
             </div>
           );
         })}
@@ -667,16 +683,19 @@ export default function StatusPage() {
                     {session.status === 'running' ? 'قيد العمل' : session.status === 'finished' ? 'اكتمل' : session.status}
                   </span>
                   <span className="text-[9px] text-gray-600">{timeAgo(session.created_at)}</span>
-                  {session.session_url && (
-                    <a
-                      href={session.session_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 transition-colors"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+                  {(() => {
+                    const safeUrl = safeExternalUrl(session.session_url);
+                    return safeUrl ? (
+                      <a
+                        href={safeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-purple-400 hover:text-purple-300 transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : null;
+                  })()}
                 </div>
               </div>
             ))}

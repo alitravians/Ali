@@ -5,6 +5,7 @@ import feedparser
 from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
 from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_location, _extract_all_related_cities, _is_relevant
+from services._url_safety import is_safe_event_url
 
 
 # Trusted RSS feeds — ranked by global credibility
@@ -150,6 +151,15 @@ async def fetch_rss_events(max_results: int = 50) -> list[TrackerEvent]:
                     summary = entry.get("summary", "") or entry.get("description", "") or ""
 
                     if not title or not link:
+                        continue
+
+                    # Reject entries whose ``link`` is not plain http(s).
+                    # A hostile or compromised feed could otherwise push
+                    # ``javascript:…`` / ``data:…`` URIs into the event
+                    # store — this is defence in depth behind the
+                    # frontend ``safeExternalUrl`` render guard.
+                    if not is_safe_event_url(link):
+                        print(f"[RSS] {feed_info['name']}: dropped entry with unsafe link scheme")
                         continue
 
                     # Skip duplicates

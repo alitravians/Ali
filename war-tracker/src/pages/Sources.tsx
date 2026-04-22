@@ -1,5 +1,5 @@
 import { useLiveData } from '../context/LiveDataContext';
-import { timeAgo } from '../utils/helpers';
+import { timeAgo, safeExternalUrl } from '../utils/helpers';
 import { Globe2, Clock, Wifi, WifiOff, BarChart3, Shield, AlertTriangle } from 'lucide-react';
 
 const SOURCE_META: Record<string, { nameAr: string; type: string; url?: string }> = {
@@ -146,17 +146,25 @@ export default function Sources() {
                 )}
               </div>
 
-              {meta.url && (
-                <a
-                  href={meta.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[11px] text-blue-400 hover:bg-blue-500/20 transition-colors"
-                >
-                  <Shield className="w-3 h-3" />
-                  زيارة المصدر
-                </a>
-              )}
+              {(() => {
+                // ``meta.url`` is currently sourced from a static config
+                // above, but funnelling it through the safe-URL helper
+                // keeps the render site hardened even if this page is
+                // later refactored to pull source metadata from the
+                // backend (which re-surfaces third-party data).
+                const safeUrl = safeExternalUrl(meta.url);
+                return safeUrl ? (
+                  <a
+                    href={safeUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-lg text-[11px] text-blue-400 hover:bg-blue-500/20 transition-colors"
+                  >
+                    <Shield className="w-3 h-3" />
+                    زيارة المصدر
+                  </a>
+                ) : null;
+              })()}
             </div>
           );
         })}

@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Optional
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
 from config import GDELT_BASE_URL, CONFLICT_KEYWORDS, REGION_BBOX
+from services._url_safety import is_safe_event_url
 
 # City name mappings for Arabic
 CITY_AR_MAP = {
@@ -187,6 +188,14 @@ async def fetch_gdelt_events(max_results: int = 50) -> list[TrackerEvent]:
             source_country = article.get("sourcecountry", "")
             language = article.get("language", "")
             socialimage = article.get("socialimage", "")
+
+            # Reject articles with a non-http(s) citation URL before they
+            # can land in the DataStore / SQLite. Defence in depth behind
+            # the frontend ``safeExternalUrl`` render guard — prevents a
+            # hostile feed from persisting ``javascript:`` / ``data:``
+            # payloads across server restarts.
+            if not is_safe_event_url(url_str):
+                continue
 
             # Generate stable ID from URL
             event_id = f"gdelt-{hashlib.md5(url_str.encode()).hexdigest()[:12]}"

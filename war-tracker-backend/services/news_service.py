@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
 from config import NEWSAPI_KEY
 from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_all_related_cities
+from services._url_safety import is_safe_event_url
 
 
 NEWSAPI_URL = "https://newsapi.org/v2/everything"
@@ -58,6 +59,11 @@ async def fetch_news_events(max_results: int = 30) -> list[TrackerEvent]:
                     published = article.get("publishedAt", "")
 
                     if not title or title == "[Removed]":
+                        continue
+
+                    # Drop articles with a non-http(s) URL — defence in
+                    # depth behind the frontend ``safeExternalUrl`` guard.
+                    if not is_safe_event_url(url_str):
                         continue
 
                     event_id = f"news-{hashlib.md5(url_str.encode()).hexdigest()[:12]}"

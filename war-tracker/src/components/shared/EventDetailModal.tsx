@@ -1,5 +1,5 @@
 import type { TrackerEvent } from '../../types';
-import { timeAgo, categoryColor, categoryTextAr } from '../../utils/helpers';
+import { timeAgo, categoryColor, categoryTextAr, safeExternalUrl } from '../../utils/helpers';
 import TrustBadge from './TrustBadge';
 import Modal from './Modal';
 import { MapPin, Clock, Link2, Lightbulb, ExternalLink, Zap } from 'lucide-react';
@@ -92,24 +92,30 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
             المصادر ({event.sources.length})
           </h4>
           <div className="space-y-2">
-            {event.sources.map((src, i) => (
-              <div key={i} className="flex items-center justify-between bg-[#0a0a0f] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-800">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs sm:text-sm text-gray-200 font-medium">{src.sourceNameAr}</span>
-                  {src.url && (
-                    <a
-                      href={src.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-400 hover:text-blue-300"
-                    >
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
+            {event.sources.map((src, i) => {
+              // A compromised RSS/GDELT/News feed can put ``javascript:…``
+              // or ``data:text/html,…`` in ``src.url``; render the link
+              // only when the scheme is safe.
+              const safeUrl = safeExternalUrl(src.url);
+              return (
+                <div key={i} className="flex items-center justify-between bg-[#0a0a0f] rounded-xl px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs sm:text-sm text-gray-200 font-medium">{src.sourceNameAr}</span>
+                    {safeUrl && (
+                      <a
+                        href={safeUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+                  <span className="text-[10px] sm:text-xs text-gray-500">{timeAgo(src.timestamp)}</span>
                 </div>
-                <span className="text-[10px] sm:text-xs text-gray-500">{timeAgo(src.timestamp)}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
