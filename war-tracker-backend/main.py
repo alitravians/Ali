@@ -7,16 +7,18 @@ import json
 import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Annotated, AsyncGenerator
 
 import hashlib
 import hmac
+import re
 import secrets
+from collections import OrderedDict
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 import httpx as _httpx
 from config import (
@@ -25,7 +27,7 @@ from config import (
     NEWSAPI_KEY, DEVIN_API_KEY, DEVIN_TARGET_SESSION_ID,
 )
 from models import TrackerEvent, AircraftPosition, AISummary, Alert, AlertSeverity, DashboardIndicator, VesselPosition, MaritimeZoneStats, EventCategory
-from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats
+from services.maritime_service import connect_aisstream, get_vessels, get_zone_stats, is_ws_connected as is_aisstream_connected
 from services.gdelt_service import fetch_gdelt_events
 from services.news_service import fetch_news_events
 from services.opensky_service import fetch_aircraft_positions
@@ -96,6 +98,22 @@ class DataStore:
 
 store = DataStore()
 health_monitor = HealthMonitor()
+
+# Serializes concurrent read-modify-write on ``store.events`` across the
+# GDELT / News / RSS pollers. Previously each poller did::
+#
+#     all_events = new_events + store.events       # read
+#     store.events = deduplicate_and_merge(...)[:500]  # write
+#     await batch_translate_events(store.events)   # yields
+#
+# Because ``batch_translate_events`` awaits on httpx, another poller
+# could wake up, read a *stale* ``store.events`` (without the dedup
+# result produced moments earlier) and overwrite the list — silently
+# dropping events that had just been merged in. Holding this lock over
+# the whole read / merge / translate sequence eliminates that race while
+# still letting non-event work (opensky, maritime, health monitor, WS
+# broadcast) run freely.
+_events_lock = asyncio.Lock()
 
 
 # ──────────────────────────────────────────────
@@ -200,15 +218,17 @@ async def poll_gdelt():
                 store.source_status["gdelt"]["eventCount"] += len(events)
                 store.source_status["gdelt"]["successfulPolls"] += 1
 
-                # Merge with existing
-                all_events = events + store.events
-                store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
+                # Merge with existing (serialized with other event pollers)
+                async with _events_lock:
+                    all_events = events + store.events
+                    store.events = deduplicate_and_merge(all_events)[:500]  # Keep max 500
 
-                # Batch-translate ALL event titles to Arabic (on store.events so deduped primaries get translated)
-                try:
-                    await batch_translate_events(store.events)
-                except Exception as e:
-                    print(f"[Translation] Batch translation error: {e}")
+                    # Batch-translate ALL event titles to Arabic (on
+                    # store.events so deduped primaries get translated).
+                    try:
+                        await batch_translate_events(store.events)
+                    except Exception as e:
+                        print(f"[Translation] Batch translation error: {e}")
 
                 generate_alerts_from_events(events)
                 await update_indicators()
@@ -270,14 +290,16 @@ async def poll_news():
                 store.source_status["acled"]["successfulPolls"] += 1
 
             if new_events:
-                all_events = new_events + store.events
-                store.events = deduplicate_and_merge(all_events)[:500]
+                async with _events_lock:
+                    all_events = new_events + store.events
+                    store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Batch-translate ALL event titles to Arabic (on store.events so deduped primaries get translated)
-                try:
-                    await batch_translate_events(store.events)
-                except Exception as e:
-                    print(f"[Translation] News batch translation error: {e}")
+                    # Batch-translate ALL event titles to Arabic (on
+                    # store.events so deduped primaries get translated).
+                    try:
+                        await batch_translate_events(store.events)
+                    except Exception as e:
+                        print(f"[Translation] News batch translation error: {e}")
 
                 generate_alerts_from_events(new_events)
                 await update_indicators()
@@ -323,9 +345,18 @@ async def poll_opensky():
 
 
 async def poll_ai_analysis():
-    """Background task: Generate AI analysis periodically."""
+    """Background task: Generate AI analysis periodically.
+
+    The first run happens shortly after startup (``_AI_ANALYSIS_STARTUP_DELAY``
+    seconds) rather than after a full ``AI_ANALYSIS_INTERVAL`` wait, so
+    users loading the dashboard soon after a cold start see an AI
+    summary within minutes instead of fifteen. Subsequent runs sleep at
+    the *end* of the loop body so that a single failure cycle doesn't
+    immediately double-fire on the next tick.
+    """
+    _AI_ANALYSIS_STARTUP_DELAY = 60  # seconds
+    await asyncio.sleep(_AI_ANALYSIS_STARTUP_DELAY)
     while True:
-        await asyncio.sleep(AI_ANALYSIS_INTERVAL)
         try:
             if store.events:
                 print("[Scheduler] Running AI analysis...")
@@ -345,6 +376,7 @@ async def poll_ai_analysis():
         except Exception as e:
             store.source_status["devin_ai"]["errors"] += 1
             print(f"[Devin AI] Analysis error: {e}")
+        await asyncio.sleep(AI_ANALYSIS_INTERVAL)
 
 
 async def poll_rss():
@@ -358,14 +390,15 @@ async def poll_rss():
                 store.source_status["rss"]["eventCount"] += len(rss_events)
                 store.source_status["rss"]["successfulPolls"] += 1
 
-                all_events = rss_events + store.events
-                store.events = deduplicate_and_merge(all_events)[:500]
+                async with _events_lock:
+                    all_events = rss_events + store.events
+                    store.events = deduplicate_and_merge(all_events)[:500]
 
-                # Batch-translate event titles to Arabic
-                try:
-                    await batch_translate_events(store.events)
-                except Exception as e:
-                    print(f"[Translation] RSS batch translation error: {e}")
+                    # Batch-translate event titles to Arabic.
+                    try:
+                        await batch_translate_events(store.events)
+                    except Exception as e:
+                        print(f"[Translation] RSS batch translation error: {e}")
 
                 generate_alerts_from_events(rss_events)
                 await update_indicators()
@@ -390,59 +423,155 @@ async def poll_rss():
         await asyncio.sleep(RSS_POLL_INTERVAL)
 
 
-# Bahrain siren/alert keywords for instant detection
-BAHRAIN_ALERT_KEYWORDS = [
-    "صفارة", "إنذار", "صافرة", "siren", "alarm", "air raid",
-    "ملجأ", "إخلاء", "shelter", "evacuate", "تحذير أمني",
-    "زوال الخطر", "انتهاء التهديد", "all clear",
-    "اعتراض", "شظايا", "دفاع جوي", "مكان آمن",
-    "intercept", "shrapnel", "air defense",
-    "الدفاع المدني", "civil defense", "civil defence",
-    "الاتصال الوطني", "national communication",
+# Bahrain siren/alert detection.
+#
+# The previous keyword list conflated generic security vocabulary (e.g.
+# "اعتراض" / "intercept", "civil defense", "الاتصال الوطني") with true
+# siren indicators and used substring matching on lowercased text. That
+# combination fired critical "air-raid siren in Bahrain" broadcasts for
+# ordinary regional news whenever a Bahrain location name happened to
+# appear in the same article — the modal is full-screen and blocks the
+# dashboard, so false positives are actively harmful to users.
+#
+# Fix applies three layers of defence:
+#   1. Require *strong* siren/attack-specific keywords (Arabic or
+#      English). Generic words like "intercept", "shrapnel",
+#      "civil defense" no longer trigger alerts on their own.
+#   2. Match English keywords with a word-boundary regex so
+#      "intercept" does not fire on "intercepted" in unrelated contexts.
+#      Arabic keywords still use substring matching because Arabic
+#      morphology attaches prefixes/suffixes directly (e.g. "والصفارة"
+#      should still match "صفارة").
+#   3. Deduplicate broadcasts per event id so the same event cannot
+#      re-fire the modal on every poll cycle.
+BAHRAIN_STRONG_ALERT_KEYWORDS_AR = [
+    "صفارة إنذار", "صافرة إنذار", "صفارات الإنذار", "إنذار عام",
+    "صفارة", "صافرة",
+    "غارة جوية على البحرين", "ضربة صاروخية على البحرين",
+    "صاروخ على البحرين", "هجوم على البحرين",
+    "إخلاء عاجل", "التوجه إلى الملاجئ", "توجهوا للملاجئ",
+    "زوال الخطر", "انتهاء التهديد",
+]
+BAHRAIN_STRONG_ALERT_KEYWORDS_EN = [
+    "air raid siren", "air-raid siren", "air raid alarm",
+    "siren in bahrain", "sirens in bahrain",
+    "missile strike on bahrain", "attack on bahrain",
+    "strike on bahrain", "strikes on bahrain",
+    "evacuate bahrain", "take shelter", "seek shelter",
+    "all clear siren",
 ]
 BAHRAIN_LOCATION_KEYWORDS = [
-    "bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
-    "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
-    "مدينة عيسى", "isa town",
+    "bahrain", "البحرين", "مملكة البحرين", "المنامة", "manama",
+    "المحرق", "muharraq", "سترة", "sitra", "الرفاع", "riffa",
+    "الجفير", "juffair", "مدينة عيسى", "isa town",
 ]
+
+_BAHRAIN_EN_STRONG_PATTERNS = [
+    re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
+    for kw in BAHRAIN_STRONG_ALERT_KEYWORDS_EN
+]
+_BAHRAIN_EN_LOCATION_PATTERNS = [
+    re.compile(rf"\b{re.escape(kw)}\b", re.IGNORECASE)
+    for kw in BAHRAIN_LOCATION_KEYWORDS
+    if all(ord(c) < 128 for c in kw)
+]
+_BAHRAIN_AR_LOCATION_KEYWORDS = [
+    kw for kw in BAHRAIN_LOCATION_KEYWORDS if any(ord(c) >= 128 for c in kw)
+]
+
+# Bounded LRU of event ids already broadcast as Bahrain alerts, so repeated
+# polls of the same underlying event (GDELT + RSS + NewsAPI typically see
+# the same source within the window) cannot spam the modal.
+_BAHRAIN_BROADCAST_CACHE_CAP = 256
+_bahrain_broadcast_ids: "OrderedDict[str, float]" = OrderedDict()
+
+
+def _bahrain_text_has_strong_alert(text_lower: str) -> bool:
+    for kw in BAHRAIN_STRONG_ALERT_KEYWORDS_AR:
+        if kw in text_lower:
+            return True
+    for pattern in _BAHRAIN_EN_STRONG_PATTERNS:
+        if pattern.search(text_lower):
+            return True
+    return False
+
+
+def _bahrain_text_has_location(text_lower: str) -> bool:
+    for kw in _BAHRAIN_AR_LOCATION_KEYWORDS:
+        if kw in text_lower:
+            return True
+    for pattern in _BAHRAIN_EN_LOCATION_PATTERNS:
+        if pattern.search(text_lower):
+            return True
+    return False
+
+
+def _remember_bahrain_broadcast(event_id: str) -> bool:
+    """Record that we just broadcast for ``event_id``.
+
+    Returns True if the caller should proceed (first time we've seen
+    this id), False if this event was already broadcast recently and
+    should be suppressed.
+    """
+    if event_id in _bahrain_broadcast_ids:
+        _bahrain_broadcast_ids.move_to_end(event_id)
+        return False
+    _bahrain_broadcast_ids[event_id] = time.time()
+    while len(_bahrain_broadcast_ids) > _BAHRAIN_BROADCAST_CACHE_CAP:
+        _bahrain_broadcast_ids.popitem(last=False)
+    return True
 
 
 async def _check_bahrain_critical_alert(events: list[TrackerEvent]):
     """Check if any events contain critical Bahrain alerts (sirens, evacuations).
-    Broadcasts an immediate WebSocket alert if detected."""
-    ALL_CLEAR_KEYWORDS = ["زوال الخطر", "انتهاء التهديد", "all clear", "زوال"]
+
+    Requires a Bahrain *location* mention plus a *strong* siren/attack
+    keyword. Generic security vocabulary alone is no longer sufficient
+    to fire the alert — that caused false positives on routine regional
+    news. Each event id can only fire one broadcast per process.
+    """
+    ALL_CLEAR_KEYWORDS_AR = ["زوال الخطر", "انتهاء التهديد"]
+    ALL_CLEAR_PATTERNS_EN = [re.compile(r"\ball[- ]clear\b", re.IGNORECASE)]
     for event in events:
-        text = " ".join([
+        text_lower = " ".join([
             event.title or "",
             event.titleAr or "",
             event.description or "",
             event.descriptionAr or "",
         ]).lower()
-        has_bahrain = any(kw in text for kw in BAHRAIN_LOCATION_KEYWORDS)
-        has_alert = any(kw in text for kw in BAHRAIN_ALERT_KEYWORDS)
-        if has_bahrain and has_alert:
-            # Determine if this is an "all clear" or "danger" siren
-            is_all_clear = any(kw in text for kw in ALL_CLEAR_KEYWORDS)
-            if is_all_clear:
-                severity = "info"
-                message = "تنبيه: صفارة زوال الخطر في البحرين — الوضع آمن"
-                message_en = "NOTICE: All-clear siren in Bahrain — situation is safe"
-            else:
-                severity = "critical"
-                message = "تنبيه عاجل: تم رصد صفارة إنذار في البحرين"
-                message_en = "URGENT: Air raid siren detected in Bahrain"
+        if not _bahrain_text_has_location(text_lower):
+            continue
+        if not _bahrain_text_has_strong_alert(text_lower):
+            continue
+        if not _remember_bahrain_broadcast(event.id):
+            continue
+        is_all_clear = (
+            any(kw in text_lower for kw in ALL_CLEAR_KEYWORDS_AR)
+            or any(p.search(text_lower) for p in ALL_CLEAR_PATTERNS_EN)
+        )
+        if is_all_clear:
+            severity = "info"
+            message = "تنبيه: صفارة زوال الخطر في البحرين — الوضع آمن"
+            message_en = "NOTICE: All-clear siren in Bahrain — situation is safe"
+        else:
+            severity = "critical"
+            message = "تنبيه عاجل: تم رصد صفارة إنذار في البحرين"
+            message_en = "URGENT: Air raid siren detected in Bahrain"
 
-            print(f"[BAHRAIN ALERT] {severity}: {event.title}")
-            event.isBreaking = True
-            event.category = EventCategory.alert
-            await ws_manager.broadcast({
-                "type": "bahrain_alert",
-                "severity": severity,
-                "event": event.model_dump(mode="json"),
-                "message": message,
-                "messageEn": message_en,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            })
+        logger.warning("[BAHRAIN ALERT] %s: %s", severity, event.title)
+        # Mark the event breaking so it bubbles to the top of the feed,
+        # but do NOT mutate ``event.category`` — that previously silently
+        # re-categorized military/fire events as "alert" and skewed the
+        # dashboard indicators and city aggregations.
+        event.isBreaking = True
+        await ws_manager.broadcast({
+            "type": "bahrain_alert",
+            "severity": severity,
+            "event": event.model_dump(mode="json"),
+            "message": message,
+            "messageEn": message_en,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        })
 
 
 async def poll_maritime_broadcast():
@@ -451,16 +580,28 @@ async def poll_maritime_broadcast():
     The broadcast runs *before* the sleep so that on cold start any vessels
     already delivered by the AISStream socket during backend startup are
     pushed to connected clients immediately rather than 30 seconds later.
+
+    ``lastUpdate`` / ``successfulPolls`` are advanced whenever the AIS
+    WebSocket is currently connected, even if no vessels are inside the
+    monitored zones right now. The health monitor previously marked the
+    aisstream service ``degraded`` when zones were legitimately empty
+    (night, low shipping periods) because it only ever saw
+    ``lastUpdate=None`` / ``eventCount=0`` in that case — the stream was
+    healthy, just quiet. ``eventCount`` still reflects the real vessel
+    count so operators can see the zero without misreading the stream
+    itself as broken.
     """
     while True:
         try:
             vessels = get_vessels()
             zones = get_zone_stats()
+            ws_up = is_aisstream_connected()
+            if ws_up:
+                status = store.source_status["aisstream"]
+                status["lastUpdate"] = datetime.now(timezone.utc).isoformat()
+                status["eventCount"] = len(vessels)
+                status["successfulPolls"] += 1
             if vessels:
-                store.source_status["aisstream"]["lastUpdate"] = datetime.now(timezone.utc).isoformat()
-                store.source_status["aisstream"]["eventCount"] = len(vessels)
-                store.source_status["aisstream"]["successfulPolls"] += 1
-
                 await ws_manager.broadcast({
                     "type": "maritime_update",
                     "vessels": [v.model_dump(mode="json") for v in vessels[:200]],
@@ -527,6 +668,36 @@ _rate_limit_store: dict[str, list[float]] = {}
 RATE_LIMIT_MAX_ATTEMPTS = 5       # max login attempts
 RATE_LIMIT_WINDOW_SECONDS = 300   # per 5-minute window
 
+# Hard cap on how many distinct IPs we retain in memory. Under a burst of
+# many one-shot attackers (each making a single attempt and never coming
+# back) the per-IP entries would otherwise accumulate for the lifetime of
+# the process — ``_check_rate_limit`` only prunes entries it is called
+# for. We opportunistically sweep *all* expired entries every few minutes
+# and also hard-evict oldest buckets if the map ever grows past the cap.
+_RATE_LIMIT_MAX_IPS = 10_000
+_RATE_LIMIT_SWEEP_INTERVAL = 600  # seconds
+_last_rate_limit_sweep = 0.0
+
+
+def _sweep_rate_limit_store(now: float) -> None:
+    """Drop expired IP entries and hard-cap the dict size."""
+    stale = [
+        ip
+        for ip, attempts in _rate_limit_store.items()
+        if not attempts or attempts[-1] < now - RATE_LIMIT_WINDOW_SECONDS
+    ]
+    for ip in stale:
+        _rate_limit_store.pop(ip, None)
+    if len(_rate_limit_store) > _RATE_LIMIT_MAX_IPS:
+        # Evict oldest-last-attempt buckets first so we keep the actively
+        # attacking IPs under surveillance and drop the quiescent ones.
+        oldest = sorted(
+            _rate_limit_store.items(),
+            key=lambda kv: kv[1][-1] if kv[1] else 0.0,
+        )
+        for ip, _ in oldest[: len(_rate_limit_store) - _RATE_LIMIT_MAX_IPS]:
+            _rate_limit_store.pop(ip, None)
+
 # When the backend sits behind a reverse proxy (Fly.io, Cloudflare, nginx,
 # etc.) ``request.client.host`` is the proxy's IP — identical for every
 # real user — which silently collapses every per-IP rate limit on this
@@ -561,7 +732,11 @@ def _client_ip_for_rate_limit(request: Request) -> str:
 
 def _check_rate_limit(ip: str) -> bool:
     """Return True if the IP is rate-limited (too many attempts)."""
+    global _last_rate_limit_sweep
     now = time.time()
+    if now - _last_rate_limit_sweep > _RATE_LIMIT_SWEEP_INTERVAL:
+        _sweep_rate_limit_store(now)
+        _last_rate_limit_sweep = now
     attempts = _rate_limit_store.get(ip, [])
     # Prune old attempts outside the window
     attempts = [t for t in attempts if now - t < RATE_LIMIT_WINDOW_SECONDS]
@@ -1237,14 +1412,59 @@ async def _broadcast_ticket_update(ticket_id: str, update: dict):
 
 
 class BugReport(BaseModel):
-    description: str
-    page: str = ""
-    browser: str = ""
-    screenshot_url: str = ""
-    console_errors: list[str] = []
-    user_actions: list[str] = []
-    browser_info: dict = {}
-    screenshot: str = ""  # base64 screenshot data
+    """User-submitted bug report payload.
+
+    Every string, list *and list element*, and the diagnostic dict are
+    bounded so a hostile client cannot pressure the process into
+    allocating hundreds of MB for a single request. ``screenshot`` in
+    particular is a base64-encoded image — without a cap a single POST
+    could balloon the worker's resident memory and crash the container.
+
+    Important: on Pydantic v2, ``max_length=N`` on a ``list[str]`` field
+    only limits the number of items, **not** the length of each string
+    item. We therefore use ``Annotated[str, Field(max_length=…)]`` as
+    the item type so both the list length *and* every element are
+    bounded. For ``browser_info`` (a free-form diagnostic dict) we
+    enforce a cap on the number of keys and on the serialized JSON size
+    via a ``field_validator``. Pydantic rejects payloads that exceed
+    any of these bounds with a 422 before they ever reach handler code.
+    """
+    # ~2 KB of free-form description is plenty for a user bug report.
+    description: str = Field(..., max_length=2000)
+    page: str = Field("", max_length=500)
+    browser: str = Field("", max_length=500)
+    screenshot_url: str = Field("", max_length=2000)
+    # 50 distinct console lines × up to 2 KB each.
+    console_errors: list[Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=list, max_length=50,
+    )
+    user_actions: list[Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=list, max_length=50,
+    )
+    browser_info: dict = Field(default_factory=dict)
+    # ~750 KB base64 ≈ ~560 KB decoded binary; enough for a full-page
+    # screenshot at reasonable quality and small enough that a burst of
+    # reports can't exhaust memory.
+    screenshot: str = Field("", max_length=1_000_000)
+
+    @field_validator("browser_info")
+    @classmethod
+    def _bound_browser_info(cls, v: dict) -> dict:
+        if not isinstance(v, dict):
+            raise ValueError("browser_info must be an object")
+        # Hard cap on keys so a client can't submit thousands of fake
+        # diagnostic entries to bloat storage.
+        if len(v) > 50:
+            raise ValueError("browser_info has too many keys (max 50)")
+        # Hard cap on the serialized JSON size (~16 KB). Anything real
+        # — UA string, platform, viewport, locale, etc. — fits easily.
+        try:
+            serialized = json.dumps(v, ensure_ascii=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"browser_info is not JSON-serializable: {exc}")
+        if len(serialized) > 16_000:
+            raise ValueError("browser_info exceeds 16 KB serialized size")
+        return v
 
 
 @app.post("/api/bug-report")

@@ -108,6 +108,18 @@ def get_zone_stats() -> list[MaritimeZoneStats]:
     return list(_zone_stats.values())
 
 
+def is_ws_connected() -> bool:
+    """Return True iff the AISStream WebSocket is currently connected.
+
+    Used by the maritime broadcaster to distinguish "stream healthy but
+    no vessels in monitored zones right now" (quiet night, low shipping
+    window) from "stream is actually broken". Without this signal the
+    health monitor could only observe ``eventCount=0`` and would
+    misreport a healthy-but-quiet stream as degraded.
+    """
+    return _ws_connected
+
+
 def _update_zone_stats():
     """Recalculate zone statistics from current vessel data."""
     for zone_id in _zone_stats:
