@@ -585,7 +585,14 @@ if not ADMIN_PASSWORD_HASH:
 # local SQLite file (via `persistence.py`) so admin sessions survive a
 # backend restart — without this, every deploy forces every admin to
 # re-authenticate and any in-flight admin action returns 401.
-_admin_tokens: dict[str, float] = persistence.load_tokens()
+#
+# Tokens are bound to the ADMIN_PASSWORD_HASH that authorized them at
+# creation time. On startup, any persisted token whose stored hash does
+# not match the current ADMIN_PASSWORD_HASH is invalidated. This keeps
+# the per-process security contract when no admin password env var is
+# set (a random password is regenerated every process start — tokens
+# issued under the previous random password must not be honoured).
+_admin_tokens: dict[str, float] = persistence.load_tokens(ADMIN_PASSWORD_HASH)
 TOKEN_TTL_SECONDS = 3600  # Tokens expire after 1 hour
 
 
@@ -633,7 +640,10 @@ async def admin_login(req: AdminLoginRequest, request: Request):
         token = secrets.token_hex(32)
         expires_at = time.time() + TOKEN_TTL_SECONDS
         _admin_tokens[token] = expires_at
-        persistence.save_token(token, expires_at)
+        # Bind the token to the hash that authorized it so a password
+        # change (or random-regeneration on restart) invalidates it on
+        # next load.
+        persistence.save_token(token, expires_at, ADMIN_PASSWORD_HASH)
         return AdminLoginResponse(success=True, token=token)
 
     # Only record failed attempts for rate limiting
