@@ -188,6 +188,14 @@ def _process_ais_message(data: dict):
     except (TypeError, ValueError):
         lat = None
         lng = None
+    # Reject the (0, 0) sentinel too. Some upstream AIS feeds emit
+    # latitude=0 longitude=0 to mean "unknown" rather than omitting the
+    # fields, and a vessel parked exactly on the equator/prime-meridian
+    # intersection is effectively never a real report in any of our
+    # monitored zones.
+    if lat is not None and lng is not None and lat == 0.0 and lng == 0.0:
+        lat = None
+        lng = None
     if (lat is None or lng is None) and msg_type == "PositionReport":
         return
     ship_name = metadata.get("ShipName", "").strip()

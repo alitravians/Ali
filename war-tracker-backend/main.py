@@ -1122,6 +1122,36 @@ BUG_REPORT_WINDOW_SECONDS = 120.0
 BUG_REPORT_MAX_PER_WINDOW = 1
 _bug_reports: list[dict] = []  # store reports in-memory
 
+# When the backend sits behind a reverse proxy (Fly.io, Cloudflare, nginx,
+# etc.) ``request.client.host`` is the proxy's IP — identical for every
+# real user — which silently collapses the per-IP rate limit back into a
+# global one. Operators who terminate TLS on a trusted proxy should set
+# ``TRUST_FORWARDED_FOR=1`` so we honour the left-most entry of the
+# ``X-Forwarded-For`` header instead. Default is off because trusting
+# that header on a direct-exposed server lets any client spoof its own
+# IP and bypass the limit.
+_TRUST_FORWARDED_FOR = os.getenv("TRUST_FORWARDED_FOR", "").lower() in ("1", "true", "yes")
+
+
+def _client_ip_for_rate_limit(request: Request) -> str:
+    """Return a stable per-user identifier for rate-limit bucketing.
+
+    Falls back to the socket peer address when no trusted proxy header
+    is configured or the header is missing/blank.
+    """
+    if _TRUST_FORWARDED_FOR:
+        fwd = request.headers.get("x-forwarded-for", "")
+        if fwd:
+            # Left-most entry is the original client; the rest are each
+            # proxy hop in order. Strip whitespace defensively.
+            first = fwd.split(",", 1)[0].strip()
+            if first:
+                return first
+        real_ip = request.headers.get("x-real-ip", "").strip()
+        if real_ip:
+            return real_ip
+    return request.client.host if request.client else "unknown"
+
 # Ticket system for live repair tracking
 import uuid as _uuid
 
@@ -1140,6 +1170,30 @@ TICKET_PHASES = [
 # on startup so that a user who just submitted a bug report does not lose
 # their live-tracking modal (RepairTracker3D) across a backend restart.
 _tickets: dict[str, dict] = persistence.load_tickets()
+
+# Hard cap on the in-memory ticket dict so a prolonged bug-report burst
+# cannot grow the process's resident memory without bound. Matches the
+# 500-row limit used by ``persistence.load_tickets`` so the set of
+# tickets the backend serves never exceeds what it can reload after a
+# restart. Older tickets are evicted from memory first; their SQLite
+# rows remain on disk and are still reachable by direct lookup via
+# ``persistence.save_ticket``/``load_tickets`` if needed.
+_TICKET_MEMORY_CAP = 500
+
+
+def _remember_ticket(ticket_id: str, ticket: dict) -> None:
+    """Insert/update a ticket in the in-memory store with eviction."""
+    _tickets[ticket_id] = ticket
+    if len(_tickets) > _TICKET_MEMORY_CAP:
+        # Evict oldest by created_at (falls back to insertion order if the
+        # field is missing or unparseable). Removes the N oldest beyond
+        # the cap in a single pass so we don't do this on every insert.
+        def _sort_key(item: tuple[str, dict]) -> str:
+            return str(item[1].get("created_at") or "")
+        sorted_items = sorted(_tickets.items(), key=_sort_key)
+        overflow = len(_tickets) - _TICKET_MEMORY_CAP
+        for old_id, _old in sorted_items[:overflow]:
+            _tickets.pop(old_id, None)
 
 # WebSocket connections per ticket: ticket_id -> list of WebSocket connections
 _ticket_ws_connections: dict[str, list[WebSocket]] = {}
@@ -1182,7 +1236,9 @@ async def submit_bug_report(report: BugReport, request: Request):
     import time as _time
 
     # Per-IP rate limit: a single noisy client cannot block other users.
-    client_ip = request.client.host if request.client else "unknown"
+    # When ``TRUST_FORWARDED_FOR`` is set we honour the proxy's client
+    # header so the bucket is keyed by the real end user, not the proxy.
+    client_ip = _client_ip_for_rate_limit(request)
     now = _time.time()
     ip_hits = [t for t in _bug_report_timestamps_by_ip.get(client_ip, []) if now - t < BUG_REPORT_WINDOW_SECONDS]
     if ip_hits:
@@ -1246,7 +1302,7 @@ async def submit_bug_report(report: BugReport, request: Request):
             }
         ],
     }
-    _tickets[ticket_id] = new_ticket
+    _remember_ticket(ticket_id, new_ticket)
     persistence.save_ticket(ticket_id, new_ticket)
 
     # Send bug report as a message to the active Devin session
