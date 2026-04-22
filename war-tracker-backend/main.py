@@ -7,7 +7,7 @@ import json
 import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from typing import Annotated, AsyncGenerator
 
 import hashlib
 import hmac
@@ -18,7 +18,7 @@ from collections import OrderedDict
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 import httpx as _httpx
 from config import (
@@ -1414,27 +1414,57 @@ async def _broadcast_ticket_update(ticket_id: str, update: dict):
 class BugReport(BaseModel):
     """User-submitted bug report payload.
 
-    Every string / list field is bounded with an explicit ``max_length``
-    so a hostile client cannot pressure the process into allocating
-    hundreds of MB for a single request. ``screenshot`` in particular is
-    a base64-encoded image — without a cap a single POST could balloon
-    the worker's resident memory and crash the container. Pydantic
-    rejects payloads that exceed these bounds with a 422 before they
-    ever reach our handler code.
+    Every string, list *and list element*, and the diagnostic dict are
+    bounded so a hostile client cannot pressure the process into
+    allocating hundreds of MB for a single request. ``screenshot`` in
+    particular is a base64-encoded image — without a cap a single POST
+    could balloon the worker's resident memory and crash the container.
+
+    Important: on Pydantic v2, ``max_length=N`` on a ``list[str]`` field
+    only limits the number of items, **not** the length of each string
+    item. We therefore use ``Annotated[str, Field(max_length=…)]`` as
+    the item type so both the list length *and* every element are
+    bounded. For ``browser_info`` (a free-form diagnostic dict) we
+    enforce a cap on the number of keys and on the serialized JSON size
+    via a ``field_validator``. Pydantic rejects payloads that exceed
+    any of these bounds with a 422 before they ever reach handler code.
     """
     # ~2 KB of free-form description is plenty for a user bug report.
     description: str = Field(..., max_length=2000)
     page: str = Field("", max_length=500)
     browser: str = Field("", max_length=500)
     screenshot_url: str = Field("", max_length=2000)
-    # 50 distinct console lines × 2 KB each is enough for real debugging.
-    console_errors: list[str] = Field(default_factory=list, max_length=50)
-    user_actions: list[str] = Field(default_factory=list, max_length=50)
+    # 50 distinct console lines × up to 2 KB each.
+    console_errors: list[Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=list, max_length=50,
+    )
+    user_actions: list[Annotated[str, Field(max_length=2000)]] = Field(
+        default_factory=list, max_length=50,
+    )
     browser_info: dict = Field(default_factory=dict)
     # ~750 KB base64 ≈ ~560 KB decoded binary; enough for a full-page
     # screenshot at reasonable quality and small enough that a burst of
     # reports can't exhaust memory.
     screenshot: str = Field("", max_length=1_000_000)
+
+    @field_validator("browser_info")
+    @classmethod
+    def _bound_browser_info(cls, v: dict) -> dict:
+        if not isinstance(v, dict):
+            raise ValueError("browser_info must be an object")
+        # Hard cap on keys so a client can't submit thousands of fake
+        # diagnostic entries to bloat storage.
+        if len(v) > 50:
+            raise ValueError("browser_info has too many keys (max 50)")
+        # Hard cap on the serialized JSON size (~16 KB). Anything real
+        # — UA string, platform, viewport, locale, etc. — fits easily.
+        try:
+            serialized = json.dumps(v, ensure_ascii=False)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"browser_info is not JSON-serializable: {exc}")
+        if len(serialized) > 16_000:
+            raise ValueError("browser_info exceeds 16 KB serialized size")
+        return v
 
 
 @app.post("/api/bug-report")
