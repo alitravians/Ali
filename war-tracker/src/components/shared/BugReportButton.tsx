@@ -1,54 +1,88 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bug, Send, X, Loader2 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { BACKEND_API_URL } from '../../config/api';
 import RepairTracker3D from './RepairTracker3D';
 
-// ── Global console error collector ──
+// ── Global in-memory diagnostic buffers ──
+//
+// These are module-level so the buffers survive across route changes and
+// multiple <BugReportButton/> mounts, but the listeners that populate them
+// are installed exactly once from within a React effect (see
+// ``installTelemetryListeners``). Previously this file installed a
+// ``MutationObserver`` on ``document.body`` with
+// ``{childList: true, subtree: true}`` at module load — it fires on
+// *every* DOM mutation anywhere in the app, which on a real-time dashboard
+// with WebSocket updates, map tile churn and event re-renders runs its
+// callback hundreds of times per second just to check
+// ``window.location.pathname``. That was a measurable performance hit and
+// also leaked: the observer had no cleanup path. Navigation is now tracked
+// via react-router's ``useLocation`` inside the component, which fires
+// exactly once per route change.
 const _collectedErrors: string[] = [];
 const _userActions: string[] = [];
 const MAX_ENTRIES = 30;
 
-// Capture console errors
-const _origConsoleError = console.error;
-console.error = (...args: unknown[]) => {
-  _collectedErrors.push(`[error] ${args.map(a => (typeof a === 'object' ? JSON.stringify(a, null, 0)?.slice(0, 300) : String(a))).join(' ')}`);
-  if (_collectedErrors.length > MAX_ENTRIES) _collectedErrors.shift();
-  _origConsoleError.apply(console, args);
-};
+// Guard against double-installing listeners under Vite/React HMR, StrictMode
+// double-invocation of effects in development, or multiple simultaneous
+// <BugReportButton/> mounts. Without the guard a console.error monkey-patch
+// chain would nest itself on every reload.
+let _telemetryInstalled = false;
 
-// Capture uncaught errors
-window.addEventListener('error', (e) => {
-  _collectedErrors.push(`[uncaught] ${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`);
+function _pushError(line: string): void {
+  _collectedErrors.push(line);
   if (_collectedErrors.length > MAX_ENTRIES) _collectedErrors.shift();
-});
+}
 
-// Capture unhandled promise rejections
-window.addEventListener('unhandledrejection', (e) => {
-  _collectedErrors.push(`[promise] ${String(e.reason).slice(0, 300)}`);
-  if (_collectedErrors.length > MAX_ENTRIES) _collectedErrors.shift();
-});
-
-// Track user clicks
-document.addEventListener('click', (e) => {
-  const target = e.target as HTMLElement;
-  const tag = target.tagName.toLowerCase();
-  const text = (target.textContent || '').trim().slice(0, 40);
-  const cls = target.className?.toString().slice(0, 60) || '';
-  _userActions.push(`[click] <${tag}> "${text}" class="${cls}" @ ${new Date().toLocaleTimeString('ar-SA')}`);
+function _pushAction(line: string): void {
+  _userActions.push(line);
   if (_userActions.length > MAX_ENTRIES) _userActions.shift();
-}, { passive: true });
+}
 
-// Track page navigations
-let _lastPath = window.location.pathname;
-const _navObserver = new MutationObserver(() => {
-  if (window.location.pathname !== _lastPath) {
-    _userActions.push(`[nav] ${_lastPath} → ${window.location.pathname} @ ${new Date().toLocaleTimeString('ar-SA')}`);
-    _lastPath = window.location.pathname;
-    if (_userActions.length > MAX_ENTRIES) _userActions.shift();
-  }
-});
-_navObserver.observe(document.body, { childList: true, subtree: true });
+function installTelemetryListeners(): void {
+  if (_telemetryInstalled) return;
+  if (typeof window === 'undefined' || typeof document === 'undefined') return;
+  _telemetryInstalled = true;
+
+  // Capture console errors. We keep a reference to the previous implementation
+  // so any external wrapper (analytics, sentry) installed before us still runs.
+  const origConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    _pushError(
+      `[error] ${args
+        .map(a => (typeof a === 'object' ? JSON.stringify(a, null, 0)?.slice(0, 300) : String(a)))
+        .join(' ')}`,
+    );
+    origConsoleError.apply(console, args);
+  };
+
+  // Capture uncaught errors
+  window.addEventListener('error', e => {
+    _pushError(`[uncaught] ${e.message} @ ${e.filename}:${e.lineno}:${e.colno}`);
+  });
+
+  // Capture unhandled promise rejections
+  window.addEventListener('unhandledrejection', e => {
+    _pushError(`[promise] ${String(e.reason).slice(0, 300)}`);
+  });
+
+  // Track user clicks. Passive listener on ``document`` — cheap, the click
+  // event bubbles up once per user click.
+  document.addEventListener(
+    'click',
+    e => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const tag = target.tagName?.toLowerCase() || '?';
+      const text = (target.textContent || '').trim().slice(0, 40);
+      const cls = target.className?.toString().slice(0, 60) || '';
+      _pushAction(
+        `[click] <${tag}> "${text}" class="${cls}" @ ${new Date().toLocaleTimeString('ar-SA')}`,
+      );
+    },
+    { passive: true },
+  );
+}
 
 // ── Helper: collect browser & environment info ──
 function collectBrowserInfo() {
@@ -119,6 +153,28 @@ export default function BugReportButton() {
   const [submittedDescription, setSubmittedDescription] = useState('');
   const [submittedPage, setSubmittedPage] = useState('');
   const location = useLocation();
+  const prevPathRef = useRef<string | null>(null);
+
+  // Install telemetry listeners exactly once, after mount. Using an effect
+  // (instead of module-level code) means the listeners can observe the live
+  // DOM and window even in test/SSR environments where ``window`` is not
+  // defined at import time, and the install guard prevents nested chains
+  // across HMR reloads.
+  useEffect(() => {
+    installTelemetryListeners();
+  }, []);
+
+  // Track route changes via react-router. Fires exactly once per navigation
+  // — the previous implementation used a MutationObserver on document.body
+  // with subtree=true, which re-ran on every DOM mutation in the app.
+  useEffect(() => {
+    const path = location.pathname;
+    const prev = prevPathRef.current;
+    if (prev !== null && prev !== path) {
+      _pushAction(`[nav] ${prev} → ${path} @ ${new Date().toLocaleTimeString('ar-SA')}`);
+    }
+    prevPathRef.current = path;
+  }, [location.pathname]);
 
   const handleSubmit = async () => {
     if (!description.trim() || description.trim().length < 5) {
