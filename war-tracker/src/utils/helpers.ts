@@ -11,6 +11,60 @@ export function escapeHtml(str: string): string {
     .replace(/'/g, '&#39;');
 }
 
+// Whitelist of URL schemes that are safe to render in an anchor's ``href``
+// attribute. Everything else — in particular ``javascript:``, ``data:``,
+// ``vbscript:``, ``file:`` — would let a compromised upstream feed or
+// backend payload execute arbitrary code when the user clicks the link.
+const _SAFE_URL_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
+
+/**
+ * Return ``url`` if it is safe to use as an anchor ``href`` target,
+ * otherwise ``undefined``. Callers should conditionally render the ``<a>``
+ * element on the truthiness of the returned value, e.g.:
+ *
+ *     const safe = safeExternalUrl(src.url);
+ *     {safe && <a href={safe} rel="noopener noreferrer" target="_blank">…</a>}
+ *
+ * Why this exists: event sources are ingested from external RSS/GDELT/News
+ * feeds and from backend responses that re-surface third-party data. A
+ * hostile (or compromised) upstream can set ``url="javascript:…"`` or
+ * ``data:text/html,…`` and — without sanitization — we would render that
+ * into an anchor that executes arbitrary code when clicked. ``rel="noopener
+ * noreferrer"`` does NOT protect against ``javascript:`` URLs; only rejecting
+ * the scheme does.
+ *
+ * Relative URLs ("/foo", "./foo") are also allowed because they cannot
+ * escape the site origin and are a normal part of same-app navigation.
+ */
+export function safeExternalUrl(url: unknown): string | undefined {
+  if (typeof url !== 'string') return undefined;
+  const trimmed = url.trim();
+  if (!trimmed) return undefined;
+
+  // Same-origin relative links are always safe — they cannot invoke a
+  // non-HTTP scheme.
+  if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+    // Protocol-relative URLs (``//evil.com/x``) inherit the current scheme
+    // but can still point off-origin, so treat them as absolute and require
+    // parsing below.
+    if (!trimmed.startsWith('//')) return trimmed;
+  }
+
+  try {
+    // ``URL`` constructor normalises the scheme and rejects clearly
+    // malformed inputs. Using ``window.location.href`` as a base means
+    // relative URLs resolve to the current origin without false-positively
+    // accepting protocol-relative attacks.
+    const parsed = new URL(trimmed, typeof window !== 'undefined' ? window.location.href : 'https://example.com');
+    if (_SAFE_URL_SCHEMES.has(parsed.protocol)) {
+      return parsed.href;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function timeAgo(date: Date): string {
   return formatDistanceToNow(date, { addSuffix: true, locale: ar });
 }

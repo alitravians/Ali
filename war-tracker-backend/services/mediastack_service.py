@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from models import TrackerEvent, EventSource, GeoLocation, EventCategory, TrustLevel
 from services.gdelt_service import _detect_category, _get_city_ar, _compute_trust, _estimate_coords, _extract_all_related_cities
 from services.news_service import _guess_location
+from services._url_safety import is_safe_event_url
 
 MEDIASTACK_URL = "https://api.mediastack.com/v1/news"
 
@@ -44,6 +45,11 @@ async def fetch_mediastack_events(api_key: str, max_results: int = 25) -> list[T
                 published = article.get("published_at", "")
 
                 if not title:
+                    continue
+
+                # Drop entries with a non-http(s) URL — defence in depth
+                # behind the frontend ``safeExternalUrl`` render guard.
+                if not is_safe_event_url(url_str):
                     continue
 
                 event_id = f"mstack-{hashlib.md5(url_str.encode()).hexdigest()[:12]}"

@@ -42,6 +42,27 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// Defence-in-depth: strip URL fields that are not http/https before the
+// event ever reaches a component. Even if a render site forgets to pipe
+// the value through ``safeExternalUrl``, a ``javascript:`` / ``data:`` /
+// ``vbscript:`` URL injected upstream will not survive this parser.
+const _PARSER_SAFE_URL_SCHEMES = new Set(['http:', 'https:']);
+function _isSafeIngestUrl(value: unknown): boolean {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  try {
+    // Same base logic as ``safeExternalUrl`` but without relative URL
+    // support: upstream feeds always produce absolute URLs, and a bare
+    // path in a source link is far more likely to be malformed data
+    // than an intentional same-origin reference.
+    const parsed = new URL(trimmed);
+    return _PARSER_SAFE_URL_SCHEMES.has(parsed.protocol);
+  } catch {
+    return false;
+  }
+}
+
 function parseEvent(raw: unknown): TrackerEvent | null {
   if (!isPlainObject(raw)) return null;
   const { id, title, timestamp } = raw;
@@ -55,10 +76,14 @@ function parseEvent(raw: unknown): TrackerEvent | null {
   const rawSources = Array.isArray(raw.sources) ? raw.sources : [];
   const sources = rawSources
     .filter(isPlainObject)
-    .map((s) => ({
-      ...s,
-      timestamp: typeof s.timestamp === 'string' ? new Date(s.timestamp) : new Date(),
-    }));
+    .map((s) => {
+      const { url: _url, ...rest } = s;
+      return {
+        ...rest,
+        ...(_isSafeIngestUrl(_url) ? { url: _url } : {}),
+        timestamp: typeof s.timestamp === 'string' ? new Date(s.timestamp) : new Date(),
+      };
+    });
 
   return {
     ...raw,
