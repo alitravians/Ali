@@ -15,6 +15,7 @@ export default function PhoneModeToggle() {
         borderColor: isPhoneMode ? 'rgba(99, 102, 241, 0.5)' : 'rgba(55, 65, 81, 0.5)',
       }}
       title={isPhoneMode ? 'إلغاء وضع الهاتف' : 'تفعيل وضع الهاتف'}
+      aria-label={isPhoneMode ? 'إلغاء وضع الهاتف' : 'تفعيل وضع الهاتف'}
     >
       {isPhoneMode ? (
         <>

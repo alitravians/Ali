@@ -49,7 +49,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
           className="bg-transparent text-xs text-white placeholder-gray-500 focus:outline-none w-24 sm:w-32 md:w-48"
         />
         {query && (
-          <button onClick={() => { setQuery(''); setIsOpen(false); }} className="text-gray-400 hover:text-white">
+          <button onClick={() => { setQuery(''); setIsOpen(false); }} className="text-gray-400 hover:text-white" aria-label="مسح البحث">
             <X className="w-3 h-3" />
           </button>
         )}

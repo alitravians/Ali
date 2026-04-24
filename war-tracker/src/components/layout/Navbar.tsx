@@ -105,6 +105,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
               onClick={toggleMute}
               className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
               title={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
+              aria-label={isMuted ? 'تشغيل الصوت' : 'كتم الصوت'}
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
@@ -121,6 +122,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
             <button
               onClick={onToggleSidebar}
               className="md:hidden pm-show-mobile p-2 text-gray-400 hover:text-white"
+              aria-label="فتح القائمة"
             >
               <Menu className="w-5 h-5" />
             </button>

@@ -42,7 +42,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               </div>
               <span className="text-sm font-bold text-white">WarScope</span>
             </div>
-            <button onClick={onClose} className="p-1 text-gray-400 hover:text-white">
+            <button onClick={onClose} className="p-1 text-gray-400 hover:text-white" aria-label="إغلاق القائمة">
               <X className="w-5 h-5" />
             </button>
           </div>

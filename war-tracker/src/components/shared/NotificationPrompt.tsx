@@ -84,7 +84,7 @@ export default function NotificationPrompt() {
               </button>
             </div>
           </div>
-          <button onClick={dismiss} className="text-gray-600 hover:text-gray-400 p-0.5">
+          <button onClick={dismiss} className="text-gray-600 hover:text-gray-400 p-0.5" aria-label="إغلاق">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>

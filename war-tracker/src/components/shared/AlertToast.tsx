@@ -134,6 +134,7 @@ export default function AlertToast({ alerts }: AlertToastProps) {
               onClick={dismissToast}
               className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center transition-colors"
               title="إغلاق"
+              aria-label="إغلاق"
             >
               <X className="w-3 h-3 text-gray-400" />
             </button>
@@ -141,6 +142,7 @@ export default function AlertToast({ alerts }: AlertToastProps) {
               onClick={muteToasts}
               className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center transition-colors"
               title="إيقاف الإشعارات"
+              aria-label="إيقاف الإشعارات"
             >
               <BellOff className="w-3 h-3 text-gray-600" />
             </button>

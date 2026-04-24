@@ -61,6 +61,7 @@ export default function Modal({ isOpen, onClose, title, titleIcon, children, siz
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-lg bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition-colors"
+              aria-label="إغلاق"
             >
               <X className="w-4 h-4 text-gray-400" />
             </button>
@@ -72,6 +73,7 @@ export default function Modal({ isOpen, onClose, title, titleIcon, children, siz
           <button
             onClick={onClose}
             className="absolute top-3 left-3 z-10 w-8 h-8 rounded-lg bg-gray-800/80 hover:bg-gray-700 flex items-center justify-center transition-colors"
+            aria-label="إغلاق"
           >
             <X className="w-4 h-4 text-gray-400" />
           </button>

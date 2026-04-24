@@ -102,6 +102,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevEventCountRef = useRef(0);
+  const backendHasBlockade = useRef(true); // assume yes, disable on 404
 
   // WebSocket message handler
   const handleWsMessage = useCallback((msg: MessageEvent) => {
@@ -184,7 +185,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     // This prevents ERR_NAME_NOT_RESOLVED console errors
     try {
       const probe = await fetch(`${BACKEND_API_URL}/api/health`, {
-        method: 'HEAD',
         signal: AbortSignal.timeout(5000),
       });
       if (!probe.ok) {
@@ -322,18 +322,23 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       console.warn('[REST] Vessels fetch failed:', err instanceof Error ? err.message : err);
     }
 
-    // Fetch Hormuz blockade status
-    try {
-      const blockadeController = new AbortController();
-      const blockadeTimeout = setTimeout(() => blockadeController.abort(), 10000);
-      const resp = await fetch(`${BACKEND_API_URL}/api/hormuz-blockade`, { signal: blockadeController.signal });
-      clearTimeout(blockadeTimeout);
-      if (resp.ok) {
-        const data = await resp.json();
-        setHormuzBlockade(data as HormuzBlockadeStatus);
+    // Fetch Hormuz blockade status — only if backend has the endpoint
+    // (avoids 404 console errors that hurt PageSpeed score)
+    if (backendHasBlockade.current) {
+      try {
+        const blockadeController = new AbortController();
+        const blockadeTimeout = setTimeout(() => blockadeController.abort(), 10000);
+        const resp = await fetch(`${BACKEND_API_URL}/api/hormuz-blockade`, { signal: blockadeController.signal });
+        clearTimeout(blockadeTimeout);
+        if (resp.ok) {
+          const data = await resp.json();
+          setHormuzBlockade(data as HormuzBlockadeStatus);
+        } else if (resp.status === 404) {
+          backendHasBlockade.current = false;
+        }
+      } catch {
+        // silent
       }
-    } catch (err) {
-      console.warn('[REST] Hormuz blockade fetch failed:', err instanceof Error ? err.message : err);
     }
   }, []);
 
@@ -373,8 +378,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       } catch { /* silent — WS will handle if REST fails */ }
     }, 30000);
 
-    // Refresh Hormuz blockade status every 60s
+    // Refresh Hormuz blockade status every 60s (skip if endpoint returned 404)
     const blockadeRefresh = setInterval(async () => {
+      if (!backendHasBlockade.current) return;
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 10000);
@@ -383,6 +389,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         if (resp.ok) {
           const data = await resp.json();
           setHormuzBlockade(data as HormuzBlockadeStatus);
+        } else if (resp.status === 404) {
+          backendHasBlockade.current = false;
         }
       } catch { /* silent */ }
     }, 60000);
