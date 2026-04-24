@@ -215,7 +215,7 @@ export default function Admin() {
                 <Lock className="w-8 h-8 text-purple-400" />
               </div>
               <h1 className="text-lg font-bold text-white">لوحة الإدارة</h1>
-              <p className="text-xs text-gray-500 mt-1">أدخل كلمة المرور للوصول</p>
+              <p className="text-xs text-gray-400 mt-1">أدخل كلمة المرور للوصول</p>
             </div>
             <form onSubmit={handleLogin}>
               <div className="mb-4">
@@ -333,7 +333,7 @@ export default function Admin() {
           )}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
           >
             {sidebarCollapsed ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
           </button>
@@ -359,7 +359,7 @@ export default function Admin() {
                     className={`w-full flex items-center gap-3 px-4 py-2.5 text-xs font-medium transition-all ${
                       isActive
                         ? 'bg-blue-500/10 text-blue-400 border-l-2 border-blue-500'
-                        : 'text-gray-500 hover:text-gray-300 hover:bg-white/3 border-l-2 border-transparent'
+                        : 'text-gray-400 hover:text-gray-300 hover:bg-white/3 border-l-2 border-transparent'
                     } ${sidebarCollapsed ? 'justify-center px-0' : ''}`}
                   >
                     <Icon className="w-4 h-4 flex-shrink-0" />
@@ -423,7 +423,7 @@ export default function Admin() {
               <span className={`text-[10px] font-semibold ${backendHealthy ? 'text-green-400' : backendHealthy === false ? 'text-red-400' : 'text-yellow-400'}`}>
                 {backendHealthy ? 'متصل' : backendHealthy === false ? 'غير متصل' : 'جاري الفحص'}
               </span>
-              {backendLatency && <span className="text-[9px] text-gray-500">{backendLatency}ms</span>}
+              {backendLatency && <span className="text-[9px] text-gray-400">{backendLatency}ms</span>}
             </div>
             <button
               onClick={handleLogout}

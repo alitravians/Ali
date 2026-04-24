@@ -103,7 +103,7 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
               {event.sources.map((src, i) => (
                 <div key={i} className="flex items-center justify-between text-[11px] bg-[#0a0a0f] rounded-lg px-2.5 py-1.5">
                   <span className="text-gray-300">{src.sourceNameAr}</span>
-                  <span className="text-gray-500">{timeAgo(src.timestamp)}</span>
+                  <span className="text-gray-400">{timeAgo(src.timestamp)}</span>
                 </div>
               ))}
             </div>

@@ -128,7 +128,7 @@ export default function Analytics() {
             <BarChart3 className="w-5 h-5 text-blue-400" />
             التحليلات والإحصائيات
           </h1>
-          <p className="text-xs text-gray-500 mt-1">{timeRangeLabel} — {filteredEvents.length} حدث</p>
+          <p className="text-xs text-gray-400 mt-1">{timeRangeLabel} — {filteredEvents.length} حدث</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Time range selector */}
@@ -138,7 +138,7 @@ export default function Analytics() {
                 key={key}
                 onClick={() => setTimeRange(key)}
                 className={`px-3 py-1.5 text-[11px] font-semibold rounded-md transition-colors ${
-                  timeRange === key ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'
+                  timeRange === key ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-gray-300'
                 }`}
               >
                 {label}
@@ -211,7 +211,7 @@ export default function Analytics() {
               <div key={stat.category}>
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs text-gray-300">{categoryTextAr(stat.category)}</span>
-                  <span className="text-xs font-bold text-white">{stat.count} <span className="text-gray-500 font-normal">({stat.percent}%)</span></span>
+                  <span className="text-xs font-bold text-white">{stat.count} <span className="text-gray-400 font-normal">({stat.percent}%)</span></span>
                 </div>
                 <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
                   <div
@@ -222,7 +222,7 @@ export default function Analytics() {
               </div>
             ))}
             {categoryStats.length === 0 && (
-              <div className="text-center text-xs text-gray-500 py-4">لا توجد أحداث في هذه الفترة</div>
+              <div className="text-center text-xs text-gray-400 py-4">لا توجد أحداث في هذه الفترة</div>
             )}
           </div>
         </div>
@@ -295,7 +295,7 @@ export default function Analytics() {
           <div className="space-y-2">
             {locationStats.map((loc, i) => (
               <div key={loc.nameAr} className="flex items-center gap-3">
-                <span className="text-[10px] font-bold text-gray-500 w-5 text-center">{i + 1}</span>
+                <span className="text-[10px] font-bold text-gray-400 w-5 text-center">{i + 1}</span>
                 <span className="text-xs text-gray-300 flex-1">{loc.nameAr}</span>
                 <div className="flex items-center gap-2">
                   <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
@@ -309,7 +309,7 @@ export default function Analytics() {
               </div>
             ))}
             {locationStats.length === 0 && (
-              <div className="text-center text-xs text-gray-500 py-4">لا توجد بيانات</div>
+              <div className="text-center text-xs text-gray-400 py-4">لا توجد بيانات</div>
             )}
           </div>
         </div>
@@ -330,7 +330,7 @@ export default function Analytics() {
             </div>
           ))}
           {sourceStats.length === 0 && (
-            <div className="col-span-4 text-center text-xs text-gray-500 py-4">لا توجد بيانات</div>
+            <div className="col-span-4 text-center text-xs text-gray-400 py-4">لا توجد بيانات</div>
           )}
         </div>
       </div>

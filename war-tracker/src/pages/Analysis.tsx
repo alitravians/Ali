@@ -213,7 +213,7 @@ export default function Analysis() {
 
           {/* Loading state for initial fetch */}
           {fetchingInitial && !aiSummary ? (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-400">
               <RefreshCw className="w-8 h-8 mx-auto mb-3 opacity-30 animate-spin" />
               <p className="text-xs">جاري تحميل آخر تحليل...</p>
             </div>
@@ -262,7 +262,7 @@ export default function Analysis() {
               )}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-400">
               <Brain className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p className="text-xs">لا يوجد تحليل ذكاء اصطناعي حالياً</p>
               <p className="text-[10px] mt-1 text-gray-600">اضغط "تحليل جديد" لإنشاء تحليل من الأحداث الحالية</p>
@@ -296,7 +296,7 @@ export default function Analysis() {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-gray-500 text-xs">
+                <div className="flex items-center justify-center h-full text-gray-400 text-xs">
                   جاري تحميل البيانات...
                 </div>
               )}
@@ -329,7 +329,7 @@ export default function Analysis() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500 text-[10px]">لا توجد بيانات</div>
+                  <div className="flex items-center justify-center h-full text-gray-400 text-[10px]">لا توجد بيانات</div>
                 )}
               </div>
             </div>
@@ -358,7 +358,7 @@ export default function Analysis() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-gray-500 text-[10px]">لا توجد بيانات</div>
+                  <div className="flex items-center justify-center h-full text-gray-400 text-[10px]">لا توجد بيانات</div>
                 )}
               </div>
             </div>
@@ -379,7 +379,7 @@ export default function Analysis() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500 text-xs">
+          <div className="text-center py-8 text-gray-400 text-xs">
             جاري تحميل المؤشرات من الخادم...
           </div>
         )}

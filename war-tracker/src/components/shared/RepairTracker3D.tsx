@@ -1162,7 +1162,7 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
             title={soundEnabled ? 'كتم الصوت' : 'تفعيل الصوت'}
           >
             {soundEnabled ? (
-              <Volume2 className="w-3.5 h-3.5 text-gray-500" />
+              <Volume2 className="w-3.5 h-3.5 text-gray-400" />
             ) : (
               <VolumeX className="w-3.5 h-3.5 text-gray-600" />
             )}
@@ -1506,7 +1506,7 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
                         <p className={`text-[10px] font-bold truncate ${isDone ? 'text-green-400' : isActive ? 'text-blue-300' : 'text-gray-600'}`}>
                           {phase.label}
                         </p>
-                        {isActive && <p className="text-[8px] text-gray-500 truncate">{phase.detail}</p>}
+                        {isActive && <p className="text-[8px] text-gray-400 truncate">{phase.detail}</p>}
                       </div>
                     </div>
                   );
@@ -1715,7 +1715,7 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
                 <p className="text-[9px] text-gray-600 mb-1.5 font-bold">ملخص ما تم:</p>
                 <div className="space-y-1">
                   {completionSummary.map((item, i) => (
-                    <div key={i} className="flex items-center gap-1.5 text-[9px] text-gray-500" style={{
+                    <div key={i} className="flex items-center gap-1.5 text-[9px] text-gray-400" style={{
                       animation: `fadeSlideUp 0.4s ease-out ${0.85 + i * 0.1}s both`,
                     }}>
                       <CheckCircle className="w-2.5 h-2.5 text-green-500/60 shrink-0" />

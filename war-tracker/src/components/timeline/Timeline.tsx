@@ -31,7 +31,7 @@ export default function Timeline({ events }: TimelineProps) {
 
             {/* Time label */}
             <div className="absolute right-[-4px] top-5 w-8 text-center">
-              <span className="text-[9px] text-gray-500 font-mono">
+              <span className="text-[9px] text-gray-400 font-mono">
                 {event.timestamp.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>

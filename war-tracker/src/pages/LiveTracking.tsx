@@ -133,35 +133,35 @@ export default function LiveTracking() {
           {isLoading ? <Loader2 className="w-4 h-4 text-blue-400 animate-spin" /> : <Activity className="w-4 h-4 text-blue-400" />}
           <div>
             <span className="text-lg font-black text-white">{isLoading ? '...' : events.length}</span>
-            <span className="text-[9px] text-gray-500 block">إجمالي الأحداث</span>
+            <span className="text-[9px] text-gray-400 block">إجمالي الأحداث</span>
           </div>
         </div>
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
           {isLoading ? <Loader2 className="w-4 h-4 text-red-400 animate-spin" /> : <AlertTriangle className="w-4 h-4 text-red-400" />}
           <div>
             <span className="text-lg font-black text-red-400">{isLoading ? '...' : breakingCount}</span>
-            <span className="text-[9px] text-gray-500 block">عاجل</span>
+            <span className="text-[9px] text-gray-400 block">عاجل</span>
           </div>
         </div>
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 flex items-center gap-2">
           {isLoading ? <Loader2 className="w-4 h-4 text-green-400 animate-spin" /> : <ShieldCheck className="w-4 h-4 text-green-400" />}
           <div>
             <span className="text-lg font-black text-green-400">{isLoading ? '...' : confirmedCount}</span>
-            <span className="text-[9px] text-gray-500 block">مؤكد</span>
+            <span className="text-[9px] text-gray-400 block">مؤكد</span>
           </div>
         </div>
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 hidden sm:flex items-center gap-2 pm-hide">
           <Ship className="w-4 h-4 text-cyan-400" />
           <div>
             <span className="text-lg font-black text-cyan-400">{vessels.length}</span>
-            <span className="text-[9px] text-gray-500 block">سفينة مرصودة</span>
+            <span className="text-[9px] text-gray-400 block">سفينة مرصودة</span>
           </div>
         </div>
         <div className="rounded-lg border border-gray-800 bg-[#12121a] px-3 py-2 hidden sm:flex items-center gap-2 pm-hide">
           <Bell className="w-4 h-4 text-yellow-400" />
           <div>
             <span className="text-lg font-black text-yellow-400">{alerts.filter(a => !a.isRead).length}</span>
-            <span className="text-[9px] text-gray-500 block">تنبيهات</span>
+            <span className="text-[9px] text-gray-400 block">تنبيهات</span>
           </div>
         </div>
       </div>
@@ -199,7 +199,7 @@ export default function LiveTracking() {
                   </span>
                 )}
               </div>
-              {showMaritime ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+              {showMaritime ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
             </button>
             {showMaritime && (
               <div className="bg-[#12121a] rounded-b-xl border border-t-0 border-gray-800 p-4 animate-slideUp">
@@ -221,13 +221,13 @@ export default function LiveTracking() {
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => setViewMode('cards')}
-                  className={`p-1.5 rounded-lg ${viewMode === 'cards' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`p-1.5 rounded-lg ${viewMode === 'cards' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-gray-300'}`}
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
                 </button>
                 <button
                   onClick={() => setViewMode('timeline')}
-                  className={`p-1.5 rounded-lg ${viewMode === 'timeline' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+                  className={`p-1.5 rounded-lg ${viewMode === 'timeline' ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-gray-300'}`}
                 >
                   <List className="w-3.5 h-3.5" />
                 </button>
@@ -241,7 +241,7 @@ export default function LiveTracking() {
                 className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                   categoryFilter === 'all'
                     ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                    : 'text-gray-500 border-gray-700 hover:text-gray-300'
+                    : 'text-gray-400 border-gray-700 hover:text-gray-300'
                 }`}
               >
                 الكل
@@ -253,7 +253,7 @@ export default function LiveTracking() {
                   className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                     categoryFilter === layer.id
                       ? 'border-opacity-50 bg-opacity-20'
-                      : 'text-gray-500 border-gray-700 hover:text-gray-300'
+                      : 'text-gray-400 border-gray-700 hover:text-gray-300'
                   }`}
                   style={
                     categoryFilter === layer.id
@@ -275,7 +275,7 @@ export default function LiveTracking() {
                   className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
                     trustFilter === level
                       ? 'bg-white/10 text-white border-white/20'
-                      : 'text-gray-500 border-gray-700 hover:text-gray-300'
+                      : 'text-gray-400 border-gray-700 hover:text-gray-300'
                   }`}
                 >
                   {level === 'all' ? 'كل المستويات' : level === 'confirmed' ? 'مؤكد' : level === 'high' ? 'مرجّح' : level === 'medium' ? 'قيد التحقق' : 'غير مؤكد'}
@@ -325,7 +325,7 @@ export default function LiveTracking() {
                 <Clock className="w-3.5 h-3.5 text-blue-400" />
                 <span className="text-[11px] font-bold text-white">الخط الزمني - آخر 24 ساعة</span>
               </div>
-              {showTimeline ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
+              {showTimeline ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
             </button>
             {showTimeline && (
               <div className="bg-[#12121a] rounded-b-xl border border-t-0 border-gray-800 p-3 max-h-[300px] overflow-y-auto animate-slideUp">

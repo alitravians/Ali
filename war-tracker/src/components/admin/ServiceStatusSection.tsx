@@ -134,13 +134,13 @@ export default function ServiceStatusSection() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800 bg-[#0a0a0f]">
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">الخدمة</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium hidden sm:table-cell">النوع</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">الحالة</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium hidden md:table-cell">الفحص</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">مفعّل</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium hidden lg:table-cell">إصلاح تلقائي</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">فحص</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">الخدمة</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium hidden sm:table-cell">النوع</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">الحالة</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium hidden md:table-cell">الفحص</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">مفعّل</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium hidden lg:table-cell">إصلاح تلقائي</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">فحص</th>
               </tr>
             </thead>
             <tbody>
@@ -175,7 +175,7 @@ export default function ServiceStatusSection() {
                     <button
                       onClick={() => updateService(svc.id, { auto_heal: !svc.auto_heal })}
                       disabled={updating === svc.id}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${svc.auto_heal ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-gray-800 text-gray-500 border border-gray-700'}`}
+                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] transition-colors ${svc.auto_heal ? 'bg-blue-500/15 text-blue-400 border border-blue-500/20' : 'bg-gray-800 text-gray-400 border border-gray-700'}`}
                     >
                       <Zap className="w-2.5 h-2.5" />
                       {svc.auto_heal ? 'مفعّل' : 'معطّل'}
@@ -185,7 +185,7 @@ export default function ServiceStatusSection() {
                     <button
                       onClick={() => triggerCheck(svc.id)}
                       disabled={updating === svc.id}
-                      className="p-1.5 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
+                      className="p-1.5 rounded-lg text-gray-400 hover:text-blue-400 hover:bg-blue-500/10 transition-colors disabled:opacity-50"
                     >
                       {updating === svc.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
                     </button>

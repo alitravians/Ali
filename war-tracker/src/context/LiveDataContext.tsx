@@ -176,31 +176,46 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Connect to WebSocket
-  const connectWs = useCallback(() => {
+  // Connect to WebSocket — only attempt if backend is reachable
+  const connectWs = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+    // Verify backend is reachable before opening WebSocket
+    // This prevents ERR_NAME_NOT_RESOLVED console errors
+    try {
+      const probe = await fetch(`${BACKEND_API_URL}/api/health`, {
+        method: 'HEAD',
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!probe.ok) {
+        setConnectionStatus('disconnected');
+        reconnectTimer.current = setTimeout(connectWs, 30000);
+        return;
+      }
+    } catch {
+      // Backend unreachable — skip WebSocket, retry later
+      setConnectionStatus('disconnected');
+      reconnectTimer.current = setTimeout(connectWs, 30000);
+      return;
+    }
+
     setConnectionStatus('connecting');
-    // WS connecting
 
     const ws = new WebSocket(BACKEND_WS_URL);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      // WS connected
       setConnectionStatus('connected');
     };
 
     ws.onmessage = handleWsMessage;
 
     ws.onclose = () => {
-      // WS disconnected, reconnecting
       setConnectionStatus('disconnected');
       reconnectTimer.current = setTimeout(connectWs, 10000);
     };
 
     ws.onerror = () => {
-      // WS error
       ws.close();
     };
   }, [handleWsMessage]);

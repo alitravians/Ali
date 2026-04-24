@@ -69,7 +69,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
         <div className="flex items-center gap-2 px-2.5 sm:px-3 py-2 sm:py-2.5 bg-blue-500/5 border border-blue-500/20 rounded-xl">
           <MapPin className="w-4 h-4 text-blue-400 flex-shrink-0" />
           <span className="text-xs sm:text-sm text-blue-300 font-semibold">{event.location.nameAr}</span>
-          <span className="text-[10px] sm:text-xs text-gray-500">({event.location.name})</span>
+          <span className="text-[10px] sm:text-xs text-gray-400">({event.location.name})</span>
         </div>
 
         {/* Why it matters */}
@@ -107,7 +107,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
                     </a>
                   )}
                 </div>
-                <span className="text-[10px] sm:text-xs text-gray-500">{timeAgo(src.timestamp)}</span>
+                <span className="text-[10px] sm:text-xs text-gray-400">{timeAgo(src.timestamp)}</span>
               </div>
             ))}
           </div>

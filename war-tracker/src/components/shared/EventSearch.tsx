@@ -38,7 +38,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
   return (
     <div ref={containerRef} className="relative">
       <div className="flex items-center gap-2 bg-[#0a0a0f] border border-gray-700 rounded-lg px-3 py-1.5 focus-within:border-blue-500 transition-colors">
-        <Search className="w-3.5 h-3.5 text-gray-500 flex-shrink-0" />
+        <Search className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
         <input
           ref={inputRef}
           type="text"
@@ -49,7 +49,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
           className="bg-transparent text-xs text-white placeholder-gray-500 focus:outline-none w-24 sm:w-32 md:w-48"
         />
         {query && (
-          <button onClick={() => { setQuery(''); setIsOpen(false); }} className="text-gray-500 hover:text-white">
+          <button onClick={() => { setQuery(''); setIsOpen(false); }} className="text-gray-400 hover:text-white">
             <X className="w-3 h-3" />
           </button>
         )}
@@ -59,7 +59,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
       {isOpen && query.trim().length >= 2 && (
         <div className="absolute top-full mt-1 left-0 right-0 w-[calc(100vw-2rem)] sm:w-80 bg-[#12121a] border border-gray-700 rounded-xl shadow-2xl z-50 max-h-[60vh] sm:max-h-[400px] overflow-y-auto">
           {results.length === 0 ? (
-            <div className="p-4 text-center text-xs text-gray-500">لا توجد نتائج لـ "{query}"</div>
+            <div className="p-4 text-center text-xs text-gray-400">لا توجد نتائج لـ "{query}"</div>
           ) : (
             <div className="p-1">
               <div className="px-3 py-1.5 text-[10px] text-gray-400">{results.length} نتيجة</div>

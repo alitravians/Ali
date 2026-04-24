@@ -315,7 +315,7 @@ export default function BugReportButton() {
                       setErrorMsg('');
                     }}
                     placeholder="اكتب وصف المشكلة بالتفصيل... مثال: الخريطة مو ظاهرة بالشكل الصحيح على فايرفوكس"
-                    className="w-full h-32 px-4 py-3 rounded-xl bg-white/5 border border-gray-700/50 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 resize-none transition-colors"
+                    className="w-full h-32 px-4 py-3 rounded-xl bg-white/5 border border-gray-700/50 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/20 resize-none transition-colors"
                     dir="rtl"
                     disabled={status === 'sending'}
                   />

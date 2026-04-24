@@ -84,9 +84,9 @@ function ZoneCard({ zone }: { zone: MaritimeZoneStats }) {
             <span className="text-[10px] text-gray-400 block">سفينة</span>
           </div>
           {expanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-500" />
+            <ChevronUp className="w-4 h-4 text-gray-400" />
           ) : (
-            <ChevronDown className="w-4 h-4 text-gray-500" />
+            <ChevronDown className="w-4 h-4 text-gray-400" />
           )}
         </div>
       </button>
@@ -96,15 +96,15 @@ function ZoneCard({ zone }: { zone: MaritimeZoneStats }) {
           <div className="grid grid-cols-3 gap-2">
             <div className="rounded-lg bg-[#0a0a0f] p-2.5 text-center">
               <span className="text-orange-400 text-sm font-bold">{zone.tankerCount}</span>
-              <span className="text-[9px] text-gray-500 block mt-0.5">ناقلات</span>
+              <span className="text-[9px] text-gray-400 block mt-0.5">ناقلات</span>
             </div>
             <div className="rounded-lg bg-[#0a0a0f] p-2.5 text-center">
               <span className="text-blue-400 text-sm font-bold">{zone.cargoCount}</span>
-              <span className="text-[9px] text-gray-500 block mt-0.5">شحن</span>
+              <span className="text-[9px] text-gray-400 block mt-0.5">شحن</span>
             </div>
             <div className="rounded-lg bg-[#0a0a0f] p-2.5 text-center">
               <span className="text-red-400 text-sm font-bold">{zone.militaryCount}</span>
-              <span className="text-[9px] text-gray-500 block mt-0.5">عسكري</span>
+              <span className="text-[9px] text-gray-400 block mt-0.5">عسكري</span>
             </div>
           </div>
           <div className="flex items-center justify-between text-[11px] text-gray-400">

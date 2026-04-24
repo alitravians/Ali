@@ -128,9 +128,9 @@ export default function HormuzBlockadeMonitor() {
               </span>
             </div>
             {expanded ? (
-              <ChevronUp className="w-4 h-4 text-gray-500" />
+              <ChevronUp className="w-4 h-4 text-gray-400" />
             ) : (
-              <ChevronDown className="w-4 h-4 text-gray-500" />
+              <ChevronDown className="w-4 h-4 text-gray-400" />
             )}
           </div>
         </div>
@@ -162,21 +162,21 @@ export default function HormuzBlockadeMonitor() {
                 <Ship className="w-3.5 h-3.5 text-cyan-400" />
                 <span className="text-lg font-black text-cyan-400">{hormuzBlockade.totalVesselsInZone}</span>
               </div>
-              <span className="text-[9px] text-gray-500">سفينة في المضيق</span>
+              <span className="text-[9px] text-gray-400">سفينة في المضيق</span>
             </div>
             <div className="rounded-lg bg-[#0a0a0f] p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Crosshair className="w-3.5 h-3.5 text-red-400" />
                 <span className="text-lg font-black text-red-400">{hormuzBlockade.militaryVesselCount}</span>
               </div>
-              <span className="text-[9px] text-gray-500">سفينة عسكرية</span>
+              <span className="text-[9px] text-gray-400">سفينة عسكرية</span>
             </div>
             <div className="rounded-lg bg-[#0a0a0f] p-3 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Anchor className="w-3.5 h-3.5 text-yellow-400" />
                 <span className="text-lg font-black text-yellow-400">{hormuzBlockade.blockedTankers}</span>
               </div>
-              <span className="text-[9px] text-gray-500">ناقلات محتجزة</span>
+              <span className="text-[9px] text-gray-400">ناقلات محتجزة</span>
             </div>
           </div>
 
@@ -187,7 +187,7 @@ export default function HormuzBlockadeMonitor() {
                 <span className="text-sm">🇺🇸</span>
                 <span className="text-lg font-black text-blue-400">{hormuzBlockade.usNavyCount}</span>
               </div>
-              <span className="text-[9px] text-gray-500">البحرية الأمريكية</span>
+              <span className="text-[9px] text-gray-400">البحرية الأمريكية</span>
               <div className="mt-1.5 w-full h-1 rounded-full bg-gray-800">
                 <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.min(100, hormuzBlockade.usNavyCount * 25)}%` }} />
               </div>
@@ -197,7 +197,7 @@ export default function HormuzBlockadeMonitor() {
                 <span className="text-sm">🇮🇷</span>
                 <span className="text-lg font-black text-emerald-400">{hormuzBlockade.iranNavyCount || 0}</span>
               </div>
-              <span className="text-[9px] text-gray-500">البحرية الإيرانية / الحرس الثوري</span>
+              <span className="text-[9px] text-gray-400">البحرية الإيرانية / الحرس الثوري</span>
               <div className="mt-1.5 w-full h-1 rounded-full bg-gray-800">
                 <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${Math.min(100, (hormuzBlockade.iranNavyCount || 0) * 25)}%` }} />
               </div>
@@ -252,7 +252,7 @@ export default function HormuzBlockadeMonitor() {
                   <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
                   القطع العسكرية المرصودة ({hormuzBlockade.militaryVessels.length})
                 </span>
-                {showMilitary ? <ChevronUp className="w-3.5 h-3.5 text-gray-500" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-500" />}
+                {showMilitary ? <ChevronUp className="w-3.5 h-3.5 text-gray-400" /> : <ChevronDown className="w-3.5 h-3.5 text-gray-400" />}
               </button>
               {showMilitary && (
                 <div className="space-y-1.5 max-h-[200px] overflow-y-auto">
@@ -277,7 +277,7 @@ export default function HormuzBlockadeMonitor() {
                           {mv.isIran && <span className="text-[8px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-bold">إيران</span>}
                           {mv.isAllied && !mv.isUS && <span className="text-[8px] px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400 font-bold">NATO</span>}
                         </div>
-                        <div className="flex items-center gap-2 text-[9px] text-gray-500 mt-0.5">
+                        <div className="flex items-center gap-2 text-[9px] text-gray-400 mt-0.5">
                           <span>{mv.statusAr}</span>
                           {mv.speed !== null && <span>• {mv.speed.toFixed(1)} عقدة</span>}
                           <span>• {timeAgo(mv.lastSeen)}</span>

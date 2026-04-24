@@ -371,7 +371,7 @@ export default function LiveMap({ events, height = '500px', showControls = true,
                     className={`flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg text-[11px] transition-colors ${
                       activeLayers.includes(layer.id)
                         ? 'bg-white/10 text-white'
-                        : 'text-gray-500 hover:text-gray-300'
+                        : 'text-gray-400 hover:text-gray-300'
                     }`}
                   >
                     {activeLayers.includes(layer.id) ? (

@@ -48,7 +48,7 @@ export function InfoCard({ icon: Icon, iconColor, title, rows }: {
       <div className="space-y-2.5">
         {rows.map((row, i) => (
           <div key={i} className="flex justify-between text-[11px]">
-            <span className="text-gray-500">{row.label}</span>
+            <span className="text-gray-400">{row.label}</span>
             <span className={row.valueColor || 'text-white'}>{row.value}</span>
           </div>
         ))}
@@ -150,7 +150,7 @@ export function ToastContainer() {
         >
           {icons[toast.type]}
           <span className="flex-1">{toast.message}</span>
-          <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-gray-500 hover:text-white">
+          <button onClick={() => setToasts(prev => prev.filter(t => t.id !== toast.id))} className="text-gray-400 hover:text-white">
             <X className="w-3 h-3" />
           </button>
         </div>

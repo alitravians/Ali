@@ -35,19 +35,19 @@ export default function EventsSection({ pendingReviewEvents, allEvents }: {
             <div className="flex bg-[#0a0a0f] rounded-lg border border-gray-800 overflow-hidden">
               <button
                 onClick={() => setFilter('pending')}
-                className={`px-3 py-1.5 text-[11px] font-medium transition-colors ${filter === 'pending' ? 'bg-yellow-500/15 text-yellow-400' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`px-3 py-1.5 text-[11px] font-medium transition-colors ${filter === 'pending' ? 'bg-yellow-500/15 text-yellow-400' : 'text-gray-400 hover:text-gray-300'}`}
               >
                 بانتظار المراجعة ({pendingReviewEvents.length})
               </button>
               <button
                 onClick={() => setFilter('all')}
-                className={`px-3 py-1.5 text-[11px] font-medium transition-colors ${filter === 'all' ? 'bg-blue-500/15 text-blue-400' : 'text-gray-500 hover:text-gray-300'}`}
+                className={`px-3 py-1.5 text-[11px] font-medium transition-colors ${filter === 'all' ? 'bg-blue-500/15 text-blue-400' : 'text-gray-400 hover:text-gray-300'}`}
               >
                 الكل ({allEvents.length})
               </button>
             </div>
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="بحث بالعنوان أو الموقع..."
@@ -76,12 +76,12 @@ export default function EventsSection({ pendingReviewEvents, allEvents }: {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-gray-800 bg-[#0a0a0f]">
-                  <th className="text-right py-3 px-4 text-gray-500 font-medium">الحدث</th>
-                  <th className="text-right py-3 px-4 text-gray-500 font-medium hidden sm:table-cell">التصنيف</th>
-                  <th className="text-right py-3 px-4 text-gray-500 font-medium">الثقة</th>
-                  <th className="text-right py-3 px-4 text-gray-500 font-medium hidden md:table-cell">الموقع</th>
-                  <th className="text-right py-3 px-4 text-gray-500 font-medium">الوقت</th>
-                  <th className="text-right py-3 px-4 text-gray-500 font-medium hidden lg:table-cell">المصادر</th>
+                  <th className="text-right py-3 px-4 text-gray-400 font-medium">الحدث</th>
+                  <th className="text-right py-3 px-4 text-gray-400 font-medium hidden sm:table-cell">التصنيف</th>
+                  <th className="text-right py-3 px-4 text-gray-400 font-medium">الثقة</th>
+                  <th className="text-right py-3 px-4 text-gray-400 font-medium hidden md:table-cell">الموقع</th>
+                  <th className="text-right py-3 px-4 text-gray-400 font-medium">الوقت</th>
+                  <th className="text-right py-3 px-4 text-gray-400 font-medium hidden lg:table-cell">المصادر</th>
                 </tr>
               </thead>
               <tbody>
@@ -108,7 +108,7 @@ export default function EventsSection({ pendingReviewEvents, allEvents }: {
                         {timeAgo(event.timestamp)}
                       </span>
                     </td>
-                    <td className="py-3 px-4 text-gray-500 hidden lg:table-cell">
+                    <td className="py-3 px-4 text-gray-400 hidden lg:table-cell">
                       {event.sources.length} مصدر
                     </td>
                   </tr>

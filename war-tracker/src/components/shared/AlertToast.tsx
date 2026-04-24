@@ -135,7 +135,7 @@ export default function AlertToast({ alerts }: AlertToastProps) {
               className="w-5 h-5 rounded hover:bg-white/10 flex items-center justify-center transition-colors"
               title="إغلاق"
             >
-              <X className="w-3 h-3 text-gray-500" />
+              <X className="w-3 h-3 text-gray-400" />
             </button>
             <button
               onClick={muteToasts}

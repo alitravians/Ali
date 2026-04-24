@@ -303,7 +303,7 @@ export default function Cities() {
                   <h3 className="text-base font-bold text-white group-hover:text-blue-400 transition-colors">
                     {city.nameAr}
                   </h3>
-                  <span className="text-xs text-gray-500">{city.countryAr} • {city.name}</span>
+                  <span className="text-xs text-gray-400">{city.countryAr} • {city.name}</span>
                 </div>
                 <span className={`px-2 py-0.5 rounded-lg border text-[10px] font-bold ${riskLevelColor(riskLevel)}`}>
                   {riskLevelTextAr(riskLevel)}
@@ -313,7 +313,7 @@ export default function Cities() {
               {/* Mini indicators */}
               <div className="space-y-2 mb-3">
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-gray-500">عسكري</span>
+                  <span className="text-gray-400">عسكري</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-1 bg-gray-800 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${scoreColor(indicators.military)}`} style={{ width: `${indicators.military}%` }} />
@@ -322,7 +322,7 @@ export default function Cities() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-gray-500">أجواء</span>
+                  <span className="text-gray-400">أجواء</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-1 bg-gray-800 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${scoreColor(indicators.airspace)}`} style={{ width: `${indicators.airspace}%` }} />
@@ -331,7 +331,7 @@ export default function Cities() {
                   </div>
                 </div>
                 <div className="flex items-center justify-between text-[11px]">
-                  <span className="text-gray-500">مدنيين</span>
+                  <span className="text-gray-400">مدنيين</span>
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-1 bg-gray-800 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${scoreColor(indicators.civilian)}`} style={{ width: `${indicators.civilian}%` }} />

@@ -16,7 +16,7 @@ export default function SourcesSection() {
         action={
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <div className="relative flex-1 sm:flex-initial">
-              <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
                 type="text"
                 placeholder="بحث..."
@@ -34,12 +34,12 @@ export default function SourcesSection() {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-gray-800 bg-[#0a0a0f]">
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">المصدر</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">النوع</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">الثقة</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">الحالة</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">آخر تحديث</th>
-                <th className="text-right py-3 px-4 text-gray-500 font-medium">الأخبار</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">المصدر</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">النوع</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">الثقة</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">الحالة</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">آخر تحديث</th>
+                <th className="text-right py-3 px-4 text-gray-400 font-medium">الأخبار</th>
               </tr>
             </thead>
             <tbody>

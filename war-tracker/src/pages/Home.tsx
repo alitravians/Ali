@@ -26,7 +26,7 @@ function LazyMap({ events }: { events: import('../types').TrackerEvent[] }) {
     <div className="w-full rounded-xl bg-gray-900/50 border border-gray-800 flex items-center justify-center" style={{ height: 'min(400px, 50vh)' }}>
       <div className="text-center">
         <Map className="w-8 h-8 text-blue-400/50 mx-auto mb-2 animate-pulse" />
-        <span className="text-xs text-gray-500">جاري تحميل الخريطة...</span>
+        <span className="text-xs text-gray-400">جاري تحميل الخريطة...</span>
       </div>
     </div>
   );
@@ -106,7 +106,7 @@ export default function Home() {
               <div className="w-full rounded-xl bg-gray-900/50 border border-gray-800 flex items-center justify-center" style={{ height: 'min(400px, 50vh)' }}>
                 <div className="text-center">
                   <Map className="w-8 h-8 text-blue-400/50 mx-auto mb-2 animate-pulse" />
-                  <span className="text-xs text-gray-500">جاري تحميل الخريطة...</span>
+                  <span className="text-xs text-gray-400">جاري تحميل الخريطة...</span>
                 </div>
               </div>
             }>
@@ -134,7 +134,7 @@ export default function Home() {
                   <EventCard key={event.id} event={event} compact />
                 ))
               ) : (
-                <div className="text-center py-8 text-gray-500 text-xs">جاري تحميل الأحداث...</div>
+                <div className="text-center py-8 text-gray-400 text-xs">جاري تحميل الأحداث...</div>
               )}
             </div>
           </div>

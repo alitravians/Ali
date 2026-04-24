@@ -77,7 +77,7 @@ export default function Sources() {
 
       {/* No data state */}
       {sourceEntries.length === 0 && (
-        <div className="text-center py-16 text-gray-500">
+        <div className="text-center py-16 text-gray-400">
           <Globe2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
           <p className="text-sm">جاري تحميل بيانات المصادر من الخادم...</p>
           <p className="text-xs mt-2">يتم جلب البيانات من مصادر حقيقية فقط</p>

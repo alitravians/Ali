@@ -229,7 +229,7 @@ export default function SystemSection({ backendHealthy, backendLatency, connecti
                   {session.status === 'completed' ? 'مكتمل' : session.status === 'running' ? 'جاري' : session.status}
                 </span>
                 {session.session_url && (
-                  <a href={session.session_url} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-500 hover:text-blue-400 transition-colors">
+                  <a href={session.session_url} target="_blank" rel="noopener noreferrer" className="p-1 text-gray-400 hover:text-blue-400 transition-colors">
                     <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 )}

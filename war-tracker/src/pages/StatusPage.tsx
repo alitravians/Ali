@@ -235,7 +235,7 @@ function getStatusColor(status: string) {
     case 'partial_outage': return { bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-400', dot: 'bg-orange-500' };
     case 'major_outage': return { bg: 'bg-red-500/15', border: 'border-red-500/30', text: 'text-red-400', dot: 'bg-red-500' };
     case 'maintenance': return { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-400', dot: 'bg-blue-500' };
-    case 'disabled': return { bg: 'bg-gray-500/10', border: 'border-gray-700/30', text: 'text-gray-500', dot: 'bg-gray-600' };
+    case 'disabled': return { bg: 'bg-gray-500/10', border: 'border-gray-700/30', text: 'text-gray-400', dot: 'bg-gray-600' };
     default: return { bg: 'bg-gray-500/15', border: 'border-gray-500/30', text: 'text-gray-400', dot: 'bg-gray-500' };
   }
 }
@@ -700,7 +700,7 @@ export default function StatusPage() {
                       </p>
                     </div>
                   </div>
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                 </button>
                 {isExpanded && (
                   <div className="px-4 pb-4 border-t border-red-500/10">
@@ -708,7 +708,7 @@ export default function StatusPage() {
                     <div className="space-y-2">
                       {inc.notes.map(note => (
                         <div key={note.id} className="flex gap-2 text-[11px]">
-                          <span className="text-gray-500 shrink-0">{new Date(note.timestamp).toLocaleTimeString('ar-SA')}</span>
+                          <span className="text-gray-400 shrink-0">{new Date(note.timestamp).toLocaleTimeString('ar-SA')}</span>
                           <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium shrink-0 ${
                             note.status === 'resolved' ? 'bg-green-500/15 text-green-400' :
                             note.status === 'monitoring' ? 'bg-blue-500/15 text-blue-400' :
@@ -853,7 +853,7 @@ export default function StatusPage() {
                       </button>
                       <button
                         onClick={() => { setShowCodePrompt(null); setCodeInput(''); }}
-                        className="px-2 py-1.5 rounded-lg text-gray-500 hover:text-gray-300 text-[11px] transition-colors"
+                        className="px-2 py-1.5 rounded-lg text-gray-400 hover:text-gray-300 text-[11px] transition-colors"
                       >
                         إلغاء
                       </button>
@@ -1032,7 +1032,7 @@ export default function StatusPage() {
             )}
 
             {data.bahrain_monitor.events.length === 0 && (
-              <div className="text-center py-3 text-gray-500 text-xs border-t border-gray-800/50 mt-2 pt-3">
+              <div className="text-center py-3 text-gray-400 text-xs border-t border-gray-800/50 mt-2 pt-3">
                 <CheckCircle2 className="w-5 h-5 mx-auto mb-1 text-green-400" />
                 لا توجد أحداث مرصودة حالياً — الوضع مستقر
               </div>
@@ -1070,7 +1070,7 @@ export default function StatusPage() {
                       <span className="text-[11px] text-white font-medium">{sourceNames[src.id] || src.id}</span>
                     </div>
                     <div className="text-center">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${src.active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700/50 text-gray-500'}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded ${src.active ? 'bg-green-500/10 text-green-400' : 'bg-gray-700/50 text-gray-400'}`}>
                         {src.active ? 'نشط' : 'معطّل'}
                       </span>
                     </div>
@@ -1099,11 +1099,11 @@ export default function StatusPage() {
             <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <Wifi className={`w-5 h-5 ${data.websocket_health.active_connections > 0 ? 'text-green-400' : 'text-gray-500'}`} />
+                  <Wifi className={`w-5 h-5 ${data.websocket_health.active_connections > 0 ? 'text-green-400' : 'text-gray-400'}`} />
                   <span className="text-xs text-gray-400">الاتصالات النشطة</span>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full ${
-                  data.websocket_health.active_connections > 0 ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-gray-800 border border-gray-700 text-gray-500'
+                  data.websocket_health.active_connections > 0 ? 'bg-green-500/10 border border-green-500/30 text-green-400' : 'bg-gray-800 border border-gray-700 text-gray-400'
                 }`}>
                   {data.websocket_health.active_connections > 0 ? 'متصل' : 'لا اتصالات'}
                 </span>
@@ -1136,7 +1136,7 @@ export default function StatusPage() {
               <div className="grid grid-cols-2 gap-3 pt-3 border-t border-gray-800/50">
                 <div className="text-center">
                   <div className="text-xs font-bold text-white">{data.websocket_health.max_connections}</div>
-                  <div className="text-[9px] text-gray-500">الحد الأقصى</div>
+                  <div className="text-[9px] text-gray-400">الحد الأقصى</div>
                 </div>
                 <div className="text-center">
                   <div className={`text-xs font-bold ${
@@ -1144,7 +1144,7 @@ export default function StatusPage() {
                   }`}>
                     {data.websocket_health.max_connections - data.websocket_health.active_connections}
                   </div>
-                  <div className="text-[9px] text-gray-500">متاح</div>
+                  <div className="text-[9px] text-gray-400">متاح</div>
                 </div>
               </div>
             </div>
@@ -1206,7 +1206,7 @@ export default function StatusPage() {
                       </div>
                     </div>
                   </div>
-                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-500 shrink-0" />}
+                  {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-400 shrink-0" />}
                 </button>
                 {isExpanded && (
                   <div className="px-3 pb-3 border-t border-gray-800/50">

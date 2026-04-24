@@ -13,7 +13,7 @@ export default function LoadingScreen() {
       </div>
 
       <h1 className="text-xl font-black text-white mb-1">WarScope</h1>
-      <p className="text-xs text-gray-500 mb-8">مركز التتبع المباشر</p>
+      <p className="text-xs text-gray-400 mb-8">مركز التتبع المباشر</p>
 
       {/* Loading bar */}
       <div className="w-48 h-1 bg-gray-800 rounded-full overflow-hidden">

@@ -85,16 +85,16 @@ export default function FooterStats() {
       {/* Stats bar */}
       <div className="max-w-[1920px] mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between text-[9px] sm:text-[10px]">
         <div className="flex items-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-1 sm:gap-1.5 text-gray-500">
+          <div className="flex items-center gap-1 sm:gap-1.5 text-gray-400">
             <Users className="w-3 h-3" />
             <span><span className="text-gray-300 font-semibold">{connectedClients}</span> متصل</span>
           </div>
-          <div className="flex items-center gap-1 sm:gap-1.5 text-gray-500">
+          <div className="flex items-center gap-1 sm:gap-1.5 text-gray-400">
             <Activity className="w-3 h-3" />
             <span><span className="text-gray-300 font-semibold">{todayEvents}</span> حدث اليوم</span>
           </div>
         </div>
-        <div className="flex items-center gap-1 sm:gap-1.5 text-gray-500">
+        <div className="flex items-center gap-1 sm:gap-1.5 text-gray-400">
           <Wifi className={`w-3 h-3 ${connectionStatus === 'connected' ? 'text-green-500' : connectionStatus === 'connecting' ? 'text-yellow-500' : 'text-red-500'}`} />
           <span>WarScope v1.1</span>
         </div>

@@ -85,7 +85,7 @@ export default function Alerts() {
               className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
                 severityFilter === sev
                   ? 'bg-white/10 text-white border-white/20'
-                  : 'text-gray-500 border-gray-700 hover:text-gray-300'
+                  : 'text-gray-400 border-gray-700 hover:text-gray-300'
               }`}
             >
               {sev === 'all' ? 'كل الأولويات' : sev === 'critical' ? 'حرج' : sev === 'high' ? 'عالي' : sev === 'medium' ? 'متوسط' : 'منخفض'}
@@ -100,7 +100,7 @@ export default function Alerts() {
               className={`text-[10px] px-2.5 py-1 rounded-full border transition-colors ${
                 typeFilter === type
                   ? 'bg-blue-500/15 text-blue-400 border-blue-500/30'
-                  : 'text-gray-500 border-gray-700 hover:text-gray-300'
+                  : 'text-gray-400 border-gray-700 hover:text-gray-300'
               }`}
             >
               {type === 'all' ? 'كل الأنواع' : typeLabels[type]}
@@ -170,7 +170,7 @@ export default function Alerts() {
                         {alert.cityAr}
                       </span>
                     )}
-                    {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
                   </div>
                 </div>
               </div>
@@ -179,11 +179,11 @@ export default function Alerts() {
                 <div className="border-t border-gray-800 p-4">
                   <div className="text-xs text-gray-400 space-y-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">الأحداث المرتبطة:</span>
+                      <span className="text-gray-400">الأحداث المرتبطة:</span>
                       <span className="text-white">{alert.relatedEventIds.length} حدث</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-gray-500">الحالة:</span>
+                      <span className="text-gray-400">الحالة:</span>
                       <span className={alert.isRead ? 'text-gray-400' : 'text-blue-400'}>
                         {alert.isRead ? 'مقروء' : 'غير مقروء'}
                       </span>
