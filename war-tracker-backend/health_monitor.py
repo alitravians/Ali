@@ -6,7 +6,7 @@ import asyncio
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
@@ -595,6 +595,26 @@ class HealthMonitor:
             # because we count the current check here.
             svc.daily_checks = 1
             svc.daily_errors = 0 if result.success else 1
+            # Fill any gap days between `last_rec.date` and today with
+            # `no_data` placeholders. Without this, a service disabled via
+            # the admin panel for N days and then re-enabled leaves a hole in
+            # the in-memory list; `_compact_uptime_history` encodes by
+            # sequential index and the frontend reconstructs dates via
+            # `startDate + idx`, so the gap would shift every subsequent
+            # bar's tooltip date to the left. `load_uptime_from_db` already
+            # performs the equivalent gap-fill at startup — this covers the
+            # runtime path.
+            last_date = datetime.fromisoformat(last_rec.date).date()
+            today_date = datetime.now(timezone.utc).date()
+            cursor = last_date + timedelta(days=1)
+            while cursor < today_date:
+                svc.uptime_history_90d.append(DailyUptimeRecord(
+                    date=cursor.isoformat(),
+                    uptime_percent=0.0,
+                    had_incident=False,
+                    status="no_data",
+                ))
+                cursor = cursor + timedelta(days=1)
             svc.uptime_history_90d.append(DailyUptimeRecord(
                 date=today_str,
                 uptime_percent=100.0 if result.success else 0.0,
@@ -612,7 +632,16 @@ class HealthMonitor:
             for rec in reversed(svc.uptime_history_90d):
                 if rec.date == today_str:
                     rec.had_incident = True
-                    rec.status = result.status.value
+                    # Preserve worst-status tracking so a later, less severe
+                    # incident on the same day cannot downgrade a record
+                    # that already captured (for example) a `major_outage`
+                    # earlier in the day. Mirrors the ordering used in
+                    # `_update_daily_uptime`.
+                    severity_order = ["operational", "degraded", "partial_outage", "major_outage"]
+                    cur_idx = severity_order.index(rec.status) if rec.status in severity_order else 0
+                    new_idx = severity_order.index(result.status.value) if result.status.value in severity_order else 0
+                    if new_idx > cur_idx:
+                        rec.status = result.status.value
                     break
         severity = (
             IncidentSeverity.critical

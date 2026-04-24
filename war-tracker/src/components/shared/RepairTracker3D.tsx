@@ -1063,7 +1063,13 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
         clearInterval(elapsedTimerRef.current);
         elapsedTimerRef.current = null;
       }
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Close unconditionally. If we only close when readyState === OPEN we
+      // leak sockets that are still CONNECTING — `onopen` would later fire
+      // on the orphaned socket, arm a fresh 30s `pingInterval` local to
+      // `connectWebSocket`, and hit `setState` on an unmounted component.
+      // `pingInterval` is not captured in this cleanup closure so nothing
+      // would ever clear it. `close()` is a safe no-op on CLOSING/CLOSED.
+      if (wsRef.current) {
         wsRef.current.close();
       }
       wsRef.current = null;
