@@ -161,6 +161,19 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const reconnectAttemptRef = useRef(0);
   const prevEventCountRef = useRef(0);
+  // Flipped to ``true`` in the effect cleanup below so that a close event
+  // that arrives AFTER the provider has unmounted (``ws.close()`` resolves
+  // asynchronously) cannot schedule another ``connectWs`` call. Without
+  // this guard each unmount+remount cycle leaks a reconnecting socket that
+  // the runtime keeps alive forever.
+  const unmountedRef = useRef(false);
+  // Flipped to ``true`` on the first WS ``initial_data`` frame. The REST
+  // fallback in ``fetchInitialData`` runs in parallel with the WS handshake
+  // — if the socket wins the race (which it usually does on a warm backend)
+  // the REST response arriving seconds later must not clobber the fresher
+  // WS payload with older snapshots. REST is only allowed to populate
+  // fields whose WS equivalents have not been seen yet.
+  const wsInitialReceivedRef = useRef(false);
 
   // WebSocket message handler
   const handleWsMessage = useCallback((msg: MessageEvent) => {
@@ -168,6 +181,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       const data = JSON.parse(msg.data);
 
       if (data.type === 'initial_data' || data.type === 'events_update') {
+        if (data.type === 'initial_data') {
+          wsInitialReceivedRef.current = true;
+        }
         const newEvents = parseEvents(data.events);
         // Always call setEvents — even with an empty array — so that a
         // legitimate backend clear (e.g. all events expired from the
@@ -270,6 +286,15 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         wsRef.current = null;
         setConnectionStatus('disconnected');
         if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
+        // Don't schedule a reconnect if the provider has already unmounted
+        // — the onclose callback fires asynchronously after the effect
+        // cleanup calls ``ws.close()``, and without this guard every
+        // unmount (route change, HMR swap, React StrictMode replay) would
+        // leak a reconnecting socket whose timers and handlers stay alive
+        // for the lifetime of the page.
+        if (unmountedRef.current) {
+          return;
+        }
         // Exponential backoff: 2s, 4s, 8s, … capped at 60s, with ±25% jitter
         // so many clients don't reconnect in a synchronized stampede after
         // the server comes back.
@@ -286,11 +311,28 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     };
   }, [handleWsMessage]);
 
-  // Also try REST API fetch on initial load for immediate data
+  // Also try REST API fetch on initial load for immediate data.
+  //
+  // The REST path is a FALLBACK for when the WebSocket handshake is slow or
+  // fails — the socket is the primary data source. Every setter here is
+  // therefore gated on ``!wsInitialReceivedRef.current`` and on
+  // ``!unmountedRef.current``:
+  //   * If the WS has already delivered ``initial_data``, the REST
+  //     snapshot may be older (it may not include events that arrived on
+  //     the socket between login and the ``/api/events`` response). We
+  //     must not overwrite the fresher WS state with a stale snapshot.
+  //   * If the provider has unmounted mid-flight, calling a state setter
+  //     on an unmounted component is benign in React 18 but pollutes dev
+  //     tooling and risks scheduling extra work during teardown.
   const fetchInitialData = useCallback(async () => {
     // Retry with exponential backoff for initial event load
     const maxRetries = 3;
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+      if (unmountedRef.current) return;
+      if (wsInitialReceivedRef.current) {
+        // WS already won the race; no point hitting REST for events.
+        break;
+      }
       try {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 10000);
@@ -299,7 +341,9 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         if (resp.ok) {
           const data = await resp.json();
           const apiEvents = parseEvents(data.events);
-          if (apiEvents.length > 0) {
+          // Re-check after await: WS may have delivered initial_data while
+          // the REST fetch was in-flight.
+          if (apiEvents.length > 0 && !wsInitialReceivedRef.current && !unmountedRef.current) {
             setEvents(apiEvents);
             prevEventCountRef.current = data.total ?? apiEvents.length;
             setLastUpdate(new Date());
@@ -317,46 +361,56 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
 
     // Fetch source status
-    try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/sources`);
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.sources) {
-          setSourceStatus(data.sources);
+    if (!unmountedRef.current && !wsInitialReceivedRef.current) {
+      try {
+        const resp = await fetch(`${BACKEND_API_URL}/api/sources`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.sources && !wsInitialReceivedRef.current && !unmountedRef.current) {
+            setSourceStatus(data.sources);
+          }
         }
+      } catch {
+        // Source status fetch failed silently
       }
-    } catch {
-      // Source status fetch failed silently
     }
 
     // Fetch alerts
-    try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/alerts`);
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.alerts) {
-          setAlerts(parseAlerts(data.alerts));
+    if (!unmountedRef.current && !wsInitialReceivedRef.current) {
+      try {
+        const resp = await fetch(`${BACKEND_API_URL}/api/alerts`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.alerts && !wsInitialReceivedRef.current && !unmountedRef.current) {
+            setAlerts(parseAlerts(data.alerts));
+          }
         }
+      } catch {
+        // Alerts fetch failed silently
       }
-    } catch {
-      // Alerts fetch failed silently
     }
 
     // Fetch indicators
-    try {
-      const resp = await fetch(`${BACKEND_API_URL}/api/indicators`);
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data.indicators) {
-          setIndicators(data.indicators);
+    if (!unmountedRef.current && !wsInitialReceivedRef.current) {
+      try {
+        const resp = await fetch(`${BACKEND_API_URL}/api/indicators`);
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.indicators && !wsInitialReceivedRef.current && !unmountedRef.current) {
+            setIndicators(data.indicators);
+          }
         }
+      } catch {
+        // Indicators fetch failed silently
       }
-    } catch {
-      // Indicators fetch failed silently
     }
   }, []);
 
   useEffect(() => {
+    // Reset the unmount flag on every (re)mount so StrictMode's double-
+    // invocation in development doesn't permanently block the socket.
+    unmountedRef.current = false;
+
     // Try WebSocket connection first
     connectWs();
 
@@ -371,9 +425,18 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }, 30000);
 
     return () => {
+      // Mark unmounted FIRST so the async ``onclose`` handler triggered by
+      // ``ws.close()`` below sees the flag and refuses to reschedule a
+      // reconnect timer.
+      unmountedRef.current = true;
       clearInterval(pingInterval);
-      if (reconnectTimer.current) clearTimeout(reconnectTimer.current);
-      if (wsRef.current) wsRef.current.close();
+      if (reconnectTimer.current) {
+        clearTimeout(reconnectTimer.current);
+        reconnectTimer.current = undefined;
+      }
+      if (wsRef.current) {
+        try { wsRef.current.close(); } catch { /* ignore */ }
+      }
     };
   }, [connectWs, fetchInitialData]);
 
