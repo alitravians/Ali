@@ -102,7 +102,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevEventCountRef = useRef(0);
-  const backendHasBlockade = useRef(true); // assume yes, disable on 404
+  const backendHasBlockade = useRef<boolean | null>(null); // null=unknown, check via OpenAPI first
 
   // WebSocket message handler
   const handleWsMessage = useCallback((msg: MessageEvent) => {
@@ -177,23 +177,26 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Connect to WebSocket — only attempt if backend is reachable
+  // Connect to WebSocket — only attempt if backend actually supports /ws
   const connectWs = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    // Verify backend is reachable before opening WebSocket
-    // This prevents ERR_NAME_NOT_RESOLVED console errors
+    // Probe /ws endpoint via HTTP first — if 404, backend doesn't have WebSocket
+    // This prevents ERR_NAME_NOT_RESOLVED and failed WebSocket console errors
     try {
-      const probe = await fetch(`${BACKEND_API_URL}/api/health`, {
+      const probe = await fetch(`${BACKEND_API_URL}/ws`, {
+        method: 'GET',
         signal: AbortSignal.timeout(5000),
       });
-      if (!probe.ok) {
+      // 404 = endpoint doesn't exist, don't attempt WebSocket
+      // 426 (Upgrade Required) or 400 = endpoint exists, safe to connect
+      if (probe.status === 404) {
         setConnectionStatus('disconnected');
-        reconnectTimer.current = setTimeout(connectWs, 30000);
+        reconnectTimer.current = setTimeout(connectWs, 60000);
         return;
       }
     } catch {
-      // Backend unreachable — skip WebSocket, retry later
+      // Network error or timeout — backend unreachable, retry later
       setConnectionStatus('disconnected');
       reconnectTimer.current = setTimeout(connectWs, 30000);
       return;
@@ -322,8 +325,22 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       console.warn('[REST] Vessels fetch failed:', err instanceof Error ? err.message : err);
     }
 
-    // Fetch Hormuz blockade status — only if backend has the endpoint
-    // (avoids 404 console errors that hurt PageSpeed score)
+    // Fetch Hormuz blockade status — probe via OpenAPI first to avoid 404 console errors
+    // Browser logs network 404s to console even when caught in try/catch
+    if (backendHasBlockade.current === null) {
+      // First time: check if endpoint exists via OpenAPI spec (no console error on 200)
+      try {
+        const specResp = await fetch(`${BACKEND_API_URL}/openapi.json`, { signal: AbortSignal.timeout(5000) });
+        if (specResp.ok) {
+          const spec = await specResp.json();
+          backendHasBlockade.current = !!(spec.paths && spec.paths['/api/hormuz-blockade']);
+        } else {
+          backendHasBlockade.current = false;
+        }
+      } catch {
+        backendHasBlockade.current = false;
+      }
+    }
     if (backendHasBlockade.current) {
       try {
         const blockadeController = new AbortController();
