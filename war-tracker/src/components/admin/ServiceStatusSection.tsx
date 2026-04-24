@@ -198,7 +198,7 @@ export default function ServiceStatusSection() {
       </div>
 
       <div className="mt-4 p-3 bg-[#0a0a0f] rounded-xl border border-gray-800">
-        <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
+        <p className="text-[11px] text-gray-400 flex items-center gap-1.5">
           <Globe className="w-3.5 h-3.5 text-blue-400" />
           صفحة الحالة العامة متاحة للجميع على <a href="/status" className="text-blue-400 hover:underline">/status</a>
         </p>

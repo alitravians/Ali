@@ -282,7 +282,7 @@ export default function Cities() {
           <Building2 className="w-5 h-5 text-blue-400" />
           المدن والمناطق المتابعة
         </h1>
-        <span className="text-[11px] text-gray-500">{cities.length} مدن</span>
+        <span className="text-[11px] text-gray-400">{cities.length} مدن</span>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -341,7 +341,7 @@ export default function Cities() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-[11px] text-gray-500 border-t border-gray-800 pt-2">
+              <div className="flex items-center justify-between text-[11px] text-gray-400 border-t border-gray-800 pt-2">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
                   {timeAgo(lastUpdate)}

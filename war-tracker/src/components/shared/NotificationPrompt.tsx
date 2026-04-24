@@ -77,7 +77,7 @@ export default function NotificationPrompt() {
               </button>
               <button
                 onClick={dismiss}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-gray-500 hover:text-gray-300 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] text-gray-400 hover:text-gray-300 transition-colors"
               >
                 <BellOff className="w-3 h-3" />
                 لاحقاً

@@ -802,7 +802,7 @@ export default function StatusPage() {
               {/* Disabled message with reason */}
               {svc.status === 'disabled' && (
                 <div className="text-center py-3">
-                  <div className="text-[11px] text-gray-500">هذه الخدمة معطّلة حالياً</div>
+                  <div className="text-[11px] text-gray-400">هذه الخدمة معطّلة حالياً</div>
                   {svc.disabled_reason_ar && (
                     <div className="text-[10px] text-gray-600 mt-1">{svc.disabled_reason_ar}</div>
                   )}

@@ -141,7 +141,7 @@ export default function Analysis() {
           <BarChart3 className="w-5 h-5 text-purple-400" />
           التحليلات والتقييمات
         </h1>
-        <div className="text-[11px] text-gray-500 flex items-center gap-1">
+        <div className="text-[11px] text-gray-400 flex items-center gap-1">
           <Clock className="w-3.5 h-3.5" />
           آخر تحديث: {new Date().toLocaleString('ar-SA')}
         </div>

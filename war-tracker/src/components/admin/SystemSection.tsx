@@ -207,7 +207,7 @@ export default function SystemSection({ backendHealthy, backendLatency, connecti
         ) : autofixSessions.length === 0 ? (
           <div className="text-center py-6">
             <CheckCircle2 className="w-8 h-8 text-green-400/30 mx-auto mb-2" />
-            <p className="text-[11px] text-gray-500">لا توجد جلسات إصلاح سابقة — النظام مستقر</p>
+            <p className="text-[11px] text-gray-400">لا توجد جلسات إصلاح سابقة — النظام مستقر</p>
           </div>
         ) : (
           <div className="space-y-2">

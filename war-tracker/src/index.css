@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap');
+/* Google Fonts loaded async in index.html — do NOT re-import here (render-blocking) */
 
 @theme {
   --font-cairo: 'Cairo', sans-serif;

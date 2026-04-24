@@ -87,7 +87,7 @@ export default function AISummaryModal({ isOpen, onClose }: AISummaryModalProps)
         {summary ? (
           <>
             {/* Timestamp */}
-            <div className="text-[11px] text-gray-500 flex items-center gap-1">
+            <div className="text-[11px] text-gray-400 flex items-center gap-1">
               <Clock className="w-3 h-3" />
               آخر تحديث: {timeAgo(summary.timestamp)}
             </div>

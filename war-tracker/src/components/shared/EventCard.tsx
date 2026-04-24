@@ -59,14 +59,14 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
         )}
 
         {/* Location */}
-        <div className="flex items-center gap-1 text-[11px] text-gray-500 mb-2">
+        <div className="flex items-center gap-1 text-[11px] text-gray-400 mb-2">
           <MapPin className="w-3 h-3" />
           {event.location.nameAr}
         </div>
 
         {/* Sources count */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 text-[11px] text-gray-500">
+          <div className="flex items-center gap-1 text-[11px] text-gray-400">
             <Link2 className="w-3 h-3" />
             {event.sources.length} مصادر
           </div>
@@ -110,7 +110,7 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
           </div>
 
           {/* Trust reason */}
-          <div className="text-[11px] text-gray-500">
+          <div className="text-[11px] text-gray-400">
             <span className="font-semibold">سبب التقييم: </span>
             {event.trustReasonAr}
           </div>

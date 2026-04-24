@@ -343,7 +343,7 @@ export default function Analytics() {
               <Download className="w-4 h-4 text-green-400" />
               تصدير البيانات
             </h3>
-            <p className="text-[11px] text-gray-500 mt-1">تصدير {filteredEvents.length} حدث بصيغة CSV — متوافق مع Excel</p>
+            <p className="text-[11px] text-gray-400 mt-1">تصدير {filteredEvents.length} حدث بصيغة CSV — متوافق مع Excel</p>
           </div>
           <button
             onClick={handleExportCSV}

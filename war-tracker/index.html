@@ -142,6 +142,15 @@
     }
     </script>
 
+    <!-- Critical inline CSS — renders above-the-fold content instantly -->
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{background:#0a0a0f;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;overflow-x:hidden}
+      #root{min-height:100vh}
+      .bg-gray-950{background-color:#030712}
+      .text-white{color:#fff}
+    </style>
+
     <!-- Preconnect to font/CDN origins (keep render path fast) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

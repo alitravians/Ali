@@ -96,7 +96,7 @@ export default function Sources() {
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h3 className="text-sm font-bold text-white mb-0.5">{meta.nameAr}</h3>
-                  <span className="text-[11px] text-gray-500">{key.toUpperCase()}</span>
+                  <span className="text-[11px] text-gray-400">{key.toUpperCase()}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {status.active ? (
@@ -112,20 +112,20 @@ export default function Sources() {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-500">النوع:</span>
+                  <span className="text-[11px] text-gray-400">النوع:</span>
                   <span className="text-[11px] text-gray-300 px-2 py-0.5 bg-gray-800 rounded-full">
                     {sourceTypeAr(meta.type)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                  <span className="text-[11px] text-gray-400 flex items-center gap-1">
                     <BarChart3 className="w-3 h-3" />
                     أخبار تم جلبها:
                   </span>
                   <span className="text-[11px] font-semibold text-white">{status.eventCount}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-gray-500 flex items-center gap-1">
+                  <span className="text-[11px] text-gray-400 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     آخر تحديث:
                   </span>

@@ -49,7 +49,7 @@ export default function EventDetailModal({ event, isOpen, onClose }: EventDetail
             {categoryTextAr(event.category)}
           </span>
           <TrustBadge level={event.trustLevel} reason={event.trustReasonAr} />
-          <span className="text-[11px] text-gray-500 flex items-center gap-1 mr-auto">
+          <span className="text-[11px] text-gray-400 flex items-center gap-1 mr-auto">
             <Clock className="w-3.5 h-3.5" />
             {timeAgo(event.timestamp)}
           </span>

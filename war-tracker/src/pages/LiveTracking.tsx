@@ -286,7 +286,7 @@ export default function LiveTracking() {
 
           {/* Events list */}
           <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-0">
-            <div className="text-[11px] text-gray-500 mb-1">
+            <div className="text-[11px] text-gray-400 mb-1">
               {isLoading ? 'جاري تحميل الأحداث...' : `${sortedEvents.length} حدث`}
             </div>
             {isLoading && events.length === 0 ? (

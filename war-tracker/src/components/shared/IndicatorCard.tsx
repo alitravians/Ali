@@ -46,7 +46,7 @@ export default function IndicatorCard({ indicator, size = 'sm' }: IndicatorCardP
       </div>
 
       {size === 'lg' && (
-        <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+        <p className="text-[11px] text-gray-400 mt-2 leading-relaxed">
           {indicator.descriptionAr}
         </p>
       )}
