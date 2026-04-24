@@ -48,7 +48,7 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="text-sm font-bold text-white mb-1 leading-relaxed">
+        <h3 className="text-sm font-bold text-white mb-1 leading-relaxed line-clamp-3">
           {event.titleAr}
         </h3>
 

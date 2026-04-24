@@ -373,9 +373,11 @@ export default function Analysis() {
           المؤشرات التفصيلية
         </h2>
         {indicators.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {indicators.map(ind => (
-              <IndicatorCard key={ind.id} indicator={ind} size="lg" />
+              <div key={ind.id} className="min-w-0">
+                <IndicatorCard indicator={ind} size="lg" />
+              </div>
             ))}
           </div>
         ) : (

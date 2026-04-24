@@ -19,7 +19,7 @@ export default function IndicatorCard({ indicator, size = 'sm' }: IndicatorCardP
   return (
     <div className={`rounded-xl border border-gray-800 bg-[#12121a] p-3 ${size === 'lg' ? 'p-4' : ''}`}>
       <div className="flex items-center justify-between mb-2">
-        <span className={`font-semibold text-gray-300 ${size === 'lg' ? 'text-sm' : 'text-xs'}`}>
+        <span className={`font-semibold text-gray-300 truncate ${size === 'lg' ? 'text-sm' : 'text-xs'}`}>
           {indicator.nameAr}
         </span>
         <div className="flex items-center gap-1">

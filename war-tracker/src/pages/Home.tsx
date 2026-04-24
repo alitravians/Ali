@@ -80,9 +80,11 @@ export default function Home() {
           </div>
 
           {/* Indicators */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-8 pm-grid-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-8 pm-grid-2 overflow-hidden">
             {indicators.map(ind => (
-              <IndicatorCard key={ind.id} indicator={ind} />
+              <div key={ind.id} className="min-w-0">
+                <IndicatorCard indicator={ind} />
+              </div>
             ))}
           </div>
         </div>

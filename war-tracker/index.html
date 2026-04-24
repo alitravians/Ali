@@ -145,7 +145,7 @@
     <!-- Critical inline CSS — renders above-the-fold content instantly -->
     <style>
       *{margin:0;padding:0;box-sizing:border-box}
-      body{background:#0a0a0f;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;overflow-x:hidden}
+      body{background:#0a0a0f;color:#e2e8f0;font-family:Cairo,system-ui,sans-serif;overflow-x:hidden;line-height:1.6}
       #root{min-height:100vh}
       .bg-gray-950{background-color:#030712}
       .text-white{color:#fff}
@@ -155,9 +155,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Google Fonts — non-render-blocking: load async, swap on ready -->
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
-    <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
+    <!-- Google Fonts — render-blocking to prevent layout shift with Arabic text -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
 
     <!-- Leaflet CSS — loaded async (only needed on map pages) -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" media="print" onload="this.media='all'" />

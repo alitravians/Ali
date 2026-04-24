@@ -285,7 +285,7 @@ export default function Cities() {
         <span className="text-[11px] text-gray-400">{cities.length} مدن</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-hidden">
         {cities.map(city => {
           const cityEvents = cityEventsMap[city.id] || [];
           const indicators = computeIndicators(cityEvents);
