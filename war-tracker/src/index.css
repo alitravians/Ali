@@ -17,6 +17,13 @@
 
 * {
   font-family: 'Cairo', sans-serif;
+  cursor: url('/cursor-48.png') 14 0, auto;
+}
+
+/* Pointer cursor for interactive elements */
+a, button, [role="button"], input[type="submit"], input[type="button"],
+select, label[for], .cursor-pointer, [onclick] {
+  cursor: url('/cursor-48.png') 14 0, pointer;
 }
 
 body {
