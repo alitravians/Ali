@@ -191,19 +191,33 @@ export default function BugReportButton() {
       const desc = description.trim();
       const page = location.pathname;
 
-      const res = await fetch(`${BACKEND_API_URL}/api/bug-report`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: desc,
-          page,
-          browser: navigator.userAgent,
-          console_errors: _collectedErrors.slice(-15),
-          user_actions: _userActions.slice(-15),
-          browser_info: browserInfo,
-          screenshot: pageSnapshot,
-        }),
-      });
+      // Abort the fetch after 15 s so the user never sees an indefinite
+      // spinner if the backend stalls on an upstream dependency. Before
+      // this guard, a hung `/api/bug-report` left the submit button
+      // frozen forever and surfaced a generic `TypeError: Failed to
+      // fetch` after the browser's own (very long) timeout.
+      const controller = new AbortController();
+      const abortTimer = setTimeout(() => controller.abort(), 15000);
+
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_API_URL}/api/bug-report`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            description: desc,
+            page,
+            browser: navigator.userAgent,
+            console_errors: _collectedErrors.slice(-15),
+            user_actions: _userActions.slice(-15),
+            browser_info: browserInfo,
+            screenshot: pageSnapshot,
+          }),
+        });
+      } finally {
+        clearTimeout(abortTimer);
+      }
 
       console.log('[BugReport] Response status:', res.status, 'ok:', res.ok);
 
@@ -227,7 +241,12 @@ export default function BugReportButton() {
       }
     } catch (err) {
       console.log('[BugReport] Fetch error:', err);
-      setErrorMsg('تعذر الاتصال بالخادم');
+      const isAbort = err instanceof DOMException && err.name === 'AbortError';
+      setErrorMsg(
+        isAbort
+          ? 'انتهت مهلة الاتصال بالخادم — حاول مرة أخرى بعد قليل'
+          : 'تعذر الاتصال بالخادم',
+      );
       setStatus('error');
     }
   };

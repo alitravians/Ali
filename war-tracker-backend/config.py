@@ -35,11 +35,25 @@ FRONTEND_ORIGINS = [
     "https://war-tracker-backend-v2.fly.dev",
 ]
 
+# Regex used as a secondary CORS matcher. ``CORSMiddleware`` accepts EITHER
+# an allow_origins entry OR an allow_origin_regex match, so we use this
+# to cover dev loopback variants that browsers treat as distinct origins
+# — ``http://localhost``, ``http://127.0.0.1``, and ``http://[::1]``
+# on any port a local dev server might pick. Without the regex we have
+# to enumerate every port, and ``http://127.0.0.1:5173`` still fails
+# the preflight because the list only contained ``localhost:5173``.
+# The regex is still gated behind ``CORS_DEV=1`` so production
+# deployments are unaffected.
+CORS_ORIGIN_REGEX = None
+
 if os.getenv("CORS_DEV"):
     FRONTEND_ORIGINS += [
         "http://localhost:5173",
         "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:3000",
     ]
+    CORS_ORIGIN_REGEX = r"^http://(localhost|127\.0\.0\.1|\[::1\]):\d+$"
 
 # Region of interest
 REGION_BBOX = {

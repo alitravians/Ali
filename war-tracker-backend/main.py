@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field, field_validator
 
 import httpx as _httpx
 from config import (
-    FRONTEND_ORIGINS, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
+    FRONTEND_ORIGINS, CORS_ORIGIN_REGEX, GDELT_POLL_INTERVAL, NEWS_POLL_INTERVAL,
     OPENSKY_POLL_INTERVAL, AI_ANALYSIS_INTERVAL, RSS_POLL_INTERVAL,
     NEWSAPI_KEY, DEVIN_API_KEY, DEVIN_TARGET_SESSION_ID,
 )
@@ -652,13 +652,16 @@ app = FastAPI(
     redoc_url=None,  # Disable ReDoc in production
 )
 
-app.add_middleware(
-    CORSMiddleware,
+_cors_kwargs = dict(
     allow_origins=FRONTEND_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization"],
 )
+if CORS_ORIGIN_REGEX:
+    # Only attached when CORS_DEV=1 so production traffic is unaffected.
+    _cors_kwargs["allow_origin_regex"] = CORS_ORIGIN_REGEX
+app.add_middleware(CORSMiddleware, **_cors_kwargs)
 
 
 # ──────────────────────────────────────────────
@@ -1542,10 +1545,16 @@ async def submit_bug_report(report: BugReport, request: Request):
     _remember_ticket(ticket_id, new_ticket)
     persistence.save_ticket(ticket_id, new_ticket)
 
+    # Persist the report entry up-front so the admin dashboard sees it
+    # immediately and so a crash inside the Devin dispatcher cannot erase
+    # evidence that the user actually filed the bug.
+    _bug_reports.insert(0, report_entry)
+    while len(_bug_reports) > 50:
+        _bug_reports.pop()
+
     # Send bug report as a message to the active Devin session
     import logging
     logger = logging.getLogger("bug_report")
-    devin_error = None
 
     message = f"""## WarScope بلاغ مشكلة تقنية من المستخدم
 
@@ -1604,62 +1613,32 @@ async def submit_bug_report(report: BugReport, request: Request):
 4. انشر التحديث مباشرة
 5. تأكد من أن الإصلاح لا يكسر وظائف أخرى"""
 
-    if is_devin_configured() and DEVIN_TARGET_SESSION_ID:
-        # Send message to existing Devin session (arrives in active conversation)
-        try:
-            async with _httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.post(
-                    f"https://api.devin.ai/v1/sessions/{DEVIN_TARGET_SESSION_ID}/message",
-                    headers={
-                        "Authorization": f"Bearer {DEVIN_API_KEY}",
-                        "Content-Type": "application/json",
-                    },
-                    json={"message": message},
-                )
-                logger.info(f"[BugReport] Message sent to session {DEVIN_TARGET_SESSION_ID}: status={resp.status_code}")
-                if resp.status_code in (200, 201):
-                    report_entry["status"] = "investigating"
-                    report_entry["session_url"] = f"https://app.devin.ai/sessions/{DEVIN_TARGET_SESSION_ID}"
-                else:
-                    error_text = resp.text[:200]
-                    logger.error(f"[BugReport] Failed to send message: {resp.status_code} {error_text}")
-                    # Fallback: create a new session
-                    result = await create_fix_session(
-                        service_id="user_bug_report",
-                        service_name=f"بلاغ مستخدم: {report.description[:50]}",
-                        error_details=f"الصفحة: {report.page}\nالمتصفح: {report.browser}\n\nالوصف: {report.description}",
-                    )
-                    if result.get("success"):
-                        report_entry["status"] = "investigating"
-                        report_entry["session_url"] = result.get("session_url", "")
-                    else:
-                        devin_error = result.get("error", "Unknown error")
-                        report_entry["status"] = "received_no_session"
-        except Exception as e:
-            logger.error(f"[BugReport] Exception sending message: {e}")
-            devin_error = str(e)
-            report_entry["status"] = "received_no_session"
-    elif is_devin_configured():
-        # No target session configured, create a new session (fallback)
-        result = await create_fix_session(
-            service_id="user_bug_report",
-            service_name=f"بلاغ مستخدم: {report.description[:50]}",
-            error_details=f"الصفحة: {report.page}\nالمتصفح: {report.browser}\n\nالوصف: {report.description}",
+    # Dispatch the Devin session creation in the background. Previously
+    # this ran inline and blocked the HTTP response for up to 30 s while
+    # httpx awaited ``api.devin.ai``. If that upstream stalled or timed
+    # out, the browser surfaced a generic ``TypeError: Failed to fetch``
+    # and the user never saw their ticket, even though we had already
+    # created and persisted it. Firing and forgetting here means:
+    #
+    #   * The client gets its ``ticket_id`` within ms — the repair modal
+    #     opens reliably.
+    #   * Devin API latency / outages affect only the background task,
+    #     which logs its own failures and never takes down the request.
+    #   * The ticket is already persisted by ``persistence.save_ticket``
+    #     above, so a crash inside the background task cannot lose data.
+    if is_devin_configured():
+        asyncio.create_task(
+            _dispatch_bug_report_to_devin(
+                report_entry=report_entry,
+                message=message,
+                description=report.description,
+                page=report.page,
+                browser=report.browser,
+            )
         )
-        logger.info(f"[BugReport] Devin session result: {result}")
-        if result.get("success"):
-            report_entry["status"] = "investigating"
-            report_entry["session_url"] = result.get("session_url", "")
-        else:
-            devin_error = result.get("error", "Unknown error")
-            report_entry["status"] = "received_no_session"
     else:
         report_entry["status"] = "received"
-        devin_error = "DEVIN_API_KEY not configured"
-
-    _bug_reports.insert(0, report_entry)
-    while len(_bug_reports) > 50:
-        _bug_reports.pop()
+        logger.info("[BugReport] Devin not configured — ticket stored without session")
 
     response = {
         "success": True,
@@ -1668,9 +1647,100 @@ async def submit_bug_report(report: BugReport, request: Request):
         "ticket_id": ticket_id,
         "session_url": report_entry.get("session_url"),
     }
-    if devin_error:
-        response["devin_error"] = devin_error
     return response
+
+
+async def _dispatch_bug_report_to_devin(
+    *,
+    report_entry: dict,
+    message: str,
+    description: str,
+    page: str,
+    browser: str,
+) -> None:
+    """Send a bug report to Devin in the background.
+
+    Mutates ``report_entry`` in place so both ``/api/bug-reports`` (admin)
+    and the cached dict referenced by ``_bug_reports`` observe the final
+    status. Catches every failure path so a misbehaving Devin API cannot
+    crash the event loop or leak an un-awaited task exception.
+    """
+    import logging
+    logger = logging.getLogger("bug_report")
+    try:
+        if DEVIN_TARGET_SESSION_ID:
+            try:
+                async with _httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(
+                        f"https://api.devin.ai/v1/sessions/{DEVIN_TARGET_SESSION_ID}/message",
+                        headers={
+                            "Authorization": f"Bearer {DEVIN_API_KEY}",
+                            "Content-Type": "application/json",
+                        },
+                        json={"message": message},
+                    )
+                    logger.info(
+                        f"[BugReport] Message sent to session {DEVIN_TARGET_SESSION_ID}: "
+                        f"status={resp.status_code}"
+                    )
+                    if resp.status_code in (200, 201):
+                        report_entry["status"] = "investigating"
+                        report_entry["session_url"] = (
+                            f"https://app.devin.ai/sessions/{DEVIN_TARGET_SESSION_ID}"
+                        )
+                        return
+                    error_text = resp.text[:200]
+                    logger.error(
+                        f"[BugReport] Failed to send message: {resp.status_code} {error_text}"
+                    )
+            except Exception as e:
+                logger.error(f"[BugReport] Exception sending message: {e}")
+
+            # Fallback: create a fresh Devin session when the existing
+            # target session rejects the message.
+            try:
+                result = await create_fix_session(
+                    service_id="user_bug_report",
+                    service_name=f"بلاغ مستخدم: {description[:50]}",
+                    error_details=f"الصفحة: {page}\nالمتصفح: {browser}\n\nالوصف: {description}",
+                )
+                if result.get("success"):
+                    report_entry["status"] = "investigating"
+                    report_entry["session_url"] = result.get("session_url", "")
+                else:
+                    report_entry["status"] = "received_no_session"
+                    report_entry["devin_error"] = result.get("error", "Unknown error")
+            except Exception as e:
+                logger.error(f"[BugReport] Fallback session creation failed: {e}")
+                report_entry["status"] = "received_no_session"
+                report_entry["devin_error"] = str(e)
+        else:
+            # No target session configured, create a new one.
+            try:
+                result = await create_fix_session(
+                    service_id="user_bug_report",
+                    service_name=f"بلاغ مستخدم: {description[:50]}",
+                    error_details=f"الصفحة: {page}\nالمتصفح: {browser}\n\nالوصف: {description}",
+                )
+                logger.info(f"[BugReport] Devin session result: {result}")
+                if result.get("success"):
+                    report_entry["status"] = "investigating"
+                    report_entry["session_url"] = result.get("session_url", "")
+                else:
+                    report_entry["status"] = "received_no_session"
+                    report_entry["devin_error"] = result.get("error", "Unknown error")
+            except Exception as e:
+                logger.error(f"[BugReport] New session creation failed: {e}")
+                report_entry["status"] = "received_no_session"
+                report_entry["devin_error"] = str(e)
+    except Exception as e:
+        # Defense-in-depth: even if logging itself blows up, never let the
+        # exception escape this task.
+        try:
+            logger.error(f"[BugReport] Dispatcher crashed: {e}")
+        except Exception:
+            pass
+        report_entry["status"] = "received_no_session"
 
 
 @app.get("/api/bug-reports")
