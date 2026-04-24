@@ -192,7 +192,18 @@ export default function BugReportButton() {
         setStatus('error');
         return;
       } else {
-        console.log('[BugReport] Server error:', res.status);
+        // 5xx (server error). The backend explicitly rejected the submission,
+        // so we must NOT fall through to the "always open RepairTracker"
+        // block below — doing that would display the misleading
+        // "repair in progress" animation and auto-complete after 3 minutes
+        // with "تم حل المشكلة بنجاح!" for a report that was never accepted,
+        // discouraging the user from retrying. Mirror the 429/400 branch:
+        // keep the form open and surface the backend's error detail.
+        const data = await res.json().catch(() => ({}));
+        console.log('[BugReport] Server error:', res.status, data);
+        setErrorMsg(data.detail || 'حدث خطأ في الخادم. يرجى المحاولة لاحقاً.');
+        setStatus('error');
+        return;
       }
     } catch (err) {
       console.log('[BugReport] Fetch error (will still open RepairTracker):', err);
@@ -202,10 +213,12 @@ export default function BugReportButton() {
     }
 
     // RADICAL FIX: ALWAYS open RepairTracker3D after submission attempt
-    // Even if the backend is down, the user sees the repair center working
-    // This prevents the "stuck on sending" experience completely.
-    // Exception: server-side validation rejects (429/400) returned early above
-    // so those users see the real error message instead of a fake repair.
+    // Even if the backend is unreachable (network/timeout in the catch above),
+    // the user sees the repair center working — this prevents the
+    // "stuck on sending" experience completely.
+    // Exceptions: server-side validation rejects (429/400) and 5xx server
+    // errors both return early above so those users see the real error
+    // message instead of a fake repair animation.
     setSubmittedDescription(desc);
     setSubmittedPage(page);
     setDescription('');
