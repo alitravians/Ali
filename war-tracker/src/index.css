@@ -15,17 +15,12 @@
   --color-dark-500: #30303d;
 }
 
-* {
-  font-family: 'Cairo', sans-serif;
-  cursor: url('/cursor-32.png') 10 0, auto;
-}
-
-/* Interactive elements keep default pointer — custom cursor was blocking clicks */
-
 body {
   background-color: #0a0a0f;
   color: #e2e8f0;
   overflow-x: hidden;
+  font-family: 'Cairo', sans-serif;
+  cursor: url('/cursor-32.png') 10 0, auto;
 }
 
 ::-webkit-scrollbar {
