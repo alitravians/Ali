@@ -73,7 +73,7 @@ export default function HormuzBlockadeMonitor() {
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">مراقب حصار هرمز</h3>
-            <span className="text-[10px] text-gray-500">جاري تحميل البيانات...</span>
+            <span className="text-[10px] text-gray-400">جاري تحميل البيانات...</span>
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@ export default function HormuzBlockadeMonitor() {
             </div>
             <div className="text-right">
               <h3 className="text-sm font-bold text-white">مراقب حصار هرمز</h3>
-              <span className="text-[10px] text-gray-500">المواجهة الأمريكية-الإيرانية — مضيق هرمز</span>
+              <span className="text-[10px] text-gray-400">المواجهة الأمريكية-الإيرانية — مضيق هرمز</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -224,7 +224,7 @@ export default function HormuzBlockadeMonitor() {
             </div>
             {hormuzBlockade.tankerCount > 0 && (
               <div className="mt-2">
-                <div className="flex items-center justify-between text-[10px] text-gray-500 mb-1">
+                <div className="flex items-center justify-between text-[10px] text-gray-400 mb-1">
                   <span>نسبة الاحتجاز</span>
                   <span>{Math.round((hormuzBlockade.blockedTankers / hormuzBlockade.tankerCount) * 100)}%</span>
                 </div>

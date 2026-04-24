@@ -87,7 +87,7 @@ export function SectionHeader({ title, description, action }: {
     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-5">
       <div>
         <h2 className="text-sm font-bold text-white">{title}</h2>
-        {description && <p className="text-[10px] text-gray-500 mt-0.5">{description}</p>}
+        {description && <p className="text-[10px] text-gray-400 mt-0.5">{description}</p>}
       </div>
       {action}
     </div>

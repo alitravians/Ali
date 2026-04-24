@@ -75,13 +75,13 @@ function ZoneCard({ zone }: { zone: MaritimeZoneStats }) {
           </div>
           <div className="text-right">
             <h3 className="text-sm font-bold text-white">{zone.nameAr}</h3>
-            <span className="text-[10px] text-gray-500">{zone.name}</span>
+            <span className="text-[10px] text-gray-400">{zone.name}</span>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-left">
             <span className="text-lg font-black" style={{ color }}>{zone.vesselCount}</span>
-            <span className="text-[10px] text-gray-500 block">سفينة</span>
+            <span className="text-[10px] text-gray-400 block">سفينة</span>
           </div>
           {expanded ? (
             <ChevronUp className="w-4 h-4 text-gray-500" />
@@ -128,9 +128,9 @@ function VesselRow({ vessel }: { vessel: VesselPosition }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-white truncate">{vessel.name || `MMSI: ${vessel.mmsi}`}</span>
-          {vessel.flag && <span className="text-[10px] text-gray-500">{vessel.flag}</span>}
+          {vessel.flag && <span className="text-[10px] text-gray-400">{vessel.flag}</span>}
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-500 mt-0.5">
+        <div className="flex items-center gap-2 text-[10px] text-gray-400 mt-0.5">
           <span>{vessel.shipTypeAr}</span>
           <span>•</span>
           <span>{vessel.statusAr}</span>
@@ -180,7 +180,7 @@ export default function MaritimePanel() {
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">البث المباشر البحري</h3>
-            <span className="text-[10px] text-gray-500">تتبع السفن في الممرات المائية الحرجة</span>
+            <span className="text-[10px] text-gray-400">تتبع السفن في الممرات المائية الحرجة</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ export default function MaritimePanel() {
         }, 0 as number);
         const ago = latestZone ? timeAgo(new Date(latestZone)) : '';
         return ago ? (
-          <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
             <Clock className="w-3 h-3" />
             <span>آخر تحديث: {ago}</span>
           </div>
@@ -251,7 +251,7 @@ export default function MaritimePanel() {
               <Anchor className="w-3.5 h-3.5 text-cyan-400" />
               السفن المرصودة
             </h4>
-            <span className="text-[10px] text-gray-500">{totalVessels} سفينة</span>
+            <span className="text-[10px] text-gray-400">{totalVessels} سفينة</span>
           </div>
           <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
             {displayVessels.map(vessel => (

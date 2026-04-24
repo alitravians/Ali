@@ -1,9 +1,37 @@
+import { lazy, Suspense, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Radio, Map, Bell, ArrowLeft, Zap, Eye, Brain, TrendingUp, BarChart3, Download } from 'lucide-react';
 import { useLiveData } from '../context/LiveDataContext';
 import IndicatorCard from '../components/shared/IndicatorCard';
 import EventCard from '../components/shared/EventCard';
-import LiveMap from '../components/map/LiveMap';
+
+// Lazy-load the map — it pulls in Leaflet (152KB) + map tiles
+// Deferring it dramatically improves FCP and LCP on the homepage
+const LiveMap = lazy(() => import('../components/map/LiveMap'));
+
+// Defer map rendering until after first paint — prevents Leaflet from blocking LCP
+function LazyMap({ events }: { events: import('../types').TrackerEvent[] }) {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    // Wait for idle callback or 200ms, whichever comes first
+    const id = typeof requestIdleCallback !== 'undefined'
+      ? requestIdleCallback(() => setReady(true), { timeout: 200 })
+      : setTimeout(() => setReady(true), 100);
+    return () => {
+      if (typeof cancelIdleCallback !== 'undefined') cancelIdleCallback(id as number);
+      else clearTimeout(id as ReturnType<typeof setTimeout>);
+    };
+  }, []);
+  if (!ready) return (
+    <div className="w-full rounded-xl bg-gray-900/50 border border-gray-800 flex items-center justify-center" style={{ height: 'min(400px, 50vh)' }}>
+      <div className="text-center">
+        <Map className="w-8 h-8 text-blue-400/50 mx-auto mb-2 animate-pulse" />
+        <span className="text-xs text-gray-500">جاري تحميل الخريطة...</span>
+      </div>
+    </div>
+  );
+  return <LiveMap events={events} height="min(400px, 50vh)" showControls={false} />;
+}
 
 export default function Home() {
   const { events, indicators, alerts } = useLiveData();
@@ -74,7 +102,16 @@ export default function Home() {
                 عرض كامل <ArrowLeft className="w-3 h-3" />
               </Link>
             </div>
-            <LiveMap events={events} height="min(400px, 50vh)" showControls={false} />
+            <Suspense fallback={
+              <div className="w-full rounded-xl bg-gray-900/50 border border-gray-800 flex items-center justify-center" style={{ height: 'min(400px, 50vh)' }}>
+                <div className="text-center">
+                  <Map className="w-8 h-8 text-blue-400/50 mx-auto mb-2 animate-pulse" />
+                  <span className="text-xs text-gray-500">جاري تحميل الخريطة...</span>
+                </div>
+              </div>
+            }>
+              <LazyMap events={events} />
+            </Suspense>
           </div>
 
           {/* Breaking Events */}

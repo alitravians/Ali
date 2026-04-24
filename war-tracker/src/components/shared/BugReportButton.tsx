@@ -285,7 +285,7 @@ export default function BugReportButton() {
             <div className="p-5">
                   {/* Current page indicator */}
                   <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-lg bg-white/5 border border-gray-700/30">
-                    <span className="text-[10px] text-gray-500">الصفحة الحالية:</span>
+                    <span className="text-[10px] text-gray-400">الصفحة الحالية:</span>
                     <span className="text-[11px] text-blue-400 font-mono" dir="ltr">{location.pathname}</span>
                   </div>
 
@@ -349,7 +349,7 @@ export default function BugReportButton() {
                     )}
                   </button>
 
-                  <p className="mt-3 text-[10px] text-gray-500 text-center">
+                  <p className="mt-3 text-[10px] text-gray-400 text-center">
                     البلاغ سيُرسل مباشرة للفريق التقني وسيتم مراجعته وحله بأسرع وقت
                   </p>
             </div>

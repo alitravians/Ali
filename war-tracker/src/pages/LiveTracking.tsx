@@ -120,7 +120,7 @@ export default function LiveTracking() {
             <Brain className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">تحليل</span> AI
           </button>
-          <div className="hidden sm:flex text-[10px] text-gray-500 items-center gap-1">
+          <div className="hidden sm:flex text-[10px] text-gray-400 items-center gap-1">
             <Clock className="w-3 h-3" />
             {lastUpdate.toLocaleString('ar-SA')}
           </div>

@@ -275,7 +275,7 @@ function ResponseTimeChart({ data, id }: { data: number[]; id: string }) {
   return (
     <div className="mt-2">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[10px] text-gray-500">زمن الاستجابة</span>
+        <span className="text-[10px] text-gray-400">زمن الاستجابة</span>
         <span className="text-[10px] text-gray-400">متوسط: {avg}ms</span>
       </div>
       <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-10 overflow-visible">
@@ -324,7 +324,7 @@ function UptimeHistory90d({ history }: { history: UptimeDay[] }) {
   return (
     <div className="mt-3 pt-3 border-t border-gray-800/50">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[10px] text-gray-500">{totalDays} يوم</span>
+        <span className="text-[10px] text-gray-400">{totalDays} يوم</span>
         <span className="text-[10px] text-gray-400">متوسط التشغيل: {avgUptime}%</span>
       </div>
       <div className="flex gap-[1px] items-end h-6" title={`تاريخ التشغيل — ${totalDays} يوم`}>
@@ -675,7 +675,7 @@ export default function StatusPage() {
           </div>
           <div className="text-left">
             <div className="text-2xl font-black text-green-400">{data.days_without_incidents}</div>
-            <div className="text-[10px] text-gray-500">{data.days_without_incidents === 1 ? 'يوم بدون حوادث' : data.days_without_incidents <= 10 ? 'أيام بدون حوادث' : 'يوم بدون حوادث'}</div>
+            <div className="text-[10px] text-gray-400">{data.days_without_incidents === 1 ? 'يوم بدون حوادث' : data.days_without_incidents <= 10 ? 'أيام بدون حوادث' : 'يوم بدون حوادث'}</div>
           </div>
         </div>
       )}
@@ -742,7 +742,7 @@ export default function StatusPage() {
             <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
               <CatIcon className="w-4 h-4 text-blue-400" />
               {meta.label}
-              <span className="text-[10px] text-gray-500 font-normal">({catServices.length})</span>
+              <span className="text-[10px] text-gray-400 font-normal">({catServices.length})</span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {catServices.map(svc => {
@@ -758,7 +758,7 @@ export default function StatusPage() {
                   </div>
                   <div>
                     <h3 className={`text-sm font-bold ${svc.status === 'disabled' ? 'text-gray-400' : 'text-white'}`}>{svc.name_ar}</h3>
-                    <span className="text-[10px] text-gray-500">{svc.name}</span>
+                    <span className="text-[10px] text-gray-400">{svc.name}</span>
                   </div>
                 </div>
                 <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${statusStyle.bg} border ${statusStyle.border}`}>
@@ -772,15 +772,15 @@ export default function StatusPage() {
               <>
               <div className="grid grid-cols-3 gap-2 mb-2">
                 <div className="text-center">
-                  <div className="text-[10px] text-gray-500 mb-0.5">الاستجابة</div>
+                  <div className="text-[10px] text-gray-400 mb-0.5">الاستجابة</div>
                   <div className="text-xs font-bold text-white">{svc.response_time_ms ? `${Math.round(svc.response_time_ms)}ms` : '-'}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-[10px] text-gray-500 mb-0.5">أخطاء 24س</div>
+                  <div className="text-[10px] text-gray-400 mb-0.5">أخطاء 24س</div>
                   <div className={`text-xs font-bold ${svc.errors_24h > 0 ? 'text-red-400' : 'text-green-400'}`}>{svc.errors_24h}</div>
                 </div>
                 <div className="text-center">
-                  <div className="text-[10px] text-gray-500 mb-0.5">انقطاعات</div>
+                  <div className="text-[10px] text-gray-400 mb-0.5">انقطاعات</div>
                   <div className={`text-xs font-bold ${svc.outages_24h > 0 ? 'text-orange-400' : 'text-green-400'}`}>{svc.outages_24h}</div>
                 </div>
               </div>
@@ -788,8 +788,8 @@ export default function StatusPage() {
               {/* Uptime Bar */}
               <div className="mb-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-gray-500">التشغيل المستمر (24 ساعة)</span>
-                  <span className="text-[10px] text-gray-500">{svc.checks_24h} فحص</span>
+                  <span className="text-[10px] text-gray-400">التشغيل المستمر (24 ساعة)</span>
+                  <span className="text-[10px] text-gray-400">{svc.checks_24h} فحص</span>
                 </div>
                 <UptimeBar percent={svc.uptime_24h} />
               </div>
@@ -816,7 +816,7 @@ export default function StatusPage() {
 
               {/* Footer */}
               <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-800/50">
-                <div className="flex items-center gap-1 text-[10px] text-gray-500">
+                <div className="flex items-center gap-1 text-[10px] text-gray-400">
                   <Clock className="w-3 h-3" />
                   {svc.status === 'disabled' ? 'معطّلة' : timeAgo(svc.last_check)}
                 </div>
@@ -919,7 +919,7 @@ export default function StatusPage() {
           <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
             <Bot className="w-4 h-4 text-purple-400" />
             جلسات الإصلاح بواسطة إدارة النظام
-            <span className="text-[10px] text-gray-500 font-normal">({fixSessions.length} جلسة)</span>
+            <span className="text-[10px] text-gray-400 font-normal">({fixSessions.length} جلسة)</span>
           </h2>
           <div className="rounded-xl border border-gray-800 bg-[#12121a] overflow-hidden">
             {fixSessions.slice(0, 5).map((session, idx) => (
@@ -931,7 +931,7 @@ export default function StatusPage() {
                   }`} />
                   <div className="min-w-0">
                     <div className="text-[11px] text-white font-medium truncate">{session.service_name}</div>
-                    <div className="text-[10px] text-gray-500 truncate">{session.error_details?.slice(0, 80)}</div>
+                    <div className="text-[10px] text-gray-400 truncate">{session.error_details?.slice(0, 80)}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -1012,7 +1012,7 @@ export default function StatusPage() {
                 <div className={`text-2xl font-black ${data.bahrain_monitor.event_count_today > 0 ? 'text-orange-400' : 'text-green-400'}`}>
                   {data.bahrain_monitor.event_count_today}
                 </div>
-                <div className="text-[10px] text-gray-500">أحداث مرصودة</div>
+                <div className="text-[10px] text-gray-400">أحداث مرصودة</div>
               </div>
             </div>
 
@@ -1051,7 +1051,7 @@ export default function StatusPage() {
               مراقبة مصادر البيانات
             </h2>
             <div className="rounded-xl border border-gray-800 bg-[#12121a] overflow-hidden">
-              <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-gray-900/50 text-[10px] text-gray-500 font-semibold border-b border-gray-800">
+              <div className="grid grid-cols-6 gap-2 px-4 py-2 bg-gray-900/50 text-[10px] text-gray-400 font-semibold border-b border-gray-800">
                 <span className="col-span-2">المصدر</span>
                 <span className="text-center">الحالة</span>
                 <span className="text-center">الأحداث</span>
@@ -1111,13 +1111,13 @@ export default function StatusPage() {
 
               <div className="text-center mb-4">
                 <div className="text-3xl font-black text-white">{data.websocket_health.active_connections}</div>
-                <div className="text-[10px] text-gray-500">من {data.websocket_health.max_connections} كحد أقصى</div>
+                <div className="text-[10px] text-gray-400">من {data.websocket_health.max_connections} كحد أقصى</div>
               </div>
 
               {/* Connection usage bar */}
               <div className="mb-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] text-gray-500">استخدام الاتصالات</span>
+                  <span className="text-[10px] text-gray-400">استخدام الاتصالات</span>
                   <span className="text-[10px] text-gray-400">
                     {Math.round((data.websocket_health.active_connections / data.websocket_health.max_connections) * 100)}%
                   </span>
@@ -1157,7 +1157,7 @@ export default function StatusPage() {
         <Shield className="w-4 h-4 text-purple-400" />
         سجل الحوادث
         {data.incidents.length > 0 && (
-          <span className="text-[10px] text-gray-500 font-normal">({data.incidents.length} حادث)</span>
+          <span className="text-[10px] text-gray-400 font-normal">({data.incidents.length} حادث)</span>
         )}
       </h2>
 
@@ -1185,7 +1185,7 @@ export default function StatusPage() {
                     <div className={`w-2 h-2 rounded-full shrink-0 ${isResolved ? 'bg-green-500' : 'bg-orange-500 animate-pulse'}`} />
                     <div className="min-w-0">
                       <h3 className={`text-xs font-bold truncate ${isResolved ? 'text-gray-300' : 'text-orange-400'}`}>{decodeHtmlEntities(inc.title_ar)}</h3>
-                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-500 flex-wrap">
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-gray-400 flex-wrap">
                         <span>{getSeverityAr(inc.severity)}</span>
                         <span>•</span>
                         <span className={isResolved ? 'text-green-400' : 'text-orange-400'}>{getIncidentStatusAr(inc.status)}</span>
@@ -1251,22 +1251,22 @@ export default function StatusPage() {
           <div className="text-lg font-black text-white">
             {data.services.filter(s => s.status !== 'disabled').length > 0 ? Math.round(data.services.filter(s => s.status !== 'disabled').reduce((a, s) => a + s.uptime_24h, 0) / data.services.filter(s => s.status !== 'disabled').length) : 100}%
           </div>
-          <div className="text-[10px] text-gray-500">متوسط التشغيل</div>
+          <div className="text-[10px] text-gray-400">متوسط التشغيل</div>
         </div>
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4 text-center">
           <Activity className="w-5 h-5 text-blue-400 mx-auto mb-1" />
           <div className="text-lg font-black text-white">{data.services.length}</div>
-          <div className="text-[10px] text-gray-500">خدمات مراقبة</div>
+          <div className="text-[10px] text-gray-400">خدمات مراقبة</div>
         </div>
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4 text-center">
           <AlertTriangle className="w-5 h-5 text-orange-400 mx-auto mb-1" />
           <div className="text-lg font-black text-white">{data.services.reduce((a, s) => a + s.errors_24h, 0)}</div>
-          <div className="text-[10px] text-gray-500">أخطاء (24 ساعة)</div>
+          <div className="text-[10px] text-gray-400">أخطاء (24 ساعة)</div>
         </div>
         <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4 text-center">
           <Shield className="w-5 h-5 text-purple-400 mx-auto mb-1" />
           <div className="text-lg font-black text-white">{resolvedIncidents.length}</div>
-          <div className="text-[10px] text-gray-500">حوادث تم حلها</div>
+          <div className="text-[10px] text-gray-400">حوادث تم حلها</div>
         </div>
       </div>
 

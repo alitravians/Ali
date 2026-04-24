@@ -126,7 +126,7 @@ export default function BugReportsSection() {
                     <span className="px-2 py-0.5 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full text-[10px] font-mono">
                       {report.ticket_id}
                     </span>
-                    <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {formatTime(report.timestamp)}
                     </span>

@@ -17,7 +17,7 @@ export default function AISummary({ summary }: AISummaryProps) {
           </div>
           <div>
             <h3 className="text-sm font-bold text-white">تحليل الذكاء الاصطناعي</h3>
-            <span className="text-[10px] text-gray-500 flex items-center gap-1">
+            <span className="text-[10px] text-gray-400 flex items-center gap-1">
               <Clock className="w-3 h-3" />
               آخر تحديث: {timeAgo(summary.timestamp)}
             </span>
@@ -104,7 +104,7 @@ export default function AISummary({ summary }: AISummaryProps) {
             {summary.conflictsDetected.map(conflict => (
               <div key={conflict.id} className="bg-[#12121a] rounded-lg p-3 border border-gray-800">
                 <p className="text-[11px] text-gray-300 mb-2">{conflict.descriptionAr}</p>
-                <div className="flex items-center gap-2 text-[10px] text-gray-500 mb-1">
+                <div className="flex items-center gap-2 text-[10px] text-gray-400 mb-1">
                   <span>المصادر:</span>
                   {conflict.sourcesAr.map((s, i) => (
                     <span key={i} className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-400">{s}</span>

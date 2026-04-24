@@ -1666,7 +1666,7 @@ function RepairTrackerInner({ isOpen, onClose, problemDescription, pagePath, tic
             )}
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[10px] text-gray-500">
+            <span className="text-[10px] text-gray-400">
               {isComplete ? 'اكتمل الإصلاح بنجاح!' : REPAIR_PHASES[currentPhase]?.label}
             </span>
             <div className="flex items-center gap-3">

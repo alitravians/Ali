@@ -41,7 +41,7 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
             </span>
             <TrustBadge level={event.trustLevel} reason={event.trustReasonAr} />
           </div>
-          <div className="flex items-center gap-1 text-[10px] text-gray-500 flex-shrink-0">
+          <div className="flex items-center gap-1 text-[10px] text-gray-400 flex-shrink-0">
             <Clock className="w-3 h-3" />
             {timeAgo(event.timestamp)}
           </div>

@@ -34,7 +34,7 @@ export default function IndicatorCard({ indicator, size = 'sm' }: IndicatorCardP
         <span className={`font-black ${scoreTextColor(indicator.score)} ${size === 'lg' ? 'text-3xl' : 'text-2xl'}`}>
           {indicator.score}
         </span>
-        <span className="text-[10px] text-gray-500 mb-1">/100</span>
+        <span className="text-[10px] text-gray-400 mb-1">/100</span>
       </div>
 
       {/* Progress bar */}

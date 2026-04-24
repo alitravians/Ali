@@ -151,7 +151,7 @@ export default function Alerts() {
                         }`}>
                           {alert.severity === 'critical' ? 'حرج' : alert.severity === 'high' ? 'عالي' : alert.severity === 'medium' ? 'متوسط' : 'منخفض'}
                         </span>
-                        <span className="text-[10px] text-gray-500 px-2 py-0.5 bg-gray-800 rounded-full">
+                        <span className="text-[10px] text-gray-400 px-2 py-0.5 bg-gray-800 rounded-full">
                           {typeLabels[alert.type]}
                         </span>
                       </div>
@@ -160,12 +160,12 @@ export default function Alerts() {
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 flex-shrink-0">
-                    <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                    <span className="text-[10px] text-gray-400 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {timeAgo(alert.timestamp)}
                     </span>
                     {alert.cityAr && (
-                      <span className="text-[10px] text-gray-500 flex items-center gap-1">
+                      <span className="text-[10px] text-gray-400 flex items-center gap-1">
                         <MapPin className="w-3 h-3" />
                         {alert.cityAr}
                       </span>

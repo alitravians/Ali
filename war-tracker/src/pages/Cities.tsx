@@ -198,7 +198,7 @@ export default function Cities() {
                 <span className={`text-xl font-black ${scoreTextColor(indicators.military)}`}>
                   {indicators.military}
                 </span>
-                <span className="text-[10px] text-gray-500 mb-0.5">/100</span>
+                <span className="text-[10px] text-gray-400 mb-0.5">/100</span>
               </div>
               <div className="h-1 bg-gray-800 rounded-full mt-2 overflow-hidden">
                 <div className={`h-full rounded-full ${scoreColor(indicators.military)}`} style={{ width: `${indicators.military}%` }} />
@@ -213,7 +213,7 @@ export default function Cities() {
                 <span className={`text-xl font-black ${scoreTextColor(indicators.airspace)}`}>
                   {indicators.airspace}
                 </span>
-                <span className="text-[10px] text-gray-500 mb-0.5">/100</span>
+                <span className="text-[10px] text-gray-400 mb-0.5">/100</span>
               </div>
               <div className="h-1 bg-gray-800 rounded-full mt-2 overflow-hidden">
                 <div className={`h-full rounded-full ${scoreColor(indicators.airspace)}`} style={{ width: `${indicators.airspace}%` }} />
@@ -228,7 +228,7 @@ export default function Cities() {
                 <span className={`text-xl font-black ${scoreTextColor(indicators.civilian)}`}>
                   {indicators.civilian}
                 </span>
-                <span className="text-[10px] text-gray-500 mb-0.5">/100</span>
+                <span className="text-[10px] text-gray-400 mb-0.5">/100</span>
               </div>
               <div className="h-1 bg-gray-800 rounded-full mt-2 overflow-hidden">
                 <div className={`h-full rounded-full ${scoreColor(indicators.civilian)}`} style={{ width: `${indicators.civilian}%` }} />

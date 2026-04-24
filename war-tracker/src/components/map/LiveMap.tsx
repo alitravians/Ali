@@ -107,7 +107,7 @@ function PulsingMarker({ event }: { event: TrackerEvent }) {
       iconAnchor: [size * 1.5, size * 1.5],
     });
 
-    const marker = L.marker([event.location.lat, event.location.lng], { icon });
+    const marker = L.marker([event.location.lat, event.location.lng], { icon, alt: event.titleAr || categoryTextAr(event.category) });
 
     const popupContent = `
       <div class="event-popup" dir="rtl">
@@ -279,7 +279,7 @@ function VesselMarker({ vessel }: { vessel: VesselPosition }) {
       </div>
     `;
 
-    const marker = L.marker([vessel.lat, vessel.lng], { icon });
+    const marker = L.marker([vessel.lat, vessel.lng], { icon, alt: vessel.name || vessel.shipTypeAr || 'سفينة' });
     marker.bindPopup(popupContent, {
       maxWidth: 280,
       className: 'vessel-custom-popup',

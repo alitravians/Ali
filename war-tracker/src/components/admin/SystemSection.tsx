@@ -181,7 +181,7 @@ export default function SystemSection({ backendHealthy, backendLatency, connecti
             </div>
             <div>
               <h3 className="text-xs font-bold text-white">محرك التحليل — Groq Llama 3.3</h3>
-              <p className="text-[10px] text-gray-500 mt-0.5">تشغيل تحليل فوري لآخر 20 حدث — المسار: تحليلات → Groq → إحصائي</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">تشغيل تحليل فوري لآخر 20 حدث — المسار: تحليلات → Groq → إحصائي</p>
             </div>
           </div>
           <button
@@ -248,7 +248,7 @@ export default function SystemSection({ backendHealthy, backendLatency, connecti
             </div>
             <div>
               <h3 className="text-xs font-bold text-white">مسح الذاكرة المؤقتة</h3>
-              <p className="text-[10px] text-gray-500 mt-0.5">مسح بيانات الكاش المحفوظة بالمتصفح (لا يؤثر على جلسة الإدارة)</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">مسح بيانات الكاش المحفوظة بالمتصفح (لا يؤثر على جلسة الإدارة)</p>
             </div>
           </div>
           <button

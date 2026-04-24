@@ -165,7 +165,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="text-2xl font-black text-white">{filteredEvents.length}</div>
-          <div className="text-[10px] text-gray-500">إجمالي الأحداث</div>
+          <div className="text-[10px] text-gray-400">إجمالي الأحداث</div>
         </div>
 
         <div className="bg-[#12121a] rounded-xl border border-gray-800 p-4">
@@ -175,7 +175,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="text-2xl font-black text-red-400">{breakingCount}</div>
-          <div className="text-[10px] text-gray-500">أحداث عاجلة</div>
+          <div className="text-[10px] text-gray-400">أحداث عاجلة</div>
         </div>
 
         <div className="bg-[#12121a] rounded-xl border border-gray-800 p-4">
@@ -185,7 +185,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="text-2xl font-black text-green-400">{confirmedCount}</div>
-          <div className="text-[10px] text-gray-500">أحداث مؤكدة</div>
+          <div className="text-[10px] text-gray-400">أحداث مؤكدة</div>
         </div>
 
         <div className="bg-[#12121a] rounded-xl border border-gray-800 p-4">
@@ -195,7 +195,7 @@ export default function Analytics() {
             </div>
           </div>
           <div className="text-2xl font-black text-yellow-400">{alerts.length}</div>
-          <div className="text-[10px] text-gray-500">تنبيهات</div>
+          <div className="text-[10px] text-gray-400">تنبيهات</div>
         </div>
       </div>
 
@@ -251,7 +251,7 @@ export default function Analytics() {
                   <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
                     <div className={`h-full bg-${item.color}-500 rounded-full`} style={{ width: `${pct}%` }} />
                   </div>
-                  <div className="text-[10px] text-gray-500 mt-1">{pct}% من الإجمالي</div>
+                  <div className="text-[10px] text-gray-400 mt-1">{pct}% من الإجمالي</div>
                 </div>
               );
             })}
@@ -326,7 +326,7 @@ export default function Analytics() {
             <div key={src.name} className="bg-gray-800/30 rounded-lg p-3">
               <div className="text-xs text-gray-400 mb-1 line-clamp-1">{src.name}</div>
               <div className="text-lg font-black text-white">{src.count}</div>
-              <div className="text-[10px] text-gray-500">حدث</div>
+              <div className="text-[10px] text-gray-400">حدث</div>
             </div>
           ))}
           {sourceStats.length === 0 && (

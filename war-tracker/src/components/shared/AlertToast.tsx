@@ -125,7 +125,7 @@ export default function AlertToast({ alerts }: AlertToastProps) {
               }`}>
                 {alert.severity === 'critical' ? 'حرج' : 'عالي'}
               </span>
-              <span className="text-[10px] text-gray-500">{timeAgo(alert.timestamp)}</span>
+              <span className="text-[10px] text-gray-400">{timeAgo(alert.timestamp)}</span>
             </div>
             <p className="text-xs font-bold text-white truncate">{alert.titleAr}</p>
           </div>

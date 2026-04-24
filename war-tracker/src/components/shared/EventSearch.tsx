@@ -62,7 +62,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
             <div className="p-4 text-center text-xs text-gray-500">لا توجد نتائج لـ "{query}"</div>
           ) : (
             <div className="p-1">
-              <div className="px-3 py-1.5 text-[10px] text-gray-500">{results.length} نتيجة</div>
+              <div className="px-3 py-1.5 text-[10px] text-gray-400">{results.length} نتيجة</div>
               {results.map(event => (
                 <button
                   key={event.id}
@@ -78,7 +78,7 @@ export default function EventSearch({ events, onSelectEvent }: EventSearchProps)
                     )}
                   </div>
                   <p className="text-xs font-semibold text-white mb-1 line-clamp-1">{event.titleAr}</p>
-                  <div className="flex items-center gap-3 text-[10px] text-gray-500">
+                  <div className="flex items-center gap-3 text-[10px] text-gray-400">
                     <span className="flex items-center gap-1"><MapPin className="w-2.5 h-2.5" />{event.location.nameAr}</span>
                     <span className="flex items-center gap-1"><Clock className="w-2.5 h-2.5" />{timeAgo(event.timestamp)}</span>
                   </div>

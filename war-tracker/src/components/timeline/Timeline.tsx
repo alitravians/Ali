@@ -66,7 +66,7 @@ export default function Timeline({ events }: TimelineProps) {
 
               <h4 className="text-xs font-bold text-white mb-1">{event.titleAr}</h4>
 
-              <div className="flex items-center gap-3 text-[10px] text-gray-500">
+              <div className="flex items-center gap-3 text-[10px] text-gray-400">
                 <span className="flex items-center gap-1">
                   <MapPin className="w-3 h-3" />
                   {event.location.nameAr}
