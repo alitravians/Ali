@@ -83,7 +83,7 @@ export default function FooterStats() {
       </div>
 
       {/* Stats bar */}
-      <div className="max-w-[1920px] mx-auto px-3 sm:px-4 py-2 sm:py-2.5 flex items-center justify-between text-[9px] sm:text-[10px]">
+      <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between text-[9px] sm:text-[10px]">
         <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-1 sm:gap-1.5 text-gray-400">
             <Users className="w-3 h-3" />
