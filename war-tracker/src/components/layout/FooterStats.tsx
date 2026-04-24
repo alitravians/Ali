@@ -68,7 +68,7 @@ export default function FooterStats() {
           </div>
 
           {/* Credit text */}
-          <p className="text-[11px] sm:text-xs text-gray-400/70 tracking-wide mt-5 sm:mt-6 font-light">
+          <p className="text-[11px] sm:text-xs text-gray-400/70 tracking-wide mt-5 sm:mt-6 font-normal">
             تم تصميم و برمجة هذا الموقع بواسطة
           </p>
 

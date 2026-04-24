@@ -25,8 +25,8 @@
     <meta property="og:url" content="https://dist-mu-taupe-70.vercel.app/" />
     <meta property="og:title" content="WarScope | وارسكوب — Real-Time Geopolitical Intelligence" />
     <meta property="og:description" content="Real-time geopolitical & military intelligence platform. Live AIS maritime tracking, Hormuz Strait monitoring, instant alerts, AI analysis. منصة تحليل ورصد الأحداث العسكرية المباشرة." />
-    <meta property="og:image" content="https://dist-mu-taupe-70.vercel.app/og-image.svg" />
-    <meta property="og:image:type" content="image/svg+xml" />
+    <meta property="og:image" content="https://dist-mu-taupe-70.vercel.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="WarScope — Real-Time Geopolitical & Military Intelligence | مرصد الصراعات" />
@@ -52,7 +52,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="WarScope | Real-Time Geopolitical Intelligence" />
     <meta name="twitter:description" content="Real-time geopolitical & military intelligence — live maritime tracking, Hormuz monitoring, instant alerts, AI analysis. وارسكوب: منصة رصد الصراعات المباشرة." />
-    <meta name="twitter:image" content="https://dist-mu-taupe-70.vercel.app/og-image.svg" />
+    <meta name="twitter:image" content="https://dist-mu-taupe-70.vercel.app/og-image.png" />
     <meta name="twitter:image:alt" content="WarScope — Geopolitical & Military Intelligence | مرصد الصراعات" />
 
     <!-- Structured Data (JSON-LD) — WebApplication -->
@@ -142,13 +142,49 @@
     }
     </script>
 
+    <!-- Preconnect to font/CDN origins (keep render path fast) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+
+    <!-- Google Fonts — non-render-blocking: load async, swap on ready -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" />
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" /></noscript>
+
+    <!-- Leaflet CSS — non-render-blocking (only needed on /live & /cities) -->
+    <link rel="preload" as="style" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="anonymous" media="print" onload="this.media='all'" />
+    <noscript><link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="anonymous" /></noscript>
   </head>
   <body class="bg-gray-950 text-white">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Fallback content for SEO crawlers / noscript -->
+    <noscript>
+      <div style="max-width:900px;margin:40px auto;padding:20px;color:#e5e7eb;font-family:Cairo,system-ui,sans-serif;direction:rtl;text-align:right">
+        <h1 style="font-size:2rem;color:#fff">WarScope | وارسكوب — منصة التتبع المباشر</h1>
+        <p style="font-size:1.1rem;line-height:1.8;color:#9ca3af">منصة تحليل ورصد الأحداث الجيوسياسية والعسكرية في الوقت الفعلي. تتبع بحري مباشر عبر AIS، مراقبة مضيق هرمز والبحر الأحمر وقناة السويس، تنبيهات فورية عاجلة، وتحليلات بالذكاء الاصطناعي.</p>
+        <nav style="margin-top:20px">
+          <a href="/" style="color:#ef4444;margin-left:16px">الرئيسية</a>
+          <a href="/live" style="color:#ef4444;margin-left:16px">البث المباشر</a>
+          <a href="/analysis" style="color:#ef4444;margin-left:16px">التحليلات</a>
+          <a href="/alerts" style="color:#ef4444;margin-left:16px">التنبيهات</a>
+          <a href="/cities" style="color:#ef4444;margin-left:16px">المدن</a>
+          <a href="/sources" style="color:#ef4444;margin-left:16px">المصادر</a>
+          <a href="/status" style="color:#ef4444;margin-left:16px">حالة النظام</a>
+        </nav>
+        <h2 style="font-size:1.3rem;color:#fca5a5;margin-top:30px">الميزات الرئيسية</h2>
+        <ul style="color:#9ca3af;line-height:2">
+          <li>تتبع مباشر للأحداث الجيوسياسية والعسكرية</li>
+          <li>بث بحري مباشر AIS — مراقبة السفن العسكرية والتجارية</li>
+          <li>مراقبة مضيق هرمز والبحر الأحمر وقناة السويس</li>
+          <li>كشف السفن الإيرانية والأمريكية وحلفاء الناتو</li>
+          <li>تنبيهات فورية عاجلة للأحداث الحرجة</li>
+          <li>تحليلات بالذكاء الاصطناعي</li>
+          <li>خريطة تفاعلية للمدن ومستويات الخطر</li>
+        </ul>
+      </div>
+    </noscript>
   </body>
 </html>

@@ -5,6 +5,16 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   build: {
+    // Only preload chunks that are needed on initial render
+    modulePreload: {
+      resolveDependencies: (_filename, deps) => {
+        // Don't preload heavy vendor chunks that are lazy-loaded
+        return deps.filter(d =>
+          !d.includes('vendor-charts') &&
+          !d.includes('vendor-map')
+        );
+      },
+    },
     // Enable code splitting for better caching and smaller initial load
     rollupOptions: {
       output: {
