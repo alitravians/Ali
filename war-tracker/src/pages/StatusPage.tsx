@@ -392,9 +392,9 @@ function setCachedStatus(data: StatusData) {
 function StatusSkeleton() {
   const shimmer = 'animate-pulse bg-gray-800/60 rounded';
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header skeleton */}
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <div className="flex items-center gap-2">
           <div className={`w-5 h-5 ${shimmer} rounded-full`} />
           <div className={`w-28 h-5 ${shimmer}`} />
@@ -408,9 +408,9 @@ function StatusSkeleton() {
       {/* Category header */}
       <div className={`w-32 h-4 mb-3 ${shimmer}`} />
       {/* Service cards skeleton */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-8">
         {[1,2,3].map(i => (
-          <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+          <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-5 sm:p-6">
             <div className="flex items-center gap-2.5 mb-3">
               <div className={`w-9 h-9 rounded-lg ${shimmer}`} />
               <div className="flex-1">
@@ -429,9 +429,9 @@ function StatusSkeleton() {
       </div>
       {/* Second category */}
       <div className={`w-28 h-4 mb-3 ${shimmer}`} />
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 mb-8">
         {[1,2,3,4].map(i => (
-          <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+          <div key={i} className="rounded-xl border border-gray-800 bg-[#12121a] p-5 sm:p-6">
             <div className="flex items-center gap-2.5 mb-3">
               <div className={`w-9 h-9 rounded-lg ${shimmer}`} />
               <div className="flex-1">
@@ -596,12 +596,12 @@ export default function StatusPage() {
   const visibleIncidents = showAllIncidents ? data.incidents : data.incidents.slice(0, 5);
 
   return (
-    <div className="max-w-5xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 sm:mb-6">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
+        <div className="flex items-center gap-3">
           <Activity className="w-5 h-5 text-blue-400" />
-          <h1 className="text-base sm:text-lg font-bold text-white">حالة النظام</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-white">حالة النظام</h1>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -627,7 +627,7 @@ export default function StatusPage() {
       </div>
 
       {/* Overall Status Banner */}
-      <div className={`rounded-2xl border ${overallStyle.border} bg-gradient-to-r ${overallStyle.bg} p-5 sm:p-6 mb-6`}>
+      <div className={`rounded-2xl border ${overallStyle.border} bg-gradient-to-r ${overallStyle.bg} p-6 sm:p-8 mb-8`}>
         <div className="flex items-center gap-4">
           <div className={`w-14 h-14 rounded-2xl bg-black/20 flex items-center justify-center`}>
             <OverallIcon className={`w-7 h-7 ${overallStyle.text}`} />
@@ -739,26 +739,26 @@ export default function StatusPage() {
         const CatIcon = meta.icon;
         return (
           <div key={cat} className="mb-8">
-            <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-              <CatIcon className="w-4 h-4 text-blue-400" />
+            <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
+              <CatIcon className="w-4.5 h-4.5 text-blue-400" />
               {meta.label}
-              <span className="text-[10px] text-gray-400 font-normal">({catServices.length})</span>
+              <span className="text-[11px] text-gray-400 font-normal">({catServices.length})</span>
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {catServices.map(svc => {
           const statusStyle = getStatusColor(svc.status);
           const Icon = getServiceIcon(svc.id);
           return (
-            <div key={svc.id} className={`rounded-xl border bg-[#12121a] p-4 transition-colors ${svc.status === 'disabled' ? 'border-gray-800/50 opacity-60' : 'border-gray-800 hover:border-gray-700'}`}>
+            <div key={svc.id} className={`rounded-xl border bg-[#12121a] p-5 sm:p-6 transition-colors ${svc.status === 'disabled' ? 'border-gray-800/50 opacity-60' : 'border-gray-800 hover:border-gray-700'}`}>
               {/* Service Header */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className={`w-9 h-9 rounded-lg ${statusStyle.bg} border ${statusStyle.border} flex items-center justify-center`}>
-                    <Icon className={`w-4.5 h-4.5 ${statusStyle.text}`} />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-lg ${statusStyle.bg} border ${statusStyle.border} flex items-center justify-center`}>
+                    <Icon className={`w-5 h-5 ${statusStyle.text}`} />
                   </div>
                   <div>
                     <h3 className={`text-sm font-bold ${svc.status === 'disabled' ? 'text-gray-400' : 'text-white'}`}>{svc.name_ar}</h3>
-                    <span className="text-[10px] text-gray-400">{svc.name}</span>
+                    <span className="text-[11px] text-gray-400">{svc.name}</span>
                   </div>
                 </div>
                 <span className={`flex items-center gap-1 px-2 py-0.5 rounded-full ${statusStyle.bg} border ${statusStyle.border}`}>
@@ -770,18 +770,18 @@ export default function StatusPage() {
               {/* Stats Row — hide for disabled services */}
               {svc.status !== 'disabled' && (
               <>
-              <div className="grid grid-cols-3 gap-2 mb-2">
-                <div className="text-center">
-                  <div className="text-[10px] text-gray-400 mb-0.5">الاستجابة</div>
-                  <div className="text-xs font-bold text-white">{svc.response_time_ms ? `${Math.round(svc.response_time_ms)}ms` : '-'}</div>
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                <div className="text-center py-2 rounded-lg bg-gray-900/50">
+                  <div className="text-[10px] text-gray-400 mb-1">الاستجابة</div>
+                  <div className="text-sm font-bold text-white">{svc.response_time_ms ? `${Math.round(svc.response_time_ms)}ms` : '-'}</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-[10px] text-gray-400 mb-0.5">أخطاء 24س</div>
-                  <div className={`text-xs font-bold ${svc.errors_24h > 0 ? 'text-red-400' : 'text-green-400'}`}>{svc.errors_24h}</div>
+                <div className="text-center py-2 rounded-lg bg-gray-900/50">
+                  <div className="text-[10px] text-gray-400 mb-1">أخطاء 24س</div>
+                  <div className={`text-sm font-bold ${svc.errors_24h > 0 ? 'text-red-400' : 'text-green-400'}`}>{svc.errors_24h}</div>
                 </div>
-                <div className="text-center">
-                  <div className="text-[10px] text-gray-400 mb-0.5">انقطاعات</div>
-                  <div className={`text-xs font-bold ${svc.outages_24h > 0 ? 'text-orange-400' : 'text-green-400'}`}>{svc.outages_24h}</div>
+                <div className="text-center py-2 rounded-lg bg-gray-900/50">
+                  <div className="text-[10px] text-gray-400 mb-1">انقطاعات</div>
+                  <div className={`text-sm font-bold ${svc.outages_24h > 0 ? 'text-orange-400' : 'text-green-400'}`}>{svc.outages_24h}</div>
                 </div>
               </div>
 

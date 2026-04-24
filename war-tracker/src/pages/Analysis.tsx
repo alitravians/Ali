@@ -134,9 +134,9 @@ export default function Analysis() {
   const breakingCount = events.filter(e => e.isBreaking).length;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <h1 className="text-lg font-bold text-white flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-purple-400" />
           التحليلات والتقييمات
@@ -148,29 +148,29 @@ export default function Analysis() {
       </div>
 
       {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
           <div className="flex items-center gap-2 mb-2">
             <Activity className="w-4 h-4 text-blue-400" />
             <span className="text-xs text-gray-400">إجمالي الأحداث</span>
           </div>
           <span className="text-2xl font-black text-white">{events.length}</span>
         </div>
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-400" />
             <span className="text-xs text-gray-400">أحداث عاجلة</span>
           </div>
           <span className="text-2xl font-black text-red-400">{breakingCount}</span>
         </div>
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
           <div className="flex items-center gap-2 mb-2">
             <ShieldCheck className="w-4 h-4 text-green-400" />
             <span className="text-xs text-gray-400">أحداث مؤكدة</span>
           </div>
           <span className="text-2xl font-black text-green-400">{confirmedCount}</span>
         </div>
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-4 h-4 text-orange-400" />
             <span className="text-xs text-gray-400">مستوى التصعيد</span>
@@ -181,9 +181,9 @@ export default function Analysis() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 mb-8">
         {/* AI Summary — Real from backend */}
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5 sm:p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-white flex items-center gap-2">
               <Brain className="w-4 h-4 text-purple-400" />
@@ -367,13 +367,13 @@ export default function Analysis() {
       </div>
 
       {/* Indicators detailed */}
-      <div className="mb-6">
-        <h2 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+      <div className="mb-8">
+        <h2 className="text-base font-bold text-white mb-4 flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-blue-400" />
           المؤشرات التفصيلية
         </h2>
         {indicators.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {indicators.map(ind => (
               <div key={ind.id} className="min-w-0">
                 <IndicatorCard indicator={ind} size="lg" />

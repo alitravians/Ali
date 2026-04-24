@@ -276,8 +276,8 @@ export default function Cities() {
 
   // Cities list view
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      <div className="flex items-center justify-between mb-6 sm:mb-8">
         <h1 className="text-lg font-bold text-white flex items-center gap-2">
           <Building2 className="w-5 h-5 text-blue-400" />
           المدن والمناطق المتابعة
@@ -285,7 +285,7 @@ export default function Cities() {
         <span className="text-[11px] text-gray-400">{cities.length} مدن</span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 overflow-hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
         {cities.map(city => {
           const cityEvents = cityEventsMap[city.id] || [];
           const indicators = computeIndicators(cityEvents);
@@ -296,7 +296,7 @@ export default function Cities() {
             <Link
               key={city.id}
               to={`/cities/${city.id}`}
-              className="rounded-xl border border-gray-800 bg-[#12121a] p-5 hover:border-gray-600 transition-all group"
+              className="rounded-xl border border-gray-800 bg-[#12121a] p-5 sm:p-6 hover:border-gray-600 transition-all group"
             >
               <div className="flex items-start justify-between mb-3">
                 <div>
