@@ -102,7 +102,8 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const prevEventCountRef = useRef(0);
-  const backendHasBlockade = useRef<boolean | null>(null); // null=unknown, check via OpenAPI first
+  // Backend capability flags — discovered via OpenAPI spec (no 404 console errors)
+  const backendCapabilities = useRef<{ ws: boolean; blockade: boolean } | null>(null);
 
   // WebSocket message handler
   const handleWsMessage = useCallback((msg: MessageEvent) => {
@@ -177,28 +178,43 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Connect to WebSocket — only attempt if backend actually supports /ws
+  // Discover backend capabilities via OpenAPI spec (returns 200, no console errors)
+  // This prevents 404 console errors from probing endpoints that don't exist
+  const discoverCapabilities = useCallback(async () => {
+    if (backendCapabilities.current !== null) return backendCapabilities.current;
+    try {
+      const resp = await fetch(`${BACKEND_API_URL}/openapi.json`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (resp.ok) {
+        const spec = await resp.json();
+        const paths = spec.paths ? Object.keys(spec.paths) : [];
+        backendCapabilities.current = {
+          ws: paths.includes('/ws'),
+          blockade: paths.includes('/api/hormuz-blockade'),
+        };
+      } else {
+        backendCapabilities.current = { ws: false, blockade: false };
+      }
+    } catch {
+      backendCapabilities.current = { ws: false, blockade: false };
+    }
+    return backendCapabilities.current;
+  }, []);
+
+  // Connect to WebSocket — only attempt if backend advertises /ws in OpenAPI spec
   const connectWs = useCallback(async () => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    // Probe /ws endpoint via HTTP first — if 404, backend doesn't have WebSocket
-    // This prevents ERR_NAME_NOT_RESOLVED and failed WebSocket console errors
-    try {
-      const probe = await fetch(`${BACKEND_API_URL}/ws`, {
-        method: 'GET',
-        signal: AbortSignal.timeout(5000),
-      });
-      // 404 = endpoint doesn't exist, don't attempt WebSocket
-      // 426 (Upgrade Required) or 400 = endpoint exists, safe to connect
-      if (probe.status === 404) {
-        setConnectionStatus('disconnected');
-        reconnectTimer.current = setTimeout(connectWs, 60000);
-        return;
-      }
-    } catch {
-      // Network error or timeout — backend unreachable, retry later
+    // Check OpenAPI spec for /ws endpoint — no 404 console errors
+    const caps = await discoverCapabilities();
+    if (!caps.ws) {
       setConnectionStatus('disconnected');
-      reconnectTimer.current = setTimeout(connectWs, 30000);
+      // Re-check capabilities every 120s in case backend is updated
+      reconnectTimer.current = setTimeout(() => {
+        backendCapabilities.current = null; // force re-discovery
+        connectWs();
+      }, 120000);
       return;
     }
 
@@ -221,7 +237,7 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     ws.onerror = () => {
       ws.close();
     };
-  }, [handleWsMessage]);
+  }, [handleWsMessage, discoverCapabilities]);
 
   // Also try REST API fetch on initial load for immediate data
   const fetchInitialData = useCallback(async () => {
@@ -325,23 +341,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       console.warn('[REST] Vessels fetch failed:', err instanceof Error ? err.message : err);
     }
 
-    // Fetch Hormuz blockade status — probe via OpenAPI first to avoid 404 console errors
-    // Browser logs network 404s to console even when caught in try/catch
-    if (backendHasBlockade.current === null) {
-      // First time: check if endpoint exists via OpenAPI spec (no console error on 200)
-      try {
-        const specResp = await fetch(`${BACKEND_API_URL}/openapi.json`, { signal: AbortSignal.timeout(5000) });
-        if (specResp.ok) {
-          const spec = await specResp.json();
-          backendHasBlockade.current = !!(spec.paths && spec.paths['/api/hormuz-blockade']);
-        } else {
-          backendHasBlockade.current = false;
-        }
-      } catch {
-        backendHasBlockade.current = false;
-      }
-    }
-    if (backendHasBlockade.current) {
+    // Fetch Hormuz blockade status — only if backend advertises the endpoint
+    // Uses shared capability discovery (OpenAPI spec returns 200, no console errors)
+    const caps = await discoverCapabilities();
+    if (caps.blockade) {
       try {
         const blockadeController = new AbortController();
         const blockadeTimeout = setTimeout(() => blockadeController.abort(), 10000);
@@ -350,14 +353,12 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         if (resp.ok) {
           const data = await resp.json();
           setHormuzBlockade(data as HormuzBlockadeStatus);
-        } else if (resp.status === 404) {
-          backendHasBlockade.current = false;
         }
       } catch {
         // silent
       }
     }
-  }, []);
+  }, [discoverCapabilities]);
 
   useEffect(() => {
     // Try WebSocket connection first
@@ -395,9 +396,10 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
       } catch { /* silent — WS will handle if REST fails */ }
     }, 30000);
 
-    // Refresh Hormuz blockade status every 60s (skip if endpoint returned 404)
+    // Refresh Hormuz blockade status every 60s (skip if backend doesn't have the endpoint)
     const blockadeRefresh = setInterval(async () => {
-      if (!backendHasBlockade.current) return;
+      const caps = backendCapabilities.current;
+      if (!caps?.blockade) return;
       try {
         const ctrl = new AbortController();
         const t = setTimeout(() => ctrl.abort(), 10000);
@@ -406,8 +408,6 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         if (resp.ok) {
           const data = await resp.json();
           setHormuzBlockade(data as HormuzBlockadeStatus);
-        } else if (resp.status === 404) {
-          backendHasBlockade.current = false;
         }
       } catch { /* silent */ }
     }, 60000);
