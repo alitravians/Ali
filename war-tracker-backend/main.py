@@ -1347,6 +1347,15 @@ BUG_REPORT_WINDOW_SECONDS = 120.0
 BUG_REPORT_MAX_PER_WINDOW = 1
 _bug_reports: list[dict] = []  # store reports in-memory
 
+# Strong references to fire-and-forget background tasks. On Python 3.11
+# ``asyncio.get_event_loop()`` only keeps *weak* references to tasks
+# created by ``asyncio.create_task``, so without a separate strong
+# reference the garbage collector is free to destroy them mid-execution
+# — silently dropping the Devin dispatch. CPython 3.12+ grew an internal
+# strong-ref set to fix this, but we run 3.11 in the Docker image.
+# Tasks are removed from the set when they complete.
+_background_tasks: set[asyncio.Task] = set()
+
 # Ticket system for live repair tracking
 import uuid as _uuid
 
@@ -1627,7 +1636,9 @@ async def submit_bug_report(report: BugReport, request: Request):
     #   * The ticket is already persisted by ``persistence.save_ticket``
     #     above, so a crash inside the background task cannot lose data.
     if is_devin_configured():
-        asyncio.create_task(
+        # Hold a strong reference so the GC cannot destroy the task on
+        # Python 3.11 — see the ``_background_tasks`` definition above.
+        _task = asyncio.create_task(
             _dispatch_bug_report_to_devin(
                 report_entry=report_entry,
                 message=message,
@@ -1636,6 +1647,8 @@ async def submit_bug_report(report: BugReport, request: Request):
                 browser=report.browser,
             )
         )
+        _background_tasks.add(_task)
+        _task.add_done_callback(_background_tasks.discard)
     else:
         report_entry["status"] = "received"
         logger.info("[BugReport] Devin not configured — ticket stored without session")
