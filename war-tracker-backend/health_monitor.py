@@ -581,14 +581,23 @@ class HealthMonitor:
         if last_rec.date == today_str:
             # Update today's record with today's actual uptime
             last_rec.uptime_percent = daily_uptime
+            severity_order = ["operational", "degraded", "partial_outage", "major_outage"]
             if not result.success:
                 last_rec.had_incident = True
                 # Track worst status
-                severity_order = ["operational", "degraded", "partial_outage", "major_outage"]
                 cur_idx = severity_order.index(last_rec.status) if last_rec.status in severity_order else 0
                 new_idx = severity_order.index(result.status.value) if result.status.value in severity_order else 0
                 if new_idx > cur_idx:
                     last_rec.status = result.status.value
+            elif last_rec.status not in severity_order:
+                # Today's record was initialized with a non-operational
+                # placeholder (e.g. `"disabled"` via `_init_today_only` at
+                # startup, or `"no_data"` from a gap-fill) and we're now
+                # receiving successful health checks. Promote the status to
+                # the real result so the frontend stops rendering today's
+                # bar as a gray "disabled" pill for a service that's
+                # actually up.
+                last_rec.status = result.status.value
         else:
             # New UTC day — reset the daily counters so today's bar reflects
             # only checks performed on this date. `daily_checks` starts at 1
