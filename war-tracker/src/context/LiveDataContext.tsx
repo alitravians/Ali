@@ -178,8 +178,22 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Discover backend capabilities via OpenAPI spec (returns 200, no console errors)
-  // This prevents 404 console errors from probing endpoints that don't exist
+  // Discover backend capabilities via OpenAPI spec + health probe.
+  //
+  // IMPORTANT: FastAPI's `/openapi.json` only lists HTTP routes (@app.get /
+  // @app.post / …). `@app.websocket(...)` endpoints are *never* included in
+  // the OpenAPI spec. An earlier revision of this file checked
+  // `paths.includes('/ws')` which was therefore always false, causing
+  // `connectWs` to skip the WebSocket entirely and retry every 120s forever
+  // — effectively disabling real-time events, live vessel tracking, and
+  // Bahrain push alerts.
+  //
+  // The correct capability check for `/ws` is: can we reach the backend at
+  // all? If `/api/health` (or `/openapi.json`) returns 200, the same server
+  // exposes `/ws` — so we advertise `ws: true`. The actual WebSocket
+  // handshake failure path in `ws.onerror` / `ws.onclose` below handles
+  // the (rare) case where the backend is reachable but the socket still
+  // can't be established.
   const discoverCapabilities = useCallback(async () => {
     if (backendCapabilities.current !== null) return backendCapabilities.current;
     try {
@@ -190,7 +204,11 @@ export function LiveDataProvider({ children }: { children: ReactNode }) {
         const spec = await resp.json();
         const paths = spec.paths ? Object.keys(spec.paths) : [];
         backendCapabilities.current = {
-          ws: paths.includes('/ws'),
+          // Backend is reachable ⇒ `/ws` is available. Do NOT gate on
+          // `paths.includes('/ws')` — FastAPI omits WS routes from the spec.
+          ws: true,
+          // HTTP routes genuinely do appear in the spec, so this check is
+          // safe and avoids a 404 probe for the blockade endpoint.
           blockade: paths.includes('/api/hormuz-blockade'),
         };
       } else {
