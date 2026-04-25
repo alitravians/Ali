@@ -98,6 +98,57 @@ _last_stale_prune: float = 0.0
 _STALE_PRUNE_THROTTLE_SECONDS = 30.0
 
 
+# ──────────────────────────────────────────────────────────────────────────
+# Defensive coercion helpers.
+#
+# AISStream occasionally ships MetaData fields where the key is *present*
+# but the value is JSON ``null`` — e.g. ``{"ShipName": null}`` — rather
+# than omitted. ``dict.get(key, default)`` only returns the default when
+# the key is *missing*; when the key is present-but-None it returns None.
+# That broke three code paths:
+#
+#   * ``metadata.get("ShipName", "").strip()`` → ``AttributeError`` on
+#     ``None.strip()`` for every message whose ShipName was explicitly
+#     null. The outer ``except Exception`` in ``connect_aisstream``
+#     swallowed it, so every such message was silently dropped.
+#   * ``metadata.get("MMSI", "")`` then ``str(...)`` coerced ``None``
+#     into the literal string ``"None"``. ``if not mmsi: return`` sees
+#     a truthy "None" and *creates a ghost vessel keyed by "None"* that
+#     persists in ``_vessels`` and pollutes every zone's counts until
+#     the stale-prune sweeps it out 10 minutes later.
+#   * ``static_data.get("Dimension", {})`` → ``None`` when Dimension is
+#     explicitly null, then ``.get("A", 0)`` raises AttributeError.
+#
+# These helpers coerce defensively so a misbehaving or spoofed AIS
+# feed cannot poison the store or spam the logs.
+# ──────────────────────────────────────────────────────────────────────────
+def _clean_str(value) -> str:
+    """Return a stripped string, tolerating None/non-string inputs."""
+    if value is None:
+        return ""
+    if not isinstance(value, str):
+        try:
+            value = str(value)
+        except Exception:
+            return ""
+    return value.strip()
+
+
+def _clean_dict(value) -> dict:
+    """Return a dict, coercing None/non-dict inputs to an empty dict."""
+    return value if isinstance(value, dict) else {}
+
+
+def _clean_int(value, default: int = 0) -> int:
+    """Return an int, tolerating None/non-numeric inputs."""
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def get_vessels() -> list[VesselPosition]:
     """Get all tracked vessels."""
     return list(_vessels.values())
@@ -178,12 +229,21 @@ async def connect_aisstream():
 
 def _process_ais_message(data: dict):
     """Process an AIS message from AISStream."""
-    msg_type = data.get("MessageType", "")
-    metadata = data.get("MetaData", {})
-    message = data.get("Message", {})
+    if not isinstance(data, dict):
+        return
+    msg_type = _clean_str(data.get("MessageType"))
+    metadata = _clean_dict(data.get("MetaData"))
+    message = _clean_dict(data.get("Message"))
 
-    mmsi = str(metadata.get("MMSI", ""))
-    if not mmsi:
+    # AIS MMSI is a 9-digit identifier. Reject blank, literally "None"
+    # (which is what ``str(metadata.get("MMSI"))`` would produce when
+    # the feed sends ``{"MMSI": null}``), and anything obviously
+    # non-numeric so it cannot land in ``_vessels`` as a ghost key.
+    mmsi_raw = metadata.get("MMSI")
+    if mmsi_raw is None:
+        return
+    mmsi = _clean_str(mmsi_raw)
+    if not mmsi or mmsi.lower() == "none" or not mmsi.isdigit():
         return
 
     # Reject messages missing latitude/longitude. Previously we defaulted to
@@ -210,8 +270,10 @@ def _process_ais_message(data: dict):
         lng = None
     if (lat is None or lng is None) and msg_type == "PositionReport":
         return
-    ship_name = metadata.get("ShipName", "").strip()
-    timestamp_str = metadata.get("time_utc", "")
+    # ``_clean_str`` tolerates the null-value case that ``.strip()``
+    # previously crashed on (see module-level comment).
+    ship_name = _clean_str(metadata.get("ShipName"))
+    timestamp_str = _clean_str(metadata.get("time_utc"))
 
     try:
         ts = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")) if timestamp_str else datetime.now(timezone.utc)
@@ -223,11 +285,11 @@ def _process_ais_message(data: dict):
 
     if msg_type == "PositionReport":
         # Guaranteed to have position here (earlier guard returns if missing).
-        pos_report = message.get("PositionReport", {})
+        pos_report = _clean_dict(message.get("PositionReport"))
         speed = pos_report.get("Sog", None)  # Speed over ground
         course = pos_report.get("Cog", None)  # Course over ground
         heading = pos_report.get("TrueHeading", None)
-        nav_status = pos_report.get("NavigationalStatus", 0)
+        nav_status = _clean_int(pos_report.get("NavigationalStatus"), 0)
 
         status, status_ar = _get_status(nav_status)
 
@@ -264,13 +326,14 @@ def _process_ais_message(data: dict):
             )
 
     elif msg_type == "ShipStaticData":
-        static_data = message.get("ShipStaticData", {})
-        ais_type = static_data.get("Type", 0)
+        static_data = _clean_dict(message.get("ShipStaticData"))
+        ais_type = _clean_int(static_data.get("Type"), 0)
         ship_type, ship_type_ar = _classify_ship_type(ais_type)
-        destination = static_data.get("Destination", "").strip()
-        dim = static_data.get("Dimension", {})
-        length = (dim.get("A", 0) or 0) + (dim.get("B", 0) or 0)
-        width = (dim.get("C", 0) or 0) + (dim.get("D", 0) or 0)
+        # ``_clean_str`` tolerates the null-value case (Destination: null).
+        destination = _clean_str(static_data.get("Destination"))
+        dim = _clean_dict(static_data.get("Dimension"))
+        length = _clean_int(dim.get("A")) + _clean_int(dim.get("B"))
+        width = _clean_int(dim.get("C")) + _clean_int(dim.get("D"))
         draught = static_data.get("MaximumStaticDraught", None)
 
         if mmsi in _vessels:

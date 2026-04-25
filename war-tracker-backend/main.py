@@ -1870,15 +1870,27 @@ async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
             "timestamp": ticket["updated_at"],
         })
     except Exception:
-        if ws in _ticket_ws_connections.get(ticket_id, []):
-            _ticket_ws_connections[ticket_id].remove(ws)
+        watchers = _ticket_ws_connections.get(ticket_id)
+        if watchers is not None:
+            if ws in watchers:
+                watchers.remove(ws)
+            if not watchers:
+                _ticket_ws_connections.pop(ticket_id, None)
         return
 
-    # Keep connection alive, handle pings
+    # Keep connection alive, handle pings. ``json.JSONDecodeError`` is
+    # caught explicitly so a single malformed frame from a flaky proxy
+    # or a hostile client cannot tear down the whole socket and force
+    # the user's RepairTracker3D modal to reconnect mid-repair.
     try:
         while True:
             data = await ws.receive_text()
-            msg = json.loads(data)
+            try:
+                msg = json.loads(data)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if not isinstance(msg, dict):
+                continue
             if msg.get("type") == "ping":
                 await ws.send_json({"type": "pong"})
             elif msg.get("type") == "request_status":
@@ -1900,8 +1912,17 @@ async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
     except Exception:
         pass
     finally:
-        if ws in _ticket_ws_connections.get(ticket_id, []):
-            _ticket_ws_connections[ticket_id].remove(ws)
+        # Pop an empty bucket so ``_ticket_ws_connections`` cannot grow
+        # unboundedly under a long-running process that has served many
+        # tickets. Without this every resolved ticket leaves a dead key
+        # behind — harmless per ticket, but a slow memory drip over
+        # days of uptime.
+        watchers = _ticket_ws_connections.get(ticket_id)
+        if watchers is not None:
+            if ws in watchers:
+                watchers.remove(ws)
+            if not watchers:
+                _ticket_ws_connections.pop(ticket_id, None)
         print(f"[Ticket WS] Client disconnected from ticket {ticket_id}")
 
 
@@ -1936,10 +1957,19 @@ async def websocket_endpoint(ws: WebSocket):
         ws_manager.disconnect(ws)
         return
 
+    # Explicit ``json.JSONDecodeError`` / non-dict guards: a single
+    # malformed frame from a flaky proxy or a hostile client must not
+    # tear down the whole live-data socket and force a reconnect storm
+    # across every connected browser.
     try:
         while True:
             data = await ws.receive_text()
-            msg = json.loads(data)
+            try:
+                msg = json.loads(data)
+            except (json.JSONDecodeError, ValueError):
+                continue
+            if not isinstance(msg, dict):
+                continue
             msg_type = msg.get("type", "")
 
             if msg_type == "ping":
