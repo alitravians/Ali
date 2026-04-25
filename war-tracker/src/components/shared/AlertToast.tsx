@@ -13,9 +13,51 @@ interface ToastItem {
   visible: boolean;
 }
 
+// Hard cap on the "already-shown alert id" memory. Without this the
+// ``shownIdsRef`` Set grew unboundedly for the whole life of the tab,
+// proportional to every alert id the live feed had ever streamed —
+// a slow leak that mattered on long-lived dashboards (status walls,
+// always-on monitors). When the cap is exceeded we drop the oldest
+// half, which is enough to amortise eviction cost while keeping
+// recent ids around long enough that re-renders of the same alerts
+// in quick succession do not re-fire toasts.
+const SHOWN_IDS_HARD_CAP = 500;
+
+function _evictShownIdsIfNeeded(seenIds: Set<string>): void {
+  if (seenIds.size <= SHOWN_IDS_HARD_CAP) return;
+  const drop = seenIds.size - Math.floor(SHOWN_IDS_HARD_CAP / 2);
+  const it = seenIds.values();
+  for (let i = 0; i < drop; i++) {
+    const next = it.next();
+    if (next.done) break;
+    seenIds.delete(next.value);
+  }
+}
+
 export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const shownIdsRef = useRef<Set<string>>(new Set());
+  // Track every setTimeout we schedule so unmount tears them down
+  // deterministically and a slow render cycle cannot leave dangling
+  // ``setToasts`` calls that fire on an unmounted component.
+  const pendingTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+
+  useEffect(() => {
+    const timers = pendingTimersRef.current;
+    return () => {
+      for (const t of timers) clearTimeout(t);
+      timers.clear();
+    };
+  }, []);
+
+  const scheduleTimer = useCallback((fn: () => void, delay: number) => {
+    const id = setTimeout(() => {
+      pendingTimersRef.current.delete(id);
+      fn();
+    }, delay);
+    pendingTimersRef.current.add(id);
+    return id;
+  }, []);
 
   // Track new alerts and show toasts
   useEffect(() => {
@@ -23,15 +65,17 @@ export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) 
     if (newAlerts.length === 0) return;
 
     newAlerts.forEach(a => shownIdsRef.current.add(a.id));
+    _evictShownIdsIfNeeded(shownIdsRef.current);
 
     const newToasts = newAlerts.slice(0, maxVisible).map(alert => ({ alert, visible: true }));
     setToasts(prev => [...newToasts, ...prev].slice(0, maxVisible));
   }, [alerts, maxVisible]);
 
-  // Auto-dismiss after 8 seconds
+  // Auto-dismiss after 8 seconds. Both timers are tracked in
+  // ``pendingTimersRef`` so the component cleanup cancels them.
   useEffect(() => {
     if (toasts.length === 0) return;
-    const timer = setTimeout(() => {
+    const timer = scheduleTimer(() => {
       setToasts(prev => {
         if (prev.length === 0) return prev;
         const updated = [...prev];
@@ -39,19 +83,22 @@ export default function AlertToast({ alerts, maxVisible = 3 }: AlertToastProps) 
         return updated;
       });
       // Remove after animation
-      setTimeout(() => {
+      scheduleTimer(() => {
         setToasts(prev => prev.slice(0, -1));
       }, 300);
     }, 8000);
-    return () => clearTimeout(timer);
-  }, [toasts]);
+    return () => {
+      clearTimeout(timer);
+      pendingTimersRef.current.delete(timer);
+    };
+  }, [toasts, scheduleTimer]);
 
   const dismissToast = useCallback((id: string) => {
     setToasts(prev => prev.map(t => t.alert.id === id ? { ...t, visible: false } : t));
-    setTimeout(() => {
+    scheduleTimer(() => {
       setToasts(prev => prev.filter(t => t.alert.id !== id));
     }, 300);
-  }, []);
+  }, [scheduleTimer]);
 
   const typeIcons = {
     urgent: AlertTriangle,
