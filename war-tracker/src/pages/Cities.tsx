@@ -110,13 +110,20 @@ function computeRiskLevel(cityEvents: TrackerEvent[]): RiskLevel {
   return 'low';
 }
 
-// Get most recent event timestamp for a city
-function getLastUpdate(cityEvents: TrackerEvent[]): Date {
-  if (cityEvents.length === 0) return new Date();
-  const sorted = [...cityEvents].sort((a, b) =>
-    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-  );
-  return new Date(sorted[0].timestamp);
+// Get most recent event timestamp for a city, or null when the city has
+// no events at all. Returning ``new Date()`` here previously caused
+// every quiet city to render "منذ ثوانٍ" in the cities grid — visually
+// indistinguishable from a city that had just received a real event.
+// The list view renders "—" for ``null`` instead.
+function getLastUpdate(cityEvents: TrackerEvent[]): Date | null {
+  if (cityEvents.length === 0) return null;
+  let latestMs = -Infinity;
+  for (const e of cityEvents) {
+    const t = new Date(e.timestamp).getTime();
+    if (Number.isFinite(t) && t > latestMs) latestMs = t;
+  }
+  if (!Number.isFinite(latestMs)) return null;
+  return new Date(latestMs);
 }
 
 export default function Cities() {
@@ -311,7 +318,7 @@ export default function Cities() {
               <div className="flex items-center justify-between text-[11px] text-gray-500 border-t border-gray-800 pt-2">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />
-                  {timeAgo(lastUpdate)}
+                  {lastUpdate ? timeAgo(lastUpdate) : 'لا توجد أحداث'}
                 </span>
                 <span>{cityEvents.length} أحداث</span>
               </div>

@@ -120,6 +120,21 @@ _events_lock = asyncio.Lock()
 # WebSocket connection manager
 # ──────────────────────────────────────────────
 class ConnectionManager:
+    """Tracks live WS clients and fans out messages to them.
+
+    ``broadcast`` parallelises sends and bounds each individual send by
+    ``BROADCAST_SEND_TIMEOUT_S`` so that one slow / stuck client cannot
+    block delivery to every other connected browser. Previously we
+    awaited each ``send_json`` sequentially with no timeout — a single
+    backpressured TCP connection could stall the whole event-loop
+    poll cycle (and queue every subsequent broadcast behind it),
+    causing the live-feed UI to freeze for all users.
+    """
+
+    # Per-client send timeout. Anything beyond this and we drop the
+    # client rather than letting the broadcast pipeline back up.
+    BROADCAST_SEND_TIMEOUT_S = 5.0
+
     def __init__(self):
         self.active_connections: list[WebSocket] = []
 
@@ -133,15 +148,31 @@ class ConnectionManager:
             self.active_connections.remove(ws)
         print(f"[WS] Client disconnected. Total: {len(self.active_connections)}")
 
+    async def _send_one(self, ws: WebSocket, message: dict) -> bool:
+        """Send to a single client. Returns False if the client should
+        be evicted (timeout, exception, or closed socket)."""
+        try:
+            await asyncio.wait_for(
+                ws.send_json(message),
+                timeout=self.BROADCAST_SEND_TIMEOUT_S,
+            )
+            return True
+        except (asyncio.TimeoutError, Exception):
+            return False
+
     async def broadcast(self, message: dict):
-        dead: list[WebSocket] = []
-        for ws in list(self.active_connections):
-            try:
-                await ws.send_json(message)
-            except Exception:
-                dead.append(ws)
-        for ws in dead:
-            self.disconnect(ws)
+        # Snapshot first so concurrent connect/disconnect cannot mutate
+        # the list mid-iteration.
+        snapshot = list(self.active_connections)
+        if not snapshot:
+            return
+        results = await asyncio.gather(
+            *(self._send_one(ws, message) for ws in snapshot),
+            return_exceptions=False,
+        )
+        for ws, ok in zip(snapshot, results):
+            if not ok:
+                self.disconnect(ws)
 
 
 ws_manager = ConnectionManager()
@@ -184,8 +215,49 @@ async def update_indicators():
             ind.trend = "stable"
 
 
+# Hard cap on the in-memory alert ring. Without this, ``store.alerts``
+# grew unboundedly: ``generate_alerts_from_events`` only checked for
+# duplicate ids before appending, but never trimmed the list. Over a
+# long-lived process that would (a) leak memory in proportion to the
+# cumulative number of breaking events ever observed, and (b) turn the
+# duplicate-id check (``any(a.id == … for a in store.alerts)``) into
+# an O(N) scan per insert — quadratic over a poll cycle that produces
+# many breaking items at once. We bound the ring at _ALERT_HARD_CAP
+# (FIFO eviction of the oldest) and back the dedup check with an
+# auxiliary id-set so insertion stays O(1).
+_ALERT_HARD_CAP = 500
+_alert_ids: set[str] = set()
+
+
+def _remember_alert(alert: Alert) -> bool:
+    """Append ``alert`` to ``store.alerts`` with O(1) dedup + FIFO cap.
+
+    Returns True if the alert was newly inserted. Returns False if an
+    alert with the same id was already present (caller should skip
+    further side-effects so we don't double-broadcast). Maintains
+    ``_alert_ids`` in sync with the head of ``store.alerts`` so that
+    rebuilding the set after an eviction is not required.
+    """
+    if alert.id in _alert_ids:
+        return False
+    store.alerts.append(alert)
+    _alert_ids.add(alert.id)
+    overflow = len(store.alerts) - _ALERT_HARD_CAP
+    if overflow > 0:
+        for evicted in store.alerts[:overflow]:
+            _alert_ids.discard(evicted.id)
+        del store.alerts[:overflow]
+    return True
+
+
 def generate_alerts_from_events(new_events: list[TrackerEvent]):
-    """Auto-generate alerts from breaking/important events."""
+    """Auto-generate alerts from breaking/important events.
+
+    Backed by the bounded ``_remember_alert`` helper so the in-memory
+    alert list cannot grow without bound and the duplicate check is
+    O(1) per insert (set lookup) instead of O(N) (linear scan of every
+    historical alert).
+    """
     for event in new_events:
         if event.isBreaking:
             alert = Alert(
@@ -202,9 +274,10 @@ def generate_alerts_from_events(new_events: list[TrackerEvent]):
                 city=event.location.name,
                 cityAr=event.location.nameAr,
             )
-            # Avoid duplicate alerts
-            if not any(a.id == alert.id for a in store.alerts):
-                store.alerts.append(alert)
+            # O(1) duplicate check + hard cap (FIFO eviction beyond
+            # _ALERT_HARD_CAP). Replaces the previous unbounded
+            # append + O(N) scan that quietly leaked memory over time.
+            _remember_alert(alert)
 
 
 async def poll_gdelt():
