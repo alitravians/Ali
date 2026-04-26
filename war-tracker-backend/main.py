@@ -7,7 +7,7 @@ import json
 import time
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from typing import Annotated, AsyncGenerator
+from typing import Annotated, AsyncGenerator, Optional
 
 import hashlib
 import hmac
@@ -176,6 +176,35 @@ class ConnectionManager:
 
 
 ws_manager = ConnectionManager()
+
+
+# Maximum size (bytes) we accept per inbound WebSocket text frame from a
+# client. The client side only ever sends tiny JSON control envelopes —
+# ``{"type":"ping"}``, ``{"type":"request_events"}``, etc. — never more
+# than a few hundred bytes. Without an upper bound, a hostile or
+# misbehaving client could send a multi-megabyte frame on every iteration
+# and pin the event loop in JSON parsing / memory copies. Both
+# ``/ws`` and ``/ws/ticket/{id}`` enforce this via ``_recv_bounded_text``.
+_WS_MAX_INBOUND_BYTES = 4096
+
+
+async def _recv_bounded_text(ws: WebSocket) -> Optional[str]:
+    """Receive one text frame from ``ws`` and reject oversized payloads.
+
+    Returns the decoded string on success, ``None`` if the frame should
+    be silently skipped (oversize / not text). Raises ``WebSocketDisconnect``
+    on disconnect, like the underlying ``ws.receive_text``. The size check
+    is performed against the encoded byte length so a multibyte-character
+    payload cannot bypass the cap by spending fewer code points.
+    """
+    data = await ws.receive_text()
+    if len(data.encode("utf-8", errors="ignore")) > _WS_MAX_INBOUND_BYTES:
+        # Silently drop the frame instead of tearing down the socket.
+        # A flaky proxy that batched several control frames together
+        # could legitimately exceed the cap once; killing the connection
+        # would force every other browser to reconnect too.
+        return None
+    return data
 
 
 # ──────────────────────────────────────────────
@@ -557,6 +586,31 @@ _BAHRAIN_AR_LOCATION_KEYWORDS = [
 # the same source within the window) cannot spam the modal.
 _BAHRAIN_BROADCAST_CACHE_CAP = 256
 _bahrain_broadcast_ids: "OrderedDict[str, float]" = OrderedDict()
+
+
+# Word-boundary regex used by the Status Page's Bahrain monitor widget
+# (``_get_bahrain_monitor``). Plain ``substring in text`` would match
+# short keywords (``sitra``, ``riffa``) inside arbitrary English/Arabic
+# words and inflate the Bahrain risk count with false positives. We
+# build one alternation:
+#   * ASCII keywords are fenced with ``\b`` (Python ``\b`` works on
+#     ASCII letter boundaries).
+#   * Arabic keywords are fenced with explicit non-letter look-arounds
+#     covering both ASCII word chars and the Arabic Unicode block
+#     (``\u0600-\u06FF``), because ``\b`` is locale-blind and treats
+#     every Arabic letter boundary as a word break otherwise.
+def _build_bahrain_monitor_regex() -> "re.Pattern[str]":
+    parts: list[str] = []
+    for kw in BAHRAIN_LOCATION_KEYWORDS:
+        esc = re.escape(kw)
+        if all(ord(c) < 128 for c in kw):
+            parts.append(rf"\b{esc}\b")
+        else:
+            parts.append(rf"(?<![\w\u0600-\u06FF]){esc}(?![\w\u0600-\u06FF])")
+    return re.compile("|".join(parts), re.IGNORECASE)
+
+
+_BAHRAIN_MONITOR_RE = _build_bahrain_monitor_regex()
 
 
 def _bahrain_text_has_strong_alert(text_lower: str) -> bool:
@@ -1219,15 +1273,24 @@ def _get_source_monitoring() -> list[dict]:
 
 
 def _get_bahrain_monitor() -> dict:
-    """Get Bahrain-specific monitoring data."""
-    bahrain_keywords = {"bahrain", "البحرين", "المنامة", "manama", "المحرق", "muharraq",
-                        "سترة", "sitra", "الرفاع", "riffa", "الجفير", "juffair",
-                        "مملكة البحرين"}
+    """Get Bahrain-specific monitoring data.
+
+    Matches keywords using word-boundary regex rather than naive
+    ``substring in text`` so that short terms like ``sitra`` /
+    ``riffa`` cannot false-positive on unrelated words (e.g. "Sitra"
+    inside an English compound, or any sequence containing those
+    five letters). The Arabic terms are matched by surrounding
+    non-letter look-arounds because Python's ``\\b`` does not
+    correctly handle Arabic letter classes — Arabic words are
+    delimited by ASCII whitespace, punctuation, or string boundaries
+    in our feeds, so ``(?<![\\w\\u0600-\\u06FF])…(?![\\w\\u0600-\\u06FF])``
+    is the correct fence.
+    """
     bahrain_events = []
     today = datetime.now(timezone.utc).date()
     for e in store.events:
         text = f"{e.title} {e.titleAr} {e.description} {e.location.name} {e.location.nameAr}".lower()
-        if any(kw in text for kw in bahrain_keywords):
+        if _BAHRAIN_MONITOR_RE.search(text):
             bahrain_events.append({
                 "id": e.id,
                 "title": e.title,
@@ -1955,9 +2018,13 @@ async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
     # caught explicitly so a single malformed frame from a flaky proxy
     # or a hostile client cannot tear down the whole socket and force
     # the user's RepairTracker3D modal to reconnect mid-repair.
+    # ``_recv_bounded_text`` enforces a hard cap on inbound payload size
+    # so a hostile client cannot pin the event loop with multi-MB frames.
     try:
         while True:
-            data = await ws.receive_text()
+            data = await _recv_bounded_text(ws)
+            if data is None:
+                continue
             try:
                 msg = json.loads(data)
             except (json.JSONDecodeError, ValueError):
@@ -2033,10 +2100,14 @@ async def websocket_endpoint(ws: WebSocket):
     # Explicit ``json.JSONDecodeError`` / non-dict guards: a single
     # malformed frame from a flaky proxy or a hostile client must not
     # tear down the whole live-data socket and force a reconnect storm
-    # across every connected browser.
+    # across every connected browser. ``_recv_bounded_text`` rejects
+    # oversized frames (the client only ever sends tiny JSON envelopes)
+    # so a hostile peer cannot pin the event loop with multi-MB payloads.
     try:
         while True:
-            data = await ws.receive_text()
+            data = await _recv_bounded_text(ws)
+            if data is None:
+                continue
             try:
                 msg = json.loads(data)
             except (json.JSONDecodeError, ValueError):
