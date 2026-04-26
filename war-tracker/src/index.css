@@ -17,13 +17,19 @@
 
 * {
   font-family: 'Cairo', sans-serif;
+  cursor: url('/cursor-32.png') 10 0, auto;
+}
+
+/* Pointer cursor for interactive elements */
+a, button, [role="button"], input[type="submit"], input[type="button"],
+select, label[for], .cursor-pointer, [onclick] {
+  cursor: url('/cursor-32.png') 10 0, pointer;
 }
 
 body {
   background-color: #0a0a0f;
   color: #e2e8f0;
   overflow-x: hidden;
-  cursor: url('/cursor-32.png') 10 0, auto;
 }
 
 ::-webkit-scrollbar {

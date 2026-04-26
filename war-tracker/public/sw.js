@@ -1,15 +1,15 @@
 // WarScope PWA Service Worker — offline support + push notifications
-const CACHE_NAME = 'warscope-v1';
+// IMPORTANT: Bump version on every deployment to force cache refresh
+const CACHE_NAME = 'warscope-v3';
 const OFFLINE_URL = '/';
 
-// Assets to pre-cache for offline support
+// Only cache truly static assets — NOT the HTML shell (it changes with each build)
 const PRECACHE_URLS = [
-  '/',
   '/favicon.svg',
   '/manifest.json',
 ];
 
-// Install: pre-cache core assets
+// Install: pre-cache core assets + force activate immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE_URLS))
@@ -17,7 +17,7 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean ALL old caches aggressively
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
