@@ -97,6 +97,17 @@ _last_stats_update: float = 0.0
 _last_stale_prune: float = 0.0
 _STALE_PRUNE_THROTTLE_SECONDS = 30.0
 
+# Hard cap on the in-memory vessel store. The 30-second stale-prune
+# throttle is enough under normal conditions, but a misbehaving or
+# hostile AIS feed could deliver thousands of unique MMSIs per second
+# during the window between prunes. Without an absolute upper bound the
+# ``_vessels`` dict could swell to GB and OOM the backend before the
+# stale-prune ever runs again. When the cap is exceeded we evict the
+# oldest entries (by recorded ``timestamp``) until the dict is at half
+# the cap — amortising the cost of eviction so we don't pay it on every
+# subsequent insert.
+_VESSEL_HARD_CAP = 10000
+
 
 # ──────────────────────────────────────────────────────────────────────────
 # Defensive coercion helpers.
@@ -279,6 +290,20 @@ def _process_ais_message(data: dict):
         ts = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00")) if timestamp_str else datetime.now(timezone.utc)
     except (ValueError, AttributeError):
         ts = datetime.now(timezone.utc)
+    # Clamp future-dated timestamps to ``now``. The stale prune below
+    # compares ``(now - v.timestamp).total_seconds() > 600`` — a feed
+    # (or a spoofed AIS message) that reports a timestamp in the future
+    # would yield a negative diff, the vessel would never match the
+    # stale predicate, and the entry would persist forever. Clamping
+    # also keeps the "newest wins" eviction key honest when we apply
+    # the hard cap below.
+    server_now = datetime.now(timezone.utc)
+    if ts.tzinfo is None:
+        # AIS feeds occasionally drop the trailing 'Z'/offset; assume UTC
+        # rather than crashing the comparison with a naive/aware mix.
+        ts = ts.replace(tzinfo=timezone.utc)
+    if ts > server_now:
+        ts = server_now
 
     have_position = lat is not None and lng is not None
     zone_id, zone_ar = _determine_zone(lat, lng) if have_position else ("unknown", "غير محدد")
@@ -383,3 +408,18 @@ def _process_ais_message(data: dict):
         for k in stale:
             del _vessels[k]
         _last_stale_prune = now_monotonic
+
+    # Defence-in-depth: enforce an absolute upper bound on ``_vessels``.
+    # Even with the 30-second stale-prune above, an AIS storm or a
+    # hostile feed delivering many unique MMSIs per second could push
+    # memory usage to GB before the next prune ever runs. When the cap
+    # is exceeded, evict the oldest entries (by recorded timestamp,
+    # which is now clamped to ``now``) down to half the cap so we
+    # amortise the O(N log N) sort across many subsequent inserts.
+    if len(_vessels) > _VESSEL_HARD_CAP:
+        target = _VESSEL_HARD_CAP // 2
+        # ``sorted`` materialises a list of items; for N=10k this is a
+        # one-time ~1ms cost paid only when the cap is breached.
+        ordered = sorted(_vessels.items(), key=lambda kv: kv[1].timestamp)
+        for k, _v in ordered[: len(_vessels) - target]:
+            _vessels.pop(k, None)

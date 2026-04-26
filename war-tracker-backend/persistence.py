@@ -43,6 +43,17 @@ _lock = threading.Lock()
 _conn: Optional[sqlite3.Connection] = None
 _disabled = False  # flips to True if the database is unusable
 
+# Hard cap on the number of ticket rows kept on disk. The in-memory
+# ``_tickets`` cache is already capped (see ``main.py::_TICKET_HARD_CAP``)
+# but without a parallel cap on the SQLite ``tickets`` table the file
+# grows by one row for every ``/api/bug-report`` submission and never
+# shrinks. The endpoint is anonymous (only IP-rate-limited) so a sustained
+# spam burst could fill the volume; even normal load over months would
+# bloat the WAL and slow ``load_tickets`` on cold start. We prune on
+# every ``save_ticket`` so the working set on disk tracks the working set
+# in memory.
+_TICKET_DISK_CAP = 1000
+
 
 def _get_conn() -> Optional[sqlite3.Connection]:
     global _conn, _disabled
@@ -216,6 +227,24 @@ def save_ticket(ticket_id: str, ticket: dict) -> None:
             conn.execute(
                 "INSERT OR REPLACE INTO tickets (id, data, updated_at) VALUES (?, ?, ?)",
                 (ticket_id, payload, time.time()),
+            )
+            # Disk-side FIFO cap: drop the oldest rows beyond ``_TICKET_DISK_CAP``
+            # so a sustained ``/api/bug-report`` burst (the endpoint is
+            # anonymous and only rate-limited per IP) cannot grow the
+            # SQLite file without bound. ``ROWID`` ordering is monotonic
+            # for INSERT OR REPLACE because SQLite assigns the existing
+            # ROWID on UPDATE, so ordering by ``updated_at ASC`` is the
+            # correct eviction key (oldest write first).
+            conn.execute(
+                """
+                DELETE FROM tickets
+                WHERE id IN (
+                    SELECT id FROM tickets
+                    ORDER BY updated_at ASC
+                    LIMIT MAX(0, (SELECT COUNT(*) FROM tickets) - ?)
+                )
+                """,
+                (_TICKET_DISK_CAP,),
             )
             conn.commit()
     except Exception as exc:  # noqa: BLE001
