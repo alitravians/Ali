@@ -26,8 +26,19 @@ export function decodeHtmlEntities(text: string): string {
     // emoji like &#128512; / &#x1F600; (😀) and other supplementary-plane
     // characters that show up in news payloads — decode correctly.
     // fromCharCode silently wraps mod 65536 and produces a garbled glyph.
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    // Wrap in try/catch: fromCodePoint THROWS RangeError for values above
+    // 0x10FFFF (e.g. malformed feed input like `&#99999999;`). An unhandled
+    // throw inside .map() over a batch of events would discard the entire
+    // batch (parseEvent is called per-event in LiveDataContext), so we
+    // fall back to leaving the original entity in place on overflow.
+    .replace(/&#(\d+);/g, (_, n) => {
+      try { return String.fromCodePoint(parseInt(n, 10)); }
+      catch { return `&#${n};`; }
+    })
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+      try { return String.fromCodePoint(parseInt(h, 16)); }
+      catch { return `&#x${h};`; }
+    })
     .replace(/&amp;/g, '&'); // must be last so earlier replacements aren't double-decoded
 }
 
