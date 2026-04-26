@@ -13,7 +13,14 @@ const PhoneModeContext = createContext<PhoneModeContextType>({
 export function PhoneModeProvider({ children }: { children: ReactNode }) {
   const [isPhoneMode, setIsPhoneMode] = useState(() => {
     try {
-      return localStorage.getItem('warscope-phone-mode') === 'true';
+      const saved = localStorage.getItem('warscope-phone-mode') === 'true';
+      // Auto-disable phone mode on desktop-sized viewports
+      // Phone mode is only useful on actual mobile or for quick testing
+      if (saved && typeof window !== 'undefined' && window.innerWidth >= 768) {
+        localStorage.removeItem('warscope-phone-mode');
+        return false;
+      }
+      return saved;
     } catch {
       return false;
     }
@@ -21,7 +28,11 @@ export function PhoneModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem('warscope-phone-mode', String(isPhoneMode));
+      if (isPhoneMode) {
+        localStorage.setItem('warscope-phone-mode', 'true');
+      } else {
+        localStorage.removeItem('warscope-phone-mode');
+      }
     } catch {
       // localStorage not available
     }
@@ -32,6 +43,17 @@ export function PhoneModeProvider({ children }: { children: ReactNode }) {
     } else {
       document.documentElement.classList.remove('phone-mode');
     }
+  }, [isPhoneMode]);
+
+  // Auto-disable phone mode if user resizes to desktop width
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768 && isPhoneMode) {
+        setIsPhoneMode(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
   }, [isPhoneMode]);
 
   const togglePhoneMode = () => setIsPhoneMode(prev => !prev);
