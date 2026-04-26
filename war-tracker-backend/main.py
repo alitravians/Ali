@@ -588,29 +588,25 @@ _BAHRAIN_BROADCAST_CACHE_CAP = 256
 _bahrain_broadcast_ids: "OrderedDict[str, float]" = OrderedDict()
 
 
-# Word-boundary regex used by the Status Page's Bahrain monitor widget
-# (``_get_bahrain_monitor``). Plain ``substring in text`` would match
-# short keywords (``sitra``, ``riffa``) inside arbitrary English/Arabic
-# words and inflate the Bahrain risk count with false positives. We
-# build one alternation:
-#   * ASCII keywords are fenced with ``\b`` (Python ``\b`` works on
-#     ASCII letter boundaries).
-#   * Arabic keywords are fenced with explicit non-letter look-arounds
-#     covering both ASCII word chars and the Arabic Unicode block
-#     (``\u0600-\u06FF``), because ``\b`` is locale-blind and treats
-#     every Arabic letter boundary as a word break otherwise.
-def _build_bahrain_monitor_regex() -> "re.Pattern[str]":
-    parts: list[str] = []
-    for kw in BAHRAIN_LOCATION_KEYWORDS:
-        esc = re.escape(kw)
-        if all(ord(c) < 128 for c in kw):
-            parts.append(rf"\b{esc}\b")
-        else:
-            parts.append(rf"(?<![\w\u0600-\u06FF]){esc}(?![\w\u0600-\u06FF])")
-    return re.compile("|".join(parts), re.IGNORECASE)
-
-
-_BAHRAIN_MONITOR_RE = _build_bahrain_monitor_regex()
+# Status Page Bahrain monitor matching strategy. We DO NOT use a single
+# regex with look-arounds for Arabic, because Arabic morphology attaches
+# prefixes (و, ب, ل, لل, ال) directly to a word with no separator —
+# e.g. "والبحرين" ("and Bahrain") legitimately refers to Bahrain but
+# would fail any ``(?<![\w\u0600-\u06FF])البحرين`` look-behind. The
+# rest of this module already handles this correctly in
+# ``_bahrain_text_has_location`` via the same split: word-boundary
+# regex for ASCII (so "sitra"/"riffa" don't false-positive inside
+# unrelated English words) + plain substring for Arabic (so prefixed
+# forms still match). We mirror that contract here so the Status Page
+# widget agrees with the alert detector.
+def _bahrain_monitor_text_has_location(text_lower: str) -> bool:
+    for pat in _BAHRAIN_EN_LOCATION_PATTERNS:
+        if pat.search(text_lower):
+            return True
+    for kw in _BAHRAIN_AR_LOCATION_KEYWORDS:
+        if kw in text_lower:
+            return True
+    return False
 
 
 def _bahrain_text_has_strong_alert(text_lower: str) -> bool:
@@ -1275,22 +1271,19 @@ def _get_source_monitoring() -> list[dict]:
 def _get_bahrain_monitor() -> dict:
     """Get Bahrain-specific monitoring data.
 
-    Matches keywords using word-boundary regex rather than naive
-    ``substring in text`` so that short terms like ``sitra`` /
-    ``riffa`` cannot false-positive on unrelated words (e.g. "Sitra"
-    inside an English compound, or any sequence containing those
-    five letters). The Arabic terms are matched by surrounding
-    non-letter look-arounds because Python's ``\\b`` does not
-    correctly handle Arabic letter classes — Arabic words are
-    delimited by ASCII whitespace, punctuation, or string boundaries
-    in our feeds, so ``(?<![\\w\\u0600-\\u06FF])…(?![\\w\\u0600-\\u06FF])``
-    is the correct fence.
+    Matching follows the same split as ``_bahrain_text_has_location``:
+    English keywords use a word-boundary regex (so short tokens like
+    ``sitra``/``riffa`` don't false-positive inside unrelated English
+    words), while Arabic keywords use plain substring matching so
+    legitimate prefixed forms (``والبحرين``, ``بالبحرين``,
+    ``للبحرين``, ``بالمنامة``) — common in Arabic morphology — are
+    still counted. See ``_bahrain_monitor_text_has_location``.
     """
     bahrain_events = []
     today = datetime.now(timezone.utc).date()
     for e in store.events:
         text = f"{e.title} {e.titleAr} {e.description} {e.location.name} {e.location.nameAr}".lower()
-        if _BAHRAIN_MONITOR_RE.search(text):
+        if _bahrain_monitor_text_has_location(text):
             bahrain_events.append({
                 "id": e.id,
                 "title": e.title,
