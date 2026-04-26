@@ -27,7 +27,7 @@ export default function Layout() {
   }, [connectionStatus, events.length]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-gray-200 flex flex-col phone-mode-container">
+    <div className="min-h-screen bg-[#0a0a0f] text-gray-200 font-[Cairo] flex flex-col phone-mode-container">
       {showLoading && <LoadingScreen />}
       <BahrainAlertBanner />
       <BreakingTicker />

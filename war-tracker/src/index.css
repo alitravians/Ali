@@ -2,7 +2,6 @@
 /* Google Fonts loaded async in index.html — do NOT re-import here (render-blocking) */
 
 @theme {
-  --font-sans: 'Cairo', sans-serif;
   --font-cairo: 'Cairo', sans-serif;
   --color-primary: #3b82f6;
   --color-danger: #ef4444;
@@ -16,12 +15,15 @@
   --color-dark-500: #30303d;
 }
 
+* {
+  font-family: 'Cairo', sans-serif;
+}
+
 body {
   background-color: #0a0a0f;
   color: #e2e8f0;
   overflow-x: hidden;
   cursor: url('/cursor-32.png') 10 0, auto;
-  line-height: 1.6;
 }
 
 ::-webkit-scrollbar {
