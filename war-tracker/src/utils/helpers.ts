@@ -22,8 +22,12 @@ export function decodeHtmlEntities(text: string): string {
     .replace(/&apos;/g, "'")
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+    // Use fromCodePoint (not fromCharCode) so codepoints above U+FFFF —
+    // emoji like &#128512; / &#x1F600; (😀) and other supplementary-plane
+    // characters that show up in news payloads — decode correctly.
+    // fromCharCode silently wraps mod 65536 and produces a garbled glyph.
+    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(parseInt(n, 10)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&amp;/g, '&'); // must be last so earlier replacements aren't double-decoded
 }
 
