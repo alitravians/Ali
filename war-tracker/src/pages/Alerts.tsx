@@ -35,7 +35,7 @@ export default function Alerts() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-bold text-white flex items-center gap-2">
@@ -52,20 +52,20 @@ export default function Alerts() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
           <div className="text-xs text-gray-400 mb-1">إجمالي التنبيهات</div>
           <div className="text-2xl font-black text-white">{alerts.length}</div>
         </div>
-        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-5">
+        <div className="rounded-xl border border-red-500/30 bg-red-500/5 p-4">
           <div className="text-xs text-gray-400 mb-1">تنبيهات حرجة</div>
           <div className="text-2xl font-black text-red-400">{criticalCount}</div>
         </div>
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
           <div className="text-xs text-gray-400 mb-1">غير مقروءة</div>
           <div className="text-2xl font-black text-yellow-400">{unreadCount}</div>
         </div>
-        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-5">
+        <div className="rounded-xl border border-gray-800 bg-[#12121a] p-4">
           <div className="text-xs text-gray-400 mb-1">تنبيهات تصعيد</div>
           <div className="text-2xl font-black text-orange-400">{alerts.filter(a => a.type === 'escalation').length}</div>
         </div>

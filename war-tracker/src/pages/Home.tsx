@@ -49,7 +49,7 @@ export default function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-red-900/10 via-transparent to-transparent" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(59,130,246,0.08),transparent_70%)]" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 md:py-16">
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-4 py-8 sm:py-12 md:py-16">
           <div className="text-center mb-10">
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-red-500/10 border border-red-500/20 rounded-full mb-4">
               <span className="w-2 h-2 rounded-full bg-red-500 pulse-dot" />
@@ -80,7 +80,7 @@ export default function Home() {
           </div>
 
           {/* Indicators */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 sm:gap-4 mb-8 pm-grid-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3 mb-8 pm-grid-2 overflow-hidden">
             {indicators.map(ind => (
               <div key={ind.id} className="min-w-0">
                 <IndicatorCard indicator={ind} />
@@ -91,8 +91,8 @@ export default function Home() {
       </section>
 
       {/* Map Preview + Breaking Events */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 pm-grid-single">
+      <section className="max-w-7xl mx-auto px-3 sm:px-4 pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pm-grid-single">
           {/* Map */}
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-3">
@@ -130,7 +130,7 @@ export default function Home() {
                 </Link>
               )}
             </div>
-            <div className="space-y-4">
+            <div className="space-y-3">
               {recentEvents.length > 0 ? (
                 recentEvents.map(event => (
                   <EventCard key={event.id} event={event} compact />
@@ -144,9 +144,9 @@ export default function Home() {
       </section>
 
       {/* Features */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+      <section className="max-w-7xl mx-auto px-3 sm:px-4 pb-12">
         <h2 className="text-base sm:text-lg font-bold text-white text-center mb-6 sm:mb-8">مزايا المنصة</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5 pm-grid-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 pm-grid-2">
           {[
             { icon: Radio, title: 'تتبع مباشر', desc: 'تحديثات فورية لحظة بلحظة بدون تحديث الصفحة', color: 'red' },
             { icon: Brain, title: 'تحليلات AI', desc: 'تحليلات ذكية بالذكاء الاصطناعي مع كشف التضارب', color: 'purple' },
@@ -165,7 +165,7 @@ export default function Home() {
                 <p className="text-xs text-gray-400 leading-relaxed">{feat.desc}</p>
               </>
             );
-            const cls = "rounded-xl border border-gray-800 bg-[#12121a] p-5 sm:p-6 hover:border-gray-700 transition-all group cursor-pointer block";
+            const cls = "rounded-xl border border-gray-800 bg-[#12121a] p-4 sm:p-5 hover:border-gray-700 transition-all group cursor-pointer block";
             return 'link' in feat && feat.link ? (
               <Link key={i} to={feat.link} className={cls}>{content}</Link>
             ) : (

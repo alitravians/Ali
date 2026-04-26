@@ -20,9 +20,9 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
           : 'border-gray-800 bg-[#12121a]'
       }`}
     >
-      <div className="p-4">
+      <div className="p-3">
         {/* Header */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-start justify-between gap-2 mb-2">
           <div className="flex items-center gap-2 flex-wrap">
             {event.isBreaking && (
               <span className="text-[10px] font-bold text-red-400 bg-red-500/15 px-2 py-0.5 rounded-full border border-red-500/30">
@@ -48,7 +48,7 @@ export default function EventCard({ event, compact = false }: EventCardProps) {
         </div>
 
         {/* Title */}
-        <h3 className="text-sm font-bold text-white mb-2 leading-relaxed line-clamp-3">
+        <h3 className="text-sm font-bold text-white mb-1 leading-relaxed line-clamp-3">
           {event.titleAr}
         </h3>
 

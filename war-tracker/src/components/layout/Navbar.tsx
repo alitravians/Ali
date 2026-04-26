@@ -49,7 +49,7 @@ export default function Navbar({ onToggleSidebar }: NavbarProps) {
 
   return (
     <nav className="fixed top-[28px] sm:top-[32px] right-0 left-0 z-40 bg-[#12121a]/95 backdrop-blur-xl border-b border-gray-800/50 pm-navbar">
-      <div className="max-w-[1920px] mx-auto px-4 sm:px-6">
+      <div className="max-w-[1920px] mx-auto px-3 sm:px-4">
         <div className="flex items-center justify-between h-12 sm:h-14 pm-navbar-inner">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">

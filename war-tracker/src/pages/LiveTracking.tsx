@@ -51,7 +51,7 @@ export default function LiveTracking() {
   };
 
   return (
-    <div className="max-w-[1920px] mx-auto px-4 sm:px-6 py-4">
+    <div className="max-w-[1920px] mx-auto px-3 py-3">
       {/* Alert Toast Notifications */}
       <AlertToast alerts={alerts} />
 

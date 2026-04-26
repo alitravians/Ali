@@ -30,7 +30,7 @@ export default function Sources() {
   const totalErrors = sourceEntries.reduce((sum, [, s]) => sum + s.errors, 0);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-lg font-bold text-white flex items-center gap-2">
