@@ -1293,7 +1293,29 @@ def _get_bahrain_monitor() -> dict:
                 "isBreaking": e.isBreaking,
             })
 
-    today_bahrain_events = [e for e in bahrain_events if datetime.fromisoformat(e["timestamp"]).date() == today]
+    # Normalize each event's timestamp to UTC before extracting the date.
+    # Events ingested from external feeds (RSS, NewsAPI, MediaStack) can
+    # carry non-UTC offsets in their ``timestamp`` strings — e.g. an event
+    # at ``2026-04-27T01:30:00+03:00`` is actually ``2026-04-26T22:30 UTC``,
+    # i.e. it belongs to the *previous* UTC day. ``datetime.fromisoformat``
+    # parses the local-tz date, so a naive ``.date()`` would bucket that
+    # event under 2026-04-27 and the Status Page widget would report the
+    # wrong "events today" count near midnight UTC for any feed that does
+    # not normalize to UTC upstream. Defensively coerce naive timestamps
+    # to UTC so we never crash on a mixed tz-aware/naive comparison.
+    def _utc_date_of(iso: str):
+        try:
+            ts = datetime.fromisoformat(iso)
+        except (TypeError, ValueError):
+            return None
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return ts.astimezone(timezone.utc).date()
+
+    today_bahrain_events = [
+        e for e in bahrain_events
+        if _utc_date_of(e["timestamp"]) == today
+    ]
     has_alert = any(e["isBreaking"] for e in bahrain_events)
     has_military = any(e["category"] in ("military", "fire", "alert") for e in bahrain_events)
 
@@ -1539,17 +1561,44 @@ class TicketStatusUpdate(BaseModel):
 
 
 async def _broadcast_ticket_update(ticket_id: str, update: dict):
-    """Broadcast a status update to all WebSocket connections watching a ticket."""
-    connections = _ticket_ws_connections.get(ticket_id, [])
-    dead: list[WebSocket] = []
-    for ws in list(connections):
+    """Broadcast a status update to all WebSocket connections watching a ticket.
+
+    Sends are dispatched in parallel and each individual send is bounded by
+    ``ConnectionManager.BROADCAST_SEND_TIMEOUT_S`` so that one slow / stuck
+    ticket watcher cannot block delivery to every other watcher *or*
+    extend the latency of the admin's ``POST /api/tickets/{id}/update``
+    HTTP response (which awaits this broadcast inline before returning).
+    Previously we awaited each ``send_json`` sequentially with no
+    timeout — a single backpressured TCP connection on a watching
+    browser could stall the whole admin-side update flow and leave
+    every other watcher staring at a stale phase. Mirrors the same
+    fix applied to ``ConnectionManager.broadcast`` for the live-feed
+    socket so the two broadcast paths stay symmetric.
+    """
+    connections = _ticket_ws_connections.get(ticket_id)
+    if not connections:
+        return
+    snapshot = list(connections)
+
+    async def _send_one(ws: WebSocket) -> bool:
         try:
-            await ws.send_json(update)
-        except Exception:
-            dead.append(ws)
-    for ws in dead:
-        if ws in connections:
+            await asyncio.wait_for(
+                ws.send_json(update),
+                timeout=ConnectionManager.BROADCAST_SEND_TIMEOUT_S,
+            )
+            return True
+        except (asyncio.TimeoutError, Exception):
+            return False
+
+    results = await asyncio.gather(
+        *(_send_one(ws) for ws in snapshot),
+        return_exceptions=False,
+    )
+    for ws, ok in zip(snapshot, results):
+        if not ok and ws in connections:
             connections.remove(ws)
+    if not connections:
+        _ticket_ws_connections.pop(ticket_id, None)
 
 
 class BugReport(BaseModel):
@@ -1973,12 +2022,22 @@ async def list_tickets(authorization: str = Header(default="")):
 async def websocket_ticket_endpoint(ws: WebSocket, ticket_id: str):
     """WebSocket endpoint for live ticket status updates.
     Clients connect here after submitting a bug report to receive real-time phase updates."""
+    # Accept first, *then* close with a meaningful code if the ticket is
+    # missing. ``WebSocket.close(code, reason)`` before ``accept()`` is
+    # translated by the ASGI server into a plain HTTP 403, dropping the
+    # ``code`` and ``reason`` on the floor — the browser sees a generic
+    # rejection and cannot distinguish "ticket not found" (don't retry)
+    # from "server unreachable" (retry with backoff). After ``accept()``
+    # the close frame is delivered as a real WebSocket close with the
+    # 4004 code intact, so the frontend can branch on it deterministically.
+    await ws.accept()
     ticket = _tickets.get(ticket_id)
     if not ticket:
-        await ws.close(code=4004, reason="Ticket not found")
+        try:
+            await ws.close(code=4004, reason="Ticket not found")
+        except Exception:
+            pass
         return
-
-    await ws.accept()
 
     # Register this connection for the ticket
     if ticket_id not in _ticket_ws_connections:
@@ -2067,10 +2126,25 @@ MAX_WS_CONNECTIONS = 100  # Limit total concurrent WebSocket connections
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    # Accept *before* enforcing the connection cap. Calling ``ws.close``
+    # on an un-accepted socket is translated to a plain HTTP 403 by the
+    # ASGI server, which drops ``code=1013`` (Try Again Later) and the
+    # human-readable reason on the floor. After ``accept()`` we can
+    # deliver a real WebSocket close frame so the browser can branch on
+    # 1013 (transient capacity issue, retry with backoff) versus 1006
+    # (transport-level failure). We accept directly here rather than
+    # going through ``ws_manager.connect`` so that the rejected client
+    # is not first registered in ``active_connections`` and then
+    # immediately removed.
+    await ws.accept()
     if len(ws_manager.active_connections) >= MAX_WS_CONNECTIONS:
-        await ws.close(code=1013, reason="Server too busy")
+        try:
+            await ws.close(code=1013, reason="Server too busy")
+        except Exception:
+            pass
         return
-    await ws_manager.connect(ws)
+    ws_manager.active_connections.append(ws)
+    print(f"[WS] Client connected. Total: {len(ws_manager.active_connections)}")
 
     # Send initial data
     try:
