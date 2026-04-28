@@ -1000,9 +1000,40 @@ async def admin_verify(authorization: str = Header(default="")):
 
 @app.get("/api/stats")
 async def get_stats():
-    """Get public stats (connected clients, today's events)."""
+    """Get public stats (connected clients, today's events).
+
+    Bucket events by UTC day, not by the source feed's local-tz day.
+    ``e.timestamp`` is preserved with whatever offset the upstream feed
+    emitted (RSS, NewsAPI, MediaStack, GDELT can each ship a different
+    tz). A naive ``e.timestamp.date()`` would return the *local-tz*
+    date — e.g. an event at ``2026-04-27T01:30:00+03:00`` is actually
+    ``2026-04-26T22:30 UTC`` (yesterday in UTC) — and the public
+    "events today" counter would be off near every UTC midnight for
+    any feed that does not normalize upstream. Mirrors the same fix
+    applied to ``_get_bahrain_monitor`` (Status Page widget) so the
+    two endpoints agree on the day boundary.
+
+    Naive timestamps (defensively: a malformed feed could ingest one
+    without tzinfo) are coerced to UTC rather than crashing the
+    comparison with a TypeError on a mixed naive/aware operation.
+    Per-event ``try``/``except`` is the last defensive layer so a
+    single bad row never collapses the public stats endpoint — the
+    handler is reached on every browser tab open, and a 500 here
+    cascades into a broken dashboard for every user.
+    """
     today = datetime.now(timezone.utc).date()
-    today_events = sum(1 for e in store.events if e.timestamp.date() == today)
+    today_events = 0
+    for e in store.events:
+        ts = e.timestamp
+        if ts is None:
+            continue
+        try:
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts.astimezone(timezone.utc).date() == today:
+                today_events += 1
+        except (TypeError, ValueError, OverflowError):
+            continue
     return {
         "connectedClients": len(ws_manager.active_connections),
         "todayEvents": today_events,
