@@ -146,11 +146,12 @@ for ch_id in open_ids:
         put_overwrite(ch_id, banned_role, 0, allow=0, deny=VIEW_CHANNEL)
 
 # ---------- 4) Voice channels: open ----------
-vc_keys = ["voice_general", "voice_competitions", "voice_tournament_1", "voice_tournament_2"]
+# Explicit allowlist — only these voice channels get the public "open" tier.
+# Any other voice channels in the config (e.g. future admin/staff voice rooms)
+# are intentionally skipped so they keep their custom overwrites.
+vc_keys = ["general", "competitions", "tournament_1", "tournament_2"]
 voice_cfg = cfg.get("voice_channels", {})
-voice_ids = [voice_cfg.get(k.replace("voice_", "")) for k in vc_keys if voice_cfg.get(k.replace("voice_", ""))]
-# but the key shape: {"general": id, "competitions": id, "tournament_1": id, "tournament_2": id}
-voice_ids = [v for v in voice_cfg.values() if v]
+voice_ids = [voice_cfg[k] for k in vc_keys if k in voice_cfg and voice_cfg[k]]
 allow_voice = VIEW_CHANNEL | CONNECT_VOICE | SPEAK_VOICE | USE_APPLICATION_COMMANDS
 
 for ch_id in voice_ids:
