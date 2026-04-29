@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import logging
 import os
-import subprocess
-import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -37,45 +36,119 @@ from yt_dlp import YoutubeDL
 _log = logging.getLogger(__name__)
 
 
-class _LoggingFFmpegPCMAudio(discord.FFmpegPCMAudio):
-    """``FFmpegPCMAudio`` that captures ``stderr`` and forwards it to our logger.
+class _StderrLogAdapter(io.RawIOBase):
+    """File-like object that forwards ffmpeg stderr lines to our logger.
 
-    The base class lets ffmpeg's stderr inherit the parent's stderr, but on
-    fly.io the parent's stderr is buffered and ffmpeg's output never makes
-    it into our structured logs. Without those lines we can't tell whether
-    ffmpeg is actually decoding audio, hitting an HTTP 403 on the upstream
-    stream, or producing bytes that are immediately dropped on the floor.
+    ``discord.FFmpegAudio`` discards ``subprocess.PIPE`` for stderr (it
+    emits a DeprecationWarning and resets it to ``None``). To actually
+    capture ffmpeg's stderr we must hand it a file-like object whose
+    ``fileno()`` raises — that triggers discord.py's built-in
+    ``piping_stderr`` code path, which spawns ffmpeg with ``stderr=PIPE``
+    and runs its own background reader thread that ``write()``s the
+    pipe's bytes into our adapter.
 
-    We pipe stderr explicitly and drain it on a daemon thread so it can be
-    correlated with the rest of our log stream.
+    Without this, ffmpeg's stderr is inherited by the parent process and
+    on fly.io it gets swallowed by log buffering — we can't tell from
+    outside whether ffmpeg is actually decoding the upstream stream,
+    hitting HTTP 403, or producing zero bytes.
     """
 
-    def __init__(self, source: str, **kwargs: Any) -> None:
-        kwargs.setdefault("stderr", subprocess.PIPE)
-        super().__init__(source, **kwargs)
-        proc = getattr(self, "_process", None)
-        if proc is not None and proc.stderr is not None:
-            threading.Thread(
-                target=self._drain_stderr,
-                args=(proc.stderr,),
-                name="ffmpeg-stderr-reader",
-                daemon=True,
-            ).start()
+    def writable(self) -> bool:
+        return True
 
-    @staticmethod
-    def _drain_stderr(pipe: Any) -> None:
-        try:
-            for raw in iter(pipe.readline, b""):
-                line = raw.decode("utf-8", errors="replace").rstrip()
-                if line:
-                    _log.info("ffmpeg: %s", line)
-        except Exception:  # pragma: no cover
-            _log.exception("ffmpeg stderr reader crashed")
-        finally:
+    def fileno(self) -> int:  # pragma: no cover — by design
+        raise io.UnsupportedOperation("_StderrLogAdapter has no fileno")
+
+    def write(self, data: Any) -> int:
+        if isinstance(data, (bytes, bytearray, memoryview)):
             try:
-                pipe.close()
+                text = bytes(data).decode("utf-8", errors="replace")
             except Exception:
-                pass
+                text = repr(bytes(data))
+        else:
+            text = str(data)
+        for line in text.splitlines():
+            line = line.strip()
+            if line:
+                _log.info("ffmpeg: %s", line)
+        return len(data) if hasattr(data, "__len__") else 0
+
+
+class _LoggingFFmpegPCMAudio(discord.FFmpegPCMAudio):
+    """``FFmpegPCMAudio`` that funnels stderr into our structured logger."""
+
+    def __init__(self, source: str, **kwargs: Any) -> None:
+        # Pass an adapter (NOT subprocess.PIPE — discord.py would discard it).
+        kwargs.setdefault("stderr", _StderrLogAdapter())
+        super().__init__(source, **kwargs)
+
+
+class _CountingAudioSource(discord.AudioSource):
+    """Wraps an inner ``AudioSource`` and counts every ``read()`` call.
+
+    discord.py's voice player calls ``source.read()`` every 20 ms on a
+    background thread to fill the next opus frame. If we never see
+    ``read()`` invoked, the encoder loop never started. If ``read()``
+    returns ``b''`` immediately, ffmpeg produced no PCM. If ``read()``
+    returns 3840 bytes consistently and the user still hears nothing,
+    the bug is downstream (encryption, network, or Discord routing).
+
+    Logging the *first* read, the per-frame byte size, and a periodic
+    progress count makes the failure mode unambiguous from the logs
+    alone.
+    """
+
+    def __init__(self, inner: discord.AudioSource) -> None:
+        super().__init__()
+        self._inner = inner
+        self.read_count = 0
+        self.bytes_read = 0
+        self._first_logged = False
+        self._empty_logged = False
+
+    def read(self) -> bytes:
+        data = self._inner.read()
+        n = len(data) if data else 0
+        self.read_count += 1
+        self.bytes_read += n
+        if not self._first_logged:
+            self._first_logged = True
+            _log.info(
+                "audio_source: first read returned %d bytes (frame=1)", n
+            )
+        if n == 0 and not self._empty_logged:
+            self._empty_logged = True
+            _log.warning(
+                "audio_source: empty read at frame=%d total_bytes=%d "
+                "(end of stream OR ffmpeg produced nothing)",
+                self.read_count,
+                self.bytes_read,
+            )
+        # Periodic heartbeat every ~5 s of audio (250 frames * 20 ms).
+        if self.read_count % 250 == 0:
+            _log.info(
+                "audio_source: heartbeat read_count=%d total_bytes=%d "
+                "(~%.1fs played)",
+                self.read_count,
+                self.bytes_read,
+                self.read_count * 0.02,
+            )
+        return data
+
+    def is_opus(self) -> bool:
+        return self._inner.is_opus()
+
+    def cleanup(self) -> None:
+        _log.info(
+            "audio_source: cleanup read_count=%d total_bytes=%d (~%.1fs played)",
+            self.read_count,
+            self.bytes_read,
+            self.read_count * 0.02,
+        )
+        try:
+            self._inner.cleanup()
+        except Exception:  # pragma: no cover
+            _log.exception("inner source cleanup failed")
 
 
 def _resolve_cookiefile() -> str | None:
@@ -534,7 +607,10 @@ class MusicPlayer:
                 before_options=FFMPEG_BEFORE,
                 options=FFMPEG_OPTIONS,
             )
-            source = discord.PCMVolumeTransformer(raw_source, volume=self.volume)
+            volume_source = discord.PCMVolumeTransformer(
+                raw_source, volume=self.volume
+            )
+            source = _CountingAudioSource(volume_source)
         except Exception as e:  # pragma: no cover — environment issue
             _log.exception("FFmpeg source build failed")
             await self._handle_track_error(primed, e)
@@ -647,10 +723,12 @@ class MusicPlayer:
         # Clamp to 0..200% — Discord accepts >1.0 but it just clips.
         vol = max(0, min(200, vol))
         self.volume = vol / 100.0
-        if self.voice_client and self.voice_client.source and isinstance(
-            self.voice_client.source, discord.PCMVolumeTransformer
-        ):
-            self.voice_client.source.volume = self.volume
+        # The live source is a ``_CountingAudioSource`` wrapping a
+        # ``PCMVolumeTransformer``; reach into the inner transformer.
+        live = self.voice_client.source if self.voice_client else None
+        inner = getattr(live, "_inner", live)
+        if isinstance(inner, discord.PCMVolumeTransformer):
+            inner.volume = self.volume
 
     def skip(self) -> None:
         if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):
