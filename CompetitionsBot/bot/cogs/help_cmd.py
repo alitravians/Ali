@@ -17,7 +17,7 @@ HELP_PAGES = {
         name="📚 الأقسام المتاحة",
         value=(
             "🎯 **مسابقات** — `/quiz`, `/race`, `/contest`, `/tournament`, `/daily`\n"
-            "📊 **إحصائيات** — `/leaderboard`, `/profile`, `/stats`\n"
+            "📊 **إحصائيات** — `/leaderboard`, `/profile`, `/achievements`, `/stats`\n"
             "⚙️ **إدارة** — للإدمن فقط: `/admin`\n"
             "❓ **أخرى** — `/help`, `/about`"
         ),
@@ -34,9 +34,12 @@ HELP_PAGES = {
     "stats": discord.Embed(
         title="📊 الإحصائيات",
         color=COLORS["info"],
-    ).add_field(name="`/leaderboard scope:weekly|monthly|all`", value="لوحة المتصدرين", inline=False)
-        .add_field(name="`/profile [user]`", value="ملفك الشخصي وإحصائياتك", inline=False)
+    ).add_field(name="`/leaderboard scope:[weekly|monthly|all] category:[فئة]`", value="لوحة المتصدرين — العامة أو لفئة معيّنة", inline=False)
+        .add_field(name="`/profile [user]`", value="ملفك الشخصي وإحصائياتك (مع تصنيف الفئات)", inline=False)
+        .add_field(name="`/achievements [user]`", value="🎖️ كل الإنجازات (مفتوحة + مقفلة) مرتّبة بالفئة", inline=False)
         .add_field(name="`/stats`", value="إحصائيات السيرفر العامة", inline=False)
+        .add_field(name="`/season info|history|top`", value="🏆 المواسم الشهرية + الترتيب والتاريخ", inline=False)
+        .add_field(name="`/suggest_question`", value="✏️ اقترح سؤالاً جديداً للبوت", inline=False)
         .add_field(name="`/duel @عضو` و `/duel_top`", value="⚔️ مبارزات 1v1 مع تصنيف ELO", inline=False)
         .add_field(name="`/team create|join|leave|info|top`", value="🛡️ إدارة الفرق وترتيبها", inline=False),
     "admin": discord.Embed(
