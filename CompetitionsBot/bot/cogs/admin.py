@@ -130,6 +130,175 @@ class AdminCog(commands.Cog):
                 return
         await interaction.response.send_message(f"✅ تم رفع الحظر عن {user.mention}.", ephemeral=True)
 
+    # ───────────────────────── Chat controls ─────────────────────────
+    @admin_group.command(name="lock", description="🔒 قفل الكتابة في القناة")
+    @app_commands.describe(
+        channel="القناة (افتراضياً القناة الحالية)",
+        reason="سبب القفل (اختياري)",
+    )
+    async def lock(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel | None = None,
+        reason: str | None = None,
+    ):
+        if not _is_admin_or_mod(interaction):
+            await interaction.response.send_message("🚫 ليست لديك صلاحية.", ephemeral=True)
+            return
+        target = channel or interaction.channel
+        if not isinstance(target, discord.TextChannel):
+            await interaction.response.send_message("❌ يجب أن تكون قناة نصية.", ephemeral=True)
+            return
+        guild = interaction.guild
+        assert guild is not None
+        everyone = guild.default_role
+        overwrite = target.overwrites_for(everyone)
+        if overwrite.send_messages is False:
+            await interaction.response.send_message(
+                f"ℹ️ {target.mention} مقفولة مسبقاً.", ephemeral=True
+            )
+            return
+        overwrite.send_messages = False
+        overwrite.add_reactions = False
+        overwrite.create_public_threads = False
+        overwrite.create_private_threads = False
+        overwrite.send_messages_in_threads = False
+        try:
+            await target.set_permissions(
+                everyone,
+                overwrite=overwrite,
+                reason=f"Lock by {interaction.user} — {reason or 'no reason'}",
+            )
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ ليس لدي صلاحيات كافية لتعديل القناة.", ephemeral=True
+            )
+            return
+
+        embed = discord.Embed(
+            title="🔒 تم قفل القناة",
+            description=(
+                f"**القناة:** {target.mention}\n"
+                f"**بواسطة:** {interaction.user.mention}\n"
+                f"**السبب:** {reason or '—'}\n\n"
+                "لا يمكن للأعضاء الكتابة هنا حتى يتم فتحها مجدداً."
+            ),
+            color=COLORS.get("danger", 0xE74C3C),
+        )
+        await interaction.response.send_message(embed=embed)
+        # Also send a quiet notice in the locked channel if it's not the same one
+        if target.id != (interaction.channel.id if interaction.channel else 0):
+            try:
+                await target.send(embed=embed)
+            except discord.HTTPException:
+                pass
+
+    @admin_group.command(name="unlock", description="🔓 فتح قناة مقفولة")
+    @app_commands.describe(channel="القناة (افتراضياً القناة الحالية)")
+    async def unlock(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel | None = None,
+    ):
+        if not _is_admin_or_mod(interaction):
+            await interaction.response.send_message("🚫 ليست لديك صلاحية.", ephemeral=True)
+            return
+        target = channel or interaction.channel
+        if not isinstance(target, discord.TextChannel):
+            await interaction.response.send_message("❌ يجب أن تكون قناة نصية.", ephemeral=True)
+            return
+        guild = interaction.guild
+        assert guild is not None
+        everyone = guild.default_role
+        overwrite = target.overwrites_for(everyone)
+        # Reset back to inheriting (None) for the relevant flags
+        overwrite.send_messages = None
+        overwrite.add_reactions = None
+        overwrite.create_public_threads = None
+        overwrite.create_private_threads = None
+        overwrite.send_messages_in_threads = None
+        try:
+            await target.set_permissions(
+                everyone,
+                overwrite=overwrite,
+                reason=f"Unlock by {interaction.user}",
+            )
+        except discord.Forbidden:
+            await interaction.response.send_message(
+                "❌ ليس لدي صلاحيات كافية لتعديل القناة.", ephemeral=True
+            )
+            return
+        embed = discord.Embed(
+            title="🔓 تم فتح القناة",
+            description=f"**القناة:** {target.mention}\n**بواسطة:** {interaction.user.mention}",
+            color=COLORS.get("success", 0x2ECC71),
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @admin_group.command(name="clear", description="🧹 حذف عدد من الرسائل من القناة الحالية")
+    @app_commands.describe(amount="عدد الرسائل (1-100)")
+    async def clear(
+        self,
+        interaction: discord.Interaction,
+        amount: app_commands.Range[int, 1, 100],
+    ):
+        if not _is_admin_or_mod(interaction):
+            await interaction.response.send_message("🚫 ليست لديك صلاحية.", ephemeral=True)
+            return
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("❌ يجب استخدامه في قناة نصية.", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        try:
+            deleted = await channel.purge(limit=amount, bulk=True)
+        except discord.Forbidden:
+            await interaction.followup.send("❌ ليس لدي صلاحية Manage Messages.", ephemeral=True)
+            return
+        except discord.HTTPException as e:
+            await interaction.followup.send(f"❌ خطأ: {e}", ephemeral=True)
+            return
+        await interaction.followup.send(
+            f"🧹 تم حذف **{len(deleted)}** رسالة من {channel.mention}.",
+            ephemeral=True,
+        )
+
+    @admin_group.command(name="clear_user", description="🧹 حذف رسائل عضو معيّن")
+    @app_commands.describe(
+        user="العضو",
+        amount="عدد آخر الرسائل التي يتم فحصها (1-100، الافتراضي 50)",
+    )
+    async def clear_user(
+        self,
+        interaction: discord.Interaction,
+        user: discord.Member,
+        amount: app_commands.Range[int, 1, 100] = 50,
+    ):
+        if not _is_admin_or_mod(interaction):
+            await interaction.response.send_message("🚫 ليست لديك صلاحية.", ephemeral=True)
+            return
+        channel = interaction.channel
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message("❌ يجب استخدامه في قناة نصية.", ephemeral=True)
+            return
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        try:
+            deleted = await channel.purge(
+                limit=amount,
+                check=lambda m: m.author.id == user.id,
+                bulk=True,
+            )
+        except discord.Forbidden:
+            await interaction.followup.send("❌ ليس لدي صلاحية Manage Messages.", ephemeral=True)
+            return
+        except discord.HTTPException as e:
+            await interaction.followup.send(f"❌ خطأ: {e}", ephemeral=True)
+            return
+        await interaction.followup.send(
+            f"🧹 تم حذف **{len(deleted)}** رسالة من {user.mention} في {channel.mention}.",
+            ephemeral=True,
+        )
+
 
 async def setup(bot: commands.Bot):
     await bot.add_cog(AdminCog(bot))

@@ -46,7 +46,11 @@ HELP_PAGES = {
         .add_field(name="`/admin announce`", value="إرسال إعلان مخصص", inline=False)
         .add_field(name="`/admin grant_points user points`", value="منح نقاط يدوي", inline=False)
         .add_field(name="`/admin ban user`", value="حظر عضو من المسابقات", inline=False)
-        .add_field(name="`/admin unban user`", value="رفع الحظر", inline=False),
+        .add_field(name="`/admin unban user`", value="رفع الحظر", inline=False)
+        .add_field(name="`/admin lock [channel] [reason]`", value="🔒 قفل الكتابة في قناة", inline=False)
+        .add_field(name="`/admin unlock [channel]`", value="🔓 فتح قناة مقفولة", inline=False)
+        .add_field(name="`/admin clear amount`", value="🧹 حذف عدد رسائل (1-100)", inline=False)
+        .add_field(name="`/admin clear_user user [amount]`", value="🧹 حذف رسائل عضو معين", inline=False),
 }
 
 
