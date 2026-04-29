@@ -148,6 +148,7 @@ class QuizCog(commands.Cog):
                         await self._automod_record(
                             channel.id, msg.id, i, uid,
                             "T" if val else "F",
+                            answer_ts=t,
                         )
                 else:
                     choices = list(q["choices"])
@@ -200,6 +201,7 @@ class QuizCog(commands.Cog):
                         await self._automod_record(
                             channel.id, msg.id, i, uid,
                             utils.CHOICE_LETTERS[val] if isinstance(val, int) else str(val),
+                            answer_ts=t,
                         )
 
                 # Disable view buttons
@@ -277,9 +279,19 @@ class QuizCog(commands.Cog):
         question_index: int,
         user_id: int,
         token: str,
+        *,
+        answer_ts: float,
     ) -> None:
         """Forward an answer to the automod cog for collusion detection. No-op
-        if the cog isn't loaded (e.g. during tests)."""
+        if the cog isn't loaded (e.g. during tests).
+
+        ``answer_ts`` MUST be the wall-clock time at which the user actually
+        clicked the button — not the time at which we get around to scoring
+        it. We process all answers for a question in a tight sequential loop
+        *after* the round ends, so using ``time.time()`` inside automod would
+        squash every spread-out submission into the same millisecond and
+        trigger a false collusion alert on every popular answer.
+        """
         cog = self.bot.get_cog("AutomodCog")
         if cog is None:
             return
@@ -289,6 +301,7 @@ class QuizCog(commands.Cog):
                 round_id=f"quiz-{message_id}-{question_index}",
                 user_id=user_id,
                 answer_token=token,
+                answer_ts=answer_ts,
             )
         except Exception:  # pragma: no cover — automod must never break a quiz
             pass

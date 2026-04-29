@@ -82,22 +82,42 @@ class AutomodCog(commands.Cog):
         round_id: str,
         user_id: int,
         answer_token: str,
+        answer_ts: float | None = None,
     ) -> None:
         """Record an answer and possibly emit a collusion alert.
 
         ``round_id`` should uniquely identify a quiz/race round (e.g.
         ``f"quiz-{message_id}-{question_index}"``). ``answer_token`` is the
         normalized answer (e.g. ``"A"``, ``"B"``, ``"true"``).
+
+        ``answer_ts`` SHOULD be the wall-clock time at which the user actually
+        submitted the answer (e.g. the timestamp captured inside the Discord
+        interaction view). Callers like the quiz cog process all answers for
+        a round in a tight loop *after* the round ends — if we used
+        ``time.time()`` here every popular answer would look like a
+        sub-millisecond burst and trip the collusion threshold. Passing the
+        original click timestamp keeps the sliding window meaningful.
+        Falls back to ``time.time()`` only for callers who genuinely call us
+        synchronously on each click (e.g. live race mode).
         """
         if not self._enabled:
             return
         key = (channel_id, round_id, answer_token)
+        # ``ts`` is the time we ATTRIBUTE the answer to (used inside the
+        # sliding window). ``now`` is the current wall-clock time, used for
+        # GC bookkeeping and for the alert rate-limit TTL.
         now = time.time()
+        ts = answer_ts if answer_ts is not None else now
         async with self._lock:
             bucket = self._buckets[key]
-            bucket.append((user_id, now))
-            # Prune timestamps outside the collusion window
-            pruned = [(u, t) for (u, t) in bucket if now - t <= COLLUSION_WINDOW]
+            bucket.append((user_id, ts))
+            # Prune timestamps outside the collusion window. We measure the
+            # window using the *latest* timestamp in the bucket (max of
+            # already-stored timestamps and the one we just appended), not
+            # ``now`` — otherwise a bulk-replay of historical answers would
+            # always look "stale" and never trigger.
+            latest = max(t for (_u, t) in bucket)
+            pruned = [(u, t) for (u, t) in bucket if latest - t <= COLLUSION_WINDOW]
             if pruned:
                 self._buckets[key] = pruned
                 distinct = {u for (u, _t) in pruned}
