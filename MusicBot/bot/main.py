@@ -19,6 +19,33 @@ logging.basicConfig(
 log = logging.getLogger("musicbot")
 
 
+def _load_opus() -> None:
+    """Explicitly load libopus so PCM → Opus encoding works.
+
+    discord.py's auto-detection (``ctypes.util.find_library('opus')``)
+    relies on ``gcc``/``objdump`` being on PATH, which is not the case
+    in slim Debian images. When auto-detection fails ``is_loaded()``
+    stays False and ``FFmpegPCMAudio`` produces silence — Discord never
+    receives any encoded audio frames. Loading by SONAME directly is
+    the canonical, container-friendly fix.
+    """
+    if discord.opus.is_loaded():
+        log.info("opus: already loaded by auto-detection")
+        return
+    for candidate in ("libopus.so.0", "libopus.so", "opus"):
+        try:
+            discord.opus.load_opus(candidate)
+        except OSError:
+            continue
+        if discord.opus.is_loaded():
+            log.info("opus: loaded via %r", candidate)
+            return
+    log.error(
+        "opus: FAILED to load libopus — voice will be silent. "
+        "Install libopus0 in the runtime image."
+    )
+
+
 class MusicBot(commands.Bot):
     def __init__(self, settings: Settings):
         intents = discord.Intents.default()
@@ -76,6 +103,7 @@ class MusicBot(commands.Bot):
 
 async def main() -> None:
     settings = Settings.load()
+    _load_opus()
     bot = MusicBot(settings)
     async with bot:
         await bot.start(settings.bot_token)
