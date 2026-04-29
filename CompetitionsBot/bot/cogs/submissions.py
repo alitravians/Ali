@@ -343,7 +343,7 @@ class SubmissionsCog(commands.Cog):
         embed.add_field(name="⏳ معلّقة", value=str(len(pending)), inline=True)
         embed.add_field(name="✅ موافَق عليها", value=str(len(approved)), inline=True)
         embed.add_field(name="❌ مرفوضة", value=str(len(rejected)), inline=True)
-        embed.set_footer(text=f"الأسئلة في البوت الآن: {len(qbank.QUESTIONS) + len(qbank.EXTRA_QUESTIONS)}")
+        embed.set_footer(text=f"الأسئلة في البوت الآن: {qbank.total()}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
     def _render_question_embed(self, row: dict) -> discord.Embed:
