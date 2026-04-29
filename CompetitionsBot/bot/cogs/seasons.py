@@ -191,8 +191,15 @@ class SeasonsCog(commands.Cog):
 
         try:
             await ch.send(embed=embed)
-        except discord.Forbidden:
-            _log.warning("Cannot post season-close to channel %s", ch_id)
+        except (discord.HTTPException, discord.Forbidden):
+            # Catch the broad HTTPException family (NotFound if channel was
+            # deleted between the isinstance check and the send, 5xx, etc.)
+            # so an unrecoverable announcement failure can never propagate
+            # out and leave a half-closed season (closed + monthly_points
+            # reset, but no new season created).
+            _log.warning(
+                "Cannot post season-close to channel %s", ch_id, exc_info=True
+            )
 
     # ----- Slash commands -----
 
