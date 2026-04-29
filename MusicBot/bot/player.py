@@ -304,6 +304,11 @@ class MusicPlayer:
     # Pause bookkeeping so /nowplaying progress reflects real audio time.
     _paused_at: float = 0.0
     _total_paused: float = 0.0
+    # Bounded retry counter so a permanently-broken track in TRACK loop mode
+    # cannot generate an infinite cycle of error embeds. Reset whenever a
+    # track successfully reaches FFmpeg playback.
+    _consecutive_errors: int = 0
+    _max_consecutive_errors: int = 3
 
     def is_playing(self) -> bool:
         vc = self.voice_client
@@ -342,7 +347,19 @@ class MusicPlayer:
 
         # Pick the next track honouring loop mode.
         if self.loop_mode == LoopMode.TRACK and self.now_playing:
-            next_track = self.now_playing
+            # Re-extract on every loop iteration: the cached ``stream_url``
+            # on ``now_playing`` will be stale after ~6h (YouTube TTL) and
+            # would otherwise cause an infinite ffmpeg-error → re-play loop.
+            next_track = Track(
+                query=self.now_playing.query,
+                title=self.now_playing.title,
+                webpage_url=self.now_playing.webpage_url,
+                duration=self.now_playing.duration,
+                uploader=self.now_playing.uploader,
+                thumbnail=self.now_playing.thumbnail,
+                requested_by_id=self.now_playing.requested_by_id,
+                stream_url=None,
+            )
         else:
             # Recycle the *previous* track back to the queue tail BEFORE
             # checking emptiness, so single-track queues still loop.
@@ -358,13 +375,11 @@ class MusicPlayer:
             primed = await prime_track(next_track)
         except Exception as e:  # pragma: no cover — runtime path
             _log.exception("yt-dlp prime failed for %r", next_track.query)
-            await self._dispatch_error(next_track, e)
-            asyncio.create_task(self.play_next())
+            await self._handle_track_error(next_track, e)
             return
 
         if not primed.stream_url:
-            await self._dispatch_error(primed, RuntimeError("no playable stream"))
-            asyncio.create_task(self.play_next())
+            await self._handle_track_error(primed, RuntimeError("no playable stream"))
             return
 
         try:
@@ -376,10 +391,11 @@ class MusicPlayer:
             source = discord.PCMVolumeTransformer(source, volume=self.volume)
         except Exception as e:  # pragma: no cover — environment issue
             _log.exception("FFmpeg source build failed")
-            await self._dispatch_error(primed, e)
-            asyncio.create_task(self.play_next())
+            await self._handle_track_error(primed, e)
             return
 
+        # Track reached playback — reset the error budget.
+        self._consecutive_errors = 0
         self.now_playing = primed
         self.started_at = time.time()
         self._paused_at = 0.0
@@ -407,6 +423,29 @@ class MusicPlayer:
         if err and self.now_playing:
             await self._dispatch_error(self.now_playing, err)
         await self.play_next()
+
+    async def _handle_track_error(self, track: Track, err: Exception) -> None:
+        """Centralised failure path with a bounded retry budget.
+
+        Without this guard, ``LoopMode.TRACK`` on a permanently-broken track
+        would re-enter ``play_next`` forever and spam Discord with error
+        embeds. After ``_max_consecutive_errors`` failures we give up on
+        the current track, drop it from the loop, and advance.
+        """
+        await self._dispatch_error(track, err)
+        self._consecutive_errors += 1
+        if self._consecutive_errors >= self._max_consecutive_errors:
+            _log.error(
+                "giving up on track after %d consecutive errors: %r",
+                self._consecutive_errors, track.query,
+            )
+            self._consecutive_errors = 0
+            # Break out of TRACK loop so the same broken track isn't picked
+            # again on the next ``play_next`` invocation.
+            if self.loop_mode == LoopMode.TRACK:
+                self.loop_mode = LoopMode.OFF
+            self.now_playing = None
+        asyncio.create_task(self.play_next())
 
     async def stop(self) -> None:
         # Clear state BEFORE stopping the voice client. ``voice_client.stop()``
@@ -475,6 +514,11 @@ class MusicPlayer:
             return
         if self.is_playing() or self.queue:
             return
+        # Detach the task reference BEFORE calling stop(): stop() invokes
+        # _cancel_idle_disconnect() which would otherwise cancel *this*
+        # running coroutine at its next ``await``, interrupting the
+        # disconnect and the announcement hook below.
+        self._idle_task = None
         await self.stop()
         if self.on_idle_disconnect:
             try:

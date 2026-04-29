@@ -266,11 +266,31 @@ async def main() -> int:
                 if not member.bot:
                     print(f"skip: user {uid} is not a bot account")
                     continue
-                if grouping in member.roles:
-                    print(f"already in grouping role: {member} ({uid})")
-                    continue
-                await member.add_roles(grouping, reason="Add bot to manual grouping role")
-                print(f"added grouping role to {member} ({uid})")
+                if grouping not in member.roles:
+                    await member.add_roles(grouping, reason="Add bot to manual grouping role")
+                    print(f"added grouping role to {member} ({uid})")
+
+                # Strip any stray member-tier / cosmetic roles that may have
+                # been auto-assigned (e.g. via autorole). A bot account should
+                # only ever hold:
+                #   - its own managed integration role (r.tags.bot_id == uid)
+                #   - the manual grouping role
+                #   - @everyone (default; cannot be removed)
+                stray = [
+                    r for r in member.roles
+                    if not r.is_default()
+                    and r.id != grouping.id
+                    and not (r.tags and r.tags.bot_id == uid)
+                ]
+                if stray:
+                    try:
+                        await member.remove_roles(
+                            *stray,
+                            reason="Bot accounts only keep managed + grouping roles",
+                        )
+                        print(f"stripped stray roles from {member}: {[r.name for r in stray]}")
+                    except discord.Forbidden as e:
+                        print(f"cannot strip stray roles from {member}: {e}")
 
             self_bot_id = bot.user.id if bot.user else None
             other_bot_ids = [uid for uid in all_bot_ids if uid != self_bot_id]

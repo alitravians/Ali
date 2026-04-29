@@ -260,6 +260,13 @@ class MusicCog(commands.Cog):
         if not player.is_playing():
             await player.play_next()
 
+        if added == 0:
+            await interaction.followup.send(
+                f"⚠️ قائمة الانتظار ممتلئة (الحد الأقصى: **{player._max_queue}**). لم تُضَف أي أغنية.",
+                ephemeral=True,
+            )
+            return
+
         if len(tracks) == 1:
             t = tracks[0]
             queue_len = len(player.queue)
