@@ -77,6 +77,9 @@ class Settings:
     log_edits: int
     log_server: int
 
+    # Member-facing bot updates channel
+    channel_bot_updates: int
+
     @classmethod
     def load(cls) -> "Settings":
         token = os.getenv("DISCORD_BOT_TOKEN")
@@ -123,6 +126,7 @@ class Settings:
             log_deletes=int(_env_or_sc("LOG_DELETES", ["bot_logs_channels", "deletes"], "0") or "0"),
             log_edits=int(_env_or_sc("LOG_EDITS", ["bot_logs_channels", "edits"], "0") or "0"),
             log_server=int(_env_or_sc("LOG_SERVER", ["bot_logs_channels", "server"], "0") or "0"),
+            channel_bot_updates=ch("bot_updates"),
         )
 
 

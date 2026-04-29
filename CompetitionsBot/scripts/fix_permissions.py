@@ -127,7 +127,7 @@ if log_id:
         print(f"warn: parent set: {e}")
 
 # ---------- 2) READ-ONLY for members ----------
-read_only_keys = ["rules", "announcements", "prizes", "leaderboard", "archive", "stats"]
+read_only_keys = ["rules", "announcements", "prizes", "leaderboard", "archive", "stats", "bot_updates"]
 read_only_ids = [cfg["channels"][k] for k in read_only_keys if k in cfg["channels"]]
 allow_read = VIEW_CHANNEL | READ_MESSAGE_HISTORY | ADD_REACTIONS
 deny_read = SEND_MESSAGES | USE_APPLICATION_COMMANDS
