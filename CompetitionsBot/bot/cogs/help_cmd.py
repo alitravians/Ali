@@ -36,7 +36,9 @@ HELP_PAGES = {
         color=COLORS["info"],
     ).add_field(name="`/leaderboard scope:weekly|monthly|all`", value="لوحة المتصدرين", inline=False)
         .add_field(name="`/profile [user]`", value="ملفك الشخصي وإحصائياتك", inline=False)
-        .add_field(name="`/stats`", value="إحصائيات السيرفر العامة", inline=False),
+        .add_field(name="`/stats`", value="إحصائيات السيرفر العامة", inline=False)
+        .add_field(name="`/duel @عضو` و `/duel_top`", value="⚔️ مبارزات 1v1 مع تصنيف ELO", inline=False)
+        .add_field(name="`/team create|join|leave|info|top`", value="🛡️ إدارة الفرق وترتيبها", inline=False),
     "admin": discord.Embed(
         title="⚙️ أوامر الإدارة",
         description="هذه الأوامر للإدمن أو منسق المسابقات فقط.",
