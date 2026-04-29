@@ -50,6 +50,9 @@ def request(method, path, body=None):
                 time.sleep(retry + 0.2)
                 continue
             raise
+    raise RuntimeError(
+        f"Request failed after 3 retries due to rate limiting: {method} {path}"
+    )
 
 
 def put_overwrite(channel_id, target_id, target_type, allow=0, deny=0):
@@ -133,7 +136,7 @@ for ch_id in open_ids:
     print(f"\n[OPEN-WRITE] {ch_id}")
     put_overwrite(ch_id, EVERYONE_ID, 0, allow=allow_open, deny=0)
     # Ensure banned role still denied on competition channels
-    if ch_id in (cfg["channels"]["start"], cfg["channels"]["current"]):
+    if ch_id in (cfg["channels"].get("start"), cfg["channels"].get("current")):
         put_overwrite(ch_id, banned_role, 0, allow=0, deny=VIEW_CHANNEL)
 
 # ---------- 4) Voice channels: open ----------
