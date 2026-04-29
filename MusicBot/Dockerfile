@@ -17,6 +17,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# IMPORTANT: ``davey`` (DAVE protocol) MUST be present here -- discord.py
+# 2.7+ raises ``RuntimeError('davey library needed in order to use voice')``
+# at VoiceClient construction time if it isn't. DAVE MUST be left active
+# (required since 2026-Q1; advertising ``max_dave_protocol_version=0``
+# causes voice WS close code 4017 ``EndToEndEncryptionDAVEProtocolRequired``
+# and the voice handshake fails completely).
+# ``bot/main.py::_disable_dave_protocol`` is kept around for diagnostics
+# only -- DO NOT call it.
+
 COPY bot ./bot
 COPY server_config.json ./server_config.json
 

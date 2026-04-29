@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import io
 import logging
 import os
 import time
@@ -33,6 +34,121 @@ import discord
 from yt_dlp import YoutubeDL
 
 _log = logging.getLogger(__name__)
+
+
+class _StderrLogAdapter(io.RawIOBase):
+    """File-like object that forwards ffmpeg stderr lines to our logger.
+
+    ``discord.FFmpegAudio`` discards ``subprocess.PIPE`` for stderr (it
+    emits a DeprecationWarning and resets it to ``None``). To actually
+    capture ffmpeg's stderr we must hand it a file-like object whose
+    ``fileno()`` raises — that triggers discord.py's built-in
+    ``piping_stderr`` code path, which spawns ffmpeg with ``stderr=PIPE``
+    and runs its own background reader thread that ``write()``s the
+    pipe's bytes into our adapter.
+
+    Without this, ffmpeg's stderr is inherited by the parent process and
+    on fly.io it gets swallowed by log buffering — we can't tell from
+    outside whether ffmpeg is actually decoding the upstream stream,
+    hitting HTTP 403, or producing zero bytes.
+    """
+
+    def writable(self) -> bool:
+        return True
+
+    def fileno(self) -> int:  # pragma: no cover — by design
+        raise io.UnsupportedOperation("_StderrLogAdapter has no fileno")
+
+    def write(self, data: Any) -> int:
+        if isinstance(data, (bytes, bytearray, memoryview)):
+            try:
+                text = bytes(data).decode("utf-8", errors="replace")
+            except Exception:
+                text = repr(bytes(data))
+        else:
+            text = str(data)
+        for line in text.splitlines():
+            line = line.strip()
+            if line:
+                _log.info("ffmpeg: %s", line)
+        return len(data) if hasattr(data, "__len__") else 0
+
+
+class _LoggingFFmpegPCMAudio(discord.FFmpegPCMAudio):
+    """``FFmpegPCMAudio`` that funnels stderr into our structured logger."""
+
+    def __init__(self, source: str, **kwargs: Any) -> None:
+        # Pass an adapter (NOT subprocess.PIPE — discord.py would discard it).
+        kwargs.setdefault("stderr", _StderrLogAdapter())
+        super().__init__(source, **kwargs)
+
+
+class _CountingAudioSource(discord.AudioSource):
+    """Wraps an inner ``AudioSource`` and counts every ``read()`` call.
+
+    discord.py's voice player calls ``source.read()`` every 20 ms on a
+    background thread to fill the next opus frame. If we never see
+    ``read()`` invoked, the encoder loop never started. If ``read()``
+    returns ``b''`` immediately, ffmpeg produced no PCM. If ``read()``
+    returns 3840 bytes consistently and the user still hears nothing,
+    the bug is downstream (encryption, network, or Discord routing).
+
+    Logging the *first* read, the per-frame byte size, and a periodic
+    progress count makes the failure mode unambiguous from the logs
+    alone.
+    """
+
+    def __init__(self, inner: discord.AudioSource) -> None:
+        super().__init__()
+        self._inner = inner
+        self.read_count = 0
+        self.bytes_read = 0
+        self._first_logged = False
+        self._empty_logged = False
+
+    def read(self) -> bytes:
+        data = self._inner.read()
+        n = len(data) if data else 0
+        self.read_count += 1
+        self.bytes_read += n
+        if not self._first_logged:
+            self._first_logged = True
+            _log.info(
+                "audio_source: first read returned %d bytes (frame=1)", n
+            )
+        if n == 0 and not self._empty_logged:
+            self._empty_logged = True
+            _log.warning(
+                "audio_source: empty read at frame=%d total_bytes=%d "
+                "(end of stream OR ffmpeg produced nothing)",
+                self.read_count,
+                self.bytes_read,
+            )
+        # Periodic heartbeat every ~5 s of audio (250 frames * 20 ms).
+        if self.read_count % 250 == 0:
+            _log.info(
+                "audio_source: heartbeat read_count=%d total_bytes=%d "
+                "(~%.1fs played)",
+                self.read_count,
+                self.bytes_read,
+                self.read_count * 0.02,
+            )
+        return data
+
+    def is_opus(self) -> bool:
+        return self._inner.is_opus()
+
+    def cleanup(self) -> None:
+        _log.info(
+            "audio_source: cleanup read_count=%d total_bytes=%d (~%.1fs played)",
+            self.read_count,
+            self.bytes_read,
+            self.read_count * 0.02,
+        )
+        try:
+            self._inner.cleanup()
+        except Exception:  # pragma: no cover
+            _log.exception("inner source cleanup failed")
 
 
 def _resolve_cookiefile() -> str | None:
@@ -70,9 +186,20 @@ COOKIEFILE = _resolve_cookiefile()
 
 # Reconnect + buffer flags shave a few seconds off the failure mode where
 # the upstream stream stalls. They are widely recommended in the
-# discord.py voice-streaming community.
-FFMPEG_BEFORE = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
-FFMPEG_OPTIONS = "-vn"
+# discord.py voice-streaming community. ``-loglevel warning`` surfaces
+# real failures (HTTP 403 on the resolved stream URL, codec mismatches,
+# etc.) without flooding logs with frame-level info. ``-nostats`` keeps
+# the periodic progress lines off our stream.
+FFMPEG_BEFORE = (
+    "-nostdin -loglevel warning -nostats "
+    "-reconnect 1 -reconnect_streamed 1 -reconnect_on_network_error 1 "
+    "-reconnect_on_http_error 4xx,5xx -reconnect_delay_max 5"
+)
+# ``-vn`` strips video. ``-f s16le -ar 48000 -ac 2`` is what discord.py
+# expects on stdin to its Opus encoder; passing it explicitly avoids the
+# rare case where the auto-detected output format doesn't match and the
+# encoder receives garbage that produces silent (or near-silent) packets.
+FFMPEG_OPTIONS = "-vn -f s16le -ar 48000 -ac 2"
 
 # yt-dlp options. ``noplaylist=False`` lets ``/play <playlist url>`` enqueue
 # the entire playlist; the cog can still override per-call.
@@ -475,12 +602,15 @@ class MusicPlayer:
             return
 
         try:
-            source = discord.FFmpegPCMAudio(
+            raw_source = _LoggingFFmpegPCMAudio(
                 primed.stream_url,
                 before_options=FFMPEG_BEFORE,
                 options=FFMPEG_OPTIONS,
             )
-            source = discord.PCMVolumeTransformer(source, volume=self.volume)
+            volume_source = discord.PCMVolumeTransformer(
+                raw_source, volume=self.volume
+            )
+            source = _CountingAudioSource(volume_source)
         except Exception as e:  # pragma: no cover — environment issue
             _log.exception("FFmpeg source build failed")
             await self._handle_track_error(primed, e)
@@ -509,6 +639,81 @@ class MusicPlayer:
                 )
 
         self.voice_client.play(source, after=_after)
+        # Diagnostics: confirm voice client actually scheduled playback and
+        # log the negotiated encryption mode. Without this it is impossible
+        # to tell from the outside whether ``play()`` succeeded silently or
+        # whether the encoder is producing zero packets.
+        # In discord.py 2.7.x ``mode`` lives on the VoiceClient itself,
+        # not on ``ws`` — querying ``ws.mode`` always returns ``None``.
+        vc_mode = getattr(self.voice_client, "mode", None)
+        endpoint = getattr(self.voice_client, "endpoint", None)
+        secret_set = getattr(self.voice_client, "secret_key", None) is not None
+        _log.info(
+            "play() scheduled: title=%r url=%s mode=%s secret_set=%s "
+            "endpoint=%s vol=%.2f opus_loaded=%s",
+            primed.display(),
+            primed.stream_url[:120] if primed.stream_url else None,
+            vc_mode,
+            secret_set,
+            endpoint,
+            self.volume,
+            discord.opus.is_loaded(),
+        )
+        # Wrap ``_connection.send_packet`` once to count how many UDP
+        # packets actually leave fly.io vs. how many fail with OSError.
+        # discord.py swallows OSError at DEBUG level inside
+        # ``send_audio_packet``; without this counter a fly.io UDP
+        # blackhole would be invisible from the logs.
+        conn = getattr(self.voice_client, "_connection", None)
+        if conn is not None and not getattr(conn, "_ams_diag_wrapped", False):
+            orig_send = conn.send_packet
+            stats = {"ok": 0, "err": 0, "first_err": None}
+
+            def _diag_send_packet(packet: bytes, _orig=orig_send, _s=stats) -> None:
+                try:
+                    _orig(packet)
+                    _s["ok"] += 1
+                except OSError as e:
+                    _s["err"] += 1
+                    if _s["first_err"] is None:
+                        _s["first_err"] = repr(e)
+                        _log.warning(
+                            "send_packet: first OSError after %d ok packets: %r",
+                            _s["ok"], e,
+                        )
+                    raise
+                total = _s["ok"] + _s["err"]
+                if total % 250 == 0:
+                    _log.info(
+                        "send_packet stats: ok=%d err=%d (~%.1fs) first_err=%s",
+                        _s["ok"], _s["err"], total * 0.02, _s["first_err"],
+                    )
+
+            conn.send_packet = _diag_send_packet  # type: ignore[method-assign]
+            conn._ams_diag_wrapped = True  # type: ignore[attr-defined]
+
+        async def _post_play_diag() -> None:
+            await asyncio.sleep(2.0)
+            vc = self.voice_client
+            if vc is None:
+                return
+            conn2 = getattr(vc, "_connection", None)
+            dave = getattr(conn2, "dave_session", None) if conn2 else None
+            _log.info(
+                "playback diag (after 2s): is_playing=%s is_paused=%s "
+                "connected=%s mode=%s secret_set=%s dave_proto=%s "
+                "dave_session=%s can_encrypt=%s",
+                vc.is_playing(),
+                vc.is_paused(),
+                vc.is_connected(),
+                getattr(vc, "mode", None),
+                getattr(vc, "secret_key", None) is not None,
+                getattr(conn2, "dave_protocol_version", None) if conn2 else None,
+                type(dave).__name__ if dave is not None else None,
+                getattr(conn2, "can_encrypt", None) if conn2 else None,
+            )
+
+        asyncio.create_task(_post_play_diag())
         await self._dispatch_start(primed)
 
     async def _after_track(self, err: Exception | None) -> None:
@@ -563,10 +768,12 @@ class MusicPlayer:
         # Clamp to 0..200% — Discord accepts >1.0 but it just clips.
         vol = max(0, min(200, vol))
         self.volume = vol / 100.0
-        if self.voice_client and self.voice_client.source and isinstance(
-            self.voice_client.source, discord.PCMVolumeTransformer
-        ):
-            self.voice_client.source.volume = self.volume
+        # The live source is a ``_CountingAudioSource`` wrapping a
+        # ``PCMVolumeTransformer``; reach into the inner transformer.
+        live = self.voice_client.source if self.voice_client else None
+        inner = getattr(live, "_inner", live)
+        if isinstance(inner, discord.PCMVolumeTransformer):
+            inner.volume = self.volume
 
     def skip(self) -> None:
         if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):

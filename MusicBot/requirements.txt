@@ -1,4 +1,24 @@
-discord.py[voice]>=2.5.0
-PyNaCl==1.5.0
+# discord.py 2.7+ HARD-REQUIRES the optional ``davey`` library for any voice
+# connection. Two reasons:
+#
+# 1. ``VoiceClient.__init__`` raises
+#    ``RuntimeError('davey library needed in order to use voice')`` if
+#    ``davey`` is not importable.
+# 2. Since 2026-Q1, Discord's voice gateway *requires* the DAVE end-to-end
+#    encryption protocol. Advertising ``max_dave_protocol_version=0`` in
+#    IDENTIFY now causes the voice WebSocket to close with code
+#    ``4017`` (``EndToEndEncryptionDAVEProtocolRequired``) and the voice
+#    handshake fails completely.
+#
+# So we install ``discord.py[voice]`` (which transitively pulls ``davey`` and
+# ``PyNaCl``), keep DAVE *enabled*, and rely on opus + ffmpeg + transport
+# encryption to deliver audio. ``bot/main.py::_disable_dave_protocol`` is
+# kept around for diagnostics only -- DO NOT call it.
+discord.py[voice]>=2.7.0
+# Enables ``aead_aes256_gcm_rtpsize`` voice encryption negotiation on
+# discord.py 2.5+. Without ``cryptography`` installed, discord.py can
+# only negotiate xchacha20 -- which Discord still accepts. Having both
+# modes available makes the negotiation robust.
+cryptography>=42.0
 yt-dlp>=2026.3.17
 python-dotenv==1.0.1
