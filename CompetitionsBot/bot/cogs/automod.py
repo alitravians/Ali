@@ -35,6 +35,9 @@ from ..config import COLORS, Settings
 
 COLLUSION_WINDOW = 3.0  # seconds
 COLLUSION_THRESHOLD = 3  # accounts
+ALERT_TTL = 600.0  # drop a "(channel, round, token) already alerted" entry
+                   # after 10 minutes — far longer than any realistic round.
+GC_EVERY = 64       # opportunistic GC frequency (every Nth record_answer)
 
 
 def _is_admin_or_mod(interaction: discord.Interaction) -> bool:
@@ -53,10 +56,17 @@ class AutomodCog(commands.Cog):
         self.settings: Settings = bot.settings  # type: ignore[attr-defined]
         # (channel_id, round_id, answer_token) -> list[(user_id, ts)]
         self._buckets: dict[tuple[int, str, str], list[tuple[int, float]]] = defaultdict(list)
-        # rate-limit: keep a set of (channel, round, token) we already alerted on
-        self._alerted: set[tuple[int, str, str]] = set()
+        # rate-limit cache: (channel, round, token) -> ts of the alert. We
+        # store a timestamp (rather than a plain set) so old entries can be
+        # garbage-collected by `_gc_alerted`. After ALERT_TTL seconds the
+        # round is treated as "long over" and a stale entry is dropped —
+        # keeping the structure bounded over the bot's lifetime.
+        self._alerted: dict[tuple[int, str, str], float] = {}
         self._lock = asyncio.Lock()
         self._enabled: bool = True
+        # Counter for opportunistic GC: every Nth record_answer call we
+        # walk the structures and drop dead entries.
+        self._gc_counter: int = 0
 
     async def cog_load(self) -> None:
         val = await self.bot.db.get_state("automod_enabled")
@@ -86,13 +96,38 @@ class AutomodCog(commands.Cog):
         async with self._lock:
             bucket = self._buckets[key]
             bucket.append((user_id, now))
-            # prune
-            self._buckets[key] = [(u, t) for (u, t) in bucket if now - t <= COLLUSION_WINDOW]
-            bucket = self._buckets[key]
-            distinct = {u for (u, _t) in bucket}
-            if len(distinct) >= COLLUSION_THRESHOLD and key not in self._alerted:
-                self._alerted.add(key)
-                await self._raise_alert(channel_id, round_id, answer_token, list(distinct), bucket)
+            # Prune timestamps outside the collusion window
+            pruned = [(u, t) for (u, t) in bucket if now - t <= COLLUSION_WINDOW]
+            if pruned:
+                self._buckets[key] = pruned
+                distinct = {u for (u, _t) in pruned}
+                if len(distinct) >= COLLUSION_THRESHOLD and key not in self._alerted:
+                    self._alerted[key] = now
+                    await self._raise_alert(
+                        channel_id, round_id, answer_token, list(distinct), pruned
+                    )
+            else:
+                # Empty after pruning — drop the key so the dict stays bounded.
+                self._buckets.pop(key, None)
+            # Opportunistic GC of long-dead entries to keep memory bounded
+            # over many months of operation.
+            self._gc_counter += 1
+            if self._gc_counter >= GC_EVERY:
+                self._gc_counter = 0
+                self._gc_locked(now)
+
+    def _gc_locked(self, now: float) -> None:
+        """Drop bucket-keys with no live entries and alert-keys older than
+        :data:`ALERT_TTL`. Caller must hold ``_lock``."""
+        dead_buckets = [
+            k for k, v in self._buckets.items()
+            if not v or all(now - t > COLLUSION_WINDOW for (_u, t) in v)
+        ]
+        for k in dead_buckets:
+            self._buckets.pop(k, None)
+        dead_alerts = [k for k, ts in self._alerted.items() if now - ts > ALERT_TTL]
+        for k in dead_alerts:
+            self._alerted.pop(k, None)
 
     async def _raise_alert(
         self,
