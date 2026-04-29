@@ -100,7 +100,11 @@ class AdminToolsCog(commands.Cog):
         self.scheduler.cancel()
 
     async def _reload_admin_questions(self) -> None:
-        rows = await self.bot.db.list_admin_questions(include_deleted=False)
+        # ``limit=0`` → unbounded. The runtime pool needs *every* admin
+        # question, otherwise old ones silently drop out of the rotation.
+        rows = await self.bot.db.list_admin_questions(
+            include_deleted=False, limit=0
+        )
         qbank.ADMIN_QUESTIONS = [_row_to_question(r) for r in rows]
         _log.info("Loaded %d admin-managed questions", len(qbank.ADMIN_QUESTIONS))
 
