@@ -73,11 +73,22 @@ CREATE TABLE IF NOT EXISTS season_results (
     PRIMARY KEY (season_id, user_id)
 );
 
+CREATE TABLE IF NOT EXISTS category_stats (
+    user_id   INTEGER NOT NULL,
+    category  TEXT    NOT NULL,
+    correct   INTEGER NOT NULL DEFAULT 0,
+    total     INTEGER NOT NULL DEFAULT 0,
+    points    INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (user_id, category)
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_points ON users(points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_weekly ON users(weekly_points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_monthly ON users(monthly_points DESC);
 CREATE INDEX IF NOT EXISTS idx_seasons_active ON seasons(closed, ends_at);
 CREATE INDEX IF NOT EXISTS idx_season_results_pts ON season_results(season_id, points DESC);
+CREATE INDEX IF NOT EXISTS idx_cat_points ON category_stats(category, points DESC);
+CREATE INDEX IF NOT EXISTS idx_cat_correct ON category_stats(category, correct DESC);
 """
 
 
@@ -89,6 +100,24 @@ class Database:
     async def connect(self) -> None:
         async with aiosqlite.connect(self.path) as db:
             await db.executescript(SCHEMA)
+            await db.commit()
+            await self._migrate(db)
+
+    async def _migrate(self, db: aiosqlite.Connection) -> None:
+        """Forward-only, idempotent column additions for upgrades from older versions."""
+        cur = await db.execute("PRAGMA table_info(users)")
+        cols = {row[1] for row in await cur.fetchall()}
+        added = False
+        if "elo_rating" not in cols:
+            await db.execute("ALTER TABLE users ADD COLUMN elo_rating INTEGER NOT NULL DEFAULT 1000")
+            added = True
+        if "duel_wins" not in cols:
+            await db.execute("ALTER TABLE users ADD COLUMN duel_wins INTEGER NOT NULL DEFAULT 0")
+            added = True
+        if "duel_losses" not in cols:
+            await db.execute("ALTER TABLE users ADD COLUMN duel_losses INTEGER NOT NULL DEFAULT 0")
+            added = True
+        if added:
             await db.commit()
 
     async def ensure_user(self, user_id: int, display_name: str) -> None:
@@ -392,3 +421,58 @@ class Database:
             )
             row = await cur.fetchone()
             return dict(row) if row else None
+
+    # ----- Category stats (Wave 1) -----
+    async def bump_category_stat(
+        self, user_id: int, category: str, *, correct: bool, points: int
+    ) -> None:
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                """
+                INSERT INTO category_stats (user_id, category, correct, total, points)
+                VALUES (?, ?, ?, 1, ?)
+                ON CONFLICT(user_id, category) DO UPDATE SET
+                    correct = correct + excluded.correct,
+                    total   = total + 1,
+                    points  = points + excluded.points
+                """,
+                (user_id, category, 1 if correct else 0, points),
+            )
+            await db.commit()
+
+    async def get_user_category_stats(self, user_id: int) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                """
+                SELECT category, correct, total, points
+                  FROM category_stats
+                 WHERE user_id = ?
+                 ORDER BY points DESC
+                """,
+                (user_id,),
+            )
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def category_leaderboard(
+        self, category: str, limit: int = 15
+    ) -> list[dict[str, Any]]:
+        """Return top users for a single category by points."""
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                """
+                SELECT cs.user_id   AS user_id,
+                       cs.correct   AS correct,
+                       cs.total     AS total,
+                       cs.points    AS points,
+                       u.display_name AS display_name
+                  FROM category_stats cs
+                  LEFT JOIN users u ON u.user_id = cs.user_id
+                 WHERE cs.category = ? AND cs.points > 0
+                 ORDER BY cs.points DESC
+                 LIMIT ?
+                """,
+                (category, limit),
+            )
+            return [dict(r) for r in await cur.fetchall()]
