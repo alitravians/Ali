@@ -165,7 +165,12 @@ class WebAPICog(commands.Cog):
             "best_streak": row.get("best_streak", 0),
             "perfect_runs": row.get("perfect_runs", 0),
             "fast_answers": row.get("fast_answers", 0),
-            "achievements": json.loads(row.get("achievements") or "[]"),
+            # ``Database.get_user`` already deserializes ``achievements`` from
+            # the JSON-encoded TEXT column into a list. Don't parse it again
+            # — that would crash with TypeError for any user that has at
+            # least one achievement (a non-empty list is truthy, so the
+            # ``or "[]"`` fallback wouldn't fire).
+            "achievements": row.get("achievements") or [],
         }
         return _json(public, origin=self._origin)
 
