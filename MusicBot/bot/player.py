@@ -643,29 +643,74 @@ class MusicPlayer:
         # log the negotiated encryption mode. Without this it is impossible
         # to tell from the outside whether ``play()`` succeeded silently or
         # whether the encoder is producing zero packets.
-        ws = getattr(self.voice_client, "ws", None)
-        mode = getattr(ws, "mode", None) if ws is not None else None
+        # In discord.py 2.7.x ``mode`` lives on the VoiceClient itself,
+        # not on ``ws`` — querying ``ws.mode`` always returns ``None``.
+        vc_mode = getattr(self.voice_client, "mode", None)
         endpoint = getattr(self.voice_client, "endpoint", None)
+        secret_set = getattr(self.voice_client, "secret_key", None) is not None
         _log.info(
-            "play() scheduled: title=%r url=%s mode=%s endpoint=%s vol=%.2f opus_loaded=%s",
+            "play() scheduled: title=%r url=%s mode=%s secret_set=%s "
+            "endpoint=%s vol=%.2f opus_loaded=%s",
             primed.display(),
             primed.stream_url[:120] if primed.stream_url else None,
-            mode,
+            vc_mode,
+            secret_set,
             endpoint,
             self.volume,
             discord.opus.is_loaded(),
         )
+        # Wrap ``_connection.send_packet`` once to count how many UDP
+        # packets actually leave fly.io vs. how many fail with OSError.
+        # discord.py swallows OSError at DEBUG level inside
+        # ``send_audio_packet``; without this counter a fly.io UDP
+        # blackhole would be invisible from the logs.
+        conn = getattr(self.voice_client, "_connection", None)
+        if conn is not None and not getattr(conn, "_ams_diag_wrapped", False):
+            orig_send = conn.send_packet
+            stats = {"ok": 0, "err": 0, "first_err": None}
+
+            def _diag_send_packet(packet: bytes, _orig=orig_send, _s=stats) -> None:
+                try:
+                    _orig(packet)
+                    _s["ok"] += 1
+                except OSError as e:
+                    _s["err"] += 1
+                    if _s["first_err"] is None:
+                        _s["first_err"] = repr(e)
+                        _log.warning(
+                            "send_packet: first OSError after %d ok packets: %r",
+                            _s["ok"], e,
+                        )
+                    raise
+                total = _s["ok"] + _s["err"]
+                if total % 250 == 0:
+                    _log.info(
+                        "send_packet stats: ok=%d err=%d (~%.1fs) first_err=%s",
+                        _s["ok"], _s["err"], total * 0.02, _s["first_err"],
+                    )
+
+            conn.send_packet = _diag_send_packet  # type: ignore[method-assign]
+            conn._ams_diag_wrapped = True  # type: ignore[attr-defined]
 
         async def _post_play_diag() -> None:
             await asyncio.sleep(2.0)
             vc = self.voice_client
             if vc is None:
                 return
+            conn2 = getattr(vc, "_connection", None)
+            dave = getattr(conn2, "dave_session", None) if conn2 else None
             _log.info(
-                "playback diag (after 2s): is_playing=%s is_paused=%s connected=%s",
+                "playback diag (after 2s): is_playing=%s is_paused=%s "
+                "connected=%s mode=%s secret_set=%s dave_proto=%s "
+                "dave_session=%s can_encrypt=%s",
                 vc.is_playing(),
                 vc.is_paused(),
                 vc.is_connected(),
+                getattr(vc, "mode", None),
+                getattr(vc, "secret_key", None) is not None,
+                getattr(conn2, "dave_protocol_version", None) if conn2 else None,
+                type(dave).__name__ if dave is not None else None,
+                getattr(conn2, "can_encrypt", None) if conn2 else None,
             )
 
         asyncio.create_task(_post_play_diag())
