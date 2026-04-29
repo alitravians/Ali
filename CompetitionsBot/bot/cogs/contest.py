@@ -28,6 +28,7 @@ class ContestCog(commands.Cog):
         self.settings: Settings = bot.settings  # type: ignore[attr-defined]
 
     @app_commands.command(name="contest", description="🎮 مسابقة مخصصة (للإدمن/المنسق فقط)")
+    @app_commands.default_permissions(manage_messages=True)
     @app_commands.describe(
         question="نص السؤال",
         answer="الإجابة الصحيحة",

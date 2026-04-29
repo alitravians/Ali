@@ -23,7 +23,11 @@ class AdminCog(commands.Cog):
         self.bot = bot
         self.settings: Settings = bot.settings  # type: ignore[attr-defined]
 
-    admin_group = app_commands.Group(name="admin", description="أوامر الإدارة")
+    admin_group = app_commands.Group(
+        name="admin",
+        description="أوامر الإدارة",
+        default_permissions=discord.Permissions(manage_guild=True),
+    )
 
     @admin_group.command(name="reset_weekly", description="تصفير نقاط الأسبوع")
     async def reset_weekly(self, interaction: discord.Interaction):
