@@ -22,6 +22,8 @@ import asyncio
 import base64
 import logging
 import os
+import subprocess
+import threading
 import time
 from collections import deque
 from dataclasses import dataclass, field
@@ -33,6 +35,47 @@ import discord
 from yt_dlp import YoutubeDL
 
 _log = logging.getLogger(__name__)
+
+
+class _LoggingFFmpegPCMAudio(discord.FFmpegPCMAudio):
+    """``FFmpegPCMAudio`` that captures ``stderr`` and forwards it to our logger.
+
+    The base class lets ffmpeg's stderr inherit the parent's stderr, but on
+    fly.io the parent's stderr is buffered and ffmpeg's output never makes
+    it into our structured logs. Without those lines we can't tell whether
+    ffmpeg is actually decoding audio, hitting an HTTP 403 on the upstream
+    stream, or producing bytes that are immediately dropped on the floor.
+
+    We pipe stderr explicitly and drain it on a daemon thread so it can be
+    correlated with the rest of our log stream.
+    """
+
+    def __init__(self, source: str, **kwargs: Any) -> None:
+        kwargs.setdefault("stderr", subprocess.PIPE)
+        super().__init__(source, **kwargs)
+        proc = getattr(self, "_process", None)
+        if proc is not None and proc.stderr is not None:
+            threading.Thread(
+                target=self._drain_stderr,
+                args=(proc.stderr,),
+                name="ffmpeg-stderr-reader",
+                daemon=True,
+            ).start()
+
+    @staticmethod
+    def _drain_stderr(pipe: Any) -> None:
+        try:
+            for raw in iter(pipe.readline, b""):
+                line = raw.decode("utf-8", errors="replace").rstrip()
+                if line:
+                    _log.info("ffmpeg: %s", line)
+        except Exception:  # pragma: no cover
+            _log.exception("ffmpeg stderr reader crashed")
+        finally:
+            try:
+                pipe.close()
+            except Exception:
+                pass
 
 
 def _resolve_cookiefile() -> str | None:
@@ -70,9 +113,20 @@ COOKIEFILE = _resolve_cookiefile()
 
 # Reconnect + buffer flags shave a few seconds off the failure mode where
 # the upstream stream stalls. They are widely recommended in the
-# discord.py voice-streaming community.
-FFMPEG_BEFORE = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
-FFMPEG_OPTIONS = "-vn"
+# discord.py voice-streaming community. ``-loglevel warning`` surfaces
+# real failures (HTTP 403 on the resolved stream URL, codec mismatches,
+# etc.) without flooding logs with frame-level info. ``-nostats`` keeps
+# the periodic progress lines off our stream.
+FFMPEG_BEFORE = (
+    "-nostdin -loglevel warning -nostats "
+    "-reconnect 1 -reconnect_streamed 1 -reconnect_on_network_error 1 "
+    "-reconnect_on_http_error 4xx,5xx -reconnect_delay_max 5"
+)
+# ``-vn`` strips video. ``-f s16le -ar 48000 -ac 2`` is what discord.py
+# expects on stdin to its Opus encoder; passing it explicitly avoids the
+# rare case where the auto-detected output format doesn't match and the
+# encoder receives garbage that produces silent (or near-silent) packets.
+FFMPEG_OPTIONS = "-vn -f s16le -ar 48000 -ac 2"
 
 # yt-dlp options. ``noplaylist=False`` lets ``/play <playlist url>`` enqueue
 # the entire playlist; the cog can still override per-call.
@@ -475,12 +529,12 @@ class MusicPlayer:
             return
 
         try:
-            source = discord.FFmpegPCMAudio(
+            raw_source = _LoggingFFmpegPCMAudio(
                 primed.stream_url,
                 before_options=FFMPEG_BEFORE,
                 options=FFMPEG_OPTIONS,
             )
-            source = discord.PCMVolumeTransformer(source, volume=self.volume)
+            source = discord.PCMVolumeTransformer(raw_source, volume=self.volume)
         except Exception as e:  # pragma: no cover — environment issue
             _log.exception("FFmpeg source build failed")
             await self._handle_track_error(primed, e)
@@ -509,6 +563,36 @@ class MusicPlayer:
                 )
 
         self.voice_client.play(source, after=_after)
+        # Diagnostics: confirm voice client actually scheduled playback and
+        # log the negotiated encryption mode. Without this it is impossible
+        # to tell from the outside whether ``play()`` succeeded silently or
+        # whether the encoder is producing zero packets.
+        ws = getattr(self.voice_client, "ws", None)
+        mode = getattr(ws, "mode", None) if ws is not None else None
+        endpoint = getattr(self.voice_client, "endpoint", None)
+        _log.info(
+            "play() scheduled: title=%r url=%s mode=%s endpoint=%s vol=%.2f opus_loaded=%s",
+            primed.display(),
+            primed.stream_url[:120] if primed.stream_url else None,
+            mode,
+            endpoint,
+            self.volume,
+            discord.opus.is_loaded(),
+        )
+
+        async def _post_play_diag() -> None:
+            await asyncio.sleep(2.0)
+            vc = self.voice_client
+            if vc is None:
+                return
+            _log.info(
+                "playback diag (after 2s): is_playing=%s is_paused=%s connected=%s",
+                vc.is_playing(),
+                vc.is_paused(),
+                vc.is_connected(),
+            )
+
+        asyncio.create_task(_post_play_diag())
         await self._dispatch_start(primed)
 
     async def _after_track(self, err: Exception | None) -> None:

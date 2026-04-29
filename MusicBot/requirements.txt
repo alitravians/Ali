@@ -1,4 +1,10 @@
 discord.py[voice]>=2.5.0
 PyNaCl==1.5.0
+# Enables ``aead_aes256_gcm_rtpsize`` voice encryption negotiation on
+# discord.py 2.5+. Without ``cryptography`` installed, discord.py can
+# only negotiate xchacha20 — which Discord still accepts but in some
+# regions has been observed to drop frames silently. Having both modes
+# available makes the negotiation robust.
+cryptography>=42.0
 yt-dlp>=2026.3.17
 python-dotenv==1.0.1
