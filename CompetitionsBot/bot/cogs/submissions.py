@@ -91,7 +91,7 @@ class TFSubmissionModal(discord.ui.Modal, title="اقتراح سؤال صح/خط
     answer = discord.ui.TextInput(
         label="الإجابة (صح / خطأ)",
         placeholder="صح  أو  خطأ",
-        max_length=4,
+        max_length=8,
         required=True,
     )
     explanation = discord.ui.TextInput(

@@ -255,4 +255,4 @@ def categories() -> list[str]:
 
 
 def total() -> int:
-    return len(QUESTIONS)
+    return len(QUESTIONS) + len(EXTRA_QUESTIONS)
