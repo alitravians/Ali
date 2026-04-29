@@ -16,6 +16,12 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# Defensive: ensure ``davey`` (DAVE protocol) is NEVER installed. If it
+# leaks in via a transitive dependency or a future requirements edit, this
+# uninstall keeps ``has_dave=False`` in discord.py so the bot never opts
+# into DAVE end-to-end encryption. See requirements.txt for the full
+# explanation.
+RUN pip uninstall -y davey || true
 
 COPY bot ./bot
 COPY server_config.json ./server_config.json

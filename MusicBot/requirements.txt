@@ -1,4 +1,19 @@
-discord.py[voice]>=2.5.0
+# IMPORTANT: do NOT use ``discord.py[voice]`` — its ``voice`` extra pulls in
+# the optional ``davey`` library (DAVE end-to-end-encryption protocol). When
+# ``davey`` is installed, discord.py reports ``max_dave_protocol_version >= 1``
+# during the voice IDENTIFY, Discord then enables DAVE on the channel, but the
+# MLS handshake never completes for headless server bots — leaving
+# ``can_encrypt=False`` forever. In that state ``_get_voice_packet`` sends raw
+# (non-DAVE) opus while every Discord client in the room is decrypting with
+# DAVE keys, so listeners hear pure silence even though UDP packets are
+# flowing fine and transport encryption (xchacha20) is working.
+#
+# Installing ``discord.py`` without the ``[voice]`` extra and adding ``PyNaCl``
+# explicitly gives us transport voice encryption (which Discord still accepts)
+# without ever touching DAVE. ``bot/main.py`` also force-pins
+# ``max_dave_protocol_version`` to ``0`` defensively in case anything in the
+# environment ever drags ``davey`` back in.
+discord.py>=2.5.0
 PyNaCl==1.5.0
 # Enables ``aead_aes256_gcm_rtpsize`` voice encryption negotiation on
 # discord.py 2.5+. Without ``cryptography`` installed, discord.py can

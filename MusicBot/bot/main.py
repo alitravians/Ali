@@ -19,6 +19,49 @@ logging.basicConfig(
 log = logging.getLogger("musicbot")
 
 
+def _disable_dave_protocol() -> None:
+    """Force ``max_dave_protocol_version`` to ``0`` so Discord never enables
+    DAVE end-to-end voice encryption on this bot.
+
+    Root cause this prevents: when DAVE is active (``dave_protocol_version >= 1``)
+    but the MLS group handshake never completes (``can_encrypt=False`` — which is
+    the steady-state for headless bots that never receive ``MLS_WELCOME`` for the
+    voice channel), discord.py's ``_get_voice_packet`` falls through to sending
+    *raw, non-DAVE* opus frames over the otherwise-encrypted transport. Every
+    real Discord client in the channel is decrypting with the DAVE group key, so
+    the bot's frames are dropped silently — listeners hear absolute silence even
+    though UDP packets are flowing, opus is loaded, ffmpeg is feeding frames at
+    the right rate, and transport encryption (xchacha20) is established.
+
+    By overriding the ``max_dave_protocol_version`` property to always return 0
+    *before* any ``VoiceConnectionState`` is constructed, we ensure the IDENTIFY
+    payload tells Discord we don't speak DAVE; Discord then leaves the voice
+    channel on the legacy non-DAVE path where every audio frame the bot sends is
+    audible to all listeners.
+
+    This is the *radical* fix -- it is independent of whether ``davey`` happens
+    to be importable at runtime, and it also short-circuits ``can_encrypt`` so
+    that any future code path that assumes DAVE keys exist will skip cleanly.
+    """
+    try:
+        from discord import voice_state as _vs
+    except Exception:  # pragma: no cover -- discord.py missing is fatal elsewhere
+        log.warning("discord.voice_state import failed; cannot disable DAVE")
+        return
+    _vs.has_dave = False  # type: ignore[attr-defined]
+    _vs.VoiceConnectionState.max_dave_protocol_version = property(  # type: ignore[assignment]
+        lambda _self: 0
+    )
+    _vs.VoiceConnectionState.can_encrypt = property(  # type: ignore[assignment]
+        lambda _self: False
+    )
+    log.info(
+        "DAVE protocol disabled (max_dave_protocol_version=0, "
+        "can_encrypt=False forced) -- voice will use legacy transport "
+        "encryption only"
+    )
+
+
 def _load_opus() -> None:
     """Explicitly load libopus so PCM → Opus encoding works.
 
@@ -103,6 +146,7 @@ class MusicBot(commands.Bot):
 
 async def main() -> None:
     settings = Settings.load()
+    _disable_dave_protocol()
     _load_opus()
     bot = MusicBot(settings)
     async with bot:
