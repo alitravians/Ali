@@ -102,7 +102,37 @@ class Database:
     async def connect(self) -> None:
         async with aiosqlite.connect(self.path) as db:
             await db.executescript(SCHEMA)
+            # Lightweight column-level migrations: SQLite has no
+            # ``ALTER TABLE ADD COLUMN IF NOT EXISTS``, so we read the
+            # existing schema and only add columns that are missing.
+            await self._migrate_columns(db)
             await db.commit()
+
+    async def _migrate_columns(self, db: aiosqlite.Connection) -> None:
+        """Idempotent column additions for older databases.
+
+        Each entry is ``(table, column_name, ddl_fragment)``. We check
+        ``PRAGMA table_info`` first so re-running on an already-migrated
+        DB is a no-op. If a future migration also needs to backfill
+        data, do that here too — but always after the column exists.
+        """
+        migrations: list[tuple[str, str, str]] = [
+            # Wave 6 follow-up: bound retry storms when a scheduled
+            # announcement permanently fails to send (e.g. the bot lost
+            # SEND_MESSAGES on the target channel). The scheduler reads
+            # this counter to decide whether to retry transient errors
+            # one more time or give up and mark the row fired.
+            ("scheduled_announcements", "attempts",
+             "INTEGER NOT NULL DEFAULT 0"),
+            ("scheduled_announcements", "last_error", "TEXT"),
+        ]
+        for table, column, ddl in migrations:
+            cur = await db.execute(f"PRAGMA table_info({table})")
+            existing = {r[1] for r in await cur.fetchall()}
+            if column not in existing:
+                await db.execute(
+                    f"ALTER TABLE {table} ADD COLUMN {column} {ddl}"
+                )
 
     async def ensure_user(self, user_id: int, display_name: str) -> None:
         now = time.time()
@@ -364,6 +394,42 @@ class Database:
                 (time.time(), sched_id),
             )
             await db.commit()
+
+    async def record_announcement_failure(
+        self, sched_id: int, *, error: str, max_attempts: int
+    ) -> int:
+        """Increment the attempts counter and persist the latest error.
+
+        If the new attempts count reaches ``max_attempts``, the row is
+        also marked ``fired_at = now`` so the scheduler stops picking it
+        up (the alternative — leaving it pending forever — produces a
+        log-spam loop on permanent errors like a bot that lost
+        SEND_MESSAGES on the channel). Returns the new ``attempts``
+        value so the caller can log it.
+        """
+        now = time.time()
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE scheduled_announcements "
+                "SET attempts = COALESCE(attempts, 0) + 1, last_error = ? "
+                "WHERE id = ? AND fired_at IS NULL AND cancelled_at IS NULL",
+                (error[:500], sched_id),
+            )
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT attempts FROM scheduled_announcements WHERE id = ?",
+                (sched_id,),
+            )
+            row = await cur.fetchone()
+            attempts = int(row["attempts"]) if row else 0
+            if attempts >= max_attempts:
+                await db.execute(
+                    "UPDATE scheduled_announcements SET fired_at = ? "
+                    "WHERE id = ? AND fired_at IS NULL AND cancelled_at IS NULL",
+                    (now, sched_id),
+                )
+            await db.commit()
+        return attempts
 
     async def cancel_announcement(self, sched_id: int) -> bool:
         async with aiosqlite.connect(self.path) as db:

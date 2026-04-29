@@ -410,6 +410,13 @@ class AdminToolsCog(commands.Cog):
                 ephemeral=True,
             )
 
+    # Maximum send attempts before we permanently give up on a scheduled
+    # announcement. Three attempts spans ~40s with the 20s loop, which is
+    # enough to ride out a brief Discord 5xx blip without log-spamming
+    # forever on a permanent error (e.g. the bot lost SEND_MESSAGES on
+    # the target channel, or the message content is blocked by AutoMod).
+    SCHEDULER_MAX_ATTEMPTS = 3
+
     @tasks.loop(seconds=20)
     async def scheduler(self) -> None:
         try:
@@ -430,7 +437,29 @@ class AdminToolsCog(commands.Cog):
             try:
                 await ch.send(r["message"])
             except discord.HTTPException as e:
-                _log.exception("scheduled send #%s failed: %s", r["id"], e)
+                # Bound the retry storm. ``record_announcement_failure``
+                # increments ``attempts`` and, if it reaches
+                # SCHEDULER_MAX_ATTEMPTS, marks the row fired so the
+                # scheduler stops picking it up. Otherwise we leave it
+                # pending and try again on the next loop iteration —
+                # transient 5xx errors should resolve within a few
+                # tries, permanent 4xx errors are bounded.
+                attempts = await self.bot.db.record_announcement_failure(
+                    r["id"], error=str(e),
+                    max_attempts=self.SCHEDULER_MAX_ATTEMPTS,
+                )
+                if attempts >= self.SCHEDULER_MAX_ATTEMPTS:
+                    _log.error(
+                        "scheduled send #%s permanently failed after %d "
+                        "attempts: %s — marked fired",
+                        r["id"], attempts, e,
+                    )
+                else:
+                    _log.warning(
+                        "scheduled send #%s failed (attempt %d/%d): %s — "
+                        "will retry",
+                        r["id"], attempts, self.SCHEDULER_MAX_ATTEMPTS, e,
+                    )
                 continue
             await self.bot.db.mark_announcement_fired(r["id"])
 
