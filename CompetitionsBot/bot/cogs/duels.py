@@ -221,20 +221,26 @@ class DuelsCog(commands.Cog):
             ch_delta = _elo_delta(ch_elo, op_elo, 1.0)
             op_delta = _elo_delta(op_elo, ch_elo, 0.0)
             winner = challenger
+            ch_won: bool | None = True
+            op_won: bool | None = False
         elif op_score > ch_score:
             ch_delta = _elo_delta(ch_elo, op_elo, 0.0)
             op_delta = _elo_delta(op_elo, ch_elo, 1.0)
             winner = opponent
+            ch_won = False
+            op_won = True
         else:
             ch_delta = _elo_delta(ch_elo, op_elo, 0.5)
             op_delta = _elo_delta(op_elo, ch_elo, 0.5)
             winner = None
+            ch_won = None  # draw — don't increment either counter
+            op_won = None
 
         await self.bot.db.update_duel_stats(
-            challenger.id, won=winner is challenger, elo_delta=ch_delta
+            challenger.id, won=ch_won, elo_delta=ch_delta
         )
         await self.bot.db.update_duel_stats(
-            opponent.id, won=winner is opponent, elo_delta=op_delta
+            opponent.id, won=op_won, elo_delta=op_delta
         )
         await self.bot.db.finalize_duel(
             duel_id,

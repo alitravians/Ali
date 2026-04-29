@@ -469,16 +469,34 @@ class Database:
             await db.commit()
 
     async def update_duel_stats(
-        self, user_id: int, *, won: bool, elo_delta: int
+        self, user_id: int, *, won: bool | None, elo_delta: int
     ) -> None:
+        """Record a duel outcome. ``won=True`` increments duel_wins,
+        ``won=False`` increments duel_losses, ``won=None`` (a draw) leaves
+        both counters untouched but still applies the ELO delta (which is
+        typically zero or near-zero for a draw)."""
         async with aiosqlite.connect(self.path) as db:
-            col = "duel_wins" if won else "duel_losses"
-            await db.execute(
-                f"UPDATE users SET {col} = {col} + 1, "
-                "elo_rating = MAX(0, elo_rating + ?), updated_at = ? "
-                "WHERE user_id = ?",
-                (elo_delta, time.time(), user_id),
-            )
+            if won is True:
+                await db.execute(
+                    "UPDATE users SET duel_wins = duel_wins + 1, "
+                    "elo_rating = MAX(0, elo_rating + ?), updated_at = ? "
+                    "WHERE user_id = ?",
+                    (elo_delta, time.time(), user_id),
+                )
+            elif won is False:
+                await db.execute(
+                    "UPDATE users SET duel_losses = duel_losses + 1, "
+                    "elo_rating = MAX(0, elo_rating + ?), updated_at = ? "
+                    "WHERE user_id = ?",
+                    (elo_delta, time.time(), user_id),
+                )
+            else:
+                # Draw: just nudge ELO (and keep updated_at fresh).
+                await db.execute(
+                    "UPDATE users SET elo_rating = MAX(0, elo_rating + ?), "
+                    "updated_at = ? WHERE user_id = ?",
+                    (elo_delta, time.time(), user_id),
+                )
             await db.commit()
 
     async def get_top_elo(self, *, limit: int = 10) -> list[dict[str, Any]]:
