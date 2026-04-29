@@ -78,16 +78,29 @@ class WebAPICog(commands.Cog):
         # Catch-all OPTIONS for CORS preflight.
         app.router.add_route("OPTIONS", "/api/{tail:.*}", self._preflight)
 
-        self._runner = web.AppRunner(app)
+        runner = web.AppRunner(app)
         try:
-            await self._runner.setup()
-            self._site = web.TCPSite(self._runner, host=host, port=port)
-            await self._site.start()
-            _log.info("Public read API listening on http://%s:%d", host, port)
+            await runner.setup()
+            site = web.TCPSite(runner, host=host, port=port)
+            await site.start()
         except OSError as e:
             _log.warning("Failed to bind public read API: %s — disabled", e)
-            self._runner = None
-            self._site = None
+            # ``runner.setup`` may have already allocated resources (a
+            # request handler, a logger, etc.) before ``site.start``
+            # raised. Tear them down before we drop the reference,
+            # otherwise ``cog_unload`` skips cleanup (both attrs stay
+            # None) and aiohttp logs a "Unclosed AppRunner" warning at
+            # interpreter shutdown.
+            try:
+                await runner.cleanup()
+            except Exception:  # pragma: no cover — best-effort cleanup
+                _log.exception("AppRunner cleanup also failed")
+            return
+        # Only assign on success so ``cog_unload`` only sees fully
+        # bound resources to tear down.
+        self._runner = runner
+        self._site = site
+        _log.info("Public read API listening on http://%s:%d", host, port)
 
     async def cog_unload(self) -> None:
         if self._site is not None:
