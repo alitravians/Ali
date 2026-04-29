@@ -116,9 +116,16 @@ if COOKIEFILE:
 # ``extract_flat`` returns lightweight playlist entries (id+title only).
 # When the player actually needs a stream URL we re-extract that one
 # entry with this fuller config.
+# ``ignoreerrors`` keeps a multi-entry search alive when individual
+# results 404 / are private / are geo-locked. It MUST live only on the
+# resolve opts, not on the base opts: putting it on the base opts would
+# also suppress YouTube bot-challenge errors on direct URL extracts,
+# which would silently return ``None`` instead of raising and break
+# the YouTube → SoundCloud title-fallback in :func:`resolve_query`.
 YDL_RESOLVE_OPTS: dict[str, Any] = {
     **YDL_BASE_OPTS,
     "extract_flat": False,
+    "ignoreerrors": True,
 }
 
 
@@ -195,6 +202,62 @@ def _youtube_title(query: str) -> str | None:
         return None
 
 
+_URL_PREFIXES = ("http://", "https://")
+
+
+def _is_url(query: str) -> bool:
+    return query.lower().startswith(_URL_PREFIXES)
+
+
+# Multi-provider search fallback chain. Each provider is queried in order
+# until one returns a candidate that fully resolves to a real stream URL.
+# Listed worst-to-best for cost: SoundCloud is fast and unauth'd, YouTube
+# is gated by the datacenter bot challenge so almost always fails on
+# fly.io but is cheap to try when it works, Bandcamp is a final long-tail
+# fallback for indie / Arabic-language tracks.
+_SEARCH_PROVIDERS: tuple[str, ...] = ("scsearch5", "ytsearch5", "bcsearch3")
+
+
+async def _resolved_search(query: str, *, requested_by_id: int) -> list[Track]:
+    """Try each provider in :data:`_SEARCH_PROVIDERS`, fully resolving each
+    candidate, and return the first that yields a usable stream URL.
+
+    A ``scsearch1:`` flat search returns the SoundCloud track *page* URL,
+    which can later 404 in :func:`prime_track` if the track has been
+    deleted, made private, or geo-blocked. By doing a non-flat extract
+    here on multiple candidates we surface that failure immediately and
+    transparently fall through to the next track / provider, so the user
+    only ever sees a working result.
+    """
+    loop = asyncio.get_running_loop()
+    last_error: Exception | None = None
+    for provider in _SEARCH_PROVIDERS:
+        search_query = f"{provider}:{query}"
+        try:
+            info = await loop.run_in_executor(
+                None, lambda s=search_query: _ydl_extract(s, resolve=True)
+            )
+        except Exception as e:
+            last_error = e
+            _log.warning("search provider %s failed for %r: %s", provider, query, e)
+            continue
+        if not info:
+            continue
+        entries = (
+            info.get("entries") or []
+            if info.get("_type") == "playlist"
+            else [info]
+        )
+        for entry in entries:
+            if not entry:
+                continue
+            if entry.get("url"):
+                return [_track_from_info(entry, requested_by_id=requested_by_id)]
+    if last_error is not None:
+        raise last_error
+    return []
+
+
 async def resolve_query(query: str, *, requested_by_id: int) -> list[Track]:
     """Turn a user-supplied URL or search string into one or more Tracks.
 
@@ -203,10 +266,19 @@ async def resolve_query(query: str, *, requested_by_id: int) -> list[Track]:
     via :func:`prime_track`.
 
     If a YouTube URL is blocked by the datacenter bot challenge, we fall
-    back to a SoundCloud search using the YouTube title (fetched via the
-    public oEmbed endpoint, which does not require auth).
+    back to a multi-provider search using the YouTube title (fetched via
+    the public oEmbed endpoint, which does not require auth).
+
+    For free-text queries we run :func:`_resolved_search` which iterates
+    several providers and several candidates until it finds one that
+    actually plays — guarding against silent dead-track 404s.
     """
     loop = asyncio.get_running_loop()
+
+    # Free-text search → eager multi-candidate resolve.
+    if not _is_url(query):
+        return await _resolved_search(query, requested_by_id=requested_by_id)
+
     try:
         info = await loop.run_in_executor(None, _ydl_extract, query)
     except Exception as e:
@@ -214,13 +286,11 @@ async def resolve_query(query: str, *, requested_by_id: int) -> list[Track]:
             title = await loop.run_in_executor(None, _youtube_title, query)
             if title:
                 _log.warning(
-                    "YouTube blocked %r (bot challenge); falling back to SoundCloud search %r",
+                    "YouTube blocked %r (bot challenge); falling back to multi-provider search %r",
                     query, title,
                 )
-                fallback = f"scsearch1:{title}"
-                info = await loop.run_in_executor(None, _ydl_extract, fallback)
-            else:
-                raise
+                return await _resolved_search(title, requested_by_id=requested_by_id)
+            raise
         else:
             raise
 
@@ -268,18 +338,40 @@ async def prime_track(track: Track) -> Track:
 
     YouTube stream URLs expire (~6h). We re-extract on demand for any
     track whose stream URL is missing or that came from a flat playlist
-    entry.
+    entry. If the original source 404s (the track was deleted between
+    queueing and playback) we fall back to a fresh multi-provider search
+    using the cached title so the queue keeps moving.
     """
     if track.stream_url:
         return track
     loop = asyncio.get_running_loop()
-    info = await loop.run_in_executor(None, lambda: _ydl_extract(track.query, resolve=True))
-    if not info:
-        return track
-    full = _track_from_info(info, requested_by_id=track.requested_by_id)
-    # Preserve original requester.
-    full.requested_by_id = track.requested_by_id
-    return full
+    try:
+        info = await loop.run_in_executor(
+            None, lambda: _ydl_extract(track.query, resolve=True)
+        )
+    except Exception as e:
+        _log.warning("prime_track direct extract failed for %r: %s", track.query, e)
+        info = {}
+
+    if info and info.get("url"):
+        full = _track_from_info(info, requested_by_id=track.requested_by_id)
+        full.requested_by_id = track.requested_by_id
+        return full
+
+    # Direct extract returned no playable URL — try a fresh search by title.
+    if track.title:
+        try:
+            recovered = await _resolved_search(
+                track.title, requested_by_id=track.requested_by_id
+            )
+        except Exception as e:
+            _log.warning("prime_track title-search failed for %r: %s", track.title, e)
+            recovered = []
+        if recovered:
+            _log.info("prime_track recovered %r via title search", track.title)
+            return recovered[0]
+
+    return track
 
 
 @dataclass
