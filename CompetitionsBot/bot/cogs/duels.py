@@ -141,27 +141,34 @@ class DuelsCog(commands.Cog):
             )
             return
 
-        # Send invitation
-        accept_view = _AcceptView(opponent.id)
-        embed = discord.Embed(
-            title="⚔️ تحدّي 1v1",
-            description=(
-                f"{interaction.user.mention} تحدّى {opponent.mention}!\n"
-                f"**5 أسئلة صح/خطأ**, الفائز يحصل على نقاط ELO.\n"
-                f"الوقت لقبول التحدي: 60 ثانية."
-            ),
-            color=COLORS.get("warning", 0xE67E22),
-        )
-        await interaction.response.send_message(
-            content=opponent.mention, embed=embed, view=accept_view
-        )
-
-        await accept_view.wait()
-        if not accept_view.accepted.is_set():
-            return
-
+        # Reserve the pair *before* awaiting the invitation. Otherwise a
+        # second `/duel` between the same pair could slip through during the
+        # 60-second acceptance window: the first call hasn't reached the
+        # accept-then-add line yet, so the membership check on line 129
+        # would still pass and the opponent could be tricked into accepting
+        # two parallel duels with stale ELO snapshots taken from the same
+        # rating row.
         self._active.add(pair)
         try:
+            # Send invitation
+            accept_view = _AcceptView(opponent.id)
+            embed = discord.Embed(
+                title="⚔️ تحدّي 1v1",
+                description=(
+                    f"{interaction.user.mention} تحدّى {opponent.mention}!\n"
+                    f"**5 أسئلة صح/خطأ**, الفائز يحصل على نقاط ELO.\n"
+                    f"الوقت لقبول التحدي: 60 ثانية."
+                ),
+                color=COLORS.get("warning", 0xE67E22),
+            )
+            await interaction.response.send_message(
+                content=opponent.mention, embed=embed, view=accept_view
+            )
+
+            await accept_view.wait()
+            if not accept_view.accepted.is_set():
+                return  # finally clause releases the pair
+
             await self._run_duel(interaction, opponent, pool)
         finally:
             self._active.discard(pair)
