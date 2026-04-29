@@ -193,18 +193,22 @@ class WebAPICog(commands.Cog):
         if not callable(get_history):
             return _json({"seasons": []}, origin=self._origin)
         try:
-            seasons = await get_history(closed_only=True, limit=24)
+            seasons = await get_history(limit=24)
         except Exception:
+            _log.exception("seasons endpoint failed")
             return _json({"seasons": []}, origin=self._origin)
-        # Strip user IDs out of season_results for public consumption.
+        # Public-facing list: only closed (historical) seasons, with
+        # internal user IDs from season_results stripped out.
         public = []
         for s in seasons:
+            if not s.get("closed"):
+                continue
             public.append({
                 "id": s.get("id"),
                 "name": s.get("name"),
                 "started_at": s.get("started_at"),
                 "ends_at": s.get("ends_at"),
-                "closed": bool(s.get("closed")),
+                "closed": True,
             })
         return _json({"seasons": public}, origin=self._origin)
 
