@@ -114,18 +114,35 @@ class DailyCog(commands.Cog):
             if state["last_claim_date"] != yesterday:
                 streak = 1
         await self.bot.db.upsert_daily(interaction.user.id, today, streak)
-        # Points: base 50 if correct, +10 per consecutive day (max 100 bonus)
+        # Points: base 50 if correct + tiered streak bonus + milestone jackpot
         if user_correct["value"]:
             base = 50
-            bonus = min(streak * 10, 100)
-            total = base + bonus
+            # Linear bonus capped at 100 (1-10 days), then plateaus
+            linear_bonus = min(streak * 10, 100)
+            # Milestone jackpots — paid only on the exact milestone day
+            milestone_bonus = 0
+            milestone_label = ""
+            if streak == 7:
+                milestone_bonus, milestone_label = 100, "🎉 أسبوع متواصل!"
+            elif streak == 14:
+                milestone_bonus, milestone_label = 250, "💎 أسبوعان متواصلان!"
+            elif streak == 30:
+                milestone_bonus, milestone_label = 500, "👑 شهر كامل!"
+            elif streak == 60:
+                milestone_bonus, milestone_label = 1000, "🔥 شهران متواصلان!"
+            elif streak == 100:
+                milestone_bonus, milestone_label = 2500, "🌌 مئة يوم — أسطورة!"
+            total = base + linear_bonus + milestone_bonus
             await self.bot.db.ensure_user(interaction.user.id, interaction.user.display_name)
             await self.bot.db.add_points(interaction.user.id, total, correct=True)
             color = COLORS["success"]
+            extra_line = f"\n🎁 **مكافأة إنجاز** ({milestone_label}): +{milestone_bonus}" if milestone_bonus else ""
             text = (
                 f"🎉 **إجابة صحيحة!**\n"
                 f"الإجابة: ` {val_text} `\n\n"
-                f"💰 **+{total} نقطة** (أساس {base} + {bonus} مكافأة سلسلة)\n"
+                f"💰 **+{total} نقطة** (أساس {base} + سلسلة {linear_bonus}"
+                f"{f' + إنجاز {milestone_bonus}' if milestone_bonus else ''})"
+                f"{extra_line}\n"
                 f"🔥 سلسلتك: **{streak}** يوم"
             )
         else:

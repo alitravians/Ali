@@ -56,6 +56,23 @@ CREATE TABLE IF NOT EXISTS bot_state (
     value             TEXT
 );
 
+CREATE TABLE IF NOT EXISTS user_questions (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    submitted_by    INTEGER NOT NULL,
+    question        TEXT    NOT NULL,
+    type            TEXT    NOT NULL,         -- "tf" or "mcq"
+    choices_json    TEXT,                     -- JSON array (for mcq) or NULL
+    answer_index    INTEGER,                  -- 0..3 for mcq
+    answer_bool     INTEGER,                  -- 0/1 for tf
+    category        TEXT    NOT NULL,
+    difficulty      TEXT    NOT NULL,
+    explanation     TEXT,
+    status          TEXT    NOT NULL DEFAULT 'pending',  -- pending|approved|rejected
+    reviewed_by     INTEGER,
+    reviewed_at     REAL,
+    created_at      REAL    NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS seasons (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     name        TEXT NOT NULL,
@@ -85,6 +102,7 @@ CREATE TABLE IF NOT EXISTS category_stats (
 CREATE INDEX IF NOT EXISTS idx_users_points ON users(points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_weekly ON users(weekly_points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_monthly ON users(monthly_points DESC);
+CREATE INDEX IF NOT EXISTS idx_user_questions_status ON user_questions(status, created_at);
 CREATE INDEX IF NOT EXISTS idx_seasons_active ON seasons(closed, ends_at);
 CREATE INDEX IF NOT EXISTS idx_season_results_pts ON season_results(season_id, points DESC);
 CREATE INDEX IF NOT EXISTS idx_cat_points ON category_stats(category, points DESC);
@@ -336,6 +354,80 @@ class Database:
             cur = await db.execute("SELECT value FROM bot_state WHERE key = ?", (key,))
             row = await cur.fetchone()
             return row[0] if row else None
+
+    # ----- User question submissions (Wave 3) -----
+    async def submit_user_question(
+        self,
+        *,
+        submitted_by: int,
+        question: str,
+        type_: str,
+        choices_json: str | None,
+        answer_index: int | None,
+        answer_bool: bool | None,
+        category: str,
+        difficulty: str,
+        explanation: str | None = None,
+    ) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                """
+                INSERT INTO user_questions
+                  (submitted_by, question, type, choices_json, answer_index,
+                   answer_bool, category, difficulty, explanation, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    submitted_by, question, type_, choices_json, answer_index,
+                    1 if answer_bool else 0 if answer_bool is not None else None,
+                    category, difficulty, explanation, time.time(),
+                ),
+            )
+            await db.commit()
+            return cur.lastrowid or 0
+
+    async def list_user_questions(
+        self, *, status: str = "pending", limit: int = 25
+    ) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM user_questions WHERE status = ? "
+                "ORDER BY created_at ASC LIMIT ?",
+                (status, limit),
+            )
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def get_user_question(self, q_id: int) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM user_questions WHERE id = ?", (q_id,)
+            )
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+    async def review_user_question(
+        self, q_id: int, reviewer_id: int, *, approve: bool
+    ) -> bool:
+        new_status = "approved" if approve else "rejected"
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "UPDATE user_questions SET status = ?, reviewed_by = ?, "
+                "reviewed_at = ? WHERE id = ? AND status = 'pending'",
+                (new_status, reviewer_id, time.time(), q_id),
+            )
+            await db.commit()
+            return cur.rowcount > 0
+
+    async def get_approved_questions(self) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM user_questions WHERE status = 'approved' "
+                "ORDER BY id ASC"
+            )
+            return [dict(r) for r in await cur.fetchall()]
 
     # ----- Seasons (Wave 2) -----
     async def get_active_season(self) -> dict[str, Any] | None:

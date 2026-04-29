@@ -38,7 +38,8 @@ HELP_PAGES = {
         .add_field(name="`/profile [user]`", value="ملفك الشخصي وإحصائياتك (مع تصنيف الفئات)", inline=False)
         .add_field(name="`/achievements [user]`", value="🎖️ كل الإنجازات (مفتوحة + مقفلة) مرتّبة بالفئة", inline=False)
         .add_field(name="`/stats`", value="إحصائيات السيرفر العامة", inline=False)
-        .add_field(name="`/season info|history|top`", value="🏆 المواسم الشهرية + الترتيب والتاريخ", inline=False),
+        .add_field(name="`/season info|history|top`", value="🏆 المواسم الشهرية + الترتيب والتاريخ", inline=False)
+        .add_field(name="`/suggest_question`", value="✏️ اقترح سؤالاً جديداً للبوت", inline=False),
     "admin": discord.Embed(
         title="⚙️ أوامر الإدارة",
         description="هذه الأوامر للإدمن أو منسق المسابقات فقط.",
