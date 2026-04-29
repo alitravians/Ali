@@ -220,8 +220,14 @@ QUESTIONS: list[dict[str, Any]] = [
 ]
 
 
-# Runtime-loaded community-approved questions (populated by the submissions cog
-# at startup and after each new approval). Same shape as QUESTIONS entries.
+# Runtime-loaded admin-added questions (Wave 6). Populated by the admin
+# tools cog at startup and after each /admin_question add|edit|remove. Same
+# shape as built-in QUESTIONS entries.
+ADMIN_QUESTIONS: list[dict[str, Any]] = []
+
+# Runtime-loaded community-approved questions (Wave 3). Populated by the
+# submissions cog at startup and after each new approval. Same shape as
+# QUESTIONS entries.
 EXTRA_QUESTIONS: list[dict[str, Any]] = []
 
 
@@ -233,7 +239,7 @@ def filter_questions(
     count: int = 5,
     exclude_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    pool = QUESTIONS + EXTRA_QUESTIONS
+    pool = QUESTIONS + ADMIN_QUESTIONS + EXTRA_QUESTIONS
     if category and category != "كل":
         pool = [q for q in pool if q["category"] == category]
     if difficulty and difficulty != "كل":
@@ -251,8 +257,8 @@ def filter_questions(
 
 
 def categories() -> list[str]:
-    return sorted({q["category"] for q in QUESTIONS})
+    return sorted({q["category"] for q in (QUESTIONS + ADMIN_QUESTIONS + EXTRA_QUESTIONS)})
 
 
 def total() -> int:
-    return len(QUESTIONS) + len(EXTRA_QUESTIONS)
+    return len(QUESTIONS) + len(ADMIN_QUESTIONS) + len(EXTRA_QUESTIONS)
