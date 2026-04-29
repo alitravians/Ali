@@ -56,9 +56,19 @@ CREATE TABLE IF NOT EXISTS bot_state (
     value             TEXT
 );
 
+CREATE TABLE IF NOT EXISTS automod_events (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind          TEXT    NOT NULL,         -- "collusion" | "rapid_fire" | etc
+    channel_id    INTEGER,
+    user_ids      TEXT    NOT NULL,         -- JSON array of involved user IDs
+    details       TEXT,
+    created_at    REAL    NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_points ON users(points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_weekly ON users(weekly_points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_monthly ON users(monthly_points DESC);
+CREATE INDEX IF NOT EXISTS idx_automod_events_kind ON automod_events(kind, created_at DESC);
 """
 
 
@@ -288,3 +298,44 @@ class Database:
             cur = await db.execute("SELECT value FROM bot_state WHERE key = ?", (key,))
             row = await cur.fetchone()
             return row[0] if row else None
+
+    # ----- Automod (Wave 5) -----
+    async def log_automod_event(
+        self,
+        kind: str,
+        *,
+        channel_id: int | None,
+        user_ids: list[int],
+        details: str | None = None,
+    ) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "INSERT INTO automod_events (kind, channel_id, user_ids, details, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (kind, channel_id, json.dumps(user_ids), details, time.time()),
+            )
+            await db.commit()
+            return cur.lastrowid or 0
+
+    async def list_automod_events(
+        self, *, kind: str | None = None, limit: int = 25
+    ) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            if kind:
+                cur = await db.execute(
+                    "SELECT * FROM automod_events WHERE kind = ? "
+                    "ORDER BY created_at DESC LIMIT ?",
+                    (kind, limit),
+                )
+            else:
+                cur = await db.execute(
+                    "SELECT * FROM automod_events ORDER BY created_at DESC LIMIT ?",
+                    (limit,),
+                )
+            rows = []
+            for r in await cur.fetchall():
+                d = dict(r)
+                d["user_ids"] = json.loads(d.get("user_ids") or "[]")
+                rows.append(d)
+            return rows

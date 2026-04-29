@@ -145,6 +145,10 @@ class QuizCog(commands.Cog):
                         elapsed = t - msg.created_at.timestamp()
                         is_correct = val == q["answer"]
                         await self._score_user(uid, points, is_correct, elapsed, scores)
+                        await self._automod_record(
+                            channel.id, msg.id, i, uid,
+                            "T" if val else "F",
+                        )
                 else:
                     choices = list(q["choices"])
                     correct_index_orig = q["answer_index"]
@@ -189,6 +193,14 @@ class QuizCog(commands.Cog):
                         elapsed = t - msg.created_at.timestamp()
                         is_correct = val == new_correct
                         await self._score_user(uid, points, is_correct, elapsed, scores)
+                        # Track the *original* answer index (post-shuffle) so
+                        # collusion detection sees a stable token across the
+                        # round; using the visible letter avoids leaking the
+                        # real index but still groups identical clicks.
+                        await self._automod_record(
+                            channel.id, msg.id, i, uid,
+                            utils.CHOICE_LETTERS[val] if isinstance(val, int) else str(val),
+                        )
 
                 # Disable view buttons
                 try:
@@ -257,6 +269,29 @@ class QuizCog(commands.Cog):
                 await self._refresh_leaderboard()
         finally:
             self.bot.active_competitions.pop(channel.id, None)
+
+    async def _automod_record(
+        self,
+        channel_id: int,
+        message_id: int,
+        question_index: int,
+        user_id: int,
+        token: str,
+    ) -> None:
+        """Forward an answer to the automod cog for collusion detection. No-op
+        if the cog isn't loaded (e.g. during tests)."""
+        cog = self.bot.get_cog("AutomodCog")
+        if cog is None:
+            return
+        try:
+            await cog.record_answer(  # type: ignore[attr-defined]
+                channel_id=channel_id,
+                round_id=f"quiz-{message_id}-{question_index}",
+                user_id=user_id,
+                answer_token=token,
+            )
+        except Exception:  # pragma: no cover — automod must never break a quiz
+            pass
 
     async def _score_user(
         self,
