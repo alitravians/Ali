@@ -60,6 +60,7 @@ class CompetitionsBot(commands.Bot):
             "bot.cogs.automod",
             "bot.cogs.backup",
             "bot.cogs.admin_tools",
+            "bot.cogs.webapi",
         ):
             try:
                 await self.load_extension(cog)
