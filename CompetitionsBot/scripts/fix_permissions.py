@@ -147,6 +147,14 @@ for ch_id in read_only_ids:
                   allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
                         EMBED_LINKS | ATTACH_FILES | MANAGE_MESSAGES |
                         MENTION_EVERYONE | USE_APPLICATION_COMMANDS, deny=0)
+    # Bot's own role: explicit allow so the bot can post here even if its
+    # Administrator role is ever removed (defensive — same pattern used in
+    # the admin-only tier above). Without this override, the @everyone deny
+    # would block the bot whenever it doesn't have admin perms.
+    if bot_role:
+        put_overwrite(ch_id, bot_role, 0,
+                      allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
+                            EMBED_LINKS | ATTACH_FILES, deny=0)
 
 # ---------- 3) OPEN-WRITE: members can send + use bot ----------
 open_keys = ["start", "current", "discussion", "reports", "welcome"]
