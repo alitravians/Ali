@@ -68,6 +68,15 @@ class Settings:
     role_weekly_winner: int
     role_banned: int
 
+    # Bot-logs channel IDs (admin-only category)
+    log_activity: int
+    log_admin: int
+    log_errors: int
+    log_joins: int
+    log_deletes: int
+    log_edits: int
+    log_server: int
+
     @classmethod
     def load(cls) -> "Settings":
         token = os.getenv("DISCORD_BOT_TOKEN")
@@ -107,6 +116,13 @@ class Settings:
             role_vip=role("vip"),
             role_weekly_winner=role("weekly_winner"),
             role_banned=role("banned"),
+            log_activity=int(_env_or_sc("LOG_ACTIVITY", ["bot_logs_channels", "activity"], "0") or "0"),
+            log_admin=int(_env_or_sc("LOG_ADMIN", ["bot_logs_channels", "admin_log"], "0") or "0"),
+            log_errors=int(_env_or_sc("LOG_ERRORS", ["bot_logs_channels", "errors"], "0") or "0"),
+            log_joins=int(_env_or_sc("LOG_JOINS", ["bot_logs_channels", "joins"], "0") or "0"),
+            log_deletes=int(_env_or_sc("LOG_DELETES", ["bot_logs_channels", "deletes"], "0") or "0"),
+            log_edits=int(_env_or_sc("LOG_EDITS", ["bot_logs_channels", "edits"], "0") or "0"),
+            log_server=int(_env_or_sc("LOG_SERVER", ["bot_logs_channels", "server"], "0") or "0"),
         )
 
 

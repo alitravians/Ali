@@ -90,10 +90,17 @@ for r in roles:
 
 print(f"admin_role={admin_role} mod_role={mod_role} banned_role={banned_role}")
 
-# ---------- 1) ADMIN-ONLY: hide whole 'إدارة' category + log channel ----------
+# ---------- 1) ADMIN-ONLY: hide admin category + bot-logs category ----------
+# All channels here are denied to @everyone and granted to admin/mod/bot roles.
 admin_cat = cfg["categories"]["admin"]
+bot_logs_cat = cfg.get("categories", {}).get("bot_logs")
 log_id = cfg.get("log_channel_id") or cfg["channels"].get("log")
-admin_targets = [cid for cid in (admin_cat, log_id) if cid]
+bot_role = cfg.get("bot_role_id")
+bot_logs_channels = list(cfg.get("bot_logs_channels", {}).values())
+
+admin_targets = [
+    cid for cid in (admin_cat, bot_logs_cat, log_id, *bot_logs_channels) if cid
+]
 for ch_id in admin_targets:
     print(f"\n[ADMIN-ONLY] {ch_id}")
     # Deny @everyone view
@@ -107,7 +114,12 @@ for ch_id in admin_targets:
     put_overwrite(ch_id, mod_role, 0,
                   allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
                         EMBED_LINKS | ATTACH_FILES, deny=0)
-# Make sure log channel inherits the category by syncing parent (set parent_id)
+    # Allow the bot's own role so it can post logs even when @everyone is denied
+    if bot_role:
+        put_overwrite(ch_id, bot_role, 0,
+                      allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
+                            EMBED_LINKS | ATTACH_FILES, deny=0)
+# Make sure log channel inherits the admin category by syncing parent (set parent_id)
 if log_id:
     try:
         patch_channel(log_id, {"parent_id": admin_cat})
