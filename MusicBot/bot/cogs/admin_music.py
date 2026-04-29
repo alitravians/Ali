@@ -1,17 +1,18 @@
-"""Admin-only music commands.
+"""Admin-only music commands (wavelink rewrite).
 
 Hidden from regular members via ``default_permissions(manage_guild=True)``.
 """
 from __future__ import annotations
 
 import logging
+from typing import cast
 
 import discord
+import wavelink
 from discord import app_commands
 from discord.ext import commands
 
 from ..config import COLORS, Settings
-from .music import MusicCog
 
 _log = logging.getLogger(__name__)
 
@@ -24,11 +25,14 @@ class AdminMusicCog(commands.Cog):
         self.bot = bot
         self.settings = settings
 
-    def _player_cog(self) -> MusicCog | None:
-        cog = self.bot.get_cog("MusicCog")
-        return cog if isinstance(cog, MusicCog) else None
+    def _player(self, guild: discord.Guild | None) -> wavelink.Player | None:
+        if not guild:
+            return None
+        return cast("wavelink.Player | None", guild.voice_client)
 
-    async def _audit(self, action: str, by: discord.abc.User, *, detail: str = "") -> None:
+    async def _audit(
+        self, action: str, by: discord.abc.User, *, detail: str = ""
+    ) -> None:
         log_ch = self.bot.get_channel(self.settings.log_admin)
         if isinstance(log_ch, discord.TextChannel):
             try:
@@ -45,14 +49,14 @@ class AdminMusicCog(commands.Cog):
     )
     @_ADMIN_PERMS
     async def admin_stop(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
+        player = self._player(interaction.guild)
+        if not player:
+            await interaction.response.send_message(
+                "⚠️ البوت ليس في قناة صوتية.", ephemeral=True
+            )
             return
-        cog = self._player_cog()
-        if not cog:
-            await interaction.response.send_message("⚠️ نظام الموسيقى غير محمّل.", ephemeral=True)
-            return
-        player = cog.get_player(interaction.guild.id)
-        await player.stop()
+        player.queue.clear()
+        await player.disconnect()
         await interaction.response.send_message("⏹️ تم الإيقاف القسري وإخراج البوت.")
         await self._audit("admin_music_stop", interaction.user)
 
@@ -62,17 +66,20 @@ class AdminMusicCog(commands.Cog):
     )
     @_ADMIN_PERMS
     async def admin_clear(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
+        player = self._player(interaction.guild)
+        if not player:
+            await interaction.response.send_message(
+                "⚠️ البوت ليس في قناة صوتية.", ephemeral=True
+            )
             return
-        cog = self._player_cog()
-        if not cog:
-            await interaction.response.send_message("⚠️ نظام الموسيقى غير محمّل.", ephemeral=True)
-            return
-        player = cog.get_player(interaction.guild.id)
         n = len(player.queue)
-        player.clear()
-        await interaction.response.send_message(f"🧹 مُسحت **{n}** أغنية من القائمة.")
-        await self._audit("admin_music_clear", interaction.user, detail=f"removed={n}")
+        player.queue.clear()
+        await interaction.response.send_message(
+            f"🧹 مُسحت **{n}** أغنية من القائمة."
+        )
+        await self._audit(
+            "admin_music_clear", interaction.user, detail=f"removed={n}"
+        )
 
     @app_commands.command(
         name="admin_music_health",
@@ -80,21 +87,43 @@ class AdminMusicCog(commands.Cog):
     )
     @_ADMIN_PERMS
     async def admin_health(self, interaction: discord.Interaction) -> None:
-        cog = self._player_cog()
-        if not cog:
-            await interaction.response.send_message("⚠️ نظام الموسيقى غير محمّل.", ephemeral=True)
-            return
         guild_count = len(self.bot.guilds)
-        active_players = sum(1 for p in cog.players.values() if p.is_playing())
-        total_queue = sum(len(p.queue) for p in cog.players.values())
+        # Count active wavelink players across all guilds.
+        active_players = 0
+        total_queue = 0
+        for g in self.bot.guilds:
+            p = cast("wavelink.Player | None", g.voice_client)
+            if p is not None:
+                if p.playing:
+                    active_players += 1
+                total_queue += len(p.queue)
+
+        # Lavalink node status
+        try:
+            nodes = list(wavelink.Pool.nodes.values())
+            node_status = ", ".join(
+                f"{n.identifier}={n.status.name}" for n in nodes
+            ) or "—"
+        except Exception:
+            node_status = "غير متوفر"
+
         embed = discord.Embed(
             title="💓 حالة بوت الموسيقى",
             color=COLORS["info"],
         )
         embed.add_field(name="السيرفرات", value=str(guild_count), inline=True)
-        embed.add_field(name="مشغّلات نشطة", value=str(active_players), inline=True)
-        embed.add_field(name="إجمالي قوائم الانتظار", value=str(total_queue), inline=True)
-        embed.add_field(name="latency", value=f"{int(self.bot.latency * 1000)}ms", inline=True)
+        embed.add_field(
+            name="مشغّلات نشطة", value=str(active_players), inline=True
+        )
+        embed.add_field(
+            name="إجمالي قوائم الانتظار", value=str(total_queue), inline=True
+        )
+        embed.add_field(
+            name="latency",
+            value=f"{int(self.bot.latency * 1000)}ms",
+            inline=True,
+        )
+        embed.add_field(name="Lavalink", value=node_status, inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
 

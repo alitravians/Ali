@@ -1,510 +1,491 @@
-"""Public music slash commands.
+"""Music slash commands — wavelink/Lavalink rewrite (2026-04-29).
 
-Members in a voice channel can queue songs, skip, pause, resume, etc.
-Admin-only commands (clear queue, force-stop) live in admin_music.py.
+Same command surface as the legacy davey-based bot:
+    /play  /skip  /queue  /pause  /resume  /stop  /loop  /volume
+    /nowplaying  /join  /leave  /remove  /shuffle
+
+All audio streaming is delegated to Lavalink. wavelink owns the
+``wavelink.Player`` (a ``discord.VoiceProtocol`` that forwards voice state
+updates to Lavalink rather than opening a voice WebSocket itself), so
+the bot never touches DAVE/MLS, opus or PyNaCl.
 """
 from __future__ import annotations
 
 import logging
-from typing import Optional
+import re
+from typing import cast
 
 import discord
+import wavelink
 from discord import app_commands
 from discord.ext import commands
 
 from ..config import COLORS, Settings
-from ..player import LoopMode, MusicPlayer, Track, resolve_query
 
-_log = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
 
 
-def _fmt_duration(seconds: int | None) -> str:
-    if seconds is None or seconds < 0:
+URL_RE = re.compile(r"^https?://", re.IGNORECASE)
+
+
+def _fmt_duration(ms: int | float | None) -> str:
+    if not ms:
         return "—"
-    m, s = divmod(int(seconds), 60)
-    h, m = divmod(m, 60)
-    if h:
-        return f"{h}:{m:02d}:{s:02d}"
-    return f"{m}:{s:02d}"
+    seconds = int(ms // 1000)
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:d}:{m:02d}:{s:02d}" if h else f"{m:d}:{s:02d}"
 
 
-def _progress_bar(elapsed: int, total: int | None, *, width: int = 20) -> str:
-    if not total or total <= 0:
-        return "🟪" * width
-    ratio = max(0.0, min(1.0, elapsed / total))
-    filled = int(ratio * width)
-    return "🟪" * filled + "⬛" * (width - filled)
+def _track_embed(track: wavelink.Playable, *, title: str, color: int,
+                 requester_id: int | None = None,
+                 queue_position: int | None = None) -> discord.Embed:
+    embed = discord.Embed(title=title, description=f"**{track.title}**", color=color)
+    if track.uri:
+        embed.url = track.uri
+    if track.author:
+        embed.add_field(name="القناة", value=track.author, inline=True)
+    embed.add_field(name="المدة", value=_fmt_duration(track.length), inline=True)
+    if requester_id:
+        embed.add_field(name="طلب بواسطة", value=f"<@{requester_id}>", inline=True)
+    if queue_position is not None:
+        embed.add_field(name="الموقع في القائمة", value=str(queue_position), inline=True)
+    if track.artwork:
+        embed.set_thumbnail(url=track.artwork)
+    return embed
 
 
-class MusicCog(commands.Cog):
-    """Slash commands for queue management + playback."""
+async def _ensure_voice(interaction: discord.Interaction) -> wavelink.Player | None:
+    """Connect to the user's voice channel if not already, return the player.
 
-    def __init__(self, bot: commands.Bot, settings: Settings):
-        self.bot = bot
-        self.settings = settings
-        # One MusicPlayer per guild.
-        self.players: dict[int, MusicPlayer] = {}
+    Returns None and sends an ephemeral error if the user is not in voice.
+    """
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.response.send_message(
+            "هذا الأمر متاح في السيرفر فقط.", ephemeral=True
+        )
+        return None
 
-    # ----- helpers -----
+    voice_state = interaction.user.voice
+    if not voice_state or not voice_state.channel:
+        await interaction.response.send_message(
+            "🔇 ادخل قناة صوتية أولاً، ثم استخدم الأمر.", ephemeral=True
+        )
+        return None
 
-    def get_player(self, guild_id: int) -> MusicPlayer:
-        p = self.players.get(guild_id)
-        if p is None:
-            p = MusicPlayer(
-                guild_id=guild_id,
-                volume=self.settings.default_volume / 100.0,
-                _max_queue=self.settings.max_queue_length,
-                _idle_seconds=self.settings.idle_disconnect_seconds,
-            )
-            p.on_track_start = lambda track: self._announce_now_playing(p, track)
-            p.on_track_error = lambda track, err: self._announce_error(p, track, err)
-            p.on_idle_disconnect = lambda: self._announce_idle(p)
-            self.players[guild_id] = p
-        return p
+    guild = interaction.guild
+    assert guild is not None
+    player = cast("wavelink.Player | None", guild.voice_client)
 
-    async def _reply_error(
-        self,
-        interaction: discord.Interaction,
-        message: str,
-        *,
-        already_deferred: bool,
-    ) -> None:
-        """Reply with an ephemeral error using the right channel.
-
-        Once an interaction has been deferred (``response.defer``) we must
-        use ``followup.send`` — ``response.send_message`` would raise
-        ``InteractionResponded``.
-        """
-        if already_deferred:
-            try:
-                await interaction.followup.send(message, ephemeral=True)
-            except Exception:
-                _log.exception("followup error reply failed")
-            return
+    if player is None:
         try:
-            await interaction.response.send_message(message, ephemeral=True)
+            player = await voice_state.channel.connect(  # type: ignore[arg-type]
+                cls=wavelink.Player, self_deaf=False, self_mute=False
+            )
         except Exception:
-            _log.exception("response error reply failed")
-
-    async def _ensure_voice(
-        self,
-        interaction: discord.Interaction,
-        *,
-        must_be_in_same_channel: bool = False,
-        already_deferred: bool = False,
-    ) -> MusicPlayer | None:
-        """Validate the user is in voice and return (or create) the player.
-
-        ``already_deferred`` must be set by callers that have already called
-        ``interaction.response.defer()`` — e.g. ``/play``, ``/join`` — because
-        the voice ``connect``/``move_to`` calls below can take longer than
-        Discord's 3-second response window. Without an early defer the
-        interaction expires and the user sees "The application did not
-        respond".
-        """
-        if not interaction.guild:
-            await self._reply_error(
-                interaction,
-                "هذا الأمر يعمل داخل السيرفر فقط.",
-                already_deferred=already_deferred,
+            log.exception("voice_channel.connect failed")
+            await interaction.response.send_message(
+                "❌ فشل الاتصال بالقناة الصوتية.", ephemeral=True
             )
             return None
-        member = interaction.user
-        if not isinstance(member, discord.Member) or not member.voice or not member.voice.channel:
-            await self._reply_error(
-                interaction,
-                "🔇 لازم تكون داخل قناة صوتية أولاً.",
-                already_deferred=already_deferred,
-            )
-            return None
-
-        player = self.get_player(interaction.guild.id)
-
-        # Connect / move as needed.
-        target = member.voice.channel
-        vc = player.voice_client or interaction.guild.voice_client
-        # If the cached client is stale (disconnected via /stop, kicked, or
-        # network drop) treat it as absent so we fall through to a fresh
-        # ``connect()`` instead of silently failing on the dead handle.
-        if vc and not vc.is_connected():
-            vc = None
-            player.voice_client = None
-        if vc and vc.channel != target:
-            if must_be_in_same_channel:
-                await self._reply_error(
-                    interaction,
-                    f"⚠️ البوت في قناة مختلفة (`{vc.channel}`). انضم لها أو استخدم `/leave` ثم حاول مجدداً.",
-                    already_deferred=already_deferred,
-                )
-                return None
-            try:
-                await vc.move_to(target)
-            except Exception:
-                _log.exception("voice move failed")
-        elif not vc:
-            try:
-                vc = await target.connect(self_deaf=True, reconnect=True)
-            except discord.errors.ClientException as e:
-                await self._reply_error(
-                    interaction,
-                    f"⚠️ ما قدرت أنضم: {e}",
-                    already_deferred=already_deferred,
-                )
-                return None
-            except Exception as e:
-                _log.exception("voice connect failed")
-                await self._reply_error(
-                    interaction,
-                    f"⚠️ خطأ بالاتصال: {e}",
-                    already_deferred=already_deferred,
-                )
-                return None
-
-        # ``vc`` from ``guild.voice_client`` is the canonical reference.
-        player.voice_client = vc  # type: ignore[assignment]
-        # Attach the channel so we know where to announce.
-        if interaction.channel and interaction.channel.id:
-            player.text_channel_id = interaction.channel.id
-        return player
-
-    # ----- announcements (player hooks) -----
-
-    async def _send_to_text(self, player: MusicPlayer, embed: discord.Embed) -> None:
-        ch = self.bot.get_channel(player.text_channel_id) if player.text_channel_id else None
-        if isinstance(ch, (discord.TextChannel, discord.Thread)):
-            try:
-                await ch.send(embed=embed)
-            except discord.Forbidden:
-                _log.warning("missing perms to send in #%s", getattr(ch, "name", "?"))
-            except Exception:
-                _log.exception("failed to send announcement")
-
-    async def _announce_now_playing(self, player: MusicPlayer, track: Track) -> None:
-        embed = discord.Embed(
-            title="🎵 الآن يُشغَّل",
-            description=f"**[{track.display()}]({track.webpage_url or 'https://youtube.com'})**",
-            color=COLORS["music"],
+    elif player.channel != voice_state.channel:
+        await interaction.response.send_message(
+            f"البوت في قناة أخرى ({player.channel.mention}). استخدم /leave أولاً.",
+            ephemeral=True,
         )
-        if track.uploader:
-            embed.add_field(name="القناة", value=track.uploader, inline=True)
-        embed.add_field(name="المدة", value=_fmt_duration(track.duration), inline=True)
-        if track.requested_by_id:
-            embed.add_field(name="طلب بواسطة", value=f"<@{track.requested_by_id}>", inline=True)
-        if track.thumbnail:
-            embed.set_thumbnail(url=track.thumbnail)
-        await self._send_to_text(player, embed)
-        # Bot-logs notification (best-effort)
-        log_ch = self.bot.get_channel(self.settings.log_play)
-        if isinstance(log_ch, discord.TextChannel):
-            try:
-                await log_ch.send(
-                    f"▶️ `{track.display()}` — طلب <@{track.requested_by_id}> "
-                    f"(guild={player.guild_id})"
-                )
-            except Exception:
-                pass
+        return None
 
-    async def _announce_error(self, player: MusicPlayer, track: Track, err: Exception) -> None:
-        embed = discord.Embed(
-            title="⚠️ تعذّر تشغيل الأغنية",
-            description=f"`{track.display()}` — {type(err).__name__}: {err}",
-            color=COLORS["danger"],
+    return player
+
+
+class Music(commands.Cog):
+    def __init__(self, bot: commands.Bot):
+        self.bot = bot
+        self.settings: Settings = bot.settings  # type: ignore[attr-defined]
+
+    # -------- wavelink event handlers --------
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_start(
+        self, payload: wavelink.TrackStartEventPayload
+    ) -> None:
+        player = payload.player
+        if player is None:
+            return
+        track = payload.track
+        log.info("track start: guild=%s title=%r length=%sms",
+                 player.guild and player.guild.id, track.title, track.length)
+        # Post "now playing" to the configured log channel if set.
+        log_channel_id = self.settings.log_play
+        if log_channel_id and player.guild:
+            channel = player.guild.get_channel(log_channel_id)
+            if isinstance(channel, discord.TextChannel):
+                requester_id = getattr(track.extras, "requester_id", None)
+                try:
+                    await channel.send(
+                        embed=_track_embed(
+                            track,
+                            title="🎵 الآن يُشغَّل",
+                            color=COLORS["music"],
+                            requester_id=requester_id,
+                        )
+                    )
+                except Exception:
+                    log.exception("failed to post now-playing log")
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(
+        self, payload: wavelink.TrackEndEventPayload
+    ) -> None:
+        log.info(
+            "track end: reason=%s queue=%d",
+            payload.reason, len(payload.player.queue) if payload.player else -1,
         )
-        await self._send_to_text(player, embed)
-        log_ch = self.bot.get_channel(self.settings.log_errors)
-        if isinstance(log_ch, discord.TextChannel):
-            try:
-                await log_ch.send(f"❌ `{track.display()}` — {type(err).__name__}: {err}")
-            except Exception:
-                pass
+        # wavelink autoplay handles next-track playback when
+        # `player.autoplay = wavelink.AutoPlayMode.partial` is set (see /play).
 
-    async def _announce_idle(self, player: MusicPlayer) -> None:
-        embed = discord.Embed(
-            title="😴 خروج تلقائي",
-            description="ما فيه أغانٍ بالقائمة منذ فترة — البوت سحب نفسه من القناة الصوتية.",
-            color=COLORS["info"],
-        )
-        await self._send_to_text(player, embed)
+    # -------- /play --------
 
-    # ----- commands -----
-
-    @app_commands.command(name="play", description="🎶 تشغيل أغنية أو رابط YouTube (يضيفها للقائمة)")
-    @app_commands.describe(query="رابط YouTube أو كلمات بحث")
+    @app_commands.command(
+        name="play",
+        description="🎶 تشغيل أغنية أو رابط YouTube/SoundCloud (يضيفها للقائمة)",
+    )
+    @app_commands.describe(query="رابط أو اسم الأغنية")
     async def play(self, interaction: discord.Interaction, query: str) -> None:
-        # Defer FIRST: voice connect + yt-dlp extraction can each take
-        # several seconds and Discord expects a response within 3.
         await interaction.response.defer(thinking=True)
 
-        player = await self._ensure_voice(interaction, already_deferred=True)
+        player = await _ensure_voice_after_defer(interaction)
         if player is None:
             return
 
+        # Wavelink picks search source from URL pattern; for free text we
+        # default to YouTube (Music client via the youtube-source plugin
+        # configured on the Lavalink side).
         try:
-            tracks = await resolve_query(query, requested_by_id=interaction.user.id)
-        except Exception as e:
-            _log.exception("resolve_query failed")
+            tracks: wavelink.Search = await wavelink.Playable.search(query)
+        except Exception:
+            log.exception("wavelink search failed for %r", query)
             await interaction.followup.send(
-                "🔎 ما لقيت أي نتيجة شغّالة لـ "
-                f"`{query}` بعد محاولة عدة مصادر. "
-                "جرّب اسم أوضح أو الصق رابط YouTube/SoundCloud مباشر.",
-                ephemeral=True,
+                "❌ تعذّر البحث. حاول رابط مباشر أو اسم آخر.", ephemeral=True
             )
             return
 
         if not tracks:
             await interaction.followup.send(
-                "🔎 ما لقيت أي نتيجة شغّالة. جرّب اسم بحث ثاني أو رابط مباشر.",
-                ephemeral=True,
+                f"🔎 ما لقيت أي نتيجة لـ `{query}`.", ephemeral=True
             )
             return
 
-        added = player.enqueue_many(tracks)
-        if not player.is_playing():
-            await player.play_next()
+        # Tag the track with requester metadata so /nowplaying can render it.
+        first = tracks[0]
+        first.extras = {"requester_id": interaction.user.id}
 
-        if added == 0:
-            await interaction.followup.send(
-                f"⚠️ قائمة الانتظار ممتلئة (الحد الأقصى: **{player._max_queue}**). لم تُضَف أي أغنية.",
-                ephemeral=True,
-            )
-            return
-
-        if len(tracks) == 1:
-            t = tracks[0]
-            queue_len = len(player.queue)
-            now_playing = queue_len == 0
-            embed = discord.Embed(
-                title="▶️ يُشغَّل الآن" if now_playing else "✅ أُضيفت للقائمة",
-                description=f"**[{t.display()}]({t.webpage_url or 'https://youtube.com'})**",
-                color=COLORS["success"],
-            )
-            embed.add_field(name="المدة", value=_fmt_duration(t.duration), inline=True)
-            embed.add_field(
-                name="الموقع في القائمة",
-                value="▶️ الآن" if now_playing else str(queue_len),
-                inline=True,
-            )
-            if t.thumbnail:
-                embed.set_thumbnail(url=t.thumbnail)
-            await interaction.followup.send(embed=embed)
-        else:
+        if isinstance(tracks, wavelink.Playlist):
+            for t in tracks.tracks:
+                t.extras = {"requester_id": interaction.user.id}
+            await player.queue.put_wait(tracks)
             await interaction.followup.send(
                 embed=discord.Embed(
-                    title=f"🎶 أُضيفت {added} أغنية للقائمة",
-                    description=f"إجمالي القائمة الآن: **{len(player.queue)}**",
-                    color=COLORS["success"],
+                    title="📋 أُضيفت قائمة تشغيل",
+                    description=f"**{tracks.name}** ({len(tracks.tracks)} أغنية)",
+                    color=COLORS["music"],
                 )
             )
+        else:
+            await player.queue.put_wait(first)
+            position = len(player.queue)
+            if not player.playing:
+                await interaction.followup.send(
+                    embed=_track_embed(
+                        first,
+                        title="▶️ يُشغَّل الآن",
+                        color=COLORS["music"],
+                        requester_id=interaction.user.id,
+                    )
+                )
+            else:
+                await interaction.followup.send(
+                    embed=_track_embed(
+                        first,
+                        title="➕ أُضيفت للقائمة",
+                        color=COLORS["info"],
+                        requester_id=interaction.user.id,
+                        queue_position=position,
+                    )
+                )
 
-    @app_commands.command(name="skip", description="⏭️ تخطّي الأغنية الحالية")
+        # Kick off playback if idle. wavelink's autoplay handles the
+        # rest (it auto-pulls from queue when a track ends).
+        if not player.playing:
+            next_track = player.queue.get()
+            await player.play(next_track, volume=self.settings.default_volume)
+
+        # Enable partial autoplay so the queue advances automatically and
+        # wavelink fetches similar tracks once the queue empties.
+        player.autoplay = wavelink.AutoPlayMode.partial
+
+    # -------- /skip --------
+
+    @app_commands.command(name="skip", description="⏭ تخطي الأغنية الحالية")
     async def skip(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if not player.is_playing():
+        player = _player_for(interaction)
+        if not player or not player.playing:
             await interaction.response.send_message(
-                "⏸️ لا توجد أغنية تُشغَّل حالياً.", ephemeral=True
+                "❌ لا توجد أغنية تعمل حالياً.", ephemeral=True
             )
             return
-        title = player.now_playing.display() if player.now_playing else "?"
-        player.skip()
-        await interaction.response.send_message(f"⏭️ تم تخطّي **{title}**.")
+        await player.skip(force=True)
+        await interaction.response.send_message(
+            "⏭ تم تخطّي الأغنية.", ephemeral=True
+        )
+
+    # -------- /queue --------
 
     @app_commands.command(name="queue", description="📋 عرض قائمة الأغاني")
-    async def queue_(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
+    async def queue(self, interaction: discord.Interaction) -> None:
+        player = _player_for(interaction)
+        if not player:
+            await interaction.response.send_message(
+                "❌ البوت ليس في قناة صوتية.", ephemeral=True
+            )
             return
-        player = self.get_player(interaction.guild.id)
-        embed = discord.Embed(title="📋 قائمة الأغاني", color=COLORS["music"])
 
-        if player.now_playing:
+        embed = discord.Embed(title="📋 قائمة التشغيل", color=COLORS["music"])
+        if player.current:
             embed.add_field(
                 name="🎵 الآن يُشغَّل",
-                value=f"**{player.now_playing.display()}** "
-                      f"({_fmt_duration(player.progress_seconds())} / "
-                      f"{_fmt_duration(player.now_playing.duration)})",
+                value=f"**{player.current.title}** ({_fmt_duration(player.current.length)})",
                 inline=False,
             )
 
         if not player.queue:
-            embed.description = "لا توجد أغانٍ في قائمة الانتظار."
+            embed.description = "_القائمة فارغة_"
         else:
-            preview = []
+            lines = []
             for i, t in enumerate(list(player.queue)[:10], start=1):
-                preview.append(
-                    f"`{i}.` **{t.display()}** — {_fmt_duration(t.duration)} "
-                    f"(<@{t.requested_by_id}>)"
-                )
+                lines.append(f"`{i}.` {t.title} — {_fmt_duration(t.length)}")
             if len(player.queue) > 10:
-                preview.append(f"… و **{len(player.queue) - 10}** أغنية إضافية")
-            embed.description = "\n".join(preview)
+                lines.append(f"…و **{len(player.queue) - 10}** أغنية إضافية")
+            embed.description = "\n".join(lines)
 
-        embed.set_footer(
-            text=f"وضع التكرار: {player.loop_mode.value} | الصوت: "
-                 f"{int(player.volume * 100)}%"
-        )
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="pause", description="⏸️ إيقاف مؤقت")
+    # -------- /pause /resume /stop --------
+
+    @app_commands.command(name="pause", description="⏸ إيقاف مؤقت")
     async def pause(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if player.pause():
-            await interaction.response.send_message("⏸️ تم الإيقاف المؤقت.")
-        else:
+        player = _player_for(interaction)
+        if not player or not player.playing:
             await interaction.response.send_message(
-                "ℹ️ لا توجد أغنية قيد التشغيل لإيقافها.", ephemeral=True
+                "❌ لا توجد أغنية تعمل حالياً.", ephemeral=True
             )
+            return
+        await player.pause(True)
+        await interaction.response.send_message("⏸ تم الإيقاف المؤقت.")
 
-    @app_commands.command(name="resume", description="▶️ متابعة التشغيل بعد الإيقاف المؤقت")
+    @app_commands.command(name="resume", description="▶ متابعة التشغيل")
     async def resume(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if player.resume():
-            await interaction.response.send_message("▶️ تم استئناف التشغيل.")
-        else:
+        player = _player_for(interaction)
+        if not player:
             await interaction.response.send_message(
-                "ℹ️ لا توجد أغنية متوقّفة مؤقتاً.", ephemeral=True
+                "❌ البوت ليس في قناة صوتية.", ephemeral=True
             )
-
-    @app_commands.command(name="stop", description="⏹️ إيقاف التشغيل ومسح القائمة")
-    async def stop(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
             return
-        player = self.get_player(interaction.guild.id)
-        await player.stop()
-        await interaction.response.send_message(
-            "⏹️ تم الإيقاف ومسح قائمة الانتظار، وخرج البوت من القناة الصوتية."
-        )
+        await player.pause(False)
+        await interaction.response.send_message("▶ تم استئناف التشغيل.")
 
-    @app_commands.command(name="loop", description="🔁 وضع التكرار: off / track / queue")
-    @app_commands.describe(mode="off=بدون | track=تكرار الأغنية | queue=تكرار القائمة")
+    @app_commands.command(name="stop", description="⏹ إيقاف ومسح القائمة")
+    async def stop(self, interaction: discord.Interaction) -> None:
+        player = _player_for(interaction)
+        if not player:
+            await interaction.response.send_message(
+                "❌ البوت ليس في قناة صوتية.", ephemeral=True
+            )
+            return
+        player.queue.clear()
+        await player.stop(force=True)
+        await interaction.response.send_message("⏹ تم الإيقاف ومسح القائمة.")
+
+    # -------- /loop --------
+
+    @app_commands.command(
+        name="loop", description="🔁 وضع التكرار: off / track / queue"
+    )
     @app_commands.choices(mode=[
         app_commands.Choice(name="إيقاف التكرار", value="off"),
         app_commands.Choice(name="تكرار الأغنية الحالية", value="track"),
-        app_commands.Choice(name="تكرار قائمة الانتظار", value="queue"),
+        app_commands.Choice(name="تكرار القائمة بالكامل", value="queue"),
     ])
-    async def loop(self, interaction: discord.Interaction, mode: app_commands.Choice[str]) -> None:
-        if not interaction.guild:
+    async def loop(
+        self, interaction: discord.Interaction, mode: app_commands.Choice[str]
+    ) -> None:
+        player = _player_for(interaction)
+        if not player:
+            await interaction.response.send_message(
+                "❌ البوت ليس في قناة صوتية.", ephemeral=True
+            )
             return
-        player = self.get_player(interaction.guild.id)
-        try:
-            player.loop_mode = LoopMode(mode.value)
-        except ValueError:
-            player.loop_mode = LoopMode.OFF
-        await interaction.response.send_message(
-            f"🔁 وضع التكرار الآن: **{player.loop_mode.value}**"
-        )
+        modes = {
+            "off": wavelink.QueueMode.normal,
+            "track": wavelink.QueueMode.loop,
+            "queue": wavelink.QueueMode.loop_all,
+        }
+        player.queue.mode = modes[mode.value]
+        labels = {"off": "❎ إيقاف التكرار",
+                  "track": "🔂 تكرار الأغنية الحالية",
+                  "queue": "🔁 تكرار القائمة"}
+        await interaction.response.send_message(labels[mode.value])
+
+    # -------- /volume --------
 
     @app_commands.command(name="volume", description="🔊 مستوى الصوت (0-200)")
-    @app_commands.describe(level="مستوى الصوت من 0 إلى 200")
-    async def volume(self, interaction: discord.Interaction, level: app_commands.Range[int, 0, 200]) -> None:
-        if not interaction.guild:
+    @app_commands.describe(level="0..200 (افتراضي 70)")
+    async def volume(
+        self, interaction: discord.Interaction, level: app_commands.Range[int, 0, 200]
+    ) -> None:
+        player = _player_for(interaction)
+        if not player:
+            await interaction.response.send_message(
+                "❌ البوت ليس في قناة صوتية.", ephemeral=True
+            )
             return
-        player = self.get_player(interaction.guild.id)
-        player.set_volume(level)
-        await interaction.response.send_message(
-            f"🔊 مستوى الصوت الآن: **{int(player.volume * 100)}%**"
-        )
+        await player.set_volume(level)
+        await interaction.response.send_message(f"🔊 مستوى الصوت الآن: **{level}**")
+
+    # -------- /nowplaying --------
 
     @app_commands.command(name="nowplaying", description="🎵 معلومات الأغنية الحالية")
     async def nowplaying(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if not player.now_playing:
+        player = _player_for(interaction)
+        if not player or not player.current:
             await interaction.response.send_message(
-                "⏸️ لا توجد أغنية تُشغَّل حالياً.", ephemeral=True
+                "❌ لا توجد أغنية تعمل حالياً.", ephemeral=True
             )
             return
-        t = player.now_playing
-        elapsed = player.progress_seconds()
-        embed = discord.Embed(
-            title="🎵 الآن يُشغَّل",
-            description=f"**[{t.display()}]({t.webpage_url or 'https://youtube.com'})**",
-            color=COLORS["music"],
-        )
-        bar = _progress_bar(elapsed, t.duration)
+        track = player.current
+        embed = _track_embed(track, title="🎵 الآن يُشغَّل", color=COLORS["music"])
         embed.add_field(
-            name="التقدّم",
-            value=f"{bar}\n`{_fmt_duration(elapsed)} / {_fmt_duration(t.duration)}`",
+            name="التقدم",
+            value=f"{_fmt_duration(player.position)} / {_fmt_duration(track.length)}",
             inline=False,
         )
-        if t.uploader:
-            embed.add_field(name="القناة", value=t.uploader, inline=True)
-        if t.requested_by_id:
-            embed.add_field(name="طلب بواسطة", value=f"<@{t.requested_by_id}>", inline=True)
-        embed.add_field(name="القائمة", value=f"**{len(player.queue)}** بانتظار", inline=True)
-        if t.thumbnail:
-            embed.set_thumbnail(url=t.thumbnail)
+        embed.add_field(name="القائمة",
+                        value=f"**{len(player.queue)}** بانتظار", inline=True)
         await interaction.response.send_message(embed=embed)
 
-    @app_commands.command(name="join", description="📥 ضمّ البوت إلى قناتك الصوتية")
+    # -------- /join /leave --------
+
+    @app_commands.command(name="join", description="📥 ضم البوت إلى قناتك الصوتية")
     async def join(self, interaction: discord.Interaction) -> None:
-        # Defer first so the voice connect doesn't blow the 3-second window.
-        await interaction.response.defer(thinking=True)
-        player = await self._ensure_voice(interaction, already_deferred=True)
-        if player is None:
-            return
-        await interaction.followup.send(
-            f"✅ انضممت إلى **{player.voice_client.channel}**." if player.voice_client else "✅ انضممت."
-        )
+        player = await _ensure_voice(interaction)
+        if player:
+            await interaction.response.send_message(
+                f"📥 انضممت لـ {player.channel.mention}", ephemeral=True
+            )
 
     @app_commands.command(name="leave", description="📤 إخراج البوت من القناة الصوتية")
     async def leave(self, interaction: discord.Interaction) -> None:
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if not player.voice_client or not player.voice_client.is_connected():
+        player = _player_for(interaction)
+        if not player:
             await interaction.response.send_message(
-                "ℹ️ البوت ليس في أي قناة صوتية.", ephemeral=True
+                "❌ البوت ليس في قناة صوتية.", ephemeral=True
             )
             return
-        await player.stop()
-        await interaction.response.send_message("👋 إلى اللقاء.")
+        await player.disconnect()
+        await interaction.response.send_message("👋 خرجت من القناة الصوتية.")
 
-    @app_commands.command(name="remove", description="🗑️ حذف أغنية من القائمة (1 = الأولى)")
-    @app_commands.describe(position="رقم الأغنية في القائمة")
-    async def remove(self, interaction: discord.Interaction, position: app_commands.Range[int, 1, 1000]) -> None:
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if position > len(player.queue):
+    # -------- /remove --------
+
+    @app_commands.command(name="remove", description="🗑 حذف أغنية من القائمة (1=الأولى)")
+    async def remove(
+        self,
+        interaction: discord.Interaction,
+        position: app_commands.Range[int, 1, 1000],
+    ) -> None:
+        player = _player_for(interaction)
+        if not player or not player.queue:
             await interaction.response.send_message(
-                f"⚠️ القائمة فيها **{len(player.queue)}** فقط.", ephemeral=True
+                "❌ القائمة فارغة.", ephemeral=True
             )
             return
-        # deque doesn't support O(1) random delete; pop+rebuild is fine for ≤100 items.
-        items = list(player.queue)
-        removed = items.pop(position - 1)
-        player.queue.clear()
-        player.queue.extend(items)
+        try:
+            track = player.queue.peek(position - 1)
+            player.queue.delete(position - 1)
+        except (IndexError, KeyError):
+            await interaction.response.send_message(
+                f"❌ لا يوجد عنصر في الموقع {position}.", ephemeral=True
+            )
+            return
         await interaction.response.send_message(
-            f"🗑️ حُذفت من القائمة: **{removed.display()}**"
+            f"🗑 حُذفت **{track.title}** من القائمة."
         )
+
+    # -------- /shuffle --------
 
     @app_commands.command(name="shuffle", description="🔀 خلط ترتيب القائمة عشوائياً")
     async def shuffle(self, interaction: discord.Interaction) -> None:
-        import random
-        if not interaction.guild:
-            return
-        player = self.get_player(interaction.guild.id)
-        if len(player.queue) < 2:
+        player = _player_for(interaction)
+        if not player or not player.queue:
             await interaction.response.send_message(
-                "ℹ️ القائمة قصيرة جداً للخلط.", ephemeral=True
+                "❌ القائمة فارغة.", ephemeral=True
             )
             return
-        items = list(player.queue)
-        random.shuffle(items)
-        player.queue.clear()
-        player.queue.extend(items)
-        await interaction.response.send_message(f"🔀 خُلطت **{len(items)}** أغنية.")
+        player.queue.shuffle()
+        await interaction.response.send_message(
+            f"🔀 تم خلط القائمة ({len(player.queue)} أغنية)."
+        )
 
 
-async def setup(bot: commands.Bot):
-    settings: Optional[Settings] = getattr(bot, "settings", None)
-    if settings is None:
-        raise RuntimeError("MusicCog requires bot.settings to be set")
-    await bot.add_cog(MusicCog(bot, settings))
+def _player_for(interaction: discord.Interaction) -> wavelink.Player | None:
+    if not interaction.guild:
+        return None
+    return cast("wavelink.Player | None", interaction.guild.voice_client)
+
+
+async def _ensure_voice_after_defer(
+    interaction: discord.Interaction,
+) -> wavelink.Player | None:
+    """Same as `_ensure_voice` but for commands that have already deferred.
+
+    Sends followup messages instead of initial responses.
+    """
+    if not isinstance(interaction.user, discord.Member):
+        await interaction.followup.send(
+            "هذا الأمر متاح في السيرفر فقط.", ephemeral=True
+        )
+        return None
+
+    voice_state = interaction.user.voice
+    if not voice_state or not voice_state.channel:
+        await interaction.followup.send(
+            "🔇 ادخل قناة صوتية أولاً، ثم استخدم الأمر.", ephemeral=True
+        )
+        return None
+
+    guild = interaction.guild
+    assert guild is not None
+    player = cast("wavelink.Player | None", guild.voice_client)
+
+    if player is None:
+        try:
+            player = await voice_state.channel.connect(  # type: ignore[arg-type]
+                cls=wavelink.Player, self_deaf=False, self_mute=False
+            )
+        except Exception:
+            log.exception("voice_channel.connect failed")
+            await interaction.followup.send(
+                "❌ فشل الاتصال بالقناة الصوتية.", ephemeral=True
+            )
+            return None
+    elif player.channel != voice_state.channel:
+        await interaction.followup.send(
+            f"البوت في قناة أخرى ({player.channel.mention}). استخدم /leave أولاً.",
+            ephemeral=True,
+        )
+        return None
+
+    return player
+
+
+async def setup(bot: commands.Bot) -> None:
+    await bot.add_cog(Music(bot))

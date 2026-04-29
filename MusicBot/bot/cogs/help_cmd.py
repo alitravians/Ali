@@ -45,7 +45,8 @@ class HelpCog(commands.Cog):
         embed = discord.Embed(
             title="🎵 عن بوت الموسيقى",
             description=(
-                "بوت موسيقى عربي مبني بـ discord.py 2.4 + yt-dlp + FFmpeg.\n"
+                "بوت موسيقى عربي مبني بـ discord.py + wavelink + Lavalink.\n"
+                "Lavalink (Java) يستضيف الصوت ويدعم DAVE E2EE.\n"
                 "مفتوح المصدر، يعمل 24/7 على fly.io."
             ),
             color=COLORS["music"],

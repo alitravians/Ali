@@ -1,24 +1,15 @@
-# discord.py 2.7+ HARD-REQUIRES the optional ``davey`` library for any voice
-# connection. Two reasons:
+# --- MusicBot v2 (Lavalink + wavelink) -----------------------------------
 #
-# 1. ``VoiceClient.__init__`` raises
-#    ``RuntimeError('davey library needed in order to use voice')`` if
-#    ``davey`` is not importable.
-# 2. Since 2026-Q1, Discord's voice gateway *requires* the DAVE end-to-end
-#    encryption protocol. Advertising ``max_dave_protocol_version=0`` in
-#    IDENTIFY now causes the voice WebSocket to close with code
-#    ``4017`` (``EndToEndEncryptionDAVEProtocolRequired``) and the voice
-#    handshake fails completely.
+# This bot streams audio through a Lavalink server (separate fly.io app
+# `music-lavalink-am`). Lavalink itself opens the Discord voice WebSocket
+# and UDP socket and handles the DAVE/MLS handshake natively (libdave
+# >= 0.1.3, bundled in Lavalink 4.2.x). The Python bot only sends slash
+# commands and forwards voice state updates -- it never opens a voice
+# connection itself, so `davey` and `PyNaCl` are NOT required and the
+# `[voice]` extra MUST NOT be installed (it would pull `davey` into the
+# image needlessly and add ~30MB of native code).
 #
-# So we install ``discord.py[voice]`` (which transitively pulls ``davey`` and
-# ``PyNaCl``), keep DAVE *enabled*, and rely on opus + ffmpeg + transport
-# encryption to deliver audio. ``bot/main.py::_disable_dave_protocol`` is
-# kept around for diagnostics only -- DO NOT call it.
-discord.py[voice]>=2.7.0
-# Enables ``aead_aes256_gcm_rtpsize`` voice encryption negotiation on
-# discord.py 2.5+. Without ``cryptography`` installed, discord.py can
-# only negotiate xchacha20 -- which Discord still accepts. Having both
-# modes available makes the negotiation robust.
-cryptography>=42.0
-yt-dlp>=2026.3.17
+# wavelink 3.x is the canonical Lavalink v4 client for discord.py.
+discord.py>=2.7.0
+wavelink>=3.5.2
 python-dotenv==1.0.1

@@ -1,17 +1,45 @@
-# 🎵 MusicBot
+# 🎵 MusicBot v2 — Lavalink edition
 
 Stand-alone Discord music bot for the A❤️M's server. Sibling project to
 `CompetitionsBot/` — separate bot user, separate fly.io app, separate
-permissions. Built with discord.py 2.4 + yt-dlp + FFmpeg.
+permissions.
 
-## Why a separate bot?
+## Architecture (rewritten 2026-04-29)
 
-- **Resource isolation**: voice + ffmpeg are CPU-hungry and unstable in
-  rare cases. Crashing the music bot must not crash the quiz bot.
-- **Tighter scopes**: this bot only needs `Connect`, `Speak`, `Send
-  Messages`, and slash command perms — no `Manage Channels` /
-  `Manage Messages`.
-- **Independent scaling**: deploys, restarts, and metrics are per-bot.
+> **Why a rewrite?** The previous version (discord.py + ffmpeg + davey
+> 0.1.5) hit a hard wall on Discord's mandatory DAVE end-to-end voice
+> encryption rolled out in 2026-Q1. The Python `davey 0.1.5` MLS
+> handshake stalls after `MLS_EXTERNAL_SENDER` for headless single-bot
+> voice channels (`can_encrypt=False`), so listeners hear silence even
+> though packets flow. There is no library-level workaround.
+>
+> The fix is to delegate audio to **Lavalink**, which ships its own
+> battle-tested DAVE implementation (`libdave 0.1.3+`, bundled in
+> Lavalink 4.2+). Lavalink opens its own voice WebSocket and UDP socket
+> to Discord; the Python bot only speaks the gateway.
+
+```
+┌────────────────────────┐        ┌──────────────────────────┐
+│  music-bot-am          │  ws    │  music-lavalink-am       │
+│  (Python, discord.py)  │ <────> │  (Java, Lavalink 4.2.2)  │
+│  - slash commands      │  HTTP  │  - voice WS + UDP        │
+│  - wavelink Pool       │        │  - opus encoding         │
+│  - voice state proxy   │        │  - DAVE/MLS handshake    │
+└─────────┬──────────────┘        │  - youtube-source 1.18+  │
+          │ gateway WS            └──────────────────────────┘
+          │                                   ▲
+          ▼                                   │
+        Discord ────────── voice WS ──────────┘
+                       (Lavalink ↔ Discord)
+```
+
+Two fly.io apps in the same private 6PN network:
+
+* `music-bot-am` — Python, `Dockerfile` at repo root.
+* `music-lavalink-am` — Java, `lavalink/Dockerfile`.
+
+The Python bot reaches Lavalink at
+`http://music-lavalink-am.flycast:2333` (private, no public ports).
 
 ## Commands
 
@@ -19,11 +47,11 @@ Member-facing (visible to everyone):
 
 | Command | Purpose |
 |---|---|
-| `/play <url-or-search>` | Resolve a YouTube URL or search and queue it |
+| `/play <url-or-search>` | Queue a YouTube/SoundCloud URL or search query |
 | `/skip` | Skip the current track |
 | `/queue` | Show the queue (top 10 + total count) |
 | `/pause` / `/resume` | Pause / resume the current track |
-| `/stop` | Stop, clear queue, leave the channel |
+| `/stop` | Stop, clear queue |
 | `/loop off\|track\|queue` | Toggle loop mode |
 | `/volume 0..200` | Adjust volume live |
 | `/nowplaying` | Show progress bar + metadata |
@@ -38,7 +66,7 @@ Admin (hidden via `default_permissions(manage_guild=True)`):
 |---|---|
 | `/admin_music_stop` | Force-stop & disconnect (logs to admin channel) |
 | `/admin_music_clear` | Clear the queue |
-| `/admin_music_health` | Diagnostics: guild count, active players, latency |
+| `/admin_music_health` | Diagnostics: guilds, players, Lavalink node status |
 
 ## Local dev
 
@@ -48,26 +76,45 @@ cp .env.example .env   # then fill in DISCORD_BOT_TOKEN + GUILD_ID
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
-# Requires ffmpeg + libopus on the host:
-#   Debian/Ubuntu: sudo apt install ffmpeg libopus0
-#   macOS:         brew install ffmpeg opus
+# In a second terminal, run Lavalink locally:
+docker run --rm -p 2333:2333 \
+    -v $PWD/lavalink/application.yml:/opt/Lavalink/application.yml \
+    ghcr.io/lavalink-devs/lavalink:4.2.2-alpine
 
+# Then run the bot, pointing at the local Lavalink:
+LAVALINK_URI=http://127.0.0.1:2333 \
+LAVALINK_PASSWORD=youshallnotpass \
 python -m bot.main
 ```
 
 ## Production deploy (fly.io)
 
+Two apps. Lavalink first, bot second.
+
+### 1. Lavalink
+
 ```bash
-fly apps create music-bot-am --org personal
+cd lavalink
+fly apps create music-lavalink-am --org personal
+fly secrets set -a music-lavalink-am LAVALINK_SERVER_PASSWORD=<strong-password>
+fly deploy -a music-lavalink-am --config fly.toml
+```
+
+### 2. Bot
+
+```bash
+cd ..
+fly apps create music-bot-am --org personal   # if not already
 fly secrets set -a music-bot-am \
     DISCORD_BOT_TOKEN=<token> \
     GUILD_ID=1165790728551669780 \
-    ENABLE_MEMBERS_INTENT=1
+    LAVALINK_URI=http://music-lavalink-am.flycast:2333 \
+    LAVALINK_PASSWORD=<same-strong-password>
 fly deploy -a music-bot-am
 ```
 
-The included `Dockerfile` installs ffmpeg + libopus and runs
-`python -m bot.main` as the only process.
+The fly.io 6PN network (`*.flycast`) is private to your org, so
+Lavalink is not reachable from the public internet.
 
 ## Required Discord setup
 
@@ -83,7 +130,5 @@ The included `Dockerfile` installs ffmpeg + libopus and runs
 ## Logging
 
 The three IDs in `server_config.json → bot_logs_channels` (`play`,
-`errors`, `admin`) all default to the existing `📥│بوتات-مستقبلية`
-channel under the `🤖 ━ سجلات البوتات ━` admin-only category. Once the
-bot is live, run a small script (or replace the IDs by hand) to point
-each one at a dedicated `🎵-music-*` log channel.
+`errors`, `admin`) point at admin-only channels under the
+`🤖 ━ سجلات البوتات ━` category. Update them as needed.

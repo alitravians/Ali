@@ -1,4 +1,19 @@
-"""MusicBot entry point — loads cogs, syncs slash commands, runs forever."""
+"""MusicBot v2 entry point — discord.py + wavelink + Lavalink.
+
+Architecture (radical rewrite, 2026-04-29):
+
+* The Python bot speaks ONLY the Discord gateway (text WebSocket) and the
+  Lavalink REST/WS API. It never opens a Discord voice WebSocket itself, so
+  `davey`/PyNaCl/libopus are NOT installed in the image.
+
+* All voice handling -- the voice WS, UDP socket, opus encoding, transport
+  encryption, and most importantly the DAVE/MLS end-to-end key exchange --
+  happens inside Lavalink (separate fly.io app `music-lavalink-am`,
+  Lavalink 4.2.2 bundling libdave >= 0.1.3).
+
+This sidesteps the davey 0.1.5 MLS handshake stall (`can_encrypt` stuck on
+False, listeners hear silence) that motivated the rebuild from scratch.
+"""
 from __future__ import annotations
 
 import asyncio
@@ -7,6 +22,7 @@ import os
 import sys
 
 import discord
+import wavelink
 from discord.ext import commands
 
 from .config import Settings
@@ -19,112 +35,35 @@ logging.basicConfig(
 log = logging.getLogger("musicbot")
 
 
-def _disable_dave_protocol() -> None:
-    """Force ``max_dave_protocol_version`` to ``0`` so Discord never enables
-    DAVE end-to-end voice encryption on this bot.
-
-    Root cause this prevents: when DAVE is active (``dave_protocol_version >= 1``)
-    but the MLS group handshake never completes (``can_encrypt`` stays False --
-    the steady-state for headless bots that never receive ``MLS_WELCOME`` for
-    the voice channel), discord.py's ``_get_voice_packet`` falls through to
-    sending *raw, non-DAVE* opus frames over the otherwise-encrypted transport.
-    Every real Discord client in the channel is decrypting with the DAVE group
-    key, so the bot's frames are dropped silently -- listeners hear absolute
-    silence even though UDP packets are flowing, opus is loaded, ffmpeg is
-    feeding frames at the right rate, and transport encryption is established.
-
-    Implementation:
-
-    1. Set ``discord.voice_state.has_dave = False``. The
-       ``max_dave_protocol_version`` property at ``voice_state.py`` line 268
-       reads the *module-level* ``has_dave`` and returns
-       ``davey.DAVE_PROTOCOL_VERSION if has_dave else 0``. Forcing
-       ``has_dave = False`` makes IDENTIFY advertise ``0`` to Discord so DAVE
-       is never enabled on the channel.
-
-    2. CRITICALLY do NOT touch ``discord.voice_client.has_dave``. That module
-       captured its own binding via ``from .voice_state import has_dave`` at
-       import time, and uses it to gate VoiceClient construction:
-
-           # voice_client.py line 221-222
-           if not has_dave:
-               raise RuntimeError('davey library needed in order to use voice')
-
-       If we set it to False, voice cannot be created at all. The original
-       True binding stays so VoiceClient is created normally.
-
-    3. Override the ``max_dave_protocol_version`` property defensively in case
-       ``davey`` is imported again later -- the property will still return 0.
-
-    4. Override ``can_encrypt`` to always return False so any code path that
-       assumes DAVE session keys exist short-circuits cleanly.
-    """
-    try:
-        from discord import voice_state as _vs
-    except Exception:  # pragma: no cover -- discord.py missing is fatal elsewhere
-        log.warning("discord.voice_state import failed; cannot disable DAVE")
-        return
-    _vs.has_dave = False  # type: ignore[attr-defined]
-    _vs.VoiceConnectionState.max_dave_protocol_version = property(  # type: ignore[assignment]
-        lambda _self: 0
-    )
-    _vs.VoiceConnectionState.can_encrypt = property(  # type: ignore[assignment]
-        lambda _self: False
-    )
-    try:
-        from discord import voice_client as _vc
-        vc_has_dave = getattr(_vc, "has_dave", None)
-    except Exception:
-        vc_has_dave = None
-    log.info(
-        "DAVE protocol disabled: voice_state.has_dave=False, "
-        "max_dave_protocol_version=0, can_encrypt=False "
-        "(voice_client.has_dave=%r preserved for VoiceClient construction)",
-        vc_has_dave,
-    )
-
-
-def _load_opus() -> None:
-    """Explicitly load libopus so PCM → Opus encoding works.
-
-    discord.py's auto-detection (``ctypes.util.find_library('opus')``)
-    relies on ``gcc``/``objdump`` being on PATH, which is not the case
-    in slim Debian images. When auto-detection fails ``is_loaded()``
-    stays False and ``FFmpegPCMAudio`` produces silence — Discord never
-    receives any encoded audio frames. Loading by SONAME directly is
-    the canonical, container-friendly fix.
-    """
-    if discord.opus.is_loaded():
-        log.info("opus: already loaded by auto-detection")
-        return
-    for candidate in ("libopus.so.0", "libopus.so", "opus"):
-        try:
-            discord.opus.load_opus(candidate)
-        except OSError:
-            continue
-        if discord.opus.is_loaded():
-            log.info("opus: loaded via %r", candidate)
-            return
-    log.error(
-        "opus: FAILED to load libopus — voice will be silent. "
-        "Install libopus0 in the runtime image."
-    )
-
-
 class MusicBot(commands.Bot):
     def __init__(self, settings: Settings):
         intents = discord.Intents.default()
         intents.voice_states = True
         intents.members = bool(int(os.environ.get("ENABLE_MEMBERS_INTENT", "0")))
-        intents.message_content = bool(int(os.environ.get("ENABLE_MESSAGE_CONTENT_INTENT", "0")))
+        intents.message_content = bool(
+            int(os.environ.get("ENABLE_MESSAGE_CONTENT_INTENT", "0"))
+        )
         super().__init__(
-            command_prefix="!",   # legacy prefix; we use slash commands.
+            command_prefix="!",  # legacy prefix; we use slash commands.
             intents=intents,
             help_command=None,
         )
         self.settings = settings
 
     async def setup_hook(self) -> None:
+        # Connect to Lavalink BEFORE loading the music cog so wavelink.Pool
+        # is ready when commands fire.
+        lavalink_uri = os.getenv("LAVALINK_URI", "http://music-lavalink-am.flycast:2333")
+        lavalink_password = os.getenv("LAVALINK_PASSWORD", "youshallnotpass")
+        node = wavelink.Node(uri=lavalink_uri, password=lavalink_password)
+        try:
+            await wavelink.Pool.connect(nodes=[node], client=self, cache_capacity=100)
+            log.info("wavelink: connected to Lavalink at %s", lavalink_uri)
+        except Exception:
+            log.exception("wavelink: failed to connect to Lavalink at %s", lavalink_uri)
+            # Don't crash the whole bot -- it can still respond to slash
+            # commands with a graceful "music service unavailable" message.
+
         for cog in (
             "bot.cogs.help_cmd",
             "bot.cogs.music",
@@ -159,24 +98,25 @@ class MusicBot(commands.Bot):
         )
         try:
             await self.change_presence(
-                activity=discord.Activity(type=discord.ActivityType.listening, name="🎵 /play"),
+                activity=discord.Activity(
+                    type=discord.ActivityType.listening, name="🎵 /play"
+                ),
                 status=discord.Status.online,
             )
         except Exception:
             log.exception("failed to set presence")
 
+    async def on_wavelink_node_ready(
+        self, payload: wavelink.NodeReadyEventPayload
+    ) -> None:
+        log.info(
+            "wavelink: node %s ready (session_id=%s, resumed=%s)",
+            payload.node.identifier, payload.session_id, payload.resumed,
+        )
+
 
 async def main() -> None:
     settings = Settings.load()
-    # NOTE: do NOT call ``_disable_dave_protocol()`` here. Since 2026-Q1,
-    # Discord *requires* the DAVE protocol for voice connections; advertising
-    # ``max_dave_protocol_version=0`` in IDENTIFY now causes the voice gateway
-    # to close the WebSocket with code 4017
-    # (``EndToEndEncryptionDAVEProtocolRequired``) and the voice handshake
-    # fails completely. ``davey`` MUST be installed (which it is, via the
-    # ``[voice]`` extra in ``requirements.txt``) and DAVE MUST be left active.
-    # The function is kept around for diagnostic purposes only.
-    _load_opus()
     bot = MusicBot(settings)
     async with bot:
         await bot.start(settings.bot_token)
