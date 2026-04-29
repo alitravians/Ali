@@ -167,16 +167,49 @@ DIFFICULTY = {
 # XP / level thresholds
 LEVEL_THRESHOLDS = [0, 50, 150, 350, 700, 1200, 2000, 3000, 4500, 6500, 9000, 12000]
 
-# Achievements: id -> (name, description, requirement)
-ACHIEVEMENTS = {
-    "first_win": ("🏆 أول فوز", "اربح أول مسابقة", "wins>=1"),
-    "streak_5": ("🔥 سلسلة 5", "5 إجابات صحيحة متتالية", "streak>=5"),
-    "streak_10": ("⚡ سلسلة 10", "10 إجابات صحيحة متتالية", "streak>=10"),
-    "veteran": ("🎖️ مخضرم", "شارك في 25 مسابقة", "competitions>=25"),
-    "scholar": ("📚 عالم", "احصل على 1000 نقطة", "points>=1000"),
-    "champion": ("👑 بطل", "احصل على 5000 نقطة", "points>=5000"),
-    "perfect": ("💎 مثالي", "أكمل مسابقة بدون أخطاء", "perfect>=1"),
-    "speedster": ("⚡ سريع", "أجب في أقل من 3 ثواني", "fast_answer>=1"),
+# Achievements: id -> (name, description, requirement_text, tier)
+# tier in {"bronze", "silver", "gold", "diamond"}
+ACHIEVEMENTS: dict[str, tuple[str, str, str, str]] = {
+    # ----- Wins -----
+    "first_win":   ("🏆 أول فوز",          "اربح أول مسابقة",                "wins ≥ 1",          "bronze"),
+    "wins_10":     ("🥈 عشرة فائز",        "اربح 10 مسابقات",                "wins ≥ 10",         "silver"),
+    "wins_50":     ("🥇 خمسون فائز",       "اربح 50 مسابقة",                 "wins ≥ 50",         "gold"),
+    "wins_100":    ("💎 مئة فائز",         "اربح 100 مسابقة",                "wins ≥ 100",        "diamond"),
+    # ----- Streaks (best consecutive correct answers) -----
+    "streak_5":    ("🔥 سلسلة 5",          "5 إجابات صحيحة متتالية",         "best_streak ≥ 5",   "bronze"),
+    "streak_10":   ("⚡ سلسلة 10",         "10 إجابات صحيحة متتالية",        "best_streak ≥ 10",  "silver"),
+    "streak_25":   ("🌟 سلسلة 25",         "25 إجابة صحيحة متتالية",         "best_streak ≥ 25",  "gold"),
+    # ----- Perfect runs -----
+    "perfect":     ("💎 جولة مثالية",      "أكمل مسابقة بدون أخطاء",         "perfect_runs ≥ 1",  "silver"),
+    "perfect_5":   ("👑 خمس جولات مثاليات","5 جولات مثاليات",                "perfect_runs ≥ 5",  "gold"),
+    # ----- Speed -----
+    "speedster":   ("⚡ سريع البديهة",     "أجب في أقل من 3 ثواني",          "fast_answers ≥ 1",  "bronze"),
+    "speedster_50":("🌩️ برق المعرفة",      "50 إجابة سريعة",                 "fast_answers ≥ 50", "gold"),
+    # ----- Engagement / competitions -----
+    "veteran":     ("🎖️ مخضرم",            "شارك في 25 مسابقة",              "competitions ≥ 25", "silver"),
+    "legend":      ("🦅 أسطورة",           "شارك في 200 مسابقة",             "competitions ≥ 200","diamond"),
+    # ----- Total points -----
+    "scholar":     ("📚 عالم",             "احصل على 1000 نقطة",             "points ≥ 1000",     "silver"),
+    "master":      ("🎓 معلّم",            "احصل على 5000 نقطة",             "points ≥ 5000",     "gold"),
+    "god_tier":    ("🌌 مُتقن المعرفة",    "احصل على 25000 نقطة",            "points ≥ 25000",    "diamond"),
+    # ----- Accuracy -----
+    "accuracy_80": ("🎯 دقّة عالية",       "دقّة 80%+ على 100 إجابة على الأقل","accuracy ≥ 80%",   "gold"),
+    # ----- Daily streaks -----
+    "daily_7":     ("📅 أسبوع متواصل",     "7 أيام متتالية في /daily",       "daily_streak ≥ 7",  "silver"),
+    "daily_30":    ("🗓️ شهر متواصل",       "30 يوم متتالي في /daily",        "daily_streak ≥ 30", "diamond"),
+    # ----- Category mastery (50 correct in a category) -----
+    "cat_history": ("📜 مؤرّخ",            "50 إجابة صحيحة في فئة التاريخ",  "تاريخ correct ≥ 50","gold"),
+    "cat_geo":     ("🗺️ جغرافي",           "50 إجابة صحيحة في فئة الجغرافيا","جغرافيا correct ≥ 50","gold"),
+    "cat_science": ("🔬 عالم تجريبي",      "50 إجابة صحيحة في فئة العلوم",   "علوم correct ≥ 50", "gold"),
+    "cat_islam":   ("🕌 فقيه",             "50 إجابة صحيحة في الفئة الإسلامية","إسلامي correct ≥ 50","gold"),
+    "cat_master":  ("🌐 متعدّد الفنون",    "إتقان 4 فئات على الأقل (50+ في كل واحدة)","mastery ≥ 4 cats","diamond"),
+}
+
+ACHIEVEMENT_TIER_COLOR = {
+    "bronze":  0xCD7F32,
+    "silver":  0xC0C0C0,
+    "gold":    0xFFD700,
+    "diamond": 0x5DADE2,
 }
 
 WELCOME_MESSAGES = [
