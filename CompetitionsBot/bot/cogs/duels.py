@@ -212,10 +212,15 @@ class DuelsCog(commands.Cog):
             await asyncio.sleep(2)
 
         # Resolve
-        ch_user = await self.bot.db.get_user(challenger.id) or {"elo_rating": 1000}
-        op_user = await self.bot.db.get_user(opponent.id) or {"elo_rating": 1000}
-        ch_elo = ch_user.get("elo_rating", 1000) or 1000
-        op_elo = op_user.get("elo_rating", 1000) or 1000
+        ch_user = await self.bot.db.get_user(challenger.id) or {}
+        op_user = await self.bot.db.get_user(opponent.id) or {}
+        # NB: a player's ELO can legitimately be 0 (clamped by MAX(0, …) in
+        # update_duel_stats), so use an explicit None check rather than
+        # ``or 1000`` which would silently reset it to the default rating.
+        ch_raw = ch_user.get("elo_rating")
+        op_raw = op_user.get("elo_rating")
+        ch_elo = ch_raw if ch_raw is not None else 1000
+        op_elo = op_raw if op_raw is not None else 1000
 
         if ch_score > op_score:
             ch_delta = _elo_delta(ch_elo, op_elo, 1.0)
