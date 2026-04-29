@@ -6,7 +6,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from .. import utils
-from ..config import ACHIEVEMENTS, COLORS
+from ..config import ACHIEVEMENTS, CATEGORY_EMOJIS, COLORS
 
 
 class ProfileCog(commands.Cog):
@@ -52,12 +52,30 @@ class ProfileCog(commands.Cog):
         embed.add_field(name="🔥 أفضل سلسلة", value=f"`{data['best_streak']}`", inline=True)
         embed.add_field(name="⚡ إجابات سريعة", value=f"`{data['fast_answers']}`", inline=True)
 
-        # Achievements
+        # ----- Per-category stats (top 3 by points) -----
+        cat_rows = await self.bot.db.get_user_category_stats(target.id)
+        if cat_rows:
+            top = cat_rows[:3]
+            lines = []
+            for r in top:
+                emoji = CATEGORY_EMOJIS.get(r["category"], "🏷️")
+                acc = (r["correct"] / r["total"] * 100) if r["total"] else 0
+                lines.append(
+                    f"{emoji} **{r['category']}** — {r['points']} نقطة • "
+                    f"{r['correct']}/{r['total']} ({acc:.0f}%)"
+                )
+            embed.add_field(
+                name="🏷️ أفضل الفئات",
+                value="\n".join(lines),
+                inline=False,
+            )
+
+        # Achievements (4-tuple now: name, desc, requirement, tier)
         if data["achievements"]:
             ach_lines = []
             for aid in data["achievements"]:
                 if aid in ACHIEVEMENTS:
-                    name, _, _ = ACHIEVEMENTS[aid]
+                    name = ACHIEVEMENTS[aid][0]
                     ach_lines.append(f"• {name}")
             embed.add_field(
                 name=f"🎖️ الإنجازات ({len(ach_lines)}/{len(ACHIEVEMENTS)})",
@@ -67,10 +85,11 @@ class ProfileCog(commands.Cog):
         else:
             embed.add_field(
                 name=f"🎖️ الإنجازات (0/{len(ACHIEVEMENTS)})",
-                value="_لا توجد إنجازات بعد. شارك في المسابقات!_",
+                value="_لا توجد إنجازات بعد. استخدم `/achievements` لعرض الكل._",
                 inline=False,
             )
 
+        embed.set_footer(text="استخدم /achievements لعرض كل الإنجازات • /leaderboard category لترتيب فئة")
         await interaction.response.send_message(embed=embed)
 
 
