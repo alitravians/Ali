@@ -4,11 +4,16 @@ import os
 import time
 import urllib.request
 import urllib.error
+from pathlib import Path
 
 TOKEN = os.environ["DISCORD_BOT_TOKEN"]
 GUILD = "1165790728551669780"
 
-with open("/tmp/server_config.json") as f:
+# Resolve config path relative to this script (CompetitionsBot/server_config.json)
+# or honor an explicit override via SERVER_CONFIG_PATH.
+_default_config = Path(__file__).resolve().parent.parent / "server_config.json"
+CONFIG_PATH = Path(os.environ.get("SERVER_CONFIG_PATH", _default_config))
+with open(CONFIG_PATH) as f:
     cfg = json.load(f)
 
 # Permission bit flags (https://discord.com/developers/docs/topics/permissions)
@@ -88,7 +93,7 @@ print(f"admin_role={admin_role} mod_role={mod_role} banned_role={banned_role}")
 # ---------- 1) ADMIN-ONLY: hide whole 'إدارة' category + log channel ----------
 admin_cat = cfg["categories"]["admin"]
 log_id = cfg.get("log_channel_id") or cfg["channels"].get("log")
-admin_targets = [admin_cat, log_id]
+admin_targets = [cid for cid in (admin_cat, log_id) if cid]
 for ch_id in admin_targets:
     print(f"\n[ADMIN-ONLY] {ch_id}")
     # Deny @everyone view
@@ -103,10 +108,11 @@ for ch_id in admin_targets:
                   allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
                         EMBED_LINKS | ATTACH_FILES, deny=0)
 # Make sure log channel inherits the category by syncing parent (set parent_id)
-try:
-    patch_channel(log_id, {"parent_id": admin_cat})
-except Exception as e:
-    print(f"warn: parent set: {e}")
+if log_id:
+    try:
+        patch_channel(log_id, {"parent_id": admin_cat})
+    except Exception as e:
+        print(f"warn: parent set: {e}")
 
 # ---------- 2) READ-ONLY for members ----------
 read_only_keys = ["rules", "announcements", "prizes", "leaderboard", "archive", "stats"]
