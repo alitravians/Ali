@@ -262,13 +262,19 @@ class MusicCog(commands.Cog):
 
         if len(tracks) == 1:
             t = tracks[0]
+            queue_len = len(player.queue)
+            now_playing = queue_len == 0
             embed = discord.Embed(
-                title="✅ أُضيفت للقائمة",
+                title="▶️ يُشغَّل الآن" if now_playing else "✅ أُضيفت للقائمة",
                 description=f"**[{t.display()}]({t.webpage_url or 'https://youtube.com'})**",
                 color=COLORS["success"],
             )
             embed.add_field(name="المدة", value=_fmt_duration(t.duration), inline=True)
-            embed.add_field(name="الموقع في القائمة", value=str(len(player.queue)), inline=True)
+            embed.add_field(
+                name="الموقع في القائمة",
+                value="▶️ الآن" if now_playing else str(queue_len),
+                inline=True,
+            )
             if t.thumbnail:
                 embed.set_thumbnail(url=t.thumbnail)
             await interaction.followup.send(embed=embed)
