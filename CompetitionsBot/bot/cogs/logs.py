@@ -162,9 +162,12 @@ class LogsCog(commands.Cog):
                 content = content[:99] + "…"
             preview_lines.append(f"• **{m.author}**: {content}")
         if preview_lines:
+            preview_text = "\n".join(preview_lines)
+            if len(preview_text) > 1024:
+                preview_text = preview_text[:1023] + "…"
             embed.add_field(
                 name="معاينة (آخر المخزّن)",
-                value="\n".join(preview_lines),
+                value=preview_text,
                 inline=False,
             )
         if len(humans) > 10:
