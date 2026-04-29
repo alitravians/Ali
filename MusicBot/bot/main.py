@@ -24,24 +24,40 @@ def _disable_dave_protocol() -> None:
     DAVE end-to-end voice encryption on this bot.
 
     Root cause this prevents: when DAVE is active (``dave_protocol_version >= 1``)
-    but the MLS group handshake never completes (``can_encrypt=False`` — which is
-    the steady-state for headless bots that never receive ``MLS_WELCOME`` for the
-    voice channel), discord.py's ``_get_voice_packet`` falls through to sending
-    *raw, non-DAVE* opus frames over the otherwise-encrypted transport. Every
-    real Discord client in the channel is decrypting with the DAVE group key, so
-    the bot's frames are dropped silently — listeners hear absolute silence even
-    though UDP packets are flowing, opus is loaded, ffmpeg is feeding frames at
-    the right rate, and transport encryption (xchacha20) is established.
+    but the MLS group handshake never completes (``can_encrypt`` stays False --
+    the steady-state for headless bots that never receive ``MLS_WELCOME`` for
+    the voice channel), discord.py's ``_get_voice_packet`` falls through to
+    sending *raw, non-DAVE* opus frames over the otherwise-encrypted transport.
+    Every real Discord client in the channel is decrypting with the DAVE group
+    key, so the bot's frames are dropped silently -- listeners hear absolute
+    silence even though UDP packets are flowing, opus is loaded, ffmpeg is
+    feeding frames at the right rate, and transport encryption is established.
 
-    By overriding the ``max_dave_protocol_version`` property to always return 0
-    *before* any ``VoiceConnectionState`` is constructed, we ensure the IDENTIFY
-    payload tells Discord we don't speak DAVE; Discord then leaves the voice
-    channel on the legacy non-DAVE path where every audio frame the bot sends is
-    audible to all listeners.
+    Implementation:
 
-    This is the *radical* fix -- it is independent of whether ``davey`` happens
-    to be importable at runtime, and it also short-circuits ``can_encrypt`` so
-    that any future code path that assumes DAVE keys exist will skip cleanly.
+    1. Set ``discord.voice_state.has_dave = False``. The
+       ``max_dave_protocol_version`` property at ``voice_state.py`` line 268
+       reads the *module-level* ``has_dave`` and returns
+       ``davey.DAVE_PROTOCOL_VERSION if has_dave else 0``. Forcing
+       ``has_dave = False`` makes IDENTIFY advertise ``0`` to Discord so DAVE
+       is never enabled on the channel.
+
+    2. CRITICALLY do NOT touch ``discord.voice_client.has_dave``. That module
+       captured its own binding via ``from .voice_state import has_dave`` at
+       import time, and uses it to gate VoiceClient construction:
+
+           # voice_client.py line 221-222
+           if not has_dave:
+               raise RuntimeError('davey library needed in order to use voice')
+
+       If we set it to False, voice cannot be created at all. The original
+       True binding stays so VoiceClient is created normally.
+
+    3. Override the ``max_dave_protocol_version`` property defensively in case
+       ``davey`` is imported again later -- the property will still return 0.
+
+    4. Override ``can_encrypt`` to always return False so any code path that
+       assumes DAVE session keys exist short-circuits cleanly.
     """
     try:
         from discord import voice_state as _vs
@@ -55,10 +71,16 @@ def _disable_dave_protocol() -> None:
     _vs.VoiceConnectionState.can_encrypt = property(  # type: ignore[assignment]
         lambda _self: False
     )
+    try:
+        from discord import voice_client as _vc
+        vc_has_dave = getattr(_vc, "has_dave", None)
+    except Exception:
+        vc_has_dave = None
     log.info(
-        "DAVE protocol disabled (max_dave_protocol_version=0, "
-        "can_encrypt=False forced) -- voice will use legacy transport "
-        "encryption only"
+        "DAVE protocol disabled: voice_state.has_dave=False, "
+        "max_dave_protocol_version=0, can_encrypt=False "
+        "(voice_client.has_dave=%r preserved for VoiceClient construction)",
+        vc_has_dave,
     )
 
 
