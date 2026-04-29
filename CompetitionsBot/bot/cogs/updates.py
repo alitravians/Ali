@@ -1,16 +1,18 @@
-"""Auto-announce bot deploys to a member-facing channel.
+"""Auto-announce bot updates to a member-facing channel.
 
-On startup, reads BOT_BUILD_SHA / BOT_BUILD_MSG / BOT_BUILD_DATE injected
-at Docker build time. If the SHA differs from the one stored in
-``/data/.last_announced_commit`` (or ``DB_PATH`` parent dir), posts a single
-embed to the configured updates channel and persists the new SHA so simple
-restarts (without a code change) do NOT re-announce.
+Reads ``CHANGELOG.json`` (curated, member-friendly Arabic entries) and posts
+the latest entry whose ``version`` differs from the one persisted at
+``/data/.last_announced_version``. Simple machine restarts on the same
+changelog do **not** repost — only fresh entries trigger announcements.
+
+Internal commits / hotfixes that don't add a changelog entry are silently
+skipped, so members only see polished, curated updates.
 """
 from __future__ import annotations
 
 import datetime as _dt
+import json
 import logging
-import os
 from pathlib import Path
 
 import discord
@@ -20,17 +22,59 @@ from ..config import COLORS, Settings
 
 _log = logging.getLogger(__name__)
 
+# Changelog lives at the repo root (copied into /app inside the container).
+_CHANGELOG_CANDIDATES = [
+    Path("/app/CHANGELOG.json"),
+    Path(__file__).resolve().parents[2] / "CHANGELOG.json",
+]
+
 
 def _state_path(db_path: str) -> Path:
-    """Store the last-announced commit beside the DB so it survives restarts."""
-    return Path(db_path).resolve().parent / ".last_announced_commit"
+    return Path(db_path).resolve().parent / ".last_announced_version"
+
+
+def _load_changelog() -> list[dict] | None:
+    for p in _CHANGELOG_CANDIDATES:
+        if p.is_file():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError) as e:
+                _log.warning("updates: cannot read %s: %s", p, e)
+                return None
+            entries = data.get("entries")
+            if isinstance(entries, list) and entries:
+                return entries
+    return None
+
+
+def _build_embed(entry: dict) -> discord.Embed:
+    version = str(entry.get("version", "")).strip() or "—"
+    title = str(entry.get("title", "")).strip() or "تحديث جديد"
+    summary = str(entry.get("summary", "")).strip()
+    highlights = entry.get("highlights") or []
+
+    embed = discord.Embed(
+        title=title,
+        description=summary or None,
+        color=COLORS.get("primary", 0x5865F2),
+        timestamp=_dt.datetime.now(_dt.timezone.utc),
+    )
+    if highlights:
+        bullets = "\n".join(f"• {str(h).strip()}" for h in highlights if str(h).strip())
+        if bullets:
+            # Discord field value cap = 1024.
+            if len(bullets) > 1024:
+                bullets = bullets[:1023] + "…"
+            embed.add_field(name="✨ ما الجديد؟", value=bullets, inline=False)
+    embed.set_footer(text=f"الإصدار {version} • بوت المسابقات")
+    return embed
 
 
 class UpdatesCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.settings: Settings = bot.settings  # type: ignore[attr-defined]
-        self._announced = False  # only run once per process
+        self._announced = False
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -38,12 +82,15 @@ class UpdatesCog(commands.Cog):
             return
         self._announced = True
 
-        sha = (os.getenv("BOT_BUILD_SHA") or "").strip()
-        msg = (os.getenv("BOT_BUILD_MSG") or "").strip()
-        build_date = (os.getenv("BOT_BUILD_DATE") or "").strip()
+        entries = _load_changelog()
+        if not entries:
+            _log.info("updates: no CHANGELOG.json entries; skipping announce")
+            return
 
-        if not sha or sha == "unknown":
-            _log.info("updates: BOT_BUILD_SHA not set; skipping announce")
+        latest = entries[0]
+        version = str(latest.get("version", "")).strip()
+        if not version:
+            _log.warning("updates: latest changelog entry has no version; skipping")
             return
 
         ch_id = self.settings.channel_bot_updates
@@ -64,34 +111,23 @@ class UpdatesCog(commands.Cog):
             _log.warning("updates: cannot read state %s: %s", state_file, e)
             previous = ""
 
-        if previous == sha:
-            _log.info("updates: SHA %s already announced; skipping", sha[:8])
+        if previous == version:
+            _log.info("updates: version %s already announced; skipping", version)
             return
 
-        embed = discord.Embed(
-            title="📣 تحديث جديد للبوت",
-            description=msg or "*(لا توجد رسالة commit)*",
-            color=COLORS.get("primary", 0x5865F2),
-            timestamp=_dt.datetime.now(_dt.timezone.utc),
-        )
-        short = sha[:8] if sha else "?"
-        embed.add_field(name="الإصدار (commit)", value=f"`{short}`", inline=True)
-        if build_date:
-            embed.add_field(name="تاريخ البناء", value=build_date, inline=True)
-        embed.set_footer(text=f"Bot version {short}")
-
         try:
-            await channel.send(embed=embed)
+            await channel.send(embed=_build_embed(latest))
         except (discord.HTTPException, discord.Forbidden) as e:
             _log.warning("updates: failed to post update: %s", e)
             return
 
-        # Persist last-announced SHA only AFTER successful post.
         try:
             state_file.parent.mkdir(parents=True, exist_ok=True)
-            state_file.write_text(sha, encoding="utf-8")
+            state_file.write_text(version, encoding="utf-8")
         except OSError as e:
             _log.warning("updates: cannot write state %s: %s", state_file, e)
+
+        _log.info("updates: announced %s to channel %s", version, ch_id)
 
 
 async def setup(bot: commands.Bot):
