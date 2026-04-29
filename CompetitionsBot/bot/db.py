@@ -416,18 +416,23 @@ class Database:
     async def list_admin_questions(
         self, *, include_deleted: bool = False, limit: int = 100
     ) -> list[dict[str, Any]]:
+        # ``limit <= 0`` means "no limit" — required by the cog's
+        # _reload_admin_questions which must load *every* admin question
+        # into the runtime pool, not just the most recent 100. SQLite
+        # treats ``LIMIT -1`` as unbounded.
+        effective_limit = limit if limit and limit > 0 else -1
         async with aiosqlite.connect(self.path) as db:
             db.row_factory = aiosqlite.Row
             if include_deleted:
                 cur = await db.execute(
                     "SELECT * FROM admin_questions ORDER BY id DESC LIMIT ?",
-                    (limit,),
+                    (effective_limit,),
                 )
             else:
                 cur = await db.execute(
                     "SELECT * FROM admin_questions WHERE deleted_at IS NULL "
                     "ORDER BY id DESC LIMIT ?",
-                    (limit,),
+                    (effective_limit,),
                 )
             rows = []
             for r in await cur.fetchall():
