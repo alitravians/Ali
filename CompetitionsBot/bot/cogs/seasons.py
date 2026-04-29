@@ -97,7 +97,16 @@ class SeasonsCog(commands.Cog):
             return await self._create_season_for_now()
 
     async def _maybe_close_and_rotate(self) -> None:
-        """If the active season has expired, close it + rotate to next month."""
+        """If the active season has expired, close it + rotate to next month.
+
+        All DB mutations happen inside ``_closing_lock`` so a concurrent
+        ``_ensure_active_season`` from a slash command can never observe the
+        half-closed state. The Discord announcement (a network call that may
+        block on rate limits) is intentionally moved *outside* the lock so
+        slash commands like ``/season info`` aren't held past Discord's
+        3-second interaction deadline while we wait for the API.
+        """
+        announce_payload: tuple[dict[str, Any], list[dict[str, Any]]] | None = None
         async with self._closing_lock:
             active = await self.bot.db.get_active_season()
             if not active:
@@ -125,9 +134,6 @@ class SeasonsCog(commands.Cog):
             # Reset monthly_points so new season starts fresh
             await self.bot.db.reset_period("monthly")
 
-            # Announce in announcements channel (if configured)
-            await self._announce_season_close(active, results)
-
             # Start next month — base it on the *old* season's end (plus a
             # second) rather than `now`. If the tick fires inside the final
             # sub-second of the month (`23:59:59.xxx`), `now.month` may still
@@ -145,6 +151,15 @@ class SeasonsCog(commands.Cog):
             new_name = _season_name_for(year, month)
             new_id = await self.bot.db.create_season(new_name, start_ts, end_ts)
             _log.info("Closed season %s, opened %s (id=%s)", active["id"], new_name, new_id)
+
+            # Capture what we need for the announcement; do not call Discord
+            # while still holding the lock.
+            announce_payload = (active, results)
+
+        # Outside the lock: the new season already exists and slash commands
+        # can proceed even if the network call below is slow or rate-limited.
+        if announce_payload is not None:
+            await self._announce_season_close(*announce_payload)
 
     async def _announce_season_close(
         self, season: dict[str, Any], results: list[dict[str, Any]]
