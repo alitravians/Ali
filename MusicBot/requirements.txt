@@ -1,38 +1,24 @@
-# discord.py 2.7+ HARD-REQUIRES the optional ``davey`` library at voice
-# client construction time:
+# discord.py 2.7+ HARD-REQUIRES the optional ``davey`` library for any voice
+# connection. Two reasons:
 #
-#     # discord/voice_client.py:221
-#     if not has_dave:
-#         raise RuntimeError('davey library needed in order to use voice')
+# 1. ``VoiceClient.__init__`` raises
+#    ``RuntimeError('davey library needed in order to use voice')`` if
+#    ``davey`` is not importable.
+# 2. Since 2026-Q1, Discord's voice gateway *requires* the DAVE end-to-end
+#    encryption protocol. Advertising ``max_dave_protocol_version=0`` in
+#    IDENTIFY now causes the voice WebSocket to close with code
+#    ``4017`` (``EndToEndEncryptionDAVEProtocolRequired``) and the voice
+#    handshake fails completely.
 #
-# So we MUST keep ``davey`` installed -- otherwise VoiceClient cannot be
-# created at all and the bot can never enter a voice channel.
-#
-# However, having ``davey`` importable also flips
-# ``discord.voice_state.has_dave`` to ``True``, which makes the
-# ``max_dave_protocol_version`` property advertise DAVE >= 1 to Discord
-# during the voice IDENTIFY. Discord then enables DAVE on the channel,
-# the MLS handshake never completes for a headless bot (no real client
-# ever sends us an ``MLS_WELCOME``), and discord.py ends up sending raw
-# opus frames over a channel where every listener is decrypting with the
-# DAVE group key -- pure silence.
-#
-# The radical fix lives in ``bot/main.py::_disable_dave_protocol``: at
-# startup, BEFORE any VoiceClient is constructed, we mutate
-# ``discord.voice_state.has_dave = False`` and override the
-# ``max_dave_protocol_version`` property to return 0. The
-# ``voice_client`` module already captured ``has_dave=True`` via
-# ``from .voice_state import has_dave`` at import time, so the
-# RuntimeError check at line 221 still passes (voice can be created),
-# but the IDENTIFY advertises ``max_dave_protocol_version=0`` to
-# Discord, so Discord stays on the legacy non-DAVE transport-encryption
-# path where every audio frame the bot sends is audible to listeners.
+# So we install ``discord.py[voice]`` (which transitively pulls ``davey`` and
+# ``PyNaCl``), keep DAVE *enabled*, and rely on opus + ffmpeg + transport
+# encryption to deliver audio. ``bot/main.py::_disable_dave_protocol`` is
+# kept around for diagnostics only -- DO NOT call it.
 discord.py[voice]>=2.7.0
 # Enables ``aead_aes256_gcm_rtpsize`` voice encryption negotiation on
 # discord.py 2.5+. Without ``cryptography`` installed, discord.py can
-# only negotiate xchacha20 -- which Discord still accepts but in some
-# regions has been observed to drop frames silently. Having both modes
-# available makes the negotiation robust.
+# only negotiate xchacha20 -- which Discord still accepts. Having both
+# modes available makes the negotiation robust.
 cryptography>=42.0
 yt-dlp>=2026.3.17
 python-dotenv==1.0.1

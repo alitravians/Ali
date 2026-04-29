@@ -168,7 +168,14 @@ class MusicBot(commands.Bot):
 
 async def main() -> None:
     settings = Settings.load()
-    _disable_dave_protocol()
+    # NOTE: do NOT call ``_disable_dave_protocol()`` here. Since 2026-Q1,
+    # Discord *requires* the DAVE protocol for voice connections; advertising
+    # ``max_dave_protocol_version=0`` in IDENTIFY now causes the voice gateway
+    # to close the WebSocket with code 4017
+    # (``EndToEndEncryptionDAVEProtocolRequired``) and the voice handshake
+    # fails completely. ``davey`` MUST be installed (which it is, via the
+    # ``[voice]`` extra in ``requirements.txt``) and DAVE MUST be left active.
+    # The function is kept around for diagnostic purposes only.
     _load_opus()
     bot = MusicBot(settings)
     async with bot:
