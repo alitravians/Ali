@@ -49,6 +49,8 @@ class CompetitionsBot(commands.Bot):
             "bot.cogs.seasons",
             "bot.cogs.achievements",
             "bot.cogs.submissions",
+            "bot.cogs.duels",
+            "bot.cogs.teams",
             "bot.cogs.admin",
             "bot.cogs.tournament",
             "bot.cogs.contest",

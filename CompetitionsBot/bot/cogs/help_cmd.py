@@ -39,7 +39,9 @@ HELP_PAGES = {
         .add_field(name="`/achievements [user]`", value="🎖️ كل الإنجازات (مفتوحة + مقفلة) مرتّبة بالفئة", inline=False)
         .add_field(name="`/stats`", value="إحصائيات السيرفر العامة", inline=False)
         .add_field(name="`/season info|history|top`", value="🏆 المواسم الشهرية + الترتيب والتاريخ", inline=False)
-        .add_field(name="`/suggest_question`", value="✏️ اقترح سؤالاً جديداً للبوت", inline=False),
+        .add_field(name="`/suggest_question`", value="✏️ اقترح سؤالاً جديداً للبوت", inline=False)
+        .add_field(name="`/duel @عضو` و `/duel_top`", value="⚔️ مبارزات 1v1 مع تصنيف ELO", inline=False)
+        .add_field(name="`/team create|join|leave|info|top`", value="🛡️ إدارة الفرق وترتيبها", inline=False),
     "admin": discord.Embed(
         title="⚙️ أوامر الإدارة",
         description="هذه الأوامر للإدمن أو منسق المسابقات فقط.",
