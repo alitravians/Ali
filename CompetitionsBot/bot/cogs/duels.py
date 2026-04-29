@@ -265,10 +265,13 @@ class DuelsCog(commands.Cog):
         final = discord.Embed(
             title=title,
             description=(
+                # Mirror the DB-side clamp (`MAX(0, elo_rating + ?)`) so the
+                # embed never displays a negative rating even though the delta
+                # itself is shown un-clamped.
                 f"**{challenger.display_name}**: {ch_score} نقاط — ELO {ch_elo} → "
-                f"{ch_elo + ch_delta} ({'+' if ch_delta >= 0 else ''}{ch_delta})\n"
+                f"{max(0, ch_elo + ch_delta)} ({'+' if ch_delta >= 0 else ''}{ch_delta})\n"
                 f"**{opponent.display_name}**: {op_score} نقاط — ELO {op_elo} → "
-                f"{op_elo + op_delta} ({'+' if op_delta >= 0 else ''}{op_delta})"
+                f"{max(0, op_elo + op_delta)} ({'+' if op_delta >= 0 else ''}{op_delta})"
             ),
             color=color,
         )
