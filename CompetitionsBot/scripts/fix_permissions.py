@@ -99,6 +99,7 @@ admin_cat = cfg["categories"]["admin"]
 bot_logs_cat = cfg.get("categories", {}).get("bot_logs")
 log_id = cfg.get("log_channel_id") or cfg["channels"].get("log")
 bot_role = cfg.get("bot_role_id")
+bots_grouping_role = cfg.get("bots_grouping_role_id")
 bot_logs_channels = list(cfg.get("bot_logs_channels", {}).values())
 
 admin_targets = [
@@ -120,6 +121,12 @@ for ch_id in admin_targets:
     # Allow the bot's own role so it can post logs even when @everyone is denied
     if bot_role:
         put_overwrite(ch_id, bot_role, 0,
+                      allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
+                            EMBED_LINKS | ATTACH_FILES, deny=0)
+    # Allow the manual 'Bots' grouping role so every other bot (e.g. music bot)
+    # can also post in admin-only channels without each one needing its own override.
+    if bots_grouping_role:
+        put_overwrite(ch_id, bots_grouping_role, 0,
                       allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
                             EMBED_LINKS | ATTACH_FILES, deny=0)
 # Make sure log channel inherits the admin category by syncing parent (set parent_id)
@@ -153,6 +160,10 @@ for ch_id in read_only_ids:
     # would block the bot whenever it doesn't have admin perms.
     if bot_role:
         put_overwrite(ch_id, bot_role, 0,
+                      allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
+                            EMBED_LINKS | ATTACH_FILES, deny=0)
+    if bots_grouping_role:
+        put_overwrite(ch_id, bots_grouping_role, 0,
                       allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
                             EMBED_LINKS | ATTACH_FILES, deny=0)
 
