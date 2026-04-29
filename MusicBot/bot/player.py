@@ -1,0 +1,347 @@
+"""Per-guild music player: queue, voice client, source resolution, loop modes.
+
+Design notes:
+
+- ``MusicPlayer`` owns a single ``discord.VoiceClient`` per guild and a
+  ``deque`` of pending ``Track``s. Exactly one track plays at a time.
+- ``yt-dlp`` is invoked off the event loop via ``run_in_executor`` so a
+  slow extractor never blocks heartbeats.
+- We pass YouTube's direct ``url`` (a stream URL with a short TTL) to
+  FFmpeg only when the track is actually starting — older queued items
+  re-extract on demand so their stream URLs don't expire while waiting
+  in the queue.
+- Voice playback uses ``FFmpegPCMAudio`` wrapped in
+  ``PCMVolumeTransformer`` so volume can be adjusted live without
+  re-spawning ffmpeg.
+- After each track ends we either advance, repeat, or — if the queue is
+  empty and nobody is in the channel — schedule an idle disconnect.
+"""
+from __future__ import annotations
+
+import asyncio
+import logging
+import time
+from collections import deque
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable
+
+import discord
+from yt_dlp import YoutubeDL
+
+_log = logging.getLogger(__name__)
+
+# Reconnect + buffer flags shave a few seconds off the failure mode where
+# the upstream stream stalls. They are widely recommended in the
+# discord.py voice-streaming community.
+FFMPEG_BEFORE = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+FFMPEG_OPTIONS = "-vn"
+
+# yt-dlp options. ``noplaylist=False`` lets ``/play <playlist url>`` enqueue
+# the entire playlist; the cog can still override per-call.
+YDL_BASE_OPTS: dict[str, Any] = {
+    "format": "bestaudio/best",
+    "quiet": True,
+    "no_warnings": True,
+    "default_search": "ytsearch",
+    "noplaylist": False,
+    "skip_download": True,
+    "extract_flat": "in_playlist",
+    "source_address": "0.0.0.0",  # avoid IPv6 issues on some hosts
+}
+
+# ``extract_flat`` returns lightweight playlist entries (id+title only).
+# When the player actually needs a stream URL we re-extract that one
+# entry with this fuller config.
+YDL_RESOLVE_OPTS: dict[str, Any] = {
+    **YDL_BASE_OPTS,
+    "extract_flat": False,
+}
+
+
+class LoopMode(Enum):
+    OFF = "off"
+    TRACK = "track"
+    QUEUE = "queue"
+
+
+@dataclass
+class Track:
+    """One queued audio entry. ``stream_url`` is resolved lazily."""
+    query: str                         # original input ("https://..." or search text)
+    title: str | None = None
+    webpage_url: str | None = None
+    duration: int | None = None        # seconds
+    uploader: str | None = None
+    thumbnail: str | None = None
+    requested_by_id: int = 0           # Discord user ID who queued it
+    stream_url: str | None = None      # direct media URL for ffmpeg
+
+    def display(self) -> str:
+        return self.title or self.query
+
+
+def _ydl_extract(query: str, *, resolve: bool = False) -> dict[str, Any]:
+    opts = YDL_RESOLVE_OPTS if resolve else YDL_BASE_OPTS
+    with YoutubeDL(opts) as ydl:
+        info = ydl.extract_info(query, download=False)
+    return info or {}
+
+
+async def resolve_query(query: str, *, requested_by_id: int) -> list[Track]:
+    """Turn a user-supplied URL or search string into one or more Tracks.
+
+    For YouTube playlists we return one Track per entry but only with the
+    cheap fields populated; the actual stream URL is fetched at play time
+    via :func:`prime_track`.
+    """
+    loop = asyncio.get_running_loop()
+    info = await loop.run_in_executor(None, _ydl_extract, query)
+
+    if not info:
+        return []
+
+    # A playlist returns ``entries`` (each a partial dict from extract_flat).
+    if info.get("_type") == "playlist" and info.get("entries"):
+        out: list[Track] = []
+        for e in info["entries"]:
+            if not e:
+                continue
+            out.append(Track(
+                query=e.get("url") or e.get("webpage_url") or e.get("id") or query,
+                title=e.get("title"),
+                webpage_url=e.get("webpage_url") or (
+                    f"https://www.youtube.com/watch?v={e['id']}" if e.get("id") else None
+                ),
+                duration=e.get("duration"),
+                uploader=e.get("uploader") or e.get("channel"),
+                thumbnail=(e.get("thumbnails") or [{}])[-1].get("url"),
+                requested_by_id=requested_by_id,
+            ))
+        return out
+
+    # Single video / search hit.
+    return [_track_from_info(info, requested_by_id=requested_by_id)]
+
+
+def _track_from_info(info: dict[str, Any], *, requested_by_id: int) -> Track:
+    return Track(
+        query=info.get("webpage_url") or info.get("url") or info.get("id") or "",
+        title=info.get("title"),
+        webpage_url=info.get("webpage_url"),
+        duration=info.get("duration"),
+        uploader=info.get("uploader") or info.get("channel"),
+        thumbnail=(info.get("thumbnails") or [{}])[-1].get("url"),
+        requested_by_id=requested_by_id,
+        stream_url=info.get("url"),
+    )
+
+
+async def prime_track(track: Track) -> Track:
+    """Ensure ``track.stream_url`` is set right before playback.
+
+    YouTube stream URLs expire (~6h). We re-extract on demand for any
+    track whose stream URL is missing or that came from a flat playlist
+    entry.
+    """
+    if track.stream_url:
+        return track
+    loop = asyncio.get_running_loop()
+    info = await loop.run_in_executor(None, _ydl_extract, track.query, True)
+    if not info:
+        return track
+    full = _track_from_info(info, requested_by_id=track.requested_by_id)
+    # Preserve original requester.
+    full.requested_by_id = track.requested_by_id
+    return full
+
+
+@dataclass
+class MusicPlayer:
+    guild_id: int
+    voice_client: discord.VoiceClient | None = None
+    queue: deque[Track] = field(default_factory=deque)
+    now_playing: Track | None = None
+    volume: float = 0.7                 # 0..2.0, applied via PCMVolumeTransformer
+    loop_mode: LoopMode = LoopMode.OFF
+    text_channel_id: int = 0            # where to send "now playing" announcements
+    started_at: float = 0.0             # epoch seconds for /nowplaying progress
+
+    # Hooks set by the cog so the player can announce events.
+    on_track_start: Callable[[Track], "asyncio.Future[Any] | None"] | None = None
+    on_track_error: Callable[[Track, Exception], "asyncio.Future[Any] | None"] | None = None
+    on_idle_disconnect: Callable[[], "asyncio.Future[Any] | None"] | None = None
+
+    _idle_task: asyncio.Task[None] | None = None
+    _max_queue: int = 100
+    _idle_seconds: int = 300
+
+    def is_playing(self) -> bool:
+        vc = self.voice_client
+        return bool(vc and (vc.is_playing() or vc.is_paused()))
+
+    def enqueue_many(self, tracks: list[Track]) -> int:
+        before = len(self.queue)
+        for t in tracks:
+            if len(self.queue) >= self._max_queue:
+                break
+            self.queue.append(t)
+        return len(self.queue) - before
+
+    def clear(self) -> None:
+        self.queue.clear()
+
+    def progress_seconds(self) -> int:
+        if not self.now_playing or not self.started_at:
+            return 0
+        return max(0, int(time.time() - self.started_at))
+
+    async def play_next(self) -> None:
+        if not self.voice_client or not self.voice_client.is_connected():
+            return
+
+        # Already playing/paused — caller should have skipped explicitly.
+        if self.voice_client.is_playing() or self.voice_client.is_paused():
+            return
+
+        # Pick the next track honouring loop mode.
+        if self.loop_mode == LoopMode.TRACK and self.now_playing:
+            next_track = self.now_playing
+        else:
+            if not self.queue:
+                self.now_playing = None
+                self._schedule_idle_disconnect()
+                return
+            next_track = self.queue.popleft()
+            if self.loop_mode == LoopMode.QUEUE and self.now_playing:
+                # Recycle the *previous* now_playing back to the queue tail.
+                self.queue.append(self.now_playing)
+
+        try:
+            primed = await prime_track(next_track)
+        except Exception as e:  # pragma: no cover — runtime path
+            _log.exception("yt-dlp prime failed for %r", next_track.query)
+            await self._dispatch_error(next_track, e)
+            asyncio.create_task(self.play_next())
+            return
+
+        if not primed.stream_url:
+            await self._dispatch_error(primed, RuntimeError("no playable stream"))
+            asyncio.create_task(self.play_next())
+            return
+
+        try:
+            source = discord.FFmpegPCMAudio(
+                primed.stream_url,
+                before_options=FFMPEG_BEFORE,
+                options=FFMPEG_OPTIONS,
+            )
+            source = discord.PCMVolumeTransformer(source, volume=self.volume)
+        except Exception as e:  # pragma: no cover — environment issue
+            _log.exception("FFmpeg source build failed")
+            await self._dispatch_error(primed, e)
+            asyncio.create_task(self.play_next())
+            return
+
+        self.now_playing = primed
+        self.started_at = time.time()
+        self._cancel_idle_disconnect()
+
+        def _after(err: Exception | None) -> None:
+            # ``_after`` runs in a background voice-thread; bounce back to
+            # the main loop before doing anything async.
+            if err:
+                _log.error("player after-callback error: %s", err)
+            asyncio.run_coroutine_threadsafe(
+                self._after_track(err), self.voice_client.loop  # type: ignore[arg-type]
+            ) if self.voice_client else None
+
+        self.voice_client.play(source, after=_after)
+        await self._dispatch_start(primed)
+
+    async def _after_track(self, err: Exception | None) -> None:
+        if err and self.now_playing:
+            await self._dispatch_error(self.now_playing, err)
+        await self.play_next()
+
+    async def stop(self) -> None:
+        self.clear()
+        if self.voice_client and self.voice_client.is_connected():
+            self.voice_client.stop()
+            await self.voice_client.disconnect(force=False)
+        self.now_playing = None
+        self._cancel_idle_disconnect()
+
+    def set_volume(self, vol: int) -> None:
+        # Clamp to 0..200% — Discord accepts >1.0 but it just clips.
+        vol = max(0, min(200, vol))
+        self.volume = vol / 100.0
+        if self.voice_client and self.voice_client.source and isinstance(
+            self.voice_client.source, discord.PCMVolumeTransformer
+        ):
+            self.voice_client.source.volume = self.volume
+
+    def skip(self) -> None:
+        if self.voice_client and (self.voice_client.is_playing() or self.voice_client.is_paused()):
+            self.voice_client.stop()  # triggers _after → play_next
+
+    def pause(self) -> bool:
+        if self.voice_client and self.voice_client.is_playing():
+            self.voice_client.pause()
+            return True
+        return False
+
+    def resume(self) -> bool:
+        if self.voice_client and self.voice_client.is_paused():
+            self.voice_client.resume()
+            return True
+        return False
+
+    # ----- idle disconnect bookkeeping -----
+
+    def _schedule_idle_disconnect(self) -> None:
+        self._cancel_idle_disconnect()
+        self._idle_task = asyncio.create_task(self._idle_then_leave())
+
+    def _cancel_idle_disconnect(self) -> None:
+        if self._idle_task and not self._idle_task.done():
+            self._idle_task.cancel()
+        self._idle_task = None
+
+    async def _idle_then_leave(self) -> None:
+        try:
+            await asyncio.sleep(self._idle_seconds)
+        except asyncio.CancelledError:
+            return
+        if self.is_playing() or self.queue:
+            return
+        await self.stop()
+        if self.on_idle_disconnect:
+            try:
+                res = self.on_idle_disconnect()
+                if asyncio.iscoroutine(res):
+                    await res
+            except Exception:
+                _log.exception("idle disconnect hook failed")
+
+    # ----- hook dispatchers -----
+
+    async def _dispatch_start(self, track: Track) -> None:
+        if not self.on_track_start:
+            return
+        try:
+            res = self.on_track_start(track)
+            if asyncio.iscoroutine(res):
+                await res
+        except Exception:
+            _log.exception("on_track_start hook failed")
+
+    async def _dispatch_error(self, track: Track, err: Exception) -> None:
+        if not self.on_track_error:
+            return
+        try:
+            res = self.on_track_error(track, err)
+            if asyncio.iscoroutine(res):
+                await res
+        except Exception:
+            _log.exception("on_track_error hook failed")

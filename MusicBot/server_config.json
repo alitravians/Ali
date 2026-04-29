@@ -1,0 +1,9 @@
+{
+    "guild_id": "1165790728551669780",
+    "bot_logs_channels": {
+        "play": "1499051603490242711",
+        "errors": "1499051603490242711",
+        "admin": "1499051603490242711"
+    },
+    "_comment": "By default the music bot logs into the existing 'future_bots' channel under the 🤖 ━ سجلات البوتات ━ category. After deploy, MusicBot/scripts/setup_channels.py creates dedicated #🎵-music-play / #🎵-music-errors / #🎵-music-admin channels and updates these IDs."
+}
