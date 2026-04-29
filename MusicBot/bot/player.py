@@ -388,12 +388,17 @@ class MusicPlayer:
 
         def _after(err: Exception | None) -> None:
             # ``_after`` runs in a background voice-thread; bounce back to
-            # the main loop before doing anything async.
+            # the main loop before doing anything async. Snapshot
+            # ``self.voice_client`` once so a concurrent ``stop()`` (which
+            # nulls the attribute) can't turn this into ``None.loop`` and
+            # silently stall the queue.
             if err:
                 _log.error("player after-callback error: %s", err)
-            asyncio.run_coroutine_threadsafe(
-                self._after_track(err), self.voice_client.loop  # type: ignore[arg-type]
-            ) if self.voice_client else None
+            vc = self.voice_client
+            if vc is not None:
+                asyncio.run_coroutine_threadsafe(
+                    self._after_track(err), vc.loop  # type: ignore[arg-type]
+                )
 
         self.voice_client.play(source, after=_after)
         await self._dispatch_start(primed)
