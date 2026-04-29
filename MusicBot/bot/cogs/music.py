@@ -143,7 +143,7 @@ class MusicCog(commands.Cog):
                 _log.exception("voice move failed")
         elif not vc:
             try:
-                vc = await target.connect(self_deaf=True, reconnect=True)
+                vc = await target.connect(self_deaf=False, self_mute=False, reconnect=True)
             except discord.errors.ClientException as e:
                 await self._reply_error(
                     interaction,
