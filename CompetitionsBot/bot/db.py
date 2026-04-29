@@ -56,9 +56,41 @@ CREATE TABLE IF NOT EXISTS bot_state (
     value             TEXT
 );
 
+CREATE TABLE IF NOT EXISTS scheduled_announcements (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel_id    INTEGER NOT NULL,
+    message       TEXT    NOT NULL,
+    fire_at       REAL    NOT NULL,
+    created_by    INTEGER NOT NULL,
+    created_at    REAL    NOT NULL,
+    fired_at      REAL,
+    cancelled_at  REAL
+);
+
+CREATE TABLE IF NOT EXISTS admin_questions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    question      TEXT    NOT NULL,
+    type          TEXT    NOT NULL,           -- "tf" or "mcq"
+    choices_json  TEXT,                       -- JSON array (for mcq) or NULL
+    answer_index  INTEGER,                    -- 0..3 for mcq
+    answer_bool   INTEGER,                    -- 0/1 for tf
+    category      TEXT    NOT NULL,
+    difficulty    TEXT    NOT NULL,
+    explanation   TEXT,
+    created_by    INTEGER NOT NULL,
+    created_at    REAL    NOT NULL,
+    updated_at    REAL    NOT NULL,
+    deleted_at    REAL
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_points ON users(points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_weekly ON users(weekly_points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_monthly ON users(monthly_points DESC);
+CREATE INDEX IF NOT EXISTS idx_sched_pending
+    ON scheduled_announcements(fire_at)
+    WHERE fired_at IS NULL AND cancelled_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_admin_q_active
+    ON admin_questions(deleted_at);
 """
 
 
@@ -288,3 +320,178 @@ class Database:
             cur = await db.execute("SELECT value FROM bot_state WHERE key = ?", (key,))
             row = await cur.fetchone()
             return row[0] if row else None
+
+    # ----- Scheduled announcements (Wave 6) -----
+    async def schedule_announcement(
+        self, *, channel_id: int, message: str, fire_at: float, created_by: int
+    ) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "INSERT INTO scheduled_announcements "
+                "(channel_id, message, fire_at, created_by, created_at) "
+                "VALUES (?, ?, ?, ?, ?)",
+                (channel_id, message, fire_at, created_by, time.time()),
+            )
+            await db.commit()
+            return cur.lastrowid or 0
+
+    async def list_pending_announcements(self) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM scheduled_announcements "
+                "WHERE fired_at IS NULL AND cancelled_at IS NULL "
+                "ORDER BY fire_at ASC"
+            )
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def list_due_announcements(self, *, now_ts: float) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM scheduled_announcements "
+                "WHERE fired_at IS NULL AND cancelled_at IS NULL "
+                "AND fire_at <= ? ORDER BY fire_at ASC",
+                (now_ts,),
+            )
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def mark_announcement_fired(self, sched_id: int) -> None:
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE scheduled_announcements SET fired_at = ? "
+                "WHERE id = ? AND fired_at IS NULL AND cancelled_at IS NULL",
+                (time.time(), sched_id),
+            )
+            await db.commit()
+
+    async def cancel_announcement(self, sched_id: int) -> bool:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "UPDATE scheduled_announcements SET cancelled_at = ? "
+                "WHERE id = ? AND fired_at IS NULL AND cancelled_at IS NULL",
+                (time.time(), sched_id),
+            )
+            await db.commit()
+            return (cur.rowcount or 0) > 0
+
+    # ----- Admin-managed questions (Wave 6) -----
+    async def add_admin_question(
+        self,
+        *,
+        question: str,
+        type_: str,
+        choices: list[str] | None,
+        answer_index: int | None,
+        answer_bool: bool | None,
+        category: str,
+        difficulty: str,
+        explanation: str | None,
+        created_by: int,
+    ) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "INSERT INTO admin_questions "
+                "(question, type, choices_json, answer_index, answer_bool, "
+                " category, difficulty, explanation, created_by, "
+                " created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    question,
+                    type_,
+                    json.dumps(choices) if choices is not None else None,
+                    answer_index,
+                    1 if answer_bool else (0 if answer_bool is False else None),
+                    category,
+                    difficulty,
+                    explanation,
+                    created_by,
+                    time.time(),
+                    time.time(),
+                ),
+            )
+            await db.commit()
+            return cur.lastrowid or 0
+
+    async def list_admin_questions(
+        self, *, include_deleted: bool = False, limit: int = 100
+    ) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            if include_deleted:
+                cur = await db.execute(
+                    "SELECT * FROM admin_questions ORDER BY id DESC LIMIT ?",
+                    (limit,),
+                )
+            else:
+                cur = await db.execute(
+                    "SELECT * FROM admin_questions WHERE deleted_at IS NULL "
+                    "ORDER BY id DESC LIMIT ?",
+                    (limit,),
+                )
+            rows = []
+            for r in await cur.fetchall():
+                d = dict(r)
+                if d.get("choices_json"):
+                    d["choices"] = json.loads(d["choices_json"])
+                else:
+                    d["choices"] = None
+                rows.append(d)
+            return rows
+
+    async def get_admin_question(self, qid: int) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM admin_questions WHERE id = ?", (qid,)
+            )
+            row = await cur.fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["choices"] = json.loads(d["choices_json"]) if d.get("choices_json") else None
+            return d
+
+    async def edit_admin_question(self, qid: int, **fields: Any) -> bool:
+        if not fields:
+            return False
+        allowed = {
+            "question", "category", "difficulty", "explanation",
+            "answer_index", "answer_bool", "choices_json",
+        }
+        sets = []
+        values: list[Any] = []
+        for k, v in fields.items():
+            if k not in allowed:
+                continue
+            sets.append(f"{k} = ?")
+            values.append(v)
+        if not sets:
+            return False
+        sets.append("updated_at = ?")
+        values.append(time.time())
+        values.append(qid)
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                f"UPDATE admin_questions SET {", ".join(sets)} "
+                "WHERE id = ? AND deleted_at IS NULL",
+                values,
+            )
+            await db.commit()
+            return (cur.rowcount or 0) > 0
+
+    async def soft_delete_admin_question(self, qid: int) -> bool:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "UPDATE admin_questions SET deleted_at = ? "
+                "WHERE id = ? AND deleted_at IS NULL",
+                (time.time(), qid),
+            )
+            await db.commit()
+            return (cur.rowcount or 0) > 0
+
+    async def db_size_bytes(self) -> int:
+        from pathlib import Path as _P
+        p = _P(self.path)
+        return p.stat().st_size if p.exists() else 0
+
