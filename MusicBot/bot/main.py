@@ -18,6 +18,11 @@ logging.basicConfig(
 )
 log = logging.getLogger("musicbot")
 
+if os.environ.get("DAVE_DIAG", "0") == "1":
+    for name in ("discord.gateway", "discord.voice_state", "discord.voice_client"):
+        logging.getLogger(name).setLevel(logging.DEBUG)
+    log.info("DAVE_DIAG enabled: discord.gateway/voice_state/voice_client at DEBUG")
+
 
 def _disable_dave_protocol() -> None:
     """Force ``max_dave_protocol_version`` to ``0`` so Discord never enables
