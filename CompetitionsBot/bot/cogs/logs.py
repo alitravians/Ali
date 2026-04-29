@@ -136,6 +136,43 @@ class LogsCog(commands.Cog):
         await self.post("deletes", embed)
 
     @commands.Cog.listener()
+    async def on_raw_message_delete(self, payload: discord.RawMessageDeleteEvent):
+        """Fallback for uncached messages.
+
+        ``on_message_delete`` only fires when the bot has the message in its
+        in-memory cache (i.e. it was sent after the bot's most recent start).
+        Older messages or messages dropped from the cache only fire this
+        raw event, so we always emit *something* for visibility.
+        """
+        if not payload.guild_id:
+            return
+        # If a cached message is attached, the regular on_message_delete
+        # listener already handled it — don't double-post.
+        cached = payload.cached_message
+        if cached is not None and not cached.author.bot:
+            return
+        if cached is not None and cached.author.bot:
+            # bot-authored cached message — skip silently.
+            return
+        channel = self.bot.get_channel(payload.channel_id)
+        ch_mention = (
+            channel.mention if isinstance(channel, discord.TextChannel)
+            else f"<#{payload.channel_id}>"
+        )
+        embed = discord.Embed(
+            title="🗑️ رسالة محذوفة (غير مخزّنة)",
+            description=(
+                f"**القناة:** {ch_mention}\n"
+                f"**معرّف الرسالة:** `{payload.message_id}`\n\n"
+                "*المحتوى غير متاح لأن الرسالة لم تكن في ذاكرة البوت "
+                "(غالباً قبل تشغيله، أو يلزم تفعيل Message Content Intent).*"
+            ),
+            color=COLORS.get("warning", 0xF39C12),
+            timestamp=_dt.datetime.now(_dt.timezone.utc),
+        )
+        await self.post("deletes", embed)
+
+    @commands.Cog.listener()
     async def on_bulk_message_delete(self, messages: list[discord.Message]):
         """Triggered by ``channel.purge(bulk=True)`` (e.g. /admin clear*)."""
         if not messages:
@@ -195,6 +232,60 @@ class LogsCog(commands.Cog):
         embed.add_field(name="قبل", value=_truncate(before.content, 500), inline=False)
         embed.add_field(name="بعد", value=_truncate(after.content, 500), inline=False)
         await self.post("edits", embed)
+
+    @commands.Cog.listener()
+    async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):
+        """Fallback for uncached edits (mirror of on_raw_message_delete)."""
+        if not payload.guild_id:
+            return
+        if payload.cached_message is not None:
+            # on_message_edit handles cached edits.
+            return
+        # Avoid double-posting if Discord delivers an embed-update only.
+        data = payload.data or {}
+        if data.get("author", {}).get("bot"):
+            return
+        channel = self.bot.get_channel(payload.channel_id)
+        ch_mention = (
+            channel.mention if isinstance(channel, discord.TextChannel)
+            else f"<#{payload.channel_id}>"
+        )
+        embed = discord.Embed(
+            title="✏️ رسالة معدّلة (غير مخزّنة)",
+            description=(
+                f"**القناة:** {ch_mention}\n"
+                f"**معرّف الرسالة:** `{payload.message_id}`\n\n"
+                f"**بعد:** {_truncate(data.get('content') or '*(فارغ)*', 800)}\n"
+                "*المحتوى السابق غير متاح (رسالة قديمة قبل تشغيل البوت).*"
+            ),
+            color=COLORS.get("info", 0x3498DB),
+            timestamp=_dt.datetime.now(_dt.timezone.utc),
+        )
+        await self.post("edits", embed)
+
+    @commands.Cog.listener()
+    async def on_member_ban(self, guild: discord.Guild, user: discord.User):
+        embed = discord.Embed(
+            title="🔨 عضو محظور",
+            description=f"{user} (`{user.id}`)",
+            color=COLORS.get("danger", 0xE74C3C),
+            timestamp=_dt.datetime.now(_dt.timezone.utc),
+        )
+        if user.avatar:
+            embed.set_thumbnail(url=user.avatar.url)
+        await self.post("server", embed)
+
+    @commands.Cog.listener()
+    async def on_member_unban(self, guild: discord.Guild, user: discord.User):
+        embed = discord.Embed(
+            title="🔓 رفع حظر عضو",
+            description=f"{user} (`{user.id}`)",
+            color=COLORS.get("success", 0x2ECC71),
+            timestamp=_dt.datetime.now(_dt.timezone.utc),
+        )
+        if user.avatar:
+            embed.set_thumbnail(url=user.avatar.url)
+        await self.post("server", embed)
 
     @commands.Cog.listener()
     async def on_guild_channel_create(self, channel: discord.abc.GuildChannel):

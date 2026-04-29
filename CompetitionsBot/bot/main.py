@@ -51,6 +51,7 @@ class CompetitionsBot(commands.Bot):
             "bot.cogs.contest",
             "bot.cogs.stats_loop",
             "bot.cogs.logs",
+            "bot.cogs.updates",
         ):
             try:
                 await self.load_extension(cog)

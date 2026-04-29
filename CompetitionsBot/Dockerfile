@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY bot ./bot
 COPY server_config.json ./server_config.json
+COPY CHANGELOG.json ./CHANGELOG.json
 
 # Persistent data goes here (mounted volume on fly.io)
 RUN mkdir -p /data

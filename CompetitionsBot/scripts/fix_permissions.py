@@ -50,6 +50,9 @@ def request(method, path, body=None):
             with urllib.request.urlopen(req, timeout=15) as r:
                 return json.loads(r.read()) if r.status != 204 else None
         except urllib.error.HTTPError as e:
+            if e.code in (502, 503, 504):
+                time.sleep(2.0 + attempt * 1.5)
+                continue
             if e.code == 429:
                 retry = float(e.headers.get("Retry-After", 1.0))
                 time.sleep(retry + 0.2)
@@ -127,7 +130,7 @@ if log_id:
         print(f"warn: parent set: {e}")
 
 # ---------- 2) READ-ONLY for members ----------
-read_only_keys = ["rules", "announcements", "prizes", "leaderboard", "archive", "stats"]
+read_only_keys = ["rules", "announcements", "prizes", "leaderboard", "archive", "stats", "bot_updates"]
 read_only_ids = [cfg["channels"][k] for k in read_only_keys if k in cfg["channels"]]
 allow_read = VIEW_CHANNEL | READ_MESSAGE_HISTORY | ADD_REACTIONS
 deny_read = SEND_MESSAGES | USE_APPLICATION_COMMANDS
@@ -144,6 +147,14 @@ for ch_id in read_only_ids:
                   allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
                         EMBED_LINKS | ATTACH_FILES | MANAGE_MESSAGES |
                         MENTION_EVERYONE | USE_APPLICATION_COMMANDS, deny=0)
+    # Bot's own role: explicit allow so the bot can post here even if its
+    # Administrator role is ever removed (defensive — same pattern used in
+    # the admin-only tier above). Without this override, the @everyone deny
+    # would block the bot whenever it doesn't have admin perms.
+    if bot_role:
+        put_overwrite(ch_id, bot_role, 0,
+                      allow=VIEW_CHANNEL | SEND_MESSAGES | READ_MESSAGE_HISTORY |
+                            EMBED_LINKS | ATTACH_FILES, deny=0)
 
 # ---------- 3) OPEN-WRITE: members can send + use bot ----------
 open_keys = ["start", "current", "discussion", "reports", "welcome"]
