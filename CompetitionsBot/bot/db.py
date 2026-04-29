@@ -56,9 +56,28 @@ CREATE TABLE IF NOT EXISTS bot_state (
     value             TEXT
 );
 
+CREATE TABLE IF NOT EXISTS seasons (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    name        TEXT NOT NULL,
+    started_at  REAL NOT NULL,
+    ends_at     REAL NOT NULL,
+    closed      INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS season_results (
+    season_id   INTEGER NOT NULL,
+    user_id     INTEGER NOT NULL,
+    points      INTEGER NOT NULL,
+    rank        INTEGER NOT NULL,
+    tier        TEXT NOT NULL,
+    PRIMARY KEY (season_id, user_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_users_points ON users(points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_weekly ON users(weekly_points DESC);
 CREATE INDEX IF NOT EXISTS idx_users_monthly ON users(monthly_points DESC);
+CREATE INDEX IF NOT EXISTS idx_seasons_active ON seasons(closed, ends_at);
+CREATE INDEX IF NOT EXISTS idx_season_results_pts ON season_results(season_id, points DESC);
 """
 
 
@@ -288,3 +307,88 @@ class Database:
             cur = await db.execute("SELECT value FROM bot_state WHERE key = ?", (key,))
             row = await cur.fetchone()
             return row[0] if row else None
+
+    # ----- Seasons (Wave 2) -----
+    async def get_active_season(self) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM seasons WHERE closed = 0 ORDER BY started_at DESC LIMIT 1"
+            )
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+    async def create_season(self, name: str, started_at: float, ends_at: float) -> int:
+        async with aiosqlite.connect(self.path) as db:
+            cur = await db.execute(
+                "INSERT INTO seasons (name, started_at, ends_at) VALUES (?, ?, ?)",
+                (name, started_at, ends_at),
+            )
+            await db.commit()
+            return cur.lastrowid or 0
+
+    async def close_season(
+        self, season_id: int, top_results: list[dict[str, Any]]
+    ) -> None:
+        async with aiosqlite.connect(self.path) as db:
+            await db.execute(
+                "UPDATE seasons SET closed = 1 WHERE id = ?", (season_id,)
+            )
+            for r in top_results:
+                await db.execute(
+                    """
+                    INSERT INTO season_results (season_id, user_id, points, rank, tier)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT(season_id, user_id) DO UPDATE SET
+                        points = excluded.points,
+                        rank = excluded.rank,
+                        tier = excluded.tier
+                    """,
+                    (season_id, r["user_id"], r["points"], r["rank"], r["tier"]),
+                )
+            await db.commit()
+
+    async def list_seasons(self, limit: int = 20) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM seasons ORDER BY started_at DESC LIMIT ?", (limit,)
+            )
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def get_season(self, season_id: int) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute("SELECT * FROM seasons WHERE id = ?", (season_id,))
+            row = await cur.fetchone()
+            return dict(row) if row else None
+
+    async def get_season_results(
+        self, season_id: int, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                """
+                SELECT sr.*, u.display_name AS display_name
+                  FROM season_results sr
+                  LEFT JOIN users u ON u.user_id = sr.user_id
+                 WHERE sr.season_id = ?
+                 ORDER BY sr.rank ASC
+                 LIMIT ?
+                """,
+                (season_id, limit),
+            )
+            return [dict(r) for r in await cur.fetchall()]
+
+    async def get_user_season_rank(
+        self, season_id: int, user_id: int
+    ) -> dict[str, Any] | None:
+        async with aiosqlite.connect(self.path) as db:
+            db.row_factory = aiosqlite.Row
+            cur = await db.execute(
+                "SELECT * FROM season_results WHERE season_id = ? AND user_id = ?",
+                (season_id, user_id),
+            )
+            row = await cur.fetchone()
+            return dict(row) if row else None

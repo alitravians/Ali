@@ -167,6 +167,23 @@ DIFFICULTY = {
 # XP / level thresholds
 LEVEL_THRESHOLDS = [0, 50, 150, 350, 700, 1200, 2000, 3000, 4500, 6500, 9000, 12000]
 
+# Season tiers — assigned at season-close based on monthly_points
+# Each entry: (tier_id, label, min_points, color)
+SEASON_TIERS: list[tuple[str, str, int, int]] = [
+    ("diamond", "💎 ماسي", 3501, 0x5DADE2),
+    ("gold",    "🥇 ذهبي", 1501, 0xFFD700),
+    ("silver",  "🥈 فضّي",  501, 0xC0C0C0),
+    ("bronze",  "🥉 برونزي",  0, 0xCD7F32),
+]
+
+
+def season_tier_for(points: int) -> tuple[str, str, int]:
+    """Returns (tier_id, label, color) for a given point total."""
+    for tier_id, label, min_pts, color in SEASON_TIERS:
+        if points >= min_pts:
+            return tier_id, label, color
+    return SEASON_TIERS[-1][0], SEASON_TIERS[-1][1], SEASON_TIERS[-1][3]
+
 # Achievements: id -> (name, description, requirement)
 ACHIEVEMENTS = {
     "first_win": ("🏆 أول فوز", "اربح أول مسابقة", "wins>=1"),
