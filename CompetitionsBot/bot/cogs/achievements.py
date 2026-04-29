@@ -38,7 +38,9 @@ class AchievementsCog(commands.Cog):
             await interaction.response.send_message("❌ لم أجد بيانات.", ephemeral=True)
             return
 
-        earned = set(data.get("achievements", []))
+        # Only count achievement IDs that still exist in the current config —
+        # historical IDs (e.g. removed in a refactor) shouldn't inflate the count.
+        earned = set(data.get("achievements", [])) & set(ACHIEVEMENTS.keys())
         total = len(ACHIEVEMENTS)
 
         # Group by tier
