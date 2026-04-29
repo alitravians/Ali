@@ -244,14 +244,16 @@ class MusicCog(commands.Cog):
         except Exception as e:
             _log.exception("resolve_query failed")
             await interaction.followup.send(
-                f"⚠️ ما قدرت أحلّل الرابط/الكلمات: `{type(e).__name__}: {e}`",
+                "🔎 ما لقيت أي نتيجة شغّالة لـ "
+                f"`{query}` بعد محاولة عدة مصادر. "
+                "جرّب اسم أوضح أو الصق رابط YouTube/SoundCloud مباشر.",
                 ephemeral=True,
             )
             return
 
         if not tracks:
             await interaction.followup.send(
-                "🔎 ما لقيت نتيجة. جرّب كلمات بحث أخرى أو رابط YouTube مباشر.",
+                "🔎 ما لقيت أي نتيجة شغّالة. جرّب اسم بحث ثاني أو رابط مباشر.",
                 ephemeral=True,
             )
             return
