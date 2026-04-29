@@ -136,6 +136,42 @@ class LogsCog(commands.Cog):
         await self.post("deletes", embed)
 
     @commands.Cog.listener()
+    async def on_bulk_message_delete(self, messages: list[discord.Message]):
+        """Triggered by ``channel.purge(bulk=True)`` (e.g. /admin clear*)."""
+        if not messages:
+            return
+        # Filter out bot messages — keep only human-authored ones.
+        humans = [m for m in messages if not m.author.bot and m.guild]
+        if not humans:
+            return
+        channel = humans[0].channel
+        embed = discord.Embed(
+            title="🗑️ حذف جماعي للرسائل",
+            description=(
+                f"**القناة:** {getattr(channel, 'mention', f'#{channel}')}\n"
+                f"**عدد الرسائل المحذوفة:** {len(humans)}"
+            ),
+            color=COLORS.get("warning", 0xF39C12),
+            timestamp=_dt.datetime.now(_dt.timezone.utc),
+        )
+        # Build a compact preview of up to 10 messages (cached only).
+        preview_lines: list[str] = []
+        for m in humans[:10]:
+            content = (m.content or "*(فارغ / غير مخزّن)*").replace("\n", " ")
+            if len(content) > 100:
+                content = content[:99] + "…"
+            preview_lines.append(f"• **{m.author}**: {content}")
+        if preview_lines:
+            embed.add_field(
+                name="معاينة (آخر المخزّن)",
+                value="\n".join(preview_lines),
+                inline=False,
+            )
+        if len(humans) > 10:
+            embed.set_footer(text=f"تم عرض 10 من {len(humans)} رسالة")
+        await self.post("deletes", embed)
+
+    @commands.Cog.listener()
     async def on_message_edit(self, before: discord.Message, after: discord.Message):
         if before.author.bot or not before.guild:
             return
