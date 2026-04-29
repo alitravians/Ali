@@ -75,7 +75,9 @@ class SeasonsCog(commands.Cog):
     async def _before_tick(self) -> None:
         await self.bot.wait_until_ready()
 
-    async def _ensure_active_season(self) -> dict[str, Any]:
+    async def _create_season_for_now(self) -> dict[str, Any]:
+        """Internal helper that always creates a season for the current UTC
+        month. Caller must already hold ``_closing_lock``."""
         active = await self.bot.db.get_active_season()
         if active:
             return active
@@ -86,12 +88,20 @@ class SeasonsCog(commands.Cog):
         _log.info("Created new season id=%s name=%s", sid, name)
         return {"id": sid, "name": name, "started_at": start_ts, "ends_at": end_ts, "closed": 0}
 
+    async def _ensure_active_season(self) -> dict[str, Any]:
+        """Public entry-point used by slash commands. Acquires the close-lock
+        so it can't interleave with ``_maybe_close_and_rotate`` (which would
+        otherwise allow two ``closed=0`` rows to be created for the same
+        month — see Devin Review on PR #111)."""
+        async with self._closing_lock:
+            return await self._create_season_for_now()
+
     async def _maybe_close_and_rotate(self) -> None:
         """If the active season has expired, close it + rotate to next month."""
         async with self._closing_lock:
             active = await self.bot.db.get_active_season()
             if not active:
-                await self._ensure_active_season()
+                await self._create_season_for_now()
                 return
             now = _dt.datetime.now(_dt.timezone.utc).timestamp()
             if now < active["ends_at"]:
