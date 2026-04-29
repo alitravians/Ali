@@ -544,7 +544,7 @@ class Database:
         values.append(qid)
         async with aiosqlite.connect(self.path) as db:
             cur = await db.execute(
-                f"UPDATE admin_questions SET {", ".join(sets)} "
+                f"UPDATE admin_questions SET {', '.join(sets)} "
                 "WHERE id = ? AND deleted_at IS NULL",
                 values,
             )
