@@ -138,10 +138,22 @@ class AutomodCog(commands.Cog):
 
     def _gc_locked(self, now: float) -> None:
         """Drop bucket-keys with no live entries and alert-keys older than
-        :data:`ALERT_TTL`. Caller must hold ``_lock``."""
+        :data:`ALERT_TTL`. Caller must hold ``_lock``.
+
+        We compare ``now`` (wall-clock at GC time) against the bucket's
+        ``answer_ts`` values — but those are *original click timestamps*,
+        which the quiz cog feeds in ~30 seconds late (it processes all
+        answers in a tight loop after the round timer expires). If we
+        used ``COLLUSION_WINDOW`` (3s) here, every active bucket would
+        look "dead" instantly and GC would wipe it mid-detection,
+        causing the third colluding answer to start with a fresh bucket
+        and the alert to be silently missed. ``ALERT_TTL`` (10 min) is
+        the correct horizon: long after every realistic round finishes,
+        but well before the bucket count can grow unbounded.
+        """
         dead_buckets = [
             k for k, v in self._buckets.items()
-            if not v or all(now - t > COLLUSION_WINDOW for (_u, t) in v)
+            if not v or all(now - t > ALERT_TTL for (_u, t) in v)
         ]
         for k in dead_buckets:
             self._buckets.pop(k, None)
