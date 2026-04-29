@@ -173,20 +173,11 @@ class MusicBot(commands.Bot):
 
 async def main() -> None:
     settings = Settings.load()
-    # Re-enabling _disable_dave_protocol() because empirically the MLS
-    # handshake stalls after MLS_EXTERNAL_SENDER for single-bot voice
-    # channels — Discord never sends MLS_PROPOSALS / MLS_WELCOME, so
-    # ``dave_session.ready`` stays False, ``can_encrypt`` stays False,
-    # and the bot ends up sending raw RTP/opus over a DAVE-negotiated
-    # channel. DAVE-aware clients then drop the bot's packets because
-    # they lack DAVE markers, producing complete silence.
-    #
-    # By advertising ``max_dave_protocol_version=0`` in IDENTIFY we ask
-    # Discord to NOT enable DAVE for this voice connection — clients
-    # then accept raw RTP packets normally. The previous concern about
-    # close code 4017 (``EndToEndEncryptionDAVEProtocolRequired``) does
-    # not appear in current production logs; if it surfaces we revert.
-    _disable_dave_protocol()
+    # CONFIRMED 2026-Q1: Discord *enforces* DAVE on the voice gateway and
+    # closes the WebSocket with code 4017 ('E2EE/DAVE protocol required')
+    # whenever IDENTIFY advertises ``max_dave_protocol_version=0``. So
+    # ``_disable_dave_protocol()`` MUST NOT be called — davey must stay
+    # available and DAVE must be advertised.
     _load_opus()
     bot = MusicBot(settings)
     async with bot:
