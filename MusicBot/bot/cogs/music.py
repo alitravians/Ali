@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 
 
 def _fmt_duration(seconds: int | None) -> str:
-    if not seconds or seconds < 0:
+    if seconds is None or seconds < 0:
         return "—"
     m, s = divmod(int(seconds), 60)
     h, m = divmod(m, 60)

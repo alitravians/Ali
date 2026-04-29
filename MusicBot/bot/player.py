@@ -147,7 +147,7 @@ async def prime_track(track: Track) -> Track:
     if track.stream_url:
         return track
     loop = asyncio.get_running_loop()
-    info = await loop.run_in_executor(None, _ydl_extract, track.query, True)
+    info = await loop.run_in_executor(None, lambda: _ydl_extract(track.query, resolve=True))
     if not info:
         return track
     full = _track_from_info(info, requested_by_id=track.requested_by_id)
