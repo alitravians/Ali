@@ -144,7 +144,7 @@ class QuizCog(commands.Cog):
                     for uid, (val, t) in view.answers.items():
                         elapsed = t - msg.created_at.timestamp()
                         is_correct = val == q["answer"]
-                        await self._score_user(uid, points, is_correct, elapsed, scores)
+                        await self._score_user(uid, points, is_correct, elapsed, scores, category=q["category"])
                         await self._automod_record(
                             channel.id, msg.id, i, uid,
                             "T" if val else "F",
@@ -193,7 +193,7 @@ class QuizCog(commands.Cog):
                     for uid, (val, t) in view.answers.items():
                         elapsed = t - msg.created_at.timestamp()
                         is_correct = val == new_correct
-                        await self._score_user(uid, points, is_correct, elapsed, scores)
+                        await self._score_user(uid, points, is_correct, elapsed, scores, category=q["category"])
                         # Track the *original* answer index (post-shuffle) so
                         # collusion detection sees a stable token across the
                         # round; using the visible letter avoids leaking the
@@ -313,25 +313,27 @@ class QuizCog(commands.Cog):
         is_correct: bool,
         elapsed: float,
         scores: dict[int, dict[str, Any]],
+        category: str | None = None,
     ) -> None:
         s = scores.setdefault(user_id, {"points": 0, "correct": 0, "answers": 0, "last_time": 0.0})
         s["answers"] += 1
         s["last_time"] = elapsed
+        user = self.bot.get_user(user_id)
+        name = user.display_name if user else f"User {user_id}"
+        await self.bot.db.ensure_user(user_id, name)
         if is_correct:
             # Speed bonus: extra 50% if answered within first 3 seconds
             bonus = points // 2 if elapsed < 3.0 else 0
-            s["points"] += points + bonus
+            total_pts = points + bonus
+            s["points"] += total_pts
             s["correct"] += 1
-            # Record in DB
-            user = self.bot.get_user(user_id)
-            name = user.display_name if user else f"User {user_id}"
-            await self.bot.db.ensure_user(user_id, name)
-            await self.bot.db.add_points(user_id, points + bonus, correct=True, fast=(elapsed < 3.0))
+            await self.bot.db.add_points(user_id, total_pts, correct=True, fast=(elapsed < 3.0))
+            if category:
+                await self.bot.db.bump_category_stat(user_id, category, correct=True, points=total_pts)
         else:
-            user = self.bot.get_user(user_id)
-            name = user.display_name if user else f"User {user_id}"
-            await self.bot.db.ensure_user(user_id, name)
             await self.bot.db.add_points(user_id, 0, correct=False)
+            if category:
+                await self.bot.db.bump_category_stat(user_id, category, correct=False, points=0)
 
     def _mini_leaderboard(self, scores: dict[int, dict[str, Any]]) -> list[str]:
         items = sorted(scores.items(), key=lambda x: -x[1]["points"])[:5]
@@ -353,15 +355,50 @@ class QuizCog(commands.Cog):
             user_data = await self.bot.db.get_user(uid)
             if not user_data:
                 continue
+            cat_rows = await self.bot.db.get_user_category_stats(uid)
+            cats = {r["category"]: r for r in cat_rows}
+            mastered_cats = sum(1 for r in cat_rows if r["correct"] >= 50)
+            accuracy = (
+                user_data["correct_answers"] / user_data["total_answers"] * 100
+                if user_data["total_answers"] else 0
+            )
+            daily_state = await self.bot.db.get_daily_state(uid)
+            daily_streak = daily_state["streak_days"] if daily_state else 0
+
             checks = [
-                ("first_win", user_data["wins"] >= 1 and i == 0),
-                ("streak_5", user_data["best_streak"] >= 5),
-                ("streak_10", user_data["best_streak"] >= 10),
-                ("veteran", user_data["competitions"] >= 25),
-                ("scholar", user_data["points"] >= 1000),
-                ("champion", user_data["points"] >= 5000),
-                ("perfect", uid in perfect_users),
-                ("speedster", user_data["fast_answers"] >= 1),
+                # Wins (i == 0 means this user is the round winner)
+                ("first_win",   user_data["wins"] >= 1 and i == 0),
+                ("wins_10",     user_data["wins"] >= 10),
+                ("wins_50",     user_data["wins"] >= 50),
+                ("wins_100",    user_data["wins"] >= 100),
+                # Streaks
+                ("streak_5",    user_data["best_streak"] >= 5),
+                ("streak_10",   user_data["best_streak"] >= 10),
+                ("streak_25",   user_data["best_streak"] >= 25),
+                # Perfect runs
+                ("perfect",     uid in perfect_users or user_data["perfect_runs"] >= 1),
+                ("perfect_5",   user_data["perfect_runs"] >= 5),
+                # Speed
+                ("speedster",   user_data["fast_answers"] >= 1),
+                ("speedster_50",user_data["fast_answers"] >= 50),
+                # Engagement
+                ("veteran",     user_data["competitions"] >= 25),
+                ("legend",      user_data["competitions"] >= 200),
+                # Total points
+                ("scholar",     user_data["points"] >= 1000),
+                ("master",      user_data["points"] >= 5000),
+                ("god_tier",    user_data["points"] >= 25000),
+                # Accuracy (need a meaningful sample size)
+                ("accuracy_80", user_data["total_answers"] >= 100 and accuracy >= 80),
+                # Daily streak
+                ("daily_7",     daily_streak >= 7),
+                ("daily_30",    daily_streak >= 30),
+                # Category mastery (50+ correct in a specific category)
+                ("cat_history", cats.get("تاريخ",   {}).get("correct", 0) >= 50),
+                ("cat_geo",     cats.get("جغرافيا", {}).get("correct", 0) >= 50),
+                ("cat_science", cats.get("علوم",    {}).get("correct", 0) >= 50),
+                ("cat_islam",   cats.get("إسلامي", {}).get("correct", 0) >= 50),
+                ("cat_master",  mastered_cats >= 4),
             ]
             for ach_id, condition in checks:
                 if condition:

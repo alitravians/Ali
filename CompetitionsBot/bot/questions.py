@@ -220,6 +220,11 @@ QUESTIONS: list[dict[str, Any]] = [
 ]
 
 
+# Runtime-loaded community-approved questions (populated by the submissions cog
+# at startup and after each new approval). Same shape as QUESTIONS entries.
+EXTRA_QUESTIONS: list[dict[str, Any]] = []
+
+
 def filter_questions(
     *,
     category: str | None = None,
@@ -228,7 +233,7 @@ def filter_questions(
     count: int = 5,
     exclude_ids: set[str] | None = None,
 ) -> list[dict[str, Any]]:
-    pool = QUESTIONS
+    pool = QUESTIONS + EXTRA_QUESTIONS
     if category and category != "كل":
         pool = [q for q in pool if q["category"] == category]
     if difficulty and difficulty != "كل":
@@ -250,4 +255,4 @@ def categories() -> list[str]:
 
 
 def total() -> int:
-    return len(QUESTIONS)
+    return len(QUESTIONS) + len(EXTRA_QUESTIONS)
