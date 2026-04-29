@@ -19,17 +19,54 @@ Design notes:
 from __future__ import annotations
 
 import asyncio
+import base64
 import logging
+import os
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
 from typing import Any, Callable
 
 import discord
 from yt_dlp import YoutubeDL
 
 _log = logging.getLogger(__name__)
+
+
+def _resolve_cookiefile() -> str | None:
+    """Return a path to a Netscape-format cookies file, if configured.
+
+    YouTube enforces increasingly aggressive anti-bot challenges on
+    datacenter IPs (fly.io, AWS, GCP, etc.) and will respond with
+    "Sign in to confirm you're not a bot" for many videos unless the
+    request carries cookies from a signed-in session.
+
+    We support two configuration modes:
+
+    1. ``YOUTUBE_COOKIES_FILE``: absolute path to a cookies.txt already
+       on disk. Useful when the file is mounted as a fly volume.
+    2. ``YOUTUBE_COOKIES_B64``: base64-encoded cookies.txt contents,
+       passed as a ``flyctl secret``. We decode to ``/tmp/yt_cookies.txt``
+       at startup. Preferred for stateless deploys.
+    """
+    explicit = os.environ.get("YOUTUBE_COOKIES_FILE")
+    if explicit and Path(explicit).is_file():
+        return explicit
+    b64 = os.environ.get("YOUTUBE_COOKIES_B64")
+    if b64:
+        try:
+            decoded = base64.b64decode(b64)
+            target = Path("/tmp/yt_cookies.txt")
+            target.write_bytes(decoded)
+            return str(target)
+        except Exception:
+            _log.exception("failed to decode YOUTUBE_COOKIES_B64")
+    return None
+
+
+COOKIEFILE = _resolve_cookiefile()
 
 # Reconnect + buffer flags shave a few seconds off the failure mode where
 # the upstream stream stalls. They are widely recommended in the
@@ -39,8 +76,18 @@ FFMPEG_OPTIONS = "-vn"
 
 # yt-dlp options. ``noplaylist=False`` lets ``/play <playlist url>`` enqueue
 # the entire playlist; the cog can still override per-call.
+#
+# The format selector is intentionally generous: YouTube increasingly serves
+# only HLS/DASH streams for some videos, and a strict ``bestaudio/best``
+# fails with "Requested format is not available" on those. Using
+# ``bestaudio*`` plus an explicit fallback chain through HLS/DASH protocols
+# avoids that. ``-vn`` in FFMPEG_OPTIONS strips video, so even if a video
+# format is selected we still only stream audio.
 YDL_BASE_OPTS: dict[str, Any] = {
-    "format": "bestaudio/best",
+    "format": (
+        "bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio*"
+        "/best[ext=mp4]/best"
+    ),
     "quiet": True,
     "no_warnings": True,
     "default_search": "ytsearch",
@@ -48,7 +95,18 @@ YDL_BASE_OPTS: dict[str, Any] = {
     "skip_download": True,
     "extract_flat": "in_playlist",
     "source_address": "0.0.0.0",  # avoid IPv6 issues on some hosts
+    "retries": 3,
+    "fragment_retries": 3,
+    "extractor_args": {
+        # The default ``web`` client breaks on some videos in late 2025.
+        # Telling yt-dlp to also try the Android + iOS clients dramatically
+        # improves availability of audio-only formats.
+        "youtube": {"player_client": ["android", "web", "ios"]},
+    },
 }
+if COOKIEFILE:
+    YDL_BASE_OPTS["cookiefile"] = COOKIEFILE
+    _log.info("yt-dlp will use cookies from %s", COOKIEFILE)
 
 # ``extract_flat`` returns lightweight playlist entries (id+title only).
 # When the player actually needs a stream URL we re-extract that one
@@ -218,14 +276,15 @@ class MusicPlayer:
         if self.loop_mode == LoopMode.TRACK and self.now_playing:
             next_track = self.now_playing
         else:
+            # Recycle the *previous* track back to the queue tail BEFORE
+            # checking emptiness, so single-track queues still loop.
+            if self.loop_mode == LoopMode.QUEUE and self.now_playing:
+                self.queue.append(self.now_playing)
             if not self.queue:
                 self.now_playing = None
                 self._schedule_idle_disconnect()
                 return
             next_track = self.queue.popleft()
-            if self.loop_mode == LoopMode.QUEUE and self.now_playing:
-                # Recycle the *previous* now_playing back to the queue tail.
-                self.queue.append(self.now_playing)
 
         try:
             primed = await prime_track(next_track)
@@ -287,9 +346,14 @@ class MusicPlayer:
         self._paused_at = 0.0
         self._total_paused = 0.0
         self._cancel_idle_disconnect()
-        if self.voice_client and self.voice_client.is_connected():
-            self.voice_client.stop()
-            await self.voice_client.disconnect(force=False)
+        vc = self.voice_client
+        # Drop the reference *now* so that any subsequent ``_ensure_voice``
+        # call doesn't see a stale, disconnected ``VoiceClient`` and short-
+        # circuit the reconnect path.
+        self.voice_client = None
+        if vc and vc.is_connected():
+            vc.stop()
+            await vc.disconnect(force=False)
 
     def set_volume(self, vol: int) -> None:
         # Clamp to 0..200% — Discord accepts >1.0 but it just clips.

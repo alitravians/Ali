@@ -123,6 +123,12 @@ class MusicCog(commands.Cog):
         # Connect / move as needed.
         target = member.voice.channel
         vc = player.voice_client or interaction.guild.voice_client
+        # If the cached client is stale (disconnected via /stop, kicked, or
+        # network drop) treat it as absent so we fall through to a fresh
+        # ``connect()`` instead of silently failing on the dead handle.
+        if vc and not vc.is_connected():
+            vc = None
+            player.voice_client = None
         if vc and vc.channel != target:
             if must_be_in_same_channel:
                 await self._reply_error(
