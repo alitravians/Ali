@@ -50,6 +50,9 @@ def request(method, path, body=None):
             with urllib.request.urlopen(req, timeout=15) as r:
                 return json.loads(r.read()) if r.status != 204 else None
         except urllib.error.HTTPError as e:
+            if e.code in (502, 503, 504):
+                time.sleep(2.0 + attempt * 1.5)
+                continue
             if e.code == 429:
                 retry = float(e.headers.get("Retry-After", 1.0))
                 time.sleep(retry + 0.2)
