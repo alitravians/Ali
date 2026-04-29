@@ -128,9 +128,19 @@ class SeasonsCog(commands.Cog):
             # Announce in announcements channel (if configured)
             await self._announce_season_close(active, results)
 
-            # Start next month
+            # Start next month — base it on the *old* season's end (plus a
+            # second) rather than `now`. If the tick fires inside the final
+            # sub-second of the month (`23:59:59.xxx`), `now.month` may still
+            # equal the closed season's month, which would create a duplicate
+            # same-month season with an already-expired `ends_at`. We also
+            # take max() with the wall-clock month to handle bot-downtime
+            # gaps (skipping multiple months at once is fine — we just open
+            # the *current* month, not every intermediate one).
+            old_end_dt = _dt.datetime.fromtimestamp(active["ends_at"], _dt.timezone.utc)
+            next_after_old = old_end_dt + _dt.timedelta(seconds=1)
             now_dt = _dt.datetime.now(_dt.timezone.utc)
-            year, month = now_dt.year, now_dt.month
+            target_dt = next_after_old if next_after_old >= now_dt else now_dt
+            year, month = target_dt.year, target_dt.month
             start_ts, end_ts = _month_bounds(year, month)
             new_name = _season_name_for(year, month)
             new_id = await self.bot.db.create_season(new_name, start_ts, end_ts)
