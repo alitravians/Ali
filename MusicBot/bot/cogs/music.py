@@ -62,19 +62,59 @@ class MusicCog(commands.Cog):
             self.players[guild_id] = p
         return p
 
+    async def _reply_error(
+        self,
+        interaction: discord.Interaction,
+        message: str,
+        *,
+        already_deferred: bool,
+    ) -> None:
+        """Reply with an ephemeral error using the right channel.
+
+        Once an interaction has been deferred (``response.defer``) we must
+        use ``followup.send`` — ``response.send_message`` would raise
+        ``InteractionResponded``.
+        """
+        if already_deferred:
+            try:
+                await interaction.followup.send(message, ephemeral=True)
+            except Exception:
+                _log.exception("followup error reply failed")
+            return
+        try:
+            await interaction.response.send_message(message, ephemeral=True)
+        except Exception:
+            _log.exception("response error reply failed")
+
     async def _ensure_voice(
-        self, interaction: discord.Interaction, *, must_be_in_same_channel: bool = False
+        self,
+        interaction: discord.Interaction,
+        *,
+        must_be_in_same_channel: bool = False,
+        already_deferred: bool = False,
     ) -> MusicPlayer | None:
-        """Validate the user is in voice and return (or create) the player."""
+        """Validate the user is in voice and return (or create) the player.
+
+        ``already_deferred`` must be set by callers that have already called
+        ``interaction.response.defer()`` — e.g. ``/play``, ``/join`` — because
+        the voice ``connect``/``move_to`` calls below can take longer than
+        Discord's 3-second response window. Without an early defer the
+        interaction expires and the user sees "The application did not
+        respond".
+        """
         if not interaction.guild:
-            await interaction.response.send_message(
-                "هذا الأمر يعمل داخل السيرفر فقط.", ephemeral=True
+            await self._reply_error(
+                interaction,
+                "هذا الأمر يعمل داخل السيرفر فقط.",
+                already_deferred=already_deferred,
             )
             return None
         member = interaction.user
         if not isinstance(member, discord.Member) or not member.voice or not member.voice.channel:
-            await interaction.response.send_message(
-                "🔇 لازم تكون داخل قناة صوتية أولاً.", ephemeral=True
+            await self._reply_error(
+                interaction,
+                "🔇 لازم تكون داخل قناة صوتية أولاً.",
+                already_deferred=already_deferred,
             )
             return None
 
@@ -85,9 +125,10 @@ class MusicCog(commands.Cog):
         vc = player.voice_client or interaction.guild.voice_client
         if vc and vc.channel != target:
             if must_be_in_same_channel:
-                await interaction.response.send_message(
+                await self._reply_error(
+                    interaction,
                     f"⚠️ البوت في قناة مختلفة (`{vc.channel}`). انضم لها أو استخدم `/leave` ثم حاول مجدداً.",
-                    ephemeral=True,
+                    already_deferred=already_deferred,
                 )
                 return None
             try:
@@ -98,14 +139,18 @@ class MusicCog(commands.Cog):
             try:
                 vc = await target.connect(self_deaf=True, reconnect=True)
             except discord.errors.ClientException as e:
-                await interaction.response.send_message(
-                    f"⚠️ ما قدرت أنضم: {e}", ephemeral=True
+                await self._reply_error(
+                    interaction,
+                    f"⚠️ ما قدرت أنضم: {e}",
+                    already_deferred=already_deferred,
                 )
                 return None
             except Exception as e:
                 _log.exception("voice connect failed")
-                await interaction.response.send_message(
-                    f"⚠️ خطأ بالاتصال: {e}", ephemeral=True
+                await self._reply_error(
+                    interaction,
+                    f"⚠️ خطأ بالاتصال: {e}",
+                    already_deferred=already_deferred,
                 )
                 return None
 
@@ -180,11 +225,13 @@ class MusicCog(commands.Cog):
     @app_commands.command(name="play", description="🎶 تشغيل أغنية أو رابط YouTube (يضيفها للقائمة)")
     @app_commands.describe(query="رابط YouTube أو كلمات بحث")
     async def play(self, interaction: discord.Interaction, query: str) -> None:
-        player = await self._ensure_voice(interaction)
+        # Defer FIRST: voice connect + yt-dlp extraction can each take
+        # several seconds and Discord expects a response within 3.
+        await interaction.response.defer(thinking=True)
+
+        player = await self._ensure_voice(interaction, already_deferred=True)
         if player is None:
             return
-
-        await interaction.response.defer(thinking=True)
 
         try:
             tracks = await resolve_query(query, requested_by_id=interaction.user.id)
@@ -375,10 +422,12 @@ class MusicCog(commands.Cog):
 
     @app_commands.command(name="join", description="📥 ضمّ البوت إلى قناتك الصوتية")
     async def join(self, interaction: discord.Interaction) -> None:
-        player = await self._ensure_voice(interaction)
+        # Defer first so the voice connect doesn't blow the 3-second window.
+        await interaction.response.defer(thinking=True)
+        player = await self._ensure_voice(interaction, already_deferred=True)
         if player is None:
             return
-        await interaction.response.send_message(
+        await interaction.followup.send(
             f"✅ انضممت إلى **{player.voice_client.channel}**." if player.voice_client else "✅ انضممت."
         )
 

@@ -175,6 +175,9 @@ class MusicPlayer:
     _idle_task: asyncio.Task[None] | None = None
     _max_queue: int = 100
     _idle_seconds: int = 300
+    # Pause bookkeeping so /nowplaying progress reflects real audio time.
+    _paused_at: float = 0.0
+    _total_paused: float = 0.0
 
     def is_playing(self) -> bool:
         vc = self.voice_client
@@ -194,7 +197,14 @@ class MusicPlayer:
     def progress_seconds(self) -> int:
         if not self.now_playing or not self.started_at:
             return 0
-        return max(0, int(time.time() - self.started_at))
+        # Subtract cumulative paused duration. If currently paused, also
+        # subtract the time since the current pause started so the bar
+        # freezes while paused instead of ticking forward.
+        paused_total = self._total_paused
+        if self._paused_at:
+            paused_total += max(0.0, time.time() - self._paused_at)
+        elapsed = time.time() - self.started_at - paused_total
+        return max(0, int(elapsed))
 
     async def play_next(self) -> None:
         if not self.voice_client or not self.voice_client.is_connected():
@@ -245,6 +255,8 @@ class MusicPlayer:
 
         self.now_playing = primed
         self.started_at = time.time()
+        self._paused_at = 0.0
+        self._total_paused = 0.0
         self._cancel_idle_disconnect()
 
         def _after(err: Exception | None) -> None:
@@ -265,12 +277,19 @@ class MusicPlayer:
         await self.play_next()
 
     async def stop(self) -> None:
+        # Clear state BEFORE stopping the voice client. ``voice_client.stop()``
+        # synchronously triggers the ``after`` callback which schedules
+        # ``_after_track`` → ``play_next``; if ``now_playing`` is still set
+        # (especially under ``LoopMode.TRACK``) that re-entry would try to
+        # play on a disconnecting voice client.
         self.clear()
+        self.now_playing = None
+        self._paused_at = 0.0
+        self._total_paused = 0.0
+        self._cancel_idle_disconnect()
         if self.voice_client and self.voice_client.is_connected():
             self.voice_client.stop()
             await self.voice_client.disconnect(force=False)
-        self.now_playing = None
-        self._cancel_idle_disconnect()
 
     def set_volume(self, vol: int) -> None:
         # Clamp to 0..200% — Discord accepts >1.0 but it just clips.
@@ -288,12 +307,16 @@ class MusicPlayer:
     def pause(self) -> bool:
         if self.voice_client and self.voice_client.is_playing():
             self.voice_client.pause()
+            self._paused_at = time.time()
             return True
         return False
 
     def resume(self) -> bool:
         if self.voice_client and self.voice_client.is_paused():
             self.voice_client.resume()
+            if self._paused_at:
+                self._total_paused += max(0.0, time.time() - self._paused_at)
+                self._paused_at = 0.0
             return True
         return False
 
