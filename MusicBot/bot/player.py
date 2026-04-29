@@ -99,11 +99,6 @@ YDL_BASE_OPTS: dict[str, Any] = {
     "noplaylist": False,
     "skip_download": True,
     "extract_flat": "in_playlist",
-    # ``ignoreerrors`` keeps a multi-entry search alive when individual
-    # results 404 / are private / are geo-locked. Without this a single
-    # dead track kills the whole search and the user sees a 404 instead
-    # of a working alternative.
-    "ignoreerrors": True,
     "source_address": "0.0.0.0",  # avoid IPv6 issues on some hosts
     "retries": 3,
     "fragment_retries": 3,
@@ -121,9 +116,16 @@ if COOKIEFILE:
 # ``extract_flat`` returns lightweight playlist entries (id+title only).
 # When the player actually needs a stream URL we re-extract that one
 # entry with this fuller config.
+# ``ignoreerrors`` keeps a multi-entry search alive when individual
+# results 404 / are private / are geo-locked. It MUST live only on the
+# resolve opts, not on the base opts: putting it on the base opts would
+# also suppress YouTube bot-challenge errors on direct URL extracts,
+# which would silently return ``None`` instead of raising and break
+# the YouTube → SoundCloud title-fallback in :func:`resolve_query`.
 YDL_RESOLVE_OPTS: dict[str, Any] = {
     **YDL_BASE_OPTS,
     "extract_flat": False,
+    "ignoreerrors": True,
 }
 
 
