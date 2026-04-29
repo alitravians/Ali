@@ -393,6 +393,81 @@ def format_leaderboard(rows: list[dict[str, Any]], scope: str = "all") -> str:
     return "\n".join(lines)
 
 
+def question_countdown_footer(seconds_left: int, total: int) -> str:
+    """Build a visual countdown bar for a question's footer."""
+    if seconds_left <= 0:
+        return "⏰ انتهى الوقت!"
+    # Visual progress bar
+    ratio = seconds_left / total
+    cells = 20
+    filled = int(ratio * cells)
+    if seconds_left <= 5:
+        bar = "🟥" * filled + "⬛" * (cells - filled)
+        warn = "🚨"
+    elif seconds_left <= 10:
+        bar = "🟧" * filled + "⬛" * (cells - filled)
+        warn = "⚠️"
+    else:
+        bar = "🟩" * filled + "⬛" * (cells - filled)
+        warn = "⏱️"
+    return f"{warn} متبقي **{seconds_left}** ثانية\n{bar}"
+
+
+async def run_question_countdown(
+    message: discord.Message,
+    embed: discord.Embed,
+    total_seconds: int,
+    view: discord.ui.View | None = None,
+) -> None:
+    """Live-edit `message` to show a countdown in the embed description.
+
+    Uses a small number of edits (every 5 seconds + final 5s every 1s) to stay
+    well under Discord rate limits while giving a smooth visual countdown.
+    """
+    import asyncio as _aio
+
+    # Schedule of seconds-remaining values at which to refresh
+    schedule: list[int] = []
+    s = total_seconds
+    while s > 10:
+        schedule.append(s)
+        s -= 5
+    while s > 0:
+        schedule.append(s)
+        s -= 1
+    schedule.append(0)
+
+    start = _aio.get_event_loop().time()
+    base_description = embed.description or ""
+    # Strip any prior countdown block we appended
+    marker = "\n\n━━ ⏳ ━━"
+    if marker in base_description:
+        base_description = base_description.split(marker)[0]
+
+    for idx, target_seconds_left in enumerate(schedule):
+        elapsed = _aio.get_event_loop().time() - start
+        target_elapsed = total_seconds - target_seconds_left
+        wait = target_elapsed - elapsed
+        if wait > 0:
+            await _aio.sleep(wait)
+        # Build refreshed embed
+        new_embed = embed.copy()
+        countdown_block = question_countdown_footer(target_seconds_left, total_seconds)
+        new_embed.description = f"{base_description}\n\n━━ ⏳ ━━\n{countdown_block}"
+        # Color shifts as time runs out
+        if target_seconds_left <= 5:
+            new_embed.colour = discord.Colour(0xE74C3C)  # red
+        elif target_seconds_left <= 10:
+            new_embed.colour = discord.Colour(0xF39C12)  # orange
+        try:
+            if view is not None:
+                await message.edit(embed=new_embed, view=view)
+            else:
+                await message.edit(embed=new_embed)
+        except (discord.HTTPException, discord.NotFound):
+            return
+
+
 async def countdown_message(channel: discord.abc.Messageable, seconds: int = 3) -> None:
     """Send a countdown by editing one message."""
     msg = await channel.send(embed=build_countdown_embed(seconds))

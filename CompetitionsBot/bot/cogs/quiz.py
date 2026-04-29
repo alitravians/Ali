@@ -138,7 +138,7 @@ class QuizCog(commands.Cog):
                     view = utils.TrueFalseView(q["answer"], timeout=float(time_limit))
                     msg = await channel.send(embed=embed, view=view)
                     correct_answer_text = "✅ صحيح" if q["answer"] else "❌ خطأ"
-                    await asyncio.sleep(time_limit)
+                    await utils.run_question_countdown(msg, embed, time_limit, view)
                     view.stop()
                     # Score answers
                     for uid, (val, t) in view.answers.items():
@@ -183,7 +183,7 @@ class QuizCog(commands.Cog):
 
                     msg = await channel.send(embed=embed, view=view)
                     correct_answer_text = f"{utils.CHOICE_LETTERS[new_correct]}. {shuffled_choices[new_correct]}"
-                    await asyncio.sleep(time_limit)
+                    await utils.run_question_countdown(msg, embed, time_limit, view)
                     view.stop()
                     for uid, (val, t) in view.answers.items():
                         elapsed = t - msg.created_at.timestamp()

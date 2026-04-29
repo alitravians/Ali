@@ -139,9 +139,9 @@ CATEGORY_EMOJIS = {
 }
 
 DIFFICULTY = {
-    "سهل": {"points": 10, "time": 25, "emoji": "🟢"},
-    "متوسط": {"points": 20, "time": 20, "emoji": "🟡"},
-    "صعب": {"points": 35, "time": 15, "emoji": "🔴"},
+    "سهل": {"points": 10, "time": 30, "emoji": "🟢"},
+    "متوسط": {"points": 20, "time": 30, "emoji": "🟡"},
+    "صعب": {"points": 35, "time": 30, "emoji": "🔴"},
 }
 
 # XP / level thresholds
