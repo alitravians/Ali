@@ -90,7 +90,12 @@ YDL_BASE_OPTS: dict[str, Any] = {
     ),
     "quiet": True,
     "no_warnings": True,
-    "default_search": "ytsearch",
+    # SoundCloud as the default search source: YouTube applies aggressive
+    # bot challenges to datacenter IPs (fly.io, AWS, etc.) and demands
+    # a signed-in session. SoundCloud has no such restriction and serves
+    # most popular music tracks. URLs are auto-detected by yt-dlp so a
+    # YouTube link still works (when the video isn't gated).
+    "default_search": "scsearch",
     "noplaylist": False,
     "skip_download": True,
     "extract_flat": "in_playlist",
@@ -146,15 +151,78 @@ def _ydl_extract(query: str, *, resolve: bool = False) -> dict[str, Any]:
     return info or {}
 
 
+_YT_HOSTS = ("youtube.com", "www.youtube.com", "m.youtube.com", "youtu.be", "music.youtube.com")
+
+
+def _is_youtube_url(query: str) -> bool:
+    return any(h in query for h in _YT_HOSTS)
+
+
+def _is_bot_challenge(err: Exception) -> bool:
+    msg = str(err).lower()
+    return (
+        "sign in to confirm" in msg
+        or "confirm you" in msg and "bot" in msg
+        or "requested format is not available" in msg
+    )
+
+
+def _youtube_title(query: str) -> str | None:
+    """Best-effort fetch of a YouTube video title via the public oEmbed
+    endpoint, which does NOT require authentication or pass through the
+    bot challenge. Used as a fallback so we can search SoundCloud for
+    the same song when YouTube refuses to serve us the stream.
+    """
+    import urllib.parse
+    import urllib.request
+
+    try:
+        oembed = (
+            "https://www.youtube.com/oembed?format=json&url="
+            + urllib.parse.quote(query, safe="")
+        )
+        req = urllib.request.Request(oembed, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=8) as r:
+            import json as _json
+            data = _json.loads(r.read().decode("utf-8", errors="replace"))
+        title = data.get("title")
+        author = data.get("author_name")
+        if title and author:
+            return f"{author} {title}"
+        return title
+    except Exception:
+        _log.exception("oEmbed lookup failed for %s", query)
+        return None
+
+
 async def resolve_query(query: str, *, requested_by_id: int) -> list[Track]:
     """Turn a user-supplied URL or search string into one or more Tracks.
 
     For YouTube playlists we return one Track per entry but only with the
     cheap fields populated; the actual stream URL is fetched at play time
     via :func:`prime_track`.
+
+    If a YouTube URL is blocked by the datacenter bot challenge, we fall
+    back to a SoundCloud search using the YouTube title (fetched via the
+    public oEmbed endpoint, which does not require auth).
     """
     loop = asyncio.get_running_loop()
-    info = await loop.run_in_executor(None, _ydl_extract, query)
+    try:
+        info = await loop.run_in_executor(None, _ydl_extract, query)
+    except Exception as e:
+        if _is_youtube_url(query) and _is_bot_challenge(e):
+            title = await loop.run_in_executor(None, _youtube_title, query)
+            if title:
+                _log.warning(
+                    "YouTube blocked %r (bot challenge); falling back to SoundCloud search %r",
+                    query, title,
+                )
+                fallback = f"scsearch1:{title}"
+                info = await loop.run_in_executor(None, _ydl_extract, fallback)
+            else:
+                raise
+        else:
+            raise
 
     if not info:
         return []
