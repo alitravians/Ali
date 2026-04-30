@@ -34,6 +34,73 @@ logging.basicConfig(
 )
 log = logging.getLogger("musicbot")
 
+# Diagnostic logging for the voice handshake. Wavelink emits very rich DEBUG
+# logs on voice state / voice server / Lavalink REST traffic which let us see
+# exactly why a connect is being torn down.
+if os.environ.get("WAVELINK_DEBUG", "1") == "1":
+    logging.getLogger("wavelink").setLevel(logging.DEBUG)
+    logging.getLogger("discord.gateway").setLevel(logging.INFO)
+
+
+def _patch_wavelink_voice_logging() -> None:
+    """Monkey-patch wavelink.Player so we see what Lavalink actually returns
+    when the voice PATCH fails (default code path swallows the exception body
+    and just calls disconnect)."""
+    try:
+        from wavelink import player as _wl_player  # type: ignore
+        from wavelink.exceptions import LavalinkException  # type: ignore
+    except Exception:
+        log.exception("could not import wavelink for voice-logging patch")
+        return
+
+    original = _wl_player.Player._dispatch_voice_update
+
+    async def _patched(self):  # type: ignore[no-untyped-def]
+        data = self._voice_state["voice"]
+        log.info(
+            "voice_dispatch: guild=%s session_id=%s token=%s endpoint=%s channel_id=%s",
+            getattr(self, "guild", None) and self.guild.id,
+            data.get("session_id"), data.get("token"),
+            data.get("endpoint"), self._voice_state.get("channel_id"),
+        )
+        try:
+            return await original(self)
+        except LavalinkException as e:
+            log.error("voice_dispatch LavalinkException: %r", e)
+            raise
+
+    _wl_player.Player._dispatch_voice_update = _patched
+
+    original_voice_state = _wl_player.Player.on_voice_state_update
+
+    async def _patched_state(self, data):  # type: ignore[no-untyped-def]
+        log.info(
+            "voice_state_update: guild=%s channel_id=%s session_id=%s self_deaf=%s self_mute=%s",
+            getattr(self, "guild", None) and self.guild.id,
+            data.get("channel_id"), data.get("session_id"),
+            data.get("self_deaf"), data.get("self_mute"),
+        )
+        return await original_voice_state(self, data)
+
+    _wl_player.Player.on_voice_state_update = _patched_state
+
+    original_server = _wl_player.Player.on_voice_server_update
+
+    async def _patched_server(self, data):  # type: ignore[no-untyped-def]
+        log.info(
+            "voice_server_update: guild=%s endpoint=%s token=%s",
+            getattr(self, "guild", None) and self.guild.id,
+            data.get("endpoint"), data.get("token"),
+        )
+        return await original_server(self, data)
+
+    _wl_player.Player.on_voice_server_update = _patched_server
+
+    log.info("wavelink voice diagnostic patches installed")
+
+
+_patch_wavelink_voice_logging()
+
 
 class MusicBot(commands.Bot):
     def __init__(self, settings: Settings):
