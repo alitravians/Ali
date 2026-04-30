@@ -29,9 +29,11 @@ URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
 
 def _fmt_duration(ms: int | float | None) -> str:
-    if not ms:
+    if ms is None:
         return "—"
     seconds = int(ms // 1000)
+    if seconds < 0:
+        seconds = 0
     h, rem = divmod(seconds, 3600)
     m, s = divmod(rem, 60)
     return f"{h:d}:{m:02d}:{s:02d}" if h else f"{m:d}:{s:02d}"
@@ -377,9 +379,12 @@ class Music(commands.Cog):
 
     @app_commands.command(name="join", description="📥 ضم البوت إلى قناتك الصوتية")
     async def join(self, interaction: discord.Interaction) -> None:
-        player = await _ensure_voice(interaction)
+        # Defer first: voice WS handshake can exceed Discord's 3-second
+        # interaction response window.
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        player = await _ensure_voice_after_defer(interaction)
         if player:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 f"📥 انضممت لـ {player.channel.mention}", ephemeral=True
             )
 
