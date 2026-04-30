@@ -34,16 +34,20 @@ npm run dev
 
 ## النشر
 
-النشر على Vercel جاهز out-of-the-box. الترويسات `Cross-Origin-Embedder-Policy`
-و `Cross-Origin-Opener-Policy` مضبوطة في `next.config.js` لتمكين
-SharedArrayBuffer (مطلوب لـ ffmpeg.wasm).
+النشر على Vercel جاهز out-of-the-box بلا أي إعداد إضافي. الموقع يستخدم النواة
+أحادية الخيط من `@ffmpeg/core@0.12.10` التي **لا تتطلب** `SharedArrayBuffer`،
+لذلك لا حاجة لترويسات `COOP/COEP` على الخادم. تم اختبار خط الأنابيب الكامل
+على Vercel (Pollinations → ffmpeg.wasm → MP4) بدون عزل cross-origin.
+
+> ملاحظة: لو احتجنا مستقبلاً للنواة متعددة الخيوط (`ffmpeg-core-mt`)، سيلزمنا
+> ضبط `Cross-Origin-Embedder-Policy: credentialless` (وليس `require-corp`،
+> لأن ذلك سيكسر تحميل صور Pollinations التي لا ترسل ترويسات `CORP`).
 
 ## القيود
 
 - جودة الفيديو تعتمد على Pollinations.ai (نمط الصور المتولدة).
 - المعالجة تتم في متصفح المستخدم — قد تستغرق 20-90 ثانية حسب جهازه.
-- يحتاج المتصفح أن يدعم WebAssembly + SharedArrayBuffer (متوفر في كل المتصفحات
-  الحديثة).
+- يحتاج المتصفح أن يدعم WebAssembly (متوفر في كل المتصفحات الحديثة).
 
 ## الترخيص
 
