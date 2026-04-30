@@ -59,8 +59,19 @@ function commandPlay(opts) {
       const added = player.enqueue(tracks);
       const isFirst = !player.current;
       await player.start();
+      // The onTrackStart hook posts the full track embed for the first track,
+      // so the deferred reply only confirms the queue/start action to avoid
+      // sending a duplicate "now playing" embed.
       if (isFirst && tracks[0]) {
-        await interaction.editReply({ embeds: [trackEmbed(tracks[0])] });
+        await interaction.editReply({
+          embeds: [
+            plainEmbed(
+              COLORS.info,
+              '🎵 بدأ التشغيل',
+              `**${tracks[0].title}** — ${fmtDuration(tracks[0].duration)}`,
+            ),
+          ],
+        });
       } else {
         await interaction.editReply({
           embeds: [

@@ -3,7 +3,7 @@ import { generateDependencyReport } from '@discordjs/voice';
 import { config, COLORS } from './config.js';
 import { buildCommands } from './commands/index.js';
 import { trackEmbed, plainEmbed } from './format.js';
-import { getPlayer } from './player.js';
+import { getPlayer, setPlayerHooksFactory } from './player.js';
 
 console.log('--- @discordjs/voice dependency report ---');
 console.log(generateDependencyReport());
@@ -47,9 +47,9 @@ client.once(Events.ClientReady, async (readyClient) => {
     console.error('failed to sync commands:', err);
   }
 
-  // Wire up per-guild "now playing" announcements.
-  for (const guild of readyClient.guilds.cache.values()) {
-    const player = getPlayer(guild.id, playerOpts);
+  // Wire up per-guild "now playing" announcements via a factory so the hooks
+  // survive the dropPlayer/getPlayer cycle (after /stop or /leave).
+  setPlayerHooksFactory((player) => {
     player.on('onTrackStart', (track) => {
       const ch = player.textChannel;
       if (!ch) return;
@@ -73,6 +73,9 @@ client.once(Events.ClientReady, async (readyClient) => {
       if (!ch) return;
       ch.send({ embeds: [plainEmbed(COLORS.info, '💤 خرجت من القناة بسبب الخمول')] }).catch(() => {});
     });
+  });
+  for (const guild of readyClient.guilds.cache.values()) {
+    getPlayer(guild.id, playerOpts);
   }
 });
 

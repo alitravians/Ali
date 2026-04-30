@@ -90,14 +90,23 @@ export async function resolveQuery(query, requesterId) {
  */
 export async function openTrackStream(track) {
   if (track.provider === 'youtube') {
-    // ytdl-core returns a Node Readable of webm/opus or m4a depending on
-    // chosen format. We pick highest-bitrate audio-only and let
-    // @discordjs/voice / ffmpeg handle re-encoding.
-    return ytdl(track.url, {
-      quality: 'highestaudio',
-      filter: 'audioonly',
-      highWaterMark: 1 << 25, // 32 MB buffer to avoid stutter
-    });
+    // YouTube format selection breaks frequently when YouTube rotates ciphers.
+    // Try ytdl-core first (best metadata), fall back to play-dl which uses a
+    // different signature decoder.
+    try {
+      const info = await ytdl.getInfo(track.url);
+      const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
+      if (!audioFormats.length) throw new Error('no audio-only formats from ytdl');
+      return ytdl.downloadFromInfo(info, {
+        quality: 'highestaudio',
+        filter: 'audioonly',
+        highWaterMark: 1 << 25,
+      });
+    } catch (err) {
+      console.warn('ytdl YT stream failed, falling back to play-dl:', err.message);
+      const res = await play.stream(track.url, { quality: 1 });
+      return res.stream;
+    }
   }
   if (track.provider === 'soundcloud') {
     const res = await play.stream(track.url, { quality: 1 });

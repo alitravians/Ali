@@ -272,12 +272,29 @@ export class MusicPlayer {
 }
 
 const players = new Map();
+let _hooksFactory = null;
+
+/**
+ * Register a function that wires up hooks on every MusicPlayer the bot creates,
+ * including ones created later (e.g. after /stop or /leave drops the previous
+ * instance). Without this, hooks installed once at ClientReady are silently
+ * lost the first time dropPlayer() runs.
+ */
+export function setPlayerHooksFactory(factory) {
+  _hooksFactory = factory;
+  for (const p of players.values()) {
+    try { factory(p); } catch (err) { console.warn('hooks factory failed:', err?.message); }
+  }
+}
 
 export function getPlayer(guildId, opts) {
   let p = players.get(guildId);
   if (!p) {
     p = new MusicPlayer(guildId, opts);
     players.set(guildId, p);
+    if (_hooksFactory) {
+      try { _hooksFactory(p); } catch (err) { console.warn('hooks factory failed:', err?.message); }
+    }
   }
   return p;
 }
