@@ -68,7 +68,11 @@ logging:
     path: ./logs/
   level:
     root: INFO
-    lavalink: INFO
+    lavalink: DEBUG
+    moe.kyokobot.koe: DEBUG
+    moe.kyokobot.koe.internal.dave: TRACE
+    moe.kyokobot.koe.internal.gateway: TRACE
+    com.sedmelluq.discord.lavaplayer.tools.ExceptionTools: DEBUG
   request:
     enabled: true
     includeClientInfo: true
