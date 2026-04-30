@@ -56,8 +56,12 @@ export class MusicPlayer {
       // synchronously, which fires the Idle handler above; that handler is the
       // single source of truth for advancing the queue. Calling _advance() here
       // too would dequeue two tracks for one error (BUG_PR_0001).
-      console.error(`audio player error (guild=${this.guildId}):`, err.message);
       const cur = this.current;
+      console.error(
+        `audio player error (guild=${this.guildId}) ` +
+        `provider=${cur?.provider ?? '?'} title=${cur?.title ?? '?'} ` +
+        `url=${cur?.url ?? '?'}: ${err.message}`,
+      );
       this.current = null;
       if (cur && this._hooks.onTrackError) {
         try { this._hooks.onTrackError(cur, err); } catch {}
@@ -241,7 +245,10 @@ export class MusicPlayer {
       }
       return true;
     } catch (err) {
-      console.error(`failed to play track ${track?.title}:`, err.message);
+      console.error(
+        `failed to play track provider=${track?.provider ?? '?'} ` +
+        `title=${track?.title ?? '?'} url=${track?.url ?? '?'}: ${err.message}`,
+      );
       if (this._hooks.onTrackError) {
         try { this._hooks.onTrackError(track, err); } catch {}
       }
