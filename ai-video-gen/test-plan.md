@@ -5,26 +5,31 @@
 
 ## What changed (user-visible)
 
-A new free public website that generates short AI videos (5/10/15 seconds)
-from a text prompt. The user types a description, picks a duration and a
-style, clicks "توليد الفيديو", and gets back a downloadable MP4.
+A free public website that generates short AI videos (5/10/15 seconds) from a
+text prompt. The user types a description, picks a duration and a style,
+optionally **uploads a starting frame** from their device, clicks "توليد لوحة
+القصة", and is taken to a **storyboard editor** where they can review,
+regenerate, edit, reorder, or remove individual scenes before composing the
+final MP4.
 
 ## What I will test (primary flow)
 
-**Generate a 5-second AI video end-to-end through the browser UI on the live
-deployed Vercel URL, then verify the produced MP4 has exact target duration.**
+**End-to-end: open site → upload a starting frame → generate storyboard → edit
+one scene → compose 5-second video → download → ffprobe to verify exact target
+duration.**
 
-This is the only flow that can definitively prove the feature works — it
-exercises the API route, Pollinations.ai integration, ffmpeg.wasm
-loading/execution, and MP4 composition all at once.
+This is the only flow that exercises every new piece (file input, storyboard
+editor, regenerate seed, AI keyframe fetch with user image as scene 1, ffmpeg
+composition mixing http URLs and `blob:` URLs, IndexedDB persistence, gallery
+hydration on reload).
 
 ## Setup (already done)
 
-- Vercel deployment verified reachable (HTTP 200).
-- Backend API verified (`/api/generate-frames` returns 3 frame URLs for
-  duration=5).
+- Vercel deployment verified reachable (HTTP 200) at the canonical alias.
+- Backend API confirmed by build output (`/api/generate-frames` is the only
+  dynamic route).
 - No login/auth needed — site is fully public.
-- Browser will use the Devin VM's IP, which already hit Pollinations'
+- Browser will use the Devin VM's IP, which has hit Pollinations'
   rate-limit during dev. To work around this, between tests I will wait
   ≥60s and use distinct prompts.
 
@@ -37,122 +42,135 @@ loading/execution, and MP4 composition all at once.
 2. Observe splash screen
 
 **Pass criteria:**
-- Splash shows the title "AI Video Gen" and Arabic subtitle "توليد فيديوهات بالذكاء الاصطناعي"
+- Splash shows the title "AI Video Gen" and Arabic subtitle
 - A progress bar fills from 0% to 100% over ~1.8s
 - After ~2s, the splash fades away and the main app is visible
 
 **Fail criteria:**
-- No splash, OR splash is stuck, OR splash never dismisses, OR text is missing
+- No splash, OR splash is stuck, OR splash never dismisses, OR text is missing.
 
-> Why this would catch a broken impl: a stuck splash means the `useEffect`
-> rAF loop or the `onDone` callback is broken — main app would never appear.
-
-### Test 2 (PRIMARY): Generate a 5-second AI video end-to-end
+### Test 2: Starting frame upload UI
 
 **Steps:**
-1. After splash dismisses, locate the prompt textarea
-2. Type prompt: `قطة فضائية تطفو في مجرة ملونة` (one of the example chips)
-3. Confirm "5" duration pill is selected by default (active state)
-4. Confirm "سينمائي" (cinematic) style chip is active by default
-5. Click "توليد الفيديو" button
-6. Watch the ProgressView panel appear
-
-**Pass criteria during generation:**
-- Progress phase label changes through:
-  - "جلب الإطارات من الذكاء الاصطناعي" (requesting)
-  - "تحميل الإطارات" (downloading frames)
-  - "إنشاء المقاطع مع حركة الكاميرا" (rendering clips)
-  - "دمج المقاطع مع تأثير الانتقال" (joining clips)
-  - "تجهيز الفيديو النهائي" (finalizing)
-- 3 thumbnail images appear in the "إطارات المشهد" grid (since 5s → 3 frames)
-- Each thumbnail loads a real image (not a broken icon)
-
-**Pass criteria after generation:**
-- A `<video>` player appears with controls and starts playing automatically
-- Three buttons appear: "تحميل MP4", "مشاركة", "فيديو جديد"
-- Click "تحميل MP4" → browser downloads `ai-video-5s-<id>.mp4`
-- Run `ffprobe` on the downloaded file:
-  - `format.duration` = 5.0 ± 0.3 seconds
-  - `streams[0].codec_name` = `h264`
-  - `streams[0].width` × `streams[0].height` = `1280 × 720`
-  - `streams[0].nb_frames` ≈ 120 (5s × 24fps)
-
-**Fail criteria:**
-- Any phase hangs >180s, OR error banner appears, OR no video preview, OR
-  download fails, OR downloaded file has wrong duration / codec / dimensions.
-
-> Why this would catch a broken impl: every link in the chain must work —
-> the API route, Pollinations fetch, ffmpeg.wasm load, zoompan filter,
-> xfade chain, and final mp4 muxing. Wrong duration would catch the
-> `perClip = (durationSec + xfade*(n-1))/n` math being wrong. Wrong codec
-> would catch the libx264 invocation failing. Missing video would catch
-> the Blob → object URL flow failing.
-
-### Test 3: Different duration produces different number of frames
-
-**Steps:**
-1. Click "فيديو جديد" to reset
-2. Type a new prompt: `مدينة دبي ليلاً مع برج خليفة` (also an example)
-3. Click the "10" duration pill (it should highlight blue)
-4. Click "توليد الفيديو"
-5. Wait until ProgressView shows the frame thumbnails
+1. After splash dismisses, locate the new "الإطار الافتتاحي (اختياري)" card at
+   the top of the form area
+2. Click the upload button → file picker opens
+3. Select a real JPG/PNG image from the VM's filesystem
 
 **Pass criteria:**
-- Exactly **4** thumbnails appear (not 3 like for 5s, not 5 like for 15s).
+- Card transitions from "اضغط لرفع صورة" empty state to a preview state
+- A 32×20 thumbnail of the uploaded image appears with a "مشهد ١" badge
+- File metadata is shown (size in KB, format)
+- "استبدال" and "إزالة" buttons are visible
+- Clicking "إزالة" returns the card to empty state
+
+**Fail criteria:**
+- File picker rejects valid images, OR thumbnail doesn't render, OR
+  size/format text is wrong, OR remove button doesn't reset the state.
+
+> Why this catches a broken impl: validates the FileReader/Blob plumbing,
+> the `URL.createObjectURL` lifecycle (`useEffect` cleanup), and the
+> conditional rendering between empty/filled states.
+
+### Test 3 (PRIMARY): Generate storyboard → edit a scene → compose 5s video
+
+**Steps:**
+1. With the starting frame still uploaded from Test 2, type prompt:
+   `قطة فضائية تطفو في مجرة ملونة` (one of the example chips)
+2. Confirm "5" duration pill is selected by default
+3. Confirm "سينمائي" style chip is active by default
+4. Click "توليد لوحة القصة"
+5. Wait for the API to return frame URLs and the storyboard to appear
+6. **Verify the storyboard:**
+   - Heading "لوحة القصة (Storyboard)" is visible
+   - Exactly **3** scene cards (because duration=5 → 3 frames)
+   - Scene 1 is the **uploaded image** (badge: "صورتك"), prompt area shows
+     "صورة مرفوعة من جهازك — لا تتأثر بالبرومت"
+   - Scenes 2 and 3 are AI thumbnails (each shows the variation prompt text
+     and has "إعادة توليد" / "تعديل الوصف" buttons)
+7. Click "إعادة توليد" on scene 2
+8. Verify the image URL in scene 2 changes (new seed → new image)
+9. Click "تركيب الفيديو" at the bottom
+10. Watch the ProgressView panel appear with phases:
+    - "تحميل الإطارات"
+    - "إنشاء المقاطع مع حركة الكاميرا"
+    - "دمج المقاطع مع تأثير الانتقال"
+    - "تجهيز الفيديو النهائي"
+11. After completion, the VideoResult player appears
+
+**Pass criteria after generation:**
+- A `<video>` player auto-plays with controls
+- Three buttons: "تحميل MP4", "مشاركة", "فيديو جديد"
+- Click "تحميل MP4" → browser downloads `ai-video-5s-<id>.mp4`
+- Run `ffprobe` on the file:
+  - duration ≈ 5.0 (±0.3) seconds
+  - codec = `h264`
+  - resolution = 1280×720
+- The first ~1.5s of the video should clearly show the uploaded image
+  (Ken Burns motion on the user's photo)
+
+**Fail criteria:**
+- Storyboard doesn't appear, OR scene 1 isn't the uploaded image, OR
+  regenerate doesn't change the URL, OR composition fails, OR downloaded
+  MP4 has wrong duration / codec / resolution, OR the user's image
+  doesn't appear at the start of the video.
+
+### Test 4: Gallery persistence across reload (IndexedDB-backed)
+
+**Steps:**
+1. After Test 3 succeeds, scroll to "الفيديوهات السابقة"
+2. Verify the just-generated video appears as a thumbnail
+3. **Hard reload** the page (Ctrl+Shift+R)
+4. Wait for splash to dismiss
+
+**Pass criteria:**
+- Gallery still has the video thumbnail (not just a broken video element)
+- Click the thumbnail → main video player appears with the working video
+  (this directly verifies bug fixes #1 & #2 from Devin Review)
+- DevTools → Application → IndexedDB → `ai-video-gen` → `videos` shows the
+  blob bytes
+- DevTools → Application → Local Storage shows the `…:gallery:v2` meta key
+
+**Fail criteria:**
+- Gallery is empty after reload, OR thumbnails don't load, OR the player
+  shows a broken/black video.
+
+### Test 5: Different duration produces different frame count
+
+**Steps:**
+1. Click "فيديو جديد" → app resets
+2. Remove the starting frame ("إزالة")
+3. Type a new prompt: `مدينة دبي ليلاً مع برج خليفة`
+4. Click the "10" duration pill
+5. Click "توليد لوحة القصة"
+6. Wait for storyboard
+
+**Pass criteria:**
+- Exactly **4** scene cards appear (10s → 4 frames; vs 3 for 5s, 5 for 15s).
+- All 4 are AI scenes (no upload).
 
 **Fail criteria:**
 - Any other count appears.
 
-> Why this would catch a broken impl: the `framesForDuration()` mapping
-> would be wrong, or the duration pill click handler would be wired to
-> the wrong state. If 5s and 10s both produce 3 frames, the duration
-> selector is decorative.
-
-### Test 4: Gallery persistence across reload
+### Test 6: Mobile viewport rendering (regression — light check)
 
 **Steps:**
-1. After Test 2 succeeds, the generated 5s video should appear in
-   "الفيديوهات السابقة" gallery section
-2. Reload the page (F5)
-3. Wait for splash to dismiss
+1. DevTools → toggle device toolbar → iPhone 12 Pro
+2. Reload
 
 **Pass criteria:**
-- The 5s video thumbnail is still visible in the gallery
-- Clicking the thumbnail loads it back into the main video player
-
-**Fail criteria:**
-- Gallery is empty after reload (localStorage write failed)
-
-> Why this would catch a broken impl: a missing `persistGallery()` call
-> or a JSON serialization bug in the localStorage code would manifest here.
-
-### Test 5: Mobile responsive rendering (regression — light check)
-
-**Steps:**
-1. Open Chrome DevTools → toggle device toolbar → iPhone 12 Pro
-2. Reload the page
-
-**Pass criteria:**
-- Splash loader fits the viewport (no horizontal scroll)
-- After splash, the prompt form, duration pills, and style chips fit the
-  screen with no overflow
-- "توليد الفيديو" button spans the full width of the card
-- Direction is RTL (text aligned right, the brand icon on the right)
-
-**Fail criteria:**
-- Horizontal scrollbar appears, OR elements overflow, OR layout is LTR.
+- No horizontal scrollbar
+- Starting frame card, prompt form, storyboard cards all fit the viewport
+- Direction is RTL (text aligned right; brand icon on the right)
 
 ## Out of scope
 
-- Rate limiter exact behavior (in-memory across edge regions is best-effort
-  and not deterministic).
-- 15s flow (Test 3 already proves duration-scaling works for 5→10; covering
-  15 too would be redundant for an adversarial plan).
-- "مشاركة" share button (depends on browser's `navigator.share` which is
-  not available in desktop Chrome; will note as untested).
+- Rate limiter exact behavior (in-memory across edge regions is best-effort).
+- 15s flow (Test 5 already proves duration-scaling works for 5→10).
+- "مشاركة" share button (depends on `navigator.share`, unavailable in
+  desktop Chrome).
 - Different AI styles producing visually distinct results (subjective).
 
 ## Recording
 
-I will record the primary flow (Tests 1–4) as one continuous browser session.
-Annotations will mark the test boundaries.
+I will record Tests 1–4 as one continuous browser session.
