@@ -1,0 +1,15 @@
+app = "music-bot-am-js"
+primary_region = "fra"
+
+[build]
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 512
+
+[deploy]
+  strategy = "immediate"
+
+[processes]
+  app = "node src/index.js"

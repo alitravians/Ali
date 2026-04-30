@@ -1,0 +1,25 @@
+{
+  "name": "music-bot-js",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Discord music bot (discord.js + @discordjs/voice, native DAVE).",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.19.0",
+    "@distube/ytdl-core": "^4.16.12",
+    "discord.js": "^14.21.0",
+    "dotenv": "^16.4.7",
+    "ffmpeg-static": "^5.2.0",
+    "libsodium-wrappers": "^0.7.15",
+    "play-dl": "^1.9.7",
+    "prism-media": "^2.0.0-alpha.0"
+  }
+}
