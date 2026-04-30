@@ -66,15 +66,20 @@ export async function POST(req: NextRequest) {
   const prompts = buildFramePrompts(prompt, stylePrompt, count);
   const baseSeed = Math.floor(Math.random() * 1_000_000);
 
-  const frames = prompts.map((p, i) => ({
-    index: i,
-    url: buildPollinationsUrl({
+  const frames = prompts.map((p, i) => {
+    const seed = baseSeed + i * 7;
+    return {
+      index: i,
       prompt: p,
-      width: 1024,
-      height: 576,
-      seed: baseSeed + i * 7,
-    }),
-  }));
+      seed,
+      url: buildPollinationsUrl({
+        prompt: p,
+        width: 1024,
+        height: 576,
+        seed,
+      }),
+    };
+  });
 
   return NextResponse.json({
     frames,

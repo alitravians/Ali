@@ -5,17 +5,34 @@ import SplashLoader from '@/components/SplashLoader';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import PromptForm from '@/components/PromptForm';
+import StartingFrameUpload from '@/components/StartingFrameUpload';
+import StoryboardEditor from '@/components/StoryboardEditor';
 import ProgressView from '@/components/ProgressView';
 import VideoResult from '@/components/VideoResult';
 import Gallery from '@/components/Gallery';
 import { DEFAULT_STYLE, VIDEO_STYLES } from '@/lib/styles';
-import type { Duration, FrameData, GeneratedVideo } from '@/lib/types';
+import type { Duration, FrameData, GeneratedVideo, StoryboardFrame } from '@/lib/types';
+import { framesForDuration } from '@/lib/pollinations';
 import { composeVideo } from '@/lib/videoComposer';
+import { clearGallery as clearStoredGallery, hydrateGallery, saveVideo } from '@/lib/videoStore';
 
-const GALLERY_KEY = 'ai-video-gen:gallery:v1';
-const MAX_GALLERY = 8;
+type Phase =
+  | 'idle'
+  | 'requesting'
+  | 'storyboard'
+  | 'downloading frames'
+  | 'rendering clips'
+  | 'joining clips'
+  | 'finalizing'
+  | 'done'
+  | 'error';
 
-type Phase = 'idle' | 'requesting' | 'downloading frames' | 'rendering clips' | 'joining clips' | 'finalizing' | 'done' | 'error';
+const COMPOSE_PHASES: Phase[] = [
+  'downloading frames',
+  'rendering clips',
+  'joining clips',
+  'finalizing',
+];
 
 export default function HomePage() {
   const [splashDone, setSplashDone] = useState(false);
@@ -24,42 +41,61 @@ export default function HomePage() {
   const [styleId, setStyleId] = useState<string>(DEFAULT_STYLE.id);
   const [phase, setPhase] = useState<Phase>('idle');
   const [progress, setProgress] = useState(0);
-  const [frames, setFrames] = useState<FrameData[]>([]);
+  const [storyboard, setStoryboard] = useState<StoryboardFrame[]>([]);
   const [video, setVideo] = useState<GeneratedVideo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gallery, setGallery] = useState<GeneratedVideo[]>([]);
 
-  // Load gallery from localStorage on mount.
+  // Starting frame (user-uploaded image used as scene #1).
+  const [startingBlob, setStartingBlob] = useState<Blob | null>(null);
+  const [startingUrl, setStartingUrl] = useState<string | null>(null);
+
+  // Hydrate gallery from IndexedDB on mount. Blobs are restored as fresh blob:
+  // URLs each session, so the gallery survives reloads (bug #4 from review).
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(GALLERY_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as GeneratedVideo[];
-        setGallery(parsed.filter((v) => v && v.url && v.id));
-      }
-    } catch { /* ignore */ }
+    let cancelled = false;
+    void (async () => {
+      const items = await hydrateGallery();
+      if (!cancelled) setGallery(items);
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const persistGallery = useCallback((items: GeneratedVideo[]) => {
-    setGallery(items);
-    try {
-      localStorage.setItem(GALLERY_KEY, JSON.stringify(items));
-    } catch { /* localStorage may be full; ignore */ }
+  // Manage object URL lifecycle for the uploaded starting frame.
+  useEffect(() => {
+    if (!startingBlob) {
+      setStartingUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(startingBlob);
+    setStartingUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [startingBlob]);
+
+  const handleClearGallery = useCallback(() => {
+    setGallery([]);
+    void clearStoredGallery();
   }, []);
 
   const reset = useCallback(() => {
     setPhase('idle');
     setProgress(0);
-    setFrames([]);
+    setStoryboard([]);
     setVideo(null);
     setError(null);
   }, []);
 
-  const handleGenerate = useCallback(async () => {
+  /**
+   * Step 1: ask the API for AI keyframe URLs and assemble the storyboard.
+   * The user then reviews/edits/regenerates frames before composing the video.
+   */
+  const handleGenerateStoryboard = useCallback(async () => {
     if (!prompt.trim()) return;
     setError(null);
     setVideo(null);
-    setFrames([]);
+    setStoryboard([]);
     setProgress(0);
     setPhase('requesting');
 
@@ -77,20 +113,70 @@ export default function HomePage() {
       }
 
       const data = (await res.json()) as { frames: FrameData[] };
-      setFrames(data.frames);
 
-      // Pre-warm the URLs so Pollinations starts generating in parallel.
-      // Browsers will cache them when fetchFile pulls them again from ffmpeg side.
-      data.frames.forEach((f) => {
+      const aiFrames: StoryboardFrame[] = data.frames.map((f, i) => ({
+        id: `ai-${Date.now()}-${i}`,
+        source: 'ai',
+        prompt: f.prompt,
+        url: f.url,
+        seed: f.seed,
+      }));
+
+      // If the user uploaded a starting frame, replace AI frame 0 with it
+      // so total frame count stays = framesForDuration(duration).
+      let composed: StoryboardFrame[];
+      if (startingBlob && startingUrl) {
+        composed = [
+          {
+            id: `upload-${Date.now()}`,
+            source: 'upload',
+            prompt: prompt.trim(),
+            url: startingUrl,
+            localBlob: startingBlob,
+          },
+          ...aiFrames.slice(1),
+        ];
+      } else {
+        composed = aiFrames;
+      }
+
+      setStoryboard(composed);
+      setPhase('storyboard');
+
+      // Pre-warm: kick the browser into fetching the AI image URLs in the
+      // background so they're cached by the time the user composes.
+      composed.forEach((f) => {
+        if (f.source !== 'ai') return;
         const img = new Image();
         img.referrerPolicy = 'no-referrer';
         img.src = f.url;
       });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
+      setError(msg);
+      setPhase('error');
+    }
+  }, [prompt, duration, styleId, startingBlob, startingUrl]);
 
+  /**
+   * Step 2: take the (possibly-edited) storyboard and compose the video.
+   */
+  const handleComposeFromStoryboard = useCallback(async () => {
+    if (storyboard.length < 2) {
+      setError('تحتاج إلى مشهدين على الأقل لتركيب الفيديو');
+      return;
+    }
+    setError(null);
+    setProgress(0);
+    setPhase('downloading frames');
+
+    try {
       const blob = await composeVideo({
-        imageUrls: data.frames.map((f) => f.url),
+        imageUrls: storyboard.map((f) => f.url),
         durationSec: duration,
-        onPhase: (p) => setPhase(p as Phase),
+        onPhase: (p) => {
+          if ((COMPOSE_PHASES as string[]).includes(p)) setPhase(p as Phase);
+        },
         onProgress: (r) => setProgress(r),
       });
 
@@ -103,25 +189,88 @@ export default function HomePage() {
         url,
         createdAt: Date.now(),
       };
+
+      // Persist blob bytes to IndexedDB + metadata to localStorage
+      // (bug #2 fix). saveVideo also handles eviction & best-effort cleanup.
+      const updatedMetas = await saveVideo(
+        {
+          id: newVideo.id,
+          prompt: newVideo.prompt,
+          duration: newVideo.duration,
+          style: newVideo.style,
+          createdAt: newVideo.createdAt,
+        },
+        blob,
+      );
+
+      // Functional setGallery avoids the stale-closure bug (#3 from review):
+      // even if gallery state changed during the long composition, we
+      // reconcile with the metadata list saveVideo just persisted.
+      setGallery((prev) => {
+        const map = new Map<string, GeneratedVideo>();
+        // Existing items keep their already-hydrated blob URLs.
+        for (const v of prev) map.set(v.id, v);
+        // The newly composed video provides the fresh URL for its id.
+        map.set(newVideo.id, newVideo);
+        return updatedMetas
+          .map((m) => map.get(m.id))
+          .filter((v): v is GeneratedVideo => v != null);
+      });
+
       setVideo(newVideo);
       setPhase('done');
       setProgress(1);
-
-      const next = [newVideo, ...gallery].slice(0, MAX_GALLERY);
-      persistGallery(next);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       setError(msg);
       setPhase('error');
     }
-  }, [prompt, duration, styleId, gallery, persistGallery]);
+  }, [storyboard, duration, prompt, styleId]);
 
-  const handleClearGallery = useCallback(() => {
-    setGallery([]);
-    try { localStorage.removeItem(GALLERY_KEY); } catch { /* ignore */ }
+  const handleSelectFromGallery = useCallback((v: GeneratedVideo) => {
+    // Bug #1 fix: switching the gallery selection must also switch phase
+    // back to 'done' so VideoResult actually re-renders.
+    setVideo(v);
+    setPhase('done');
+    setProgress(1);
+    // Scroll the player into view so the user sees the change.
+    requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
   }, []);
 
-  const busy = phase !== 'idle' && phase !== 'done' && phase !== 'error';
+  const updateStoryboardFrame = useCallback(
+    (index: number, updater: (f: StoryboardFrame) => StoryboardFrame) => {
+      setStoryboard((prev) => prev.map((f, i) => (i === index ? updater(f) : f)));
+    },
+    [],
+  );
+
+  const removeStoryboardFrame = useCallback((index: number) => {
+    setStoryboard((prev) => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const moveStoryboardFrame = useCallback((from: number, to: number) => {
+    setStoryboard((prev) => {
+      if (to < 0 || to >= prev.length || from === to) return prev;
+      const next = prev.slice();
+      const [m] = next.splice(from, 1);
+      next.splice(to, 0, m);
+      return next;
+    });
+  }, []);
+
+  const composing =
+    phase === 'downloading frames' ||
+    phase === 'rendering clips' ||
+    phase === 'joining clips' ||
+    phase === 'finalizing';
+
+  const requesting = phase === 'requesting';
+  const onStoryboard = phase === 'storyboard';
+  const formBusy = requesting || composing;
+
+  const minStoryboardFrames = Math.max(2, Math.min(framesForDuration(duration), 2));
 
   return (
     <>
@@ -132,6 +281,13 @@ export default function HomePage() {
           <Header />
 
           <div className="mt-6 space-y-5">
+            <StartingFrameUpload
+              blob={startingBlob}
+              url={startingUrl}
+              onChange={setStartingBlob}
+              disabled={formBusy || onStoryboard}
+            />
+
             <PromptForm
               prompt={prompt}
               setPrompt={setPrompt}
@@ -139,8 +295,9 @@ export default function HomePage() {
               setDuration={setDuration}
               styleId={styleId}
               setStyleId={setStyleId}
-              onSubmit={handleGenerate}
-              busy={busy}
+              onSubmit={handleGenerateStoryboard}
+              busy={formBusy || onStoryboard}
+              ctaLabel={onStoryboard ? 'الستوريبورد جاهز' : undefined}
             />
 
             {error && (
@@ -151,11 +308,32 @@ export default function HomePage() {
               </div>
             )}
 
-            {(busy || (phase === 'done' && !video)) && (
+            {requesting && (
               <ProgressView
                 phase={phase}
                 progress={progress}
-                framesPreview={frames.map((f) => f.url)}
+                framesPreview={storyboard.map((f) => f.url)}
+              />
+            )}
+
+            {onStoryboard && (
+              <StoryboardEditor
+                frames={storyboard}
+                onUpdateFrame={updateStoryboardFrame}
+                onRemoveFrame={removeStoryboardFrame}
+                onMoveFrame={moveStoryboardFrame}
+                onCompose={handleComposeFromStoryboard}
+                onCancel={reset}
+                busy={composing}
+                minFrames={minStoryboardFrames}
+              />
+            )}
+
+            {composing && (
+              <ProgressView
+                phase={phase}
+                progress={progress}
+                framesPreview={storyboard.map((f) => f.url)}
               />
             )}
 
@@ -163,7 +341,11 @@ export default function HomePage() {
               <VideoResult video={video} onReset={reset} />
             )}
 
-            <Gallery items={gallery} onSelect={(v) => setVideo(v)} onClear={handleClearGallery} />
+            <Gallery
+              items={gallery}
+              onSelect={handleSelectFromGallery}
+              onClear={handleClearGallery}
+            />
           </div>
 
           <Footer />

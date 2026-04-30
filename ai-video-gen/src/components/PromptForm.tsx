@@ -12,6 +12,8 @@ interface Props {
   setStyleId: (id: string) => void;
   onSubmit: () => void;
   busy: boolean;
+  /** Override the default CTA label (e.g. when the storyboard is being shown). */
+  ctaLabel?: string;
 }
 
 const DURATIONS: Duration[] = [5, 10, 15];
@@ -25,7 +27,7 @@ const EXAMPLES = [
 ];
 
 export default function PromptForm({
-  prompt, setPrompt, duration, setDuration, styleId, setStyleId, onSubmit, busy,
+  prompt, setPrompt, duration, setDuration, styleId, setStyleId, onSubmit, busy, ctaLabel,
 }: Props) {
   return (
     <div className="card p-6 md:p-8">
@@ -104,17 +106,23 @@ export default function PromptForm({
       >
         {busy ? (
           <>
-            <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="40 60" strokeLinecap="round" />
-            </svg>
-            <span>جارٍ التوليد...</span>
+            {ctaLabel ? (
+              <span>{ctaLabel}</span>
+            ) : (
+              <>
+                <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeDasharray="40 60" strokeLinecap="round" />
+                </svg>
+                <span>جارٍ التوليد...</span>
+              </>
+            )}
           </>
         ) : (
           <>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
               <path d="M12 3v18M3 12h18" strokeLinecap="round" />
             </svg>
-            <span>توليد الفيديو</span>
+            <span>توليد لوحة القصة</span>
           </>
         )}
       </button>

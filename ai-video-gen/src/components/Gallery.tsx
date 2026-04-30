@@ -32,7 +32,13 @@ export default function Gallery({ items, onSelect, onClear }: Props) {
             className="text-right group"
           >
             <div className="aspect-video rounded-lg overflow-hidden bg-black border border-brand-400/15 group-hover:border-brand-400/50 transition relative">
-              <video src={v.url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+              <video
+                src={v.url}
+                className="w-full h-full object-cover"
+                muted
+                playsInline
+                preload="metadata"
+              />
               <div className="absolute inset-0 flex items-center justify-center bg-black/40 group-hover:bg-black/20 transition">
                 <svg width="32" height="32" viewBox="0 0 24 24" fill="white" opacity="0.85">
                   <path d="M8 5v14l11-7L8 5z" />

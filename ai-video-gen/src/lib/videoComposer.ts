@@ -37,7 +37,7 @@ export async function getFFmpeg(onLog?: (msg: string) => void, onProgress?: (rat
   if (ffmpegInstance) return ffmpegInstance;
   if (loadingPromise) return loadingPromise;
 
-  loadingPromise = (async () => {
+  const attempt = (async () => {
     const ff = new FFmpeg();
     if (onLog) ff.on('log', (e) => onLog(e.message));
     if (onProgress) ff.on('progress', (e) => onProgress(e.progress));
@@ -47,8 +47,15 @@ export async function getFFmpeg(onLog?: (msg: string) => void, onProgress?: (rat
     });
     ffmpegInstance = ff;
     return ff;
-  })();
-  return loadingPromise;
+  })().catch((err) => {
+    // Reset cached promise so a transient failure (network, CDN hiccup, etc.)
+    // doesn't permanently brick the app.
+    loadingPromise = null;
+    throw err;
+  });
+
+  loadingPromise = attempt;
+  return attempt;
 }
 
 export interface ComposeOptions {
