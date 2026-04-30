@@ -78,6 +78,11 @@ export default function HomePage() {
     void clearStoredGallery();
   }, []);
 
+  // Bug #9 fix: stabilize onDone so SplashLoader's effect (which lists onDone
+  // in its deps) doesn't restart the animation every time HomePage re-renders
+  // (e.g. when hydrateGallery resolves and calls setGallery during the splash).
+  const handleSplashDone = useCallback(() => setSplashDone(true), []);
+
   const reset = useCallback(() => {
     setPhase('idle');
     setProgress(0);
@@ -222,7 +227,11 @@ export default function HomePage() {
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'حدث خطأ غير متوقع';
       setError(msg);
-      setPhase('error');
+      // Bug #8 fix: restore the storyboard view so the user keeps their
+      // (possibly reordered/regenerated/edited) frames instead of losing
+      // 20-90s of work to a flat error screen.
+      setPhase('storyboard');
+      setProgress(0);
     }
   }, [storyboard, duration, prompt, styleId]);
 
@@ -275,7 +284,7 @@ export default function HomePage() {
 
   return (
     <>
-      {!splashDone && <SplashLoader onDone={() => setSplashDone(true)} />}
+      {!splashDone && <SplashLoader onDone={handleSplashDone} />}
 
       <main className="min-h-screen pb-12">
         <div className="max-w-3xl mx-auto px-4">
