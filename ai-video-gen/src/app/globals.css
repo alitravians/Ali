@@ -1,0 +1,100 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body {
+  background: radial-gradient(ellipse at top, #0a1628 0%, #050a14 60%, #02050a 100%);
+  color: #e6edf3;
+  min-height: 100vh;
+}
+
+body {
+  font-family: var(--font-cairo), 'Cairo', system-ui, -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0a1628; }
+::-webkit-scrollbar-thumb { background: #1f3a5f; border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: #2d5586; }
+
+/* Loader */
+.loader-bg {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(12, 140, 233, 0.18), transparent 40%),
+    radial-gradient(circle at 80% 80%, rgba(124, 200, 255, 0.12), transparent 45%),
+    radial-gradient(ellipse at top, #0a1628 0%, #050a14 60%, #02050a 100%);
+}
+
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(124, 200, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+.glow-ring {
+  box-shadow:
+    0 0 0 1px rgba(124, 200, 255, 0.25),
+    0 0 24px rgba(12, 140, 233, 0.45),
+    inset 0 0 24px rgba(12, 140, 233, 0.18);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0c8ce9 0%, #0070c8 50%, #064b84 100%);
+  box-shadow:
+    0 4px 16px rgba(12, 140, 233, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  transition: all 0.2s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow:
+    0 6px 24px rgba(12, 140, 233, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.card {
+  background: linear-gradient(180deg, rgba(15, 30, 56, 0.6) 0%, rgba(8, 18, 36, 0.6) 100%);
+  border: 1px solid rgba(124, 200, 255, 0.12);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+}
+
+.duration-pill {
+  border: 1px solid rgba(124, 200, 255, 0.18);
+  background: rgba(15, 30, 56, 0.4);
+  transition: all 0.2s ease;
+}
+.duration-pill.active {
+  background: linear-gradient(135deg, #0c8ce9 0%, #0070c8 100%);
+  border-color: rgba(124, 200, 255, 0.6);
+  box-shadow: 0 0 20px rgba(12, 140, 233, 0.45);
+}
+
+.style-chip {
+  border: 1px solid rgba(124, 200, 255, 0.15);
+  background: rgba(15, 30, 56, 0.35);
+  transition: all 0.15s ease;
+}
+.style-chip:hover { border-color: rgba(124, 200, 255, 0.4); }
+.style-chip.active {
+  background: rgba(12, 140, 233, 0.25);
+  border-color: rgba(124, 200, 255, 0.55);
+}
