@@ -51,6 +51,7 @@ export default function StoryboardEditor({
             isFirst={i === 0}
             isLast={i === frames.length - 1}
             canRemove={frames.length > minFrames}
+            minFrames={minFrames}
             disabled={busy}
             onUpdate={(updater) => onUpdateFrame(i, updater)}
             onRemove={() => onRemoveFrame(i)}
@@ -102,6 +103,7 @@ interface FrameCardProps {
   isFirst: boolean;
   isLast: boolean;
   canRemove: boolean;
+  minFrames: number;
   disabled: boolean;
   onUpdate: (updater: (f: StoryboardFrame) => StoryboardFrame) => void;
   onRemove: () => void;
@@ -110,7 +112,7 @@ interface FrameCardProps {
 }
 
 function FrameCard({
-  frame, index, isFirst, isLast, canRemove, disabled,
+  frame, index, isFirst, isLast, canRemove, minFrames, disabled,
   onUpdate, onRemove, onMoveUp, onMoveDown,
 }: FrameCardProps) {
   const [editingPrompt, setEditingPrompt] = useState(false);
@@ -253,7 +255,7 @@ function FrameCard({
                 type="button"
                 disabled={disabled || !canRemove}
                 onClick={onRemove}
-                title={canRemove ? 'حذف هذا المشهد' : `لا يمكن الحذف — الحد الأدنى ${index + 1} مشاهد`}
+                title={canRemove ? 'حذف هذا المشهد' : `لا يمكن الحذف — الحد الأدنى ${minFrames} مشاهد`}
                 className="text-[11px] w-7 h-7 rounded-md border border-red-500/30 text-red-200 hover:bg-red-500/15 transition disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center"
               >
                 ×

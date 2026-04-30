@@ -12,7 +12,6 @@ import VideoResult from '@/components/VideoResult';
 import Gallery from '@/components/Gallery';
 import { DEFAULT_STYLE, VIDEO_STYLES } from '@/lib/styles';
 import type { Duration, FrameData, GeneratedVideo, StoryboardFrame } from '@/lib/types';
-import { framesForDuration } from '@/lib/pollinations';
 import { composeVideo } from '@/lib/videoComposer';
 import { clearGallery as clearStoredGallery, hydrateGallery, saveVideo } from '@/lib/videoStore';
 
@@ -270,7 +269,9 @@ export default function HomePage() {
   const onStoryboard = phase === 'storyboard';
   const formBusy = requesting || composing;
 
-  const minStoryboardFrames = Math.max(2, Math.min(framesForDuration(duration), 2));
+  // Composition needs at least 2 frames (one xfade transition); the storyboard
+  // never lets the user shrink below this regardless of selected duration.
+  const minStoryboardFrames = 2;
 
   return (
     <>
