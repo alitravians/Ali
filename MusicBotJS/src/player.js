@@ -52,14 +52,16 @@ export class MusicPlayer {
       });
     });
     this.audio.on('error', (err) => {
+      // After a stream error @discordjs/voice transitions the player to Idle
+      // synchronously, which fires the Idle handler above; that handler is the
+      // single source of truth for advancing the queue. Calling _advance() here
+      // too would dequeue two tracks for one error (BUG_PR_0001).
       console.error(`audio player error (guild=${this.guildId}):`, err.message);
       const cur = this.current;
       this.current = null;
       if (cur && this._hooks.onTrackError) {
         try { this._hooks.onTrackError(cur, err); } catch {}
       }
-      // Try to keep going with the next track
-      this._advance().catch(() => {});
     });
   }
 
