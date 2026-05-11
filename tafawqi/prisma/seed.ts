@@ -155,7 +155,7 @@ async function main() {
           create: {
             slug: quizSlug,
             title: `اختبار سريع — ${sec.title}`,
-            description: `٥ أسئلة في ٣ دقائق على ${sec.title}`,
+            description: `${questions.length} أسئلة في ٣ دقائق على ${sec.title}`,
             sectionId: section.id,
             chapterId: chapter.id,
             kind: "short",

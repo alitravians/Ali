@@ -4,9 +4,9 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword, setSessionCookie } from "@/lib/auth";
 
 const schema = z.object({
-  name: z.string().min(2, "الاسم قصير جداً").max(60),
-  email: z.string().email("بريد إلكتروني غير صالح"),
-  password: z.string().min(6, "كلمة المرور يجب أن لا تقل عن ٦ أحرف"),
+  name: z.string({ error: "الاسم مطلوب" }).min(2, "الاسم قصير جداً").max(60),
+  email: z.string({ error: "البريد الإلكتروني مطلوب" }).email("بريد إلكتروني غير صالح"),
+  password: z.string({ error: "كلمة المرور مطلوبة" }).min(6, "كلمة المرور يجب أن لا تقل عن ٦ أحرف"),
   phone: z.string().optional().or(z.literal("")),
 });
 

@@ -4,8 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, setSessionCookie } from "@/lib/auth";
 
 const schema = z.object({
-  email: z.string().email("بريد إلكتروني غير صالح"),
-  password: z.string().min(1, "كلمة المرور مطلوبة"),
+  email: z.string({ error: "البريد الإلكتروني مطلوب" }).email("بريد إلكتروني غير صالح"),
+  password: z.string({ error: "كلمة المرور مطلوبة" }).min(1, "كلمة المرور مطلوبة"),
 });
 
 export async function POST(req: Request) {
