@@ -3,14 +3,16 @@ import { z } from "zod";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { recordAudit } from "@/lib/audit";
+import { requireSameOrigin } from "@/lib/csrf";
 import { safeJson, normalizeEmail } from "@/lib/sanitize";
 
 export const dynamic = "force-dynamic";
 
-async function ensureAdmin() {
+async function ensureAdmin(): Promise<{ id: string } | null> {
   const u = await getCurrentUser();
   if (!u || u.role !== "admin") return null;
-  return u;
+  return { id: u.id };
 }
 
 // List all pending (non-expired) reset tokens
@@ -39,13 +41,18 @@ const postSchema = z.object({ email: z.string().email() });
 
 // Admin can manually generate a reset link for a user (when email is not configured)
 export async function POST(req: Request) {
-  if (!(await ensureAdmin())) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const csrf = requireSameOrigin(req);
+  if (!csrf.ok) return NextResponse.json({ error: csrf.reason }, { status: 403 });
+  const admin = await ensureAdmin();
+  if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const parsed = await safeJson<unknown>(req);
   if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: 400 });
   let data: z.infer<typeof postSchema>;
-  try { data = postSchema.parse(parsed.data); }
-  catch (e: any) {
-    return NextResponse.json({ error: e?.issues?.[0]?.message || "بيانات غير صالحة" }, { status: 400 });
+  try {
+    data = postSchema.parse(parsed.data);
+  } catch (e) {
+    const msg = e instanceof z.ZodError ? e.issues[0]?.message ?? "بيانات غير صالحة" : "بيانات غير صالحة";
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
   const email = normalizeEmail(data.email);
   const user = await prisma.user.findUnique({ where: { email } });
@@ -53,6 +60,14 @@ export async function POST(req: Request) {
   const token = crypto.randomBytes(24).toString("hex");
   const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour for admin-generated
   await prisma.passwordReset.create({ data: { userId: user.id, token, expiresAt } });
+  await recordAudit({
+    adminId: admin.id,
+    action: "delete_reset_token",
+    targetType: "user",
+    targetId: user.id,
+    details: { email: user.email },
+    req,
+  });
   return NextResponse.json({
     ok: true,
     token,

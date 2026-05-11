@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { questionBank } from "@/prisma/questionBank";
@@ -6,13 +7,29 @@ import { questionBank } from "@/prisma/questionBank";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+function timingSafeEqualString(a: string, b: string): boolean {
+  const ab = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ab.length !== bb.length) return false;
+  return crypto.timingSafeEqual(ab, bb);
+}
+
 // Idempotent seeding endpoint. Protected by SEED_TOKEN env var.
 // Usage: POST /api/admin/seed?token=YOUR_TOKEN
 export async function POST(req: Request) {
   const url = new URL(req.url);
-  const token = url.searchParams.get("token");
-  const expected = process.env.SEED_TOKEN || "tafawqi-seed-token";
-  if (token !== expected) {
+  const token = url.searchParams.get("token") || "";
+  const expected = process.env.SEED_TOKEN || "";
+  // Refuse to run if no real token is configured — prevents accidental
+  // re-seed with a default value in production.
+  if (!expected || expected.length < 8) {
+    return NextResponse.json(
+      { error: "Seeding disabled: SEED_TOKEN is not configured." },
+      { status: 503 }
+    );
+  }
+  // Constant-time comparison to avoid timing oracles.
+  if (!timingSafeEqualString(token, expected)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

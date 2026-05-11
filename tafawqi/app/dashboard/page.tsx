@@ -10,45 +10,54 @@ export default async function DashboardPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?redirect=/dashboard");
 
-  const [attempts, badges, certificates, notifications, sectionStats] = await Promise.all([
-    prisma.attempt.findMany({
-      where: { userId: user.id, finishedAt: { not: null } },
-      orderBy: { startedAt: "desc" },
-      take: 10,
-      include: { quiz: { include: { chapter: true, section: true } } },
-    }),
-    prisma.userBadge.findMany({ where: { userId: user.id }, include: { badge: true } }),
-    prisma.certificate.findMany({ where: { userId: user.id }, orderBy: { issuedAt: "desc" } }),
-    prisma.notification.findMany({ where: { userId: user.id, isRead: false }, take: 5, orderBy: { createdAt: "desc" } }),
-    prisma.attemptAnswer.groupBy({
-      by: ["questionId"],
-      where: { attempt: { userId: user.id } },
-    }),
-  ]);
+  // Pull lightweight per-question answer rows once, then aggregate per
+  // section in memory. Previously we ran N+1 queries (one findMany per
+  // section, 14+ round-trips); now it's one.
+  const [attempts, badges, certificates, notifications, sections, allAnswers] =
+    await Promise.all([
+      prisma.attempt.findMany({
+        where: { userId: user.id, finishedAt: { not: null } },
+        orderBy: { startedAt: "desc" },
+        take: 10,
+        include: { quiz: { include: { chapter: true, section: true } } },
+      }),
+      prisma.userBadge.findMany({ where: { userId: user.id }, include: { badge: true } }),
+      prisma.certificate.findMany({ where: { userId: user.id }, orderBy: { issuedAt: "desc" } }),
+      prisma.notification.findMany({
+        where: { userId: user.id, isRead: false },
+        take: 5,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.section.findMany({
+        orderBy: [{ chapterId: "asc" }, { order: "asc" }],
+        include: { chapter: true, _count: { select: { questions: true } } },
+      }),
+      prisma.attemptAnswer.findMany({
+        where: { attempt: { userId: user.id } },
+        select: { isCorrect: true, question: { select: { sectionId: true } } },
+      }),
+    ]);
 
-  // Compute per-section progress
-  const sections = await prisma.section.findMany({
-    include: { chapter: true, _count: { select: { questions: true } } },
+  // Aggregate counts per section in a single pass.
+  const perSectionCounts = new Map<string, { total: number; correct: number }>();
+  for (const a of allAnswers) {
+    const sid = a.question.sectionId;
+    const cur = perSectionCounts.get(sid) ?? { total: 0, correct: 0 };
+    cur.total++;
+    if (a.isCorrect) cur.correct++;
+    perSectionCounts.set(sid, cur);
+  }
+  const sectionPerf = sections.map((s) => {
+    const c = perSectionCounts.get(s.id) ?? { total: 0, correct: 0 };
+    return {
+      slug: s.slug,
+      title: s.title,
+      chapterTitle: s.chapter.title,
+      total: c.total,
+      correct: c.correct,
+      pct: c.total > 0 ? Math.round((c.correct / c.total) * 100) : null,
+    };
   });
-  const sectionPerf = await Promise.all(
-    sections.map(async (s) => {
-      const ans = await prisma.attemptAnswer.findMany({
-        where: { attempt: { userId: user.id }, question: { sectionId: s.id } },
-        select: { isCorrect: true },
-      });
-      const total = ans.length;
-      const correct = ans.filter((x) => x.isCorrect).length;
-      return {
-        slug: s.slug,
-        title: s.title,
-        chapterTitle: s.chapter.title,
-        total,
-        correct,
-        pct: total > 0 ? Math.round((correct / total) * 100) : null,
-      };
-    })
-  );
-  const _ = sectionStats;
   const lv = levelForPoints(user.points);
 
   return (

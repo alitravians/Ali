@@ -3,12 +3,30 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 
-const SECRET = process.env.AUTH_SECRET || "tafawqi-dev-secret-change-me";
+// Resolve the signing secret lazily on first use. Throwing at module-load
+// time breaks Next.js's "collect page data" pass during `next build`, which
+// imports every route once with NODE_ENV=production but no env vars.
+const DEV_FALLBACK = "tafawqi-dev-secret-change-me-do-not-use-in-prod";
 const COOKIE = "tafawqi_session";
+
+function getSecret(): string {
+  const raw = process.env.AUTH_SECRET;
+  if (raw && raw.length >= 16) return raw;
+  // In production, never silently fall back. Refuse at the point of use.
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "AUTH_SECRET is missing or too short in production. Set a strong (>=16 chars) random value."
+    );
+  }
+  return raw || DEV_FALLBACK;
+}
 
 export type SessionPayload = {
   uid: string;
   role: "student" | "admin";
+  // Issued-at timestamp (seconds). When the user resets password we bump
+  // user.passwordChangedAt and reject any session with iat older than that.
+  iat?: number;
 };
 
 export async function hashPassword(pw: string) {
@@ -20,12 +38,12 @@ export async function verifyPassword(pw: string, hash: string) {
 }
 
 export function signSession(payload: SessionPayload) {
-  return jwt.sign(payload, SECRET, { expiresIn: "30d" });
+  return jwt.sign(payload, getSecret(), { expiresIn: "30d" });
 }
 
 export function verifySession(token: string): SessionPayload | null {
   try {
-    return jwt.verify(token, SECRET) as SessionPayload;
+    return jwt.verify(token, getSecret()) as SessionPayload;
   } catch {
     return null;
   }
@@ -58,7 +76,14 @@ export async function getSession(): Promise<SessionPayload | null> {
 export async function getCurrentUser() {
   const sess = await getSession();
   if (!sess) return null;
-  return prisma.user.findUnique({ where: { id: sess.uid } });
+  const user = await prisma.user.findUnique({ where: { id: sess.uid } });
+  if (!user) return null;
+  // Invalidate sessions issued before the last password change.
+  if (user.passwordChangedAt && sess.iat) {
+    const sessIatMs = sess.iat * 1000;
+    if (sessIatMs < user.passwordChangedAt.getTime()) return null;
+  }
+  return user;
 }
 
 export async function requireUser() {
