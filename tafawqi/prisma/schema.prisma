@@ -1,0 +1,192 @@
+// Tafawqi — Arabic math testing platform for 10th-grade Syrian female students
+// Prisma schema (SQLite for dev; can swap to PostgreSQL/Turso for production)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────── المستخدِمات والمشرفون ───────────
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  name          String
+  passwordHash  String
+  phone         String?
+  role          String        @default("student") // student | admin
+  points        Int           @default(0)
+  avatarSeed    String        @default("default")
+  isBlocked     Boolean       @default(false)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  attempts      Attempt[]
+  badges        UserBadge[]
+  certificates  Certificate[]
+  notifications Notification[]
+  resetTokens   PasswordReset[]
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ─────────── المنهج ───────────
+model Chapter {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  title       String
+  description String
+  order       Int       @default(0)
+  icon        String    @default("📘")
+  color       String    @default("#7c3aed")
+  sections    Section[]
+  quizzes     Quiz[]
+}
+
+model Section {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  description String
+  order       Int        @default(0)
+  chapterId   String
+  chapter     Chapter    @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  quizzes     Quiz[]
+}
+
+// ─────────── الأسئلة والاختبارات ───────────
+model Question {
+  id          String   @id @default(cuid())
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  type        String   // mcq | tf | fill | match | order
+  prompt      String
+  // JSON encoded payload (options, answer, etc.)
+  payload     String
+  explanation String   @default("")
+  difficulty  Int      @default(1) // 1 easy, 2 medium, 3 hard
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  quizItems   QuizQuestion[]
+  answers     AttemptAnswer[]
+}
+
+model Quiz {
+  id          String         @id @default(cuid())
+  slug        String         @unique
+  title       String
+  description String         @default("")
+  chapterId   String?
+  chapter     Chapter?       @relation(fields: [chapterId], references: [id], onDelete: SetNull)
+  sectionId   String?
+  section     Section?       @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  kind        String         @default("short") // short | medium | endOfUnit | review | daily
+  durationSec Int            @default(120)
+  questionCount Int          @default(5)
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  items       QuizQuestion[]
+  attempts    Attempt[]
+}
+
+model QuizQuestion {
+  id         String   @id @default(cuid())
+  quizId     String
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+
+  @@unique([quizId, questionId])
+}
+
+// ─────────── المحاولات والإجابات ───────────
+model Attempt {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quizId     String
+  quiz       Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  score      Int      @default(0)
+  total      Int      @default(0)
+  durationSec Int     @default(0)
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  answers    AttemptAnswer[]
+}
+
+model AttemptAnswer {
+  id         String   @id @default(cuid())
+  attemptId  String
+  attempt    Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  answer     String   // JSON encoded
+  isCorrect  Boolean  @default(false)
+  timeMs     Int      @default(0)
+}
+
+// ─────────── الشارات والتحفيز ───────────
+model Badge {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  title       String
+  description String
+  icon        String      @default("🏅")
+  color       String      @default("#f59e0b")
+  threshold   Int         @default(0) // points needed
+  kind        String      @default("points") // points | streak | section
+  users       UserBadge[]
+}
+
+model UserBadge {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badgeId   String
+  badge     Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  awardedAt DateTime @default(now())
+
+  @@unique([userId, badgeId])
+}
+
+model Certificate {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  kind       String   @default("chapter") // chapter | section | overall
+  refId      String   // chapter/section id
+  issuedAt   DateTime @default(now())
+  code       String   @unique
+}
+
+// ─────────── الإشعارات ───────────
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  kind      String   @default("info") // info | success | warning | suggestion
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+// ─────────── إعدادات الموقع ───────────
+model SiteSetting {
+  key   String @id
+  value String
+}
