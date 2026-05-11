@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState, use } from "react";
+import { useEffect, useState } from "react";
 
 type Answer = {
   id: string;
@@ -30,8 +30,8 @@ type Result = {
   answers: Answer[];
 };
 
-export default function ResultsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params);
+export default function ResultsPage({ params }: { params: { id: string } }) {
+  const { id } = params;
   const [data, setData] = useState<Result | null>(null);
   const [error, setError] = useState<string | null>(null);
 

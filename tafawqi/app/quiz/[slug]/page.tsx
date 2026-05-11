@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, use } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Question = {
   id: string;
@@ -24,8 +24,8 @@ type QuizMeta = {
   section?: { title: string } | null;
 };
 
-export default function QuizPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
+export default function QuizPage({ params }: { params: { slug: string } }) {
+  const { slug } = params;
   const router = useRouter();
   const [quiz, setQuiz] = useState<QuizMeta | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
