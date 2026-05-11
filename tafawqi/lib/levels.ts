@@ -21,10 +21,11 @@ export function levelForPoints(points: number) {
 }
 
 export function pointsForResult(correct: number, total: number, durationSec: number) {
-  if (total === 0) return 0;
+  if (total === 0 || correct === 0) return 0;
   const base = correct * 10;
   const ratio = correct / total;
   const bonus = ratio === 1 ? 20 : ratio >= 0.8 ? 10 : 0;
-  const speed = durationSec > 0 && durationSec < 60 ? 5 : 0;
+  // Speed bonus only when at least ½ the answers are correct AND duration is plausibly fast
+  const speed = ratio >= 0.5 && durationSec > 0 && durationSec < 60 ? 5 : 0;
   return base + bonus + speed;
 }
