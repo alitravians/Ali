@@ -6,12 +6,14 @@ import { useTheme } from "./theme-provider";
 
 type Me = { id: string; name: string; role: "student" | "admin"; points: number; email: string } | null;
 
-export default function SiteHeader() {
+export default function SiteHeader({ registrationOpen: initialRegistrationOpen = true }: { registrationOpen?: boolean }) {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
   const [me, setMe] = useState<Me>(null);
   const [open, setOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(true);
+  // Seed from the server-rendered value so the SSR HTML matches the first
+  // client paint (no hydration flash). /api/me refreshes it on navigation.
+  const [registrationOpen, setRegistrationOpen] = useState(initialRegistrationOpen);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" })
@@ -33,7 +35,12 @@ export default function SiteHeader() {
   ];
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    // Send same-origin POST so the CSRF guard accepts it; cookies are included.
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+    });
     setMe(null);
     location.href = "/";
   }
@@ -109,9 +116,11 @@ export default function SiteHeader() {
             </div>
           ) : (
             <>
-              <Link href="/login" className="btn-ghost text-sm hidden sm:inline-flex">دخول</Link>
               {registrationOpen ? (
-                <Link href="/register" className="btn-primary text-sm">سجّلي الآن</Link>
+                <>
+                  <Link href="/login" className="btn-ghost text-sm hidden sm:inline-flex">دخول</Link>
+                  <Link href="/register" className="btn-primary text-sm">سجّلي الآن</Link>
+                </>
               ) : (
                 <Link href="/login" className="btn-primary text-sm">دخول</Link>
               )}

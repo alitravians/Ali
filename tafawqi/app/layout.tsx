@@ -4,6 +4,23 @@ import "./globals.css";
 import { ThemeProvider } from "./theme-provider";
 import SiteHeader from "./site-header";
 import SiteFooter from "./site-footer";
+import { prisma } from "@/lib/prisma";
+
+// Always render on every request so we pick up the latest admin toggle for
+// registration-open. The header is shared by every route, so this lives here.
+export const dynamic = "force-dynamic";
+
+async function getRegistrationOpen(): Promise<boolean> {
+  try {
+    const setting = await prisma.siteSetting.findUnique({
+      where: { key: "registration_open" },
+    });
+    // Treat anything other than "false" as open (fail-open by default).
+    return setting?.value !== "false";
+  } catch {
+    return true;
+  }
+}
 
 const tajawal = Tajawal({
   subsets: ["arabic"],
@@ -26,15 +43,16 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const registrationOpen = await getRegistrationOpen();
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`${tajawal.variable} font-tajawal antialiased`}>
         <ThemeProvider>
           <div className="min-h-screen flex flex-col bg-gradient-to-br from-rose-50 via-violet-50 to-sky-50 dark:from-[#0b1020] dark:via-[#15102a] dark:to-[#0b1020]">
-            <SiteHeader />
+            <SiteHeader registrationOpen={registrationOpen} />
             <main className="flex-1">{children}</main>
             <SiteFooter />
           </div>

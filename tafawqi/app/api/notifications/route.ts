@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
+import { requireSameOrigin } from "@/lib/csrf";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const csrf = requireSameOrigin(req);
+  if (!csrf.ok) return NextResponse.json({ error: csrf.reason }, { status: 403 });
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   const body = await req.json().catch(() => ({}));

@@ -28,6 +28,8 @@ const securityHeaders = [
 ];
 
 const nextConfig = {
+  // Hide framework identifier (defense in depth; avoid fingerprinting).
+  poweredByHeader: false,
   async headers() {
     return [
       {
