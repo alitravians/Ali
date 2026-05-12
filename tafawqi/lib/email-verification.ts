@@ -50,8 +50,8 @@ export async function createVerification(user: { id: string; email: string }): P
 async function maybeSendEmail(_email: string, link: string): Promise<boolean> {
   // SMTP integration is intentionally stubbed for now. Wire SENDGRID_API_KEY
   // or RESEND_API_KEY through here when ready; until then, just log the link
-  // so we can paste it into a browser during local testing.
-  if (process.env.NODE_ENV !== "test") {
+  // in development so we can paste it into a browser during local testing.
+  if (process.env.NODE_ENV === "development") {
     // eslint-disable-next-line no-console
     console.log("[email-verification] would send link:", link);
   }

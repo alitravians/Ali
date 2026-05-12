@@ -440,7 +440,7 @@ function BulkImportModal({ sections, onClose, onDone }: { sections: Section[]; o
   } | null>(null);
 
   const sectionOptions = sections.map((s) => ({
-    slug: (s as any).slug ?? "",
+    slug: s.slug,
     label: `${s.chapter.title} — ${s.title}`,
   }));
 
@@ -643,9 +643,19 @@ function BulkImportModal({ sections, onClose, onDone }: { sections: Section[]; o
   );
 }
 
+const QUESTION_TYPE_LABELS: Record<string, string> = {
+  mcq: "اختيار",
+  tf: "صح/خطأ",
+  fill: "أكمل الفراغ",
+  match: "مطابقة",
+  order: "ترتيب",
+};
+
 function labelForType(t: string) {
-  return ({ mcq: "اختيار", tf: "صح/خطأ", fill: "أكمل الفراغ", match: "مطابقة", order: "ترتيب" } as any)[t] || t;
+  return QUESTION_TYPE_LABELS[t] ?? t;
 }
+
+type QuestionType = "mcq" | "tf" | "fill" | "match" | "order";
 
 function QuestionEditor({ sections, initial, onClose, onSaved }: { sections: Section[]; initial: any; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState<any>(() => ({
@@ -692,7 +702,7 @@ function QuestionEditor({ sections, initial, onClose, onSaved }: { sections: Sec
             <select
               value={form.type}
               onChange={(e) => {
-                const t = e.target.value as any;
+                const t = e.target.value as QuestionType;
                 const payload = t === "tf" ? { answer: true }
                   : t === "fill" ? { answers: [""] }
                   : t === "mcq" ? { options: ["", "", "", ""], answer: 0 }
