@@ -30,6 +30,16 @@ const ALLOWED_KEYS = new Set([
   "announcement_enabled",
   "announcement_text",
   "announcement_level", // info | warning | success
+  // F15 — guest demo at /demo (no signup). Kill-switch only; the 5 sample
+  // questions are intentionally hardcoded so guests cannot probe real DB rows.
+  "guest_demo_enabled",
+  // F10 — when set, exposes /mock-exam as a card on the dashboard pointing
+  // to the chosen quiz slug. Admin creates a "comprehensive" quiz and points
+  // this setting at it; students take it via the regular quiz flow with a
+  // 60-minute timer override picked up from `mock_exam_duration_min`.
+  "mock_exam_enabled",
+  "mock_exam_slug",
+  "mock_exam_duration_min",
 ]);
 
 async function ensureAdmin(): Promise<{ id: string } | null> {
