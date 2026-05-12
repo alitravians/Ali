@@ -16,9 +16,22 @@ export type AuditAction =
   | "delete_quiz"
   | "update_setting"
   | "delete_reset_token"
-  | "seed_data";
+  | "seed_data"
+  | "create_department"
+  | "update_department"
+  | "delete_department"
+  | "add_team_member"
+  | "update_team_member"
+  | "remove_team_member";
 
-export type AuditTargetType = "user" | "question" | "quiz" | "setting" | "other";
+export type AuditTargetType =
+  | "user"
+  | "question"
+  | "quiz"
+  | "setting"
+  | "department"
+  | "team_member"
+  | "other";
 
 export async function recordAudit(opts: {
   adminId: string;

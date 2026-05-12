@@ -34,6 +34,7 @@ export async function GET() {
       role: user.role,
       points: user.points,
       avatarSeed: user.avatarSeed,
+      avatar: user.avatar,
       level,
       badgeCount: badges.length,
       attemptCount: attempts,

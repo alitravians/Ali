@@ -4,7 +4,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
 
-type Me = { id: string; name: string; role: "student" | "admin"; points: number; email: string } | null;
+type Me = {
+  id: string;
+  name: string;
+  role: "student" | "admin";
+  points: number;
+  email: string;
+  avatar?: string;
+} | null;
 
 export default function SiteHeader({ registrationOpen: initialRegistrationOpen = true }: { registrationOpen?: boolean }) {
   const pathname = usePathname();
@@ -92,8 +99,13 @@ export default function SiteHeader({ registrationOpen: initialRegistrationOpen =
                 onClick={() => setOpen((v) => !v)}
                 className="flex items-center gap-2 rounded-xl px-3 py-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition"
               >
-                <span className="w-8 h-8 grid place-items-center rounded-full bg-gradient-to-tr from-pink-400 to-violet-500 text-white text-sm font-bold">
-                  {me.name.slice(0, 1)}
+                <span className="w-8 h-8 grid place-items-center rounded-full bg-gradient-to-tr from-pink-400 to-violet-500 text-white text-sm font-bold overflow-hidden">
+                  {me.avatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={me.avatar} alt={me.name} className="w-full h-full object-cover" />
+                  ) : (
+                    me.name.slice(0, 1)
+                  )}
                 </span>
                 <div className="hidden sm:block text-right leading-tight">
                   <div className="text-sm font-semibold text-violet-900 dark:text-violet-100">{me.name.split(" ")[0]}</div>
