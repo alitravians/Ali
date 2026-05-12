@@ -15,6 +15,10 @@ export default function OfflinePage() {
         لا تستطيع تفوّقي تحميل هذه الصفحة الآن. تحقّقي من اتّصالكِ ثمّ أعيدي المحاولة.
       </p>
       <div className="flex items-center justify-center gap-3 flex-wrap">
+        {/* Intentionally a hard navigation, not next/link: when the SW serves
+            this offline shell, only a full reload re-hits the network and
+            lets the SW retry the original navigation. */}
+        {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
         <a href="/" className="btn-primary px-5 py-2.5">المحاولة من جديد</a>
       </div>
     </div>

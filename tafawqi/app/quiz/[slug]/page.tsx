@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, use } from "react";
 import ReportQuestionModal from "@/app/components/report-question-modal";
 
 // F5 — resume key. Per-quiz, per-browser. We store the in-progress state
@@ -38,7 +38,8 @@ type QuizMeta = {
   section?: { title: string } | null;
 };
 
-export default function QuizPage({ params }: { params: { slug: string } }) {
+export default function QuizPage(props: { params: Promise<{ slug: string }> }) {
+  const params = use(props.params);
   const { slug } = params;
   const router = useRouter();
   const [quiz, setQuiz] = useState<QuizMeta | null>(null);

@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, use } from "react";
 import ShareResult from "@/app/components/share-result";
 
 type Answer = {
@@ -31,7 +31,8 @@ type Result = {
   answers: Answer[];
 };
 
-export default function ResultsPage({ params }: { params: { id: string } }) {
+export default function ResultsPage(props: { params: Promise<{ id: string }> }) {
+  const params = use(props.params);
   const { id } = params;
   const [data, setData] = useState<Result | null>(null);
   const [shareEnabled, setShareEnabled] = useState(true);
