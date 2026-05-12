@@ -5,8 +5,10 @@ import { prisma } from "@/lib/prisma";
 import { levelForPoints } from "@/lib/levels";
 import { readStreak } from "@/lib/streak";
 import { getDailyQuiz, getDailyQuizBonus, canClaimDailyBonus } from "@/lib/daily-quiz";
+import { getMockExam } from "@/lib/mock-exam";
 import StreakBadge from "@/app/components/streak-badge";
 import DailyQuizBanner from "@/app/components/daily-quiz-banner";
+import MockExamBanner from "@/app/components/mock-exam-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,7 @@ export default async function DashboardPage() {
   // Pull lightweight per-question answer rows once, then aggregate per
   // section in memory. Previously we ran N+1 queries (one findMany per
   // section, 14+ round-trips); now it's one.
-  const [attempts, badges, certificates, notifications, sections, allAnswers, streak, dailyQuiz, dailyBonus, canClaim, leaderboardAbove] =
+  const [attempts, badges, certificates, notifications, sections, allAnswers, streak, dailyQuiz, dailyBonus, canClaim, leaderboardAbove, mockExam] =
     await Promise.all([
       prisma.attempt.findMany({
         where: { userId: user.id, finishedAt: { not: null } },
@@ -47,6 +49,7 @@ export default async function DashboardPage() {
       user.role === "student"
         ? prisma.user.count({ where: { role: "student", isBlocked: false, points: { gt: user.points } } })
         : Promise.resolve(0),
+      getMockExam(),
     ]);
   const leaderboardRank = user.role === "student" ? leaderboardAbove + 1 : null;
 
@@ -88,6 +91,17 @@ export default async function DashboardPage() {
           description={dailyQuiz.description}
           bonus={dailyBonus}
           canClaim={canClaim}
+        />
+      )}
+
+      {/* F10 — comprehensive mock exam banner (admin-configurable) */}
+      {mockExam && (
+        <MockExamBanner
+          slug={mockExam.slug}
+          title={mockExam.title}
+          description={mockExam.description}
+          durationSec={mockExam.durationSec}
+          questionCount={mockExam.questionCount}
         />
       )}
 

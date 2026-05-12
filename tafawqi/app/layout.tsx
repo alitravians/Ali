@@ -5,6 +5,7 @@ import { ThemeProvider } from "./theme-provider";
 import SiteHeader from "./site-header";
 import SiteFooter from "./site-footer";
 import AnnouncementBanner from "./components/announcement-banner";
+import ServiceWorkerRegister from "./components/service-worker-register";
 import { prisma } from "@/lib/prisma";
 
 // The header is shared by every route and reads the registration_open
@@ -53,11 +54,47 @@ const tajawal = Tajawal({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://tafawqi-delta.vercel.app";
+
 export const metadata: Metadata = {
-  title: "تفوّقي — اختبارات الرياضيات للصف العاشر",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "تفوّقي — اختبارات الرياضيات للصف العاشر",
+    template: "%s — تفوّقي",
+  },
   description:
     "منصة عربية ذكية لاختبارات الرياضيات القصيرة لطالبات الصف العاشر في سوريا. تدريب مستمر، تقييم فوري، شرح الأخطاء، وشهادات إنجاز.",
-  keywords: ["رياضيات", "الصف العاشر", "سوريا", "اختبارات", "تفوقي", "tafawqi"],
+  keywords: ["رياضيات", "الصف العاشر", "سوريا", "اختبارات", "تفوقي", "tafawqi", "math 10th grade Syria"],
+  authors: [{ name: "تفوّقي" }],
+  alternates: {
+    canonical: SITE_URL,
+  },
+  openGraph: {
+    type: "website",
+    locale: "ar_SY",
+    url: SITE_URL,
+    siteName: "تفوّقي",
+    title: "تفوّقي — اختبارات الرياضيات للصف العاشر",
+    description:
+      "منصة عربية لطالبات الصف العاشر: اختبارات قصيرة، تقييم فوري، وشهادات إنجاز.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "تفوّقي — اختبارات الرياضيات",
+    description: "اختبارات رياضيات للصف العاشر في سوريا.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true },
+  },
+  manifest: "/manifest.webmanifest",
+  applicationName: "تفوّقي",
+  appleWebApp: {
+    capable: true,
+    title: "تفوّقي",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {
@@ -88,6 +125,7 @@ export default async function RootLayout({
             <main className="flex-1">{children}</main>
             <SiteFooter />
           </div>
+          <ServiceWorkerRegister />
         </ThemeProvider>
       </body>
     </html>

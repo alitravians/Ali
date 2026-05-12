@@ -23,6 +23,9 @@ const securityHeaders = [
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
+      // F9 — allow service worker registration from same origin
+      "worker-src 'self' blob:",
+      "manifest-src 'self'",
     ].join("; "),
   },
 ];

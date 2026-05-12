@@ -5,7 +5,7 @@ import { levelForPoints } from "@/lib/levels";
 export const dynamic = "force-dynamic";
 
 async function getData() {
-  const [chapters, topStudents, attemptCount, studentCount, badges, registrationSetting] = await Promise.all([
+  const [chapters, topStudents, attemptCount, studentCount, badges, registrationSetting, demoSetting] = await Promise.all([
     prisma.chapter.findMany({
       orderBy: { order: "asc" },
       include: { sections: true, _count: { select: { quizzes: true } } },
@@ -20,16 +20,50 @@ async function getData() {
     prisma.user.count({ where: { role: "student" } }),
     prisma.badge.findMany({ take: 6 }),
     prisma.siteSetting.findUnique({ where: { key: "registration_open" } }),
+    prisma.siteSetting.findUnique({ where: { key: "guest_demo_enabled" } }),
   ]);
   const registrationOpen = registrationSetting?.value !== "false";
-  return { chapters, topStudents, attemptCount, studentCount, badges, registrationOpen };
+  const demoEnabled = demoSetting?.value !== "false";
+  return { chapters, topStudents, attemptCount, studentCount, badges, registrationOpen, demoEnabled };
 }
 
 export default async function HomePage() {
-  const { chapters, topStudents, attemptCount, studentCount, badges, registrationOpen } = await getData();
+  const { chapters, topStudents, attemptCount, studentCount, badges, registrationOpen, demoEnabled } = await getData();
+
+  // F16 — Structured data (JSON-LD) for richer search engine snippets.
+  const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://tafawqi-delta.vercel.app";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "EducationalOrganization",
+        name: "تفوّقي",
+        url: SITE_URL,
+        description:
+          "منصة عربية لاختبارات الرياضيات للصف العاشر في سوريا — اختبارات قصيرة، تقييم فوريّ، وشهادات إنجاز.",
+        inLanguage: "ar",
+        areaServed: "SY",
+      },
+      {
+        "@type": "WebSite",
+        name: "تفوّقي",
+        url: SITE_URL,
+        inLanguage: "ar",
+        potentialAction: {
+          "@type": "SearchAction",
+          target: `${SITE_URL}/chapters`,
+          "query-input": "required name=search_term_string",
+        },
+      },
+    ],
+  };
 
   return (
     <div className="max-w-6xl mx-auto px-4">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* HERO */}
       <section className="pt-10 pb-16 sm:pt-16 sm:pb-24 text-center relative">
         <div className="absolute inset-0 -z-10 overflow-hidden">
@@ -60,6 +94,14 @@ export default async function HomePage() {
           ) : (
             <Link href="/login" className="btn-secondary text-lg px-6 py-3">
               👋 تسجيل الدخول
+            </Link>
+          )}
+          {demoEnabled && (
+            <Link
+              href="/demo"
+              className="btn-ghost text-lg px-6 py-3 border border-violet-200 dark:border-violet-800 hover:bg-violet-50 dark:hover:bg-violet-900/30"
+            >
+              ✨ تجربة بدون تسجيل
             </Link>
           )}
         </div>

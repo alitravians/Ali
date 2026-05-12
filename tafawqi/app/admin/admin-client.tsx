@@ -900,6 +900,10 @@ function SettingsTab() {
     { key: "announcement_enabled", label: "تفعيل بانر الإعلانات", type: "bool", help: "يظهر في أعلى كلّ صفحة للطالبات. يختفي تلقائياً لو النصّ فارغ." },
     { key: "announcement_text", label: "نصّ الإعلان", type: "text" },
     { key: "announcement_level", label: "نوع الإعلان (info / warning / success)", type: "text", help: "القيم المقبولة: info (افتراضي) ، warning ، success." },
+    { key: "guest_demo_enabled", label: "تفعيل التجربة المجّانية /demo", type: "bool", help: "صفحة /demo تعرض ٥ أسئلة عيّنة بلا تسجيل لجذب الزوّار. اضبطيه على \"معطّل\" لإخفائها." },
+    { key: "mock_exam_enabled", label: "تفعيل امتحان المحاكاة", type: "bool", help: "يُظهر بطاقة على لوحة الطالبة وصفحة /mock-exam." },
+    { key: "mock_exam_slug", label: "امتحان المحاكاة — رابط الاختبار (slug)", type: "text", help: "اكتبي slug اختبار موجود (مفعّل) ليستخدم كامتحان محاكاة. سيتقدّم الطالبات عبر الاختبار العادي." },
+    { key: "mock_exam_duration_min", label: "امتحان المحاكاة — مدّة بالدقائق (اختياريّة)", type: "text", help: "اتركيه فارغاً لاستخدام مدّة الاختبار الأصليّة. الحدّ الأقصى ٢٤٠ دقيقة." },
   ] as { key: string; label: string; type: string; help?: string }[];
 
   return (
