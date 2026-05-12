@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { levelForPoints } from "@/lib/levels";
 import { prisma } from "@/lib/prisma";
 import AvatarWidget from "./avatar-widget";
+import ParentLinksSection from "./parent-links-section";
+import TwoFactorSection from "./two-factor-section";
 
 export const dynamic = "force-dynamic";
 
@@ -13,10 +15,17 @@ export default async function ProfilePage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?redirect=/profile");
 
-  const [badgeCount, attemptCount, certificateCount] = await Promise.all([
+  const [badgeCount, attemptCount, certificateCount, parentLinks] = await Promise.all([
     prisma.userBadge.count({ where: { userId: user.id } }),
     prisma.attempt.count({ where: { userId: user.id, finishedAt: { not: null } } }),
     prisma.certificate.count({ where: { userId: user.id } }),
+    user.role === "student"
+      ? prisma.parentLink.findMany({
+          where: { userId: user.id, revokedAt: null },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, token: true, label: true, createdAt: true, lastViewedAt: true },
+        })
+      : Promise.resolve([]),
   ]);
   const level = levelForPoints(user.points);
 
@@ -54,7 +63,7 @@ export default async function ProfilePage() {
         <Stat icon="📜" label="شهادات" value={certificateCount} />
       </div>
 
-      <div className="card p-6">
+      <div className="card p-6 mb-6">
         <div className="font-bold text-violet-900 dark:text-violet-100 mb-2">
           إعدادات الحساب
         </div>
@@ -63,6 +72,14 @@ export default async function ProfilePage() {
           صفحة <a href="/login" className="text-violet-700 dark:text-violet-200 underline">إعادة تعيين كلمة المرور</a>.
         </p>
       </div>
+
+      {user.role === "student" && (
+        <ParentLinksSection initialLinks={parentLinks} />
+      )}
+
+      {user.role === "admin" && (
+        <TwoFactorSection enabled={Boolean(user.totpEnabledAt)} />
+      )}
     </div>
   );
 }

@@ -24,7 +24,11 @@ export type AuditAction =
   | "update_team_member"
   | "remove_team_member"
   | "resolve_report"
-  | "dismiss_report";
+  | "dismiss_report"
+  | "2fa_enable"
+  | "2fa_disable"
+  | "contact_resolve"
+  | "contact_delete";
 
 export type AuditTargetType =
   | "user"
@@ -34,6 +38,7 @@ export type AuditTargetType =
   | "department"
   | "team_member"
   | "question_report"
+  | "contact_message"
   | "other";
 
 export async function recordAudit(opts: {

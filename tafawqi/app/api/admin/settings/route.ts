@@ -40,6 +40,11 @@ const ALLOWED_KEYS = new Set([
   "mock_exam_enabled",
   "mock_exam_slug",
   "mock_exam_duration_min",
+  // F17 — read-only public student progress pages shared via /parent/<token>.
+  "parent_links_enabled",
+  // F20 — public contact form at /contact (kill-switch only; messages still
+  // surface in /admin → contacts tab regardless).
+  "contact_form_enabled",
 ]);
 
 async function ensureAdmin(): Promise<{ id: string } | null> {

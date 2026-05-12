@@ -5,6 +5,7 @@ import { verifyPassword, setSessionCookie } from "@/lib/auth";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { safeJson, normalizeEmail } from "@/lib/sanitize";
 import { isVerificationRequired } from "@/lib/email-verification";
+import { verifyTotp } from "@/lib/totp";
 
 const schema = z.object({
   email: z.string({ error: "البريد الإلكتروني مطلوب" }).email("بريد إلكتروني غير صالح").max(200),
@@ -12,6 +13,8 @@ const schema = z.object({
     .string({ error: "كلمة المرور مطلوبة" })
     .min(1, "كلمة المرور مطلوبة")
     .max(200),
+  // F18 / S4 — optional TOTP code; required when the account has 2FA enabled.
+  totpCode: z.string().regex(/^\d{6}$/).optional(),
 });
 
 // Sustained-failure account lockout (separate from per-IP/per-email rate limit).
@@ -92,6 +95,28 @@ export async function POST(req: Request) {
             error: "يرجى تأكيد بريدكِ الإلكتروني أولاً. تحقّقي من بريدكِ.",
           },
           { status: 403 },
+        );
+      }
+    }
+    // F18 / S4 — enforce 2FA when the account has it enabled. We do this
+    // *after* the password check so an attacker can't probe which admin
+    // accounts have 2FA on without first knowing the password.
+    if (user.totpEnabledAt && user.totpSecret) {
+      if (!data.totpCode) {
+        return NextResponse.json(
+          { error: "يتطلّب الدخول رمز تحقّق ثنائي.", totpRequired: true },
+          { status: 401 },
+        );
+      }
+      if (!verifyTotp(user.totpSecret, data.totpCode)) {
+        // Count a wrong TOTP as a failed attempt so brute force still locks.
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { failedLoginCount: (user.failedLoginCount ?? 0) + 1 },
+        });
+        return NextResponse.json(
+          { error: "رمز التحقّق غير صحيح.", totpRequired: true },
+          { status: 401 },
         );
       }
     }
