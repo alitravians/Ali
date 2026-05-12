@@ -13,25 +13,56 @@ async function ensureAdmin(): Promise<{ id: string } | null> {
   return { id: u.id };
 }
 
+// F12 — search + pagination. Accepts optional `sectionId`, `type`, `q`
+// (free-text contains, case-insensitive against `prompt`), `page`, `pageSize`.
 export async function GET(req: Request) {
   if (!(await ensureAdmin())) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
   const url = new URL(req.url);
-  const sectionId = url.searchParams.get("sectionId");
-  const where = sectionId ? { sectionId } : {};
-  const items = await prisma.question.findMany({
-    where,
-    include: { section: { include: { chapter: true } } },
-    orderBy: { createdAt: "desc" },
-  });
+  const sectionId = url.searchParams.get("sectionId") ?? undefined;
+  const typeParam = url.searchParams.get("type");
+  const allowedTypes = ["mcq", "tf", "fill", "match", "order"] as const;
+  const type = (allowedTypes as readonly string[]).includes(typeParam ?? "")
+    ? (typeParam as (typeof allowedTypes)[number])
+    : undefined;
+  const qRaw = url.searchParams.get("q")?.trim() ?? "";
+  const q = qRaw.length > 0 ? qRaw.slice(0, 200) : undefined;
+  const pageRaw = Number(url.searchParams.get("page") ?? "1");
+  const sizeRaw = Number(url.searchParams.get("pageSize") ?? "50");
+  const page = Number.isFinite(pageRaw) && pageRaw > 0 ? Math.floor(pageRaw) : 1;
+  const pageSize = Number.isFinite(sizeRaw) ? Math.min(Math.max(Math.floor(sizeRaw), 1), 200) : 50;
+
+  const where: {
+    sectionId?: string;
+    type?: (typeof allowedTypes)[number];
+    prompt?: { contains: string; mode: "insensitive" };
+  } = {};
+  if (sectionId) where.sectionId = sectionId;
+  if (type) where.type = type;
+  if (q) where.prompt = { contains: q, mode: "insensitive" };
+
+  const [total, items] = await Promise.all([
+    prisma.question.count({ where }),
+    prisma.question.findMany({
+      where,
+      include: { section: { include: { chapter: true } } },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
   return NextResponse.json({
-    questions: items.map((q) => {
+    page,
+    pageSize,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    questions: items.map((qq) => {
       let parsed: unknown = {};
       try {
-        parsed = JSON.parse(q.payload || "{}");
+        parsed = JSON.parse(qq.payload || "{}");
       } catch {
         parsed = {};
       }
-      return { ...q, payload: parsed };
+      return { ...qq, payload: parsed };
     }),
   });
 }

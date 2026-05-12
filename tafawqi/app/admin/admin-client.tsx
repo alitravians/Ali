@@ -2,12 +2,22 @@
 import { useEffect, useState } from "react";
 import TeamTab from "./team-tab";
 import ReportsTab from "./reports-tab";
+import AuditTab from "./audit-tab";
 
 type Chapter = { id: string; slug: string; title: string; sections: { id: string; slug: string; title: string }[] };
 type Section = { id: string; slug: string; title: string; chapter: { id: string; title: string } };
 
 export default function AdminClient({ chapters, sections }: { chapters: Chapter[]; sections: Section[] }) {
-  const [tab, setTab] = useState<"stats" | "users" | "questions" | "quizzes" | "team" | "reports" | "settings">("stats");
+  const [tab, setTab] = useState<
+    | "stats"
+    | "users"
+    | "questions"
+    | "quizzes"
+    | "team"
+    | "reports"
+    | "audit"
+    | "settings"
+  >("stats");
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
@@ -24,6 +34,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
           ["quizzes", "🧩 الاختبارات"],
           ["team", "👥 فريق العمل"],
           ["reports", "🚩 بلاغات الأسئلة"],
+          ["audit", "📜 سجلّ الأحداث"],
           ["settings", "🛠️ الإعدادات"],
         ] as const).map(([k, label]) => (
           <button
@@ -46,6 +57,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
       {tab === "quizzes" && <QuizzesTab chapters={chapters} />}
       {tab === "team" && <TeamTab />}
       {tab === "reports" && <ReportsTab />}
+      {tab === "audit" && <AuditTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
   );
@@ -53,9 +65,17 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
 
 function StatsTab() {
   const [data, setData] = useState<any>(null);
+  const [range, setRange] = useState<7 | 30>(7);
+  const [series, setSeries] = useState<any>(null);
   useEffect(() => {
     fetch("/api/admin/stats", { cache: "no-store" }).then((r) => r.json()).then(setData);
   }, []);
+  useEffect(() => {
+    setSeries(null);
+    fetch(`/api/admin/stats/timeseries?range=${range}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then(setSeries);
+  }, [range]);
   if (!data) return <div className="text-violet-600">تحميل…</div>;
   return (
     <div className="space-y-4">
@@ -70,6 +90,32 @@ function StatsTab() {
       <div className="card p-5">
         <div className="text-violet-700 dark:text-violet-200">متوسط النتائج العام</div>
         <div className="text-4xl font-black text-violet-900 dark:text-violet-100 num">{data.avgPct}%</div>
+      </div>
+
+      <div className="card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="font-bold text-violet-900 dark:text-violet-100">إحصاء زمنيّ</div>
+          <div className="flex gap-2">
+            {([7, 30] as const).map((r) => (
+              <button
+                key={r}
+                onClick={() => setRange(r)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition ${
+                  range === r
+                    ? "bg-violet-600 text-white"
+                    : "bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-200"
+                }`}
+              >
+                آخر {r} يوماً
+              </button>
+            ))}
+          </div>
+        </div>
+        {!series ? (
+          <div className="text-sm text-violet-500">تحميل…</div>
+        ) : (
+          <TimeSeriesView series={series} />
+        )}
       </div>
       <div className="card p-5">
         <div className="font-bold text-violet-900 dark:text-violet-100 mb-2">أصعب الأقسام (أقل نسبة نجاح)</div>
@@ -179,19 +225,44 @@ function UsersTab() {
 
 function QuestionsTab({ sections }: { sections: Section[] }) {
   const [filterSection, setFilterSection] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("");
+  const [search, setSearch] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+  const [pageSize] = useState<number>(20);
+  const [total, setTotal] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(1);
   const [questions, setQuestions] = useState<any[]>([]);
   const [editing, setEditing] = useState<any | null>(null);
+  const [importing, setImporting] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  function load() {
+  function load(targetPage = page) {
     setLoading(true);
-    const qs = filterSection ? `?sectionId=${filterSection}` : "";
-    fetch(`/api/admin/questions${qs}`, { cache: "no-store" }).then((r) => r.json()).then((d) => {
-      setQuestions(d.questions || []);
-      setLoading(false);
-    });
+    const params = new URLSearchParams();
+    if (filterSection) params.set("sectionId", filterSection);
+    if (filterType) params.set("type", filterType);
+    if (search.trim()) params.set("q", search.trim());
+    params.set("page", String(targetPage));
+    params.set("pageSize", String(pageSize));
+    fetch(`/api/admin/questions?${params.toString()}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        setQuestions(d.questions || []);
+        setTotal(d.total ?? 0);
+        setTotalPages(d.totalPages ?? 1);
+        setLoading(false);
+      });
   }
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [filterSection]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setPage(1); load(1); }, [filterSection, filterType]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(page); }, [page]);
+
+  function submitSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    load(1);
+  }
 
   async function remove(id: string) {
     if (!confirm("حذف هذا السؤال؟")) return;
@@ -202,13 +273,37 @@ function QuestionsTab({ sections }: { sections: Section[] }) {
   return (
     <div className="space-y-3">
       <div className="card p-4 flex flex-wrap items-center justify-between gap-3">
-        <select value={filterSection} onChange={(e) => setFilterSection(e.target.value)} className="input max-w-xs">
-          <option value="">كل الأقسام</option>
-          {sections.map((s) => (
-            <option key={s.id} value={s.id}>{s.chapter.title} — {s.title}</option>
-          ))}
-        </select>
-        <button onClick={() => setEditing({})} className="btn-primary">＋ سؤال جديد</button>
+        <form onSubmit={submitSearch} className="flex flex-wrap items-center gap-2 flex-1">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="بحث في نصّ السؤال…"
+            className="input flex-1 min-w-[200px]"
+          />
+          <select value={filterSection} onChange={(e) => setFilterSection(e.target.value)} className="input max-w-xs">
+            <option value="">كل الأقسام</option>
+            {sections.map((s) => (
+              <option key={s.id} value={s.id}>{s.chapter.title} — {s.title}</option>
+            ))}
+          </select>
+          <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="input max-w-[160px]">
+            <option value="">كل الأنواع</option>
+            <option value="mcq">اختيار</option>
+            <option value="tf">صح/خطأ</option>
+            <option value="fill">فراغ</option>
+            <option value="match">مطابقة</option>
+            <option value="order">ترتيب</option>
+          </select>
+          <button type="submit" className="btn-secondary">🔍 بحث</button>
+        </form>
+        <div className="flex gap-2">
+          <button onClick={() => setImporting(true)} className="btn-secondary">📥 استيراد جماعيّ</button>
+          <button onClick={() => setEditing({})} className="btn-primary">＋ سؤال جديد</button>
+        </div>
+      </div>
+
+      <div className="text-xs text-violet-500 dark:text-violet-300/70 px-1">
+        النتائج: <span className="num font-bold text-violet-700 dark:text-violet-200">{total}</span> — الصفحة <span className="num">{page}</span> من <span className="num">{totalPages}</span>
       </div>
 
       <div className="card divide-y divide-violet-100 dark:divide-violet-900/40">
@@ -227,6 +322,24 @@ function QuestionsTab({ sections }: { sections: Section[] }) {
         ))}
       </div>
 
+      <div className="flex items-center justify-center gap-2 pt-2">
+        <button
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          disabled={page <= 1}
+          className="px-3 py-1.5 rounded-lg text-sm font-bold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-200 disabled:opacity-40"
+        >
+          → السابقة
+        </button>
+        <span className="text-sm text-violet-600 num">{page} / {totalPages}</span>
+        <button
+          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          disabled={page >= totalPages}
+          className="px-3 py-1.5 rounded-lg text-sm font-bold bg-violet-50 dark:bg-violet-900/30 text-violet-700 dark:text-violet-200 disabled:opacity-40"
+        >
+          التالية ←
+        </button>
+      </div>
+
       {editing && (
         <QuestionEditor
           sections={sections}
@@ -235,6 +348,293 @@ function QuestionsTab({ sections }: { sections: Section[] }) {
           onSaved={() => { setEditing(null); load(); }}
         />
       )}
+
+      {importing && (
+        <BulkImportModal
+          sections={sections}
+          onClose={() => setImporting(false)}
+          onDone={() => { setImporting(false); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function TimeSeriesView({ series }: { series: { range: number; days: { date: string; attempts: number; newStudents: number; avgPct: number }[]; totals: { attempts: number; newStudents: number; avgPct: number } } }) {
+  const maxAttempts = Math.max(1, ...series.days.map((d) => d.attempts));
+  const maxNew = Math.max(1, ...series.days.map((d) => d.newStudents));
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="bg-violet-50 dark:bg-violet-900/30 rounded-lg p-2">
+          <div className="text-xs text-violet-500">محاولات</div>
+          <div className="font-extrabold text-violet-900 dark:text-violet-100 num">{series.totals.attempts}</div>
+        </div>
+        <div className="bg-emerald-50 dark:bg-emerald-900/30 rounded-lg p-2">
+          <div className="text-xs text-emerald-600">طالبات جدد</div>
+          <div className="font-extrabold text-emerald-700 dark:text-emerald-200 num">{series.totals.newStudents}</div>
+        </div>
+        <div className="bg-sky-50 dark:bg-sky-900/30 rounded-lg p-2">
+          <div className="text-xs text-sky-600">متوسط النتيجة</div>
+          <div className="font-extrabold text-sky-700 dark:text-sky-200 num">{series.totals.avgPct}%</div>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs min-w-[480px]">
+          <thead className="text-violet-500 dark:text-violet-300/70">
+            <tr>
+              <th className="text-right p-1.5">التاريخ</th>
+              <th className="p-1.5">محاولات</th>
+              <th className="p-1.5">جدد</th>
+              <th className="p-1.5">متوسّط</th>
+              <th className="p-1.5 w-1/3">التوزيع</th>
+            </tr>
+          </thead>
+          <tbody>
+            {series.days.map((d) => (
+              <tr key={d.date} className="border-t border-violet-100 dark:border-violet-900/40">
+                <td className="p-1.5 num" dir="ltr">{d.date}</td>
+                <td className="p-1.5 text-center num font-bold">{d.attempts}</td>
+                <td className="p-1.5 text-center num text-emerald-700 dark:text-emerald-300">{d.newStudents}</td>
+                <td className="p-1.5 text-center num">{d.avgPct}%</td>
+                <td className="p-1.5">
+                  <div className="flex items-center gap-1">
+                    <div className="flex-1 h-3 bg-violet-100 dark:bg-violet-900/30 rounded">
+                      <div
+                        className="h-3 bg-violet-500 rounded"
+                        style={{ width: `${(d.attempts / maxAttempts) * 100}%` }}
+                        aria-label={`محاولات ${d.attempts}`}
+                      />
+                    </div>
+                    <div className="flex-1 h-3 bg-emerald-100 dark:bg-emerald-900/30 rounded">
+                      <div
+                        className="h-3 bg-emerald-500 rounded"
+                        style={{ width: `${(d.newStudents / maxNew) * 100}%` }}
+                        aria-label={`طالبات جدد ${d.newStudents}`}
+                      />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function BulkImportModal({ sections, onClose, onDone }: { sections: Section[]; onClose: () => void; onDone: () => void }) {
+  const [raw, setRaw] = useState("");
+  const [defaultSlug, setDefaultSlug] = useState<string>("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<{
+    created: number;
+    attempted: number;
+    errors: { row: number; error: string }[];
+  } | null>(null);
+
+  const sectionOptions = sections.map((s) => ({
+    slug: (s as any).slug ?? "",
+    label: `${s.chapter.title} — ${s.title}`,
+  }));
+
+  function parseRows(input: string): unknown[] {
+    const trimmed = input.trim();
+    if (!trimmed) return [];
+    // JSON path: either an array or a {rows:[...]}/{questions:[...]} object.
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) return parsed;
+      if (parsed && Array.isArray(parsed.rows)) return parsed.rows;
+      if (parsed && Array.isArray(parsed.questions)) return parsed.questions;
+      throw new Error("JSON غير صالح — يجب أن يكون مصفوفة أسئلة");
+    }
+    // CSV path: header row + per-question rows. Only supports mcq + tf + fill
+    // because nested payload doesn't fit cleanly in CSV.
+    const lines = trimmed.split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) throw new Error("يجب سطر عناوين + صفّ واحد على الأقل");
+    const header = parseCsvLine(lines[0]);
+    const headerIdx = (name: string) => header.indexOf(name);
+    const iSlug = headerIdx("sectionSlug");
+    const iType = headerIdx("type");
+    const iPrompt = headerIdx("prompt");
+    const iOpts = headerIdx("options");
+    const iAnswer = headerIdx("answer");
+    const iAnswers = headerIdx("answers");
+    const iExpl = headerIdx("explanation");
+    const iDiff = headerIdx("difficulty");
+    if (iType < 0 || iPrompt < 0) throw new Error("عمودا type و prompt إلزاميّان");
+    const rows: unknown[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = parseCsvLine(lines[i]);
+      const type = (cells[iType] || "").trim();
+      const prompt = (cells[iPrompt] || "").trim();
+      const slug = iSlug >= 0 ? (cells[iSlug] || "").trim() : "";
+      const expl = iExpl >= 0 ? (cells[iExpl] || "").trim() : "";
+      const diffStr = iDiff >= 0 ? (cells[iDiff] || "1").trim() : "1";
+      const difficulty = Math.min(3, Math.max(1, Number(diffStr) || 1));
+      const row: any = { type, prompt, explanation: expl, difficulty };
+      if (slug) row.sectionSlug = slug;
+      else if (defaultSlug) row.sectionSlug = defaultSlug;
+      if (type === "mcq") {
+        const opts = (iOpts >= 0 ? cells[iOpts] || "" : "").split("|").map((s) => s.trim()).filter(Boolean);
+        const ans = Math.max(0, Number(iAnswer >= 0 ? cells[iAnswer] : 0) || 0);
+        row.payload = { options: opts, answer: ans };
+      } else if (type === "tf") {
+        const v = (iAnswer >= 0 ? cells[iAnswer] || "" : "").trim().toLowerCase();
+        row.payload = { answer: v === "true" || v === "1" || v === "صح" || v === "صحيح" };
+      } else if (type === "fill") {
+        const arr = (iAnswers >= 0 ? cells[iAnswers] || "" : "").split("|").map((s) => s.trim()).filter(Boolean);
+        row.payload = { answers: arr };
+      } else {
+        // For match/order, expect a JSON column "payload_json" or skip.
+        const iPayload = headerIdx("payload_json");
+        if (iPayload >= 0) {
+          try {
+            row.payload = JSON.parse(cells[iPayload] || "{}");
+          } catch {
+            row.payload = {};
+          }
+        } else {
+          row.payload = {};
+        }
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function parseCsvLine(line: string): string[] {
+    const out: string[] = [];
+    let cur = "";
+    let inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (inQ) {
+        if (c === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (c === '"') inQ = false;
+        else cur += c;
+      } else if (c === '"') {
+        inQ = true;
+      } else if (c === ",") {
+        out.push(cur);
+        cur = "";
+      } else cur += c;
+    }
+    out.push(cur);
+    return out.map((s) => s.trim());
+  }
+
+  async function submit() {
+    setBusy(true);
+    setError(null);
+    setResult(null);
+    try {
+      const parsed = parseRows(raw);
+      if (parsed.length === 0) {
+        setError("لا توجد صفوف لاستيرادها");
+        return;
+      }
+      // Inject defaultSlug for JSON rows that don't specify a section.
+      const rows = parsed.map((r: any) => {
+        if (!r.sectionSlug && !r.sectionId && defaultSlug) {
+          return { ...r, sectionSlug: defaultSlug };
+        }
+        return r;
+      });
+      const res = await fetch("/api/admin/questions/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rows }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "تعذّر الاستيراد");
+      setResult({ created: json.created, attempted: json.attempted, errors: json.errors || [] });
+      if ((json.errors || []).length === 0) {
+        setTimeout(onDone, 1500);
+      }
+    } catch (e: any) {
+      setError(e.message || "خطأ");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function fillExample() {
+    const example = [
+      {
+        sectionSlug: sectionOptions[0]?.slug || "section-slug-here",
+        type: "mcq",
+        prompt: "كم تساوي 2 + 3؟",
+        payload: { options: ["4", "5", "6", "7"], answer: 1 },
+        explanation: "2+3 = 5",
+        difficulty: 1,
+      },
+      {
+        sectionSlug: sectionOptions[0]?.slug || "section-slug-here",
+        type: "tf",
+        prompt: "العدد 7 عدد أوّليّ.",
+        payload: { answer: true },
+        difficulty: 1,
+      },
+    ];
+    setRaw(JSON.stringify(example, null, 2));
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 z-50 grid place-items-center p-4" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="card p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+        <h3 className="text-lg font-extrabold text-violet-900 dark:text-violet-100 mb-3">📥 استيراد أسئلة دفعة واحدة</h3>
+        <p className="text-xs text-violet-600 dark:text-violet-300/80 mb-3">
+          ألصقي JSON (مصفوفة أسئلة أو كائن فيه rows) أو CSV بأعمدة:
+          <span className="font-mono" dir="ltr"> sectionSlug,type,prompt,options,answer,answers,explanation,difficulty</span>.
+          الحدّ الأقصى للدفعة: 500 صفّاً.
+        </p>
+        <div className="grid sm:grid-cols-2 gap-3 mb-3">
+          <div>
+            <label className="label">القسم الافتراضيّ (حين لا يوجد في الصفّ)</label>
+            <select value={defaultSlug} onChange={(e) => setDefaultSlug(e.target.value)} className="input">
+              <option value="">— غير محدّد —</option>
+              {sectionOptions.map((s) => (
+                <option key={s.slug} value={s.slug}>{s.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="flex items-end">
+            <button onClick={fillExample} className="btn-ghost text-sm">📄 إدراج مثال</button>
+          </div>
+        </div>
+        <textarea
+          value={raw}
+          onChange={(e) => setRaw(e.target.value)}
+          className="input min-h-[260px] font-mono text-xs"
+          dir="ltr"
+          placeholder='[{"sectionSlug":"...","type":"mcq","prompt":"...","payload":{"options":["...","..."],"answer":0}}]'
+        />
+        {error && <div className="mt-3 text-sm text-rose-600">{error}</div>}
+        {result && (
+          <div className="mt-3 text-sm">
+            <div className="font-bold text-emerald-700 dark:text-emerald-300">تمّ إنشاء <span className="num">{result.created}</span> من أصل <span className="num">{result.attempted}</span>.</div>
+            {result.errors.length > 0 && (
+              <div className="mt-2 p-2 bg-rose-50 dark:bg-rose-950/40 rounded">
+                <div className="font-bold text-rose-700 dark:text-rose-300 mb-1">صفوف تجاوزت:</div>
+                <ul className="text-xs space-y-1 text-rose-700 dark:text-rose-200">
+                  {result.errors.slice(0, 20).map((er, i) => (
+                    <li key={i}>الصفّ <span className="num">{er.row}</span>: {er.error}</li>
+                  ))}
+                  {result.errors.length > 20 && <li>، و {result.errors.length - 20} أخرى…</li>}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="mt-5 flex gap-2 justify-end">
+          <button onClick={onClose} className="btn-secondary">إغلاق</button>
+          <button onClick={submit} className="btn-primary" disabled={busy || !raw.trim()}>{busy ? "جارٍ…" : "استيراد"}</button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -497,6 +897,9 @@ function SettingsTab() {
     { key: "social_share_enabled", label: "تفعيل مشاركة النتائج على وسائل التواصل", type: "bool" },
     { key: "email_verification_required", label: "اشتراط تأكيد البريد عند الدخول", type: "bool" },
     { key: "support_email", label: "بريد الدعم", type: "text" },
+    { key: "announcement_enabled", label: "تفعيل بانر الإعلانات", type: "bool", help: "يظهر في أعلى كلّ صفحة للطالبات. يختفي تلقائياً لو النصّ فارغ." },
+    { key: "announcement_text", label: "نصّ الإعلان", type: "text" },
+    { key: "announcement_level", label: "نوع الإعلان (info / warning / success)", type: "text", help: "القيم المقبولة: info (افتراضي) ، warning ، success." },
   ] as { key: string; label: string; type: string; help?: string }[];
 
   return (
