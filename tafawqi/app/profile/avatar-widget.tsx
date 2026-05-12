@@ -2,13 +2,13 @@
 import { useRef, useState } from "react";
 
 export default function AvatarWidget({
-  initialAvatar,
+  initialAvatarUrl,
   userName,
 }: {
-  initialAvatar: string;
+  initialAvatarUrl: string | null;
   userName: string;
 }) {
-  const [avatar, setAvatar] = useState(initialAvatar);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(initialAvatarUrl);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -28,7 +28,7 @@ export default function AvatarWidget({
       });
       const data = await res.json();
       if (res.ok) {
-        setAvatar(data.avatar);
+        setAvatarUrl(data.avatarUrl ?? null);
         setMessage({ ok: true, text: "تم تحديث الصورة بنجاح" });
       } else {
         setMessage({ ok: false, text: data.error || "فشل في رفع الصورة" });
@@ -52,7 +52,7 @@ export default function AvatarWidget({
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        setAvatar("");
+        setAvatarUrl(null);
         setMessage({ ok: true, text: "تم حذف الصورة" });
       } else {
         const data = await res.json().catch(() => ({}));
@@ -71,9 +71,9 @@ export default function AvatarWidget({
     <div className="flex flex-col items-center gap-2">
       <div className="relative group">
         <div className="w-[150px] h-[150px] rounded-2xl overflow-hidden border-4 border-violet-200 dark:border-violet-900/60 shadow-md bg-gradient-to-tr from-pink-400 to-violet-500 grid place-items-center text-white text-6xl font-extrabold">
-          {avatar ? (
+          {avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={avatar} alt={userName} className="w-full h-full object-cover" />
+            <img src={avatarUrl} alt={userName} className="w-full h-full object-cover" />
           ) : (
             <span>{firstChar}</span>
           )}
@@ -95,9 +95,9 @@ export default function AvatarWidget({
             disabled={loading}
             className="bg-white text-violet-700 text-xs font-bold px-3 py-1.5 rounded-lg shadow disabled:opacity-50"
           >
-            {loading ? "..." : avatar ? "تغيير" : "رفع"}
+            {loading ? "..." : avatarUrl ? "تغيير" : "رفع"}
           </button>
-          {avatar && (
+          {avatarUrl && (
             <button
               type="button"
               onClick={handleDelete}

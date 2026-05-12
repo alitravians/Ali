@@ -20,10 +20,16 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB raw
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
 const AVATAR_SIZE = 150;
 
+function avatarUrlFor(userId: string, hasAvatar: boolean): string | null {
+  return hasAvatar ? `/api/avatar/${userId}?v=${Date.now()}` : null;
+}
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "غير مصرّح" }, { status: 401 });
-  return NextResponse.json({ avatar: user.avatar || "" });
+  return NextResponse.json({
+    avatarUrl: avatarUrlFor(user.id, Boolean(user.avatar)),
+  });
 }
 
 export async function POST(req: NextRequest) {
@@ -75,7 +81,10 @@ export async function POST(req: NextRequest) {
     data: { avatar: dataUrl },
   });
 
-  return NextResponse.json({ avatar: dataUrl, message: "تم تحديث الصورة بنجاح" });
+  return NextResponse.json({
+    avatarUrl: avatarUrlFor(user.id, true),
+    message: "تم تحديث الصورة بنجاح",
+  });
 }
 
 export async function DELETE(req: NextRequest) {
@@ -90,5 +99,5 @@ export async function DELETE(req: NextRequest) {
     data: { avatar: "" },
   });
 
-  return NextResponse.json({ message: "تم حذف الصورة" });
+  return NextResponse.json({ avatarUrl: null, message: "تم حذف الصورة" });
 }

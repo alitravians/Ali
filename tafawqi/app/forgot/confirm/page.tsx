@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import PasswordStrengthMeter from "@/app/components/password-strength-meter";
 
 function Form() {
   const router = useRouter();
@@ -53,13 +54,14 @@ function Form() {
           <input
             type="password"
             required
-            minLength={6}
+            minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="input"
-            placeholder="كلمة مرور جديدة (٦ أحرف فأكثر)"
+            placeholder="كلمة مرور جديدة (٨ أحرف + رقم/رمز)"
             dir="ltr"
           />
+          <PasswordStrengthMeter password={password} />
           {error && <div className="text-sm text-rose-600">{error}</div>}
           <button type="submit" className="btn-primary w-full" disabled={loading || !token}>
             {loading ? "..." : "حفظ"}

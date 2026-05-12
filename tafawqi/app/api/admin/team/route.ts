@@ -61,7 +61,32 @@ export async function GET() {
     }),
   ]);
 
-  return NextResponse.json({ departments, users });
+  // S6/F8 — strip the base64 avatars; replace with avatarUrl pointers to
+  // /api/avatar/[userId]. Keeps the admin payload light even with many users.
+  const shapedUsers = users.map((u) => ({
+    id: u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    avatarSeed: u.avatarSeed,
+    avatarUrl: u.avatar ? `/api/avatar/${u.id}` : null,
+  }));
+  const shapedDepartments = departments.map((d) => ({
+    ...d,
+    members: d.members.map((m) => ({
+      ...m,
+      user: {
+        id: m.user.id,
+        name: m.user.name,
+        email: m.user.email,
+        avatarSeed: m.user.avatarSeed,
+        role: m.user.role,
+        avatarUrl: m.user.avatar ? `/api/avatar/${m.user.id}` : null,
+      },
+    })),
+  }));
+
+  return NextResponse.json({ departments: shapedDepartments, users: shapedUsers });
 }
 
 // ─────────── POST — action dispatcher ───────────

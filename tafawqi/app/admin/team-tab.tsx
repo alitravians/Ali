@@ -6,7 +6,7 @@ type User = {
   name: string;
   email: string;
   role: string;
-  avatar: string;
+  avatarUrl: string | null;
   avatarSeed: string;
 };
 
@@ -432,10 +432,10 @@ function MemberRow({
         className="w-12 h-12 rounded-xl overflow-hidden grid place-items-center text-white text-xl font-bold shrink-0"
         style={{ background: `linear-gradient(135deg, ${departmentColor}, ${departmentColor}dd)` }}
       >
-        {member.user.avatar ? (
+        {member.user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={member.user.avatar}
+            src={member.user.avatarUrl}
             alt={member.user.name}
             className="w-full h-full object-cover"
           />

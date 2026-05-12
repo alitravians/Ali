@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import PasswordStrengthMeter from "@/app/components/password-strength-meter";
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -21,7 +22,9 @@ export default function RegisterForm() {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "فشل التسجيل");
-      router.push("/dashboard");
+      // S2 — if email verification is required, route the new user to the
+      // verification screen instead of straight into the dashboard.
+      router.push(json.verificationRequired ? "/verify-email" : "/dashboard");
       router.refresh();
     } catch (e: any) {
       setError(e.message);
@@ -77,13 +80,14 @@ export default function RegisterForm() {
             <input
               type="password"
               required
-              minLength={6}
+              minLength={8}
               value={form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="input"
-              placeholder="٦ أحرف فأكثر"
+              placeholder="٨ أحرف فأكثر + رقم أو رمز"
               dir="ltr"
             />
+            <PasswordStrengthMeter password={form.password} />
           </div>
 
           {error && (

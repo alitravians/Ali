@@ -19,7 +19,7 @@ export async function GET() {
               select: {
                 id: true,
                 name: true,
-                avatar: true,
+                avatar: true, // selected only to compute hasAvatar; not returned
                 avatarSeed: true,
                 role: true,
               },
@@ -28,7 +28,22 @@ export async function GET() {
         },
       },
     });
-    return NextResponse.json({ departments });
+    // S6/F8 — strip the heavy base64 avatar from the JSON payload. The team
+    // page renders <img src="/api/avatar/<userId>"> instead.
+    const shaped = departments.map((d) => ({
+      ...d,
+      members: d.members.map((m) => ({
+        ...m,
+        user: {
+          id: m.user.id,
+          name: m.user.name,
+          avatarSeed: m.user.avatarSeed,
+          role: m.user.role,
+          avatarUrl: m.user.avatar ? `/api/avatar/${m.user.id}` : null,
+        },
+      })),
+    }));
+    return NextResponse.json({ departments: shaped });
   } catch {
     return NextResponse.json(
       { error: "فشل في جلب بيانات فريق العمل" },

@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type MemberWithUser = {
   id: string;
   roleAr: string;
-  user: { id: string; name: string; avatar: string; avatarSeed: string; role: string };
+  user: { id: string; name: string; hasAvatar: boolean; avatarSeed: string; role: string };
 };
 
 type DepartmentWithMembers = {
@@ -20,7 +20,7 @@ type DepartmentWithMembers = {
 
 async function getTeam(): Promise<DepartmentWithMembers[]> {
   try {
-    return await prisma.teamDepartment.findMany({
+    const rows = await prisma.teamDepartment.findMany({
       where: { isVisible: true },
       orderBy: { order: "asc" },
       include: {
@@ -41,6 +41,25 @@ async function getTeam(): Promise<DepartmentWithMembers[]> {
         },
       },
     });
+    // S6/F8 — strip the heavy base64 avatar from the SSR payload. The page
+    // renders <img src="/api/avatar/<userId>"> instead; the dedicated endpoint
+    // emits cache headers so repeated team-page visits are cheap.
+    return rows.map((d) => ({
+      id: d.id,
+      nameAr: d.nameAr,
+      color: d.color,
+      members: d.members.map((m) => ({
+        id: m.id,
+        roleAr: m.roleAr,
+        user: {
+          id: m.user.id,
+          name: m.user.name,
+          hasAvatar: Boolean(m.user.avatar),
+          avatarSeed: m.user.avatarSeed,
+          role: m.user.role,
+        },
+      })),
+    }));
   } catch {
     return [];
   }
@@ -157,10 +176,10 @@ function MemberRow({
             className="w-12 h-12 rounded-full overflow-hidden grid place-items-center text-white text-lg font-bold shadow ring-2 ring-white dark:ring-slate-900"
             style={{ background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)` }}
           >
-            {member.user.avatar ? (
+            {member.user.hasAvatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={member.user.avatar}
+                src={`/api/avatar/${member.user.id}`}
                 alt={member.user.name}
                 className="w-full h-full object-cover"
               />
