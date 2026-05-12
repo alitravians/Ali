@@ -6,6 +6,7 @@ import { gradeAnswer } from "@/lib/grader";
 import { pointsForResult } from "@/lib/levels";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeJson } from "@/lib/sanitize";
+import { requireSameOrigin } from "@/lib/csrf";
 
 const MAX_DURATION_SEC = 6 * 60 * 60; // 6 hours hard cap (INT4-safe)
 const MAX_ANSWERS = 200; // hard cap to prevent abuse
@@ -28,6 +29,11 @@ const schema = z.object({
 export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
+  // CSRF: reject cross-origin POSTs *before* doing any auth/DB work so a
+  // malicious page can't piggy-back on the student's session cookies.
+  const csrf = requireSameOrigin(req);
+  if (!csrf.ok) return NextResponse.json({ error: csrf.reason }, { status: 403 });
+
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "يجب تسجيل الدخول لتسجيل النتيجة" }, { status: 401 });
   if (user.isBlocked) return NextResponse.json({ error: "تم إيقاف الحساب" }, { status: 403 });
