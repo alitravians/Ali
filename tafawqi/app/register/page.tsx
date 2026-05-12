@@ -1,106 +1,56 @@
-"use client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { prisma } from "@/lib/prisma";
+import RegisterForm from "./register-form";
 
-export default function RegisterPage() {
-  const router = useRouter();
-  const [form, setForm] = useState({ name: "", email: "", password: "", phone: "" });
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export const dynamic = "force-dynamic";
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "فشل التسجيل");
-      router.push("/dashboard");
-      router.refresh();
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
+async function isRegistrationOpen(): Promise<boolean> {
+  try {
+    const setting = await prisma.siteSetting.findUnique({
+      where: { key: "registration_open" },
+    });
+    // Treat anything other than the explicit string "false" as open, so a
+    // missing row defaults to open (matches the API behaviour).
+    return setting?.value !== "false";
+  } catch {
+    // If the DB read fails, fail open so existing users can still register
+    // rather than silently locking the form. The API endpoint is the
+    // authoritative gate, so this is safe.
+    return true;
   }
+}
 
-  return (
-    <div className="max-w-md mx-auto px-4 py-10">
-      <div className="card p-8 animate-fade-in">
-        <div className="text-center mb-6">
-          <div className="text-4xl mb-2">🌟</div>
-          <h1 className="text-2xl font-extrabold text-violet-900 dark:text-violet-100">أنشئي حسابكِ المجاني</h1>
-          <p className="text-sm text-violet-600/80 dark:text-violet-300/70 mt-1">دقيقة واحدة فقط، ثم تبدئين بأول اختبار</p>
-        </div>
+export default async function RegisterPage() {
+  const open = await isRegistrationOpen();
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="label">الاسم الكامل</label>
-            <input
-              required
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="input"
-              placeholder="مثلاً: ليلى أحمد"
-            />
+  if (!open) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-10">
+        <div className="card p-8 animate-fade-in text-center">
+          <div className="text-5xl mb-3">🚪</div>
+          <h1 className="text-2xl font-extrabold text-violet-900 dark:text-violet-100">
+            التسجيل مغلق حاليّاً
+          </h1>
+          <p className="text-sm text-violet-600/80 dark:text-violet-300/70 mt-3 leading-relaxed">
+            عذراً، إنشاء حسابات جديدة غير متاح في الوقت الحالي.
+            <br />
+            إن كان لديكِ حساب من قبل، يمكنكِ متابعة الدخول بشكل طبيعي.
+          </p>
+          <div className="mt-6 flex flex-col gap-2">
+            <Link href="/login" className="btn-primary text-base py-3">
+              تسجيل الدخول
+            </Link>
+            <Link
+              href="/"
+              className="text-sm font-semibold text-violet-600 dark:text-violet-300/80 hover:underline"
+            >
+              العودة للصفحة الرئيسية
+            </Link>
           </div>
-          <div>
-            <label className="label">البريد الإلكتروني</label>
-            <input
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              className="input"
-              placeholder="you@example.com"
-              dir="ltr"
-            />
-          </div>
-          <div>
-            <label className="label">رقم الهاتف <span className="text-violet-400 text-xs">(اختياري)</span></label>
-            <input
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              className="input"
-              placeholder="+963…"
-              dir="ltr"
-            />
-          </div>
-          <div>
-            <label className="label">كلمة المرور</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="input"
-              placeholder="٦ أحرف فأكثر"
-              dir="ltr"
-            />
-          </div>
-
-          {error && (
-            <div className="rounded-lg bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-700/40 text-rose-700 dark:text-rose-200 px-3 py-2 text-sm">
-              {error}
-            </div>
-          )}
-
-          <button type="submit" className="btn-primary w-full text-base py-3" disabled={loading}>
-            {loading ? "...جارٍ الإنشاء" : "أنشئي الحساب"}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center text-sm text-violet-600 dark:text-violet-300/80">
-          لديكِ حساب؟ <Link href="/login" className="font-semibold hover:underline">سجّلي الدخول</Link>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  return <RegisterForm />;
 }

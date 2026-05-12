@@ -5,7 +5,7 @@ import { levelForPoints } from "@/lib/levels";
 export const dynamic = "force-dynamic";
 
 async function getData() {
-  const [chapters, topStudents, attemptCount, studentCount, badges] = await Promise.all([
+  const [chapters, topStudents, attemptCount, studentCount, badges, registrationSetting] = await Promise.all([
     prisma.chapter.findMany({
       orderBy: { order: "asc" },
       include: { sections: true, _count: { select: { quizzes: true } } },
@@ -19,12 +19,14 @@ async function getData() {
     prisma.attempt.count({ where: { finishedAt: { not: null } } }),
     prisma.user.count({ where: { role: "student" } }),
     prisma.badge.findMany({ take: 6 }),
+    prisma.siteSetting.findUnique({ where: { key: "registration_open" } }),
   ]);
-  return { chapters, topStudents, attemptCount, studentCount, badges };
+  const registrationOpen = registrationSetting?.value !== "false";
+  return { chapters, topStudents, attemptCount, studentCount, badges, registrationOpen };
 }
 
 export default async function HomePage() {
-  const { chapters, topStudents, attemptCount, studentCount, badges } = await getData();
+  const { chapters, topStudents, attemptCount, studentCount, badges, registrationOpen } = await getData();
 
   return (
     <div className="max-w-6xl mx-auto px-4">
@@ -51,9 +53,15 @@ export default async function HomePage() {
           <Link href="/chapters" className="btn-primary text-lg px-6 py-3">
             🚀 ابدئي الاختبارات الآن
           </Link>
-          <Link href="/register" className="btn-secondary text-lg px-6 py-3">
-            👋 أنشئي حساباً مجانياً
-          </Link>
+          {registrationOpen ? (
+            <Link href="/register" className="btn-secondary text-lg px-6 py-3">
+              👋 أنشئي حساباً مجانياً
+            </Link>
+          ) : (
+            <Link href="/login" className="btn-secondary text-lg px-6 py-3">
+              👋 تسجيل الدخول
+            </Link>
+          )}
         </div>
         <div className="mt-8 grid grid-cols-3 gap-3 sm:gap-6 max-w-2xl mx-auto">
           <Stat label="فصول دراسية" value={chapters.length} icon="📘" />
@@ -169,11 +177,21 @@ export default async function HomePage() {
       {/* CTA */}
       <section className="mb-16">
         <div className="card p-8 sm:p-10 text-center bg-gradient-to-l from-violet-100 to-fuchsia-100 dark:from-violet-900/30 dark:to-fuchsia-900/30 border-violet-200 dark:border-violet-700/40">
-          <h3 className="text-2xl sm:text-3xl font-black text-violet-900 dark:text-violet-100">جاهزة لرحلتكِ مع الرياضيات؟</h3>
-          <p className="mt-2 text-violet-700/90 dark:text-violet-200/85">سجّلي مجاناً وابدئي بـ ٥ أسئلة فقط — ولن تحتاجي أكثر من ٣ دقائق!</p>
+          <h3 className="text-2xl sm:text-3xl font-black text-violet-900 dark:text-violet-100">
+            {registrationOpen ? "جاهزة لرحلتكِ مع الرياضيات؟" : "البدء بلمسة واحدة"}
+          </h3>
+          <p className="mt-2 text-violet-700/90 dark:text-violet-200/85">
+            {registrationOpen
+              ? "سجّلي مجاناً وابدئي بـ ٥ أسئلة فقط — ولن تحتاجي أكثر من ٣ دقائق!"
+              : "لديكِ حساب؟ سجّلي دخولكِ وتابعي رحلتكِ مع الرياضيات."}
+          </p>
           <div className="mt-5 flex justify-center gap-3 flex-wrap">
-            <Link href="/register" className="btn-primary">إنشاء حساب</Link>
-            <Link href="/login" className="btn-secondary">تسجيل الدخول</Link>
+            {registrationOpen && (
+              <Link href="/register" className="btn-primary">إنشاء حساب</Link>
+            )}
+            <Link href="/login" className={registrationOpen ? "btn-secondary" : "btn-primary"}>
+              تسجيل الدخول
+            </Link>
           </div>
         </div>
       </section>

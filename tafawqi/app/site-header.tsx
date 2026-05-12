@@ -11,11 +11,17 @@ export default function SiteHeader() {
   const { theme, toggle } = useTheme();
   const [me, setMe] = useState<Me>(null);
   const [open, setOpen] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(true);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" })
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => setMe(d?.user ?? null))
+      .then((d) => {
+        setMe(d?.user ?? null);
+        if (d && typeof d.registrationOpen === "boolean") {
+          setRegistrationOpen(d.registrationOpen);
+        }
+      })
       .catch(() => setMe(null));
   }, [pathname]);
 
@@ -104,7 +110,11 @@ export default function SiteHeader() {
           ) : (
             <>
               <Link href="/login" className="btn-ghost text-sm hidden sm:inline-flex">دخول</Link>
-              <Link href="/register" className="btn-primary text-sm">سجّلي الآن</Link>
+              {registrationOpen ? (
+                <Link href="/register" className="btn-primary text-sm">سجّلي الآن</Link>
+              ) : (
+                <Link href="/login" className="btn-primary text-sm">دخول</Link>
+              )}
             </>
           )}
         </div>
