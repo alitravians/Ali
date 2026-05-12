@@ -7,7 +7,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth";
 import { requireSameOrigin } from "@/lib/csrf";
 import { safeJson, sanitizeText } from "@/lib/sanitize";
 import { recordAudit } from "@/lib/audit";
@@ -22,8 +22,10 @@ const REASON_LABELS_AR: Record<string, string> = {
 };
 
 export async function GET(req: Request) {
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "admin") {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
 
   const url = new URL(req.url);
   const filter = url.searchParams.get("status") || "pending";
@@ -73,8 +75,10 @@ export async function POST(req: Request) {
   const csrf = requireSameOrigin(req);
   if (!csrf.ok) return NextResponse.json({ error: csrf.reason }, { status: 403 });
 
-  const admin = await requireAdmin();
-  if (!admin) return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  const admin = await getCurrentUser();
+  if (!admin || admin.role !== "admin") {
+    return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
+  }
 
   const parsed = await safeJson<unknown>(req);
   if (!parsed.ok) return NextResponse.json({ error: parsed.reason }, { status: 400 });
