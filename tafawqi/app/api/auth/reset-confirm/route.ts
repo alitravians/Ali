@@ -29,22 +29,38 @@ export async function POST(req: Request) {
   let data: z.infer<typeof schema>;
   try {
     data = schema.parse(parsed.data);
-  } catch (e: any) {
-    const msg = e?.issues?.[0]?.message || "بيانات غير صالحة";
+  } catch (e) {
+    const msg = e instanceof z.ZodError ? e.issues[0]?.message ?? "بيانات غير صالحة" : "بيانات غير صالحة";
     return NextResponse.json({ error: msg }, { status: 400 });
   }
 
   const reset = await prisma.passwordReset.findUnique({ where: { token: data.token } });
-  if (!reset || reset.expiresAt < new Date()) {
+  if (!reset || reset.expiresAt < new Date() || reset.usedAt) {
     return NextResponse.json({ error: "الرمز غير صالح أو منتهي الصلاحية" }, { status: 400 });
   }
 
   try {
     const passwordHash = await hashPassword(data.password);
-    await prisma.user.update({ where: { id: reset.userId }, data: { passwordHash } });
-    await prisma.passwordReset.delete({ where: { token: data.token } });
-    // Invalidate all other pending tokens for this user (defense-in-depth)
-    await prisma.passwordReset.deleteMany({ where: { userId: reset.userId } });
+    // Bump passwordChangedAt so every existing JWT (potentially stolen) is
+    // immediately invalidated by getCurrentUser().
+    await prisma.user.update({
+      where: { id: reset.userId },
+      data: {
+        passwordHash,
+        passwordChangedAt: new Date(),
+        // Clear any lockout from past brute-force attempts.
+        failedLoginCount: 0,
+        lockedUntil: null,
+      },
+    });
+    // Mark this token as used + delete other pending tokens for the user.
+    await prisma.passwordReset.update({
+      where: { token: data.token },
+      data: { usedAt: new Date() },
+    });
+    await prisma.passwordReset.deleteMany({
+      where: { userId: reset.userId, token: { not: data.token } },
+    });
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ error: "تعذّر تحديث كلمة المرور، حاولي مجدداً." }, { status: 500 });

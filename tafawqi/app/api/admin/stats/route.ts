@@ -8,40 +8,52 @@ export async function GET() {
   const u = await getCurrentUser();
   if (!u || u.role !== "admin") return NextResponse.json({ error: "FORBIDDEN" }, { status: 403 });
 
-  const [users, students, questions, quizzes, attempts, sections, certificates] = await Promise.all([
-    prisma.user.count(),
-    prisma.user.count({ where: { role: "student" } }),
-    prisma.question.count(),
-    prisma.quiz.count(),
-    prisma.attempt.count({ where: { finishedAt: { not: null } } }),
-    prisma.section.findMany({
-      include: { _count: { select: { questions: true } } },
-    }),
-    prisma.certificate.count(),
-  ]);
+  const [users, students, questions, quizzes, attempts, sections, certificates, attemptAgg, allAnswers] =
+    await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { role: "student" } }),
+      prisma.question.count(),
+      prisma.quiz.count(),
+      prisma.attempt.count({ where: { finishedAt: { not: null } } }),
+      prisma.section.findMany({ select: { id: true, title: true, slug: true } }),
+      prisma.certificate.count(),
+      prisma.attempt.aggregate({
+        where: { finishedAt: { not: null }, total: { gt: 0 } },
+        _sum: { score: true, total: true },
+      }),
+      // Single denormalized read — aggregate per section in memory instead of
+      // running findMany once per section (previously O(N) DB round-trips).
+      prisma.attemptAnswer.findMany({
+        select: { isCorrect: true, question: { select: { sectionId: true } } },
+      }),
+    ]);
 
-  // متوسط النتائج
-  const attemptAgg = await prisma.attempt.aggregate({
-    where: { finishedAt: { not: null }, total: { gt: 0 } },
-    _sum: { score: true, total: true },
-  });
-  const avgPct = attemptAgg._sum.total
-    ? Math.round((100 * (attemptAgg._sum.score ?? 0)) / attemptAgg._sum.total)
+  const totalScore = attemptAgg._sum.score ?? 0;
+  const totalQuestionsAnswered = attemptAgg._sum.total ?? 0;
+  const avgPct = totalQuestionsAnswered
+    ? Math.round((100 * totalScore) / totalQuestionsAnswered)
     : 0;
 
-  // أصعب الأقسام (أقل نسبة نجاح)
-  const sectionsWithStats = await Promise.all(
-    sections.map(async (s) => {
-      const ans = await prisma.attemptAnswer.findMany({
-        where: { question: { sectionId: s.id } },
-        select: { isCorrect: true },
-      });
-      const total = ans.length;
-      const correct = ans.filter((a) => a.isCorrect).length;
-      const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-      return { sectionId: s.id, title: s.title, slug: s.slug, totalAnswers: total, correctPct: pct };
-    })
-  );
+  type Counts = { total: number; correct: number };
+  const perSection = new Map<string, Counts>();
+  for (const a of allAnswers) {
+    const sid = a.question.sectionId;
+    const cur = perSection.get(sid) ?? { total: 0, correct: 0 };
+    cur.total++;
+    if (a.isCorrect) cur.correct++;
+    perSection.set(sid, cur);
+  }
+
+  const sectionsWithStats = sections.map((s) => {
+    const c = perSection.get(s.id) ?? { total: 0, correct: 0 };
+    return {
+      sectionId: s.id,
+      title: s.title,
+      slug: s.slug,
+      totalAnswers: c.total,
+      correctPct: c.total > 0 ? Math.round((c.correct / c.total) * 100) : 0,
+    };
+  });
   sectionsWithStats.sort((a, b) => {
     if (a.totalAnswers === 0 && b.totalAnswers === 0) return 0;
     if (a.totalAnswers === 0) return 1;

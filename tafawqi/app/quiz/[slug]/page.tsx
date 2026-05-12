@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Question = {
   id: string;
@@ -77,7 +77,6 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
   }, [current, started]);
 
   const total = questions.length;
-  const progress = useMemo(() => (total ? (current / total) * 100 : 0), [current, total]);
   const q = questions[current];
 
   function setAnswer(qid: string, v: any) {

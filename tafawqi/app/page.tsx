@@ -25,11 +25,6 @@ async function getData() {
 
 export default async function HomePage() {
   const { chapters, topStudents, attemptCount, studentCount, badges } = await getData();
-  const totalQuestions = chapters.reduce(
-    (acc, c) => acc + c.sections.reduce((s, sec) => s + 0, 0),
-    0
-  );
-  const _ = totalQuestions; // suppress lint
 
   return (
     <div className="max-w-6xl mx-auto px-4">

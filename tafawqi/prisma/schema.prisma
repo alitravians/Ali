@@ -12,22 +12,46 @@ datasource db {
 
 // ─────────── المستخدِمات والمشرفون ───────────
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
-  name          String
-  passwordHash  String
-  phone         String?
-  role          String        @default("student") // student | admin
-  points        Int           @default(0)
-  avatarSeed    String        @default("default")
-  isBlocked     Boolean       @default(false)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-  attempts      Attempt[]
-  badges        UserBadge[]
-  certificates  Certificate[]
-  notifications Notification[]
-  resetTokens   PasswordReset[]
+  id                 String          @id @default(cuid())
+  email              String          @unique
+  name               String
+  passwordHash       String
+  phone              String?
+  role               String          @default("student") // student | admin
+  points             Int             @default(0)
+  avatarSeed         String          @default("default")
+  isBlocked          Boolean         @default(false)
+  // Bumped on password change so older JWTs are auto-invalidated.
+  passwordChangedAt  DateTime?
+  // Sustained-failure lockout (separate from per-IP/per-email rate limit).
+  failedLoginCount   Int             @default(0)
+  lockedUntil        DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  attempts           Attempt[]
+  badges             UserBadge[]
+  certificates       Certificate[]
+  notifications      Notification[]
+  resetTokens        PasswordReset[]
+  adminAuditLogs     AdminAuditLog[]
+
+  @@index([role, points(sort: Desc)])
+}
+
+// ─────────── سجلّ الأحداث الإداريّة ───────────
+model AdminAuditLog {
+  id          String   @id @default(cuid())
+  adminId     String
+  admin       User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  action      String   // block_user, unblock_user, change_role, reset_points, delete_question, etc.
+  targetType  String   // user | question | quiz | setting | other
+  targetId    String?
+  details     String?  // optional JSON-encoded extra context
+  ip          String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt(sort: Desc)])
+  @@index([adminId, createdAt(sort: Desc)])
 }
 
 model PasswordReset {
@@ -36,7 +60,10 @@ model PasswordReset {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   expiresAt DateTime
+  usedAt    DateTime?
   createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
 }
 
 // ─────────── المنهج ───────────
@@ -124,6 +151,9 @@ model Attempt {
   startedAt  DateTime @default(now())
   finishedAt DateTime?
   answers    AttemptAnswer[]
+
+  @@index([userId, finishedAt(sort: Desc)])
+  @@index([quizId, finishedAt(sort: Desc)])
 }
 
 model AttemptAnswer {
@@ -135,6 +165,9 @@ model AttemptAnswer {
   answer     String   // JSON encoded
   isCorrect  Boolean  @default(false)
   timeMs     Int      @default(0)
+
+  @@index([attemptId])
+  @@index([questionId, isCorrect])
 }
 
 // ─────────── الشارات والتحفيز ───────────
@@ -183,6 +216,8 @@ model Notification {
   isRead    Boolean  @default(false)
   link      String?
   createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt(sort: Desc)])
 }
 
 // ─────────── إعدادات الموقع ───────────
