@@ -5,12 +5,15 @@ export function normalizeEmail(s: string): string {
   return String(s ?? "").trim().toLowerCase();
 }
 
-// Strip HTML tags and control characters from a display name.
-// React already escapes on render, but we still don't want raw HTML stored.
+// Remove every angle bracket and control character. Display names never
+// legitimately contain '<' or '>', and stripping the characters outright
+// avoids the "incomplete multi-character sanitization" pitfall where
+// patterns like '<<script>script>' would otherwise leave behind a usable
+// tag after one pass of /<[^>]*>/g.
 export function sanitizeName(s: string): string {
   return String(s ?? "")
-    .replace(/<[^>]*>/g, "") // strip tags
-    .replace(/[\u0000-\u001f\u007f]/g, "") // strip control chars
+    .replace(/[<>]/g, "")
+    .replace(/[\u0000-\u001f\u007f]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }
