@@ -35,6 +35,13 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       },
     };
   });
+  // F7 — let the client decide whether to show the share widget. Admin can
+  // disable from the settings panel without redeploying.
+  const shareSetting = await prisma.siteSetting.findUnique({
+    where: { key: "social_share_enabled" },
+  }).catch(() => null);
+  const socialShareEnabled = shareSetting?.value !== "false";
+
   return NextResponse.json({
     attempt: {
       id: attempt.id,
@@ -50,5 +57,6 @@ export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> 
       },
       answers,
     },
+    socialShareEnabled,
   });
 }

@@ -22,7 +22,9 @@ export type AuditAction =
   | "delete_department"
   | "add_team_member"
   | "update_team_member"
-  | "remove_team_member";
+  | "remove_team_member"
+  | "resolve_report"
+  | "dismiss_report";
 
 export type AuditTargetType =
   | "user"
@@ -31,6 +33,7 @@ export type AuditTargetType =
   | "setting"
   | "department"
   | "team_member"
+  | "question_report"
   | "other";
 
 export async function recordAudit(opts: {

@@ -3,6 +3,10 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { levelForPoints } from "@/lib/levels";
+import { readStreak } from "@/lib/streak";
+import { getDailyQuiz, getDailyQuizBonus, canClaimDailyBonus } from "@/lib/daily-quiz";
+import StreakBadge from "@/app/components/streak-badge";
+import DailyQuizBanner from "@/app/components/daily-quiz-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +17,7 @@ export default async function DashboardPage() {
   // Pull lightweight per-question answer rows once, then aggregate per
   // section in memory. Previously we ran N+1 queries (one findMany per
   // section, 14+ round-trips); now it's one.
-  const [attempts, badges, certificates, notifications, sections, allAnswers] =
+  const [attempts, badges, certificates, notifications, sections, allAnswers, streak, dailyQuiz, dailyBonus, canClaim, leaderboardAbove] =
     await Promise.all([
       prisma.attempt.findMany({
         where: { userId: user.id, finishedAt: { not: null } },
@@ -36,7 +40,15 @@ export default async function DashboardPage() {
         where: { attempt: { userId: user.id } },
         select: { isCorrect: true, question: { select: { sectionId: true } } },
       }),
+      readStreak(user.id),
+      getDailyQuiz(),
+      getDailyQuizBonus(),
+      canClaimDailyBonus(user.id),
+      user.role === "student"
+        ? prisma.user.count({ where: { role: "student", isBlocked: false, points: { gt: user.points } } })
+        : Promise.resolve(0),
     ]);
+  const leaderboardRank = user.role === "student" ? leaderboardAbove + 1 : null;
 
   // Aggregate counts per section in a single pass.
   const perSectionCounts = new Map<string, { total: number; correct: number }>();
@@ -62,13 +74,32 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-black text-violet-900 dark:text-violet-100">مرحباً بكِ، {user.name.split(" ")[0]} 👋</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+        <h1 className="text-3xl font-black text-violet-900 dark:text-violet-100">مرحباً بكِ، {user.name.split(" ")[0]} 👋</h1>
+        {streak.current > 0 && <StreakBadge current={streak.current} best={streak.best} size="lg" />}
+      </div>
       <p className="text-violet-600/85 dark:text-violet-300/80 mb-6">هذه لوحتكِ الشخصية. تابعي تقدّمكِ وإنجازاتكِ.</p>
 
+      {/* F2 — today's daily-quiz banner */}
+      {dailyQuiz && (
+        <DailyQuizBanner
+          slug={dailyQuiz.slug}
+          title={dailyQuiz.title}
+          description={dailyQuiz.description}
+          bonus={dailyBonus}
+          canClaim={canClaim}
+        />
+      )}
+
       {/* Top stats */}
-      <div className="grid sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid sm:grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         <StatCard label="نقاطكِ" value={user.points} icon="⭐" color="from-violet-500 to-fuchsia-500" />
         <StatCard label="مستواكِ" value={`${lv.current.icon} ${lv.current.name}`} icon="" color="from-amber-500 to-orange-500" />
+        {leaderboardRank !== null && (
+          <Link href="/leaderboard" className="contents">
+            <StatCard label="ترتيبكِ" value={`#${leaderboardRank}`} icon="🏆" color="from-pink-500 to-rose-500" />
+          </Link>
+        )}
         <StatCard label="اختبارات" value={attempts.length} icon="📝" color="from-blue-500 to-cyan-500" />
         <StatCard label="شارات" value={badges.length} icon="🏅" color="from-emerald-500 to-teal-500" />
       </div>

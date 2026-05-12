@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import ShareResult from "@/app/components/share-result";
 
 type Answer = {
   id: string;
@@ -33,6 +34,7 @@ type Result = {
 export default function ResultsPage({ params }: { params: { id: string } }) {
   const { id } = params;
   const [data, setData] = useState<Result | null>(null);
+  const [shareEnabled, setShareEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,6 +43,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
       .then((d) => {
         if (d.error) return setError(d.error);
         setData(d.attempt);
+        setShareEnabled(d.socialShareEnabled !== false);
       })
       .catch(() => setError("فشل تحميل النتيجة"));
   }, [id]);
@@ -91,6 +94,16 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           <Link href="/dashboard" className="btn-secondary">📊 لوحتي</Link>
         </div>
       </div>
+
+      {/* F7 — share result widget */}
+      {shareEnabled && (
+        <ShareResult
+          resultId={data.id}
+          score={data.score}
+          total={data.total}
+          quizTitle={data.quiz.title}
+        />
+      )}
 
       {weakSections.length > 0 && (
         <div className="card p-5 mb-6 bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-700/40">
