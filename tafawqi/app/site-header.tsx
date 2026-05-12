@@ -10,7 +10,7 @@ type Me = {
   role: "student" | "admin";
   points: number;
   email: string;
-  avatar?: string;
+  avatarUrl?: string | null;
 } | null;
 
 export default function SiteHeader({ registrationOpen: initialRegistrationOpen = true }: { registrationOpen?: boolean }) {
@@ -100,9 +100,9 @@ export default function SiteHeader({ registrationOpen: initialRegistrationOpen =
                 className="flex items-center gap-2 rounded-xl px-3 py-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 transition"
               >
                 <span className="w-8 h-8 grid place-items-center rounded-full bg-gradient-to-tr from-pink-400 to-violet-500 text-white text-sm font-bold overflow-hidden">
-                  {me.avatar ? (
+                  {me.avatarUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={me.avatar} alt={me.name} className="w-full h-full object-cover" />
+                    <img src={me.avatarUrl} alt={me.name} className="w-full h-full object-cover" />
                   ) : (
                     me.name.slice(0, 1)
                   )}

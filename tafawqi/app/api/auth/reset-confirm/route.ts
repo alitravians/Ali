@@ -4,13 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/auth";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { safeJson } from "@/lib/sanitize";
+import { checkPassword } from "@/lib/password";
 
 const schema = z.object({
   token: z.string({ error: "الرمز مطلوب" }).min(16, "الرمز غير صالح").max(128),
-  password: z
-    .string({ error: "كلمة المرور مطلوبة" })
-    .min(6, "كلمة المرور يجب أن لا تقل عن ٦ أحرف")
-    .max(200, "كلمة المرور طويلة جداً"),
+  password: z.string({ error: "كلمة المرور مطلوبة" }).max(200, "كلمة المرور طويلة جداً"),
 });
 
 export async function POST(req: Request) {
@@ -32,6 +30,11 @@ export async function POST(req: Request) {
   } catch (e) {
     const msg = e instanceof z.ZodError ? e.issues[0]?.message ?? "بيانات غير صالحة" : "بيانات غير صالحة";
     return NextResponse.json({ error: msg }, { status: 400 });
+  }
+
+  const pw = checkPassword(data.password);
+  if (!pw.ok) {
+    return NextResponse.json({ error: pw.reason }, { status: 400 });
   }
 
   const reset = await prisma.passwordReset.findUnique({ where: { token: data.token } });

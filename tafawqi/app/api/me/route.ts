@@ -26,6 +26,9 @@ export async function GET() {
     prisma.certificate.count({ where: { userId: user.id } }),
   ]);
   const level = levelForPoints(user.points);
+  // S6/F8 — do NOT inline the base64 avatar here. Send only a URL pointing
+  // to the dedicated /api/avatar/[userId] endpoint (cacheable, smaller JSON).
+  const avatarUrl = user.avatar ? `/api/avatar/${user.id}` : null;
   return NextResponse.json({
     user: {
       id: user.id,
@@ -34,7 +37,7 @@ export async function GET() {
       role: user.role,
       points: user.points,
       avatarSeed: user.avatarSeed,
-      avatar: user.avatar,
+      avatarUrl,
       level,
       badgeCount: badges.length,
       attemptCount: attempts,

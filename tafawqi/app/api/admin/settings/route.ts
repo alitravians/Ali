@@ -14,6 +14,9 @@ const ALLOWED_KEYS = new Set([
   "daily_quiz_enabled",
   "registration_open",
   "support_email",
+  // S2 — when "true", /api/auth/login refuses unverified accounts and the
+  // registration flow expects the user to confirm via email link first.
+  "email_verification_required",
 ]);
 
 async function ensureAdmin(): Promise<{ id: string } | null> {

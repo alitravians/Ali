@@ -28,7 +28,10 @@ export default async function ProfilePage() {
 
       <div className="card p-6 mb-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-          <AvatarWidget initialAvatar={user.avatar || ""} userName={user.name} />
+          <AvatarWidget
+            initialAvatarUrl={user.avatar ? `/api/avatar/${user.id}` : null}
+            userName={user.name}
+          />
           <div className="flex-1 min-w-0">
             <div className="text-2xl font-extrabold text-violet-900 dark:text-violet-100">
               {user.name}

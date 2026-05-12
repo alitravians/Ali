@@ -489,6 +489,7 @@ function SettingsTab() {
     { key: "site_tagline", label: "الشعار / الوصف القصير", type: "text" },
     { key: "registration_open", label: "السماح بالتسجيل", type: "bool" },
     { key: "daily_quiz_enabled", label: "تفعيل الاختبار اليومي", type: "bool" },
+    { key: "email_verification_required", label: "اشتراط تأكيد البريد عند الدخول", type: "bool" },
     { key: "support_email", label: "بريد الدعم", type: "text" },
   ];
 

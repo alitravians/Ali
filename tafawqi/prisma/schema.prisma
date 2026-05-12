@@ -30,6 +30,13 @@ model User {
   // Sustained-failure lockout (separate from per-IP/per-email rate limit).
   failedLoginCount   Int             @default(0)
   lockedUntil        DateTime?
+  // S2 — set when the user clicks the verification link in their inbox.
+  // Null while the email is unverified. Gating the rest of the app on this
+  // is controlled by the SiteSetting key "email_verification_required".
+  emailVerifiedAt    DateTime?
+  // F18 / S4 — optional admin 2FA. Both fields are null until an admin opts in.
+  totpSecret         String?
+  totpEnabledAt      DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   attempts           Attempt[]
@@ -37,6 +44,7 @@ model User {
   certificates       Certificate[]
   notifications      Notification[]
   resetTokens        PasswordReset[]
+  emailVerifications EmailVerification[]
   adminAuditLogs     AdminAuditLog[]
   teamMemberships    TeamMember[]
 
@@ -63,6 +71,22 @@ model PasswordReset {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+// S2 — Email verification tokens. Sent when a user registers (when SMTP is
+// configured) or when they request a re-send. Independent of PasswordReset
+// so we can have both active in parallel without collisions.
+model EmailVerification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String   // snapshot so even if user changes email we know which to verify
   token     String   @unique
   expiresAt DateTime
   usedAt    DateTime?

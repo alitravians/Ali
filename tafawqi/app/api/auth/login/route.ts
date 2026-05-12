@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { verifyPassword, setSessionCookie } from "@/lib/auth";
 import { rateLimit, getClientIp } from "@/lib/rate-limit";
 import { safeJson, normalizeEmail } from "@/lib/sanitize";
+import { isVerificationRequired } from "@/lib/email-verification";
 
 const schema = z.object({
   email: z.string({ error: "البريد الإلكتروني مطلوب" }).email("بريد إلكتروني غير صالح").max(200),
@@ -80,6 +81,19 @@ export async function POST(req: Request) {
         { error: "بيانات تسجيل الدخول غير صحيحة" },
         { status: 401 }
       );
+    }
+    // S2 — if email verification is required globally, refuse unverified
+    // accounts. We only check this after the password is verified so we don't
+    // leak which emails are registered.
+    if (!user.emailVerifiedAt) {
+      if (await isVerificationRequired()) {
+        return NextResponse.json(
+          {
+            error: "يرجى تأكيد بريدكِ الإلكتروني أولاً. تحقّقي من بريدكِ.",
+          },
+          { status: 403 },
+        );
+      }
     }
     // Successful login: clear counters and lock if any.
     if (user.failedLoginCount !== 0 || user.lockedUntil) {
