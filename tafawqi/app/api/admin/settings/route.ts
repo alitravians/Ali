@@ -26,6 +26,10 @@ const ALLOWED_KEYS = new Set([
   "question_reports_enabled",
   // F7 — kill-switch for the share-result widget on /results/:id.
   "social_share_enabled",
+  // F21 — admin announcement banner shown across student pages.
+  "announcement_enabled",
+  "announcement_text",
+  "announcement_level", // info | warning | success
 ]);
 
 async function ensureAdmin(): Promise<{ id: string } | null> {
