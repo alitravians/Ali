@@ -6,12 +6,15 @@ import { useTheme } from "./theme-provider";
 
 type Me = { id: string; name: string; role: "student" | "admin"; points: number; email: string } | null;
 
-export default function SiteHeader() {
+export default function SiteHeader({ registrationOpen: initialRegistrationOpen = true }: { registrationOpen?: boolean }) {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
   const [me, setMe] = useState<Me>(null);
   const [open, setOpen] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(true);
+  // Seed from the server-rendered value so the SSR HTML matches the first
+  // client paint (no flash of the wrong CTA). /api/me refreshes it on
+  // navigation if an admin toggles the flag mid-session.
+  const [registrationOpen, setRegistrationOpen] = useState(initialRegistrationOpen);
 
   useEffect(() => {
     fetch("/api/me", { cache: "no-store" })
@@ -33,7 +36,13 @@ export default function SiteHeader() {
   ];
 
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
+    // Same-origin POST with credentials so the new CSRF guard on
+    // /api/auth/logout accepts our own request.
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+    });
     setMe(null);
     location.href = "/";
   }
