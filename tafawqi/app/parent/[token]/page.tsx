@@ -11,9 +11,10 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-type Props = { params: { token: string } };
+type Props = { params: Promise<{ token: string }> };
 
-export default async function ParentViewPage({ params }: Props) {
+export default async function ParentViewPage(props: Props) {
+  const params = await props.params;
   const token = params.token;
   if (!token || token.length < 16) notFound();
 
