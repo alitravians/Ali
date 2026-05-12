@@ -21,9 +21,24 @@ export default async function AdminPage() {
   }
 
   const [chapters, sections] = await Promise.all([
-    prisma.chapter.findMany({ orderBy: { order: "asc" }, include: { sections: true } }),
-    prisma.section.findMany({ include: { chapter: true } }),
+    prisma.chapter.findMany({
+      orderBy: { order: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        sections: { select: { id: true, slug: true, title: true } },
+      },
+    }),
+    prisma.section.findMany({
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        chapter: { select: { id: true, title: true } },
+      },
+    }),
   ]);
 
-  return <AdminClient chapters={chapters as any} sections={sections as any} />;
+  return <AdminClient chapters={chapters} sections={sections} />;
 }
