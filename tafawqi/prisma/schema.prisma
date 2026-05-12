@@ -20,6 +20,10 @@ model User {
   role               String          @default("student") // student | admin
   points             Int             @default(0)
   avatarSeed         String          @default("default")
+  // Optional base64-encoded uploaded avatar (data:image/webp;base64,...). When
+  // empty, the UI falls back to the DiceBear seed avatar generated from
+  // avatarSeed. Stored as TEXT in Postgres — no size limit.
+  avatar             String          @default("")
   isBlocked          Boolean         @default(false)
   // Bumped on password change so older JWTs are auto-invalidated.
   passwordChangedAt  DateTime?
@@ -34,6 +38,7 @@ model User {
   notifications      Notification[]
   resetTokens        PasswordReset[]
   adminAuditLogs     AdminAuditLog[]
+  teamMemberships    TeamMember[]
 
   @@index([role, points(sort: Desc)])
 }
@@ -224,4 +229,38 @@ model Notification {
 model SiteSetting {
   key   String @id
   value String
+}
+
+// ─────────── فريق العمل (الأقسام والأعضاء) ───────────
+// Departments are user-defined groups (e.g. "الإدارة", "المشرفات", "دعم الطالبات").
+// Members link an existing User to a department with an optional Arabic job
+// title. Both the department and the membership can be hidden without
+// deleting so the admin can build the page incrementally.
+model TeamDepartment {
+  id        String       @id @default(cuid())
+  nameAr    String
+  color     String       @default("#2563eb") // header accent color (hex)
+  order     Int          @default(0)
+  isVisible Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  members   TeamMember[]
+
+  @@index([isVisible, order])
+}
+
+model TeamMember {
+  id           String         @id @default(cuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   TeamDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  roleAr       String         @default("") // المسمى الوظيفي بالعربية
+  order        Int            @default(0)
+  isVisible    Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([userId, departmentId])
+  @@index([departmentId, isVisible, order])
 }

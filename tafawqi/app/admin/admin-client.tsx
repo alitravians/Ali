@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
+import TeamTab from "./team-tab";
 
 type Chapter = { id: string; slug: string; title: string; sections: { id: string; slug: string; title: string }[] };
 type Section = { id: string; slug: string; title: string; chapter: { id: string; title: string } };
 
 export default function AdminClient({ chapters, sections }: { chapters: Chapter[]; sections: Section[] }) {
-  const [tab, setTab] = useState<"stats" | "users" | "questions" | "quizzes" | "settings">("stats");
+  const [tab, setTab] = useState<"stats" | "users" | "questions" | "quizzes" | "team" | "settings">("stats");
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
@@ -20,6 +21,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
           ["users", "👩‍🎓 الطالبات"],
           ["questions", "📝 الأسئلة"],
           ["quizzes", "🧩 الاختبارات"],
+          ["team", "👥 فريق العمل"],
           ["settings", "🛠️ الإعدادات"],
         ] as const).map(([k, label]) => (
           <button
@@ -40,6 +42,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
       {tab === "users" && <UsersTab />}
       {tab === "questions" && <QuestionsTab sections={sections} />}
       {tab === "quizzes" && <QuizzesTab chapters={chapters} />}
+      {tab === "team" && <TeamTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
   );
