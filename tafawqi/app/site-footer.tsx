@@ -20,7 +20,7 @@ export default function SiteFooter() {
             <li><Link href="/team" className="hover:text-violet-700 dark:hover:text-violet-200 text-violet-600/90 dark:text-violet-300/80">فريق العمل</Link></li>
             <li><Link href="/demo" className="hover:text-violet-700 dark:hover:text-violet-200 text-violet-600/90 dark:text-violet-300/80">تجربة مجّانية</Link></li>
             <li><Link href="/about#faq" className="hover:text-violet-700 dark:hover:text-violet-200 text-violet-600/90 dark:text-violet-300/80">الأسئلة الشائعة</Link></li>
-            <li><Link href="/about#contact" className="hover:text-violet-700 dark:hover:text-violet-200 text-violet-600/90 dark:text-violet-300/80">الدعم والتواصل</Link></li>
+            <li><Link href="/contact" className="hover:text-violet-700 dark:hover:text-violet-200 text-violet-600/90 dark:text-violet-300/80">تواصلي معنا</Link></li>
           </ul>
         </div>
         <div>

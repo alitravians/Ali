@@ -9,6 +9,8 @@ function LoginForm() {
   const redirect = search.get("redirect") || "/dashboard";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [needsTotp, setNeedsTotp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -17,13 +19,22 @@ function LoginForm() {
     setError(null);
     setLoading(true);
     try {
+      const body: Record<string, string> = { email, password };
+      if (needsTotp && totpCode) body.totpCode = totpCode;
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || "فشل تسجيل الدخول");
+      if (!res.ok) {
+        if (json.totpRequired) {
+          setNeedsTotp(true);
+          setError(json.error || "يتطلّب الدخول رمز تحقّق ثنائي.");
+          return;
+        }
+        throw new Error(json.error || "فشل تسجيل الدخول");
+      }
       router.push(redirect);
       router.refresh();
     } catch (e: any) {
@@ -67,6 +78,26 @@ function LoginForm() {
               dir="ltr"
             />
           </div>
+
+          {needsTotp && (
+            <div>
+              <label className="label">رمز التحقّق الثنائي (من تطبيق المصادقة)</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9]{6}"
+                maxLength={6}
+                required
+                value={totpCode}
+                onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, ""))}
+                className="input text-center tracking-widest text-lg"
+                placeholder="٠٠٠٠٠٠"
+                dir="ltr"
+                autoFocus
+              />
+            </div>
+          )}
 
           {error && (
             <div className="rounded-lg bg-rose-50 dark:bg-rose-900/30 border border-rose-200 dark:border-rose-700/40 text-rose-700 dark:text-rose-200 px-3 py-2 text-sm">

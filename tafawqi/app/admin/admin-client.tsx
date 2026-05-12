@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import TeamTab from "./team-tab";
 import ReportsTab from "./reports-tab";
+import ContactsTab from "./contacts-tab";
 import AuditTab from "./audit-tab";
 
 type Chapter = { id: string; slug: string; title: string; sections: { id: string; slug: string; title: string }[] };
@@ -15,6 +16,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
     | "quizzes"
     | "team"
     | "reports"
+    | "contacts"
     | "audit"
     | "settings"
   >("stats");
@@ -34,6 +36,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
           ["quizzes", "🧩 الاختبارات"],
           ["team", "👥 فريق العمل"],
           ["reports", "🚩 بلاغات الأسئلة"],
+          ["contacts", "📬 رسائل التواصل"],
           ["audit", "📜 سجلّ الأحداث"],
           ["settings", "🛠️ الإعدادات"],
         ] as const).map(([k, label]) => (
@@ -57,6 +60,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
       {tab === "quizzes" && <QuizzesTab chapters={chapters} />}
       {tab === "team" && <TeamTab />}
       {tab === "reports" && <ReportsTab />}
+      {tab === "contacts" && <ContactsTab />}
       {tab === "audit" && <AuditTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
@@ -904,6 +908,8 @@ function SettingsTab() {
     { key: "mock_exam_enabled", label: "تفعيل امتحان المحاكاة", type: "bool", help: "يُظهر بطاقة على لوحة الطالبة وصفحة /mock-exam." },
     { key: "mock_exam_slug", label: "امتحان المحاكاة — رابط الاختبار (slug)", type: "text", help: "اكتبي slug اختبار موجود (مفعّل) ليستخدم كامتحان محاكاة. سيتقدّم الطالبات عبر الاختبار العادي." },
     { key: "mock_exam_duration_min", label: "امتحان المحاكاة — مدّة بالدقائق (اختياريّة)", type: "text", help: "اتركيه فارغاً لاستخدام مدّة الاختبار الأصليّة. الحدّ الأقصى ٢٤٠ دقيقة." },
+    { key: "parent_links_enabled", label: "تفعيل روابط الوالدَين (متابعة الطالبة)", type: "bool", help: "يسمح للطالبة بإنشاء روابط للقراءة فقط من /profile لمشاركة تقدّمها مع وليّ الأمر." },
+    { key: "contact_form_enabled", label: "تفعيل نموذج التواصل /contact", type: "bool", help: "يظهر رابط \"تواصلي معنا\" في الـ footer. الرسائل تصل تبويب رسائل التواصل في لوحة الإدارة." },
   ] as { key: string; label: string; type: string; help?: string }[];
 
   return (
