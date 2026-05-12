@@ -17,6 +17,15 @@ const ALLOWED_KEYS = new Set([
   // S2 — when "true", /api/auth/login refuses unverified accounts and the
   // registration flow expects the user to confirm via email link first.
   "email_verification_required",
+  // F2 — slug of today's daily quiz (empty string disables the banner).
+  "daily_quiz_slug",
+  // F2 — bonus points awarded the first time per UTC day a student
+  // completes the daily quiz. Default 20.
+  "daily_quiz_bonus",
+  // F6 — kill-switch for the question-report button.
+  "question_reports_enabled",
+  // F7 — kill-switch for the share-result widget on /results/:id.
+  "social_share_enabled",
 ]);
 
 async function ensureAdmin(): Promise<{ id: string } | null> {

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useTheme } from "./theme-provider";
+import NotificationBell from "./components/notification-bell";
 
 type Me = {
   id: string;
@@ -11,6 +12,7 @@ type Me = {
   points: number;
   email: string;
   avatarUrl?: string | null;
+  unreadNotificationCount?: number;
 } | null;
 
 export default function SiteHeader({ registrationOpen: initialRegistrationOpen = true }: { registrationOpen?: boolean }) {
@@ -92,6 +94,10 @@ export default function SiteHeader({ registrationOpen: initialRegistrationOpen =
           >
             {theme === "dark" ? "☀️" : "🌙"}
           </button>
+
+          {me && (
+            <NotificationBell initialUnread={me.unreadNotificationCount ?? 0} />
+          )}
 
           {me ? (
             <div className="relative">

@@ -2,6 +2,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import ReportQuestionModal from "@/app/components/report-question-modal";
+
+// F5 — resume key. Per-quiz, per-browser. We store the in-progress state
+// after every answer change so a tab close/refresh doesn't lose progress.
+function resumeKey(slug: string) {
+  return `tafawqi.resume.v1.${slug}`;
+}
+type ResumeData = {
+  answers: Record<string, unknown>;
+  questionTimes: Record<string, number>;
+  current: number;
+  startedAt: number;
+  savedAt: number;
+};
 
 type Question = {
   id: string;
@@ -37,6 +51,10 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [secLeft, setSecLeft] = useState(0);
+  // F5 — surfaces a "أكملي الاختبار السابق" prompt before the start screen.
+  const [resumeOffer, setResumeOffer] = useState<ResumeData | null>(null);
+  // F6 — report-question modal visibility.
+  const [reporting, setReporting] = useState<string | null>(null);
   const startedAt = useRef<number>(0);
   const questionStartedAt = useRef<number>(0);
 
@@ -52,9 +70,40 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
         setQuestions(d.questions);
         setAuthed(Boolean(d.auth));
         setSecLeft(d.quiz.durationSec);
+        // F5 — detect a saved in-progress attempt for this quiz.
+        try {
+          const raw = window.localStorage.getItem(resumeKey(slug));
+          if (raw) {
+            const data = JSON.parse(raw) as ResumeData;
+            // Discard saves older than 24h to avoid stale offers.
+            if (data && Date.now() - (data.savedAt ?? 0) < 24 * 60 * 60 * 1000) {
+              setResumeOffer(data);
+            } else {
+              window.localStorage.removeItem(resumeKey(slug));
+            }
+          }
+        } catch {}
       })
       .catch(() => setError("تعذر تحميل الاختبار"));
   }, [slug]);
+
+  // F5 — persist progress on every change (debounced to next tick).
+  useEffect(() => {
+    if (!started) return;
+    const id = setTimeout(() => {
+      try {
+        const data: ResumeData = {
+          answers,
+          questionTimes,
+          current,
+          startedAt: startedAt.current,
+          savedAt: Date.now(),
+        };
+        window.localStorage.setItem(resumeKey(slug), JSON.stringify(data));
+      } catch {}
+    }, 100);
+    return () => clearTimeout(id);
+  }, [answers, questionTimes, current, started, slug]);
 
   useEffect(() => {
     if (!started) return;
@@ -116,6 +165,7 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
     try {
       const res = await fetch("/api/attempts", {
         method: "POST",
+        credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
@@ -129,6 +179,8 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
         }
         throw new Error(json.error || "فشل حفظ النتيجة");
       }
+      // F5 — clear the saved progress for this quiz.
+      try { window.localStorage.removeItem(resumeKey(slug)); } catch {}
       router.push(`/results/${json.attemptId}`);
     } catch (e: any) {
       setError(e.message);
@@ -140,6 +192,27 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
     setStarted(true);
     startedAt.current = Date.now();
     questionStartedAt.current = Date.now();
+    setResumeOffer(null);
+  }
+
+  // F5 — restore from a previously saved in-progress attempt.
+  function resumeFromSaved(data: ResumeData) {
+    setAnswers(data.answers || {});
+    setQuestionTimes(data.questionTimes || {});
+    setCurrent(data.current || 0);
+    startedAt.current = data.startedAt || Date.now();
+    questionStartedAt.current = Date.now();
+    if (quiz) {
+      const elapsed = Math.round((Date.now() - startedAt.current) / 1000);
+      setSecLeft(Math.max(10, quiz.durationSec - elapsed));
+    }
+    setStarted(true);
+    setResumeOffer(null);
+  }
+
+  function discardSaved() {
+    try { window.localStorage.removeItem(resumeKey(slug)); } catch {}
+    setResumeOffer(null);
   }
 
   if (error) {
@@ -161,6 +234,24 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
   if (!started) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-10">
+        {resumeOffer && (
+          <div className="card p-4 mb-4 bg-gradient-to-l from-amber-50 to-fuchsia-50 dark:from-amber-900/20 dark:to-fuchsia-900/20 border-2 border-amber-300/60 dark:border-amber-700/40 animate-fade-in">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div>
+                <div className="font-extrabold text-amber-800 dark:text-amber-200">⚡ اختبار غير مكتمل</div>
+                <div className="text-sm text-amber-700/90 dark:text-amber-200/80">
+                  لديكِ تقدّم محفوظ في هذا الاختبار (من توقّفتِ عنده).
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => resumeFromSaved(resumeOffer)} className="btn-primary text-sm px-4 py-2">
+                  📖 أكملي من حيث توقّفتِ
+                </button>
+                <button onClick={discardSaved} className="btn-ghost text-sm px-4 py-2">إعادة من البداية</button>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="card p-8 text-center animate-fade-in">
           {quiz.chapter && (
             <div className="text-4xl mb-2" style={{ color: quiz.chapter.color }}>{quiz.chapter.icon}</div>
@@ -211,6 +302,13 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
       <div className="h-2 rounded-full bg-violet-100 dark:bg-violet-900/40 overflow-hidden mb-4">
         <div className="h-full bg-gradient-to-l from-fuchsia-500 to-violet-600 transition-all" style={{ width: `${((current + 1) / total) * 100}%` }} />
       </div>
+
+      {reporting && (
+        <ReportQuestionModal
+          questionId={reporting}
+          onClose={() => setReporting(null)}
+        />
+      )}
 
       {q && (
         <div className="card p-6 animate-fade-in">
@@ -319,6 +417,17 @@ export default function QuizPage({ params }: { params: { slug: string } }) {
           )}
         </div>
       </div>
+
+      {q && authed && (
+        <div className="mt-3 text-center">
+          <button
+            onClick={() => setReporting(q.id)}
+            className="text-xs text-violet-500 dark:text-violet-300/70 hover:text-rose-600 dark:hover:text-rose-300 hover:underline"
+          >
+            🚩 أبلغي عن خطأ في هذا السؤال
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,6 +7,8 @@ import { pointsForResult } from "@/lib/levels";
 import { rateLimit } from "@/lib/rate-limit";
 import { safeJson } from "@/lib/sanitize";
 import { requireSameOrigin } from "@/lib/csrf";
+import { updateStreak } from "@/lib/streak";
+import { getDailyQuiz, getDailyQuizBonus, canClaimDailyBonus, markDailyClaimed } from "@/lib/daily-quiz";
 
 const MAX_DURATION_SEC = 6 * 60 * 60; // 6 hours hard cap (INT4-safe)
 const MAX_ANSWERS = 200; // hard cap to prevent abuse
@@ -155,11 +157,42 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "تعذّر حفظ المحاولة، حاولي مجدداً." }, { status: 500 });
   }
 
-  // Award points
+  // F2 — daily-quiz bonus. If today's daily quiz is this quiz AND the user
+  // hasn't already claimed today, add the configured bonus on top of the
+  // normal earned points. We resolve and mark *before* writing points so
+  // the increment is atomic from the user-facing perspective.
+  let dailyBonus = 0;
+  let isDailyQuiz = false;
+  try {
+    const daily = await getDailyQuiz();
+    if (daily && daily.slug === quiz.slug) {
+      isDailyQuiz = true;
+      if (await canClaimDailyBonus(user.id)) {
+        dailyBonus = await getDailyQuizBonus();
+      }
+    }
+  } catch {
+    // Settings missing or DB hiccup — ignore bonus; never block scoring.
+    dailyBonus = 0;
+  }
+
+  // Award points (regular + optional daily bonus).
   const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { points: { increment: earned } },
+    data: { points: { increment: earned + dailyBonus } },
   });
+
+  if (dailyBonus > 0) {
+    try {
+      await markDailyClaimed(user.id);
+    } catch {}
+  }
+
+  // F2 — advance the streak. Failures here MUST NOT block scoring.
+  let streak = { current: 0, best: 0, advanced: false, lastDate: null as string | null };
+  try {
+    streak = await updateStreak(user.id);
+  } catch {}
 
   // Smart suggestions: if ≥60% wrong in a section, suggest extra practice
   const suggestions: { sectionId: string; sectionTitle: string; quizSlug: string | null }[] = [];
@@ -202,6 +235,27 @@ export async function POST(req: Request) {
       },
     });
   }
+  // F2 — streak milestones (3 / 7 / 30 days). Only fire on the advance.
+  if (streak.advanced && [3, 7, 14, 30, 60, 100].includes(streak.current)) {
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        kind: "success",
+        title: `🔥 ${streak.current} أيام متتالية!`,
+        body: `حافظتِ على تفوّقِك لـ ${streak.current} يوماً. تابعي!`,
+      },
+    });
+  }
+  if (dailyBonus > 0) {
+    await prisma.notification.create({
+      data: {
+        userId: user.id,
+        kind: "success",
+        title: `✨ حصلتِ على ${dailyBonus} نقطة إضافية`,
+        body: `مكافأة تحدّي اليوم على إتمام ${quiz.title}.`,
+      },
+    });
+  }
 
   await checkAndAwardBadges(user.id);
   if (quiz.sectionId) await checkSectionCertificate(user.id, quiz.sectionId);
@@ -213,6 +267,9 @@ export async function POST(req: Request) {
     score: correct,
     total,
     pointsEarned: earned,
+    dailyBonus,
+    isDailyQuiz,
+    streak,
     newTotalPoints: updated.points,
     suggestions,
   });

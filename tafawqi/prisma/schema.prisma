@@ -37,6 +37,15 @@ model User {
   // F18 / S4 — optional admin 2FA. Both fields are null until an admin opts in.
   totpSecret         String?
   totpEnabledAt      DateTime?
+  // F2 — streak system. streakDays = consecutive days with at least one
+  // finished attempt. streakBestDays = personal record. streakLastDate =
+  // the UTC date (00:00) of the most recent attempt that advanced the streak.
+  streakDays         Int             @default(0)
+  streakBestDays     Int             @default(0)
+  streakLastDate     DateTime?
+  // F2 — daily-quiz redemption. Stores the UTC date the user last claimed
+  // the daily-quiz bonus so we only award it once per day per user.
+  dailyQuizClaimedAt DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
   attempts           Attempt[]
@@ -47,6 +56,10 @@ model User {
   emailVerifications EmailVerification[]
   adminAuditLogs     AdminAuditLog[]
   teamMemberships    TeamMember[]
+  // F6 — question reports submitted by this user, and reports resolved by
+  // this admin. Two named relations because both point at User.
+  questionReports    QuestionReport[] @relation("UserQuestionReports")
+  resolvedReports    QuestionReport[] @relation("AdminResolvedReports")
 
   @@index([role, points(sort: Desc)])
 }
@@ -135,6 +148,32 @@ model Question {
   updatedAt   DateTime @updatedAt
   quizItems   QuizQuestion[]
   answers     AttemptAnswer[]
+  reports     QuestionReport[]
+}
+
+// F6 — player-reported issues on a specific question (typo, wrong answer,
+// confusing wording, etc.). Admin reviews from the admin panel and either
+// resolves (with a note) or dismisses. Soft-state — we never delete reports
+// even when resolved so we can spot repeat problems.
+model QuestionReport {
+  id          String   @id @default(cuid())
+  questionId  String
+  question    Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // Optional: nullable so we can preserve reports even if the reporter is
+  // later deleted. setNull keeps the row but blanks the FK.
+  userId       String?
+  user         User?   @relation("UserQuestionReports", fields: [userId], references: [id], onDelete: SetNull)
+  reason       String  // typo | wrong_answer | confusing | other
+  comment      String  @default("")
+  status       String  @default("pending") // pending | resolved | dismissed
+  resolvedById String?
+  resolvedBy   User?   @relation("AdminResolvedReports", fields: [resolvedById], references: [id], onDelete: SetNull)
+  resolvedAt   DateTime?
+  adminNote    String  @default("")
+  createdAt    DateTime @default(now())
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([questionId])
 }
 
 model Quiz {

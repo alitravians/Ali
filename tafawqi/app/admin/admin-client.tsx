@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useState } from "react";
 import TeamTab from "./team-tab";
+import ReportsTab from "./reports-tab";
 
 type Chapter = { id: string; slug: string; title: string; sections: { id: string; slug: string; title: string }[] };
 type Section = { id: string; slug: string; title: string; chapter: { id: string; title: string } };
 
 export default function AdminClient({ chapters, sections }: { chapters: Chapter[]; sections: Section[] }) {
-  const [tab, setTab] = useState<"stats" | "users" | "questions" | "quizzes" | "team" | "settings">("stats");
+  const [tab, setTab] = useState<"stats" | "users" | "questions" | "quizzes" | "team" | "reports" | "settings">("stats");
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
@@ -22,6 +23,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
           ["questions", "📝 الأسئلة"],
           ["quizzes", "🧩 الاختبارات"],
           ["team", "👥 فريق العمل"],
+          ["reports", "🚩 بلاغات الأسئلة"],
           ["settings", "🛠️ الإعدادات"],
         ] as const).map(([k, label]) => (
           <button
@@ -43,6 +45,7 @@ export default function AdminClient({ chapters, sections }: { chapters: Chapter[
       {tab === "questions" && <QuestionsTab sections={sections} />}
       {tab === "quizzes" && <QuizzesTab chapters={chapters} />}
       {tab === "team" && <TeamTab />}
+      {tab === "reports" && <ReportsTab />}
       {tab === "settings" && <SettingsTab />}
     </div>
   );
@@ -488,10 +491,13 @@ function SettingsTab() {
     { key: "site_name", label: "اسم الموقع", type: "text" },
     { key: "site_tagline", label: "الشعار / الوصف القصير", type: "text" },
     { key: "registration_open", label: "السماح بالتسجيل", type: "bool" },
-    { key: "daily_quiz_enabled", label: "تفعيل الاختبار اليومي", type: "bool" },
+    { key: "daily_quiz_slug", label: "تحدّي اليوم — رابط الاختبار (slug)", type: "text", help: "اكتبي slug اختبار موجود لتفعيله كتحدّي يومي. اتركيه فارغاً لإخفاء البانر." },
+    { key: "daily_quiz_bonus", label: "تحدّي اليوم — نقاط المكافأة (افتراضي 20)", type: "text" },
+    { key: "question_reports_enabled", label: "تفعيل الإبلاغ عن أخطاء الأسئلة", type: "bool" },
+    { key: "social_share_enabled", label: "تفعيل مشاركة النتائج على وسائل التواصل", type: "bool" },
     { key: "email_verification_required", label: "اشتراط تأكيد البريد عند الدخول", type: "bool" },
     { key: "support_email", label: "بريد الدعم", type: "text" },
-  ];
+  ] as { key: string; label: string; type: string; help?: string }[];
 
   return (
     <div className="space-y-3 max-w-2xl">
@@ -506,6 +512,7 @@ function SettingsTab() {
           ) : (
             <input value={get(f.key)} onChange={(e) => upsertLocal(f.key, e.target.value)} className="input" />
           )}
+          {f.help && <div className="text-xs text-violet-500 mt-1">{f.help}</div>}
           <button onClick={() => save(f.key, get(f.key))} className="btn-primary text-sm mt-3" disabled={saving === f.key}>
             {saving === f.key ? "..." : "حفظ"}
           </button>
