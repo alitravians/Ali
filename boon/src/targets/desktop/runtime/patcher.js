@@ -54,25 +54,82 @@ try {
 }
 
 // ─── Inject into every Discord window ─────────────────────────────────────────
+// We only want BOON in the real Discord renderer (discord.com / discordapp.com).
+// Discord's splash screen loads a local file:// page that has no localStorage,
+// no IndexedDB and a different DOM — injecting there produces noisy
+// `ReferenceError: localStorage is not defined` and serves no purpose.
+function shouldInject(webContents) {
+    try {
+        const url = webContents.getURL() || "";
+        if (!url) return false;
+        const u = new URL(url);
+        return (
+            u.hostname === "discord.com" ||
+            u.hostname === "discordapp.com" ||
+            u.hostname === "canary.discord.com" ||
+            u.hostname === "ptb.discord.com"
+        );
+    } catch (_) {
+        return false;
+    }
+}
+
+// Discord deletes `window.localStorage` and `window.sessionStorage` in the
+// renderer as an anti-token-theft measure (see https://stackoverflow.com/q/49788079).
+// We restore them the same way Vencord does: grab a fresh reference from an
+// iframe and re-attach it as a *non-configurable* property on the page's
+// window, so Discord's later `delete` / redefine attempts silently fail.
+// `indexedDB` is left untouched by Discord, so we don't need to shim it.
+const RESTORE_STORAGE_APIS = `
+(() => {
+    try {
+        if (typeof window === "undefined") return;
+        const needsLS = typeof window.localStorage === "undefined" ||
+                        typeof window.localStorage.setItem !== "function";
+        const needsSS = typeof window.sessionStorage === "undefined" ||
+                        typeof window.sessionStorage.setItem !== "function";
+        if (!needsLS && !needsSS) return;
+        const frame = document.createElement("iframe");
+        frame.style.display = "none";
+        (document.head || document.documentElement).appendChild(frame);
+        const fw = frame.contentWindow;
+        // We deliberately leave the iframe parked in <head>: removing it
+        // invalidates \`contentWindow\` and breaks the captured references.
+        const lock = (name, value) => {
+            try {
+                Object.defineProperty(window, name, {
+                    configurable: false,
+                    enumerable: true,
+                    get() { return value; },
+                });
+            } catch (e) {
+                console.error("[BOON] failed to lock " + name + ":", e);
+            }
+        };
+        if (needsLS) lock("localStorage", fw.localStorage);
+        if (needsSS) lock("sessionStorage", fw.sessionStorage);
+    } catch (e) {
+        console.error("[BOON] storage shim failed:", e);
+    }
+})();
+`;
+
 function injectInto(webContents) {
     if (!rendererCode) return;
-    webContents.executeJavaScript(rendererCode, true).catch(err => {
-        console.error("[BOON] renderer injection failed:", err);
-    });
+    if (webContents.__boonInjected) return;
+    if (!shouldInject(webContents)) return;
+    webContents.__boonInjected = true;
+    webContents
+        .executeJavaScript(RESTORE_STORAGE_APIS + "\n" + rendererCode, true)
+        .catch(err => console.error("[BOON] renderer injection failed:", err));
 }
 
 app.on("browser-window-created", (_event, win) => {
-    win.webContents.on("dom-ready", () => {
-        injectInto(win.webContents);
-    });
-    // For windows that finish loading between `browser-window-created` and our
-    // `dom-ready` listener wiring (rare race), also hook `did-finish-load`.
-    win.webContents.once("did-finish-load", () => {
-        if (!win.webContents.__boonInjected) {
-            win.webContents.__boonInjected = true;
-            injectInto(win.webContents);
-        }
-    });
+    // `dom-ready` fires for every navigation (including the splash → main
+    // transition). We re-evaluate `shouldInject` each time so the renderer
+    // runs exactly once per window, the first time it lands on discord.com.
+    win.webContents.on("dom-ready", () => injectInto(win.webContents));
+    win.webContents.on("did-finish-load", () => injectInto(win.webContents));
 });
 
 // Discord's main entrypoint relies on certain command-line flags being set
