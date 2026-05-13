@@ -24,7 +24,7 @@
 
 "use strict";
 
-const { app, BrowserWindow, ipcMain } = require("electron");
+const { app, BrowserWindow } = require("electron");
 const path = require("path");
 const fs = require("fs");
 const https = require("https");
@@ -145,50 +145,7 @@ if (promotedVersion) {
     writeState({ lastPromotedVersion: promotedVersion, lastPromotedAt: Date.now() });
 }
 
-// ─── IPC bridge ──────────────────────────────────────────────────────────────
-// The renderer calls these to drive the in-app updater.
-ipcMain.handle("BOON_GET_BOOT_INFO", () => ({
-    currentVersion: currentVersion,
-    rendererBytes: rendererCode ? rendererCode.length : 0,
-    state: readState(),
-    dataDir: dataDir,
-}));
-
-ipcMain.handle("BOON_STAGE_UPDATE", (_evt, payload) => {
-    if (!payload || typeof payload.code !== "string") {
-        return { ok: false, error: "missing-code" };
-    }
-    if (!looksLikeRenderer(payload.code)) {
-        return { ok: false, error: "invalid-renderer" };
-    }
-    const v = extractVersion(payload.code);
-    try {
-        fs.writeFileSync(stagedRendererPath, payload.code);
-        const state = writeState({
-            lastDownloadAt: Date.now(),
-            lastDownloadedVersion: v,
-            lastDownloadedTag: payload.tag || null,
-        });
-        return { ok: true, version: v, state: state };
-    } catch (err) {
-        return { ok: false, error: "write-failed", detail: String(err) };
-    }
-});
-
-ipcMain.handle("BOON_RELAUNCH", () => {
-    // Defer so the renderer can show a "restarting…" UI frame first.
-    setTimeout(() => {
-        try {
-            app.relaunch();
-            app.exit(0);
-        } catch (err) {
-            console.error("[BOON] relaunch failed:", err);
-        }
-    }, 150);
-    return { ok: true };
-});
-
-// BOON_FETCH — Node-side HTTP GET that bypasses Discord's renderer CSP.
+// ─── GitHub fetch helper (used by IPC_HANDLERS.BOON_FETCH further down) ─────
 //
 // Discord's CSP only whitelists discord.com / discordapp.com / discord.media
 // for connect-src. Any fetch() from the renderer to api.github.com or
@@ -277,22 +234,6 @@ function ipcFetch(rawUrl, opts) {
     });
 }
 
-ipcMain.handle("BOON_FETCH", (_evt, payload) => {
-    if (!payload || typeof payload.url !== "string") {
-        return { ok: false, status: 0, error: "missing-url" };
-    }
-    return ipcFetch(payload.url, { accept: payload.accept });
-});
-
-ipcMain.handle("BOON_LIST_INSTALLED", () => {
-    return {
-        active: fs.existsSync(activeRendererPath),
-        staged: fs.existsSync(stagedRendererPath),
-        currentVersion: currentVersion,
-        dataDir: dataDir,
-    };
-});
-
 // ─── Inject into every Discord window ─────────────────────────────────────────
 // We only want BOON in the real Discord renderer (discord.com / discordapp.com).
 // Discord's splash screen loads a local file:// page that has no localStorage,
@@ -354,26 +295,170 @@ const RESTORE_STORAGE_APIS = `
 })();
 `;
 
+// ─── Renderer IPC bridge ─────────────────────────────────────────────────────
+// We can't use Electron's `ipcRenderer.invoke` from the renderer because
+// `webContents.executeJavaScript` injects into an isolated world where
+// `require` is undefined and `process` is not exposed. We learned this the
+// hard way when v0.1.4 shipped a bridge that silently rejected every call
+// with `ipc-unavailable` (the user saw the Updates tab stuck on "جاري
+// الجلب…" forever).
+//
+// Workaround: encode every renderer→main call as a `console.log` with a
+// well-known prefix. Electron's `webContents.on('console-message', …)`
+// fires for every console call from the renderer, including injected
+// code, so main can parse the line, run the actual handler, and ship the
+// result back via `executeJavaScript`. This is the same trick used by
+// browser extensions that need to talk to their background page without
+// a content-script preload.
+//
+// Wire format (renderer → main):
+//   console.log("[BOON_IPC]:" + JSON.stringify({ id, channel, payload }))
+// Wire format (main → renderer):
+//   window.__BOON__._resolve(id, value) | __BOON__._reject(id, msg)
+const IPC_PREFIX = "[BOON_IPC]:";
+
+const IPC_HANDLERS = {
+    BOON_GET_BOOT_INFO: () => ({
+        currentVersion: currentVersion,
+        rendererBytes: rendererCode ? rendererCode.length : 0,
+        state: readState(),
+        dataDir: dataDir,
+    }),
+    BOON_LIST_INSTALLED: () => ({
+        active: fs.existsSync(activeRendererPath),
+        staged: fs.existsSync(stagedRendererPath),
+        currentVersion: currentVersion,
+        dataDir: dataDir,
+    }),
+    BOON_STAGE_UPDATE: (payload) => {
+        if (!payload || typeof payload.code !== "string") {
+            return { ok: false, error: "missing-code" };
+        }
+        if (!looksLikeRenderer(payload.code)) {
+            return { ok: false, error: "invalid-renderer" };
+        }
+        const v = extractVersion(payload.code);
+        try {
+            fs.writeFileSync(stagedRendererPath, payload.code);
+            const state = writeState({
+                lastDownloadAt: Date.now(),
+                lastDownloadedVersion: v,
+                lastDownloadedTag: payload.tag || null,
+            });
+            return { ok: true, version: v, state: state };
+        } catch (err) {
+            return { ok: false, error: "write-failed", detail: String(err) };
+        }
+    },
+    BOON_RELAUNCH: () => {
+        setTimeout(() => {
+            try {
+                app.relaunch();
+                app.exit(0);
+            } catch (err) {
+                console.error("[BOON] relaunch failed:", err);
+            }
+        }, 150);
+        return { ok: true };
+    },
+    BOON_FETCH: (payload) => {
+        if (!payload || typeof payload.url !== "string") {
+            return { ok: false, status: 0, error: "missing-url" };
+        }
+        return ipcFetch(payload.url, { accept: payload.accept });
+    },
+};
+
+function dispatchConsoleIpc(webContents, raw) {
+    let msg;
+    try {
+        msg = JSON.parse(raw);
+    } catch (err) {
+        console.error("[BOON] bad console-IPC payload:", err);
+        return;
+    }
+    const { id, channel, payload } = msg || {};
+    if (typeof id !== "string" || typeof channel !== "string") {
+        console.error("[BOON] console-IPC missing id/channel");
+        return;
+    }
+    const handler = IPC_HANDLERS[channel];
+    const work = handler
+        ? Promise.resolve()
+              .then(() => handler(payload))
+              .catch(err => Promise.reject(err))
+        : Promise.reject(new Error("no-handler:" + channel));
+    work.then(
+        (result) => {
+            // Stringify on the main side and ship the literal back so the
+            // renderer doesn't have to parse arbitrary JSON manually.
+            const code =
+                "window.__BOON__ && window.__BOON__._resolve && " +
+                "window.__BOON__._resolve(" + JSON.stringify(id) + ", " +
+                JSON.stringify(result == null ? null : result) + ");";
+            webContents.executeJavaScript(code, true).catch(() => {});
+        },
+        (err) => {
+            const message = (err && err.message) ? err.message : String(err);
+            const code =
+                "window.__BOON__ && window.__BOON__._reject && " +
+                "window.__BOON__._reject(" + JSON.stringify(id) + ", " +
+                JSON.stringify(message) + ");";
+            webContents.executeJavaScript(code, true).catch(() => {});
+        }
+    );
+}
+
 function buildBootBridge() {
     const boot = {
         currentVersion: currentVersion,
         dataDir: dataDir,
         lastPromotedVersion: readState().lastPromotedVersion || null,
+        // Always true now: even if console-IPC fails for some pathological
+        // reason, the renderer-side updater will surface a real timeout
+        // (`ipc-timeout`) instead of pretending the bridge is missing.
         ipc: true,
     };
-    // Stringify safely — no embedded user input in this object, so JSON.stringify
-    // is sufficient. We also wrap in try/catch so a broken bridge can't crash
-    // Discord's renderer.
-    // Note: the comment-style backticks in the original inline code broke
-    // template-literal parsing. We keep the inner script ASCII-only.
+    // Build the bridge as a plain ASCII string (no template literals, no
+    // backticks) so embedding it inside another `executeJavaScript` payload
+    // can't break parsing. We seal __BOON__ with a non-configurable,
+    // non-writable descriptor so plugins can rely on its identity.
     return "\n(() => {\n" +
         "    try {\n" +
         "        const boot = " + JSON.stringify(boot) + ";\n" +
-        "        let ipcRenderer = null;\n" +
-        "        try { ipcRenderer = require(\"electron\").ipcRenderer; } catch (_) {}\n" +
-        "        boot.invoke = ipcRenderer\n" +
-        "            ? (channel, payload) => ipcRenderer.invoke(channel, payload)\n" +
-        "            : () => Promise.reject(new Error(\"ipc-unavailable\"));\n" +
+        "        const pending = new Map();\n" +
+        "        boot._resolve = function(id, value) {\n" +
+        "            const p = pending.get(id);\n" +
+        "            if (!p) return;\n" +
+        "            pending.delete(id);\n" +
+        "            p.resolve(value);\n" +
+        "        };\n" +
+        "        boot._reject = function(id, message) {\n" +
+        "            const p = pending.get(id);\n" +
+        "            if (!p) return;\n" +
+        "            pending.delete(id);\n" +
+        "            p.reject(new Error(message || \"ipc-error\"));\n" +
+        "        };\n" +
+        "        boot.invoke = function(channel, payload) {\n" +
+        "            return new Promise(function(resolve, reject) {\n" +
+        "                const id = Math.random().toString(36).slice(2) + Date.now().toString(36);\n" +
+        "                pending.set(id, { resolve: resolve, reject: reject });\n" +
+        "                setTimeout(function() {\n" +
+        "                    if (pending.has(id)) {\n" +
+        "                        pending.delete(id);\n" +
+        "                        reject(new Error(\"ipc-timeout:\" + channel));\n" +
+        "                    }\n" +
+        "                }, 30000);\n" +
+        "                try {\n" +
+        "                    console.log(" + JSON.stringify(IPC_PREFIX) + " + JSON.stringify({\n" +
+        "                        id: id, channel: channel, payload: payload == null ? null : payload,\n" +
+        "                    }));\n" +
+        "                } catch (e) {\n" +
+        "                    pending.delete(id);\n" +
+        "                    reject(e);\n" +
+        "                }\n" +
+        "            });\n" +
+        "        };\n" +
         "        Object.defineProperty(globalThis, \"__BOON__\", {\n" +
         "            value: boot, writable: false, configurable: false, enumerable: false,\n" +
         "        });\n" +
@@ -383,11 +468,33 @@ function buildBootBridge() {
         "})();\n";
 }
 
+function attachConsoleIpc(webContents) {
+    if (webContents.__boonConsoleIpcAttached) return;
+    webContents.__boonConsoleIpcAttached = true;
+    // Electron 28+ passes a `details` object; older versions pass positional
+    // (event, level, message, …). We handle both signatures defensively so
+    // BOON keeps working across Discord's Electron upgrades.
+    const handler = (...args) => {
+        let text = "";
+        if (args.length === 1 && args[0] && typeof args[0].message === "string") {
+            text = args[0].message;
+        } else if (typeof args[2] === "string") {
+            text = args[2];
+        } else if (typeof args[1] === "string") {
+            text = args[1];
+        }
+        if (typeof text !== "string" || text.indexOf(IPC_PREFIX) !== 0) return;
+        dispatchConsoleIpc(webContents, text.slice(IPC_PREFIX.length));
+    };
+    webContents.on("console-message", handler);
+}
+
 function injectInto(webContents) {
     if (!rendererCode) return;
     if (webContents.__boonInjected) return;
     if (!shouldInject(webContents)) return;
     webContents.__boonInjected = true;
+    attachConsoleIpc(webContents);
     const code = RESTORE_STORAGE_APIS + "\n" + buildBootBridge() + "\n" + rendererCode;
     webContents
         .executeJavaScript(code, true)

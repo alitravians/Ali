@@ -477,6 +477,133 @@ const STYLE = `
 .boon-palette-item .t { font-size: 14px; color: ${TEXT_0}; font-weight: 600; }
 .boon-palette-item .s { font-size: 12px; color: ${TEXT_2}; margin-top: 2px; }
 .boon-empty { padding: 20px; text-align: center; color: ${TEXT_2}; font-size: 13px; }
+
+/* ── Releases modal (popup on "Check for Updates") ────────────────────────── */
+.boon-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483700;
+    background: rgba(0,0,0,0.78);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    direction: rtl;
+    font-family: var(--font-primary, "gg sans", "Noto Sans", "Segoe UI", sans-serif);
+    color: ${TEXT_0};
+    padding: 24px;
+}
+.boon-modal {
+    width: min(720px, 100%);
+    max-height: 88vh;
+    background: ${BG_1};
+    border: 1px solid ${BORDER};
+    border-radius: 14px;
+    box-shadow: 0 24px 64px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,255,136,0.12);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.boon-modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid ${BORDER};
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: ${BG_0};
+}
+.boon-modal-header h2 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    color: ${TEXT_0};
+}
+.boon-modal-header .boon-modal-sub {
+    margin-top: 4px;
+    font-size: 12px;
+    color: ${TEXT_2};
+}
+.boon-modal-body {
+    padding: 18px 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+.boon-modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid ${BORDER};
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: flex-end;
+    background: ${BG_0};
+    flex-wrap: wrap;
+}
+.boon-modal-footer .boon-modal-status {
+    margin-inline-end: auto;
+    font-size: 12px;
+    color: ${TEXT_2};
+    min-height: 16px;
+}
+.boon-modal-close {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: ${TEXT_2};
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 4px 8px;
+}
+.boon-modal-close:hover { color: ${TEXT_0}; }
+.boon-release {
+    border: 1px solid ${BORDER};
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+    background: ${BG_2};
+}
+.boon-release.is-current { border-color: ${ACCENT}; box-shadow: 0 0 0 1px rgba(0,255,136,0.25) inset; }
+.boon-release-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+.boon-release-tag {
+    font-weight: 700;
+    color: ${ACCENT};
+    font-size: 14px;
+}
+.boon-release-date {
+    font-size: 12px;
+    color: ${TEXT_2};
+}
+.boon-release-badge {
+    margin-inline-start: auto;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.boon-release-badge.is-new { background: rgba(0,255,136,0.18); color: ${ACCENT}; }
+.boon-release-badge.is-current { background: ${BG_3}; color: ${TEXT_1}; }
+.boon-release-notes {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    color: ${TEXT_0};
+    font-size: 13px;
+    line-height: 1.6;
+}
+.boon-release-notes li {
+    padding: 3px 0;
+    display: flex;
+    gap: 8px;
+}
+.boon-release-notes .boon-note-emoji { flex-shrink: 0; }
+.boon-release-empty { color: ${TEXT_2}; font-size: 13px; margin: 4px 0 0; }
 `;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -823,6 +950,208 @@ function renderProfiles(main: HTMLElement): void {
     main.appendChild(savePanel);
 }
 
+/**
+ * Modal popup displayed when the user clicks "التحقق من التحديثات". Shows
+ * every release fetched from GitHub as a card with parsed changelog
+ * sections (added/fixed/improved/other) and an Install + Restart pair for
+ * the latest tag when it's newer than the running build.
+ *
+ * The modal owns its own fetch lifecycle and never throws — the inline
+ * Updates tab still renders the same data as a fallback for users who
+ * prefer it.
+ */
+function showReleasesModal(onAfterAction?: () => void): void {
+    // If a previous modal is still attached, dispose it before re-opening.
+    document.querySelectorAll(".boon-modal-overlay").forEach(n => n.remove());
+
+    const overlay = el("div", { className: "boon-modal-overlay" });
+    const modal = el("div", { className: "boon-modal" });
+    overlay.appendChild(modal);
+
+    const headerLeft = el("div", {},
+        el("h2", {}, "التحديثات والإضافات"),
+        el("div", { className: "boon-modal-sub" }, `الإصدار الحالي: v${VERSION}`),
+    );
+    const closeBtn = el("button", {
+        className: "boon-modal-close",
+        title: "إغلاق",
+        onclick: () => overlay.remove(),
+    }, "✕") as HTMLButtonElement;
+    modal.appendChild(el("div", { className: "boon-modal-header" }, headerLeft, closeBtn));
+
+    const body = el("div", { className: "boon-modal-body" });
+    const loading = el("div", { className: "boon-empty" }, "جاري جلب الإصدارات من GitHub…");
+    body.appendChild(loading);
+    modal.appendChild(body);
+
+    const footer = el("div", { className: "boon-modal-footer" });
+    const status = el("div", { className: "boon-modal-status" }, "");
+    footer.appendChild(status);
+    const ghLink = el("a", {
+        href: updater.RELEASES_URL,
+        target: "_blank",
+        rel: "noopener",
+        className: "boon-btn boon-btn-ghost",
+        style: { textDecoration: "none" },
+    }, "فتح صفحة GitHub");
+    footer.appendChild(ghLink);
+    const closeFooterBtn = el("button", {
+        className: "boon-btn boon-btn-ghost",
+        onclick: () => overlay.remove(),
+    }, "إغلاق") as HTMLButtonElement;
+    footer.appendChild(closeFooterBtn);
+    modal.appendChild(footer);
+
+    overlay.addEventListener("click", (ev) => {
+        if (ev.target === overlay) overlay.remove();
+    });
+    const onKey = (ev: KeyboardEvent): void => {
+        if (ev.key === "Escape") {
+            overlay.remove();
+            document.removeEventListener("keydown", onKey);
+        }
+    };
+    document.addEventListener("keydown", onKey);
+
+    (document.body || document.documentElement).appendChild(overlay);
+
+    const KIND_META: Record<updater.ChangelogSectionKind, { emoji: string; label: string }> = {
+        added: { emoji: "🧩", label: "إضافات" },
+        fixed: { emoji: "🐛", label: "إصلاحات" },
+        improved: { emoji: "✨", label: "تحسينات" },
+        other: { emoji: "📝", label: "ملاحظات" },
+    };
+
+    const renderReleaseCard = (r: updater.Release, isCurrent: boolean, isNewerThanCurrent: boolean): HTMLElement => {
+        const card = el("div", { className: "boon-release" + (isCurrent ? " is-current" : "") });
+        const head = el("div", { className: "boon-release-head" });
+        head.appendChild(el("span", { className: "boon-release-tag" }, r.tag));
+        head.appendChild(el("span", { className: "boon-release-date" }, new Date(r.publishedAt).toLocaleDateString("ar")));
+        if (isNewerThanCurrent) {
+            head.appendChild(el("span", { className: "boon-release-badge is-new" }, "جديد"));
+        } else if (isCurrent) {
+            head.appendChild(el("span", { className: "boon-release-badge is-current" }, "الحالي"));
+        }
+        card.appendChild(head);
+
+        if (r.sections.length === 0) {
+            card.appendChild(el("p", { className: "boon-release-empty" }, "(لا توجد ملاحظات منسّقة لهذا الإصدار — افتح GitHub لقراءة التفاصيل.)"));
+        } else {
+            const ul = el("ul", { className: "boon-release-notes" });
+            for (const sec of r.sections) {
+                const meta = KIND_META[sec.kind] ?? KIND_META.other;
+                for (const item of sec.items) {
+                    const li = el("li", {},
+                        el("span", { className: "boon-note-emoji", title: meta.label }, meta.emoji),
+                        el("span", {}, item),
+                    );
+                    ul.appendChild(li);
+                }
+            }
+            card.appendChild(ul);
+        }
+        return card;
+    };
+
+    const setStatus = (text: string, color: string): void => {
+        status.textContent = text;
+        status.setAttribute("style", `color: ${color}; font-size: 12px; min-height: 16px; margin-inline-end: auto;`);
+    };
+
+    void (async (): Promise<void> => {
+        let result: updater.FetchResult;
+        try {
+            result = await updater.fetchReleasesResult(10);
+        } catch (err) {
+            result = { releases: [], error: "network" };
+            // eslint-disable-next-line no-console
+            console.error("[BOON] modal fetch threw:", err);
+        }
+        body.innerHTML = "";
+
+        if (result.releases.length === 0) {
+            let reason = "لا توجد إصدارات بعد، أو حدث خطأ في الاتصال.";
+            if (result.error === "rate-limited") {
+                reason = "تجاوز GitHub الحدّ المسموح من الطلبات (HTTP " +
+                    (result.httpStatus ?? 403) +
+                    "). جرّب لاحقاً، أو افتح صفحة الإصدارات يدوياً.";
+            } else if (result.error === "network") {
+                reason = "تعذّر الاتصال بـ GitHub — تأكد من اتصالك بالإنترنت.";
+            } else if (result.error === "http") {
+                reason = "ردّ GitHub بخطأ HTTP " + (result.httpStatus ?? "غير معروف") + ".";
+            }
+            setStatus("لم نتمكّن من الجلب", "#ff8189");
+            body.appendChild(el("p", { className: "boon-release-empty" }, reason));
+            return;
+        }
+
+        const latest = result.releases[0];
+        const hasUpdate = updater.isNewer(latest.tag, VERSION);
+
+        if (hasUpdate) {
+            setStatus(`الإصدار الأحدث: ${latest.tag} — تحديث متوفّر`, ACCENT);
+
+            const boot = (globalThis as { __BOON__?: { ipc: boolean } }).__BOON__;
+            const hasIpc = !!boot?.ipc;
+            if (hasIpc) {
+                const installBtn = el("button", { className: "boon-btn" }, `تثبيت ${latest.tag}`) as HTMLButtonElement;
+                const restartBtn = el("button", {
+                    className: "boon-btn boon-btn-ghost",
+                    disabled: true,
+                }, "أعد تشغيل Discord") as HTMLButtonElement;
+                installBtn.addEventListener("click", async () => {
+                    installBtn.disabled = true;
+                    installBtn.textContent = "جاري التنزيل…";
+                    setStatus(`تنزيل renderer.js من ${latest.tag}…`, TEXT_1);
+                    try {
+                        const staged = await updater.stageUpdate(latest.tag);
+                        installBtn.textContent = `تم التنزيل — v${staged.version ?? latest.tag}`;
+                        setStatus("التحديث جاهز. اضغط \"أعد تشغيل Discord\" لتطبيقه.", ACCENT);
+                        restartBtn.disabled = false;
+                        onAfterAction?.();
+                    } catch (err) {
+                        installBtn.disabled = false;
+                        installBtn.textContent = `تثبيت ${latest.tag}`;
+                        setStatus("فشل التنزيل: " + (err instanceof Error ? err.message : String(err)), "#ff8189");
+                    }
+                });
+                restartBtn.addEventListener("click", async () => {
+                    restartBtn.disabled = true;
+                    restartBtn.textContent = "جاري إعادة التشغيل…";
+                    try {
+                        await updater.relaunchDiscord();
+                    } catch (err) {
+                        restartBtn.disabled = false;
+                        restartBtn.textContent = "أعد تشغيل Discord";
+                        setStatus("تعذّر إعادة التشغيل: " +
+                            (err instanceof Error ? err.message : String(err)), "#ff8189");
+                    }
+                });
+                // Re-insert install/restart at the front of the footer.
+                footer.insertBefore(installBtn, ghLink);
+                footer.insertBefore(restartBtn, ghLink);
+            } else {
+                const openLatest = el("a", {
+                    href: latest.htmlUrl,
+                    target: "_blank",
+                    rel: "noopener",
+                    className: "boon-btn",
+                    style: { textDecoration: "none" },
+                }, `فتح ${latest.tag}`);
+                footer.insertBefore(openLatest, ghLink);
+            }
+        } else {
+            setStatus(`أنت على آخر إصدار: v${VERSION}`, ACCENT);
+        }
+
+        for (const r of result.releases) {
+            const isCurrent = r.tag === `boon-v${VERSION}` || r.tag === `v${VERSION}` || r.tag === VERSION;
+            const isNewer = updater.isNewer(r.tag, VERSION);
+            body.appendChild(renderReleaseCard(r, isCurrent, isNewer));
+        }
+    })();
+}
+
 async function renderUpdater(main: HTMLElement): Promise<void> {
     main.appendChild(
         el("div", { className: "boon-main-header" },
@@ -878,7 +1207,21 @@ async function renderUpdater(main: HTMLElement): Promise<void> {
         list.innerHTML = "";
         list.appendChild(el("p", { style: { color: TEXT_2, fontSize: "13px" } }, "جاري جلب سجل الإصدارات…"));
 
-        const result = await updater.fetchReleasesResult(10);
+        // Defensive: every error path inside fetchReleasesResult should
+        // return a structured FetchResult, but the UI must not get wedged
+        // in "loading" if anything below the bridge throws unexpectedly.
+        // We reset the button + status no matter what happens.
+        let result: updater.FetchResult;
+        try {
+            result = await updater.fetchReleasesResult(10);
+        } catch (err) {
+            result = {
+                releases: [],
+                error: "network",
+            };
+            // eslint-disable-next-line no-console
+            console.error("[BOON] fetchReleasesResult threw:", err);
+        }
         list.innerHTML = "";
         checkBtn.disabled = false;
         checkBtn.textContent = "التحقق مرة أخرى";
@@ -1002,7 +1345,12 @@ async function renderUpdater(main: HTMLElement): Promise<void> {
         }
     };
 
-    checkBtn.addEventListener("click", () => { void runFetch(); });
+    // Primary action: open a popup modal listing all releases. The inline
+    // list keeps rendering as a secondary mirror after the modal closes so
+    // users who scroll the Updates tab still see the same data.
+    checkBtn.addEventListener("click", () => {
+        showReleasesModal(() => { void runFetch(); });
+    });
     await runFetch();
 }
 
