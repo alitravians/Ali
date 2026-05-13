@@ -41,7 +41,7 @@ import type {
 
 const STYLE_ID = "boon-ui-styles";
 const ROOT_ID = "boon-ui-root";
-const VERSION = "0.1.2";
+const VERSION = "0.1.3";
 
 const ACCENT = "#00ff88";
 const ACCENT_DIM = "#00cc6e";
@@ -539,6 +539,39 @@ interface UIState {
 
 const state: UIState = { view: "home", pluginDetailId: null };
 
+// When BOON is rendered inside Discord's User Settings (instead of the
+// floating overlay) we keep a reference to the host element so internal
+// re-renders (plugin toggle, back button, reset, etc.) hit the same node
+// instead of looking for a non-existent overlay.
+let embeddedHost: HTMLElement | null = null;
+
+/**
+ * Re-render the current view in whichever mode is active (floating overlay
+ * or embedded inside Discord's User Settings). All in-page state changes —
+ * toggles, navigation, plugin-detail back button — should go through here so
+ * the right host gets updated.
+ */
+function rerender(): void {
+    if (embeddedHost) {
+        const host = embeddedHost;
+        host.innerHTML = "";
+        switch (state.view) {
+            case "home": renderHome(host); break;
+            case "plugins":
+                if (state.pluginDetailId) openPluginDetail();
+                else renderPlugins(host);
+                break;
+            case "themes": renderThemes(host); break;
+            case "updater": void renderUpdater(host); break;
+            case "profiles": renderProfiles(host); break;
+            case "activity": renderActivity(host); break;
+            case "backup": renderBackup(host); break;
+        }
+    } else {
+        render();
+    }
+}
+
 function renderHome(main: HTMLElement): void {
     const plugins = pm.list();
     const active = plugins.filter(p => p.enabled).length;
@@ -640,7 +673,7 @@ function renderPlugins(main: HTMLElement): void {
         switchInput.addEventListener("change", async ev => {
             ev.stopPropagation();
             await pm.toggle(info.id);
-            render();
+            rerender();
         });
         const switchLabel = el(
             "label",
@@ -802,73 +835,175 @@ async function renderUpdater(main: HTMLElement): Promise<void> {
     );
 
     const summary = el("div", { className: "boon-card" });
-    const summaryStatus = el("div", { className: "boon-row" },
-        el("span", { className: "boon-row-label" }, "الإصدار الحالي"),
-        el("span", {}, `v${VERSION}`),
+    summary.appendChild(el("h3", {}, "حالة التحديث"));
+    summary.appendChild(
+        el("div", { className: "boon-row" },
+            el("span", { className: "boon-row-label" }, "الإصدار الحالي"),
+            el("span", {}, `v${VERSION}`),
+        ),
     );
     const latestRow = el("div", { className: "boon-row" });
-    summary.appendChild(el("h3", {}, "حالة التحديث"));
-    summary.appendChild(summaryStatus);
+    latestRow.appendChild(el("span", { className: "boon-row-label" }, "الإصدار الأحدث"));
+    const latestValue = el("span", {}, "—");
+    latestRow.appendChild(latestValue);
     summary.appendChild(latestRow);
+
+    const actionRow = el("div", { className: "boon-row", style: { gap: "8px", flexWrap: "wrap" } });
+    const checkBtn = el("button", { className: "boon-btn" }, "التحقق من التحديثات") as HTMLButtonElement;
+    const openReleasesBtn = el("a", {
+        href: updater.RELEASES_URL,
+        target: "_blank",
+        rel: "noopener",
+        className: "boon-btn boon-btn-ghost",
+        style: { textDecoration: "none", textAlign: "center" },
+    }, "فتح صفحة الإصدارات");
+    actionRow.appendChild(checkBtn);
+    actionRow.appendChild(openReleasesBtn);
+    summary.appendChild(actionRow);
+
     main.appendChild(summary);
 
     const list = el("div");
     main.appendChild(list);
-    list.appendChild(el("p", { style: { color: TEXT_2, fontSize: "13px" } }, "جاري جلب سجل الإصدارات…"));
 
-    const releases = await updater.fetchReleases(10);
-    list.innerHTML = "";
+    const setStatus = (text: string, color: string): void => {
+        latestValue.textContent = text;
+        latestValue.setAttribute("style", `color: ${color}`);
+    };
 
-    if (releases.length === 0) {
-        latestRow.appendChild(el("span", { className: "boon-row-label" }, "الإصدار الأحدث"));
-        latestRow.appendChild(el("span", {}, "لم نتمكّن من الجلب"));
-        list.appendChild(el("p", { style: { color: TEXT_2, fontSize: "13px" } }, "لا توجد إصدارات بعد، أو حدث خطأ في الاتصال."));
-        return;
-    }
+    const runFetch = async (): Promise<void> => {
+        checkBtn.disabled = true;
+        checkBtn.textContent = "جاري الجلب…";
+        setStatus("جاري الجلب…", TEXT_2);
+        list.innerHTML = "";
+        list.appendChild(el("p", { style: { color: TEXT_2, fontSize: "13px" } }, "جاري جلب سجل الإصدارات…"));
 
-    const latest = releases[0];
-    const hasUpdate = updater.isNewer(latest.tag, VERSION);
-    latestRow.appendChild(el("span", { className: "boon-row-label" }, "الإصدار الأحدث"));
-    latestRow.appendChild(
-        el("span", { style: { color: hasUpdate ? ACCENT : TEXT_1 } },
-            `${latest.tag}${hasUpdate ? " — تحديث متوفّر" : " — أنت على أحدث نسخة"}`),
-    );
-    if (hasUpdate) {
-        summary.appendChild(
-            el("div", { className: "boon-row" },
-                el("a", {
-                    href: latest.htmlUrl,
-                    target: "_blank",
-                    rel: "noopener",
-                    className: "boon-btn",
-                    style: { textDecoration: "none", textAlign: "center" },
-                }, `تحديث إلى ${latest.tag}`),
-            ),
-        );
-    }
+        const result = await updater.fetchReleasesResult(10);
+        list.innerHTML = "";
+        checkBtn.disabled = false;
+        checkBtn.textContent = "التحقق مرة أخرى";
 
-    for (const r of releases) {
-        const block = el("div", { className: "boon-release" });
-        block.appendChild(
-            el("h3", {},
-                document.createTextNode(`${r.name} `),
-                el("span", { className: "boon-release-date" }, new Date(r.publishedAt).toLocaleDateString("ar")),
-            ),
-        );
-        if (r.sections.length === 0) {
-            block.appendChild(el("p", { style: { color: TEXT_2, fontSize: "12px" } }, "(لا يوجد سجل تغييرات منسّق لهذا الإصدار)"));
-        } else {
-            for (const sec of r.sections) {
-                const section = el("section", { className: sec.kind });
-                section.appendChild(el("h4", {}, sec.title));
-                const ul = el("ul");
-                for (const item of sec.items) ul.appendChild(el("li", {}, item));
-                section.appendChild(ul);
-                block.appendChild(section);
+        if (result.releases.length === 0) {
+            let reason = "لا توجد إصدارات بعد، أو حدث خطأ في الاتصال.";
+            if (result.error === "rate-limited") {
+                reason = "تجاوز GitHub الحدّ المسموح من الطلبات (HTTP " +
+                    (result.httpStatus ?? 403) +
+                    "). جرّب لاحقاً، أو افتح صفحة الإصدارات يدوياً من الزر أعلاه.";
+            } else if (result.error === "network") {
+                reason = "تعذّر الاتصال بـ GitHub — تأكد من اتصالك بالإنترنت.";
+            } else if (result.error === "http") {
+                reason = "ردّ GitHub بخطأ HTTP " + (result.httpStatus ?? "غير معروف") + ". جرّب التحقق مرة أخرى.";
             }
+            setStatus("لم نتمكّن من الجلب", "#ff8189");
+            list.appendChild(el("p", { style: { color: TEXT_2, fontSize: "13px" } }, reason));
+            return;
         }
-        list.appendChild(block);
-    }
+
+        const latest = result.releases[0];
+        const hasUpdate = updater.isNewer(latest.tag, VERSION);
+        setStatus(
+            `${latest.tag}${hasUpdate ? " — تحديث متوفّر" : " — أنت على أحدث نسخة"}`,
+            hasUpdate ? ACCENT : TEXT_1,
+        );
+
+        // Remove any previously rendered install/restart UI before re-adding.
+        summary.querySelectorAll<HTMLElement>("[data-boon-update-cta]").forEach(n => n.remove());
+        if (hasUpdate) {
+            const ctaRow = el("div", { className: "boon-row", style: { gap: "8px", flexWrap: "wrap" } });
+            ctaRow.setAttribute("data-boon-update-cta", "true");
+
+            const boot = (globalThis as { __BOON__?: { ipc: boolean } }).__BOON__;
+            const hasIpc = !!boot?.ipc;
+
+            if (hasIpc) {
+                // Desktop client — drive the install via the patcher.
+                const installBtn = el("button", { className: "boon-btn" }, `تثبيت ${latest.tag}`) as HTMLButtonElement;
+                const restartBtn = el("button", {
+                    className: "boon-btn boon-btn-ghost",
+                    disabled: true,
+                    style: { textAlign: "center" },
+                }, "أعد تشغيل Discord") as HTMLButtonElement;
+                const statusLine = el("span", { style: { color: TEXT_2, fontSize: "12px", flexBasis: "100%" } }, "");
+
+                installBtn.addEventListener("click", async () => {
+                    installBtn.disabled = true;
+                    installBtn.textContent = "جاري التنزيل…";
+                    statusLine.textContent = "تنزيل renderer.js من " + latest.tag + "…";
+                    statusLine.setAttribute("style", `color: ${TEXT_2}; font-size: 12px; flex-basis: 100%`);
+                    try {
+                        const staged = await updater.stageUpdate(latest.tag);
+                        installBtn.textContent = `تم التنزيل — ${staged.version ? "v" + staged.version : latest.tag}`;
+                        statusLine.textContent = "التحديث جاهز. اضغط \"أعد تشغيل Discord\" لتطبيقه.";
+                        statusLine.setAttribute("style", `color: ${ACCENT}; font-size: 12px; flex-basis: 100%`);
+                        restartBtn.disabled = false;
+                    } catch (err) {
+                        installBtn.disabled = false;
+                        installBtn.textContent = `تثبيت ${latest.tag}`;
+                        statusLine.textContent = "فشل التنزيل: " + (err instanceof Error ? err.message : String(err)) +
+                            ". جرّب مرة أخرى أو افتح صفحة الإصدارات.";
+                        statusLine.setAttribute("style", `color: #ff8189; font-size: 12px; flex-basis: 100%`);
+                    }
+                });
+                restartBtn.addEventListener("click", async () => {
+                    restartBtn.disabled = true;
+                    restartBtn.textContent = "جاري إعادة التشغيل…";
+                    try {
+                        await updater.relaunchDiscord();
+                    } catch (err) {
+                        restartBtn.disabled = false;
+                        restartBtn.textContent = "أعد تشغيل Discord";
+                        statusLine.textContent = "تعذّر إعادة التشغيل: " +
+                            (err instanceof Error ? err.message : String(err)) +
+                            ". أغلق Discord افتحه يدوياً لتطبيق التحديث.";
+                        statusLine.setAttribute("style", `color: #ff8189; font-size: 12px; flex-basis: 100%`);
+                    }
+                });
+
+                ctaRow.appendChild(installBtn);
+                ctaRow.appendChild(restartBtn);
+                ctaRow.appendChild(statusLine);
+            } else {
+                // Non-desktop target (extension / userscript) — fall back to
+                // the github.com release page.
+                ctaRow.appendChild(
+                    el("a", {
+                        href: latest.htmlUrl,
+                        target: "_blank",
+                        rel: "noopener",
+                        className: "boon-btn",
+                        style: { textDecoration: "none", textAlign: "center" },
+                    }, `فتح ${latest.tag} على GitHub`),
+                );
+            }
+            summary.appendChild(ctaRow);
+        }
+
+        for (const r of result.releases) {
+            const block = el("div", { className: "boon-release" });
+            block.appendChild(
+                el("h3", {},
+                    document.createTextNode(`${r.name} `),
+                    el("span", { className: "boon-release-date" }, new Date(r.publishedAt).toLocaleDateString("ar")),
+                ),
+            );
+            if (r.sections.length === 0) {
+                block.appendChild(el("p", { style: { color: TEXT_2, fontSize: "12px" } }, "(لا يوجد سجل تغييرات منسّق لهذا الإصدار)"));
+            } else {
+                for (const sec of r.sections) {
+                    const section = el("section", { className: sec.kind });
+                    section.appendChild(el("h4", {}, sec.title));
+                    const ul = el("ul");
+                    for (const item of sec.items) ul.appendChild(el("li", {}, item));
+                    section.appendChild(ul);
+                    block.appendChild(section);
+                }
+            }
+            list.appendChild(block);
+        }
+    };
+
+    checkBtn.addEventListener("click", () => { void runFetch(); });
+    await runFetch();
 }
 
 function renderBackup(main: HTMLElement): void {
@@ -1016,10 +1151,18 @@ function openPluginDetail(): void {
     const entry = pm.get(id);
     if (!entry) return;
     const def = entry.def as PluginDefinition<SettingsSchema>;
-    const overlay = document.getElementById(ROOT_ID);
-    if (!overlay) return;
 
-    const main = overlay.querySelector<HTMLElement>(".boon-main");
+    // Resolve where to draw the detail panel. In embedded mode we paint into
+    // the host `renderEmbedded` was given; in floating-overlay mode we look
+    // up the overlay's `.boon-main` content area.
+    let main: HTMLElement | null = null;
+    if (embeddedHost) {
+        main = embeddedHost;
+    } else {
+        const overlay = document.getElementById(ROOT_ID);
+        if (!overlay) return;
+        main = overlay.querySelector<HTMLElement>(".boon-main");
+    }
     if (!main) return;
     main.innerHTML = "";
 
@@ -1031,7 +1174,7 @@ function openPluginDetail(): void {
             ),
             el("button", {
                 className: "boon-btn boon-btn-ghost",
-                onclick: () => { state.pluginDetailId = null; state.view = "plugins"; render(); },
+                onclick: () => { state.pluginDetailId = null; state.view = "plugins"; rerender(); },
             }, "→ الإضافات"),
         ),
     );
@@ -1053,7 +1196,7 @@ function openPluginDetail(): void {
     const toggleRow = el("div", { className: "boon-row" });
     toggleRow.appendChild(el("span", { className: "boon-row-label" }, "مفعّلة"));
     const tInput = el("input", { type: "checkbox", checked: entry.enabled }) as HTMLInputElement;
-    tInput.addEventListener("change", async () => { await pm.toggle(id); render(); });
+    tInput.addEventListener("change", async () => { await pm.toggle(id); rerender(); });
     toggleRow.appendChild(el("label", { className: "boon-switch" }, tInput, el("span", { className: "boon-slider" })));
     meta.appendChild(toggleRow);
     main.appendChild(meta);
@@ -1076,7 +1219,7 @@ function openPluginDetail(): void {
             if (!confirm("متأكد؟")) return;
             resetPlugin(id);
             toast("تم إعادة التعيين", "success");
-            render();
+            rerender();
         },
     }, "إعادة تعيين"));
     main.appendChild(dangerBox);
@@ -1285,7 +1428,7 @@ function renderThemes(main: HTMLElement): void {
     card.appendChild(el("p", { style: { color: TEXT_1, fontSize: "13px" } }, themePlugin.description));
     card.appendChild(el("button", {
         className: "boon-btn",
-        onclick: () => { state.pluginDetailId = "aliThemes"; state.view = "plugins"; render(); },
+        onclick: () => { state.pluginDetailId = "aliThemes"; state.view = "plugins"; rerender(); },
     }, "افتح إعدادات AliThemes"));
     main.appendChild(card);
 }
@@ -1317,6 +1460,7 @@ export function toggle(): void {
  */
 export function renderEmbedded(host: HTMLElement, view: ViewId = "home"): void {
     ensureStyles();
+    embeddedHost = host;
     host.innerHTML = "";
     host.classList.add("boon-embedded");
     state.view = view;
@@ -1330,6 +1474,16 @@ export function renderEmbedded(host: HTMLElement, view: ViewId = "home"): void {
         case "activity": renderActivity(host); break;
         case "backup": renderBackup(host); break;
     }
+}
+
+/**
+ * Called by `userSettingsIntegration` when the user clicks a non-BOON row in
+ * the Discord settings sidebar so Discord can take its content area back.
+ * Clearing the embedded host pointer makes any subsequent floating-overlay
+ * re-render hit the overlay path again.
+ */
+export function clearEmbedded(): void {
+    embeddedHost = null;
 }
 
 export type { ViewId };

@@ -99,26 +99,103 @@ function toRelease(raw: RawRelease): Release {
     };
 }
 
-export async function fetchReleases(limit: number = 10): Promise<Release[]> {
+export type FetchErrorKind = "rate-limited" | "network" | "http" | "none";
+
+export interface FetchResult {
+    releases: Release[];
+    error: FetchErrorKind;
+    httpStatus?: number;
+}
+
+export const RELEASES_URL = "https://github.com/alitravians/Ali/releases";
+
+/**
+ * Fetch BOON's GitHub releases. Returns a structured result so the UI can
+ * distinguish "no releases yet" from "GitHub rate-limited us" from "user is
+ * offline" — every failure mode gets a clear message and a manual fallback
+ * link to the releases page on github.com.
+ */
+export async function fetchReleasesResult(limit: number = 10): Promise<FetchResult> {
     try {
         const res = await fetch(`${REPO_API}?per_page=${Math.min(limit, 30)}`, {
             headers: { Accept: "application/vnd.github+json" },
+            cache: "no-cache",
         });
         if (!res.ok) {
             rootLogger.warn(`updater: GitHub ${res.status}`);
-            return [];
+            const kind: FetchErrorKind =
+                res.status === 403 || res.status === 429 ? "rate-limited" : "http";
+            return { releases: [], error: kind, httpStatus: res.status };
         }
         const json = (await res.json()) as RawRelease[];
-        return json.map(toRelease);
+        return { releases: json.map(toRelease), error: "none" };
     } catch (err) {
         rootLogger.warn("updater: failed to fetch", err);
-        return [];
+        return { releases: [], error: "network" };
     }
+}
+
+export async function fetchReleases(limit: number = 10): Promise<Release[]> {
+    const r = await fetchReleasesResult(limit);
+    return r.releases;
 }
 
 export async function fetchLatest(): Promise<Release | null> {
     const releases = await fetchReleases(1);
     return releases[0] ?? null;
+}
+
+/**
+ * Fetch the `renderer.js` asset from a release. Returns the JS source as a
+ * string. Throws on network / HTTP / mismatch errors so the caller can show
+ * a clear message.
+ */
+export async function downloadRendererForTag(tag: string): Promise<string> {
+    // Release-asset URLs follow a stable pattern that does not consume
+    // GitHub API rate-limit budget (raw asset endpoint).
+    const url = `https://github.com/alitravians/Ali/releases/download/${encodeURIComponent(tag)}/renderer.js`;
+    const res = await fetch(url, { cache: "no-cache" });
+    if (!res.ok) {
+        throw new Error(`http-${res.status}`);
+    }
+    const text = await res.text();
+    // Sanity check matches the patcher's: must look like a BOON renderer.
+    if (text.length < 10000 || !text.includes("[BOON]") || !text.includes("VERSION")) {
+        throw new Error("invalid-renderer-payload");
+    }
+    return text;
+}
+
+/**
+ * Drive the in-app updater: download renderer.js for the latest release,
+ * stage it via the patcher's IPC, and (optionally) relaunch Discord.
+ *
+ * Returns the version that was staged. Callers should show a "restart"
+ * affordance on success.
+ */
+export async function stageUpdate(tag: string): Promise<{ version: string | null }> {
+    const boot = (globalThis as { __BOON__?: { invoke: (channel: string, payload?: unknown) => Promise<unknown> } }).__BOON__;
+    if (!boot || typeof boot.invoke !== "function") {
+        throw new Error("ipc-unavailable");
+    }
+    const code = await downloadRendererForTag(tag);
+    const result = await boot.invoke("BOON_STAGE_UPDATE", { code, tag }) as {
+        ok: boolean;
+        version?: string | null;
+        error?: string;
+    };
+    if (!result || !result.ok) {
+        throw new Error(result?.error || "stage-failed");
+    }
+    return { version: result.version ?? null };
+}
+
+export async function relaunchDiscord(): Promise<void> {
+    const boot = (globalThis as { __BOON__?: { invoke: (channel: string, payload?: unknown) => Promise<unknown> } }).__BOON__;
+    if (!boot || typeof boot.invoke !== "function") {
+        throw new Error("ipc-unavailable");
+    }
+    await boot.invoke("BOON_RELAUNCH");
 }
 
 /** Compare two semver-like tags ("v0.1.0", "0.1.0"). Returns -1/0/1. */
