@@ -41,7 +41,7 @@ import type {
 
 const STYLE_ID = "boon-ui-styles";
 const ROOT_ID = "boon-ui-root";
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 
 const ACCENT = "#00ff88";
 const ACCENT_DIM = "#00cc6e";
