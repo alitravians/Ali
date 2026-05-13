@@ -1,0 +1,22 @@
+{
+    "name": "boon",
+    "version": "0.1.0",
+    "private": true,
+    "description": "BOON — Discord Client Modification Framework. Desktop client mod, browser extension, and userscript targets sharing a single plugin system.",
+    "license": "GPL-3.0-or-later",
+    "type": "module",
+    "scripts": {
+        "build": "node scripts/build.mjs",
+        "build:userscript": "node scripts/build.mjs userscript",
+        "build:extension": "node scripts/build.mjs extension",
+        "build:desktop": "node scripts/build.mjs desktop",
+        "typecheck": "tsc --noEmit",
+        "clean": "rimraf dist"
+    },
+    "devDependencies": {
+        "@types/node": "^20.11.0",
+        "esbuild": "^0.20.0",
+        "rimraf": "^5.0.5",
+        "typescript": "^5.3.3"
+    }
+}

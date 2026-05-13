@@ -1,0 +1,51 @@
+{
+    "manifest_version": 3,
+    "name": "BOON",
+    "version": "0.1.0",
+    "description": "BOON — Discord Client Modification Framework. Themes, moderation, auto-translate, YouTube player, Nitro ad blocker.",
+    "author": "ali travians",
+    "icons": {
+        "16": "icon-16.png",
+        "48": "icon-48.png",
+        "128": "icon-128.png"
+    },
+    "permissions": ["storage", "scripting"],
+    "host_permissions": [
+        "https://discord.com/*",
+        "https://*.discord.com/*"
+    ],
+    "background": {
+        "service_worker": "boon.background.js"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "BOON",
+        "default_icon": {
+            "16": "icon-16.png",
+            "48": "icon-48.png",
+            "128": "icon-128.png"
+        }
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "https://discord.com/*",
+                "https://canary.discord.com/*",
+                "https://ptb.discord.com/*"
+            ],
+            "js": ["boon.content.js"],
+            "run_at": "document_idle",
+            "all_frames": false
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": ["boon.userscript.js"],
+            "matches": [
+                "https://discord.com/*",
+                "https://canary.discord.com/*",
+                "https://ptb.discord.com/*"
+            ]
+        }
+    ]
+}
