@@ -9,6 +9,7 @@ import {
 } from "react";
 import { translate, type TranslationResult } from "../translator";
 import {
+  loadAchievements,
   loadAgreed,
   loadDarkMode,
   loadExtendedStats,
@@ -16,6 +17,8 @@ import {
   loadHistory,
   loadSeenTutorial,
   loadStats,
+  loadTrainingProgress,
+  saveAchievements,
   saveAgreed,
   saveDarkMode,
   saveExtendedStats,
@@ -25,7 +28,13 @@ import {
   saveStats,
   type AppStats,
   type ExtendedStats,
+  type TrainingProgress,
 } from "../storage";
+import {
+  findNewlyUnlocked,
+  type AchievementSnapshot,
+} from "../lib/achievementEngine";
+import type { Achievement } from "../data/achievements";
 
 interface AppContextValue {
   dark: boolean;
@@ -52,6 +61,11 @@ interface AppContextValue {
   favoritesSet: Set<string>;
   stats: AppStats;
   extendedStats: ExtendedStats;
+  trainingProgress: TrainingProgress;
+
+  unlockedAchievements: Record<string, { unlockedAt: number }>;
+  recentAchievement: Achievement | null;
+  dismissAchievementToast: () => void;
 
   handleTranslate: (text?: string) => void;
   toggleFavorite: (item: TranslationResult) => void;
@@ -72,6 +86,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [favorites, setFavorites] = useState<TranslationResult[]>(loadFavorites());
   const [stats, setStats] = useState<AppStats>(loadStats());
   const [extendedStats, setExtendedStats] = useState<ExtendedStats>(loadExtendedStats());
+  const [trainingProgress] = useState<TrainingProgress>(loadTrainingProgress());
+  const [unlockedAchievements, setUnlockedAchievements] = useState<
+    Record<string, { unlockedAt: number }>
+  >(loadAchievements());
+  const [recentAchievement, setRecentAchievement] = useState<Achievement | null>(
+    null
+  );
 
   useEffect(() => {
     const root = document.documentElement;
@@ -109,6 +130,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const favoritesSet = useMemo(
     () => new Set(favorites.map((f) => f.input)),
     [favorites]
+  );
+
+  const evaluateAchievements = useCallback(
+    (overrides?: {
+      extendedStats?: ExtendedStats;
+      favoritesCount?: number;
+    }) => {
+      setUnlockedAchievements((prev) => {
+        const snapshot: AchievementSnapshot = { unlockedIds: prev };
+        const ext = overrides?.extendedStats ?? extendedStats;
+        const favCount = overrides?.favoritesCount ?? favorites.length;
+        const newly = findNewlyUnlocked(snapshot, {
+          extendedStats: ext,
+          trainingProgress,
+          favoritesCount: favCount,
+        });
+        if (newly.length === 0) return prev;
+        const now = Date.now();
+        const next = { ...prev };
+        for (const a of newly) next[a.id] = { unlockedAt: now };
+        saveAchievements(next);
+        // surface the highest-tier unlock from this batch for the toast
+        setRecentAchievement(newly[newly.length - 1]);
+        return next;
+      });
+    },
+    [extendedStats, favorites.length, trainingProgress]
+  );
+
+  const dismissAchievementToast = useCallback(
+    () => setRecentAchievement(null),
+    []
   );
 
   const persistHistory = useCallback((next: TranslationResult[]) => {
@@ -153,9 +206,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         lastActiveDate: todayIso,
       };
       saveExtendedStats(next);
+      // schedule achievement evaluation with the freshly computed stats
+      window.setTimeout(
+        () => evaluateAchievements({ extendedStats: next }),
+        0
+      );
       return next;
     });
-  }, []);
+  }, [evaluateAchievements]);
 
   const handleTranslate = useCallback(
     (text?: string) => {
@@ -184,8 +242,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ? favorites.filter((f) => f.input !== item.input)
         : [item, ...favorites];
       persistFavorites(next);
+      if (!exists) {
+        window.setTimeout(
+          () => evaluateAchievements({ favoritesCount: next.length }),
+          0
+        );
+      }
     },
-    [favorites, persistFavorites]
+    [favorites, persistFavorites, evaluateAchievements]
   );
 
   const deleteHistory = useCallback(
@@ -220,6 +284,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       favoritesSet,
       stats,
       extendedStats,
+      trainingProgress,
+      unlockedAchievements,
+      recentAchievement,
+      dismissAchievementToast,
       handleTranslate,
       toggleFavorite,
       deleteHistory,
@@ -243,6 +311,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       favoritesSet,
       stats,
       extendedStats,
+      trainingProgress,
+      unlockedAchievements,
+      recentAchievement,
+      dismissAchievementToast,
       handleTranslate,
       toggleFavorite,
       deleteHistory,

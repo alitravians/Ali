@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Outlet } from "react-router-dom";
 import AppHeader from "./AppHeader";
 import OnboardingModal from "./OnboardingModal";
+import AchievementToast from "./AchievementToast";
 import StatsDialog from "../dialogs/StatsDialog";
 import HistoryDialog from "../dialogs/HistoryDialog";
 import FavoritesDialog from "../dialogs/FavoritesDialog";
@@ -24,7 +25,8 @@ export default function AppLayout({ children }: LayoutProps) {
   const [trainingOpen, setTrainingOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
-  const { tutorialOpen, closeTutorial } = useApp();
+  const { tutorialOpen, closeTutorial, recentAchievement, dismissAchievementToast } =
+    useApp();
 
   return (
     <div
@@ -88,6 +90,12 @@ export default function AppLayout({ children }: LayoutProps) {
       />
 
       {tutorialOpen && <OnboardingModal onClose={closeTutorial} />}
+      {recentAchievement && (
+        <AchievementToast
+          achievement={recentAchievement}
+          onClose={dismissAchievementToast}
+        />
+      )}
     </div>
   );
 }
