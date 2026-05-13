@@ -6,8 +6,9 @@ import StatsDialog from "../dialogs/StatsDialog";
 import HistoryDialog from "../dialogs/HistoryDialog";
 import FavoritesDialog from "../dialogs/FavoritesDialog";
 import CategoriesDialog from "../dialogs/CategoriesDialog";
+import WordOfDayDialog from "../dialogs/WordOfDayDialog";
 import PlaceholderDialog from "../dialogs/PlaceholderDialog";
-import { Calendar, Dumbbell, MessageSquare, Settings } from "lucide-react";
+import { Dumbbell, MessageSquare, Settings } from "lucide-react";
 import { useApp } from "../context/AppContext";
 
 interface LayoutProps {
@@ -60,14 +61,7 @@ export default function AppLayout({ children }: LayoutProps) {
         onClose={() => setCategoriesOpen(false)}
       />
 
-      <PlaceholderDialog
-        open={wordOpen}
-        onClose={() => setWordOpen(false)}
-        title="كلمة اليوم"
-        icon={<Calendar className="w-5 h-5 text-yellow-300" />}
-        description="كلمة جديدة كل يوم لتعلّم لغة الإشارة، مع متابعة سلسلة التعلّم اليومية (Streak)."
-        comingInPr="PR D"
-      />
+      <WordOfDayDialog open={wordOpen} onClose={() => setWordOpen(false)} />
       <PlaceholderDialog
         open={trainingOpen}
         onClose={() => setTrainingOpen(false)}

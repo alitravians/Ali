@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Send, X, Sparkles, Mic, MicOff, Volume2 } from "lucide-react";
+import { Send, X, Sparkles, Mic, MicOff, Volume2, Flame } from "lucide-react";
 import { useApp } from "../context/AppContext";
 import TranslationView from "../components/TranslationView";
+import WordOfDayCard from "../components/WordOfDayCard";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import { isSpeechSynthesisSupported, speak } from "../lib/speech";
 
@@ -26,6 +27,7 @@ export default function HomePage() {
     toggleFavorite,
     favoritesSet,
     stats,
+    extendedStats,
   } = useApp();
 
   const [voiceError, setVoiceError] = useState<string | null>(null);
@@ -61,6 +63,7 @@ export default function HomePage() {
 
   return (
     <div className="space-y-5">
+      <WordOfDayCard />
       <section className="bg-white/10 dark:bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-5 shadow-2xl">
         <label className="block text-sm text-purple-200 mb-2">
           اكتب النص العربي
@@ -128,9 +131,20 @@ export default function HomePage() {
             <X className="w-4 h-4" />
             مسح
           </button>
-          <div className="ms-auto text-xs text-purple-200 flex items-center gap-1">
-            <Sparkles className="w-3 h-3" />
-            ترجمات: {stats.totalTranslations} · كلمات: {stats.totalWords}
+          <div className="ms-auto text-xs text-purple-200 flex items-center gap-2">
+            {extendedStats.currentStreak > 0 && (
+              <span
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-orange-500/20 border border-orange-400/40 text-orange-100"
+                title={`سلسلة ${extendedStats.currentStreak} يوم`}
+              >
+                <Flame className="w-3 h-3" />
+                {extendedStats.currentStreak}
+              </span>
+            )}
+            <span className="flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              ترجمات: {stats.totalTranslations} · كلمات: {stats.totalWords}
+            </span>
           </div>
         </div>
 
