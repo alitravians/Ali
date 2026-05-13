@@ -96,7 +96,35 @@ async function buildExtension() {
 
 async function buildDesktop() {
     const outDir = join(DIST, "desktop");
+    await rm(outDir, { recursive: true, force: true });
     await mkdir(outDir, { recursive: true });
+
+    // Renderer payload: bundle BOON for execution inside Discord Desktop's
+    // renderer process. Loaded via `webContents.executeJavaScript` from
+    // patcher.js, so it must be a self-contained IIFE with no module imports.
+    await build({
+        ...COMMON_OPTIONS,
+        entryPoints: [join(SRC, "targets/desktop/main.ts")],
+        outfile: join(outDir, "renderer.js"),
+        globalName: "__BOON_DESKTOP",
+    });
+
+    // Patcher runs in Electron main process — copy verbatim (it uses Node APIs
+    // like `electron`, `path`, `fs`, so we deliberately do NOT bundle it).
+    await copyFile(
+        join(SRC, "targets/desktop/runtime/patcher.js"),
+        join(outDir, "patcher.js"),
+    );
+    // Bootstrap stub that goes inside the patched app.asar. The installer
+    // substitutes %PATCHER_PATH% at install time with the absolute path of
+    // patcher.js on the user's disk.
+    await copyFile(
+        join(SRC, "targets/desktop/runtime/index.js"),
+        join(outDir, "index.js.template"),
+    );
+
+    // Keep the legacy rebrand docs/script for users who prefer the
+    // Vencord-fork path.
     await copyFile(
         join(SRC, "targets/desktop/README.md"),
         join(outDir, "README.md"),

@@ -1,0 +1,301 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>تحميل BOON — تعديل دسكورد بالعربية</title>
+<meta name="description" content="حمّل BOON لتعديل واجهة Discord باللغة العربية مع ٥ إضافات مدمجة وألوان سايبر أخضر." />
+<style>
+:root {
+    --bg: #0b0f10;
+    --bg-card: #121819;
+    --fg: #e7faf0;
+    --muted: #9ec5b3;
+    --accent: #00ff88;
+    --accent-fade: rgba(0, 255, 136, 0.12);
+    --border: rgba(0, 255, 136, 0.18);
+}
+* { box-sizing: border-box; }
+html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "Cairo", "Noto Sans Arabic", -apple-system, BlinkMacSystemFont,
+        "Segoe UI", system-ui, sans-serif;
+    min-height: 100vh;
+}
+header {
+    text-align: center;
+    padding: 64px 20px 24px;
+}
+header .logo {
+    font-size: 72px;
+    font-weight: 900;
+    letter-spacing: 8px;
+    color: var(--accent);
+    margin: 0 0 8px;
+    text-shadow: 0 0 24px var(--accent-fade);
+}
+header .tagline {
+    font-size: 20px;
+    color: var(--muted);
+    margin: 0;
+    max-width: 720px;
+    margin-inline: auto;
+}
+main {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 24px 20px 64px;
+}
+.platforms {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    margin-top: 36px;
+}
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 24px;
+    transition: border-color 120ms ease, transform 120ms ease;
+}
+.card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+}
+.card h2 {
+    margin: 0 0 8px;
+    font-size: 22px;
+    color: var(--fg);
+}
+.card .arch {
+    color: var(--muted);
+    font-size: 13px;
+    margin: 0 0 16px;
+}
+.btn {
+    display: block;
+    text-align: center;
+    background: var(--accent);
+    color: #00130a;
+    font-weight: 800;
+    padding: 12px 16px;
+    border-radius: 10px;
+    text-decoration: none;
+    margin-bottom: 8px;
+    transition: filter 120ms ease;
+}
+.btn.alt {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--border);
+}
+.btn:hover { filter: brightness(1.1); }
+.steps {
+    margin-top: 48px;
+    padding-top: 36px;
+    border-top: 1px dashed var(--border);
+}
+.steps h2 {
+    color: var(--accent);
+    margin: 0 0 16px;
+}
+.steps ol { padding-inline-start: 24px; line-height: 1.9; }
+.warning {
+    margin-top: 24px;
+    background: var(--accent-fade);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    color: var(--fg);
+    line-height: 1.7;
+}
+.warning b { color: var(--accent); }
+footer {
+    text-align: center;
+    padding: 36px 20px;
+    color: var(--muted);
+    font-size: 14px;
+    border-top: 1px solid var(--border);
+}
+footer a { color: var(--accent); text-decoration: none; }
+code {
+    background: var(--accent-fade);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.95em;
+}
+.alt-paths {
+    margin-top: 48px;
+    padding-top: 36px;
+    border-top: 1px dashed var(--border);
+}
+.alt-paths h2 { color: var(--accent); }
+.alt-paths summary {
+    cursor: pointer;
+    padding: 8px 0;
+    color: var(--fg);
+}
+</style>
+</head>
+<body>
+
+<header>
+    <h1 class="logo">BOON</h1>
+    <p class="tagline">
+        تعديل دسكورد بالعربية حصرياً — ٥ إضافات مدمجة، تخصيص كامل، بدون خوادم،
+        وكل البيانات محفوظة على جهازك.
+    </p>
+</header>
+
+<main>
+
+    <h2 style="color: var(--accent); text-align: center; margin: 0;">
+        المثبّت لـ Discord Desktop
+    </h2>
+    <p style="text-align: center; color: var(--muted); margin: 8px 0 0;">
+        اختر نظامك، شغّل المثبّت، اضغط Patch. هذا كل شيء.
+    </p>
+
+    <section class="platforms">
+
+        <div class="card">
+            <h2>🪟 Windows</h2>
+            <p class="arch">Windows 10 / 11 — x64 أو ARM64</p>
+            <a class="btn"
+               href="https://github.com/alitravians/Ali/releases/latest/download/boon-installer-windows-amd64.exe">
+                تحميل x64
+            </a>
+            <a class="btn alt"
+               href="https://github.com/alitravians/Ali/releases/latest/download/boon-installer-windows-arm64.exe">
+                تحميل ARM64
+            </a>
+        </div>
+
+        <div class="card">
+            <h2>🍎 macOS</h2>
+            <p class="arch">macOS 12+ — Intel أو Apple Silicon</p>
+            <a class="btn"
+               href="https://github.com/alitravians/Ali/releases/latest/download/boon-installer-macos-arm64">
+                تحميل Apple Silicon
+            </a>
+            <a class="btn alt"
+               href="https://github.com/alitravians/Ali/releases/latest/download/boon-installer-macos-amd64">
+                تحميل Intel
+            </a>
+        </div>
+
+        <div class="card">
+            <h2>🐧 Linux</h2>
+            <p class="arch">x64 أو ARM64</p>
+            <a class="btn"
+               href="https://github.com/alitravians/Ali/releases/latest/download/boon-installer-linux-amd64">
+                تحميل x64
+            </a>
+            <a class="btn alt"
+               href="https://github.com/alitravians/Ali/releases/latest/download/boon-installer-linux-arm64">
+                تحميل ARM64
+            </a>
+        </div>
+
+    </section>
+
+    <section class="steps">
+        <h2>كيف أستخدم المثبّت؟</h2>
+        <ol>
+            <li>أغلق Discord بالكامل قبل التثبيت.</li>
+            <li>شغّل ملف <code>boon-installer-*</code> الذي حمّلته.</li>
+            <li>المثبّت يكتشف Discord تلقائياً. اضغط <b>١</b> (Patch).</li>
+            <li>افتح Discord مرة ثانية، ثم اضغط <code>Ctrl+Shift+B</code> لفتح لوحة BOON.</li>
+        </ol>
+
+        <div class="warning">
+            <b>على Windows</b>: عند أول تشغيل قد يظهر تحذير
+            "Windows protected your PC". اضغط <b>More info</b> ثم <b>Run anyway</b>.
+            هذا تحذير عادي للبرامج مفتوحة المصدر بدون شهادة Microsoft المدفوعة —
+            مرة وحدة فقط، لا يتكرر.
+            <br />
+            <b>على macOS</b>: انقر بزر الفأرة الأيمن على الملف ثم اختر
+            <b>Open</b> بدل النقر المزدوج في أول مرة.
+            <br />
+            <b>للحذف</b>: شغّل المثبّت ثانية واضغط <b>٢</b> (Unpatch). يعيد
+            دسكورد للحالة الأصلية بلا أثر.
+        </div>
+    </section>
+
+    <section class="alt-paths">
+        <h2>طرق تثبيت أخرى</h2>
+
+        <details>
+            <summary><b>Discord Web (متصفح) — Userscript</b></summary>
+            <ol>
+                <li>ثبّت
+                    <a href="https://www.tampermonkey.net" target="_blank" rel="noopener">
+                        Tampermonkey
+                    </a> أو
+                    <a href="https://violentmonkey.github.io" target="_blank" rel="noopener">
+                        Violentmonkey
+                    </a>
+                    على متصفحك.
+                </li>
+                <li>افتح هذا الرابط مباشرة:
+                    <a href="https://github.com/alitravians/Ali/releases/latest/download/boon.user.js">
+                        boon.user.js
+                    </a>
+                </li>
+                <li>Tampermonkey يعرض زر "Install". اضغطه.</li>
+                <li>افتح <code>discord.com/app</code> ثم
+                    <code>Ctrl+Shift+B</code>.</li>
+            </ol>
+        </details>
+
+        <details>
+            <summary><b>Browser Extension</b></summary>
+            <p>
+                نسخة Chrome/Edge من البيلد متاحة في
+                <a href="https://github.com/alitravians/Ali/tree/main/boon/dist/extension">
+                    boon/dist/extension
+                </a> داخل المستودع. ثبّتها يدوياً من <code>chrome://extensions</code>
+                (Developer mode → Load unpacked).
+            </p>
+        </details>
+
+        <details>
+            <summary><b>Build من المصدر بنفسك</b></summary>
+            <pre><code>git clone https://github.com/alitravians/Ali.git
+cd Ali/boon
+npm ci
+npm run build
+# الناتج في dist/desktop/
+
+cd ../boon-installer
+go build -o boon-installer .
+# شغّل: BOON_LOCAL_BUILD_DIR=../boon/dist/desktop ./boon-installer -patch</code></pre>
+        </details>
+    </section>
+
+</main>
+
+<footer>
+    BOON مفتوح المصدر تحت رخصة
+    <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">
+        GPL-3.0-or-later
+    </a>.
+    المثبّت مأخوذ مع التعديل من
+    <a href="https://github.com/Vencord/Installer" target="_blank" rel="noopener">
+        VencordInstaller
+    </a>
+    (شكراً Vendicated وفريقه).
+    <br />
+    استخدام BOON قد يخالف شروط Discord (TOS). استخدمه على مسؤوليتك.
+    <br /><br />
+    <a href="https://github.com/alitravians/Ali" target="_blank" rel="noopener">
+        كود المصدر على GitHub →
+    </a>
+</footer>
+
+</body>
+</html>

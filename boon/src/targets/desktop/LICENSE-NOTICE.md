@@ -10,7 +10,25 @@ BOON is licensed under GPL-3.0-or-later — see `boon/LICENSE` (in the repo root
 
 ## What BOON reuses from Vencord
 
-The desktop target reuses Vencord's:
+BOON has two desktop installation paths, each reusing different parts of
+Vencord:
+
+### Path A — `boon-installer/` (CLI installer, default)
+
+Adapted from [VencordInstaller](https://github.com/Vencord/Installer) (also
+GPL-3.0):
+
+- The asar-stub patching technique (`asar.go`, `patcher.go`) is a direct port
+  of `app_asar.go` and `patcher.go` from VencordInstaller.
+- The Discord install detection logic (`discord_find.go`) follows
+  VencordInstaller's `find_discord_*.go` files.
+- BOON's runtime `boon/src/targets/desktop/runtime/patcher.js` adapts
+  Vencord's `src/main/patcher.ts` (require.main pivot, BrowserWindow hook).
+
+### Path B — Vencord-fork rebrand (legacy, documented in README.md)
+
+For users who want the full Vencord settings UI rebranded as BOON, the
+desktop target reuses Vencord's:
 
 - Electron injector (`src/main.ts`, `scripts/inject/*`)
 - Webpack patcher (`src/webpack/*`)
