@@ -15,6 +15,7 @@ import { rootLogger } from "./logger.js";
 import * as messageAccessories from "./messageAccessories.js";
 import * as pm from "./pluginManager.js";
 import * as ui from "./ui.js";
+import * as userSettingsIntegration from "./userSettingsIntegration.js";
 import type { AnyPlugin, BoonGlobal, BoonPluginInfo, BoonTarget } from "./types.js";
 
 import aliThemes from "../plugins/aliThemes/index.js";
@@ -47,6 +48,7 @@ export async function boot(target: BoonTarget): Promise<void> {
     await whenAppReady();
 
     ui.init();
+    userSettingsIntegration.init();
     contextMenu.init();
     messageAccessories.init();
     chatButton.init();
@@ -59,7 +61,7 @@ export async function boot(target: BoonTarget): Promise<void> {
 
     installGlobal(target);
     emit("boon:ready", {});
-    rootLogger.info("ready — press Ctrl+Shift+B to open settings, Ctrl+K for command palette");
+    rootLogger.info("ready — open Discord User Settings to find BOON, or press Ctrl+Shift+B");
 }
 
 export function shutdown(): void {
@@ -87,7 +89,7 @@ function installGlobal(target: BoonTarget): void {
             await pm.stop(pluginId);
         },
         openSettings() {
-            ui.open();
+            userSettingsIntegration.openSettingsAt("plugins");
         },
         closeSettings() {
             ui.close();

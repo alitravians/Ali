@@ -69,6 +69,9 @@ const STYLE = `
 }
 #${ROOT_ID}.boon-open { display: flex; }
 #${ROOT_ID} *, #${ROOT_ID} *::before, #${ROOT_ID} *::after { box-sizing: border-box; }
+.boon-embedded { font-family: var(--font-primary, "gg sans", "Noto Sans", "Segoe UI", sans-serif); color: ${TEXT_0}; direction: rtl; padding: 60px 40px 20px; box-sizing: border-box; }
+.boon-embedded *, .boon-embedded *::before, .boon-embedded *::after { box-sizing: border-box; }
+.boon-embedded .boon-close { display: none; }
 .boon-panel {
     width: min(1080px, 92vw);
     height: min(720px, 88vh);
@@ -1307,16 +1310,39 @@ export function toggle(): void {
     else open();
 }
 
+/**
+ * Render a BOON view directly into an arbitrary host element (e.g. Discord's
+ * User Settings content region). Used by `userSettingsIntegration` to embed
+ * BOON inside Discord's native settings dialog without the floating modal.
+ */
+export function renderEmbedded(host: HTMLElement, view: ViewId = "home"): void {
+    ensureStyles();
+    host.innerHTML = "";
+    host.classList.add("boon-embedded");
+    state.view = view;
+    state.pluginDetailId = null;
+    switch (view) {
+        case "home": renderHome(host); break;
+        case "plugins": renderPlugins(host); break;
+        case "themes": renderThemes(host); break;
+        case "updater": void renderUpdater(host); break;
+        case "profiles": renderProfiles(host); break;
+        case "activity": renderActivity(host); break;
+        case "backup": renderBackup(host); break;
+    }
+}
+
+export type { ViewId };
+
 export function init(): void {
     ensureStyles();
     palette.bindToggle(togglePalette);
     palette.installShortcut();
 
+    // Esc closes the modal if it's open. Ctrl+Shift+B is owned by
+    // userSettingsIntegration so the shortcut opens native User Settings → BOON.
     function onKey(e: KeyboardEvent): void {
-        if (e.shiftKey && e.ctrlKey && e.key.toLowerCase() === "b") {
-            e.preventDefault();
-            toggle();
-        } else if (e.key === "Escape") {
+        if (e.key === "Escape") {
             const root = document.getElementById(ROOT_ID);
             if (root?.classList.contains("boon-open")) close();
         }
