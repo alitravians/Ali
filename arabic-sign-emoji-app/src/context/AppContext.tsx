@@ -14,12 +14,14 @@ import {
   loadExtendedStats,
   loadFavorites,
   loadHistory,
+  loadSeenTutorial,
   loadStats,
   saveAgreed,
   saveDarkMode,
   saveExtendedStats,
   saveFavorites,
   saveHistory,
+  saveSeenTutorial,
   saveStats,
   type AppStats,
   type ExtendedStats,
@@ -31,6 +33,13 @@ interface AppContextValue {
 
   agreed: boolean;
   acceptAgreement: () => void;
+
+  seenTutorial: boolean;
+  markTutorialSeen: () => void;
+  restartTutorial: () => void;
+  tutorialOpen: boolean;
+  openTutorial: () => void;
+  closeTutorial: () => void;
 
   input: string;
   setInput: (v: string) => void;
@@ -55,6 +64,8 @@ const AppContext = createContext<AppContextValue | null>(null);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [dark, setDark] = useState<boolean>(loadDarkMode());
   const [agreed, setAgreed] = useState<boolean>(loadAgreed());
+  const [seenTutorial, setSeenTutorial] = useState<boolean>(loadSeenTutorial());
+  const [tutorialOpen, setTutorialOpen] = useState<boolean>(false);
   const [input, setInput] = useState<string>("");
   const [result, setResult] = useState<TranslationResult | null>(null);
   const [history, setHistory] = useState<TranslationResult[]>(loadHistory());
@@ -75,6 +86,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
     saveAgreed(true);
     setAgreed(true);
   }, []);
+
+  const markTutorialSeen = useCallback(() => {
+    saveSeenTutorial(true);
+    setSeenTutorial(true);
+    setTutorialOpen(false);
+  }, []);
+
+  const restartTutorial = useCallback(() => {
+    setTutorialOpen(true);
+  }, []);
+
+  const openTutorial = useCallback(() => setTutorialOpen(true), []);
+  const closeTutorial = useCallback(() => {
+    setTutorialOpen(false);
+    if (!seenTutorial) {
+      saveSeenTutorial(true);
+      setSeenTutorial(true);
+    }
+  }, [seenTutorial]);
 
   const favoritesSet = useMemo(
     () => new Set(favorites.map((f) => f.input)),
@@ -175,6 +205,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleDark,
       agreed,
       acceptAgreement,
+      seenTutorial,
+      markTutorialSeen,
+      restartTutorial,
+      tutorialOpen,
+      openTutorial,
+      closeTutorial,
       input,
       setInput,
       result,
@@ -194,6 +230,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toggleDark,
       agreed,
       acceptAgreement,
+      seenTutorial,
+      markTutorialSeen,
+      restartTutorial,
+      tutorialOpen,
+      openTutorial,
+      closeTutorial,
       input,
       result,
       history,

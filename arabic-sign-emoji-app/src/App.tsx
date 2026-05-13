@@ -13,7 +13,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import GuidePage from "./pages/GuidePage";
 
 function AppRoot() {
-  const { agreed, acceptAgreement } = useApp();
+  const { agreed, acceptAgreement, seenTutorial, openTutorial } = useApp();
   const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
@@ -21,6 +21,12 @@ function AppRoot() {
     const t = window.setTimeout(() => setSplashDone(true), 3500);
     return () => window.clearTimeout(t);
   }, [splashDone]);
+
+  useEffect(() => {
+    if (splashDone && agreed && !seenTutorial) {
+      openTutorial();
+    }
+  }, [splashDone, agreed, seenTutorial, openTutorial]);
 
   if (!splashDone) {
     return <SplashScreen onComplete={() => setSplashDone(true)} />;

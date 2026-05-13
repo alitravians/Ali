@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from "react";
 import { Outlet } from "react-router-dom";
 import AppHeader from "./AppHeader";
+import OnboardingModal from "./OnboardingModal";
 import StatsDialog from "../dialogs/StatsDialog";
 import HistoryDialog from "../dialogs/HistoryDialog";
 import FavoritesDialog from "../dialogs/FavoritesDialog";
 import CategoriesDialog from "../dialogs/CategoriesDialog";
 import PlaceholderDialog from "../dialogs/PlaceholderDialog";
 import { Calendar, Dumbbell, MessageSquare, Settings } from "lucide-react";
+import { useApp } from "../context/AppContext";
 
 interface LayoutProps {
   children?: ReactNode;
@@ -21,6 +23,7 @@ export default function AppLayout({ children }: LayoutProps) {
   const [trainingOpen, setTrainingOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
+  const { tutorialOpen, closeTutorial } = useApp();
 
   return (
     <div
@@ -89,6 +92,8 @@ export default function AppLayout({ children }: LayoutProps) {
         description="لوحة تحكم الإدارة محمية بكود 3131. تشمل إرسال إشعارات، إدارة الملاحظات، إعدادات الواجهة، وحظر الأجهزة."
         comingInPr="PR I/J"
       />
+
+      {tutorialOpen && <OnboardingModal onClose={closeTutorial} />}
     </div>
   );
 }
