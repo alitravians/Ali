@@ -1,6 +1,7 @@
-import { Copy, Share2, Star } from "lucide-react";
+import { Copy, Share2, Star, Volume2 } from "lucide-react";
 import type { TranslationResult } from "../translator";
 import { handSigns } from "../data/handSigns";
+import { isSpeechSynthesisSupported, speak } from "../lib/speech";
 
 interface Props {
   result: TranslationResult;
@@ -17,11 +18,23 @@ export default function TranslationView({
   onCopy,
   onShare,
 }: Props) {
+  const ttsSupported = isSpeechSynthesisSupported();
+  const speakResult = () => speak(result.input);
   return (
     <div className="bg-white/10 dark:bg-black/30 backdrop-blur-xl border border-white/20 rounded-2xl p-5 shadow-2xl">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-bold text-white">الترجمة</h3>
         <div className="flex items-center gap-2">
+          {ttsSupported && (
+            <button
+              onClick={speakResult}
+              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
+              title="نطق النص"
+              aria-label="نطق النص"
+            >
+              <Volume2 className="w-4 h-4" />
+            </button>
+          )}
           <button
             onClick={onToggleFavorite}
             className="p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition"
