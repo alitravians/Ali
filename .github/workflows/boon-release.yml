@@ -71,8 +71,8 @@ jobs:
       - name: Stage runtime files
         run: |
           mkdir -p boon-installer/runtime
-          cp runtime-dl/patcher.js  boon-installer/runtime/
-          cp runtime-dl/renderer.js boon-installer/runtime/
+          find runtime-dl -name patcher.js  -exec cp {} boon-installer/runtime/ \;
+          find runtime-dl -name renderer.js -exec cp {} boon-installer/runtime/ \;
           ls -la boon-installer/runtime/
       - name: Install Linux GUI dependencies
         run: |
@@ -112,8 +112,9 @@ jobs:
       - name: Stage runtime files
         run: |
           mkdir -p boon-installer/runtime
-          cp runtime-dl/patcher.js  boon-installer/runtime/
-          cp runtime-dl/renderer.js boon-installer/runtime/
+          find runtime-dl -name patcher.js  -exec cp {} boon-installer/runtime/ \;
+          find runtime-dl -name renderer.js -exec cp {} boon-installer/runtime/ \;
+          ls -la boon-installer/runtime/
       - name: Install mingw cross-compiler
         run: |
           sudo apt-get update
@@ -161,8 +162,9 @@ jobs:
       - name: Stage runtime files
         run: |
           mkdir -p boon-installer/runtime
-          cp runtime-dl/patcher.js  boon-installer/runtime/
-          cp runtime-dl/renderer.js boon-installer/runtime/
+          find runtime-dl -name patcher.js  -exec cp {} boon-installer/runtime/ \;
+          find runtime-dl -name renderer.js -exec cp {} boon-installer/runtime/ \;
+          ls -la boon-installer/runtime/
       - name: Build
         working-directory: boon-installer
         env:
