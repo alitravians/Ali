@@ -52,6 +52,12 @@ func runGUI() {
 	refreshInstalls()
 
 	win = g.NewMasterWindow("BOON Installer", 1100, 720, 0)
+	// Window manager icon (Linux taskbar / macOS dock / Windows alt-tab).
+	// On Windows the .exe icon itself comes from a resource.syso compiled
+	// into the binary at build time, not from this call.
+	if imgs := LogoImages(); len(imgs) > 0 {
+		win.SetIcon(imgs)
+	}
 	win.Run(guiLoop)
 }
 

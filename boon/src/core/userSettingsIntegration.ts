@@ -19,7 +19,7 @@
  *      content overlay.
  */
 import { rootLogger } from "./logger.js";
-import { renderEmbedded } from "./ui.js";
+import { renderEmbedded, clearEmbedded } from "./ui.js";
 import type { ViewId } from "./ui.js";
 
 interface SidebarTab {
@@ -294,6 +294,11 @@ function restoreNativeContent(): void {
         child.style.display = prev ?? "";
         delete child.dataset.boonHiddenPrev;
     }
+    // We're handing the content region back to Discord, so the BOON host
+    // is no longer the right re-render target. Detach it so subsequent
+    // overlay opens (Ctrl+Shift+B fallback, palette, etc.) hit the
+    // floating-modal path correctly.
+    clearEmbedded();
 }
 
 function activateBoonTab(tabId: ViewId): void {

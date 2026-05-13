@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  BOON — logomark for the Discord client modification framework.
+
+  Design language:
+    * Brand color: cyber-green #00ff88 on slate-black #0a0e1a
+    * Tile-friendly: 18% rounded square fits Windows tiles, macOS dock and
+      Linux launcher grids without further cropping.
+    * Glyph anchored on an 8×8 inner grid so the strokes stay clean at
+      16×16 favicon sizes.
+    * Letter "B" rebuilt from a vertical mono-stem + two stacked geometric
+      lobes. The upper lobe is broken by an inward chevron that doubles as
+      a "boot/inject" play-arrow, and the lower lobe carries a bright
+      plugin-core node — a one-line read of what BOON does: a clean tool
+      that injects plugins into Discord.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0e1a"/>
+      <stop offset="1" stop-color="#131826"/>
+    </linearGradient>
+    <linearGradient id="stroke" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#00ff88" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#00ff88" stop-opacity="0.12"/>
+    </linearGradient>
+    <radialGradient id="core" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#b3ffd9"/>
+      <stop offset="0.45" stop-color="#00ff88"/>
+      <stop offset="1" stop-color="#00ff88" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3"/>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- Container tile -->
+  <rect x="0" y="0" width="256" height="256" rx="46" ry="46" fill="url(#bg)"/>
+
+  <!-- Subtle inner ring, half a pixel inside the radius so it never
+       overlaps with the tile crop on platforms that mask icons. -->
+  <rect x="2.5" y="2.5" width="251" height="251" rx="43.5" ry="43.5"
+        fill="none" stroke="url(#stroke)" stroke-width="1.5"/>
+
+  <!-- ▍Faint scan lines (decorative grid) — kept very subtle. -->
+  <g stroke="#00ff88" stroke-opacity="0.06" stroke-width="1">
+    <line x1="40" y1="0" x2="40" y2="256"/>
+    <line x1="216" y1="0" x2="216" y2="256"/>
+    <line x1="0" y1="40" x2="256" y2="40"/>
+    <line x1="0" y1="216" x2="256" y2="216"/>
+  </g>
+
+  <!-- ▍Glyph "B" — outer halo. -->
+  <g filter="url(#softGlow)" opacity="0.55">
+    <path d="M 76 56
+             L 76 200
+             L 142 200
+             A 36 36 0 0 0 142 128
+             L 110 128
+             L 142 128
+             A 36 36 0 0 0 142 56
+             Z"
+          fill="#00ff88"/>
+  </g>
+
+  <!-- ▍Glyph "B" — solid stem -->
+  <rect x="68" y="56" width="22" height="144" rx="3" ry="3" fill="#00ff88"/>
+
+  <!-- Upper lobe with chevron-break -->
+  <!-- The lobe is built from two arcs so we can carve the chevron in
+       the middle without leaving a hairline at small sizes. -->
+  <path d="M 90 56
+           L 142 56
+           A 36 36 0 0 1 178 92
+           A 36 36 0 0 1 142 128
+           L 90 128
+           Z"
+        fill="#00ff88"/>
+  <!-- Chevron carve (background-colored) to suggest a play/boot arrow -->
+  <path d="M 110 78
+           L 134 92
+           L 110 106
+           Z"
+        fill="#0a0e1a"/>
+
+  <!-- Lower lobe -->
+  <path d="M 90 128
+           L 146 128
+           A 36 36 0 0 1 182 164
+           A 36 36 0 0 1 146 200
+           L 90 200
+           Z"
+        fill="#00ff88"/>
+
+  <!-- Plugin-core node, sitting inside the lower lobe -->
+  <circle cx="148" cy="164" r="14" fill="url(#core)"/>
+  <circle cx="148" cy="164" r="5" fill="#0a0e1a"/>
+
+  <!-- ▍Corner accent ticks (cyber/scanner motif). -->
+  <g stroke="#00ff88" stroke-width="2" stroke-linecap="round" fill="none">
+    <!-- TL -->
+    <path d="M 22 36 L 22 22 L 36 22"/>
+    <!-- TR -->
+    <path d="M 220 22 L 234 22 L 234 36"/>
+    <!-- BL -->
+    <path d="M 22 220 L 22 234 L 36 234"/>
+    <!-- BR -->
+    <path d="M 220 234 L 234 234 L 234 220"/>
+  </g>
+</svg>

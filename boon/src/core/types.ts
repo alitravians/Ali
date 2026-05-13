@@ -292,6 +292,21 @@ declare global {
     interface Window {
         BOON?: BoonGlobal;
     }
+
+    // Bootstrap object installed by the desktop patcher before renderer.js
+    // runs. Lets the renderer talk back to the main process to download
+    // updates, relaunch Discord, etc. Always check that `__BOON__` exists
+    // and that `invoke` resolves — non-desktop targets won't have it.
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    var __BOON__: BoonBoot | undefined;
+}
+
+export interface BoonBoot {
+    readonly currentVersion: string | null;
+    readonly dataDir: string;
+    readonly lastPromotedVersion: string | null;
+    readonly ipc: boolean;
+    invoke<T = unknown>(channel: string, payload?: unknown): Promise<T>;
 }
 
 export interface BoonPluginInfo {

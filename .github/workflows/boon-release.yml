@@ -120,6 +120,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+      - name: Generate Windows resource (icon + version info)
+        working-directory: boon-installer
+        run: |
+          # rsrc emits a `*_windows_amd64.syso` file. The Go linker
+          # automatically picks it up for the matching GOOS/GOARCH so the
+          # produced .exe carries the BOON icon in File Explorer, the
+          # taskbar and the Alt-Tab switcher.
+          go install github.com/akavel/rsrc@latest
+          $(go env GOPATH)/bin/rsrc -ico assets/logo.ico -arch amd64 -o resource_windows_amd64.syso
+          ls -la resource_windows_amd64.syso
       - name: Build (Windows GUI subsystem)
         working-directory: boon-installer
         env:
