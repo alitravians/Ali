@@ -1,0 +1,15 @@
+// ==UserScript==
+// @name         BOON
+// @namespace    https://github.com/alitravians/Ali
+// @version      0.1.0
+// @description  Discord Client Modification Framework — themes, moderation tools, auto-translate, YouTube player, Nitro ad blocker.
+// @author       ali travians
+// @match        https://discord.com/*
+// @match        https://*.discord.com/*
+// @match        https://canary.discord.com/*
+// @match        https://ptb.discord.com/*
+// @run-at       document-idle
+// @grant        none
+// @license      GPL-3.0-or-later
+// @homepageURL  https://github.com/alitravians/Ali/tree/main/boon
+// ==/UserScript==
