@@ -1,17 +1,20 @@
-# Builds BOON runtime + cross-platform installer binaries and uploads them as
-# GitHub Release assets. Triggered when a tag matching `boon-v*` is pushed.
+# Builds BOON runtime + cross-platform GUI installer binaries and uploads them
+# as GitHub Release assets. Triggered when a tag matching `boon-v*` is pushed.
 #
-# Tag scheme: `boon-v0.1.0`, `boon-v0.1.1`, ...
+# Tag scheme: `boon-v0.1.0`, `boon-v0.1.1`, `boon-v0.1.2`, ...
 #
 # Outputs (attached to the release):
-#   - patcher.js          (Electron main-process patcher)
-#   - renderer.js         (BOON renderer payload)
-#   - boon-installer-windows-amd64.exe
-#   - boon-installer-windows-arm64.exe
-#   - boon-installer-macos-amd64
-#   - boon-installer-macos-arm64
-#   - boon-installer-linux-amd64
-#   - boon-installer-linux-arm64
+#   - patcher.js                          (BOON Electron main-process patcher)
+#   - renderer.js                         (BOON renderer payload)
+#   - boon.user.js                        (Userscript build)
+#   - boon-installer-windows-amd64.exe    (GUI installer, Windows 64-bit)
+#   - boon-installer-macos-amd64          (GUI installer, macOS Intel)
+#   - boon-installer-macos-arm64          (GUI installer, macOS Apple Silicon)
+#   - boon-installer-linux-amd64          (GUI installer, Linux 64-bit)
+#
+# The installer binary now embeds patcher.js + renderer.js directly, so it
+# does NOT need network access at install time (previous versions hit the
+# GitHub Releases API and could be rate-limited to HTTP 403).
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -24,7 +27,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag name to release as (e.g. boon-v0.1.1). Required for manual runs."
+        description: "Tag name to release as (e.g. boon-v0.1.2). Required for manual runs."
         required: true
 
 permissions:
@@ -52,44 +55,137 @@ jobs:
             boon/dist/desktop/renderer.js
             boon/dist/boon.user.js
 
-  build-installer:
-    name: Build installer (${{ matrix.os_label }} ${{ matrix.arch }})
+  build-installer-linux:
+    name: Build installer (linux amd64)
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { goos: windows, arch: amd64, os_label: windows, ext: ".exe" }
-          - { goos: windows, arch: arm64, os_label: windows, ext: ".exe" }
-          - { goos: darwin,  arch: amd64, os_label: macos,   ext: ""     }
-          - { goos: darwin,  arch: arm64, os_label: macos,   ext: ""     }
-          - { goos: linux,   arch: amd64, os_label: linux,   ext: ""     }
-          - { goos: linux,   arch: arm64, os_label: linux,   ext: ""     }
+    needs: build-runtime
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-      - name: Cross-compile
+      - uses: actions/download-artifact@v4
+        with:
+          name: boon-runtime
+          path: runtime-dl
+      - name: Stage runtime files
+        run: |
+          mkdir -p boon-installer/runtime
+          cp runtime-dl/patcher.js  boon-installer/runtime/
+          cp runtime-dl/renderer.js boon-installer/runtime/
+          ls -la boon-installer/runtime/
+      - name: Install Linux GUI dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgl1-mesa-dev libxcursor-dev libxinerama-dev \
+            libxrandr-dev libxi-dev libxxf86vm-dev pkg-config
+      - name: Build
         working-directory: boon-installer
         env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.arch }}
-          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+          CGO_ENABLED: "1"
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           VERSION="${TAG#boon-v}"
-          OUT="boon-installer-${{ matrix.os_label }}-${{ matrix.arch }}${{ matrix.ext }}"
-          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o "${OUT}" .
-          ls -la "${OUT}"
+          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o boon-installer-linux-amd64 .
+          ls -la boon-installer-linux-amd64
       - uses: actions/upload-artifact@v4
         with:
-          name: boon-installer-${{ matrix.os_label }}-${{ matrix.arch }}
-          path: boon-installer/boon-installer-${{ matrix.os_label }}-${{ matrix.arch }}${{ matrix.ext }}
+          name: boon-installer-linux-amd64
+          path: boon-installer/boon-installer-linux-amd64
+
+  build-installer-windows:
+    name: Build installer (windows amd64, mingw cross)
+    runs-on: ubuntu-latest
+    needs: build-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: boon-runtime
+          path: runtime-dl
+      - name: Stage runtime files
+        run: |
+          mkdir -p boon-installer/runtime
+          cp runtime-dl/patcher.js  boon-installer/runtime/
+          cp runtime-dl/renderer.js boon-installer/runtime/
+      - name: Install mingw cross-compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64
+      - name: Build (Windows GUI subsystem)
+        working-directory: boon-installer
+        env:
+          GOOS: windows
+          GOARCH: amd64
+          CGO_ENABLED: "1"
+          CC: x86_64-w64-mingw32-gcc
+          CXX: x86_64-w64-mingw32-g++
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#boon-v}"
+          # -H windowsgui suppresses the console window so users get a clean
+          # GUI experience instead of a black terminal flashing on launch.
+          go build -trimpath \
+            -ldflags "-s -w -H windowsgui -X main.Version=${VERSION}" \
+            -o boon-installer-windows-amd64.exe .
+          ls -la boon-installer-windows-amd64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boon-installer-windows-amd64
+          path: boon-installer/boon-installer-windows-amd64.exe
+
+  build-installer-macos:
+    name: Build installer (macos ${{ matrix.arch }})
+    runs-on: macos-latest
+    needs: build-runtime
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: boon-runtime
+          path: runtime-dl
+      - name: Stage runtime files
+        run: |
+          mkdir -p boon-installer/runtime
+          cp runtime-dl/patcher.js  boon-installer/runtime/
+          cp runtime-dl/renderer.js boon-installer/runtime/
+      - name: Build
+        working-directory: boon-installer
+        env:
+          GOOS: darwin
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "1"
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#boon-v}"
+          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o boon-installer-macos-${{ matrix.arch }} .
+          ls -la boon-installer-macos-${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boon-installer-macos-${{ matrix.arch }}
+          path: boon-installer/boon-installer-macos-${{ matrix.arch }}
 
   release:
     name: Publish GitHub Release
-    needs: [build-runtime, build-installer]
+    needs:
+      - build-runtime
+      - build-installer-linux
+      - build-installer-windows
+      - build-installer-macos
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

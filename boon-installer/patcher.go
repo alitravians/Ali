@@ -89,19 +89,13 @@ func UnpatchInstall(ins *DiscordInstall) error {
 	return nil
 }
 
-// ensureRuntime makes sure patcher.js and renderer.js are present in dataDir,
-// downloading the latest GitHub release otherwise.
+// ensureRuntime writes BOON's embedded runtime files into dataDir. Always
+// overwrites — that's how a fresh installer version delivers updated
+// renderer.js / patcher.js to existing patched installs.
 func ensureRuntime(dataDir string) error {
-	patcher := filepath.Join(dataDir, "patcher.js")
-	renderer := filepath.Join(dataDir, "renderer.js")
-	if fileExists(patcher) && fileExists(renderer) {
-		return nil
+	if err := WriteEmbeddedRuntime(dataDir); err != nil {
+		return fmt.Errorf("write embedded runtime: %w", err)
 	}
-	tag, err := DownloadLatestAssets(dataDir)
-	if err != nil {
-		return fmt.Errorf("download runtime: %w", err)
-	}
-	fmt.Println("    downloaded BOON runtime", tag)
 	return nil
 }
 
