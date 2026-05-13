@@ -28,6 +28,68 @@ import { rootLogger } from "./logger.js";
 
 const REPO_API = "https://api.github.com/repos/alitravians/Ali/releases";
 
+// Discord's renderer CSP only whitelists discord.com for connect-src, so
+// `fetch("https://api.github.com/...")` is blocked outright in the desktop
+// target. The patcher exposes a `BOON_FETCH` IPC handler that runs the
+// request in main and returns the body. When the bridge is present (i.e.
+// running inside patched Discord) we route every GitHub call through it;
+// otherwise we fall back to direct fetch (userscript / extension targets
+// don't have IPC but also aren't subject to Discord's CSP).
+interface BoonBootInvoke {
+    invoke<T = unknown>(channel: string, payload?: unknown): Promise<T>;
+    readonly ipc: boolean;
+}
+
+interface IpcFetchResult {
+    ok: boolean;
+    status: number;
+    body?: string;
+    error?: string;
+    headers?: { [k: string]: string | null };
+}
+
+interface FetchResponse {
+    ok: boolean;
+    status: number;
+    body: string;
+    error?: string;
+}
+
+function boonBoot(): BoonBootInvoke | null {
+    const b = (globalThis as { __BOON__?: BoonBootInvoke }).__BOON__;
+    if (!b || typeof b.invoke !== "function" || !b.ipc) return null;
+    return b;
+}
+
+async function fetchViaBridge(url: string, accept?: string): Promise<FetchResponse> {
+    const boot = boonBoot();
+    if (boot) {
+        const res = await boot.invoke<IpcFetchResult>("BOON_FETCH", { url, accept });
+        return {
+            ok: !!res?.ok,
+            status: res?.status ?? 0,
+            body: res?.body ?? "",
+            error: res?.error,
+        };
+    }
+    // Userscript / extension / dev environments: direct fetch is fine.
+    try {
+        const r = await fetch(url, {
+            headers: { Accept: accept ?? "application/vnd.github+json" },
+            cache: "no-cache",
+        });
+        const text = await r.text();
+        return { ok: r.ok, status: r.status, body: text };
+    } catch (err) {
+        return {
+            ok: false,
+            status: 0,
+            body: "",
+            error: err instanceof Error ? err.message : String(err),
+        };
+    }
+}
+
 export interface RawRelease {
     tag_name: string;
     name: string | null;
@@ -116,22 +178,26 @@ export const RELEASES_URL = "https://github.com/alitravians/Ali/releases";
  * link to the releases page on github.com.
  */
 export async function fetchReleasesResult(limit: number = 10): Promise<FetchResult> {
-    try {
-        const res = await fetch(`${REPO_API}?per_page=${Math.min(limit, 30)}`, {
-            headers: { Accept: "application/vnd.github+json" },
-            cache: "no-cache",
-        });
-        if (!res.ok) {
-            rootLogger.warn(`updater: GitHub ${res.status}`);
-            const kind: FetchErrorKind =
-                res.status === 403 || res.status === 429 ? "rate-limited" : "http";
-            return { releases: [], error: kind, httpStatus: res.status };
+    const res = await fetchViaBridge(
+        `${REPO_API}?per_page=${Math.min(limit, 30)}`,
+        "application/vnd.github+json",
+    );
+    if (!res.ok) {
+        rootLogger.warn(`updater: GitHub ${res.status || "network"} (${res.error ?? "-"})`);
+        if (!res.status) {
+            // Network / timeout / IPC error — no HTTP response at all.
+            return { releases: [], error: "network" };
         }
-        const json = (await res.json()) as RawRelease[];
+        const kind: FetchErrorKind =
+            res.status === 403 || res.status === 429 ? "rate-limited" : "http";
+        return { releases: [], error: kind, httpStatus: res.status };
+    }
+    try {
+        const json = JSON.parse(res.body) as RawRelease[];
         return { releases: json.map(toRelease), error: "none" };
     } catch (err) {
-        rootLogger.warn("updater: failed to fetch", err);
-        return { releases: [], error: "network" };
+        rootLogger.warn("updater: failed to parse releases JSON", err);
+        return { releases: [], error: "http", httpStatus: res.status };
     }
 }
 
@@ -152,13 +218,15 @@ export async function fetchLatest(): Promise<Release | null> {
  */
 export async function downloadRendererForTag(tag: string): Promise<string> {
     // Release-asset URLs follow a stable pattern that does not consume
-    // GitHub API rate-limit budget (raw asset endpoint).
+    // GitHub API rate-limit budget (raw asset endpoint). github.com 302s
+    // through to objects.githubusercontent.com — patcher.ipcFetch follows
+    // those redirects automatically.
     const url = `https://github.com/alitravians/Ali/releases/download/${encodeURIComponent(tag)}/renderer.js`;
-    const res = await fetch(url, { cache: "no-cache" });
+    const res = await fetchViaBridge(url, "application/octet-stream, */*;q=0.8");
     if (!res.ok) {
-        throw new Error(`http-${res.status}`);
+        throw new Error(res.status ? `http-${res.status}` : (res.error || "network"));
     }
-    const text = await res.text();
+    const text = res.body;
     // Sanity check matches the patcher's: must look like a BOON renderer.
     if (text.length < 10000 || !text.includes("[BOON]") || !text.includes("VERSION")) {
         throw new Error("invalid-renderer-payload");

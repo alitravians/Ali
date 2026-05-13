@@ -188,6 +188,102 @@ ipcMain.handle("BOON_RELAUNCH", () => {
     return { ok: true };
 });
 
+// BOON_FETCH — Node-side HTTP GET that bypasses Discord's renderer CSP.
+//
+// Discord's CSP only whitelists discord.com / discordapp.com / discord.media
+// for connect-src. Any fetch() from the renderer to api.github.com or
+// objects.githubusercontent.com is blocked outright. We work around that the
+// same way Vencord / BetterDiscord do: the renderer asks main to perform
+// the request, and main responds with the raw body. Only requests to a
+// hard-coded allow-list of hosts are honored — we don't want a future bug
+// turning this into an open proxy.
+const FETCH_ALLOWED_HOSTS = new Set([
+    "api.github.com",
+    "github.com",
+    "objects.githubusercontent.com",
+    "release-assets.githubusercontent.com",
+    "raw.githubusercontent.com",
+]);
+
+function ipcFetch(rawUrl, opts) {
+    return new Promise((resolve) => {
+        let parsed;
+        try {
+            parsed = new URL(rawUrl);
+        } catch (_) {
+            resolve({ ok: false, status: 0, error: "invalid-url" });
+            return;
+        }
+        if (parsed.protocol !== "https:") {
+            resolve({ ok: false, status: 0, error: "non-https" });
+            return;
+        }
+        if (!FETCH_ALLOWED_HOSTS.has(parsed.hostname)) {
+            resolve({ ok: false, status: 0, error: "host-not-allowed:" + parsed.hostname });
+            return;
+        }
+
+        const headers = {
+            // GitHub API requires a User-Agent on every request and returns
+            // 403 with no body otherwise.
+            "User-Agent": "BOON-Updater/" + (currentVersion || "0") + " (+https://github.com/alitravians/Ali)",
+            "Accept": (opts && opts.accept) || "application/vnd.github+json",
+        };
+
+        const req = https.get(
+            {
+                hostname: parsed.hostname,
+                path: parsed.pathname + parsed.search,
+                headers: headers,
+                timeout: 15000,
+            },
+            (res) => {
+                // Follow redirects to githubusercontent.com (release asset
+                // downloads). 3 hops is plenty.
+                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                    const hops = (opts && opts.hops) || 0;
+                    if (hops < 3) {
+                        res.resume();
+                        ipcFetch(res.headers.location, Object.assign({}, opts, { hops: hops + 1 })).then(resolve);
+                        return;
+                    }
+                }
+                let buf = "";
+                res.setEncoding("utf8");
+                res.on("data", (chunk) => { buf += chunk; });
+                res.on("end", () => {
+                    resolve({
+                        ok: res.statusCode >= 200 && res.statusCode < 300,
+                        status: res.statusCode,
+                        body: buf,
+                        headers: {
+                            "x-ratelimit-remaining": res.headers["x-ratelimit-remaining"] || null,
+                            "x-ratelimit-reset": res.headers["x-ratelimit-reset"] || null,
+                        },
+                    });
+                });
+                res.on("error", (err) => {
+                    resolve({ ok: false, status: 0, error: "stream:" + (err.code || err.message) });
+                });
+            }
+        );
+        req.on("error", (err) => {
+            resolve({ ok: false, status: 0, error: "request:" + (err.code || err.message) });
+        });
+        req.on("timeout", () => {
+            req.destroy();
+            resolve({ ok: false, status: 0, error: "timeout" });
+        });
+    });
+}
+
+ipcMain.handle("BOON_FETCH", (_evt, payload) => {
+    if (!payload || typeof payload.url !== "string") {
+        return { ok: false, status: 0, error: "missing-url" };
+    }
+    return ipcFetch(payload.url, { accept: payload.accept });
+});
+
 ipcMain.handle("BOON_LIST_INSTALLED", () => {
     return {
         active: fs.existsSync(activeRendererPath),
