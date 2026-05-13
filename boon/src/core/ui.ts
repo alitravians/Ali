@@ -1,11 +1,11 @@
 /*
- * BOON — Settings UI
+ * alitravians — Settings UI
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * A floating modal panel reachable from anywhere with `Ctrl+Shift+B`. Layout
  * mirrors Vencord's familiar sidebar so users coming from there feel at home,
- * but the visual identity is BOON's: cyber-green accent (#00FF88), Arabic
- * (RTL) labels, BOON-branded chrome.
+ * but the visual identity is alitravians's: cyber-green accent (#00FF88), Arabic
+ * (RTL) labels, alitravians-branded chrome.
  *
  * Sections (sidebar order):
  *   1. BOON          — overview + about + global toggles
@@ -32,6 +32,7 @@ import { exportState, importState, resetPlugin } from "./settings.js";
 import { getCounters, getLastUsed } from "./stats.js";
 import { toast } from "./toast.js";
 import * as updater from "./updater.js";
+import { DEV_AVATAR_DATA_URI } from "./devAvatar.js";
 import type {
     ActivityEntry,
     PluginDefinition,
@@ -604,6 +605,196 @@ const STYLE = `
 }
 .boon-release-notes .boon-note-emoji { flex-shrink: 0; }
 .boon-release-empty { color: ${TEXT_2}; font-size: 13px; margin: 4px 0 0; }
+
+/* ─── developer card (Home tab) ─────────────────────────────────────────── */
+/* Designed as a small "calling card" so the dev attribution feels like a
+ * polished signature rather than a footer footnote: gradient ring, animated
+ * name, pulsing online dot, and a row of subtle social/tech links. */
+.boon-dev-card {
+    background: linear-gradient(135deg, ${BG_2} 0%, ${BG_1} 100%);
+    border: 1px solid ${BORDER};
+    border-radius: 14px;
+    padding: 20px 22px;
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+}
+.boon-dev-card::before {
+    /* faint scan-line glow in the corner — cyber/hacker vibe */
+    content: "";
+    position: absolute;
+    top: -40%;
+    right: -10%;
+    width: 220px; height: 220px;
+    background: radial-gradient(closest-side, rgba(0,255,136,0.10), transparent 70%);
+    pointer-events: none;
+}
+.boon-dev-card h3 {
+    margin: 0 0 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: ${TEXT_1};
+    display: flex; align-items: center; gap: 8px;
+}
+.boon-dev-card h3::before {
+    content: "✦";
+    color: ${ACCENT};
+    font-size: 12px;
+}
+.boon-dev-head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.boon-dev-avatar {
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, ${ACCENT} 0%, #00b3ff 100%);
+    box-shadow: 0 0 0 2px ${BG_1}, 0 0 0 4px rgba(0,255,136,0.35);
+    animation: boon-dev-avatar-glow 4s ease-in-out infinite;
+}
+@keyframes boon-dev-avatar-glow {
+    0%, 100% { box-shadow: 0 0 0 2px ${BG_1}, 0 0 0 4px rgba(0,255,136,0.35), 0 0 18px rgba(0,255,136,0.25); }
+    50%      { box-shadow: 0 0 0 2px ${BG_1}, 0 0 0 4px rgba(0,179,255,0.55), 0 0 22px rgba(0,179,255,0.45), 0 0 26px rgba(0,179,255,0.35); }
+}
+.boon-dev-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+.boon-dev-label {
+    font-size: 11px;
+    color: ${TEXT_2};
+    letter-spacing: 0.04em;
+}
+/* The animated name itself: combines a sliding gradient ("shimmer") with
+ * actual positional movement (translateY oscillation + slight wobble) so the
+ * attribution feels alive — Arabic users expect movement, not just color. */
+.boon-dev-name {
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1;
+    background: linear-gradient(90deg, #00ff88 0%, #00e0ff 25%, #00ff88 50%, #00e0ff 75%, #00ff88 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    display: inline-block;
+    animation:
+        boon-dev-shimmer 3.2s linear infinite,
+        boon-dev-bob 2.8s ease-in-out infinite;
+    transform-origin: center bottom;
+    cursor: default;
+    user-select: text;
+    will-change: transform, background-position;
+}
+.boon-dev-name:hover {
+    /* Speed everything up + add a hand-tap bounce on hover. */
+    animation:
+        boon-dev-shimmer 1.4s linear infinite,
+        boon-dev-hop 0.55s ease-in-out infinite;
+}
+@keyframes boon-dev-shimmer {
+    from { background-position: 200% 0; }
+    to   { background-position: -200% 0; }
+}
+/* Combined float + wobble in a single keyframe — multiple animations on
+ * the same transform property would otherwise overwrite each other. */
+@keyframes boon-dev-bob {
+    0%   { transform: translateY(0)    rotate(-1.5deg); }
+    25%  { transform: translateY(-3px) rotate(0deg); }
+    50%  { transform: translateY(-5px) rotate(1.5deg); }
+    75%  { transform: translateY(-3px) rotate(0deg); }
+    100% { transform: translateY(0)    rotate(-1.5deg); }
+}
+@keyframes boon-dev-hop {
+    0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+    40%      { transform: translateY(-8px) scale(1.05) rotate(-3deg); }
+    60%      { transform: translateY(-8px) scale(1.05) rotate(3deg); }
+    80%      { transform: translateY(-2px) scale(1.02) rotate(0deg); }
+}
+.boon-dev-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: ${ACCENT};
+    margin-top: 4px;
+}
+.boon-dev-status .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: ${ACCENT};
+    box-shadow: 0 0 0 0 rgba(0,255,136,0.55);
+    animation: boon-dev-pulse 1.6s ease-out infinite;
+}
+@keyframes boon-dev-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(0,255,136,0.55); transform: scale(1); }
+    70%  { box-shadow: 0 0 0 10px rgba(0,255,136,0); transform: scale(1.15); }
+    100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); transform: scale(1); }
+}
+.boon-dev-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+}
+.boon-dev-tag {
+    background: ${BG_3};
+    color: ${TEXT_1};
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid ${BORDER};
+}
+.boon-dev-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid ${BORDER};
+}
+.boon-dev-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: ${TEXT_1};
+    text-decoration: none;
+    padding: 5px 10px;
+    border-radius: 8px;
+    background: ${BG_2};
+    border: 1px solid ${BORDER};
+    transition: border-color 0.15s, color 0.15s, transform 0.15s;
+}
+.boon-dev-link:hover {
+    border-color: ${ACCENT};
+    color: ${ACCENT};
+    transform: translateY(-1px);
+}
+.boon-dev-tagline {
+    margin: 12px 0 0;
+    font-size: 12.5px;
+    color: ${TEXT_2};
+    line-height: 1.55;
+    font-style: italic;
+}
+
+/* Respect users who opted out of motion at the OS level. */
+@media (prefers-reduced-motion: reduce) {
+    .boon-dev-name,
+    .boon-dev-name:hover,
+    .boon-dev-avatar,
+    .boon-dev-status .dot {
+        animation: none;
+    }
+}
 `;
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -707,7 +898,7 @@ function renderHome(main: HTMLElement): void {
     main.appendChild(
         el("div", { className: "boon-main-header" },
             el("div", {},
-                el("h2", {}, "BOON"),
+                el("h2", {}, "alitravians"),
                 el("p", {}, "إطار عمل لتعديل عميل Discord — نظيف، شفّاف، عربي بالكامل."),
             ),
             el("button", {
@@ -746,7 +937,7 @@ function renderHome(main: HTMLElement): void {
         el("div", { className: "boon-card" },
             el("h3", {}, "اختصارات سريعة"),
             el("div", { className: "boon-row" },
-                el("span", { className: "boon-row-label" }, "فتح/إغلاق BOON"),
+                el("span", { className: "boon-row-label" }, "فتح/إغلاق alitravians"),
                 el("kbd", {}, "Ctrl + Shift + B"),
             ),
             el("div", { className: "boon-row" },
@@ -772,6 +963,88 @@ function renderHome(main: HTMLElement): void {
                 el("span", {}, "GPL-3.0-or-later"),
             ),
         ),
+    );
+
+    main.appendChild(renderDeveloperCard());
+}
+
+/**
+ * The "About the developer" card. Rendered on the Home tab.
+ *
+ * Design intent: a polished signature block — gradient-ringed avatar, the
+ * developer name animated with both a sliding colour shimmer AND a small
+ * floating motion (Arabic users explicitly expect positional movement, not
+ * just colour shifts), a pulsing "online" indicator, tech-stack tags and a
+ * row of subtle outbound links. Click/hover on the name triggers a larger
+ * hop animation. Honors `prefers-reduced-motion` via CSS.
+ */
+function renderDeveloperCard(): HTMLElement {
+    const avatar = el("img", {
+        className: "boon-dev-avatar",
+        src: DEV_AVATAR_DATA_URI,
+        alt: "alitravians",
+        title: "alitravians",
+        loading: "eager",
+        draggable: "false",
+    });
+
+    const name = el("div", {
+        className: "boon-dev-name",
+        title: "alitravians",
+    }, "alitravians");
+
+    const status = el("div", { className: "boon-dev-status" },
+        el("span", { className: "dot" }),
+        el("span", {}, "متّصل ويطوّر بنشاط"),
+    );
+
+    const info = el("div", { className: "boon-dev-info" },
+        el("div", { className: "boon-dev-label" }, "صُمِّم وطُوِّر بواسطة"),
+        name,
+        status,
+    );
+
+    const head = el("div", { className: "boon-dev-head" }, avatar, info);
+
+    const tagline = el("p", { className: "boon-dev-tagline" },
+        "أداة عربية بالكامل لتعديل عميل Discord — مفتوحة المصدر، شفّافة، تُحدَّث من داخل التطبيق دون إعادة تثبيت.",
+    );
+
+    const tags = el("div", { className: "boon-dev-tags" },
+        el("span", { className: "boon-dev-tag" }, "TypeScript"),
+        el("span", { className: "boon-dev-tag" }, "Electron"),
+        el("span", { className: "boon-dev-tag" }, "Go"),
+        el("span", { className: "boon-dev-tag" }, "Arabic-first"),
+        el("span", { className: "boon-dev-tag" }, "GPL-3.0"),
+    );
+
+    const links = el("div", { className: "boon-dev-links" },
+        el("a", {
+            className: "boon-dev-link",
+            href: "https://github.com/alitravians/Ali",
+            target: "_blank",
+            rel: "noopener",
+        }, "GitHub"),
+        el("a", {
+            className: "boon-dev-link",
+            href: "https://github.com/alitravians/Ali/releases",
+            target: "_blank",
+            rel: "noopener",
+        }, "الإصدارات"),
+        el("a", {
+            className: "boon-dev-link",
+            href: "https://github.com/alitravians/Ali/issues/new",
+            target: "_blank",
+            rel: "noopener",
+        }, "تقرير مشكلة"),
+    );
+
+    return el("div", { className: "boon-dev-card" },
+        el("h3", {}, "عن المطوّر"),
+        head,
+        tagline,
+        tags,
+        links,
     );
 }
 
@@ -853,7 +1126,7 @@ function renderActivity(main: HTMLElement): void {
         el("div", { className: "boon-main-header" },
             el("div", {},
                 el("h2", {}, "السجل المباشر"),
-                el("p", {}, "أحداث BOON والإضافات. السجل في الذاكرة فقط (آخر ٥٠٠ حدث)."),
+                el("p", {}, "أحداث alitravians والإضافات. السجل في الذاكرة فقط (آخر ٥٠٠ حدث)."),
             ),
             el("button", { className: "boon-close", onclick: () => close() }, "✕"),
         ),
@@ -1065,7 +1338,7 @@ function showReleasesModal(onAfterAction?: () => void): void {
         } catch (err) {
             result = { releases: [], error: "network" };
             // eslint-disable-next-line no-console
-            console.error("[BOON] modal fetch threw:", err);
+            console.error("[alitravians] modal fetch threw:", err);
         }
         body.innerHTML = "";
 
@@ -1144,10 +1417,59 @@ function showReleasesModal(onAfterAction?: () => void): void {
             setStatus(`أنت على آخر إصدار: v${VERSION}`, ACCENT);
         }
 
-        for (const r of result.releases) {
-            const isCurrent = r.tag === `boon-v${VERSION}` || r.tag === `v${VERSION}` || r.tag === VERSION;
-            const isNewer = updater.isNewer(r.tag, VERSION);
-            body.appendChild(renderReleaseCard(r, isCurrent, isNewer));
+        // Filter releases: by default only show the actionable ones (newer
+        // than the installed version). When there is nothing newer, show a
+        // single clear "لا توجد تحديثات" message instead of dumping the
+        // entire history into the modal — that was the confusing UX the
+        // user wanted gone. A small toggle lets curious users expand the
+        // full history on demand.
+        const newerReleases = result.releases.filter(r => updater.isNewer(r.tag, VERSION));
+        const olderReleases = result.releases.filter(r => !updater.isNewer(r.tag, VERSION));
+
+        if (newerReleases.length > 0) {
+            for (const r of newerReleases) {
+                body.appendChild(renderReleaseCard(r, false, true));
+            }
+        } else {
+            body.appendChild(
+                el("div", {
+                    style: {
+                        padding: "32px 16px",
+                        textAlign: "center",
+                        color: TEXT_1,
+                        fontSize: "14px",
+                    },
+                },
+                    el("div", { style: { fontSize: "28px", marginBottom: "8px" } }, "✓"),
+                    el("div", {}, "لا توجد تحديثات"),
+                    el("div", { style: { color: TEXT_2, fontSize: "12px", marginTop: "6px" } }, `أنت على آخر إصدار — v${VERSION}`),
+                ),
+            );
+        }
+
+        // Optional: expandable history of older releases for the curious.
+        if (olderReleases.length > 0) {
+            const histWrap = el("div", { style: { marginTop: "12px" } });
+            const histBtn = el("button", {
+                className: "boon-btn boon-btn-ghost",
+                style: { width: "100%" },
+            }, `عرض الإصدارات السابقة (${olderReleases.length})`) as HTMLButtonElement;
+            const histList = el("div", { style: { marginTop: "10px", display: "none" } });
+            for (const r of olderReleases) {
+                const isCurrent = r.tag === `boon-v${VERSION}` || r.tag === `v${VERSION}` || r.tag === VERSION;
+                histList.appendChild(renderReleaseCard(r, isCurrent, false));
+            }
+            let open = false;
+            histBtn.addEventListener("click", () => {
+                open = !open;
+                histList.setAttribute("style", `margin-top: 10px; display: ${open ? "block" : "none"}`);
+                histBtn.textContent = open
+                    ? "إخفاء الإصدارات السابقة"
+                    : `عرض الإصدارات السابقة (${olderReleases.length})`;
+            });
+            histWrap.appendChild(histBtn);
+            histWrap.appendChild(histList);
+            body.appendChild(histWrap);
         }
     })();
 }
@@ -1157,7 +1479,7 @@ async function renderUpdater(main: HTMLElement): Promise<void> {
         el("div", { className: "boon-main-header" },
             el("div", {},
                 el("h2", {}, "التحديثات"),
-                el("p", {}, "تحديثات BOON موزّعة عبر GitHub Releases — لا خادم، لا تسجيل."),
+                el("p", {}, "تحديثات alitravians موزّعة عبر GitHub Releases — لا خادم، لا تسجيل."),
             ),
             el("button", { className: "boon-close", onclick: () => close() }, "✕"),
         ),
@@ -1220,7 +1542,7 @@ async function renderUpdater(main: HTMLElement): Promise<void> {
                 error: "network",
             };
             // eslint-disable-next-line no-console
-            console.error("[BOON] fetchReleasesResult threw:", err);
+            console.error("[alitravians] fetchReleasesResult threw:", err);
         }
         list.innerHTML = "";
         checkBtn.disabled = false;
@@ -1359,7 +1681,7 @@ function renderBackup(main: HTMLElement): void {
         el("div", { className: "boon-main-header" },
             el("div", {},
                 el("h2", {}, "نسخ احتياطي / استعادة"),
-                el("p", {}, "تصدير كامل حالة BOON إلى ملف JSON، أو استعادة من ملف."),
+                el("p", {}, "تصدير كامل حالة alitravians إلى ملف JSON، أو استعادة من ملف."),
             ),
             el("button", { className: "boon-close", onclick: () => close() }, "✕"),
         ),
@@ -1381,7 +1703,7 @@ function renderBackup(main: HTMLElement): void {
                     URL.revokeObjectURL(url);
                     toast("تم التصدير", "success");
                 },
-            }, "تصدير حالة BOON"),
+            }, "تصدير حالة alitravians"),
         ),
     );
 
@@ -1669,7 +1991,7 @@ function togglePalette(): void {
 // ─── root render ────────────────────────────────────────────────────────────
 
 const NAV: ReadonlyArray<{ id: ViewId; label: string }> = [
-    { id: "home", label: "BOON" },
+    { id: "home", label: "alitravians" },
     { id: "plugins", label: "الإضافات" },
     { id: "themes", label: "الثيمات" },
     { id: "updater", label: "التحديثات" },
@@ -1717,7 +2039,7 @@ function render(): void {
     sidebar.appendChild(
         el("div", { className: "boon-brand" },
             el("span", { className: "boon-brand-dot" }),
-            "BOON",
+            "alitravians",
             el("small", {}, `v${VERSION}`),
         ),
     );

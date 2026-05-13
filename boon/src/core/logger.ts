@@ -1,17 +1,23 @@
 /*
- * BOON — namespaced logger
+ * alitravians — namespaced logger
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
  * Every plugin gets a namespaced logger. Calls log to the browser console
- * with a coloured `[BOON] <namespace>` prefix AND push to the in-memory
- * Activity log so the Activity tab in the BOON Settings UI can render
+ * with a coloured `[alitravians] <namespace>` prefix AND push to the
+ * in-memory Activity log so the Activity tab in the Settings UI can render
  * lifecycle events without subscribing to every console event.
+ *
+ * NOTE: We keep the literal `[BOON]` string in a comment so that any
+ * patcher.js still running the legacy `looksLikeRenderer` check (which
+ * scans bundled renderer.js for `[BOON]`) accepts new builds. Don't
+ * remove this marker without also bumping installer + patcher together:
+ * [BOON]
  */
 
 import { append as appendActivity } from "./activity.js";
 import type { BoonLogger } from "./types.js";
 
-const PREFIX = "%c[BOON]";
+const PREFIX = "%c[alitravians]";
 const BASE_STYLE = "color:#0a1f10;background:#00ff88;padding:2px 6px;border-radius:3px;font-weight:700";
 const NS_STYLE = "color:#00ff88;font-weight:600";
 
@@ -54,7 +60,8 @@ export function createLogger(namespace: string): BoonLogger {
 
 function isDebugEnabled(): boolean {
     try {
-        return localStorage.getItem("BOON_DEBUG") === "1";
+        return localStorage.getItem("alitravians_DEBUG") === "1"
+            || localStorage.getItem("BOON_DEBUG") === "1";
     } catch {
         return false;
     }

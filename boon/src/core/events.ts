@@ -28,7 +28,7 @@ export function emit<E extends keyof BoonEventMap>(event: E, payload: BoonEventM
         try {
             (handler as Handler<E>)(payload);
         } catch (err) {
-            console.error("[BOON] event handler threw for", event, err);
+            console.error("[alitravians] event handler threw for", event, err);
         }
     }
 }

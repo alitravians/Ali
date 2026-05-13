@@ -51,7 +51,7 @@ func runGUI() {
 
 	refreshInstalls()
 
-	win = g.NewMasterWindow("BOON Installer", 1100, 720, 0)
+	win = g.NewMasterWindow("alitravians Installer", 1100, 720, 0)
 	// Window manager icon (Linux taskbar / macOS dock / Windows alt-tab).
 	// On Windows the .exe icon itself comes from a resource.syso compiled
 	// into the binary at build time, not from this call.
@@ -118,11 +118,11 @@ func performAction(action string) {
 
 	switch action {
 	case "patch":
-		showModal("BOON installed", "BOON has been installed on "+ins.Branch+". Discord is restarting — open User Settings and you will see the BOON section.")
+		showModal("alitravians installed", "alitravians has been installed on "+ins.Branch+". Discord is restarting — open User Settings and you will see the alitravians section.")
 	case "repair":
-		showModal("BOON repaired", "Refreshed BOON files on "+ins.Branch+" and restarted Discord.")
+		showModal("alitravians repaired", "Refreshed alitravians files on "+ins.Branch+" and restarted Discord.")
 	case "unpatch":
-		showModal("BOON removed", "BOON has been removed from "+ins.Branch+". Discord is back to stock.")
+		showModal("alitravians removed", "alitravians has been removed from "+ins.Branch+". Discord is back to stock.")
 	}
 	refreshInstalls()
 }
@@ -142,13 +142,13 @@ func buildLayout() g.Layout {
 		// --- Header -----------------------------------------------------
 		g.Align(g.AlignCenter).To(
 			g.Style().SetFontSize(36).SetColor(g.StyleColorText, BoonGreen).To(
-				g.Label("BOON Installer"),
+				g.Label("alitravians Installer"),
 			),
 		),
 		g.Dummy(0, 6),
 		g.Align(g.AlignCenter).To(
 			g.Style().SetFontSize(16).To(
-				g.Label("v"+Version+" — injects BOON directly into Discord User Settings"),
+				g.Label("v"+Version+" — injects alitravians directly into Discord User Settings"),
 			),
 		),
 		g.Dummy(0, 14),
@@ -156,7 +156,7 @@ func buildLayout() g.Layout {
 		// --- Data dir ---------------------------------------------------
 		g.Style().SetFontSize(15).To(
 			g.Row(
-				g.Label("BOON files are stored at: "+dataDir),
+				g.Label("alitravians files are stored at: "+dataDir),
 				g.Style().
 					SetColor(g.StyleColorButton, BoonBlue).
 					SetStyle(g.StyleVarFramePadding, 6, 4).
@@ -231,7 +231,7 @@ func buildInstallsList() g.Widget {
 		i, ins := i, ins
 		label := ins.Branch + " — " + ins.BasePath
 		if ins.Patched {
-			label += "   [PATCHED by BOON]"
+			label += "   [PATCHED by alitravians]"
 		} else {
 			label += "   [vanilla]"
 		}

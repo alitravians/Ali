@@ -22,19 +22,19 @@ const banner = `
   | |_) | |__| | |__| || |\  |
   |____/ \____/ \____/ |_| \_|
 
-  BOON Desktop Installer  •  v%s
-  Patches Discord so BOON loads on startup.
+  alitravians Desktop Installer  •  v%s
+  Patches Discord so alitravians loads on startup.
   Adapted from VencordInstaller (GPL-3.0).
 `
 
 var Version = "dev"
 
 func runCLI() {
-	doPatch := flag.Bool("patch", false, "patch (install) BOON into all detected Discord installs")
-	doUnpatch := flag.Bool("unpatch", false, "unpatch (uninstall) BOON from all detected Discord installs")
+	doPatch := flag.Bool("patch", false, "patch (install) alitravians into all detected Discord installs")
+	doUnpatch := flag.Bool("unpatch", false, "unpatch (uninstall) alitravians from all detected Discord installs")
 	listOnly := flag.Bool("list", false, "list detected Discord installs and exit")
 	autoYes := flag.Bool("yes", false, "skip the interactive confirmation prompt")
-	dataDir := flag.String("data-dir", "", "override BOON data directory (default: per-user config dir)")
+	dataDir := flag.String("data-dir", "", "override alitravians data directory (default: per-user config dir)")
 	// -cli is consumed by main.go to route here; accept it so it does not
 	// break flag parsing.
 	_ = flag.Bool("cli", false, "force CLI mode (no GUI)")
@@ -63,7 +63,7 @@ func runCLI() {
 	for i, ins := range installs {
 		status := "vanilla"
 		if ins.Patched {
-			status = "PATCHED by BOON"
+			status = "PATCHED by alitravians"
 		}
 		fmt.Printf("    %d. %s  [%s]  →  %s\n", i+1, ins.Branch, status, ins.AppPath)
 	}
@@ -129,8 +129,8 @@ func runCLI() {
 
 func promptAction() string {
 	fmt.Println("  What would you like to do?")
-	fmt.Println("    [1] Patch (install BOON)")
-	fmt.Println("    [2] Unpatch (remove BOON)")
+	fmt.Println("    [1] Patch (install alitravians)")
+	fmt.Println("    [2] Unpatch (remove alitravians)")
 	fmt.Println("    [3] Quit")
 	fmt.Print("  Choice: ")
 	r := bufio.NewReader(os.Stdin)

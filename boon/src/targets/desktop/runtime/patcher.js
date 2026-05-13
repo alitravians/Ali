@@ -1,12 +1,12 @@
 /*
- * BOON Desktop Patcher
+ * alitravians Desktop Patcher
  *
  * Runs in Electron's main process. The installer patches Discord's app.asar so
  * that this file is `require()`d at startup. We then:
  *   1. Re-resolve the original Discord asar (renamed by the installer to
  *      `_app.asar`) and re-point `require.main.filename` + `app.setAppPath`
  *      at it so Discord boots normally afterwards.
- *   2. Maintain a writable copy of `renderer.js` in BOON's data dir so
+ *   2. Maintain a writable copy of `renderer.js` in alitravians's data dir so
  *      bugfixes/plugins/improvements can ship via the in-app updater without
  *      requiring the user to re-run the installer.
  *   3. Register IPC handlers that let the renderer download a fresh
@@ -29,7 +29,7 @@ const path = require("path");
 const fs = require("fs");
 const https = require("https");
 
-console.log("[BOON] patcher loading…");
+console.log("[alitravians] patcher loading…");
 
 // ─── Resolve & boot the original Discord app.asar ─────────────────────────────
 const injectorPath = require.main.filename;
@@ -42,7 +42,7 @@ let discordPkg;
 try {
     discordPkg = require(path.join(asarPath, "package.json"));
 } catch (err) {
-    console.error("[BOON] cannot find original Discord package.json at", asarPath, err);
+    console.error("[alitravians] cannot find original Discord package.json at", asarPath, err);
     throw err;
 }
 
@@ -50,7 +50,7 @@ require.main.filename = path.join(asarPath, discordPkg.main);
 // `setAppPath` is private but stable. Vencord uses it for the same reason.
 app.setAppPath(asarPath);
 
-// ─── BOON runtime dir layout ─────────────────────────────────────────────────
+// ─── alitravians runtime dir layout ──────────────────────────────────────────
 // The installer drops `patcher.js` + `renderer.js` together into a writable
 // directory. The patcher then maintains the same dir as its update store:
 //   <dataDir>/patcher.js         ← installed by installer, never overwritten
@@ -69,10 +69,14 @@ const stagedRendererPath = path.join(dataDir, "renderer.next.js");
 const stateFile = path.join(dataDir, "state.json");
 
 function looksLikeRenderer(code) {
-    // Cheap sanity check: must contain BOON's boot marker and be reasonably
+    // Cheap sanity check: must contain our boot marker and be reasonably
     // sized. Stops us from writing GitHub error HTML or an empty file.
+    // We accept both the legacy `[BOON]` marker (used by renderers <= v0.1.5)
+    // and the new `[alitravians]` marker so a rebranded patcher still
+    // validates an older renderer staged before the rebrand.
     if (!code || code.length < 10000) return false;
-    return code.indexOf("[BOON]") !== -1 && code.indexOf("VERSION") !== -1;
+    const hasMarker = code.indexOf("[alitravians]") !== -1 || code.indexOf("[BOON]") !== -1;
+    return hasMarker && code.indexOf("VERSION") !== -1;
 }
 
 function extractVersion(code) {
@@ -88,7 +92,7 @@ function promoteStagedUpdate() {
     try {
         const staged = fs.readFileSync(stagedRendererPath, "utf8");
         if (!looksLikeRenderer(staged)) {
-            console.error("[BOON] staged renderer failed validation, discarding");
+            console.error("[alitravians] staged renderer failed validation, discarding");
             try { fs.unlinkSync(stagedRendererPath); } catch (_) {}
             return null;
         }
@@ -96,10 +100,10 @@ function promoteStagedUpdate() {
         fs.writeFileSync(activeRendererPath, staged);
         fs.unlinkSync(stagedRendererPath);
         const v = extractVersion(staged);
-        console.log("[BOON] promoted staged renderer" + (v ? " → v" + v : ""));
+        console.log("[alitravians] promoted staged renderer" + (v ? " → v" + v : ""));
         return v;
     } catch (err) {
-        console.error("[BOON] failed to promote staged renderer:", err);
+        console.error("[alitravians] failed to promote staged renderer:", err);
         return null;
     }
 }
@@ -111,12 +115,12 @@ let rendererCode = null;
 try {
     rendererCode = fs.readFileSync(activeRendererPath, "utf8");
 } catch (err) {
-    console.error("[BOON] failed to read renderer.js at", activeRendererPath, err);
+    console.error("[alitravians] failed to read renderer.js at", activeRendererPath, err);
 }
 
 const currentVersion = rendererCode ? extractVersion(rendererCode) : null;
 console.log(
-    "[BOON] renderer loaded — path=" + activeRendererPath +
+    "[alitravians] renderer loaded — path=" + activeRendererPath +
     (currentVersion ? ", version=v" + currentVersion : "") +
     (rendererCode ? ", bytes=" + rendererCode.length : "")
 );
@@ -136,7 +140,7 @@ function writeState(patch) {
     try {
         fs.writeFileSync(stateFile, JSON.stringify(next, null, 2));
     } catch (err) {
-        console.error("[BOON] failed to write state file:", err);
+        console.error("[alitravians] failed to write state file:", err);
     }
     return next;
 }
@@ -146,6 +150,9 @@ if (promotedVersion) {
 }
 
 // ─── GitHub fetch helper (used by IPC_HANDLERS.BOON_FETCH further down) ─────
+// NOTE: IPC channel names keep their `BOON_*` prefix because they are
+// internal protocol identifiers — changing them would break renderers that
+// might still talk to a freshly-rebranded patcher during the transition.
 //
 // Discord's CSP only whitelists discord.com / discordapp.com / discord.media
 // for connect-src. Any fetch() from the renderer to api.github.com or
@@ -183,7 +190,7 @@ function ipcFetch(rawUrl, opts) {
         const headers = {
             // GitHub API requires a User-Agent on every request and returns
             // 403 with no body otherwise.
-            "User-Agent": "BOON-Updater/" + (currentVersion || "0") + " (+https://github.com/alitravians/Ali)",
+            "User-Agent": "alitravians-Updater/" + (currentVersion || "0") + " (+https://github.com/alitravians/Ali)",
             "Accept": (opts && opts.accept) || "application/vnd.github+json",
         };
 
@@ -235,7 +242,7 @@ function ipcFetch(rawUrl, opts) {
 }
 
 // ─── Inject into every Discord window ─────────────────────────────────────────
-// We only want BOON in the real Discord renderer (discord.com / discordapp.com).
+// We only want alitravians in the real Discord renderer (discord.com / discordapp.com).
 // Discord's splash screen loads a local file:// page that has no localStorage,
 // no IndexedDB and a different DOM — injecting there produces noisy
 // `ReferenceError: localStorage is not defined` and serves no purpose.
@@ -284,13 +291,13 @@ const RESTORE_STORAGE_APIS = `
                     get() { return value; },
                 });
             } catch (e) {
-                console.error("[BOON] failed to lock " + name + ":", e);
+                console.error("[alitravians] failed to lock " + name + ":", e);
             }
         };
         if (needsLS) lock("localStorage", fw.localStorage);
         if (needsSS) lock("sessionStorage", fw.sessionStorage);
     } catch (e) {
-        console.error("[BOON] storage shim failed:", e);
+        console.error("[alitravians] storage shim failed:", e);
     }
 })();
 `;
@@ -356,7 +363,7 @@ const IPC_HANDLERS = {
                 app.relaunch();
                 app.exit(0);
             } catch (err) {
-                console.error("[BOON] relaunch failed:", err);
+                console.error("[alitravians] relaunch failed:", err);
             }
         }, 150);
         return { ok: true };
@@ -374,12 +381,12 @@ function dispatchConsoleIpc(webContents, raw) {
     try {
         msg = JSON.parse(raw);
     } catch (err) {
-        console.error("[BOON] bad console-IPC payload:", err);
+        console.error("[alitravians] bad console-IPC payload:", err);
         return;
     }
     const { id, channel, payload } = msg || {};
     if (typeof id !== "string" || typeof channel !== "string") {
-        console.error("[BOON] console-IPC missing id/channel");
+        console.error("[alitravians] console-IPC missing id/channel");
         return;
     }
     const handler = IPC_HANDLERS[channel];
@@ -463,7 +470,7 @@ function buildBootBridge() {
         "            value: boot, writable: false, configurable: false, enumerable: false,\n" +
         "        });\n" +
         "    } catch (e) {\n" +
-        "        console.error(\"[BOON] failed to install boot bridge:\", e);\n" +
+        "        console.error(\"[alitravians] failed to install boot bridge:\", e);\n" +
         "    }\n" +
         "})();\n";
 }
@@ -498,7 +505,7 @@ function injectInto(webContents) {
     const code = RESTORE_STORAGE_APIS + "\n" + buildBootBridge() + "\n" + rendererCode;
     webContents
         .executeJavaScript(code, true)
-        .catch(err => console.error("[BOON] renderer injection failed:", err));
+        .catch(err => console.error("[alitravians] renderer injection failed:", err));
 }
 
 app.on("browser-window-created", (_event, win) => {
@@ -515,5 +522,5 @@ app.commandLine.appendSwitch("disable-renderer-backgrounding");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.commandLine.appendSwitch("disable-backgrounding-occluded-windows");
 
-console.log("[BOON] patcher ready — loading original Discord");
+console.log("[alitravians] patcher ready — loading original Discord");
 require(require.main.filename);

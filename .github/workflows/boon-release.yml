@@ -1,16 +1,20 @@
-# Builds BOON runtime + cross-platform GUI installer binaries and uploads them
-# as GitHub Release assets. Triggered when a tag matching `boon-v*` is pushed.
+# Builds alitravians runtime + cross-platform GUI installer binaries and
+# uploads them as GitHub Release assets. Triggered when a tag matching
+# `boon-v*` is pushed.
 #
-# Tag scheme: `boon-v0.1.0`, `boon-v0.1.1`, `boon-v0.1.2`, ...
+# Tag scheme is intentionally kept as `boon-v*` (the internal repo / project
+# code-name) so that older patcher.js builds that resolve the latest release
+# by tag prefix continue to work end-to-end. Display names everywhere else
+# (installer GUI, README, release title) use the new `alitravians` brand.
 #
 # Outputs (attached to the release):
-#   - patcher.js                          (BOON Electron main-process patcher)
-#   - renderer.js                         (BOON renderer payload)
-#   - boon.user.js                        (Userscript build)
-#   - boon-installer-windows-amd64.exe    (GUI installer, Windows 64-bit)
-#   - boon-installer-macos-amd64          (GUI installer, macOS Intel)
-#   - boon-installer-macos-arm64          (GUI installer, macOS Apple Silicon)
-#   - boon-installer-linux-amd64          (GUI installer, Linux 64-bit)
+#   - patcher.js                                (Electron main-process patcher)
+#   - renderer.js                               (renderer payload)
+#   - boon.user.js                              (Userscript build)
+#   - alitravians-installer-windows-amd64.exe   (GUI installer, Windows 64-bit)
+#   - alitravians-installer-macos-amd64         (GUI installer, macOS Intel)
+#   - alitravians-installer-macos-arm64         (GUI installer, macOS Apple Silicon)
+#   - alitravians-installer-linux-amd64         (GUI installer, Linux 64-bit)
 #
 # The installer binary now embeds patcher.js + renderer.js directly, so it
 # does NOT need network access at install time (previous versions hit the
@@ -35,7 +39,7 @@ permissions:
 
 jobs:
   build-runtime:
-    name: Build BOON runtime (patcher.js + renderer.js)
+    name: Build alitravians runtime (patcher.js + renderer.js)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -89,12 +93,12 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           VERSION="${TAG#boon-v}"
-          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o boon-installer-linux-amd64 .
-          ls -la boon-installer-linux-amd64
+          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o alitravians-installer-linux-amd64 .
+          ls -la alitravians-installer-linux-amd64
       - uses: actions/upload-artifact@v4
         with:
-          name: boon-installer-linux-amd64
-          path: boon-installer/boon-installer-linux-amd64
+          name: alitravians-installer-linux-amd64
+          path: boon-installer/alitravians-installer-linux-amd64
 
   build-installer-windows:
     name: Build installer (windows amd64, mingw cross)
@@ -125,7 +129,7 @@ jobs:
         run: |
           # rsrc emits a `*_windows_amd64.syso` file. The Go linker
           # automatically picks it up for the matching GOOS/GOARCH so the
-          # produced .exe carries the BOON icon in File Explorer, the
+          # produced .exe carries the alitravians icon in File Explorer, the
           # taskbar and the Alt-Tab switcher.
           go install github.com/akavel/rsrc@latest
           $(go env GOPATH)/bin/rsrc -ico assets/logo.ico -arch amd64 -o resource_windows_amd64.syso
@@ -145,12 +149,12 @@ jobs:
           # GUI experience instead of a black terminal flashing on launch.
           go build -trimpath \
             -ldflags "-s -w -H windowsgui -X main.Version=${VERSION}" \
-            -o boon-installer-windows-amd64.exe .
-          ls -la boon-installer-windows-amd64.exe
+            -o alitravians-installer-windows-amd64.exe .
+          ls -la alitravians-installer-windows-amd64.exe
       - uses: actions/upload-artifact@v4
         with:
-          name: boon-installer-windows-amd64
-          path: boon-installer/boon-installer-windows-amd64.exe
+          name: alitravians-installer-windows-amd64
+          path: boon-installer/alitravians-installer-windows-amd64.exe
 
   build-installer-macos:
     name: Build installer (macos ${{ matrix.arch }})
@@ -184,12 +188,12 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
           VERSION="${TAG#boon-v}"
-          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o boon-installer-macos-${{ matrix.arch }} .
-          ls -la boon-installer-macos-${{ matrix.arch }}
+          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o alitravians-installer-macos-${{ matrix.arch }} .
+          ls -la alitravians-installer-macos-${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with:
-          name: boon-installer-macos-${{ matrix.arch }}
-          path: boon-installer/boon-installer-macos-${{ matrix.arch }}
+          name: alitravians-installer-macos-${{ matrix.arch }}
+          path: boon-installer/alitravians-installer-macos-${{ matrix.arch }}
 
   release:
     name: Publish GitHub Release
@@ -218,7 +222,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          name: "BOON ${{ steps.tag.outputs.tag }}"
+          name: "alitravians ${{ steps.tag.outputs.tag }}"
           draft: false
           prerelease: false
           fail_on_unmatched_files: true
@@ -227,4 +231,4 @@ jobs:
             out/patcher.js
             out/renderer.js
             out/boon.user.js
-            out/boon-installer-*
+            out/alitravians-installer-*
