@@ -53,28 +53,32 @@ pnpm run build:extension
 
 ينتج مجلد `dist/extension/`. في Chrome: `chrome://extensions` → "Load unpacked" → اختر المجلد.
 
-### 3. كـ Desktop Client Mod (BOON الكامل)
+### 3. كـ Desktop Client Mod (المسار الموصى به لـ Discord Desktop)
 
-راجع [`src/targets/desktop/README.md`](src/targets/desktop/README.md) للتعليمات الكاملة.
+استخدم **مثبّت BOON الرسمي** — برنامج صغير يكتشف Discord تلقائياً ويثبّت BOON
+على كل النسخ (Stable / PTB / Canary / Development) دفعة وحدة.
 
-التلخيص:
-1. كلون Vencord
-2. شغّل `node boon/src/targets/desktop/rebrand.mjs ./Vencord` لتطبيق علامة BOON
-3. انسخ `boon/src/plugins/*` إلى `Vencord/src/userplugins/`
-4. `pnpm install && pnpm build && pnpm inject`
+1. حمّل المثبّت لنظامك من
+   [GitHub Releases](https://github.com/alitravians/Ali/releases/latest) (أو من
+   صفحة [`boon/web/download.html`](web/download.html)):
+   - Windows: `boon-installer-windows-amd64.exe`
+   - macOS: `boon-installer-macos-arm64` أو `boon-installer-macos-amd64`
+   - Linux: `boon-installer-linux-amd64`
+2. أغلق Discord تماماً.
+3. شغّل المثبّت ثم اضغط **1** (Patch).
+4. افتح Discord — تظهر لوحة BOON عند `Ctrl+Shift+B`.
 
-النتيجة: في إعدادات Discord سترى:
+للحذف الكامل: شغّل المثبّت ثانية واضغط **2** (Unpatch). تفاصيل تقنية في
+[`boon-installer/README.md`](../boon-installer/README.md).
 
-```
-BOON Settings
-├─ BOON
-├─ Plugins
-├─ Themes
-├─ Updater
-├─ Cloud
-├─ Backup & Restore
-└─ Startup Timings
-```
+> المثبّت مبني على
+> [VencordInstaller](https://github.com/Vencord/Installer) (GPL-3.0). راجع
+> [`src/targets/desktop/LICENSE-NOTICE.md`](src/targets/desktop/LICENSE-NOTICE.md).
+
+### 4. كـ Vencord-fork rebrand (للمتقدّمين)
+
+لو تريد واجهة إعدادات Vencord كاملة مرتدية اسم BOON بدل الإطار المخصّص،
+راجع [`src/targets/desktop/README.md`](src/targets/desktop/README.md).
 
 ---
 

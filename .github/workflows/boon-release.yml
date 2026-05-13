@@ -1,0 +1,122 @@
+# Builds BOON runtime + cross-platform installer binaries and uploads them as
+# GitHub Release assets. Triggered when a tag matching `boon-v*` is pushed.
+#
+# Tag scheme: `boon-v0.1.0`, `boon-v0.1.1`, ...
+#
+# Outputs (attached to the release):
+#   - patcher.js          (Electron main-process patcher)
+#   - renderer.js         (BOON renderer payload)
+#   - boon-installer-windows-amd64.exe
+#   - boon-installer-windows-arm64.exe
+#   - boon-installer-macos-amd64
+#   - boon-installer-macos-arm64
+#   - boon-installer-linux-amd64
+#   - boon-installer-linux-arm64
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: boon-release
+
+on:
+  push:
+    tags:
+      - "boon-v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag name to release as (e.g. boon-v0.1.1). Required for manual runs."
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-runtime:
+    name: Build BOON runtime (patcher.js + renderer.js)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - working-directory: boon
+        run: |
+          npm ci
+          npm run typecheck
+          npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boon-runtime
+          path: |
+            boon/dist/desktop/patcher.js
+            boon/dist/desktop/renderer.js
+            boon/dist/boon.user.js
+
+  build-installer:
+    name: Build installer (${{ matrix.os_label }} ${{ matrix.arch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { goos: windows, arch: amd64, os_label: windows, ext: ".exe" }
+          - { goos: windows, arch: arm64, os_label: windows, ext: ".exe" }
+          - { goos: darwin,  arch: amd64, os_label: macos,   ext: ""     }
+          - { goos: darwin,  arch: arm64, os_label: macos,   ext: ""     }
+          - { goos: linux,   arch: amd64, os_label: linux,   ext: ""     }
+          - { goos: linux,   arch: arm64, os_label: linux,   ext: ""     }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Cross-compile
+        working-directory: boon-installer
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${TAG#boon-v}"
+          OUT="boon-installer-${{ matrix.os_label }}-${{ matrix.arch }}${{ matrix.ext }}"
+          go build -trimpath -ldflags "-s -w -X main.Version=${VERSION}" -o "${OUT}" .
+          ls -la "${OUT}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: boon-installer-${{ matrix.os_label }}-${{ matrix.arch }}
+          path: boon-installer/boon-installer-${{ matrix.os_label }}-${{ matrix.arch }}${{ matrix.ext }}
+
+  release:
+    name: Publish GitHub Release
+    needs: [build-runtime, build-installer]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+      - name: Flatten artifact tree
+        run: |
+          mkdir -p out
+          find artifacts -type f -exec cp -v {} out/ \;
+          ls -la out
+      - name: Compute tag name
+        id: tag
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "BOON ${{ steps.tag.outputs.tag }}"
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          generate_release_notes: true
+          files: |
+            out/patcher.js
+            out/renderer.js
+            out/boon.user.js
+            out/boon-installer-*
