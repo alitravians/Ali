@@ -38,10 +38,10 @@ import type {
     SettingDefinition,
     SettingsSchema,
 } from "./types.js";
+import { VERSION } from "./version.js";
 
 const STYLE_ID = "boon-ui-styles";
 const ROOT_ID = "boon-ui-root";
-const VERSION = "0.1.3";
 
 const ACCENT = "#00ff88";
 const ACCENT_DIM = "#00cc6e";
