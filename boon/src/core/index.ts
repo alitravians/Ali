@@ -32,7 +32,7 @@ export const BUILT_IN_PLUGINS: ReadonlyArray<AnyPlugin> = [
     noNitroAds,
 ];
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.1.1";
 
 let booted = false;
 let cleanupRouteObserver: (() => void) | null = null;
