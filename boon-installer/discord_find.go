@@ -140,7 +140,10 @@ func findDiscordDarwin() []*DiscordInstall {
 func findDiscordLinux() []*DiscordInstall {
 	var out []*DiscordInstall
 	home, _ := os.UserHomeDir()
-	branches := []struct {
+
+	// Layout A: system-wide installs (root or distro package) — app.asar lives
+	// directly under <base>/resources/.
+	staticBranches := []struct {
 		branch string
 		dirs   []string
 	}{
@@ -149,18 +152,19 @@ func findDiscordLinux() []*DiscordInstall {
 			filepath.Join(home, ".local/share/Discord"),
 		}},
 		{"DiscordCanary", []string{
-			"/opt/discord-canary", "/usr/lib/discord-canary", "/usr/share/discord-canary",
+			"/opt/discord-canary", "/usr/lib/discord-canary",
+			"/usr/share/discord-canary",
 		}},
 		{"DiscordPTB", []string{
-			"/opt/discord-ptb", "/usr/lib/discord-ptb", "/usr/share/discord-ptb",
+			"/opt/discord-ptb", "/usr/lib/discord-ptb",
+			"/usr/share/discord-ptb",
 		}},
 	}
-	for _, b := range branches {
+	for _, b := range staticBranches {
 		for _, base := range b.dirs {
 			if !dirExists(base) {
 				continue
 			}
-			// Discord Linux stores app.asar at <base>/resources/app.asar
 			out = append(out, &DiscordInstall{
 				Branch:   b.branch,
 				BasePath: base,
@@ -168,15 +172,53 @@ func findDiscordLinux() []*DiscordInstall {
 			})
 		}
 	}
-	// Flatpak install
+
+	// Layout B: Discord's self-updating per-user install. The official .deb
+	// ships a tiny launcher that downloads each release into
+	//   ~/.config/discord/app-<version>/resources/app.asar
+	// and replaces the symlink in ~/.config/discord/Discord on update. PTB,
+	// Canary and Development follow the same pattern under their own dirs.
 	if home != "" {
-		flatpakRoot := filepath.Join(home, ".var/app/com.discordapp.Discord/data/discord")
-		if dirExists(flatpakRoot) {
+		selfUpdating := map[string]string{
+			"Discord":            filepath.Join(home, ".config/discord"),
+			"DiscordPTB":         filepath.Join(home, ".config/discordptb"),
+			"DiscordCanary":      filepath.Join(home, ".config/discordcanary"),
+			"DiscordDevelopment": filepath.Join(home, ".config/discorddevelopment"),
+		}
+		for branch, base := range selfUpdating {
+			if !dirExists(base) {
+				continue
+			}
+			appDir := latestAppDir(base)
+			if appDir == "" {
+				continue
+			}
 			out = append(out, &DiscordInstall{
-				Branch:   "Discord (Flatpak)",
-				BasePath: flatpakRoot,
-				AppPath:  filepath.Join(flatpakRoot, "resources"),
+				Branch:   branch,
+				BasePath: base,
+				AppPath:  filepath.Join(appDir, "resources"),
 			})
+		}
+	}
+
+	// Layout C: Flatpak — distributed by the community, app.asar lives inside
+	// the flatpak data dir rather than under /var/lib/flatpak. PTB/Canary
+	// flatpaks use the same scheme under different app-ids.
+	if home != "" {
+		flatpaks := map[string]string{
+			"Discord (Flatpak)":       "com.discordapp.Discord",
+			"DiscordPTB (Flatpak)":    "com.discordapp.DiscordPTB",
+			"DiscordCanary (Flatpak)": "com.discordapp.DiscordCanary",
+		}
+		for branch, appID := range flatpaks {
+			flatpakRoot := filepath.Join(home, ".var/app", appID, "data/discord")
+			if dirExists(flatpakRoot) {
+				out = append(out, &DiscordInstall{
+					Branch:   branch,
+					BasePath: flatpakRoot,
+					AppPath:  filepath.Join(flatpakRoot, "resources"),
+				})
+			}
 		}
 	}
 	return out
