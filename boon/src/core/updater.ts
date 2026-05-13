@@ -64,13 +64,26 @@ function boonBoot(): BoonBootInvoke | null {
 async function fetchViaBridge(url: string, accept?: string): Promise<FetchResponse> {
     const boot = boonBoot();
     if (boot) {
-        const res = await boot.invoke<IpcFetchResult>("BOON_FETCH", { url, accept });
-        return {
-            ok: !!res?.ok,
-            status: res?.status ?? 0,
-            body: res?.body ?? "",
-            error: res?.error,
-        };
+        // Wrap the bridge call: any rejection (ipc-timeout, no-handler,
+        // CSP error, etc.) becomes a structured failure response so callers
+        // never see an uncaught promise rejection and the UI never gets
+        // stuck in the loading state.
+        try {
+            const res = await boot.invoke<IpcFetchResult>("BOON_FETCH", { url, accept });
+            return {
+                ok: !!res?.ok,
+                status: res?.status ?? 0,
+                body: res?.body ?? "",
+                error: res?.error,
+            };
+        } catch (err) {
+            return {
+                ok: false,
+                status: 0,
+                body: "",
+                error: err instanceof Error ? err.message : String(err),
+            };
+        }
     }
     // Userscript / extension / dev environments: direct fetch is fine.
     try {
