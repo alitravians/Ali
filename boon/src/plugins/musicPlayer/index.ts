@@ -51,11 +51,37 @@ function extractYouTubeId(input: string): string | null {
 function buildEmbedUrl(query: string, autoplay: boolean): string {
     const id = extractYouTubeId(query);
     if (id) {
+        // Hardcoded protocol + host + path; only the validated 11-char id is interpolated.
         return `https://www.youtube.com/embed/${id}?autoplay=${autoplay ? 1 : 0}&modestbranding=1&rel=0`;
     }
-    return `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(query)}&autoplay=${
+    // Strip any control characters out of the query before URI-encoding to be defensive.
+    const safeQuery = query.replace(/[\u0000-\u001f\u007f]/g, "");
+    return `https://www.youtube.com/embed?listType=search&list=${encodeURIComponent(safeQuery)}&autoplay=${
         autoplay ? 1 : 0
     }`;
+}
+
+/**
+ * Defense in depth: refuse to set `iframe.src` to anything other than a
+ * URL whose origin is exactly `https://www.youtube.com`. Even though
+ * `buildEmbedUrl` already only ever returns such URLs, going through this
+ * guard makes it auditable for static analysis tools.
+ */
+function setYouTubeIframeSrc(iframe: HTMLIFrameElement, src: string): void {
+    if (src === "about:blank") {
+        iframe.src = src;
+        return;
+    }
+    let parsed: URL;
+    try {
+        parsed = new URL(src);
+    } catch {
+        return;
+    }
+    if (parsed.protocol !== "https:" || parsed.host !== "www.youtube.com") {
+        return;
+    }
+    iframe.src = parsed.toString();
 }
 
 interface Position {
@@ -157,16 +183,26 @@ function openPanel(autoplay: boolean): HTMLElement {
 
     const header = document.createElement("div");
     header.className = "boon-music-header";
-    header.innerHTML = `<span class="title">🎵 BOON Music</span>
-<div class="btns">
-    <button data-action="minimize" title="تصغير">_</button>
-    <button data-action="close" title="إغلاق">×</button>
-</div>`;
+    const titleEl = document.createElement("span");
+    titleEl.className = "title";
+    titleEl.textContent = "🎵 BOON Music";
+    const btns = document.createElement("div");
+    btns.className = "btns";
+    const minBtn = document.createElement("button");
+    minBtn.dataset.action = "minimize";
+    minBtn.title = "تصغير";
+    minBtn.textContent = "_";
+    const closeBtn = document.createElement("button");
+    closeBtn.dataset.action = "close";
+    closeBtn.title = "إغلاق";
+    closeBtn.textContent = "×";
+    btns.append(minBtn, closeBtn);
+    header.append(titleEl, btns);
     panel.appendChild(header);
 
     const iframe = document.createElement("iframe");
     iframe.allow = "autoplay; encrypted-media; picture-in-picture";
-    iframe.src = currentQuery ? buildEmbedUrl(currentQuery, autoplay) : "about:blank";
+    setYouTubeIframeSrc(iframe, currentQuery ? buildEmbedUrl(currentQuery, autoplay) : "about:blank");
     panel.appendChild(iframe);
 
     const inputBar = document.createElement("div");
@@ -178,7 +214,7 @@ function openPanel(autoplay: boolean): HTMLElement {
     playBtn.textContent = "تشغيل";
     playBtn.addEventListener("click", () => {
         currentQuery = input.value;
-        iframe.src = buildEmbedUrl(currentQuery, autoplay);
+        setYouTubeIframeSrc(iframe, buildEmbedUrl(currentQuery, autoplay));
     });
     input.addEventListener("keydown", e => {
         if (e.key === "Enter") {
@@ -275,8 +311,8 @@ export default definePlugin({
                     return;
                 }
                 const p = openPanel(ctx.settings.autoplay);
-                const iframe = p.querySelector("iframe");
-                if (iframe) iframe.src = buildEmbedUrl(currentQuery, ctx.settings.autoplay);
+                const iframe = p.querySelector<HTMLIFrameElement>("iframe");
+                if (iframe) setYouTubeIframeSrc(iframe, buildEmbedUrl(currentQuery, ctx.settings.autoplay));
                 ctx.toast(`▶️ ${currentQuery}`, "success");
                 ctx.stats.bump("tracks_played");
             },
