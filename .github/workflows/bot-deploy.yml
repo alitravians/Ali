@@ -1,0 +1,41 @@
+name: BOON Community Bot — Deploy
+on:
+  push:
+    branches: [main]
+    paths:
+      - "boon-community-bot/**"
+      - ".github/workflows/bot-deploy.yml"
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: lint + type check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: boon-community-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pip install ruff mypy
+      - run: ruff check .
+      - run: mypy bot scripts --ignore-missing-imports
+
+  deploy:
+    name: deploy to Fly.io
+    needs: lint
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    concurrency: deploy-group
+    defaults:
+      run:
+        working-directory: boon-community-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - run: flyctl deploy --remote-only
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
