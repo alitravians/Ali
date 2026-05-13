@@ -29,13 +29,13 @@ interface SidebarTab {
 }
 
 const TABS: ReadonlyArray<SidebarTab> = [
-    { id: "plugins", label: "إضافات BOON", icon: "🧩" },
-    { id: "themes", label: "ثيمات BOON", icon: "🎨" },
-    { id: "updater", label: "تحديثات BOON", icon: "🔄" },
-    { id: "profiles", label: "ملفات BOON", icon: "👤" },
-    { id: "activity", label: "سجل BOON", icon: "📜" },
-    { id: "backup", label: "نسخ BOON", icon: "💾" },
-    { id: "home", label: "عن BOON", icon: "ℹ️" },
+    { id: "plugins", label: "إضافات alitravians", icon: "🧩" },
+    { id: "themes", label: "ثيمات alitravians", icon: "🎨" },
+    { id: "updater", label: "تحديثات alitravians", icon: "🔄" },
+    { id: "profiles", label: "ملفات alitravians", icon: "👤" },
+    { id: "activity", label: "سجل alitravians", icon: "📜" },
+    { id: "backup", label: "نسخ alitravians", icon: "💾" },
+    { id: "home", label: "عن alitravians", icon: "ℹ️" },
 ];
 
 const SECTION_ATTR = "data-boon-settings-section";
@@ -196,7 +196,7 @@ function buildBoonLabel(cls: SniffedClasses): HTMLElement {
 
     const heading = document.createElement("div");
     heading.className = cls.heading;
-    heading.textContent = "BOON";
+    heading.textContent = "alitravians";
     heading.style.color = "#00ff88";
     heading.style.letterSpacing = "1px";
 

@@ -240,8 +240,11 @@ export async function downloadRendererForTag(tag: string): Promise<string> {
         throw new Error(res.status ? `http-${res.status}` : (res.error || "network"));
     }
     const text = res.body;
-    // Sanity check matches the patcher's: must look like a BOON renderer.
-    if (text.length < 10000 || !text.includes("[BOON]") || !text.includes("VERSION")) {
+    // Sanity check matches the patcher's: must look like an alitravians
+    // renderer. Accept the legacy `[BOON]` marker too so we can still stage
+    // older builds for users mid-migration.
+    const hasMarker = text.includes("[alitravians]") || text.includes("[BOON]");
+    if (text.length < 10000 || !hasMarker || !text.includes("VERSION")) {
         throw new Error("invalid-renderer-payload");
     }
     return text;
