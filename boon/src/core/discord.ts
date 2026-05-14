@@ -163,8 +163,11 @@ export function readMessageBodyText(messageEl: HTMLElement): string {
     let result = "";
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
         acceptNode(node) {
+            // Text nodes are leaves so SKIP and REJECT are equivalent here;
+            // SKIP reads more naturally ("skip this node") than REJECT
+            // ("reject this node and its descendants").
             const parent = node.parentElement;
-            if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_REJECT;
+            if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_SKIP;
             return NodeFilter.FILTER_ACCEPT;
         },
     });
