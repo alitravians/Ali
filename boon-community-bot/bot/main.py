@@ -127,8 +127,28 @@ async def main() -> int:
         {bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED,
     )
     if bot_task in done and not stop_task.done():
-        log.error("bot task exited unexpectedly; shutting down")
+        # Surface the underlying exception so production debugging has
+        # something to grep for. ``Task.exception()`` returns None if the
+        # task completed cleanly (which would itself be unexpected for
+        # bot.start()) — log either way so the operator sees the
+        # transition.
+        bot_exc = bot_task.exception()
+        if bot_exc is not None:
+            log.error(
+                "bot task exited with %s: %s",
+                type(bot_exc).__name__, bot_exc, exc_info=bot_exc,
+            )
+        else:
+            log.error("bot task exited cleanly (unexpected); shutting down")
         stop_task.cancel()
+        # ``stop_task`` was awaiting an asyncio.Event — cancelling it raises
+        # CancelledError inside the awaiter, which the surrounding
+        # ``asyncio.wait`` has already consumed. Drain the cancellation
+        # explicitly so the task is fully resolved before we move on.
+        try:
+            await stop_task
+        except asyncio.CancelledError:
+            pass
     log.info("shutting down …")
     await bot.close()
     await runner.cleanup()

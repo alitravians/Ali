@@ -216,24 +216,32 @@ class _Store:
                 "active": {str(uid): s.to_json() for uid, s in self.active.items()},
                 "completions": self.completions[-2000:],  # keep last 2000
             }
-            # Atomic write: stream JSON into a sibling temp file, fsync, then
-            # os.replace onto the target. A crash mid-write leaves either the
-            # old file or the new file intact — never a half-written one that
-            # would crash `_load()` on the next boot and lose every active
-            # member's onboarding state.
+            # JSON serialisation is CPU-bound but tiny (a few KB even with
+            # 2000 completion records) so we do it on the event loop. The
+            # actual disk I/O (open / write / fsync / replace) is offloaded
+            # to a worker thread so the event loop stays responsive even on
+            # slow filesystems (Fly Volumes spinning disks, FUSE mounts).
             data = json.dumps(payload, ensure_ascii=False, indent=2)
-            tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-            with open(tmp, "w", encoding="utf-8") as fh:
-                fh.write(data)
-                fh.flush()
-                try:
-                    os.fsync(fh.fileno())
-                except OSError:
-                    # fsync may be unsupported on some filesystems (e.g. some
-                    # FUSE mounts). Treat as best-effort — the os.replace below
-                    # is still atomic on POSIX/NTFS.
-                    pass
-            os.replace(tmp, self.path)
+            await asyncio.to_thread(self._atomic_write, data)
+
+    def _atomic_write(self, data: str) -> None:
+        # Atomic write: stream JSON into a sibling temp file, fsync, then
+        # os.replace onto the target. A crash mid-write leaves either the
+        # old file or the new file intact — never a half-written one that
+        # would crash `_load()` on the next boot and lose every active
+        # member's onboarding state. Runs in a worker thread (see ``save``).
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(data)
+            fh.flush()
+            try:
+                os.fsync(fh.fileno())
+            except OSError:
+                # fsync may be unsupported on some filesystems (e.g. some
+                # FUSE mounts). Treat as best-effort — the os.replace below
+                # is still atomic on POSIX/NTFS.
+                pass
+        os.replace(tmp, self.path)
 
     def get(self, uid: int) -> MemberState | None:
         return self.active.get(uid)
@@ -804,6 +812,21 @@ class Onboarding(commands.Cog):
         if state is None or state.step != STEP_EXPERIENCE:
             await interaction.response.send_message("ليس وقت هذه الخطوة.", ephemeral=True)
             return
+        # Discord enforces select option values server-side, so under normal
+        # operation ``value`` is one of EXPERIENCE_LEVELS. Validate here
+        # anyway so the disk-load and in-memory paths stay symmetric — the
+        # only way an unknown value gets here is a tampered client or a
+        # future schema change, and either way we'd rather refuse than
+        # poison the welcome-card tagline lookup.
+        allowed_exp = {k for k, _l, _t in EXPERIENCE_LEVELS}
+        if value not in allowed_exp:
+            log.warning(
+                "rejected unknown experience %r from user %s", value, interaction.user.id,
+            )
+            await interaction.response.send_message(
+                "اختيار غير صالح. جرّب مرّة ثانية.", ephemeral=True,
+            )
+            return
         state.experience = value
         state.step = STEP_INTERESTS
         await self.store.save()
@@ -814,6 +837,18 @@ class Onboarding(commands.Cog):
         if state is None or state.step != STEP_INTERESTS:
             await interaction.response.send_message("ليس وقت هذه الخطوة.", ephemeral=True)
             return
+        # Symmetric filtering with the disk-load path: drop any value the
+        # canonical INTERESTS list doesn't recognise rather than storing it
+        # and silently skipping it in ``_complete`` (which would assign no
+        # role for that interest).
+        allowed_interests = {k for k, _l, _e in INTERESTS}
+        clean_values = [v for v in values if v in allowed_interests]
+        if len(clean_values) != len(values):
+            log.warning(
+                "dropped %d unknown interests from user %s",
+                len(values) - len(clean_values), interaction.user.id,
+            )
+        values = clean_values
         state.interests = values
         await self.store.save()
         # Acknowledge the selection without advancing — the user still must
