@@ -15,6 +15,15 @@ Layout (1100 x 360 px, cyber-dark background):
 Arabic glyphs go through arabic_reshaper + python-bidi so they render with
 proper joined forms in right-to-left order — without that step Pillow draws
 each letter in its isolated form and left-to-right which is unreadable.
+
+Mixed-script rendering:
+  Arabic-only fonts (NotoNaskhArabic) ship empty glyphs for Latin
+  characters, so a string like "في alitravians" renders the Latin word as
+  tofu boxes. We work around Pillow's lack of automatic font fallback by
+  splitting the visual-order string into Arabic / non-Arabic runs and
+  drawing each run with its own font (Arabic font + Latin Sans). This is
+  the same technique web browsers use under the hood (CSS @font-face
+  fallback per Unicode range).
 """
 
 from __future__ import annotations
@@ -43,37 +52,116 @@ AVATAR_SIZE = 220
 LEFT_PAD = 60
 ACCENT_BAR_W = 10
 
-# Locations of arabic / latin fonts inside the image. fonts-noto-naskh-arabic
-# is the slim package; fall back to DejaVuSans if it's somehow missing.
-_FONT_CANDIDATES: Iterable[str] = (
+# Font candidates per script. Order = preference; first loadable file wins.
+# All paths come from the `fonts-noto-core` Debian package shipped in our
+# Dockerfile, with DejaVu as a last-ditch fallback if the image is ever
+# rebuilt without Noto installed.
+_ARABIC_FONT_REGULAR: Iterable[str] = (
     "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Regular.ttf",
-    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansArabic-Regular.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+)
+_ARABIC_FONT_BOLD: Iterable[str] = (
+    "/usr/share/fonts/truetype/noto/NotoNaskhArabic-Bold.ttf",
+    "/usr/share/fonts/truetype/noto/NotoSansArabic-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+)
+_LATIN_FONT_REGULAR: Iterable[str] = (
+    "/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+)
+_LATIN_FONT_BOLD: Iterable[str] = (
+    "/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf",
+    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
 )
 
 
-def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    """Find the first available font on disk and return it at `size`.
-
-    Weight matching is symmetric: a `bold=False` request never returns a
-    Bold-named candidate, and vice versa. ``DejaVuSans`` is treated as
-    weight-neutral (it's only the last-ditch latin fallback, used for
-    both bold and regular labels when the Noto family is unavailable).
-    """
-    for path in _FONT_CANDIDATES:
-        is_bold = "Bold" in path
-        is_neutral = "DejaVu" in path  # weight-agnostic latin fallback
-        if bold and not (is_bold or is_neutral):
-            continue
-        if not bold and is_bold and not is_neutral:
-            continue
+def _first_loadable(paths: Iterable[str], size: int) -> ImageFont.FreeTypeFont:
+    for path in paths:
         try:
             return ImageFont.truetype(path, size=size)
         except OSError:
             continue
-    # Last-ditch fallback: pillow's bundled default. Looks ugly but won't crash.
-    log.warning("no arabic-capable font on disk; falling back to default")
+    log.warning("no truetype font found in %s; using pillow default", list(paths))
     return ImageFont.load_default()
+
+
+def _load_fonts(size: int, bold: bool = False) -> dict[str, ImageFont.FreeTypeFont]:
+    """Return a {script: ImageFont} pair sized to `size` (and `bold` if set)."""
+    return {
+        "arabic": _first_loadable(
+            _ARABIC_FONT_BOLD if bold else _ARABIC_FONT_REGULAR, size
+        ),
+        "latin": _first_loadable(
+            _LATIN_FONT_BOLD if bold else _LATIN_FONT_REGULAR, size
+        ),
+    }
+
+
+# Unicode ranges that NotoNaskhArabic / NotoSansArabic can render. Anything
+# outside these blocks is sent to the Latin font instead.
+_ARABIC_RANGES = (
+    (0x0600, 0x06FF),  # Arabic
+    (0x0750, 0x077F),  # Arabic Supplement
+    (0x08A0, 0x08FF),  # Arabic Extended-A
+    (0xFB50, 0xFDFF),  # Arabic Presentation Forms-A (reshaper output)
+    (0xFE70, 0xFEFF),  # Arabic Presentation Forms-B (reshaper output)
+)
+
+
+def _is_arabic_codepoint(cp: int) -> bool:
+    return any(lo <= cp <= hi for lo, hi in _ARABIC_RANGES)
+
+
+def _script_of(ch: str) -> str | None:
+    """Return ``"arabic"``, ``"latin"`` or ``None`` (inherit) for ``ch``.
+
+    Whitespace returns ``None`` so it sticks to whatever run it's adjacent
+    to — that keeps the space *between two Arabic words* drawn in the
+    Arabic font (matching its kerning width) instead of randomly switching
+    to NotoSans's space-advance every word boundary.
+    """
+    if ch.isspace():
+        return None
+    if _is_arabic_codepoint(ord(ch)):
+        return "arabic"
+    return "latin"
+
+
+def _runs(text: str) -> list[tuple[str, str]]:
+    """Split a visual-order string into ``(run_text, script)`` segments.
+
+    The input has already been through ``arabic_reshaper`` + ``bidi`` so
+    Arabic chars are in their presentation forms and the whole string reads
+    left-to-right when blitted by Pillow. We just need to switch fonts at
+    each script boundary; whitespace inherits the surrounding script.
+    """
+    if not text:
+        return []
+    out: list[tuple[str, str]] = []
+    buf: list[str] = []
+    current: str | None = None
+    for ch in text:
+        s = _script_of(ch)
+        if s is None:
+            # Whitespace — keep with current run; if we don't have one yet,
+            # buffer until we discover the next real script.
+            buf.append(ch)
+            continue
+        if current is None:
+            current = s
+            buf.append(ch)
+        elif s == current:
+            buf.append(ch)
+        else:
+            out.append(("".join(buf), current))
+            buf = [ch]
+            current = s
+    if buf:
+        # Pure-whitespace tail (or pure-whitespace string) defaults to latin
+        # so the Latin font's space-width is used — visually identical.
+        out.append(("".join(buf), current or "latin"))
+    return out
 
 
 def _ar(text: str) -> str:
@@ -86,6 +174,32 @@ def _ar(text: str) -> str:
     drawn by Pillow.
     """
     return get_display(arabic_reshaper.reshape(text))
+
+
+def _draw_mixed(
+    draw: ImageDraw.ImageDraw,
+    xy: tuple[float, float],
+    text: str,
+    fonts: dict[str, ImageFont.FreeTypeFont],
+    fill: tuple[int, int, int, int],
+) -> None:
+    """Draw a script-mixed string starting at (x, y), switching fonts per run."""
+    x, y = xy
+    for run, script in _runs(text):
+        font = fonts[script]
+        draw.text((x, y), run, font=font, fill=fill)
+        x += draw.textlength(run, font=font)
+
+
+def _measure_mixed(
+    draw: ImageDraw.ImageDraw,
+    text: str,
+    fonts: dict[str, ImageFont.FreeTypeFont],
+) -> float:
+    """Total pixel width of a script-mixed string when drawn via _draw_mixed."""
+    return sum(
+        draw.textlength(run, font=fonts[script]) for run, script in _runs(text)
+    )
 
 
 def _circular_avatar(avatar_bytes: bytes, size: int) -> Image.Image:
@@ -150,26 +264,33 @@ def render(
     text_x = LEFT_PAD + ACCENT_BAR_W + 10 + AVATAR_SIZE + 50
     text_top = 70
 
-    title_font = _load_font(56, bold=True)
-    sub_font = _load_font(34)
-    tag_font = _load_font(28)
-    footer_font = _load_font(22)
+    title_fonts = _load_fonts(56, bold=True)
+    sub_fonts = _load_fonts(34)
+    tag_fonts = _load_fonts(28)
+    footer_fonts = _load_fonts(22)
 
-    title_line = _ar(f"\u2728 \u0623\u0647\u0644\u0627\u064b \u0648\u0633\u0647\u0644\u0627\u064b\u060c {nickname}")
+    # ✨ (U+2728) lives in the Dingbats block which neither NotoNaskhArabic
+    # nor NotoSans cover, so leaving it in would render as a tofu box just
+    # like the Latin runs used to. Drop the decoration entirely — the title
+    # reads cleanly without it and avoids a third (emoji) font pass.
+    title_line = _ar(f"\u0623\u0647\u0644\u0627\u064b \u0648\u0633\u0647\u0644\u0627\u064b\u060c {nickname}")
     sub_line = _ar(f"\u0639\u0636\u0648\u0646\u0627 \u0631\u0642\u0645 {member_number} \u0641\u064a alitravians")
     tag_line = _ar(tagline)
 
-    draw.text((text_x, text_top), title_line, font=title_font, fill=TEXT_PRIMARY)
-    draw.text((text_x, text_top + 80), sub_line, font=sub_font, fill=TEXT_SECONDARY)
-    draw.text((text_x, text_top + 80 + 60), tag_line, font=tag_font, fill=ACCENT)
+    _draw_mixed(draw, (text_x, text_top), title_line, title_fonts, TEXT_PRIMARY)
+    _draw_mixed(draw, (text_x, text_top + 80), sub_line, sub_fonts, TEXT_SECONDARY)
+    _draw_mixed(draw, (text_x, text_top + 80 + 60), tag_line, tag_fonts, ACCENT)
 
-    footer = _ar("alitravians.community \u00b7 \u0645\u0633\u062a\u0639\u062f\u0651\u0648\u0646 \u0644\u0644\u0628\u062f\u0621")
-    fw = draw.textlength(footer, font=footer_font)
-    draw.text(
+    footer = _ar(
+        "alitravians.community \u00b7 \u0645\u0633\u062a\u0639\u062f\u0651\u0648\u0646 \u0644\u0644\u0628\u062f\u0621"
+    )
+    fw = _measure_mixed(draw, footer, footer_fonts)
+    _draw_mixed(
+        draw,
         ((CARD_W - fw) / 2, CARD_H - 50),
         footer,
-        font=footer_font,
-        fill=TEXT_FAINT,
+        footer_fonts,
+        TEXT_FAINT,
     )
 
     buf = io.BytesIO()
