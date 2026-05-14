@@ -79,8 +79,9 @@ const SCHEMA = {
     minLength: {
         type: "number",
         label: "أقل عدد أحرف للترجمة",
-        description: "الرسائل الأقصر من هذا (بعد إزالة الإيموجي والروابط) لا تُترجم.",
-        default: 3,
+        description:
+            "الرسائل الأقصر من هذا (بعد إزالة الإيموجي والروابط) لا تُترجم. القيمة 1 = ترجم كل رسالة فيها أي حرف.",
+        default: 1,
         min: 1,
         max: 50,
         step: 1,
@@ -343,8 +344,12 @@ function strippedText(raw: string): string {
 }
 
 /**
- * Cheap heuristic: returns true if the stripped text appears NOT to already
- * be in the target language. Caller compares < 20% target-script letters.
+ * Returns true if the stripped text contains ANY letter that does NOT belong
+ * to the target language's script. The policy is mandatory translation —
+ * if even one foreign-script letter is present (e.g. one Latin letter in an
+ * Arabic message), translate the whole message. Mixed-language messages are
+ * common in Arabic Discord communities ("hello شلونك") and the user wants
+ * those rendered fully in Arabic underneath.
  *
  * For Latin-script targets (en/tr/fr/de/es) the heuristic only filters out
  * messages that already use Latin script — it cannot distinguish between
@@ -360,7 +365,49 @@ function looksForeign(stripped: string, targetLang: string): boolean {
         return true;
     }
     const targetCount = (stripped.match(scriptRe) ?? []).length;
-    return targetCount / letters.length < 0.2;
+    // Translate as long as ANY non-target-script letter is present. Previous
+    // 20% threshold silently skipped Latin-heavy mixed messages when most of
+    // the text happened to be in the target script.
+    return targetCount < letters.length;
+}
+
+/**
+ * Pull every translatable text fragment out of a Discord message element:
+ * the main content, plus the reply preview (the gray quoted line above the
+ * message body when someone replies). Discord does NOT include the reply
+ * preview inside ``message-content-*`` — it lives in its own subtree — so
+ * the core ``extractMessageInfo`` helper misses it. We pick it up here so
+ * the auto-translator covers the full conversational context the reader
+ * sees, not just the most recent author's line.
+ */
+function gatherTranslatableText(el: HTMLElement, includeEmbeds: boolean): string {
+    const parts: string[] = [];
+    // Reply preview ("X said: Y" line above the message body). Discord names
+    // these classes ``repliedTextContent`` / ``repliedTextPreview`` depending
+    // on the build, so we match either.
+    const replyPreview = el.querySelector<HTMLElement>(
+        '[class*="repliedTextContent"], [class*="repliedTextPreview"]',
+    );
+    const replyText = replyPreview?.textContent?.trim() ?? "";
+    if (replyText) parts.push(replyText);
+    // Main message body.
+    const contentEl = el.querySelector<HTMLElement>('div[id^="message-content-"]');
+    const body = contentEl?.textContent?.trim() ?? "";
+    if (body) parts.push(body);
+    // Optional embed text — gated behind the existing setting so high-volume
+    // bot channels don't blow through the translation budget.
+    if (includeEmbeds) {
+        const embedText = Array.from(
+            el.querySelectorAll<HTMLElement>(
+                '[class*="embedDescription"], [class*="embedTitle"], [class*="embedFieldValue"]',
+            ),
+        )
+            .map(n => n.textContent ?? "")
+            .join("\n")
+            .trim();
+        if (embedText) parts.push(embedText);
+    }
+    return parts.join("\n");
 }
 
 // Memoize id-list parsing keyed by the raw setting string. The accessory
@@ -424,7 +471,7 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.0",
+        version: "0.2.2",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
@@ -486,18 +533,12 @@ export default definePlugin({
 
             if (isScopedOut(info.channelId)) return null;
 
-            // Gather candidate text: message content, plus embed text if enabled.
-            let candidate = info.content;
-            if (ctx.settings.translateEmbeds) {
-                const embedText = Array.from(
-                    info.el.querySelectorAll<HTMLElement>('[class*="embedDescription"], [class*="embedTitle"], [class*="embedFieldValue"]'),
-                )
-                    .map(n => n.textContent ?? "")
-                    .join("\n")
-                    .trim();
-                if (embedText && !candidate) candidate = embedText;
-                else if (embedText) candidate = `${candidate}\n${embedText}`;
-            }
+            // Gather candidate text: reply preview + message body + optional
+            // embed text. ``info.content`` from the framework only covers the
+            // message body, so we re-derive from ``info.el`` to pick up the
+            // reply preview the framework strips out.
+            const candidate = gatherTranslatableText(info.el, ctx.settings.translateEmbeds);
+            if (!candidate) return null;
 
             const cleaned = strippedText(candidate);
             const minLen = Math.max(1, Math.floor(ctx.settings.minLength));

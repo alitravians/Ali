@@ -94,24 +94,56 @@ export async function sendMessage(text: string): Promise<boolean> {
 }
 
 /**
- * Observe the chat scroller for newly-appended message DOM nodes.
- * Calls `handler` with the new message element.
+ * Observe the chat scroller for newly-appended message DOM nodes AND for
+ * in-place text mutations on existing messages (so accessory factories get
+ * re-invoked after Discord edits a message or fills in text it rendered
+ * empty the first time around).
+ *
+ * The handler is called with the affected `<li>` element. The accessory
+ * layer is responsible for snapshotting source text and skipping work when
+ * nothing changed — this observer fires generously and lets that layer
+ * decide.
+ *
+ * Mutations inside an accessory's own DOM (the `.boon-accessory-host`
+ * subtree) are filtered out so the translation node updating its own text
+ * does not feed back into another scan.
  */
 export function observeMessages(handler: (el: HTMLElement) => void): () => void {
     const root = document.body;
     const observer = new MutationObserver(records => {
+        // Within a single MutationObserver batch we may receive dozens of
+        // mutations targeting the same <li> (Discord edits a message → text
+        // node mutation + edited-badge insertion + tooltip flicker). Coalesce
+        // so the handler runs at most once per li per batch — the accessory
+        // layer is idempotent but redundant calls still cost DOM queries.
+        const dirty = new Set<HTMLElement>();
         for (const r of records) {
+            // New <li> wrappers (or batches that include them).
             r.addedNodes.forEach(node => {
                 if (!(node instanceof HTMLElement)) return;
                 if (node.matches('li[id^="chat-messages-"]')) {
-                    handler(node);
+                    dirty.add(node);
                     return;
                 }
-                node.querySelectorAll<HTMLElement>('li[id^="chat-messages-"]').forEach(handler);
+                node.querySelectorAll<HTMLElement>('li[id^="chat-messages-"]').forEach(li => {
+                    dirty.add(li);
+                });
             });
+            // In-place text mutations (edits, lazy-fill, virtualization recycle).
+            const target = r.target;
+            if (!(target instanceof Node)) continue;
+            const ancestor = target instanceof HTMLElement ? target : target.parentElement;
+            if (!ancestor) continue;
+            // Ignore mutations originating inside an accessory's own DOM —
+            // that's the translation node redrawing itself, not a source-text
+            // change. Without this guard we'd infinite-loop.
+            if (ancestor.closest(".boon-accessory-host")) continue;
+            const li = ancestor.closest<HTMLElement>('li[id^="chat-messages-"]');
+            if (li) dirty.add(li);
         }
+        for (const li of dirty) handler(li);
     });
-    observer.observe(root, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true, characterData: true });
     return () => observer.disconnect();
 }
 

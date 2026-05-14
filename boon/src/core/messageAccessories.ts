@@ -41,7 +41,26 @@ interface RegisteredAccessory {
 }
 
 const accessories = new Set<RegisteredAccessory>();
-const seenMessages = new WeakMap<HTMLElement, Set<string>>();
+
+// Track the source-text snapshot the last accessory render saw, keyed by
+// the message element. When Discord edits a message in-place we compare
+// the new source to this snapshot and invalidate the cached accessories
+// only if the text actually changed. Avoids triggering full re-renders on
+// every cosmetic mutation (timestamp tooltip updates, reaction adds, etc.)
+// that don't actually change the translatable content.
+const lastSourceSnapshot = new WeakMap<HTMLElement, string>();
+
+function sourceSnapshot(el: HTMLElement): string {
+    // Combine the reply preview (if any) with the message body — the same
+    // surface plugins like autoTranslate care about. Cosmetic re-renders
+    // (reactions, edited-badge tooltip flicker) don't touch either node, so
+    // this snapshot stays stable across them.
+    const reply = el.querySelector<HTMLElement>(
+        '[class*="repliedTextContent"], [class*="repliedTextPreview"]',
+    );
+    const body = el.querySelector<HTMLElement>('div[id^="message-content-"]');
+    return `${reply?.textContent ?? ""}\u0000${body?.textContent ?? ""}`;
+}
 
 function ensureHost(messageEl: HTMLElement): HTMLElement | null {
     const existing = messageEl.querySelector<HTMLElement>(`.${ACCESSORY_HOST_CLASS}`);
@@ -70,17 +89,31 @@ function infoFor(messageEl: HTMLElement): MessageInfo {
 }
 
 function scan(messageEl: HTMLElement): void {
-    let seen = seenMessages.get(messageEl);
-    if (!seen) {
-        seen = new Set();
-        seenMessages.set(messageEl, seen);
-    }
     const host = ensureHost(messageEl);
     if (!host) return;
+    // Detect in-place edits / lazy text-fill races: if the source text the
+    // last render saw differs from the current snapshot, wipe stale
+    // accessories so factories get re-invoked with fresh content.
+    const snapshot = sourceSnapshot(messageEl);
+    const previous = lastSourceSnapshot.get(messageEl);
+    if (previous !== undefined && previous !== snapshot) {
+        for (const stale of Array.from(
+            host.querySelectorAll<HTMLElement>(`.${ACCESSORY_CLASS}`),
+        )) {
+            stale.remove();
+        }
+    }
+    lastSourceSnapshot.set(messageEl, snapshot);
     const info = infoFor(messageEl);
     for (const acc of accessories) {
-        if (seen.has(acc.id)) continue;
-        seen.add(acc.id);
+        // Source-of-truth dedup: skip if this accessory already produced a
+        // node for this message. A previous design used a per-message Set,
+        // but that incorrectly marked the accessory as "handled" even when
+        // the factory returned null (e.g. because the text node hadn't yet
+        // rendered when the MutationObserver fired) — silently and
+        // permanently dropping the translation. The DOM-presence check
+        // self-heals: a null return today still lets a future scan retry.
+        if (host.querySelector(`[data-boon-acc-id="${acc.id}"]`)) continue;
         try {
             const node = acc.factory(info);
             if (node) {
