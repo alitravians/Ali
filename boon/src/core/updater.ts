@@ -298,11 +298,38 @@ export async function downloadRendererForTag(tag: string): Promise<string> {
 }
 
 /**
- * Drive the in-app updater: download renderer.js for the latest release,
- * stage it via the patcher's IPC, and (optionally) relaunch Discord.
+ * Try to download `patcher.js` for the given release tag.
  *
- * Returns the version that was staged. Callers should show a "restart"
- * affordance on success.
+ * Patcher self-update was added in v0.2.1: every release ships an updated
+ * patcher.js as a release asset, and the in-app updater stages it next to
+ * renderer.js so the next Discord boot promotes both atomically. Pre-v0.2.1
+ * releases did not publish a patcher asset; in that case we just return null
+ * and the caller skips patcher staging.
+ */
+async function downloadPatcherForTag(tag: string): Promise<string | null> {
+    const url = `https://github.com/alitravians/Ali/releases/download/${encodeURIComponent(tag)}/patcher.js`;
+    const res = await fetchViaBridge(url, "application/octet-stream, */*;q=0.8");
+    if (!res.ok) return null;
+    const text = res.body;
+    // Same sanity checks the patcher applies in `looksLikePatcher`.
+    if (text.length < 5000) return null;
+    if (!text.includes("[alitravians] patcher loading")) return null;
+    if (!/PATCHER_VERSION\s*=\s*"\d+\.\d+\.\d+"/.test(text)) return null;
+    return text;
+}
+
+interface PatcherBootInfo {
+    patcherVersion?: string | null;
+}
+
+/**
+ * Drive the in-app updater: download renderer.js (and the patcher, if newer)
+ * for the latest release, stage them via the patcher's IPC, and (optionally)
+ * relaunch Discord.
+ *
+ * Returns the renderer version that was staged. Callers should show a
+ * "restart" affordance on success — the patcher is promoted on the same
+ * relaunch.
  */
 export async function stageUpdate(tag: string): Promise<{ version: string | null }> {
     const boot = (globalThis as { __BOON__?: { invoke: (channel: string, payload?: unknown) => Promise<unknown> } }).__BOON__;
@@ -310,6 +337,32 @@ export async function stageUpdate(tag: string): Promise<{ version: string | null
         throw new Error("ipc-unavailable");
     }
     const code = await downloadRendererForTag(tag);
+
+    // Best-effort patcher upgrade. Done BEFORE the renderer stage because if
+    // the patcher download fails we still want the renderer update to land,
+    // and if the patcher stage fails (e.g. old patcher with no
+    // BOON_STAGE_PATCHER handler) we silently ignore — the renderer stage
+    // alone is the v0.1.x behaviour. Once v0.2.1 has rolled out everywhere
+    // this path becomes self-sustaining.
+    try {
+        const patcherCode = await downloadPatcherForTag(tag);
+        if (patcherCode) {
+            // Skip staging if the running patcher already reports a version
+            // ≥ the downloaded one. compareVersions handles missing values
+            // by treating them as "0", which means an old patcher with no
+            // `patcherVersion` field will always be considered out of date.
+            const bootInfo = await boot.invoke("BOON_GET_BOOT_INFO").catch(() => null) as PatcherBootInfo | null;
+            const currentPatcherVersion = bootInfo?.patcherVersion ?? "0.0.0";
+            const m = /PATCHER_VERSION\s*=\s*"(\d+\.\d+\.\d+)"/.exec(patcherCode);
+            const newPatcherVersion = m ? m[1] : "0.0.0";
+            if (isNewer(newPatcherVersion, currentPatcherVersion)) {
+                await boot.invoke("BOON_STAGE_PATCHER", { code: patcherCode }).catch(() => {});
+            }
+        }
+    } catch {
+        // Swallow — patcher upgrades are opportunistic, never block renderer.
+    }
+
     const result = await boot.invoke("BOON_STAGE_UPDATE", { code, tag }) as {
         ok: boolean;
         version?: string | null;

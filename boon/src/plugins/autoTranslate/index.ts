@@ -149,13 +149,105 @@ interface TranslationResult {
     sourceLang?: string;
 }
 
+// Discord's renderer CSP blocks `fetch()` to translate.googleapis.com and
+// generativelanguage.googleapis.com (only discord.* hosts are in connect-src).
+// When running inside patched Discord (desktop) we route through the patcher's
+// BOON_FETCH IPC handler — the same channel the updater uses to reach GitHub.
+// Userscript and extension targets don't have a bridge but also aren't subject
+// to Discord's CSP, so they fall through to a direct fetch.
+interface BridgeFetchInit {
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    accept?: string;
+}
+
+interface BridgeFetchResult {
+    ok: boolean;
+    status: number;
+    body: string;
+    error?: string;
+}
+
+interface BoonBoot {
+    invoke<T = unknown>(channel: string, payload?: unknown): Promise<T>;
+    readonly ipc?: boolean;
+}
+
+function boonBoot(): BoonBoot | null {
+    const b = (globalThis as { __BOON__?: BoonBoot }).__BOON__;
+    if (!b || typeof b.invoke !== "function" || !b.ipc) return null;
+    return b;
+}
+
+async function bridgedFetch(url: string, init?: BridgeFetchInit): Promise<BridgeFetchResult> {
+    const boot = boonBoot();
+    if (boot) {
+        try {
+            const res = await boot.invoke<BridgeFetchResult>("BOON_FETCH", {
+                url,
+                method: init?.method,
+                headers: init?.headers,
+                body: init?.body,
+                accept: init?.accept,
+            });
+            return {
+                ok: !!res?.ok,
+                status: res?.status ?? 0,
+                body: res?.body ?? "",
+                error: res?.error,
+            };
+        } catch (err) {
+            return {
+                ok: false,
+                status: 0,
+                body: "",
+                error: err instanceof Error ? err.message : String(err),
+            };
+        }
+    }
+    // Userscript / extension / dev environments — no CSP issue, direct fetch.
+    // Merge `accept` into headers (same as the IPC path does on the main side)
+    // so callers don't have to set it twice. An explicit Accept in
+    // init.headers wins over the convenience init.accept.
+    try {
+        const headers: Record<string, string> = { ...(init?.headers ?? {}) };
+        if (init?.accept && !Object.keys(headers).some(k => k.toLowerCase() === "accept")) {
+            headers["Accept"] = init.accept;
+        }
+        const r = await fetch(url, {
+            method: init?.method ?? "GET",
+            headers: Object.keys(headers).length > 0 ? headers : undefined,
+            body: init?.body,
+        });
+        const text = await r.text();
+        return { ok: r.ok, status: r.status, body: text };
+    } catch (err) {
+        return {
+            ok: false,
+            status: 0,
+            body: "",
+            error: err instanceof Error ? err.message : String(err),
+        };
+    }
+}
+
 async function translateGoogle(text: string, target: string): Promise<TranslationResult> {
     const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${encodeURIComponent(
         target,
     )}&dt=t&q=${encodeURIComponent(text)}`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`Google Translate HTTP ${res.status}`);
-    const data = (await res.json()) as [Array<[string, string]>, ...unknown[]];
+    const res = await bridgedFetch(url, { accept: "application/json" });
+    if (!res.ok) {
+        throw new Error(res.error || `Google Translate HTTP ${res.status}`);
+    }
+    let data: [Array<[string, string]>, ...unknown[]];
+    try {
+        data = JSON.parse(res.body) as [Array<[string, string]>, ...unknown[]];
+    } catch (err) {
+        throw new Error(
+            `Google Translate تعذّر تحليل الرد: ${err instanceof Error ? err.message : String(err)}`,
+        );
+    }
     const sentences = data[0] || [];
     return {
         text: sentences.map(s => s[0]).join(""),
@@ -180,11 +272,12 @@ async function translateGemini(
         ja: "Japanese",
     };
     const targetLabel = labels[target] ?? target;
-    const res = await fetch(
+    const res = await bridgedFetch(
         `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
         {
             method: "POST",
             headers: { "content-type": "application/json" },
+            accept: "application/json",
             body: JSON.stringify({
                 contents: [
                     {
@@ -198,10 +291,17 @@ async function translateGemini(
             }),
         },
     );
-    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
-    const data = (await res.json()) as {
+    if (!res.ok) throw new Error(res.error || `Gemini HTTP ${res.status}`);
+    let data: {
         candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
+    try {
+        data = JSON.parse(res.body);
+    } catch (err) {
+        throw new Error(
+            `Gemini تعذّر تحليل الرد: ${err instanceof Error ? err.message : String(err)}`,
+        );
+    }
     const out = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!out) throw new Error("استجابة Gemini فارغة");
     return { text: out };
