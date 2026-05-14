@@ -604,16 +604,35 @@ export default definePlugin({
                     if (result.text.trim() === candidate.trim()) {
                         // Translation == source ⇒ language guess was wrong; remove subtitle.
                         placeholder.remove();
+                        // Drop the override too: re-rendering this message should
+                        // not re-fire a translation that we already know returns
+                        // the same text. Without this, a forced message whose
+                        // translation collapses to source would loop forever
+                        // across React re-renders.
+                        if (forced) manualOverrides.delete(info.id);
                         return;
                     }
                     const finalNode = buildTranslationNode(result.text, result.sourceLang);
                     replaceInPlace(placeholder, finalNode);
-                    ctx.stats.bump("auto_translations");
+                    // Conditionally bump the correct counter so manual forces
+                    // don't double-count into ``auto_translations``. The manual
+                    // bump moved here (from the onClick handler) so it only
+                    // increments on a *successful* translation, mirroring the
+                    // pre-v0.2.5 behavior where the bump sat inside the try
+                    // block after ``await translate(text)`` returned.
+                    ctx.stats.bump(forced ? "manual_translations" : "auto_translations");
                 } catch (err) {
                     ctx.logger.warn("auto-translate failed:", err);
-                    if (placeholder.isConnected) {
-                        placeholder.textContent = "🌐 تعذّر الترجمة";
-                        placeholder.style.opacity = "0.5";
+                    // Drop the failed accessory entirely and surface the error
+                    // via toast. Leaving the placeholder in the DOM would have
+                    // been fine for auto (one-shot), but with the override map
+                    // every re-render would re-run the factory, re-hit the
+                    // same error, and burn through quota for nothing. Removing
+                    // the override here breaks the retry loop cleanly.
+                    if (placeholder.isConnected) placeholder.remove();
+                    if (forced) {
+                        manualOverrides.delete(info.id);
+                        ctx.toast(`فشل: ${(err as Error).message}`, "error");
                     }
                 }
             })();
@@ -664,13 +683,12 @@ export default definePlugin({
                     const host = msgEl.querySelector<HTMLElement>(".boon-accessory-host");
                     host?.querySelector('[data-boon-acc-id="autoTranslate"]')?.remove();
                     ctx.toast("جاري الترجمة…", "info");
-                    // Bump stats here because the factory's stats bump only
-                    // counts the *auto* path; this lets us track manual usage
-                    // independently for diagnostics.
-                    ctx.stats.bump("manual_translations");
                     // Force-re-render via the public API. The framework's
                     // scan does a host.querySelector check that we just
                     // cleared above, so the factory will run on this message.
+                    // ``manual_translations`` is bumped inside the factory's
+                    // success path so it only increments on a real translation,
+                    // never on a failure or self-cancellation.
                     ctx.messageAccessories.rescan(msgEl);
                 },
             });
