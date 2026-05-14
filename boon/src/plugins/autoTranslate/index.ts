@@ -209,8 +209,20 @@ async function translateGemini(
 
 // ─── Heuristics for auto mode ────────────────────────────────────────────────
 
-const ARABIC_RANGE_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g;
 const LETTER_RE = /\p{L}/gu;
+// Map of target language → regex matching letters that *belong to that
+// language's script*. Used by `looksForeign` to decide whether a message is
+// already in the target language (and therefore doesn't need translation).
+const TARGET_SCRIPT_RE: Readonly<Record<string, RegExp>> = {
+    ar: /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g,
+    en: /[A-Za-z]/g,
+    tr: /[A-Za-z]/g,
+    fr: /[A-Za-z]/g,
+    de: /[A-Za-z]/g,
+    es: /[A-Za-z]/g,
+    "zh-CN": /[\u4E00-\u9FFF]/g,
+    ja: /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,
+};
 const CODE_BLOCK_RE = /```[\s\S]*?```/g;
 const INLINE_CODE_RE = /`[^`]*`/g;
 const URL_RE = /https?:\/\/\S+/g;
@@ -231,28 +243,42 @@ function strippedText(raw: string): string {
 }
 
 /**
- * Cheap heuristic: returns true if the stripped text is mostly non-Arabic
- * letters (i.e. worth translating to Arabic).
+ * Cheap heuristic: returns true if the stripped text appears NOT to already
+ * be in the target language. Caller compares < 20% target-script letters.
+ *
+ * For Latin-script targets (en/tr/fr/de/es) the heuristic only filters out
+ * messages that already use Latin script — it cannot distinguish between
+ * different Latin-script languages, which is an accepted v0.2.0 limitation
+ * (the equality-check fallback in the async path removes self-translations).
  */
-function looksForeign(stripped: string, targetIsArabic: boolean): boolean {
-    if (!targetIsArabic) {
-        // For any non-Arabic target, fall back to "translate everything with letters".
-        return (stripped.match(LETTER_RE) ?? []).length > 0;
-    }
+function looksForeign(stripped: string, targetLang: string): boolean {
     const letters = stripped.match(LETTER_RE) ?? [];
     if (letters.length === 0) return false;
-    const arabicCount = (stripped.match(ARABIC_RANGE_RE) ?? []).length;
-    // If less than 20% of the letters are Arabic, treat the message as foreign.
-    return arabicCount / letters.length < 0.2;
+    const scriptRe = TARGET_SCRIPT_RE[targetLang];
+    if (!scriptRe) {
+        // Unknown target: be conservative and translate.
+        return true;
+    }
+    const targetCount = (stripped.match(scriptRe) ?? []).length;
+    return targetCount / letters.length < 0.2;
 }
 
+// Memoize id-list parsing keyed by the raw setting string. The accessory
+// factory runs on every rendered message so allocating a fresh Set per call
+// is wasteful; keying by the raw string means cache invalidates implicitly
+// when the setting changes.
+const ID_LIST_CACHE = new Map<string, Set<string>>();
 function parseIdList(raw: string): Set<string> {
-    return new Set(
+    let cached = ID_LIST_CACHE.get(raw);
+    if (cached) return cached;
+    cached = new Set(
         raw
             .split(/[\s,]+/)
             .map(s => s.trim())
             .filter(s => /^\d+$/.test(s)),
     );
+    ID_LIST_CACHE.set(raw, cached);
+    return cached;
 }
 
 // ─── Subtitle DOM ────────────────────────────────────────────────────────────
@@ -276,7 +302,7 @@ function buildTranslationNode(translation: string, sourceLang?: string): HTMLEle
 function buildPlaceholderNode(): HTMLElement {
     const node = document.createElement("div");
     node.style.cssText =
-        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.06);border-inline-start:3px solid rgba(0,255,136,0.5);font-size:0.92em;color:var(--text-muted,#949ba4);font-style:italic;";
+        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.06);border-inline-start:3px solid rgba(0,255,136,0.5);font-size:0.92em;color:var(--text-muted,#949ba4);font-style:italic;direction:auto;";
     node.textContent = LOADING_LABEL;
     return node;
 }
@@ -377,8 +403,7 @@ export default definePlugin({
             const minLen = Math.max(1, Math.floor(ctx.settings.minLength));
             if (cleaned.length < minLen) return null;
 
-            const targetIsArabic = ctx.settings.targetLang === "ar";
-            if (!looksForeign(cleaned, targetIsArabic)) return null;
+            if (!looksForeign(cleaned, ctx.settings.targetLang)) return null;
 
             // Synchronously return a placeholder; replace it once translation lands.
             const placeholder = buildPlaceholderNode();
