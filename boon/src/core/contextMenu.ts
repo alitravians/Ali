@@ -246,9 +246,13 @@ export function init(): void {
     // CONTRIBUTING.md forbids ``subtree: true`` on document.body without
     // debounce (typing indicators / presence / reactions all fire dozens
     // of mutations per second on a busy guild). We coalesce additions into
-    // a single buffer drained on the next animation frame, so the cost
-    // collapses to at most one ``querySelectorAll`` per frame regardless
-    // of how many child mutations Discord emits per batch.
+    // a single buffer drained on the next animation frame: at most one
+    // drain pass per frame, regardless of how many MutationObserver batches
+    // fire within that frame. Within a single drain, ``scanForMenus`` still
+    // runs per buffered node — but the per-node ``querySelectorAll`` is
+    // cheap (most additions are small subtrees), and the dominant cost we
+    // are eliminating is the *per-mutation-batch* observer fan-out that
+    // ``queueMicrotask`` previously incurred.
     let pendingNodes: HTMLElement[] = [];
     let drainScheduled = false;
     const drain = (): void => {
