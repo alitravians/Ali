@@ -70,7 +70,13 @@ async def main() -> int:
     async def on_error(event: str, *args: Any, **kwargs: Any) -> None:
         log.exception("event %s failed", event)
 
-    cogs = ["bot.cogs.welcome", "bot.cogs.info", "bot.cogs.report"]
+    cogs = [
+        "bot.cogs.welcome",
+        "bot.cogs.info",
+        "bot.cogs.report",
+        "bot.cogs.role_buttons",
+        "bot.cogs.admin",
+    ]
     for ext in cogs:
         try:
             await bot.load_extension(ext)
