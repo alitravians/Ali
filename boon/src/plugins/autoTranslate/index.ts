@@ -207,10 +207,17 @@ async function bridgedFetch(url: string, init?: BridgeFetchInit): Promise<Bridge
         }
     }
     // Userscript / extension / dev environments — no CSP issue, direct fetch.
+    // Merge `accept` into headers (same as the IPC path does on the main side)
+    // so callers don't have to set it twice. An explicit Accept in
+    // init.headers wins over the convenience init.accept.
     try {
+        const headers: Record<string, string> = { ...(init?.headers ?? {}) };
+        if (init?.accept && !Object.keys(headers).some(k => k.toLowerCase() === "accept")) {
+            headers["Accept"] = init.accept;
+        }
         const r = await fetch(url, {
             method: init?.method ?? "GET",
-            headers: init?.headers,
+            headers: Object.keys(headers).length > 0 ? headers : undefined,
             body: init?.body,
         });
         const text = await r.text();

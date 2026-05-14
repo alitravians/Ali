@@ -200,6 +200,12 @@ function writeState(patch) {
     return next;
 }
 
+if (promotedPatcherVersion) {
+    writeState({
+        lastPromotedPatcherVersion: promotedPatcherVersion,
+        lastPromotedPatcherAt: Date.now(),
+    });
+}
 if (promotedVersion) {
     writeState({ lastPromotedVersion: promotedVersion, lastPromotedAt: Date.now() });
 }
