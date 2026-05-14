@@ -137,4 +137,12 @@ class Admin(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(Admin(bot))
+    cog = Admin(bot)
+    await bot.add_cog(cog)
+    # Same as role_buttons / info / report: explicitly register on the
+    # guild tree, which is what `bot.tree.sync(guild=...)` actually
+    # publishes at startup.
+    guild_id = bot.settings.guild_id  # type: ignore[attr-defined]
+    bot.tree.add_command(
+        cog.reset_verification, guild=discord.Object(id=guild_id)
+    )

@@ -209,4 +209,15 @@ class RoleButtons(commands.Cog):
 
 
 async def setup(bot: commands.Bot) -> None:
-    await bot.add_cog(RoleButtons(bot))
+    cog = RoleButtons(bot)
+    await bot.add_cog(cog)
+    # Mirror the pattern used by info.py / report.py: also register the
+    # slash command on the guild-specific tree so the boot-time
+    # `bot.tree.sync(guild=...)` actually publishes it. Without this,
+    # `@app_commands.command` on a Cog method registers only on the
+    # *global* tree, which is never synced here — the command would
+    # never appear in Discord's slash menu.
+    guild_id = bot.settings.guild_id  # type: ignore[attr-defined]
+    bot.tree.add_command(
+        cog.setup_roles_message, guild=discord.Object(id=guild_id)
+    )
