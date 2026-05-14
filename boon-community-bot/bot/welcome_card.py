@@ -87,7 +87,13 @@ def _first_loadable(paths: Iterable[str], size: int) -> ImageFont.FreeTypeFont:
         except OSError:
             continue
     log.warning("no truetype font found in %s; using pillow default", candidates)
-    return ImageFont.load_default()
+    # Pillow >=10.1 accepts size= on load_default(); pre-10.1 ignores it and
+    # returns the bundled 10px bitmap. Worst case (impossible inside our
+    # Dockerfile which ships fonts-noto-core) the fallback shows up small.
+    try:
+        return ImageFont.load_default(size=size)  # type: ignore[call-arg]
+    except TypeError:
+        return ImageFont.load_default()
 
 
 def _load_fonts(size: int, bold: bool = False) -> dict[str, ImageFont.FreeTypeFont]:
@@ -107,10 +113,28 @@ def _load_fonts(size: int, bold: bool = False) -> dict[str, ImageFont.FreeTypeFo
 _ARABIC_RANGES = (
     (0x0600, 0x06FF),  # Arabic
     (0x0750, 0x077F),  # Arabic Supplement
+    (0x0870, 0x089F),  # Arabic Extended-B (Unicode 14.0+ — rare Quranic marks)
     (0x08A0, 0x08FF),  # Arabic Extended-A
     (0xFB50, 0xFDFF),  # Arabic Presentation Forms-A (reshaper output)
     (0xFE70, 0xFEFF),  # Arabic Presentation Forms-B (reshaper output)
 )
+
+# Invisible bidi formatting marks that get_display() may emit. They have no
+# glyph so the font choice is irrelevant — treat them like whitespace and let
+# them inherit the surrounding run instead of forcing a spurious split.
+_BIDI_FORMAT_CHARS = frozenset({
+    "\u200E",  # LEFT-TO-RIGHT MARK
+    "\u200F",  # RIGHT-TO-LEFT MARK
+    "\u202A",  # LEFT-TO-RIGHT EMBEDDING
+    "\u202B",  # RIGHT-TO-LEFT EMBEDDING
+    "\u202C",  # POP DIRECTIONAL FORMATTING
+    "\u202D",  # LEFT-TO-RIGHT OVERRIDE
+    "\u202E",  # RIGHT-TO-LEFT OVERRIDE
+    "\u2066",  # LEFT-TO-RIGHT ISOLATE
+    "\u2067",  # RIGHT-TO-LEFT ISOLATE
+    "\u2068",  # FIRST STRONG ISOLATE
+    "\u2069",  # POP DIRECTIONAL ISOLATE
+})
 
 
 def _is_arabic_codepoint(cp: int) -> bool:
@@ -125,7 +149,7 @@ def _script_of(ch: str) -> str | None:
     Arabic font (matching its kerning width) instead of randomly switching
     to NotoSans's space-advance every word boundary.
     """
-    if ch.isspace():
+    if ch.isspace() or ch in _BIDI_FORMAT_CHARS:
         return None
     if _is_arabic_codepoint(ord(ch)):
         return "arabic"
