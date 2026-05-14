@@ -98,6 +98,9 @@ function buildContext(def: AnyPlugin, cleanups: Array<() => void>): PluginContex
         remove(id) {
             messageAccessoriesRaw.remove(id);
         },
+        rescan(messageEl) {
+            messageAccessoriesRaw.rescan(messageEl);
+        },
     };
 
     const chatButtonRaw = chatButtonApi.createApi(manifest.id);

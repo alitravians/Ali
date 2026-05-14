@@ -210,6 +210,12 @@ export interface ContextMenuItem {
 export interface MessageAccessoriesApi {
     add(id: string, factory: (info: AccessoryMessageInfo) => HTMLElement | null): () => void;
     remove(id: string): void;
+    /**
+     * Re-run the accessory scan on a specific message element. Useful when a
+     * plugin's external state (e.g. a manual-override flag) changes without
+     * any DOM mutation that would otherwise trigger the framework's observer.
+     */
+    rescan(messageEl: HTMLElement): void;
 }
 
 export interface AccessoryMessageInfo {

@@ -476,12 +476,46 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.4",
+        version: "0.2.5",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
     settings: SCHEMA,
     onStart(ctx) {
+        // ─── Manual force-translate overrides ──────────────────────────────────
+        //
+        // When a user right-clicks → "ترجم الرسالة" on a message the auto
+        // factory skipped (typically because ``looksForeign`` returned false,
+        // e.g. very short tokens, mixed-script edge cases, or a server/channel
+        // explicitly out of scope), they want this *specific* message
+        // translated *and* the translation to persist across the inevitable
+        // React re-renders Discord triggers (reactions, hover, edits, etc.).
+        //
+        // Direct DOM injection from the right-click handler is one-shot —
+        // when React re-renders the ``message-content-*`` div, our injected
+        // accessory disappears with it, and the auto factory won't re-create
+        // it because the same filters that skipped the message originally
+        // still apply. The toast says "جاري الترجمة…" once, the translation
+        // briefly appears, then a re-render wipes it and we never put it back.
+        //
+        // The fix is to record the override in a map keyed by message id and
+        // pre-empt the auto factory's gating logic when an override exists.
+        // The auto factory becomes the single source of truth for *what*
+        // renders under each message, and the manual handler becomes a way
+        // to *tell* that factory "please translate this one even if your
+        // heuristics say no". After the override is recorded we re-scan the
+        // visible chat so the accessory appears immediately without waiting
+        // for the next Discord mutation.
+        //
+        // The cache (``ctx.dataStore``) still handles the API-call dedup —
+        // a manual override that hits a cached translation completes without
+        // any network roundtrip. The override map is in-memory only because
+        // it is per-session UI state: if Discord restarts and the user wants
+        // the same message translated again, the cache will already have the
+        // result and ``looksForeign`` doesn't need to be bypassed because
+        // they'd manual-translate again anyway.
+        const manualOverrides = new Map<string, true>();
+
         // ─── translate() — service routing + cache ─────────────────────────────
         async function translate(text: string): Promise<TranslationResult> {
             const service = ctx.settings.service;
@@ -528,15 +562,19 @@ export default definePlugin({
 
         // ─── Auto accessory factory ─────────────────────────────────────────────
         ctx.messageAccessories.add("autoTranslate", info => {
-            if (!ctx.settings.autoMode) return null;
+            const forced = manualOverrides.has(info.id);
 
-            // Skip configured authors (your own id, bots, etc.)
-            if (info.author) {
-                const skip = parseIdList(ctx.settings.skipAuthorIds);
-                if (skip.has(info.author)) return null;
+            if (!forced) {
+                if (!ctx.settings.autoMode) return null;
+
+                // Skip configured authors (your own id, bots, etc.)
+                if (info.author) {
+                    const skip = parseIdList(ctx.settings.skipAuthorIds);
+                    if (skip.has(info.author)) return null;
+                }
+
+                if (isScopedOut(info.channelId)) return null;
             }
-
-            if (isScopedOut(info.channelId)) return null;
 
             // Gather candidate text: reply preview + message body + optional
             // embed text. ``info.content`` from the framework only covers the
@@ -546,10 +584,16 @@ export default definePlugin({
             if (!candidate) return null;
 
             const cleaned = strippedText(candidate);
-            const minLen = Math.max(1, Math.floor(ctx.settings.minLength));
-            if (cleaned.length < minLen) return null;
+            if (!forced) {
+                const minLen = Math.max(1, Math.floor(ctx.settings.minLength));
+                if (cleaned.length < minLen) return null;
 
-            if (!looksForeign(cleaned, ctx.settings.targetLang)) return null;
+                if (!looksForeign(cleaned, ctx.settings.targetLang)) return null;
+            } else if (cleaned.length === 0) {
+                // Manual override but no translatable text at all — bail out
+                // rather than send an empty string to the translation API.
+                return null;
+            }
 
             // Synchronously return a placeholder; replace it once translation lands.
             const placeholder = buildPlaceholderNode();
@@ -577,51 +621,57 @@ export default definePlugin({
         });
 
         // ─── Right-click manual fallback (preserved from v0.1.0) ────────────────
+        //
+        // Records the message id in ``manualOverrides`` and triggers a re-scan
+        // of the message via the framework. The auto factory then handles
+        // *everything* — translation, placeholder insertion, async swap, error
+        // toast on failure — exactly as it does for messages that pass the
+        // normal heuristic. This is what makes manual translations survive
+        // React re-renders: the override is recorded in JS state, not just
+        // injected into the DOM, so the next time the framework re-creates
+        // the host (after Discord destroys/recreates the message-content div
+        // on reactions, hover, edited timestamps, etc.) the factory sees the
+        // override flag still set and re-renders the translation.
         ctx.contextMenu.patch("message", (menuCtx, addItem) => {
             if (!menuCtx.messageId) return;
             addItem({
                 id: "autoTranslate:translate",
                 label: "ترجم الرسالة",
                 icon: "🌐",
-                async onClick() {
+                onClick() {
+                    if (!menuCtx.messageId) return;
                     const msgEl = document.getElementById(
                         `chat-messages-${menuCtx.channelId}-${menuCtx.messageId}`,
                     ) as HTMLElement | null;
-                    if (!msgEl || !menuCtx.messageId) return;
-                    // Re-use the shared body reader so the manual translate path
-                    // never includes an existing translation accessory's text in
-                    // its source — same exclusion the auto path applies.
-                    const text = readMessageBodyText(msgEl).trim();
-                    if (!text) {
+                    if (!msgEl) {
+                        ctx.toast("الرسالة غير موجودة في الـ DOM", "error");
+                        return;
+                    }
+                    // Sanity check: refuse force-translate on a message with
+                    // no readable text at all (image-only, sticker-only).
+                    const bodyText = readMessageBodyText(msgEl).trim();
+                    const replyPreview = msgEl.querySelector<HTMLElement>(
+                        '[class*="repliedTextContent"], [class*="repliedTextPreview"]',
+                    );
+                    const replyText = replyPreview?.textContent?.trim() ?? "";
+                    if (!bodyText && !replyText) {
                         ctx.toast("الرسالة فارغة", "error");
                         return;
                     }
+                    manualOverrides.set(menuCtx.messageId, true);
+                    // Wipe any prior accessory so the framework's dedup check
+                    // re-runs the factory cleanly with the override in effect.
+                    const host = msgEl.querySelector<HTMLElement>(".boon-accessory-host");
+                    host?.querySelector('[data-boon-acc-id="autoTranslate"]')?.remove();
                     ctx.toast("جاري الترجمة…", "info");
-                    try {
-                        const result = await translate(text);
-                        const host =
-                            msgEl.querySelector<HTMLElement>(".boon-accessory-host") ??
-                            (() => {
-                                const parent = msgEl.querySelector<HTMLElement>(
-                                    'div[id^="message-content-"]',
-                                );
-                                if (!parent) return null;
-                                const h = document.createElement("div");
-                                h.className = "boon-accessory-host";
-                                h.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:4px;";
-                                parent.appendChild(h);
-                                return h;
-                            })();
-                        host?.querySelector('[data-boon-acc-id="autoTranslate"]')?.remove();
-                        const accessory = buildTranslationNode(result.text, result.sourceLang);
-                        accessory.classList.add("boon-accessory");
-                        accessory.dataset.boonAccId = "autoTranslate";
-                        host?.appendChild(accessory);
-                        ctx.stats.bump("manual_translations");
-                    } catch (err) {
-                        ctx.logger.error("translation failed", err);
-                        ctx.toast(`فشل: ${(err as Error).message}`, "error");
-                    }
+                    // Bump stats here because the factory's stats bump only
+                    // counts the *auto* path; this lets us track manual usage
+                    // independently for diagnostics.
+                    ctx.stats.bump("manual_translations");
+                    // Force-re-render via the public API. The framework's
+                    // scan does a host.querySelector check that we just
+                    // cleared above, so the factory will run on this message.
+                    ctx.messageAccessories.rescan(msgEl);
                 },
             });
         });
