@@ -528,10 +528,36 @@ class Onboarding(commands.Cog):
                 "🟢 موجة الانضمام هدأت — الـ onboarding يعمل بشكل طبيعي.",
             )
 
+    async def _assign_unverified(self, member: discord.Member) -> None:
+        """Defensive @unverified assignment.
+
+        Runs on every join (including during a raid burst, where we skip
+        the per-member channel spawn). Without this, members landing
+        during a raid would keep the default @everyone perms and could
+        see/post in every open channel until an admin intervened.
+        Idempotent: silently returns if the role is missing or already on
+        the member.
+        """
+        rid = self._role_id("unverified")
+        if not rid:
+            return
+        role = member.guild.get_role(rid)
+        if role is None or role in member.roles:
+            return
+        try:
+            await member.add_roles(role, reason="new joiner -> onboarding")
+        except (discord.Forbidden, discord.HTTPException) as exc:
+            log.info("cannot assign @unverified to %s: %s", member, exc)
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         if member.bot:
             return
+        # Lock the member down FIRST — even if a raid burst is happening
+        # we still want the @unverified role on them so they can't see
+        # the rest of the server until an admin processes the burst.
+        await self._assign_unverified(member)
+
         now = time.time()
         self.join_window.append(now)
         self._decay_join_window(now)
@@ -793,14 +819,23 @@ class Onboarding(commands.Cog):
 
         await self._post_welcome_card(guild, member, state)
         await self._send_dm_quickstart(guild, member, state)
-        await self._delete_onboarding_channel(guild, state, delay_s=20)
         await self._log_admin(
             guild,
             f"🎉 <@{member.id}> ({member}) أتمّ الـ onboarding — "
             f"experience={state.experience}, interests={state.interests}",
         )
+        # Drop active state BEFORE the deferred channel deletion. Otherwise
+        # a bot restart during the 20s grace window would leave the user
+        # with @member but their state still parked in ``store.active``
+        # (would later be picked up by inactivity_sweep and possibly
+        # reminded/kicked despite being fully onboarded).
         self.store.drop(member.id)
         await self.store.save()
+        # Fire-and-forget the channel deletion so we don't keep the
+        # interaction handler alive for 20 seconds.
+        asyncio.create_task(
+            self._delete_onboarding_channel(guild, state, delay_s=20)
+        )
         return True
 
     async def _post_welcome_card(
@@ -995,15 +1030,11 @@ class Onboarding(commands.Cog):
 
     async def _spawn_channel_for(self, member: discord.Member) -> discord.TextChannel | None:
         guild = member.guild
-        # Auto-assign @unverified so they stay restricted even if onboarding
-        # never completes (defense in depth).
-        unverified_id = self._role_id("unverified")
-        unverified = guild.get_role(unverified_id) if unverified_id else None
-        if unverified and unverified not in member.roles:
-            try:
-                await member.add_roles(unverified, reason="new joiner -> onboarding")
-            except (discord.Forbidden, discord.HTTPException) as exc:
-                log.info("cannot assign @unverified to %s: %s", member, exc)
+        # Defence in depth: also assign @unverified here for callers that
+        # don't go through ``on_member_join`` (e.g. retroactive opt-in via
+        # the #welcome button). ``_assign_unverified`` is idempotent so
+        # running it twice in the join path is harmless.
+        await self._assign_unverified(member)
 
         # Re-use an existing channel if state already has one.
         existing_state = self.store.get(member.id)
