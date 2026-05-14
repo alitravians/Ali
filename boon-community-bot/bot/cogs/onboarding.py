@@ -117,6 +117,14 @@ INTERESTS: list[tuple[str, str, str]] = [
     ("interest_translate",    "ترجمة وتوطين",          "🌐"),
 ]
 
+# Pre-computed key sets for validation. Lifting these out of the per-call
+# comprehensions keeps the disk-load path and the runtime handler path in
+# lockstep — both ``MemberState.from_json`` and ``handle_experience`` /
+# ``handle_interests`` now consult the same frozen views, so we can never
+# silently drift the in-memory rules from the on-disk rules.
+EXPERIENCE_KEYS: frozenset[str] = frozenset(k for k, _l, _t in EXPERIENCE_LEVELS)
+INTEREST_KEYS: frozenset[str] = frozenset(k for k, _l, _e in INTERESTS)
+
 
 # ───────────────────────── state ─────────────────────────────────────────
 
@@ -155,14 +163,12 @@ class MemberState:
         if step not in allowed_steps:
             log.warning("unknown step %r in stored state; resetting", step)
             step = STEP_AWAITING_START
-        allowed_exp = {k for k, _l, _t in EXPERIENCE_LEVELS}
         exp = d.get("experience")
-        if exp is not None and exp not in allowed_exp:
+        if exp is not None and exp not in EXPERIENCE_KEYS:
             log.warning("unknown experience %r in stored state; dropping", exp)
             exp = None
-        allowed_interests = {k for k, _l, _e in INTERESTS}
         raw_interests = list(d.get("interests") or [])
-        clean_interests = [i for i in raw_interests if i in allowed_interests]
+        clean_interests = [i for i in raw_interests if i in INTEREST_KEYS]
         if len(clean_interests) != len(raw_interests):
             log.warning(
                 "dropped %d unknown interests from stored state",
@@ -231,17 +237,31 @@ class _Store:
         # would crash `_load()` on the next boot and lose every active
         # member's onboarding state. Runs in a worker thread (see ``save``).
         tmp = self.path.with_suffix(self.path.suffix + ".tmp")
-        with open(tmp, "w", encoding="utf-8") as fh:
-            fh.write(data)
-            fh.flush()
+        try:
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write(data)
+                fh.flush()
+                try:
+                    os.fsync(fh.fileno())
+                except OSError:
+                    # fsync may be unsupported on some filesystems (e.g. some
+                    # FUSE mounts). Treat as best-effort — the os.replace below
+                    # is still atomic on POSIX/NTFS.
+                    pass
+            os.replace(tmp, self.path)
+        except BaseException:
+            # If we crash after creating the tmp but before the replace
+            # succeeds (permission error, disk full, KeyboardInterrupt),
+            # the tmp would linger forever — the next successful write
+            # would still produce a fresh tmp+replace pair, but errors
+            # that keep happening would accumulate one tmp per attempt.
+            # Best-effort unlink keeps the directory clean; suppress any
+            # secondary error so the original failure still propagates.
             try:
-                os.fsync(fh.fileno())
+                os.unlink(tmp)
             except OSError:
-                # fsync may be unsupported on some filesystems (e.g. some
-                # FUSE mounts). Treat as best-effort — the os.replace below
-                # is still atomic on POSIX/NTFS.
                 pass
-        os.replace(tmp, self.path)
+            raise
 
     def get(self, uid: int) -> MemberState | None:
         return self.active.get(uid)
@@ -817,9 +837,10 @@ class Onboarding(commands.Cog):
         # anyway so the disk-load and in-memory paths stay symmetric — the
         # only way an unknown value gets here is a tampered client or a
         # future schema change, and either way we'd rather refuse than
-        # poison the welcome-card tagline lookup.
-        allowed_exp = {k for k, _l, _t in EXPERIENCE_LEVELS}
-        if value not in allowed_exp:
+        # poison the welcome-card tagline lookup. Uses the shared module-
+        # level ``EXPERIENCE_KEYS`` frozenset so this and ``from_json``
+        # can never drift out of sync.
+        if value not in EXPERIENCE_KEYS:
             log.warning(
                 "rejected unknown experience %r from user %s", value, interaction.user.id,
             )
@@ -840,9 +861,8 @@ class Onboarding(commands.Cog):
         # Symmetric filtering with the disk-load path: drop any value the
         # canonical INTERESTS list doesn't recognise rather than storing it
         # and silently skipping it in ``_complete`` (which would assign no
-        # role for that interest).
-        allowed_interests = {k for k, _l, _e in INTERESTS}
-        clean_values = [v for v in values if v in allowed_interests]
+        # role for that interest). Same shared frozenset as ``from_json``.
+        clean_values = [v for v in values if v in INTEREST_KEYS]
         if len(clean_values) != len(values):
             log.warning(
                 "dropped %d unknown interests from user %s",

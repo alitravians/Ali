@@ -131,8 +131,15 @@ async def main() -> int:
         # something to grep for. ``Task.exception()`` returns None if the
         # task completed cleanly (which would itself be unexpected for
         # bot.start()) — log either way so the operator sees the
-        # transition.
-        bot_exc = bot_task.exception()
+        # transition. ``.exception()`` raises ``CancelledError`` if the
+        # task was cancelled; nothing in this path cancels bot_task so it
+        # shouldn't happen, but we defend against it so a future edit
+        # can't accidentally short-circuit the shutdown logger.
+        try:
+            bot_exc: BaseException | None = bot_task.exception()
+        except asyncio.CancelledError:
+            bot_exc = None
+            log.warning("bot task was cancelled before we observed completion")
         if bot_exc is not None:
             log.error(
                 "bot task exited with %s: %s",
