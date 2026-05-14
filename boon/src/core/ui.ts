@@ -1438,15 +1438,15 @@ function renderPlugins(main: HTMLElement): void {
                 case "name":
                     return a.name.localeCompare(b.name, "ar");
                 case "recent": {
-                    const aU = getLastUsed(a.id) ?? 0;
-                    const bU = getLastUsed(b.id) ?? 0;
+                    const aU = getLastUsed(a.id);
+                    const bU = getLastUsed(b.id);
                     return bU - aU;
                 }
                 case "smart":
                 default: {
                     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
-                    const aU = getLastUsed(a.id) ?? 0;
-                    const bU = getLastUsed(b.id) ?? 0;
+                    const aU = getLastUsed(a.id);
+                    const bU = getLastUsed(b.id);
                     if (aU !== bU) return bU - aU;
                     return a.name.localeCompare(b.name, "ar");
                 }
