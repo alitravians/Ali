@@ -86,7 +86,13 @@ class Welcome(commands.Cog):
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
-        if payload.user_id == self.bot.user.id if self.bot.user else False:
+        # Parenthesise the bot-self check explicitly. The previous form
+        # `if payload.user_id == self.bot.user.id if self.bot.user else False`
+        # is parsed by Python as `(payload.user_id == ...) if self.bot.user
+        # else False` — which is what we want, but is easy to misread and
+        # one stray edit away from a bug. Make the intent unambiguous.
+        bot_user = self.bot.user
+        if bot_user is not None and payload.user_id == bot_user.id:
             return
         welcome_ch = self._channel_id("welcome")
         if not welcome_ch or payload.channel_id != welcome_ch:
@@ -98,7 +104,20 @@ class Welcome(commands.Cog):
         guild = self.bot.get_guild(payload.guild_id)
         if not guild:
             return
-        member = guild.get_member(payload.user_id) or await guild.fetch_member(payload.user_id)
+        member = guild.get_member(payload.user_id)
+        if member is None:
+            # The member may have left the guild before we processed the
+            # reaction (or the cache may simply be cold on the first event
+            # after a restart). Fall back to a REST fetch — and treat a
+            # 404 as "left, nothing to do" rather than letting the
+            # NotFound propagate up and crash the event handler.
+            try:
+                member = await guild.fetch_member(payload.user_id)
+            except discord.NotFound:
+                return
+            except discord.HTTPException as exc:
+                log.info("fetch_member failed for %s: %s", payload.user_id, exc)
+                return
         if member.bot:
             return
 

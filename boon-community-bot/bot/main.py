@@ -38,11 +38,18 @@ async def main() -> int:
         server_config: dict[str, Any] | None = load_server_config(
             settings.server_config_path
         )
-        log.info("loaded server_config.json (%d channels)",
-                 len(server_config.get("channels", {})))
     except FileNotFoundError as e:
         log.warning("%s", e)
         server_config = None
+    if server_config is not None:
+        # Narrow ``server_config`` to a concrete dict before accessing
+        # ``.get``; without this mypy (correctly) flags the call as an
+        # attribute access on the ``None`` branch even though we are
+        # inside the success branch of the try/except above.
+        log.info(
+            "loaded server_config.json (%d channels)",
+            len(server_config.get("channels", {})),
+        )
 
     intents = discord.Intents.default()
     intents.members = True            # for welcome flow + role assignment
@@ -108,14 +115,54 @@ async def main() -> int:
             pass
 
     bot_task = asyncio.create_task(bot.start(settings.discord_token))
-    await stop.wait()
+    stop_task = asyncio.create_task(stop.wait())
+    # Wait for whichever happens first: a graceful shutdown signal *or*
+    # the bot task terminating on its own (which it should never do under
+    # normal operation, but can if Discord rejects the token mid-session
+    # or aiohttp's websocket loop dies). Previously we awaited only
+    # ``stop.wait()`` — a crashed bot_task would sit silently with a
+    # process kept alive by the HTTP server, masking the failure from
+    # Fly.io's restart machinery.
+    done, _pending = await asyncio.wait(
+        {bot_task, stop_task}, return_when=asyncio.FIRST_COMPLETED,
+    )
+    if bot_task in done and not stop_task.done():
+        # Surface the underlying exception so production debugging has
+        # something to grep for. ``Task.exception()`` returns None if the
+        # task completed cleanly (which would itself be unexpected for
+        # bot.start()) — log either way so the operator sees the
+        # transition. ``.exception()`` raises ``CancelledError`` if the
+        # task was cancelled; nothing in this path cancels bot_task so it
+        # shouldn't happen, but we defend against it so a future edit
+        # can't accidentally short-circuit the shutdown logger.
+        try:
+            bot_exc: BaseException | None = bot_task.exception()
+        except asyncio.CancelledError:
+            bot_exc = None
+            log.warning("bot task was cancelled before we observed completion")
+        if bot_exc is not None:
+            log.error(
+                "bot task exited with %s: %s",
+                type(bot_exc).__name__, bot_exc, exc_info=bot_exc,
+            )
+        else:
+            log.error("bot task exited cleanly (unexpected); shutting down")
+        stop_task.cancel()
+        # ``stop_task`` was awaiting an asyncio.Event — cancelling it raises
+        # CancelledError inside the awaiter, which the surrounding
+        # ``asyncio.wait`` has already consumed. Drain the cancellation
+        # explicitly so the task is fully resolved before we move on.
+        try:
+            await stop_task
+        except asyncio.CancelledError:
+            pass
     log.info("shutting down …")
     await bot.close()
     await runner.cleanup()
     bot_task.cancel()
     try:
         await bot_task
-    except (asyncio.CancelledError, Exception):
+    except (asyncio.CancelledError, Exception):  # noqa: BLE001
         pass
     return 0
 

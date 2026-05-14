@@ -92,7 +92,11 @@ class Info(commands.Cog):
         url = f"https://api.github.com/repos/{repo}/releases/latest"
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=10) as r:
+                # aiohttp 3.11+ deprecates bare-int timeouts and emits a
+                # DeprecationWarning that ends up in the bot's logs. Use an
+                # explicit ClientTimeout so the call is forward-compatible
+                # with aiohttp 4.x (which will reject ints outright).
+                async with session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as r:
                     if r.status == 404:
                         await interaction.followup.send(
                             "ما فيه releases بعد على GitHub.", ephemeral=True)
@@ -120,5 +124,10 @@ async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(cog)
     guild_id = bot.settings.guild_id  # type: ignore[attr-defined]
     guild = discord.Object(id=guild_id)
+    # ``app_commands.Command`` instances bound to a cog appear to mypy as
+    # plain ``object`` because ``commands.Cog`` doesn't propagate the
+    # descriptor type. The runtime is correct (the loop iterates over
+    # already-decorated ``app_commands.Command`` objects), so silence the
+    # arg-type complaint at the single call site.
     for cmd in [cog.install, cog.plugin, cog.version]:
-        bot.tree.add_command(cmd, guild=guild)
+        bot.tree.add_command(cmd, guild=guild)  # type: ignore[arg-type]
