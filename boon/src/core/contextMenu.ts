@@ -242,12 +242,34 @@ export function init(): void {
     // so we miss the menu entirely on those builds. ``subtree: true`` plus
     // a per-menu WeakSet dedup is the architecturally-correct fix — we
     // catch the menu wherever it lands and only patch each instance once.
+    //
+    // CONTRIBUTING.md forbids ``subtree: true`` on document.body without
+    // debounce (typing indicators / presence / reactions all fire dozens
+    // of mutations per second on a busy guild). We coalesce additions into
+    // a single buffer drained on the next animation frame, so the cost
+    // collapses to at most one ``querySelectorAll`` per frame regardless
+    // of how many child mutations Discord emits per batch.
+    let pendingNodes: HTMLElement[] = [];
+    let drainScheduled = false;
+    const drain = (): void => {
+        drainScheduled = false;
+        const batch = pendingNodes;
+        pendingNodes = [];
+        for (const node of batch) {
+            if (!node.isConnected) continue;
+            scanForMenus(node);
+        }
+    };
     const observer = new MutationObserver(mutations => {
         for (const m of mutations) {
             for (const node of Array.from(m.addedNodes)) {
                 if (!(node instanceof HTMLElement)) continue;
-                queueMicrotask(() => scanForMenus(node));
+                pendingNodes.push(node);
             }
+        }
+        if (!drainScheduled && pendingNodes.length > 0) {
+            drainScheduled = true;
+            requestAnimationFrame(drain);
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
