@@ -19,7 +19,7 @@
  * returns an unregister function tracked by the framework.
  */
 
-import { extractMessageInfo, observeMessages } from "./discord.js";
+import { extractMessageInfo, observeMessages, readMessageBodyText } from "./discord.js";
 import { rootLogger } from "./logger.js";
 
 const ACCESSORY_HOST_CLASS = "boon-accessory-host";
@@ -55,11 +55,16 @@ function sourceSnapshot(el: HTMLElement): string {
     // surface plugins like autoTranslate care about. Cosmetic re-renders
     // (reactions, edited-badge tooltip flicker) don't touch either node, so
     // this snapshot stays stable across them.
+    //
+    // The body read MUST exclude ``.boon-accessory-host`` descendants —
+    // otherwise inserting an accessory flips the snapshot, which then
+    // invalidates that same accessory, infinite-looping until the async
+    // translation lands on a detached placeholder. ``readMessageBodyText``
+    // in core/discord.ts encapsulates that exclusion for all consumers.
     const reply = el.querySelector<HTMLElement>(
         '[class*="repliedTextContent"], [class*="repliedTextPreview"]',
     );
-    const body = el.querySelector<HTMLElement>('div[id^="message-content-"]');
-    return `${reply?.textContent ?? ""}\u0000${body?.textContent ?? ""}`;
+    return `${reply?.textContent ?? ""}\u0000${readMessageBodyText(el)}`;
 }
 
 function ensureHost(messageEl: HTMLElement): HTMLElement | null {

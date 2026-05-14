@@ -30,6 +30,9 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.2.3": [
+        { kind: "fixed",    text: "[المترجم - إصلاح حلقة مفرغة كانت تمسح الترجمة فور إضافتها فلا تظهر للمستخدم]" },
+    ],
     "boon-v0.2.2": [
         { kind: "fixed",    text: "[المترجم - الترجمة التلقائية الآن تشمل كل رسالة فيها أي حرف لاتيني بدلاً من تخطّي القصيرة]" },
         { kind: "fixed",    text: "[المترجم - يترجم أيضاً نص الرسالة المُقتبسة (الرد) فوق رسالة المستخدم]" },

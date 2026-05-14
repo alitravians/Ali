@@ -34,6 +34,7 @@
  *   - "skip authors" list for users you never want translated (e.g. yourself).
  */
 
+import { readMessageBodyText } from "../../core/discord.js";
 import { definePlugin, type SettingsSchema } from "../../core/types.js";
 
 const SCHEMA = {
@@ -390,9 +391,13 @@ function gatherTranslatableText(el: HTMLElement, includeEmbeds: boolean): string
     );
     const replyText = replyPreview?.textContent?.trim() ?? "";
     if (replyText) parts.push(replyText);
-    // Main message body.
-    const contentEl = el.querySelector<HTMLElement>('div[id^="message-content-"]');
-    const body = contentEl?.textContent?.trim() ?? "";
+    // Main message body — ``readMessageBodyText`` in core/discord.ts skips
+    // our own ``.boon-accessory-host`` descendants. Without that exclusion,
+    // a naive textContent read would loop the translation subtitle's own
+    // text back into the translation input and into the framework's
+    // snapshot dedup, infinite-looping the accessory render. See
+    // ``sourceSnapshot`` in messageAccessories.ts for the partner read.
+    const body = readMessageBodyText(el).trim();
     if (body) parts.push(body);
     // Optional embed text — gated behind the existing setting so high-volume
     // bot channels don't blow through the translation budget.
@@ -471,7 +476,7 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.2",
+        version: "0.2.3",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
@@ -583,8 +588,10 @@ export default definePlugin({
                         `chat-messages-${menuCtx.channelId}-${menuCtx.messageId}`,
                     ) as HTMLElement | null;
                     if (!msgEl || !menuCtx.messageId) return;
-                    const contentEl = msgEl.querySelector<HTMLElement>('div[id^="message-content-"]');
-                    const text = contentEl?.textContent?.trim() ?? "";
+                    // Re-use the shared body reader so the manual translate path
+                    // never includes an existing translation accessory's text in
+                    // its source — same exclusion the auto path applies.
+                    const text = readMessageBodyText(msgEl).trim();
                     if (!text) {
                         ctx.toast("الرسالة فارغة", "error");
                         return;

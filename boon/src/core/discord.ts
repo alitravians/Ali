@@ -147,14 +147,42 @@ export function observeMessages(handler: (el: HTMLElement) => void): () => void 
     return () => observer.disconnect();
 }
 
+/**
+ * Read the natural-language text of a Discord message element, skipping any
+ * descendant inside our own accessory host (`.boon-accessory-host`).
+ *
+ * The accessory host lives INSIDE `div[id^="message-content-"]`, so a naive
+ * `textContent` read would loop the translation subtitle's own text back
+ * into anything that walks the message body (snapshot dedup, translation
+ * input, etc.). This shared helper guarantees every consumer sees the same
+ * "source only, no accessory pollution" view of the message text.
+ */
+export function readMessageBodyText(messageEl: HTMLElement): string {
+    const content = messageEl.querySelector<HTMLElement>('div[id^="message-content-"]');
+    if (!content) return "";
+    let result = "";
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            // Text nodes are leaves so SKIP and REJECT are equivalent here;
+            // SKIP reads more naturally ("skip this node") than REJECT
+            // ("reject this node and its descendants").
+            const parent = node.parentElement;
+            if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_SKIP;
+            return NodeFilter.FILTER_ACCEPT;
+        },
+    });
+    let n: Node | null;
+    while ((n = walker.nextNode())) result += n.nodeValue ?? "";
+    return result;
+}
+
 export function extractMessageInfo(el: HTMLElement): {
     messageId: string | null;
     authorId: string | null;
     content: string;
 } {
     const messageId = el.id.replace("chat-messages-", "").split("-").pop() ?? null;
-    const contentEl = el.querySelector<HTMLElement>('div[id^="message-content-"]');
-    const content = contentEl?.textContent ?? "";
+    const content = readMessageBodyText(el);
     const avatar = el.querySelector<HTMLImageElement>('img[src*="/avatars/"]');
     const authorMatch = avatar?.src.match(/\/avatars\/(\d+)\//);
     const authorId = authorMatch ? authorMatch[1] : null;
