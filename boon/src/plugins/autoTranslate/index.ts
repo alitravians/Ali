@@ -34,6 +34,7 @@
  *   - "skip authors" list for users you never want translated (e.g. yourself).
  */
 
+import { readMessageBodyText } from "../../core/discord.js";
 import { definePlugin, type SettingsSchema } from "../../core/types.js";
 
 const SCHEMA = {
@@ -390,26 +391,13 @@ function gatherTranslatableText(el: HTMLElement, includeEmbeds: boolean): string
     );
     const replyText = replyPreview?.textContent?.trim() ?? "";
     if (replyText) parts.push(replyText);
-    // Main message body — explicitly skip our own accessory host's text.
-    // The host lives INSIDE the message-content node, so a naive textContent
-    // read would loop back the placeholder/translation subtitle text and
-    // either ship it off to Google for a bogus second translation pass or
-    // (more visibly) cause the framework's snapshot logic to chase its own
-    // tail and wipe the node we just added.
-    const contentEl = el.querySelector<HTMLElement>('div[id^="message-content-"]');
-    let body = "";
-    if (contentEl) {
-        const walker = document.createTreeWalker(contentEl, NodeFilter.SHOW_TEXT, {
-            acceptNode(node) {
-                const parent = node.parentElement;
-                if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_REJECT;
-                return NodeFilter.FILTER_ACCEPT;
-            },
-        });
-        let n: Node | null;
-        while ((n = walker.nextNode())) body += n.nodeValue ?? "";
-        body = body.trim();
-    }
+    // Main message body — ``readMessageBodyText`` in core/discord.ts skips
+    // our own ``.boon-accessory-host`` descendants. Without that exclusion,
+    // a naive textContent read would loop the translation subtitle's own
+    // text back into the translation input and into the framework's
+    // snapshot dedup, infinite-looping the accessory render. See
+    // ``sourceSnapshot`` in messageAccessories.ts for the partner read.
+    const body = readMessageBodyText(el).trim();
     if (body) parts.push(body);
     // Optional embed text — gated behind the existing setting so high-volume
     // bot channels don't blow through the translation budget.
@@ -600,8 +588,10 @@ export default definePlugin({
                         `chat-messages-${menuCtx.channelId}-${menuCtx.messageId}`,
                     ) as HTMLElement | null;
                     if (!msgEl || !menuCtx.messageId) return;
-                    const contentEl = msgEl.querySelector<HTMLElement>('div[id^="message-content-"]');
-                    const text = contentEl?.textContent?.trim() ?? "";
+                    // Re-use the shared body reader so the manual translate path
+                    // never includes an existing translation accessory's text in
+                    // its source — same exclusion the auto path applies.
+                    const text = readMessageBodyText(msgEl).trim();
                     if (!text) {
                         ctx.toast("الرسالة فارغة", "error");
                         return;
