@@ -25,6 +25,7 @@
  */
 
 import { rootLogger } from "./logger.js";
+import { curatedFor, sanitizeRawItem } from "./curatedChangelog.js";
 
 const REPO_API = "https://api.github.com/repos/alitravians/Ali/releases";
 
@@ -170,8 +171,54 @@ function toRelease(raw: RawRelease): Release {
         name: raw.name ?? raw.tag_name,
         publishedAt: raw.published_at,
         htmlUrl: raw.html_url,
-        sections: parseChangelog(raw.body ?? ""),
+        sections: changelogForRelease(raw.tag_name, raw.body ?? ""),
     };
+}
+
+/**
+ * Produce the user-facing changelog sections for a release.
+ *
+ * Order of preference:
+ *   1. The hand-curated entry in `curatedChangelog.ts` (best Arabic copy,
+ *      no commit / PR / file-name noise leaks to users).
+ *   2. A sanitized parse of the raw GitHub body — `sanitizeRawItem` strips
+ *      conventional-commit prefixes (`fix(scope):`), PR refs (`(#123)`),
+ *      `by @user in …` suffixes, and absolute GitHub URLs.
+ *   3. If sanitization leaves nothing meaningful, return an empty list so
+ *      the modal renders the friendly "open GitHub for details" hint.
+ */
+function changelogForRelease(tag: string, body: string): ChangelogSection[] {
+    const curated = curatedFor(tag);
+    if (curated && curated.length > 0) {
+        const byKind = new Map<ChangelogSectionKind, ChangelogSection>();
+        const kindTitle: Record<ChangelogSectionKind, string> = {
+            added: "إضافات",
+            fixed: "إصلاحات",
+            improved: "تحسينات",
+            other: "ملاحظات",
+        };
+        for (const it of curated) {
+            let section = byKind.get(it.kind);
+            if (!section) {
+                section = { kind: it.kind, title: kindTitle[it.kind], items: [] };
+                byKind.set(it.kind, section);
+            }
+            section.items.push(it.text);
+        }
+        return [...byKind.values()];
+    }
+
+    const parsed = parseChangelog(body);
+    const cleaned: ChangelogSection[] = [];
+    for (const sec of parsed) {
+        const items = sec.items
+            .map(sanitizeRawItem)
+            .filter((s): s is string => !!s);
+        if (items.length > 0) {
+            cleaned.push({ kind: sec.kind, title: sec.title, items });
+        }
+    }
+    return cleaned;
 }
 
 export type FetchErrorKind = "rate-limited" | "network" | "http" | "none";
