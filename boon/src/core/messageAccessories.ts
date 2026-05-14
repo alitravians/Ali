@@ -51,20 +51,26 @@ const accessories = new Set<RegisteredAccessory>();
 const lastSourceSnapshot = new WeakMap<HTMLElement, string>();
 
 function sourceSnapshot(el: HTMLElement): string {
-    // Combine the reply preview (if any) with the message body — the same
-    // surface plugins like autoTranslate care about. Cosmetic re-renders
-    // (reactions, edited-badge tooltip flicker) don't touch either node, so
-    // this snapshot stays stable across them.
+    // Snapshot ONLY the body text — never the reply preview.
     //
-    // The body read MUST exclude ``.boon-accessory-host`` descendants —
-    // otherwise inserting an accessory flips the snapshot, which then
-    // invalidates that same accessory, infinite-looping until the async
-    // translation lands on a detached placeholder. ``readMessageBodyText``
-    // in core/discord.ts encapsulates that exclusion for all consumers.
-    const reply = el.querySelector<HTMLElement>(
-        '[class*="repliedTextContent"], [class*="repliedTextPreview"]',
-    );
-    return `${reply?.textContent ?? ""}\u0000${readMessageBodyText(el)}`;
+    // The reply preview lazy-fills (role-tag color, streamer-mode reveal,
+    // attachment thumb load) AFTER the message renders, and each of those
+    // mutations changes its `textContent`. If we included the reply preview
+    // in the snapshot, every cosmetic reply-preview mutation would flip the
+    // snapshot, wipe our newly-inserted accessory, re-add it, wipe it…
+    // ping-pong faster than the async translation can land — so the user
+    // never sees a translation on reply messages.
+    //
+    // Consumers that care about the reply preview text (autoTranslate's
+    // ``gatherTranslatableText``) read it directly on each factory call.
+    // The body is the only surface that triggers "the source message
+    // changed, re-translate" semantics; reply previews are immutable
+    // references and shouldn't be a re-render trigger.
+    //
+    // ``readMessageBodyText`` excludes ``.boon-accessory-host`` descendants
+    // so our own placeholder text never flips the snapshot — same partner
+    // exclusion the autoTranslate factory applies. See core/discord.ts.
+    return readMessageBodyText(el);
 }
 
 function ensureHost(messageEl: HTMLElement): HTMLElement | null {
@@ -141,6 +147,25 @@ export function init(): void {
     stopObserver = observeMessages(scan);
 }
 
+function scanAllVisibleMessages(): void {
+    // ``observeMessages`` only sees FUTURE mutations — it does not replay
+    // additions that happened before we attached. Discord may have already
+    // rendered the visible channel's messages by the time a plugin's
+    // factory registers (boot order: messageAccessories.init() runs BEFORE
+    // plugin onStart, so the registry is empty during the observer's initial
+    // burst). Calling this from ``add`` guarantees every newly-registered
+    // factory still gets a chance to render on the currently-visible
+    // messages without waiting for the user to scroll or send a new one.
+    //
+    // Idempotent by construction: ``scan`` skips accessories that are
+    // already present (DOM-presence dedup in the per-accessory loop).
+    for (const li of Array.from(
+        document.querySelectorAll<HTMLElement>('li[id^="chat-messages-"]'),
+    )) {
+        scan(li);
+    }
+}
+
 export function teardown(): void {
     stopObserver?.();
     stopObserver = null;
@@ -166,6 +191,14 @@ export function createApi(): MessageAccessoriesApi {
         add(id, factory) {
             const entry: RegisteredAccessory = { id, factory };
             accessories.add(entry);
+            // Sweep the currently-visible chat history so this factory runs
+            // on every message Discord has already rendered. Without this,
+            // a plugin registered after the initial message burst (the
+            // common case — boot order calls plugin.onStart AFTER
+            // messageAccessories.init) only renders on subsequently-added
+            // messages, leaving the visible scrollback untranslated until
+            // the user scrolls/sends.
+            scanAllVisibleMessages();
             return () => {
                 accessories.delete(entry);
                 for (const el of document.querySelectorAll<HTMLElement>(
