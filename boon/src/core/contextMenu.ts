@@ -200,6 +200,28 @@ function applyPatches(menuEl: HTMLElement, target: HTMLElement | null): void {
 let lastTarget: HTMLElement | null = null;
 let installed = false;
 
+// Menus we've already patched in this open-cycle. Discord re-renders the
+// menu inside the same layer container on each open, so a dedup keyed by
+// the live ``[role="menu"]`` element prevents double-injection when the
+// observer fires multiple times for the same menu (e.g. when Discord
+// streams the menu's items in over several frames after the first open).
+const patchedMenus = new WeakSet<HTMLElement>();
+
+function tryPatchMenu(menuEl: HTMLElement): void {
+    if (patchedMenus.has(menuEl)) return;
+    patchedMenus.add(menuEl);
+    applyPatches(menuEl, lastTarget);
+}
+
+function scanForMenus(root: HTMLElement): void {
+    if (root.getAttribute("role") === "menu") {
+        tryPatchMenu(root);
+        return;
+    }
+    const nested = root.querySelectorAll<HTMLElement>('[role="menu"]');
+    for (const m of Array.from(nested)) tryPatchMenu(m);
+}
+
 export function init(): void {
     if (installed) return;
     installed = true;
@@ -212,20 +234,49 @@ export function init(): void {
         true,
     );
 
+    // Discord renders context menus inside a deeply-nested layer container
+    // (``<div class="layerContainer-...">`` → ``<div class="layer-...">``
+    // → ``<div role="menu">``), and modern Discord builds re-use that
+    // layer for every menu — only its children are swapped. Observing the
+    // body with ``subtree: false`` only fires for direct-child additions,
+    // so we miss the menu entirely on those builds. ``subtree: true`` plus
+    // a per-menu WeakSet dedup is the architecturally-correct fix — we
+    // catch the menu wherever it lands and only patch each instance once.
+    //
+    // CONTRIBUTING.md forbids ``subtree: true`` on document.body without
+    // debounce (typing indicators / presence / reactions all fire dozens
+    // of mutations per second on a busy guild). We coalesce additions into
+    // a single buffer drained on the next animation frame: at most one
+    // drain pass per frame, regardless of how many MutationObserver batches
+    // fire within that frame. Within a single drain, ``scanForMenus`` still
+    // runs per buffered node — but the per-node ``querySelectorAll`` is
+    // cheap (most additions are small subtrees), and the dominant cost we
+    // are eliminating is the *per-mutation-batch* observer fan-out that
+    // ``queueMicrotask`` previously incurred.
+    let pendingNodes: HTMLElement[] = [];
+    let drainScheduled = false;
+    const drain = (): void => {
+        drainScheduled = false;
+        const batch = pendingNodes;
+        pendingNodes = [];
+        for (const node of batch) {
+            if (!node.isConnected) continue;
+            scanForMenus(node);
+        }
+    };
     const observer = new MutationObserver(mutations => {
         for (const m of mutations) {
             for (const node of Array.from(m.addedNodes)) {
                 if (!(node instanceof HTMLElement)) continue;
-                if (node.id === "" && node.querySelector?.('[role="menu"]')) {
-                    // Wrapped container with the menu inside it.
-                    queueMicrotask(() => applyPatches(node, lastTarget));
-                } else if (node.getAttribute("role") === "menu" || node.querySelector?.('[role="menu"]')) {
-                    queueMicrotask(() => applyPatches(node, lastTarget));
-                }
+                pendingNodes.push(node);
             }
         }
+        if (!drainScheduled && pendingNodes.length > 0) {
+            drainScheduled = true;
+            requestAnimationFrame(drain);
+        }
     });
-    observer.observe(document.body, { childList: true, subtree: false });
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // ─── Public API for plugins ──────────────────────────────────────────────────
