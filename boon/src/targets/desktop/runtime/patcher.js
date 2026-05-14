@@ -53,9 +53,11 @@ app.setAppPath(asarPath);
 // ─── alitravians runtime dir layout ──────────────────────────────────────────
 // The installer drops `patcher.js` + `renderer.js` together into a writable
 // directory. The patcher then maintains the same dir as its update store:
-//   <dataDir>/patcher.js         ← installed by installer, never overwritten
+//   <dataDir>/patcher.js         ← installed by installer, self-updatable
+//                                  via BOON_STAGE_PATCHER (since v0.2.1)
+//   <dataDir>/patcher.next.js    ← staged patcher update, promoted on boot
 //   <dataDir>/renderer.js        ← installed by installer, replaced by updates
-//   <dataDir>/renderer.next.js   ← staged update, atomically promoted on boot
+//   <dataDir>/renderer.next.js   ← staged renderer update, promoted on boot
 //   <dataDir>/state.json         ← {lastPromotedVersion, lastCheck, …}
 //
 // `__dirname` resolves to that directory because the patched asar `require`s
@@ -63,7 +65,16 @@ app.setAppPath(asarPath);
 // the installer always installs both files together, and there's no separate
 // read-only copy to fall back on. If renderer.js disappears, that's a user
 // action and the installer is the recovery path.
+//
+// Embedded patcher version marker. The renderer reads this through
+// BOON_GET_BOOT_INFO so the in-app updater can decide whether a staged
+// patcher upgrade is needed without forcing the user back to the .exe
+// installer for every patcher change.
+const PATCHER_VERSION = "0.2.1";
+
 const dataDir = __dirname;
+const activePatcherPath = path.join(dataDir, "patcher.js");
+const stagedPatcherPath = path.join(dataDir, "patcher.next.js");
 const activeRendererPath = path.join(dataDir, "renderer.js");
 const stagedRendererPath = path.join(dataDir, "renderer.next.js");
 const stateFile = path.join(dataDir, "state.json");
@@ -86,7 +97,50 @@ function extractVersion(code) {
     return m ? m[1] : null;
 }
 
-// ─── Promote staged update (if any) ──────────────────────────────────────────
+function looksLikePatcher(code) {
+    // Cheap sanity check for a staged patcher upgrade. We require both the
+    // alitravians marker and the embedded PATCHER_VERSION constant so that
+    // a truncated download or accidentally-staged renderer.js can never
+    // overwrite the patcher.
+    if (!code || code.length < 5000) return false;
+    if (code.indexOf("[alitravians] patcher loading") === -1) return false;
+    if (!/PATCHER_VERSION\s*=\s*"\d+\.\d+\.\d+"/.test(code)) return false;
+    return true;
+}
+
+function extractPatcherVersion(code) {
+    const m = /PATCHER_VERSION\s*=\s*"(\d+\.\d+\.\d+)"/.exec(code);
+    return m ? m[1] : null;
+}
+
+// ─── Promote staged patcher (if any) ─────────────────────────────────────────
+// Mirror of the renderer promotion logic but for the patcher file itself.
+// This is what lets a v0.2.1+ user pick up future patcher fixes (new CSP
+// allow-list entries, new IPC handlers, etc.) without ever running the
+// installer .exe again. The promotion runs while the *current* (about-to-be
+// replaced) patcher is the only thing executing in main, so writing over
+// patcher.js is safe — the new file is loaded on the *next* Discord boot.
+function promoteStagedPatcher() {
+    if (!fs.existsSync(stagedPatcherPath)) return null;
+    try {
+        const staged = fs.readFileSync(stagedPatcherPath, "utf8");
+        if (!looksLikePatcher(staged)) {
+            console.error("[alitravians] staged patcher failed validation, discarding");
+            try { fs.unlinkSync(stagedPatcherPath); } catch (_) {}
+            return null;
+        }
+        fs.writeFileSync(activePatcherPath, staged);
+        fs.unlinkSync(stagedPatcherPath);
+        const v = extractPatcherVersion(staged);
+        console.log("[alitravians] promoted staged patcher" + (v ? " → v" + v : ""));
+        return v;
+    } catch (err) {
+        console.error("[alitravians] failed to promote staged patcher:", err);
+        return null;
+    }
+}
+
+// ─── Promote staged renderer (if any) ────────────────────────────────────────
 function promoteStagedUpdate() {
     if (!fs.existsSync(stagedRendererPath)) return null;
     try {
@@ -108,6 +162,7 @@ function promoteStagedUpdate() {
     }
 }
 
+const promotedPatcherVersion = promoteStagedPatcher();
 const promotedVersion = promoteStagedUpdate();
 
 // ─── Load renderer ───────────────────────────────────────────────────────────
@@ -155,21 +210,25 @@ if (promotedVersion) {
 // might still talk to a freshly-rebranded patcher during the transition.
 //
 // Discord's CSP only whitelists discord.com / discordapp.com / discord.media
-// for connect-src. Any fetch() from the renderer to api.github.com or
-// objects.githubusercontent.com is blocked outright. We work around that the
-// same way Vencord / BetterDiscord do: the renderer asks main to perform
-// the request, and main responds with the raw body. Only requests to a
-// hard-coded allow-list of hosts are honored — we don't want a future bug
-// turning this into an open proxy.
+// for connect-src. Any fetch() from the renderer to api.github.com,
+// objects.githubusercontent.com, translate.googleapis.com, etc. is blocked
+// outright. We work around that the same way Vencord / BetterDiscord do:
+// the renderer asks main to perform the request, and main responds with the
+// raw body. Only requests to a hard-coded allow-list of hosts are honored —
+// we don't want a future bug turning this into an open proxy.
 const FETCH_ALLOWED_HOSTS = new Set([
     "api.github.com",
     "github.com",
     "objects.githubusercontent.com",
     "release-assets.githubusercontent.com",
     "raw.githubusercontent.com",
+    // Translation providers used by the AutoTranslate plugin (v0.2.0+).
+    "translate.googleapis.com",
+    "generativelanguage.googleapis.com",
 ]);
 
 function ipcFetch(rawUrl, opts) {
+    opts = opts || {};
     return new Promise((resolve) => {
         let parsed;
         try {
@@ -187,15 +246,29 @@ function ipcFetch(rawUrl, opts) {
             return;
         }
 
-        const headers = {
-            // GitHub API requires a User-Agent on every request and returns
-            // 403 with no body otherwise.
-            "User-Agent": "alitravians-Updater/" + (currentVersion || "0") + " (+https://github.com/alitravians/Ali)",
-            "Accept": (opts && opts.accept) || "application/vnd.github+json",
-        };
+        const method = (opts.method || "GET").toUpperCase();
+        const body = opts.body == null ? null : String(opts.body);
 
-        const req = https.get(
+        // Built-in defaults: GitHub API needs UA + the GitHub JSON accept.
+        // For non-GitHub hosts (translate.googleapis.com) the caller can
+        // override these via opts.headers and opts.accept.
+        const headers = Object.assign(
             {
+                "User-Agent": "alitravians-Updater/" + (currentVersion || "0") + " (+https://github.com/alitravians/Ali)",
+                "Accept": opts.accept || "application/vnd.github+json",
+            },
+            opts.headers || {},
+        );
+        if (body != null && !Object.keys(headers).some(k => k.toLowerCase() === "content-type")) {
+            headers["Content-Type"] = "application/json";
+        }
+        if (body != null) {
+            headers["Content-Length"] = Buffer.byteLength(body).toString();
+        }
+
+        const req = https.request(
+            {
+                method: method,
                 hostname: parsed.hostname,
                 path: parsed.pathname + parsed.search,
                 headers: headers,
@@ -203,9 +276,14 @@ function ipcFetch(rawUrl, opts) {
             },
             (res) => {
                 // Follow redirects to githubusercontent.com (release asset
-                // downloads). 3 hops is plenty.
-                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-                    const hops = (opts && opts.hops) || 0;
+                // downloads). 3 hops is plenty. Only follow for safe methods.
+                if (
+                    (method === "GET" || method === "HEAD") &&
+                    res.statusCode >= 300 &&
+                    res.statusCode < 400 &&
+                    res.headers.location
+                ) {
+                    const hops = opts.hops || 0;
                     if (hops < 3) {
                         res.resume();
                         ipcFetch(res.headers.location, Object.assign({}, opts, { hops: hops + 1 })).then(resolve);
@@ -238,6 +316,8 @@ function ipcFetch(rawUrl, opts) {
             req.destroy();
             resolve({ ok: false, status: 0, error: "timeout" });
         });
+        if (body != null) req.write(body);
+        req.end();
     });
 }
 
@@ -327,6 +407,8 @@ const IPC_PREFIX = "[BOON_IPC]:";
 const IPC_HANDLERS = {
     BOON_GET_BOOT_INFO: () => ({
         currentVersion: currentVersion,
+        patcherVersion: PATCHER_VERSION,
+        promotedPatcherVersion: promotedPatcherVersion,
         rendererBytes: rendererCode ? rendererCode.length : 0,
         state: readState(),
         dataDir: dataDir,
@@ -372,7 +454,31 @@ const IPC_HANDLERS = {
         if (!payload || typeof payload.url !== "string") {
             return { ok: false, status: 0, error: "missing-url" };
         }
-        return ipcFetch(payload.url, { accept: payload.accept });
+        return ipcFetch(payload.url, {
+            accept: payload.accept,
+            method: payload.method,
+            body: payload.body,
+            headers: payload.headers,
+        });
+    },
+    BOON_STAGE_PATCHER: (payload) => {
+        if (!payload || typeof payload.code !== "string") {
+            return { ok: false, error: "missing-code" };
+        }
+        if (!looksLikePatcher(payload.code)) {
+            return { ok: false, error: "invalid-patcher" };
+        }
+        const v = extractPatcherVersion(payload.code);
+        try {
+            fs.writeFileSync(stagedPatcherPath, payload.code);
+            const state = writeState({
+                lastPatcherDownloadAt: Date.now(),
+                lastDownloadedPatcherVersion: v,
+            });
+            return { ok: true, version: v, state: state };
+        } catch (err) {
+            return { ok: false, error: "stage-failed:" + (err.code || err.message) };
+        }
     },
 };
 

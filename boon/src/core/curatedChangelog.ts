@@ -30,6 +30,10 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.2.1": [
+        { kind: "fixed",    text: "[المترجم - إصلاح فشل الترجمة عبر السماح للأداة بالاتصال بخدمة الترجمة]" },
+        { kind: "added",    text: "[التحديثات - تحديث ذاتي للمحرّك الأساسي بدون الحاجة لإعادة تشغيل المثبّت]" },
+    ],
     "boon-v0.2.0": [
         { kind: "added",    text: "[المترجم - ترجمة تلقائية لرسائل الأجانب إلى العربية تظهر تحت كل رسالة]" },
         { kind: "added",    text: "[المترجم - دعم Google (مجاني) أو Gemini (يحتاج مفتاح) مع كاش ذكي]" },
