@@ -127,14 +127,17 @@ def _api_type(t: ChannelType) -> int:
 def sync_categories_and_channels(cfg: dict[str, Any]) -> None:
     print("\n[channels] reconciling …")
     existing = request("GET", f"/guilds/{GUILD}/channels")
-    cats_by_name = {c["name"]: c for c in existing if c["type"] == 4}
+    # Discord normalises channel names to lowercase server-side. Match case-
+    # insensitively to avoid creating duplicates of e.g. "تثبيت-BOON" vs the
+    # lowercased "تثبيت-boon" Discord returns from the API.
+    cats_by_name = {c["name"].lower(): c for c in existing if c["type"] == 4}
     children_by_parent: dict[str, list[dict[str, Any]]] = {}
     for c in existing:
         if c["type"] != 4 and c.get("parent_id"):
             children_by_parent.setdefault(c["parent_id"], []).append(c)
 
     for cat_spec in CATEGORIES:
-        cat = cats_by_name.get(cat_spec.name)
+        cat = cats_by_name.get(cat_spec.name.lower())
         if cat:
             cat_id = cat["id"]
             print(f"  ── {cat_spec.name} (kept {cat_id})")
@@ -146,9 +149,10 @@ def sync_categories_and_channels(cfg: dict[str, Any]) -> None:
             time.sleep(0.4)
         cfg["categories"][cat_spec.key] = cat_id
 
-        names_under = {c["name"]: c for c in children_by_parent.get(cat_id, [])}
+        # Same case-insensitive match for channels under each category.
+        names_under = {c["name"].lower(): c for c in children_by_parent.get(cat_id, [])}
         for ch_spec in cat_spec.channels:
-            existing_ch = names_under.get(ch_spec.name)
+            existing_ch = names_under.get(ch_spec.name.lower())
             if existing_ch:
                 ch_id = existing_ch["id"]
                 action = "kept"

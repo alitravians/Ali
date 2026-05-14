@@ -77,13 +77,31 @@ BOON_GRAY = 0x99AAB5
 
 
 ROLES: list[RoleSpec] = [
+    # ── Authority tier (top of the hierarchy; hoisted, visible by default) ──
     RoleSpec(key="admin", name="admin", color=BOON_GREEN, hoist=True, mentionable=False),
     RoleSpec(key="maintainer", name="maintainer", color=BOON_GREEN, hoist=True),
     RoleSpec(key="plugin_dev", name="plugin-dev", color=0x55FFAA, hoist=True),
     RoleSpec(key="moderator", name="moderator", color=0x00C46A, hoist=True),
     RoleSpec(key="helper", name="helper", color=0x33D18A, hoist=False),
     RoleSpec(key="vip", name="VIP", color=0xFFD700, hoist=True),
+    # ── Contribution tier (recognition for contribution; hoisted) ──────────
+    # Granted manually by staff. Cosmetic + mention-only — no permissions.
+    RoleSpec(key="tester", name="tester", color=0x9B59B6, hoist=True, mentionable=True),
+    RoleSpec(key="contributor", name="contributor", color=0xE91E63, hoist=True, mentionable=True),
+    RoleSpec(key="translator", name="translator", color=0x1ABC9C, hoist=False, mentionable=True),
+    RoleSpec(key="designer", name="designer", color=0xF1C40F, hoist=False, mentionable=True),
+    # ── Verified base tier ─────────────────────────────────────────────────
     RoleSpec(key="member", name="member", color=BOON_GRAY, hoist=False),
+    # ── Interest tier (self-assign via buttons; mentionable; not hoisted) ──
+    # These exist only as @mention targets so the right people get pinged for
+    # the right topics. They confer NO channel permissions.
+    RoleSpec(key="interest_releases",     name="🔔 إشعارات-الإصدارات",  color=0x3498DB, hoist=False, mentionable=True),
+    RoleSpec(key="interest_tech",         name="💬 نقاشات-تقنية",       color=0x3498DB, hoist=False, mentionable=True),
+    RoleSpec(key="interest_install_help", name="🆘 مساعدة-في-التثبيت",  color=0x3498DB, hoist=False, mentionable=True),
+    RoleSpec(key="interest_bug_reports",  name="🐛 تقارير-الأخطاء",     color=0x3498DB, hoist=False, mentionable=True),
+    RoleSpec(key="interest_features",     name="💡 طلبات-الميزات",      color=0x3498DB, hoist=False, mentionable=True),
+    RoleSpec(key="interest_translate",    name="🌐 الترجمة-والتوطين",   color=0x3498DB, hoist=False, mentionable=True),
+    # ── Restricted tier ────────────────────────────────────────────────────
     RoleSpec(key="unverified", name="unverified", color=0x555555, hoist=False),
     RoleSpec(key="banned", name="banned", color=0xED4245, hoist=False),
     RoleSpec(key="bot", name="bots", color=0x5865F2, hoist=False),
@@ -107,6 +125,8 @@ CATEGORIES: list[CategorySpec] = [
                         topic="إجابات الأسئلة المتكررة. راجعها قبل أن تسأل في الدعم."),
             ChannelSpec("install_boon", "تثبيت-BOON", ChannelType.TEXT, Tier.READ_ONLY,
                         topic="شرح تثبيت BOON لكل المنصات (Userscript / Extension / Desktop)."),
+            ChannelSpec("choose_roles", "اختر-اهتماماتك", ChannelType.TEXT, Tier.READ_ONLY,
+                        topic="اضغط الأزرار في الرسالة المثبّتة لإعطاء/إزالة أدوار الاهتمامات."),
         ],
     ),
     CategorySpec(
