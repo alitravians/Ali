@@ -691,8 +691,15 @@ class Onboarding(commands.Cog):
         cid = (interaction.data or {}).get("custom_id") or ""
         if not cid.startswith(f"{CID}captcha:"):
             return
+        # custom_id format: "onboarding:captcha:{position}:{value}" — 4
+        # colon-separated segments. The previous version used
+        # cid.split(":", 2) which capped output at 3 elements, joining
+        # position+value into "{pos}:{val}" and breaking int() parsing
+        # for every captcha click. rsplit from the right peels the value
+        # and position correctly regardless of how many colons are in
+        # the prefix.
         try:
-            _prefix, _pos, value_raw = cid.split(":", 2)
+            _prefix, _pos, value_raw = cid.rsplit(":", 2)
             chosen = int(value_raw)
         except Exception:
             return
