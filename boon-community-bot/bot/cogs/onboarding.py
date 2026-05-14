@@ -79,6 +79,10 @@ STEP_NICKNAME = "nickname"
 STEP_EXPERIENCE = "experience"
 STEP_INTERESTS = "interests"
 STEP_DONE = "done"
+# Member exhausted the captcha retry budget. They stay parked here
+# (still @unverified) until an admin clears them via /verify-member or
+# the 7-day inactivity-kick removes them.
+STEP_LOCKED = "locked"
 
 # Anti-raid parameters.
 RAID_WINDOW_S = 60
@@ -693,23 +697,41 @@ class Onboarding(commands.Cog):
         except Exception:
             return
         state = self.store.get(interaction.user.id)
-        if state is None or state.step != STEP_CAPTCHA or state.captcha_answer is None:
+        if state is None or state.captcha_answer is None:
+            await interaction.response.send_message("هذا الزر لا يخصّك.", ephemeral=True)
+            return
+        if state.step == STEP_LOCKED:
+            # Quietly absorb post-lockout clicks — no admin log, no state
+            # mutation. The user already got the lockout message once.
+            await interaction.response.send_message(
+                "تم تعليق تحقّقك — راسل أحد الـ admins.",
+                ephemeral=True,
+            )
+            return
+        if state.step != STEP_CAPTCHA:
             await interaction.response.send_message("هذا الزر لا يخصّك.", ephemeral=True)
             return
         if chosen != state.captcha_answer:
             state.failed_captcha += 1
-            await self.store.save()
             if state.failed_captcha >= 3:
+                # Hard gate: park state in LOCKED so subsequent button
+                # clicks short-circuit before reaching this branch (avoids
+                # admin-log spam if the user keeps mashing buttons after
+                # they're out of attempts).
+                state.step = STEP_LOCKED
+                await self.store.save()
                 await interaction.response.send_message(
-                    "⚠️ ٣ محاولات خاطئة — سيتم تنبيه الإدارة. حاول مرّة أخرى أو راسل admin.",
+                    "⚠️ بلغت الحد الأقصى للمحاولات (٣). "
+                    "تم تعليق تحقّقك — راسل أحد الـ admins ليفتحوه لك.",
                     ephemeral=True,
                 )
                 if interaction.guild:
                     await self._log_admin(
                         interaction.guild,
-                        f"⚠️ <@{interaction.user.id}> فشل ٣ مرات في anti-bot captcha.",
+                        f"⚠️ <@{interaction.user.id}> فشل ٣ مرات في anti-bot captcha — تم تعليق تحقّقه (`/verify-member` للتجاوز).",
                     )
                 return
+            await self.store.save()
             await interaction.response.send_message(
                 f"إجابة خاطئة. حاول مرّة أخرى ({3 - state.failed_captcha} محاولة متبقية).",
                 ephemeral=True,

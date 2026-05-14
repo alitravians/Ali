@@ -95,6 +95,18 @@ class Welcome(commands.Cog):
         if unverified_role not in member.roles:
             return  # already verified
 
+        # If the Onboarding cog is loaded, the canonical path is the guided
+        # interview (captcha + nickname + experience + interests). Granting
+        # @member from a bare ✓-react would bypass the anti-bot captcha and
+        # the interest-role assignment entirely. Refuse the bypass: undo
+        # the reaction, point the user at the retroactive button, and log
+        # the attempt. Only fall through to the legacy role-swap if the
+        # Onboarding cog isn't loaded (defence-in-depth — should never
+        # happen in production but keeps the fallback semantics sane).
+        if self.bot.get_cog("Onboarding") is not None:
+            await self._undo_react_and_redirect(guild, payload, member)
+            return
+
         try:
             await member.remove_roles(unverified_role, reason="verified via reaction")
             await member.add_roles(member_role, reason="verified via reaction")
@@ -103,6 +115,39 @@ class Welcome(commands.Cog):
             return
         log.info("verified %s", member)
         await self._log_admin(guild, f"✅ <@{member.id}> ({member}) تحقّق — @member")
+
+    async def _undo_react_and_redirect(
+        self,
+        guild: discord.Guild,
+        payload: discord.RawReactionActionEvent,
+        member: discord.Member,
+    ) -> None:
+        """Cancel a legacy ✓-react verification when Onboarding is active.
+
+        Removes the user's reaction so it doesn't look like the verify
+        worked, DMs them the new instructions, and logs the bypass attempt
+        so admins can see who's hitting the old message.
+        """
+        try:
+            ch = guild.get_channel(payload.channel_id)
+            if isinstance(ch, discord.TextChannel):
+                msg = await ch.fetch_message(payload.message_id)
+                await msg.remove_reaction(payload.emoji, member)
+        except (discord.HTTPException, discord.NotFound, discord.Forbidden) as exc:
+            log.info("could not remove legacy verify reaction for %s: %s", member, exc)
+        try:
+            await member.send(
+                "نظام التحقّق تغيّر إلى مقابلة مرحّبة جديدة. "
+                "افتح <#" + str(payload.channel_id) + "> واضغط زر "
+                "**ابدأ التحقّق الجديد** لاستكمال الانضمام."
+            )
+        except (discord.HTTPException, discord.Forbidden) as exc:
+            log.info("could not DM %s redirect: %s", member, exc)
+        await self._log_admin(
+            guild,
+            f"↩️ <@{member.id}> ({member}) ضغط ✅ على رسالة الترحيب القديمة — "
+            "تمّ التوجيه للـ onboarding الجديد بدون منح @member.",
+        )
 
     @commands.command(name="post_welcome", hidden=True)
     @commands.has_permissions(manage_guild=True)

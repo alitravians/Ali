@@ -53,9 +53,19 @@ _FONT_CANDIDATES: Iterable[str] = (
 
 
 def _load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont:
-    """Find the first available font on disk and return it at `size`."""
+    """Find the first available font on disk and return it at `size`.
+
+    Weight matching is symmetric: a `bold=False` request never returns a
+    Bold-named candidate, and vice versa. ``DejaVuSans`` is treated as
+    weight-neutral (it's only the last-ditch latin fallback, used for
+    both bold and regular labels when the Noto family is unavailable).
+    """
     for path in _FONT_CANDIDATES:
-        if bold and "Bold" not in path and "DejaVu" not in path:
+        is_bold = "Bold" in path
+        is_neutral = "DejaVu" in path  # weight-agnostic latin fallback
+        if bold and not (is_bold or is_neutral):
+            continue
+        if not bold and is_bold and not is_neutral:
             continue
         try:
             return ImageFont.truetype(path, size=size)
