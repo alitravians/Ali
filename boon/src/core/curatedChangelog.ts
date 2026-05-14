@@ -30,6 +30,11 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.1.8": [
+        { kind: "added",    text: "[الإضافات - شريط بحث وفلتر بالحالة والوسوم وترتيب ذكي]" },
+        { kind: "added",    text: "[الإضافات - شارة \"جديد\" تظهر على الإضافات المضافة حديثاً]" },
+        { kind: "added",    text: "[إدارة عناصر الواجهة - صفحة لإخفاء أزرار شريط الكتابة فردياً بدون تعطيل الإضافة]" },
+    ],
     "boon-v0.1.7": [
         { kind: "improved", text: "[التحديثات - عرض الملاحظات بصياغة موجزة للمستخدمين بدون تفاصيل تقنية]" },
     ],
