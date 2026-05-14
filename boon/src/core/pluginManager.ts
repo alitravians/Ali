@@ -100,7 +100,7 @@ function buildContext(def: AnyPlugin, cleanups: Array<() => void>): PluginContex
         },
     };
 
-    const chatButtonRaw = chatButtonApi.createApi();
+    const chatButtonRaw = chatButtonApi.createApi(manifest.id);
     const chatButton: ChatButtonApi = {
         add(button: ChatButtonSpec) {
             const off = chatButtonRaw.add(button);

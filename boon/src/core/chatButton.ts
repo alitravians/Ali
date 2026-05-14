@@ -14,15 +14,50 @@ import { rootLogger } from "./logger.js";
 
 const BUTTON_CLASS = "boon-chat-button";
 const HOST_SELECTOR = '[class*="buttons_"]'; // Discord's composer button cluster
+const HIDDEN_STORAGE_KEY = "alitravians:ui-elements:chat-button:hidden";
 
 export interface ChatButton {
     id: string;
     label: string;          // accessible label (tooltip)
     icon: string;           // text or single emoji shown inside the button
     onClick: () => void;
+    /** Plugin id that owns this button. Used by the UI-elements manager to
+     *  group buttons by their plugin and to keep the hidden-state stable
+     *  across plugin reloads. Falls back to `id` when omitted. */
+    ownerPluginId?: string;
 }
 
 const buttons = new Map<string, ChatButton>();
+const hiddenButtonIds = new Set<string>(loadHiddenSet());
+const listeners = new Set<() => void>();
+
+function loadHiddenSet(): string[] {
+    try {
+        const raw = localStorage.getItem(HIDDEN_STORAGE_KEY);
+        if (!raw) return [];
+        const parsed: unknown = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return parsed.filter((x): x is string => typeof x === "string");
+        }
+    } catch (err) {
+        rootLogger.warn("chatButton: failed to load hidden set", err);
+    }
+    return [];
+}
+
+function persistHiddenSet(): void {
+    try {
+        localStorage.setItem(HIDDEN_STORAGE_KEY, JSON.stringify([...hiddenButtonIds]));
+    } catch (err) {
+        rootLogger.warn("chatButton: failed to persist hidden set", err);
+    }
+}
+
+function notify(): void {
+    for (const l of listeners) {
+        try { l(); } catch (err) { rootLogger.warn("chatButton listener threw", err); }
+    }
+}
 
 function renderButton(btn: ChatButton): HTMLButtonElement {
     const node = document.createElement("button");
@@ -62,7 +97,12 @@ function renderButton(btn: ChatButton): HTMLButtonElement {
 
 function injectInto(host: HTMLElement): void {
     for (const btn of buttons.values()) {
-        if (host.querySelector(`[data-boon-btn-id="${btn.id}"]`)) continue;
+        const existing = host.querySelector<HTMLElement>(`[data-boon-btn-id="${btn.id}"]`);
+        if (hiddenButtonIds.has(btn.id)) {
+            existing?.remove();
+            continue;
+        }
+        if (existing) continue;
         host.insertBefore(renderButton(btn), host.firstChild);
     }
 }
@@ -99,11 +139,12 @@ export interface ChatButtonApi {
     remove(id: string): void;
 }
 
-export function createApi(): ChatButtonApi {
+export function createApi(ownerPluginId?: string): ChatButtonApi {
     return {
         add(button) {
-            buttons.set(button.id, button);
+            buttons.set(button.id, { ...button, ownerPluginId: button.ownerPluginId ?? ownerPluginId });
             reinjectAll();
+            notify();
             return () => {
                 buttons.delete(button.id);
                 for (const el of document.querySelectorAll<HTMLElement>(
@@ -111,6 +152,7 @@ export function createApi(): ChatButtonApi {
                 )) {
                     el.remove();
                 }
+                notify();
             };
         },
         remove(id) {
@@ -120,6 +162,45 @@ export function createApi(): ChatButtonApi {
             )) {
                 el.remove();
             }
+            notify();
         },
     };
+}
+
+// ─── Public API for the UI-elements manager ────────────────────────────────
+
+export interface RegisteredButton {
+    id: string;
+    label: string;
+    icon: string;
+    ownerPluginId: string | null;
+    hidden: boolean;
+}
+
+/** Snapshot of every chat button currently registered, in insertion order. */
+export function list(): RegisteredButton[] {
+    return [...buttons.values()].map(b => ({
+        id: b.id,
+        label: b.label,
+        icon: b.icon,
+        ownerPluginId: b.ownerPluginId ?? null,
+        hidden: hiddenButtonIds.has(b.id),
+    }));
+}
+
+/** Set the user-controlled visibility of a button. Returns the new state. */
+export function setHidden(id: string, hidden: boolean): boolean {
+    if (hidden) hiddenButtonIds.add(id);
+    else hiddenButtonIds.delete(id);
+    persistHiddenSet();
+    // Re-render: either remove the button from the DOM, or re-inject it.
+    reinjectAll();
+    notify();
+    return hidden;
+}
+
+/** Subscribe to registry/visibility changes. Returns an unsubscribe fn. */
+export function subscribe(listener: () => void): () => void {
+    listeners.add(listener);
+    return () => listeners.delete(listener);
 }

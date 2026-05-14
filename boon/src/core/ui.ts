@@ -26,6 +26,7 @@ import { subscribe as subscribeActivity, snapshot as activitySnapshot } from "./
 import * as palette from "./commandPalette.js";
 import { emit, on } from "./events.js";
 import { rootLogger } from "./logger.js";
+import * as chatButton from "./chatButton.js";
 import * as pm from "./pluginManager.js";
 import * as profiles from "./profiles.js";
 import { exportState, importState, resetPlugin } from "./settings.js";
@@ -287,6 +288,153 @@ const STYLE = `
     font-size: 10px;
     padding: 1px 7px;
     border-radius: 999px;
+}
+.boon-new-badge {
+    display: inline-block;
+    background: rgba(0,255,136,0.18);
+    color: ${ACCENT};
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    border: 1px solid ${ACCENT_DIM};
+}
+
+/* plugins toolbar (search / status / tag / sort) */
+.boon-plugin-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0 12px;
+    align-items: center;
+}
+.boon-plugin-search {
+    flex: 1 1 200px;
+    min-width: 0;
+    background: ${BG_2};
+    border: 1px solid ${BORDER};
+    border-radius: 8px;
+    color: ${TEXT_0};
+    font-size: 13px;
+    padding: 7px 10px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.boon-plugin-search:focus { border-color: ${ACCENT_DIM}; }
+.boon-plugin-search::placeholder { color: ${TEXT_2}; }
+.boon-plugin-select {
+    background: ${BG_2};
+    border: 1px solid ${BORDER};
+    border-radius: 8px;
+    color: ${TEXT_0};
+    font-size: 13px;
+    padding: 7px 10px;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+.boon-plugin-select:focus { border-color: ${ACCENT_DIM}; }
+.boon-plugin-grid-host { display: block; }
+
+/* "Manage UI elements" entry card */
+.boon-ui-manager-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    background: ${BG_2};
+    border: 1px solid ${BORDER};
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+}
+.boon-ui-manager-card-body h4 {
+    margin: 0 0 2px;
+    font-size: 14px;
+    font-weight: 700;
+    color: ${TEXT_0};
+}
+.boon-ui-manager-card-body p {
+    margin: 0;
+    font-size: 12px;
+    color: ${TEXT_2};
+    line-height: 1.4;
+}
+.boon-ui-manager-card-button {
+    background: ${ACCENT_DIM};
+    color: ${ACCENT};
+    border: 1px solid ${ACCENT};
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+}
+.boon-ui-manager-card-button:hover { background: ${ACCENT}; color: ${BG_1}; }
+
+/* "Manage UI elements" sub-page */
+.boon-section-title {
+    margin: 16px 0 8px;
+    font-size: 13px;
+    font-weight: 700;
+    color: ${TEXT_2};
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+.boon-ui-buttons-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.boon-ui-buttons-group {
+    background: ${BG_2};
+    border: 1px solid ${BORDER};
+    border-radius: 10px;
+    padding: 12px 14px;
+}
+.boon-ui-buttons-group h5 {
+    margin: 0 0 8px;
+    font-size: 13px;
+    color: ${ACCENT};
+    font-weight: 700;
+}
+.boon-ui-button-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 4px;
+    border-top: 1px solid ${BORDER};
+}
+.boon-ui-button-row:first-of-type { border-top: 0; }
+.boon-ui-button-icon {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: ${BG_3};
+    border-radius: 6px;
+    font-size: 16px;
+}
+.boon-ui-button-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    flex: 1;
+    min-width: 0;
+}
+.boon-ui-button-info strong {
+    color: ${TEXT_0};
+    font-size: 13px;
+    font-weight: 600;
+}
+.boon-ui-button-id {
+    color: ${TEXT_2};
+    font-size: 11px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 /* toggle switch */
@@ -850,12 +998,72 @@ function fmtTime(ts: number): string {
 
 type ViewId = "home" | "plugins" | "themes" | "updater" | "profiles" | "activity" | "backup";
 
+type PluginStatusFilter = "all" | "enabled" | "disabled" | "new" | "unused";
+type PluginSortMode = "smart" | "recent" | "name";
+
 interface UIState {
     view: ViewId;
     pluginDetailId: string | null;
+    pluginSearch: string;
+    pluginStatus: PluginStatusFilter;
+    pluginTag: string;
+    pluginSort: PluginSortMode;
+    /** When true, show the dedicated "Manage UI elements" sub-page inside
+     *  the Plugins tab (lets users hide individual chat-bar buttons). */
+    pluginUiManagerOpen: boolean;
 }
 
-const state: UIState = { view: "home", pluginDetailId: null };
+const state: UIState = {
+    view: "home",
+    pluginDetailId: null,
+    pluginSearch: "",
+    pluginStatus: "all",
+    pluginTag: "",
+    pluginSort: "smart",
+    pluginUiManagerOpen: false,
+};
+
+// ─── "new" plugin badge tracking ────────────────────────────────────────────
+//
+// Mark a plugin as new for 7 days from the first time alitravians ever saw
+// it. The mapping lives in localStorage so it survives Discord restarts but
+// doesn't bloat the per-plugin dataStore.
+const FIRST_SEEN_STORAGE_KEY = "alitravians:plugin:first-seen";
+const NEW_BADGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function loadFirstSeenMap(): Record<string, number> {
+    try {
+        const raw = localStorage.getItem(FIRST_SEEN_STORAGE_KEY);
+        if (!raw) return {};
+        const parsed: unknown = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const out: Record<string, number> = {};
+            for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+                if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+            }
+            return out;
+        }
+    } catch { /* ignore */ }
+    return {};
+}
+
+function persistFirstSeenMap(map: Record<string, number>): void {
+    try {
+        localStorage.setItem(FIRST_SEEN_STORAGE_KEY, JSON.stringify(map));
+    } catch { /* ignore */ }
+}
+
+function firstSeenFor(pluginId: string): number {
+    const map = loadFirstSeenMap();
+    if (typeof map[pluginId] === "number") return map[pluginId];
+    map[pluginId] = Date.now();
+    persistFirstSeenMap(map);
+    return map[pluginId];
+}
+
+function isNewlyInstalled(pluginId: string): boolean {
+    return Date.now() - firstSeenFor(pluginId) < NEW_BADGE_WINDOW_MS;
+}
 
 // When BOON is rendered inside Discord's User Settings (instead of the
 // floating overlay) we keep a reference to the host element so internal
@@ -877,6 +1085,7 @@ function rerender(): void {
             case "home": renderHome(host); break;
             case "plugins":
                 if (state.pluginDetailId) openPluginDetail();
+                else if (state.pluginUiManagerOpen) renderUiElementsManager(host);
                 else renderPlugins(host);
                 break;
             case "themes": renderThemes(host); break;
@@ -1059,33 +1268,174 @@ function renderPlugins(main: HTMLElement): void {
         ),
     );
 
-    const grid = el("div", { className: "boon-plugin-grid" });
-    for (const info of pm.list()) {
-        const counters = getCounters(info.id);
-        const lastUsed = getLastUsed(info.id);
-        const counterText = Object.entries(counters)
-            .map(([k, v]) => `${v} ${k}`)
-            .join(" · ") || "—";
+    const all = pm.list();
 
-        const card = el("div", { className: "boon-plugin-card" });
+    // ── toolbar: search + status + tag + sort ──
+    const search = el("input", {
+        type: "text",
+        className: "boon-plugin-search",
+        placeholder: "ابحث عن إضافة…",
+        value: state.pluginSearch,
+    }) as HTMLInputElement;
+    search.addEventListener("input", () => {
+        state.pluginSearch = search.value;
+        renderFilteredGrid();
+    });
 
-        const switchInput = el("input", { type: "checkbox", checked: info.enabled }) as HTMLInputElement;
-        switchInput.addEventListener("change", async ev => {
-            ev.stopPropagation();
-            await pm.toggle(info.id);
-            rerender();
+    const status = el("select", { className: "boon-plugin-select" }) as HTMLSelectElement;
+    const statusOptions: { value: PluginStatusFilter; label: string }[] = [
+        { value: "all", label: "عرض الكل" },
+        { value: "enabled", label: "المفعّلة فقط" },
+        { value: "disabled", label: "المعطّلة فقط" },
+        { value: "new", label: "الإضافات الجديدة" },
+        { value: "unused", label: "لم تُستخدم بعد" },
+    ];
+    for (const o of statusOptions) {
+        const opt = el("option", { value: o.value }, o.label) as HTMLOptionElement;
+        if (o.value === state.pluginStatus) opt.selected = true;
+        status.appendChild(opt);
+    }
+    status.addEventListener("change", () => {
+        state.pluginStatus = status.value as PluginStatusFilter;
+        renderFilteredGrid();
+    });
+
+    const allTags = new Set<string>();
+    for (const p of all) for (const t of p.tags) allTags.add(t);
+    const tagSelect = el("select", { className: "boon-plugin-select" }) as HTMLSelectElement;
+    tagSelect.appendChild(el("option", { value: "" }, "كل الوسوم"));
+    for (const t of [...allTags].sort()) {
+        const opt = el("option", { value: t }, t) as HTMLOptionElement;
+        if (t === state.pluginTag) opt.selected = true;
+        tagSelect.appendChild(opt);
+    }
+    tagSelect.addEventListener("change", () => {
+        state.pluginTag = tagSelect.value;
+        renderFilteredGrid();
+    });
+
+    const sort = el("select", { className: "boon-plugin-select" }) as HTMLSelectElement;
+    const sortOptions: { value: PluginSortMode; label: string }[] = [
+        { value: "smart", label: "الترتيب الذكي (المفعّلة أوّلًا)" },
+        { value: "recent", label: "الأحدث استخدامًا" },
+        { value: "name", label: "حسب الاسم" },
+    ];
+    for (const o of sortOptions) {
+        const opt = el("option", { value: o.value }, o.label) as HTMLOptionElement;
+        if (o.value === state.pluginSort) opt.selected = true;
+        sort.appendChild(opt);
+    }
+    sort.addEventListener("change", () => {
+        state.pluginSort = sort.value as PluginSortMode;
+        renderFilteredGrid();
+    });
+
+    const toolbar = el("div", { className: "boon-plugin-toolbar" },
+        search, status, tagSelect, sort,
+    );
+    main.appendChild(toolbar);
+
+    // ── "Manage UI elements" entry card ──
+    const uiMgrCard = el("div", { className: "boon-ui-manager-card" },
+        el("div", { className: "boon-ui-manager-card-body" },
+            el("h4", {}, "إدارة عناصر الواجهة"),
+            el("p", {}, "إخفاء الأزرار التي تضيفها الإضافات إلى شريط الكتابة بدون تعطيل الإضافة كاملة."),
+        ),
+        el("button", {
+            className: "boon-ui-manager-card-button",
+            onclick: () => {
+                state.pluginUiManagerOpen = true;
+                rerender();
+            },
+        }, "فتح ›"),
+    );
+    main.appendChild(uiMgrCard);
+
+    // ── grid container (replaced on filter change) ──
+    const gridHost = el("div", { className: "boon-plugin-grid-host" });
+    main.appendChild(gridHost);
+
+    function renderFilteredGrid(): void {
+        gridHost.innerHTML = "";
+        const q = state.pluginSearch.trim().toLowerCase();
+        const tagFilter = state.pluginTag;
+
+        const visible = all.filter(info => {
+            if (q) {
+                const hay = `${info.name} ${info.description} ${info.id}`.toLowerCase();
+                if (!hay.includes(q)) return false;
+            }
+            if (tagFilter && !info.tags.includes(tagFilter)) return false;
+            switch (state.pluginStatus) {
+                case "enabled":  if (!info.enabled) return false; break;
+                case "disabled": if (info.enabled) return false; break;
+                case "new":      if (!isNewlyInstalled(info.id)) return false; break;
+                case "unused":   if (getLastUsed(info.id) !== null) return false; break;
+                case "all":      break;
+            }
+            return true;
         });
-        const switchLabel = el(
-            "label",
-            { className: "boon-switch", onclick: (e: Event) => e.stopPropagation() },
-            switchInput,
-            el("span", { className: "boon-slider" }),
-        );
 
-        card.appendChild(
-            el("div", { className: "boon-plugin-card-head" },
+        visible.sort((a, b) => {
+            switch (state.pluginSort) {
+                case "name":
+                    return a.name.localeCompare(b.name, "ar");
+                case "recent": {
+                    const aU = getLastUsed(a.id) ?? 0;
+                    const bU = getLastUsed(b.id) ?? 0;
+                    return bU - aU;
+                }
+                case "smart":
+                default: {
+                    if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
+                    const aU = getLastUsed(a.id) ?? 0;
+                    const bU = getLastUsed(b.id) ?? 0;
+                    if (aU !== bU) return bU - aU;
+                    return a.name.localeCompare(b.name, "ar");
+                }
+            }
+        });
+
+        if (visible.length === 0) {
+            gridHost.appendChild(
+                el("div", { className: "boon-empty" }, "لا توجد إضافات تطابق الفلتر الحالي."),
+            );
+            return;
+        }
+
+        const grid = el("div", { className: "boon-plugin-grid" });
+        for (const info of visible) {
+            const counters = getCounters(info.id);
+            const lastUsed = getLastUsed(info.id);
+            const counterText = Object.entries(counters)
+                .map(([k, v]) => `${v} ${k}`)
+                .join(" · ") || "—";
+
+            const card = el("div", { className: "boon-plugin-card" });
+
+            const switchInput = el("input", { type: "checkbox", checked: info.enabled }) as HTMLInputElement;
+            switchInput.addEventListener("change", async ev => {
+                ev.stopPropagation();
+                await pm.toggle(info.id);
+                rerender();
+            });
+            const switchLabel = el(
+                "label",
+                { className: "boon-switch", onclick: (e: Event) => e.stopPropagation() },
+                switchInput,
+                el("span", { className: "boon-slider" }),
+            );
+
+            const headChildren: Node[] = [
                 el("h4", {}, info.name),
-                info.crashed ? el("span", { className: "boon-crash" }, "متعطّلة") : document.createTextNode(""),
+            ];
+            if (isNewlyInstalled(info.id)) {
+                headChildren.push(el("span", { className: "boon-new-badge" }, "جديد"));
+            }
+            if (info.crashed) {
+                headChildren.push(el("span", { className: "boon-crash" }, "متعطّلة"));
+            }
+            headChildren.push(
                 el("button", {
                     className: "boon-cog",
                     title: "إعدادات",
@@ -1096,29 +1446,118 @@ function renderPlugins(main: HTMLElement): void {
                     },
                 }, "⚙"),
                 switchLabel,
-            ),
-        );
-        card.appendChild(el("p", { className: "boon-plugin-desc" }, info.description));
-        card.appendChild(
-            el("div", { className: "boon-plugin-meta" },
-                el("span", {}, counterText),
-                el("span", {}, `آخر استخدام: ${relativeTime(lastUsed)}`),
-            ),
-        );
+            );
+            card.appendChild(el("div", { className: "boon-plugin-card-head" }, ...headChildren));
+            card.appendChild(el("p", { className: "boon-plugin-desc" }, info.description));
+            card.appendChild(
+                el("div", { className: "boon-plugin-meta" },
+                    el("span", {}, counterText),
+                    el("span", {}, `آخر استخدام: ${relativeTime(lastUsed)}`),
+                ),
+            );
 
-        if (info.tags.length > 0) {
-            const tagRow = el("div", { style: { marginTop: "4px" } });
-            for (const t of info.tags) tagRow.appendChild(el("span", { className: "boon-tag" }, t));
-            card.appendChild(tagRow);
+            if (info.tags.length > 0) {
+                const tagRow = el("div", { style: { marginTop: "4px" } });
+                for (const t of info.tags) tagRow.appendChild(el("span", { className: "boon-tag" }, t));
+                card.appendChild(tagRow);
+            }
+
+            card.addEventListener("click", () => {
+                state.pluginDetailId = info.id;
+                openPluginDetail();
+            });
+            grid.appendChild(card);
         }
-
-        card.addEventListener("click", () => {
-            state.pluginDetailId = info.id;
-            openPluginDetail();
-        });
-        grid.appendChild(card);
+        gridHost.appendChild(grid);
     }
-    main.appendChild(grid);
+
+    // Seed first-seen timestamps so existing plugins don't get marked "new".
+    // After this point future plugins added by an update will get the badge.
+    for (const info of all) firstSeenFor(info.id);
+
+    renderFilteredGrid();
+}
+
+function renderUiElementsManager(main: HTMLElement): void {
+    main.appendChild(
+        el("div", { className: "boon-main-header" },
+            el("div", {},
+                el("h2", {}, "إدارة عناصر الواجهة"),
+                el("p", {}, "يمكنك إخفاء أزرار شريط الكتابة التي تضيفها الإضافات. لن يتم تعطيل الإضافة، فقط الزر يُخفى."),
+            ),
+            el("button", {
+                className: "boon-close",
+                onclick: () => {
+                    state.pluginUiManagerOpen = false;
+                    rerender();
+                },
+                title: "عودة",
+            }, "←"),
+        ),
+    );
+
+    const buttons = chatButton.list();
+    if (buttons.length === 0) {
+        main.appendChild(
+            el("div", { className: "boon-empty" },
+                "لا توجد أزرار مسجّلة حالياً من أيّ إضافة. شغّل إضافة تضيف أزرارًا لشريط الكتابة لرؤيتها هنا.",
+            ),
+        );
+        return;
+    }
+
+    main.appendChild(el("h3", { className: "boon-section-title" }, "أزرار شريط الكتابة"));
+
+    const list = el("div", { className: "boon-ui-buttons-list" });
+
+    // Group by owner plugin so users can see which plugin contributed which button.
+    const grouped = new Map<string, typeof buttons>();
+    for (const b of buttons) {
+        const owner = b.ownerPluginId ?? "unknown";
+        if (!grouped.has(owner)) grouped.set(owner, []);
+        grouped.get(owner)!.push(b);
+    }
+
+    const pluginNameFor = (id: string): string => {
+        const info = pm.list().find(p => p.id === id);
+        return info?.name ?? id;
+    };
+
+    for (const [owner, btns] of grouped) {
+        const group = el("div", { className: "boon-ui-buttons-group" });
+        group.appendChild(el("h5", {}, pluginNameFor(owner)));
+
+        for (const b of btns) {
+            const row = el("div", { className: "boon-ui-button-row" });
+            row.appendChild(
+                el("span", { className: "boon-ui-button-icon" }, b.icon || "•"),
+            );
+            row.appendChild(
+                el("div", { className: "boon-ui-button-info" },
+                    el("strong", {}, b.label),
+                    el("span", { className: "boon-ui-button-id" }, b.id),
+                ),
+            );
+
+            const visibleInput = el("input", {
+                type: "checkbox",
+                checked: !b.hidden,
+            }) as HTMLInputElement;
+            visibleInput.addEventListener("change", () => {
+                chatButton.setHidden(b.id, !visibleInput.checked);
+                rerender();
+            });
+            const toggleLabel = el("label", { className: "boon-switch" },
+                visibleInput,
+                el("span", { className: "boon-slider" }),
+            );
+            row.appendChild(toggleLabel);
+            group.appendChild(row);
+        }
+        list.appendChild(group);
+    }
+
+    main.appendChild(list);
 }
 
 function renderActivity(main: HTMLElement): void {
@@ -2050,7 +2489,12 @@ function render(): void {
             "button",
             {
                 className: `boon-nav-item${state.view === item.id ? " is-active" : ""}`,
-                onclick: () => { state.view = item.id; state.pluginDetailId = null; render(); },
+                onclick: () => {
+                    state.view = item.id;
+                    state.pluginDetailId = null;
+                    state.pluginUiManagerOpen = false;
+                    render();
+                },
             },
             item.label,
         );
@@ -2067,6 +2511,7 @@ function render(): void {
         case "home": renderHome(main); break;
         case "plugins":
             if (state.pluginDetailId) openPluginDetail();
+            else if (state.pluginUiManagerOpen) renderUiElementsManager(main);
             else renderPlugins(main);
             break;
         case "themes":
@@ -2135,6 +2580,7 @@ export function renderEmbedded(host: HTMLElement, view: ViewId = "home"): void {
     host.classList.add("boon-embedded");
     state.view = view;
     state.pluginDetailId = null;
+    state.pluginUiManagerOpen = false;
     switch (view) {
         case "home": renderHome(host); break;
         case "plugins": renderPlugins(host); break;
