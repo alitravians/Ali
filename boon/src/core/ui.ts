@@ -1027,38 +1027,99 @@ const state: UIState = {
 //
 // Mark a plugin as new for 7 days from the first time alitravians ever saw
 // it. The mapping lives in localStorage so it survives Discord restarts but
-// doesn't bloat the per-plugin dataStore.
+// doesn't bloat the per-plugin dataStore. The `bootstrapped` flag separates
+// "plugins that existed when the user first upgraded" (no badge) from
+// "plugins that genuinely appeared later" (badge for 7 days).
 const FIRST_SEEN_STORAGE_KEY = "alitravians:plugin:first-seen";
 const NEW_BADGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
-function loadFirstSeenMap(): Record<string, number> {
-    try {
-        const raw = localStorage.getItem(FIRST_SEEN_STORAGE_KEY);
-        if (!raw) return {};
-        const parsed: unknown = JSON.parse(raw);
-        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-            const out: Record<string, number> = {};
-            for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-                if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
-            }
-            return out;
-        }
-    } catch { /* ignore */ }
-    return {};
+interface FirstSeenStore {
+    /** Set on the first call to `seedFirstSeen` after install/upgrade. While
+     *  false, every plugin observed via `firstSeenFor` is treated as
+     *  pre-existing (stamped epoch-zero) so it never receives the badge. */
+    bootstrapped: boolean;
+    map: Record<string, number>;
 }
 
-function persistFirstSeenMap(map: Record<string, number>): void {
+function loadFirstSeenStore(): FirstSeenStore {
     try {
-        localStorage.setItem(FIRST_SEEN_STORAGE_KEY, JSON.stringify(map));
+        const raw = localStorage.getItem(FIRST_SEEN_STORAGE_KEY);
+        if (!raw) return { bootstrapped: false, map: {} };
+        const parsed: unknown = JSON.parse(raw);
+        // Legacy schema (v0.1.8): plain Record<string, number>. Treat as
+        // already bootstrapped to avoid showing the badge for everything on
+        // upgrade. The legacy timestamps don't matter once bootstrapped is
+        // true — they just won't match the "new" window anyway.
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+            const obj = parsed as Record<string, unknown>;
+            if (typeof obj.bootstrapped === "boolean" && obj.map && typeof obj.map === "object") {
+                const map: Record<string, number> = {};
+                for (const [k, v] of Object.entries(obj.map as Record<string, unknown>)) {
+                    if (typeof v === "number" && Number.isFinite(v)) map[k] = v;
+                }
+                return { bootstrapped: obj.bootstrapped, map };
+            }
+            // Legacy plain-map (v0.1.8): every entry was stamped Date.now()
+            // at first sight, so all timestamps are equally meaningless. Zero
+            // them out on migration so a user upgrading v0.1.8 → v0.1.9
+            // within the 7-day window does NOT see the badge flash on every
+            // plugin. Any plugin that genuinely appears later will be missing
+            // from this map and will receive a fresh `Date.now()` stamp via
+            // `firstSeenFor` once `bootstrapped` is set.
+            const map: Record<string, number> = {};
+            for (const k of Object.keys(obj)) map[k] = 0;
+            return { bootstrapped: true, map };
+        }
     } catch { /* ignore */ }
+    return { bootstrapped: false, map: {} };
+}
+
+function persistFirstSeenStore(store: FirstSeenStore): void {
+    try {
+        localStorage.setItem(FIRST_SEEN_STORAGE_KEY, JSON.stringify(store));
+    } catch { /* ignore */ }
+}
+
+/**
+ * One-shot snapshot of the first-seen map used during a single render pass.
+ * Avoids the per-card `loadFirstSeenMap` cost that Devin Review flagged.
+ */
+let firstSeenCache: FirstSeenStore | null = null;
+function firstSeenCacheGet(): FirstSeenStore {
+    if (!firstSeenCache) firstSeenCache = loadFirstSeenStore();
+    return firstSeenCache;
+}
+function firstSeenCacheInvalidate(): void {
+    firstSeenCache = null;
+}
+
+/**
+ * Mark every currently-known plugin id as "already existed" so the badge
+ * never appears for pre-upgrade plugins. Subsequent plugins discovered via
+ * an update will not be in the map and will receive `Date.now()` the first
+ * time `firstSeenFor` is asked about them.
+ */
+function seedFirstSeen(existingIds: ReadonlyArray<string>): void {
+    const store = loadFirstSeenStore();
+    if (store.bootstrapped) return;
+    for (const id of existingIds) {
+        // Use epoch-zero so `Date.now() - 0 >> NEW_BADGE_WINDOW_MS` → no badge.
+        if (typeof store.map[id] !== "number") store.map[id] = 0;
+    }
+    store.bootstrapped = true;
+    persistFirstSeenStore(store);
+    firstSeenCacheInvalidate();
 }
 
 function firstSeenFor(pluginId: string): number {
-    const map = loadFirstSeenMap();
-    if (typeof map[pluginId] === "number") return map[pluginId];
-    map[pluginId] = Date.now();
-    persistFirstSeenMap(map);
-    return map[pluginId];
+    const store = firstSeenCacheGet();
+    if (typeof store.map[pluginId] === "number") return store.map[pluginId];
+    // Only stamp when we're past bootstrap — otherwise the seeding path is
+    // responsible for filling in the map.
+    const stamp = store.bootstrapped ? Date.now() : 0;
+    store.map[pluginId] = stamp;
+    persistFirstSeenStore(store);
+    return stamp;
 }
 
 function isNewlyInstalled(pluginId: string): boolean {
@@ -1370,7 +1431,7 @@ function renderPlugins(main: HTMLElement): void {
                 case "enabled":  if (!info.enabled) return false; break;
                 case "disabled": if (info.enabled) return false; break;
                 case "new":      if (!isNewlyInstalled(info.id)) return false; break;
-                case "unused":   if (getLastUsed(info.id) !== null) return false; break;
+                case "unused":   if (getLastUsed(info.id) !== 0) return false; break;
                 case "all":      break;
             }
             return true;
@@ -1381,15 +1442,15 @@ function renderPlugins(main: HTMLElement): void {
                 case "name":
                     return a.name.localeCompare(b.name, "ar");
                 case "recent": {
-                    const aU = getLastUsed(a.id) ?? 0;
-                    const bU = getLastUsed(b.id) ?? 0;
+                    const aU = getLastUsed(a.id);
+                    const bU = getLastUsed(b.id);
                     return bU - aU;
                 }
                 case "smart":
                 default: {
                     if (a.enabled !== b.enabled) return a.enabled ? -1 : 1;
-                    const aU = getLastUsed(a.id) ?? 0;
-                    const bU = getLastUsed(b.id) ?? 0;
+                    const aU = getLastUsed(a.id);
+                    const bU = getLastUsed(b.id);
                     if (aU !== bU) return bU - aU;
                     return a.name.localeCompare(b.name, "ar");
                 }
@@ -1471,11 +1532,18 @@ function renderPlugins(main: HTMLElement): void {
         gridHost.appendChild(grid);
     }
 
-    // Seed first-seen timestamps so existing plugins don't get marked "new".
-    // After this point future plugins added by an update will get the badge.
-    for (const info of all) firstSeenFor(info.id);
+    // On first run after install/upgrade, mark every currently-known plugin
+    // as pre-existing (epoch-zero) so the "new" badge does NOT appear for
+    // plugins that simply shipped with alitravians. Future plugins added by
+    // a later update will get the badge for 7 days from their first sighting.
+    seedFirstSeen(all.map(p => p.id));
 
+    // Refresh the snapshot used by isNewlyInstalled for this render pass.
+    firstSeenCacheInvalidate();
     renderFilteredGrid();
+    // Drop the per-render cache so plugin toggles that re-enter renderPlugins
+    // see the freshest store (in case it was mutated by another tab/window).
+    firstSeenCacheInvalidate();
 }
 
 function renderUiElementsManager(main: HTMLElement): void {
