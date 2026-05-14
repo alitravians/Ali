@@ -50,6 +50,34 @@ const accessories = new Set<RegisteredAccessory>();
 // that don't actually change the translatable content.
 const lastSourceSnapshot = new WeakMap<HTMLElement, string>();
 
+/**
+ * Read the natural-language text of a message element while explicitly
+ * skipping over any descendant inside our own accessory host. The host is
+ * appended INTO ``div[id^="message-content-"]`` so a naive ``textContent``
+ * read includes the translation subtitle's own text. That makes the
+ * snapshot flip every time we add/remove a translation node, which then
+ * invalidates the snapshot, which wipes the node, which re-adds it … —
+ * an infinite loop that silently kills the visible translation.
+ *
+ * Walking text nodes and rejecting anything inside ``.boon-accessory-host``
+ * keeps the snapshot stable across accessory inserts.
+ */
+function readBodyText(el: HTMLElement): string {
+    const content = el.querySelector<HTMLElement>('div[id^="message-content-"]');
+    if (!content) return "";
+    let result = "";
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+        acceptNode(node) {
+            const parent = node.parentElement;
+            if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        },
+    });
+    let n: Node | null;
+    while ((n = walker.nextNode())) result += n.nodeValue ?? "";
+    return result;
+}
+
 function sourceSnapshot(el: HTMLElement): string {
     // Combine the reply preview (if any) with the message body — the same
     // surface plugins like autoTranslate care about. Cosmetic re-renders
@@ -58,8 +86,7 @@ function sourceSnapshot(el: HTMLElement): string {
     const reply = el.querySelector<HTMLElement>(
         '[class*="repliedTextContent"], [class*="repliedTextPreview"]',
     );
-    const body = el.querySelector<HTMLElement>('div[id^="message-content-"]');
-    return `${reply?.textContent ?? ""}\u0000${body?.textContent ?? ""}`;
+    return `${reply?.textContent ?? ""}\u0000${readBodyText(el)}`;
 }
 
 function ensureHost(messageEl: HTMLElement): HTMLElement | null {
