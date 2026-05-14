@@ -187,11 +187,27 @@ def _draw_mixed(
     fonts: dict[str, ImageFont.FreeTypeFont],
     fill: tuple[int, int, int, int],
 ) -> None:
-    """Draw a script-mixed string starting at (x, y), switching fonts per run."""
-    x, y = xy
-    for run, script in _runs(text):
+    """Draw a script-mixed string starting at top-left (x, y).
+
+    All runs are aligned on a **common baseline** rather than on the
+    ascender (Pillow's default ``anchor="la"``). Without this the Arabic
+    runs — whose font has a taller ascent to make room for diacritics —
+    would sit higher than Latin runs on the same line, leaving the Latin
+    text visibly floating. Pinning to the baseline matches how browsers
+    and word processors lay out mixed-script text.
+    """
+    runs = _runs(text)
+    if not runs:
+        return
+    x, top = xy
+    # The line's baseline = top + the tallest ascent across the participating
+    # fonts. Each run is then drawn with anchor="ls" so its baseline lands
+    # exactly there regardless of that font's individual ascent.
+    max_ascent = max(fonts[script].getmetrics()[0] for _, script in runs)
+    baseline = top + max_ascent
+    for run, script in runs:
         font = fonts[script]
-        draw.text((x, y), run, font=font, fill=fill)
+        draw.text((x, baseline), run, font=font, fill=fill, anchor="ls")
         x += draw.textlength(run, font=font)
 
 
