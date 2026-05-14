@@ -6,6 +6,18 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# System-level deps:
+#  - libjpeg-turbo + zlib are needed by Pillow at runtime for JPEG/PNG.
+#  - fonts-noto-color-emoji + fonts-noto-naskh-arabic give us proper arabic
+#    + emoji glyph coverage for the welcome card renderer.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        fonts-noto-color-emoji \
+        fonts-noto-naskh-arabic \
+        libjpeg62-turbo \
+        zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
