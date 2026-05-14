@@ -76,6 +76,7 @@ async def main() -> int:
         "bot.cogs.report",
         "bot.cogs.role_buttons",
         "bot.cogs.admin",
+        "bot.cogs.onboarding",
     ]
     for ext in cogs:
         try:

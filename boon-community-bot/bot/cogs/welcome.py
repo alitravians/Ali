@@ -1,10 +1,19 @@
-"""Welcome cog — handles new-member onboarding via reaction verification.
+"""Welcome cog — legacy ✓-react verification (fallback).
 
-Flow:
-  1. Member joins → bot assigns @unverified role automatically
-  2. Member sees only #الترحيب and #القواعد (locked by READ_ONLY tier)
-  3. Member reacts ✓ on the pinned verification message in #الترحيب
-  4. Bot swaps @unverified → @member; logs the action in #admin-actions
+The primary onboarding flow now lives in `bot.cogs.onboarding` (guided
+interview in a per-member private channel). This cog is kept for two
+reasons:
+  1. The pinned ✓-react message in #الترحيب is still honoured for any
+     long-tail member who comes back to that message; reacting ✓ swaps
+     @unverified → @member just like before.
+  2. The `!post_welcome` admin command remains available for re-posting
+     the legacy banner if needed.
+
+The `on_member_join` listener is intentionally NOT redefined here — the
+`Onboarding` cog handles join events end-to-end (it assigns @unverified
+defensively, spawns the private channel, runs the interview, and logs to
+#admin-actions). Putting the same listener on two cogs would just
+duplicate the admin log and the role-add API call.
 """
 
 from __future__ import annotations
@@ -50,23 +59,30 @@ class Welcome(commands.Cog):
         v = cfg.get("channels", {}).get(key)
         return int(v) if v else None
 
+    # `bot.cogs.onboarding` owns the canonical join flow (assigns
+    # @unverified, spawns the per-member onboarding channel, runs the
+    # interview, and logs to #admin-actions). The listener below is a
+    # defence-in-depth fallback: it ONLY fires when the Onboarding cog
+    # failed to load (e.g. a transient ImportError on a dependency).
+    # Without this guard, a new joiner during such an outage would land
+    # at @everyone perms and could see all open channels.
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
+        if member.bot:
+            return
+        # Onboarding cog present? It owns the join flow — silently defer.
+        if self.bot.get_cog("Onboarding") is not None:
+            return
         unverified = self._role_id("unverified")
         if not unverified:
-            log.warning("no @unverified role configured; skipping auto-role")
             return
         role = member.guild.get_role(unverified)
-        if role:
-            try:
-                await member.add_roles(role, reason="auto: new member onboarding")
-            except discord.Forbidden:
-                log.error("missing perms to assign @unverified to %s", member)
-            else:
-                log.info("assigned @unverified to %s", member)
-
-        await self._log_admin(member.guild,
-                              f"➕ <@{member.id}> ({member}) انضم — @unverified")
+        if role is None or role in member.roles:
+            return
+        try:
+            await member.add_roles(role, reason="fallback: onboarding cog unavailable")
+        except (discord.Forbidden, discord.HTTPException) as exc:
+            log.info("fallback assign @unverified failed for %s: %s", member, exc)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
@@ -98,6 +114,18 @@ class Welcome(commands.Cog):
         if unverified_role not in member.roles:
             return  # already verified
 
+        # If the Onboarding cog is loaded, the canonical path is the guided
+        # interview (captcha + nickname + experience + interests). Granting
+        # @member from a bare ✓-react would bypass the anti-bot captcha and
+        # the interest-role assignment entirely. Refuse the bypass: undo
+        # the reaction, point the user at the retroactive button, and log
+        # the attempt. Only fall through to the legacy role-swap if the
+        # Onboarding cog isn't loaded (defence-in-depth — should never
+        # happen in production but keeps the fallback semantics sane).
+        if self.bot.get_cog("Onboarding") is not None:
+            await self._undo_react_and_redirect(guild, payload, member)
+            return
+
         try:
             await member.remove_roles(unverified_role, reason="verified via reaction")
             await member.add_roles(member_role, reason="verified via reaction")
@@ -106,6 +134,39 @@ class Welcome(commands.Cog):
             return
         log.info("verified %s", member)
         await self._log_admin(guild, f"✅ <@{member.id}> ({member}) تحقّق — @member")
+
+    async def _undo_react_and_redirect(
+        self,
+        guild: discord.Guild,
+        payload: discord.RawReactionActionEvent,
+        member: discord.Member,
+    ) -> None:
+        """Cancel a legacy ✓-react verification when Onboarding is active.
+
+        Removes the user's reaction so it doesn't look like the verify
+        worked, DMs them the new instructions, and logs the bypass attempt
+        so admins can see who's hitting the old message.
+        """
+        try:
+            ch = guild.get_channel(payload.channel_id)
+            if isinstance(ch, discord.TextChannel):
+                msg = await ch.fetch_message(payload.message_id)
+                await msg.remove_reaction(payload.emoji, member)
+        except (discord.HTTPException, discord.NotFound, discord.Forbidden) as exc:
+            log.info("could not remove legacy verify reaction for %s: %s", member, exc)
+        try:
+            await member.send(
+                "نظام التحقّق تغيّر إلى مقابلة مرحّبة جديدة. "
+                "افتح <#" + str(payload.channel_id) + "> واضغط زر "
+                "**ابدأ التحقّق الجديد** لاستكمال الانضمام."
+            )
+        except (discord.HTTPException, discord.Forbidden) as exc:
+            log.info("could not DM %s redirect: %s", member, exc)
+        await self._log_admin(
+            guild,
+            f"↩️ <@{member.id}> ({member}) ضغط ✅ على رسالة الترحيب القديمة — "
+            "تمّ التوجيه للـ onboarding الجديد بدون منح @member.",
+        )
 
     @commands.command(name="post_welcome", hidden=True)
     @commands.has_permissions(manage_guild=True)

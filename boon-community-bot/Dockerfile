@@ -6,6 +6,22 @@ ENV PYTHONUNBUFFERED=1 \
 
 WORKDIR /app
 
+# System-level deps:
+#  - libjpeg-turbo + zlib are needed by Pillow at runtime for JPEG/PNG.
+#  - fonts-noto-color-emoji + fonts-noto-core give us proper arabic + emoji
+#    glyph coverage for the welcome card renderer. `fonts-noto-core` (NOT
+#    the non-existent `fonts-noto-naskh-arabic`) ships
+#    /usr/share/fonts/truetype/noto/NotoNaskhArabic-{Regular,Bold}.ttf on
+#    Debian bookworm — those exact paths are what `bot/welcome_card.py`
+#    expects.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        fonts-noto-color-emoji \
+        fonts-noto-core \
+        libjpeg62-turbo \
+        zlib1g \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
