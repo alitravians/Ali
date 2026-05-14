@@ -873,10 +873,21 @@ class Onboarding(commands.Cog):
         member: discord.Member,
         state: MemberState,
     ) -> None:
-        general_id = self._channel_id("general")
-        ch = guild.get_channel(general_id) if general_id else None
+        # The welcome card announces a member who just finished the guided
+        # onboarding (captcha + nickname + experience + interests). It
+        # belongs in #welcome — the canonical "new joiners" channel — not
+        # in #general (the open-chat room). Posting the celebration to
+        # #general was leaking new-member announcements into the active
+        # chat and made the bot feel disorganised. Falls back to #general
+        # only if #welcome isn't configured, so existing deployments don't
+        # silently drop the card.
+        welcome_id = self._channel_id("welcome")
+        ch = guild.get_channel(welcome_id) if welcome_id else None
         if not isinstance(ch, discord.TextChannel):
-            log.info("no #general channel configured; skipping welcome card")
+            fallback_id = self._channel_id("general")
+            ch = guild.get_channel(fallback_id) if fallback_id else None
+        if not isinstance(ch, discord.TextChannel):
+            log.info("no #welcome or #general channel configured; skipping welcome card")
             return
         avatar_bytes: bytes
         try:
@@ -912,7 +923,7 @@ class Onboarding(commands.Cog):
                 allowed_mentions=discord.AllowedMentions(users=True),
             )
         except discord.Forbidden:
-            log.info("cannot post welcome card in #general")
+            log.info("cannot post welcome card in %s", ch.name)
 
     async def _send_dm_quickstart(
         self,
