@@ -59,11 +59,30 @@ class Welcome(commands.Cog):
         v = cfg.get("channels", {}).get(key)
         return int(v) if v else None
 
-    # NOTE: `on_member_join` intentionally removed — `bot.cogs.onboarding`
-    # owns the full join flow now (it assigns @unverified defensively,
-    # spawns the per-member onboarding channel, runs the interview and
-    # logs to #admin-actions). Re-adding it here would double-log every
-    # join.
+    # `bot.cogs.onboarding` owns the canonical join flow (assigns
+    # @unverified, spawns the per-member onboarding channel, runs the
+    # interview, and logs to #admin-actions). The listener below is a
+    # defence-in-depth fallback: it ONLY fires when the Onboarding cog
+    # failed to load (e.g. a transient ImportError on a dependency).
+    # Without this guard, a new joiner during such an outage would land
+    # at @everyone perms and could see all open channels.
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        if member.bot:
+            return
+        # Onboarding cog present? It owns the join flow — silently defer.
+        if self.bot.get_cog("Onboarding") is not None:
+            return
+        unverified = self._role_id("unverified")
+        if not unverified:
+            return
+        role = member.guild.get_role(unverified)
+        if role is None or role in member.roles:
+            return
+        try:
+            await member.add_roles(role, reason="fallback: onboarding cog unavailable")
+        except (discord.Forbidden, discord.HTTPException) as exc:
+            log.info("fallback assign @unverified failed for %s: %s", member, exc)
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:

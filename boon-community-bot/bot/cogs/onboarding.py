@@ -1287,9 +1287,20 @@ class Onboarding(commands.Cog):
                 try:
                     await member.kick(reason=f"no onboarding within {KICK_AFTER_DAYS}d")
                 except (discord.Forbidden, discord.HTTPException) as exc:
+                    # The member is still in the guild at @unverified.
+                    # Do NOT delete their onboarding channel or drop state
+                    # — doing so would strand them with no path back to
+                    # @member. Log + skip; next sweep will retry.
                     log.info("could not kick stale %s: %s", member, exc)
+                    await self._log_admin(
+                        guild,
+                        f"⚠️ تعذّر طرد {member} (فوق {KICK_AFTER_DAYS}d) — "
+                        f"صلاحيات ناقصة أو role hierarchy أعلى من البوت: {exc}",
+                    )
+                    continue
                 await self._delete_onboarding_channel(guild, state, delay_s=2)
                 self.store.drop(uid)
+                await self.store.save()
                 await self._log_admin(
                     guild,
                     f"👢 طرد تلقائي بسبب عدم إكمال onboarding بعد {KICK_AFTER_DAYS} أيام: {member}",
@@ -1347,9 +1358,14 @@ class Onboarding(commands.Cog):
         except discord.HTTPException as exc:
             await interaction.followup.send(f"خطأ HTTP: {exc}", ephemeral=True)
             return
+        # Always clean up any lingering onboarding state — even when
+        # ``channel_id`` is missing (e.g. state created from a recovery
+        # path that hadn't spawned a channel yet). Otherwise inactivity
+        # sweep would later remind/kick a verified @member.
         state = self.store.get(user.id)
-        if state and state.channel_id:
-            await self._delete_onboarding_channel(guild, state, delay_s=0)
+        if state is not None:
+            if state.channel_id:
+                await self._delete_onboarding_channel(guild, state, delay_s=0)
             self.store.drop(user.id)
             await self.store.save()
         await self._log_admin(
