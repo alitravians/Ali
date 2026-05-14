@@ -30,6 +30,10 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.2.5": [
+        { kind: "fixed",    text: "[المترجم اليدوي - الترجمة من قائمة الزر الأيمن أصبحت تظهر وتبقى ثابتة بدلاً من اختفائها بعد ثوانٍ]" },
+        { kind: "fixed",    text: "[المترجم اليدوي - الرسائل القصيرة جداً والمختلطة يمكن ترجمتها يدوياً حتى لو رفض الفلتر الترجمة التلقائية]" },
+    ],
     "boon-v0.2.4": [
         { kind: "fixed",    text: "[المترجم - الرسائل التي هي ردّ على رسالة أخرى أصبحت تُترجم بشكل ثابت]" },
         { kind: "fixed",    text: "[المترجم - رسائل القناة المرئية فور فتح Discord تُترجم مباشرة بدون انتظار تمرير]" },

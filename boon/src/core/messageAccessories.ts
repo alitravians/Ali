@@ -184,6 +184,17 @@ export interface MessageAccessoriesApi {
     add(id: string, factory: AccessoryFactory): () => void;
     /** Remove all accessories previously added with this id from the DOM. */
     remove(id: string): void;
+    /**
+     * Re-run the accessory scan on a specific message element. Useful when a
+     * plugin's external state (e.g. a manual-override flag) changes without
+     * any DOM mutation that would otherwise trigger the framework's observer.
+     *
+     * The factory dedup (``host.querySelector(data-boon-acc-id=...)``) still
+     * applies, so callers that want the factory re-invoked must wipe any
+     * existing accessory for their id before calling this — same contract as
+     * the observer-driven scan.
+     */
+    rescan(messageEl: HTMLElement): void;
 }
 
 export function createApi(): MessageAccessoriesApi {
@@ -214,6 +225,9 @@ export function createApi(): MessageAccessoriesApi {
             )) {
                 el.remove();
             }
+        },
+        rescan(messageEl) {
+            scan(messageEl);
         },
     };
 }
