@@ -2,24 +2,48 @@
  * BOON Plugin: AutoTranslate
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Translate a message via either:
- *   1. Google Translate's free public endpoint (no API key, default)
- *   2. Google Gemini API (user-supplied key)
+ * Two complementary modes:
  *
- * Trigger:
- *   - Right-click a message → "ترجم الرسالة" via BOON ContextMenu API.
- *   - The `..tr <text>` command translates arbitrary text.
+ *   1. AUTO (default): every newly-rendered message that looks like it is
+ *      written in a non-Arabic language is silently translated. The result
+ *      renders as a small subtitle directly under the original message —
+ *      visible only to the user running this plugin (it lives in the local
+ *      DOM, it is never sent back to Discord).
  *
- * Results render as a MessageAccessory under the original message so they
- * follow Discord's own embed layout and survive re-renders.
+ *   2. MANUAL: right-click any message → "ترجم الرسالة" forces a translation.
+ *      The `..tr <text>` command translates arbitrary text into a toast.
  *
- * Translations are cached in the per-plugin DataStore (IndexedDB) keyed by
- * `<service>:<targetLang>:<sourceText>` so repeated translations are instant.
+ * Translation provider:
+ *   - Google Translate's free public endpoint (no API key, default).
+ *   - Google Gemini API (user-supplied key) for higher-quality output.
+ *
+ * Privacy:
+ *   - Translations are computed locally in the browser/desktop client; the
+ *     only network egress is the request to the chosen translation service.
+ *   - Discord never sees the translated text — it never leaves this client.
+ *
+ * Performance:
+ *   - Results are cached in the per-plugin DataStore (IndexedDB) keyed by
+ *     `<service>:<targetLang>:<sourceText>` so the same sentence is never
+ *     re-translated.
+ *   - Short messages, code blocks, URLs, mentions and emoji-only messages
+ *     are skipped before any network request happens.
+ *
+ * Scoping:
+ *   - Per-server and per-channel whitelist/blacklist. Defaults to "everywhere".
+ *   - "skip authors" list for users you never want translated (e.g. yourself).
  */
 
 import { definePlugin, type SettingsSchema } from "../../core/types.js";
 
 const SCHEMA = {
+    autoMode: {
+        type: "boolean",
+        label: "ترجمة تلقائية للرسائل الأجنبية",
+        description:
+            "كل رسالة واردة بلغة غير عربية تُترجم تلقائياً وتظهر تحتها بالعربية. التعطيل يُبقي الترجمة اليدوية (الزر الأيمن) فقط.",
+        default: true,
+    },
     service: {
         type: "select",
         label: "خدمة الترجمة",
@@ -52,6 +76,64 @@ const SCHEMA = {
         default: "",
         placeholder: "AIza...",
     },
+    minLength: {
+        type: "number",
+        label: "أقل عدد أحرف للترجمة",
+        description: "الرسائل الأقصر من هذا (بعد إزالة الإيموجي والروابط) لا تُترجم.",
+        default: 3,
+        min: 1,
+        max: 50,
+        step: 1,
+    },
+    translateEmbeds: {
+        type: "boolean",
+        label: "ترجمة محتوى البوتات (embeds)",
+        description: "يترجم النصوص داخل embeds رسائل البوتات الأجنبية. عطّله لو يبطئ القنوات الكثيفة.",
+        default: false,
+    },
+    serverScope: {
+        type: "select",
+        label: "نطاق السيرفرات",
+        default: "all",
+        options: [
+            { label: "كل السيرفرات", value: "all" },
+            { label: "فقط السيرفرات في القائمة (whitelist)", value: "whitelist" },
+            { label: "كل السيرفرات ما عدا في القائمة (blacklist)", value: "blacklist" },
+        ],
+    },
+    serverList: {
+        type: "textarea",
+        label: "قائمة السيرفرات",
+        description:
+            "معرّفات السيرفرات (Server IDs) — واحد بكل سطر أو مفصولة بفاصلة. مطلوب فقط مع whitelist/blacklist.",
+        default: "",
+        placeholder: "1504074526974017609\n…",
+    },
+    channelScope: {
+        type: "select",
+        label: "نطاق القنوات",
+        default: "all",
+        options: [
+            { label: "كل القنوات", value: "all" },
+            { label: "فقط القنوات في القائمة (whitelist)", value: "whitelist" },
+            { label: "كل القنوات ما عدا في القائمة (blacklist)", value: "blacklist" },
+        ],
+    },
+    channelList: {
+        type: "textarea",
+        label: "قائمة القنوات",
+        description: "معرّفات القنوات (Channel IDs) — واحد بكل سطر أو مفصولة بفاصلة.",
+        default: "",
+        placeholder: "1504082461565648986\n…",
+    },
+    skipAuthorIds: {
+        type: "textarea",
+        label: "تجاهل هؤلاء المستخدمين",
+        description:
+            "معرّفات المستخدمين الذين لا تُترجم رسائلهم أبداً (مثل معرّفك أنت). واحد بكل سطر أو مفصولة بفاصلة.",
+        default: "",
+        placeholder: "123456789012345678\n…",
+    },
     cacheTranslations: {
         type: "boolean",
         label: "احفظ الترجمات في الذاكرة المحلية",
@@ -59,6 +141,8 @@ const SCHEMA = {
         default: true,
     },
 } as const satisfies SettingsSchema;
+
+// ─── Translation providers ───────────────────────────────────────────────────
 
 interface TranslationResult {
     text: string;
@@ -123,6 +207,84 @@ async function translateGemini(
     return { text: out };
 }
 
+// ─── Heuristics for auto mode ────────────────────────────────────────────────
+
+const LETTER_RE = /\p{L}/gu;
+// Map of target language → regex matching letters that *belong to that
+// language's script*. Used by `looksForeign` to decide whether a message is
+// already in the target language (and therefore doesn't need translation).
+const TARGET_SCRIPT_RE: Readonly<Record<string, RegExp>> = {
+    ar: /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/g,
+    en: /[A-Za-z]/g,
+    tr: /[A-Za-z]/g,
+    fr: /[A-Za-z]/g,
+    de: /[A-Za-z]/g,
+    es: /[A-Za-z]/g,
+    "zh-CN": /[\u4E00-\u9FFF]/g,
+    ja: /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g,
+};
+const CODE_BLOCK_RE = /```[\s\S]*?```/g;
+const INLINE_CODE_RE = /`[^`]*`/g;
+const URL_RE = /https?:\/\/\S+/g;
+const DISCORD_LINK_RE = /<#\d+>|<@!?\d+>|<@&\d+>|<:\w+:\d+>|<a:\w+:\d+>/g;
+
+/**
+ * Strip everything that should NOT be translated and return the remaining
+ * "natural language" portion of the message.
+ */
+function strippedText(raw: string): string {
+    return raw
+        .replace(CODE_BLOCK_RE, " ")
+        .replace(INLINE_CODE_RE, " ")
+        .replace(URL_RE, " ")
+        .replace(DISCORD_LINK_RE, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+/**
+ * Cheap heuristic: returns true if the stripped text appears NOT to already
+ * be in the target language. Caller compares < 20% target-script letters.
+ *
+ * For Latin-script targets (en/tr/fr/de/es) the heuristic only filters out
+ * messages that already use Latin script — it cannot distinguish between
+ * different Latin-script languages, which is an accepted v0.2.0 limitation
+ * (the equality-check fallback in the async path removes self-translations).
+ */
+function looksForeign(stripped: string, targetLang: string): boolean {
+    const letters = stripped.match(LETTER_RE) ?? [];
+    if (letters.length === 0) return false;
+    const scriptRe = TARGET_SCRIPT_RE[targetLang];
+    if (!scriptRe) {
+        // Unknown target: be conservative and translate.
+        return true;
+    }
+    const targetCount = (stripped.match(scriptRe) ?? []).length;
+    return targetCount / letters.length < 0.2;
+}
+
+// Memoize id-list parsing keyed by the raw setting string. The accessory
+// factory runs on every rendered message so allocating a fresh Set per call
+// is wasteful; keying by the raw string means cache invalidates implicitly
+// when the setting changes.
+const ID_LIST_CACHE = new Map<string, Set<string>>();
+function parseIdList(raw: string): Set<string> {
+    let cached = ID_LIST_CACHE.get(raw);
+    if (cached) return cached;
+    cached = new Set(
+        raw
+            .split(/[\s,]+/)
+            .map(s => s.trim())
+            .filter(s => /^\d+$/.test(s)),
+    );
+    ID_LIST_CACHE.set(raw, cached);
+    return cached;
+}
+
+// ─── Subtitle DOM ────────────────────────────────────────────────────────────
+
+const LOADING_LABEL = "🌐 جاري الترجمة…";
+
 function buildTranslationNode(translation: string, sourceLang?: string): HTMLElement {
     const node = document.createElement("div");
     node.style.cssText =
@@ -137,21 +299,38 @@ function buildTranslationNode(translation: string, sourceLang?: string): HTMLEle
     return node;
 }
 
+function buildPlaceholderNode(): HTMLElement {
+    const node = document.createElement("div");
+    node.style.cssText =
+        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.06);border-inline-start:3px solid rgba(0,255,136,0.5);font-size:0.92em;color:var(--text-muted,#949ba4);font-style:italic;direction:auto;";
+    node.textContent = LOADING_LABEL;
+    return node;
+}
+
+function replaceInPlace(placeholder: HTMLElement, replacement: HTMLElement): void {
+    // Preserve the framework-applied classes/dataset attributes so the
+    // accessory bookkeeping (and removal on unload) keeps working.
+    for (const cls of Array.from(placeholder.classList)) replacement.classList.add(cls);
+    for (const [k, v] of Object.entries(placeholder.dataset)) replacement.dataset[k] = v;
+    placeholder.replaceWith(replacement);
+}
+
+// ─── Plugin ──────────────────────────────────────────────────────────────────
+
 export default definePlugin({
     manifest: {
         id: "autoTranslate",
         name: "AutoTranslate",
         description:
-            "ترجمة الرسائل عبر القائمة (الزر الأيمن) — Google أو Gemini. النتائج تظهر تحت الرسالة وتُحفظ في الذاكرة.",
+            "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.1.0",
-        tags: ["ترجمة", "AI"],
+        version: "0.2.0",
+        tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
     settings: SCHEMA,
     onStart(ctx) {
-        const pendingTranslations = new Map<string, string>();
-
+        // ─── translate() — service routing + cache ─────────────────────────────
         async function translate(text: string): Promise<TranslationResult> {
             const service = ctx.settings.service;
             const target = ctx.settings.targetLang;
@@ -170,7 +349,88 @@ export default definePlugin({
             return result;
         }
 
-        // Context menu item — opens on right-click of a message.
+        // ─── Scope filter ───────────────────────────────────────────────────────
+        function isScopedOut(channelId: string | null): boolean {
+            // Channel filter
+            const channelScope = ctx.settings.channelScope;
+            if (channelScope !== "all" && channelId) {
+                const list = parseIdList(ctx.settings.channelList);
+                const inList = list.has(channelId);
+                if (channelScope === "whitelist" && !inList) return true;
+                if (channelScope === "blacklist" && inList) return true;
+            }
+            // Server filter — server id is on the URL right next to channel id
+            const serverScope = ctx.settings.serverScope;
+            if (serverScope !== "all") {
+                const m = location.pathname.match(/\/channels\/(\d+)\/\d+/);
+                const guildId = m?.[1];
+                if (guildId) {
+                    const list = parseIdList(ctx.settings.serverList);
+                    const inList = list.has(guildId);
+                    if (serverScope === "whitelist" && !inList) return true;
+                    if (serverScope === "blacklist" && inList) return true;
+                }
+            }
+            return false;
+        }
+
+        // ─── Auto accessory factory ─────────────────────────────────────────────
+        ctx.messageAccessories.add("autoTranslate", info => {
+            if (!ctx.settings.autoMode) return null;
+
+            // Skip configured authors (your own id, bots, etc.)
+            if (info.author) {
+                const skip = parseIdList(ctx.settings.skipAuthorIds);
+                if (skip.has(info.author)) return null;
+            }
+
+            if (isScopedOut(info.channelId)) return null;
+
+            // Gather candidate text: message content, plus embed text if enabled.
+            let candidate = info.content;
+            if (ctx.settings.translateEmbeds) {
+                const embedText = Array.from(
+                    info.el.querySelectorAll<HTMLElement>('[class*="embedDescription"], [class*="embedTitle"], [class*="embedFieldValue"]'),
+                )
+                    .map(n => n.textContent ?? "")
+                    .join("\n")
+                    .trim();
+                if (embedText && !candidate) candidate = embedText;
+                else if (embedText) candidate = `${candidate}\n${embedText}`;
+            }
+
+            const cleaned = strippedText(candidate);
+            const minLen = Math.max(1, Math.floor(ctx.settings.minLength));
+            if (cleaned.length < minLen) return null;
+
+            if (!looksForeign(cleaned, ctx.settings.targetLang)) return null;
+
+            // Synchronously return a placeholder; replace it once translation lands.
+            const placeholder = buildPlaceholderNode();
+            (async () => {
+                try {
+                    const result = await translate(candidate.trim());
+                    if (!placeholder.isConnected) return; // user scrolled away / message removed
+                    if (result.text.trim() === candidate.trim()) {
+                        // Translation == source ⇒ language guess was wrong; remove subtitle.
+                        placeholder.remove();
+                        return;
+                    }
+                    const finalNode = buildTranslationNode(result.text, result.sourceLang);
+                    replaceInPlace(placeholder, finalNode);
+                    ctx.stats.bump("auto_translations");
+                } catch (err) {
+                    ctx.logger.warn("auto-translate failed:", err);
+                    if (placeholder.isConnected) {
+                        placeholder.textContent = "🌐 تعذّر الترجمة";
+                        placeholder.style.opacity = "0.5";
+                    }
+                }
+            })();
+            return placeholder;
+        });
+
+        // ─── Right-click manual fallback (preserved from v0.1.0) ────────────────
         ctx.contextMenu.patch("message", (menuCtx, addItem) => {
             if (!menuCtx.messageId) return;
             addItem({
@@ -191,12 +451,6 @@ export default definePlugin({
                     ctx.toast("جاري الترجمة…", "info");
                     try {
                         const result = await translate(text);
-                        pendingTranslations.set(menuCtx.messageId, JSON.stringify(result));
-                        ctx.messageAccessories.remove("autoTranslate");
-                        // Force re-add for this specific message:
-                        const accessory = buildTranslationNode(result.text, result.sourceLang);
-                        accessory.classList.add("boon-accessory");
-                        accessory.dataset.boonAccId = "autoTranslate";
                         const host =
                             msgEl.querySelector<HTMLElement>(".boon-accessory-host") ??
                             (() => {
@@ -211,8 +465,11 @@ export default definePlugin({
                                 return h;
                             })();
                         host?.querySelector('[data-boon-acc-id="autoTranslate"]')?.remove();
+                        const accessory = buildTranslationNode(result.text, result.sourceLang);
+                        accessory.classList.add("boon-accessory");
+                        accessory.dataset.boonAccId = "autoTranslate";
                         host?.appendChild(accessory);
-                        ctx.stats.bump("messages_translated");
+                        ctx.stats.bump("manual_translations");
                     } catch (err) {
                         ctx.logger.error("translation failed", err);
                         ctx.toast(`فشل: ${(err as Error).message}`, "error");
@@ -221,6 +478,7 @@ export default definePlugin({
             });
         });
 
+        // ─── Commands ───────────────────────────────────────────────────────────
         ctx.registerCommand({
             name: "tr",
             description: "ترجم نصاً مباشرة.",
@@ -234,7 +492,7 @@ export default definePlugin({
                 try {
                     const result = await translate(text);
                     ctx.toast(result.text, "success");
-                    ctx.stats.bump("messages_translated");
+                    ctx.stats.bump("manual_translations");
                 } catch (err) {
                     ctx.toast(`فشل: ${(err as Error).message}`, "error");
                 }
@@ -244,14 +502,17 @@ export default definePlugin({
         ctx.registerCommand({
             name: "tr-clear-cache",
             description: "امسح ذاكرة الترجمات.",
-            hidden: false,
             async execute() {
                 await ctx.dataStore.clear();
                 ctx.toast("تم مسح ذاكرة الترجمات", "success");
             },
         });
 
-        ctx.logger.info("ready — right-click any message");
+        ctx.logger.info(
+            ctx.settings.autoMode
+                ? "ready — auto-translating non-Arabic messages"
+                : "ready — manual mode only (right-click any message)",
+        );
     },
     onStop(ctx) {
         ctx.messageAccessories.remove("autoTranslate");
