@@ -1059,11 +1059,15 @@ function loadFirstSeenStore(): FirstSeenStore {
                 }
                 return { bootstrapped: obj.bootstrapped, map };
             }
-            // Legacy plain-map: migrate.
+            // Legacy plain-map (v0.1.8): every entry was stamped Date.now()
+            // at first sight, so all timestamps are equally meaningless. Zero
+            // them out on migration so a user upgrading v0.1.8 → v0.1.9
+            // within the 7-day window does NOT see the badge flash on every
+            // plugin. Any plugin that genuinely appears later will be missing
+            // from this map and will receive a fresh `Date.now()` stamp via
+            // `firstSeenFor` once `bootstrapped` is set.
             const map: Record<string, number> = {};
-            for (const [k, v] of Object.entries(obj)) {
-                if (typeof v === "number" && Number.isFinite(v)) map[k] = v;
-            }
+            for (const k of Object.keys(obj)) map[k] = 0;
             return { bootstrapped: true, map };
         }
     } catch { /* ignore */ }

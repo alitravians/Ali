@@ -31,7 +31,7 @@ export interface CuratedItem {
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
     "boon-v0.1.9": [
-        { kind: "fixed",    text: "[الإضافات - فلتر \"لم تُستخدم بعد\" أصبح يعرض النتائج الصحيحة]" },
+        { kind: "fixed",    text: "[الإضافات - فلتر \"لم تُستخدم بعد\" أصبح يعرض النتائج الصحيحة ويتذكّرها بعد إعادة التشغيل]" },
         { kind: "fixed",    text: "[الإضافات - شارة \"جديد\" لم تعد تظهر على كل الإضافات بعد التحديث]" },
         { kind: "improved", text: "[الأداء - تقليل قراءات localStorage عند عرض شبكة الإضافات]" },
     ],
