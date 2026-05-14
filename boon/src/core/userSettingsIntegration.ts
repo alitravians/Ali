@@ -29,13 +29,13 @@ interface SidebarTab {
 }
 
 const TABS: ReadonlyArray<SidebarTab> = [
-    { id: "plugins", label: "إضافات alitravians", icon: "🧩" },
-    { id: "themes", label: "ثيمات alitravians", icon: "🎨" },
-    { id: "updater", label: "تحديثات alitravians", icon: "🔄" },
-    { id: "profiles", label: "ملفات alitravians", icon: "👤" },
-    { id: "activity", label: "سجل alitravians", icon: "📜" },
-    { id: "backup", label: "نسخ alitravians", icon: "💾" },
-    { id: "home", label: "عن alitravians", icon: "ℹ️" },
+    { id: "home", label: "Home", icon: "🏠" },
+    { id: "plugins", label: "Plugins", icon: "🧩" },
+    { id: "themes", label: "Themes", icon: "🎨" },
+    { id: "updater", label: "Updates", icon: "🔄" },
+    { id: "profiles", label: "Profiles", icon: "👤" },
+    { id: "activity", label: "Activity", icon: "📜" },
+    { id: "backup", label: "Backup", icon: "💾" },
 ];
 
 const SECTION_ATTR = "data-boon-settings-section";
@@ -213,15 +213,32 @@ function injectBoonSection(): void {
     if (!cls) return;
 
     const label = buildBoonLabel(cls);
-    sidebar.appendChild(label);
-
     const section = document.createElement("ul");
     section.className = cls.section;
     section.setAttribute(SECTION_ATTR, "");
     for (const tab of TABS) {
         section.appendChild(buildBoonRow(cls, tab));
     }
-    sidebar.appendChild(section);
+
+    // Insert at the middle of the sidebar instead of the end. We anchor on
+    // existing section labels so the alitravians group lands between two
+    // native sections rather than at an arbitrary child index.
+    const labels = Array.from(
+        sidebar.querySelectorAll<HTMLElement>('[class*="sectionLabel"]'),
+    ).filter(el => el.parentElement === sidebar);
+    const anchorLabel = labels.length >= 2 ? labels[Math.floor(labels.length / 2)] : null;
+    if (anchorLabel) {
+        // Place our label right before the chosen native label, and our
+        // section right after our label, so the new group reads as one block.
+        sidebar.insertBefore(label, anchorLabel);
+        sidebar.insertBefore(section, anchorLabel);
+    } else {
+        // Fallback: insert at midpoint of direct children.
+        const children = Array.from(sidebar.children);
+        const ref = children[Math.floor(children.length / 2)] ?? null;
+        sidebar.insertBefore(label, ref);
+        sidebar.insertBefore(section, ref);
+    }
     rootLogger.info("native settings: injected BOON section into User Settings sidebar");
 }
 
