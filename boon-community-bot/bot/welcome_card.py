@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import io
 import logging
-from typing import Iterable
+from collections.abc import Iterable
 
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -90,10 +90,14 @@ def _first_loadable(paths: Iterable[str], size: int) -> ImageFont.FreeTypeFont:
     # Pillow >=10.1 accepts size= on load_default(); pre-10.1 ignores it and
     # returns the bundled 10px bitmap. Worst case (impossible inside our
     # Dockerfile which ships fonts-noto-core) the fallback shows up small.
+    # The fallback is typed as ``ImageFont | FreeTypeFont``; cast back to the
+    # stricter type the rest of the renderer expects — the only code path
+    # that hits this branch is the missing-font test override, which is
+    # already a degraded mode where pixel-perfect typography is moot.
     try:
-        return ImageFont.load_default(size=size)  # type: ignore[call-arg]
+        return ImageFont.load_default(size=size)  # type: ignore[call-arg,return-value]
     except TypeError:
-        return ImageFont.load_default()
+        return ImageFont.load_default()  # type: ignore[return-value]
 
 
 def _load_fonts(size: int, bold: bool = False) -> dict[str, ImageFont.FreeTypeFont]:
@@ -249,7 +253,7 @@ def _measure_mixed(
 def _circular_avatar(avatar_bytes: bytes, size: int) -> Image.Image:
     """Crop the given avatar PNG/JPEG to a circle of `size` px."""
     src = Image.open(io.BytesIO(avatar_bytes)).convert("RGBA")
-    src = src.resize((size, size), Image.LANCZOS)
+    src = src.resize((size, size), Image.Resampling.LANCZOS)
     mask = Image.new("L", (size, size), 0)
     ImageDraw.Draw(mask).ellipse((0, 0, size, size), fill=255)
     out = Image.new("RGBA", (size, size), (0, 0, 0, 0))

@@ -67,8 +67,12 @@ class Report(commands.Cog):
         }
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.post(url, json=payload, headers=headers,
-                                        timeout=15) as r:
+                async with session.post(
+                    url, json=payload, headers=headers,
+                    # Explicit ClientTimeout — aiohttp 3.11 deprecates bare
+                    # ints and aiohttp 4.x will reject them outright.
+                    timeout=aiohttp.ClientTimeout(total=15),
+                ) as r:
                     if r.status >= 300:
                         text = (await r.text())[:300]
                         log.error("GitHub responded %s: %s", r.status, text)

@@ -50,12 +50,12 @@ import asyncio
 import io
 import json
 import logging
+import os
 import random
 import re
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -141,19 +141,45 @@ class MemberState:
         return self.__dict__.copy()
 
     @classmethod
-    def from_json(cls, d: dict[str, Any]) -> "MemberState":
+    def from_json(cls, d: dict[str, Any]) -> MemberState:
+        # Validate the discrete enums against the canonical lists rather than
+        # trusting whatever happens to be on disk. A hand-edited state file
+        # (or a future schema change) would otherwise leak unknown values
+        # downstream into the welcome-card tagline lookup / interest-role
+        # assignment, where they’d silently degrade ("?" tag, missed roles).
+        allowed_steps = {
+            STEP_AWAITING_START, STEP_CAPTCHA, STEP_NICKNAME,
+            STEP_EXPERIENCE, STEP_INTERESTS, STEP_DONE, STEP_LOCKED,
+        }
+        step = str(d.get("step", STEP_AWAITING_START))
+        if step not in allowed_steps:
+            log.warning("unknown step %r in stored state; resetting", step)
+            step = STEP_AWAITING_START
+        allowed_exp = {k for k, _l, _t in EXPERIENCE_LEVELS}
+        exp = d.get("experience")
+        if exp is not None and exp not in allowed_exp:
+            log.warning("unknown experience %r in stored state; dropping", exp)
+            exp = None
+        allowed_interests = {k for k, _l, _e in INTERESTS}
+        raw_interests = list(d.get("interests") or [])
+        clean_interests = [i for i in raw_interests if i in allowed_interests]
+        if len(clean_interests) != len(raw_interests):
+            log.warning(
+                "dropped %d unknown interests from stored state",
+                len(raw_interests) - len(clean_interests),
+            )
         return cls(
             user_id=int(d["user_id"]),
             channel_id=int(d["channel_id"]) if d.get("channel_id") else None,
             started_at=float(d.get("started_at") or time.time()),
             completed_at=float(d["completed_at"]) if d.get("completed_at") else None,
-            step=str(d.get("step", STEP_AWAITING_START)),
+            step=step,
             captcha_answer=int(d["captcha_answer"]) if d.get("captcha_answer") is not None else None,
             captcha_a=int(d.get("captcha_a", 0)),
             captcha_b=int(d.get("captcha_b", 0)),
             nickname=d.get("nickname"),
-            experience=d.get("experience"),
-            interests=list(d.get("interests") or []),
+            experience=exp,
+            interests=clean_interests,
             reminded_at=float(d["reminded_at"]) if d.get("reminded_at") else None,
             failed_captcha=int(d.get("failed_captcha", 0)),
         )
@@ -190,10 +216,24 @@ class _Store:
                 "active": {str(uid): s.to_json() for uid, s in self.active.items()},
                 "completions": self.completions[-2000:],  # keep last 2000
             }
-            self.path.write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
+            # Atomic write: stream JSON into a sibling temp file, fsync, then
+            # os.replace onto the target. A crash mid-write leaves either the
+            # old file or the new file intact — never a half-written one that
+            # would crash `_load()` on the next boot and lose every active
+            # member's onboarding state.
+            data = json.dumps(payload, ensure_ascii=False, indent=2)
+            tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+            with open(tmp, "w", encoding="utf-8") as fh:
+                fh.write(data)
+                fh.flush()
+                try:
+                    os.fsync(fh.fileno())
+                except OSError:
+                    # fsync may be unsupported on some filesystems (e.g. some
+                    # FUSE mounts). Treat as best-effort — the os.replace below
+                    # is still atomic on POSIX/NTFS.
+                    pass
+            os.replace(tmp, self.path)
 
     def get(self, uid: int) -> MemberState | None:
         return self.active.get(uid)
@@ -238,6 +278,21 @@ def _safe_channel_name(member: discord.Member) -> str:
 # ─────────────────────────── view layer ──────────────────────────────────
 
 
+def _get_onboarding_cog(interaction: discord.Interaction) -> Onboarding | None:
+    """Resolve the live ``Onboarding`` cog from a component interaction.
+
+    ``interaction.client`` is typed as ``discord.Client``, but at runtime it
+    is always our ``commands.Bot`` subclass (which is what owns the cog
+    registry). Centralising the cast keeps the call sites tidy and gives us
+    a single defensive None-check the rest of the view layer can rely on.
+    """
+    bot = interaction.client
+    if not isinstance(bot, commands.Bot):
+        return None
+    cog = bot.get_cog("Onboarding")
+    return cog if isinstance(cog, Onboarding) else None
+
+
 class _StartButton(discord.ui.Button["_StartView"]):
     def __init__(self) -> None:
         super().__init__(
@@ -248,7 +303,7 @@ class _StartButton(discord.ui.Button["_StartView"]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -273,7 +328,7 @@ class _RetroactiveButton(discord.ui.Button["_RetroactiveView"]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -338,7 +393,7 @@ class _NicknameModal(discord.ui.Modal):
         self.add_item(self.nickname_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -374,7 +429,7 @@ class _NicknameSkipButton(discord.ui.Button["_NicknameTriggerView"]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -396,7 +451,7 @@ class _ExperienceSelect(discord.ui.Select["_ExperienceView"]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -428,7 +483,7 @@ class _InterestsSelect(discord.ui.Select["_InterestsView"]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -445,7 +500,7 @@ class _InterestsFinishButton(discord.ui.Button["_InterestsView"]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        cog: Onboarding | None = interaction.client.get_cog("Onboarding")  # type: ignore[assignment]
+        cog = _get_onboarding_cog(interaction)
         if cog is None:
             await interaction.response.send_message("النظام مؤقتاً غير متاح.", ephemeral=True)
             return
@@ -478,10 +533,18 @@ class Onboarding(commands.Cog):
 
     # ── lifecycle ────────────────────────────────────────────────────────
 
-    def cog_unload(self) -> None:
+    async def cog_unload(self) -> None:
+        # ``Cog.cog_unload`` is declared async in discord.py 2.x; making this
+        # method async lets us ``await`` the aiohttp session shutdown so the
+        # underlying TCP connector is closed cleanly rather than being
+        # scheduled as a fire-and-forget task that the closing loop may
+        # never actually run.
         self.inactivity_sweep.cancel()
         if self.session is not None and not self.session.closed:
-            asyncio.create_task(self.session.close())
+            try:
+                await self.session.close()
+            except Exception:  # noqa: BLE001
+                log.warning("aiohttp session close failed during cog_unload", exc_info=True)
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -791,7 +854,12 @@ class Onboarding(commands.Cog):
     async def on_interaction(self, interaction: discord.Interaction) -> None:
         if interaction.type != discord.InteractionType.component:
             return
-        cid = (interaction.data or {}).get("custom_id") or ""
+        # ``interaction.data`` is typed as ``Mapping[str, Any] | None``; mypy
+        # cannot narrow through ``or {}`` because the empty literal is typed
+        # as ``dict[str, Never]``. Pull the value explicitly.
+        data = interaction.data
+        cid_raw = data.get("custom_id") if data else None
+        cid = cid_raw if isinstance(cid_raw, str) else ""
         if not cid.startswith(f"{CID}captcha:"):
             return
         # custom_id format: "onboarding:captcha:{position}:{value}" — 4
@@ -1445,8 +1513,8 @@ class Onboarding(commands.Cog):
                 f"**اكتمل خلال ٧ أيام**: {len(completions_7d)}\n"
                 f"**اكتمل خلال ٣٠ يوم**: {len(completions_30d)}\n"
                 f"**متوسّط مدّة الإكمال**: {avg_seconds/60:.1f} دقيقة\n"
-                f"\n**مستويات الخبرة (٧ أيام):**\n" + "\n".join(exp_lines) +
-                f"\n\n**الاهتمامات (٧ أيام):**\n" + "\n".join(int_lines)
+                "\n**مستويات الخبرة (٧ أيام):**\n" + "\n".join(exp_lines) +
+                "\n\n**الاهتمامات (٧ أيام):**\n" + "\n".join(int_lines)
             ),
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
@@ -1548,6 +1616,23 @@ class Onboarding(commands.Cog):
                 None,
             )
             if owner is None:
+                # No resolvable human member owns this channel — the
+                # onboarded user either left the guild (Discord retains
+                # the raw overwrite which discord.py can no longer hydrate
+                # as a Member object) or the channel was created manually.
+                # Reap it only if the name matches our onboarding pattern,
+                # so we never delete unrelated channels parked under the
+                # category by hand.
+                if ch.name.startswith("welcome-"):
+                    try:
+                        await ch.delete(
+                            reason="orphan onboarding channel (owner left guild)"
+                        )
+                    except (discord.Forbidden, discord.HTTPException) as exc:
+                        log.info(
+                            "could not delete orphan onboarding channel %s: %s",
+                            ch, exc,
+                        )
                 continue
             if owner.id in self.store.active:
                 continue
