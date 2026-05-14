@@ -283,6 +283,23 @@ class _RetroactiveView(discord.ui.View):
 
 
 class _CaptchaButton(discord.ui.Button["_CaptchaView"]):
+    """Captcha answer button.
+
+    Routing notes — read before changing:
+      • The custom_id is `onboarding:captcha:{position}:{value}` where
+        ``position`` and ``value`` are both randomised per question.
+      • We DO NOT override ``callback`` here. Click handling lives in
+        ``Onboarding.on_interaction`` (the cog-level dispatcher), which
+        decodes the value out of the custom_id and advances state.
+      • The captcha view is per-question, never registered via
+        ``bot.add_view`` — so after a bot restart no view-store lookup
+        ever happens and only ``on_interaction`` fires (clean path).
+      • In the same session, discord.py's view store may also dispatch
+        to the base-class no-op callback; that's harmless because the
+        no-op doesn't consume the interaction response slot, leaving
+        ``on_interaction`` free to respond.
+    """
+
     def __init__(self, value: int, position: int) -> None:
         super().__init__(
             style=discord.ButtonStyle.secondary,
@@ -485,23 +502,46 @@ class Onboarding(commands.Cog):
 
     # ── join event ───────────────────────────────────────────────────────
 
+    def _decay_join_window(self, now: float | None = None) -> None:
+        """Drop join timestamps that have aged out of the raid window.
+
+        Called both from ``on_member_join`` (most paths) and from the
+        periodic ``inactivity_sweep`` so the deque is pruned even on a
+        completely quiet server — otherwise a raid that triggers and is
+        followed by zero joins would leave ``raid_active=True`` forever.
+        """
+        if now is None:
+            now = time.time()
+        while self.join_window and now - self.join_window[0] > RAID_WINDOW_S:
+            self.join_window.popleft()
+
+    async def _maybe_clear_raid(self, guild: discord.Guild | None) -> None:
+        """If the join window has drained below the threshold, exit raid mode."""
+        if not self.raid_active:
+            return
+        if len(self.join_window) >= RAID_THRESHOLD:
+            return
+        self.raid_active = False
+        if guild is not None:
+            await self._log_admin(
+                guild,
+                "🟢 موجة الانضمام هدأت — الـ onboarding يعمل بشكل طبيعي.",
+            )
+
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
         if member.bot:
             return
         now = time.time()
         self.join_window.append(now)
-        while self.join_window and now - self.join_window[0] > RAID_WINDOW_S:
-            self.join_window.popleft()
+        self._decay_join_window(now)
         if len(self.join_window) >= RAID_THRESHOLD:
             if not self.raid_active:
                 self.raid_active = True
                 await self._raid_alert(member.guild, len(self.join_window))
             return  # Do not spawn an onboarding channel during a raid burst.
-        # Out of raid mode: cool-down once it drops well below threshold.
-        if self.raid_active and len(self.join_window) <= 1:
-            self.raid_active = False
-            await self._log_admin(member.guild, "🟢 موجة الانضمام هدأت — الـ onboarding يعمل بشكل طبيعي.")
+        # Out of raid mode: cool-down once the burst has drained.
+        await self._maybe_clear_raid(member.guild)
 
         await self._spawn_channel_for(member)
 
@@ -889,12 +929,20 @@ class Onboarding(commands.Cog):
     # ── infrastructure: per-member channel + category ────────────────────
 
     async def _ensure_category(self, guild: discord.Guild) -> discord.CategoryChannel | None:
-        cfg = self._cfg() or {}
-        cat_id = cfg.get("categories", {}).get(CATEGORY_KEY)
-        if cat_id:
-            existing = guild.get_channel(int(cat_id))
-            if isinstance(existing, discord.CategoryChannel):
-                return existing
+        # Look up cached id first; fall back to looking up by name so we don't
+        # accidentally re-create the category if a previous run made it but
+        # the cached id was lost (e.g. ephemeral filesystem on Fly).
+        cfg = self._cfg()
+        if cfg is not None:
+            cat_id = cfg.get("categories", {}).get(CATEGORY_KEY)
+            if cat_id:
+                existing = guild.get_channel(int(cat_id))
+                if isinstance(existing, discord.CategoryChannel):
+                    return existing
+        for c in guild.categories:
+            if c.name == CATEGORY_NAME:
+                self._remember_category(c.id)
+                return c
         # Need to create.
         log.info("creating onboarding category in guild %s", guild)
         admin_role = self._role("admin", guild)
@@ -924,11 +972,26 @@ class Onboarding(commands.Cog):
         except discord.Forbidden:
             log.warning("missing perms to create onboarding category")
             return None
-        cfg.setdefault("categories", {})[CATEGORY_KEY] = str(cat.id)
-        self.bot.server_config = cfg  # type: ignore[attr-defined]
-        # Persist in-memory; the on-disk server_config.json gets updated on
-        # the next setup_server.py run. For now the cached value is enough.
+        self._remember_category(cat.id)
         return cat
+
+    def _remember_category(self, cat_id: int) -> None:
+        """Cache the category id back into the live server_config.
+
+        Mutates ``bot.server_config["categories"][onboarding]`` in place so
+        we don't accidentally replace the whole dict (which would wipe
+        ``roles`` / ``channels`` keys if the config had been ``None``).
+        Disk persistence happens on the next ``scripts/setup_server.py``
+        run.
+        """
+        cfg = self._cfg()
+        if cfg is None:
+            # server_config.json was missing at startup; we deliberately do
+            # NOT replace it with a fresh dict because that would shadow a
+            # later legitimate load. The lookup falls back to scanning
+            # ``guild.categories`` by name on the next call.
+            return
+        cfg.setdefault("categories", {})[CATEGORY_KEY] = str(cat_id)
 
     async def _spawn_channel_for(self, member: discord.Member) -> discord.TextChannel | None:
         guild = member.guild
@@ -1031,6 +1094,11 @@ class Onboarding(commands.Cog):
         if guild is None:
             return
         now = time.time()
+        # Clear out stale join timestamps and exit raid mode if the burst
+        # has drained. Without this, a raid that triggers and is followed
+        # by zero joins would leave the bot in raid mode forever.
+        self._decay_join_window(now)
+        await self._maybe_clear_raid(guild)
         kick_after = KICK_AFTER_DAYS * 86400
         remind_after = REMIND_AFTER_H * 3600
         for uid in list(self.store.active):

@@ -1,10 +1,19 @@
-"""Welcome cog — handles new-member onboarding via reaction verification.
+"""Welcome cog — legacy ✓-react verification (fallback).
 
-Flow:
-  1. Member joins → bot assigns @unverified role automatically
-  2. Member sees only #الترحيب and #القواعد (locked by READ_ONLY tier)
-  3. Member reacts ✓ on the pinned verification message in #الترحيب
-  4. Bot swaps @unverified → @member; logs the action in #admin-actions
+The primary onboarding flow now lives in `bot.cogs.onboarding` (guided
+interview in a per-member private channel). This cog is kept for two
+reasons:
+  1. The pinned ✓-react message in #الترحيب is still honoured for any
+     long-tail member who comes back to that message; reacting ✓ swaps
+     @unverified → @member just like before.
+  2. The `!post_welcome` admin command remains available for re-posting
+     the legacy banner if needed.
+
+The `on_member_join` listener is intentionally NOT redefined here — the
+`Onboarding` cog handles join events end-to-end (it assigns @unverified
+defensively, spawns the private channel, runs the interview, and logs to
+#admin-actions). Putting the same listener on two cogs would just
+duplicate the admin log and the role-add API call.
 """
 
 from __future__ import annotations
@@ -50,23 +59,11 @@ class Welcome(commands.Cog):
         v = cfg.get("channels", {}).get(key)
         return int(v) if v else None
 
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member) -> None:
-        unverified = self._role_id("unverified")
-        if not unverified:
-            log.warning("no @unverified role configured; skipping auto-role")
-            return
-        role = member.guild.get_role(unverified)
-        if role:
-            try:
-                await member.add_roles(role, reason="auto: new member onboarding")
-            except discord.Forbidden:
-                log.error("missing perms to assign @unverified to %s", member)
-            else:
-                log.info("assigned @unverified to %s", member)
-
-        await self._log_admin(member.guild,
-                              f"➕ <@{member.id}> ({member}) انضم — @unverified")
+    # NOTE: `on_member_join` intentionally removed — `bot.cogs.onboarding`
+    # owns the full join flow now (it assigns @unverified defensively,
+    # spawns the per-member onboarding channel, runs the interview and
+    # logs to #admin-actions). Re-adding it here would double-log every
+    # join.
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
