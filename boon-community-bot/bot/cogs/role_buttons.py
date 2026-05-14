@@ -48,11 +48,15 @@ class _RoleButton(discord.ui.Button["_InterestRolesView"]):
         self.role_key = role_key
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        # Defer immediately so the role-mutation HTTP call below never
+        # runs into Discord's 3-second "unresponded interaction" window.
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
         bot = interaction.client
         cfg: dict[str, Any] = getattr(bot, "server_config", None) or {}
         role_id_raw = cfg.get("roles", {}).get(self.role_key)
         if not role_id_raw:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "⚠️ هذا الدور غير مهيّأ. أبلغ admin.",
                 ephemeral=True,
             )
@@ -61,7 +65,7 @@ class _RoleButton(discord.ui.Button["_InterestRolesView"]):
         member = interaction.user
         guild = interaction.guild
         if not isinstance(member, discord.Member) or guild is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "هذا الزر للأعضاء داخل السيرفر فقط.",
                 ephemeral=True,
             )
@@ -69,7 +73,7 @@ class _RoleButton(discord.ui.Button["_InterestRolesView"]):
 
         role = guild.get_role(int(role_id_raw))
         if role is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "⚠️ لم أجد الدور في السيرفر. أبلغ admin.",
                 ephemeral=True,
             )
@@ -86,20 +90,20 @@ class _RoleButton(discord.ui.Button["_InterestRolesView"]):
                 log.info("added %s to %s", role.name, member)
         except discord.Forbidden:
             log.warning("missing perms to toggle %s on %s", role.name, member)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "⚠️ ليس لدي صلاحية تعديل أدوارك. أبلغ admin (تأكّد أن دور البوت أعلى من أدوار الاهتمامات).",
                 ephemeral=True,
             )
             return
         except discord.HTTPException as exc:
             log.warning("HTTP error toggling %s on %s: %s", role.name, member, exc)
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "⚠️ حدث خطأ شبكي مؤقّت. جرّب مرة أخرى.",
                 ephemeral=True,
             )
             return
 
-        await interaction.response.send_message(msg, ephemeral=True)
+        await interaction.followup.send(msg, ephemeral=True)
 
 
 class _InterestRolesView(discord.ui.View):
@@ -150,16 +154,21 @@ class RoleButtons(commands.Cog):
     )
     @app_commands.default_permissions(manage_guild=True)
     async def setup_roles_message(self, interaction: discord.Interaction) -> None:
+        # This command makes two sequential Discord API calls (channel.send +
+        # msg.pin). Defer up-front so we never hit the 3-second response
+        # window even on a slow link.
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
         guild = interaction.guild
         channel = interaction.channel
         if guild is None or not isinstance(channel, discord.TextChannel):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "استخدم هذا الأمر داخل قناة نصّية في السيرفر.",
                 ephemeral=True,
             )
             return
         if interaction.user.id != guild.owner_id:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "هذا الأمر للمالك فقط.",
                 ephemeral=True,
             )
@@ -170,16 +179,30 @@ class RoleButtons(commands.Cog):
         try:
             msg = await channel.send(embed=embed, view=view)
         except discord.Forbidden:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "⚠️ ليس لدي صلاحية الإرسال في هذه القناة.",
                 ephemeral=True,
             )
             return
+        except discord.HTTPException as exc:
+            log.warning("failed to send role selector: %s", exc)
+            await interaction.followup.send(
+                f"⚠️ تعذّر إرسال الرسالة: {exc}",
+                ephemeral=True,
+            )
+            return
+
         try:
             await msg.pin(reason="interest roles selector")
         except discord.Forbidden:
             log.info("cannot pin role selector (missing Manage Messages)")
-        await interaction.response.send_message(
+        except discord.HTTPException as exc:
+            # e.g. HTTP 400 "Maximum number of pins reached (50)" — non-fatal,
+            # the selector message itself is fine. Just log and move on so
+            # the user still gets a followup response.
+            log.info("cannot pin role selector: %s", exc)
+
+        await interaction.followup.send(
             f"تم نشر رسالة اختيار الاهتمامات في {channel.mention}.",
             ephemeral=True,
         )

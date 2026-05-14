@@ -8,6 +8,7 @@ Currently:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -70,6 +71,10 @@ class Admin(commands.Cog):
         skipped_bot = 0
         skipped_already = 0
         failed = 0
+        # Small inter-iteration delay to be gentle on Discord's rate limiter.
+        # discord.py already handles 429s, but we'd rather not generate them.
+        # 0.25s → ~240 ops/min, well under the 10/sec per-route quota.
+        ITER_SLEEP_S = 0.25
         async for member in guild.fetch_members(limit=None):
             if member.bot:
                 skipped_bot += 1
@@ -94,6 +99,7 @@ class Admin(commands.Cog):
             except discord.HTTPException as exc:
                 failed += 1
                 log.warning("HTTP error resetting %s: %s", member, exc)
+            await asyncio.sleep(ITER_SLEEP_S)
 
         report = (
             f"**تم: {processed}** عضو أُعيد إلى @unverified\n"
@@ -102,7 +108,14 @@ class Admin(commands.Cog):
             f"تُخطّوا (موجود مسبقاً @unverified): {skipped_already}\n"
             f"فشل: {failed}"
         )
-        await interaction.followup.send(report, ephemeral=True)
+        # The interaction followup token expires 15 minutes after defer().
+        # For very large guilds this loop can exceed that window, in which
+        # case Discord returns HTTP 404 "Unknown Webhook". Always log to
+        # #admin-actions below so the owner gets the report regardless.
+        try:
+            await interaction.followup.send(report, ephemeral=True)
+        except discord.HTTPException as exc:
+            log.warning("followup expired before sweep finished: %s", exc)
         log.info(
             "reset-verification: processed=%d skipped_admin=%d skipped_bot=%d "
             "skipped_already=%d failed=%d",
