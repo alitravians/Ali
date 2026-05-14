@@ -18,7 +18,15 @@ kill_timeout = 30
   force_https = true
   auto_stop_machines = false    # bot must stay online for Discord gateway
   auto_start_machines = true
+  # CRITICAL: Discord gateway connections must be SINGLETON. A second
+  # machine would also connect to the gateway, receive every event in
+  # parallel, and split-brain in-memory state (e.g. each instance
+  # generates its own captcha → user clicks the answer for one but the
+  # other validates first against its mismatched answer and rejects).
+  # Pinning min == max == 1 prevents Fly's default HA scale-up from
+  # ever spawning a second bot instance.
   min_machines_running = 1
+  max_machines_running = 1
 
   [[http_service.checks]]
     grace_period = "10s"
