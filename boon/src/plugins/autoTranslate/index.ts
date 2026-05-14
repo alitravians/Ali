@@ -514,7 +514,14 @@ export default definePlugin({
         // the same message translated again, the cache will already have the
         // result and ``looksForeign`` doesn't need to be bypassed because
         // they'd manual-translate again anyway.
-        const manualOverrides = new Map<string, true>();
+        //
+        // Map values track whether this override has already been counted in
+        // the ``manual_translations`` stat. Without this, every React
+        // re-render rescans the message, the factory re-runs (cache hit, no
+        // network), and the counter inflates. We bump exactly once per
+        // user-initiated click by transitioning ``"pending" → "counted"`` on
+        // the first successful translate after the click.
+        const manualOverrides = new Map<string, "pending" | "counted">();
 
         // ─── translate() — service routing + cache ─────────────────────────────
         async function translate(text: string): Promise<TranslationResult> {
@@ -608,31 +615,54 @@ export default definePlugin({
                         // not re-fire a translation that we already know returns
                         // the same text. Without this, a forced message whose
                         // translation collapses to source would loop forever
-                        // across React re-renders.
+                        // across React re-renders. (No stat bump in this
+                        // branch — we don't count translations that returned
+                        // the source text since they're effectively no-ops.)
                         if (forced) manualOverrides.delete(info.id);
                         return;
                     }
                     const finalNode = buildTranslationNode(result.text, result.sourceLang);
                     replaceInPlace(placeholder, finalNode);
                     // Conditionally bump the correct counter so manual forces
-                    // don't double-count into ``auto_translations``. The manual
-                    // bump moved here (from the onClick handler) so it only
-                    // increments on a *successful* translation, mirroring the
-                    // pre-v0.2.5 behavior where the bump sat inside the try
-                    // block after ``await translate(text)`` returned.
-                    ctx.stats.bump(forced ? "manual_translations" : "auto_translations");
+                    // don't double-count into ``auto_translations``. The auto
+                    // bump is naturally one-shot because the framework's
+                    // ``[data-boon-acc-id="autoTranslate"]`` dedup prevents
+                    // the factory from re-running for an already-translated
+                    // message. The manual bump needs explicit single-shot
+                    // tracking via the ``pending``/``counted`` state because
+                    // ``manualOverrides`` keeps re-firing the factory on
+                    // every React re-render to keep the translation visible.
+                    if (forced) {
+                        if (manualOverrides.get(info.id) === "pending") {
+                            ctx.stats.bump("manual_translations");
+                            manualOverrides.set(info.id, "counted");
+                        }
+                    } else {
+                        ctx.stats.bump("auto_translations");
+                    }
                 } catch (err) {
                     ctx.logger.warn("auto-translate failed:", err);
-                    // Drop the failed accessory entirely and surface the error
-                    // via toast. Leaving the placeholder in the DOM would have
-                    // been fine for auto (one-shot), but with the override map
-                    // every re-render would re-run the factory, re-hit the
-                    // same error, and burn through quota for nothing. Removing
-                    // the override here breaks the retry loop cleanly.
-                    if (placeholder.isConnected) placeholder.remove();
                     if (forced) {
+                        // Drop the failed accessory + override so React
+                        // re-renders don't loop the factory back into the
+                        // same failure (burning API quota on every hover).
+                        // Surface a toast as the user-visible signal — the
+                        // old code's inline "تعذّر الترجمة" sentinel can't
+                        // be reused here because we explicitly want the
+                        // override gone, so the toast is the right surface.
+                        if (placeholder.isConnected) placeholder.remove();
                         manualOverrides.delete(info.id);
                         ctx.toast(`فشل: ${(err as Error).message}`, "error");
+                    } else if (placeholder.isConnected) {
+                        // Auto path: keep the placeholder in the DOM as the
+                        // framework's dedup sentinel (its data-boon-acc-id
+                        // attribute prevents the factory from re-running on
+                        // future scans). Without this the factory would fire
+                        // again on every hover/reaction/sibling mutation,
+                        // re-hit the same API failure, and spam warnings.
+                        // Match the pre-v0.2.5 visual: muted "تعذّر الترجمة".
+                        placeholder.textContent = "🌐 تعذّر الترجمة";
+                        placeholder.style.opacity = "0.5";
                     }
                 }
             })();
@@ -677,7 +707,7 @@ export default definePlugin({
                         ctx.toast("الرسالة فارغة", "error");
                         return;
                     }
-                    manualOverrides.set(menuCtx.messageId, true);
+                    manualOverrides.set(menuCtx.messageId, "pending");
                     // Wipe any prior accessory so the framework's dedup check
                     // re-runs the factory cleanly with the override in effect.
                     const host = msgEl.querySelector<HTMLElement>(".boon-accessory-host");
