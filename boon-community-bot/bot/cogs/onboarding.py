@@ -503,6 +503,108 @@ class Onboarding(commands.Cog):
         await self._recover_from_channels()
         if not self.inactivity_sweep.is_running():
             self.inactivity_sweep.start()
+        # Startup permission audit: surface guild-side misconfiguration
+        # (missing perms, role-hierarchy too low, missing roles/channels)
+        # to #admin-actions on every boot so the owner sees it without
+        # having to dig through Fly logs. Best-effort — never crashes
+        # the cog if the audit itself fails.
+        try:
+            await self._audit_permissions_at_startup()
+        except Exception:  # noqa: BLE001
+            log.exception("startup permission audit failed")
+
+    async def _audit_permissions_at_startup(self) -> None:
+        """Log + post-to-admin-actions any guild-side misconfiguration.
+
+        Checks (per guild the bot is in):
+          1. `bot.guild_permissions` contains every perm the cog needs.
+          2. Bot's top role outranks @member, @unverified, all interest
+             roles, and the staff roles it might need to overwrite.
+          3. All referenced roles/channels in `server_config.json` exist.
+
+        Each issue is logged at WARNING and consolidated into a single
+        admin-channel message so the staff can fix them.
+        """
+        cfg = self._cfg() or {}
+        for guild in self.bot.guilds:
+            issues: list[str] = []
+            me = guild.me
+            if me is None:
+                continue
+            required_perms = {
+                "manage_channels": "إنشاء قنوات الـ onboarding الخاصة",
+                "manage_roles": "تبديل @unverified → @member و توزيع الأدوار",
+                "manage_nicknames": "ضبط nickname العضو بعد التحقّق",
+                "view_channel": "رؤية القنوات",
+                "send_messages": "إرسال الرسائل في القنوات",
+                "embed_links": "إرسال embeds (بطاقات الترحيب، captcha)",
+                "attach_files": "رفع صورة بطاقة الترحيب",
+                "read_message_history": "قراءة الرسائل القديمة (recovery)",
+            }
+            perms = me.guild_permissions
+            for perm, why in required_perms.items():
+                if not getattr(perms, perm, False):
+                    issues.append(f"❌ صلاحية ناقصة: **{perm}** ({why})")
+            # Role hierarchy: bot.top_role must be above every role the
+            # bot needs to assign / overwrite. `top_role` may equal
+            # @everyone in a misconfigured guild (no managed role
+            # uploaded yet) — in that case every comparison fails, which
+            # is correct (we want to flag it).
+            top = me.top_role
+            checked_role_keys = [
+                "member",
+                "unverified",
+                "interest_releases",
+                "interest_tech",
+                "interest_install_help",
+                "interest_bug_reports",
+                "interest_features",
+                "interest_translate",
+                "tester",
+                "contributor",
+                "translator",
+                "designer",
+            ]
+            for key in checked_role_keys:
+                rid_raw = cfg.get("roles", {}).get(key)
+                if not rid_raw:
+                    continue  # missing-role check below handles it
+                role = guild.get_role(int(rid_raw))
+                if role is None:
+                    issues.append(f"❌ دور غير موجود: `{key}` (id={rid_raw})")
+                    continue
+                if role.position >= top.position:
+                    issues.append(
+                        f"❌ ترتيب الأدوار: دور البوت ({top.name} @ {top.position}) ≤ "
+                        f"@{role.name} (@ {role.position}) — ارفع دور البوت فوق @{role.name}"
+                    )
+            checked_channel_keys = [
+                "welcome",
+                "general",
+                "log_admin_actions",
+                "rules",
+                "announcements",
+            ]
+            for key in checked_channel_keys:
+                cid_raw = cfg.get("channels", {}).get(key)
+                if not cid_raw:
+                    issues.append(f"⚠️ قناة غير مهيّأة في server_config.json: `{key}`")
+                    continue
+                if guild.get_channel(int(cid_raw)) is None:
+                    issues.append(f"❌ قناة غير موجودة: `{key}` (id={cid_raw})")
+            if issues:
+                log.warning(
+                    "permission audit found %d issue(s) in guild %s",
+                    len(issues), guild.name,
+                )
+                body = "**تدقيق صلاحيات البوت عند الإقلاع — توجد مشاكل:**\n\n" + "\n".join(issues)
+                body += (
+                    "\n\nأصلح هذه المشاكل من Server Settings → Roles / Channels، "
+                    "ثم أعد تشغيل البوت."
+                )
+                await self._log_admin(guild, body[:1990])
+            else:
+                log.info("permission audit clean for guild %s", guild.name)
 
     # ── join event ───────────────────────────────────────────────────────
 
