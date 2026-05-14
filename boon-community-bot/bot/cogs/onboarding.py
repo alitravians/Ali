@@ -14,7 +14,7 @@ Flow (per-member private channel; arabic only):
        • removes @unverified, adds @member
        • adds any chosen interest roles
        • applies the chosen nickname (sanitised)
-       • generates a welcome card and posts it in #general
+       • generates a welcome card and posts it in #welcome (fallback: #general)
        • DMs the member a personalised quickstart guide
        • deletes the private onboarding channel
        • logs the result to #admin-actions
@@ -535,6 +535,7 @@ class Onboarding(commands.Cog):
                 "manage_channels": "إنشاء قنوات الـ onboarding الخاصة",
                 "manage_roles": "تبديل @unverified → @member و توزيع الأدوار",
                 "manage_nicknames": "ضبط nickname العضو بعد التحقّق",
+                "kick_members": "طرد الأعضاء الخاملين بعد 7 أيام",
                 "view_channel": "رؤية القنوات",
                 "send_messages": "إرسال الرسائل في القنوات",
                 "embed_links": "إرسال embeds (بطاقات الترحيب، captcha)",
@@ -1274,6 +1275,13 @@ class Onboarding(commands.Cog):
         await self._maybe_clear_raid(guild)
         kick_after = KICK_AFTER_DAYS * 86400
         remind_after = REMIND_AFTER_H * 3600
+        # Pre-resolve @member role once — used to detect orphan state that
+        # belongs to an already-verified user (e.g. recovery from ephemeral
+        # storage after a deploy that didn't finish channel teardown).
+        member_role_id = self._role_id("member")
+        member_role = (
+            guild.get_role(member_role_id) if member_role_id else None
+        )
         for uid in list(self.store.active):
             state = self.store.get(uid)
             if state is None or state.step == STEP_DONE:
@@ -1281,6 +1289,19 @@ class Onboarding(commands.Cog):
             age = now - state.started_at
             member = guild.get_member(uid)
             if member is None:
+                continue
+            # Already-verified guard: if the user holds @member, this is
+            # stale state created by `_recover_from_channels` for an
+            # orphan onboarding channel that survived a deploy mid-cleanup.
+            # Do NOT kick — just tear down the channel and drop the state.
+            if member_role is not None and member_role in member.roles:
+                log.info(
+                    "inactivity-sweep: %s already has @member; cleaning orphan state",
+                    member,
+                )
+                await self._delete_onboarding_channel(guild, state, delay_s=0)
+                self.store.drop(uid)
+                await self.store.save()
                 continue
             # Kick eligible.
             if age >= kick_after:
@@ -1510,6 +1531,11 @@ class Onboarding(commands.Cog):
         cat = guild.get_channel(int(cat_id))
         if not isinstance(cat, discord.CategoryChannel):
             return
+        # Pre-resolve @member role for the orphan-from-verified-user check.
+        member_role_id = self._role_id("member")
+        member_role = (
+            guild.get_role(member_role_id) if member_role_id else None
+        )
         for ch in cat.channels:
             if not isinstance(ch, discord.TextChannel):
                 continue
@@ -1525,9 +1551,29 @@ class Onboarding(commands.Cog):
                 continue
             if owner.id in self.store.active:
                 continue
-            # Treat as a fresh awaiting-start state. If they were mid-flow
-            # we lose the partial answers but the user clicks "ابدأ" again.
+            # If the channel owner already has @member, the channel is an
+            # orphan from a deploy that interrupted the 20s fire-and-forget
+            # teardown in `_complete`. Do NOT seed a fresh STEP_AWAITING_START
+            # state — doing so would (a) make inactivity_sweep eventually
+            # kick a verified member, and (b) leak the leftover channel into
+            # the user's view. Just delete the channel here and skip.
+            if member_role is not None and member_role in owner.roles:
+                try:
+                    await ch.delete(reason="orphan onboarding channel for verified user")
+                except (discord.Forbidden, discord.HTTPException) as exc:
+                    log.info("could not delete orphan channel %s: %s", ch, exc)
+                continue
+            # Treat as a fresh awaiting-start state. If they were mid-flow we
+            # lose the partial answers — but we re-post the welcome dialogue
+            # below so the user sees a working "ابدأ" button. Without that
+            # re-post the channel would show stale UI (e.g. a captcha embed
+            # whose buttons are now wired to nothing) and the user would be
+            # stuck.
             self.store.put(MemberState(user_id=owner.id, channel_id=ch.id))
+            try:
+                await self._post_welcome_dialogue(ch, owner)
+            except Exception:  # noqa: BLE001
+                log.warning("could not re-post welcome dialogue in %s", ch)
         await self.store.save()
 
     async def _log_admin(self, guild: discord.Guild, body: str) -> None:
