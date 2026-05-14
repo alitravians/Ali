@@ -77,12 +77,16 @@ _LATIN_FONT_BOLD: Iterable[str] = (
 
 
 def _first_loadable(paths: Iterable[str], size: int) -> ImageFont.FreeTypeFont:
-    for path in paths:
+    # Materialise upfront so we can re-list paths in the warning if every
+    # candidate failed. Otherwise a generator would already be exhausted by
+    # the time we hit the log line, and the message would say "tried []".
+    candidates = list(paths)
+    for path in candidates:
         try:
             return ImageFont.truetype(path, size=size)
         except OSError:
             continue
-    log.warning("no truetype font found in %s; using pillow default", list(paths))
+    log.warning("no truetype font found in %s; using pillow default", candidates)
     return ImageFont.load_default()
 
 
