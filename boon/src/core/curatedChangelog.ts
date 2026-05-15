@@ -30,6 +30,16 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.4.4": [
+        { kind: "fixed",    text: "[التحديث الذاتي - إصلاح حلقة \"تحديث متوفّر\" المتكرّرة بعد التثبيت]" },
+    ],
+    "boon-v0.4.3": [
+        { kind: "fixed",    text: "[عدّاد الأعضاء - الشارة عرضت \"4.0M\" في سيرفر فيه ٤ أعضاء فقط]" },
+    ],
+    "boon-v0.4.2": [
+        { kind: "fixed",    text: "[مؤشّر الكتابة - النقاط تظهر فعلياً عبر التقاط أحداث Discord من المصدر]" },
+        { kind: "improved", text: "[الاستقرار - معالجة دفاعية أعمق للأطر الواردة من Discord]" },
+    ],
     "boon-v0.4.1": [
         { kind: "fixed",    text: "[التحديث الذاتي - لن تخرج من حساب Discord بعد تثبيت تحديث جديد]" },
         { kind: "improved", text: "[الاستقرار - تفريغ بيانات الجلسة على القرص قبل إعادة التشغيل]" },
