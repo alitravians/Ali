@@ -495,7 +495,7 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.6",
+        version: "0.2.7",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
