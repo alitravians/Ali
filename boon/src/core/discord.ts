@@ -147,33 +147,54 @@ export function observeMessages(handler: (el: HTMLElement) => void): () => void 
     return () => observer.disconnect();
 }
 
+/** Selector matching every visible text-bearing content block under a
+ *  Discord message <li>. Discord renders the primary message body in
+ *  ``div[id^="message-content-"]`` and any appended "generated edit"
+ *  follow-up (the "Patched" badge + replacement text some communities
+ *  use, also any forwarded-message body Discord inserts post-edit) in
+ *  ``div[id^="ge-content-"]``. Both are user-visible — any consumer
+ *  that walks just the first ID prefix silently drops the follow-up,
+ *  which manifested as "right-click translate on the second paragraph
+ *  does nothing" in v0.2.5–v0.2.7. */
+export const MESSAGE_CONTENT_SELECTOR =
+    'div[id^="message-content-"], div[id^="ge-content-"]';
+
 /**
  * Read the natural-language text of a Discord message element, skipping any
  * descendant inside our own accessory host (`.boon-accessory-host`).
  *
- * The accessory host lives INSIDE `div[id^="message-content-"]`, so a naive
+ * The accessory host lives INSIDE the content parent, so a naive
  * `textContent` read would loop the translation subtitle's own text back
  * into anything that walks the message body (snapshot dedup, translation
  * input, etc.). This shared helper guarantees every consumer sees the same
  * "source only, no accessory pollution" view of the message text.
+ *
+ * Multi-block messages (e.g. an original message plus a "Patched" follow-up
+ * rendered in a sibling ``ge-content-*`` div) are concatenated with a single
+ * newline so downstream foreign-script heuristics see both blocks at once
+ * and the translation request covers the full visible text in one round-trip.
  */
 export function readMessageBodyText(messageEl: HTMLElement): string {
-    const content = messageEl.querySelector<HTMLElement>('div[id^="message-content-"]');
-    if (!content) return "";
-    let result = "";
-    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
-        acceptNode(node) {
-            // Text nodes are leaves so SKIP and REJECT are equivalent here;
-            // SKIP reads more naturally ("skip this node") than REJECT
-            // ("reject this node and its descendants").
-            const parent = node.parentElement;
-            if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_SKIP;
-            return NodeFilter.FILTER_ACCEPT;
-        },
-    });
-    let n: Node | null;
-    while ((n = walker.nextNode())) result += n.nodeValue ?? "";
-    return result;
+    const contents = messageEl.querySelectorAll<HTMLElement>(MESSAGE_CONTENT_SELECTOR);
+    if (!contents.length) return "";
+    const parts: string[] = [];
+    for (const content of Array.from(contents)) {
+        let chunk = "";
+        const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+            acceptNode(node) {
+                // Text nodes are leaves so SKIP and REJECT are equivalent here;
+                // SKIP reads more naturally ("skip this node") than REJECT
+                // ("reject this node and its descendants").
+                const parent = node.parentElement;
+                if (parent?.closest(".boon-accessory-host")) return NodeFilter.FILTER_SKIP;
+                return NodeFilter.FILTER_ACCEPT;
+            },
+        });
+        let n: Node | null;
+        while ((n = walker.nextNode())) chunk += n.nodeValue ?? "";
+        if (chunk) parts.push(chunk);
+    }
+    return parts.join("\n");
 }
 
 export function extractMessageInfo(el: HTMLElement): {

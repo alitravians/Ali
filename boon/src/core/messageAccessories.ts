@@ -19,7 +19,12 @@
  * returns an unregister function tracked by the framework.
  */
 
-import { extractMessageInfo, observeMessages, readMessageBodyText } from "./discord.js";
+import {
+    MESSAGE_CONTENT_SELECTOR,
+    extractMessageInfo,
+    observeMessages,
+    readMessageBodyText,
+} from "./discord.js";
 import { rootLogger } from "./logger.js";
 
 const ACCESSORY_HOST_CLASS = "boon-accessory-host";
@@ -75,14 +80,52 @@ function sourceSnapshot(el: HTMLElement): string {
 
 function ensureHost(messageEl: HTMLElement): HTMLElement | null {
     const existing = messageEl.querySelector<HTMLElement>(`.${ACCESSORY_HOST_CLASS}`);
-    if (existing) return existing;
-    const contentParent = messageEl.querySelector<HTMLElement>('div[id^="message-content-"]');
-    if (!contentParent) return null;
+    if (existing) {
+        // Re-anchor a host that's stuck inside an earlier content block.
+        // Older builds appended the host *inside* ``message-content-*``,
+        // which puts the translation between the original text and any
+        // appended ``ge-content-*`` follow-up — visually wrong and a
+        // dead giveaway that the multi-block fix didn't take. If the
+        // message now has multiple content blocks and the host isn't a
+        // sibling-after of the last one, move it. Cheap and idempotent.
+        const anchor = pickHostAnchor(messageEl);
+        if (anchor && existing.parentElement !== anchor.parent) {
+            anchor.parent.appendChild(existing);
+        }
+        return existing;
+    }
+    const anchor = pickHostAnchor(messageEl);
+    if (!anchor) return null;
     const host = document.createElement("div");
     host.className = ACCESSORY_HOST_CLASS;
     host.style.cssText = "display:flex;flex-direction:column;gap:4px;margin-top:4px;";
-    contentParent.appendChild(host);
+    anchor.parent.appendChild(host);
     return host;
+}
+
+interface HostAnchor {
+    parent: HTMLElement;
+}
+
+/**
+ * Choose where the accessory host should attach so it always renders BELOW
+ * every visible content block in the message.
+ *
+ * Most messages have a single ``message-content-*`` block — anchor under
+ * its parent (.messageContent wrapper) and we're done. Some messages
+ * (forwarded / "Patched" follow-ups) have an extra ``ge-content-*`` block
+ * appended; both content divs share the same wrapper, so anchoring to that
+ * wrapper still puts the host after both. The earlier ``contentParent =
+ * message-content-`` shortcut put the host *inside* the first block and
+ * thus *between* the two paragraphs in multi-block messages, which is
+ * the visual artifact we just fixed.
+ */
+function pickHostAnchor(messageEl: HTMLElement): HostAnchor | null {
+    const anyContent = messageEl.querySelector<HTMLElement>(MESSAGE_CONTENT_SELECTOR);
+    if (!anyContent) return null;
+    const parent = anyContent.parentElement;
+    if (!parent) return null;
+    return { parent };
 }
 
 function infoFor(messageEl: HTMLElement): MessageInfo {
