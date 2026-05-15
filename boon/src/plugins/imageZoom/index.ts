@@ -101,9 +101,12 @@ export default definePlugin({
                 "border:2px solid var(--brand-experiment,#5865f2)",
                 "border-radius:50%", "box-shadow:0 4px 24px rgba(0,0,0,0.5)",
                 "background-repeat:no-repeat",
-                `background-image:url("${img.src}")`,
                 `width:${size}px`, `height:${size}px`,
             ].join(";");
+            // Set background-image via CSSOM (NOT cssText with template literal) so
+            // a hostile img.src that contains `")` cannot break out of the url().
+            // CSSStyleDeclaration auto-escapes the value.
+            lens.style.backgroundImage = `url(${JSON.stringify(img.src)})`;
             document.body.appendChild(lens);
 
             state = { el: lens, img, zoom, size, active: true };

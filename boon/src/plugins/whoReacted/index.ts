@@ -104,7 +104,16 @@ export default definePlugin({
                 return;
             }
             const emoji = readEmoji(reaction);
-            tip.innerHTML = `<strong>${count}</strong> تفاعل · ${emoji} · <em>اضغط للقائمة الكاملة</em>`;
+            // Build with DOM nodes — emoji comes from img.alt which is user-controlled
+            // (custom emoji names) and would be an XSS vector via innerHTML.
+            tip.textContent = "";
+            const countEl = document.createElement("strong");
+            countEl.textContent = String(count);
+            tip.appendChild(countEl);
+            tip.appendChild(document.createTextNode(` تفاعل · ${emoji} · `));
+            const hint = document.createElement("em");
+            hint.textContent = "اضغط للقائمة الكاملة";
+            tip.appendChild(hint);
             tip.style.display = "block";
             tip.style.left = `${e.clientX + 12}px`;
             tip.style.top = `${e.clientY + 12}px`;
