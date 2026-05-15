@@ -70,7 +70,7 @@ app.setAppPath(asarPath);
 // BOON_GET_BOOT_INFO so the in-app updater can decide whether a staged
 // patcher upgrade is needed without forcing the user back to the .exe
 // installer for every patcher change.
-const PATCHER_VERSION = "0.2.2";
+const PATCHER_VERSION = "0.2.3";
 
 const dataDir = __dirname;
 const activePatcherPath = path.join(dataDir, "patcher.js");
@@ -446,7 +446,44 @@ const IPC_HANDLERS = {
         }
     },
     BOON_RELAUNCH: () => {
-        setTimeout(() => {
+        // CRITICAL: Flush every window's session storage to disk BEFORE we
+        // force-exit. `app.exit(0)` bypasses Electron's normal quit sequence
+        // (it's the only way to defeat Discord's tray-minimize hook), but as
+        // a side-effect it does NOT give Chromium time to flush async writes
+        // to localStorage / IndexedDB / Cookies. Discord stores its auth
+        // token in IndexedDB (MultiAccountStore /_login) with async-buffered
+        // writes — if a write was in-flight when we exit, the token is
+        // truncated and the user gets logged out on the next launch.
+        //
+        // `session.flushStorageData()` and `cookies.flushStore()` are the
+        // documented Electron APIs for forcing those buffers to disk. We run
+        // both on every BrowserWindow in parallel, with a 3-second total
+        // budget so a misbehaving session can't deadlock the relaunch.
+        const flushBudgetMs = 3000;
+        const flushAllSessions = () => Promise.all(
+            BrowserWindow.getAllWindows().map(async (win) => {
+                try {
+                    const sess = win.webContents && win.webContents.session;
+                    if (!sess) return;
+                    await sess.flushStorageData();
+                    if (sess.cookies && typeof sess.cookies.flushStore === "function") {
+                        await sess.cookies.flushStore();
+                    }
+                } catch (err) {
+                    console.error("[alitravians] per-window flush failed:", err);
+                }
+            }),
+        );
+
+        setTimeout(async () => {
+            try {
+                await Promise.race([
+                    flushAllSessions(),
+                    new Promise((r) => setTimeout(r, flushBudgetMs)),
+                ]);
+            } catch (err) {
+                console.error("[alitravians] flushStorageData failed:", err);
+            }
             try {
                 app.relaunch();
                 app.exit(0);

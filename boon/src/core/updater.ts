@@ -380,11 +380,54 @@ export async function stageUpdate(tag: string): Promise<{ version: string | null
     return { version: result.version ?? null };
 }
 
+/**
+ * Trigger an Electron `app.relaunch() + app.exit()` via the patcher.
+ *
+ * Defence-in-depth against the "logged-out after update" bug fixed in
+ * patcher v0.2.3:
+ *
+ *   Older patchers (≤ v0.2.2) call `app.exit(0)` directly without flushing
+ *   Discord's IndexedDB/localStorage to disk. Discord stores its auth token
+ *   in IndexedDB (MultiAccountStore /_login) with async-buffered writes, so
+ *   a force-exit mid-write truncates the DB and the user is logged out on
+ *   the next launch.
+ *
+ *   The new patcher (v0.2.3+) calls `session.flushStorageData()` before
+ *   exiting, which fixes the bug at the root. But the *first* update after
+ *   this fix ships happens on the OLD patcher — meaning anyone still on
+ *   v0.2.2 would still lose their session on that one upgrade.
+ *
+ *   So before invoking BOON_RELAUNCH we:
+ *     1. Touch localStorage synchronously — Chromium guarantees that every
+ *        `localStorage.setItem` is flushed to disk before it returns. This
+ *        forces any prior pending localStorage writes to land too.
+ *     2. Wait ~500 ms so Discord's pending IndexedDB transactions have time
+ *        to commit (Chromium's IDB flush cadence is ~250 ms; 500 ms is two
+ *        cycles plus a safety margin).
+ *
+ *   Once a user is on v0.2.3+ the patcher-side flush makes step 2
+ *   redundant, but keeping it costs nothing and the renderer can't tell
+ *   which patcher version is active without an extra round trip.
+ */
 export async function relaunchDiscord(): Promise<void> {
     const boot = (globalThis as { __BOON__?: { invoke: (channel: string, payload?: unknown) => Promise<unknown> } }).__BOON__;
     if (!boot || typeof boot.invoke !== "function") {
         throw new Error("ipc-unavailable");
     }
+
+    try {
+        // (1) Synchronous localStorage write — forces Chromium to flush all
+        //     pending LS writes to disk. The key name is namespaced so we
+        //     don't collide with anything Discord writes.
+        window.localStorage.setItem("__alitravians_flush_marker__", String(Date.now()));
+        window.localStorage.removeItem("__alitravians_flush_marker__");
+    } catch {
+        // localStorage may be sealed or unavailable in odd contexts; ignore.
+    }
+
+    // (2) Give IndexedDB ~500ms to commit auth-related transactions.
+    await new Promise<void>(resolve => { setTimeout(resolve, 500); });
+
     await boot.invoke("BOON_RELAUNCH");
 }
 
