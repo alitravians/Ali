@@ -85,9 +85,14 @@ function buildJson(data: RawData): string {
     return JSON.stringify(data, null, 2);
 }
 
+// Tracks the close-fn of the currently-open modal so onStop can fully tear
+// it down (DOM overlay + document keydown listener). Lives at module scope
+// because the plugin's onStart only registers the context-menu patch — the
+// modal itself is opened later from inside a callback.
+let currentModalClose: (() => void) | null = null;
+
 function openModal(data: RawData, toast: (msg: string, kind: "info" | "success" | "error") => void): void {
-    const existing = document.getElementById("boon-viewraw-modal");
-    if (existing) existing.remove();
+    currentModalClose?.();
 
     const overlay = document.createElement("div");
     overlay.id = "boon-viewraw-modal";
@@ -135,7 +140,9 @@ function openModal(data: RawData, toast: (msg: string, kind: "info" | "success" 
     const close = (): void => {
         document.removeEventListener("keydown", onKey);
         overlay.remove();
+        if (currentModalClose === close) currentModalClose = null;
     };
+    currentModalClose = close;
     overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
     panel.querySelector("#boon-viewraw-close")?.addEventListener("click", close);
 
@@ -189,6 +196,8 @@ export default definePlugin({
         ctx.logger.info("active");
     },
     onStop(ctx) {
+        // Close any open modal — this also removes its document keydown listener.
+        currentModalClose?.();
         ctx.logger.info("stopped");
     },
 });

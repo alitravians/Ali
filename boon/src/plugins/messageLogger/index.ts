@@ -126,9 +126,10 @@ function renderAccessory(args: RenderArgs): HTMLElement {
         root.appendChild(row);
     }
 
-    if (args.edited && args.edited.history.length > 1) {
-        const previous = args.edited.history.slice(0, -1);
-        for (const old of previous) {
+    if (args.edited && args.edited.history.length > 0) {
+        // history[] contains ONLY old versions (the current text is in the DOM
+        // already). Render every entry chronologically, oldest first.
+        for (const old of args.edited.history) {
             const row = document.createElement("div");
             row.style.cssText = "padding:4px 8px;background:rgba(255,212,59,0.10);border-right:3px solid #f0b232;border-radius:4px;font-size:12px;color:var(--text-muted,#b5bac1);font-style:italic";
             row.innerHTML = `✏️ <span style="text-decoration:line-through;opacity:0.85">${escapeHtml(old)}</span>`;
@@ -239,7 +240,7 @@ export default definePlugin({
             const edited = edits.get(k);
             const host = findOrCreateHost(li);
             host.innerHTML = "";
-            if (deleted || (edited && edited.history.length > 1)) {
+            if (deleted || (edited && edited.history.length > 0)) {
                 host.appendChild(renderAccessory({
                     deleted,
                     edited,
@@ -286,6 +287,13 @@ export default definePlugin({
                     confirmedDeleted.set(k, { snapshot: snap, deletedAt: Date.now() });
                     ctx.stats.bump("deletes_logged");
                     ctx.logger.info(`deleted msg ${snap.messageId} by ${snap.authorName}`);
+                    // Surface the detection via toast — when Discord truly removes
+                    // the message <li>, the in-place red banner is unreachable, so
+                    // the toast is the only visible signal that a delete happened.
+                    const preview = snap.content.length > 80
+                        ? snap.content.slice(0, 80) + "…"
+                        : snap.content;
+                    ctx.toast(`🗑 ${snap.authorName} — ${preview}`, "info");
                 }, ctx.settings.confirmGraceMs);
                 pendingDelete.set(k, timer);
             }

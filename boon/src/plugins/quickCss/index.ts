@@ -103,8 +103,12 @@ export default definePlugin({
             document.body.appendChild(fab);
         };
 
+        // Tracks the close-fn of an open panel so onStop can fully tear it down
+        // (DOM element + document keydown listener) instead of leaking either.
+        let currentClose: (() => void) | null = null;
+
         const openPanel = (): void => {
-            removePanel();
+            currentClose?.();
             const panel = document.createElement("div");
             panel.id = PANEL_ID;
             panel.setAttribute("dir", "rtl");
@@ -152,7 +156,9 @@ export default definePlugin({
             const close = (): void => {
                 document.removeEventListener("keydown", onKey);
                 removePanel();
+                if (currentClose === close) currentClose = null;
             };
+            currentClose = close;
             panel.addEventListener("click", e => { if (e.target === panel) close(); });
             box.querySelector("#boon-quickcss-close")?.addEventListener("click", close);
             box.querySelector("#boon-quickcss-revert")?.addEventListener("click", () => {
@@ -188,8 +194,9 @@ export default definePlugin({
         const g = globalThis as unknown as { __BOON_QUICKCSS_CLEANUP__?: () => void };
         g.__BOON_QUICKCSS_CLEANUP__ = () => {
             document.removeEventListener("keydown", onShortcut);
+            currentClose?.(); // closes panel AND removes its document keydown listener
             removeFab();
-            removePanel();
+            removePanel(); // belt-and-suspenders in case no panel was open
         };
 
         ctx.logger.info("active");
