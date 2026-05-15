@@ -1237,37 +1237,44 @@ export default definePlugin({
             },
         });
 
-        // ─── Outgoing translate — Discord MessageActions interceptor ─────────
+        // ─── Outgoing translate — keydown intercept + Discord REST send ──────
         //
-        // We monkey-patch Discord's own ``MessageActions.sendMessage`` (and
-        // ``editMessage``) so the translated content is the very thing
-        // Discord's normal send pipeline sees. Two reasons we use this
-        // boundary instead of either the composer DOM or ``window.fetch``:
+        // The shipping interceptor is a capture-phase ``keydown`` listener on
+        // ``document`` plus a direct ``POST /api/v9/channels/{id}/messages``
+        // call. We landed here after rejecting several alternatives:
         //
-        //   - The composer is a React/Slate controlled input. Touching its
-        //     value mid-send triggers Slate warnings, loses undo history,
-        //     races Discord's optimistic UI, and shows the user a brief
-        //     flicker of the translated text replacing their draft.
-        //   - ``window.fetch`` cannot be wrapped reliably from the renderer
-        //     because Discord's HTTP modules capture a reference to the
-        //     native ``fetch`` at module-load time — they ran before us, so
-        //     our wrapper is invisible to them. Wrapping fetch from a
-        //     session preload would work in theory but Electron's renderer
-        //     sandbox / context isolation makes the preload's window
-        //     globals invisible to Discord's main-world bundle.
+        //   - Monkey-patching ``MessageActions.sendMessage`` was the original
+        //     plan, but requires a webpack module finder for every Discord
+        //     update; we'd need to maintain signatures across Stable/PTB/Canary.
+        //   - Replacing the composer text via ``execCommand("insertText")`` +
+        //     synthetic Enter doesn't work because React 18's Slate ignores
+        //     KeyboardEvents without ``isTrusted=true``.
+        //   - Wrapping ``window.fetch`` is invisible to Discord's HTTP layer,
+        //     which captured the native ``fetch`` reference at module-load
+        //     time before our renderer ran.
         //
-        // ``MessageActions.sendMessage`` runs strictly inside Discord's own
-        // bundle, in the page's main world — exactly where our renderer.js
-        // already executes successfully. Patching it is a single function
-        // swap whose lifetime we fully control via ``outgoingDisposers``.
+        // The keydown+REST boundary is simple and self-contained: we get
+        // the editor text via DOM, translate it, then POST to Discord's own
+        // endpoint with the user's auth token from localStorage. The gateway
+        // reflects our POST back as ``MESSAGE_CREATE``, so the UI updates
+        // exactly as if Discord had sent the message itself.
+        //
+        // Caveats (intentional — we abort instead of breaking these):
+        //   - Replies: the REST POST does not include ``message_reference``,
+        //     so we DO NOT intercept when Discord's reply bar is visible.
+        //   - Attachments / stickers: we don't ship the multipart upload
+        //     state, so we DO NOT intercept when files are attached.
+        //   - Slash-command / @mention / :emoji autocomplete: Enter selects
+        //     the highlighted item, not send. We detect ``aria-expanded`` on
+        //     the editor and bail out completely so Discord's own handler
+        //     runs.
         //
         // Design choices:
-        //   - Fail open: any error (network, parse, provider quota) short-
-        //     circuits to the original draft. Users get *some* message sent
-        //     even if translation is down. We log the failure for diagnosis.
+        //   - Fail open: any translation error short-circuits to the
+        //     original draft so the user always sees their text sent.
         //   - Preserve original on optional toggle: ``outgoingPrefixOriginal``
-        //     appends the original draft as a Discord small-text quote (``-#``)
-        //     under the translation so readers can verify.
+        //     appends each line of the original draft prefixed with ``-# ``
+        //     so multi-line drafts still render as small/muted footnotes.
         //   - Protect tokens BEFORE translation: see ``protectTokens`` above.
         async function maybeTranslateOutgoing(content: string): Promise<string> {
             if (!ctx.settings.outgoingMode) return content;
@@ -1286,10 +1293,17 @@ export default definePlugin({
                 if (!restored) return content;
                 ctx.stats.bump("outgoing_translations");
                 if (ctx.settings.outgoingPrefixOriginal) {
-                    // Discord's ``-#`` prefix renders the line as small/muted
-                    // text. We append the original under a small label so the
-                    // reader can see both versions.
-                    return `${restored}\n-# 🌐 ${content}`;
+                    // Discord's ``-#`` markdown prefix renders the line as
+                    // small/muted text — but the syntax applies to ONE line
+                    // only, so we have to prefix every line of the original
+                    // separately. Otherwise multi-line drafts render with the
+                    // first line muted and the rest full-size, which looks
+                    // broken.
+                    const prefixed = content
+                        .split("\n")
+                        .map(line => `-# ${line}`)
+                        .join("\n");
+                    return `${restored}\n-# 🌐\n${prefixed}`;
                 }
                 return restored;
             } catch (err) {
@@ -1299,11 +1313,22 @@ export default definePlugin({
         }
 
         // Read the current composer draft. Discord's Slate editor wraps
-        // text in nested `<span data-slate-leaf>` elements; `textContent`
-        // concatenates them in source order, which matches what the user
-        // sees on screen.
+        // each paragraph in `<div data-slate-node="element">`; naive
+        // ``textContent`` would smash the lines together because there's no
+        // intervening text node. We walk the direct paragraph children and
+        // join their ``textContent`` with `\n` so multi-line drafts are
+        // preserved (matters both for translation correctness and for the
+        // multi-line `-#` original-quote prefix).
         function readComposerText(editor: HTMLElement): string {
-            return editor.textContent ?? "";
+            const paragraphs = editor.querySelectorAll<HTMLElement>(
+                '[data-slate-node="element"]',
+            );
+            if (paragraphs.length === 0) return editor.textContent ?? "";
+            const lines: string[] = [];
+            for (const p of paragraphs) {
+                lines.push(p.textContent ?? "");
+            }
+            return lines.join("\n");
         }
 
         // Clear the composer by selecting all + delete via execCommand.
@@ -1331,6 +1356,54 @@ export default definePlugin({
         function currentChannelId(): string | null {
             const m = /\/channels\/[^/]+\/(\d+)/.exec(location.pathname);
             return m?.[1] ?? null;
+        }
+
+        // Find the composer's enclosing form so we can probe sibling DOM
+        // (reply bar, attachment previews) that live next to the editor.
+        function composerForm(editor: HTMLElement): HTMLElement | null {
+            return editor.closest<HTMLElement>("form");
+        }
+
+        // True when Discord's slash-command / @mention / :emoji autocomplete
+        // popout is currently open. We use the standard W3C combobox pattern
+        // Discord follows: when the popout is up, ``aria-expanded`` flips to
+        // ``"true"`` and ``aria-activedescendant`` points at the highlighted
+        // option. In that state Enter SELECTS the option — it does NOT send.
+        // We must completely bail out (no preventDefault) so Discord's own
+        // handler runs untouched.
+        function isAutocompleteOpen(editor: HTMLElement): boolean {
+            return (
+                editor.getAttribute("aria-expanded") === "true" ||
+                !!editor.getAttribute("aria-activedescendant")
+            );
+        }
+
+        // True when the user is currently composing a reply (the "Replying
+        // to …" banner is visible above the editor). Our REST POST does not
+        // include ``message_reference``, so intercepting here would silently
+        // turn the reply into a normal message. Better to skip translation
+        // entirely and let Discord send the original with reply context
+        // intact; users can always re-translate manually.
+        function hasPendingReply(form: HTMLElement): boolean {
+            return !!form.querySelector('[class*="replyBar"]');
+        }
+
+        // True when one or more file attachments are queued in the composer.
+        // Discord renders attached file previews under classes like
+        // ``attachedFile__…`` (singular for each file) and we explicitly
+        // exclude the always-present “+” ``attachButton`` from the match. We
+        // can't reproduce the multipart-upload state in a JSON REST POST, so
+        // we abort interception and let Discord ship the message itself.
+        function hasAttachments(form: HTMLElement): boolean {
+            const candidates = form.querySelectorAll<HTMLElement>(
+                '[class*="attachedFile"]',
+            );
+            for (const el of candidates) {
+                const cls = el.className;
+                if (typeof cls === "string" && /Button/i.test(cls)) continue;
+                return true;
+            }
+            return false;
         }
 
         // Read the user's authentication token. Discord stashes it in
@@ -1410,6 +1483,11 @@ export default definePlugin({
         // button briefly disables itself, but key events still queue).
         let translationInFlight = false;
 
+        // Throttle the "translation skipped" toast so it appears once when the
+        // user starts composing a reply / attaching a file, not repeatedly on
+        // every Enter keystroke that lands in that state.
+        let sentSkipToast = false;
+
         const onComposerKeydown = (e: KeyboardEvent): void => {
             if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey) {
                 return;
@@ -1440,6 +1518,36 @@ export default definePlugin({
             if (!editor) return;
             // IME composition: don't intercept while the user is mid-input.
             if (e.isComposing) return;
+
+            // Autocomplete popout open: Enter selects an item (mention, emoji,
+            // slash-command argument, etc.) — NOT send. Bail out completely
+            // so Discord's combobox handler runs untouched. Don't even peek
+            // at the draft text — the user's intent here is selection, not
+            // sending.
+            if (isAutocompleteOpen(editor)) return;
+
+            // Reply / attachments: we can't faithfully reproduce these via a
+            // plain REST POST (no ``message_reference``, no multipart upload),
+            // so we skip translation and let Discord's own send pipeline run.
+            // We surface a one-shot toast so the user knows the translation
+            // was deliberately skipped for THIS message and can re-toggle if
+            // they want translated text instead.
+            const form = composerForm(editor);
+            if (form && (hasPendingReply(form) || hasAttachments(form))) {
+                if (!sentSkipToast) {
+                    sentSkipToast = true;
+                    ctx.toast(
+                        "تم تخطّي الترجمة لهذه الرسالة (رد أو مرفقات) — الرسالة الأصلية تُرسل كما هي",
+                        "info",
+                    );
+                    // Allow the toast to fire again after a quiet period so
+                    // it's still useful if the user composes another reply
+                    // later but not so often that it spams.
+                    window.setTimeout(() => { sentSkipToast = false; }, 30_000);
+                }
+                return;
+            }
+
             if (translationInFlight) {
                 e.preventDefault();
                 e.stopPropagation();
