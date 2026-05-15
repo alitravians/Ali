@@ -134,6 +134,34 @@ export function installChunkInterceptor(): void {
     const win = window as unknown as Record<string, WebpackChunk[] | undefined>;
     const existing = win[CHUNK_GLOBAL];
 
+    /**
+     * Build a `.push` wrapper closing over the *current* underlying push fn.
+     *
+     * We can't bake `originalPush` in once because on the setter-path
+     * (array created AFTER our hook fires) webpack overwrites `.push` with
+     * its own `webpackJsonpCallback` synchronously right after Discord sets
+     * the global. If we hardcoded `Array.prototype.push.bind(arr)` we'd
+     * silently lose webpack's own bookkeeping when chunks fire.
+     *
+     * Instead we re-wrap whatever fn webpack puts in `.push` via the
+     * accessor below — that way our wrapper always delegates to the
+     * latest underlying push, while still observing every chunk that
+     * flows through.
+     */
+    const buildWrapper = (delegate: (...chunks: WebpackChunk[]) => number) =>
+        (...chunks: WebpackChunk[]): number => {
+            for (const chunk of chunks) {
+                if (!isRealChunk(chunk)) continue;
+                try {
+                    wrapChunk(chunk);
+                    captureRuntimeRequire(chunk);
+                } catch (err) {
+                    log.warn("wrapChunk failed; passing through unwrapped", err);
+                }
+            }
+            return delegate(...chunks);
+        };
+
     const onArrayReady = (arr: WebpackChunk[]): void => {
         try {
             drainAlreadyPushedChunks(arr);
@@ -141,21 +169,26 @@ export function installChunkInterceptor(): void {
             log.error("drain failed", err);
         }
 
-        const originalPush = arr.push.bind(arr);
+        // `underlying` holds the *real* push fn currently in effect. Starts
+        // out as the array's own prototype-bound push; webpack may later
+        // replace it with `webpackJsonpCallback`, which the setter below
+        // captures and re-wraps without dropping our wrapper.
+        let underlying: (...chunks: WebpackChunk[]) => number = arr.push.bind(arr);
+        const installedWrapper = buildWrapper((...chunks) => underlying(...chunks));
+
         Object.defineProperty(arr, "push", {
             configurable: true,
-            writable: true,
-            value: (...chunks: WebpackChunk[]): number => {
-                for (const chunk of chunks) {
-                    if (!isRealChunk(chunk)) continue;
-                    try {
-                        wrapChunk(chunk);
-                        captureRuntimeRequire(chunk);
-                    } catch (err) {
-                        log.warn("wrapChunk failed; passing through unwrapped", err);
-                    }
+            get(): typeof installedWrapper {
+                return installedWrapper;
+            },
+            set(next: (...chunks: WebpackChunk[]) => number) {
+                // Webpack (or any other consumer) is trying to overwrite our
+                // wrapper. Accept the new fn as the underlying delegate but
+                // keep our wrapper installed so we keep observing chunks.
+                if (typeof next === "function") {
+                    underlying = next;
+                    log.info("captured new underlying push fn (webpackJsonpCallback?)");
                 }
-                return originalPush(...chunks);
             },
         });
         log.info("interceptor active on webpackChunkdiscord_app.push");

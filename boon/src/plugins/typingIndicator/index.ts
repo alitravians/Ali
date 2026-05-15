@@ -348,16 +348,25 @@ export default definePlugin({
         // ── Expiry sweep ─────────────────────────────────────────────────
         // The sweep handles channels we never get a TYPING_STOP for. Runs at
         // half the configured expiry so a typing user disappears within at
-        // most 1.5× expiry.
-        const sweep = window.setInterval(() => {
+        // most 1.5× expiry. Recreated on every settings change so a new
+        // `expiryMs` takes effect immediately (otherwise the previous tick
+        // cadence would persist until plugin restart).
+        const sweepPeriod = (): number =>
+            Math.max(1000, Math.floor(ctx.settings.expiryMs / 2));
+        let sweep = window.setInterval(() => {
             pruneExpired(ctx.settings.expiryMs);
             paint(ctx.settings.showInDMs);
-        }, Math.max(1000, Math.floor(ctx.settings.expiryMs / 2)));
+        }, sweepPeriod());
 
         // ── Re-paint on settings change ─────────────────────────────────
         const unsubSettings = ctx.on("settings:changed", ({ pluginId }) => {
             if (pluginId !== "typingIndicator") return;
             selfId = readSelfUserId();
+            window.clearInterval(sweep);
+            sweep = window.setInterval(() => {
+                pruneExpired(ctx.settings.expiryMs);
+                paint(ctx.settings.showInDMs);
+            }, sweepPeriod());
             schedulePaint();
         });
 
