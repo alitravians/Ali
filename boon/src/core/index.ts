@@ -16,6 +16,7 @@ import * as messageAccessories from "./messageAccessories.js";
 import * as pm from "./pluginManager.js";
 import * as ui from "./ui.js";
 import * as userSettingsIntegration from "./userSettingsIntegration.js";
+import { installChunkInterceptor } from "./webpack/index.js";
 import type { AnyPlugin, BoonGlobal, BoonPluginInfo, BoonTarget } from "./types.js";
 
 import aliThemes from "../plugins/aliThemes/index.js";
@@ -30,6 +31,7 @@ import noNitroAds from "../plugins/noNitroAds/index.js";
 import platformIndicators from "../plugins/platformIndicators/index.js";
 import quickCss from "../plugins/quickCss/index.js";
 import serverTools from "../plugins/serverTools/index.js";
+import typingIndicator from "../plugins/typingIndicator/index.js";
 import viewRaw from "../plugins/viewRaw/index.js";
 import whoReacted from "../plugins/whoReacted/index.js";
 
@@ -49,6 +51,8 @@ export const BUILT_IN_PLUGINS: ReadonlyArray<AnyPlugin> = [
     quickCss,
     platformIndicators,
     whoReacted,
+    // ─── Webpack-powered plugins (v0.4.0) ───
+    typingIndicator,
 ];
 
 export { VERSION } from "./version.js";
@@ -64,6 +68,12 @@ export async function boot(target: BoonTarget): Promise<void> {
 
     rootLogger.info(`booting v${VERSION} on target=${target}`);
     pm.setTarget(target);
+
+    // Install the webpack chunk interceptor BEFORE we await on the DOM —
+    // Discord's bundle can register chunks as soon as the renderer script
+    // runs, and we want to be in front of (or alongside) the very first push.
+    // The interceptor is idempotent and synchronous; safe to call here.
+    installChunkInterceptor();
 
     await whenAppReady();
 
