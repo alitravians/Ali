@@ -202,8 +202,10 @@ function readTerm(r: Reader): unknown {
 function readBig(r: Reader, n: number): string | number {
     const sign = r.u8(); // 0 = positive, 1 = negative
     const bytes = r.bytes(n);
-    // Up to 7 little-endian bytes fits cleanly in a JS number; above that we
-    // emit a decimal string so we don't lose precision on a Discord snowflake.
+    // Up to 6 little-endian bytes (max value 2^48 − 1 ≈ 2.8×10^14) fits cleanly
+    // inside Number.MAX_SAFE_INTEGER (2^53 − 1). 7 bytes exceeds that ceiling
+    // and would silently lose precision on Discord snowflakes, so we emit a
+    // decimal string instead.
     if (n <= 6) {
         let v = 0;
         for (let i = n - 1; i >= 0; i--) v = v * 256 + bytes[i];

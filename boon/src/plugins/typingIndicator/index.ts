@@ -301,6 +301,17 @@ export default definePlugin({
         // Discord virtualises the channel list — when categories collapse or
         // the user scrolls a long list, anchors come and go. Re-paint on any
         // sidebar change so dots reattach to freshly-mounted anchors.
+        //
+        // Observation scope ladder (cheapest first; we never observe
+        // document.body with subtree:true because Discord rewrites half the
+        // DOM tree on every navigation):
+        //   1. nav[class*="sidebar_"] / nav[aria-label*="server"]
+        //   2. any element that already contains a channel anchor
+        //   3. retry after 500ms — Discord mounts the sidebar shortly after
+        //      our plugin starts on a cold boot. If still not found, we give
+        //      up observing and rely on the expiry-sweep `setInterval` below
+        //      to keep dots in sync. Functionality still works, we just lose
+        //      reactivity to category collapse/expand until the next sweep.
         let observerScheduled = false;
         const observer = new MutationObserver(() => {
             if (observerScheduled) return;
@@ -310,9 +321,29 @@ export default definePlugin({
                 paint(ctx.settings.showInDMs);
             });
         });
-        const sidebar = document.querySelector('nav[class*="sidebar_"], nav[aria-label*="server" i]')
-            ?? document.body;
-        observer.observe(sidebar, { childList: true, subtree: true });
+        const findSidebar = (): HTMLElement | null => {
+            const direct = document.querySelector<HTMLElement>(
+                'nav[class*="sidebar_"], nav[aria-label*="server" i]',
+            );
+            if (direct) return direct;
+            // Walk up from the first channel anchor we can find.
+            const anyAnchor = document.querySelector<HTMLElement>(
+                'a[data-list-item-id^="channels___"], a[data-list-item-id^="dm___"]',
+            );
+            return anyAnchor?.closest("nav, aside") ?? null;
+        };
+        let observerRetry: number | null = null;
+        const initial = findSidebar();
+        if (initial) {
+            observer.observe(initial, { childList: true, subtree: true });
+        } else {
+            observerRetry = window.setTimeout(() => {
+                observerRetry = null;
+                const late = findSidebar();
+                if (late) observer.observe(late, { childList: true, subtree: true });
+                else ctx.logger.warn("sidebar not found; relying on expiry sweep for dot reconciliation");
+            }, 500);
+        }
 
         // ── Expiry sweep ─────────────────────────────────────────────────
         // The sweep handles channels we never get a TYPING_STOP for. Runs at
@@ -344,6 +375,10 @@ export default definePlugin({
             unsubStop();
             unsubSettings();
             observer.disconnect();
+            if (observerRetry !== null) {
+                window.clearTimeout(observerRetry);
+                observerRetry = null;
+            }
             window.clearInterval(sweep);
             typingByChannel.clear();
             document.querySelectorAll(`.${DOT_CLASS}`).forEach(el => el.remove());
