@@ -176,10 +176,14 @@ export default definePlugin({
         // the original cadence would persist until the plugin is restarted.
         let interval = window.setInterval(update, ctx.settings.pollMs);
 
-        const unsubSettings = ctx.on("settings:changed", ({ pluginId }) => {
+        const unsubSettings = ctx.on("settings:changed", ({ pluginId, key }) => {
             if (pluginId !== "memberCount") return;
-            window.clearInterval(interval);
-            interval = window.setInterval(update, ctx.settings.pollMs);
+            // Re-arm the interval only when the cadence actually changed.
+            // Other keys (e.g. `showInHeader`) just need a repaint.
+            if (key === "pollMs") {
+                window.clearInterval(interval);
+                interval = window.setInterval(update, ctx.settings.pollMs);
+            }
             update();
         });
 
