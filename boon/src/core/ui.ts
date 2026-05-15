@@ -1814,6 +1814,40 @@ function showReleasesModal(onAfterAction?: () => void): void {
         }
         card.appendChild(head);
 
+        // Per-card install button. Originally the install action lived only
+        // in the modal footer and was gated on a single "latest" release
+        // computed from ``result.releases[0]`` — when the API mis-ordered
+        // the response (e.g. v0.2.10 ending up at index 4 instead of 0),
+        // the footer button silently disappeared and the user was stuck
+        // staring at a "جديد" badge with no way to install. The per-card
+        // button is unconditional defence-in-depth: every newer release
+        // ships with its own install path so a future ordering quirk in
+        // GitHub's API cannot blank the install action again.
+        if (isNewerThanCurrent) {
+            const boot = (globalThis as { __BOON__?: { ipc: boolean } }).__BOON__;
+            const hasIpc = !!boot?.ipc;
+            if (hasIpc) {
+                const installBtn = el("button", {
+                    className: "boon-btn",
+                    style: { marginTop: "8px", marginInlineEnd: "8px" },
+                }, `تثبيت ${r.tag}`) as HTMLButtonElement;
+                installBtn.addEventListener("click", async () => {
+                    installBtn.disabled = true;
+                    installBtn.textContent = "جاري التنزيل…";
+                    try {
+                        const staged = await updater.stageUpdate(r.tag);
+                        installBtn.textContent = `تم التنزيل — أعد تشغيل Discord (v${staged.version ?? r.tag})`;
+                        setStatus(`التحديث ${r.tag} جاهز. اضغط "أعد تشغيل Discord" لتطبيقه.`, ACCENT);
+                    } catch (err) {
+                        installBtn.disabled = false;
+                        installBtn.textContent = `تثبيت ${r.tag}`;
+                        setStatus("فشل التنزيل: " + (err instanceof Error ? err.message : String(err)), "#ff8189");
+                    }
+                });
+                card.appendChild(installBtn);
+            }
+        }
+
         if (r.sections.length === 0) {
             card.appendChild(el("p", { className: "boon-release-empty" }, "(لا توجد ملاحظات منسّقة لهذا الإصدار — افتح GitHub لقراءة التفاصيل.)"));
         } else {
@@ -1865,7 +1899,13 @@ function showReleasesModal(onAfterAction?: () => void): void {
             return;
         }
 
-        const latest = result.releases[0];
+        // Do NOT trust ``result.releases[0]`` as the latest — GitHub's
+        // ``/releases`` API does not reliably sort by semver and can leave
+        // the highest-version release several positions deep (we caught
+        // this with v0.2.10 being returned at index 4 after v0.2.9 at
+        // index 0, which made the install button silently disappear).
+        // Compute the latest using our own semver comparator.
+        const latest = updater.pickLatest(result.releases) ?? result.releases[0];
         const hasUpdate = updater.isNewer(latest.tag, VERSION);
 
         if (hasUpdate) {
@@ -2071,7 +2111,13 @@ async function renderUpdater(main: HTMLElement): Promise<void> {
             return;
         }
 
-        const latest = result.releases[0];
+        // Do NOT trust ``result.releases[0]`` as the latest — GitHub's
+        // ``/releases`` API does not reliably sort by semver and can leave
+        // the highest-version release several positions deep (we caught
+        // this with v0.2.10 being returned at index 4 after v0.2.9 at
+        // index 0, which made the install button silently disappear).
+        // Compute the latest using our own semver comparator.
+        const latest = updater.pickLatest(result.releases) ?? result.releases[0];
         const hasUpdate = updater.isNewer(latest.tag, VERSION);
         setStatus(
             `${latest.tag}${hasUpdate ? " — تحديث متوفّر" : " — أنت على أحدث نسخة"}`,
