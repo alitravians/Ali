@@ -972,7 +972,16 @@ function el<K extends keyof HTMLElementTagNameMap>(
     }
     for (const child of children) {
         if (child == null) continue;
-        node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+        if (typeof child === "string") {
+            // SECURITY: every string child is rendered as a text node so any
+            // markup characters in the string are escaped by the browser.
+            // CodeQL XSS sinks (innerHTML / insertAdjacentHTML / document.write)
+            // are deliberately avoided in this helper — DO NOT introduce them
+            // here. If a caller really needs HTML it can pass a pre-built Node.
+            node.appendChild(document.createTextNode(child));
+        } else {
+            node.appendChild(child);
+        }
     }
     return node;
 }
