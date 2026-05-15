@@ -20,9 +20,18 @@ import type { AnyPlugin, BoonGlobal, BoonPluginInfo, BoonTarget } from "./types.
 
 import aliThemes from "../plugins/aliThemes/index.js";
 import autoTranslate from "../plugins/autoTranslate/index.js";
+import callTimer from "../plugins/callTimer/index.js";
+import copyLinks from "../plugins/copyLinks/index.js";
+import imageZoom from "../plugins/imageZoom/index.js";
+import memberCount from "../plugins/memberCount/index.js";
+import messageLogger from "../plugins/messageLogger/index.js";
 import musicPlayer from "../plugins/musicPlayer/index.js";
 import noNitroAds from "../plugins/noNitroAds/index.js";
+import platformIndicators from "../plugins/platformIndicators/index.js";
+import quickCss from "../plugins/quickCss/index.js";
 import serverTools from "../plugins/serverTools/index.js";
+import viewRaw from "../plugins/viewRaw/index.js";
+import whoReacted from "../plugins/whoReacted/index.js";
 
 export const BUILT_IN_PLUGINS: ReadonlyArray<AnyPlugin> = [
     aliThemes,
@@ -30,6 +39,16 @@ export const BUILT_IN_PLUGINS: ReadonlyArray<AnyPlugin> = [
     autoTranslate,
     musicPlayer,
     noNitroAds,
+    // ─── Vencord-inspired plugins (v0.3.0) ───
+    copyLinks,
+    viewRaw,
+    messageLogger,
+    imageZoom,
+    memberCount,
+    callTimer,
+    quickCss,
+    platformIndicators,
+    whoReacted,
 ];
 
 export { VERSION } from "./version.js";
