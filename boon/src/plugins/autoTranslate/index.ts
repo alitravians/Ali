@@ -437,23 +437,55 @@ function parseIdList(raw: string): Set<string> {
 
 const LOADING_LABEL = "🌐 جاري الترجمة…";
 
-function buildTranslationNode(translation: string, sourceLang?: string): HTMLElement {
+// Languages whose script is right-to-left. The plugin's ``targetLang`` setting
+// currently exposes only Arabic from this set, but listing the full Unicode
+// RTL language family here keeps the rendering correct if/when more are
+// added without needing to revisit this helper.
+const RTL_LANGS = new Set(["ar", "he", "fa", "ur", "ps", "sd", "yi", "ckb"]);
+
+function isRtlLang(lang: string): boolean {
+    // Normalise BCP-47 tags like ``ar-SA`` / ``he-IL`` down to the primary
+    // subtag before lookup. Google's response sometimes echoes a regioned
+    // variant in ``sourceLang``; the user-facing ``targetLang`` setting is
+    // always a primary subtag but we accept either here.
+    return RTL_LANGS.has(lang.toLowerCase().split("-")[0]);
+}
+
+function buildTranslationNode(
+    translation: string,
+    targetLang: string,
+    sourceLang?: string,
+): HTMLElement {
+    const rtl = isRtlLang(targetLang);
     const node = document.createElement("div");
-    // Force ``direction:rtl`` + ``text-align:right`` on the wrapper so Arabic
-    // renders cleanly even when the translation contains embedded English
-    // proper nouns (e.g. Discord usernames, game names, links). The previous
-    // ``direction:auto`` rule let the browser pick directionality per-line
-    // based on the first strong character; long Arabic paragraphs that
-    // happened to start with a Latin token rendered LTR, mixing word order
-    // and producing the "letters look interleaved" rendering the user saw
-    // on Eclipse #announcements.
+    // Direction is tied to the target language: Arabic / Hebrew / Persian /
+    // Urdu translations render RTL with right-alignment so embedded Latin
+    // proper nouns (Discord usernames, game/tool names) stay grammatically
+    // ordered. Non-RTL targets (English, Turkish, French, German, Spanish,
+    // Chinese, Japanese) keep ``direction:auto`` per CONTRIBUTING.md so the
+    // browser picks the natural directionality.
+    //
+    // ``unicode-bidi:plaintext`` (RTL path only) lets each paragraph segment
+    // resolve directionality from its own first strong character, so an
+    // Arabic translation containing an English link still renders the link
+    // as LTR within the otherwise-RTL block. This is what fixes the
+    // "interleaved letters" rendering the user reported on Eclipse
+    // #announcements without forcing right-alignment on LTR target users.
+    const dirCss = rtl
+        ? "direction:rtl;text-align:right;unicode-bidi:plaintext;"
+        : "direction:auto;";
     node.style.cssText =
-        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);direction:rtl;text-align:right;transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;unicode-bidi:plaintext;";
+        `padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);${dirCss}transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;`;
     const header = document.createElement("small");
-    header.style.cssText = "opacity:0.65;display:block;margin-bottom:2px;direction:rtl;text-align:right;";
+    // Header label is always Arabic ("🌐 الترجمة") regardless of target
+    // language — the UI of the plugin itself is Arabic-first — so it always
+    // gets RTL alignment.
+    header.style.cssText =
+        "opacity:0.65;display:block;margin-bottom:2px;direction:rtl;text-align:right;";
     header.textContent = sourceLang ? `🌐 ${sourceLang} → الترجمة` : "🌐 الترجمة";
     const body = document.createElement("div");
-    body.style.cssText = "direction:rtl;text-align:right;unicode-bidi:plaintext;";
+    body.style.cssText = dirCss;
+    if (!rtl) body.setAttribute("dir", "auto");
     body.textContent = translation;
     node.appendChild(header);
     node.appendChild(body);
@@ -480,6 +512,9 @@ function flashAttention(node: HTMLElement): void {
 }
 
 function buildPlaceholderNode(): HTMLElement {
+    // The placeholder text ("🌐 جاري الترجمة…") is Arabic regardless of
+    // target language — it's a UI string of the plugin itself — so the
+    // placeholder is always RTL.
     const node = document.createElement("div");
     node.style.cssText =
         "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.06);border-inline-start:3px solid rgba(0,255,136,0.5);font-size:0.92em;color:var(--text-muted,#949ba4);font-style:italic;direction:rtl;text-align:right;";
@@ -700,7 +735,11 @@ export default definePlugin({
                         }
                         return;
                     }
-                    const finalNode = buildTranslationNode(result.text, result.sourceLang);
+                    const finalNode = buildTranslationNode(
+                        result.text,
+                        ctx.settings.targetLang,
+                        result.sourceLang,
+                    );
                     replaceInPlace(placeholder, finalNode);
                     // Manual clicks: flash the translation node so the user
                     // sees a *visible* response even when the result text
@@ -824,9 +863,15 @@ export default definePlugin({
                     if (msgEl && !resolvedId) {
                         // Walk-from-target succeeded but the id parse
                         // earlier failed — recover the message id from the
-                        // live LI now that we have it.
-                        const parts = msgEl.id.split("-");
-                        resolvedId = parts[parts.length - 1] ?? "";
+                        // live LI now that we have it. Snowflakes are
+                        // 17-19 digit integers; extract by regex rather
+                        // than ``split("-").pop()`` so trailing suffixes
+                        // (e.g. ``chat-messages-A-B-reactions``) don't
+                        // pollute the override key.
+                        const snowflakes = msgEl.id.match(/\d{17,20}/g);
+                        if (snowflakes && snowflakes.length > 0) {
+                            resolvedId = snowflakes[snowflakes.length - 1];
+                        }
                     }
                     if (!msgEl || !resolvedId) {
                         ctx.toast(
