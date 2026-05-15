@@ -30,6 +30,11 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.5.0": [
+        { kind: "added",    text: "[الترجمة - زرّ ترجمة بجانب مربع الكتابة يترجم رسائلك تلقائياً قبل إرسالها]" },
+        { kind: "added",    text: "[الترجمة - اختيار اللغة المصدر والهدف للرسائل الصادرة من الإعدادات أو من نافذة الزر السريع]" },
+        { kind: "improved", text: "[الترجمة - حماية الإشارات والروابط والأكواد عند ترجمة الرسائل الصادرة]" },
+    ],
     "boon-v0.4.4": [
         { kind: "fixed",    text: "[التحديث الذاتي - إصلاح حلقة \"تحديث متوفّر\" المتكرّرة بعد التثبيت]" },
     ],

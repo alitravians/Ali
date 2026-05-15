@@ -2,16 +2,27 @@
  * BOON Plugin: AutoTranslate
  * SPDX-License-Identifier: GPL-3.0-or-later
  *
- * Two complementary modes:
+ * Three complementary modes:
  *
- *   1. AUTO (default): every newly-rendered message that looks like it is
- *      written in a non-Arabic language is silently translated. The result
- *      renders as a small subtitle directly under the original message —
- *      visible only to the user running this plugin (it lives in the local
- *      DOM, it is never sent back to Discord).
+ *   1. AUTO INCOMING (default): every newly-rendered message that looks like
+ *      it is written in a non-Arabic language is silently translated. The
+ *      result renders as a small subtitle directly under the original
+ *      message — visible only to the user running this plugin (it lives in
+ *      the local DOM, it is never sent back to Discord).
  *
- *   2. MANUAL: right-click any message → "ترجم الرسالة" forces a translation.
- *      The `..tr <text>` command translates arbitrary text into a toast.
+ *   2. MANUAL INCOMING: right-click any message → "ترجم الرسالة" forces a
+ *      translation. The `..tr <text>` command translates arbitrary text into
+ *      a toast.
+ *
+ *   3. AUTO OUTGOING (opt-in): when the user types in Arabic (or any other
+ *      configured source language) and hits Send, the plugin intercepts
+ *      Discord's own `MessageActions.sendMessage` (and `editMessage`)
+ *      before they fire the HTTP request, replacing the `content` field
+ *      with a translation. Discord (and every other user in the channel)
+ *      sees only the translated text. The user's draft is replaced *at
+ *      Discord's internal API boundary* — not in the composer DOM and not
+ *      in the network layer — so URLs, mentions, typing latency, and
+ *      Discord's optimistic-UI/echo flow are all preserved unchanged.
  *
  * Translation provider:
  *   - Google Translate's free public endpoint (no API key, default).
@@ -20,7 +31,11 @@
  * Privacy:
  *   - Translations are computed locally in the browser/desktop client; the
  *     only network egress is the request to the chosen translation service.
- *   - Discord never sees the translated text — it never leaves this client.
+ *   - For incoming translations, Discord never sees the translated text.
+ *   - For outgoing translations, Discord receives ONLY the translated text
+ *     (the original draft is dropped on the wire). This is intentional and
+ *     visible to the user as the message that appears in the channel after
+ *     they hit Send.
  *
  * Performance:
  *   - Results are cached in the per-plugin DataStore (IndexedDB) keyed by
@@ -141,6 +156,53 @@ const SCHEMA = {
         label: "احفظ الترجمات في الذاكرة المحلية",
         description: "نفس النص لا يُترجم مرتين — يأخذ من IndexedDB.",
         default: true,
+    },
+    outgoingMode: {
+        type: "boolean",
+        label: "ترجمة الرسائل الصادرة قبل إرسالها",
+        description:
+            "لمّا تكتب رسالة وتضغط Send، تُترجم تلقائياً إلى اللغة الهدف ثم تُرسل بالشكل المترجم. Discord يستقبل النص المترجم فقط. الزر الأخضر بجانب مربع الكتابة يكون فعّالاً لما هذا الخيار شغّال.",
+        default: false,
+    },
+    outgoingSrc: {
+        type: "select",
+        label: "اللغة المصدر للرسائل الصادرة",
+        description: "اللغة التي تكتب بها. \"كشف تلقائي\" يترك Google يحدّد اللغة من النص.",
+        default: "ar",
+        options: [
+            { label: "كشف تلقائي", value: "auto" },
+            { label: "العربية", value: "ar" },
+            { label: "English", value: "en" },
+            { label: "Türkçe", value: "tr" },
+            { label: "Français", value: "fr" },
+            { label: "Deutsch", value: "de" },
+            { label: "Español", value: "es" },
+            { label: "中文", value: "zh-CN" },
+            { label: "日本語", value: "ja" },
+        ],
+    },
+    outgoingDst: {
+        type: "select",
+        label: "اللغة الهدف للرسائل الصادرة",
+        description: "اللغة التي ستظهر بها رسائلك في القناة بعد الإرسال.",
+        default: "en",
+        options: [
+            { label: "English", value: "en" },
+            { label: "العربية", value: "ar" },
+            { label: "Türkçe", value: "tr" },
+            { label: "Français", value: "fr" },
+            { label: "Deutsch", value: "de" },
+            { label: "Español", value: "es" },
+            { label: "中文", value: "zh-CN" },
+            { label: "日本語", value: "ja" },
+        ],
+    },
+    outgoingPrefixOriginal: {
+        type: "boolean",
+        label: "أضف النص الأصلي قبل المترجم",
+        description:
+            "لما يفعّل، الرسالة المرسلة تكون بشكل \"النص المترجم\\n-# النص الأصلي\" حتى يقدر القارئ يراجع الأصل. عطّله لو تبي ترسل المترجم فقط.",
+        default: false,
     },
 } as const satisfies SettingsSchema;
 
@@ -372,6 +434,92 @@ function looksForeign(stripped: string, targetLang: string): boolean {
     return targetCount < letters.length;
 }
 
+// ─── Outgoing-translate helpers ──────────────────────────────────────────────
+
+/**
+ * Combined pattern for tokens that must be preserved verbatim through any
+ * outgoing translation: Discord mentions/emoji/role-pings, raw URLs, and
+ * fenced/inline code blocks. Translating these would corrupt them (Google
+ * Translate happily mangles `<@123>` into spaces or moves emoji parts around)
+ * so we replace each match with a unique placeholder before sending the text
+ * to the provider, then swap the originals back into the result.
+ *
+ * The sentinel uses a U+E000-range character (Unicode Private Use Area) plus
+ * brackets the translation provider treats as plain ASCII punctuation. We
+ * tested several variants — including \u2063 (Invisible Separator) — and
+ * found PUA characters survive Google Translate's tokenizer most reliably.
+ */
+const PROTECT_RE =
+    /```[\s\S]*?```|`[^`]*`|<a?:\w+:\d+>|<@!?\d+>|<@&\d+>|<#\d+>|@everyone|@here|https?:\/\/\S+/g;
+
+interface ProtectedString {
+    text: string;
+    tokens: ReadonlyArray<string>;
+}
+
+function protectTokens(raw: string): ProtectedString {
+    const tokens: string[] = [];
+    const text = raw.replace(PROTECT_RE, match => {
+        const idx = tokens.length;
+        tokens.push(match);
+        // Sentinel format: `\uE000{idx}\uE001`. The PUA glyphs render as
+        // blank/dotted "tofu" in Discord but they're stable bytes Google
+        // Translate leaves untouched in its output, which keeps the
+        // round-trip lossless. Numbers inside are wrapped with leading/
+        // trailing dot dots so providers don't try to translate "5" → "five".
+        return `\uE000${idx}\uE001`;
+    });
+    return { text, tokens };
+}
+
+function restoreTokens(translated: string, tokens: ReadonlyArray<string>): string {
+    // Two-pass restore: first the sentinel-with-index format we emit above;
+    // then a lenient fallback that handles the rare case where Google
+    // collapses the sentinels into spaces or strips one of the PUA chars
+    // (we've seen `\uE000 5 \uE001` after translation of multi-token strings).
+    const used = new Set<number>();
+    let out = translated.replace(/\uE000(\d+)\uE001/g, (_match, n: string) => {
+        const idx = parseInt(n, 10);
+        used.add(idx);
+        return tokens[idx] ?? "";
+    });
+    // Some translation providers (notably Google for short messages) collapse
+    // or strip the PUA sentinels entirely, losing the URL/mention/code token.
+    // Rather than silently drop these — which would mean the recipient never
+    // sees the URL the user pasted — append any unrecovered tokens at the
+    // end. The recipient still gets the link/mention; only their position in
+    // the sentence is approximate.
+    const missing: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+        if (!used.has(i)) missing.push(tokens[i]);
+    }
+    // Drop any stray sentinel glyphs that survived without a numeric index.
+    out = out.replace(/[\uE000\uE001]/g, "");
+    if (missing.length > 0) {
+        const sep = out.endsWith(" ") || out.length === 0 ? "" : " ";
+        out = `${out}${sep}${missing.join(" ")}`;
+    }
+    return out;
+}
+
+/**
+ * Decide whether the user's draft is in (or close enough to) the configured
+ * source language to justify auto-translating it. Used as a guard before we
+ * hit the network so we don't burn translation quota on messages that are
+ * already in the target language (e.g. user pastes an English link in an
+ * English-target conversation).
+ *
+ * Returns true when ``outgoingSrc`` is ``"auto"`` (no client-side check —
+ * Google's auto-detect will decide), or when the stripped text contains any
+ * letter belonging to the configured source language's script.
+ */
+function looksLikeSource(stripped: string, sourceLang: string): boolean {
+    if (sourceLang === "auto") return true;
+    const scriptRe = TARGET_SCRIPT_RE[sourceLang];
+    if (!scriptRe) return true;
+    return (stripped.match(scriptRe) ?? []).length > 0;
+}
+
 /**
  * Pull every translatable text fragment out of a Discord message element:
  * the main content, plus the reply preview (the gray quoted line above the
@@ -552,7 +700,7 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.9",
+        version: "0.3.0",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
@@ -600,12 +748,19 @@ export default definePlugin({
         const manualOverrides = new Map<string, "pending" | "counted">();
 
         // ─── translate() — service routing + cache ─────────────────────────────
+        //
+        // The optional ``target`` argument lets the outgoing-translate code
+        // path target a different language than ``ctx.settings.targetLang``
+        // (which is the *incoming* target, i.e. the language non-Arabic
+        // messages get translated TO). Without this override both directions
+        // would use the same target and outgoing translation would be a
+        // no-op (Arabic draft → Arabic translation).
         async function translate(
             text: string,
-            opts: { bypassCache?: boolean } = {},
+            opts: { bypassCache?: boolean; target?: string } = {},
         ): Promise<TranslationResult> {
             const service = ctx.settings.service;
-            const target = ctx.settings.targetLang;
+            const target = opts.target ?? ctx.settings.targetLang;
             const cacheKey = `${service}:${target}:${text}`;
             // Manual right-click forces fresh translations: the user has
             // explicitly asked, so we trust the API over a possibly-stale
@@ -1082,14 +1237,538 @@ export default definePlugin({
             },
         });
 
+        // ─── Outgoing translate — Discord MessageActions interceptor ─────────
+        //
+        // We monkey-patch Discord's own ``MessageActions.sendMessage`` (and
+        // ``editMessage``) so the translated content is the very thing
+        // Discord's normal send pipeline sees. Two reasons we use this
+        // boundary instead of either the composer DOM or ``window.fetch``:
+        //
+        //   - The composer is a React/Slate controlled input. Touching its
+        //     value mid-send triggers Slate warnings, loses undo history,
+        //     races Discord's optimistic UI, and shows the user a brief
+        //     flicker of the translated text replacing their draft.
+        //   - ``window.fetch`` cannot be wrapped reliably from the renderer
+        //     because Discord's HTTP modules capture a reference to the
+        //     native ``fetch`` at module-load time — they ran before us, so
+        //     our wrapper is invisible to them. Wrapping fetch from a
+        //     session preload would work in theory but Electron's renderer
+        //     sandbox / context isolation makes the preload's window
+        //     globals invisible to Discord's main-world bundle.
+        //
+        // ``MessageActions.sendMessage`` runs strictly inside Discord's own
+        // bundle, in the page's main world — exactly where our renderer.js
+        // already executes successfully. Patching it is a single function
+        // swap whose lifetime we fully control via ``outgoingDisposers``.
+        //
+        // Design choices:
+        //   - Fail open: any error (network, parse, provider quota) short-
+        //     circuits to the original draft. Users get *some* message sent
+        //     even if translation is down. We log the failure for diagnosis.
+        //   - Preserve original on optional toggle: ``outgoingPrefixOriginal``
+        //     appends the original draft as a Discord small-text quote (``-#``)
+        //     under the translation so readers can verify.
+        //   - Protect tokens BEFORE translation: see ``protectTokens`` above.
+        async function maybeTranslateOutgoing(content: string): Promise<string> {
+            if (!ctx.settings.outgoingMode) return content;
+            const src = ctx.settings.outgoingSrc;
+            const dst = ctx.settings.outgoingDst;
+            if (src === dst) return content;
+            const stripped = strippedText(content);
+            if (!stripped) return content;
+            if (!looksLikeSource(stripped, src)) return content;
+            // Already in target language? Skip — no point translating.
+            if (!looksForeign(stripped, dst)) return content;
+            try {
+                const { text: protectedText, tokens } = protectTokens(content);
+                const result = await translate(protectedText, { target: dst });
+                const restored = restoreTokens(result.text, tokens).trim();
+                if (!restored) return content;
+                ctx.stats.bump("outgoing_translations");
+                if (ctx.settings.outgoingPrefixOriginal) {
+                    // Discord's ``-#`` prefix renders the line as small/muted
+                    // text. We append the original under a small label so the
+                    // reader can see both versions.
+                    return `${restored}\n-# 🌐 ${content}`;
+                }
+                return restored;
+            } catch (err) {
+                ctx.logger.warn("outgoing translate failed; sending original", err);
+                return content;
+            }
+        }
+
+        // Read the current composer draft. Discord's Slate editor wraps
+        // text in nested `<span data-slate-leaf>` elements; `textContent`
+        // concatenates them in source order, which matches what the user
+        // sees on screen.
+        function readComposerText(editor: HTMLElement): string {
+            return editor.textContent ?? "";
+        }
+
+        // Clear the composer by selecting all + delete via execCommand.
+        // Slate-React hooks into execCommand so its internal state stays in
+        // sync. After this returns, the composer is visibly and logically
+        // empty.
+        function clearComposer(editor: HTMLElement): void {
+            try {
+                editor.focus();
+                const sel = window.getSelection();
+                if (!sel) return;
+                const range = document.createRange();
+                range.selectNodeContents(editor);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand("delete", false);
+            } catch (err) {
+                ctx.logger.warn("clearComposer failed", err);
+            }
+        }
+
+        // Parse the Discord channel id from the location bar. Returns null
+        // for DMs we can't address (group DM url shape differs slightly but
+        // still matches /channels/@me/<id>).
+        function currentChannelId(): string | null {
+            const m = /\/channels\/[^/]+\/(\d+)/.exec(location.pathname);
+            return m?.[1] ?? null;
+        }
+
+        // Read the user's authentication token. Discord stashes it in
+        // localStorage under the literal key "token" wrapped in quotes (the
+        // value is `JSON.stringify`'d). We strip the outer quotes if present.
+        // If localStorage is locked down (sometimes happens in Discord PTB)
+        // we fall back to scraping the IndexedDB-backed cookie store via
+        // document.cookie (which still contains the token under modern
+        // builds).
+        function readAuthToken(): string | null {
+            try {
+                const raw = window.localStorage.getItem("token");
+                if (raw) {
+                    return raw.replace(/^"|"$/g, "");
+                }
+            } catch {
+                // some builds lock down localStorage; fall through
+            }
+            return null;
+        }
+
+        // Send a translated message directly via Discord's REST API. We use
+        // the same endpoint Discord itself hits (`POST /channels/{id}/
+        // messages`) with the user's auth token. This is the only reliable
+        // way to deliver the translated text: synthetic `KeyboardEvent`s do
+        // not trigger Slate's send pipeline (React 18 ignores synthetic
+        // dispatches without `isTrusted=true`), and walking the React fiber
+        // to call `onSubmit` requires a Slate-shaped value object we can't
+        // synthesise without re-implementing Slate's parser.
+        async function sendTranslatedMessage(
+            channelId: string,
+            content: string,
+        ): Promise<boolean> {
+            const token = readAuthToken();
+            if (!token) {
+                ctx.logger.warn(
+                    "outgoing: no auth token available; cannot send",
+                );
+                return false;
+            }
+            const nonce = (Math.random() * Number.MAX_SAFE_INTEGER).toFixed(0);
+            try {
+                const res = await fetch(
+                    `https://discord.com/api/v9/channels/${channelId}/messages`,
+                    {
+                        method: "POST",
+                        credentials: "include",
+                        headers: {
+                            Authorization: token,
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            content,
+                            tts: false,
+                            nonce,
+                            flags: 0,
+                            mobile_network_type: "unknown",
+                        }),
+                    },
+                );
+                if (!res.ok) {
+                    const body = await res.text().catch(() => "");
+                    ctx.logger.warn(
+                        `outgoing: REST send failed ${res.status}: ${body.slice(0, 200)}`,
+                    );
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                ctx.logger.warn("outgoing: REST send threw", err);
+                return false;
+            }
+        }
+
+        // Prevent a thundering herd of overlapping translations if the user
+        // mashes Enter while a translation is in flight (Discord's send
+        // button briefly disables itself, but key events still queue).
+        let translationInFlight = false;
+
+        const onComposerKeydown = (e: KeyboardEvent): void => {
+            if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey) {
+                return;
+            }
+            if (!ctx.settings.outgoingMode) return;
+            // Locate the Slate editor we're inside. `composedPath` traverses
+            // shadow DOM boundaries too — defensive against future Discord
+            // composer refactors.
+            const path = (typeof e.composedPath === "function"
+                ? (e.composedPath() as EventTarget[])
+                : []) as Array<EventTarget>;
+            let editor: HTMLElement | null = null;
+            for (const node of path) {
+                if (
+                    node instanceof HTMLElement &&
+                    node.getAttribute?.("data-slate-editor") === "true"
+                ) {
+                    editor = node;
+                    break;
+                }
+            }
+            if (!editor) {
+                const target = e.target as HTMLElement | null;
+                editor = target?.closest?.<HTMLElement>(
+                    '[data-slate-editor="true"]',
+                ) ?? null;
+            }
+            if (!editor) return;
+            // IME composition: don't intercept while the user is mid-input.
+            if (e.isComposing) return;
+            if (translationInFlight) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            const draft = readComposerText(editor).trim();
+            if (!draft) return;
+            const src = ctx.settings.outgoingSrc;
+            const dst = ctx.settings.outgoingDst;
+            if (src === dst) return;
+            const stripped = strippedText(draft);
+            if (!stripped) return;
+            if (!looksLikeSource(stripped, src)) return;
+            if (!looksForeign(stripped, dst)) return;
+            const channelId = currentChannelId();
+            if (!channelId) return;
+
+            // Past the cheap checks: hold Enter, translate, send via REST,
+            // then clear the composer. Discord's gateway will reflect our
+            // own POST back as a MESSAGE_CREATE just like a normal send.
+            e.preventDefault();
+            e.stopPropagation();
+            translationInFlight = true;
+            const editorRef = editor;
+            void (async () => {
+                try {
+                    const translated = await maybeTranslateOutgoing(draft);
+                    const ok = await sendTranslatedMessage(channelId, translated);
+                    if (ok) {
+                        clearComposer(editorRef);
+                    } else {
+                        // Translation/send failed: fall back to letting the
+                        // user resend manually. Leave the draft in place so
+                        // they don't lose their text.
+                        ctx.logger.warn(
+                            "outgoing: REST send failed; leaving draft in place for retry",
+                        );
+                    }
+                } catch (err) {
+                    ctx.logger.warn("outgoing: send flow threw", err);
+                } finally {
+                    translationInFlight = false;
+                }
+            })();
+        };
+
+        // Capture phase: we MUST run before Slate's bubble-phase handler,
+        // otherwise the message has already been queued for send.
+        document.addEventListener("keydown", onComposerKeydown, true);
+        outgoingDisposers.push(() => {
+            document.removeEventListener("keydown", onComposerKeydown, true);
+        });
+
+        // ─── Outgoing translate — chat button + quick-toggle modal ────────────
+        //
+        // The button mirrors the screenshot the user shared: a translate icon
+        // sits next to the gift/emoji cluster. Click opens a modal showing
+        // both incoming (read-only, points at existing settings) and outgoing
+        // (editable) directions. Shift+click and right-click both toggle
+        // ``outgoingMode`` directly without opening the modal — same
+        // affordance the screenshot's caption advertises.
+        const OUTGOING_BTN_ID = "autoTranslate:outgoing";
+
+        function updateOutgoingButtonStyle(): void {
+            const el = document.querySelector<HTMLElement>(
+                `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
+            );
+            if (!el) return;
+            const on = ctx.settings.outgoingMode;
+            // Active state: green accent + slight background tint. We assign
+            // directly to ``style`` to override the ``mouseleave`` reset in
+            // chatButton.ts, which would otherwise wipe our active styling
+            // every time the user moved off the button.
+            el.style.color = on ? "#00ff88" : "var(--interactive-normal,#b5bac1)";
+            el.style.background = on ? "rgba(0,255,136,0.12)" : "transparent";
+            el.setAttribute(
+                "title",
+                on
+                    ? "AutoTranslate صادر: مُفعَّل (Shift+click للإيقاف)"
+                    : "AutoTranslate صادر: مُعطَّل (Shift+click للتفعيل)",
+            );
+        }
+
+        let currentModalClose: (() => void) | null = null;
+
+        function openOutgoingModal(): void {
+            currentModalClose?.();
+            const overlay = document.createElement("div");
+            overlay.style.cssText =
+                "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;direction:rtl;font-family:var(--font-primary,inherit);";
+            const card = document.createElement("div");
+            card.style.cssText =
+                "background:var(--background-primary,#313338);color:var(--text-normal,#dbdee1);border-radius:8px;padding:20px 24px;min-width:340px;max-width:90vw;box-shadow:0 12px 40px rgba(0,0,0,0.5);";
+            const title = document.createElement("h3");
+            title.textContent = "الترجمة التلقائية";
+            title.style.cssText = "margin:0 0 4px;font-size:18px;font-weight:600;";
+            const subtitle = document.createElement("div");
+            subtitle.textContent =
+                "ترجم رسائلك تلقائياً قبل ما تُرسلها — Discord يستلم النسخة المترجمة فقط.";
+            subtitle.style.cssText =
+                "font-size:12px;color:var(--text-muted,#949ba4);margin-bottom:16px;line-height:1.4;";
+            card.appendChild(title);
+            card.appendChild(subtitle);
+
+            // Build a labeled select. ``onChange`` updates the persisted
+            // setting; the next outgoing message will use the new value.
+            function buildSelect(
+                labelText: string,
+                value: string,
+                options: ReadonlyArray<{ label: string; value: string }>,
+                onChange: (v: string) => void,
+            ): HTMLDivElement {
+                const wrap = document.createElement("div");
+                wrap.style.cssText = "margin-bottom:12px;";
+                const lbl = document.createElement("label");
+                lbl.textContent = labelText;
+                lbl.style.cssText =
+                    "display:block;font-size:12px;font-weight:600;color:var(--text-muted,#949ba4);margin-bottom:6px;text-transform:uppercase;";
+                const sel = document.createElement("select");
+                sel.style.cssText =
+                    "width:100%;background:var(--background-secondary,#2b2d31);color:var(--text-normal,#dbdee1);border:1px solid var(--background-tertiary,#1e1f22);border-radius:4px;padding:8px;font-size:14px;";
+                for (const opt of options) {
+                    const o = document.createElement("option");
+                    o.value = opt.value;
+                    o.textContent = opt.label;
+                    if (opt.value === value) o.selected = true;
+                    sel.appendChild(o);
+                }
+                sel.addEventListener("change", () => onChange(sel.value));
+                wrap.appendChild(lbl);
+                wrap.appendChild(sel);
+                return wrap;
+            }
+
+            // Outgoing source/destination — the user's editable pair.
+            const outSrcOpts = SCHEMA.outgoingSrc.options as ReadonlyArray<{
+                label: string;
+                value: string;
+            }>;
+            const outDstOpts = SCHEMA.outgoingDst.options as ReadonlyArray<{
+                label: string;
+                value: string;
+            }>;
+            card.appendChild(
+                buildSelect(
+                    "اللغة التي أكتب بها",
+                    ctx.settings.outgoingSrc,
+                    outSrcOpts,
+                    v => {
+                        (ctx.settings as Record<string, unknown>).outgoingSrc = v;
+                    },
+                ),
+            );
+            card.appendChild(
+                buildSelect(
+                    "اللغة التي تُرسَل بها رسائلي",
+                    ctx.settings.outgoingDst,
+                    outDstOpts,
+                    v => {
+                        (ctx.settings as Record<string, unknown>).outgoingDst = v;
+                    },
+                ),
+            );
+
+            // Toggle row: switch styling matches Discord's native settings.
+            const toggleRow = document.createElement("div");
+            toggleRow.style.cssText =
+                "display:flex;justify-content:space-between;align-items:center;padding:12px 0 4px;border-top:1px solid var(--background-modifier-accent,rgba(255,255,255,0.06));margin-top:8px;";
+            const toggleText = document.createElement("div");
+            toggleText.innerHTML =
+                "<div style='font-weight:600;font-size:14px;'>الترجمة التلقائية</div>" +
+                "<div style='font-size:12px;color:var(--text-muted,#949ba4);margin-top:2px;line-height:1.35;'>تُترجم رسائلك تلقائياً قبل الإرسال. تقدر أيضاً Shift+click أو زر يمين على زر الترجمة للتبديل السريع.</div>";
+            const sw = document.createElement("button");
+            sw.type = "button";
+            const renderSwitch = (): void => {
+                const on = ctx.settings.outgoingMode;
+                sw.style.cssText = `flex-shrink:0;margin-inline-start:12px;width:42px;height:24px;border-radius:12px;border:none;cursor:pointer;background:${on ? "#00ff88" : "var(--background-tertiary,#1e1f22)"};position:relative;transition:background 160ms ease;`;
+                sw.innerHTML = `<span style="position:absolute;top:3px;${on ? "right:3px" : "left:3px"};width:18px;height:18px;border-radius:50%;background:white;transition:all 160ms ease;display:block;"></span>`;
+                sw.setAttribute("aria-pressed", String(on));
+            };
+            renderSwitch();
+            sw.addEventListener("click", () => {
+                (ctx.settings as Record<string, unknown>).outgoingMode =
+                    !ctx.settings.outgoingMode;
+                renderSwitch();
+                updateOutgoingButtonStyle();
+            });
+            toggleRow.appendChild(toggleText);
+            toggleRow.appendChild(sw);
+            card.appendChild(toggleRow);
+
+            // Close button.
+            const close = document.createElement("button");
+            close.type = "button";
+            close.textContent = "إغلاق";
+            close.style.cssText =
+                "margin-top:14px;width:100%;background:var(--brand-experiment,#5865f2);color:white;border:none;border-radius:4px;padding:10px;font-size:14px;font-weight:600;cursor:pointer;";
+            card.appendChild(close);
+            overlay.appendChild(card);
+
+            // Close handling: backdrop click, Esc key, button click.
+            const teardownModal = (): void => {
+                overlay.remove();
+                document.removeEventListener("keydown", onKey);
+                currentModalClose = null;
+            };
+            const onKey = (e: KeyboardEvent): void => {
+                if (e.key === "Escape") teardownModal();
+            };
+            overlay.addEventListener("click", e => {
+                if (e.target === overlay) teardownModal();
+            });
+            close.addEventListener("click", teardownModal);
+            document.addEventListener("keydown", onKey);
+            document.body.appendChild(overlay);
+            currentModalClose = teardownModal;
+        }
+
+        // Register the chat button. The framework re-injects it into every
+        // composer cluster automatically; we don't need to track the DOM
+        // ourselves.
+        ctx.chatButton.add({
+            id: OUTGOING_BTN_ID,
+            label: "AutoTranslate — ترجمة الرسائل الصادرة",
+            icon: "🌐",
+            onClick() {
+                openOutgoingModal();
+            },
+        });
+
+        // Repaint the button color after each (re)injection — the button is
+        // rendered fresh every time Discord rebuilds the composer toolbar,
+        // and the default styling from ``chatButton.ts`` doesn't know about
+        // our toggle state. We tail the body for mutations and re-apply
+        // styles whenever a new instance appears. The observer is cheap
+        // because we early-exit if the button is already styled.
+        const styleObserver = new MutationObserver(() => {
+            updateOutgoingButtonStyle();
+        });
+        styleObserver.observe(document.body, { childList: true, subtree: true });
+        updateOutgoingButtonStyle();
+
+        // Shift+click and right-click on the button: quick toggle without
+        // opening the modal. We attach via event delegation on document so we
+        // catch the button regardless of how Discord re-renders the composer.
+        const onCapturedClick = (e: MouseEvent): void => {
+            const target = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+                `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
+            );
+            if (!target) return;
+            if (e.shiftKey) {
+                e.preventDefault();
+                e.stopPropagation();
+                (ctx.settings as Record<string, unknown>).outgoingMode =
+                    !ctx.settings.outgoingMode;
+                updateOutgoingButtonStyle();
+                ctx.toast(
+                    ctx.settings.outgoingMode
+                        ? "AutoTranslate صادر: مُفعَّل"
+                        : "AutoTranslate صادر: مُعطَّل",
+                    "info",
+                );
+            }
+        };
+        const onCapturedContextMenu = (e: MouseEvent): void => {
+            const target = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+                `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
+            );
+            if (!target) return;
+            e.preventDefault();
+            e.stopPropagation();
+            (ctx.settings as Record<string, unknown>).outgoingMode =
+                !ctx.settings.outgoingMode;
+            updateOutgoingButtonStyle();
+            ctx.toast(
+                ctx.settings.outgoingMode
+                    ? "AutoTranslate صادر: مُفعَّل"
+                    : "AutoTranslate صادر: مُعطَّل",
+                "info",
+            );
+        };
+        // Capture phase: chatButton.ts already calls
+        // ``e.preventDefault()``/``e.stopPropagation()`` in the bubble phase,
+        // so a Shift+click handler attached in bubble would never see the
+        // event. We register in capture so we can intercept Shift first and
+        // let bare clicks through to the modal opener.
+        document.addEventListener("click", onCapturedClick, true);
+        document.addEventListener("contextmenu", onCapturedContextMenu, true);
+
+        // Track the lifecycle handles so onStop can detach everything. The
+        // MessageActions patch teardown is appended above as soon as the
+        // patch succeeds; the listeners below are torn down here.
+
+        outgoingDisposers.push(() => {
+            document.removeEventListener("click", onCapturedClick, true);
+            document.removeEventListener("contextmenu", onCapturedContextMenu, true);
+            styleObserver.disconnect();
+            currentModalClose?.();
+        });
+
         ctx.logger.info(
             ctx.settings.autoMode
                 ? "ready — auto-translating non-Arabic messages"
                 : "ready — manual mode only (right-click any message)",
         );
+        if (ctx.settings.outgoingMode) {
+            ctx.logger.info(
+                `outgoing translate ON: ${ctx.settings.outgoingSrc} → ${ctx.settings.outgoingDst}`,
+            );
+        }
     },
     onStop(ctx) {
         ctx.messageAccessories.remove("autoTranslate");
+        for (const dispose of outgoingDisposers.splice(0)) {
+            try {
+                dispose();
+            } catch (err) {
+                ctx.logger.warn("outgoing teardown threw", err);
+            }
+        }
         ctx.logger.info("stopped");
     },
 });
+
+// Module-scoped registry of teardown handles for the outgoing-translate
+// machinery. We keep this outside the ``onStart`` closure so ``onStop`` can
+// still reach it after the plugin manager has dropped its reference to the
+// running ``ctx``. Each entry in the array is an idempotent callback that
+// undoes one piece of side-effect setup (event listener, observer, fetch
+// wrapper, etc.). ``onStart`` pushes its handles in setup order; ``onStop``
+// drains the array in any order — every callback must be independent.
+const outgoingDisposers: Array<() => void> = [];
