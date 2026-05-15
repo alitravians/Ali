@@ -935,6 +935,86 @@ export default definePlugin({
                     ctx.messageAccessories.rescan(msgEl);
                 },
             });
+
+            // ─── Selection-only translate ───────────────────────────────────
+            //
+            // When the user highlights part of a message and right-clicks
+            // the selection, they almost always want *just* that span
+            // translated — not the whole message dumped into a toast or
+            // duplicated under the original. Discord's own copy/quote
+            // actions work this way; matching that ergonomics removes a
+            // long-standing surprise where users selected a foreign term
+            // (e.g. "Nikilis"), right-clicked, and got nothing usable.
+            //
+            // The item only renders when there's an actual non-empty
+            // selection whose range is fully contained inside the
+            // right-clicked element's nearest message LI. We
+            // intentionally do NOT fall back to translating the whole
+            // message here — the existing "ترجم الرسالة" item already
+            // covers that case, and conflating the two would re-create
+            // the surprise factor we're trying to remove.
+            const selection = typeof window !== "undefined" ? window.getSelection() : null;
+            const selectedText = selection?.toString().trim() ?? "";
+            if (selectedText.length > 0 && menuCtx.target) {
+                const targetLi = menuCtx.target.closest<HTMLElement>('li[id^="chat-messages-"]');
+                let selectionInsideTarget = false;
+                if (targetLi && selection && selection.rangeCount > 0) {
+                    // ``selection.containsNode`` would be cleaner but is
+                    // not reliable across all Chromium versions when the
+                    // selection straddles inline elements. Walk the
+                    // anchor + focus nodes' ancestor LIs instead — both
+                    // must be inside the right-clicked message for us to
+                    // consider the selection "this message's text".
+                    const anchorLi = (selection.anchorNode instanceof Element
+                        ? selection.anchorNode
+                        : selection.anchorNode?.parentElement ?? null)?.closest('li[id^="chat-messages-"]');
+                    const focusLi = (selection.focusNode instanceof Element
+                        ? selection.focusNode
+                        : selection.focusNode?.parentElement ?? null)?.closest('li[id^="chat-messages-"]');
+                    selectionInsideTarget = anchorLi === targetLi && focusLi === targetLi;
+                }
+                if (selectionInsideTarget) {
+                    addItem({
+                        id: "autoTranslate:translate-selection",
+                        // Show a snippet of the selection in the label so
+                        // the user can see *which* string they're about
+                        // to translate (helps when they accidentally
+                        // selected more than they meant to).
+                        label: selectedText.length <= 40
+                            ? `ترجم: "${selectedText}"`
+                            : `ترجم: "${selectedText.slice(0, 37)}…"`,
+                        icon: "🌐",
+                        async onClick() {
+                            // Capture the selection text NOW — by the
+                            // time the click handler fires the menu has
+                            // closed and Discord may have cleared the
+                            // window selection.
+                            const text = selectedText;
+                            ctx.toast("جاري الترجمة…", "info");
+                            try {
+                                const result = await translate(text);
+                                // Toast is the right surface here: a
+                                // partial-selection translation is a
+                                // one-shot lookup, not a persistent
+                                // subtitle. Adding it as an accessory
+                                // under the message would collide with
+                                // the full-message translation (when
+                                // present) and confuse the user about
+                                // what was translated.
+                                ctx.toast(`${text} → ${result.text}`, "success");
+                                ctx.stats.bump("manual_translations");
+                                ctx.logger.info(
+                                    `selection translate: ${text.length} chars → ${result.text.length} chars`,
+                                );
+                            } catch (err) {
+                                const msg = err instanceof Error ? err.message : String(err);
+                                ctx.toast(`فشل: ${msg}`, "error");
+                                ctx.logger.warn("selection translate failed", { error: msg });
+                            }
+                        },
+                    });
+                }
+            }
         });
 
         // ─── Commands ───────────────────────────────────────────────────────────
