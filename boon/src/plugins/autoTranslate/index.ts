@@ -476,6 +476,12 @@ function buildTranslationNode(
         : "direction:auto;";
     node.style.cssText =
         `padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);${dirCss}transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;`;
+    // CSS ``direction:auto`` is not actually a valid value (the spec only
+    // accepts ``ltr``/``rtl``/``inherit``), so for LTR target languages we
+    // also set the HTML ``dir="auto"`` attribute on the wrapper. This is
+    // what makes the browser auto-detect directionality from the first
+    // strong character.
+    if (!rtl) node.setAttribute("dir", "auto");
     const header = document.createElement("small");
     // Header label is always Arabic ("🌐 الترجمة") regardless of target
     // language — the UI of the plugin itself is Arabic-first — so it always
@@ -846,9 +852,18 @@ export default definePlugin({
                     let msgEl: HTMLElement | null = null;
                     let resolvedId = menuCtx.messageId ?? "";
                     if (menuCtx.target) {
-                        msgEl = menuCtx.target.closest<HTMLElement>(
+                        // ``closest()`` traverses a detached subtree just
+                        // fine, so if Discord's virtual scroller unmounted
+                        // the LI between menu-open and item-click, this
+                        // path would return a detached LI — blocking the
+                        // live-DOM fallbacks below and silently dropping
+                        // the translation. Require ``isConnected`` so we
+                        // only treat the walk result as authoritative when
+                        // it's actually still in the page.
+                        const walked = menuCtx.target.closest<HTMLElement>(
                             'li[id^="chat-messages-"]',
                         );
+                        if (walked?.isConnected) msgEl = walked;
                     }
                     if (!msgEl && menuCtx.channelId && menuCtx.messageId) {
                         msgEl = document.getElementById(
@@ -875,7 +890,7 @@ export default definePlugin({
                     }
                     if (!msgEl || !resolvedId) {
                         ctx.toast(
-                            "تعذّر إيجاد الرسالة — جرّب right-click مرة ثانية",
+                            "تعذّر إيجاد الرسالة — جرّب كليك يمين مرة ثانية",
                             "error",
                         );
                         ctx.logger.warn(
