@@ -1802,6 +1802,15 @@ function showReleasesModal(onAfterAction?: () => void): void {
         other: { emoji: "📝", label: "ملاحظات" },
     };
 
+    // Holds the footer's "أعد تشغيل Discord" button once the async IIFE
+    // below creates it. Hoisted to outer scope so per-card install buttons
+    // inside ``renderReleaseCard`` can enable it after a successful stage —
+    // otherwise the user would see "اضغط أعد تشغيل Discord" but the only
+    // restart affordance would remain ``disabled`` because the per-card
+    // handler had no reference to it. See Devin Review on PR #186 for the
+    // bug we're patching.
+    let footerRestartBtn: HTMLButtonElement | null = null;
+
     const renderReleaseCard = (r: updater.Release, isCurrent: boolean, isNewerThanCurrent: boolean): HTMLElement => {
         const card = el("div", { className: "boon-release" + (isCurrent ? " is-current" : "") });
         const head = el("div", { className: "boon-release-head" });
@@ -1838,6 +1847,16 @@ function showReleasesModal(onAfterAction?: () => void): void {
                         const staged = await updater.stageUpdate(r.tag);
                         installBtn.textContent = `تم التنزيل — أعد تشغيل Discord (v${staged.version ?? r.tag})`;
                         setStatus(`التحديث ${r.tag} جاهز. اضغط "أعد تشغيل Discord" لتطبيقه.`, ACCENT);
+                        // Enable the footer restart button so the user can
+                        // actually act on the "press Restart" status message
+                        // we just set. Without this the status message would
+                        // be misleading: the only restart affordance lives
+                        // in the footer and starts ``disabled`` — only the
+                        // footer's own install handler enables it, so a
+                        // per-card install left the user staring at a
+                        // greyed-out button with nothing to click.
+                        if (footerRestartBtn) footerRestartBtn.disabled = false;
+                        onAfterAction?.();
                     } catch (err) {
                         installBtn.disabled = false;
                         installBtn.textContent = `تثبيت ${r.tag}`;
@@ -1919,6 +1938,11 @@ function showReleasesModal(onAfterAction?: () => void): void {
                     className: "boon-btn boon-btn-ghost",
                     disabled: true,
                 }, "أعد تشغيل Discord") as HTMLButtonElement;
+                // Expose the footer restart button to per-card install
+                // handlers (which live in the renderReleaseCard closure).
+                // See the ``footerRestartBtn`` declaration earlier in this
+                // function for the bug this addresses.
+                footerRestartBtn = restartBtn;
                 installBtn.addEventListener("click", async () => {
                     installBtn.disabled = true;
                     installBtn.textContent = "جاري التنزيل…";

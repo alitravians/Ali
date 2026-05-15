@@ -267,8 +267,14 @@ export async function fetchReleases(limit: number = 10): Promise<Release[]> {
 }
 
 export async function fetchLatest(): Promise<Release | null> {
-    const releases = await fetchReleases(1);
-    return releases[0] ?? null;
+    // We deliberately fetch up to 10 releases (not just ``per_page=1``)
+    // because GitHub's ``/releases`` endpoint does not reliably return the
+    // semver-highest release first — see ``pickLatest`` for the full
+    // explanation. Fetching only 1 and trusting it would re-introduce the
+    // exact bug PR #186 fixes. We then run ``pickLatest`` over the page so
+    // any future caller of this helper gets the correct latest release.
+    const releases = await fetchReleases(10);
+    return pickLatest(releases);
 }
 
 /**
