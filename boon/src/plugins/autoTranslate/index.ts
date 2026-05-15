@@ -437,14 +437,68 @@ function parseIdList(raw: string): Set<string> {
 
 const LOADING_LABEL = "🌐 جاري الترجمة…";
 
-function buildTranslationNode(translation: string, sourceLang?: string): HTMLElement {
+// Languages whose script is right-to-left. The plugin's ``targetLang`` setting
+// currently exposes only Arabic from this set, but listing the full Unicode
+// RTL language family here keeps the rendering correct if/when more are
+// added without needing to revisit this helper.
+const RTL_LANGS = new Set(["ar", "he", "fa", "ur", "ps", "sd", "yi", "ckb"]);
+
+function isRtlLang(lang: string): boolean {
+    // Normalise BCP-47 tags like ``ar-SA`` / ``he-IL`` down to the primary
+    // subtag before lookup. Google's response sometimes echoes a regioned
+    // variant in ``sourceLang``; the user-facing ``targetLang`` setting is
+    // always a primary subtag but we accept either here.
+    return RTL_LANGS.has(lang.toLowerCase().split("-")[0]);
+}
+
+function buildTranslationNode(
+    translation: string,
+    targetLang: string,
+    sourceLang?: string,
+): HTMLElement {
+    const rtl = isRtlLang(targetLang);
     const node = document.createElement("div");
+    // Direction is tied to the target language: Arabic / Hebrew / Persian /
+    // Urdu translations render RTL with right-alignment so embedded Latin
+    // proper nouns (Discord usernames, game/tool names) stay grammatically
+    // ordered. Non-RTL targets (English, Turkish, French, German, Spanish,
+    // Chinese, Japanese) keep ``direction:auto`` per CONTRIBUTING.md so the
+    // browser picks the natural directionality.
+    //
+    // ``unicode-bidi:plaintext`` (RTL path only) lets each paragraph segment
+    // resolve directionality from its own first strong character, so an
+    // Arabic translation containing an English link still renders the link
+    // as LTR within the otherwise-RTL block. This is what fixes the
+    // "interleaved letters" rendering the user reported on Eclipse
+    // #announcements without forcing right-alignment on LTR target users.
+    const dirCss = rtl
+        ? "direction:rtl;text-align:right;unicode-bidi:plaintext;"
+        : "direction:auto;";
     node.style.cssText =
-        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);direction:auto;transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;";
+        `padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);${dirCss}transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;`;
+    // CSS ``direction:auto`` is not actually a valid value (the spec only
+    // accepts ``ltr``/``rtl``/``inherit``), so we set the HTML ``dir``
+    // attribute on the wrapper to make the border-inline-start sit on the
+    // correct side of the accessory.
+    //
+    // We deliberately use explicit ``dir="ltr"`` (not ``dir="auto"``) for
+    // non-RTL targets. ``dir="auto"`` resolves from the *first strong
+    // character* of the subtree, and the header label ("🌐 الترجمة") is
+    // always Arabic, so ``dir="auto"`` would always resolve to RTL — which
+    // would mirror the green accent bar to the right side even when the
+    // translation body is English. The body div still uses ``dir="auto"``
+    // so its *text* direction tracks the translation content correctly.
+    node.setAttribute("dir", rtl ? "rtl" : "ltr");
     const header = document.createElement("small");
-    header.style.cssText = "opacity:0.65;display:block;margin-bottom:2px;";
+    // Header label is always Arabic ("🌐 الترجمة") regardless of target
+    // language — the UI of the plugin itself is Arabic-first — so it always
+    // gets RTL alignment.
+    header.style.cssText =
+        "opacity:0.65;display:block;margin-bottom:2px;direction:rtl;text-align:right;";
     header.textContent = sourceLang ? `🌐 ${sourceLang} → الترجمة` : "🌐 الترجمة";
     const body = document.createElement("div");
+    body.style.cssText = dirCss;
+    if (!rtl) body.setAttribute("dir", "auto");
     body.textContent = translation;
     node.appendChild(header);
     node.appendChild(body);
@@ -471,9 +525,12 @@ function flashAttention(node: HTMLElement): void {
 }
 
 function buildPlaceholderNode(): HTMLElement {
+    // The placeholder text ("🌐 جاري الترجمة…") is Arabic regardless of
+    // target language — it's a UI string of the plugin itself — so the
+    // placeholder is always RTL.
     const node = document.createElement("div");
     node.style.cssText =
-        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.06);border-inline-start:3px solid rgba(0,255,136,0.5);font-size:0.92em;color:var(--text-muted,#949ba4);font-style:italic;direction:auto;";
+        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.06);border-inline-start:3px solid rgba(0,255,136,0.5);font-size:0.92em;color:var(--text-muted,#949ba4);font-style:italic;direction:rtl;text-align:right;";
     node.textContent = LOADING_LABEL;
     return node;
 }
@@ -495,7 +552,7 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.8",
+        version: "0.2.9",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
@@ -691,7 +748,11 @@ export default definePlugin({
                         }
                         return;
                     }
-                    const finalNode = buildTranslationNode(result.text, result.sourceLang);
+                    const finalNode = buildTranslationNode(
+                        result.text,
+                        ctx.settings.targetLang,
+                        result.sourceLang,
+                    );
                     replaceInPlace(placeholder, finalNode);
                     // Manual clicks: flash the translation node so the user
                     // sees a *visible* response even when the result text
@@ -759,18 +820,90 @@ export default definePlugin({
         // on reactions, hover, edited timestamps, etc.) the factory sees the
         // override flag still set and re-renders the translation.
         ctx.contextMenu.patch("message", (menuCtx, addItem) => {
-            if (!menuCtx.messageId) return;
+            // The menu-render check is permissive — we only bail when we have
+            // absolutely no way to identify the target message. If we have
+            // *either* a messageId from the LI id parse *or* a live target
+            // element we can closest-walk, the click handler will resolve
+            // it. Refusing to render the item just because messageId is
+            // missing was wrong on Discord PTB builds where the LI id parse
+            // landed on a non-snowflake suffix and ``messageId`` ended up
+            // as the channel id, blanking the menu item.
+            if (!menuCtx.messageId && !menuCtx.target) return;
             addItem({
                 id: "autoTranslate:translate",
                 label: "ترجم الرسالة",
                 icon: "🌐",
                 onClick() {
-                    if (!menuCtx.messageId) return;
-                    const msgEl = document.getElementById(
-                        `chat-messages-${menuCtx.channelId}-${menuCtx.messageId}`,
-                    ) as HTMLElement | null;
-                    if (!msgEl) {
-                        ctx.toast("الرسالة غير موجودة في الـ DOM", "error");
+                    // Bulletproof message-element lookup. The previous flow
+                    // built ``chat-messages-${channelId}-${messageId}`` and
+                    // ``getElementById``'d it — fast, but fragile to two
+                    // edge cases hit on Discord PTB:
+                    //
+                    //   1. The LI id-parse in contextMenu.detectKind treated
+                    //      a snowflake-with-suffix LI id as if it were a
+                    //      plain ``chat-messages-<channel>-<message>`` and
+                    //      pulled the wrong tail as ``messageId``.
+                    //   2. Virtual-scroller unmounts: between the user
+                    //      opening the menu and clicking the item, Discord
+                    //      unmounted the LI; the rebuilt id no longer
+                    //      matched anything in the DOM.
+                    //
+                    // We now try four strategies in order, *each* with a
+                    // visible toast on miss so the click never produces
+                    // silent failure (the dominant complaint on Eclipse
+                    // #announcements before this fix):
+                    //   (a) closest-walk from the live right-click target,
+                    //   (b) document.getElementById on the rebuilt id,
+                    //   (c) querySelector by message-id suffix,
+                    //   (d) targetless mode (DM messages with empty LI).
+                    let msgEl: HTMLElement | null = null;
+                    let resolvedId = menuCtx.messageId ?? "";
+                    if (menuCtx.target) {
+                        // ``closest()`` traverses a detached subtree just
+                        // fine, so if Discord's virtual scroller unmounted
+                        // the LI between menu-open and item-click, this
+                        // path would return a detached LI — blocking the
+                        // live-DOM fallbacks below and silently dropping
+                        // the translation. Require ``isConnected`` so we
+                        // only treat the walk result as authoritative when
+                        // it's actually still in the page.
+                        const walked = menuCtx.target.closest<HTMLElement>(
+                            'li[id^="chat-messages-"]',
+                        );
+                        if (walked?.isConnected) msgEl = walked;
+                    }
+                    if (!msgEl && menuCtx.channelId && menuCtx.messageId) {
+                        msgEl = document.getElementById(
+                            `chat-messages-${menuCtx.channelId}-${menuCtx.messageId}`,
+                        );
+                    }
+                    if (!msgEl && menuCtx.messageId) {
+                        msgEl = document.querySelector<HTMLElement>(
+                            `li[id$="-${CSS.escape(menuCtx.messageId)}"]`,
+                        );
+                    }
+                    if (msgEl && !resolvedId) {
+                        // Walk-from-target succeeded but the id parse
+                        // earlier failed — recover the message id from the
+                        // live LI now that we have it. Snowflakes are
+                        // 17-19 digit integers; extract by regex rather
+                        // than ``split("-").pop()`` so trailing suffixes
+                        // (e.g. ``chat-messages-A-B-reactions``) don't
+                        // pollute the override key.
+                        const snowflakes = msgEl.id.match(/\d{17,20}/g);
+                        if (snowflakes && snowflakes.length > 0) {
+                            resolvedId = snowflakes[snowflakes.length - 1];
+                        }
+                    }
+                    if (!msgEl || !resolvedId) {
+                        ctx.toast(
+                            "تعذّر إيجاد الرسالة — جرّب كليك يمين مرة ثانية",
+                            "error",
+                        );
+                        ctx.logger.warn(
+                            "manual translate: no msgEl/id",
+                            { messageId: menuCtx.messageId, channelId: menuCtx.channelId, hasTarget: !!menuCtx.target },
+                        );
                         return;
                     }
                     // Sanity check: refuse force-translate on a message with
@@ -781,15 +914,18 @@ export default definePlugin({
                     );
                     const replyText = replyPreview?.textContent?.trim() ?? "";
                     if (!bodyText && !replyText) {
-                        ctx.toast("الرسالة فارغة", "error");
+                        ctx.toast("الرسالة فارغة — لا نص للترجمة", "error");
                         return;
                     }
-                    manualOverrides.set(menuCtx.messageId, "pending");
+                    manualOverrides.set(resolvedId, "pending");
                     // Wipe any prior accessory so the framework's dedup check
                     // re-runs the factory cleanly with the override in effect.
                     const host = msgEl.querySelector<HTMLElement>(".boon-accessory-host");
                     host?.querySelector('[data-boon-acc-id="autoTranslate"]')?.remove();
                     ctx.toast("جاري الترجمة…", "info");
+                    ctx.logger.info(
+                        `manual translate fired for ${resolvedId} (${bodyText.length + replyText.length} chars)`,
+                    );
                     // Force-re-render via the public API. The framework's
                     // scan does a host.querySelector check that we just
                     // cleared above, so the factory will run on this message.
