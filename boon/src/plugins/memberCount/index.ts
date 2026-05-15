@@ -99,9 +99,13 @@ function readMemberListCounts(): Counts {
 }
 
 /**
- * Format a count for the badge. Numbers < 10K render verbatim ("4",
- * "857", "9999"). Numbers in the thousands render with one decimal
- * ("1.2K"), and numbers ≥ 10K drop the decimal ("12K", "1.2M").
+ * Format a count for the badge:
+ *   - `n < 1000`            → verbatim integer (`"4"`, `"857"`, `"999"`)
+ *   - `1000 ≤ n < 10_000`     → one decimal K (`"1.0K"`, `"1.2K"`, `"9.9K"`).
+ *                             Note: `format(9999)` returns `"10.0K"` due to
+ *                             rounding by `toFixed(1)`, not `"9.9K"`.
+ *   - `10_000 ≤ n < 1_000_000` → no-decimal K (`"10K"`, `"125K"`)
+ *   - `n ≥ 1_000_000`        → one decimal M (`"1.0M"`, `"1.2M"`)
  */
 function format(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
@@ -167,11 +171,22 @@ export default definePlugin({
         };
 
         update();
-        const interval = window.setInterval(update, ctx.settings.pollMs);
+        // The poll interval is recreated whenever the plugin's settings
+        // change so a new `pollMs` takes effect immediately. Without this,
+        // the original cadence would persist until the plugin is restarted.
+        let interval = window.setInterval(update, ctx.settings.pollMs);
+
+        const unsubSettings = ctx.on("settings:changed", ({ pluginId }) => {
+            if (pluginId !== "memberCount") return;
+            window.clearInterval(interval);
+            interval = window.setInterval(update, ctx.settings.pollMs);
+            update();
+        });
 
         const g = globalThis as unknown as { __BOON_MEMBERCOUNT_CLEANUP__?: () => void };
         g.__BOON_MEMBERCOUNT_CLEANUP__ = () => {
             window.clearInterval(interval);
+            unsubSettings();
             document.getElementById(BADGE_ID)?.remove();
         };
         ctx.logger.info("active");
