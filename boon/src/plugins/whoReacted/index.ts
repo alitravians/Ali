@@ -72,6 +72,7 @@ function ensureTip(): HTMLElement {
         "box-shadow:0 4px 12px rgba(0,0,0,0.4)",
         "white-space:nowrap", "display:none",
     ].join(";");
+    tip.setAttribute("dir", "auto");
     document.body.appendChild(tip);
     return tip;
 }

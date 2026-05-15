@@ -115,6 +115,7 @@ interface RenderArgs {
 function renderAccessory(args: RenderArgs): HTMLElement {
     const root = document.createElement("div");
     root.className = "boon-messagelogger-accessory";
+    root.setAttribute("dir", "auto");
     root.style.cssText = "margin-top:4px;display:flex;flex-direction:column;gap:2px";
 
     if (args.deleted) {
@@ -253,22 +254,30 @@ export default definePlugin({
         // We do this on a tick rather than per-mutation to avoid thrashing.
         const sweepInterval = window.setInterval(() => {
             if (!ctx.settings.enableDeleted) return;
+            // Build the set of (channelId:messageId) currently in DOM AND the set of
+            // channelIds that have ANY message visible right now.
             const present = new Set<string>();
+            const activeChannels = new Set<string>();
             document.querySelectorAll<HTMLElement>('li[id^="chat-messages-"]').forEach(li => {
                 const id = li.id;
                 const p = id.split("-");
                 if (p.length >= 3) {
-                    present.add(`${p[p.length - 2]}:${p[p.length - 1]}`);
+                    const ch = p[p.length - 2];
+                    const msg = p[p.length - 1];
+                    present.add(`${ch}:${msg}`);
+                    activeChannels.add(ch);
                 }
             });
 
-            // For each cached entry that's not present in DOM right now,
-            // schedule a delayed confirm (if not already scheduled)
+            // Only flag deletes for channels the user is currently viewing.
+            // A channel with ZERO visible messages = user switched away → those
+            // cached entries vanished because of navigation, not deletion.
             for (const [k, snap] of cache) {
                 if (present.has(k)) continue;
                 if (pendingDelete.has(k)) continue;
                 if (confirmedDeleted.has(k)) continue;
                 if (!snap.content) continue;
+                if (!activeChannels.has(snap.channelId)) continue;
                 const timer = window.setTimeout(() => {
                     pendingDelete.delete(k);
                     // Re-check that it's STILL missing after grace period

@@ -82,6 +82,7 @@ export default definePlugin({
                 "font-variant-numeric:tabular-nums",
                 "text-align:center",
             ].join(";");
+            badge.setAttribute("dir", "auto");
             panel.appendChild(badge);
             return badge;
         };

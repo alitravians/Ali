@@ -88,6 +88,7 @@ function ensureBadge(): HTMLElement | null {
         "border-radius:10px", "font-size:12px", "font-weight:500",
         "user-select:none", "vertical-align:middle",
     ].join(";");
+    badge.setAttribute("dir", "auto");
     header.appendChild(badge);
     return badge;
 }
