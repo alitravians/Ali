@@ -1473,13 +1473,19 @@ export default definePlugin({
                     } else {
                         // Translation/send failed: fall back to letting the
                         // user resend manually. Leave the draft in place so
-                        // they don't lose their text.
+                        // they don't lose their text, and surface a toast so
+                        // the user knows their Enter didn't silently drop.
                         ctx.logger.warn(
                             "outgoing: REST send failed; leaving draft in place for retry",
+                        );
+                        ctx.toast(
+                            "فشل إرسال الرسالة المترجمة — جرّب مرة ثانية",
+                            "error",
                         );
                     }
                 } catch (err) {
                     ctx.logger.warn("outgoing: send flow threw", err);
+                    ctx.toast("خطأ أثناء ترجمة/إرسال الرسالة", "error");
                 } finally {
                     translationInFlight = false;
                 }
@@ -1673,14 +1679,47 @@ export default definePlugin({
         // Repaint the button color after each (re)injection — the button is
         // rendered fresh every time Discord rebuilds the composer toolbar,
         // and the default styling from ``chatButton.ts`` doesn't know about
-        // our toggle state. We tail the body for mutations and re-apply
-        // styles whenever a new instance appears. The observer is cheap
-        // because we early-exit if the button is already styled.
+        // our toggle state.
+        //
+        // We MUST debounce via ``requestAnimationFrame`` because
+        // ``CONTRIBUTING.md §4`` forbids unthrottled MutationObservers on
+        // ``document.body``: Discord fires thousands of subtree mutations per
+        // second (scroll, typing indicator, presence, etc.) and an
+        // unthrottled callback would burn CPU and starve the UI thread.
+        // Coalescing per-frame means we run at most once per repaint.
+        let styleRepaintScheduled = false;
         const styleObserver = new MutationObserver(() => {
-            updateOutgoingButtonStyle();
+            if (styleRepaintScheduled) return;
+            styleRepaintScheduled = true;
+            requestAnimationFrame(() => {
+                styleRepaintScheduled = false;
+                updateOutgoingButtonStyle();
+            });
         });
         styleObserver.observe(document.body, { childList: true, subtree: true });
         updateOutgoingButtonStyle();
+
+        // ``chatButton.ts`` registers an unconditional ``mouseleave`` handler
+        // on every button it injects, which wipes our active green styling
+        // back to the neutral default. Rather than fork the chatButton
+        // helper, we attach our OWN ``mouseleave`` listener on the document
+        // (delegated, capture-phase) and re-apply our styling on the next
+        // frame — listener-order matters: ours fires AFTER chatButton's
+        // handler (since chatButton's was bound first on the element), and
+        // ``requestAnimationFrame`` gives the framework's repaint a chance to
+        // run before we override. We use a delegated listener so it survives
+        // re-injection of the button without us having to track its lifetime.
+        const onMouseLeave = (e: MouseEvent): void => {
+            const target = (e.target as HTMLElement | null)?.closest?.<HTMLElement>(
+                `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
+            );
+            if (!target) return;
+            requestAnimationFrame(() => updateOutgoingButtonStyle());
+        };
+        document.addEventListener("mouseleave", onMouseLeave, true);
+        outgoingDisposers.push(() => {
+            document.removeEventListener("mouseleave", onMouseLeave, true);
+        });
 
         // Shift+click and right-click on the button: quick toggle without
         // opening the modal. We attach via event delegation on document so we
