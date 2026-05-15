@@ -11,4 +11,4 @@
  * cycle with `index.ts` (which imports the rest of core).
  */
 
-export const VERSION = "0.2.10";
+export const VERSION = "0.2.11";

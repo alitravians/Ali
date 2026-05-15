@@ -267,8 +267,14 @@ export async function fetchReleases(limit: number = 10): Promise<Release[]> {
 }
 
 export async function fetchLatest(): Promise<Release | null> {
-    const releases = await fetchReleases(1);
-    return releases[0] ?? null;
+    // We deliberately fetch up to 10 releases (not just ``per_page=1``)
+    // because GitHub's ``/releases`` endpoint does not reliably return the
+    // semver-highest release first — see ``pickLatest`` for the full
+    // explanation. Fetching only 1 and trusting it would re-introduce the
+    // exact bug PR #186 fixes. We then run ``pickLatest`` over the page so
+    // any future caller of this helper gets the correct latest release.
+    const releases = await fetchReleases(10);
+    return pickLatest(releases);
 }
 
 /**
@@ -382,10 +388,28 @@ export async function relaunchDiscord(): Promise<void> {
     await boot.invoke("BOON_RELAUNCH");
 }
 
-/** Compare two semver-like tags ("v0.1.0", "0.1.0"). Returns -1/0/1. */
+/**
+ * Compare two semver-like tags. Returns -1/0/1.
+ *
+ * Accepts tags in any of these shapes:
+ *   - "0.2.10"
+ *   - "v0.2.10"
+ *   - "boon-v0.2.10"
+ *   - "release-1.2.3"
+ *
+ * Previously the normaliser only stripped a leading "v", which meant any
+ * prefix like "boon-v" was preserved into the first segment and resolved
+ * to ``parseInt("boon-v0") = NaN || 0`` — accidentally still working for
+ * the "boon-v" pattern but masking the real bug. We now explicitly extract
+ * the *first dotted-numeric run* anywhere in the string, which makes the
+ * comparator robust against future tag-naming changes.
+ */
 export function compareVersions(a: string, b: string): number {
-    const norm = (s: string): number[] =>
-        s.replace(/^v/, "").split(".").map(p => Number.parseInt(p, 10) || 0);
+    const norm = (s: string): number[] => {
+        const m = /(\d+(?:\.\d+)+)/.exec(s);
+        const base = m ? m[1] : s.replace(/^[^\d]*/, "");
+        return base.split(".").map(p => Number.parseInt(p, 10) || 0);
+    };
     const aa = norm(a);
     const bb = norm(b);
     const len = Math.max(aa.length, bb.length);
@@ -396,6 +420,28 @@ export function compareVersions(a: string, b: string): number {
         if (av > bv) return 1;
     }
     return 0;
+}
+
+/**
+ * Pick the semver-highest release from a list, irrespective of the order
+ * GitHub returned them in. This exists because GitHub's
+ * ``/repos/.../releases`` endpoint does NOT reliably sort by semver — it
+ * uses a mix of tag-alphabetical and internal heuristics that, with
+ * double-digit patch numbers (e.g. v0.2.10), can leave the highest-semver
+ * release several positions deep instead of at index 0.
+ *
+ * Observed example (2026-05-15): with releases v0.2.10, v0.2.9, v0.2.8,
+ * v0.2.7, v0.2.6 all present, GitHub returned them in the order
+ * [v0.2.9, v0.2.8, v0.2.7, v0.2.6, v0.2.10, ...]. The previous code's
+ * ``result.releases[0]`` picked v0.2.9 as "latest" and gated the install
+ * button on it, leaving users stuck on v0.2.9 with the install button
+ * never rendering even though v0.2.10 was available.
+ */
+export function pickLatest<T extends { tag: string }>(releases: readonly T[]): T | null {
+    if (releases.length === 0) return null;
+    return releases.reduce((best, cur) =>
+        compareVersions(cur.tag, best.tag) > 0 ? cur : best,
+    );
 }
 
 export function isNewer(latest: string, current: string): boolean {
