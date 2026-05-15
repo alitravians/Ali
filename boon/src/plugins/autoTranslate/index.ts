@@ -1308,20 +1308,42 @@ export default definePlugin({
                 return restored;
             } catch (err) {
                 ctx.logger.warn("outgoing translate failed; sending original", err);
+                // Surface a one-shot toast so the user knows the translation
+                // round-trip failed and what landed in the channel is their
+                // raw draft — they may want to delete or retry instead of
+                // assuming the foreign-language readers got a translation.
+                // Throttled by ``failOpenToastShown`` (declared below).
+                if (!failOpenToastShown) {
+                    failOpenToastShown = true;
+                    ctx.toast(
+                        "تعذّر الترجمة — تم إرسال نصّك الأصلي كما هو",
+                        "info",
+                    );
+                    window.setTimeout(
+                        () => { failOpenToastShown = false; },
+                        30_000,
+                    );
+                }
                 return content;
             }
         }
 
+        // Throttle the fail-open toast so a flaky network doesn't spam.
+        let failOpenToastShown = false;
+
         // Read the current composer draft. Discord's Slate editor wraps
         // each paragraph in `<div data-slate-node="element">`; naive
         // ``textContent`` would smash the lines together because there's no
-        // intervening text node. We walk the direct paragraph children and
-        // join their ``textContent`` with `\n` so multi-line drafts are
-        // preserved (matters both for translation correctness and for the
-        // multi-line `-#` original-quote prefix).
+        // intervening text node. We walk only the *direct* paragraph
+        // children (``:scope >``) and join their ``textContent`` with
+        // ``\n``. The direct-child scope matters: nested Slate blocks
+        // (lists, code blocks, blockquotes) also carry
+        // ``data-slate-node="element"``, so a descendant-wide selector
+        // would duplicate their text once via the parent's ``textContent``
+        // and again via each child match.
         function readComposerText(editor: HTMLElement): string {
             const paragraphs = editor.querySelectorAll<HTMLElement>(
-                '[data-slate-node="element"]',
+                ':scope > [data-slate-node="element"]',
             );
             if (paragraphs.length === 0) return editor.textContent ?? "";
             const lines: string[] = [];
@@ -1408,19 +1430,38 @@ export default definePlugin({
 
         // Read the user's authentication token. Discord stashes it in
         // localStorage under the literal key "token" wrapped in quotes (the
-        // value is `JSON.stringify`'d). We strip the outer quotes if present.
-        // If localStorage is locked down (sometimes happens in Discord PTB)
-        // we fall back to scraping the IndexedDB-backed cookie store via
-        // document.cookie (which still contains the token under modern
-        // builds).
+        // value is `JSON.stringify`'d). On Discord PTB and recent Stable
+        // builds Discord blocks direct ``window.localStorage`` access from
+        // userscripts, so we lift the token via a same-origin iframe — the
+        // iframe's ``contentWindow.localStorage`` shares storage with the
+        // parent but bypasses the lockdown wrapper. This matches the
+        // already-shipping pattern in serverTools (`getUserToken`).
         function readAuthToken(): string | null {
+            let iframe: HTMLIFrameElement | null = null;
+            try {
+                iframe = document.createElement("iframe");
+                document.head.appendChild(iframe);
+                // IMPORTANT: read the token BEFORE removing the iframe.
+                // Chromium throws SecurityError on Storage.getItem if the
+                // owning frame has been detached, so the read order is
+                // create → append → getItem → remove (NOT create → remove
+                // → getItem like serverTools' older pattern).
+                const local = iframe.contentWindow?.localStorage;
+                const token = local?.getItem("token");
+                if (token) return token.replace(/^"|"$/g, "");
+            } catch {
+                // iframe trick failed (e.g. iframe blocked by CSP); fall
+                // through to direct access — works on plain web Discord.
+            } finally {
+                iframe?.remove();
+            }
             try {
                 const raw = window.localStorage.getItem("token");
                 if (raw) {
                     return raw.replace(/^"|"$/g, "");
                 }
             } catch {
-                // some builds lock down localStorage; fall through
+                // both paths failed; caller will see null and surface a toast
             }
             return null;
         }
@@ -1433,6 +1474,20 @@ export default definePlugin({
         // dispatches without `isTrusted=true`), and walking the React fiber
         // to call `onSubmit` requires a Slate-shaped value object we can't
         // synthesise without re-implementing Slate's parser.
+        //
+        // Discord's hard cap for non-Nitro messages is 2000 characters. If
+        // the translated payload (possibly with the `-#` original-quote
+        // appendage) exceeds that, the POST returns 400 with no UI
+        // feedback — to the user it just looks like Enter did nothing.
+        // Truncate defensively with a visible marker so the user knows
+        // their message was clipped.
+        const DISCORD_MAX_MESSAGE_LEN = 2000;
+        const TRUNCATION_MARKER = "\n…";
+        function clampToDiscordLimit(text: string): string {
+            if (text.length <= DISCORD_MAX_MESSAGE_LEN) return text;
+            const room = DISCORD_MAX_MESSAGE_LEN - TRUNCATION_MARKER.length;
+            return text.slice(0, room) + TRUNCATION_MARKER;
+        }
         async function sendTranslatedMessage(
             channelId: string,
             content: string,
@@ -1445,6 +1500,7 @@ export default definePlugin({
                 return false;
             }
             const nonce = (Math.random() * Number.MAX_SAFE_INTEGER).toFixed(0);
+            const payload = clampToDiscordLimit(content);
             try {
                 const res = await fetch(
                     `https://discord.com/api/v9/channels/${channelId}/messages`,
@@ -1456,11 +1512,16 @@ export default definePlugin({
                             "Content-Type": "application/json",
                         },
                         body: JSON.stringify({
-                            content,
+                            content: payload,
                             tts: false,
                             nonce,
                             flags: 0,
                             mobile_network_type: "unknown",
+                            // Restrict pings to entities mentioned IN the
+                            // translated body — never @everyone or unmentioned
+                            // roles. Without this, a translated phrase that
+                            // accidentally matches a role name could ping it.
+                            allowed_mentions: { parse: ["users", "roles"] },
                         }),
                     },
                 );
