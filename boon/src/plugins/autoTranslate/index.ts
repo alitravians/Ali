@@ -953,6 +953,13 @@ export default definePlugin({
             // message here — the existing "ترجم الرسالة" item already
             // covers that case, and conflating the two would re-create
             // the surprise factor we're trying to remove.
+            //
+            // Scope/author filters are deliberately bypassed here, just
+            // like the existing manual "ترجم الرسالة" item and the
+            // ``..tr <text>`` command: an explicit user gesture (right-
+            // click → confirm) overrides passive filtering. The auto
+            // pipeline still respects those filters; nothing here
+            // weakens that path.
             const selection = typeof window !== "undefined" ? window.getSelection() : null;
             const selectedText = selection?.toString().trim() ?? "";
             if (selectedText.length > 0 && menuCtx.target) {
@@ -985,11 +992,24 @@ export default definePlugin({
                             : `ترجم: "${selectedText.slice(0, 37)}…"`,
                         icon: "🌐",
                         async onClick() {
-                            // Capture the selection text NOW — by the
-                            // time the click handler fires the menu has
-                            // closed and Discord may have cleared the
-                            // window selection.
-                            const text = selectedText;
+                            // ``selectedText`` was captured at menu-
+                            // render time (closure over the const
+                            // above). The selection itself may already
+                            // have been cleared by the time this fires —
+                            // that's fine, we don't read
+                            // ``window.getSelection()`` again here.
+                            //
+                            // Hard-cap the API payload so a runaway
+                            // selection (user accidentally dragged
+                            // across half a channel) can't push huge
+                            // text to Google/Gemini. 5000 chars matches
+                            // the auto-translate pipeline's effective
+                            // budget — anything longer is almost
+                            // certainly an accident.
+                            const MAX = 5000;
+                            const text = selectedText.length > MAX
+                                ? selectedText.slice(0, MAX)
+                                : selectedText;
                             ctx.toast("جاري الترجمة…", "info");
                             try {
                                 const result = await translate(text);
@@ -1001,7 +1021,22 @@ export default definePlugin({
                                 // the full-message translation (when
                                 // present) and confuse the user about
                                 // what was translated.
-                                ctx.toast(`${text} → ${result.text}`, "success");
+                                //
+                                // Truncate both source and translation
+                                // in the toast so a long selection
+                                // doesn't blow up the overlay layout.
+                                // We still show both sides so the user
+                                // can visually pair input → output,
+                                // which is the whole point of right-
+                                // click translate.
+                                const TOAST_MAX = 200;
+                                const srcDisplay = text.length > TOAST_MAX
+                                    ? text.slice(0, TOAST_MAX - 1) + "…"
+                                    : text;
+                                const dstDisplay = result.text.length > TOAST_MAX
+                                    ? result.text.slice(0, TOAST_MAX - 1) + "…"
+                                    : result.text;
+                                ctx.toast(`${srcDisplay} → ${dstDisplay}`, "success");
                                 ctx.stats.bump("manual_translations");
                                 ctx.logger.info(
                                     `selection translate: ${text.length} chars → ${result.text.length} chars`,
