@@ -15,14 +15,20 @@
  *      a toast.
  *
  *   3. AUTO OUTGOING (opt-in): when the user types in Arabic (or any other
- *      configured source language) and hits Send, the plugin intercepts
- *      Discord's own `MessageActions.sendMessage` (and `editMessage`)
- *      before they fire the HTTP request, replacing the `content` field
- *      with a translation. Discord (and every other user in the channel)
- *      sees only the translated text. The user's draft is replaced *at
- *      Discord's internal API boundary* — not in the composer DOM and not
- *      in the network layer — so URLs, mentions, typing latency, and
- *      Discord's optimistic-UI/echo flow are all preserved unchanged.
+ *      configured source language) and hits Enter, the plugin intercepts
+ *      the keydown on the document in the capture phase, reads the draft
+ *      from the Slate composer DOM, translates it, and posts the result
+ *      directly to Discord's REST API
+ *      (`POST /api/v9/channels/{id}/messages`) with the user's own auth
+ *      token. Discord's gateway then reflects our POST back as a normal
+ *      `MESSAGE_CREATE`, so the UI updates exactly as if Discord had sent
+ *      the message itself. See the long design-rationale comment near
+ *      `maybeTranslateOutgoing` for why we picked this boundary over
+ *      monkey-patching `MessageActions.sendMessage` or wrapping
+ *      `window.fetch`. Known caveats (we abort instead of breaking these):
+ *      replies, attachments, slash-command/@mention/:emoji autocomplete,
+ *      and message edits (`editMessage` is not translated on the outgoing
+ *      path).
  *
  * Translation provider:
  *   - Google Translate's free public endpoint (no API key, default).
@@ -1268,6 +1274,20 @@ export default definePlugin({
         //     the highlighted item, not send. We detect ``aria-expanded`` on
         //     the editor and bail out completely so Discord's own handler
         //     runs.
+        //   - Mentions / channel-refs / custom emoji selected from
+        //     autocomplete: Slate stores these as rich element nodes whose
+        //     ``textContent`` is the display name (``@John``,
+        //     ``#general``, ``:custom_emoji:``) rather than Discord's wire
+        //     format (``<@123>``, ``<#456>``, ``<:custom_emoji:789>``). The
+        //     REST POST therefore sends them as plain text — they will
+        //     render correctly for human readers but won't ping anyone or
+        //     render the custom emoji image. Manually-typed/pasted wire
+        //     tokens are protected by ``PROTECT_RE`` as usual. Working
+        //     around this requires webpack access to Slate's internal
+        //     value object, which we explicitly rejected above.
+        //   - Edits: ``editMessage`` is NOT translated on the outgoing
+        //     path. Use right-click → "ترجم الرسالة" if you need
+        //     to re-translate a sent message.
         //
         // Design choices:
         //   - Fail open: any translation error short-circuits to the
@@ -1309,14 +1329,16 @@ export default definePlugin({
             } catch (err) {
                 ctx.logger.warn("outgoing translate failed; sending original", err);
                 // Surface a one-shot toast so the user knows the translation
-                // round-trip failed and what landed in the channel is their
-                // raw draft — they may want to delete or retry instead of
-                // assuming the foreign-language readers got a translation.
-                // Throttled by ``failOpenToastShown`` (declared below).
+                // round-trip failed and the raw draft is what's going out.
+                // We use future-tense wording ("سيتم، will be sent") because
+                // the toast fires here BEFORE ``sendTranslatedMessage`` runs;
+                // if the REST POST itself also fails, the outer error toast
+                // will follow and override the picture. Throttled by
+                // ``failOpenToastShown`` (declared below).
                 if (!failOpenToastShown) {
                     failOpenToastShown = true;
                     ctx.toast(
-                        "تعذّر الترجمة — تم إرسال نصّك الأصلي كما هو",
+                        "تعذّر الترجمة — سيتم إرسال نصّك الأصلي كما هو",
                         "info",
                     );
                     window.setTimeout(
@@ -1553,6 +1575,13 @@ export default definePlugin({
             if (e.key !== "Enter" || e.shiftKey || e.ctrlKey || e.metaKey) {
                 return;
             }
+            // Ignore synthetic key events (e.g. ones dispatched by
+            // ``discord.ts::sendMessage`` after a programmatic paste). Real
+            // user keystrokes always set ``isTrusted=true``; only the
+            // platform can mint trusted events. If a plugin ever dispatches
+            // its own synthetic Enter for a flow that already POSTs the
+            // message itself, intercepting here would double-send.
+            if (!e.isTrusted) return;
             if (!ctx.settings.outgoingMode) return;
             // Locate the Slate editor we're inside. `composedPath` traverses
             // shadow DOM boundaries too — defensive against future Discord
@@ -1938,8 +1967,9 @@ export default definePlugin({
         document.addEventListener("contextmenu", onCapturedContextMenu, true);
 
         // Track the lifecycle handles so onStop can detach everything. The
-        // MessageActions patch teardown is appended above as soon as the
-        // patch succeeds; the listeners below are torn down here.
+        // capture-phase keydown listener and any modal close callback are
+        // appended to ``outgoingDisposers`` from their installation sites
+        // above; the listeners registered below are torn down here.
 
         outgoingDisposers.push(() => {
             document.removeEventListener("click", onCapturedClick, true);
