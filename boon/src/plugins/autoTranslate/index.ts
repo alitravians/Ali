@@ -440,7 +440,7 @@ const LOADING_LABEL = "🌐 جاري الترجمة…";
 function buildTranslationNode(translation: string, sourceLang?: string): HTMLElement {
     const node = document.createElement("div");
     node.style.cssText =
-        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);direction:auto;";
+        "padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);direction:auto;transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;";
     const header = document.createElement("small");
     header.style.cssText = "opacity:0.65;display:block;margin-bottom:2px;";
     header.textContent = sourceLang ? `🌐 ${sourceLang} → الترجمة` : "🌐 الترجمة";
@@ -449,6 +449,25 @@ function buildTranslationNode(translation: string, sourceLang?: string): HTMLEle
     node.appendChild(header);
     node.appendChild(body);
     return node;
+}
+
+// Briefly flash a translation node so a manual click on an already-translated
+// message produces a *visible* response. Without this, the cached-translation
+// path completes synchronously enough that the user sees the toast "جاري
+// الترجمة…" appear and disappear with no detectable change to the message —
+// indistinguishable from a broken button.
+function flashAttention(node: HTMLElement): void {
+    const baseBg = "rgba(0,255,136,0.10)";
+    const baseBorder = "#00ff88";
+    const flashBg = "rgba(0,255,136,0.30)";
+    const flashBorder = "#22ff99";
+    node.style.background = flashBg;
+    node.style.borderInlineStartColor = flashBorder;
+    setTimeout(() => {
+        if (!node.isConnected) return;
+        node.style.background = baseBg;
+        node.style.borderInlineStartColor = baseBorder;
+    }, 480);
 }
 
 function buildPlaceholderNode(): HTMLElement {
@@ -476,7 +495,7 @@ export default definePlugin({
         description:
             "ترجمة تلقائية لرسائل الأجانب في أي سيرفر إلى العربية — تظهر فقط عندك، لا تُرسل لـ Discord.",
         authors: [{ name: "ali" }],
-        version: "0.2.5",
+        version: "0.2.6",
         tags: ["ترجمة", "AI", "تلقائي"],
         enabledByDefault: true,
     },
@@ -524,20 +543,43 @@ export default definePlugin({
         const manualOverrides = new Map<string, "pending" | "counted">();
 
         // ─── translate() — service routing + cache ─────────────────────────────
-        async function translate(text: string): Promise<TranslationResult> {
+        async function translate(
+            text: string,
+            opts: { bypassCache?: boolean } = {},
+        ): Promise<TranslationResult> {
             const service = ctx.settings.service;
             const target = ctx.settings.targetLang;
             const cacheKey = `${service}:${target}:${text}`;
-            if (ctx.settings.cacheTranslations) {
-                const cached = await ctx.dataStore.get<TranslationResult>(cacheKey);
-                if (cached) return cached;
+            // Manual right-click forces fresh translations: the user has
+            // explicitly asked, so we trust the API over a possibly-stale
+            // cached value. Without bypass, manual re-translation of an
+            // already-translated message is a no-op against the cache —
+            // indistinguishable from a broken button from the user's POV.
+            if (ctx.settings.cacheTranslations && !opts.bypassCache) {
+                // Tolerate IndexedDB version drift ("VersionError: requested
+                // version (1) is less than existing version (2)") by treating
+                // any read failure as a cache miss rather than letting it
+                // abort the whole translation. The data store helper logs
+                // the underlying error, so we don't need to re-emit it here.
+                try {
+                    const cached = await ctx.dataStore.get<TranslationResult>(cacheKey);
+                    if (cached) return cached;
+                } catch {
+                    // fall through to network fetch
+                }
             }
             const result =
                 service === "gemini"
                     ? await translateGemini(text, target, ctx.settings.geminiApiKey)
                     : await translateGoogle(text, target);
             if (ctx.settings.cacheTranslations) {
-                await ctx.dataStore.set(cacheKey, result);
+                // Same defensive try/catch — a failed cache write must not
+                // bubble up and discard a perfectly good translation.
+                try {
+                    await ctx.dataStore.set(cacheKey, result);
+                } catch {
+                    // ignore cache-write failures; result is still returned
+                }
             }
             return result;
         }
@@ -588,7 +630,17 @@ export default definePlugin({
             // message body, so we re-derive from ``info.el`` to pick up the
             // reply preview the framework strips out.
             const candidate = gatherTranslatableText(info.el, ctx.settings.translateEmbeds);
-            if (!candidate) return null;
+            if (!candidate) {
+                if (forced) {
+                    // The user explicitly asked. We refuse silently in the
+                    // auto path (other accessories may run), but in the
+                    // forced path the user is owed a visible reason. Drop
+                    // the override so React re-renders don't keep retrying.
+                    ctx.toast("لا يوجد نص قابل للترجمة في الرسالة", "error");
+                    manualOverrides.delete(info.id);
+                }
+                return null;
+            }
 
             const cleaned = strippedText(candidate);
             if (!forced) {
@@ -597,8 +649,13 @@ export default definePlugin({
 
                 if (!looksForeign(cleaned, ctx.settings.targetLang)) return null;
             } else if (cleaned.length === 0) {
-                // Manual override but no translatable text at all — bail out
-                // rather than send an empty string to the translation API.
+                // Manual override but no translatable text after stripping
+                // code blocks / URLs / mentions / emoji. Surface a toast so
+                // the click never becomes invisible — the silent return
+                // here was a load-bearing cause of "the button does
+                // nothing" complaints.
+                ctx.toast("الرسالة كلها روابط/منشن — لا نص للترجمة", "error");
+                manualOverrides.delete(info.id);
                 return null;
             }
 
@@ -606,23 +663,42 @@ export default definePlugin({
             const placeholder = buildPlaceholderNode();
             (async () => {
                 try {
-                    const result = await translate(candidate.trim());
+                    // Forced (manual) clicks bypass the cache: the user
+                    // explicitly asked for a translation *now* and a silent
+                    // cache hit (same text in → same text out, no visible
+                    // change) is the dominant cause of "the button does
+                    // nothing" reports. Auto path keeps the cache.
+                    const result = await translate(candidate.trim(), {
+                        bypassCache: forced,
+                    });
                     if (!placeholder.isConnected) return; // user scrolled away / message removed
                     if (result.text.trim() === candidate.trim()) {
-                        // Translation == source ⇒ language guess was wrong; remove subtitle.
+                        // Translation == source ⇒ language guess was wrong
+                        // (typically the message is already in the user's
+                        // target language). Auto path: silently drop the
+                        // subtitle — we never wanted same-language anyway.
+                        // Manual path: tell the user *why* nothing visible
+                        // happened. The toast is the user-visible signal
+                        // that distinguishes "button worked, no translation
+                        // needed" from "button is broken".
                         placeholder.remove();
-                        // Drop the override too: re-rendering this message should
-                        // not re-fire a translation that we already know returns
-                        // the same text. Without this, a forced message whose
-                        // translation collapses to source would loop forever
-                        // across React re-renders. (No stat bump in this
-                        // branch — we don't count translations that returned
-                        // the source text since they're effectively no-ops.)
-                        if (forced) manualOverrides.delete(info.id);
+                        if (forced) {
+                            manualOverrides.delete(info.id);
+                            ctx.toast(
+                                "النص بالعربية بالفعل — لا حاجة للترجمة",
+                                "info",
+                            );
+                        }
                         return;
                     }
                     const finalNode = buildTranslationNode(result.text, result.sourceLang);
                     replaceInPlace(placeholder, finalNode);
+                    // Manual clicks: flash the translation node so the user
+                    // sees a *visible* response even when the result text
+                    // happens to match what was previously rendered. Without
+                    // this flash, a manual click on an already-translated
+                    // message is indistinguishable from a no-op.
+                    if (forced) flashAttention(finalNode);
                     // Conditionally bump the correct counter so manual forces
                     // don't double-count into ``auto_translations``. The auto
                     // bump is naturally one-shot because the framework's
@@ -652,7 +728,8 @@ export default definePlugin({
                         // override gone, so the toast is the right surface.
                         if (placeholder.isConnected) placeholder.remove();
                         manualOverrides.delete(info.id);
-                        ctx.toast(`فشل: ${(err as Error).message}`, "error");
+                        const errMsg = (err as Error)?.message ?? String(err);
+                        ctx.toast(`فشل الترجمة: ${errMsg}`, "error");
                     } else if (placeholder.isConnected) {
                         // Auto path: keep the placeholder in the DOM as the
                         // framework's dedup sentinel (its data-boon-acc-id

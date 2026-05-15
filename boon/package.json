@@ -1,6 +1,6 @@
 {
     "name": "boon",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "private": true,
     "description": "BOON — Discord Client Modification Framework. Desktop client mod, browser extension, and userscript targets sharing a single plugin system.",
     "license": "GPL-3.0-or-later",

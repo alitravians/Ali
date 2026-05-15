@@ -193,8 +193,25 @@ function applyPatches(menuEl: HTMLElement, target: HTMLElement | null): void {
     }
 
     if (added.length === 0) return;
-    list.appendChild(sep);
-    for (const node of added) list.appendChild(node);
+    // Prepend our items to the top of Discord's menu list instead of
+    // appending. Discord context menus open at the click position and grow
+    // downward; on small windows / DMs the menu can extend past the
+    // viewport's bottom edge, and our extra items get clipped — visible in
+    // the DOM with valid styles, but rendered at off-screen Y coordinates
+    // the user cannot scroll to. Inserting at the top guarantees the
+    // boon item is in the first 32px of the menu, always reachable.
+    //
+    // A subtle wrinkle: the very first child of Discord's scroller is
+    // sometimes a header / spacer element rather than the first menuitem.
+    // We still want our items to come *before* the visible items, so we
+    // prepend before whatever the current firstElementChild is — the
+    // separator we add ensures visual demarcation between our items and
+    // Discord's, regardless of what sits at the top.
+    const anchor = list.firstElementChild;
+    for (let i = added.length - 1; i >= 0; i--) {
+        list.insertBefore(added[i], anchor);
+    }
+    list.insertBefore(sep, anchor);
 }
 
 let lastTarget: HTMLElement | null = null;
