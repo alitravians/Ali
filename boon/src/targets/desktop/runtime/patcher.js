@@ -70,7 +70,7 @@ app.setAppPath(asarPath);
 // BOON_GET_BOOT_INFO so the in-app updater can decide whether a staged
 // patcher upgrade is needed without forcing the user back to the .exe
 // installer for every patcher change.
-const PATCHER_VERSION = "0.2.1";
+const PATCHER_VERSION = "0.2.2";
 
 const dataDir = __dirname;
 const activePatcherPath = path.join(dataDir, "patcher.js");
@@ -624,6 +624,21 @@ app.on("browser-window-created", (_event, win) => {
     // `dom-ready` fires for every navigation (including the splash → main
     // transition). We re-evaluate `shouldInject` each time so the renderer
     // runs exactly once per window, the first time it lands on discord.com.
+    //
+    // Ctrl+R / F5 / view.reload(): Discord's renderer reloads in the SAME
+    // `webContents`. The JS context is destroyed and a fresh page loads —
+    // but the `__boonInjected` flag we set on the webContents object
+    // survives the reload. Without clearing it, our renderer never runs
+    // again and the alitravians UI "disappears" until the user closes
+    // and re-opens Discord (or, before this fix, until they re-ran the
+    // installer). `did-start-loading` fires for every reload AND every
+    // first navigation, so clearing the flag here lets the subsequent
+    // `dom-ready` re-inject. The flag still de-dupes the dom-ready /
+    // did-finish-load pair for a single navigation because they both
+    // fire AFTER `did-start-loading` has already reset the flag.
+    win.webContents.on("did-start-loading", () => {
+        win.webContents.__boonInjected = false;
+    });
     win.webContents.on("dom-ready", () => injectInto(win.webContents));
     win.webContents.on("did-finish-load", () => injectInto(win.webContents));
 });
