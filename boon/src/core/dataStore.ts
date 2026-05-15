@@ -36,24 +36,80 @@ function isIndexedDbAvailable(): boolean {
     }
 }
 
-function openDb(): Promise<IDBDatabase> {
-    if (dbPromise) return dbPromise;
-    dbPromise = new Promise<IDBDatabase>((resolve, reject) => {
-        if (!isIndexedDbAvailable()) {
-            reject(new Error("IndexedDB unavailable"));
+async function probeExistingVersion(): Promise<number> {
+    // Prefer indexedDB.databases() when available — it returns the existing
+    // version directly without opening anything. Chromium/Electron 80+ have it.
+    const dbs = (indexedDB as unknown as { databases?: () => Promise<IDBDatabaseInfo[]> })
+        .databases;
+    if (typeof dbs === "function") {
+        try {
+            const list = await dbs.call(indexedDB);
+            const found = list.find(d => d.name === DB_NAME);
+            return found?.version ?? 0;
+        } catch {
+            // fall through to open-probe
+        }
+    }
+    // Fallback probe: open without specifying a version (matches current),
+    // read .version, immediately close. Returns 0 for a brand-new DB.
+    return new Promise<number>(resolve => {
+        let probe: IDBOpenDBRequest;
+        try {
+            probe = indexedDB.open(DB_NAME);
+        } catch {
+            resolve(0);
             return;
         }
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (): void => {
-            // First-time setup: we create stores lazily via reopenWithStore,
-            // so nothing to do here on version 1.
+        let createdFresh = false;
+        probe.onupgradeneeded = (): void => {
+            // Fired only when the DB didn't exist — we're creating it now.
+            createdFresh = true;
         };
-        req.onsuccess = (): void => {
-            knownStores = new Set(Array.from(req.result.objectStoreNames));
-            resolve(req.result);
+        probe.onsuccess = (): void => {
+            const v = probe.result.version;
+            probe.result.close();
+            resolve(createdFresh ? 0 : v);
         };
-        req.onerror = (): void => reject(req.error ?? new Error("IDB open failed"));
-        req.onblocked = (): void => reject(new Error("IDB open blocked"));
+        probe.onerror = (): void => resolve(0);
+        probe.onblocked = (): void => resolve(0);
+    });
+}
+
+function openDb(): Promise<IDBDatabase> {
+    if (dbPromise) return dbPromise;
+    dbPromise = (async (): Promise<IDBDatabase> => {
+        if (!isIndexedDbAvailable()) {
+            throw new Error("IndexedDB unavailable");
+        }
+        // Determine the existing on-disk version FIRST so we never request a
+        // lower one. Hardcoding ``DB_VERSION = 1`` and re-opening at 1 raises
+        // ``VersionError: requested version (1) is less than existing (2)`` on
+        // users whose DB was already bumped to >=2 by ``ensureStore``. The
+        // rejection was cached in ``dbPromise`` and poisoned every subsequent
+        // call — silently breaking every plugin cache.
+        const existing = await probeExistingVersion();
+        const targetVersion = Math.max(existing, DB_VERSION);
+        return new Promise<IDBDatabase>((resolve, reject) => {
+            const req = indexedDB.open(DB_NAME, targetVersion);
+            req.onupgradeneeded = (): void => {
+                // Stores are created lazily in ``ensureStore``; no schema
+                // work is needed when we're simply opening at the existing
+                // version (or initialising at v1 for a brand-new DB).
+            };
+            req.onsuccess = (): void => {
+                knownStores = new Set(Array.from(req.result.objectStoreNames));
+                resolve(req.result);
+            };
+            req.onerror = (): void => reject(req.error ?? new Error("IDB open failed"));
+            req.onblocked = (): void => reject(new Error("IDB open blocked"));
+        });
+    })();
+    // If the initial open fails for any reason, clear the cached promise so
+    // the next caller retries from scratch instead of inheriting the failure
+    // for the rest of the session. We also fall back to an in-memory store
+    // at the public API layer below, so callers keep working either way.
+    dbPromise.catch(() => {
+        dbPromise = null;
     });
     return dbPromise;
 }

@@ -123,6 +123,26 @@ interface HostAnchor {
 function pickHostAnchor(messageEl: HTMLElement): HostAnchor | null {
     const anyContent = messageEl.querySelector<HTMLElement>(MESSAGE_CONTENT_SELECTOR);
     if (!anyContent) return null;
+    // Walk up to the ``.contents_*`` wrapper (sibling-of-header, parent-of-
+    // messageContent). This wrapper is stable across Discord's incremental
+    // re-renders — reactions, hover state, timestamp tooltip updates, and
+    // edit-state transitions only swap children of the ``messageContent_*``
+    // node, never of the ``contents_*`` wrapper above it. Anchoring our host
+    // there means our placeholder survives the React commit between
+    // ``buildPlaceholderNode()`` and the translation API response landing,
+    // so we never lose the in-flight translation to ``placeholder.isConnected
+    // === false`` (the root cause of "the API call fires but no Arabic
+    // appears" on the user's Eclipse "Patched" message).
+    let cursor: HTMLElement | null = anyContent.parentElement;
+    for (let i = 0; i < 4 && cursor && cursor !== messageEl; i++) {
+        if (/(^|\s)contents[-_]/.test(cursor.className)) {
+            return { parent: cursor };
+        }
+        cursor = cursor.parentElement;
+    }
+    // Fallback: parent of the content block (legacy v0.2.8 behaviour). Keeps
+    // the host alive on unfamiliar layouts where no ``contents_*`` class is
+    // present — better to render in a fragile spot than not at all.
     const parent = anyContent.parentElement;
     if (!parent) return null;
     return { parent };
