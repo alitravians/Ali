@@ -477,11 +477,18 @@ function buildTranslationNode(
     node.style.cssText =
         `padding:8px 10px;border-radius:6px;background:rgba(0,255,136,0.10);border-inline-start:3px solid #00ff88;font-size:0.95em;color:var(--text-normal,#dbdee1);${dirCss}transition:background 240ms ease-out,border-inline-start-color 240ms ease-out;`;
     // CSS ``direction:auto`` is not actually a valid value (the spec only
-    // accepts ``ltr``/``rtl``/``inherit``), so for LTR target languages we
-    // also set the HTML ``dir="auto"`` attribute on the wrapper. This is
-    // what makes the browser auto-detect directionality from the first
-    // strong character.
-    if (!rtl) node.setAttribute("dir", "auto");
+    // accepts ``ltr``/``rtl``/``inherit``), so we set the HTML ``dir``
+    // attribute on the wrapper to make the border-inline-start sit on the
+    // correct side of the accessory.
+    //
+    // We deliberately use explicit ``dir="ltr"`` (not ``dir="auto"``) for
+    // non-RTL targets. ``dir="auto"`` resolves from the *first strong
+    // character* of the subtree, and the header label ("🌐 الترجمة") is
+    // always Arabic, so ``dir="auto"`` would always resolve to RTL — which
+    // would mirror the green accent bar to the right side even when the
+    // translation body is English. The body div still uses ``dir="auto"``
+    // so its *text* direction tracks the translation content correctly.
+    node.setAttribute("dir", rtl ? "rtl" : "ltr");
     const header = document.createElement("small");
     // Header label is always Arabic ("🌐 الترجمة") regardless of target
     // language — the UI of the plugin itself is Arabic-first — so it always
