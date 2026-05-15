@@ -150,6 +150,7 @@ export default definePlugin({
         const onUp = (): void => {
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("wheel", onWheel);
+            window.removeEventListener("mouseup", onUp);
             removeLens();
             ctx.stats.bump("zoomed");
         };
@@ -159,8 +160,16 @@ export default definePlugin({
 
         // Cleanup on stop via the framework's auto-cleanup of injected styles
         // and listeners. We manually clean ours:
+        // Tracks listeners attached on mousedown so we can detach them in cleanup
+        // even if the plugin is stopped mid-zoom (per CONTRIBUTING.md §4).
+        const detachWindowListeners = (): void => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("wheel", onWheel);
+            window.removeEventListener("mouseup", onUp);
+        };
         const cleanup = (): void => {
             document.removeEventListener("mousedown", onMouseDown, true);
+            detachWindowListeners();
             removeLens();
         };
         // Register on a custom event so onStop sees us:

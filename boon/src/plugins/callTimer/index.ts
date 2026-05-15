@@ -109,7 +109,17 @@ export default definePlugin({
             }
         };
 
-        const observer = new MutationObserver(() => watch());
+        // Debounce via rAF — see CONTRIBUTING.md §4. A busy guild fires dozens
+        // of mutations per second; we only need a single watch() per frame.
+        let watchScheduled = false;
+        const observer = new MutationObserver(() => {
+            if (watchScheduled) return;
+            watchScheduled = true;
+            requestAnimationFrame(() => {
+                watchScheduled = false;
+                watch();
+            });
+        });
         observer.observe(document.body, { childList: true, subtree: true });
         watch();
 

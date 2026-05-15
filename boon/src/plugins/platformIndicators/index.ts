@@ -99,7 +99,17 @@ export default definePlugin({
         };
 
         scan();
-        const observer = new MutationObserver(() => scan());
+        // Debounce via rAF — see CONTRIBUTING.md §4. scan() walks three lists
+        // (messages, members, popout) so coalescing burst-mutations matters.
+        let scanScheduled = false;
+        const observer = new MutationObserver(() => {
+            if (scanScheduled) return;
+            scanScheduled = true;
+            requestAnimationFrame(() => {
+                scanScheduled = false;
+                scan();
+            });
+        });
         observer.observe(document.body, { childList: true, subtree: true });
 
         const g = globalThis as unknown as { __BOON_PLATFORMINDICATORS_CLEANUP__?: () => void };

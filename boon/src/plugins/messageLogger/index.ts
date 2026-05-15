@@ -36,7 +36,7 @@ const SCHEMA = {
         label: "الحد الأقصى للرسائل المحفوظة لكل قناة",
         description: "أكبر = ذاكرة أكثر. صفر = بلا حد.",
         default: 500,
-        min: 50,
+        min: 0,
         max: 5000,
     },
     showAuthor: { type: "boolean", label: "إظهار اسم المرسل في السجل", default: true },

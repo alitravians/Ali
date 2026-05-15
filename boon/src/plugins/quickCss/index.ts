@@ -143,7 +143,16 @@ export default definePlugin({
             ta.value = ctx.settings.css;
             ta.focus();
 
-            const close = (): void => removePanel();
+            // Every close path (click-outside, ✕ button, Save, Escape) must
+            // also detach the document keydown listener — otherwise reopening
+            // the panel accumulates dead handlers on document.
+            const onKey = (e: KeyboardEvent): void => {
+                if (e.key === "Escape") close();
+            };
+            const close = (): void => {
+                document.removeEventListener("keydown", onKey);
+                removePanel();
+            };
             panel.addEventListener("click", e => { if (e.target === panel) close(); });
             box.querySelector("#boon-quickcss-close")?.addEventListener("click", close);
             box.querySelector("#boon-quickcss-revert")?.addEventListener("click", () => {
@@ -156,13 +165,6 @@ export default definePlugin({
                 ctx.stats.bump("saved");
                 close();
             });
-
-            const onKey = (e: KeyboardEvent): void => {
-                if (e.key === "Escape") {
-                    close();
-                    document.removeEventListener("keydown", onKey);
-                }
-            };
             document.addEventListener("keydown", onKey);
         };
 

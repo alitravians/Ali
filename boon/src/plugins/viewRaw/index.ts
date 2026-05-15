@@ -126,7 +126,16 @@ function openModal(data: RawData, toast: (msg: string, kind: "info" | "success" 
     overlay.appendChild(panel);
     document.body.appendChild(overlay);
 
-    const close = (): void => overlay.remove();
+    // Every close path (click-outside, ✕ button, Escape) must detach the
+    // document keydown listener — otherwise reopening the modal accumulates
+    // dead handlers on document.
+    const onKey = (e: KeyboardEvent): void => {
+        if (e.key === "Escape") close();
+    };
+    const close = (): void => {
+        document.removeEventListener("keydown", onKey);
+        overlay.remove();
+    };
     overlay.addEventListener("click", e => { if (e.target === overlay) close(); });
     panel.querySelector("#boon-viewraw-close")?.addEventListener("click", close);
 
@@ -147,12 +156,6 @@ function openModal(data: RawData, toast: (msg: string, kind: "info" | "success" 
         else toast("لا يوجد معرّف", "error");
     });
 
-    const onKey = (e: KeyboardEvent): void => {
-        if (e.key === "Escape") {
-            close();
-            document.removeEventListener("keydown", onKey);
-        }
-    };
     document.addEventListener("keydown", onKey);
 }
 
