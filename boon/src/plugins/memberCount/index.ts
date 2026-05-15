@@ -21,12 +21,21 @@ const SCHEMA = {
     pollMs: { type: "number", label: "زمن التحديث (مللي ثانية)", default: 3000, min: 500, max: 30000 },
 } as const satisfies SettingsSchema;
 
-function parseCount(text: string): number {
-    const m = text.match(/([\d,.]+)\s*([kKmM]?)/);
-    if (!m) return 0;
+/**
+ * Parse a strictly-formatted member-count token, e.g. `"4"`, `"1,234"`,
+ * `"1.2K"`, `"4M"`. The pattern is fully anchored so loose tokens like
+ * `"4 members"` (a digit followed by whitespace and an English word that
+ * happens to start with `m`) can NEVER be misinterpreted as `4_000_000`.
+ *
+ * Returns `null` on any parse failure so callers can fall back instead of
+ * silently producing nonsense counts.
+ */
+function parseCount(text: string): number | null {
+    const m = text.match(/^(\d[\d,]*(?:\.\d+)?)([kKmM])?$/);
+    if (!m) return null;
     const raw = parseFloat(m[1].replace(/,/g, ""));
-    if (isNaN(raw)) return 0;
-    const suffix = m[2].toLowerCase();
+    if (isNaN(raw)) return null;
+    const suffix = (m[2] ?? "").toLowerCase();
     if (suffix === "k") return Math.round(raw * 1000);
     if (suffix === "m") return Math.round(raw * 1_000_000);
     return Math.round(raw);
@@ -37,30 +46,67 @@ interface Counts {
     total: number | null;
 }
 
+/**
+ * Read online + total counts from Discord's member-list group headers.
+ *
+ * The member-list panel renders one header per status bucket using the
+ * pattern `Label — Count` (em dash, en dash, or hyphen as separator):
+ *   - `Online — 4`
+ *   - `Idle — 1`
+ *   - `Offline — 12`
+ *
+ * We target the specific group-header element (`[class*="membersGroupHeader"]`)
+ * — NOT broader containers — so we never read concatenated text like
+ * `"Online, 4 membersOnline — 4alitravians..."` that mixes counts with
+ * surrounding member-name text. That broader read used to misparse the
+ * leading `"4 members"` substring as `"4M"` (because `\s*[kKmM]?` greedily
+ * consumed the space and the `m` from `members`) and report 4,000,000
+ * online users in a 4-member server.
+ *
+ * Total = sum of every parsed group header. If no group headers are
+ * present (member list collapsed, or Discord's class names changed),
+ * both fields are `null` and the badge is hidden.
+ */
 function readMemberListCounts(): Counts {
-    const onlineHeader = Array.from(document.querySelectorAll<HTMLElement>(
-        '[class*="membersGroup"], [aria-label*="member" i]'
-    )).find(h => /online|متصل/i.test(h.textContent ?? ""));
+    const groupHeaders = Array.from(document.querySelectorAll<HTMLElement>(
+        '[class*="membersGroupHeader"]',
+    ));
 
     let online: number | null = null;
-    if (onlineHeader) {
-        const t = onlineHeader.textContent ?? "";
-        const m = t.match(/(\d[\d,.]*\s*[kKmM]?)/);
-        if (m) online = parseCount(m[1]);
+    let totalAccum = 0;
+    let foundAnyGroup = false;
+
+    for (const h of groupHeaders) {
+        const text = (h.textContent ?? "").trim();
+        // Pattern: "Label — Count". Accept em dash (—), en dash (–), and
+        // hyphen-minus (-) as separators. Count must be a numeric token
+        // valid for `parseCount` (digits, optional commas/decimal, optional
+        // K/M suffix).
+        const match = text.match(/^(.+?)\s*[—–\-]\s*([\d,]+(?:\.\d+)?[kKmM]?)\s*$/);
+        if (!match) continue;
+        const label = match[1].trim();
+        const count = parseCount(match[2]);
+        if (count === null) continue;
+        foundAnyGroup = true;
+        totalAccum += count;
+        if (/^online\b|^متصل/i.test(label)) online = count;
     }
 
-    // Total: membersGroup with "offline" plus online, or member-list aria-label
-    const memberList = document.querySelector<HTMLElement>('[aria-label*="member" i][class*="members"]');
-    let total: number | null = null;
-    if (memberList) {
-        const label = memberList.getAttribute("aria-label") ?? "";
-        const m = label.match(/(\d[\d,.]*\s*[kKmM]?)/);
-        if (m) total = parseCount(m[1]);
-    }
-
-    return { online, total };
+    return {
+        online,
+        total: foundAnyGroup ? totalAccum : null,
+    };
 }
 
+/**
+ * Format a count for the badge:
+ *   - `n < 1000`            → verbatim integer (`"4"`, `"857"`, `"999"`)
+ *   - `1000 ≤ n < 10_000`     → one decimal K (`"1.0K"`, `"1.2K"`, `"9.9K"`).
+ *                             Note: `format(9999)` returns `"10.0K"` due to
+ *                             rounding by `toFixed(1)`, not `"9.9K"`.
+ *   - `10_000 ≤ n < 1_000_000` → no-decimal K (`"10K"`, `"125K"`)
+ *   - `n ≥ 1_000_000`        → one decimal M (`"1.0M"`, `"1.2M"`)
+ */
 function format(n: number): string {
     if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
     if (n >= 10_000) return `${(n / 1000).toFixed(0)}K`;
@@ -125,11 +171,26 @@ export default definePlugin({
         };
 
         update();
-        const interval = window.setInterval(update, ctx.settings.pollMs);
+        // The poll interval is recreated whenever the plugin's settings
+        // change so a new `pollMs` takes effect immediately. Without this,
+        // the original cadence would persist until the plugin is restarted.
+        let interval = window.setInterval(update, ctx.settings.pollMs);
+
+        const unsubSettings = ctx.on("settings:changed", ({ pluginId, key }) => {
+            if (pluginId !== "memberCount") return;
+            // Re-arm the interval only when the cadence actually changed.
+            // Other keys (e.g. `showInHeader`) just need a repaint.
+            if (key === "pollMs") {
+                window.clearInterval(interval);
+                interval = window.setInterval(update, ctx.settings.pollMs);
+            }
+            update();
+        });
 
         const g = globalThis as unknown as { __BOON_MEMBERCOUNT_CLEANUP__?: () => void };
         g.__BOON_MEMBERCOUNT_CLEANUP__ = () => {
             window.clearInterval(interval);
+            unsubSettings();
             document.getElementById(BADGE_ID)?.remove();
         };
         ctx.logger.info("active");
