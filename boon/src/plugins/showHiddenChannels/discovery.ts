@@ -31,6 +31,31 @@ import {
 let didDumpStoresOnce = false;
 
 /**
+ * Per-candidate probe attempt captured by `findChannelStoreBrute`. Surfaces
+ * exactly what each candidate's `getMutableGuildChannelsForGuild(guildId)`
+ * returned, so when the brute-force fails we can see whether the response
+ * was empty, the wrong shape, or threw.
+ */
+interface ChannelProbeAttempt {
+    /** Which lookup method we called. */
+    method: string;
+    /** `typeof` the return value. */
+    resultType: string;
+    /** Constructor name (e.g. `Map`, `Object`, `Array`). */
+    ctorName: string | null;
+    /** Whether the call threw (and if so, the message). */
+    threw: string | null;
+    /** Length we managed to extract via {@link extractRecordValues}. */
+    extractedCount: number;
+    /** First value's keys (up to 8) so we can see channel-record shape. */
+    firstValueKeys: string[];
+    /** Did the result pass {@link looksLikeChannelRecord}? */
+    shapeMatched: boolean;
+}
+
+let lastChannelProbeAttempts: ChannelProbeAttempt[] = [];
+
+/**
  * Snapshot the webpack subsystem when a store lookup fails and stash it on a
  * window global so we can inspect it from DevTools without redeploying. The
  * panel still renders a short Arabic message — we don't pollute the UI with
@@ -51,6 +76,10 @@ function publishProbe(reasonKey: string): void {
             storeShapedExports: p.storeShapedExports,
             storeNames: p.storeNames,
             unnamedStoreSamples: p.unnamedStoreSamples,
+            // Surfaces the per-candidate brute-force probe results so we can
+            // see exactly why every candidate was rejected (empty/threw/bad
+            // shape) and adjust the validator in a follow-up release.
+            channelProbeAttempts: lastChannelProbeAttempts,
         };
         (window as unknown as Record<string, unknown>).__alitraviansShcDebug = detail;
         // Also write to console once so it's visible without manual probing.
@@ -78,26 +107,119 @@ const CHANNEL_LOOKUP_METHODS = [
 ] as const;
 
 /**
+ * The canonical method-name signature of a Discord ChannelStore. A candidate
+ * that exposes ALL of these as functions is structurally a ChannelStore even
+ * if behavioural probing fails (e.g. when the guild's channel data isn't
+ * cached yet, the lookup returns an empty record but the candidate is still
+ * the right store).
+ */
+const CHANNEL_STORE_SIGNATURE = [
+    "getChannel",
+    "getMutableGuildChannelsForGuild",
+] as const;
+
+/**
+ * Pull values out of whatever shape `getMutableGuildChannelsForGuild` decided
+ * to return. Modern Discord may return:
+ *   - a plain `Record<channelId, ChannelRecord>` (historical)
+ *   - an ES `Map<channelId, ChannelRecord>`
+ *   - an ImmutableJS `Map` / `Record` (`.toJS()` + `Object.values`)
+ *   - any other iterable
+ * Returns an empty array if no extraction strategy yields values.
+ */
+function extractRecordValues(probe: unknown): unknown[] {
+    if (probe == null || typeof probe !== "object") return [];
+    // Strategy 1: plain object.
+    try {
+        const vals = Object.values(probe as Record<string, unknown>);
+        if (vals.length > 0) return vals;
+    } catch { /* swallow */ }
+    // Strategy 2: ES Map (or anything else with a `values()` iterator that's
+    // not the Object.prototype default).
+    try {
+        const p = probe as { values?: () => Iterable<unknown> };
+        if (typeof p.values === "function" && p.values !== Object.prototype.valueOf as unknown) {
+            const fromValues: unknown[] = [];
+            for (const v of p.values()) {
+                fromValues.push(v);
+                if (fromValues.length >= 256) break;
+            }
+            if (fromValues.length > 0) return fromValues;
+        }
+    } catch { /* swallow */ }
+    // Strategy 3: ImmutableJS — `.toJS()` materialises to a plain object.
+    try {
+        const p = probe as { toJS?: () => unknown };
+        if (typeof p.toJS === "function") {
+            const js = p.toJS();
+            if (js && typeof js === "object") {
+                const vals = Object.values(js as Record<string, unknown>);
+                if (vals.length > 0) return vals;
+            }
+        }
+    } catch { /* swallow */ }
+    // Strategy 4: any iterable (Symbol.iterator).
+    try {
+        const p = probe as { [Symbol.iterator]?: () => Iterator<unknown> };
+        if (typeof p[Symbol.iterator] === "function") {
+            const acc: unknown[] = [];
+            for (const v of probe as Iterable<unknown>) {
+                acc.push(v);
+                if (acc.length >= 256) break;
+            }
+            if (acc.length > 0) return acc;
+        }
+    } catch { /* swallow */ }
+    return [];
+}
+
+/**
+ * A value looks like a Discord channel record if it carries an `id` (string
+ * or number) AND a `type` / `kind` numeric field. We accept multiple field
+ * names because Discord has been known to rename `type` → `kind` in
+ * experimental builds.
+ */
+function looksLikeChannelRecord(v: unknown): boolean {
+    if (!v || typeof v !== "object") return false;
+    const c = v as Record<string, unknown>;
+    const hasId = typeof c.id === "string" || typeof c.id === "number" || typeof c.id === "bigint";
+    if (!hasId) return false;
+    const hasType = typeof c.type === "number" || typeof c.kind === "number";
+    return hasType;
+}
+
+/**
  * A returned record from any of the channel-lookup methods is acceptable iff
- * its first value carries the standard `{ id: string, type: number }` shape
- * of a Discord channel record. The i18n `MessagesStore` returns strings for
- * every property access — its values never pass this shape check.
+ * at least one extractable value looks like a Discord channel record.
  */
 function looksLikeRealChannelMap(probe: unknown): boolean {
-    if (probe == null) return false;
-    if (typeof probe !== "object") return false;
-    const values = Object.values(probe as Record<string, unknown>);
+    const values = extractRecordValues(probe);
     if (values.length === 0) return false;
-    const first = values[0] as { id?: unknown; type?: unknown } | null | undefined;
-    if (!first || typeof first !== "object") return false;
-    return typeof first.id === "string" && typeof first.type === "number";
+    return looksLikeChannelRecord(values[0]);
+}
+
+/**
+ * Returns true if the candidate exposes the canonical ChannelStore method
+ * signature. Used as a structural-fallback signal when the behavioural probe
+ * fails on every candidate (e.g. Discord lazy-loaded the guild's channels
+ * after our scan ran).
+ */
+function hasChannelStoreSignature(candidate: unknown): boolean {
+    if (!candidate || typeof candidate !== "object") return false;
+    const o = candidate as Record<string, unknown>;
+    for (const m of CHANNEL_STORE_SIGNATURE) {
+        if (typeof o[m] !== "function") return false;
+    }
+    return true;
 }
 
 /**
  * Brute-force last-resort: iterate every Flux-shaped export we've cached,
  * probe each one with every plausible channel-lookup method using the real
  * `guildId`, and return the first store whose response shape matches a real
- * channel map. Returns `null` if no candidate matches.
+ * channel map. Falls back to the first structurally-matching candidate when
+ * behavioural probing fails everywhere — better to return an empty hidden
+ * list than a hard "ChannelStore not found" error.
  *
  * This is the path that finally rescues the panel on modern Discord builds
  * where ChannelStore's `displayName`, `getName()`, *and* method-name source
@@ -105,23 +227,64 @@ function looksLikeRealChannelMap(probe: unknown): boolean {
  * shape-based, nor source-code-based lookups can pin it.
  */
 function findChannelStoreBrute(guildId: string): ChannelStore | null {
+    let structuralFallback: unknown = null;
+    const attempts: ChannelProbeAttempt[] = [];
     for (const candidate of iterateStoreShapedExports()) {
         const o = candidate as Record<string, unknown>;
+        // Remember the first candidate that exposes the canonical method
+        // signature, so we can return it if no behavioural probe matches.
+        if (!structuralFallback && hasChannelStoreSignature(candidate)) {
+            structuralFallback = candidate;
+        }
         for (const method of CHANNEL_LOOKUP_METHODS) {
             const fn = o[method];
             if (typeof fn !== "function") continue;
             let probe: unknown;
+            let threw: string | null = null;
             try {
                 probe = (fn as (id: string) => unknown).call(candidate, guildId);
-            } catch {
-                continue;
+            } catch (e) {
+                threw = e instanceof Error ? e.message : String(e);
             }
+            // Capture a per-attempt diagnostic so when the panel reports a
+            // store-lookup failure we know exactly what shape was returned.
+            // Capped at 60 entries to keep `window.__alitraviansShcDebug`
+            // small enough to paste into a chat message.
+            if (attempts.length < 60) {
+                let ctorName: string | null = null;
+                try {
+                    const cn = (probe as { constructor?: { name?: unknown } } | null | undefined)?.constructor?.name;
+                    if (typeof cn === "string") ctorName = cn;
+                } catch { /* skip */ }
+                const values = threw ? [] : extractRecordValues(probe);
+                const firstValueKeys: string[] = [];
+                if (values[0] && typeof values[0] === "object") {
+                    try {
+                        for (const k of Object.keys(values[0] as Record<string, unknown>)) {
+                            firstValueKeys.push(k);
+                            if (firstValueKeys.length >= 8) break;
+                        }
+                    } catch { /* skip */ }
+                }
+                attempts.push({
+                    method,
+                    resultType: typeof probe,
+                    ctorName,
+                    threw,
+                    extractedCount: values.length,
+                    firstValueKeys,
+                    shapeMatched: values.length > 0 && looksLikeChannelRecord(values[0]),
+                });
+            }
+            if (threw) continue;
             if (looksLikeRealChannelMap(probe)) {
+                lastChannelProbeAttempts = attempts;
                 return candidate as ChannelStore;
             }
         }
     }
-    return null;
+    lastChannelProbeAttempts = attempts;
+    return (structuralFallback as ChannelStore) ?? null;
 }
 
 /**
@@ -326,16 +489,13 @@ function enumerateGuildChannels(
         if (typeof fn !== "function") continue;
         try {
             const record = (fn as (id: string) => unknown).call(channelStore, guildId);
-            if (record && typeof record === "object") {
-                const values = Object.values(record as Record<string, unknown>);
-                if (values.length === 0) continue;
-                // Validate the first record looks like a Discord channel
-                // before returning — guards against the i18n proxy slipping
-                // through if we ever resolve it as ChannelStore by accident.
-                const first = values[0] as { id?: unknown; type?: unknown } | null | undefined;
-                if (first && typeof first === "object" && typeof first.id === "string" && typeof first.type === "number") {
-                    return values as DiscordChannelLite[];
-                }
+            const values = extractRecordValues(record);
+            if (values.length === 0) continue;
+            // Validate the first record looks like a Discord channel before
+            // returning — guards against the i18n proxy slipping through if
+            // we ever resolve it as ChannelStore by accident.
+            if (looksLikeChannelRecord(values[0])) {
+                return values as DiscordChannelLite[];
             }
         } catch {
             // Try the next method name.
