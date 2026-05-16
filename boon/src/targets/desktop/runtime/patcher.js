@@ -70,7 +70,7 @@ app.setAppPath(asarPath);
 // BOON_GET_BOOT_INFO so the in-app updater can decide whether a staged
 // patcher upgrade is needed without forcing the user back to the .exe
 // installer for every patcher change.
-const PATCHER_VERSION = "0.2.3";
+const PATCHER_VERSION = "0.2.4";
 
 const dataDir = __dirname;
 const activePatcherPath = path.join(dataDir, "patcher.js");
@@ -93,7 +93,14 @@ function looksLikeRenderer(code) {
 function extractVersion(code) {
     // Renderer code declares `var VERSION = "x.y.z"` near the top after
     // esbuild bundling. We don't care if minified — the literal survives.
-    const m = /VERSION\s*=\s*"(\d+\.\d+\.\d+)"/.exec(code);
+    //
+    // We anchor on `\bVERSION\b` (word boundary on both sides) so accidental
+    // sibling identifiers like `VERSION2 = "0.5.0"` — which esbuild emits
+    // when two top-level `const VERSION` declarations collide across
+    // modules — do NOT spuriously match and feed the wrong version back to
+    // the boot bridge. This used to silently break the in-app updater
+    // (current = null → "update available" never went away).
+    const m = /\bVERSION\b\s*=\s*"(\d+\.\d+\.\d+)"/.exec(code);
     return m ? m[1] : null;
 }
 
