@@ -193,13 +193,28 @@ interface PlacementProbeResult {
     floating: boolean;
 }
 
-function isVisibleNode(el: Element | null): el is HTMLElement {
-    if (!el || !(el instanceof HTMLElement)) return false;
-    if (!el.isConnected) return false;
-    const rect = el.getBoundingClientRect();
+function isVisibleNode(node: Element | null): node is HTMLElement {
+    if (!node || !(node instanceof HTMLElement)) return false;
+    if (!node.isConnected) return false;
+    const rect = node.getBoundingClientRect();
     // A 0×0 element either isn't laid out yet or is hidden via display:none.
     // Either way it's not a useful mount point for a visible button.
     return rect.width > 0 && rect.height > 0;
+}
+
+/**
+ * Restore the sidebar inline `position` we may have flipped for
+ * Strategy D, then drop the mutation memo. Called every time the probe
+ * lands on a non-floating strategy so a transient floating mount
+ * doesn't leave Discord's sidebar carrying a stale `position: relative`
+ * override forever.
+ */
+function restoreFloatingMutation(): void {
+    if (!floatingSidebarMutation) return;
+    if (floatingSidebarMutation.element.isConnected) {
+        floatingSidebarMutation.element.style.position = floatingSidebarMutation.originalPosition;
+    }
+    floatingSidebarMutation = null;
 }
 
 /**
@@ -220,7 +235,10 @@ function probeChannelListMount(): PlacementProbeResult | null {
     );
     for (const nav of channelNavs) {
         const header = nav.querySelector<HTMLElement>("header");
-        if (isVisibleNode(header)) return { mount: header, strategy: "nav-channels-header", floating: false };
+        if (isVisibleNode(header)) {
+            restoreFloatingMutation();
+            return { mount: header, strategy: "nav-channels-header", floating: false };
+        }
     }
 
     // Strategy B — anchored on the guild header element directly. Discord
@@ -230,7 +248,10 @@ function probeChannelListMount(): PlacementProbeResult | null {
     const taggedHeader = document.querySelector<HTMLElement>(
         'header[class*="container_"][class*="header_"]',
     );
-    if (isVisibleNode(taggedHeader)) return { mount: taggedHeader, strategy: "tagged-header", floating: false };
+    if (isVisibleNode(taggedHeader)) {
+        restoreFloatingMutation();
+        return { mount: taggedHeader, strategy: "tagged-header", floating: false };
+    }
 
     // Strategy C — sidebar wrapper that holds the channel list. Discord
     // labels the column with `class*="sidebar_"` (and historically
@@ -242,7 +263,10 @@ function probeChannelListMount(): PlacementProbeResult | null {
     );
     if (sidebar) {
         const innerHeader = sidebar.querySelector<HTMLElement>("header, [class*=\"header_\"]");
-        if (isVisibleNode(innerHeader)) return { mount: innerHeader, strategy: "sidebar-inner-header", floating: false };
+        if (isVisibleNode(innerHeader)) {
+            restoreFloatingMutation();
+            return { mount: innerHeader, strategy: "sidebar-inner-header", floating: false };
+        }
         // Strategy D — floating button anchored to the sidebar so the
         // user always sees the launcher even when the header probe
         // fails. position: relative is asserted on the sidebar so the
@@ -444,15 +468,7 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         // sidebar for floating mode. If the user disables the plugin
         // without navigating, this leaves Discord's DOM in the exact
         // state we found it in.
-        if (floatingSidebarMutation) {
-            // Only restore if Discord hasn't replaced the sidebar
-            // element in the meantime — a swapped sidebar already
-            // dropped our override.
-            if (floatingSidebarMutation.element.isConnected) {
-                floatingSidebarMutation.element.style.position = floatingSidebarMutation.originalPosition;
-            }
-            floatingSidebarMutation = null;
-        }
+        restoreFloatingMutation();
     };
 }
 
