@@ -58,6 +58,36 @@ const captured = new Map<string, string>();
 
 let installed = false;
 
+/**
+ * Hostname suffixes we consider "Discord owned". Headers seen on requests
+ * to any other origin are ignored, so co-installed extensions (or any
+ * future BOON plugin that talks to a third-party API with its own
+ * Authorization header) cannot poison the cache. Discord routes user
+ * requests through ``discord.com`` and a few CDN subdomains; the
+ * Authorization header only ever appears on ``discord.com`` / the gateway,
+ * so a single hostname suffix is sufficient.
+ */
+const DISCORD_HOST_SUFFIXES = [
+    "discord.com",
+    "discordapp.com",
+];
+
+function isDiscordUrl(rawUrl: unknown): boolean {
+    if (typeof rawUrl !== "string" || rawUrl.length === 0) return true;
+    try {
+        // Relative URLs (e.g. ``/api/v9/...``) resolve against the renderer
+        // origin, which is itself ``discord.com`` — so a successful parse
+        // with ``window.location.href`` as the base is also a Discord URL.
+        const parsed = new URL(rawUrl, window.location.href);
+        const host = parsed.hostname.toLowerCase();
+        return DISCORD_HOST_SUFFIXES.some(s => host === s || host.endsWith("." + s));
+    } catch {
+        // Unparseable URL — be permissive (e.g. Electron internal schemes).
+        // Better to occasionally over-capture than to miss the real token.
+        return true;
+    }
+}
+
 function record(name: unknown, value: unknown): void {
     if (typeof name !== "string" || typeof value !== "string") return;
     const key = name.toLowerCase();
@@ -93,6 +123,13 @@ function recordHeaders(headers: unknown): void {
     }
 }
 
+function requestUrlFromInput(input: RequestInfo | URL): string | null {
+    if (typeof input === "string") return input;
+    if (input instanceof URL) return input.href;
+    if (input instanceof Request) return input.url;
+    return null;
+}
+
 /**
  * Install passive wrappers on ``fetch`` and ``XMLHttpRequest.setRequestHeader``
  * so every authenticated Discord request feeds our cache. Idempotent.
@@ -115,8 +152,14 @@ export function installHeaderCapture(): void {
             init?: RequestInit,
         ): Promise<Response> {
             try {
-                if (init?.headers) recordHeaders(init.headers);
-                if (input instanceof Request) recordHeaders(input.headers);
+                if (isDiscordUrl(requestUrlFromInput(input))) {
+                    // Per the Fetch spec, when both a ``Request`` input and
+                    // an ``init.headers`` are passed, ``init.headers``
+                    // OVERRIDES the Request's headers. Record the Request
+                    // first so a later ``init`` overwrite wins in the cache.
+                    if (input instanceof Request) recordHeaders(input.headers);
+                    if (init?.headers) recordHeaders(init.headers);
+                }
             } catch (err) {
                 log.warn("fetch header inspection threw", err);
             }
@@ -128,22 +171,46 @@ export function installHeaderCapture(): void {
     }
 
     // --- XMLHttpRequest ----------------------------------------------------
+    // ``setRequestHeader`` doesn't know the request URL on its own, so we
+    // also wrap ``open`` to stash the URL on the XHR instance. The stash
+    // lives under a Symbol-keyed property to avoid colliding with any
+    // application-defined ``url`` field on the XHR instance.
     try {
         const proto = XMLHttpRequest.prototype;
+        const URL_KEY = Symbol("boonRequestUrl");
+        const originalOpen = proto.open;
+        proto.open = function patchedOpen(
+            this: XMLHttpRequest & Record<symbol, string>,
+            method: string,
+            url: string | URL,
+            ...rest: unknown[]
+        ): void {
+            try {
+                this[URL_KEY] = typeof url === "string" ? url : url.href;
+            } catch {
+                // Frozen instance — skip stash, capture will skip below.
+            }
+            // The signature with all overloads is awkward to type; cast to
+            // the original function and forward all arguments verbatim.
+            return (originalOpen as (...args: unknown[]) => void).apply(
+                this,
+                [method, url, ...rest],
+            );
+        };
         const originalSetRequestHeader = proto.setRequestHeader;
         proto.setRequestHeader = function patchedSetRequestHeader(
-            this: XMLHttpRequest,
+            this: XMLHttpRequest & Record<symbol, string | undefined>,
             name: string,
             value: string,
         ): void {
             try {
-                record(name, value);
+                if (isDiscordUrl(this[URL_KEY])) record(name, value);
             } catch (err) {
                 log.warn("XHR header inspection threw", err);
             }
             return originalSetRequestHeader.call(this, name, value);
         };
-        log.info("installed XHR setRequestHeader wrapper");
+        log.info("installed XHR wrappers");
     } catch (err) {
         log.warn("could not wrap XMLHttpRequest", err);
     }
