@@ -1,6 +1,5 @@
 <!--
 شكراً لمساهمتك! اختر القسم المناسب أدناه واملأ الحقول.
-For non-BOON PRs (chat-platform, war-tracker, etc.) you can delete this template and describe your changes freely.
 -->
 
 ## نوع الـ PR
