@@ -134,15 +134,18 @@ function extractRecordValues(probe: unknown): unknown[] {
         const vals = Object.values(probe as Record<string, unknown>);
         if (vals.length > 0) return vals;
     } catch { /* swallow */ }
-    // Strategy 2: ES Map (or anything else with a `values()` iterator that's
-    // not the Object.prototype default).
+    // Strategy 2: ES Map / ImmutableJS Map (anything with a custom `values()`
+    // iterator). Object.prototype has no `.values` member, so the typeof check
+    // alone is enough — any object exposing `.values()` is a custom container.
     try {
         const p = probe as { values?: () => Iterable<unknown> };
-        if (typeof p.values === "function" && p.values !== Object.prototype.valueOf as unknown) {
+        if (typeof p.values === "function") {
             const fromValues: unknown[] = [];
             for (const v of p.values()) {
                 fromValues.push(v);
-                if (fromValues.length >= 256) break;
+                // Discord guilds cap at 500 channels; keep generous headroom
+                // for future limit bumps and category-heavy servers.
+                if (fromValues.length >= 4096) break;
             }
             if (fromValues.length > 0) return fromValues;
         }
@@ -165,7 +168,7 @@ function extractRecordValues(probe: unknown): unknown[] {
             const acc: unknown[] = [];
             for (const v of probe as Iterable<unknown>) {
                 acc.push(v);
-                if (acc.length >= 256) break;
+                if (acc.length >= 4096) break;
             }
             if (acc.length > 0) return acc;
         }
@@ -200,9 +203,17 @@ function looksLikeRealChannelMap(probe: unknown): boolean {
 
 /**
  * Returns true if the candidate exposes the canonical ChannelStore method
- * signature. Used as a structural-fallback signal when the behavioural probe
- * fails on every candidate (e.g. Discord lazy-loaded the guild's channels
- * after our scan ran).
+ * signature AND is not Discord's i18n `MessagesStore` Proxy in disguise.
+ *
+ * The Proxy fakes a function for *every* property access, so a method-name
+ * check alone would let it slip through. We reject it with a behavioural
+ * smoke-test: call `getChannel('0')`. The real ChannelStore returns
+ * `undefined` (or a channel record) for an unknown id; the i18n Proxy
+ * always returns a string from its translation table.
+ *
+ * Used as a structural-fallback signal when the behavioural probe fails on
+ * every candidate (e.g. Discord lazy-loaded the guild's channels after our
+ * scan ran).
  */
 function hasChannelStoreSignature(candidate: unknown): boolean {
     if (!candidate || typeof candidate !== "object") return false;
@@ -210,6 +221,14 @@ function hasChannelStoreSignature(candidate: unknown): boolean {
     for (const m of CHANNEL_STORE_SIGNATURE) {
         if (typeof o[m] !== "function") return false;
     }
+    // Anti-Proxy gate: the i18n MessagesStore Proxy returns a string from
+    // every method call. A real ChannelStore returns `undefined` or an
+    // object record for an unknown channel id. A string return is a hard
+    // reject.
+    try {
+        const r = (o.getChannel as (id: string) => unknown).call(candidate, "0");
+        if (typeof r === "string") return false;
+    } catch { /* getChannel may throw on bad input; that's fine — it's not the Proxy. */ }
     return true;
 }
 
@@ -246,6 +265,11 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
             } catch (e) {
                 threw = e instanceof Error ? e.message : String(e);
             }
+            // Extract once and reuse for both the diagnostic capture and the
+            // shape check. Avoids running extractRecordValues twice on a
+            // probe that's about to be accepted.
+            const values = threw ? [] : extractRecordValues(probe);
+            const shapeOk = values.length > 0 && looksLikeChannelRecord(values[0]);
             // Capture a per-attempt diagnostic so when the panel reports a
             // store-lookup failure we know exactly what shape was returned.
             // Capped at 60 entries to keep `window.__alitraviansShcDebug`
@@ -256,7 +280,6 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
                     const cn = (probe as { constructor?: { name?: unknown } } | null | undefined)?.constructor?.name;
                     if (typeof cn === "string") ctorName = cn;
                 } catch { /* skip */ }
-                const values = threw ? [] : extractRecordValues(probe);
                 const firstValueKeys: string[] = [];
                 if (values[0] && typeof values[0] === "object") {
                     try {
@@ -273,11 +296,11 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
                     threw,
                     extractedCount: values.length,
                     firstValueKeys,
-                    shapeMatched: values.length > 0 && looksLikeChannelRecord(values[0]),
+                    shapeMatched: shapeOk,
                 });
             }
             if (threw) continue;
-            if (looksLikeRealChannelMap(probe)) {
+            if (shapeOk) {
                 lastChannelProbeAttempts = attempts;
                 return candidate as ChannelStore;
             }
