@@ -217,3 +217,50 @@ export function installChunkInterceptor(): void {
     });
     log.info("waiting for webpackChunkdiscord_app to appear");
 }
+
+/**
+ * Force webpack to hand us a fresh `__webpack_require__` reference by pushing
+ * a synthetic chunk with a runtime callback. This is the
+ * Vencord/BetterDiscord-proven bootstrap path: webpack invokes the third
+ * tuple element with its real require, which exposes `.m` (module factory
+ * registry) and `.c` (module cache).
+ *
+ * We use this as a last-resort: even if our setter-on-window racing with
+ * webpack lost the global, or our `.push` override was bypassed by another
+ * tool, this ALWAYS gets us a working require — because webpack itself runs
+ * the callback as part of its chunk-load protocol.
+ *
+ * Safe to call repeatedly; rememberRequire is idempotent on its first call.
+ * Returns true if we successfully got a require, false otherwise.
+ */
+export function bootstrapWebpackRequire(): boolean {
+    const win = window as unknown as Record<string, WebpackChunk[] | undefined>;
+    const arr = win[CHUNK_GLOBAL];
+    if (!Array.isArray(arr)) {
+        log.warn("bootstrap: chunk global not present yet");
+        return false;
+    }
+    let captured: WebpackRequire | undefined;
+    try {
+        // Push a chunk with no modules and a single runtime callback. The
+        // first tuple element is the chunk id list (we use a unique sentinel
+        // so we don't collide with real Discord chunks).
+        arr.push([
+            ["__alitravians_bootstrap__"],
+            {},
+            (require: WebpackRequire) => {
+                captured = require;
+                rememberRequire(require);
+            },
+        ] as unknown as WebpackChunk);
+    } catch (err) {
+        log.error("bootstrap chunk push failed", err);
+        return false;
+    }
+    if (!captured) {
+        log.warn("bootstrap: callback was not invoked synchronously");
+        return false;
+    }
+    log.info("bootstrap: captured require via synthetic chunk");
+    return true;
+}

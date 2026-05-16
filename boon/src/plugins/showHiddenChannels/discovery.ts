@@ -14,10 +14,50 @@
  */
 
 import {
+    dumpStoresForDiagnostic,
     getChannelStore,
     getGuildStore,
     getPermissionStore,
+    probeWebpackForDiagnostic,
 } from "../../core/webpack/index.js";
+
+/**
+ * One-shot guard so we don't spam Discord's console every time the panel
+ * re-renders. When `getChannelStore()` returns null we want a single dump
+ * we can inspect in DevTools to figure out which build-specific method the
+ * channel records actually live behind.
+ */
+let didDumpStoresOnce = false;
+
+/**
+ * Snapshot the webpack subsystem when a store lookup fails and stash it on a
+ * window global so we can inspect it from DevTools without redeploying. The
+ * panel still renders a short Arabic message — we don't pollute the UI with
+ * jargon — but anyone debugging on a user's machine can paste
+ * `window.__alitraviansShcDebug` into the console.
+ */
+function publishProbe(reasonKey: string): void {
+    try {
+        const p = probeWebpackForDiagnostic("getMutableGuildChannelsForGuild");
+        const detail = {
+            at: new Date().toISOString(),
+            reason: reasonKey,
+            cachedExportsCount: p.cachedExportsCount,
+            hasModuleRegistry: p.hasModuleRegistry,
+            hasModuleCache: p.hasModuleCache,
+            moduleRegistryKeyCount: p.moduleRegistryKeyCount,
+            factoriesWithMarker: p.factoriesWithMarker,
+            storeShapedExports: p.storeShapedExports,
+            storeNames: p.storeNames,
+        };
+        (window as unknown as Record<string, unknown>).__alitraviansShcDebug = detail;
+        // Also write to console once so it's visible without manual probing.
+        // eslint-disable-next-line no-console
+        console.warn("[alitravians] showHiddenChannels store lookup failed:", detail);
+    } catch {
+        // Diagnostics must never throw.
+    }
+}
 import type {
     ChannelStore,
     DiscordChannelLite,
@@ -215,6 +255,12 @@ export function scanGuild(guildId: string): DiscoveryResult {
     const guildName = guild?.name ?? guildId;
 
     if (!channelStore || !permissionStore) {
+        const missing = !channelStore ? "ChannelStore" : "PermissionStore";
+        if (!didDumpStoresOnce) {
+            didDumpStoresOnce = true;
+            try { dumpStoresForDiagnostic(missing); } catch { /* diagnostics must not throw */ }
+            publishProbe(missing);
+        }
         return {
             guildId,
             guildName,
