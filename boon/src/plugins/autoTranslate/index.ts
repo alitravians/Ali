@@ -1618,10 +1618,11 @@ export default definePlugin({
         // Map an HTTP status + Discord ``code`` field onto a stable failure
         // kind. Discord ships its own error taxonomy in the JSON body's
         // ``code`` field (see https://discord.com/developers/docs/topics/
-        // opcodes-and-status-codes#json) which is far more useful than the
-        // HTTP status alone — e.g. ``50007`` ("Cannot send messages to this
-        // user") and ``50013`` ("Missing Permissions") both surface as HTTP
-        // 403, but mean very different things to the user.
+        // opcodes-and-status-codes#json) which is more granular than the HTTP
+        // status alone. The status branches handle the common-case mapping;
+        // the HTTP 400 branch is defensive against unusual server responses
+        // where Discord folds permission / channel codes (50007, 50013,
+        // 10003) under a 400 instead of their natural 403/404 status.
         function classifyError(
             status: number,
             discordCode: number | undefined,
@@ -1632,8 +1633,10 @@ export default definePlugin({
             if (status === 404) return "channel_gone";
             if (status >= 500) return "discord_server";
             if (status === 400) {
-                // Discord error codes 50035 ("Invalid Form Body") and similar
-                // 4xxxx codes are payload-shape issues.
+                // Defensive: most permission/channel errors already returned
+                // 'forbidden' / 'channel_gone' above via their natural HTTP
+                // status. These checks catch atypical 400 + Discord-code
+                // combinations so the user still sees the right toast.
                 if (discordCode === 50007) return "forbidden";
                 if (discordCode === 50013) return "forbidden";
                 if (discordCode === 10003) return "channel_gone";
@@ -1673,21 +1676,23 @@ export default definePlugin({
         // Max attempts for transient failures (429 + 5xx). Three is enough to
         // ride out a quick burst-rate-limit window while still bounding the
         // worst-case latency the user experiences if Discord is genuinely
-        // unhealthy (≈ 250 + 750 ms = 1 s of extra waiting before we give up).
+        // unhealthy. Worst case for HTTP errors: 250 ms + 500 ms = 750 ms of
+        // total backoff before the second retry that ultimately fails; for
+        // network errors: 250 ms + 500 ms = 750 ms.
         const REST_SEND_MAX_ATTEMPTS = 3;
 
-        async function attemptRestSend(
-            channelId: string,
-            payload: string,
-            token: string,
-            nonce: string,
-        ): Promise<{
-            status: number;
-            ok: boolean;
-            body: string;
-            discordCode: number | undefined;
-            retryAfterMs: number | undefined;
-        }> {
+        // Ceiling for Retry-After honouring. If Discord rate-limits us for
+        // longer than this we surface the rate_limit toast immediately rather
+        // than freezing the composer for many seconds. 5 s is long enough to
+        // ride out the typical message-burst rate-limit window (~1–4 s) while
+        // staying snappy for the user.
+        const MAX_RETRY_AFTER_MS = 5000;
+
+        // Static request headers computed once per send (auth + content type +
+        // anti-abuse fingerprint). Hoisted out of attemptRestSend so retries
+        // don't recreate the same iframe (readSuperProperties is the only
+        // expensive call here) on every attempt.
+        function buildSendHeaders(token: string): Record<string, string> {
             const headers: Record<string, string> = {
                 Authorization: token,
                 "Content-Type": "application/json",
@@ -1696,6 +1701,21 @@ export default definePlugin({
             if (superProps) headers["X-Super-Properties"] = superProps;
             headers["X-Discord-Locale"] = discordLocale();
             headers["X-Discord-Timezone"] = discordTimezone();
+            return headers;
+        }
+
+        async function attemptRestSend(
+            channelId: string,
+            payload: string,
+            headers: Record<string, string>,
+            nonce: string,
+        ): Promise<{
+            status: number;
+            ok: boolean;
+            body: string;
+            discordCode: number | undefined;
+            retryAfterMs: number | undefined;
+        }> {
             const res = await fetch(
                 `https://discord.com/api/v9/channels/${channelId}/messages`,
                 {
@@ -1766,6 +1786,11 @@ export default definePlugin({
             }
             const nonce = (Math.random() * Number.MAX_SAFE_INTEGER).toFixed(0);
             const payload = clampToDiscordLimit(content);
+            // Compute anti-abuse headers ONCE per send. The values can't
+            // legitimately change in the ~1 s window we spend retrying, and
+            // readSuperProperties() creates+destroys an iframe so we don't
+            // want to repeat that work on every attempt.
+            const headers = buildSendHeaders(token);
             let lastFailure: SendResult = { ok: false, kind: "unknown" };
             for (let attempt = 1; attempt <= REST_SEND_MAX_ATTEMPTS; attempt++) {
                 let result: Awaited<ReturnType<typeof attemptRestSend>>;
@@ -1773,7 +1798,7 @@ export default definePlugin({
                     result = await attemptRestSend(
                         channelId,
                         payload,
-                        token,
+                        headers,
                         nonce,
                     );
                 } catch (err) {
@@ -1803,11 +1828,12 @@ export default definePlugin({
                 const retriable =
                     kind === "rate_limited" || kind === "discord_server";
                 if (!retriable || attempt >= REST_SEND_MAX_ATTEMPTS) break;
-                // Honour Discord's Retry-After when present; otherwise fall
-                // back to a short exponential backoff (250ms, 500ms, 1s)
-                // capped at 2s so the user never waits absurdly long.
+                // Honour Discord's Retry-After when present (capped at 5 s
+                // so the composer never freezes for an absurdly long
+                // window); otherwise fall back to a short exponential
+                // backoff: 250 ms before retry #2, 500 ms before retry #3.
                 const wait = result.retryAfterMs ?? 250 * 2 ** (attempt - 1);
-                await sleep(Math.min(wait, 2000));
+                await sleep(Math.min(wait, MAX_RETRY_AFTER_MS));
             }
             return lastFailure;
         }
