@@ -1681,11 +1681,14 @@ export default definePlugin({
         // network errors: 250 ms + 500 ms = 750 ms.
         const REST_SEND_MAX_ATTEMPTS = 3;
 
-        // Ceiling for Retry-After honouring. If Discord rate-limits us for
-        // longer than this we surface the rate_limit toast immediately rather
-        // than freezing the composer for many seconds. 5 s is long enough to
-        // ride out the typical message-burst rate-limit window (~1–4 s) while
-        // staying snappy for the user.
+        // Per-attempt ceiling on how long we will honour Discord's
+        // Retry-After hint before kicking the next retry. Anything longer
+        // than this is clamped down to 5 s so the composer is never frozen
+        // for an absurdly long window. With REST_SEND_MAX_ATTEMPTS = 3
+        // this puts an upper bound of ~10 s of total backoff (two capped
+        // sleeps between attempts) on the worst case before the user sees
+        // the rate_limit toast. 5 s is long enough to ride out the typical
+        // message-burst rate-limit window (~1–4 s).
         const MAX_RETRY_AFTER_MS = 5000;
 
         // Static request headers computed once per send (auth + content type +
