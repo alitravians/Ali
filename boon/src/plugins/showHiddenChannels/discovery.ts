@@ -55,7 +55,7 @@ interface ChannelProbeAttempt {
     firstValueType: string;
     /** Constructor name of `values[0]`. */
     firstValueCtor: string | null;
-    /** ALL own property names of `values[0]` including non-enumerable. */
+    /** Own property names of `values[0]` including non-enumerable (capped at 8). */
     firstValueOwnPropertyNames: string[];
     /** JSON.stringify(values[0]) truncated to 200 chars; null if stringify failed. */
     firstValueSample: string | null;
