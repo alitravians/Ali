@@ -793,6 +793,13 @@ export const STYLE = `
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    /* Pill colouring fallback when no inline role-colour was applied. The
+     * :not([style*=background]) clause keeps inline-styled (real role
+     * colour) pills untouched, and the data-kind selectors must be
+     * specific enough to win over data-owner so that a deny pill stays
+     * red whether it points at a role or a member. We pair each member
+     * variant with its kind explicitly to avoid a cascade tie where the
+     * generic member rule would otherwise paint deny pills blue. */
     .boon-shc-pill[data-kind="allow"]:not([style*="background"]) {
         background: rgba(35, 165, 90, 0.18);
         color: #4ade80;
@@ -803,10 +810,15 @@ export const STYLE = `
         color: #f87171;
         border-color: rgba(242, 63, 67, 0.38);
     }
-    .boon-shc-pill[data-owner="member"]:not([style*="background"]) {
+    .boon-shc-pill[data-owner="member"][data-kind="allow"]:not([style*="background"]) {
         background: rgba(88, 101, 242, 0.18);
         color: #c7d2fe;
-        border-color: rgba(88, 101, 242, 0.38);
+        border-color: rgba(88, 101, 242, 0.42);
+    }
+    .boon-shc-pill[data-owner="member"][data-kind="deny"]:not([style*="background"]) {
+        background: rgba(242, 63, 67, 0.18);
+        color: #fda4af;
+        border-color: rgba(242, 63, 67, 0.42);
     }
     .boon-shc-pill--compact {
         padding: 3px 8px;

@@ -7,6 +7,12 @@
  * created via `document.createElement` + `textContent` — never `innerHTML`
  * — so user-controlled strings (channel name, topic, role name, etc.) can't
  * escape into HTML.
+ *
+ * Sole exception: `buildLockNode()` parses a fixed `LOCK_SVG` string
+ * literal via a `<template>` element. The string is compile-time constant
+ * with zero user input, so it can never become an XSS vector; the
+ * `<template>` route is just less code than ~20 lines of
+ * `createElementNS` calls for the decorative padlock illustration.
  */
 
 import { lookupRole, scanGuild } from "./discovery.js";
@@ -36,8 +42,6 @@ interface PanelState {
      * Capped to 6 entries — anything older silently rolls off.
      */
     recentlyViewed: string[];
-    /** Highlighted row in the channel list (for keyboard navigation). */
-    keyboardIndex: number;
 }
 
 const RECENT_CAP = 6;
@@ -52,7 +56,6 @@ const state: PanelState = {
     drilldownId: null,
     groupingMode: "byCategory",
     recentlyViewed: [],
-    keyboardIndex: -1,
 };
 
 // ─── Element ids/classes ────────────────────────────────────────────────────
