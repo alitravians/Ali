@@ -130,27 +130,77 @@ export function findByProps(...props: ReadonlyArray<string>): unknown {
 }
 
 /**
- * Locate a Flux store whose `getName()` returns the given storeName.
+ * Locate a Flux store whose name (under any of the conventions Discord has
+ * used over the years) equals `storeName`.
  *
- * Discord's stores all share a common shape: they're class instances with
- * `getName()` returning a stable name like `"TypingStore"`, plus the
- * `addChangeListener` / `removeChangeListener` pair from `Flux.Store`.
+ * Discord's stores are class instances that inherit `addChangeListener` /
+ * `removeChangeListener` from `Flux.Store`. The way Discord identifies the
+ * store name has drifted across builds:
  *
- * Note: some Discord stores live on `.default` of their module export, so we
- * follow the same `.default` / `.Z` probe as `findModule`.
+ *   1. Legacy builds expose a `getName()` instance method that returns the
+ *      string literal name. We try this first because it's authoritative
+ *      when present.
+ *   2. More recent builds rely on `constructor.displayName` (set by terser's
+ *      mangler-preserve pass) — `getName()` may still exist on the prototype
+ *      but is no longer enumerable / no longer hits via the same code path.
+ *   3. As a last resort we fall back to the non-mangled `constructor.name`
+ *      so dev builds (which keep symbol names) still work.
+ *
+ * Modules that are obviously not Flux stores (no `addChangeListener`) short-
+ * circuit out before we touch their `getName`, which keeps us from triggering
+ * Discord's i18n module's spurious "Requested message getName" warnings.
+ *
+ * `findModule` walks `.default` / `.Z` shapes for us, so a store exported as
+ * `module.exports.default = new ChannelStore(...)` still matches.
  */
 export function findStore(storeName: string): unknown {
+    return findModule(exp => storeMatchesName(exp, storeName));
+}
+
+/**
+ * Locate a Flux store by the *shape* of its method set, ignoring its name.
+ *
+ * Used as a defensive fallback for `findStore` — if Discord renames a store
+ * (or wraps it through a HOC that drops the prototype identity) we can still
+ * resolve the right object as long as its method surface is intact. The
+ * caller passes a tuple of methods that should be unique to the target store
+ * (e.g. `getMutableGuildChannelsForGuild` is exclusive to `ChannelStore`).
+ *
+ * Returns the first matching store-shaped export. Returns `null` if nothing
+ * matches — call sites decide whether that's fatal.
+ */
+export function findStoreByMethods(...methods: ReadonlyArray<string>): unknown {
+    if (methods.length === 0) return null;
     return findModule(exp => {
         if (!exp || typeof exp !== "object") return false;
         const o = exp as Record<string, unknown>;
-        if (typeof o.getName !== "function") return false;
         if (typeof o.addChangeListener !== "function") return false;
-        try {
-            return (o.getName as () => string)() === storeName;
-        } catch {
-            return false;
+        for (const m of methods) {
+            if (typeof o[m] !== "function") return false;
         }
+        return true;
     });
+}
+
+function storeMatchesName(exp: unknown, storeName: string): boolean {
+    if (!exp || typeof exp !== "object") return false;
+    const o = exp as Record<string, unknown>;
+    if (typeof o.addChangeListener !== "function") return false;
+    if (typeof o.getName === "function") {
+        try {
+            if ((o.getName as () => string)() === storeName) return true;
+        } catch {
+            // Some prototype-mangled stores throw when `getName` is invoked
+            // before the instance is fully wired. Fall through to the
+            // constructor-based probes — they don't depend on `this`.
+        }
+    }
+    const ctor = (o as { constructor?: { displayName?: unknown; name?: unknown } }).constructor;
+    if (ctor) {
+        if (typeof ctor.displayName === "string" && ctor.displayName === storeName) return true;
+        if (typeof ctor.name === "string" && ctor.name === storeName) return true;
+    }
+    return false;
 }
 
 /**

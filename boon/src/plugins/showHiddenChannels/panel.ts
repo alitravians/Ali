@@ -976,11 +976,35 @@ function renderRecentlyViewed(result: DiscoveryResult): HTMLElement | null {
     return wrap;
 }
 
+/**
+ * Visible banner when a discovery scan came back degraded (a webpack store
+ * couldn't be resolved, or the guild simply has no enumerable channels). We
+ * give the user a "Retry" button that re-runs `scanGuild` against the same
+ * guild id so they can recover without closing the panel — useful when the
+ * scan ran before Discord had finished hydrating its stores.
+ */
+function renderDegradedBanner(result: DiscoveryResult): HTMLElement {
+    const banner = el("div", "boon-shc-degraded");
+    banner.appendChild(el(
+        "div",
+        "boon-shc-degraded-text",
+        result.degradedReason ?? "وضع محدود — تعذّر قراءة بيانات السيرفر.",
+    ));
+    const retry = el("button", "boon-shc-degraded-retry", "إعادة المحاولة");
+    retry.addEventListener("click", () => {
+        if (!state.guildId) return;
+        state.result = scanGuild(state.guildId);
+        renderPanel();
+    });
+    banner.appendChild(retry);
+    return banner;
+}
+
 function renderListBody(result: DiscoveryResult): HTMLElement {
     const body = el("div", "boon-shc-body");
 
     if (result.degraded) {
-        body.appendChild(el("div", "boon-shc-degraded", result.degradedReason ?? "وضع محدود"));
+        body.appendChild(renderDegradedBanner(result));
     }
 
     const overview = renderServerOverview(result);

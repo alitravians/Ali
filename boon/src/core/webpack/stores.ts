@@ -12,7 +12,7 @@
  * Discord store name.
  */
 
-import { findStore } from "./modules.js";
+import { findStore, findStoreByMethods } from "./modules.js";
 import type {
     ChannelStore,
     GuildMemberStore,
@@ -21,6 +21,29 @@ import type {
     TypingStore,
     UserStore,
 } from "./types.js";
+
+/**
+ * Resolve a Flux store by name first, then by a tuple of methods that
+ * uniquely identifies it. The name-based path is authoritative when it
+ * works; the method-based path is the safety net for builds where Discord
+ * has dropped / renamed the `getName()` / `displayName` identification but
+ * still exposes the same method surface.
+ *
+ * `requiredMethods` is also used to validate the shape of whichever object
+ * we end up returning — that way the callers can trust the returned handle
+ * has every method they're about to invoke.
+ */
+function resolveStore(
+    storeName: string,
+    requiredMethods: ReadonlyArray<string>,
+    fingerprint: ReadonlyArray<string>,
+): unknown {
+    const byName = findStore(storeName);
+    if (hasFn(byName, ...requiredMethods)) return byName;
+    const byMethods = findStoreByMethods(...fingerprint);
+    if (hasFn(byMethods, ...requiredMethods)) return byMethods;
+    return null;
+}
 
 /**
  * Discord's `TypingStore` tracks which users are currently typing in each
@@ -56,38 +79,60 @@ function hasFn(value: unknown, ...names: ReadonlyArray<string>): boolean {
  * enumerate every channel in a guild — including ones the user can't view.
  * The optional `getMutableGuildChannelsForGuild` method is the cheap path;
  * plugins should fall back to per-id lookups if it's missing.
+ *
+ * Fingerprint: `getMutableGuildChannelsForGuild` is essentially exclusive
+ * to ChannelStore across Discord's Flux stores, so when the name-based
+ * lookup misses we can still resolve the right object by method shape.
  */
 export function getChannelStore(): ChannelStore | null {
-    const store = findStore("ChannelStore");
-    if (!hasFn(store, "getChannel", "addChangeListener", "removeChangeListener")) return null;
-    return store as ChannelStore;
+    const store = resolveStore(
+        "ChannelStore",
+        ["getChannel", "addChangeListener", "removeChangeListener"],
+        ["getChannel", "getMutableGuildChannelsForGuild"],
+    );
+    return store ? (store as ChannelStore) : null;
 }
 
 /**
  * Discord's `PermissionStore`. `can(permissionBits, channel)` is the
  * authoritative answer for "is the current user allowed permissionBits on
  * channel?". The bits arg is a `bigint` on modern Discord builds.
+ *
+ * Fingerprint: pairing `can` with `getChannelPermissions` is unique to
+ * PermissionStore across Discord's stores.
  */
 export function getPermissionStore(): PermissionStore | null {
-    const store = findStore("PermissionStore");
-    if (!hasFn(store, "can", "addChangeListener", "removeChangeListener")) return null;
-    return store as PermissionStore;
+    const store = resolveStore(
+        "PermissionStore",
+        ["can", "addChangeListener", "removeChangeListener"],
+        ["can", "getChannelPermissions"],
+    );
+    return store ? (store as PermissionStore) : null;
 }
 
 export function getGuildStore(): GuildStore | null {
-    const store = findStore("GuildStore");
-    if (!hasFn(store, "getGuild", "addChangeListener", "removeChangeListener")) return null;
-    return store as GuildStore;
+    const store = resolveStore(
+        "GuildStore",
+        ["getGuild", "addChangeListener", "removeChangeListener"],
+        ["getGuild", "getGuilds"],
+    );
+    return store ? (store as GuildStore) : null;
 }
 
 export function getUserStore(): UserStore | null {
-    const store = findStore("UserStore");
-    if (!hasFn(store, "getCurrentUser", "getUser", "addChangeListener", "removeChangeListener")) return null;
-    return store as UserStore;
+    const store = resolveStore(
+        "UserStore",
+        ["getCurrentUser", "getUser", "addChangeListener", "removeChangeListener"],
+        ["getCurrentUser", "getUser"],
+    );
+    return store ? (store as UserStore) : null;
 }
 
 export function getGuildMemberStore(): GuildMemberStore | null {
-    const store = findStore("GuildMemberStore");
-    if (!hasFn(store, "getMember", "addChangeListener", "removeChangeListener")) return null;
-    return store as GuildMemberStore;
+    const store = resolveStore(
+        "GuildMemberStore",
+        ["getMember", "addChangeListener", "removeChangeListener"],
+        ["getMember", "getMembers"],
+    );
+    return store ? (store as GuildMemberStore) : null;
 }
