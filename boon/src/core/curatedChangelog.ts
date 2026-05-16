@@ -30,6 +30,10 @@ export interface CuratedItem {
 }
 
 export const CURATED_CHANGELOG: Readonly<Record<string, ReadonlyArray<CuratedItem>>> = {
+    "boon-v0.7.7": [
+        { kind: "fixed",    text: "[التحديث الذاتي - الزر ما يفشل بـ HTTP 403 بعد فحوصات كثيرة لـ GitHub]" },
+        { kind: "improved", text: "[التحديث الذاتي - مصدر بديل (Atom feed) يشتغل عند نفاد حصة API]" },
+    ],
     "boon-v0.5.0": [
         { kind: "added",    text: "[الترجمة - زرّ ترجمة بجانب مربع الكتابة يترجم رسائلك تلقائياً قبل إرسالها]" },
         { kind: "added",    text: "[الترجمة - اختيار اللغة المصدر والهدف للرسائل الصادرة من الإعدادات أو من نافذة الزر السريع]" },

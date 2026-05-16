@@ -29,6 +29,16 @@ import { curatedFor, sanitizeRawItem } from "./curatedChangelog.js";
 
 const REPO_API = "https://api.github.com/repos/alitravians/Ali/releases";
 
+// Unauthenticated requests to api.github.com share a 60-req/hour budget keyed
+// to the client IP. The in-app updater polls the API on every "check for
+// updates" click and on every renderer boot, so a user who tests several
+// releases in a row exhausts the quota and starts seeing HTTP 403 with no way
+// to recover for the rest of the hour. The Atom feed below is served from
+// github.com (not the API) and is governed by a separate, much higher budget.
+// We use it as a fallback the moment the API rate-limits us so the updater
+// keeps working through the rate window.
+const REPO_ATOM = "https://github.com/alitravians/Ali/releases.atom";
+
 // Discord's renderer CSP only whitelists discord.com for connect-src, so
 // `fetch("https://api.github.com/...")` is blocked outright in the desktop
 // target. The patcher exposes a `BOON_FETCH` IPC handler that runs the
@@ -232,10 +242,105 @@ export interface FetchResult {
 export const RELEASES_URL = "https://github.com/alitravians/Ali/releases";
 
 /**
+ * Decode the small set of HTML entities the GitHub Atom feed uses inside
+ * `<content type="html">` blocks. We deliberately keep this minimal — the
+ * goal is not to reconstruct the full release body, just to leave the curated
+ * changelog lookup (which keys off the tag, not the body) the cleanest input
+ * we can manage without pulling in a real HTML parser.
+ */
+function stripHtmlEntities(s: string): string {
+    return s
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function extractTagFromHtmlUrl(url: string): string | null {
+    if (!url) return null;
+    const m = /\/releases\/tag\/([^/?#]+)\/?$/.exec(url);
+    return m ? decodeURIComponent(m[1]) : null;
+}
+
+/**
+ * Parse a GitHub releases Atom feed into the same `Release[]` shape the JSON
+ * API returns. We rely on the renderer's built-in `DOMParser` so there is no
+ * new dependency — but we guard against `DOMParser` not being present (e.g.
+ * the userscript target running in a worker context) by returning an empty
+ * array, which keeps the outer fallback chain intact.
+ */
+function parseAtomFeed(xml: string): Release[] {
+    if (typeof DOMParser === "undefined") return [];
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.getElementsByTagName("parsererror").length > 0) {
+        throw new Error("atom XML parse error");
+    }
+    const entries = Array.from(doc.getElementsByTagName("entry"));
+    const out: Release[] = [];
+    for (const entry of entries) {
+        let htmlUrl = "";
+        for (const link of Array.from(entry.getElementsByTagName("link"))) {
+            const rel = link.getAttribute("rel");
+            const href = link.getAttribute("href");
+            if ((rel === "alternate" || rel === null) && href) {
+                htmlUrl = href;
+                break;
+            }
+        }
+        const tag = extractTagFromHtmlUrl(htmlUrl);
+        if (!tag) continue;
+        const updatedEl = entry.getElementsByTagName("updated")[0];
+        const titleEl = entry.getElementsByTagName("title")[0];
+        const contentEl = entry.getElementsByTagName("content")[0];
+        const publishedAt = (updatedEl?.textContent ?? "").trim();
+        const rawTitle = (titleEl?.textContent ?? "").trim();
+        const name = rawTitle.replace(/^alitravians\s+/i, "") || tag;
+        const body = stripHtmlEntities(contentEl?.textContent ?? "");
+        out.push(toRelease({
+            tag_name: tag,
+            name,
+            body,
+            published_at: publishedAt,
+            html_url: htmlUrl,
+        }));
+    }
+    return out;
+}
+
+async function fetchReleasesViaAtom(): Promise<FetchResult> {
+    const res = await fetchViaBridge(REPO_ATOM, "application/atom+xml");
+    if (!res.ok) {
+        rootLogger.warn(`updater: atom feed ${res.status || "network"} (${res.error ?? "-"})`);
+        if (!res.status) return { releases: [], error: "network" };
+        return { releases: [], error: "http", httpStatus: res.status };
+    }
+    try {
+        const releases = parseAtomFeed(res.body);
+        if (releases.length === 0) {
+            return { releases: [], error: "http", httpStatus: res.status };
+        }
+        return { releases, error: "none" };
+    } catch (err) {
+        rootLogger.warn("updater: failed to parse atom feed", err);
+        return { releases: [], error: "http", httpStatus: res.status };
+    }
+}
+
+/**
  * Fetch BOON's GitHub releases. Returns a structured result so the UI can
  * distinguish "no releases yet" from "GitHub rate-limited us" from "user is
  * offline" — every failure mode gets a clear message and a manual fallback
  * link to the releases page on github.com.
+ *
+ * When the JSON API rate-limits us (HTTP 403/429), we transparently retry
+ * against `releases.atom`, which is served from github.com and not subject
+ * to the 60-req/hour unauthenticated API budget. The user only sees a
+ * rate-limit message when *both* paths fail.
  */
 export async function fetchReleasesResult(limit: number = 10): Promise<FetchResult> {
     const res = await fetchViaBridge(
@@ -244,13 +349,16 @@ export async function fetchReleasesResult(limit: number = 10): Promise<FetchResu
     );
     if (!res.ok) {
         rootLogger.warn(`updater: GitHub ${res.status || "network"} (${res.error ?? "-"})`);
+        if (res.status === 403 || res.status === 429) {
+            const atom = await fetchReleasesViaAtom();
+            if (atom.releases.length > 0) return atom;
+            return { releases: [], error: "rate-limited", httpStatus: res.status };
+        }
         if (!res.status) {
             // Network / timeout / IPC error — no HTTP response at all.
             return { releases: [], error: "network" };
         }
-        const kind: FetchErrorKind =
-            res.status === 403 || res.status === 429 ? "rate-limited" : "http";
-        return { releases: [], error: kind, httpStatus: res.status };
+        return { releases: [], error: "http", httpStatus: res.status };
     }
     try {
         const json = JSON.parse(res.body) as RawRelease[];
