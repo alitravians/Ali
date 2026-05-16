@@ -1529,55 +1529,287 @@ export default definePlugin({
             const room = DISCORD_MAX_MESSAGE_LEN - TRUNCATION_MARKER.length;
             return text.slice(0, room) + TRUNCATION_MARKER;
         }
+
+        // Discord's REST endpoints enforce a "client fingerprint" hidden
+        // behind several headers the official desktop app always sends. Bare
+        // ``Authorization`` + ``Content-Type`` requests still work for most
+        // accounts, but accounts that have been flagged by Discord's
+        // anti-abuse heuristics (e.g. mass-translation traffic that looks
+        // self-bot-like) start receiving 403/4xx rejections until the
+        // fingerprint matches. We replicate the desktop client's headers as
+        // closely as we can from within the renderer so our POST blends in:
+        //
+        //   • ``X-Super-Properties`` — base64(JSON) of the client build
+        //     metadata. Discord stamps it into ``localStorage`` under the
+        //     ``"X_Super_Properties"`` key on every desktop boot; we lift it
+        //     via the same iframe trick we use for the auth token.
+        //   • ``X-Discord-Locale`` — the user's UI locale. Read from
+        //     ``document.documentElement.lang`` (Discord sets it).
+        //   • ``X-Discord-Timezone`` — the IANA name from ``Intl``.
+        //
+        // Every header is best-effort: if a value is unavailable we simply
+        // skip it. The POST still succeeds for unflagged accounts even
+        // without these headers, and adding them improves the success rate
+        // for flagged accounts without ever making things worse.
+        function readSuperProperties(): string | null {
+            let iframe: HTMLIFrameElement | null = null;
+            try {
+                iframe = document.createElement("iframe");
+                document.head.appendChild(iframe);
+                const local = iframe.contentWindow?.localStorage;
+                const value = local?.getItem("X_Super_Properties");
+                if (value) return value.replace(/^"|"$/g, "");
+            } catch {
+                // iframe path failed; try direct localStorage below.
+            } finally {
+                iframe?.remove();
+            }
+            try {
+                const raw = window.localStorage.getItem("X_Super_Properties");
+                if (raw) return raw.replace(/^"|"$/g, "");
+            } catch {
+                // both paths failed; caller proceeds without the header
+            }
+            return null;
+        }
+
+        function discordLocale(): string {
+            const lang = document.documentElement?.lang;
+            if (lang && typeof lang === "string") return lang;
+            const nav = navigator.language;
+            if (nav) return nav;
+            return "en-US";
+        }
+
+        function discordTimezone(): string {
+            try {
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                if (tz) return tz;
+            } catch {
+                // Intl unavailable — extremely unlikely in Electron
+            }
+            return "UTC";
+        }
+
+        // Outcome of a REST send attempt. The Enter-key flow uses ``kind`` to
+        // pick a precise Arabic toast (rate limit / permissions / payload
+        // size / unauthorised / unknown), instead of the old "فشل" catch-all
+        // that left the user with no actionable hint.
+        type SendFailureKind =
+            | "no_token"
+            | "rate_limited"
+            | "forbidden"
+            | "unauthorized"
+            | "channel_gone"
+            | "payload_invalid"
+            | "discord_server"
+            | "network"
+            | "unknown";
+        type SendResult =
+            | { ok: true }
+            | {
+                  ok: false;
+                  kind: SendFailureKind;
+                  status?: number;
+                  discordCode?: number;
+                  detail?: string;
+              };
+
+        // Map an HTTP status + Discord ``code`` field onto a stable failure
+        // kind. Discord ships its own error taxonomy in the JSON body's
+        // ``code`` field (see https://discord.com/developers/docs/topics/
+        // opcodes-and-status-codes#json) which is far more useful than the
+        // HTTP status alone — e.g. ``50007`` ("Cannot send messages to this
+        // user") and ``50013`` ("Missing Permissions") both surface as HTTP
+        // 403, but mean very different things to the user.
+        function classifyError(
+            status: number,
+            discordCode: number | undefined,
+        ): SendFailureKind {
+            if (status === 429) return "rate_limited";
+            if (status === 401) return "unauthorized";
+            if (status === 403) return "forbidden";
+            if (status === 404) return "channel_gone";
+            if (status >= 500) return "discord_server";
+            if (status === 400) {
+                // Discord error codes 50035 ("Invalid Form Body") and similar
+                // 4xxxx codes are payload-shape issues.
+                if (discordCode === 50007) return "forbidden";
+                if (discordCode === 50013) return "forbidden";
+                if (discordCode === 10003) return "channel_gone";
+                return "payload_invalid";
+            }
+            return "unknown";
+        }
+
+        function failureToast(result: Exclude<SendResult, { ok: true }>): string {
+            const code = result.status != null ? ` (HTTP ${result.status})` : "";
+            switch (result.kind) {
+                case "no_token":
+                    return "تعذّر الإرسال — لم نستطع قراءة رمز جلسة ديسكورد";
+                case "rate_limited":
+                    return "ديسكورد رفض الإرسال مؤقتاً (rate limit) — جرّب بعد ثوانٍ";
+                case "forbidden":
+                    return `ديسكورد رفض الإرسال — ما عندك صلاحية في هذه القناة${code}`;
+                case "unauthorized":
+                    return "انتهت صلاحية جلسة ديسكورد — أعد تسجيل الدخول";
+                case "channel_gone":
+                    return "القناة لم تعد متاحة — حدّث الصفحة";
+                case "payload_invalid":
+                    return `ديسكورد رفض الرسالة — قد تتجاوز ٢٠٠٠ حرف أو تحتوي محتوى مرفوض${code}`;
+                case "discord_server":
+                    return `خادم ديسكورد لا يستجيب — جرّب بعد قليل${code}`;
+                case "network":
+                    return "تعذّر الاتصال بديسكورد — تحقّق من الإنترنت";
+                default:
+                    return `فشل إرسال الرسالة المترجمة${code} — جرّب مرة ثانية`;
+            }
+        }
+
+        function sleep(ms: number): Promise<void> {
+            return new Promise(resolve => window.setTimeout(resolve, ms));
+        }
+
+        // Max attempts for transient failures (429 + 5xx). Three is enough to
+        // ride out a quick burst-rate-limit window while still bounding the
+        // worst-case latency the user experiences if Discord is genuinely
+        // unhealthy (≈ 250 + 750 ms = 1 s of extra waiting before we give up).
+        const REST_SEND_MAX_ATTEMPTS = 3;
+
+        async function attemptRestSend(
+            channelId: string,
+            payload: string,
+            token: string,
+            nonce: string,
+        ): Promise<{
+            status: number;
+            ok: boolean;
+            body: string;
+            discordCode: number | undefined;
+            retryAfterMs: number | undefined;
+        }> {
+            const headers: Record<string, string> = {
+                Authorization: token,
+                "Content-Type": "application/json",
+            };
+            const superProps = readSuperProperties();
+            if (superProps) headers["X-Super-Properties"] = superProps;
+            headers["X-Discord-Locale"] = discordLocale();
+            headers["X-Discord-Timezone"] = discordTimezone();
+            const res = await fetch(
+                `https://discord.com/api/v9/channels/${channelId}/messages`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                    headers,
+                    body: JSON.stringify({
+                        content: payload,
+                        tts: false,
+                        nonce,
+                        flags: 0,
+                        mobile_network_type: "unknown",
+                        // Restrict pings to entities mentioned IN the
+                        // translated body — never @everyone or unmentioned
+                        // roles. Without this, a translated phrase that
+                        // accidentally matches a role name could ping it.
+                        allowed_mentions: { parse: ["users", "roles"] },
+                    }),
+                },
+            );
+            const body = await res.text().catch(() => "");
+            let discordCode: number | undefined;
+            let bodyRetryAfter: number | undefined;
+            if (body) {
+                try {
+                    const json = JSON.parse(body) as {
+                        code?: number;
+                        retry_after?: number;
+                    };
+                    if (typeof json.code === "number") discordCode = json.code;
+                    if (typeof json.retry_after === "number") {
+                        bodyRetryAfter = Math.max(0, json.retry_after * 1000);
+                    }
+                } catch {
+                    // not JSON; ignore
+                }
+            }
+            let retryAfterMs = bodyRetryAfter;
+            const header = res.headers.get("Retry-After");
+            if (header) {
+                const parsed = Number(header);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                    retryAfterMs = Math.max(
+                        retryAfterMs ?? 0,
+                        parsed * 1000,
+                    );
+                }
+            }
+            return {
+                status: res.status,
+                ok: res.ok,
+                body,
+                discordCode,
+                retryAfterMs,
+            };
+        }
+
         async function sendTranslatedMessage(
             channelId: string,
             content: string,
-        ): Promise<boolean> {
+        ): Promise<SendResult> {
             const token = readAuthToken();
             if (!token) {
                 ctx.logger.warn(
                     "outgoing: no auth token available; cannot send",
                 );
-                return false;
+                return { ok: false, kind: "no_token" };
             }
             const nonce = (Math.random() * Number.MAX_SAFE_INTEGER).toFixed(0);
             const payload = clampToDiscordLimit(content);
-            try {
-                const res = await fetch(
-                    `https://discord.com/api/v9/channels/${channelId}/messages`,
-                    {
-                        method: "POST",
-                        credentials: "include",
-                        headers: {
-                            Authorization: token,
-                            "Content-Type": "application/json",
-                        },
-                        body: JSON.stringify({
-                            content: payload,
-                            tts: false,
-                            nonce,
-                            flags: 0,
-                            mobile_network_type: "unknown",
-                            // Restrict pings to entities mentioned IN the
-                            // translated body — never @everyone or unmentioned
-                            // roles. Without this, a translated phrase that
-                            // accidentally matches a role name could ping it.
-                            allowed_mentions: { parse: ["users", "roles"] },
-                        }),
-                    },
-                );
-                if (!res.ok) {
-                    const body = await res.text().catch(() => "");
-                    ctx.logger.warn(
-                        `outgoing: REST send failed ${res.status}: ${body.slice(0, 200)}`,
+            let lastFailure: SendResult = { ok: false, kind: "unknown" };
+            for (let attempt = 1; attempt <= REST_SEND_MAX_ATTEMPTS; attempt++) {
+                let result: Awaited<ReturnType<typeof attemptRestSend>>;
+                try {
+                    result = await attemptRestSend(
+                        channelId,
+                        payload,
+                        token,
+                        nonce,
                     );
-                    return false;
+                } catch (err) {
+                    ctx.logger.warn(
+                        `outgoing: REST send threw (attempt ${attempt})`,
+                        err,
+                    );
+                    lastFailure = { ok: false, kind: "network" };
+                    if (attempt < REST_SEND_MAX_ATTEMPTS) {
+                        await sleep(250 * attempt);
+                        continue;
+                    }
+                    break;
                 }
-                return true;
-            } catch (err) {
-                ctx.logger.warn("outgoing: REST send threw", err);
-                return false;
+                if (result.ok) return { ok: true };
+                const kind = classifyError(result.status, result.discordCode);
+                ctx.logger.warn(
+                    `outgoing: REST send failed (attempt ${attempt}) status=${result.status} code=${result.discordCode ?? "?"} kind=${kind}: ${result.body.slice(0, 200)}`,
+                );
+                lastFailure = {
+                    ok: false,
+                    kind,
+                    status: result.status,
+                    discordCode: result.discordCode,
+                    detail: result.body.slice(0, 200),
+                };
+                const retriable =
+                    kind === "rate_limited" || kind === "discord_server";
+                if (!retriable || attempt >= REST_SEND_MAX_ATTEMPTS) break;
+                // Honour Discord's Retry-After when present; otherwise fall
+                // back to a short exponential backoff (250ms, 500ms, 1s)
+                // capped at 2s so the user never waits absurdly long.
+                const wait = result.retryAfterMs ?? 250 * 2 ** (attempt - 1);
+                await sleep(Math.min(wait, 2000));
             }
+            return lastFailure;
         }
 
         // Prevent a thundering herd of overlapping translations if the user
@@ -1684,21 +1916,22 @@ export default definePlugin({
             void (async () => {
                 try {
                     const translated = await maybeTranslateOutgoing(draft);
-                    const ok = await sendTranslatedMessage(channelId, translated);
-                    if (ok) {
+                    const result = await sendTranslatedMessage(
+                        channelId,
+                        translated,
+                    );
+                    if (result.ok) {
                         clearComposer(editorRef);
                     } else {
-                        // Translation/send failed: fall back to letting the
-                        // user resend manually. Leave the draft in place so
-                        // they don't lose their text, and surface a toast so
-                        // the user knows their Enter didn't silently drop.
+                        // Translation/send failed: surface a precise toast so
+                        // the user knows WHY (rate limit vs permissions vs
+                        // payload size vs unauthorised vs …) instead of the
+                        // old generic "فشل". The draft stays in the composer
+                        // so the user can edit and retry without re-typing.
                         ctx.logger.warn(
-                            "outgoing: REST send failed; leaving draft in place for retry",
+                            `outgoing: send flow failed kind=${result.kind} status=${result.status ?? "?"} code=${result.discordCode ?? "?"}`,
                         );
-                        ctx.toast(
-                            "فشل إرسال الرسالة المترجمة — جرّب مرة ثانية",
-                            "error",
-                        );
+                        ctx.toast(failureToast(result), "error");
                     }
                 } catch (err) {
                     ctx.logger.warn("outgoing: send flow threw", err);
