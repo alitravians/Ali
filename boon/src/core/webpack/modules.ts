@@ -19,7 +19,7 @@
  */
 
 import { createLogger } from "../logger.js";
-import type { ModuleFilter, WebpackModuleId, WebpackRequire } from "./types.js";
+import type { ModuleFilter, WebpackModuleFn, WebpackModuleId, WebpackRequire } from "./types.js";
 
 const log = createLogger("webpack:modules");
 
@@ -97,20 +97,95 @@ export function findModule(filter: ModuleFilter): unknown {
         drainModuleCache();
     }
     for (const [id, exp] of exportsById) {
-        try {
-            if (filter(exp, id)) return exp;
-            // Many Discord modules export the real surface on `.default` or
-            // `.Z` (CJS interop). Probe these conventional shapes too.
-            if (typeof exp === "object" && exp !== null) {
-                const o = exp as Record<string, unknown>;
-                if ("default" in o && filter(o.default, id)) return o.default;
-                if ("Z" in o && filter(o.Z, id)) return o.Z;
-            }
-        } catch {
-            // Predicate threw — skip this module.
-        }
+        const hit = probeExportShape(exp, id, filter);
+        if (hit !== undefined) return hit;
     }
     return null;
+}
+
+/**
+ * Iterator variant of `findModule`: yields every export (top-level, `.default`,
+ * `.Z`, OR any named-key value) whose value satisfies the predicate.
+ *
+ * Used by `resolveStore` so a caller-supplied validator can pick the right
+ * candidate when more than one module passes the shallow shape test (e.g.
+ * Discord's i18n `MessagesStore` fakes a function for every property access
+ * and so passes coarse `typeof o[m] === "function"` filters for any method
+ * fingerprint we throw at it).
+ */
+export function* findAllModules(filter: ModuleFilter): IterableIterator<unknown> {
+    if (!cacheDrained && webpackRequire) {
+        drainModuleCache();
+    }
+    for (const [id, exp] of exportsById) {
+        yield* probeExportShapeAll(exp, id, filter);
+    }
+}
+
+/**
+ * Probe every conventional location an export may live at and return the
+ * first hit, or `undefined` if none match. The locations covered:
+ *
+ *   1. The export itself.
+ *   2. `.default` (CJS → ESM interop shape used by Babel / TS).
+ *   3. `.Z` (legacy Discord-bundled CJS-style export).
+ *   4. Every other enumerable own key on the export object — modern
+ *      Webpack splits `Flux.connectStores`-style exports across multiple
+ *      named properties (e.g. `{ ChannelStore: ..., GuildChannelStore: ... }`)
+ *      and the only way to discover the right one is to iterate.
+ */
+function probeExportShape(exp: unknown, id: WebpackModuleId, filter: ModuleFilter): unknown {
+    try {
+        if (filter(exp, id)) return exp;
+    } catch {
+        // Predicate threw — skip.
+    }
+    if (!exp || typeof exp !== "object") return undefined;
+    const o = exp as Record<string, unknown>;
+    return probeOwnKeys(o, id, filter);
+}
+
+function* probeExportShapeAll(exp: unknown, id: WebpackModuleId, filter: ModuleFilter): IterableIterator<unknown> {
+    try {
+        if (filter(exp, id)) yield exp;
+    } catch { /* skip */ }
+    if (!exp || typeof exp !== "object") return;
+    yield* probeOwnKeysAll(exp as Record<string, unknown>, id, filter);
+}
+
+function probeOwnKeys(o: Record<string, unknown>, id: WebpackModuleId, filter: ModuleFilter): unknown {
+    let keys: string[];
+    try {
+        keys = Object.keys(o);
+    } catch {
+        return undefined;
+    }
+    for (const key of keys) {
+        let value: unknown;
+        try { value = o[key]; } catch { continue; }
+        try {
+            if (filter(value, id)) return value;
+        } catch {
+            // Predicate threw — skip.
+        }
+    }
+    return undefined;
+}
+
+function* probeOwnKeysAll(o: Record<string, unknown>, id: WebpackModuleId, filter: ModuleFilter): IterableIterator<unknown> {
+    let keys: string[];
+    try {
+        keys = Object.keys(o);
+    } catch {
+        return;
+    }
+    for (const key of keys) {
+        let value: unknown;
+        try { value = o[key]; } catch { continue; }
+        try {
+            if (filter(value, id)) yield value;
+        } catch { /* skip */ }
+    }
 }
 
 /**
@@ -171,15 +246,30 @@ export function findStore(storeName: string): unknown {
  */
 export function findStoreByMethods(...methods: ReadonlyArray<string>): unknown {
     if (methods.length === 0) return null;
-    return findModule(exp => {
-        if (!exp || typeof exp !== "object") return false;
-        const o = exp as Record<string, unknown>;
-        if (typeof o.addChangeListener !== "function") return false;
-        for (const m of methods) {
-            if (typeof o[m] !== "function") return false;
-        }
-        return true;
-    });
+    return findModule(exp => storeMatchesMethods(exp, methods));
+}
+
+/**
+ * Iterator variant of `findStoreByMethods`: yields every store-shaped export
+ * that exposes the named methods. Used by `resolveStore` so a caller-supplied
+ * validator can drop false positives (e.g. Discord's i18n MessagesStore,
+ * which fakes a function for *every* property access and so passes the
+ * shallow `typeof o[m] === "function"` test for any fingerprint we throw at
+ * it).
+ */
+export function findAllStoresByMethods(...methods: ReadonlyArray<string>): IterableIterator<unknown> {
+    if (methods.length === 0) return [].values();
+    return findAllModules(exp => storeMatchesMethods(exp, methods));
+}
+
+function storeMatchesMethods(exp: unknown, methods: ReadonlyArray<string>): boolean {
+    if (!exp || typeof exp !== "object") return false;
+    const o = exp as Record<string, unknown>;
+    if (typeof o.addChangeListener !== "function") return false;
+    for (const m of methods) {
+        if (typeof o[m] !== "function") return false;
+    }
+    return true;
 }
 
 function storeMatchesName(exp: unknown, storeName: string): boolean {
@@ -221,4 +311,225 @@ export function isWebpackReady(): boolean {
 /** Number of modules we currently know about. Useful for diagnostics. */
 export function moduleCount(): number {
     return exportsById.size;
+}
+
+/**
+ * Snapshot of the webpack subsystem for diagnostic surfacing in plugin UI.
+ *
+ * Used by the showHiddenChannels panel: when `getChannelStore()` fails on a
+ * production build we don't have console access on, embedding these numbers
+ * in the "degraded" banner gives us a one-shot view of what's available and
+ * what isn't (cache drained? module registry exposed? do any factories
+ * contain the marker substring we expect?). Strictly read-only.
+ */
+export interface WebpackProbeSnapshot {
+    cachedExportsCount: number;
+    hasModuleRegistry: boolean;
+    hasModuleCache: boolean;
+    moduleRegistryKeyCount: number;
+    factoriesWithMarker: number;
+    storeShapedExports: number;
+    storeNames: string[];
+}
+
+export function probeWebpackForDiagnostic(marker: string): WebpackProbeSnapshot {
+    if (!cacheDrained && webpackRequire) drainModuleCache();
+    let factoriesWithMarker = 0;
+    let moduleRegistryKeyCount = 0;
+    const hasModuleRegistry = !!webpackRequire?.m;
+    if (webpackRequire?.m) {
+        try {
+            for (const id of Object.keys(webpackRequire.m)) {
+                moduleRegistryKeyCount++;
+                const fn = webpackRequire.m[id];
+                if (typeof fn !== "function") continue;
+                let src: string;
+                try { src = Function.prototype.toString.call(fn); } catch { continue; }
+                if (src.includes(marker)) factoriesWithMarker++;
+            }
+        } catch { /* best-effort */ }
+    }
+    let storeShapedExports = 0;
+    const storeNames: string[] = [];
+    for (const [, exp] of exportsById) {
+        const candidates: unknown[] = [exp];
+        if (exp && typeof exp === "object") {
+            const o = exp as Record<string, unknown>;
+            try {
+                for (const k of Object.keys(o)) {
+                    try { candidates.push(o[k]); } catch { /* skip */ }
+                }
+            } catch { /* skip */ }
+        }
+        for (const c of candidates) {
+            if (!c || typeof c !== "object") continue;
+            const o2 = c as Record<string, unknown>;
+            if (typeof o2.addChangeListener !== "function") continue;
+            storeShapedExports++;
+            try {
+                const dn = (o2 as { constructor?: { displayName?: unknown } }).constructor?.displayName;
+                if (typeof dn === "string" && dn.length > 0 && storeNames.length < 40) storeNames.push(dn);
+                else if (typeof o2.getName === "function" && storeNames.length < 40) {
+                    const n = (o2.getName as () => unknown)();
+                    if (typeof n === "string" && n.length > 0) storeNames.push(n);
+                }
+            } catch { /* skip */ }
+        }
+    }
+    return {
+        cachedExportsCount: exportsById.size,
+        hasModuleRegistry,
+        hasModuleCache: !!webpackRequire?.c,
+        moduleRegistryKeyCount,
+        factoriesWithMarker,
+        storeShapedExports,
+        storeNames,
+    };
+}
+
+/**
+ * Locate a webpack module whose factory source contains every supplied
+ * substring, then return that module's exports.
+ *
+ * This is the same trick Vencord / BetterDiscord use to pin internal stores
+ * on modern Discord builds: even when the store's identifying `getName` /
+ * `displayName` is mangled and the public method surface overlaps with the
+ * i18n MessagesStore (which fakes a function for *every* property access),
+ * the original source text still contains the literal method names and
+ * action constants the store handles. Searching for one of those literals
+ * is a stable way to pin the real module without false positives.
+ *
+ * Returns `null` if no factory matches every substring or if webpack's
+ * module registry isn't available yet.
+ */
+export function findByCode(...substrings: ReadonlyArray<string>): unknown {
+    for (const exp of findAllByCode(substrings)) {
+        return exp;
+    }
+    return null;
+}
+
+/**
+ * Iterator variant of {@link findByCode}: yields the exports of every module
+ * whose factory source contains every supplied substring. Used to pick the
+ * right candidate when the substring is too generic to be unique.
+ */
+export function* findAllByCode(substrings: ReadonlyArray<string>): IterableIterator<unknown> {
+    if (substrings.length === 0) return;
+    if (!webpackRequire?.m) return;
+    const registry = webpackRequire.m;
+    for (const id of Object.keys(registry)) {
+        const factory: WebpackModuleFn | undefined = registry[id];
+        if (typeof factory !== "function") continue;
+        let src: string;
+        try { src = Function.prototype.toString.call(factory); } catch { continue; }
+        let allFound = true;
+        for (const s of substrings) {
+            if (!src.includes(s)) { allFound = false; break; }
+        }
+        if (!allFound) continue;
+        // Prefer cached exports so we don't trigger a fresh factory run with
+        // its boot side effects. Fall back to invoking `require(id)` only if
+        // the module hasn't been loaded yet — in practice it always has been
+        // by the time a plugin asks for it, but we keep this as a safety net.
+        try {
+            const cached = webpackRequire.c?.[id];
+            if (cached && "exports" in cached) {
+                yield cached.exports;
+                continue;
+            }
+            yield webpackRequire(id);
+        } catch (err) {
+            log.warn(`findByCode: failed to load module ${id}`, err);
+        }
+    }
+}
+
+/**
+ * Convenience: find a Flux-shaped store inside a module whose factory source
+ * contains every supplied substring. The returned value is the actual store
+ * instance (extracted from the module's exports via the standard
+ * `default`/`Z`/named-key walk), not the raw export wrapper.
+ */
+export function findStoreByCode(...substrings: ReadonlyArray<string>): unknown {
+    for (const exp of findAllByCode(substrings)) {
+        const hit = probeExportShape(exp, "<by-code>", v => {
+            if (!v || typeof v !== "object") return false;
+            return typeof (v as Record<string, unknown>).addChangeListener === "function";
+        });
+        if (hit !== undefined) return hit;
+    }
+    return null;
+}
+
+/**
+ * Diagnostic helper: emit a single console group describing every Flux-shaped
+ * module we know about (anything with `addChangeListener`), with its name
+ * hints and the subset of method names that match a /channel|guild/i regex.
+ *
+ * Call this when a store accessor returns `null` and you need to know why.
+ * Output goes to Discord's renderer console (visible under DevTools) so the
+ * user can screenshot it back to us without us shipping a build that logs
+ * every render.
+ */
+export function dumpStoresForDiagnostic(tag: string): void {
+    if (!cacheDrained && webpackRequire) {
+        drainModuleCache();
+    }
+    const dumped: Array<Record<string, unknown>> = [];
+    for (const [id, exp] of exportsById) {
+        const targets: Array<{ from: string; obj: unknown }> = [{ from: "root", obj: exp }];
+        if (exp && typeof exp === "object") {
+            const o = exp as Record<string, unknown>;
+            if ("default" in o) targets.push({ from: "default", obj: o.default });
+            if ("Z" in o) targets.push({ from: "Z", obj: o.Z });
+        }
+        for (const { from, obj } of targets) {
+            if (!obj || typeof obj !== "object") continue;
+            const t = obj as Record<string, unknown>;
+            if (typeof t.addChangeListener !== "function") continue;
+            const info: Record<string, unknown> = { id, from };
+            try {
+                info.displayName = (t as { constructor?: { displayName?: unknown } }).constructor?.displayName ?? null;
+            } catch { info.displayName = "<threw>"; }
+            try {
+                info.ctorName = (t as { constructor?: { name?: unknown } }).constructor?.name ?? null;
+            } catch { info.ctorName = "<threw>"; }
+            try {
+                if (typeof t.getName === "function") {
+                    info.getName = (t.getName as () => unknown)();
+                }
+            } catch { info.getName = "<threw>"; }
+            const methods: string[] = [];
+            try {
+                for (const key of Object.getOwnPropertyNames(t)) {
+                    if (typeof t[key] === "function" && /channel|guild/i.test(key)) methods.push(key);
+                }
+                const proto = Object.getPrototypeOf(t);
+                if (proto) {
+                    for (const key of Object.getOwnPropertyNames(proto)) {
+                        if (key === "constructor") continue;
+                        try {
+                            if (typeof (t as Record<string, unknown>)[key] === "function" && /channel|guild/i.test(key)) {
+                                if (!methods.includes(key)) methods.push(key);
+                            }
+                        } catch {
+                            // Some getters throw — skip.
+                        }
+                    }
+                }
+            } catch {
+                // ignore
+            }
+            info.channelGuildMethods = methods;
+            dumped.push(info);
+        }
+    }
+    // Use console.warn so it survives Discord's log-level filters in production.
+    // eslint-disable-next-line no-console
+    console.warn(`[alitravians:storeDiag:${tag}] Flux-shaped exports: ${dumped.length}`);
+    for (const row of dumped) {
+        // eslint-disable-next-line no-console
+        console.warn(`[alitravians:storeDiag:${tag}]`, row);
+    }
 }

@@ -12,9 +12,11 @@
  * Discord store name.
  */
 
-import { findStore, findStoreByMethods } from "./modules.js";
+import { bootstrapWebpackRequire } from "./chunkInterceptor.js";
+import { findAllByCode, findAllStoresByMethods, findStore, moduleCount } from "./modules.js";
 import type {
     ChannelStore,
+    DiscordChannelLite,
     GuildMemberStore,
     GuildStore,
     PermissionStore,
@@ -32,16 +34,77 @@ import type {
  * `requiredMethods` is also used to validate the shape of whichever object
  * we end up returning — that way the callers can trust the returned handle
  * has every method they're about to invoke.
+ *
+ * `validate` is an optional final check that lets the caller probe the
+ * candidate for the *behaviour* it expects (e.g. "calling this method with
+ * a sentinel argument returns a real channel record, not an i18n fallback
+ * string"). The fingerprint path iterates every match, so a misbehaving
+ * candidate is skipped instead of being returned.
  */
+let didBootstrap = false;
+function ensureBootstrapped(): void {
+    if (didBootstrap) return;
+    if (moduleCount() > 0) { didBootstrap = true; return; }
+    // Force webpack to hand us a require — vital on builds where our chunk
+    // interceptor lost the race against Discord's own webpack runtime or
+    // never got a chance to wrap `.push`. The bootstrap is idempotent and
+    // its only side-effect is one `rememberRequire(require)` call, after
+    // which `findAllByCode` / module-cache traversal both work.
+    try {
+        if (bootstrapWebpackRequire()) didBootstrap = true;
+    } catch {
+        // Bootstrap is best-effort; lookup paths handle absent require.
+    }
+}
+
 function resolveStore(
     storeName: string,
     requiredMethods: ReadonlyArray<string>,
     fingerprint: ReadonlyArray<string>,
+    validate?: (store: unknown) => boolean,
+    codeMarkers?: ReadonlyArray<string>,
 ): unknown {
+    ensureBootstrapped();
     const byName = findStore(storeName);
-    if (hasFn(byName, ...requiredMethods)) return byName;
-    const byMethods = findStoreByMethods(...fingerprint);
-    if (hasFn(byMethods, ...requiredMethods)) return byMethods;
+    if (hasFn(byName, ...requiredMethods) && (!validate || validate(byName))) return byName;
+    for (const candidate of findAllStoresByMethods(...fingerprint)) {
+        if (!hasFn(candidate, ...requiredMethods)) continue;
+        if (validate && !validate(candidate)) continue;
+        return candidate;
+    }
+    // Last-resort: scan webpack module factories by source-text fingerprint.
+    // Discord's modern bundles mangle constructor names but preserve the
+    // literal method-name and dispatcher-handler strings inside each factory,
+    // so a substring match is a reliable way to pin a store whose identity
+    // we lost via the name- and shape-based paths.
+    if (codeMarkers && codeMarkers.length > 0) {
+        for (const exp of findAllByCode(codeMarkers)) {
+            const candidate = pickStoreFromExports(exp, requiredMethods);
+            if (!candidate) continue;
+            if (validate && !validate(candidate)) continue;
+            return candidate;
+        }
+    }
+    return null;
+}
+
+/**
+ * From a module's `exports` object (which may itself be the store, or a
+ * `{ default: Store }` / `{ Z: Store }` / `{ ChannelStore: Store, ... }`
+ * wrapper), pull out the actual Flux store instance that satisfies the
+ * required-method shape.
+ */
+function pickStoreFromExports(exp: unknown, requiredMethods: ReadonlyArray<string>): unknown {
+    if (hasFn(exp, ...requiredMethods)) return exp;
+    if (!exp || typeof exp !== "object") return null;
+    const o = exp as Record<string, unknown>;
+    let keys: string[];
+    try { keys = Object.keys(o); } catch { return null; }
+    for (const key of keys) {
+        let value: unknown;
+        try { value = o[key]; } catch { continue; }
+        if (hasFn(value, ...requiredMethods)) return value;
+    }
     return null;
 }
 
@@ -87,8 +150,46 @@ export function getChannelStore(): ChannelStore | null {
         "ChannelStore",
         ["getChannel", "addChangeListener", "removeChangeListener"],
         ["getChannel", "getMutableGuildChannelsForGuild"],
+        looksLikeChannelStore,
+        // `getMutableGuildChannelsForGuild` is the cheapest unique marker:
+        // Vencord uses it for the same reason. Discord's i18n MessagesStore
+        // fakes a function for *every* property access at runtime but its
+        // factory source doesn't contain this literal string, so a code
+        // search ignores it cleanly.
+        ["getMutableGuildChannelsForGuild"],
     );
     return store ? (store as ChannelStore) : null;
+}
+
+/**
+ * Behavioural check: a candidate is a real `ChannelStore` if and only if
+ * `getMutableGuildChannelsForGuild("0")` returns either a falsy value
+ * (no data for that fake guild — the legitimate response) or an object
+ * whose values — if any — carry the channel-record shape (`{ id, type }`).
+ *
+ * Discord's i18n `MessagesStore` answers every method call with whatever
+ * `getMessage(...)` returns; that value is *also* object-like and *also*
+ * non-empty, but the values never have a numeric `type` field, so this
+ * probe rejects it cleanly.
+ */
+function looksLikeChannelStore(store: unknown): boolean {
+    if (!store || typeof store !== "object") return false;
+    const fn = (store as Record<string, unknown>).getMutableGuildChannelsForGuild;
+    if (typeof fn !== "function") return false;
+    let probe: unknown;
+    try {
+        probe = (fn as (id: string) => unknown).call(store, "0");
+    } catch {
+        return false;
+    }
+    if (probe == null) return true;
+    if (typeof probe !== "object") return false;
+    const values = Object.values(probe as Record<string, unknown>);
+    if (values.length === 0) return true;
+    // First value must look like a Discord channel record.
+    const first = values[0] as Partial<DiscordChannelLite> | null | undefined;
+    if (!first || typeof first !== "object") return false;
+    return typeof first.id === "string" && typeof first.type === "number";
 }
 
 /**
@@ -104,6 +205,8 @@ export function getPermissionStore(): PermissionStore | null {
         "PermissionStore",
         ["can", "addChangeListener", "removeChangeListener"],
         ["can", "getChannelPermissions"],
+        undefined,
+        ["getChannelPermissions", "computePermissions"],
     );
     return store ? (store as PermissionStore) : null;
 }
@@ -113,6 +216,8 @@ export function getGuildStore(): GuildStore | null {
         "GuildStore",
         ["getGuild", "addChangeListener", "removeChangeListener"],
         ["getGuild", "getGuilds"],
+        undefined,
+        ["getGuildCount", "getGuild"],
     );
     return store ? (store as GuildStore) : null;
 }

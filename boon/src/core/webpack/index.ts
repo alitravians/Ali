@@ -9,13 +9,22 @@
 
 export { installChunkInterceptor } from "./chunkInterceptor.js";
 export {
+    dumpStoresForDiagnostic,
+    findAllByCode,
+    findAllModules,
+    findAllStoresByMethods,
+    findByCode,
     findByProps,
     findModule,
     findStore,
+    findStoreByCode,
+    findStoreByMethods,
     isWebpackReady,
     moduleCount,
+    probeWebpackForDiagnostic,
     whenWebpackReady,
 } from "./modules.js";
+export type { WebpackProbeSnapshot } from "./modules.js";
 export { getDispatcher, subscribeToAction } from "./dispatcher.js";
 export {
     getChannelStore,
