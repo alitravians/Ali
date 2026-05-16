@@ -115,7 +115,9 @@ function formatTimeAgo(ms: number): string {
     const day = Math.floor(hr / 24);
     if (day < 30) return `قبل ${day} يوم`;
     const mon = Math.floor(day / 30);
-    if (mon < 12) return `قبل ${mon} شهر`;
+    // 12 months covers days 360–364 too — without this, those values fall
+    // through to `Math.floor(day / 365) === 0` and we'd render "قبل 0 سنة".
+    if (mon < 13) return `قبل ${mon} شهر`;
     const yr = Math.floor(day / 365);
     return `قبل ${yr} سنة`;
 }
@@ -127,7 +129,10 @@ function formatSlowmode(s: number): string {
 }
 
 function findGuildId(): string | null {
-    const match = location.pathname.match(/\/channels\/(\d+)\//);
+    // Trailing slash is optional: Discord usually navigates to
+    // `/channels/<guildId>/<channelId>` but occasionally lands on the bare
+    // guild URL (`/channels/<guildId>`, no trailing slash) before redirect.
+    const match = location.pathname.match(/\/channels\/(\d+)(?:\/|$)/);
     return match ? match[1] : null;
 }
 
@@ -552,9 +557,16 @@ function renderHeader(result: DiscoveryResult, drilldown: DiscoveredChannel | nu
     (titleWrap as HTMLElement).style.flex = "1";
     const title = el("h2", undefined, drilldown ? drilldown.name : "القنوات المخفية");
     titleWrap.appendChild(title);
+    // Header / tab counts respect the NSFW preference so that the badge
+    // never claims more channels than the user will actually see in the
+    // list. Search query is deliberately ignored here — like Gmail tabs,
+    // search narrows _within_ a tab rather than re-labelling it.
+    const visibleHidden = state.nsfwFiltered
+        ? result.hidden.filter(c => !c.nsfw)
+        : result.hidden;
     const sub = el("div", "boon-shc-subtitle", drilldown
         ? `في ${result.guildName}`
-        : `${result.hidden.length} قناة من أصل ${result.totalCount} في ${result.guildName}`);
+        : `${visibleHidden.length} قناة من أصل ${result.totalCount} في ${result.guildName}`);
     titleWrap.appendChild(sub);
     header.appendChild(titleWrap);
 
@@ -601,10 +613,16 @@ function renderTabs(result: DiscoveryResult): HTMLElement {
     const tabs = el("div", "boon-shc-tabs");
     const filters: FilterKind[] = ["all", "text", "voice", "stage", "forum", "announcement", "media", "category"];
 
+    // Same NSFW-aware base list as renderHeader. Without this, the badge
+    // could read "نصية (5)" while the body only renders 3 rows.
+    const base = state.nsfwFiltered
+        ? result.hidden.filter(c => !c.nsfw)
+        : result.hidden;
+
     const countFor = (kind: FilterKind): number =>
         kind === "all"
-            ? result.hidden.length
-            : result.hidden.filter(c => c.kind === kind).length;
+            ? base.length
+            : base.filter(c => c.kind === kind).length;
 
     for (const f of filters) {
         const c = countFor(f);
