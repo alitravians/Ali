@@ -319,6 +319,10 @@ export const STYLE = `
     .boon-shc-body::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.18); }
 
     .boon-shc-degraded {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
         margin: 0 0 12px;
         padding: 10px 12px;
         background: rgba(248, 165, 78, 0.1);
@@ -327,6 +331,22 @@ export const STYLE = `
         font-size: 12px;
         border: 1px solid rgba(248, 165, 78, 0.5);
     }
+    .boon-shc-degraded-text { flex: 1; line-height: 1.5; }
+    .boon-shc-degraded-retry {
+        appearance: none;
+        flex-shrink: 0;
+        padding: 6px 12px;
+        background: rgba(248, 165, 78, 0.18);
+        color: var(--boon-shc-warning);
+        border: 1px solid rgba(248, 165, 78, 0.6);
+        border-radius: var(--boon-shc-radius-sm);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 140ms ease, transform 80ms ease;
+    }
+    .boon-shc-degraded-retry:hover { background: rgba(248, 165, 78, 0.32); }
+    .boon-shc-degraded-retry:active { transform: translateY(1px); }
 
     /* ─── Server overview (type chips strip) ───────────────────────────── */
     .boon-shc-overview { margin-bottom: 14px; }
