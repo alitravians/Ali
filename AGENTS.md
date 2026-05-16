@@ -104,4 +104,7 @@ npm run typecheck && npm run build
 
 - المالك: ali travians (`botbotgroup@gmail.com`)
 - آخر release: https://github.com/alitravians/Ali/releases/latest
-- الـ release tag الحالي: `boon-v0.5.0` (الترجمة الصادرة عربي→إنجليزي عند الإرسال).
+- الإصدار الحالي في `boon/package.json` (مصدر الحقيقة لرقم النسخة). آخر tag منشور هو
+  `boon-v<X.Y.Z>` المطابق له، ويمكن قراءته من
+  https://github.com/alitravians/Ali/releases/latest. تجنّب تثبيت رقم نسخة محدد هنا
+  لأنه سيتقادم مع كل إصدار جديد.
