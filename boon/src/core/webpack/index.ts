@@ -17,14 +17,33 @@ export {
     whenWebpackReady,
 } from "./modules.js";
 export { getDispatcher, subscribeToAction } from "./dispatcher.js";
-export { getTypingStore } from "./stores.js";
+export {
+    getChannelStore,
+    getGuildMemberStore,
+    getGuildStore,
+    getPermissionStore,
+    getTypingStore,
+    getUserStore,
+} from "./stores.js";
 export type {
+    ChannelStore,
+    DiscordChannelLite,
+    DiscordForumTag,
+    DiscordGuildLite,
+    DiscordGuildMemberLite,
+    DiscordPermissionOverwrite,
+    DiscordRoleLite,
+    DiscordUserLite,
     FluxAction,
     FluxActionHandler,
     FluxDispatcher,
     FluxStoreBase,
+    GuildMemberStore,
+    GuildStore,
     ModuleFilter,
+    PermissionStore,
     TypingStore,
+    UserStore,
     WebpackChunk,
     WebpackModuleFn,
     WebpackModuleId,

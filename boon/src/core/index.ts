@@ -32,6 +32,7 @@ import noNitroAds from "../plugins/noNitroAds/index.js";
 import platformIndicators from "../plugins/platformIndicators/index.js";
 import quickCss from "../plugins/quickCss/index.js";
 import serverTools from "../plugins/serverTools/index.js";
+import showHiddenChannels from "../plugins/showHiddenChannels/index.js";
 import typingIndicator from "../plugins/typingIndicator/index.js";
 import viewRaw from "../plugins/viewRaw/index.js";
 import whoReacted from "../plugins/whoReacted/index.js";
@@ -52,8 +53,9 @@ export const BUILT_IN_PLUGINS: ReadonlyArray<AnyPlugin> = [
     quickCss,
     platformIndicators,
     whoReacted,
-    // ─── Webpack-powered plugins (v0.4.0) ───
+    // ─── Webpack-powered plugins (v0.4.0+) ───
     typingIndicator,
+    showHiddenChannels,
 ];
 
 export { VERSION } from "./version.js";
