@@ -201,8 +201,25 @@ function updateLauncher(count: number): void {
 
 export function placeLauncher(hooks: LauncherHooks): () => void {
     launchHooks = hooks;
+    // `disposed` guards against pending rAF callbacks (queued by
+    // scheduleReconcile or the MutationObserver) that would otherwise fire
+    // *after* teardown has emptied the closure state — re-appending the
+    // launcher as an orphan whose click handler is a no-op.
+    let disposed = false;
+
+    /**
+     * Compute the badge count the user actually expects to see in the panel.
+     * `state.hidden.length` ignores `hideNsfw`, so the launcher would say
+     * "🔒 خفي (10)" while the panel header / tabs read "8". Keep the
+     * launcher in lockstep with the rest of the UI.
+     */
+    const launcherCountFor = (result: DiscoveryResult): number =>
+        state.nsfwFiltered
+            ? result.hidden.reduce((n, c) => (c.nsfw ? n : n + 1), 0)
+            : result.hidden.length;
 
     const reconcile = (): void => {
+        if (disposed) return;
         const guildId = findGuildId();
         if (guildId !== lastGuildSeen) {
             lastGuildSeen = guildId;
@@ -219,7 +236,7 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         }
         const result = scanGuild(guildId);
         state.result = result;
-        updateLauncher(result.hidden.length);
+        updateLauncher(launcherCountFor(result));
 
         const backdrop = document.getElementById(BACKDROP_ID);
         if (backdrop) renderPanel();
@@ -231,10 +248,11 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
     // and used by contextMenu / callTimer / platformIndicators / autoTranslate.
     let reconcileScheduled = false;
     const scheduleReconcile = (): void => {
-        if (reconcileScheduled) return;
+        if (reconcileScheduled || disposed) return;
         reconcileScheduled = true;
         requestAnimationFrame(() => {
             reconcileScheduled = false;
+            if (disposed) return;
             reconcile();
         });
     };
@@ -247,11 +265,13 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
     placementRetry = window.setInterval(scheduleReconcile, 15000);
 
     placementObserver = new MutationObserver(() => {
+        if (disposed) return;
         if (!document.getElementById(LAUNCH_ID)) scheduleReconcile();
     });
     placementObserver.observe(document.body, { childList: true, subtree: true });
 
     return () => {
+        disposed = true;
         if (placementRetry !== null) {
             window.clearInterval(placementRetry);
             placementRetry = null;
@@ -260,6 +280,9 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         placementObserver = null;
         document.getElementById(LAUNCH_ID)?.remove();
         launchHooks = null;
+        // Drop the module-level guild memo so a re-enable on the same guild
+        // re-initializes `state.query` / `state.drilldownId` from scratch.
+        lastGuildSeen = null;
     };
 }
 
@@ -385,11 +408,17 @@ function renderListBody(result: DiscoveryResult): HTMLElement {
 // ─── Details view ───────────────────────────────────────────────────────────
 
 function pillForOverwrite(guildId: string, ow: DiscoveredOverwrite): HTMLElement | null {
+    // Bail early on overwrites that don't touch VIEW_CHANNEL — a channel
+    // can have dozens of overwrites that only mutate SEND_MESSAGES /
+    // ATTACH_FILES / etc, and there's no point resolving role/member
+    // labels for entries we're about to discard.
+    if (!ow.grantsView && !ow.deniesView) return null;
+
     let label = ow.id;
     if (ow.kind === "role") {
         const role = lookupRole(guildId, ow.id);
         if (role) label = role.name === "@everyone" ? "@everyone" : `@${role.name}`;
-        else label = `@dorole(${ow.id.slice(-4)})`;
+        else label = `@role(${ow.id.slice(-4)})`;
     } else {
         const ms = getGuildMemberStore();
         const us = getUserStore();
@@ -400,10 +429,7 @@ function pillForOverwrite(guildId: string, ow: DiscoveredOverwrite): HTMLElement
         else label = `@user(${ow.id.slice(-4)})`;
     }
 
-    const kind: "allow" | "deny" | "member" =
-        ow.grantsView ? "allow" : ow.deniesView ? "deny" : "member";
-
-    if (!ow.grantsView && !ow.deniesView) return null;
+    const kind: "allow" | "deny" = ow.grantsView ? "allow" : "deny";
 
     const pill = el("span", "boon-shc-pill", label);
     pill.setAttribute("data-kind", kind);
