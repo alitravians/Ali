@@ -990,11 +990,17 @@ function renderDegradedBanner(result: DiscoveryResult): HTMLElement {
         "boon-shc-degraded-text",
         result.degradedReason ?? "وضع محدود — تعذّر قراءة بيانات السيرفر.",
     ));
-    const retry = el("button", "boon-shc-degraded-retry", "إعادة المحاولة");
+    const retry = el("button", "boon-shc-degraded-retry", "إعادة المحاولة") as HTMLButtonElement;
+    retry.type = "button";
     retry.addEventListener("click", () => {
         if (!state.guildId) return;
         state.result = scanGuild(state.guildId);
         renderPanel();
+        // The launcher badge reads its count from a separate reconcile pass
+        // (interval + MutationObserver), so without prodding it here a
+        // successful retry can leave the launcher showing the stale "0"
+        // count for up to 15 seconds. Ask the launcher to recount now.
+        requestReconcile();
     });
     banner.appendChild(retry);
     return banner;

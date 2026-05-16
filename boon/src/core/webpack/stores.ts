@@ -50,19 +50,17 @@ function resolveStore(
  * channel. The map is updated by the `TYPING_START` and `TYPING_STOP`
  * actions, so plugins typically subscribe to those AND read the store on
  * each tick rather than maintaining their own mirror.
+ *
+ * Fingerprint: `getTypingUsers` is exclusive to TypingStore across the Flux
+ * store set, so a shape-based fallback is safe.
  */
 export function getTypingStore(): TypingStore | null {
-    const store = findStore("TypingStore");
-    if (!isTypingStore(store)) return null;
-    return store;
-}
-
-function isTypingStore(value: unknown): value is TypingStore {
-    if (!value || typeof value !== "object") return false;
-    const o = value as Record<string, unknown>;
-    return typeof o.getTypingUsers === "function"
-        && typeof o.addChangeListener === "function"
-        && typeof o.removeChangeListener === "function";
+    const store = resolveStore(
+        "TypingStore",
+        ["getTypingUsers", "addChangeListener", "removeChangeListener"],
+        ["getTypingUsers"],
+    );
+    return store ? (store as TypingStore) : null;
 }
 
 function hasFn(value: unknown, ...names: ReadonlyArray<string>): boolean {
