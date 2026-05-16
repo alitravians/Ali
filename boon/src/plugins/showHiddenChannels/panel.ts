@@ -165,9 +165,20 @@ let requestReconcileFn: (() => void) | null = null;
  * Last successful placement strategy. Logged once per change so the
  * console shows e.g. `placed via "nav-channels-header"` exactly when
  * Discord swaps its DOM under us (navigation, theme change, A/B test
- * rollout, …) — instead of every reconcile tick.
+ * rollout, …) — instead of every reconcile tick. Reset to null on
+ * teardown so the first probe after a re-enable still emits its log.
  */
 let lastPlacementStrategy: string | null = null;
+
+/**
+ * When Strategy D (sidebar-floating) activates we flip
+ * `sidebar.style.position` to `relative` so the absolute-positioned
+ * launcher anchors to the sidebar. We capture the previous inline
+ * value here so teardown can restore it cleanly — important when the
+ * user disables the plugin without navigating away, since otherwise
+ * Discord's sidebar would keep the inline override forever.
+ */
+let floatingSidebarMutation: { element: HTMLElement; originalPosition: string } | null = null;
 
 interface PlacementProbeResult {
     mount: HTMLElement;
@@ -237,10 +248,17 @@ function probeChannelListMount(): PlacementProbeResult | null {
         // fails. position: relative is asserted on the sidebar so the
         // absolute-positioned child anchors correctly.
         if (isVisibleNode(sidebar)) {
-            // Force a positioning context — using inline style avoids
-            // mutating Discord's stylesheets and gets cleaned up when
-            // Discord swaps the sidebar element on navigation.
+            // Force a positioning context. Capture the previous inline
+            // value so teardown can restore it; this also avoids
+            // re-overwriting it across reconcile ticks once we've
+            // already established the anchor.
             if (sidebar.style.position === "" || sidebar.style.position === "static") {
+                if (!floatingSidebarMutation || floatingSidebarMutation.element !== sidebar) {
+                    floatingSidebarMutation = {
+                        element: sidebar,
+                        originalPosition: sidebar.style.position,
+                    };
+                }
                 sidebar.style.position = "relative";
             }
             return { mount: sidebar, strategy: "sidebar-floating", floating: true };
@@ -294,12 +312,13 @@ function updateLauncher(count: number): void {
         existing.title = `القنوات المخفية (${count})`;
         const countEl = existing.querySelector<HTMLElement>(".boon-shc-launch-count");
         if (countEl) countEl.textContent = String(count);
-        // Verify the existing button is still attached to a visible
-        // mount. Discord swaps the channel-list subtree on guild
-        // navigation, and a stale orphan can survive a frame or two
-        // before our MutationObserver gets around to it.
-        if (!existing.isConnected) existing.remove();
-        else return;
+        // `getElementById` only returns elements still attached to the
+        // document, so a non-null `existing` is by definition connected
+        // — nothing more to do here. Re-mounting after Discord swaps
+        // the channel-list subtree is handled by the MutationObserver
+        // in `placeLauncher`, which reschedules a reconcile that hits
+        // the probe path below.
+        return;
     }
 
     const probe = probeChannelListMount();
@@ -416,6 +435,24 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         // Drop the module-level guild memo so a re-enable on the same guild
         // re-initializes `state.query` / `state.drilldownId` from scratch.
         lastGuildSeen = null;
+        // Reset the strategy memo so the *next* successful probe still
+        // emits its diagnostic log — without this, a disable→re-enable
+        // cycle that happens to land on the same strategy would be
+        // invisible in DevTools.
+        lastPlacementStrategy = null;
+        // Restore the inline `position` we may have flipped on Discord's
+        // sidebar for floating mode. If the user disables the plugin
+        // without navigating, this leaves Discord's DOM in the exact
+        // state we found it in.
+        if (floatingSidebarMutation) {
+            // Only restore if Discord hasn't replaced the sidebar
+            // element in the meantime — a swapped sidebar already
+            // dropped our override.
+            if (floatingSidebarMutation.element.isConnected) {
+                floatingSidebarMutation.element.style.position = floatingSidebarMutation.originalPosition;
+            }
+            floatingSidebarMutation = null;
+        }
     };
 }
 
