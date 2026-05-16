@@ -185,6 +185,25 @@ function nameFor(channel: DiscordChannelLite): string {
 }
 
 /**
+ * Read a channel field that Discord exposes under two names \u2014 the modern
+ * camelCase ChannelRecord accessor (`parentId`) and the legacy snake_case
+ * gateway field (`parent_id`). On every modern desktop build the camelCase
+ * value is populated; the fallback keeps us safe on older / REST-shaped
+ * records and inside the unit-test scaffolding.
+ */
+function readChannel<T>(
+    ch: DiscordChannelLite,
+    camel: keyof DiscordChannelLite,
+    snake: keyof DiscordChannelLite,
+): T | undefined {
+    const c = ch[camel];
+    if (c !== undefined && c !== null) return c as T;
+    const s = ch[snake];
+    if (s !== undefined && s !== null) return s as T;
+    return undefined;
+}
+
+/**
  * Public entry: scan a guild for hidden channels.
  */
 export function scanGuild(guildId: string): DiscoveryResult {
@@ -233,7 +252,8 @@ export function scanGuild(guildId: string): DiscoveryResult {
             visibleCount++;
             continue;
         }
-        const parentId = ch.parent_id ?? null;
+        const parentId = readChannel<string>(ch, "parentId", "parent_id") ?? null;
+        const lastMessageId = readChannel<string>(ch, "lastMessageId", "last_message_id") ?? null;
         hidden.push({
             id: ch.id,
             type: ch.type,
@@ -244,12 +264,12 @@ export function scanGuild(guildId: string): DiscoveryResult {
             parentId,
             parentName: parentId ? (idToName.get(parentId) ?? null) : null,
             position: ch.position ?? 0,
-            rateLimitPerUser: ch.rate_limit_per_user ?? 0,
+            rateLimitPerUser: readChannel<number>(ch, "rateLimitPerUser", "rate_limit_per_user") ?? 0,
             bitrate: ch.bitrate ?? null,
-            userLimit: ch.user_limit ?? null,
-            rtcRegion: ch.rtc_region ?? null,
-            lastMessageId: ch.last_message_id ?? null,
-            lastActivityMs: snowflakeToMs(ch.last_message_id),
+            userLimit: readChannel<number>(ch, "userLimit", "user_limit") ?? null,
+            rtcRegion: readChannel<string>(ch, "rtcRegion", "rtc_region") ?? null,
+            lastMessageId,
+            lastActivityMs: snowflakeToMs(lastMessageId),
             overwrites: mapOverwrites(ch.permissionOverwrites as Record<string, unknown> | undefined),
         });
     }

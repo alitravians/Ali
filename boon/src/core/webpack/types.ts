@@ -123,9 +123,16 @@ export interface DiscordForumTag {
 }
 
 /**
- * Subset of Discord's channel record that BOON reads. Discord exposes far
- * more fields, but every field below is stable across recent client builds.
- * All fields are read-only — BOON never mutates Discord's internal state.
+ * Subset of Discord's channel record that BOON reads.
+ *
+ * Discord's webpack `ChannelRecord` exposes most data through camelCase
+ * accessors (`parentId`, `lastMessageId`, `rateLimitPerUser`, …), but the
+ * raw record — which is what `getMutableGuildChannelsForGuild` hands us
+ * — also retains the original snake_case gateway field names on its
+ * underlying props object. We therefore declare both, mark every field
+ * optional, and resolve at read-time (see `readChannelField` in
+ * `discovery.ts`). The set of fields below is intentionally narrow: BOON
+ * never mutates Discord's internal state.
  */
 export interface DiscordChannelLite {
     readonly id: string;
@@ -133,20 +140,35 @@ export interface DiscordChannelLite {
     readonly name?: string;
     readonly topic?: string | null;
     readonly nsfw?: boolean;
-    readonly parent_id?: string | null;
     readonly position?: number;
+    readonly flags?: number;
+    readonly bitrate?: number;
+    readonly permissionOverwrites?: Record<string, DiscordPermissionOverwrite>;
+    readonly available_tags?: ReadonlyArray<DiscordForumTag>;
+    readonly availableTags?: ReadonlyArray<DiscordForumTag>;
+    // ── camelCase (modern ChannelRecord public surface) ─────────────────────
+    readonly parentId?: string | null;
+    readonly guildId?: string;
+    readonly lastMessageId?: string | null;
+    readonly lastPinTimestamp?: string | null;
+    readonly rateLimitPerUser?: number;
+    readonly defaultThreadRateLimitPerUser?: number;
+    readonly userLimit?: number;
+    readonly rtcRegion?: string | null;
+    readonly videoQualityMode?: number;
+    readonly defaultAutoArchiveDuration?: number;
+    readonly defaultForumLayout?: number;
+    readonly defaultSortOrder?: number | null;
+    // ── snake_case (raw gateway/REST props, kept as fallback) ────────────────
+    readonly parent_id?: string | null;
     readonly guild_id?: string;
     readonly last_message_id?: string | null;
     readonly last_pin_timestamp?: string | null;
     readonly rate_limit_per_user?: number;
     readonly default_thread_rate_limit_per_user?: number;
-    readonly bitrate?: number;
     readonly user_limit?: number;
     readonly rtc_region?: string | null;
     readonly video_quality_mode?: number;
-    readonly permissionOverwrites?: Record<string, DiscordPermissionOverwrite>;
-    readonly available_tags?: ReadonlyArray<DiscordForumTag>;
-    readonly flags?: number;
     readonly default_auto_archive_duration?: number;
     readonly default_forum_layout?: number;
     readonly default_sort_order?: number | null;

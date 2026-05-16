@@ -147,6 +147,12 @@ let placementObserver: MutationObserver | null = null;
 let placementRetry: number | null = null;
 let lastGuildSeen: string | null = null;
 let onCloseCallback: (() => void) | null = null;
+/**
+ * Exposed by `placeLauncher` so the settings:changed handler (and any
+ * future caller that mutates `state` directly) can ask for an immediate
+ * reconcile instead of waiting up to 15s for the next interval tick.
+ */
+let requestReconcileFn: (() => void) | null = null;
 
 function findChannelListHeader(): HTMLElement | null {
     return document.querySelector<HTMLElement>(
@@ -232,6 +238,11 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         }
         if (!guildId) {
             document.getElementById(LAUNCH_ID)?.remove();
+            // If the panel is still open when we transition off a guild
+            // (e.g. the user navigated to DMs while browsing hidden
+            // channels), close it instead of leaving the modal sitting
+            // on stale data from the previous guild.
+            if (document.getElementById(BACKDROP_ID)) closePanel();
             return;
         }
         const result = scanGuild(guildId);
@@ -257,6 +268,12 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         });
     };
 
+    // Publish the scheduler so callers outside this closure (e.g. the
+    // settings:changed handler that flips `state.nsfwFiltered`) can ask
+    // for an immediate badge refresh instead of waiting up to 15s for
+    // the next interval tick.
+    requestReconcileFn = scheduleReconcile;
+
     reconcile();
     // 15s cadence is enough to catch role/permission changes pushed through
     // gateway events without re-walking every webpack module four times a
@@ -280,10 +297,22 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         placementObserver = null;
         document.getElementById(LAUNCH_ID)?.remove();
         launchHooks = null;
+        requestReconcileFn = null;
         // Drop the module-level guild memo so a re-enable on the same guild
         // re-initializes `state.query` / `state.drilldownId` from scratch.
         lastGuildSeen = null;
     };
+}
+
+/**
+ * Ask the active launcher to reconcile on the next animation frame.
+ * No-op when the launcher isn't running (settings show launcher disabled,
+ * or plugin not started). Used by `index.ts` after settings flips that
+ * affect what's rendered — currently only `hideNsfw`, since `defaultFilter`
+ * / `defaultSort` only change panel state that the user actively sees.
+ */
+export function requestReconcile(): void {
+    requestReconcileFn?.();
 }
 
 // ─── Modal ──────────────────────────────────────────────────────────────────

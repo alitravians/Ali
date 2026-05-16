@@ -34,7 +34,15 @@
 
 import { definePlugin, type SettingsSchema } from "../../core/types.js";
 import { isWebpackReady } from "../../core/webpack/index.js";
-import { closePanel, openPanel, placeLauncher, applyDefaults, type FilterKind, type SortKey } from "./panel.js";
+import {
+    applyDefaults,
+    closePanel,
+    openPanel,
+    placeLauncher,
+    requestReconcile,
+    type FilterKind,
+    type SortKey,
+} from "./panel.js";
 import { STYLE, STYLE_ID } from "./styles.js";
 
 const SCHEMA = {
@@ -161,6 +169,12 @@ export default definePlugin({
                         nsfw: key === "hideNsfw",
                     },
                 );
+                // `hideNsfw` is the only field that affects what the
+                // launcher badge / open panel renders; the other two only
+                // bias state the user touches deliberately. Bump the
+                // launcher so the badge updates within one frame instead
+                // of waiting up to 15s for the next interval tick.
+                if (key === "hideNsfw") requestReconcile();
             }
 
             const launcherWanted = ctx.settings.showLauncher;
