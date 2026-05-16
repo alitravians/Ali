@@ -56,7 +56,9 @@
  */
 
 import { readMessageBodyText } from "../../core/discord.js";
+import { getCapturedHeader } from "../../core/headerCapture.js";
 import { definePlugin, type SettingsSchema } from "../../core/types.js";
+import { findByProps } from "../../core/webpack/modules.js";
 
 const SCHEMA = {
     autoMode: {
@@ -1469,15 +1471,63 @@ export default definePlugin({
             return false;
         }
 
-        // Read the user's authentication token. Discord stashes it in
-        // localStorage under the literal key "token" wrapped in quotes (the
-        // value is `JSON.stringify`'d). On Discord PTB and recent Stable
-        // builds Discord blocks direct ``window.localStorage`` access from
-        // userscripts, so we lift the token via a same-origin iframe — the
-        // iframe's ``contentWindow.localStorage`` shares storage with the
-        // parent but bypasses the lockdown wrapper. This matches the
-        // already-shipping pattern in serverTools (`getUserToken`).
-        function readAuthToken(): string | null {
+        // Read the user's authentication token.
+        //
+        // Modern Discord builds (Stable 2024+, PTB, Canary) DELETE the
+        // ``localStorage`` reference from ``window`` at boot as part of
+        // their self-bot mitigations. The iframe trick (read a same-origin
+        // iframe's ``contentWindow.localStorage``) is also being clamped
+        // down on — on the Linux build the token key is wiped before BOON
+        // can read it, so ``readAuthToken`` was returning ``null`` and the
+        // outgoing-translate flow surfaced ``kind=no_token`` for every
+        // send. The user-visible symptom was an opaque "فشل إرسال الرسالة
+        // المترجمة" toast that appeared even after they had been logged
+        // in for hours.
+        //
+        // The robust replacement is to ask Discord's own webpack-resident
+        // ``TokenStore`` module for the token. That module is what Discord
+        // itself reads when constructing API requests, and it's been
+        // present (with the same ``getToken`` surface) since at least the
+        // 2023 Stable rewrite. The Vencord / BetterDiscord ecosystems
+        // have used this approach reliably for years.
+        //
+        // We still keep the legacy localStorage paths as a last-ditch
+        // fallback so older Discord builds (and the web target) continue
+        // to work. The result is cached for the lifetime of the renderer:
+        // the token can be rotated when the user logs out, but in that
+        // case the whole renderer reloads, so a per-session cache is
+        // safe and avoids a webpack lookup on every keystroke.
+        let cachedAuthToken: string | null | undefined;
+        function readAuthTokenFromCapturedHeaders(): string | null {
+            // ``getCapturedHeader`` returns whatever Discord shipped in the
+            // ``Authorization`` header of its most recent authenticated
+            // request. Discord's own UI hits the REST API constantly
+            // (presence, message fetches, typing pings, gateway resume) so
+            // by the time the user clicks Send we've almost always seen at
+            // least one Authorization header. This is the most reliable
+            // path on modern builds where localStorage is locked down.
+            const value = getCapturedHeader("authorization");
+            if (value && value.length > 0) return value;
+            return null;
+        }
+        function readAuthTokenFromWebpack(): string | null {
+            try {
+                const mod = findByProps("getToken", "setToken") as
+                    | { getToken?: () => unknown }
+                    | null;
+                const value = mod?.getToken?.();
+                if (typeof value === "string" && value.length > 0) {
+                    return value;
+                }
+            } catch (err) {
+                ctx.logger.warn(
+                    "outgoing: webpack TokenStore lookup threw",
+                    err,
+                );
+            }
+            return null;
+        }
+        function readAuthTokenFromLocalStorage(): string | null {
             let iframe: HTMLIFrameElement | null = null;
             try {
                 iframe = document.createElement("iframe");
@@ -1504,6 +1554,36 @@ export default definePlugin({
             } catch {
                 // both paths failed; caller will see null and surface a toast
             }
+            return null;
+        }
+        function readAuthToken(): string | null {
+            if (cachedAuthToken !== undefined) return cachedAuthToken;
+            // Preferred path: piggyback on Discord's own authenticated
+            // request. Works on every Discord build (Stable / PTB / Canary,
+            // web / desktop) because we never touch localStorage or the
+            // webpack module graph — we just observe what the real client
+            // is already sending.
+            const fromHeaders = readAuthTokenFromCapturedHeaders();
+            if (fromHeaders) {
+                cachedAuthToken = fromHeaders;
+                return fromHeaders;
+            }
+            // Best-effort fallbacks for the cold-start window (user sends
+            // before Discord has fired any authed request) and for older
+            // builds where localStorage is still readable.
+            const fromWebpack = readAuthTokenFromWebpack();
+            if (fromWebpack) {
+                cachedAuthToken = fromWebpack;
+                return fromWebpack;
+            }
+            const fromStorage = readAuthTokenFromLocalStorage();
+            if (fromStorage) {
+                cachedAuthToken = fromStorage;
+                return fromStorage;
+            }
+            // Do NOT cache ``null`` — the capture wrapper may see its first
+            // authed request a moment later. A cached negative would freeze
+            // the plugin into "no_token" until the user reloads.
             return null;
         }
 
@@ -1555,21 +1635,44 @@ export default definePlugin({
         // into localStorage at boot and never rotates it during a single
         // Electron session, so we can safely read it once on the first
         // outgoing send and reuse the same string for every subsequent send
-        // without creating new iframes. ``null`` means "we tried and failed
-        // — don't try again"; ``undefined`` means "haven't looked yet".
-        let cachedSuperProperties: string | null | undefined;
-        function readSuperProperties(): string | null {
-            if (cachedSuperProperties !== undefined) return cachedSuperProperties;
+        // without creating new iframes. A cached non-null value means "we
+        // looked it up"; ``undefined`` means "haven't looked yet". We do
+        // NOT cache ``null`` — the same reasoning as the auth-token cache:
+        // we want to keep retrying so a webpack module that loads slightly
+        // after the plugin onStart still gets picked up.
+        //
+        // Lookup order:
+        //   1. webpack ``SuperPropertiesBase64`` getter (modern builds).
+        //   2. iframe-localStorage trick (legacy builds, web target).
+        //   3. direct ``window.localStorage`` (last-ditch fallback).
+        let cachedSuperProperties: string | undefined;
+        function readSuperPropertiesFromCapturedHeaders(): string | null {
+            const value = getCapturedHeader("x-super-properties");
+            if (value && value.length > 0) return value;
+            return null;
+        }
+        function readSuperPropertiesFromWebpack(): string | null {
+            try {
+                const mod = findByProps("getSuperPropertiesBase64") as
+                    | { getSuperPropertiesBase64?: () => unknown }
+                    | null;
+                const value = mod?.getSuperPropertiesBase64?.();
+                if (typeof value === "string" && value.length > 0) {
+                    return value;
+                }
+            } catch {
+                // webpack module missing or threw — fall through.
+            }
+            return null;
+        }
+        function readSuperPropertiesFromLocalStorage(): string | null {
             let iframe: HTMLIFrameElement | null = null;
             try {
                 iframe = document.createElement("iframe");
                 document.head.appendChild(iframe);
                 const local = iframe.contentWindow?.localStorage;
                 const value = local?.getItem("X_Super_Properties");
-                if (value) {
-                    cachedSuperProperties = value.replace(/^"|"$/g, "");
-                    return cachedSuperProperties;
-                }
+                if (value) return value.replace(/^"|"$/g, "");
             } catch {
                 // iframe path failed; try direct localStorage below.
             } finally {
@@ -1577,14 +1680,29 @@ export default definePlugin({
             }
             try {
                 const raw = window.localStorage.getItem("X_Super_Properties");
-                if (raw) {
-                    cachedSuperProperties = raw.replace(/^"|"$/g, "");
-                    return cachedSuperProperties;
-                }
+                if (raw) return raw.replace(/^"|"$/g, "");
             } catch {
                 // both paths failed; caller proceeds without the header
             }
-            cachedSuperProperties = null;
+            return null;
+        }
+        function readSuperProperties(): string | null {
+            if (cachedSuperProperties !== undefined) return cachedSuperProperties;
+            const fromHeaders = readSuperPropertiesFromCapturedHeaders();
+            if (fromHeaders) {
+                cachedSuperProperties = fromHeaders;
+                return fromHeaders;
+            }
+            const fromWebpack = readSuperPropertiesFromWebpack();
+            if (fromWebpack) {
+                cachedSuperProperties = fromWebpack;
+                return fromWebpack;
+            }
+            const fromStorage = readSuperPropertiesFromLocalStorage();
+            if (fromStorage) {
+                cachedSuperProperties = fromStorage;
+                return fromStorage;
+            }
             return null;
         }
 
@@ -2213,7 +2331,18 @@ export default definePlugin({
         // run before we override. We use a delegated listener so it survives
         // re-injection of the button without us having to track its lifetime.
         const onMouseLeave = (e: MouseEvent): void => {
-            const target = (e.target as HTMLElement | null)?.closest?.<HTMLElement>(
+            // ``e.target`` on a document-level ``mouseleave`` is sometimes
+            // ``Document`` itself (when the pointer exits the viewport),
+            // and ``Document`` has no ``closest`` method. Calling
+            // ``.closest`` blindly threw ``TypeError: target?.closest is
+            // not a function`` in the console on every viewport-exit,
+            // even though the optional chain looked safe — the chain
+            // was guarding ``e.target`` being null, NOT it being a
+            // non-Element node. Narrow to ``Element`` before calling
+            // ``.closest`` so non-element targets short-circuit cleanly.
+            const raw = e.target;
+            if (!(raw instanceof Element)) return;
+            const target = raw.closest<HTMLElement>(
                 `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
             );
             if (!target) return;
@@ -2228,7 +2357,9 @@ export default definePlugin({
         // opening the modal. We attach via event delegation on document so we
         // catch the button regardless of how Discord re-renders the composer.
         const onCapturedClick = (e: MouseEvent): void => {
-            const target = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+            const raw = e.target;
+            if (!(raw instanceof Element)) return;
+            const target = raw.closest<HTMLElement>(
                 `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
             );
             if (!target) return;
@@ -2247,7 +2378,9 @@ export default definePlugin({
             }
         };
         const onCapturedContextMenu = (e: MouseEvent): void => {
-            const target = (e.target as HTMLElement | null)?.closest<HTMLElement>(
+            const raw = e.target;
+            if (!(raw instanceof Element)) return;
+            const target = raw.closest<HTMLElement>(
                 `[data-boon-btn-id="${OUTGOING_BTN_ID}"]`,
             );
             if (!target) return;

@@ -11,6 +11,7 @@ import * as commands from "./commands.js";
 import * as contextMenu from "./contextMenu.js";
 import { startRouteObserver, whenAppReady } from "./discord.js";
 import { emit } from "./events.js";
+import { installHeaderCapture } from "./headerCapture.js";
 import { rootLogger } from "./logger.js";
 import * as messageAccessories from "./messageAccessories.js";
 import * as pm from "./pluginManager.js";
@@ -74,6 +75,14 @@ export async function boot(target: BoonTarget): Promise<void> {
     // runs, and we want to be in front of (or alongside) the very first push.
     // The interceptor is idempotent and synchronous; safe to call here.
     installChunkInterceptor();
+
+    // Install fetch / XHR wrappers that passively snoop on Discord's
+    // outbound HTTP traffic so plugins can reuse the auth headers Discord
+    // already minted (see ``headerCapture`` doc-comment for why localStorage
+    // and webpack-TokenStore lookups are unreliable on modern builds).
+    // Install BEFORE ``whenAppReady`` so we catch the very first authed
+    // request Discord makes during boot.
+    installHeaderCapture();
 
     await whenAppReady();
 
