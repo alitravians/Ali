@@ -145,9 +145,13 @@ function mapOverwrites(raw: Record<string, unknown> | undefined): DiscoveredOver
 }
 
 /**
- * Enumerate channels for a guild. Tries the cheap path
- * (`getMutableGuildChannelsForGuild`) first; falls back to walking the
- * webpack module cache as a last resort.
+ * Enumerate channels for a guild via `ChannelStore.getMutableGuildChannelsForGuild`.
+ *
+ * Returns an empty array — and lets `scanGuild` mark the result as degraded —
+ * if the store method is absent (very old Discord build) or throws. We
+ * intentionally do not fall back to walking the webpack module cache for
+ * channels: that path is brittle, expensive, and the modern Discord client
+ * has exposed this method for years.
  */
 function enumerateGuildChannels(
     channelStore: ChannelStore,
@@ -160,7 +164,7 @@ function enumerateGuildChannels(
                 return Object.values(record);
             }
         } catch {
-            // Fall through to fallback below.
+            // Surface as "degraded" in scanGuild — caller decides UX.
         }
     }
     return [];

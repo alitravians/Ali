@@ -56,6 +56,7 @@ const SCHEMA = {
             { value: "stage", label: "قنوات مسرح" },
             { value: "forum", label: "قنوات منتدى" },
             { value: "announcement", label: "قنوات إعلانات" },
+            { value: "media", label: "قنوات ميديا" },
             { value: "category", label: "فئات" },
         ],
     },
@@ -113,6 +114,11 @@ export default definePlugin({
             defaultSort: ctx.settings.defaultSort as SortKey,
             hideNsfw: ctx.settings.hideNsfw,
         });
+        // applyDefaults() with no `apply` arg seeds all three fields on
+        // start. The settings:changed handler below uses the `apply` arg to
+        // only touch fields whose underlying setting actually changed, so
+        // toggling an unrelated setting (e.g. showLauncher) doesn't snap the
+        // user's in-session filter/sort back to defaults.
 
         let teardownLauncher: (() => void) | null = null;
         if (ctx.settings.showLauncher) {
@@ -137,13 +143,25 @@ export default definePlugin({
             });
         }
 
-        const unsubSettings = ctx.on("settings:changed", ({ pluginId }) => {
+        const unsubSettings = ctx.on("settings:changed", ({ pluginId, key }) => {
             if (pluginId !== "showHiddenChannels") return;
-            applyDefaults({
-                defaultFilter: ctx.settings.defaultFilter as FilterKind,
-                defaultSort: ctx.settings.defaultSort as SortKey,
-                hideNsfw: ctx.settings.hideNsfw,
-            });
+            // Only push the field that actually changed. Otherwise toggling
+            // `showLauncher` or `registerCommand` would also snap the user's
+            // current filter/sort tab back to the schema default.
+            if (key === "defaultFilter" || key === "defaultSort" || key === "hideNsfw") {
+                applyDefaults(
+                    {
+                        defaultFilter: ctx.settings.defaultFilter as FilterKind,
+                        defaultSort: ctx.settings.defaultSort as SortKey,
+                        hideNsfw: ctx.settings.hideNsfw,
+                    },
+                    {
+                        filter: key === "defaultFilter",
+                        sort: key === "defaultSort",
+                        nsfw: key === "hideNsfw",
+                    },
+                );
+            }
 
             const launcherWanted = ctx.settings.showLauncher;
             const launcherActive = teardownLauncher !== null;

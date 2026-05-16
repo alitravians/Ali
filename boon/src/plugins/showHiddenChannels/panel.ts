@@ -15,7 +15,7 @@ import { getGuildMemberStore, getUserStore } from "../../core/webpack/index.js";
 
 // ─── Filter/sort state ──────────────────────────────────────────────────────
 
-export type FilterKind = "all" | "text" | "voice" | "stage" | "forum" | "announcement" | "category";
+export type FilterKind = "all" | "text" | "voice" | "stage" | "forum" | "announcement" | "media" | "category";
 export type SortKey = "position" | "name" | "activity";
 
 interface PanelState {
@@ -78,6 +78,7 @@ function labelFor(kind: FilterKind): string {
         case "stage": return "مسرح";
         case "forum": return "منتدى";
         case "announcement": return "إعلانات";
+        case "media": return "ميديا";
         case "category": return "فئات";
     }
 }
@@ -215,11 +216,29 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         if (backdrop) renderPanel();
     };
 
+    // rAF-coalesce reconciles so a burst of mutations triggers at most one
+    // scan per frame. Matches the pattern enforced by CONTRIBUTING.md
+    // (§ الأداء — "لا تستخدم MutationObserver على document.body بدون debounce")
+    // and used by contextMenu / callTimer / platformIndicators / autoTranslate.
+    let reconcileScheduled = false;
+    const scheduleReconcile = (): void => {
+        if (reconcileScheduled) return;
+        reconcileScheduled = true;
+        requestAnimationFrame(() => {
+            reconcileScheduled = false;
+            reconcile();
+        });
+    };
+
     reconcile();
-    placementRetry = window.setInterval(reconcile, 4000);
+    // 15s cadence is enough to catch role/permission changes pushed through
+    // gateway events without re-walking every webpack module four times a
+    // minute. The mutation observer below still picks up DOM swaps caused by
+    // navigation in between ticks.
+    placementRetry = window.setInterval(scheduleReconcile, 15000);
 
     placementObserver = new MutationObserver(() => {
-        if (!document.getElementById(LAUNCH_ID)) reconcile();
+        if (!document.getElementById(LAUNCH_ID)) scheduleReconcile();
     });
     placementObserver.observe(document.body, { childList: true, subtree: true });
 
@@ -576,7 +595,7 @@ function renderToolbar(): HTMLElement {
 
 function renderTabs(result: DiscoveryResult): HTMLElement {
     const tabs = el("div", "boon-shc-tabs");
-    const filters: FilterKind[] = ["all", "text", "voice", "stage", "forum", "announcement", "category"];
+    const filters: FilterKind[] = ["all", "text", "voice", "stage", "forum", "announcement", "media", "category"];
 
     const countFor = (kind: FilterKind): number =>
         kind === "all"
@@ -700,8 +719,21 @@ export interface PanelDefaults {
     hideNsfw: boolean;
 }
 
-export function applyDefaults(defaults: PanelDefaults): void {
-    state.filter = defaults.defaultFilter;
-    state.sort = defaults.defaultSort;
-    state.nsfwFiltered = defaults.hideNsfw;
+/**
+ * Push user-configured defaults into the panel's runtime state.
+ *
+ * Individual fields are guarded by an `apply` argument so that the
+ * `settings:changed` handler in `index.ts` can ask, e.g., "only re-apply the
+ * filter — the user just toggled `showLauncher`, don't reset their tab to
+ * 'all'". When called without an `apply` set, all three fields are written
+ * (used on plugin start).
+ */
+export function applyDefaults(
+    defaults: PanelDefaults,
+    apply?: { filter?: boolean; sort?: boolean; nsfw?: boolean },
+): void {
+    const all = apply === undefined;
+    if (all || apply?.filter) state.filter = defaults.defaultFilter;
+    if (all || apply?.sort) state.sort = defaults.defaultSort;
+    if (all || apply?.nsfw) state.nsfwFiltered = defaults.hideNsfw;
 }
