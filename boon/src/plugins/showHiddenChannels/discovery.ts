@@ -64,6 +64,7 @@ interface ChannelProbeAttempt {
 }
 
 let lastChannelProbeAttempts: ChannelProbeAttempt[] = [];
+let lastI18nProxiesSkipped = 0;
 
 /**
  * Snapshot the webpack subsystem when a store lookup fails and stash it on a
@@ -86,6 +87,12 @@ function publishProbe(reasonKey: string): void {
             storeShapedExports: p.storeShapedExports,
             storeNames: p.storeNames,
             unnamedStoreSamples: p.unnamedStoreSamples,
+            // How many store-shaped candidates we rejected as the i18n
+            // MessagesStore Proxy before they entered the probe loop. On
+            // modern Discord builds the Proxy fakes every method and is
+            // duplicated across many cached exports, so this number is
+            // typically large (20+).
+            i18nProxiesSkipped: lastI18nProxiesSkipped,
             // Surfaces the per-candidate brute-force probe results so we can
             // see exactly why every candidate was rejected (empty/threw/bad
             // shape) and adjust the validator in a follow-up release.
@@ -254,14 +261,51 @@ function extractRecordValues(probe: unknown, depth: number = 2): unknown[] {
 }
 
 /**
+ * Detects responses produced by Discord's i18n `MessagesStore` Proxy. The
+ * Proxy traps every property access and, when called, returns one of two
+ * shapes:
+ *   - a bare translation `string` (legacy behaviour), or
+ *   - a compiled `{ locale: string, ast: ... }` AST object (current
+ *     builds use this so `<FormattedMessage>` can re-render with variables).
+ * A real ChannelStore.getChannel(id) returns `undefined` for an unknown id
+ * or a channel record with `id` + `type` — never an i18n AST.
+ */
+function looksLikeI18nResponse(r: unknown): boolean {
+    if (typeof r === "string") return true;
+    if (r != null && typeof r === "object") {
+        const ro = r as Record<string, unknown>;
+        if (typeof ro.locale === "string" && "ast" in ro) return true;
+    }
+    return false;
+}
+
+/**
+ * Returns true when `candidate` is the i18n MessagesStore Proxy masquerading
+ * as a Flux store. The Proxy fakes every method, so structural method-name
+ * checks (`getChannel`, `getMutableGuildChannelsForGuild`, etc.) pass for it.
+ * We smoke-test via `getChannel('0')` and reject responses that look like
+ * i18n output — string or `{ locale, ast }` AST. On modern Discord builds
+ * this Proxy is referenced from dozens of cached exports; without an early
+ * filter, the brute-force loop hits its per-attempt cap probing Proxy
+ * duplicates and never reaches the real ChannelStore.
+ */
+function isI18nProxyImpostor(candidate: unknown): boolean {
+    if (!candidate || typeof candidate !== "object") return false;
+    const o = candidate as Record<string, unknown>;
+    if (typeof o.getChannel !== "function") return false;
+    try {
+        const r = (o.getChannel as (id: string) => unknown).call(candidate, "0");
+        return looksLikeI18nResponse(r);
+    } catch {
+        // Real ChannelStore.getChannel may throw on a bad-id input on some
+        // builds; throwing is not Proxy behaviour, so it's *not* an impostor.
+        return false;
+    }
+}
+
+/**
  * Returns true if the candidate exposes the canonical ChannelStore method
  * signature AND is not Discord's i18n `MessagesStore` Proxy in disguise.
- *
- * The Proxy fakes a function for *every* property access, so a method-name
- * check alone would let it slip through. We reject it with a behavioural
- * smoke-test: call `getChannel('0')`. The real ChannelStore returns
- * `undefined` (or a channel record) for an unknown id; the i18n Proxy
- * always returns a string from its translation table.
  *
  * Used as a structural-fallback signal when the behavioural probe fails on
  * every candidate (e.g. Discord lazy-loaded the guild's channels after our
@@ -273,15 +317,7 @@ function hasChannelStoreSignature(candidate: unknown): boolean {
     for (const m of CHANNEL_STORE_SIGNATURE) {
         if (typeof o[m] !== "function") return false;
     }
-    // Anti-Proxy gate: the i18n MessagesStore Proxy returns a string from
-    // every method call. A real ChannelStore returns `undefined` or an
-    // object record for an unknown channel id. A string return is a hard
-    // reject.
-    try {
-        const r = (o.getChannel as (id: string) => unknown).call(candidate, "0");
-        if (typeof r === "string") return false;
-    } catch { /* getChannel may throw on bad input; that's fine — it's not the Proxy. */ }
-    return true;
+    return !isI18nProxyImpostor(candidate);
 }
 
 /**
@@ -299,8 +335,18 @@ function hasChannelStoreSignature(candidate: unknown): boolean {
  */
 function findChannelStoreBrute(guildId: string): ChannelStore | null {
     let structuralFallback: unknown = null;
+    let proxiesSkipped = 0;
     const attempts: ChannelProbeAttempt[] = [];
     for (const candidate of iterateStoreShapedExports()) {
+        // Skip the i18n MessagesStore Proxy before it pollutes the probe loop.
+        // On modern Discord builds this Proxy is referenced from dozens of
+        // cached exports; without this filter the 60-attempt diagnostic cap
+        // fills up with Proxy duplicates and we never reach the real
+        // ChannelStore deeper in the iterator.
+        if (isI18nProxyImpostor(candidate)) {
+            proxiesSkipped++;
+            continue;
+        }
         const o = candidate as Record<string, unknown>;
         // Remember the first candidate that exposes the canonical method
         // signature, so we can return it if no behavioural probe matches.
@@ -332,11 +378,13 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
             if (threw) continue;
             if (shapeOk) {
                 lastChannelProbeAttempts = attempts;
+                lastI18nProxiesSkipped = proxiesSkipped;
                 return candidate as ChannelStore;
             }
         }
     }
     lastChannelProbeAttempts = attempts;
+    lastI18nProxiesSkipped = proxiesSkipped;
     return (structuralFallback as ChannelStore) ?? null;
 }
 
