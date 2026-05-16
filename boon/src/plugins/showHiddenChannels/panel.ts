@@ -276,7 +276,16 @@ function probeChannelListMount(): PlacementProbeResult | null {
             // value so teardown can restore it; this also avoids
             // re-overwriting it across reconcile ticks once we've
             // already established the anchor.
-            if (sidebar.style.position === "" || sidebar.style.position === "static") {
+            //
+            // We read the *computed* position (not just the inline
+            // `style.position`) so a stylesheet-driven `sticky` /
+            // `absolute` on Discord's sidebar isn't trampled. Reading
+            // computed style flushes layout, but Strategy D is the
+            // rarely-used fallback (Strategies A/B/C cover the common
+            // case), so the reflow cost is paid at most once per probe
+            // and only when we're already in a degraded DOM state.
+            const computedPosition = getComputedStyle(sidebar).position;
+            if (computedPosition === "" || computedPosition === "static") {
                 if (!floatingSidebarMutation || floatingSidebarMutation.element !== sidebar) {
                     floatingSidebarMutation = {
                         element: sidebar,
