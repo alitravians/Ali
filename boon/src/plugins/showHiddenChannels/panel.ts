@@ -11,7 +11,8 @@
 
 import { lookupRole, scanGuild } from "./discovery.js";
 import type { DiscoveredChannel, DiscoveredOverwrite, DiscoveryResult } from "./discovery.js";
-import { getGuildMemberStore, getUserStore } from "../../core/webpack/index.js";
+import { findByProps, getGuildMemberStore, getUserStore } from "../../core/webpack/index.js";
+import type { DiscordRoleLite } from "../../core/webpack/types.js";
 
 // ─── Filter/sort state ──────────────────────────────────────────────────────
 
@@ -27,7 +28,19 @@ interface PanelState {
     nsfwFiltered: boolean;
     /** When non-null, panel shows the details view for that channel. */
     drilldownId: string | null;
+    /** Flat list (raw order) vs grouped under category headers. */
+    groupingMode: "flat" | "byCategory";
+    /**
+     * MRU list of channel ids the user drilled into. Surfaced at the top
+     * of the list view so frequently-checked channels are a click away.
+     * Capped to 6 entries — anything older silently rolls off.
+     */
+    recentlyViewed: string[];
+    /** Highlighted row in the channel list (for keyboard navigation). */
+    keyboardIndex: number;
 }
+
+const RECENT_CAP = 6;
 
 const state: PanelState = {
     guildId: null,
@@ -37,6 +50,9 @@ const state: PanelState = {
     sort: "position",
     nsfwFiltered: false,
     drilldownId: null,
+    groupingMode: "byCategory",
+    recentlyViewed: [],
+    keyboardIndex: -1,
 };
 
 // ─── Element ids/classes ────────────────────────────────────────────────────
@@ -126,6 +142,151 @@ function formatSlowmode(s: number): string {
     if (s < 60) return `${s} ث`;
     if (s < 3600) return `${Math.round(s / 60)} د`;
     return `${Math.round(s / 3600)} س`;
+}
+
+/**
+ * Arabic-formatted absolute timestamp ("15 مايو 2026 · 2:24 م").
+ *
+ * We intentionally avoid `toLocaleString("ar")` because it produces
+ * Eastern-Arabic-Indic digits which look out of place inside a Discord
+ * client where the rest of the chrome uses Western digits. Mixing both
+ * is worse than picking one; we picked Western. Discord itself does the
+ * same for timestamps in the chat scroller.
+ */
+function formatAbsoluteDate(ms: number): string {
+    const d = new Date(ms);
+    const months = [
+        "يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+        "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر",
+    ];
+    const day = d.getDate();
+    const month = months[d.getMonth()];
+    const year = d.getFullYear();
+    let hours = d.getHours();
+    const minutes = d.getMinutes().toString().padStart(2, "0");
+    const period = hours >= 12 ? "م" : "ص";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${day} ${month} ${year} · ${hours}:${minutes} ${period}`;
+}
+
+/**
+ * Discord roles expose `colorString` ("#5865F2") on modern builds and a
+ * decimal `color` field on older ones. `color === 0` means "no custom
+ * colour, render with default text" — we return null in that case so
+ * callers can fall back to the brand-neutral pill styling.
+ */
+function roleColorHex(role: DiscordRoleLite): string | null {
+    if (role.colorString) return role.colorString;
+    if (typeof role.color === "number" && role.color > 0) {
+        return "#" + role.color.toString(16).padStart(6, "0");
+    }
+    return null;
+}
+
+/**
+ * Light-vs-dark contrast picker for the pill foreground.
+ *
+ * The pill background is the role's own colour, so we need a foreground
+ * that stays legible whether the role is `#FAFAFA` or `#1A1A1A`. We use
+ * the YIQ luma formula (Rec. 601) because it matches how the eye weighs
+ * RGB channels and is the de-facto contrast heuristic used by Bootstrap,
+ * Material, etc.
+ */
+function readableForeground(hex: string): string {
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+    if (!m) return "#fff";
+    const r = parseInt(m[1].slice(0, 2), 16);
+    const g = parseInt(m[1].slice(2, 4), 16);
+    const b = parseInt(m[1].slice(4, 6), 16);
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 140 ? "#1e1f22" : "#ffffff";
+}
+
+/**
+ * Count how many access-granting overwrites a channel has, split by
+ * role/member. Cheap O(overwrites.length) summary used by list rows
+ * to surface "n أدوار · m أعضاء لديهم صلاحية" without joining against
+ * the (potentially huge) member store.
+ */
+function accessSummary(channel: DiscoveredChannel): { roles: number; members: number } {
+    let roles = 0;
+    let members = 0;
+    for (const ow of channel.overwrites) {
+        if (!ow.grantsView) continue;
+        if (ow.kind === "role") roles++;
+        else members++;
+    }
+    return { roles, members };
+}
+
+interface DiscordRouter {
+    transitionTo(path: string): void;
+}
+
+let routerCache: DiscordRouter | null = null;
+
+/**
+ * Resolve Discord's React-Router-style navigation helper. Webpack mangles
+ * its module path on every build, but the public surface (`transitionTo`
+ * + one of `replaceWith` / `back`) stays stable. We memoise so the lookup
+ * is paid at most once per session.
+ */
+function getDiscordRouter(): DiscordRouter | null {
+    if (routerCache) return routerCache;
+    const candidates = [
+        findByProps("transitionTo", "replaceWith"),
+        findByProps("transitionTo", "back", "forward"),
+        findByProps("transitionTo"),
+    ];
+    for (const c of candidates) {
+        if (c && typeof (c as Record<string, unknown>).transitionTo === "function") {
+            routerCache = c as DiscordRouter;
+            return routerCache;
+        }
+    }
+    return null;
+}
+
+/**
+ * Navigate Discord's client to the given hidden channel so the user lands
+ * on Discord's own "this channel is hidden" view. We try the webpack
+ * router first; if that's not reachable (very early in startup, or
+ * Discord's module shape changed), we fall back to a synthetic anchor
+ * click which Discord's link interceptor picks up.
+ */
+function navigateToChannel(guildId: string, channelId: string): boolean {
+    const router = getDiscordRouter();
+    if (router) {
+        try {
+            router.transitionTo(`/channels/${guildId}/${channelId}`);
+            return true;
+        } catch {
+            // fall through to anchor click
+        }
+    }
+    try {
+        const a = document.createElement("a");
+        a.href = `/channels/${guildId}/${channelId}`;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, view: window }));
+        a.remove();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Push a channel id to the front of the recently-viewed MRU list. Dedupes
+ * so re-opening the same channel just bumps it; trims to RECENT_CAP so
+ * memory usage stays bounded.
+ */
+function recordRecent(channelId: string): void {
+    const filtered = state.recentlyViewed.filter(id => id !== channelId);
+    filtered.unshift(channelId);
+    state.recentlyViewed = filtered.slice(0, RECENT_CAP);
 }
 
 function findGuildId(): string | null {
@@ -579,38 +740,229 @@ function groupByCategory(channels: DiscoveredChannel[]): Array<{ name: string; i
     return ordered;
 }
 
-function renderChannelRow(channel: DiscoveredChannel): HTMLElement {
-    const row = el("div", "boon-shc-row");
-    row.setAttribute("role", "button");
-    row.tabIndex = 0;
-    row.setAttribute("data-channel-id", channel.id);
+// ─── Visual: brand padlock illustration ─────────────────────────────────────
 
-    row.appendChild(el("span", "boon-shc-row-icon", iconFor(channel.kind)));
-    row.appendChild(el("span", "boon-shc-row-name", channel.name));
+/**
+ * Custom-designed padlock illustration used as the hero artwork in the
+ * details view and as a friendly element in the empty state. The "eye"
+ * shape inside the keyhole is a signature touch that hints at the
+ * plugin's purpose: not just locking, but seeing what's locked.
+ *
+ * The markup is a fixed string literal with zero user input — safe to
+ * funnel through a `<template>` element rather than building 20 lines
+ * of `createElementNS` calls. We never accept user content into this
+ * path.
+ */
+const LOCK_SVG = `
+<svg viewBox="0 0 120 140" width="76" height="88" xmlns="http://www.w3.org/2000/svg" class="boon-shc-lock-svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="boon-shc-lock-grad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#5865f2"/>
+    </linearGradient>
+    <linearGradient id="boon-shc-lock-shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.45)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </linearGradient>
+  </defs>
+  <path d="M32 60 V40 a28 28 0 0 1 56 0 V60" fill="none" stroke="url(#boon-shc-lock-grad)" stroke-width="10" stroke-linecap="round"/>
+  <rect x="15" y="58" width="90" height="78" rx="16" fill="url(#boon-shc-lock-grad)"/>
+  <rect x="18" y="60" width="84" height="38" rx="12" fill="url(#boon-shc-lock-shine)"/>
+  <circle cx="60" cy="94" r="13" fill="#1a1b1f"/>
+  <ellipse cx="60" cy="94" rx="6" ry="9" fill="#ffffff"/>
+  <circle cx="60" cy="94" r="3.5" fill="#1a1b1f"/>
+  <circle cx="62" cy="91.5" r="1.4" fill="#ffffff"/>
+  <rect x="56" y="108" width="8" height="14" rx="3" fill="#1a1b1f"/>
+</svg>`.trim();
 
-    if (channel.nsfw) {
-        row.appendChild(el("span", "boon-shc-row-badge", "NSFW"));
+function buildLockNode(): Node {
+    const template = document.createElement("template");
+    template.innerHTML = LOCK_SVG;
+    return template.content.firstChild!.cloneNode(true);
+}
+
+// ─── List view ──────────────────────────────────────────────────────────────
+
+function renderChannelRow(channel: DiscoveredChannel, guildId: string): HTMLElement {
+    const card = el("div", "boon-shc-card");
+    card.setAttribute("role", "button");
+    card.tabIndex = 0;
+    card.setAttribute("data-channel-id", channel.id);
+
+    const head = el("div", "boon-shc-card-head");
+    head.appendChild(el("span", "boon-shc-card-icon", iconFor(channel.kind)));
+
+    const nameWrap = el("div", "boon-shc-card-name-wrap");
+    nameWrap.appendChild(el("span", "boon-shc-card-name", channel.name));
+    if (channel.parentName) {
+        nameWrap.appendChild(el("span", "boon-shc-card-parent", `في ${channel.parentName}`));
     }
+    head.appendChild(nameWrap);
+
+    const tags = el("div", "boon-shc-card-tags");
+    tags.appendChild(el("span", "boon-shc-tag boon-shc-tag--kind", labelForKind(channel.kind)));
+    if (channel.nsfw) tags.appendChild(el("span", "boon-shc-tag boon-shc-tag--nsfw", "NSFW"));
+    if (channel.rateLimitPerUser > 0) {
+        tags.appendChild(el(
+            "span",
+            "boon-shc-tag boon-shc-tag--slow",
+            `بطيء ${formatSlowmode(channel.rateLimitPerUser)}`,
+        ));
+    }
+    head.appendChild(tags);
+    card.appendChild(head);
+
+    const meta = el("div", "boon-shc-card-meta");
     if (channel.lastActivityMs) {
-        row.appendChild(el("span", "boon-shc-row-meta", formatTimeAgo(channel.lastActivityMs)));
+        const time = el("span", "boon-shc-card-time", `آخر نشاط ${formatTimeAgo(channel.lastActivityMs)}`);
+        time.title = formatAbsoluteDate(channel.lastActivityMs);
+        meta.appendChild(time);
+    }
+    const access = accessSummary(channel);
+    if (access.roles > 0 || access.members > 0) {
+        const parts: string[] = [];
+        if (access.roles > 0) parts.push(`${access.roles} دور`);
+        if (access.members > 0) parts.push(`${access.members} عضو`);
+        meta.appendChild(el("span", "boon-shc-card-access", `${parts.join(" + ")} لهم صلاحية`));
+    }
+    if (meta.children.length > 0) card.appendChild(meta);
+
+    // Surface up to N role pills inline so the card communicates "who can
+    // see this" at a glance. Capping is important: a server-wide
+    // moderator role + 6 specialised access roles would otherwise wrap
+    // the card to three lines.
+    const allowedRoles = channel.overwrites.filter(o => o.grantsView && o.kind === "role");
+    if (allowedRoles.length > 0) {
+        const pillRow = el("div", "boon-shc-card-pills");
+        const VISIBLE = 4;
+        for (const ow of allowedRoles.slice(0, VISIBLE)) {
+            const pill = pillForOverwrite(guildId, ow);
+            if (pill) {
+                pill.classList.add("boon-shc-pill--compact");
+                pillRow.appendChild(pill);
+            }
+        }
+        const more = allowedRoles.length - VISIBLE;
+        if (more > 0) {
+            pillRow.appendChild(el(
+                "span",
+                "boon-shc-pill boon-shc-pill--more boon-shc-pill--compact",
+                `+${more}`,
+            ));
+        }
+        card.appendChild(pillRow);
     }
 
     const open = (): void => {
+        recordRecent(channel.id);
         state.drilldownId = channel.id;
         renderPanel();
     };
-    row.addEventListener("click", open);
-    row.addEventListener("keydown", (e: KeyboardEvent) => {
+    card.addEventListener("click", open);
+    card.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
             e.preventDefault();
             open();
         }
     });
-    return row;
+    return card;
 }
 
 function renderEmpty(reason: string): HTMLElement {
-    return el("div", "boon-shc-empty", reason);
+    const wrap = el("div", "boon-shc-empty");
+    const art = el("div", "boon-shc-empty-art");
+    art.appendChild(buildLockNode());
+    wrap.appendChild(art);
+    wrap.appendChild(el("div", "boon-shc-empty-text", reason));
+    return wrap;
+}
+
+// Type chips deliberately use the narrower `FilterKind` (sans "all") so
+// that clicking a chip can directly drive `state.filter` without an
+// unsafe cast. `DiscoveredChannel["kind"]` includes "other" which the
+// filter UI doesn't surface — channels with unknown kinds only appear
+// under the "all" tab.
+type FilterableKind = Exclude<FilterKind, "all">;
+
+interface TypeChipDef {
+    readonly kind: FilterableKind;
+    readonly label: string;
+    readonly icon: string;
+}
+
+const TYPE_CHIPS: ReadonlyArray<TypeChipDef> = [
+    { kind: "text",         label: "نصية",    icon: "#"   },
+    { kind: "voice",        label: "صوتية",   icon: "🔊"  },
+    { kind: "stage",        label: "مسرح",    icon: "🎙️" },
+    { kind: "forum",        label: "منتدى",   icon: "💬"  },
+    { kind: "announcement", label: "إعلانات", icon: "📣"  },
+    { kind: "media",        label: "ميديا",   icon: "🖼️" },
+    { kind: "category",     label: "فئات",    icon: "📁"  },
+];
+
+function renderServerOverview(result: DiscoveryResult): HTMLElement {
+    const base = state.nsfwFiltered ? result.hidden.filter(c => !c.nsfw) : result.hidden;
+    const chips = el("div", "boon-shc-overview-chips");
+
+    for (const def of TYPE_CHIPS) {
+        const count = base.filter(c => c.kind === def.kind).length;
+        if (count === 0) continue;
+        const chip = el("button", "boon-shc-chip");
+        chip.type = "button";
+        chip.appendChild(el("span", "boon-shc-chip-icon", def.icon));
+        chip.appendChild(el("span", "boon-shc-chip-label", def.label));
+        chip.appendChild(el("span", "boon-shc-chip-count", String(count)));
+        if (state.filter === def.kind) chip.setAttribute("data-active", "true");
+        chip.title = `صفِّ حسب: ${def.label}`;
+        chip.addEventListener("click", () => {
+            state.filter = state.filter === def.kind ? "all" : def.kind;
+            renderPanel();
+        });
+        chips.appendChild(chip);
+    }
+
+    if (chips.children.length === 0) return el("div", "boon-shc-overview boon-shc-overview--empty");
+
+    const wrap = el("div", "boon-shc-overview");
+    wrap.appendChild(chips);
+    return wrap;
+}
+
+function renderRecentlyViewed(result: DiscoveryResult): HTMLElement | null {
+    if (state.recentlyViewed.length === 0) return null;
+    // Filter out ids that no longer correspond to a hidden channel (e.g.
+    // the user's permissions changed since they last drilled in, or
+    // they navigated to a different guild). The MRU memory is keyed
+    // by id, not by guild, so a stale id won't crash anything — it just
+    // wouldn't render — but cleaning the list keeps the strip tidy.
+    const items: DiscoveredChannel[] = [];
+    for (const id of state.recentlyViewed) {
+        const c = result.hidden.find(h => h.id === id);
+        if (c) items.push(c);
+    }
+    if (items.length === 0) return null;
+
+    const wrap = el("div", "boon-shc-recents");
+    const title = el("div", "boon-shc-recents-title");
+    title.appendChild(el("span", "boon-shc-recents-title-icon", "🕘"));
+    title.appendChild(document.createTextNode("شوهد مؤخراً"));
+    wrap.appendChild(title);
+
+    const strip = el("div", "boon-shc-recents-strip");
+    for (const c of items) {
+        const chip = el("button", "boon-shc-recent");
+        chip.type = "button";
+        chip.appendChild(el("span", "boon-shc-recent-icon", iconFor(c.kind)));
+        chip.appendChild(el("span", "boon-shc-recent-name", c.name));
+        chip.addEventListener("click", () => {
+            recordRecent(c.id);
+            state.drilldownId = c.id;
+            renderPanel();
+        });
+        strip.appendChild(chip);
+    }
+    wrap.appendChild(strip);
+    return wrap;
 }
 
 function renderListBody(result: DiscoveryResult): HTMLElement {
@@ -619,6 +971,12 @@ function renderListBody(result: DiscoveryResult): HTMLElement {
     if (result.degraded) {
         body.appendChild(el("div", "boon-shc-degraded", result.degradedReason ?? "وضع محدود"));
     }
+
+    const overview = renderServerOverview(result);
+    if (overview.children.length > 0) body.appendChild(overview);
+
+    const recents = renderRecentlyViewed(result);
+    if (recents) body.appendChild(recents);
 
     const filtered = applyFiltersAndSort(result.hidden);
     if (filtered.length === 0) {
@@ -630,9 +988,21 @@ function renderListBody(result: DiscoveryResult): HTMLElement {
         return body;
     }
 
-    for (const group of groupByCategory(filtered)) {
-        body.appendChild(el("div", "boon-shc-category-header", `${group.name} (${group.items.length})`));
-        for (const c of group.items) body.appendChild(renderChannelRow(c));
+    if (state.groupingMode === "flat") {
+        const list = el("div", "boon-shc-list");
+        for (const c of filtered) list.appendChild(renderChannelRow(c, result.guildId));
+        body.appendChild(list);
+    } else {
+        for (const group of groupByCategory(filtered)) {
+            body.appendChild(el(
+                "div",
+                "boon-shc-category-header",
+                `${group.name} (${group.items.length})`,
+            ));
+            const list = el("div", "boon-shc-list");
+            for (const c of group.items) list.appendChild(renderChannelRow(c, result.guildId));
+            body.appendChild(list);
+        }
     }
     return body;
 }
@@ -647,10 +1017,16 @@ function pillForOverwrite(guildId: string, ow: DiscoveredOverwrite): HTMLElement
     if (!ow.grantsView && !ow.deniesView) return null;
 
     let label = ow.id;
+    let color: string | null = null;
+
     if (ow.kind === "role") {
         const role = lookupRole(guildId, ow.id);
-        if (role) label = role.name === "@everyone" ? "@everyone" : `@${role.name}`;
-        else label = `@role(${ow.id.slice(-4)})`;
+        if (role) {
+            label = role.name === "@everyone" ? "@everyone" : `@${role.name}`;
+            color = roleColorHex(role);
+        } else {
+            label = `@role(${ow.id.slice(-4)})`;
+        }
     } else {
         const ms = getGuildMemberStore();
         const us = getUserStore();
@@ -659,33 +1035,41 @@ function pillForOverwrite(guildId: string, ow: DiscoveredOverwrite): HTMLElement
         if (member?.nick) label = `@${member.nick}`;
         else if (user) label = `@${user.globalName ?? user.username}`;
         else label = `@user(${ow.id.slice(-4)})`;
+        // Members inherit the colour of their highest hoisted role; Discord
+        // pre-computes this and exposes it on the member record as
+        // `colorString`. We re-use it so a pill for `@admin-bob` paints
+        // in the admin role's red just like Discord's chat scroller.
+        if (member?.colorString) color = member.colorString;
     }
 
-    const kind: "allow" | "deny" = ow.grantsView ? "allow" : "deny";
+    const pill = el("span", "boon-shc-pill");
+    pill.setAttribute("data-kind", ow.grantsView ? "allow" : "deny");
+    pill.setAttribute("data-owner", ow.kind);
 
-    const pill = el("span", "boon-shc-pill", label);
-    pill.setAttribute("data-kind", kind);
+    const dot = el("span", "boon-shc-pill-dot");
+    if (color) {
+        dot.style.background = color;
+        pill.style.borderColor = color;
+        pill.style.color = readableForeground(color);
+        // 33 = 20% alpha in hex. Lets the role colour bleed through as
+        // a tint without overwhelming the modal's dark surface.
+        pill.style.background = `${color}33`;
+    }
+    pill.appendChild(dot);
+    pill.appendChild(document.createTextNode(label));
+
     pill.title = ow.grantsView
         ? "يمنح صلاحية رؤية القناة"
         : "يمنع رؤية القناة";
 
-    const dot = el("span", "boon-shc-pill-dot");
-    pill.insertBefore(dot, pill.firstChild);
     return pill;
 }
 
-function detailsSection(label: string, valueNode: Node): HTMLElement {
-    const section = el("div", "boon-shc-details-section");
-    section.appendChild(el("div", "boon-shc-details-label", label));
-    const value = el("div", "boon-shc-details-value");
-    value.appendChild(valueNode);
-    section.appendChild(value);
-    return section;
-}
-
 function copyButton(text: string, ctxToast: (msg: string) => void): HTMLElement {
-    const btn = el("button", "boon-shc-copy", "نسخ");
+    const btn = el("button", "boon-shc-copy");
     btn.type = "button";
+    btn.appendChild(el("span", "boon-shc-copy-icon", "⎘"));
+    btn.appendChild(el("span", undefined, "نسخ"));
     btn.addEventListener("click", () => {
         navigator.clipboard.writeText(text).then(
             () => ctxToast("تم النسخ"),
@@ -695,12 +1079,113 @@ function copyButton(text: string, ctxToast: (msg: string) => void): HTMLElement 
     return btn;
 }
 
+function infoCell(label: string, value: string, titleAttr?: string): HTMLElement {
+    const cell = el("div", "boon-shc-info-cell");
+    cell.appendChild(el("div", "boon-shc-info-label", label));
+    const v = el("div", "boon-shc-info-value", value);
+    if (titleAttr) v.title = titleAttr;
+    cell.appendChild(v);
+    return cell;
+}
+
+function renderAccessPane(
+    guildId: string,
+    items: ReadonlyArray<DiscoveredOverwrite>,
+    kind: "allow" | "deny",
+): HTMLElement {
+    const pane = el("div", `boon-shc-pane boon-shc-pane--${kind}`);
+    const title = el("div", "boon-shc-pane-title");
+    title.appendChild(el(
+        "span",
+        `boon-shc-pane-icon boon-shc-pane-icon--${kind}`,
+        kind === "allow" ? "✓" : "✕",
+    ));
+    title.appendChild(document.createTextNode(
+        kind === "allow" ? "مسموح لهم بالمشاهدة" : "ممنوعون من المشاهدة",
+    ));
+    title.appendChild(el("span", "boon-shc-pane-count", String(items.length)));
+    pane.appendChild(title);
+
+    const list = el("div", "boon-shc-pill-row");
+    for (const ow of items) {
+        const pill = pillForOverwrite(guildId, ow);
+        if (pill) list.appendChild(pill);
+    }
+    pane.appendChild(list);
+    return pane;
+}
+
+function renderCopyRow(label: string, text: string, ctxToast: (msg: string) => void): HTMLElement {
+    const row = el("div", "boon-shc-copy-row");
+    row.appendChild(el("div", "boon-shc-copy-row-label", label));
+    const body = el("div", "boon-shc-copy-row-body");
+    body.appendChild(el("div", "boon-shc-copy-row-value", text));
+    body.appendChild(copyButton(text, ctxToast));
+    row.appendChild(body);
+    return row;
+}
+
+function renderDetailsHero(
+    result: DiscoveryResult,
+    channel: DiscoveredChannel,
+): HTMLElement {
+    const hero = el("div", "boon-shc-hero");
+
+    const art = el("div", "boon-shc-hero-art");
+    art.appendChild(buildLockNode());
+    hero.appendChild(art);
+
+    const meat = el("div", "boon-shc-hero-meat");
+
+    const nameRow = el("div", "boon-shc-hero-name-row");
+    nameRow.appendChild(el("span", "boon-shc-hero-icon", iconFor(channel.kind)));
+    nameRow.appendChild(el("span", "boon-shc-hero-name", channel.name));
+    if (channel.nsfw) nameRow.appendChild(el("span", "boon-shc-tag boon-shc-tag--nsfw", "NSFW"));
+    meat.appendChild(nameRow);
+
+    const sub = el("div", "boon-shc-hero-sub");
+    const access = accessSummary(channel);
+    const parts: string[] = [];
+    if (access.roles > 0) parts.push(`${access.roles} دور`);
+    if (access.members > 0) parts.push(`${access.members} عضو`);
+    sub.appendChild(document.createTextNode(
+        parts.length > 0
+            ? `${parts.join(" + ")} لهم صلاحية الرؤية`
+            : "ما فيه أحد محدد بصلاحية رؤية صريحة على القناة",
+    ));
+    meat.appendChild(sub);
+
+    if (channel.lastActivityMs) {
+        const time = el("div", "boon-shc-hero-time");
+        time.appendChild(document.createTextNode("آخر نشاط "));
+        time.appendChild(el("strong", undefined, formatTimeAgo(channel.lastActivityMs)));
+        time.appendChild(document.createTextNode(` · ${formatAbsoluteDate(channel.lastActivityMs)}`));
+        meat.appendChild(time);
+    }
+
+    const actions = el("div", "boon-shc-hero-actions");
+    const jump = el("button", "boon-shc-btn boon-shc-btn--primary");
+    jump.type = "button";
+    jump.title = "افتح القناة في واجهة Discord الأصلية";
+    jump.appendChild(el("span", "boon-shc-btn-icon", "➤"));
+    jump.appendChild(el("span", undefined, "اذهب إلى القناة"));
+    jump.addEventListener("click", () => {
+        const ok = navigateToChannel(result.guildId, channel.id);
+        if (ok) closePanel();
+    });
+    actions.appendChild(jump);
+    meat.appendChild(actions);
+
+    hero.appendChild(meat);
+    return hero;
+}
+
 function renderDetailsBody(
     result: DiscoveryResult,
     channelId: string,
     ctxToast: (msg: string) => void,
 ): HTMLElement {
-    const body = el("div", "boon-shc-body");
+    const body = el("div", "boon-shc-body boon-shc-body--details");
     const channel = result.hidden.find(c => c.id === channelId);
     if (!channel) {
         body.appendChild(renderEmpty("القناة لم تعد متاحة. ربما الصلاحيات تغيّرت."));
@@ -708,87 +1193,83 @@ function renderDetailsBody(
     }
 
     const wrap = el("div", "boon-shc-details");
+    wrap.appendChild(renderDetailsHero(result, channel));
 
-    const h3 = el("h3");
-    h3.appendChild(document.createTextNode(`${iconFor(channel.kind)} `));
-    h3.appendChild(document.createTextNode(channel.name));
-    if (channel.nsfw) {
-        const tag = el("span", "boon-shc-row-badge", "NSFW");
-        h3.appendChild(tag);
-    }
-    wrap.appendChild(h3);
-
-    const meta: string[] = [];
-    meta.push(`النوع: ${labelForKind(channel.kind)}`);
-    if (channel.parentName) meta.push(`الفئة: ${channel.parentName}`);
-    meta.push(`الموضع: #${channel.position}`);
-    if (channel.lastActivityMs) meta.push(`آخر نشاط: ${formatTimeAgo(channel.lastActivityMs)}`);
-    const metaLine = el("div", "boon-shc-row-meta", meta.join("  ·  "));
-    wrap.appendChild(metaLine);
-
-    if (channel.topic) {
-        wrap.appendChild(detailsSection("الموضوع", document.createTextNode(channel.topic)));
-    }
-
-    if (channel.rateLimitPerUser > 0) {
-        wrap.appendChild(detailsSection(
-            "الوضع البطيء",
-            document.createTextNode(formatSlowmode(channel.rateLimitPerUser)),
+    const info = el("div", "boon-shc-info-grid");
+    info.appendChild(infoCell("النوع", labelForKind(channel.kind)));
+    if (channel.parentName) info.appendChild(infoCell("الفئة", channel.parentName));
+    info.appendChild(infoCell("الموضع", `#${channel.position}`));
+    if (channel.lastActivityMs) {
+        info.appendChild(infoCell(
+            "آخر نشاط",
+            formatTimeAgo(channel.lastActivityMs),
+            formatAbsoluteDate(channel.lastActivityMs),
         ));
     }
-
+    if (channel.rateLimitPerUser > 0) {
+        info.appendChild(infoCell("الوضع البطيء", formatSlowmode(channel.rateLimitPerUser)));
+    }
     if (channel.kind === "voice" || channel.kind === "stage") {
-        const voiceLines: string[] = [];
-        if (channel.bitrate != null) voiceLines.push(`Bitrate: ${Math.round(channel.bitrate / 1000)} kbps`);
-        if (channel.userLimit != null && channel.userLimit > 0) voiceLines.push(`الحد الأقصى: ${channel.userLimit}`);
-        if (channel.rtcRegion) voiceLines.push(`المنطقة: ${channel.rtcRegion}`);
-        if (voiceLines.length > 0) {
-            wrap.appendChild(detailsSection("خصائص الصوت", document.createTextNode(voiceLines.join(" · "))));
+        if (channel.bitrate != null) {
+            info.appendChild(infoCell("Bitrate", `${Math.round(channel.bitrate / 1000)} kbps`));
         }
+        if (channel.userLimit != null && channel.userLimit > 0) {
+            info.appendChild(infoCell("الحد الأقصى", String(channel.userLimit)));
+        }
+        if (channel.rtcRegion) info.appendChild(infoCell("المنطقة", channel.rtcRegion));
+    }
+    wrap.appendChild(info);
+
+    if (channel.topic) {
+        const topicCard = el("div", "boon-shc-pane");
+        const t = el("div", "boon-shc-pane-title");
+        t.appendChild(el("span", "boon-shc-pane-icon", "📌"));
+        t.appendChild(document.createTextNode("الموضوع"));
+        topicCard.appendChild(t);
+        topicCard.appendChild(el("div", "boon-shc-pane-body", channel.topic));
+        wrap.appendChild(topicCard);
     }
 
-    if (channel.overwrites.length > 0) {
-        const allowed = el("div", "boon-shc-pill-row");
-        const denied = el("div", "boon-shc-pill-row");
-        let hasAllowed = false;
-        let hasDenied = false;
-        for (const ow of channel.overwrites) {
-            const pill = pillForOverwrite(result.guildId, ow);
-            if (!pill) continue;
-            if (ow.grantsView) {
-                allowed.appendChild(pill);
-                hasAllowed = true;
-            } else if (ow.deniesView) {
-                denied.appendChild(pill);
-                hasDenied = true;
-            }
+    const allowedItems = channel.overwrites.filter(ow => ow.grantsView);
+    const deniedItems = channel.overwrites.filter(ow => ow.deniesView);
+
+    if (allowedItems.length === 0 && deniedItems.length === 0) {
+        const pane = el("div", "boon-shc-pane");
+        const t = el("div", "boon-shc-pane-title");
+        t.appendChild(el("span", "boon-shc-pane-icon", "🔐"));
+        t.appendChild(document.createTextNode("الصلاحيات"));
+        pane.appendChild(t);
+        pane.appendChild(el(
+            "div",
+            "boon-shc-pane-body",
+            "لا توجد تعديلات صلاحية صريحة على القناة (تعتمد على إعدادات السيرفر العامة).",
+        ));
+        wrap.appendChild(pane);
+    } else {
+        const grid = el("div", "boon-shc-access-grid");
+        if (allowedItems.length > 0) {
+            grid.appendChild(renderAccessPane(result.guildId, allowedItems, "allow"));
         }
-        if (hasAllowed) wrap.appendChild(detailsSection("مسموح لهم بالمشاهدة", allowed));
-        if (hasDenied) wrap.appendChild(detailsSection("ممنوعون من المشاهدة", denied));
-        if (!hasAllowed && !hasDenied) {
-            wrap.appendChild(detailsSection(
-                "الصلاحيات",
-                document.createTextNode("لا توجد تعديلات صلاحية صريحة على القناة (تعتمد على إعدادات السيرفر العامة)."),
-            ));
+        if (deniedItems.length > 0) {
+            grid.appendChild(renderAccessPane(result.guildId, deniedItems, "deny"));
         }
+        wrap.appendChild(grid);
     }
 
-    const idRow = el("div");
-    idRow.style.display = "flex";
-    idRow.style.alignItems = "center";
-    idRow.style.gap = "8px";
-    idRow.appendChild(el("span", undefined, channel.id));
-    idRow.appendChild(copyButton(channel.id, ctxToast));
-    wrap.appendChild(detailsSection("معرّف القناة", idRow));
-
-    const linkRow = el("div");
-    linkRow.style.display = "flex";
-    linkRow.style.alignItems = "center";
-    linkRow.style.gap = "8px";
-    const url = `https://discord.com/channels/${result.guildId}/${channel.id}`;
-    linkRow.appendChild(el("span", undefined, url));
-    linkRow.appendChild(copyButton(url, ctxToast));
-    wrap.appendChild(detailsSection("الرابط", linkRow));
+    const idsCard = el("div", "boon-shc-pane");
+    const idsTitle = el("div", "boon-shc-pane-title");
+    idsTitle.appendChild(el("span", "boon-shc-pane-icon", "🔗"));
+    idsTitle.appendChild(document.createTextNode("الروابط والمعرّفات"));
+    idsCard.appendChild(idsTitle);
+    const idsBody = el("div", "boon-shc-pane-body");
+    idsBody.appendChild(renderCopyRow("معرّف القناة", channel.id, ctxToast));
+    idsBody.appendChild(renderCopyRow(
+        "الرابط",
+        `https://discord.com/channels/${result.guildId}/${channel.id}`,
+        ctxToast,
+    ));
+    idsCard.appendChild(idsBody);
+    wrap.appendChild(idsCard);
 
     body.appendChild(wrap);
     return body;
@@ -839,18 +1320,28 @@ function renderHeader(result: DiscoveryResult, drilldown: DiscoveredChannel | nu
 function renderToolbar(): HTMLElement {
     const toolbar = el("div", "boon-shc-toolbar");
 
+    const searchWrap = el("div", "boon-shc-search-wrap");
+    searchWrap.appendChild(el("span", "boon-shc-search-icon", "\u{1F50D}"));
     const search = el("input", "boon-shc-search");
     search.type = "search";
     search.placeholder = "ابحث بالاسم، الموضوع، أو الفئة…";
     search.value = state.query;
     search.setAttribute("dir", "auto");
+    search.setAttribute("aria-label", "البحث");
     search.addEventListener("input", () => {
         state.query = search.value;
         renderPanel({ preserveFocus: "search" });
     });
-    toolbar.appendChild(search);
+    searchWrap.appendChild(search);
+    // Subtle keyboard-shortcut hint baked into the search well. Mirrors
+    // GitHub / Notion / VSCode — if the user knows the convention they
+    // can type `/` to focus search from anywhere in the panel; if they
+    // don't, the badge silently disappears the moment they start typing.
+    searchWrap.appendChild(el("kbd", "boon-shc-search-kbd", "/"));
+    toolbar.appendChild(searchWrap);
 
     const sort = el("select", "boon-shc-sort");
+    sort.setAttribute("aria-label", "الترتيب");
     const sorts: SortKey[] = ["position", "name", "activity"];
     for (const k of sorts) {
         const opt = el("option", undefined, labelForSort(k));
@@ -863,6 +1354,30 @@ function renderToolbar(): HTMLElement {
         renderPanel();
     });
     toolbar.appendChild(sort);
+
+    const groupBtn = el("button", "boon-shc-icon-btn");
+    groupBtn.type = "button";
+    groupBtn.setAttribute(
+        "data-active",
+        state.groupingMode === "byCategory" ? "true" : "false",
+    );
+    groupBtn.title = state.groupingMode === "byCategory"
+        ? "تجميع حسب الفئة (تفعيل / تعطيل)"
+        : "عرض مسطّح (اضغط للتجميع حسب الفئة)";
+    groupBtn.setAttribute(
+        "aria-label",
+        state.groupingMode === "byCategory" ? "التجميع حسب الفئة مفعّل" : "عرض مسطّح",
+    );
+    groupBtn.appendChild(el(
+        "span",
+        "boon-shc-icon-btn-glyph",
+        state.groupingMode === "byCategory" ? "≡" : "⋮",
+    ));
+    groupBtn.addEventListener("click", () => {
+        state.groupingMode = state.groupingMode === "byCategory" ? "flat" : "byCategory";
+        renderPanel();
+    });
+    toolbar.appendChild(groupBtn);
 
     return toolbar;
 }
@@ -971,7 +1486,28 @@ export function openPanel(opts: { toast: (msg: string) => void; onClose?: () => 
     backdrop.addEventListener("keydown", e => {
         if (e.key === "Escape") {
             e.stopPropagation();
-            closePanel();
+            // One Escape backs out of the details view to the list;
+            // a second Escape closes the panel entirely. Matches the
+            // mental model of "undo one level of drill-down".
+            if (state.drilldownId) {
+                state.drilldownId = null;
+                renderPanel();
+            } else {
+                closePanel();
+            }
+            return;
+        }
+        // `/` jumps focus to the search input — a convention popularised by
+        // GitHub and Notion. We only intercept it when the user isn't
+        // already typing into a text field, otherwise we'd swallow `/`
+        // inside their search query.
+        if (e.key === "/" && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+            const search = backdrop.querySelector<HTMLInputElement>(".boon-shc-search");
+            if (search) {
+                e.preventDefault();
+                search.focus();
+                search.select();
+            }
         }
     });
     document.body.appendChild(backdrop);
