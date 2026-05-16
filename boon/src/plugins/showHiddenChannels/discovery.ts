@@ -41,14 +41,24 @@ interface ChannelProbeAttempt {
     method: string;
     /** `typeof` the return value. */
     resultType: string;
-    /** Constructor name (e.g. `Map`, `Object`, `Array`). */
+    /** Constructor name of the probe response itself. */
     ctorName: string | null;
     /** Whether the call threw (and if so, the message). */
     threw: string | null;
     /** Length we managed to extract via {@link extractRecordValues}. */
     extractedCount: number;
-    /** First value's keys (up to 8) so we can see channel-record shape. */
+    /** Enumerable-own keys of the probe response (capped at 8). */
+    probeOwnKeys: string[];
+    /** Enumerable-own keys of `values[0]` (capped at 8). */
     firstValueKeys: string[];
+    /** `typeof values[0]` so we can detect string-returning wrappers. */
+    firstValueType: string;
+    /** Constructor name of `values[0]`. */
+    firstValueCtor: string | null;
+    /** ALL own property names of `values[0]` including non-enumerable. */
+    firstValueOwnPropertyNames: string[];
+    /** JSON.stringify(values[0]) truncated to 200 chars; null if stringify failed. */
+    firstValueSample: string | null;
     /** Did the result pass {@link looksLikeChannelRecord}? */
     shapeMatched: boolean;
 }
@@ -118,21 +128,47 @@ const CHANNEL_STORE_SIGNATURE = [
     "getMutableGuildChannelsForGuild",
 ] as const;
 
+/** Per-strategy soft cap. Generous headroom over Discord's 500-channel limit. */
+const EXTRACTION_CAP = 4096;
+
 /**
- * Pull values out of whatever shape `getMutableGuildChannelsForGuild` decided
- * to return. Modern Discord may return:
- *   - a plain `Record<channelId, ChannelRecord>` (historical)
- *   - an ES `Map<channelId, ChannelRecord>`
- *   - an ImmutableJS `Map` / `Record` (`.toJS()` + `Object.values`)
- *   - any other iterable
- * Returns an empty array if no extraction strategy yields values.
+ * A value looks like a Discord channel record if it carries an `id` (string
+ * or number) AND a `type` / `kind` numeric field. We accept multiple field
+ * names because Discord has been known to rename `type` → `kind` in
+ * experimental builds. Properties may be non-enumerable (defined via
+ * `Object.defineProperty` or class getters) — we use direct access so
+ * getters / prototype chain are honoured.
  */
-function extractRecordValues(probe: unknown): unknown[] {
+function looksLikeChannelRecord(v: unknown): boolean {
+    if (!v || typeof v !== "object") return false;
+    try {
+        const c = v as Record<string, unknown>;
+        const hasId = typeof c.id === "string" || typeof c.id === "number" || typeof c.id === "bigint";
+        if (!hasId) return false;
+        const hasType = typeof c.type === "number" || typeof c.kind === "number";
+        return hasType;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Run all four shape-specific extraction strategies on `probe` and return
+ * every non-empty result. Strategies tried:
+ *   1. `Object.values` for plain records (historical Discord shape).
+ *   2. `.values()` iterator for ES `Map` / ImmutableJS `Map`.
+ *   3. `.toJS()` materialisation for ImmutableJS containers.
+ *   4. `Symbol.iterator` for anything else iterable.
+ * Each strategy is independent — a successful strategy does not short-circuit
+ * the others. The caller picks the strategy whose output is channel-shaped.
+ */
+function collectExtractionCandidates(probe: unknown): unknown[][] {
     if (probe == null || typeof probe !== "object") return [];
-    // Strategy 1: plain object.
+    const out: unknown[][] = [];
+    // Strategy 1: plain object (Object.values).
     try {
         const vals = Object.values(probe as Record<string, unknown>);
-        if (vals.length > 0) return vals;
+        if (vals.length > 0) out.push(vals);
     } catch { /* swallow */ }
     // Strategy 2: ES Map / ImmutableJS Map (anything with a custom `values()`
     // iterator). Object.prototype has no `.values` member, so the typeof check
@@ -140,14 +176,12 @@ function extractRecordValues(probe: unknown): unknown[] {
     try {
         const p = probe as { values?: () => Iterable<unknown> };
         if (typeof p.values === "function") {
-            const fromValues: unknown[] = [];
+            const acc: unknown[] = [];
             for (const v of p.values()) {
-                fromValues.push(v);
-                // Discord guilds cap at 500 channels; keep generous headroom
-                // for future limit bumps and category-heavy servers.
-                if (fromValues.length >= 4096) break;
+                acc.push(v);
+                if (acc.length >= EXTRACTION_CAP) break;
             }
-            if (fromValues.length > 0) return fromValues;
+            if (acc.length > 0) out.push(acc);
         }
     } catch { /* swallow */ }
     // Strategy 3: ImmutableJS — `.toJS()` materialises to a plain object.
@@ -157,7 +191,7 @@ function extractRecordValues(probe: unknown): unknown[] {
             const js = p.toJS();
             if (js && typeof js === "object") {
                 const vals = Object.values(js as Record<string, unknown>);
-                if (vals.length > 0) return vals;
+                if (vals.length > 0) out.push(vals);
             }
         }
     } catch { /* swallow */ }
@@ -168,27 +202,55 @@ function extractRecordValues(probe: unknown): unknown[] {
             const acc: unknown[] = [];
             for (const v of probe as Iterable<unknown>) {
                 acc.push(v);
-                if (acc.length >= 4096) break;
+                if (acc.length >= EXTRACTION_CAP) break;
             }
-            if (acc.length > 0) return acc;
+            if (acc.length > 0) out.push(acc);
         }
     } catch { /* swallow */ }
-    return [];
+    return out;
 }
 
 /**
- * A value looks like a Discord channel record if it carries an `id` (string
- * or number) AND a `type` / `kind` numeric field. We accept multiple field
- * names because Discord has been known to rename `type` → `kind` in
- * experimental builds.
+ * Pull channel-record values out of whatever shape Discord's lookup methods
+ * decided to return. Tries every extraction strategy at the top level first;
+ * if none yield channel-shaped data, descends one level into each candidate's
+ * values to handle wrapped responses (e.g. `{ records: Map, meta: {} }` or
+ * `{ 0: textChannelMap, 2: voiceChannelMap }` where channels are grouped by
+ * type).
+ *
+ * Returns the first strategy / descent whose first value passes
+ * {@link looksLikeChannelRecord}. If no strategy at any depth produces
+ * channel-shaped data, returns the top-level Strategy-1 output so the
+ * caller's diagnostic can publish the actual response shape.
  */
-function looksLikeChannelRecord(v: unknown): boolean {
-    if (!v || typeof v !== "object") return false;
-    const c = v as Record<string, unknown>;
-    const hasId = typeof c.id === "string" || typeof c.id === "number" || typeof c.id === "bigint";
-    if (!hasId) return false;
-    const hasType = typeof c.type === "number" || typeof c.kind === "number";
-    return hasType;
+function extractRecordValues(probe: unknown, depth: number = 2): unknown[] {
+    if (probe == null || typeof probe !== "object" || depth < 0) return [];
+    const candidates = collectExtractionCandidates(probe);
+    // Prefer the first strategy whose first value looks like a channel record.
+    for (const vals of candidates) {
+        if (looksLikeChannelRecord(vals[0])) return vals;
+    }
+    // Top-level didn't yield channel records. Descend one level into each
+    // candidate's values; flatten all channel-shaped descents into one list.
+    if (depth > 0) {
+        for (const vals of candidates) {
+            const flat: unknown[] = [];
+            for (const inner of vals) {
+                const innerVals = extractRecordValues(inner, depth - 1);
+                if (innerVals.length > 0 && looksLikeChannelRecord(innerVals[0])) {
+                    for (const r of innerVals) {
+                        flat.push(r);
+                        if (flat.length >= EXTRACTION_CAP) break;
+                    }
+                    if (flat.length >= EXTRACTION_CAP) break;
+                }
+            }
+            if (flat.length > 0) return flat;
+        }
+    }
+    // Best-effort: surface the top-level Strategy-1 output so diagnostic shows
+    // the wrapping shape that defeated extraction.
+    return candidates[0] ?? [];
 }
 
 /**
@@ -265,29 +327,7 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
             // Capped at 60 entries to keep `window.__alitraviansShcDebug`
             // small enough to paste into a chat message.
             if (attempts.length < 60) {
-                let ctorName: string | null = null;
-                try {
-                    const cn = (probe as { constructor?: { name?: unknown } } | null | undefined)?.constructor?.name;
-                    if (typeof cn === "string") ctorName = cn;
-                } catch { /* skip */ }
-                const firstValueKeys: string[] = [];
-                if (values[0] && typeof values[0] === "object") {
-                    try {
-                        for (const k of Object.keys(values[0] as Record<string, unknown>)) {
-                            firstValueKeys.push(k);
-                            if (firstValueKeys.length >= 8) break;
-                        }
-                    } catch { /* skip */ }
-                }
-                attempts.push({
-                    method,
-                    resultType: typeof probe,
-                    ctorName,
-                    threw,
-                    extractedCount: values.length,
-                    firstValueKeys,
-                    shapeMatched: shapeOk,
-                });
+                attempts.push(buildProbeAttempt(method, probe, threw, values, shapeOk));
             }
             if (threw) continue;
             if (shapeOk) {
@@ -298,6 +338,92 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
     }
     lastChannelProbeAttempts = attempts;
     return (structuralFallback as ChannelStore) ?? null;
+}
+
+/**
+ * Build a single {@link ChannelProbeAttempt} entry capturing the shape of
+ * the probe response and `values[0]`. All field access is guarded —
+ * diagnostics must never throw, since they run from the failure path.
+ */
+function buildProbeAttempt(
+    method: string,
+    probe: unknown,
+    threw: string | null,
+    values: unknown[],
+    shapeMatched: boolean,
+): ChannelProbeAttempt {
+    const ctorName = safeCtorName(probe);
+    const probeOwnKeys = safeEnumerableKeys(probe, 8);
+    const v0 = values[0];
+    const firstValueType = typeof v0;
+    const firstValueCtor = safeCtorName(v0);
+    const firstValueKeys = safeEnumerableKeys(v0, 8);
+    const firstValueOwnPropertyNames = safeOwnPropertyNames(v0, 8);
+    const firstValueSample = safeStringify(v0, 200);
+    return {
+        method,
+        resultType: typeof probe,
+        ctorName,
+        threw,
+        extractedCount: values.length,
+        probeOwnKeys,
+        firstValueKeys,
+        firstValueType,
+        firstValueCtor,
+        firstValueOwnPropertyNames,
+        firstValueSample,
+        shapeMatched,
+    };
+}
+
+function safeCtorName(v: unknown): string | null {
+    try {
+        const cn = (v as { constructor?: { name?: unknown } } | null | undefined)?.constructor?.name;
+        return typeof cn === "string" ? cn : null;
+    } catch {
+        return null;
+    }
+}
+
+function safeEnumerableKeys(v: unknown, max: number): string[] {
+    const out: string[] = [];
+    if (!v || typeof v !== "object") return out;
+    try {
+        for (const k of Object.keys(v as Record<string, unknown>)) {
+            out.push(k);
+            if (out.length >= max) break;
+        }
+    } catch { /* skip */ }
+    return out;
+}
+
+function safeOwnPropertyNames(v: unknown, max: number): string[] {
+    const out: string[] = [];
+    if (!v || typeof v !== "object") return out;
+    try {
+        for (const k of Object.getOwnPropertyNames(v as object)) {
+            out.push(k);
+            if (out.length >= max) break;
+        }
+    } catch { /* skip */ }
+    return out;
+}
+
+function safeStringify(v: unknown, max: number): string | null {
+    if (v === undefined) return null;
+    try {
+        const s = JSON.stringify(v);
+        if (typeof s !== "string") return null;
+        return s.length > max ? s.slice(0, max) + "…" : s;
+    } catch {
+        // Cyclic / non-serialisable. Fall back to a coarse description.
+        try {
+            const s = String(v);
+            return s.length > max ? s.slice(0, max) + "…" : s;
+        } catch {
+            return null;
+        }
+    }
 }
 
 /**
