@@ -125,11 +125,30 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
 }
 
 /**
- * Brute-force last-resort for PermissionStore. We need it to compute the
- * VIEW_CHANNEL bit for each channel record we found. The signature
- * `can(bigint, channelRecord)` is the public contract; if a candidate
- * implements it and returns a boolean for a known-visible channel record
- * (one with `permissionOverwrites` set), we accept it.
+ * Method names that, when present together with `can`, are highly distinctive
+ * to PermissionStore. Any one of these is enough to rule out a coincidental
+ * match — Discord doesn't ship another Flux store carrying a method-set
+ * shaped like this.
+ */
+const PERMISSION_STORE_COMPANION_METHODS = [
+    "getChannelPermissions",
+    "getGuildPermissions",
+    "computeBasicPermissions",
+    "computePermissions",
+    "canBasicChannel",
+    "canManageUser",
+    "canWithPartialContext",
+] as const;
+
+/**
+ * Brute-force last-resort for PermissionStore. The minimum signal is that the
+ * candidate has a `can(bigint, channelRecord) => boolean` method that doesn't
+ * throw for a real channel record. But "any store whose `can()` returns a
+ * boolean" is too loose — a hypothetical experiments/feature-flag store with
+ * a `can(...) => boolean` signature would silently win. So we also require
+ * at least ONE of the {@link PERMISSION_STORE_COMPANION_METHODS} names to be
+ * present as a function: the combination of `can` + any of those is unique
+ * to PermissionStore in Discord's store graph.
  */
 function findPermissionStoreBrute(referenceChannel: DiscordChannelLite | null): PermissionStore | null {
     if (!referenceChannel) return null;
@@ -137,6 +156,14 @@ function findPermissionStoreBrute(referenceChannel: DiscordChannelLite | null): 
         const o = candidate as Record<string, unknown>;
         const can = o.can;
         if (typeof can !== "function") continue;
+        // Companion-method gate: must have at least one PermissionStore-specific
+        // function alongside `can`. This rejects coincidental boolean-returning
+        // `can()` methods on unrelated Flux stores.
+        let hasCompanion = false;
+        for (const m of PERMISSION_STORE_COMPANION_METHODS) {
+            if (typeof o[m] === "function") { hasCompanion = true; break; }
+        }
+        if (!hasCompanion) continue;
         let result: unknown;
         try {
             result = (can as (bits: bigint, ch: unknown) => unknown).call(candidate, VIEW_CHANNEL_BIT, referenceChannel);
