@@ -938,10 +938,18 @@ function renderRecentlyViewed(result: DiscoveryResult): HTMLElement | null {
     // they navigated to a different guild). The MRU memory is keyed
     // by id, not by guild, so a stale id won't crash anything — it just
     // wouldn't render — but cleaning the list keeps the strip tidy.
+    //
+    // We also honour `state.nsfwFiltered` here so that the "إخفاء قنوات
+    // +18" setting holds across every list-view rendering path, including
+    // this MRU strip. Otherwise a user that drilled into an NSFW channel
+    // before flipping the filter on would still see its name leak into
+    // the chrome of their next panel open.
     const items: DiscoveredChannel[] = [];
     for (const id of state.recentlyViewed) {
         const c = result.hidden.find(h => h.id === id);
-        if (c) items.push(c);
+        if (!c) continue;
+        if (state.nsfwFiltered && c.nsfw) continue;
+        items.push(c);
     }
     if (items.length === 0) return null;
 
