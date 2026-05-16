@@ -203,6 +203,10 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
             lastGuildSeen = guildId;
             state.guildId = guildId;
             state.drilldownId = null;
+            // Reset the search box too: a query meaningful for guild A
+            // (e.g. "general") would otherwise silently filter guild B's
+            // hidden channels and could falsely look like "empty".
+            state.query = "";
         }
         if (!guildId) {
             document.getElementById(LAUNCH_ID)?.remove();
@@ -680,6 +684,7 @@ export function openPanel(opts: { toast: (msg: string) => void; onClose?: () => 
     state.guildId = guildId;
     state.result = scanGuild(guildId);
     state.drilldownId = null;
+    state.query = "";
 
     document.getElementById(BACKDROP_ID)?.remove();
     const backdrop = el("div", "boon-shc-backdrop");
