@@ -331,21 +331,47 @@ function updateLauncher(count: number): void {
     // open the panel to confirm "no hidden channels here" rather than
     // wondering whether the feature is broken.
 
-    if (existing) {
+    // If the existing launcher is in *floating* mode, treat it as a
+    // provisional placement and re-probe every reconcile. Strategy D
+    // is a fallback used when Discord hasn't finished rendering the
+    // channel-list header yet; the moment a proper header becomes
+    // reachable we want to graduate the launcher to its preferred
+    // mount instead of leaving it stuck against the sidebar forever.
+    // (Non-floating launchers, by contrast, are stable and only need
+    // their count/title updated — the MutationObserver in
+    // `placeLauncher` handles re-mounting after Discord subtree
+    // swaps via the `!getElementById(LAUNCH_ID)` branch.)
+    const existingFloating = existing?.classList.contains("boon-shc-launch--floating") ?? false;
+
+    if (existing && !existingFloating) {
         existing.setAttribute("data-count", String(count));
         existing.title = `القنوات المخفية (${count})`;
         const countEl = existing.querySelector<HTMLElement>(".boon-shc-launch-count");
         if (countEl) countEl.textContent = String(count);
-        // `getElementById` only returns elements still attached to the
-        // document, so a non-null `existing` is by definition connected
-        // — nothing more to do here. Re-mounting after Discord swaps
-        // the channel-list subtree is handled by the MutationObserver
-        // in `placeLauncher`, which reschedules a reconcile that hits
-        // the probe path below.
         return;
     }
 
     const probe = probeChannelListMount();
+    // Floating-button graduation: keep the existing floating launcher
+    // in place when the probe still resolves to floating (no header
+    // available yet) or fails entirely (transient DOM rebuild) — yanking
+    // it on every reconcile while we wait for Discord would cause a
+    // visible flicker. Only swap it out once a non-floating strategy
+    // becomes reachable, at which point `restoreFloatingMutation()` has
+    // already been called inside the probe.
+    if (existing && existingFloating) {
+        if (!probe || probe.floating) {
+            existing.setAttribute("data-count", String(count));
+            existing.title = `القنوات المخفية (${count})`;
+            const countEl = existing.querySelector<HTMLElement>(".boon-shc-launch-count");
+            if (countEl) countEl.textContent = String(count);
+            return;
+        }
+        // A header strategy won — drop the floating button and fall
+        // through to the creation path so the next block mounts a
+        // fresh, non-floating launcher inside the real header.
+        existing.remove();
+    }
     if (!probe) {
         if (lastPlacementStrategy !== "none") {
             lastPlacementStrategy = "none";
