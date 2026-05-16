@@ -20,6 +20,7 @@ export {
     findStoreByCode,
     findStoreByMethods,
     isWebpackReady,
+    iterateStoreShapedExports,
     moduleCount,
     probeWebpackForDiagnostic,
     whenWebpackReady,

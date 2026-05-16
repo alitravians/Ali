@@ -330,6 +330,61 @@ export interface WebpackProbeSnapshot {
     factoriesWithMarker: number;
     storeShapedExports: number;
     storeNames: string[];
+    /**
+     * For unnamed Flux-shaped exports (no `displayName` / `getName()`), this
+     * lists the first few candidates' method surfaces so we can recognise
+     * core stores by the methods they expose even when their identifiers
+     * are mangled.
+     */
+    unnamedStoreSamples: Array<{
+        ctorName: string | null;
+        methods: string[];
+    }>;
+}
+
+/**
+ * Iterate over every Flux-shaped object we've cached — i.e. anything with
+ * `addChangeListener` on the export itself or as an enumerable own property.
+ * Yields with a coarse identifier hint (constructor name / displayName) for
+ * the caller, but no filtering by name is done here.
+ *
+ * This is the brute-force last-resort that lets `scanGuild` find ChannelStore
+ * on builds where:
+ *   - the store's `displayName` and `getName()` are both gone (mangled);
+ *   - the store's source text doesn't contain any literal substring we know
+ *     about (so `findAllByCode` also misses it);
+ *   - the i18n MessagesStore Proxy still matches our coarse method-shape
+ *     filter, so `findAllStoresByMethods` returns a poisoned candidate.
+ *
+ * Callers should validate each yielded value with a *behavioural* probe
+ * (e.g. call `getMutableGuildChannelsForGuild(realGuildId)` and check the
+ * returned shape) — that's the only path that distinguishes the real store
+ * from i18n MessagesStore on these builds.
+ */
+export function* iterateStoreShapedExports(): IterableIterator<unknown> {
+    if (!cacheDrained && webpackRequire) drainModuleCache();
+    const seen = new WeakSet<object>();
+    for (const [, exp] of exportsById) {
+        const candidates: unknown[] = [exp];
+        if (exp && typeof exp === "object") {
+            const o = exp as Record<string, unknown>;
+            try {
+                for (const k of Object.keys(o)) {
+                    try { candidates.push(o[k]); } catch { /* skip */ }
+                }
+            } catch { /* skip */ }
+        }
+        for (const c of candidates) {
+            if (!c || typeof c !== "object") continue;
+            const o2 = c as Record<string, unknown>;
+            if (typeof o2.addChangeListener !== "function") continue;
+            // Don't yield the same object twice — modules can re-export
+            // each other and we'd waste cycles probing duplicates.
+            if (seen.has(c as object)) continue;
+            seen.add(c as object);
+            yield c;
+        }
+    }
 }
 
 export function probeWebpackForDiagnostic(marker: string): WebpackProbeSnapshot {
@@ -351,29 +406,47 @@ export function probeWebpackForDiagnostic(marker: string): WebpackProbeSnapshot 
     }
     let storeShapedExports = 0;
     const storeNames: string[] = [];
-    for (const [, exp] of exportsById) {
-        const candidates: unknown[] = [exp];
-        if (exp && typeof exp === "object") {
-            const o = exp as Record<string, unknown>;
+    const unnamedStoreSamples: Array<{ ctorName: string | null; methods: string[] }> = [];
+    for (const candidate of iterateStoreShapedExports()) {
+        storeShapedExports++;
+        const o2 = candidate as Record<string, unknown>;
+        let name: string | null = null;
+        try {
+            const dn = (o2 as { constructor?: { displayName?: unknown } }).constructor?.displayName;
+            if (typeof dn === "string" && dn.length > 0) name = dn;
+            else if (typeof o2.getName === "function") {
+                const n = (o2.getName as () => unknown)();
+                if (typeof n === "string" && n.length > 0) name = n;
+            }
+        } catch { /* skip */ }
+        if (name && storeNames.length < 40) storeNames.push(name);
+        // For UNNAMED stores, capture the method surface so we can recognise
+        // ChannelStore-like APIs even when the constructor name is mangled.
+        if (!name && unnamedStoreSamples.length < 30) {
+            let ctorName: string | null = null;
             try {
-                for (const k of Object.keys(o)) {
-                    try { candidates.push(o[k]); } catch { /* skip */ }
+                const cn = (o2 as { constructor?: { name?: unknown } }).constructor?.name;
+                if (typeof cn === "string" && cn.length > 0) ctorName = cn;
+            } catch { /* skip */ }
+            const methods: string[] = [];
+            try {
+                const keys = new Set<string>();
+                try { for (const k of Object.getOwnPropertyNames(o2)) keys.add(k); } catch { /* skip */ }
+                const proto = Object.getPrototypeOf(o2) as Record<string, unknown> | null;
+                if (proto) {
+                    try { for (const k of Object.getOwnPropertyNames(proto)) keys.add(k); } catch { /* skip */ }
+                }
+                for (const k of keys) {
+                    if (k === "constructor") continue;
+                    try {
+                        if (typeof (o2 as Record<string, unknown>)[k] === "function") {
+                            methods.push(k);
+                            if (methods.length >= 25) break;
+                        }
+                    } catch { /* skip */ }
                 }
             } catch { /* skip */ }
-        }
-        for (const c of candidates) {
-            if (!c || typeof c !== "object") continue;
-            const o2 = c as Record<string, unknown>;
-            if (typeof o2.addChangeListener !== "function") continue;
-            storeShapedExports++;
-            try {
-                const dn = (o2 as { constructor?: { displayName?: unknown } }).constructor?.displayName;
-                if (typeof dn === "string" && dn.length > 0 && storeNames.length < 40) storeNames.push(dn);
-                else if (typeof o2.getName === "function" && storeNames.length < 40) {
-                    const n = (o2.getName as () => unknown)();
-                    if (typeof n === "string" && n.length > 0) storeNames.push(n);
-                }
-            } catch { /* skip */ }
+            unnamedStoreSamples.push({ ctorName, methods });
         }
     }
     return {
@@ -384,6 +457,7 @@ export function probeWebpackForDiagnostic(marker: string): WebpackProbeSnapshot 
         factoriesWithMarker,
         storeShapedExports,
         storeNames,
+        unnamedStoreSamples,
     };
 }
 

@@ -18,6 +18,7 @@ import {
     getChannelStore,
     getGuildStore,
     getPermissionStore,
+    iterateStoreShapedExports,
     probeWebpackForDiagnostic,
 } from "../../core/webpack/index.js";
 
@@ -49,6 +50,7 @@ function publishProbe(reasonKey: string): void {
             factoriesWithMarker: p.factoriesWithMarker,
             storeShapedExports: p.storeShapedExports,
             storeNames: p.storeNames,
+            unnamedStoreSamples: p.unnamedStoreSamples,
         };
         (window as unknown as Record<string, unknown>).__alitraviansShcDebug = detail;
         // Also write to console once so it's visible without manual probing.
@@ -57,6 +59,124 @@ function publishProbe(reasonKey: string): void {
     } catch {
         // Diagnostics must never throw.
     }
+}
+
+/**
+ * Method names Discord has historically used for the "give me every channel
+ * in this guild" lookup. The first one is the long-standing public API; the
+ * second is the newer GuildChannelStore variant that some builds expose; the
+ * third is what some experimental builds carry. We try each in order against
+ * every cached Flux-shaped object, with the real `guildId` as the probe,
+ * because a behavioural probe is the only reliable way to distinguish the
+ * real channel store from Discord's i18n `MessagesStore` Proxy (which fakes
+ * a function for *every* property access).
+ */
+const CHANNEL_LOOKUP_METHODS = [
+    "getMutableGuildChannelsForGuild",
+    "getMutableBasicGuildChannelsForGuild",
+    "getChannels",
+] as const;
+
+/**
+ * A returned record from any of the channel-lookup methods is acceptable iff
+ * its first value carries the standard `{ id: string, type: number }` shape
+ * of a Discord channel record. The i18n `MessagesStore` returns strings for
+ * every property access — its values never pass this shape check.
+ */
+function looksLikeRealChannelMap(probe: unknown): boolean {
+    if (probe == null) return false;
+    if (typeof probe !== "object") return false;
+    const values = Object.values(probe as Record<string, unknown>);
+    if (values.length === 0) return false;
+    const first = values[0] as { id?: unknown; type?: unknown } | null | undefined;
+    if (!first || typeof first !== "object") return false;
+    return typeof first.id === "string" && typeof first.type === "number";
+}
+
+/**
+ * Brute-force last-resort: iterate every Flux-shaped export we've cached,
+ * probe each one with every plausible channel-lookup method using the real
+ * `guildId`, and return the first store whose response shape matches a real
+ * channel map. Returns `null` if no candidate matches.
+ *
+ * This is the path that finally rescues the panel on modern Discord builds
+ * where ChannelStore's `displayName`, `getName()`, *and* method-name source
+ * literals are all mangled simultaneously — so neither the name-based,
+ * shape-based, nor source-code-based lookups can pin it.
+ */
+function findChannelStoreBrute(guildId: string): ChannelStore | null {
+    for (const candidate of iterateStoreShapedExports()) {
+        const o = candidate as Record<string, unknown>;
+        for (const method of CHANNEL_LOOKUP_METHODS) {
+            const fn = o[method];
+            if (typeof fn !== "function") continue;
+            let probe: unknown;
+            try {
+                probe = (fn as (id: string) => unknown).call(candidate, guildId);
+            } catch {
+                continue;
+            }
+            if (looksLikeRealChannelMap(probe)) {
+                return candidate as ChannelStore;
+            }
+        }
+    }
+    return null;
+}
+
+/**
+ * Method names that, when present together with `can`, are highly distinctive
+ * to PermissionStore among Discord's *non-Proxy* Flux stores. The i18n
+ * `MessagesStore` Proxy fakes a function for every property access and would
+ * pass this gate too — it's rejected downstream by the `typeof result ===
+ * "boolean"` check, because its synthetic `can()` returns a string from the
+ * i18n table, not a boolean.
+ */
+const PERMISSION_STORE_COMPANION_METHODS = [
+    "getChannelPermissions",
+    "getGuildPermissions",
+    "computeBasicPermissions",
+    "computePermissions",
+    "canBasicChannel",
+    "canManageUser",
+    "canWithPartialContext",
+] as const;
+
+/**
+ * Brute-force last-resort for PermissionStore. The minimum signal is that the
+ * candidate has a `can(bigint, channelRecord) => boolean` method that doesn't
+ * throw for a real channel record. But "any store whose `can()` returns a
+ * boolean" is too loose — a hypothetical experiments/feature-flag store with
+ * a `can(...) => boolean` signature would silently win. So we also require
+ * at least ONE of the {@link PERMISSION_STORE_COMPANION_METHODS} names to be
+ * present as a function: the combination of `can` + any of those is unique
+ * to PermissionStore in Discord's store graph.
+ */
+function findPermissionStoreBrute(referenceChannel: DiscordChannelLite | null): PermissionStore | null {
+    if (!referenceChannel) return null;
+    for (const candidate of iterateStoreShapedExports()) {
+        const o = candidate as Record<string, unknown>;
+        const can = o.can;
+        if (typeof can !== "function") continue;
+        // Companion-method gate: must have at least one PermissionStore-specific
+        // function alongside `can`. This rejects coincidental boolean-returning
+        // `can()` methods on unrelated Flux stores.
+        let hasCompanion = false;
+        for (const m of PERMISSION_STORE_COMPANION_METHODS) {
+            if (typeof o[m] === "function") { hasCompanion = true; break; }
+        }
+        if (!hasCompanion) continue;
+        let result: unknown;
+        try {
+            result = (can as (bits: bigint, ch: unknown) => unknown).call(candidate, VIEW_CHANNEL_BIT, referenceChannel);
+        } catch {
+            continue;
+        }
+        if (typeof result === "boolean") {
+            return candidate as PermissionStore;
+        }
+    }
+    return null;
 }
 import type {
     ChannelStore,
@@ -197,14 +317,28 @@ function enumerateGuildChannels(
     channelStore: ChannelStore,
     guildId: string,
 ): DiscordChannelLite[] {
-    if (typeof channelStore.getMutableGuildChannelsForGuild === "function") {
+    // Try each historical method name in order. The store we resolved may be
+    // the brute-force candidate (which had any one of these return real
+    // data), so we re-probe to use whichever method is actually wired up.
+    const o = channelStore as unknown as Record<string, unknown>;
+    for (const method of CHANNEL_LOOKUP_METHODS) {
+        const fn = o[method];
+        if (typeof fn !== "function") continue;
         try {
-            const record = channelStore.getMutableGuildChannelsForGuild(guildId);
+            const record = (fn as (id: string) => unknown).call(channelStore, guildId);
             if (record && typeof record === "object") {
-                return Object.values(record);
+                const values = Object.values(record as Record<string, unknown>);
+                if (values.length === 0) continue;
+                // Validate the first record looks like a Discord channel
+                // before returning — guards against the i18n proxy slipping
+                // through if we ever resolve it as ChannelStore by accident.
+                const first = values[0] as { id?: unknown; type?: unknown } | null | undefined;
+                if (first && typeof first === "object" && typeof first.id === "string" && typeof first.type === "number") {
+                    return values as DiscordChannelLite[];
+                }
             }
         } catch {
-            // Surface as "degraded" in scanGuild — caller decides UX.
+            // Try the next method name.
         }
     }
     return [];
@@ -247,12 +381,29 @@ function readChannel<T>(
  * Public entry: scan a guild for hidden channels.
  */
 export function scanGuild(guildId: string): DiscoveryResult {
-    const channelStore = getChannelStore();
-    const permissionStore = getPermissionStore();
+    // Fast path: name- / shape- / code-based resolution from stores.ts.
+    let channelStore = getChannelStore();
+    let permissionStore = getPermissionStore();
     const guildStore = getGuildStore();
 
     const guild: DiscordGuildLite | null = guildStore?.getGuild(guildId) ?? null;
     const guildName = guild?.name ?? guildId;
+
+    // Brute-force fallback: when the standard paths failed, iterate every
+    // cached Flux-shaped export and probe with the real guildId. This is the
+    // only path that works on builds where every store identifier is mangled
+    // (constructor name, getName(), AND method-name source literals).
+    if (!channelStore) {
+        channelStore = findChannelStoreBrute(guildId);
+    }
+
+    if (!permissionStore && channelStore) {
+        // For PermissionStore brute-force we need a reference channel record
+        // to feed `can(bits, channel)` — pick the first channel from the
+        // guild we now have access to.
+        const probeChannels = enumerateGuildChannels(channelStore, guildId);
+        permissionStore = findPermissionStoreBrute(probeChannels[0] ?? null);
+    }
 
     if (!channelStore || !permissionStore) {
         const missing = !channelStore ? "ChannelStore" : "PermissionStore";
