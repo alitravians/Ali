@@ -45,7 +45,14 @@ export class ETFParseError extends Error {
     }
 }
 
-const VERSION = 131;
+// Renamed from `VERSION` (which Erlang calls the "version magic" byte
+// — see `decodeETF` below) to avoid colliding with `core/version.ts`'s
+// `VERSION` export when esbuild bundles the renderer. Two top-level
+// `const VERSION` declarations across modules cause esbuild to rename
+// one of them (in practice the `core/version.ts` export) to `VERSION2`,
+// which breaks the patcher's `extractVersion` regex and made the
+// in-app updater report a stale version for v0.6.0.
+const ETF_HEADER_BYTE = 131;
 const SMALL_INTEGER = 97;
 const INTEGER = 98;
 const NEW_FLOAT = 70;
@@ -232,7 +239,7 @@ export function decodeETF(buf: Uint8Array): unknown {
     if (buf.length < 1) throw new ETFParseError("empty buffer", 0);
     const r = new Reader(buf);
     const head = r.u8();
-    if (head !== VERSION) {
+    if (head !== ETF_HEADER_BYTE) {
         throw new ETFParseError(`bad version byte ${head} (expected 131)`, 0);
     }
     return readTerm(r);
