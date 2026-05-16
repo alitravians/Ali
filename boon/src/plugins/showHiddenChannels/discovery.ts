@@ -192,16 +192,6 @@ function looksLikeChannelRecord(v: unknown): boolean {
 }
 
 /**
- * A returned record from any of the channel-lookup methods is acceptable iff
- * at least one extractable value looks like a Discord channel record.
- */
-function looksLikeRealChannelMap(probe: unknown): boolean {
-    const values = extractRecordValues(probe);
-    if (values.length === 0) return false;
-    return looksLikeChannelRecord(values[0]);
-}
-
-/**
  * Returns true if the candidate exposes the canonical ChannelStore method
  * signature AND is not Discord's i18n `MessagesStore` Proxy in disguise.
  *
@@ -580,12 +570,25 @@ export function scanGuild(guildId: string): DiscoveryResult {
         channelStore = findChannelStoreBrute(guildId);
     }
 
+    // Compute the channel list once and reuse it for the PermissionStore
+    // brute-force seed and the main enumeration below. If the structural
+    // fallback from `findChannelStoreBrute` matched a candidate that doesn't
+    // produce channels for this guild, treat channelStore as not-found so
+    // the user sees the accurate "ChannelStore not found" message instead
+    // of a misleading PermissionStore failure.
+    let earlyChannels: DiscordChannelLite[] = [];
+    if (channelStore) {
+        earlyChannels = enumerateGuildChannels(channelStore, guildId);
+        if (earlyChannels.length === 0) {
+            channelStore = null;
+        }
+    }
+
     if (!permissionStore && channelStore) {
         // For PermissionStore brute-force we need a reference channel record
         // to feed `can(bits, channel)` — pick the first channel from the
         // guild we now have access to.
-        const probeChannels = enumerateGuildChannels(channelStore, guildId);
-        permissionStore = findPermissionStoreBrute(probeChannels[0] ?? null);
+        permissionStore = findPermissionStoreBrute(earlyChannels[0] ?? null);
     }
 
     if (!channelStore || !permissionStore) {
@@ -608,7 +611,11 @@ export function scanGuild(guildId: string): DiscoveryResult {
         };
     }
 
-    const channels = enumerateGuildChannels(channelStore, guildId);
+    // Reuse the channel list computed earlier; if we somehow got here without
+    // populating it, fall back to a fresh enumeration (defensive).
+    const channels = earlyChannels.length > 0
+        ? earlyChannels
+        : enumerateGuildChannels(channelStore, guildId);
     if (channels.length === 0) {
         return {
             guildId,
