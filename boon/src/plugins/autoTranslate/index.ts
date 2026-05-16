@@ -1288,6 +1288,25 @@ export default definePlugin({
         //   - Edits: ``editMessage`` is NOT translated on the outgoing
         //     path. Use right-click → "ترجم الرسالة" if you need
         //     to re-translate a sent message.
+        //   - Discord-client side-effects bypassed by going REST-direct:
+        //     the native ``MessageActions.sendMessage`` runs a number of
+        //     book-keeping steps we DON'T replay because we never call it:
+        //       * ``TYPING_STOP`` dispatch (Discord normally stops the
+        //         self-typing indicator when you send) — harmless because
+        //         it expires server-side a few seconds after the last
+        //         ``TYPING_START``.
+        //       * Slowmode client-side gating — Discord's UI greys-out the
+        //         composer to prevent rate-limited POSTs. Our REST call
+        //         bypasses the gate, so a slowmode channel responds with
+        //         429 instead of being blocked locally. Discord's own
+        //         429 handling still applies; the user sees a normal
+        //         rate-limit toast.
+        //       * Message nonce / optimistic-id dedup — Discord assigns a
+        //         client-side nonce so optimistic UI updates can be
+        //         reconciled with the gateway echo. We omit the nonce, so
+        //         the message appears only once when the gateway echoes
+        //         our POST back. No visible difference, just less
+        //         optimistic-UI snappiness on slow networks.
         //
         // Design choices:
         //   - Fail open: any translation error short-circuits to the
@@ -1690,6 +1709,15 @@ export default definePlugin({
             })();
         };
 
+        // Wrap the entire side-effect installation phase in a try/catch so
+        // that a partial-init crash (e.g. a future Discord update that breaks
+        // one of the DOM APIs we rely on) does NOT leave orphan listeners /
+        // observers attached. The framework's crash handler only drains its
+        // own ``entry.cleanups`` stack; anything we pushed into the
+        // module-scoped ``outgoingDisposers`` would otherwise leak because
+        // ``onStop`` never runs after a failed ``onStart``. Drain explicitly
+        // here and re-throw so the framework still marks the plugin crashed.
+        try {
         // Capture phase: we MUST run before Slate's bubble-phase handler,
         // otherwise the message has already been queued for send.
         document.addEventListener("keydown", onComposerKeydown, true);
@@ -1987,6 +2015,24 @@ export default definePlugin({
             ctx.logger.info(
                 `outgoing translate ON: ${ctx.settings.outgoingSrc} → ${ctx.settings.outgoingDst}`,
             );
+        }
+        } catch (err) {
+            // Partial-init failure: drain any disposers we pushed before the
+            // exception, then re-throw so the framework marks the plugin
+            // crashed. Each disposer is wrapped individually so one failing
+            // teardown can't strand the rest.
+            for (const dispose of outgoingDisposers.splice(0)) {
+                try {
+                    dispose();
+                } catch (teardownErr) {
+                    ctx.logger.warn(
+                        "outgoing teardown threw during crash recovery",
+                        teardownErr,
+                    );
+                }
+            }
+            ctx.logger.error("outgoing setup failed; disposers drained", err);
+            throw err;
         }
     },
     onStop(ctx) {
