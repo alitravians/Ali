@@ -1551,14 +1551,25 @@ export default definePlugin({
         // skip it. The POST still succeeds for unflagged accounts even
         // without these headers, and adding them improves the success rate
         // for flagged accounts without ever making things worse.
+        // Per-session cache of X-Super-Properties. Discord stamps this value
+        // into localStorage at boot and never rotates it during a single
+        // Electron session, so we can safely read it once on the first
+        // outgoing send and reuse the same string for every subsequent send
+        // without creating new iframes. ``null`` means "we tried and failed
+        // — don't try again"; ``undefined`` means "haven't looked yet".
+        let cachedSuperProperties: string | null | undefined;
         function readSuperProperties(): string | null {
+            if (cachedSuperProperties !== undefined) return cachedSuperProperties;
             let iframe: HTMLIFrameElement | null = null;
             try {
                 iframe = document.createElement("iframe");
                 document.head.appendChild(iframe);
                 const local = iframe.contentWindow?.localStorage;
                 const value = local?.getItem("X_Super_Properties");
-                if (value) return value.replace(/^"|"$/g, "");
+                if (value) {
+                    cachedSuperProperties = value.replace(/^"|"$/g, "");
+                    return cachedSuperProperties;
+                }
             } catch {
                 // iframe path failed; try direct localStorage below.
             } finally {
@@ -1566,10 +1577,14 @@ export default definePlugin({
             }
             try {
                 const raw = window.localStorage.getItem("X_Super_Properties");
-                if (raw) return raw.replace(/^"|"$/g, "");
+                if (raw) {
+                    cachedSuperProperties = raw.replace(/^"|"$/g, "");
+                    return cachedSuperProperties;
+                }
             } catch {
                 // both paths failed; caller proceeds without the header
             }
+            cachedSuperProperties = null;
             return null;
         }
 
