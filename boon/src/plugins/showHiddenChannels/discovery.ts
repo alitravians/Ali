@@ -126,9 +126,11 @@ function findChannelStoreBrute(guildId: string): ChannelStore | null {
 
 /**
  * Method names that, when present together with `can`, are highly distinctive
- * to PermissionStore. Any one of these is enough to rule out a coincidental
- * match — Discord doesn't ship another Flux store carrying a method-set
- * shaped like this.
+ * to PermissionStore among Discord's *non-Proxy* Flux stores. The i18n
+ * `MessagesStore` Proxy fakes a function for every property access and would
+ * pass this gate too — it's rejected downstream by the `typeof result ===
+ * "boolean"` check, because its synthetic `can()` returns a string from the
+ * i18n table, not a boolean.
  */
 const PERMISSION_STORE_COMPANION_METHODS = [
     "getChannelPermissions",
