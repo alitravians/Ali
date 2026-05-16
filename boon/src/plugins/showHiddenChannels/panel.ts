@@ -138,8 +138,15 @@ function findGuildId(): string | null {
 
 // ─── Launcher button (in the channel-list header) ───────────────────────────
 
+interface LauncherLogger {
+    info(...args: unknown[]): void;
+    warn(...args: unknown[]): void;
+}
+
 interface LauncherHooks {
     onOpen(): void;
+    /** Optional logger used for placement diagnostics. */
+    logger?: LauncherLogger;
 }
 
 let launchHooks: LauncherHooks | null = null;
@@ -154,19 +161,154 @@ let onCloseCallback: (() => void) | null = null;
  */
 let requestReconcileFn: (() => void) | null = null;
 
-function findChannelListHeader(): HTMLElement | null {
-    return document.querySelector<HTMLElement>(
-        'header[class*="header_"][class*="container_"], nav[aria-label*="server" i] header, [class*="sidebar_"] header',
-    );
+/**
+ * Last successful placement strategy. Logged once per change so the
+ * console shows e.g. `placed via "nav-channels-header"` exactly when
+ * Discord swaps its DOM under us (navigation, theme change, A/B test
+ * rollout, …) — instead of every reconcile tick. Reset to null on
+ * teardown so the first probe after a re-enable still emits its log.
+ */
+let lastPlacementStrategy: string | null = null;
+
+/**
+ * When Strategy D (sidebar-floating) activates we flip
+ * `sidebar.style.position` to `relative` so the absolute-positioned
+ * launcher anchors to the sidebar. We capture the previous inline
+ * value here so teardown can restore it cleanly — important when the
+ * user disables the plugin without navigating away, since otherwise
+ * Discord's sidebar would keep the inline override forever.
+ */
+let floatingSidebarMutation: { element: HTMLElement; originalPosition: string } | null = null;
+
+interface PlacementProbeResult {
+    mount: HTMLElement;
+    /** Human-readable strategy id used to label what worked. */
+    strategy: string;
+    /**
+     * True when the launcher should render as an absolutely-positioned
+     * floating button (anchored to the channel sidebar). Used when no
+     * proper header element is reachable so the button still appears
+     * somewhere visible instead of silently failing.
+     */
+    floating: boolean;
 }
 
-function buildLauncher(count: number): HTMLElement {
+function isVisibleNode(node: Element | null): node is HTMLElement {
+    if (!node || !(node instanceof HTMLElement)) return false;
+    if (!node.isConnected) return false;
+    const rect = node.getBoundingClientRect();
+    // A 0×0 element either isn't laid out yet or is hidden via display:none.
+    // Either way it's not a useful mount point for a visible button.
+    return rect.width > 0 && rect.height > 0;
+}
+
+/**
+ * Restore the sidebar inline `position` we may have flipped for
+ * Strategy D, then drop the mutation memo. Called every time the probe
+ * lands on a non-floating strategy so a transient floating mount
+ * doesn't leave Discord's sidebar carrying a stale `position: relative`
+ * override forever.
+ */
+function restoreFloatingMutation(): void {
+    if (!floatingSidebarMutation) return;
+    if (floatingSidebarMutation.element.isConnected) {
+        floatingSidebarMutation.element.style.position = floatingSidebarMutation.originalPosition;
+    }
+    floatingSidebarMutation = null;
+}
+
+/**
+ * Discord renames its CSS classes on every build, but the sidebar
+ * structure stays remarkably stable: a `nav` labelled "Channels" wraps
+ * an inner `header` element that holds the guild name + dropdown. We
+ * try a handful of independent strategies in order of preference so a
+ * single rename can't take the launcher offline.
+ */
+function probeChannelListMount(): PlacementProbeResult | null {
+    // Strategy A — the canonical channel-list nav.
+    //   Discord exposes its sidebar list as either `nav[aria-label="Channels"]`
+    //   (modern client) or `nav[aria-label*="channel" i]` (older builds,
+    //   localized strings). The first child that's an actual `header` is
+    //   where the guild name lives; that's where the launcher belongs.
+    const channelNavs = document.querySelectorAll<HTMLElement>(
+        'nav[aria-label="Channels"], nav[aria-label*="channel" i], nav[aria-label*="القنوات"]',
+    );
+    for (const nav of channelNavs) {
+        const header = nav.querySelector<HTMLElement>("header");
+        if (isVisibleNode(header)) {
+            restoreFloatingMutation();
+            return { mount: header, strategy: "nav-channels-header", floating: false };
+        }
+    }
+
+    // Strategy B — anchored on the guild header element directly. Discord
+    // tags this with `class*="container_"` + `class*="header_"` on most
+    // builds. Match the `header` tag explicitly to avoid catching unrelated
+    // container divs.
+    const taggedHeader = document.querySelector<HTMLElement>(
+        'header[class*="container_"][class*="header_"]',
+    );
+    if (isVisibleNode(taggedHeader)) {
+        restoreFloatingMutation();
+        return { mount: taggedHeader, strategy: "tagged-header", floating: false };
+    }
+
+    // Strategy C — sidebar wrapper that holds the channel list. Discord
+    // labels the column with `class*="sidebar_"` (and historically
+    // `class*="channels_"`). Mount inside whatever first `header` it
+    // contains; if no header exists we still resolve the sidebar itself
+    // as a floating-mode anchor below.
+    const sidebar = document.querySelector<HTMLElement>(
+        '[class*="sidebar_"], [class*="sidebarList_"], [class*="channelList_"], [class*="channels_"]',
+    );
+    if (sidebar) {
+        const innerHeader = sidebar.querySelector<HTMLElement>("header, [class*=\"header_\"]");
+        if (isVisibleNode(innerHeader)) {
+            restoreFloatingMutation();
+            return { mount: innerHeader, strategy: "sidebar-inner-header", floating: false };
+        }
+        // Strategy D — floating button anchored to the sidebar so the
+        // user always sees the launcher even when the header probe
+        // fails. position: relative is asserted on the sidebar so the
+        // absolute-positioned child anchors correctly.
+        if (isVisibleNode(sidebar)) {
+            // Force a positioning context. Capture the previous inline
+            // value so teardown can restore it; this also avoids
+            // re-overwriting it across reconcile ticks once we've
+            // already established the anchor.
+            //
+            // We read the *computed* position (not just the inline
+            // `style.position`) so a stylesheet-driven `sticky` /
+            // `absolute` on Discord's sidebar isn't trampled. Reading
+            // computed style flushes layout, but Strategy D is the
+            // rarely-used fallback (Strategies A/B/C cover the common
+            // case), so the reflow cost is paid at most once per probe
+            // and only when we're already in a degraded DOM state.
+            const computedPosition = getComputedStyle(sidebar).position;
+            if (computedPosition === "" || computedPosition === "static") {
+                if (!floatingSidebarMutation || floatingSidebarMutation.element !== sidebar) {
+                    floatingSidebarMutation = {
+                        element: sidebar,
+                        originalPosition: sidebar.style.position,
+                    };
+                }
+                sidebar.style.position = "relative";
+            }
+            return { mount: sidebar, strategy: "sidebar-floating", floating: true };
+        }
+    }
+
+    return null;
+}
+
+function buildLauncher(count: number, floating: boolean): HTMLElement {
     const btn = el("button", "boon-shc-launch");
     btn.id = LAUNCH_ID;
     btn.type = "button";
     btn.setAttribute("dir", "rtl");
     btn.setAttribute("aria-label", "عرض القنوات المخفية");
     btn.setAttribute("data-count", String(count));
+    if (floating) btn.classList.add("boon-shc-launch--floating");
     btn.title = `القنوات المخفية (${count})`;
 
     btn.appendChild(el("span", "boon-shc-launch-icon", "🔒"));
@@ -184,15 +326,33 @@ function buildLauncher(count: number): HTMLElement {
 function updateLauncher(count: number): void {
     const existing = document.getElementById(LAUNCH_ID);
     const guildId = findGuildId();
+    const logger = launchHooks?.logger;
 
     if (!guildId) {
         existing?.remove();
         return;
     }
 
-    if (count === 0 && !existing) return;
+    // Always render the launcher when we're inside a guild — even when
+    // `count === 0`. A visible-but-dimmed button (the CSS opacity rule
+    // for `data-count="0"`) is *much* better UX than a silent no-op:
+    // users immediately see the plugin is alive, and they can still
+    // open the panel to confirm "no hidden channels here" rather than
+    // wondering whether the feature is broken.
 
-    if (existing) {
+    // If the existing launcher is in *floating* mode, treat it as a
+    // provisional placement and re-probe every reconcile. Strategy D
+    // is a fallback used when Discord hasn't finished rendering the
+    // channel-list header yet; the moment a proper header becomes
+    // reachable we want to graduate the launcher to its preferred
+    // mount instead of leaving it stuck against the sidebar forever.
+    // (Non-floating launchers, by contrast, are stable and only need
+    // their count/title updated — the MutationObserver in
+    // `placeLauncher` handles re-mounting after Discord subtree
+    // swaps via the `!getElementById(LAUNCH_ID)` branch.)
+    const existingFloating = existing?.classList.contains("boon-shc-launch--floating") ?? false;
+
+    if (existing && !existingFloating) {
         existing.setAttribute("data-count", String(count));
         existing.title = `القنوات المخفية (${count})`;
         const countEl = existing.querySelector<HTMLElement>(".boon-shc-launch-count");
@@ -200,9 +360,42 @@ function updateLauncher(count: number): void {
         return;
     }
 
-    const header = findChannelListHeader();
-    if (!header) return;
-    header.appendChild(buildLauncher(count));
+    const probe = probeChannelListMount();
+    // Floating-button graduation: keep the existing floating launcher
+    // in place when the probe still resolves to floating (no header
+    // available yet) or fails entirely (transient DOM rebuild) — yanking
+    // it on every reconcile while we wait for Discord would cause a
+    // visible flicker. Only swap it out once a non-floating strategy
+    // becomes reachable, at which point `restoreFloatingMutation()` has
+    // already been called inside the probe.
+    if (existing && existingFloating) {
+        if (!probe || probe.floating) {
+            existing.setAttribute("data-count", String(count));
+            existing.title = `القنوات المخفية (${count})`;
+            const countEl = existing.querySelector<HTMLElement>(".boon-shc-launch-count");
+            if (countEl) countEl.textContent = String(count);
+            return;
+        }
+        // A header strategy won — drop the floating button and fall
+        // through to the creation path so the next block mounts a
+        // fresh, non-floating launcher inside the real header.
+        existing.remove();
+    }
+    if (!probe) {
+        if (lastPlacementStrategy !== "none") {
+            lastPlacementStrategy = "none";
+            logger?.warn("launcher placement failed — no channel-list mount found yet");
+        }
+        return;
+    }
+
+    const btn = buildLauncher(count, probe.floating);
+    probe.mount.appendChild(btn);
+
+    if (lastPlacementStrategy !== probe.strategy) {
+        lastPlacementStrategy = probe.strategy;
+        logger?.info(`launcher placed via "${probe.strategy}" (count=${count}, floating=${probe.floating})`);
+    }
 }
 
 export function placeLauncher(hooks: LauncherHooks): () => void {
@@ -301,6 +494,16 @@ export function placeLauncher(hooks: LauncherHooks): () => void {
         // Drop the module-level guild memo so a re-enable on the same guild
         // re-initializes `state.query` / `state.drilldownId` from scratch.
         lastGuildSeen = null;
+        // Reset the strategy memo so the *next* successful probe still
+        // emits its diagnostic log — without this, a disable→re-enable
+        // cycle that happens to land on the same strategy would be
+        // invisible in DevTools.
+        lastPlacementStrategy = null;
+        // Restore the inline `position` we may have flipped on Discord's
+        // sidebar for floating mode. If the user disables the plugin
+        // without navigating, this leaves Discord's DOM in the exact
+        // state we found it in.
+        restoreFloatingMutation();
     };
 }
 

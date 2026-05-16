@@ -45,6 +45,23 @@ export const STYLE = `
     }
     .boon-shc-launch[data-count="0"] .boon-shc-launch-count { display: none; }
 
+    /* ─── Floating fallback ────────────────────────────────────────────── */
+    /* Used when no proper channel-list header is reachable (Discord DOM
+       reshuffles, new A/B build, etc.). Anchored to the sidebar's
+       top-right corner so it's always discoverable. */
+    .boon-shc-launch.boon-shc-launch--floating {
+        /* Reset the 0 8px margin the base style applies; in floating mode
+           the launcher is absolutely positioned, so any margin would add
+           to the explicit top/right offsets and push the button further
+           from the sidebar edge than we intended. */
+        margin: 0;
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        z-index: 50;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    }
+
     /* ─── Modal backdrop + container ───────────────────────────────────── */
     .boon-shc-backdrop {
         position: fixed;
