@@ -566,20 +566,27 @@ export function scanGuild(guildId: string): DiscoveryResult {
     // cached Flux-shaped export and probe with the real guildId. This is the
     // only path that works on builds where every store identifier is mangled
     // (constructor name, getName(), AND method-name source literals).
+    let channelStoreFromBrute = false;
     if (!channelStore) {
         channelStore = findChannelStoreBrute(guildId);
+        channelStoreFromBrute = channelStore !== null;
     }
 
     // Compute the channel list once and reuse it for the PermissionStore
-    // brute-force seed and the main enumeration below. If the structural
-    // fallback from `findChannelStoreBrute` matched a candidate that doesn't
-    // produce channels for this guild, treat channelStore as not-found so
-    // the user sees the accurate "ChannelStore not found" message instead
-    // of a misleading PermissionStore failure.
+    // brute-force seed and the main enumeration below.
+    //
+    // For brute-force resolutions specifically: if the structural fallback
+    // matched a candidate that doesn't produce channels, downgrade
+    // channelStore back to null so the user sees the accurate "ChannelStore
+    // not found" message. We *do not* apply this downgrade to the standard
+    // resolution path — there, an empty channel list legitimately means
+    // "guild not loaded yet" and should produce the dedicated empty-guild
+    // message at the bottom of this function, not consume the one-shot
+    // store-dump diagnostic flag.
     let earlyChannels: DiscordChannelLite[] = [];
     if (channelStore) {
         earlyChannels = enumerateGuildChannels(channelStore, guildId);
-        if (earlyChannels.length === 0) {
+        if (earlyChannels.length === 0 && channelStoreFromBrute) {
             channelStore = null;
         }
     }
