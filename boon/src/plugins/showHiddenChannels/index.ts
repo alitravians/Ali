@@ -134,6 +134,11 @@ export default definePlugin({
                 onOpen: () => openPanel({
                     toast: msg => ctx.toast(msg, "info"),
                 }),
+                // Surface placement diagnostics through the plugin's
+                // namespaced logger so users / Devin can pinpoint which
+                // probe strategy succeeded (or warn when none did) by
+                // tailing the DevTools console.
+                logger: ctx.logger,
             });
         }
 
@@ -184,6 +189,7 @@ export default definePlugin({
                     onOpen: () => openPanel({
                         toast: msg => ctx.toast(msg, "info"),
                     }),
+                    logger: ctx.logger,
                 });
             } else if (!launcherWanted && launcherActive) {
                 teardownLauncher?.();
