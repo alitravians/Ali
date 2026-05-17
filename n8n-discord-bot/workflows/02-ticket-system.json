@@ -115,13 +115,13 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/webhooks/{{ $('Build ticket data').first().json.applicationId }}/{{ $('Build ticket data').first().json.interactionToken }}",
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('Build ticket data').first().json.applicationId }}/{{ $('Build ticket data').first().json.interactionToken }}/messages/@original",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `✅ تم فتح تذكرتك: <#${$('Discord: create channel').first().json.id}>`,\n  \"flags\": 64\n}",
+        "jsonBody": "={\n  \"content\": `✅ تم فتح تذكرتك: <#${$('Discord: create channel').first().json.id}>`\n}",
         "options": {}
       },
       "id": "respond-interaction",

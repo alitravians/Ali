@@ -102,13 +102,13 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/webhooks/{{ $('Build poll data').first().json.applicationId }}/{{ $('Build poll data').first().json.interactionToken }}",
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('Build poll data').first().json.applicationId }}/{{ $('Build poll data').first().json.interactionToken }}/messages/@original",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"content\": \"✅ تم نشر الاستطلاع بنجاح\", \"flags\": 64 }",
+        "jsonBody": "={ \"content\": \"✅ تم نشر الاستطلاع بنجاح\" }",
         "options": { "ignoreResponseCode": true }
       },
       "id": "ack-interaction",

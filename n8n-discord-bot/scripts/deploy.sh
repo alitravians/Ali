@@ -17,10 +17,15 @@ if [[ -z "${N8N_ENCRYPTION_KEY:-}" ]]; then
   echo "  -> $N8N_ENCRYPTION_KEY (save this!)"
 fi
 
-flyctl secrets set \
-  N8N_ENCRYPTION_KEY="$N8N_ENCRYPTION_KEY" \
-  ${N8N_BASIC_AUTH_PASSWORD:+N8N_BASIC_AUTH_ACTIVE=true N8N_BASIC_AUTH_USER=admin N8N_BASIC_AUTH_PASSWORD="$N8N_BASIC_AUTH_PASSWORD"} \
-  -a alitravians-n8n
+# Build secret args as an array so spaces/special chars in the password
+# are preserved without word-splitting issues.
+secret_args=(N8N_ENCRYPTION_KEY="$N8N_ENCRYPTION_KEY")
+if [[ -n "${N8N_BASIC_AUTH_PASSWORD:-}" ]]; then
+  secret_args+=(N8N_BASIC_AUTH_ACTIVE=true)
+  secret_args+=(N8N_BASIC_AUTH_USER=admin)
+  secret_args+=(N8N_BASIC_AUTH_PASSWORD="$N8N_BASIC_AUTH_PASSWORD")
+fi
+flyctl secrets set "${secret_args[@]}" -a alitravians-n8n
 
 flyctl deploy -a alitravians-n8n --config fly.toml --remote-only
 

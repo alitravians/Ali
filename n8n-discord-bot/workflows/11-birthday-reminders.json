@@ -44,13 +44,13 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}",
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}/messages/@original",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"content\": `🎂 تم تسجيل عيد ميلادك بتاريخ ${$json.day}/${$json.month}`, \"flags\": 64 }",
+        "jsonBody": "={ \"content\": `🎂 تم تسجيل عيد ميلادك بتاريخ ${$json.day}/${$json.month}` }",
         "options": { "ignoreResponseCode": true }
       },
       "id": "ack-bday",

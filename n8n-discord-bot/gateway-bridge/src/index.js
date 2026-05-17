@@ -132,11 +132,9 @@ client.on(Events.GuildMemberAdd, async (member) => {
 client.on(Events.GuildMemberRemove, async (member) => {
   if (!inGuild(member.guild.id)) return;
 
-  try {
-    if (member.partial) await member.fetch().catch(() => null);
-  } catch {
-    // user may already be gone; fall through with whatever data we have
-  }
+  // Partial member is normal on leave; the user may already be gone, so
+  // .catch swallows the rejection and we fall through with whatever data we have.
+  if (member.partial) await member.fetch().catch(() => null);
 
   await forward('discord/member-leave', {
     event: 'GUILD_MEMBER_REMOVE',
@@ -222,10 +220,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
       options[opt.name] = opt.value ?? opt.user?.id ?? opt.channel?.id ?? opt.role?.id ?? null;
     }
 
-    // Do NOT deferReply here: the workflows respond by POSTing a followup
-    // (POST /webhooks/{appId}/{token}) rather than editing @original, so a
-    // deferred reply would leave an orphaned "is thinking..." message.
-    // The workflows must POST the initial response within 3 seconds.
+    // Send an ephemeral deferred response so the user sees "thinking..." only
+    // to themselves. Workflows then PATCH /webhooks/{appId}/{token}/messages/@original
+    // to replace the deferred reply with the real content (no orphaned message).
+    // Deferred replies extend the response window from 3s to 15min, which is
+    // important for multi-step workflows (ticket creation, polls with reactions).
+    try {
+      await interaction.deferReply({ ephemeral: true });
+    } catch (err) {
+      console.warn('[interaction] defer failed:', err.message);
+    }
 
     // Route each top-level slash command to its own webhook path so n8n can
     // dispatch them to separate workflows without collisions.

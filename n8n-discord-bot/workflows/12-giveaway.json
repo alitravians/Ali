@@ -97,13 +97,13 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}",
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}/messages/@original",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"content\": \"✅ تم إنشاء السحب\", \"flags\": 64 }",
+        "jsonBody": "={ \"content\": \"✅ تم إنشاء السحب\" }",
         "options": { "ignoreResponseCode": true }
       },
       "id": "ack-gw",
