@@ -96,7 +96,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Discord: create channel').first().json.id }}/messages/{{ $json.id }}/reactions/🔒/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Discord: create channel').first().json.id }}/messages/{{ $json.id }}/reactions/{{ encodeURIComponent('🔒') }}/@me",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": {}

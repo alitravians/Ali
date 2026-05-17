@@ -68,7 +68,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Build giveaway data').first().json.channelId }}/messages/{{ $json.id }}/reactions/🎉/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build giveaway data').first().json.channelId }}/messages/{{ $json.id }}/reactions/{{ encodeURIComponent('🎉') }}/@me",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": { "ignoreResponseCode": true }
@@ -131,7 +131,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages/{{ $json.messageId }}/reactions/🎉?limit=100",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages/{{ $json.messageId }}/reactions/{{ encodeURIComponent('🎉') }}?limit=100",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": { "ignoreResponseCode": true }
@@ -150,7 +150,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const reactors = ($input.first().json || []).filter(u => !u.bot);\nconst gw = $('Find ended giveaways').first().json;\nif (reactors.length === 0) {\n  const sd = $getWorkflowStaticData('global');\n  sd.giveaways[gw.giveawayId].done = true;\n  return [{ json: { ...gw, winners: [], noEntrants: true } }];\n}\nconst shuffled = reactors.sort(() => Math.random() - 0.5);\nconst winnerCount = Math.min(gw.winners || 1, shuffled.length);\nconst winners = shuffled.slice(0, winnerCount);\nconst sd = $getWorkflowStaticData('global');\nsd.giveaways[gw.giveawayId].done = true;\nreturn [{ json: { ...gw, winners, noEntrants: false } }];"
+        "jsCode": "const reactors = ($input.first().json || []).filter(u => !u.bot);\nconst gw = $('Find ended giveaways').first().json;\nconst sd = $getWorkflowStaticData('global');\nif (reactors.length === 0) {\n  sd.giveaways[gw.giveawayId].done = true;\n  return [{ json: { ...gw, winners: [], noEntrants: true } }];\n}\n// Fisher-Yates shuffle for uniform random winner selection\nconst pool = reactors.slice();\nfor (let i = pool.length - 1; i > 0; i--) {\n  const j = Math.floor(Math.random() * (i + 1));\n  [pool[i], pool[j]] = [pool[j], pool[i]];\n}\nconst winnerCount = Math.min(gw.winners || 1, pool.length);\nconst winners = pool.slice(0, winnerCount);\nsd.giveaways[gw.giveawayId].done = true;\nreturn [{ json: { ...gw, winners, noEntrants: false } }];"
       },
       "id": "pick-winners",
       "name": "Pick winners",

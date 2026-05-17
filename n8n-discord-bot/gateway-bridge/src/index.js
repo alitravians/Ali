@@ -63,6 +63,20 @@ async function forward(eventPath, payload) {
   }
 }
 
+async function fanout(eventPaths, payload) {
+  await Promise.all(eventPaths.map((p) => forward(p, payload)));
+}
+
+// Each MESSAGE_CREATE event is fanned out to multiple workflows (AI mention
+// handler, auto-moderation, XP, cross-posting). n8n cannot share a single
+// webhook path across active workflows, so we use one unique path per consumer.
+const MESSAGE_CREATE_PATHS = [
+  'discord/message-create/ai',
+  'discord/message-create/mod',
+  'discord/message-create/xp',
+  'discord/message-create/cross',
+];
+
 function inGuild(guildId) {
   if (!GUILD_ID) return true;
   return guildId === GUILD_ID;
@@ -78,7 +92,7 @@ client.on(Events.MessageCreate, async (msg) => {
   if (!msg.guild || !inGuild(msg.guildId)) return;
   if (msg.author.bot) return;
 
-  await forward('discord/message-create', {
+  await fanout(MESSAGE_CREATE_PATHS, {
     event: 'MESSAGE_CREATE',
     guildId: msg.guildId,
     channelId: msg.channelId,
@@ -208,11 +222,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
       options[opt.name] = opt.value ?? opt.user?.id ?? opt.channel?.id ?? opt.role?.id ?? null;
     }
 
-    try {
-      await interaction.deferReply({ ephemeral: false });
-    } catch (err) {
-      console.warn('[interaction] defer failed:', err.message);
-    }
+    // Do NOT deferReply here: the workflows respond by POSTing a followup
+    // (POST /webhooks/{appId}/{token}) rather than editing @original, so a
+    // deferred reply would leave an orphaned "is thinking..." message.
+    // The workflows must POST the initial response within 3 seconds.
 
     // Route each top-level slash command to its own webhook path so n8n can
     // dispatch them to separate workflows without collisions.

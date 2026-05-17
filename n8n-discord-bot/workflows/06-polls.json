@@ -83,7 +83,7 @@
     {
       "parameters": {
         "method": "PUT",
-        "url": "=https://discord.com/api/v10/channels/{{ $('Send poll').first().json.channel_id }}/messages/{{ $('Discord: send poll').first().json.id }}/reactions/{{ encodeURIComponent($json.emojis) }}/@me",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Discord: send poll').first().json.channel_id }}/messages/{{ $('Discord: send poll').first().json.id }}/reactions/{{ encodeURIComponent($json.emojis) }}/@me",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "options": { "ignoreResponseCode": true, "batching": { "batch": { "batchSize": 1, "batchInterval": 300 } } }

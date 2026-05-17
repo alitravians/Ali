@@ -4,7 +4,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "discord/message-create",
+        "path": "discord/message-create/ai",
         "responseMode": "lastNode",
         "options": {}
       },
