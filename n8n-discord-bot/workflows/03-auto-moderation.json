@@ -17,7 +17,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// banned words list - edit via /moderation add-word command (separate workflow)\n// or hard-code here for static list\nconst BANNED = (process.env.BANNED_WORDS || 'كلب,حمار,تافه,غبي').split(',').map(w => w.trim().toLowerCase()).filter(Boolean);\nconst body = $input.first().json.body;\nconst content = (body.content || '').toLowerCase();\nconst found = BANNED.filter(w => content.includes(w));\nreturn [{ json: { ...body, bannedWordsFound: found, isViolation: found.length > 0 } }];"
+        "jsCode": "// banned words list - edit via /moderation add-word command (separate workflow)\n// or hard-code here for static list\nconst BANNED = ($env.BANNED_WORDS || 'كلب,حمار,تافه,غبي').split(',').map(w => w.trim().toLowerCase()).filter(Boolean);\nconst body = $input.first().json.body;\nconst content = (body.content || '').toLowerCase();\nconst found = BANNED.filter(w => content.includes(w));\nreturn [{ json: { ...body, bannedWordsFound: found, isViolation: found.length > 0 } }];"
       },
       "id": "scan-words",
       "name": "Scan for banned words",

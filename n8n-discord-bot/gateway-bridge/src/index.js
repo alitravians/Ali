@@ -3,6 +3,7 @@
 // so n8n workflows can react to messages, member joins, reactions, etc.
 
 import 'dotenv/config';
+import http from 'node:http';
 import {
   Client,
   GatewayIntentBits,
@@ -256,8 +257,29 @@ client.on('error', (err) => {
   console.error('[client error]', err);
 });
 
+// Minimal HTTP health server so Fly.io can detect hung event loops, not just
+// process exits. Returns 200 only when the Discord client is fully ready.
+const HEALTH_PORT = Number(process.env.HEALTH_PORT || 8080);
+const healthServer = http.createServer((req, res) => {
+  if (req.url === '/healthz' || req.url === '/') {
+    const ready = client.isReady();
+    res.writeHead(ready ? 200 : 503, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({
+      ready,
+      uptimeSeconds: Math.floor(process.uptime()),
+      user: ready ? client.user?.tag : null,
+    }));
+    return;
+  }
+  res.writeHead(404).end();
+});
+healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
+  console.log(`[health] listening on :${HEALTH_PORT}/healthz`);
+});
+
 function shutdown(signal) {
   console.log(`[shutdown] ${signal} received, destroying client`);
+  healthServer.close();
   client.destroy();
   process.exit(0);
 }

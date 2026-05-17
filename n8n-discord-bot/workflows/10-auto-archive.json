@@ -40,7 +40,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const channels = $input.first().json || [];\nconst archiveCategoryId = $env.ARCHIVE_CATEGORY_ID;\nconst protectedIds = ($env.PROTECTED_CHANNEL_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst INACTIVE_DAYS = parseInt($env.INACTIVE_DAYS || '30', 10);\n\nconst textChannels = channels.filter(c => c.type === 0 && c.parent_id !== archiveCategoryId && !protectedIds.includes(c.id));\nreturn textChannels.map(c => ({ json: { id: c.id, name: c.name, lastMessageId: c.last_message_id, parentId: c.parent_id, inactiveDays: INACTIVE_DAYS, archiveCategoryId } }));"
+        "jsCode": "const channels = $input.first().json || [];\nconst archiveCategoryId = $env.ARCHIVE_CATEGORY_ID;\nconst protectedIds = ($env.PROTECTED_CHANNEL_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst INACTIVE_DAYS = parseInt($env.INACTIVE_DAYS || '30', 10);\nconst guildId = $env.DISCORD_GUILD_ID;\n\nconst textChannels = channels.filter(c => c.type === 0 && c.parent_id !== archiveCategoryId && !protectedIds.includes(c.id));\nreturn textChannels.map(c => ({ json: { id: c.id, name: c.name, lastMessageId: c.last_message_id, parentId: c.parent_id, inactiveDays: INACTIVE_DAYS, archiveCategoryId, guildId } }));"
       },
       "id": "filter-archivable",
       "name": "Filter archivable channels",
@@ -87,7 +87,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"parent_id\": $json.archiveCategoryId,\n  \"name\": `archived-${$json.name}`,\n  \"lock_permissions\": true\n}",
+        "jsonBody": "={\n  \"parent_id\": $json.archiveCategoryId,\n  \"name\": `archived-${$json.name}`,\n  \"permission_overwrites\": [\n    {\n      \"id\": $json.guildId,\n      \"type\": 0,\n      \"deny\": \"2048\"\n    }\n  ]\n}",
         "options": { "ignoreResponseCode": true, "batching": { "batch": { "batchSize": 1, "batchInterval": 1000 } } }
       },
       "id": "move-arch",
