@@ -103,7 +103,11 @@ npm run register-commands
 - `DISCORD_BOT_TOKEN` - توكن البوت
 - `DISCORD_GUILD_ID` - معرف السيرفر
 - `N8N_WEBHOOK_BASE` - رابط n8n (مثل `https://alitravians-n8n.fly.dev`)
-- `BRIDGE_SECRET` - سر مشترك بين البريدج و n8n (اختياري للأمان)
+- `BRIDGE_SECRET` - سر مشترك بين البريدج و n8n (اختياري - راجع ملاحظة الأمان أدناه)
+- `FORWARD_TIMEOUT_MS` - أقصى انتظار لاستجابة n8n لكل forward (افتراضي 15000)
+- `HEALTH_PORT` - منفذ HTTP لـ `/healthz` يستخدمه Fly.io (افتراضي 8080)
+
+> **ملاحظة أمنية حول `BRIDGE_SECRET`:** البريدج يرسل رأس `x-bridge-secret` مع كل forward، لكن webhook nodes في n8n لا تتحقق منه افتراضياً. لتفعيل الحماية الفعلية، أضف على كل Webhook trigger في n8n خيار `Header Auth` (Settings ⇒ Credentials ⇒ Header Auth) ضع فيه `x-bridge-secret = <نفس قيمة BRIDGE_SECRET>` وفعّل `authentication: headerAuth` في النود. حالياً المتغير مدفوع كـ defense-in-depth، الحماية الأساسية هي أن رابط `WEBHOOK_URL` ومسارات `/webhook/discord/...` غير معروفة للعامة.
 
 #### للـ n8n (Fly secrets):
 - `N8N_ENCRYPTION_KEY` - مفتاح تشفير الـ credentials (64 hex chars)

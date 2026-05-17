@@ -43,6 +43,11 @@ const client = new Client({
   ],
 });
 
+// Bound how long a single forward can wait for n8n. Without this, undici's
+// default header timeout (~5min) would let pending forwards pile up if n8n
+// stalls, slowly leaking memory on a busy guild.
+const FORWARD_TIMEOUT_MS = Number(process.env.FORWARD_TIMEOUT_MS || 15000);
+
 async function forward(eventPath, payload) {
   const url = `${N8N_WEBHOOK_BASE}/webhook/${eventPath}`;
   try {
@@ -53,6 +58,7 @@ async function forward(eventPath, payload) {
         ...(BRIDGE_SECRET ? { 'x-bridge-secret': BRIDGE_SECRET } : {}),
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(FORWARD_TIMEOUT_MS),
     });
     if (!res.ok) {
       console.warn(
@@ -134,24 +140,9 @@ client.on(Events.GuildMemberAdd, async (member) => {
   });
 });
 
-client.on(Events.GuildMemberRemove, async (member) => {
-  if (!inGuild(member.guild.id)) return;
-
-  // Partial member is normal on leave; the user may already be gone, so
-  // .catch swallows the rejection and we fall through with whatever data we have.
-  if (member.partial) await member.fetch().catch(() => null);
-
-  await forward('discord/member-leave', {
-    event: 'GUILD_MEMBER_REMOVE',
-    guildId: member.guild.id,
-    user: {
-      id: member.id,
-      username: member.user?.username ?? 'unknown',
-      displayName: member.displayName ?? member.user?.username ?? 'unknown',
-    },
-    memberCount: member.guild.memberCount,
-  });
-});
+// GuildMemberRemove (member-leave) intentionally not forwarded: no workflow
+// consumes it right now and forwarding would produce a 404 per leave event.
+// Re-add this handler when a goodbye / leave-log workflow is introduced.
 
 client.on(Events.MessageReactionAdd, async (reaction, user) => {
   try {

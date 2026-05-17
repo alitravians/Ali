@@ -14,10 +14,15 @@ for (const k of REQUIRED) {
 }
 
 const commands = [
+  // All command descriptions are intentionally Arabic-only to match the rest
+  // of the bot's UX (button labels, embed text, etc.). Discord allows
+  // setDescriptionLocalizations({ ar, 'en-US' }) per command, but mixing one
+  // localized command with 6 monolingual ones (as an earlier draft did) is
+  // strictly worse than keeping them all consistent. Add localizations to
+  // every command at once if/when an English audience is targeted.
   new SlashCommandBuilder()
     .setName('ticket')
     .setDescription('فتح تذكرة دعم فني جديدة')
-    .setDescriptionLocalizations({ ar: 'فتح تذكرة دعم فني جديدة', 'en-US': 'Open a new support ticket' })
     .addStringOption((o) =>
       o
         .setName('reason')
