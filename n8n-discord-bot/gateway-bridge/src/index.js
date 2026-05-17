@@ -24,6 +24,11 @@ const N8N_WEBHOOK_BASE = process.env.N8N_WEBHOOK_BASE.replace(/\/$/, '');
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 const GUILD_ID = process.env.DISCORD_GUILD_ID || '';
 
+// MessageContent and GuildMembers are privileged intents that must be
+// explicitly enabled in the Discord Developer Portal for the bot
+// application. GuildPresences is also privileged but the bridge does not
+// listen to presence updates, so it has been removed to reduce the
+// privileged-intent surface area.
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -31,7 +36,6 @@ const client = new Client({
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildPresences,
     GatewayIntentBits.GuildVoiceStates,
   ],
   partials: [
