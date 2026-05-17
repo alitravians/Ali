@@ -18,16 +18,30 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "discord/slash-command",
+        "path": "discord/slash-command/level",
         "responseMode": "lastNode",
         "options": {}
       },
       "id": "trig-cmd",
-      "name": "Webhook: slash-command",
+      "name": "Webhook: /level",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [240, 480],
       "webhookId": "discord-slash-level"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command/leaderboard",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd-lb",
+      "name": "Webhook: /leaderboard",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 620],
+      "webhookId": "discord-slash-leaderboard"
     },
     {
       "parameters": {
@@ -171,7 +185,10 @@
     "IF: leveled up": {
       "main": [[{ "node": "Discord: announce level-up", "type": "main", "index": 0 }], []]
     },
-    "Webhook: slash-command": {
+    "Webhook: /level": {
+      "main": [[{ "node": "Handle /level + /leaderboard", "type": "main", "index": 0 }]]
+    },
+    "Webhook: /leaderboard": {
       "main": [[{ "node": "Handle /level + /leaderboard", "type": "main", "index": 0 }]]
     },
     "Handle /level + /leaderboard": {

@@ -21,7 +21,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "discord/slash-command",
+        "path": "discord/slash-command/stats",
         "responseMode": "lastNode",
         "options": {}
       },

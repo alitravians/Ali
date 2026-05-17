@@ -118,13 +118,19 @@ client.on(Events.GuildMemberAdd, async (member) => {
 client.on(Events.GuildMemberRemove, async (member) => {
   if (!inGuild(member.guild.id)) return;
 
+  try {
+    if (member.partial) await member.fetch().catch(() => null);
+  } catch {
+    // user may already be gone; fall through with whatever data we have
+  }
+
   await forward('discord/member-leave', {
     event: 'GUILD_MEMBER_REMOVE',
     guildId: member.guild.id,
     user: {
       id: member.id,
-      username: member.user.username,
-      displayName: member.displayName,
+      username: member.user?.username ?? 'unknown',
+      displayName: member.displayName ?? member.user?.username ?? 'unknown',
     },
     memberCount: member.guild.memberCount,
   });
@@ -186,9 +192,20 @@ client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.guild || !inGuild(interaction.guildId)) return;
 
   if (interaction.isChatInputCommand()) {
+    // Discord option types: 1 = SUB_COMMAND, 2 = SUB_COMMAND_GROUP
+    // When the command uses a subcommand, the real options live nested inside.
+    const topLevel = interaction.options.data;
+    let optionEntries = topLevel;
+    if (topLevel.length === 1 && (topLevel[0].type === 1 || topLevel[0].type === 2)) {
+      const sub = topLevel[0];
+      optionEntries = sub.type === 2 && sub.options?.[0]?.options
+        ? sub.options[0].options
+        : sub.options ?? [];
+    }
+
     const options = {};
-    for (const opt of interaction.options.data) {
-      options[opt.name] = opt.value ?? opt.user?.id ?? opt.channel?.id ?? null;
+    for (const opt of optionEntries) {
+      options[opt.name] = opt.value ?? opt.user?.id ?? opt.channel?.id ?? opt.role?.id ?? null;
     }
 
     try {
@@ -197,10 +214,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       console.warn('[interaction] defer failed:', err.message);
     }
 
-    await forward('discord/slash-command', {
+    // Route each top-level slash command to its own webhook path so n8n can
+    // dispatch them to separate workflows without collisions.
+    await forward(`discord/slash-command/${interaction.commandName}`, {
       event: 'INTERACTION_CREATE',
       commandName: interaction.commandName,
       subcommand: interaction.options.getSubcommand(false),
+      subcommandGroup: interaction.options.getSubcommandGroup(false),
       options,
       guildId: interaction.guildId,
       channelId: interaction.channelId,
@@ -219,10 +239,13 @@ client.on('error', (err) => {
   console.error('[client error]', err);
 });
 
-process.on('SIGTERM', () => {
-  console.log('[shutdown] SIGTERM received, destroying client');
+function shutdown(signal) {
+  console.log(`[shutdown] ${signal} received, destroying client`);
   client.destroy();
   process.exit(0);
-});
+}
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 await client.login(process.env.DISCORD_BOT_TOKEN);
