@@ -22,10 +22,13 @@ fi
 echo "Importing workflows from $WORKFLOWS_DIR to $N8N_URL"
 echo ""
 
-count=0
+total=0
+imported=0
+failed=0
 for f in "$WORKFLOWS_DIR"/*.json; do
+  total=$((total + 1))
   name=$(basename "$f")
-  echo -n "[$((++count))] $name ... "
+  echo -n "[$total] $name ... "
 
   payload=$(jq '{name: .name, nodes: .nodes, connections: .connections, settings: (.settings // {}), staticData: null}' "$f")
 
@@ -37,12 +40,14 @@ for f in "$WORKFLOWS_DIR"/*.json; do
   id=$(echo "$resp" | jq -r '.id // .data.id // empty')
   if [[ -n "$id" ]]; then
     echo "imported (id=$id)"
+    imported=$((imported + 1))
   else
     echo "FAILED"
     echo "$resp" | jq . >&2
+    failed=$((failed + 1))
   fi
 done
 
 echo ""
-echo "Done. Imported $count workflows."
+echo "Done. Imported $imported / $total workflows ($failed failed)."
 echo "Next: open $N8N_URL, configure credentials (Discord Bot Auth, Groq API Key), then activate workflows."

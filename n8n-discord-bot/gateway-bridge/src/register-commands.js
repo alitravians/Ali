@@ -92,69 +92,15 @@ const commands = [
     .setDescription('عرض إحصائيات السيرفر')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
-  new SlashCommandBuilder()
-    .setName('reactionrole')
-    .setDescription('إضافة أو إزالة دور تفاعلي')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
-    .addSubcommand((s) =>
-      s
-        .setName('add')
-        .setDescription('ربط ايموجي بدور على رسالة')
-        .addStringOption((o) =>
-          o.setName('message_id').setDescription('معرف الرسالة').setRequired(true),
-        )
-        .addStringOption((o) =>
-          o.setName('emoji').setDescription('الايموجي').setRequired(true),
-        )
-        .addRoleOption((o) =>
-          o.setName('role').setDescription('الدور').setRequired(true),
-        ),
-    )
-    .addSubcommand((s) =>
-      s
-        .setName('remove')
-        .setDescription('إزالة ربط ايموجي بدور')
-        .addStringOption((o) =>
-          o.setName('message_id').setDescription('معرف الرسالة').setRequired(true),
-        )
-        .addStringOption((o) =>
-          o.setName('emoji').setDescription('الايموجي').setRequired(true),
-        ),
-    ),
-
-  new SlashCommandBuilder()
-    .setName('crosspost')
-    .setDescription('إعداد نسخ الرسائل بين القنوات')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
-    .addSubcommand((s) =>
-      s
-        .setName('add')
-        .setDescription('إضافة قناة هدف لنسخ الرسائل')
-        .addChannelOption((o) =>
-          o.setName('source').setDescription('القناة المصدر').setRequired(true),
-        )
-        .addStringOption((o) =>
-          o.setName('target_webhook').setDescription('Webhook URL للقناة الهدف').setRequired(true),
-        ),
-    ),
-
-  new SlashCommandBuilder()
-    .setName('moderation')
-    .setDescription('إدارة قائمة الكلمات الممنوعة')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-    .addSubcommand((s) =>
-      s
-        .setName('add-word')
-        .setDescription('إضافة كلمة ممنوعة')
-        .addStringOption((o) =>
-          o.setName('word').setDescription('الكلمة').setRequired(true),
-        ),
-    )
-    .addSubcommand((s) =>
-      s
-        .setName('list-words')
-        .setDescription('عرض الكلمات الممنوعة'),
-    ),
+  // NOTE: admin slash commands /reactionrole, /crosspost and /moderation are
+  // intentionally NOT registered yet. The reactive workflows (05-reaction-roles,
+  // 08-cross-posting, 03-auto-moderation) handle the *event side* (reactions
+  // adding roles, messages being cross-posted, words being filtered) but the
+  // admin configuration side (adding mappings, adding banned words) needs
+  // its own n8n workflow that doesn't exist yet. Registering them now would
+  // make the bot defer the interaction, fail to find a handler, and leave the
+  // invoker staring at a perpetual "thinking..." spinner. Add the workflows
+  // first, then re-introduce these SlashCommandBuilder entries here.
 ].map((c) => c.toJSON());
 
 const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_BOT_TOKEN);

@@ -59,6 +59,10 @@ async function forward(eventPath, payload) {
         `[forward] ${eventPath} -> ${url} returned ${res.status}`,
       );
     }
+    // undici requires the body be consumed/cancelled before the socket is
+    // returned to the pool. Without this, MESSAGE_CREATE fanout will exhaust
+    // the connection pool on a busy guild and subsequent forwards will stall.
+    await res.body?.cancel().catch(() => null);
   } catch (err) {
     console.error(`[forward] ${eventPath} failed:`, err.message);
   }
