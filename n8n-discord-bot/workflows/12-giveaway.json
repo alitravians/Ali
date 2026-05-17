@@ -1,0 +1,217 @@
+{
+  "name": "12 - Giveaway Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd",
+      "name": "Webhook: /giveaway",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "webhookId": "discord-giveaway-cmd"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "cron-tick",
+      "name": "Cron: every 1 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 460]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nif (body.commandName !== 'giveaway') {\n  return [{ json: { skip: true } }];\n}\nconst staticData = $getWorkflowStaticData('global');\nstaticData.giveaways = staticData.giveaways || {};\n\nconst prize = body.options.prize;\nconst durationMin = body.options.duration_minutes;\nconst winners = body.options.winners || 1;\nconst endsAt = Date.now() + durationMin * 60 * 1000;\nconst giveawayId = `gw-${Date.now().toString(36)}`;\n\nreturn [{ json: { giveawayId, prize, durationMin, winners, endsAt, channelId: body.channelId, hostId: body.user.id, hostName: body.user.displayName, interactionToken: body.interactionToken, applicationId: body.applicationId } }];"
+      },
+      "id": "build-gw",
+      "name": "Build giveaway data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": `🎁 سحب جوائز: ${$json.prize}`,\n    \"description\": `**عدد الفائزين:** ${$json.winners}\\n**ينتهي:** <t:${Math.floor($json.endsAt / 1000)}:R>\\n**المنظم:** <@${$json.hostId}>\\n\\nتفاعل بـ 🎉 للمشاركة!`,\n    \"color\": 16766720,\n    \"footer\": { \"text\": `ID: ${$json.giveawayId}` },\n    \"timestamp\": new Date($json.endsAt).toISOString()\n  }]\n}",
+        "options": {}
+      },
+      "id": "post-gw",
+      "name": "Discord: post giveaway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Build giveaway data').first().json.channelId }}/messages/{{ $json.id }}/reactions/🎉/@me",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "react-gw",
+      "name": "Discord: add 🎉 reaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const messageId = $input.first().json && $('Discord: post giveaway').first().json.id;\nconst gw = $('Build giveaway data').first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.giveaways = staticData.giveaways || {};\nstaticData.giveaways[gw.giveawayId] = {\n  messageId,\n  channelId: gw.channelId,\n  prize: gw.prize,\n  winners: gw.winners,\n  endsAt: gw.endsAt,\n  hostId: gw.hostId,\n  done: false,\n};\nreturn [{ json: { saved: true, gw: staticData.giveaways[gw.giveawayId], applicationId: gw.applicationId, interactionToken: gw.interactionToken } }];"
+      },
+      "id": "store-gw",
+      "name": "Store giveaway",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"content\": \"✅ تم إنشاء السحب\", \"flags\": 64 }",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "ack-gw",
+      "name": "Discord: ack /giveaway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst giveaways = staticData.giveaways || {};\nconst now = Date.now();\nconst ready = Object.entries(giveaways)\n  .filter(([_, g]) => !g.done && now >= g.endsAt)\n  .map(([id, g]) => ({ giveawayId: id, ...g }));\nif (ready.length === 0) return [];\nreturn ready.map(r => ({ json: r }));"
+      },
+      "id": "find-ended",
+      "name": "Find ended giveaways",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 460]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages/{{ $json.messageId }}/reactions/🎉?limit=100",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "fetch-reactors",
+      "name": "Discord: fetch reactors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 460],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const reactors = ($input.first().json || []).filter(u => !u.bot);\nconst gw = $('Find ended giveaways').first().json;\nif (reactors.length === 0) {\n  const sd = $getWorkflowStaticData('global');\n  sd.giveaways[gw.giveawayId].done = true;\n  return [{ json: { ...gw, winners: [], noEntrants: true } }];\n}\nconst shuffled = reactors.sort(() => Math.random() - 0.5);\nconst winnerCount = Math.min(gw.winners || 1, shuffled.length);\nconst winners = shuffled.slice(0, winnerCount);\nconst sd = $getWorkflowStaticData('global');\nsd.giveaways[gw.giveawayId].done = true;\nreturn [{ json: { ...gw, winners, noEntrants: false } }];"
+      },
+      "id": "pick-winners",
+      "name": "Pick winners",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 460]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": $json.noEntrants ? `❌ انتهى سحب **${$json.prize}** بدون مشاركين.` : `🎉 الفائزون بـ **${$json.prize}**: ${$json.winners.map(w => `<@${w.id}>`).join(', ')}\\n\\n👏 مبروك! ${$json.winners.length > 1 ? 'كل واحد منكم تواصل مع' : 'تواصل مع'} <@${$json.hostId}> لاستلام جائزتك.`,\n  \"message_reference\": { \"message_id\": $json.messageId, \"fail_if_not_exists\": false },\n  \"allowed_mentions\": { \"users\": [$json.hostId, ...($json.winners || []).map(w => w.id)] }\n}",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "announce-win",
+      "name": "Discord: announce winners",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 460],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: /giveaway": {
+      "main": [[{ "node": "Build giveaway data", "type": "main", "index": 0 }]]
+    },
+    "Build giveaway data": {
+      "main": [[{ "node": "Discord: post giveaway", "type": "main", "index": 0 }]]
+    },
+    "Discord: post giveaway": {
+      "main": [[{ "node": "Discord: add 🎉 reaction", "type": "main", "index": 0 }]]
+    },
+    "Discord: add 🎉 reaction": {
+      "main": [[{ "node": "Store giveaway", "type": "main", "index": 0 }]]
+    },
+    "Store giveaway": {
+      "main": [[{ "node": "Discord: ack /giveaway", "type": "main", "index": 0 }]]
+    },
+    "Cron: every 1 min": {
+      "main": [[{ "node": "Find ended giveaways", "type": "main", "index": 0 }]]
+    },
+    "Find ended giveaways": {
+      "main": [[{ "node": "Discord: fetch reactors", "type": "main", "index": 0 }]]
+    },
+    "Discord: fetch reactors": {
+      "main": [[{ "node": "Pick winners", "type": "main", "index": 0 }]]
+    },
+    "Pick winners": {
+      "main": [[{ "node": "Discord: announce winners", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "discord" }, { "name": "giveaway" }]
+}

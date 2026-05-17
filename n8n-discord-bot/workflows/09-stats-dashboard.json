@@ -1,0 +1,155 @@
+{
+  "name": "09 - Daily Stats Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-daily",
+      "name": "Cron: daily 00:00 Asia/Riyadh",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 220]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd",
+      "name": "Webhook: /stats command",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 480],
+      "webhookId": "discord-stats-cmd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json?.body;\nif (body && body.commandName !== 'stats') {\n  return [{ json: { skip: true } }];\n}\nreturn [{\n  json: {\n    skip: false,\n    isManual: !!body,\n    interactionToken: body?.interactionToken,\n    applicationId: body?.applicationId,\n    channelId: body?.channelId,\n  }\n}];"
+      },
+      "id": "gate-stats",
+      "name": "Gate trigger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 480]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://discord.com/api/v10/guilds/{{ $env.DISCORD_GUILD_ID }}?with_counts=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-guild",
+      "name": "Discord: fetch guild stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://discord.com/api/v10/guilds/{{ $env.DISCORD_GUILD_ID }}/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-channels",
+      "name": "Discord: fetch channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const guild = $('Discord: fetch guild stats').first().json;\nconst channels = $('Discord: fetch channels').first().json || [];\nconst staticData = $getWorkflowStaticData('global');\nconst counters = staticData.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\n\nconst textChannels = channels.filter(c => c.type === 0).length;\nconst voiceChannels = channels.filter(c => c.type === 2).length;\nconst categories = channels.filter(c => c.type === 4).length;\n\nconst xpData = staticData.xp || {};\nconst totalMembers = guild.approximate_member_count || 0;\nconst onlineMembers = guild.approximate_presence_count || 0;\nconst topUsers = Object.entries(xpData).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 3);\n\nconst report = {\n  guildName: guild.name,\n  totalMembers,\n  onlineMembers,\n  textChannels,\n  voiceChannels,\n  categories,\n  messagesToday: counters.messages,\n  joinsToday: counters.joins,\n  leavesToday: counters.leaves,\n  topUsers: topUsers.map(([uid, d]) => ({ username: d.username, level: d.level, xp: d.xp })),\n};\n\nstaticData.dailyCounters = { messages: 0, joins: 0, leaves: 0 };\n\nreturn [{ json: report }];"
+      },
+      "id": "build-report",
+      "name": "Build report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 220]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst topList = r.topUsers.length ? r.topUsers.map((u, i) => `${i+1}. ${u.username} - مستوى ${u.level}`).join('\\n') : 'لا توجد بيانات';\nconst embed = {\n  title: `📊 إحصائيات ${r.guildName} اليومية`,\n  color: 5814783,\n  fields: [\n    { name: '👥 الأعضاء', value: `${r.totalMembers} (${r.onlineMembers} متصلين)`, inline: true },\n    { name: '📝 رسائل اليوم', value: String(r.messagesToday), inline: true },\n    { name: '➕ انضموا اليوم', value: String(r.joinsToday), inline: true },\n    { name: '➖ غادروا اليوم', value: String(r.leavesToday), inline: true },\n    { name: '💬 قنوات نصية', value: String(r.textChannels), inline: true },\n    { name: '🎙️ قنوات صوتية', value: String(r.voiceChannels), inline: true },\n    { name: '🏆 أعلى 3 أعضاء', value: topList, inline: false },\n  ],\n  timestamp: new Date().toISOString(),\n  footer: { text: 'تقرير يومي تلقائي' }\n};\nreturn [{ json: { embed } }];"
+      },
+      "id": "format-embed",
+      "name": "Format embed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.STATS_CHANNEL_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"embeds\": [$json.embed] }",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "post-report",
+      "name": "Discord: post daily report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 220],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron: daily 00:00 Asia/Riyadh": {
+      "main": [[{ "node": "Discord: fetch guild stats", "type": "main", "index": 0 }]]
+    },
+    "Webhook: /stats command": {
+      "main": [[{ "node": "Gate trigger", "type": "main", "index": 0 }]]
+    },
+    "Gate trigger": {
+      "main": [[{ "node": "Discord: fetch guild stats", "type": "main", "index": 0 }]]
+    },
+    "Discord: fetch guild stats": {
+      "main": [[{ "node": "Discord: fetch channels", "type": "main", "index": 0 }]]
+    },
+    "Discord: fetch channels": {
+      "main": [[{ "node": "Build report", "type": "main", "index": 0 }]]
+    },
+    "Build report": {
+      "main": [[{ "node": "Format embed", "type": "main", "index": 0 }]]
+    },
+    "Format embed": {
+      "main": [[{ "node": "Discord: post daily report", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "discord" }, { "name": "stats" }]
+}

@@ -1,0 +1,26 @@
+# Fly.io configuration for Discord Gateway -> n8n bridge
+# Deploy with: flyctl deploy --config fly.toml
+# Secrets: flyctl secrets set DISCORD_BOT_TOKEN=... N8N_WEBHOOK_BASE=... BRIDGE_SECRET=... DISCORD_GUILD_ID=...
+
+app = "alitravians-discord-bridge"
+primary_region = "fra"
+kill_signal = "SIGINT"
+kill_timeout = "10s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  TZ = "Asia/Riyadh"
+
+[processes]
+  app = "node src/index.js"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[deploy]
+  strategy = "immediate"

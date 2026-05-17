@@ -1,0 +1,190 @@
+{
+  "name": "07 - Leveling / XP System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-msg",
+      "name": "Webhook: message-create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 220],
+      "webhookId": "discord-message-xp"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd",
+      "name": "Webhook: slash-command",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 480],
+      "webhookId": "discord-slash-level"
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.xp = staticData.xp || {};\nstaticData.lastMsg = staticData.lastMsg || {};\n\nconst body = $input.first().json.body;\nconst userId = body.author.id;\nconst now = Date.now();\nconst COOLDOWN_MS = 60000;\nconst lastMs = staticData.lastMsg[userId] || 0;\n\nif (now - lastMs < COOLDOWN_MS) {\n  return [{ json: { skip: true } }];\n}\nstaticData.lastMsg[userId] = now;\n\nconst current = staticData.xp[userId] || { xp: 0, level: 0, username: body.author.username };\nconst gain = 15 + Math.floor(Math.random() * 11);\ncurrent.xp += gain;\ncurrent.username = body.author.username;\n\nconst xpForNext = (lvl) => 5 * lvl * lvl + 50 * lvl + 100;\nlet leveledUp = false;\nlet newLevel = current.level;\nwhile (current.xp >= xpForNext(newLevel)) {\n  current.xp -= xpForNext(newLevel);\n  newLevel += 1;\n  leveledUp = true;\n}\ncurrent.level = newLevel;\nstaticData.xp[userId] = current;\n\nreturn [{ json: { skip: false, leveledUp, newLevel, userId, username: body.author.username, channelId: body.channelId, totalXp: current.xp, guildId: body.guildId } }];"
+      },
+      "id": "calc-xp",
+      "name": "Calc XP + level",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 220]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-lvl",
+              "leftValue": "={{ $json.leveledUp }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-leveled",
+      "name": "IF: leveled up",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": `🎉 مبروك <@${$json.userId}>! وصلت للمستوى **${$json.newLevel}**`,\n  \"allowed_mentions\": { \"users\": [$json.userId] }\n}",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "announce-lvl",
+      "name": "Discord: announce level-up",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 140],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.xp = staticData.xp || {};\nconst body = $input.first().json.body;\nconst cmd = body.commandName;\n\nif (cmd === 'level') {\n  const targetUserId = body.options.user || body.user.id;\n  const record = staticData.xp[targetUserId] || { xp: 0, level: 0, username: 'مجهول' };\n  const xpForNext = 5 * record.level * record.level + 50 * record.level + 100;\n  return [{ json: { mode: 'level', userId: targetUserId, record, xpForNext, interactionToken: body.interactionToken, applicationId: body.applicationId } }];\n} else if (cmd === 'leaderboard') {\n  const sorted = Object.entries(staticData.xp).map(([uid, d]) => ({ userId: uid, ...d, totalXp: (d.level * d.level * 5 / 3) + d.xp + d.level * 50 })).sort((a, b) => b.totalXp - a.totalXp).slice(0, 10);\n  return [{ json: { mode: 'leaderboard', sorted, interactionToken: body.interactionToken, applicationId: body.applicationId } }];\n}\nreturn [{ json: { skip: true } }];"
+      },
+      "id": "handle-cmd",
+      "name": "Handle /level + /leaderboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-mode",
+              "leftValue": "={{ $json.mode }}",
+              "rightValue": "level",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-mode-lvl",
+      "name": "IF: mode=level",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 480]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": `📊 مستوى ${$json.record.username}`,\n    \"description\": `**المستوى:** ${$json.record.level}\\n**XP:** ${$json.record.xp} / ${$json.xpForNext}\\n**التقدم:** ${'█'.repeat(Math.floor(($json.record.xp / $json.xpForNext) * 10))}${'░'.repeat(10 - Math.floor(($json.record.xp / $json.xpForNext) * 10))}`,\n    \"color\": 3447003\n  }]\n}",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "send-level",
+      "name": "Discord: send level card",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 380],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"🏆 قائمة المتصدرين\",\n    \"description\": $json.sorted.length ? $json.sorted.map((s, i) => `**${i+1}.** ${s.username} - المستوى ${s.level} (${s.xp} XP)`).join('\\n') : 'لا توجد بيانات بعد',\n    \"color\": 16766720\n  }]\n}",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "send-lb",
+      "name": "Discord: send leaderboard",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 580],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: message-create": {
+      "main": [[{ "node": "Calc XP + level", "type": "main", "index": 0 }]]
+    },
+    "Calc XP + level": {
+      "main": [[{ "node": "IF: leveled up", "type": "main", "index": 0 }]]
+    },
+    "IF: leveled up": {
+      "main": [[{ "node": "Discord: announce level-up", "type": "main", "index": 0 }], []]
+    },
+    "Webhook: slash-command": {
+      "main": [[{ "node": "Handle /level + /leaderboard", "type": "main", "index": 0 }]]
+    },
+    "Handle /level + /leaderboard": {
+      "main": [[{ "node": "IF: mode=level", "type": "main", "index": 0 }]]
+    },
+    "IF: mode=level": {
+      "main": [
+        [{ "node": "Discord: send level card", "type": "main", "index": 0 }],
+        [{ "node": "Discord: send leaderboard", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "discord" }, { "name": "leveling" }]
+}

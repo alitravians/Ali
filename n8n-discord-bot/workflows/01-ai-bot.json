@@ -1,0 +1,168 @@
+{
+  "name": "01 - AI Bot (Groq)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-ai",
+      "name": "Webhook: message-create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 320],
+      "webhookId": "discord-message-create"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-mention",
+              "leftValue": "={{ $json.body.mentionsBot }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-mention",
+      "name": "IF: bot mentioned",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, 320]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"أنت مساعد ذكي ودود في سيرفر ديسكورد عربي اسمه alitravians. أجب بإيجاز ووضوح باللغة العربية. حافظ على نبرة مرحبة وودية. لا تتجاوز 500 حرف في الرد.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": $json.body.content\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 400\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "groq-call",
+      "name": "Groq: Llama 3.3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 240],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "groq-api-key",
+          "name": "Groq API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nconst aiReply = item.json.choices?.[0]?.message?.content?.trim() || 'عذراً، لم أتمكن من توليد رد.';\nconst webhookData = $('Webhook: message-create').first().json.body;\nreturn [{ json: { reply: aiReply, channelId: webhookData.channelId, messageId: webhookData.messageId } }];"
+      },
+      "id": "format-reply",
+      "name": "Format reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": $json.reply,\n  \"message_reference\": {\n    \"message_id\": $json.messageId,\n    \"fail_if_not_exists\": false\n  },\n  \"allowed_mentions\": { \"parse\": [] }\n}",
+        "options": {}
+      },
+      "id": "send-discord",
+      "name": "Discord: send reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 240],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: message-create": {
+      "main": [
+        [
+          {
+            "node": "IF: bot mentioned",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: bot mentioned": {
+      "main": [
+        [
+          {
+            "node": "Groq: Llama 3.3",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Groq: Llama 3.3": {
+      "main": [
+        [
+          {
+            "node": "Format reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format reply": {
+      "main": [
+        [
+          {
+            "node": "Discord: send reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": false
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "ai"
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "name": "03 - Auto Moderation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-msg",
+      "name": "Webhook: message-create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 320],
+      "webhookId": "discord-message-create-mod"
+    },
+    {
+      "parameters": {
+        "jsCode": "// banned words list - edit via /moderation add-word command (separate workflow)\n// or hard-code here for static list\nconst BANNED = (process.env.BANNED_WORDS || 'كلب,حمار,تافه,غبي').split(',').map(w => w.trim().toLowerCase()).filter(Boolean);\nconst body = $input.first().json.body;\nconst content = (body.content || '').toLowerCase();\nconst found = BANNED.filter(w => content.includes(w));\nreturn [{ json: { ...body, bannedWordsFound: found, isViolation: found.length > 0 } }];"
+      },
+      "id": "scan-words",
+      "name": "Scan for banned words",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-viol",
+              "leftValue": "={{ $json.isViolation }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-violation",
+      "name": "IF: violation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 320]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages/{{ $json.messageId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "delete-msg",
+      "name": "Discord: delete message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Scan for banned words').first().json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": `⚠️ <@${$('Scan for banned words').first().json.author.id}> رسالتك تم حذفها لاحتوائها على كلمات ممنوعة. يُرجى الالتزام بقواعد السيرفر.`,\n  \"allowed_mentions\": { \"users\": [$('Scan for banned words').first().json.author.id] }\n}",
+        "options": {}
+      },
+      "id": "warn-user",
+      "name": "Discord: warn user",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.MOD_LOG_CHANNEL_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"🚨 إجراء إشراف تلقائي\",\n    \"description\": `**العضو:** <@${$('Scan for banned words').first().json.author.id}> (${$('Scan for banned words').first().json.author.username})\\n**القناة:** <#${$('Scan for banned words').first().json.channelId}>\\n**الكلمات الممنوعة:** ${$('Scan for banned words').first().json.bannedWordsFound.join(', ')}\\n**المحتوى الأصلي:**\\n\\`\\`\\`${($('Scan for banned words').first().json.content || '').slice(0, 500)}\\`\\`\\``,\n    \"color\": 15158332,\n    \"timestamp\": new Date().toISOString()\n  }]\n}",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "log-mod",
+      "name": "Discord: log to mod channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: message-create": {
+      "main": [[{ "node": "Scan for banned words", "type": "main", "index": 0 }]]
+    },
+    "Scan for banned words": {
+      "main": [[{ "node": "IF: violation", "type": "main", "index": 0 }]]
+    },
+    "IF: violation": {
+      "main": [[{ "node": "Discord: delete message", "type": "main", "index": 0 }], []]
+    },
+    "Discord: delete message": {
+      "main": [[{ "node": "Discord: warn user", "type": "main", "index": 0 }]]
+    },
+    "Discord: warn user": {
+      "main": [[{ "node": "Discord: log to mod channel", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "discord" }, { "name": "moderation" }]
+}

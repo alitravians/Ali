@@ -1,0 +1,152 @@
+{
+  "name": "10 - Auto-Archive Inactive Channels",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-arch",
+      "name": "Cron: daily 03:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 320]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://discord.com/api/v10/guilds/{{ $env.DISCORD_GUILD_ID }}/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-channels",
+      "name": "Discord: list channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 320],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const channels = $input.first().json || [];\nconst archiveCategoryId = $env.ARCHIVE_CATEGORY_ID;\nconst protectedIds = ($env.PROTECTED_CHANNEL_IDS || '').split(',').map(s => s.trim()).filter(Boolean);\nconst INACTIVE_DAYS = parseInt($env.INACTIVE_DAYS || '30', 10);\n\nconst textChannels = channels.filter(c => c.type === 0 && c.parent_id !== archiveCategoryId && !protectedIds.includes(c.id));\nreturn textChannels.map(c => ({ json: { id: c.id, name: c.name, lastMessageId: c.last_message_id, parentId: c.parent_id, inactiveDays: INACTIVE_DAYS, archiveCategoryId } }));"
+      },
+      "id": "filter-archivable",
+      "name": "Filter archivable channels",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 320]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Discord snowflake -> timestamp\nconst items = $input.all();\nconst out = [];\nfor (const item of items) {\n  const lastMsgId = item.json.lastMessageId;\n  if (!lastMsgId) {\n    // never had a message - treat as old\n    out.push({ json: { ...item.json, daysSinceLast: 9999, shouldArchive: true } });\n    continue;\n  }\n  const DISCORD_EPOCH = 1420070400000n;\n  const ts = Number((BigInt(lastMsgId) >> 22n) + DISCORD_EPOCH);\n  const days = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));\n  out.push({ json: { ...item.json, daysSinceLast: days, shouldArchive: days >= item.json.inactiveDays } });\n}\nreturn out;"
+      },
+      "id": "compute-age",
+      "name": "Compute channel age",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-arch",
+              "leftValue": "={{ $json.shouldArchive }}",
+              "rightValue": true,
+              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-archive",
+      "name": "IF: should archive",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1200, 320]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"parent_id\": $json.archiveCategoryId,\n  \"name\": `archived-${$json.name}`,\n  \"lock_permissions\": true\n}",
+        "options": { "ignoreResponseCode": true, "batching": { "batch": { "batchSize": 1, "batchInterval": 1000 } } }
+      },
+      "id": "move-arch",
+      "name": "Discord: archive channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 240],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.MOD_LOG_CHANNEL_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": `📦 تم أرشفة القناة **${$json.name}** (${$json.daysSinceLast} يوم بدون نشاط)`\n}",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "log-arch",
+      "name": "Discord: log archive",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1680, 240],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron: daily 03:00": {
+      "main": [[{ "node": "Discord: list channels", "type": "main", "index": 0 }]]
+    },
+    "Discord: list channels": {
+      "main": [[{ "node": "Filter archivable channels", "type": "main", "index": 0 }]]
+    },
+    "Filter archivable channels": {
+      "main": [[{ "node": "Compute channel age", "type": "main", "index": 0 }]]
+    },
+    "Compute channel age": {
+      "main": [[{ "node": "IF: should archive", "type": "main", "index": 0 }]]
+    },
+    "IF: should archive": {
+      "main": [[{ "node": "Discord: archive channel", "type": "main", "index": 0 }], []]
+    },
+    "Discord: archive channel": {
+      "main": [[{ "node": "Discord: log archive", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "discord" }, { "name": "archive" }]
+}
