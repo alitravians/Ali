@@ -23,12 +23,23 @@ for (const key of REQUIRED_ENV) {
 const N8N_WEBHOOK_BASE = process.env.N8N_WEBHOOK_BASE.replace(/\/$/, '');
 const BRIDGE_SECRET = process.env.BRIDGE_SECRET || '';
 const GUILD_ID = process.env.DISCORD_GUILD_ID || '';
+// Parent channel ID for the staff ban-appeals area. Any message posted in a
+// thread whose parentId === APPEALS_CHANNEL_ID is treated as a staff reply
+// in an active appeal and routed to workflow 14 instead of the normal
+// MESSAGE_CREATE fan-out (so the message isn't scanned for banned words or
+// awarded XP). Empty string disables the routing entirely.
+const APPEALS_CHANNEL_ID = process.env.APPEALS_CHANNEL_ID || '';
 
 // MessageContent and GuildMembers are privileged intents that must be
 // explicitly enabled in the Discord Developer Portal for the bot
 // application. GuildPresences is also privileged but the bridge does not
 // listen to presence updates, so it has been removed to reduce the
 // privileged-intent surface area.
+//
+// DirectMessages is required so the bot receives MESSAGE_CREATE events when
+// banned users reply to the appeal DM. DMs aren't restricted to one channel
+// per session, hence Partials.Channel below to avoid the discord.js "cannot
+// resolve DM channel" partial-fetch warning.
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -37,6 +48,7 @@ const client = new Client({
     GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessageReactions,
     GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.DirectMessages,
   ],
   partials: [
     Partials.Message,
@@ -108,8 +120,57 @@ client.once(Events.ClientReady, (c) => {
 });
 
 client.on(Events.MessageCreate, async (msg) => {
-  if (!msg.guild || !inGuild(msg.guildId)) return;
   if (msg.author.bot) return;
+
+  // DM branch: any non-bot message in a DM channel is routed to workflow 14
+  // (ban-appeal). The workflow decides whether the author actually has an
+  // open appeal and relays the message into the appeals thread, or replies
+  // back with a "no open appeal" notice.
+  if (!msg.guild) {
+    // ChannelType.DM === 1. Ignore group DMs / unknown DM types.
+    if (msg.channel?.type !== 1) return;
+    await forward('discord/dm-message', {
+      event: 'DM_MESSAGE_CREATE',
+      channelId: msg.channelId,
+      messageId: msg.id,
+      content: msg.content,
+      author: {
+        id: msg.author.id,
+        username: msg.author.username,
+      },
+      timestamp: msg.createdTimestamp,
+    });
+    return;
+  }
+
+  if (!inGuild(msg.guildId)) return;
+
+  // Appeal-thread branch: messages posted inside a thread whose parent is
+  // the staff appeals channel are not part of normal server chatter - they
+  // are staff replies on an active appeal. Route them to workflow 14 only
+  // and skip the AI/mod/xp/cross/stats fan-out so a staffer typing a banned
+  // word in their reply doesn't get auto-moderated themselves.
+  if (
+    APPEALS_CHANNEL_ID &&
+    msg.channel?.isThread?.() &&
+    msg.channel.parentId === APPEALS_CHANNEL_ID
+  ) {
+    await forward('discord/appeal-thread-message', {
+      event: 'APPEAL_THREAD_MESSAGE_CREATE',
+      guildId: msg.guildId,
+      threadId: msg.channelId,
+      messageId: msg.id,
+      content: msg.content,
+      author: {
+        id: msg.author.id,
+        username: msg.author.username,
+        displayName: msg.member?.displayName ?? msg.author.username,
+        roles: msg.member?.roles?.cache?.map((r) => r.id) ?? [],
+      },
+      timestamp: msg.createdTimestamp,
+    });
+    return;
+  }
 
   await fanout(MESSAGE_CREATE_PATHS, {
     event: 'MESSAGE_CREATE',

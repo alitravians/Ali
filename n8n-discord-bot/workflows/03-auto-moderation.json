@@ -132,7 +132,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2160,
+        2400,
         320
       ],
       "credentials": {
@@ -251,6 +251,26 @@
           "name": "Discord Bot Auth"
         }
       }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL || 'http://localhost:5678' }}/webhook/discord/appeal-create",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  userId: $('Scan for banned words').first().json.author.id,\n  username: $('Scan for banned words').first().json.author.username,\n  guildId: $('Scan for banned words').first().json.guildId,\n  severity: $('Scan for banned words').first().json.severity,\n  severityLabel: $('Scan for banned words').first().json.severityLabel,\n  durationMin: $('Scan for banned words').first().json.durationMin,\n  expireAt: $('Scan for banned words').first().json.expireAt,\n  words: $('Scan for banned words').first().json.bannedWordsFound,\n  originalContent: $('Scan for banned words').first().json.content,\n  originalChannelId: $('Scan for banned words').first().json.channelId,\n  messageId: $('Scan for banned words').first().json.messageId\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "call-appeal",
+      "name": "Call ban-appeal workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        200
+      ]
     }
   ],
   "connections": {
@@ -343,7 +363,7 @@
       "main": [
         [
           {
-            "node": "Discord: log to mod channel",
+            "node": "Call ban-appeal workflow",
             "type": "main",
             "index": 0
           }
@@ -351,6 +371,17 @@
       ]
     },
     "Discord: timeout member": {
+      "main": [
+        [
+          {
+            "node": "Discord: log to mod channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ban-appeal workflow": {
       "main": [
         [
           {

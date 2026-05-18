@@ -97,6 +97,40 @@ const commands = [
     .setDescription('عرض إحصائيات السيرفر')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
 
+  // Staff-only command for closing an active ban appeal. Must be invoked
+  // inside the appeal's private thread - workflow 14 reads channelId from
+  // the interaction to look up which appeal to resolve. Restricted via
+  // BanMembers because the unban action calls Discord's ban-removal API.
+  new SlashCommandBuilder()
+    .setName('resolve')
+    .setDescription('حسم اعتراض الحظر (داخل ثريد الاعتراض فقط)')
+    .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+    .addStringOption((o) =>
+      o
+        .setName('action')
+        .setDescription('قرار الإدارة')
+        .addChoices(
+          { name: 'قبول الاعتراض ورفع الحظر (unban)', value: 'unban' },
+          { name: 'رفض الاعتراض (reject)', value: 'reject' },
+          { name: 'تخفيف مدة الحظر (reduce)', value: 'reduce' },
+        )
+        .setRequired(true),
+    )
+    .addStringOption((o) =>
+      o
+        .setName('reason')
+        .setDescription('سبب القرار (يُرسل للعضو في DM)')
+        .setRequired(true),
+    )
+    .addIntegerOption((o) =>
+      o
+        .setName('minutes')
+        .setDescription('للـ reduce فقط: المدة الجديدة بالدقائق من الآن')
+        .setMinValue(10)
+        .setMaxValue(525600)
+        .setRequired(false),
+    ),
+
   // NOTE: admin slash commands /reactionrole, /crosspost and /moderation are
   // intentionally NOT registered yet. The reactive workflows (05-reaction-roles,
   // 08-cross-posting, 03-auto-moderation) handle the *event side* (reactions

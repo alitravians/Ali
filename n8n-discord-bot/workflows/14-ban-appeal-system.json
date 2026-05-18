@@ -1,0 +1,1111 @@
+{
+  "name": "14 - Ban Appeal System",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/appeal-create",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-appeal-create",
+      "name": "Webhook: appeal-create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        100
+      ],
+      "webhookId": "discord-appeal-create"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Register a new ban appeal from workflow 03's BAN branch.\n// Input: { userId, username, guildId, severity, severityLabel, durationMin,\n//          expireAt, words: [...], originalContent, originalChannelId, messageId }\nconst data = $getWorkflowStaticData('global');\ndata.appeals = data.appeals || {};\ndata.userToAppeal = data.userToAppeal || {};\ndata.threadToAppeal = data.threadToAppeal || {};\ndata.nextAppealId = data.nextAppealId || 1;\n\nconst body = $input.first().json.body || $input.first().json;\n\n// If a user already has an open appeal, close the old one so the new ban's\n// thread is the authoritative one. Old thread is left in place for audit.\nconst prevAppealId = data.userToAppeal[body.userId];\nif (prevAppealId && data.appeals[prevAppealId]) {\n  const prev = data.appeals[prevAppealId];\n  if (prev.status && prev.status.startsWith('awaiting-')) {\n    prev.status = 'superseded';\n    prev.closedAt = Date.now();\n  }\n}\n\nconst appealId = String(data.nextAppealId++);\nconst now = Date.now();\nconst appeal = {\n  appealId,\n  userId: body.userId,\n  username: body.username || 'unknown',\n  guildId: body.guildId,\n  severity: body.severity || null,\n  severityLabel: body.severityLabel || '',\n  durationMin: Number(body.durationMin || 0),\n  banAt: now,\n  expireAt: body.expireAt || null,\n  words: Array.isArray(body.words) ? body.words : [],\n  originalContent: (body.originalContent || '').toString().slice(0, 1500),\n  originalChannelId: body.originalChannelId || null,\n  messageId: body.messageId || null,\n  status: 'awaiting-user',\n  createdAt: now,\n  lastActivityAt: now,\n  messageCount: 0,\n  dmChannelId: null,\n  threadId: null,\n};\ndata.appeals[appealId] = appeal;\ndata.userToAppeal[body.userId] = appealId;\n\nreturn [{ json: { ...body, appealId, appeal } }];\n"
+      },
+      "id": "appeal-register",
+      "name": "appeal-register",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/v10/users/@me/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"recipient_id\": $json.userId }) }}"
+      },
+      "id": "appeal-open-dm",
+      "name": "Discord: open DM with user",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract DM channel ID from POST /users/@me/channels response and persist.\nconst data = $getWorkflowStaticData('global');\nconst appealId = $('appeal-register').first().json.appealId;\nconst appeal = data.appeals?.[appealId];\nconst dm = $input.first().json;\nconst dmChannelId = dm?.id || null;\nif (appeal && dmChannelId) {\n  appeal.dmChannelId = dmChannelId;\n}\nreturn [{ json: { ...$('appeal-register').first().json, dmChannelId } }];\n"
+      },
+      "id": "appeal-save-dm",
+      "name": "save dmChannelId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.dmChannelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `\ud83d\udeab \u062a\u0645 \u062d\u0638\u0631\u0643 \u0645\u0646 \u0627\u0644\u0633\u064a\u0631\u0641\u0631.\\n\\n**\u0627\u0644\u0625\u062c\u0631\u0627\u0621:** ${$('appeal-register').first().json.appeal.severityLabel}\\n**\u0627\u0644\u0645\u062f\u0629:** ${$('appeal-register').first().json.appeal.durationMin} \u062f\u0642\u064a\u0642\u0629\\n**\u064a\u0646\u062a\u0647\u064a \u0641\u064a:** ${$('appeal-register').first().json.appeal.expireAt}\\n**\u0633\u0628\u0628 \u0627\u0644\u062d\u0638\u0631 (\u0643\u0644\u0645\u0627\u062a \u0645\u0645\u0646\u0648\u0639\u0629):** ${($('appeal-register').first().json.appeal.words || []).join(', ')}\\n\\n\ud83d\udce9 **\u0644\u0648 \u062a\u0628\u063a\u0649 \u062a\u0639\u062a\u0631\u0636 \u0639\u0644\u0649 \u0627\u0644\u062d\u0638\u0631:**\\n\u0631\u062f \u0639\u0644\u0649 \u0647\u0630\u064a \u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0645\u0628\u0627\u0634\u0631\u0629 \u0628\u0631\u0633\u0627\u0644\u0629 \u0648\u0627\u062d\u062f\u0629 \u062a\u0634\u0631\u062d \u0641\u064a\u0647\u0627 \u0633\u0628\u0628 \u0627\u0639\u062a\u0631\u0627\u0636\u0643. \u0631\u0627\u062d \u064a\u0648\u0635\u0644 \u0631\u062f\u0643 \u0645\u0628\u0627\u0634\u0631\u0629 \u0644\u0625\u062f\u0627\u0631\u0629 \u0627\u0644\u0633\u064a\u0631\u0641\u0631\u060c \u0648\u0631\u0627\u062d \u064a\u0631\u062f\u0648\u0646 \u0639\u0644\u064a\u0643 \u0645\u0646 \u0646\u0641\u0633 \u0647\u0630\u064a \u0627\u0644\u0645\u062d\u0627\u062f\u062b\u0629.\\n\\n\u0645\u0644\u0627\u062d\u0638\u0629: \u0644\u0627 \u062a\u0631\u0633\u0644 \u0639\u062f\u0629 \u0631\u0633\u0627\u0626\u0644 \u0633\u0631\u064a\u0639\u0629. \u0631\u0633\u0627\u0644\u0629 \u0648\u0627\u062d\u062f\u0629 \u0643\u0627\u0641\u064a\u0629\u060c \u0648\u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u0628\u062a\u0631\u062f \u0642\u0631\u064a\u0628\u0627\u064b.`\n}) }}"
+      },
+      "id": "appeal-send-dm",
+      "name": "Discord: send appeal DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.APPEALS_CHANNEL_ID }}/threads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"name\": `Appeal #${$('appeal-register').first().json.appealId} - ${($('appeal-register').first().json.username || 'user').slice(0,40)}`,\n  \"type\": 12,\n  \"auto_archive_duration\": 10080,\n  \"invitable\": false\n}) }}"
+      },
+      "id": "appeal-create-thread",
+      "name": "Discord: create appeals thread",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract thread ID from POST /channels/{id}/threads response, index it,\n// persist to static data so subsequent dm-message and thread-message webhooks\n// can find the appeal by either userId or threadId.\nconst data = $getWorkflowStaticData('global');\nconst appealId = $('appeal-register').first().json.appealId;\nconst appeal = data.appeals?.[appealId];\nconst thread = $input.first().json;\nconst threadId = thread?.id || null;\nif (appeal && threadId) {\n  appeal.threadId = threadId;\n  data.threadToAppeal = data.threadToAppeal || {};\n  data.threadToAppeal[threadId] = appealId;\n}\nreturn [{ json: { ...$('appeal-save-dm').first().json, threadId, appeal } }];\n"
+      },
+      "id": "appeal-save-thread",
+      "name": "save threadId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.threadId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": `\ud83d\udea8 \u0637\u0644\u0628 \u0627\u0639\u062a\u0631\u0627\u0636 \u062c\u062f\u064a\u062f #${$('appeal-register').first().json.appealId}`,\n    \"description\": `**\u0627\u0644\u0639\u0636\u0648:** <@${$('appeal-register').first().json.appeal.userId}> (${$('appeal-register').first().json.appeal.username})\\n**\u0627\u0644\u0625\u062c\u0631\u0627\u0621:** ${$('appeal-register').first().json.appeal.severityLabel}\\n**Severity:** ${$('appeal-register').first().json.appeal.severity}\\n**\u0627\u0644\u0645\u062f\u0629:** ${$('appeal-register').first().json.appeal.durationMin} \u062f\u0642\u064a\u0642\u0629\\n**\u064a\u0646\u062a\u0647\u064a \u0641\u064a:** ${$('appeal-register').first().json.appeal.expireAt}\\n**\u0627\u0644\u0643\u0644\u0645\u0627\u062a \u0627\u0644\u0645\u0645\u0646\u0648\u0639\u0629:** ${($('appeal-register').first().json.appeal.words || []).join(', ')}\\n\\n**\u0627\u0644\u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u0623\u0635\u0644\u064a\u0629:**\\n\\`\\`\\`${($('appeal-register').first().json.appeal.originalContent || '').slice(0, 800)}\\`\\`\\``,\n    \"color\": 15158332,\n    \"timestamp\": new Date().toISOString(),\n    \"footer\": { \"text\": \"\u0627\u0643\u062a\u0628 \u0631\u062f \u0639\u0627\u062f\u064a \u0644\u0644\u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0639\u0636\u0648\u060c \u0623\u0648 \u0627\u0633\u062a\u062e\u062f\u0645 /resolve \u0644\u0644\u062d\u0633\u0645 \u0627\u0644\u0646\u0647\u0627\u0626\u064a\" }\n  }]\n}) }}"
+      },
+      "id": "appeal-post-summary",
+      "name": "Discord: post appeal summary in thread",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/dm-message",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-dm-message",
+      "name": "Webhook: dm-message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        360
+      ],
+      "webhookId": "discord-dm-message"
+    },
+    {
+      "parameters": {
+        "jsCode": "// User replied to the bot in DM. Look up their open appeal. If none,\n// reply with a polite \"no open appeal\" DM (still uses the DM channel from\n// the incoming message). If found, prepare to relay to the staff thread.\nconst data = $getWorkflowStaticData('global');\nconst body = $input.first().json.body || $input.first().json;\nconst userId = body.author?.id;\nconst content = (body.content || '').toString();\nconst dmChannelId = body.channelId;\n\nif (!userId) {\n  return [{ json: { hasAppeal: false, reason: 'no-user-id' } }];\n}\n\nconst appealId = data.userToAppeal?.[userId];\nconst appeal = appealId ? data.appeals?.[appealId] : null;\n\nif (!appeal || !appeal.threadId) {\n  // No open appeal - reply to user explaining (only once per cooldown).\n  appeal && (appeal.lastUnsolicitedAt = Date.now());\n  return [{ json: {\n    hasAppeal: false,\n    dmChannelId,\n    userId,\n    replyMessage: '\u0644\u0627 \u064a\u0648\u062c\u062f \u0637\u0644\u0628 \u0627\u0639\u062a\u0631\u0627\u0636 \u0645\u0641\u062a\u0648\u062d \u0628\u0627\u0633\u0645\u0643 \u062d\u0627\u0644\u064a\u0627\u064b. \u0644\u0648 \u062a\u0645 \u062d\u0638\u0631\u0643 \u0645\u0624\u062e\u0631\u0627\u064b\u060c \u062a\u062d\u0642\u0642 \u0645\u0646 \u0631\u0633\u0627\u0644\u0629 \u0627\u0644\u062d\u0638\u0631 \u0644\u0644\u062d\u0635\u0648\u0644 \u0639\u0644\u0649 \u0631\u0627\u0628\u0637 \u0646\u0638\u0627\u0645 \u0627\u0644\u0627\u0639\u062a\u0631\u0627\u0636. \u0644\u0648 \u0645\u0627 \u0639\u0646\u062f\u0643 \u0637\u0644\u0628 \u0641\u0639\u0651\u0627\u0644\u060c \u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u0645\u0627 \u0631\u0627\u062d \u062a\u0634\u0648\u0641 \u0647\u0630\u064a \u0627\u0644\u0631\u0633\u0627\u0644\u0629.',\n  } }];\n}\n\nif (appeal.status === 'resolved-rejected' || appeal.status === 'resolved-unban') {\n  return [{ json: {\n    hasAppeal: false,\n    dmChannelId,\n    userId,\n    replyMessage: '\u0637\u0644\u0628 \u0627\u0639\u062a\u0631\u0627\u0636\u0643 \u062a\u0645 \u062d\u0633\u0645\u0647 \u0645\u0633\u0628\u0642\u0627\u064b. \u0644\u0648 \u0639\u0646\u062f\u0643 \u0627\u0633\u062a\u0641\u0633\u0627\u0631 \u062c\u062f\u064a\u062f\u060c \u062a\u0648\u0627\u0635\u0644 \u0645\u0639 \u0627\u0644\u0625\u062f\u0627\u0631\u0629 \u0641\u064a \u0627\u0644\u0642\u0646\u0648\u0627\u062a \u0627\u0644\u0631\u0633\u0645\u064a\u0629.',\n  } }];\n}\n\n// Cap message size at 1500 chars to avoid Discord limits / spam.\nconst cleaned = content.slice(0, 1500);\nappeal.status = 'awaiting-staff';\nappeal.lastActivityAt = Date.now();\nappeal.messageCount = (appeal.messageCount || 0) + 1;\n\nreturn [{ json: {\n  hasAppeal: true,\n  appealId: appeal.appealId,\n  threadId: appeal.threadId,\n  userId,\n  username: body.author?.username || appeal.username,\n  dmChannelId,\n  cleaned,\n} }];\n"
+      },
+      "id": "dm-route",
+      "name": "dm-route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-appeal",
+              "leftValue": "={{ $json.hasAppeal }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-has-appeal",
+      "name": "IF: has open appeal",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        360
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.threadId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `\ud83d\udcac \u0631\u062f \u0645\u0646 \u0627\u0644\u0639\u0636\u0648 <@${$json.userId}>:\\n> ${$json.cleaned.replace(/\\n/g, '\\n> ')}`,\n  \"allowed_mentions\": { \"parse\": [] }\n}) }}"
+      },
+      "id": "dm-relay-to-thread",
+      "name": "Discord: post user DM in appeal thread",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.dmChannelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": $json.replyMessage\n}) }}"
+      },
+      "id": "dm-no-appeal-reply",
+      "name": "Discord: reply 'no appeal' DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        420
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/appeal-thread-message",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-thread-msg",
+      "name": "Webhook: appeal-thread-message",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        620
+      ],
+      "webhookId": "discord-appeal-thread-message"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Staff posted in an appeal thread. Look up the appeal by threadId. Skip\n// system messages, command-attempts (starts with '/'), and any message we\n// cannot resolve to an appeal.\nconst data = $getWorkflowStaticData('global');\nconst body = $input.first().json.body || $input.first().json;\nconst threadId = body.threadId;\nconst content = (body.content || '').toString();\n\nif (!threadId) {\n  return [{ json: { shouldRelay: false, reason: 'no-thread-id' } }];\n}\nif (!content || content.trim().startsWith('/')) {\n  return [{ json: { shouldRelay: false, reason: 'empty-or-command' } }];\n}\n\nconst appealId = data.threadToAppeal?.[threadId];\nconst appeal = appealId ? data.appeals?.[appealId] : null;\n\nif (!appeal || !appeal.dmChannelId) {\n  return [{ json: { shouldRelay: false, reason: 'no-appeal' } }];\n}\nif (appeal.status === 'resolved-rejected' || appeal.status === 'resolved-unban') {\n  return [{ json: { shouldRelay: false, reason: 'appeal-closed' } }];\n}\n\nappeal.status = 'awaiting-user';\nappeal.lastActivityAt = Date.now();\n\nconst cleaned = content.slice(0, 1500);\nconst author = body.author || {};\n\nreturn [{ json: {\n  shouldRelay: true,\n  appealId: appeal.appealId,\n  userId: appeal.userId,\n  dmChannelId: appeal.dmChannelId,\n  staffName: author.displayName || author.username || '\u0627\u0644\u0625\u062f\u0627\u0631\u0629',\n  cleaned,\n} }];\n"
+      },
+      "id": "thread-route",
+      "name": "thread-route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-should-relay",
+              "leftValue": "={{ $json.shouldRelay }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-should-relay",
+      "name": "IF: should relay to user",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        620
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.dmChannelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `\ud83d\udce8 **\u0631\u062f \u0645\u0646 \u0627\u0644\u0625\u062f\u0627\u0631\u0629 (${$json.staffName}):**\\n> ${$json.cleaned.replace(/\\n/g, '\\n> ')}`\n}) }}"
+      },
+      "id": "thread-relay-to-dm",
+      "name": "Discord: relay staff reply to user DM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        620
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command/resolve",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "wh-resolve",
+      "name": "Webhook: /resolve",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        880
+      ],
+      "webhookId": "discord-slash-command-resolve"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Staff invoked /resolve in an appeal thread. Validate the action, compute\n// the dm text, and emit the action so the Switch node can branch.\nconst data = $getWorkflowStaticData('global');\nconst body = $input.first().json.body || $input.first().json;\nconst options = body.options || {};\nconst action = options.action;\nconst reason = (options.reason || '').toString().slice(0, 1500) || '\u0644\u0645 \u064a\u064f\u0630\u0643\u0631 \u0633\u0628\u0628.';\nconst minutes = Number(options.minutes || 0);\nconst channelId = body.channelId; // the thread the command was invoked in\n\nif (!channelId) {\n  return [{ json: { ok: false, error: 'missing-channel', interactionToken: body.interactionToken, applicationId: body.applicationId } }];\n}\n\nconst appealId = data.threadToAppeal?.[channelId];\nconst appeal = appealId ? data.appeals?.[appealId] : null;\nif (!appeal) {\n  return [{ json: { ok: false, error: 'no-appeal-for-thread', interactionToken: body.interactionToken, applicationId: body.applicationId } }];\n}\nif (!['unban','reject','reduce'].includes(action)) {\n  return [{ json: { ok: false, error: 'invalid-action', interactionToken: body.interactionToken, applicationId: body.applicationId } }];\n}\nif (action === 'reduce' && (!minutes || minutes < 10)) {\n  return [{ json: { ok: false, error: 'reduce-needs-minutes', interactionToken: body.interactionToken, applicationId: body.applicationId } }];\n}\n\nconst now = Date.now();\nlet userMessage = '';\nlet newExpireAt = appeal.expireAt;\nif (action === 'unban') {\n  appeal.status = 'resolved-unban';\n  appeal.closedAt = now;\n  userMessage = `\u2705 \u062a\u0645 \u0642\u0628\u0648\u0644 \u0627\u0639\u062a\u0631\u0627\u0636\u0643 \u0648\u0631\u0641\u0639 \u0627\u0644\u062d\u0638\u0631.\\n\\n**\u0633\u0628\u0628 \u0627\u0644\u0625\u062f\u0627\u0631\u0629:**\\n> ${reason}\\n\\n\u062a\u0642\u062f\u0631 \u062a\u0639\u0648\u062f \u0644\u0644\u0633\u064a\u0631\u0641\u0631 \u0627\u0644\u0622\u0646.`;\n} else if (action === 'reject') {\n  appeal.status = 'resolved-rejected';\n  appeal.closedAt = now;\n  userMessage = `\u274c \u062a\u0645 \u0631\u0641\u0636 \u0627\u0639\u062a\u0631\u0627\u0636\u0643.\\n\\n**\u0633\u0628\u0628 \u0627\u0644\u0625\u062f\u0627\u0631\u0629:**\\n> ${reason}\\n\\n\u0627\u0644\u062d\u0638\u0631 \u0628\u0627\u0642\u064a \u062d\u062a\u0649: ${appeal.expireAt}\\n\u0644\u0627 \u064a\u0645\u0643\u0646 \u0641\u062a\u062d \u0627\u0639\u062a\u0631\u0627\u0636 \u062c\u062f\u064a\u062f \u0644\u0646\u0641\u0633 \u0627\u0644\u062d\u0638\u0631.`;\n} else {\n  // reduce\n  newExpireAt = new Date(now + minutes * 60 * 1000).toISOString();\n  appeal.expireAt = newExpireAt;\n  appeal.durationMin = minutes;\n  appeal.status = 'resolved-reduced';\n  appeal.lastActivityAt = now;\n  userMessage = `\u26a0\ufe0f \u062a\u0645 \u062a\u062e\u0641\u064a\u0641 \u0645\u062f\u0629 \u062d\u0638\u0631\u0643.\\n\\n**\u0627\u0644\u0645\u062f\u0629 \u0627\u0644\u062c\u062f\u064a\u062f\u0629:** ${minutes} \u062f\u0642\u064a\u0642\u0629 (\u062a\u0646\u062a\u0647\u064a: ${newExpireAt})\\n**\u0633\u0628\u0628 \u0627\u0644\u0625\u062f\u0627\u0631\u0629:**\\n> ${reason}`;\n}\n\nreturn [{ json: {\n  ok: true,\n  action,\n  appealId: appeal.appealId,\n  userId: appeal.userId,\n  guildId: appeal.guildId,\n  threadId: appeal.threadId,\n  dmChannelId: appeal.dmChannelId,\n  userMessage,\n  reason,\n  minutes,\n  newExpireAt,\n  interactionToken: body.interactionToken,\n  applicationId: body.applicationId,\n} }];\n"
+      },
+      "id": "resolve-route",
+      "name": "resolve-route",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-resolve-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-resolve-ok",
+      "name": "IF: resolve validated",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "is-unban",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "unban",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "unban"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "is-reject",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reject",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "reject"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose"
+                },
+                "conditions": [
+                  {
+                    "id": "is-reduce",
+                    "leftValue": "={{ $json.action }}",
+                    "rightValue": "reduce",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "outputKey": "reduce"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "resolve-switch",
+      "name": "Switch on action",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        960,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/guilds/{{ $json.guildId }}/bans/{{ $json.userId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Audit-Log-Reason",
+              "value": "={{ encodeURIComponent('Ban appeal accepted by staff (appealId=' + $('resolve-route').first().json.appealId + ')') }}"
+            }
+          ]
+        }
+      },
+      "id": "resolve-unban-call",
+      "name": "Discord: lift ban",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        760
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $('resolve-route').first().json.dmChannelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": $('resolve-route').first().json.userMessage }) }}"
+      },
+      "id": "resolve-dm-unban",
+      "name": "Discord: DM user (unban)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        760
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $('resolve-route').first().json.dmChannelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": $('resolve-route').first().json.userMessage }) }}"
+      },
+      "id": "resolve-dm-reject",
+      "name": "Discord: DM user (reject)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        900
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $('resolve-route').first().json.dmChannelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": $('resolve-route').first().json.userMessage }) }}"
+      },
+      "id": "resolve-dm-reduce",
+      "name": "Discord: DM user (reduce)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        1040
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/channels/{{ $('resolve-route').first().json.threadId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"archived\": true, \"locked\": true }) }}"
+      },
+      "id": "resolve-archive-unban",
+      "name": "Discord: archive thread (unban)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        760
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/channels/{{ $('resolve-route').first().json.threadId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"archived\": true, \"locked\": true }) }}"
+      },
+      "id": "resolve-archive-reject",
+      "name": "Discord: archive thread (reject)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        900
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('resolve-route').first().json.applicationId }}/{{ $('resolve-route').first().json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": \"\u2705 \u062a\u0645 \u0631\u0641\u0639 \u0627\u0644\u062d\u0638\u0631 \u0648\u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u062b\u0631\u064a\u062f.\" }) }}"
+      },
+      "id": "resolve-ack-unban",
+      "name": "ack /resolve (unban)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        760
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('resolve-route').first().json.applicationId }}/{{ $('resolve-route').first().json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": \"\u274c \u062a\u0645 \u0631\u0641\u0636 \u0627\u0644\u0627\u0639\u062a\u0631\u0627\u0636 \u0648\u0625\u063a\u0644\u0627\u0642 \u0627\u0644\u062b\u0631\u064a\u062f.\" }) }}"
+      },
+      "id": "resolve-ack-reject",
+      "name": "ack /resolve (reject)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        900
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('resolve-route').first().json.applicationId }}/{{ $('resolve-route').first().json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": \"\u26a0\ufe0f \u062a\u0645 \u062a\u062e\u0641\u064a\u0641 \u0627\u0644\u0645\u062f\u0629. \u0627\u0644\u062b\u0631\u064a\u062f \u0644\u0627 \u064a\u0632\u0627\u0644 \u0645\u0641\u062a\u0648\u062d \u0644\u0644\u0645\u062a\u0627\u0628\u0639\u0629.\" }) }}"
+      },
+      "id": "resolve-ack-reduce",
+      "name": "ack /resolve (reduce)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        1040
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": `\u26d4 \u062e\u0637\u0623: ${$json.error}` }) }}"
+      },
+      "id": "resolve-ack-error",
+      "name": "ack /resolve (error)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        1180
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: appeal-create": {
+      "main": [
+        [
+          {
+            "node": "appeal-register",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "appeal-register": {
+      "main": [
+        [
+          {
+            "node": "Discord: open DM with user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: open DM with user": {
+      "main": [
+        [
+          {
+            "node": "save dmChannelId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save dmChannelId": {
+      "main": [
+        [
+          {
+            "node": "Discord: send appeal DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: send appeal DM": {
+      "main": [
+        [
+          {
+            "node": "Discord: create appeals thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: create appeals thread": {
+      "main": [
+        [
+          {
+            "node": "save threadId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save threadId": {
+      "main": [
+        [
+          {
+            "node": "Discord: post appeal summary in thread",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: dm-message": {
+      "main": [
+        [
+          {
+            "node": "dm-route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "dm-route": {
+      "main": [
+        [
+          {
+            "node": "IF: has open appeal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: has open appeal": {
+      "main": [
+        [
+          {
+            "node": "Discord: post user DM in appeal thread",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord: reply 'no appeal' DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: appeal-thread-message": {
+      "main": [
+        [
+          {
+            "node": "thread-route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "thread-route": {
+      "main": [
+        [
+          {
+            "node": "IF: should relay to user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: should relay to user": {
+      "main": [
+        [
+          {
+            "node": "Discord: relay staff reply to user DM",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Webhook: /resolve": {
+      "main": [
+        [
+          {
+            "node": "resolve-route",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "resolve-route": {
+      "main": [
+        [
+          {
+            "node": "IF: resolve validated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: resolve validated": {
+      "main": [
+        [
+          {
+            "node": "Switch on action",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ack /resolve (error)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch on action": {
+      "main": [
+        [
+          {
+            "node": "Discord: lift ban",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord: DM user (reject)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord: DM user (reduce)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: lift ban": {
+      "main": [
+        [
+          {
+            "node": "Discord: DM user (unban)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: DM user (unban)": {
+      "main": [
+        [
+          {
+            "node": "Discord: archive thread (unban)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: archive thread (unban)": {
+      "main": [
+        [
+          {
+            "node": "ack /resolve (unban)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: DM user (reject)": {
+      "main": [
+        [
+          {
+            "node": "Discord: archive thread (reject)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: archive thread (reject)": {
+      "main": [
+        [
+          {
+            "node": "ack /resolve (reject)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: DM user (reduce)": {
+      "main": [
+        [
+          {
+            "node": "ack /resolve (reduce)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "moderation"
+    },
+    {
+      "name": "appeals"
+    }
+  ]
+}
