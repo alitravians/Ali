@@ -132,10 +132,13 @@ const commands = [
     ),
 
   // Staff-only bulk-delete command. Default permission is ManageMessages so
-  // the command is hidden from regular members in the slash menu. Workflow 15
-  // re-checks the permission server-side as defense in depth and falls back
-  // to per-message DELETE for messages older than 14 days (which Discord's
-  // bulk-delete endpoint rejects).
+  // the command is hidden from regular members in the slash menu and Discord
+  // enforces the permission at the gateway. The bridge additionally forwards
+  // the resolved permission bits to n8n, and workflow 15's parse+validate
+  // node re-checks `canManageMessages` as defense in depth in case a forged
+  // interaction or misconfigured channel override reaches the webhook. The
+  // workflow also falls back to per-message DELETE for messages older than
+  // 14 days (which Discord's bulk-delete endpoint rejects).
   new SlashCommandBuilder()
     .setName('purge')
     .setDescription('مسح عدد من الرسائل دفعة واحدة من القناة الحالية')

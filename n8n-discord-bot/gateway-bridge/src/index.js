@@ -9,6 +9,7 @@ import {
   GatewayIntentBits,
   Partials,
   Events,
+  PermissionFlagsBits,
 } from 'discord.js';
 import { fetch } from 'undici';
 
@@ -313,6 +314,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // Route each top-level slash command to its own webhook path so n8n can
     // dispatch them to separate workflows without collisions.
+    // Forward the specific permission bits that downstream workflows need to
+    // re-check server-side. Discord's setDefaultMemberPermissions hides
+    // restricted commands from the slash menu, but a member with a manually
+    // crafted interaction (or a misconfigured role override) could still
+    // reach the webhook. n8n re-validates these flags as defense in depth.
+    const perms = interaction.memberPermissions;
+    const canManageMessages = perms?.has(PermissionFlagsBits.ManageMessages) ?? false;
+    const canManageGuild = perms?.has(PermissionFlagsBits.ManageGuild) ?? false;
+    const canBanMembers = perms?.has(PermissionFlagsBits.BanMembers) ?? false;
+
     await forward(`discord/slash-command/${interaction.commandName}`, {
       event: 'INTERACTION_CREATE',
       commandName: interaction.commandName,
@@ -327,6 +338,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
         id: interaction.user.id,
         username: interaction.user.username,
         displayName: interaction.member?.displayName ?? interaction.user.username,
+      },
+      permissions: {
+        canManageMessages,
+        canManageGuild,
+        canBanMembers,
       },
     });
   }
