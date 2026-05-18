@@ -131,6 +131,39 @@ const commands = [
         .setRequired(false),
     ),
 
+  // Staff-only bulk-delete command. Default permission is ManageMessages so
+  // the command is hidden from regular members in the slash menu and Discord
+  // enforces the permission at the gateway. The bridge additionally forwards
+  // the resolved permission bits to n8n, and workflow 15's parse+validate
+  // node re-checks `canManageMessages` as defense in depth in case a forged
+  // interaction or misconfigured channel override reaches the webhook. The
+  // workflow also falls back to per-message DELETE for messages older than
+  // 14 days (which Discord's bulk-delete endpoint rejects).
+  new SlashCommandBuilder()
+    .setName('purge')
+    .setDescription('مسح عدد من الرسائل دفعة واحدة من القناة الحالية')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+    .addIntegerOption((o) =>
+      o
+        .setName('count')
+        .setDescription('عدد الرسائل المراد مسحها (1-1000)')
+        .setMinValue(1)
+        .setMaxValue(1000)
+        .setRequired(true),
+    )
+    .addUserOption((o) =>
+      o
+        .setName('user')
+        .setDescription('قصر المسح على رسائل عضو معين فقط')
+        .setRequired(false),
+    )
+    .addStringOption((o) =>
+      o
+        .setName('contains')
+        .setDescription('قصر المسح على الرسائل اللي تحتوي هذا النص')
+        .setRequired(false),
+    ),
+
   // NOTE: admin slash commands /reactionrole, /crosspost and /moderation are
   // intentionally NOT registered yet. The reactive workflows (05-reaction-roles,
   // 08-cross-posting, 03-auto-moderation) handle the *event side* (reactions
