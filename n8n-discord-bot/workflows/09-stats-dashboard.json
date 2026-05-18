@@ -172,7 +172,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst embed = {\n  title: `\ud83d\udcca \u0625\u062d\u0635\u0627\u0626\u064a\u0627\u062a ${r.guildName} \u0627\u0644\u064a\u0648\u0645\u064a\u0629`,\n  color: 5814783,\n  fields: [\n    { name: '\ud83d\udc65 \u0627\u0644\u0623\u0639\u0636\u0627\u0621', value: `${r.totalMembers} (${r.onlineMembers} \u0645\u062a\u0635\u0644\u064a\u0646)`, inline: true },\n    { name: '\ud83d\udcdd \u0631\u0633\u0627\u0626\u0644 \u0627\u0644\u064a\u0648\u0645', value: String(r.messagesToday), inline: true },\n    { name: '\u2795 \u0627\u0646\u0636\u0645\u0648\u0627 \u0627\u0644\u064a\u0648\u0645', value: String(r.joinsToday), inline: true },\n    { name: '\u2796 \u063a\u0627\u062f\u0631\u0648\u0627 \u0627\u0644\u064a\u0648\u0645', value: String(r.leavesToday), inline: true },\n    { name: '\ud83d\udcac \u0642\u0646\u0648\u0627\u062a \u0646\u0635\u064a\u0629', value: String(r.textChannels), inline: true },\n    { name: '\ud83c\udf99\ufe0f \u0642\u0646\u0648\u0627\u062a \u0635\u0648\u062a\u064a\u0629', value: String(r.voiceChannels), inline: true },\n    { name: '\ud83c\udfc6 \u0644\u0648\u062d\u0629 \u0627\u0644\u0635\u062f\u0627\u0631\u0629', value: '\u0627\u0633\u062a\u062e\u062f\u0645 /leaderboard \u0644\u0639\u0631\u0636 \u0623\u0639\u0644\u0649 \u0627\u0644\u0623\u0639\u0636\u0627\u0621 \u0628\u0627\u0644\u062e\u0628\u0631\u0629', inline: false },\n  ],\n  timestamp: new Date().toISOString(),\n  footer: { text: '\u062a\u0642\u0631\u064a\u0631 \u064a\u0648\u0645\u064a \u062a\u0644\u0642\u0627\u0626\u064a' }\n};\nreturn [{ json: { embed, isManual: r.isManual, interactionToken: r.interactionToken, applicationId: r.applicationId } }];\n"
+        "jsCode": "const r = $input.first().json;\nconst embed = {\n  title: `📊 إحصائيات ${r.guildName} اليومية`,\n  color: 5814783,\n  fields: [\n    { name: '👥 الأعضاء', value: `${r.totalMembers} (${r.onlineMembers} متصلين)`, inline: true },\n    { name: '📝 رسائل اليوم', value: String(r.messagesToday), inline: true },\n    { name: '➕ انضموا اليوم', value: String(r.joinsToday), inline: true },\n    { name: '➖ غادروا اليوم', value: String(r.leavesToday), inline: true },\n    { name: '💬 قنوات نصية', value: String(r.textChannels), inline: true },\n    { name: '🎙️ قنوات صوتية', value: String(r.voiceChannels), inline: true },\n    { name: '🏆 لوحة الصدارة', value: 'استخدم /leaderboard لعرض أعلى الأعضاء بالخبرة', inline: false },\n  ],\n  timestamp: new Date().toISOString(),\n  footer: { text: 'تقرير يومي تلقائي' }\n};\nreturn [{ json: { embed, isManual: r.isManual, interactionToken: r.interactionToken, applicationId: r.applicationId } }];\n"
       },
       "id": "format-embed",
       "name": "Format embed",
@@ -271,6 +271,39 @@
           "name": "Discord Bot Auth"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-skip-gate",
+      "name": "IF: skip gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        480
+      ]
     }
   ],
   "connections": {
@@ -300,7 +333,7 @@
       "main": [
         [
           {
-            "node": "Discord: fetch guild stats",
+            "node": "IF: skip gate",
             "type": "main",
             "index": 0
           }
@@ -394,6 +427,18 @@
           }
         ],
         []
+      ]
+    },
+    "IF: skip gate": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Discord: fetch guild stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
