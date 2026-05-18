@@ -90,13 +90,12 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "emojis",
-        "options": {}
+        "jsCode": "// The previous Split emojis node tried to splitOut 'emojis' from the input\n// item, but the input here is the Discord 'send poll' response (a message\n// object: { id, channel_id, embeds, ... }) which does not contain the\n// emojis array - the array was lost when the HTTP node replaced item json\n// with the API response. Reference 'Build poll data' directly instead.\nconst emojis = $('Build poll data').first().json.emojis || [];\nreturn emojis.map((e) => ({ json: { emojis: e } }));"
       },
       "id": "split-emojis",
-      "name": "Split emojis",
-      "type": "n8n-nodes-base.splitOut",
-      "typeVersion": 1,
+      "name": "Emit one item per emoji",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         1200,
         240
