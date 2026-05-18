@@ -87,7 +87,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  \"content\": `✅ تم مسح **${$json.totalDeleted}** رسالة` +\n    ($json.individualDeleted > 0 ? `\\n• ${$json.bulkDeleted} حديثة (bulk) + ${$json.individualDeleted} قديمة (>14 يوم - مسح فردي)` : '') +\n    ($json.failed > 0 ? `\\n⚠️ فشل مسح ${$json.failed} رسالة` : '') +\n    ($json.matchedCount < $json.count ? `\\n• تم فحص ${$json.scannedMessages} رسالة - لم نجد أكثر من ${$json.matchedCount} مطابق للفلتر` : '')\n}) }}"
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `✅ تم مسح **${$json.totalDeleted}** رسالة` +\n    ($json.individualDeleted > 0 ? `\\n• ${$json.bulkDeleted} عبر bulk-delete + ${$json.individualDeleted} مسح فردي` : '') +\n    ($json.failed > 0 ? `\\n⚠️ فشل مسح ${$json.failed} رسالة` : '') +\n    ($json.matchedCount < $json.count ? `\\n• تم فحص ${$json.scannedMessages} رسالة - لم نجد أكثر من ${$json.matchedCount} مطابق للفلتر` : '')\n}) }}"
       },
       "id": "ack-purge-ok",
       "name": "ack /purge (success)",
