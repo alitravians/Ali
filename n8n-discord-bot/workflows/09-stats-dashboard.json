@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const guild = $('Discord: fetch guild stats').first().json;\nconst channels = $('Discord: fetch channels').first().json || [];\nconst staticData = $getWorkflowStaticData('global');\nconst counters = staticData.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\n\nconst textChannels = channels.filter(c => c.type === 0).length;\nconst voiceChannels = channels.filter(c => c.type === 2).length;\nconst categories = channels.filter(c => c.type === 4).length;\n\nconst xpData = staticData.xp || {};\nconst totalMembers = guild.approximate_member_count || 0;\nconst onlineMembers = guild.approximate_presence_count || 0;\nconst topUsers = Object.entries(xpData).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 3);\n\nconst report = {\n  guildName: guild.name,\n  totalMembers,\n  onlineMembers,\n  textChannels,\n  voiceChannels,\n  categories,\n  messagesToday: counters.messages,\n  joinsToday: counters.joins,\n  leavesToday: counters.leaves,\n  topUsers: topUsers.map(([uid, d]) => ({ username: d.username, level: d.level, xp: d.xp })),\n};\n\nstaticData.dailyCounters = { messages: 0, joins: 0, leaves: 0 };\n\nreturn [{ json: report }];"
+        "jsCode": "const guild = $('Discord: fetch guild stats').first().json;\nconst channels = $('Discord: fetch channels').first().json || [];\nconst staticData = $getWorkflowStaticData('global');\nconst counters = staticData.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\n\nconst textChannels = channels.filter(c => c.type === 0).length;\nconst voiceChannels = channels.filter(c => c.type === 2).length;\nconst categories = channels.filter(c => c.type === 4).length;\n\nconst xpData = staticData.xp || {};\nconst totalMembers = guild.approximate_member_count || 0;\nconst onlineMembers = guild.approximate_presence_count || 0;\nconst topUsers = Object.entries(xpData).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 3);\n\n// Pull interaction context from Gate trigger if /stats was invoked manually.\n// `$('Gate trigger').first()` throws when the cron path was taken, so guard it.\nlet gate = null;\ntry { gate = $('Gate trigger').first().json; } catch { gate = null; }\n\nconst report = {\n  guildName: guild.name,\n  totalMembers,\n  onlineMembers,\n  textChannels,\n  voiceChannels,\n  categories,\n  messagesToday: counters.messages,\n  joinsToday: counters.joins,\n  leavesToday: counters.leaves,\n  topUsers: topUsers.map(([uid, d]) => ({ username: d.username, level: d.level, xp: d.xp })),\n  isManual: !!(gate && gate.isManual),\n  interactionToken: gate?.interactionToken || null,\n  applicationId: gate?.applicationId || null,\n};\n\nstaticData.dailyCounters = { messages: 0, joins: 0, leaves: 0 };\n\nreturn [{ json: report }];"
       },
       "id": "build-report",
       "name": "Build report",
@@ -112,7 +112,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const r = $input.first().json;\nconst topList = r.topUsers.length ? r.topUsers.map((u, i) => `${i+1}. ${u.username} - مستوى ${u.level}`).join('\\n') : 'لا توجد بيانات';\nconst embed = {\n  title: `📊 إحصائيات ${r.guildName} اليومية`,\n  color: 5814783,\n  fields: [\n    { name: '👥 الأعضاء', value: `${r.totalMembers} (${r.onlineMembers} متصلين)`, inline: true },\n    { name: '📝 رسائل اليوم', value: String(r.messagesToday), inline: true },\n    { name: '➕ انضموا اليوم', value: String(r.joinsToday), inline: true },\n    { name: '➖ غادروا اليوم', value: String(r.leavesToday), inline: true },\n    { name: '💬 قنوات نصية', value: String(r.textChannels), inline: true },\n    { name: '🎙️ قنوات صوتية', value: String(r.voiceChannels), inline: true },\n    { name: '🏆 أعلى 3 أعضاء', value: topList, inline: false },\n  ],\n  timestamp: new Date().toISOString(),\n  footer: { text: 'تقرير يومي تلقائي' }\n};\nreturn [{ json: { embed } }];"
+        "jsCode": "const r = $input.first().json;\nconst topList = r.topUsers.length ? r.topUsers.map((u, i) => `${i+1}. ${u.username} - مستوى ${u.level}`).join('\\n') : 'لا توجد بيانات';\nconst embed = {\n  title: `📊 إحصائيات ${r.guildName} اليومية`,\n  color: 5814783,\n  fields: [\n    { name: '👥 الأعضاء', value: `${r.totalMembers} (${r.onlineMembers} متصلين)`, inline: true },\n    { name: '📝 رسائل اليوم', value: String(r.messagesToday), inline: true },\n    { name: '➕ انضموا اليوم', value: String(r.joinsToday), inline: true },\n    { name: '➖ غادروا اليوم', value: String(r.leavesToday), inline: true },\n    { name: '💬 قنوات نصية', value: String(r.textChannels), inline: true },\n    { name: '🎙️ قنوات صوتية', value: String(r.voiceChannels), inline: true },\n    { name: '🏆 أعلى 3 أعضاء', value: topList, inline: false },\n  ],\n  timestamp: new Date().toISOString(),\n  footer: { text: 'تقرير يومي تلقائي' }\n};\nreturn [{ json: { embed, isManual: r.isManual, interactionToken: r.interactionToken, applicationId: r.applicationId } }];"
       },
       "id": "format-embed",
       "name": "Format embed",
@@ -143,6 +143,67 @@
       "position": [
         1440,
         220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-manual",
+              "leftValue": "={{ $('Format embed').first().json.isManual }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-manual",
+      "name": "IF: manual invocation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('Format embed').first().json.applicationId }}/{{ $('Format embed').first().json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": \"\\u2705 \\u062a\\u0645 \\u0646\\u0634\\u0631 \\u0627\\u0644\\u062a\\u0642\\u0631\\u064a\\u0631\" }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "ack-stats",
+      "name": "Discord: ack /stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        140
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -228,6 +289,29 @@
             "index": 0
           }
         ]
+      ]
+    },
+    "Discord: post daily report": {
+      "main": [
+        [
+          {
+            "node": "IF: manual invocation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: manual invocation": {
+      "main": [
+        [
+          {
+            "node": "Discord: ack /stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },
