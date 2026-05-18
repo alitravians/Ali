@@ -94,8 +94,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1200,
-        220
+        1320,
+        140
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -115,15 +115,15 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🧹 مسح رسائل (/purge)\",\n    \"color\": 5814783,\n    \"fields\": [\n      { \"name\": \"المنفذ\", \"value\": `<@${$json.invokerId}> (${$json.invokerName})`, \"inline\": false },\n      { \"name\": \"القناة\", \"value\": `<#${$json.channelId}>`, \"inline\": true },\n      { \"name\": \"المطلوب\", \"value\": String($json.count), \"inline\": true },\n      { \"name\": \"المُمسوح\", \"value\": String($json.totalDeleted), \"inline\": true },\n      { \"name\": \"فلتر العضو\", \"value\": $json.userId ? `<@${$json.userId}>` : '—', \"inline\": true },\n      { \"name\": \"فلتر النص\", \"value\": $json.contains || '—', \"inline\": true },\n      { \"name\": \"تفاصيل\", \"value\": `bulk: ${$json.bulkDeleted} • فردي: ${$json.individualDeleted} • فشل: ${$json.failed}`, \"inline\": false }\n    ],\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}"
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🧹 مسح رسائل (/purge)\",\n    \"color\": 5814783,\n    \"fields\": [\n      { \"name\": \"المنفذ\", \"value\": `<@${$('execute purge').first().json.invokerId}> (${$('execute purge').first().json.invokerName})`, \"inline\": false },\n      { \"name\": \"القناة\", \"value\": `<#${$('execute purge').first().json.channelId}>`, \"inline\": true },\n      { \"name\": \"المطلوب\", \"value\": String($('execute purge').first().json.count), \"inline\": true },\n      { \"name\": \"المُمسوح\", \"value\": String($('execute purge').first().json.totalDeleted), \"inline\": true },\n      { \"name\": \"فلتر العضو\", \"value\": $('execute purge').first().json.userId ? `<@${$('execute purge').first().json.userId}>` : '—', \"inline\": true },\n      { \"name\": \"فلتر النص\", \"value\": $('execute purge').first().json.contains || '—', \"inline\": true },\n      { \"name\": \"تفاصيل\", \"value\": `bulk: ${$('execute purge').first().json.bulkDeleted} • فردي: ${$('execute purge').first().json.individualDeleted} • فشل: ${$('execute purge').first().json.failed}`, \"inline\": false }\n    ],\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}"
       },
       "id": "log-purge",
       "name": "Discord: log /purge to mod channel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1440,
-        220
+        1560,
+        140
       ],
       "credentials": {
         "httpHeaderAuth": {
@@ -159,6 +159,38 @@
           "name": "Discord Bot Auth"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-exec-ok",
+              "leftValue": "={{ $json.ok }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-exec-ok",
+      "name": "IF: execute ok",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1080,
+        220
+      ]
     }
   ],
   "connections": {
@@ -206,7 +238,7 @@
       "main": [
         [
           {
-            "node": "ack /purge (success)",
+            "node": "IF: execute ok",
             "type": "main",
             "index": 0
           }
@@ -218,6 +250,24 @@
         [
           {
             "node": "Discord: log /purge to mod channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: execute ok": {
+      "main": [
+        [
+          {
+            "node": "ack /purge (success)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "ack /purge (error)",
             "type": "main",
             "index": 0
           }
