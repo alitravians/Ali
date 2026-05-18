@@ -807,6 +807,19 @@
           "name": "Discord Bot Auth"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reject forged calls to /webhook/discord/appeal-create from outside\n// the n8n instance. Workflow 03 (auto-mod) sets X-Internal-Auth to\n// $env.N8N_INTERNAL_SECRET on its call. If the secret is unset the\n// check is bypassed (so initial deploys without the secret still\n// work) but a warning is left in the output for the audit trail.\nconst item = $input.first().json;\nconst headers = item.headers || {};\nconst expected = $env.N8N_INTERNAL_SECRET || '';\nconst got = headers['x-internal-auth'] || headers['X-Internal-Auth'] || '';\nif (expected && got !== expected) {\n  throw new Error('appeal-create: invalid X-Internal-Auth header');\n}\nreturn [{ json: item }];\n"
+      },
+      "id": "verify-internal-auth",
+      "name": "verify internal auth",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        360,
+        100
+      ]
     }
   ],
   "connections": {
@@ -814,7 +827,7 @@
       "main": [
         [
           {
-            "node": "appeal-register",
+            "node": "verify internal auth",
             "type": "main",
             "index": 0
           }
@@ -1086,6 +1099,17 @@
         [
           {
             "node": "ack /resolve (reduce)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "verify internal auth": {
+      "main": [
+        [
+          {
+            "node": "appeal-register",
             "type": "main",
             "index": 0
           }
