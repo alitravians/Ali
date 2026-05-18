@@ -180,8 +180,9 @@ client.on(Events.MessageReactionRemove, async (reaction, user) => {
     if (reaction.partial) await reaction.fetch();
     // MESSAGE_REACTION_REMOVE does not include a member object, so for uncached
     // users discord.js builds a partial User where `user.bot` is undefined.
-    // Fetch the full user so the `user.bot` check below is reliable, matching
-    // the defensive pattern used in MessageReactionAdd.
+    // Fetch the full user so the `user.bot` check below is reliable. The
+    // MessageReactionAdd handler above doesn't need this because ADD events
+    // include member data, which lets discord.js fully resolve the user.
     if (user.partial) await user.fetch();
   } catch {
     return;
@@ -281,14 +282,17 @@ healthServer.listen(HEALTH_PORT, '0.0.0.0', () => {
   console.log(`[health] listening on :${HEALTH_PORT}/healthz`);
 });
 
-function shutdown(signal) {
+async function shutdown(signal) {
   console.log(`[shutdown] ${signal} received, destroying client`);
-  healthServer.close();
-  client.destroy();
+  // Wait for the health server to stop accepting connections and for the
+  // Discord client to disconnect cleanly before exiting. The fly.toml
+  // kill_timeout is the backstop if either of these hangs.
+  await new Promise((resolve) => healthServer.close(() => resolve()));
+  try { await client.destroy(); } catch {}
   process.exit(0);
 }
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', () => { shutdown('SIGTERM').catch(() => process.exit(1)); });
+process.on('SIGINT', () => { shutdown('SIGINT').catch(() => process.exit(1)); });
 
 await client.login(process.env.DISCORD_BOT_TOKEN);
