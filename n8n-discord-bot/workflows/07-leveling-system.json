@@ -205,7 +205,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🏆 قائمة المتصدرين\",\n    \"description\": $json.sorted.length ? $json.sorted.map((s, i) => `**${i+1}.** ${s.username} - المستوى ${s.level} (${s.xp} XP)`).join('\\n') : 'لا توجد بيانات بعد',\n    \"color\": 16766720\n  }]\n}) }}",
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🏆 قائمة المتصدرين\",\n    \"description\": $json.sorted.length ? $json.sorted.map((s, i) => `**${i+1}.** ${s.username} - المستوى ${s.level} (${s.totalXp} XP)`).join('\\n') : 'لا توجد بيانات بعد',\n    \"color\": 16766720\n  }]\n}) }}",
         "options": {
           "ignoreResponseCode": true
         }

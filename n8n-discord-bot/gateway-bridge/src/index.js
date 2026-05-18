@@ -178,6 +178,11 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
 client.on(Events.MessageReactionRemove, async (reaction, user) => {
   try {
     if (reaction.partial) await reaction.fetch();
+    // MESSAGE_REACTION_REMOVE does not include a member object, so for uncached
+    // users discord.js builds a partial User where `user.bot` is undefined.
+    // Fetch the full user so the `user.bot` check below is reliable, matching
+    // the defensive pattern used in MessageReactionAdd.
+    if (user.partial) await user.fetch();
   } catch {
     return;
   }
