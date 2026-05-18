@@ -104,7 +104,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const messageId = $input.first().json && $('Discord: post giveaway').first().json.id;\nconst gw = $('Build giveaway data').first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.giveaways = staticData.giveaways || {};\nstaticData.giveaways[gw.giveawayId] = {\n  messageId,\n  channelId: gw.channelId,\n  prize: gw.prize,\n  winners: gw.winners,\n  endsAt: gw.endsAt,\n  hostId: gw.hostId,\n  done: false,\n};\nreturn [{ json: { saved: true, gw: staticData.giveaways[gw.giveawayId], applicationId: gw.applicationId, interactionToken: gw.interactionToken } }];"
+        "jsCode": "const messageId = $('Discord: post giveaway').first().json.id;\nconst gw = $('Build giveaway data').first().json;\nconst staticData = $getWorkflowStaticData('global');\nstaticData.giveaways = staticData.giveaways || {};\nstaticData.giveaways[gw.giveawayId] = {\n  messageId,\n  channelId: gw.channelId,\n  prize: gw.prize,\n  winners: gw.winners,\n  endsAt: gw.endsAt,\n  hostId: gw.hostId,\n  done: false,\n};\nreturn [{ json: { saved: true, gw: staticData.giveaways[gw.giveawayId], applicationId: gw.applicationId, interactionToken: gw.interactionToken } }];"
       },
       "id": "store-gw",
       "name": "Store giveaway",

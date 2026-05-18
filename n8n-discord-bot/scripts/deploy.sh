@@ -9,7 +9,14 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 echo "=== Step 1: deploy n8n ==="
 cd "$ROOT/n8n"
 flyctl apps create alitravians-n8n 2>/dev/null || true
-flyctl volumes create n8n_data --region fra --size 1 --yes 2>/dev/null || true
+
+# Only create the volume if it does not already exist. The previous
+# `2>/dev/null || true` form swallowed real errors (quota, region down, auth)
+# alongside the expected "already exists" case, which made the eventual
+# `flyctl deploy` fail with an opaque "missing mount" message instead.
+if ! flyctl volumes list -a alitravians-n8n 2>/dev/null | awk '{print $2}' | grep -qx 'n8n_data'; then
+  flyctl volumes create n8n_data --region fra --size 1 --yes -a alitravians-n8n
+fi
 
 if [[ -z "${N8N_ENCRYPTION_KEY:-}" ]]; then
   echo "Generating N8N_ENCRYPTION_KEY..."
