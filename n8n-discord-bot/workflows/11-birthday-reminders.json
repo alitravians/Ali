@@ -1,0 +1,246 @@
+{
+  "name": "11 - Birthday Reminders",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-bday",
+      "name": "Cron: daily 09:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command/birthday",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd",
+      "name": "Webhook: /birthday",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        460
+      ],
+      "webhookId": "discord-birthday-cmd"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nif (body.commandName !== 'birthday') {\n  return [{ json: { skip: true } }];\n}\nconst staticData = $getWorkflowStaticData('global');\nstaticData.birthdays = staticData.birthdays || {};\nconst day = body.options.day;\nconst month = body.options.month;\nstaticData.birthdays[body.user.id] = {\n  day: Number(day),\n  month: Number(month),\n  username: body.user.username,\n  displayName: body.user.displayName,\n};\nreturn [{ json: { skip: false, applicationId: body.applicationId, interactionToken: body.interactionToken, day, month } }];"
+      },
+      "id": "save-bday",
+      "name": "Save birthday",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $json.applicationId }}/{{ $json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": `🎂 تم تسجيل عيد ميلادك بتاريخ ${$json.day}/${$json.month}` }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "ack-bday",
+      "name": "Discord: ack /birthday",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        460
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst birthdays = staticData.birthdays || {};\nconst now = new Date();\nconst today = { day: now.getDate(), month: now.getMonth() + 1 };\n\nconst matches = Object.entries(birthdays)\n  .filter(([_, b]) => b.day === today.day && b.month === today.month)\n  .map(([uid, b]) => ({ userId: uid, ...b }));\n\nif (matches.length === 0) {\n  return [];\n}\nreturn matches.map(m => ({ json: m }));"
+      },
+      "id": "check-today",
+      "name": "Check today's birthdays",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"أنت كاتب تهاني ميلاد ودود. اكتب تهنئة قصيرة (سطرين) بعيد ميلاد عضو في سيرفر ديسكورد عربي. أضف ايموجي مناسبة. لا تتجاوز 200 حرف.\" },\n    { \"role\": \"user\", \"content\": `العضو: ${$json.displayName || $json.username}` }\n  ],\n  \"temperature\": 0.9,\n  \"max_tokens\": 200\n}) }}",
+        "options": {
+          "timeout": 30000,
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "groq-greeting",
+      "name": "Groq: generate greeting",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "groq-api-key",
+          "name": "Groq API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Multiple people can share a birthday. 'Check today\\'s birthdays' emits\n// one item per match and 'Groq: generate greeting' runs once per item, so we\n// must pair Groq response items with the matching birthday items by index\n// instead of collapsing both to .first() - that would silently drop all but\n// the first celebrant.\nconst greetings = $input.all();\nconst bdays = $('Check today\\'s birthdays').all();\nreturn greetings.map((g, i) => {\n  const greeting = g.json?.choices?.[0]?.message?.content || 'كل عام وأنت بخير';\n  const bday = bdays[i]?.json || {};\n  return {\n    json: {\n      greeting,\n      userId: bday.userId,\n      displayName: bday.displayName,\n      username: bday.username,\n    },\n  };\n});"
+      },
+      "id": "fmt-greeting",
+      "name": "Format greeting",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.GENERAL_CHANNEL_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `<@${$json.userId}>`,\n  \"embeds\": [{\n    \"title\": \"🎂 عيد ميلاد سعيد!\",\n    \"description\": $json.greeting,\n    \"color\": 16766720,\n    \"timestamp\": new Date().toISOString()\n  }],\n  \"allowed_mentions\": { \"users\": [$json.userId] }\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "celebrate",
+      "name": "Discord: celebrate",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron: daily 09:00": {
+      "main": [
+        [
+          {
+            "node": "Check today's birthdays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check today's birthdays": {
+      "main": [
+        [
+          {
+            "node": "Groq: generate greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq: generate greeting": {
+      "main": [
+        [
+          {
+            "node": "Format greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format greeting": {
+      "main": [
+        [
+          {
+            "node": "Discord: celebrate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: /birthday": {
+      "main": [
+        [
+          {
+            "node": "Save birthday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save birthday": {
+      "main": [
+        [
+          {
+            "node": "Discord: ack /birthday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "birthdays"
+    }
+  ]
+}

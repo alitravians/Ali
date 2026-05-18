@@ -1,0 +1,457 @@
+{
+  "name": "09 - Daily Stats Dashboard",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 * * *"
+            }
+          ]
+        }
+      },
+      "id": "cron-daily",
+      "name": "Cron: daily 00:00 Asia/Riyadh",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command/stats",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd",
+      "name": "Webhook: /stats command",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        480
+      ],
+      "webhookId": "discord-stats-cmd"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create/stats",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "trig-msg-counter",
+      "name": "Webhook: stats message counter",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        720
+      ],
+      "webhookId": "discord-stats-msg-counter"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/stats/member-join",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "trig-join-counter",
+      "name": "Webhook: stats join counter",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        880
+      ],
+      "webhookId": "discord-stats-join-counter"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n's $getWorkflowStaticData('global') is scoped to the CURRENT workflow.\n// So this workflow owns its own dailyCounters - it cannot read counters\n// written by other workflows. Every Discord MESSAGE_CREATE that the gateway\n// bridge fans out to '/webhook/discord/message-create/stats' lands here\n// and bumps the daily message counter.\nconst sd = $getWorkflowStaticData('global');\nsd.dailyCounters = sd.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\nsd.dailyCounters.messages = (sd.dailyCounters.messages || 0) + 1;\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "inc-msg",
+      "name": "Increment messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Same scoping note as 'Increment messages': dailyCounters live in this\n// workflow's static data. The gateway bridge forwards GUILD_MEMBER_ADD to\n// '/webhook/discord/stats/member-join' specifically for this counter so\n// it does not collide with the welcome workflow's own '/discord/member-join'.\nconst sd = $getWorkflowStaticData('global');\nsd.dailyCounters = sd.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\nsd.dailyCounters.joins = (sd.dailyCounters.joins || 0) + 1;\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "inc-join",
+      "name": "Increment joins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        880
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json?.body;\nif (body && body.commandName !== 'stats') {\n  return [{ json: { skip: true } }];\n}\nreturn [{\n  json: {\n    skip: false,\n    isManual: !!body,\n    interactionToken: body?.interactionToken,\n    applicationId: body?.applicationId,\n    channelId: body?.channelId,\n  }\n}];"
+      },
+      "id": "gate-stats",
+      "name": "Gate trigger",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://discord.com/api/v10/guilds/{{ $env.DISCORD_GUILD_ID }}?with_counts=true",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-guild",
+      "name": "Discord: fetch guild stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://discord.com/api/v10/guilds/{{ $env.DISCORD_GUILD_ID }}/channels",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "id": "fetch-channels",
+      "name": "Discord: fetch channels",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Workflow 09's $getWorkflowStaticData('global') is scoped to this workflow,\n// so XP data written by workflow 07 (leveling) is NOT visible here. We do\n// not try to compute a top-XP leaderboard - that lives in workflow 07's\n// /leaderboard command, which has direct access to the XP store.\nconst guild = $('Discord: fetch guild stats').first().json;\n// Guard with Array.isArray in case Discord returns an error object instead of\n// the channels array (missing bot permissions, rate limit, etc).\nconst rawChannels = $('Discord: fetch channels').first().json;\nconst channels = Array.isArray(rawChannels) ? rawChannels : [];\nconst staticData = $getWorkflowStaticData('global');\nconst counters = staticData.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\n\nconst textChannels = channels.filter(c => c.type === 0).length;\nconst voiceChannels = channels.filter(c => c.type === 2).length;\nconst categories = channels.filter(c => c.type === 4).length;\n\nconst totalMembers = guild.approximate_member_count || 0;\nconst onlineMembers = guild.approximate_presence_count || 0;\n\n// Pull interaction context from Gate trigger if /stats was invoked manually.\n// `$('Gate trigger').first()` throws when the cron path was taken, so guard it.\nlet gate = null;\ntry { gate = $('Gate trigger').first().json; } catch { gate = null; }\n\nconst isManual = !!(gate && gate.isManual);\n\nconst report = {\n  guildName: guild.name,\n  totalMembers,\n  onlineMembers,\n  textChannels,\n  voiceChannels,\n  categories,\n  messagesToday: counters.messages,\n  joinsToday: counters.joins,\n  leavesToday: counters.leaves,\n  isManual,\n  interactionToken: gate?.interactionToken || null,\n  applicationId: gate?.applicationId || null,\n};\n\n// Only the midnight cron run rolls the counters over. A manual /stats\n// invocation must NOT wipe them - otherwise the cron report later that day\n// would only see post-/stats activity.\nif (!isManual) {\n  staticData.dailyCounters = { messages: 0, joins: 0, leaves: 0 };\n}\n\nreturn [{ json: report }];\n"
+      },
+      "id": "build-report",
+      "name": "Build report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const r = $input.first().json;\nconst embed = {\n  title: `📊 إحصائيات ${r.guildName} اليومية`,\n  color: 5814783,\n  fields: [\n    { name: '👥 الأعضاء', value: `${r.totalMembers} (${r.onlineMembers} متصلين)`, inline: true },\n    { name: '📝 رسائل اليوم', value: String(r.messagesToday), inline: true },\n    { name: '➕ انضموا اليوم', value: String(r.joinsToday), inline: true },\n    { name: '➖ غادروا اليوم', value: String(r.leavesToday), inline: true },\n    { name: '💬 قنوات نصية', value: String(r.textChannels), inline: true },\n    { name: '🎙️ قنوات صوتية', value: String(r.voiceChannels), inline: true },\n    { name: '🏆 لوحة الصدارة', value: 'استخدم /leaderboard لعرض أعلى الأعضاء بالخبرة', inline: false },\n  ],\n  timestamp: new Date().toISOString(),\n  footer: { text: 'تقرير يومي تلقائي' }\n};\nreturn [{ json: { embed, isManual: r.isManual, interactionToken: r.interactionToken, applicationId: r.applicationId } }];\n"
+      },
+      "id": "format-embed",
+      "name": "Format embed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.STATS_CHANNEL_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"embeds\": [$json.embed] }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "post-report",
+      "name": "Discord: post daily report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        220
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-manual",
+              "leftValue": "={{ $('Format embed').first().json.isManual }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-manual",
+      "name": "IF: manual invocation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('Format embed').first().json.applicationId }}/{{ $('Format embed').first().json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": \"\\u2705 \\u062a\\u0645 \\u0646\\u0634\\u0631 \\u0627\\u0644\\u062a\\u0642\\u0631\\u064a\\u0631\" }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "ack-stats",
+      "name": "Discord: ack /stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        140
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-skip-gate",
+      "name": "IF: skip gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        480
+      ]
+    }
+  ],
+  "connections": {
+    "Cron: daily 00:00 Asia/Riyadh": {
+      "main": [
+        [
+          {
+            "node": "Discord: fetch guild stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: /stats command": {
+      "main": [
+        [
+          {
+            "node": "Gate trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gate trigger": {
+      "main": [
+        [
+          {
+            "node": "IF: skip gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: stats message counter": {
+      "main": [
+        [
+          {
+            "node": "Increment messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: stats join counter": {
+      "main": [
+        [
+          {
+            "node": "Increment joins",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: fetch guild stats": {
+      "main": [
+        [
+          {
+            "node": "Discord: fetch channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: fetch channels": {
+      "main": [
+        [
+          {
+            "node": "Build report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build report": {
+      "main": [
+        [
+          {
+            "node": "Format embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format embed": {
+      "main": [
+        [
+          {
+            "node": "Discord: post daily report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: post daily report": {
+      "main": [
+        [
+          {
+            "node": "IF: manual invocation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: manual invocation": {
+      "main": [
+        [
+          {
+            "node": "Discord: ack /stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "IF: skip gate": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Discord: fetch guild stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "stats"
+    }
+  ]
+}

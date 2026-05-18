@@ -1,0 +1,417 @@
+{
+  "name": "03 - Auto Moderation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create/mod",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-msg",
+      "name": "Webhook: message-create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ],
+      "webhookId": "discord-message-create-mod"
+    },
+    {
+      "parameters": {
+        "jsCode": "function normalize(s) {\n  return (s || '')\n    .toString()\n    .toLowerCase()\n    .replace(/[\\u064B-\\u0652\\u0670\\u0640]/g, '')\n    .replace(/[إأآا]/g, 'ا')\n    .replace(/ة/g, 'ه')\n    .replace(/[ىي]/g, 'ي')\n    .replace(/ؤ/g, 'و')\n    .replace(/ئ/g, 'ي')\n    .replace(/\\s+/g, ' ')\n    .trim();\n}\n\nconst TIERS = [\n  { id: 'mild',      durationMin: 10,           label: 'كتم 10 دقائق',\n    stems:   ['تافه','غبي','احمق','حمقاء'],\n    phrases: [] },\n  { id: 'moderate',  durationMin: 60,           label: 'كتم 60 دقيقة',\n    stems:   ['كلب','حمار','بهيمه','بهايم','منحط','حقير','قذر','وسخ','نذل'],\n    phrases: [] },\n  { id: 'strong',    durationMin: 60*24,        label: 'كتم يوم كامل',\n    stems:   ['قحبه','قحاب','عاهره','شرموطه','شرموط','منيوك','منايك','زامل','زواميل','مخنث','لوطي'],\n    phrases: [] },\n  { id: 'severe',    durationMin: 60*24*7,      label: 'كتم 7 أيام',\n    stems:   ['كس','زب','زبر','ايري','ايره','طيز','طياز','حلقي'],\n    phrases: [] },\n  { id: 'extreme',   durationMin: 60*24*28,     label: 'كتم 28 يوم (الحد الأقصى)',\n    stems:   [],\n    phrases: ['ابن الحرام','بنت الحرام','ولد الحرام','ابن كلب','بنت كلب','ابن حرام','بنت حرام','ولد حرام','يلعن ابوك','يلعن ابوها','يلعن ابوي','يلعن امك','يلعن امها','يلعن الي خلفوك'] },\n  { id: 'ban_month', durationMin: 60*24*30,     label: 'حظر شهر كامل',\n    stems:   [],\n    phrases: ['كس امك','كس امه','كس امها','كس اختك','كس اخته','كس ابوك','بط ايري','بط ايره','ابن الكلب','بنت الكلب','ولد كلب'] },\n  { id: 'ban_year',  durationMin: 60*24*365,    label: 'حظر سنة كاملة',\n    stems:   [],\n    phrases: ['منيك امك','نياك امك','نياك اختك','ابن قحبه','بنت قحبه','ولد قحبه','ابن القحبه','بنت القحبه','ابن عاهره','بنت عاهره','ابن العاهره','بنت العاهره'] },\n];\n\nconst PREFIXES = ['', 'ال'];\nconst SUFFIXES = ['', 'ك','ه','ها','هم','كم','نا','هن','كن','ي','ين','ات'];\n\nfunction expand(stem) {\n  const out = new Set();\n  const n = normalize(stem);\n  for (const p of PREFIXES) for (const s of SUFFIXES) out.add(p + n + s);\n  return out;\n}\n\nconst TOKEN_TIER = new Map();\nconst PHRASE_TIER = [];\nfor (const tier of TIERS) {\n  for (const stem of tier.stems) for (const v of expand(stem)) {\n    const existing = TOKEN_TIER.get(v);\n    if (!existing || tier.durationMin > existing.durationMin) TOKEN_TIER.set(v, tier);\n  }\n  for (const p of tier.phrases) PHRASE_TIER.push({ tier, phrase: normalize(p) });\n}\n\nconst extra = ($env.BANNED_WORDS || '').split(',').map(w => normalize(w.trim())).filter(Boolean);\nfor (const w of extra) {\n  if (w.includes(' ')) PHRASE_TIER.push({ tier: TIERS[0], phrase: w });\n  else if (!TOKEN_TIER.has(w)) TOKEN_TIER.set(w, TIERS[0]);\n}\n\nconst body = $input.first().json.body;\nconst raw = body.content || '';\nconst norm = normalize(raw);\nconst tokens = norm.split(/[^\\u0600-\\u06FF\\u0750-\\u077Fa-z0-9]+/u).filter(Boolean);\n\nconst matched = [];\nfor (const t of tokens) {\n  const tier = TOKEN_TIER.get(t);\n  if (tier) matched.push({ word: t, tier });\n}\nfor (const { tier, phrase } of PHRASE_TIER) {\n  if (phrase && norm.includes(phrase)) matched.push({ word: phrase, tier });\n}\n\nlet bestTier = null;\nfor (const m of matched) {\n  if (!bestTier || m.tier.durationMin > bestTier.durationMin) bestTier = m.tier;\n}\n\nconst now = Date.now();\nconst TIMEOUT_MAX_MIN = 60 * 24 * 28;\nconst isViolation = matched.length > 0;\nconst durationMin = bestTier ? bestTier.durationMin : 0;\nconst shouldBan = durationMin > TIMEOUT_MAX_MIN;\nconst shouldTimeout = !shouldBan && durationMin > 0;\nconst timeoutUntil = shouldTimeout\n  ? new Date(now + durationMin * 60 * 1000).toISOString()\n  : null;\nconst expireAt = (shouldBan || shouldTimeout)\n  ? new Date(now + durationMin * 60 * 1000).toISOString()\n  : null;\n\nreturn [{ json: {\n  ...body,\n  bannedWordsFound: [...new Set(matched.map(m => m.word))],\n  isViolation,\n  severity: bestTier ? bestTier.id : null,\n  severityLabel: bestTier ? bestTier.label : 'لا إجراء',\n  durationMin,\n  timeoutUntil,\n  expireAt,\n  shouldTimeout,\n  shouldBan,\n}}];\n"
+      },
+      "id": "scan-words",
+      "name": "Scan for banned words",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-viol",
+              "leftValue": "={{ $json.isViolation }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-violation",
+      "name": "IF: violation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages/{{ $json.messageId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "delete-msg",
+      "name": "Discord: delete message",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Scan for banned words').first().json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `⚠️ <@${$('Scan for banned words').first().json.author.id}> تم حذف رسالتك لاحتوائها على كلمات ممنوعة.\\n**الإجراء:** ${$('Scan for banned words').first().json.severityLabel}\\n**درجة الخطورة:** ${$('Scan for banned words').first().json.severity}\\n**عدد مخالفاتك الإجمالية:** ${$('Track violations').first().json.violationCount}`,\n  \"allowed_mentions\": { \"users\": [$('Scan for banned words').first().json.author.id] }\n}) }}",
+        "options": {}
+      },
+      "id": "warn-user",
+      "name": "Discord: warn user",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $env.MOD_LOG_CHANNEL_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🚨 إجراء إشراف تلقائي\",\n    \"description\": `**العضو:** <@${$('Scan for banned words').first().json.author.id}> (${$('Scan for banned words').first().json.author.username})\\n**القناة:** <#${$('Scan for banned words').first().json.channelId}>\\n**الكلمات:** ${$('Scan for banned words').first().json.bannedWordsFound.join(', ')}\\n**درجة الخطورة:** ${$('Scan for banned words').first().json.severity}\\n**الإجراء:** ${$('Scan for banned words').first().json.severityLabel}\\n**المدة بالدقائق:** ${$('Scan for banned words').first().json.durationMin}\\n**ينتهي في:** ${$('Scan for banned words').first().json.expireAt}\\n**إجمالي مخالفات العضو:** ${$('Track violations').first().json.violationCount}\\n${$('Scan for banned words').first().json.shouldBan ? '\\n🔴 **تم تطبيق BAN لتجاوز مدة 28 يوم الحد الأقصى لـ timeout — يرجى فك الحظر يدوياً في التاريخ المذكور أعلاه.' : ''}\\n**المحتوى الأصلي:**\\n\\`\\`\\`${($('Scan for banned words').first().json.content || '').slice(0, 500)}\\`\\`\\``,\n    \"color\": $('Scan for banned words').first().json.shouldBan ? 15158332 : 16753920,\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "log-mod",
+      "name": "Discord: log to mod channel",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2400,
+        320
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $getWorkflowStaticData('global');\ndata.violations = data.violations || {};\nconst body = $input.first().json;\nconst userId = body.author.id;\nconst now = Date.now();\n// Periodic cleanup: prune offender entries with no activity in the\n// last 30 days so the static-data blob doesn't grow unboundedly on\n// large or heavily-moderated servers (Devin Review info).\nconst PRUNE_AFTER_MS = 30 * 24 * 60 * 60 * 1000;\nfor (const [uid, rec] of Object.entries(data.violations)) {\n  if (!rec || !rec.lastAt || (now - rec.lastAt) > PRUNE_AFTER_MS) {\n    delete data.violations[uid];\n  }\n}\nconst record = data.violations[userId] || { count: 0, history: [] };\nrecord.count += 1;\nrecord.history = (record.history || []).slice(-9);\nrecord.history.push({\n  at: now,\n  severity: body.severity,\n  durationMin: body.durationMin,\n  words: body.bannedWordsFound,\n});\nrecord.lastAt = now;\ndata.violations[userId] = record;\nreturn [{ json: { ...body, violationCount: record.count } }];\n"
+      },
+      "id": "track-viol",
+      "name": "Track violations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-ban",
+              "leftValue": "={{ $('Scan for banned words').first().json.shouldBan }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-ban",
+      "name": "IF: should ban",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/guilds/{{ $('Scan for banned words').first().json.guildId }}/members/{{ $('Scan for banned words').first().json.author.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"communication_disabled_until\": $('Scan for banned words').first().json.timeoutUntil }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "timeout-member",
+      "name": "Discord: timeout member",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        440
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/guilds/{{ $('Scan for banned words').first().json.guildId }}/bans/{{ $('Scan for banned words').first().json.author.id }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"delete_message_seconds\": 0 }) }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Audit-Log-Reason",
+              "value": "={{ encodeURIComponent('Auto-mod ban (' + $('Scan for banned words').first().json.severity + ') until ' + $('Scan for banned words').first().json.expireAt) }}"
+            }
+          ]
+        },
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "ban-member",
+      "name": "Discord: ban member",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1920,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.N8N_INTERNAL_URL || 'http://localhost:5678' }}/webhook/discord/appeal-create",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  userId: $('Scan for banned words').first().json.author.id,\n  username: $('Scan for banned words').first().json.author.username,\n  guildId: $('Scan for banned words').first().json.guildId,\n  severity: $('Scan for banned words').first().json.severity,\n  severityLabel: $('Scan for banned words').first().json.severityLabel,\n  durationMin: $('Scan for banned words').first().json.durationMin,\n  expireAt: $('Scan for banned words').first().json.expireAt,\n  words: $('Scan for banned words').first().json.bannedWordsFound,\n  originalContent: $('Scan for banned words').first().json.content,\n  originalChannelId: $('Scan for banned words').first().json.channelId,\n  messageId: $('Scan for banned words').first().json.messageId\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Internal-Auth",
+              "value": "={{ $env.N8N_INTERNAL_SECRET }}"
+            }
+          ]
+        }
+      },
+      "id": "call-appeal",
+      "name": "Call ban-appeal workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2160,
+        200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: message-create": {
+      "main": [
+        [
+          {
+            "node": "Scan for banned words",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scan for banned words": {
+      "main": [
+        [
+          {
+            "node": "IF: violation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: violation": {
+      "main": [
+        [
+          {
+            "node": "Track violations",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Track violations": {
+      "main": [
+        [
+          {
+            "node": "Discord: delete message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: delete message": {
+      "main": [
+        [
+          {
+            "node": "Discord: warn user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: warn user": {
+      "main": [
+        [
+          {
+            "node": "IF: should ban",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: should ban": {
+      "main": [
+        [
+          {
+            "node": "Discord: ban member",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord: timeout member",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: ban member": {
+      "main": [
+        [
+          {
+            "node": "Call ban-appeal workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: timeout member": {
+      "main": [
+        [
+          {
+            "node": "Discord: log to mod channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call ban-appeal workflow": {
+      "main": [
+        [
+          {
+            "node": "Discord: log to mod channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "moderation"
+    }
+  ]
+}

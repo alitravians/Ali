@@ -1,0 +1,148 @@
+{
+  "name": "05 - Reaction Roles",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/reaction-add",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-rx-add",
+      "name": "Webhook: reaction-add",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 200],
+      "webhookId": "discord-reaction-add"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/reaction-remove",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-rx-rm",
+      "name": "Webhook: reaction-remove",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 440],
+      "webhookId": "discord-reaction-remove"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map of messageId|emojiName -> roleId\n// Stored in workflow static data; edit via /reactionrole add command (separate workflow)\nconst staticData = $getWorkflowStaticData('global');\nconst map = staticData.reactionRoleMap || {};\n\nconst body = $input.first().json.body;\nconst key = `${body.messageId}|${body.emoji.name || body.emoji.id}`;\nconst roleId = map[key];\n\nif (!roleId) {\n  return [{ json: { skip: true, key } }];\n}\n\nreturn [{\n  json: {\n    skip: false,\n    action: body.event === 'MESSAGE_REACTION_ADD' ? 'add' : 'remove',\n    roleId,\n    userId: body.user.id,\n    guildId: body.guildId,\n  },\n}];"
+      },
+      "id": "lookup-rr",
+      "name": "Lookup role mapping",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": { "type": "boolean", "operation": "false", "singleValue": true }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-mapped",
+      "name": "IF: mapping exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 320]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            {
+              "id": "cond-action",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "add",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-add",
+      "name": "IF: add vs remove",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 280]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/guilds/{{ $json.guildId }}/members/{{ $json.userId }}/roles/{{ $json.roleId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "add-role",
+      "name": "Discord: add role",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=https://discord.com/api/v10/guilds/{{ $json.guildId }}/members/{{ $json.userId }}/roles/{{ $json.roleId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": { "ignoreResponseCode": true }
+      },
+      "id": "rm-role",
+      "name": "Discord: remove role",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 400],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: reaction-add": {
+      "main": [[{ "node": "Lookup role mapping", "type": "main", "index": 0 }]]
+    },
+    "Webhook: reaction-remove": {
+      "main": [[{ "node": "Lookup role mapping", "type": "main", "index": 0 }]]
+    },
+    "Lookup role mapping": {
+      "main": [[{ "node": "IF: mapping exists", "type": "main", "index": 0 }]]
+    },
+    "IF: mapping exists": {
+      "main": [[{ "node": "IF: add vs remove", "type": "main", "index": 0 }], []]
+    },
+    "IF: add vs remove": {
+      "main": [
+        [{ "node": "Discord: add role", "type": "main", "index": 0 }],
+        [{ "node": "Discord: remove role", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" },
+  "tags": [{ "name": "discord" }, { "name": "roles" }]
+}

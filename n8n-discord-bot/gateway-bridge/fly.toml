@@ -1,0 +1,45 @@
+# Fly.io configuration for Discord Gateway -> n8n bridge
+# Deploy with: flyctl deploy --config fly.toml
+# Secrets: flyctl secrets set DISCORD_BOT_TOKEN=... N8N_WEBHOOK_BASE=... BRIDGE_SECRET=... DISCORD_GUILD_ID=...
+
+app = "alitravians-discord-bridge"
+primary_region = "fra"
+kill_signal = "SIGINT"
+kill_timeout = "10s"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  NODE_ENV = "production"
+  TZ = "Asia/Riyadh"
+  HEALTH_PORT = "8080"
+
+[processes]
+  app = "node src/index.js"
+
+# Internal HTTP service for Fly.io health checks. We don't expose this publicly
+# (no force_https / public ports) but Fly.io's load balancer + machine checks
+# can still hit it on the internal port to detect hung event loops.
+[http_service]
+  internal_port = 8080
+  force_https = false
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  interval = "30s"
+  timeout = "5s"
+  grace_period = "30s"
+  method = "GET"
+  path = "/healthz"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
+
+[deploy]
+  strategy = "immediate"

@@ -1,0 +1,135 @@
+{
+  "name": "08 - Cross-Posting Between Channels",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create/cross",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-msg",
+      "name": "Webhook: message-create",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ],
+      "webhookId": "discord-message-cross"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Map of sourceChannelId -> targetWebhookUrl\n// Configure via /crosspost add command (handled in a separate /slash workflow)\nconst staticData = $getWorkflowStaticData('global');\nconst routes = staticData.crossRoutes || {};\n\nconst body = $input.first().json.body;\nconst targetWebhook = routes[body.channelId];\n\nif (!targetWebhook || !body.content) {\n  return [{ json: { skip: true } }];\n}\n\nreturn [{\n  json: {\n    skip: false,\n    targetWebhook,\n    content: body.content,\n    username: body.author.displayName || body.author.username,\n    sourceChannel: body.channelName || body.channelId,\n  }\n}];"
+      },
+      "id": "lookup-route",
+      "name": "Lookup target webhook",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-skip",
+              "leftValue": "={{ $json.skip }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-route",
+      "name": "IF: route exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.targetWebhook }}",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": $json.content,\n  \"username\": `${$json.username} (من #${$json.sourceChannel})`,\n  \"allowed_mentions\": { \"parse\": [] }\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "post-target",
+      "name": "Post to target webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        240
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook: message-create": {
+      "main": [
+        [
+          {
+            "node": "Lookup target webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lookup target webhook": {
+      "main": [
+        [
+          {
+            "node": "IF: route exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: route exists": {
+      "main": [
+        [
+          {
+            "node": "Post to target webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "cross-posting"
+    }
+  ]
+}

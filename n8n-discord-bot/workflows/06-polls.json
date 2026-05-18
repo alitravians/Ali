@@ -1,0 +1,245 @@
+{
+  "name": "06 - Interactive Polls",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/slash-command/poll",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "trig-cmd",
+      "name": "Webhook: slash-command",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        320
+      ],
+      "webhookId": "discord-slash-command-poll"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "cond-poll",
+              "leftValue": "={{ $json.body.commandName }}",
+              "rightValue": "poll",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "if-poll",
+      "name": "IF: /poll",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        480,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body;\nconst question = body.options.question;\nconst optionsRaw = body.options.options || '';\nconst duration = body.options.duration_minutes || 60;\nconst opts = optionsRaw.split(',').map(o => o.trim()).filter(Boolean).slice(0, 10);\nconst emojis = ['1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟'];\nconst lines = opts.map((o, i) => `${emojis[i]} ${o}`).join('\\n');\nconst endsAt = Date.now() + duration * 60 * 1000;\nreturn [{ json: { question, opts, emojis: emojis.slice(0, opts.length), lines, duration, endsAt, channelId: body.channelId, interactionToken: body.interactionToken, applicationId: body.applicationId, authorId: body.user.id, authorName: body.user.displayName } }];"
+      },
+      "id": "build-poll",
+      "name": "Build poll data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": `📊 ${$json.question}`,\n    \"description\": `${$json.lines}\\n\\n⏱️ ينتهي <t:${Math.floor($json.endsAt / 1000)}:R>`,\n    \"color\": 3447003,\n    \"footer\": { \"text\": `بواسطة ${$json.authorName}` },\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}",
+        "options": {}
+      },
+      "id": "send-poll",
+      "name": "Discord: send poll",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        960,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// The previous Split emojis node tried to splitOut 'emojis' from the input\n// item, but the input here is the Discord 'send poll' response (a message\n// object: { id, channel_id, embeds, ... }) which does not contain the\n// emojis array - the array was lost when the HTTP node replaced item json\n// with the API response. Reference 'Build poll data' directly instead.\nconst emojis = $('Build poll data').first().json.emojis || [];\nreturn emojis.map((e) => ({ json: { emojis: e } }));"
+      },
+      "id": "split-emojis",
+      "name": "Emit one item per emoji",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "=https://discord.com/api/v10/channels/{{ $('Discord: send poll').first().json.channel_id }}/messages/{{ $('Discord: send poll').first().json.id }}/reactions/{{ encodeURIComponent($json.emojis) }}/@me",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "ignoreResponseCode": true,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 300
+            }
+          }
+        }
+      },
+      "id": "react-poll",
+      "name": "Discord: add reaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1440,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://discord.com/api/v10/webhooks/{{ $('Build poll data').first().json.applicationId }}/{{ $('Build poll data').first().json.interactionToken }}/messages/@original",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ \"content\": \"✅ تم نشر الاستطلاع بنجاح\" }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
+      },
+      "id": "ack-interaction",
+      "name": "Discord: ack interaction",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1680,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "discord-bot-auth",
+          "name": "Discord Bot Auth"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: slash-command": {
+      "main": [
+        [
+          {
+            "node": "IF: /poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF: /poll": {
+      "main": [
+        [
+          {
+            "node": "Build poll data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build poll data": {
+      "main": [
+        [
+          {
+            "node": "Discord: send poll",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: send poll": {
+      "main": [
+        [
+          {
+            "node": "Emit one item per emoji",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emit one item per emoji": {
+      "main": [
+        [
+          {
+            "node": "Discord: add reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Discord: add reaction": {
+      "main": [
+        [
+          {
+            "node": "Discord: ack interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "polls"
+    }
+  ]
+}
