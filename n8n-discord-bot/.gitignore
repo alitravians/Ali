@@ -1,0 +1,8 @@
+# Node modules (gateway-bridge runtime deps; installed in Docker build)
+gateway-bridge/node_modules/
+gateway-bridge/package-lock.json
+
+# Local-only files
+*.log
+.env
+.env.local
