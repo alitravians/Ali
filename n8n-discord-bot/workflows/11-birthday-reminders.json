@@ -123,7 +123,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const greeting = $input.first().json?.choices?.[0]?.message?.content || 'كل عام وأنت بخير';\nconst bdayData = $('Check today\\'s birthdays').first().json;\nreturn [{ json: { greeting, userId: bdayData.userId, displayName: bdayData.displayName, username: bdayData.username } }];"
+        "jsCode": "// Multiple people can share a birthday. 'Check today\\'s birthdays' emits\n// one item per match and 'Groq: generate greeting' runs once per item, so we\n// must pair Groq response items with the matching birthday items by index\n// instead of collapsing both to .first() - that would silently drop all but\n// the first celebrant.\nconst greetings = $input.all();\nconst bdays = $('Check today\\'s birthdays').all();\nreturn greetings.map((g, i) => {\n  const greeting = g.json?.choices?.[0]?.message?.content || 'كل عام وأنت بخير';\n  const bday = bdays[i]?.json || {};\n  return {\n    json: {\n      greeting,\n      userId: bday.userId,\n      displayName: bday.displayName,\n      username: bday.username,\n    },\n  };\n});"
       },
       "id": "fmt-greeting",
       "name": "Format greeting",

@@ -40,6 +40,66 @@
     },
     {
       "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/message-create/stats",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "trig-msg-counter",
+      "name": "Webhook: stats message counter",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        720
+      ],
+      "webhookId": "discord-stats-msg-counter"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "discord/stats/member-join",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "trig-join-counter",
+      "name": "Webhook: stats join counter",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        880
+      ],
+      "webhookId": "discord-stats-join-counter"
+    },
+    {
+      "parameters": {
+        "jsCode": "// n8n's $getWorkflowStaticData('global') is scoped to the CURRENT workflow.\n// So this workflow owns its own dailyCounters - it cannot read counters\n// written by other workflows. Every Discord MESSAGE_CREATE that the gateway\n// bridge fans out to '/webhook/discord/message-create/stats' lands here\n// and bumps the daily message counter.\nconst sd = $getWorkflowStaticData('global');\nsd.dailyCounters = sd.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\nsd.dailyCounters.messages = (sd.dailyCounters.messages || 0) + 1;\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "inc-msg",
+      "name": "Increment messages",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Same scoping note as 'Increment messages': dailyCounters live in this\n// workflow's static data. The gateway bridge forwards GUILD_MEMBER_ADD to\n// '/webhook/discord/stats/member-join' specifically for this counter so\n// it does not collide with the welcome workflow's own '/discord/member-join'.\nconst sd = $getWorkflowStaticData('global');\nsd.dailyCounters = sd.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\nsd.dailyCounters.joins = (sd.dailyCounters.joins || 0) + 1;\nreturn [{ json: { ok: true } }];"
+      },
+      "id": "inc-join",
+      "name": "Increment joins",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        880
+      ]
+    },
+    {
+      "parameters": {
         "jsCode": "const body = $input.first().json?.body;\nif (body && body.commandName !== 'stats') {\n  return [{ json: { skip: true } }];\n}\nreturn [{\n  json: {\n    skip: false,\n    isManual: !!body,\n    interactionToken: body?.interactionToken,\n    applicationId: body?.applicationId,\n    channelId: body?.channelId,\n  }\n}];"
       },
       "id": "gate-stats",
@@ -99,7 +159,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const guild = $('Discord: fetch guild stats').first().json;\n// Guard with Array.isArray in case Discord returns an error object instead of\n// the channels array (missing bot permissions, rate limit, etc).\nconst rawChannels = $('Discord: fetch channels').first().json;\nconst channels = Array.isArray(rawChannels) ? rawChannels : [];\nconst staticData = $getWorkflowStaticData('global');\nconst counters = staticData.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\n\nconst textChannels = channels.filter(c => c.type === 0).length;\nconst voiceChannels = channels.filter(c => c.type === 2).length;\nconst categories = channels.filter(c => c.type === 4).length;\n\nconst xpData = staticData.xp || {};\nconst totalMembers = guild.approximate_member_count || 0;\nconst onlineMembers = guild.approximate_presence_count || 0;\nconst topUsers = Object.entries(xpData).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 3);\n\n// Pull interaction context from Gate trigger if /stats was invoked manually.\n// `$('Gate trigger').first()` throws when the cron path was taken, so guard it.\nlet gate = null;\ntry { gate = $('Gate trigger').first().json; } catch { gate = null; }\n\nconst report = {\n  guildName: guild.name,\n  totalMembers,\n  onlineMembers,\n  textChannels,\n  voiceChannels,\n  categories,\n  messagesToday: counters.messages,\n  joinsToday: counters.joins,\n  leavesToday: counters.leaves,\n  topUsers: topUsers.map(([uid, d]) => ({ username: d.username, level: d.level, xp: d.xp })),\n  isManual: !!(gate && gate.isManual),\n  interactionToken: gate?.interactionToken || null,\n  applicationId: gate?.applicationId || null,\n};\n\nstaticData.dailyCounters = { messages: 0, joins: 0, leaves: 0 };\n\nreturn [{ json: report }];"
+        "jsCode": "const guild = $('Discord: fetch guild stats').first().json;\n// Guard with Array.isArray in case Discord returns an error object instead of\n// the channels array (missing bot permissions, rate limit, etc).\nconst rawChannels = $('Discord: fetch channels').first().json;\nconst channels = Array.isArray(rawChannels) ? rawChannels : [];\nconst staticData = $getWorkflowStaticData('global');\nconst counters = staticData.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\n\nconst textChannels = channels.filter(c => c.type === 0).length;\nconst voiceChannels = channels.filter(c => c.type === 2).length;\nconst categories = channels.filter(c => c.type === 4).length;\n\nconst xpData = staticData.xp || {};\nconst totalMembers = guild.approximate_member_count || 0;\nconst onlineMembers = guild.approximate_presence_count || 0;\nconst topUsers = Object.entries(xpData).sort((a, b) => b[1].level - a[1].level || b[1].xp - a[1].xp).slice(0, 3);\n\n// Pull interaction context from Gate trigger if /stats was invoked manually.\n// `$('Gate trigger').first()` throws when the cron path was taken, so guard it.\nlet gate = null;\ntry { gate = $('Gate trigger').first().json; } catch { gate = null; }\n\nconst isManual = !!(gate && gate.isManual);\n\nconst report = {\n  guildName: guild.name,\n  totalMembers,\n  onlineMembers,\n  textChannels,\n  voiceChannels,\n  categories,\n  messagesToday: counters.messages,\n  joinsToday: counters.joins,\n  leavesToday: counters.leaves,\n  topUsers: topUsers.map(([uid, d]) => ({ username: d.username, level: d.level, xp: d.xp })),\n  isManual,\n  interactionToken: gate?.interactionToken || null,\n  applicationId: gate?.applicationId || null,\n};\n\n// Only the midnight cron run rolls the counters over. A manual /stats\n// invocation must NOT wipe them - otherwise the cron report later that day\n// would only see post-/stats activity.\nif (!isManual) {\n  staticData.dailyCounters = { messages: 0, joins: 0, leaves: 0 };\n}\n\nreturn [{ json: report }];"
       },
       "id": "build-report",
       "name": "Build report",
@@ -241,6 +301,28 @@
         [
           {
             "node": "Discord: fetch guild stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: stats message counter": {
+      "main": [
+        [
+          {
+            "node": "Increment messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook: stats join counter": {
+      "main": [
+        [
+          {
+            "node": "Increment joins",
             "type": "main",
             "index": 0
           }

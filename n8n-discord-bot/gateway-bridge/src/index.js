@@ -83,13 +83,17 @@ async function fanout(eventPaths, payload) {
 }
 
 // Each MESSAGE_CREATE event is fanned out to multiple workflows (AI mention
-// handler, auto-moderation, XP, cross-posting). n8n cannot share a single
-// webhook path across active workflows, so we use one unique path per consumer.
+// handler, auto-moderation, XP, cross-posting, stats counter). n8n cannot
+// share a single webhook path across active workflows, so we use one unique
+// path per consumer. The 'stats' fan-out lets workflow 09 own its own
+// dailyCounters - $getWorkflowStaticData is per-workflow scoped, so the
+// stats workflow cannot read counters from the XP workflow.
 const MESSAGE_CREATE_PATHS = [
   'discord/message-create/ai',
   'discord/message-create/mod',
   'discord/message-create/xp',
   'discord/message-create/cross',
+  'discord/message-create/stats',
 ];
 
 function inGuild(guildId) {
@@ -126,10 +130,19 @@ client.on(Events.MessageCreate, async (msg) => {
   });
 });
 
+// GUILD_MEMBER_ADD is fanned out to the welcome workflow (which generates an
+// AI greeting) and the stats workflow (which only bumps a join counter).
+// Two paths instead of one keeps workflow 09's static data isolated and
+// avoids coupling it to the welcome workflow's pipeline.
+const MEMBER_JOIN_PATHS = [
+  'discord/member-join',
+  'discord/stats/member-join',
+];
+
 client.on(Events.GuildMemberAdd, async (member) => {
   if (!inGuild(member.guild.id)) return;
 
-  await forward('discord/member-join', {
+  await fanout(MEMBER_JOIN_PATHS, {
     event: 'GUILD_MEMBER_ADD',
     guildId: member.guild.id,
     user: {

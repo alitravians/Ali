@@ -48,7 +48,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first();\nconst aiMsg = item.json.choices?.[0]?.message?.content?.trim() || 'أهلاً بك في السيرفر!';\nconst joinData = $('Webhook: member-join').first().json.body;\n// dailyCounters.joins is consumed (and reset) by workflow 09 (stats\n// dashboard). Bump here so the daily report reflects real joins.\nconst sd = $getWorkflowStaticData('global');\nsd.dailyCounters = sd.dailyCounters || { messages: 0, joins: 0, leaves: 0 };\nsd.dailyCounters.joins = (sd.dailyCounters.joins || 0) + 1;\nreturn [{ json: { welcomeText: aiMsg, user: joinData.user, memberCount: joinData.memberCount, guildId: joinData.guildId } }];"
+        "jsCode": "const item = $input.first();\nconst aiMsg = item.json.choices?.[0]?.message?.content?.trim() || 'أهلاً بك في السيرفر!';\nconst joinData = $('Webhook: member-join').first().json.body;\n// dailyCounters.joins is tracked by workflow 09 (stats dashboard) via its\n// own '/discord/stats/member-join' webhook. $getWorkflowStaticData is\n// scoped per-workflow, so writing here would be invisible to workflow 09.\nreturn [{ json: { welcomeText: aiMsg, user: joinData.user, memberCount: joinData.memberCount, guildId: joinData.guildId } }];"
       },
       "id": "format-welcome",
       "name": "Format welcome",
