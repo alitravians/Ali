@@ -200,14 +200,14 @@
       "main": [
         [
           {
-            "node": "Split emojis",
+            "node": "Emit one item per emoji",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Split emojis": {
+    "Emit one item per emoji": {
       "main": [
         [
           {
