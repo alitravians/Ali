@@ -16,7 +16,10 @@
       "name": "Cron: daily 00:00 Asia/Riyadh",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 220]
+      "position": [
+        240,
+        220
+      ]
     },
     {
       "parameters": {
@@ -29,7 +32,10 @@
       "name": "Webhook: /stats command",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 480],
+      "position": [
+        240,
+        480
+      ],
       "webhookId": "discord-stats-cmd"
     },
     {
@@ -40,7 +46,10 @@
       "name": "Gate trigger",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 480]
+      "position": [
+        480,
+        480
+      ]
     },
     {
       "parameters": {
@@ -54,7 +63,10 @@
       "name": "Discord: fetch guild stats",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 220],
+      "position": [
+        480,
+        220
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -74,7 +86,10 @@
       "name": "Discord: fetch channels",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 220],
+      "position": [
+        720,
+        220
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -90,7 +105,10 @@
       "name": "Build report",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 220]
+      "position": [
+        960,
+        220
+      ]
     },
     {
       "parameters": {
@@ -100,7 +118,10 @@
       "name": "Format embed",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 220]
+      "position": [
+        1200,
+        220
+      ]
     },
     {
       "parameters": {
@@ -110,14 +131,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"embeds\": [$json.embed] }",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({ \"embeds\": [$json.embed] }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "post-report",
       "name": "Discord: post daily report",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 220],
+      "position": [
+        1440,
+        220
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -128,28 +154,93 @@
   ],
   "connections": {
     "Cron: daily 00:00 Asia/Riyadh": {
-      "main": [[{ "node": "Discord: fetch guild stats", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: fetch guild stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: /stats command": {
-      "main": [[{ "node": "Gate trigger", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Gate trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Gate trigger": {
-      "main": [[{ "node": "Discord: fetch guild stats", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: fetch guild stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: fetch guild stats": {
-      "main": [[{ "node": "Discord: fetch channels", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: fetch channels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: fetch channels": {
-      "main": [[{ "node": "Build report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Build report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Build report": {
-      "main": [[{ "node": "Format embed", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format embed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format embed": {
-      "main": [[{ "node": "Discord: post daily report", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: post daily report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "stats" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "stats"
+    }
+  ]
 }

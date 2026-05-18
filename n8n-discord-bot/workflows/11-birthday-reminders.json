@@ -16,7 +16,10 @@
       "name": "Cron: daily 09:00",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [240, 200]
+      "position": [
+        240,
+        200
+      ]
     },
     {
       "parameters": {
@@ -29,7 +32,10 @@
       "name": "Webhook: /birthday",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 460],
+      "position": [
+        240,
+        460
+      ],
       "webhookId": "discord-birthday-cmd"
     },
     {
@@ -40,7 +46,10 @@
       "name": "Save birthday",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 460]
+      "position": [
+        480,
+        460
+      ]
     },
     {
       "parameters": {
@@ -50,14 +59,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"content\": `🎂 تم تسجيل عيد ميلادك بتاريخ ${$json.day}/${$json.month}` }",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({ \"content\": `🎂 تم تسجيل عيد ميلادك بتاريخ ${$json.day}/${$json.month}` }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "ack-bday",
       "name": "Discord: ack /birthday",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 460],
+      "position": [
+        720,
+        460
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -73,7 +87,10 @@
       "name": "Check today's birthdays",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 200]
+      "position": [
+        480,
+        200
+      ]
     },
     {
       "parameters": {
@@ -83,14 +100,20 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"أنت كاتب تهاني ميلاد ودود. اكتب تهنئة قصيرة (سطرين) بعيد ميلاد عضو في سيرفر ديسكورد عربي. أضف ايموجي مناسبة. لا تتجاوز 200 حرف.\" },\n    { \"role\": \"user\", \"content\": `العضو: ${$json.displayName || $json.username}` }\n  ],\n  \"temperature\": 0.9,\n  \"max_tokens\": 200\n}",
-        "options": { "timeout": 30000, "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    { \"role\": \"system\", \"content\": \"أنت كاتب تهاني ميلاد ودود. اكتب تهنئة قصيرة (سطرين) بعيد ميلاد عضو في سيرفر ديسكورد عربي. أضف ايموجي مناسبة. لا تتجاوز 200 حرف.\" },\n    { \"role\": \"user\", \"content\": `العضو: ${$json.displayName || $json.username}` }\n  ],\n  \"temperature\": 0.9,\n  \"max_tokens\": 200\n}) }}",
+        "options": {
+          "timeout": 30000,
+          "ignoreResponseCode": true
+        }
       },
       "id": "groq-greeting",
       "name": "Groq: generate greeting",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 200],
+      "position": [
+        720,
+        200
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "groq-api-key",
@@ -106,7 +129,10 @@
       "name": "Format greeting",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 200]
+      "position": [
+        960,
+        200
+      ]
     },
     {
       "parameters": {
@@ -116,14 +142,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `<@${$json.userId}>`,\n  \"embeds\": [{\n    \"title\": \"🎂 عيد ميلاد سعيد!\",\n    \"description\": $json.greeting,\n    \"color\": 16766720,\n    \"timestamp\": new Date().toISOString()\n  }],\n  \"allowed_mentions\": { \"users\": [$json.userId] }\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `<@${$json.userId}>`,\n  \"embeds\": [{\n    \"title\": \"🎂 عيد ميلاد سعيد!\",\n    \"description\": $json.greeting,\n    \"color\": 16766720,\n    \"timestamp\": new Date().toISOString()\n  }],\n  \"allowed_mentions\": { \"users\": [$json.userId] }\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "celebrate",
       "name": "Discord: celebrate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 200],
+      "position": [
+        1200,
+        200
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -134,25 +165,82 @@
   ],
   "connections": {
     "Cron: daily 09:00": {
-      "main": [[{ "node": "Check today's birthdays", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Check today's birthdays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Check today's birthdays": {
-      "main": [[{ "node": "Groq: generate greeting", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Groq: generate greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Groq: generate greeting": {
-      "main": [[{ "node": "Format greeting", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format greeting": {
-      "main": [[{ "node": "Discord: celebrate", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: celebrate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: /birthday": {
-      "main": [[{ "node": "Save birthday", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Save birthday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Save birthday": {
-      "main": [[{ "node": "Discord: ack /birthday", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: ack /birthday",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "birthdays" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "birthdays"
+    }
+  ]
 }

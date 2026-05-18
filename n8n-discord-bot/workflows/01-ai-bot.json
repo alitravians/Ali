@@ -12,7 +12,10 @@
       "name": "Webhook: message-create",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 320],
+      "position": [
+        240,
+        320
+      ],
       "webhookId": "discord-message-create"
     },
     {
@@ -43,7 +46,10 @@
       "name": "IF: bot mentioned",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [480, 320]
+      "position": [
+        480,
+        320
+      ]
     },
     {
       "parameters": {
@@ -53,7 +59,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"أنت مساعد ذكي ودود في سيرفر ديسكورد عربي اسمه alitravians. أجب بإيجاز ووضوح باللغة العربية. حافظ على نبرة مرحبة وودية. لا تتجاوز 500 حرف في الرد.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": $json.body.content\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 400\n}",
+        "jsonBody": "={{ JSON.stringify({\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"أنت مساعد ذكي ودود في سيرفر ديسكورد عربي اسمه alitravians. أجب بإيجاز ووضوح باللغة العربية. حافظ على نبرة مرحبة وودية. لا تتجاوز 500 حرف في الرد.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": $json.body.content\n    }\n  ],\n  \"temperature\": 0.7,\n  \"max_tokens\": 400\n}) }}",
         "options": {
           "timeout": 30000
         }
@@ -62,7 +68,10 @@
       "name": "Groq: Llama 3.3",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [720, 240],
+      "position": [
+        720,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "groq-api-key",
@@ -78,7 +87,10 @@
       "name": "Format reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [960, 240]
+      "position": [
+        960,
+        240
+      ]
     },
     {
       "parameters": {
@@ -88,14 +100,17 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": $json.reply,\n  \"message_reference\": {\n    \"message_id\": $json.messageId,\n    \"fail_if_not_exists\": false\n  },\n  \"allowed_mentions\": { \"parse\": [] }\n}",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": $json.reply,\n  \"message_reference\": {\n    \"message_id\": $json.messageId,\n    \"fail_if_not_exists\": false\n  },\n  \"allowed_mentions\": { \"parse\": [] }\n}) }}",
         "options": {}
       },
       "id": "send-discord",
       "name": "Discord: send reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 240],
+      "position": [
+        1200,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",

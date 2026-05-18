@@ -12,7 +12,10 @@
       "name": "Webhook: message-create",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 220],
+      "position": [
+        240,
+        220
+      ],
       "webhookId": "discord-message-xp"
     },
     {
@@ -26,7 +29,10 @@
       "name": "Webhook: /level",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 480],
+      "position": [
+        240,
+        480
+      ],
       "webhookId": "discord-slash-level"
     },
     {
@@ -40,7 +46,10 @@
       "name": "Webhook: /leaderboard",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 620],
+      "position": [
+        240,
+        620
+      ],
       "webhookId": "discord-slash-leaderboard"
     },
     {
@@ -51,18 +60,29 @@
       "name": "Calc XP + level",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 220]
+      "position": [
+        480,
+        220
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-lvl",
               "leftValue": "={{ $json.leveledUp }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -72,7 +92,10 @@
       "name": "IF: leveled up",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 220]
+      "position": [
+        720,
+        220
+      ]
     },
     {
       "parameters": {
@@ -82,14 +105,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `🎉 مبروك <@${$json.userId}>! وصلت للمستوى **${$json.newLevel}**`,\n  \"allowed_mentions\": { \"users\": [$json.userId] }\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `🎉 مبروك <@${$json.userId}>! وصلت للمستوى **${$json.newLevel}**`,\n  \"allowed_mentions\": { \"users\": [$json.userId] }\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "announce-lvl",
       "name": "Discord: announce level-up",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 140],
+      "position": [
+        960,
+        140
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -105,18 +133,28 @@
       "name": "Handle /level + /leaderboard",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 480]
+      "position": [
+        480,
+        480
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-mode",
               "leftValue": "={{ $json.mode }}",
               "rightValue": "level",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -126,7 +164,10 @@
       "name": "IF: mode=level",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 480]
+      "position": [
+        720,
+        480
+      ]
     },
     {
       "parameters": {
@@ -136,14 +177,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": `📊 مستوى ${$json.record.username}`,\n    \"description\": `**المستوى:** ${$json.record.level}\\n**XP:** ${$json.record.xp} / ${$json.xpForNext}\\n**التقدم:** ${'█'.repeat(Math.floor(($json.record.xp / $json.xpForNext) * 10))}${'░'.repeat(10 - Math.floor(($json.record.xp / $json.xpForNext) * 10))}`,\n    \"color\": 3447003\n  }]\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": `📊 مستوى ${$json.record.username}`,\n    \"description\": `**المستوى:** ${$json.record.level}\\n**XP:** ${$json.record.xp} / ${$json.xpForNext}\\n**التقدم:** ${'█'.repeat(Math.floor(($json.record.xp / $json.xpForNext) * 10))}${'░'.repeat(10 - Math.floor(($json.record.xp / $json.xpForNext) * 10))}`,\n    \"color\": 3447003\n  }]\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "send-level",
       "name": "Discord: send level card",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 380],
+      "position": [
+        960,
+        380
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -159,14 +205,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"🏆 قائمة المتصدرين\",\n    \"description\": $json.sorted.length ? $json.sorted.map((s, i) => `**${i+1}.** ${s.username} - المستوى ${s.level} (${s.xp} XP)`).join('\\n') : 'لا توجد بيانات بعد',\n    \"color\": 16766720\n  }]\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🏆 قائمة المتصدرين\",\n    \"description\": $json.sorted.length ? $json.sorted.map((s, i) => `**${i+1}.** ${s.username} - المستوى ${s.level} (${s.xp} XP)`).join('\\n') : 'لا توجد بيانات بعد',\n    \"color\": 16766720\n  }]\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "send-lb",
       "name": "Discord: send leaderboard",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 580],
+      "position": [
+        960,
+        580
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -177,31 +228,101 @@
   ],
   "connections": {
     "Webhook: message-create": {
-      "main": [[{ "node": "Calc XP + level", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Calc XP + level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Calc XP + level": {
-      "main": [[{ "node": "IF: leveled up", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: leveled up",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: leveled up": {
-      "main": [[{ "node": "Discord: announce level-up", "type": "main", "index": 0 }], []]
+      "main": [
+        [
+          {
+            "node": "Discord: announce level-up",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     },
     "Webhook: /level": {
-      "main": [[{ "node": "Handle /level + /leaderboard", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Handle /level + /leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Webhook: /leaderboard": {
-      "main": [[{ "node": "Handle /level + /leaderboard", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Handle /level + /leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Handle /level + /leaderboard": {
-      "main": [[{ "node": "IF: mode=level", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: mode=level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: mode=level": {
       "main": [
-        [{ "node": "Discord: send level card", "type": "main", "index": 0 }],
-        [{ "node": "Discord: send leaderboard", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Discord: send level card",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Discord: send leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "leveling" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "leveling"
+    }
+  ]
 }

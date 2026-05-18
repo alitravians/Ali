@@ -12,19 +12,29 @@
       "name": "Webhook: slash-command",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 320],
+      "position": [
+        240,
+        320
+      ],
       "webhookId": "discord-slash-command"
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-cmd",
               "leftValue": "={{ $json.body.commandName }}",
               "rightValue": "ticket",
-              "operator": { "type": "string", "operation": "equals" }
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -35,7 +45,10 @@
       "name": "IF: /ticket",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [480, 320]
+      "position": [
+        480,
+        320
+      ]
     },
     {
       "parameters": {
@@ -45,7 +58,10 @@
       "name": "Build ticket data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 240]
+      "position": [
+        720,
+        240
+      ]
     },
     {
       "parameters": {
@@ -55,14 +71,17 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"name\": $json.channelName,\n  \"type\": 0,\n  \"topic\": `تذكرة دعم فني - ${$json.username} - ${$json.reason}`,\n  \"parent_id\": $env.TICKETS_CATEGORY_ID || null,\n  \"permission_overwrites\": [\n    {\n      \"id\": $json.guildId,\n      \"type\": 0,\n      \"deny\": \"1024\"\n    },\n    {\n      \"id\": $json.userId,\n      \"type\": 1,\n      \"allow\": \"3072\"\n    }\n  ]\n}",
+        "jsonBody": "={{ JSON.stringify({\n  \"name\": $json.channelName,\n  \"type\": 0,\n  \"topic\": `تذكرة دعم فني - ${$json.username} - ${$json.reason}`,\n  \"parent_id\": $env.TICKETS_CATEGORY_ID || null,\n  \"permission_overwrites\": [\n    {\n      \"id\": $json.guildId,\n      \"type\": 0,\n      \"deny\": \"1024\"\n    },\n    {\n      \"id\": $json.userId,\n      \"type\": 1,\n      \"allow\": \"3072\"\n    }\n  ]\n}) }}",
         "options": {}
       },
       "id": "create-channel",
       "name": "Discord: create channel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 240],
+      "position": [
+        960,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -78,14 +97,17 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `<@${$('Build ticket data').first().json.userId}> أهلاً بك في تذكرتك`,\n  \"embeds\": [{\n    \"title\": \"🎫 تذكرة دعم فني جديدة\",\n    \"description\": `**السبب:** ${$('Build ticket data').first().json.reason}\\n\\n👨‍💼 سيتواصل معك أحد المشرفين قريباً.\\n📌 لإغلاق التذكرة: تفاعل بـ 🔒`,\n    \"color\": 5814783,\n    \"footer\": { \"text\": `Ticket ID: ${$('Build ticket data').first().json.ticketId}` },\n    \"timestamp\": new Date().toISOString()\n  }]\n}",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `<@${$('Build ticket data').first().json.userId}> أهلاً بك في تذكرتك`,\n  \"embeds\": [{\n    \"title\": \"🎫 تذكرة دعم فني جديدة\",\n    \"description\": `**السبب:** ${$('Build ticket data').first().json.reason}\\n\\n👨‍💼 سيتواصل معك أحد المشرفين قريباً.\\n📌 لإغلاق التذكرة: تفاعل بـ 🔒`,\n    \"color\": 5814783,\n    \"footer\": { \"text\": `Ticket ID: ${$('Build ticket data').first().json.ticketId}` },\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}",
         "options": {}
       },
       "id": "send-welcome",
       "name": "Discord: ticket welcome",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 240],
+      "position": [
+        1200,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -105,7 +127,10 @@
       "name": "Discord: add close reaction",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 240],
+      "position": [
+        1440,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -121,14 +146,17 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `✅ تم فتح تذكرتك: <#${$('Discord: create channel').first().json.id}>`\n}",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `✅ تم فتح تذكرتك: <#${$('Discord: create channel').first().json.id}>`\n}) }}",
         "options": {}
       },
       "id": "respond-interaction",
       "name": "Discord: ack interaction",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1680, 240],
+      "position": [
+        1680,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -139,25 +167,83 @@
   ],
   "connections": {
     "Webhook: slash-command": {
-      "main": [[{ "node": "IF: /ticket", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: /ticket",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: /ticket": {
-      "main": [[{ "node": "Build ticket data", "type": "main", "index": 0 }], []]
+      "main": [
+        [
+          {
+            "node": "Build ticket data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     },
     "Build ticket data": {
-      "main": [[{ "node": "Discord: create channel", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: create channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: create channel": {
-      "main": [[{ "node": "Discord: ticket welcome", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: ticket welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: ticket welcome": {
-      "main": [[{ "node": "Discord: add close reaction", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: add close reaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: add close reaction": {
-      "main": [[{ "node": "Discord: ack interaction", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: ack interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "tickets" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "tickets"
+    }
+  ]
 }

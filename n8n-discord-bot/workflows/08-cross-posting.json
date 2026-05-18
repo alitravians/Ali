@@ -12,7 +12,10 @@
       "name": "Webhook: message-create",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 320],
+      "position": [
+        240,
+        320
+      ],
       "webhookId": "discord-message-cross"
     },
     {
@@ -23,18 +26,29 @@
       "name": "Lookup target webhook",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 320]
+      "position": [
+        480,
+        320
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-skip",
               "leftValue": "={{ $json.skip }}",
               "rightValue": false,
-              "operator": { "type": "boolean", "operation": "false", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,7 +58,10 @@
       "name": "IF: route exists",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 320]
+      "position": [
+        720,
+        320
+      ]
     },
     {
       "parameters": {
@@ -52,28 +69,67 @@
         "url": "={{ $json.targetWebhook }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": $json.content,\n  \"username\": `${$json.username} (من #${$json.sourceChannel})`,\n  \"allowed_mentions\": { \"parse\": [] }\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": $json.content,\n  \"username\": `${$json.username} (من #${$json.sourceChannel})`,\n  \"allowed_mentions\": { \"parse\": [] }\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "post-target",
       "name": "Post to target webhook",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 240]
+      "position": [
+        960,
+        240
+      ]
     }
   ],
   "connections": {
     "Webhook: message-create": {
-      "main": [[{ "node": "Lookup target webhook", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Lookup target webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Lookup target webhook": {
-      "main": [[{ "node": "IF: route exists", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: route exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: route exists": {
-      "main": [[{ "node": "Post to target webhook", "type": "main", "index": 0 }], []]
+      "main": [
+        [
+          {
+            "node": "Post to target webhook",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "cross-posting" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "cross-posting"
+    }
+  ]
 }

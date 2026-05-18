@@ -12,7 +12,10 @@
       "name": "Webhook: member-join",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 320],
+      "position": [
+        240,
+        320
+      ],
       "webhookId": "discord-member-join"
     },
     {
@@ -23,14 +26,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"أنت مرحب ودود في سيرفر ديسكورد عربي اسمه alitravians. اكتب رسالة ترحيب قصيرة (سطرين فقط) وممتعة وفريدة لعضو جديد. استخدم اسمه. أضف ايموجي مناسبة. لا تتجاوز 200 حرف.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": `العضو الجديد: ${$json.body.user.displayName || $json.body.user.username}\\nرقم العضو في السيرفر: ${$json.body.memberCount}`\n    }\n  ],\n  \"temperature\": 0.9,\n  \"max_tokens\": 200\n}",
-        "options": { "timeout": 30000 }
+        "jsonBody": "={{ JSON.stringify({\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"أنت مرحب ودود في سيرفر ديسكورد عربي اسمه alitravians. اكتب رسالة ترحيب قصيرة (سطرين فقط) وممتعة وفريدة لعضو جديد. استخدم اسمه. أضف ايموجي مناسبة. لا تتجاوز 200 حرف.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": `العضو الجديد: ${$json.body.user.displayName || $json.body.user.username}\\nرقم العضو في السيرفر: ${$json.body.memberCount}`\n    }\n  ],\n  \"temperature\": 0.9,\n  \"max_tokens\": 200\n}) }}",
+        "options": {
+          "timeout": 30000
+        }
       },
       "id": "groq-welcome",
       "name": "Groq: generate welcome",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [480, 320],
+      "position": [
+        480,
+        320
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "groq-api-key",
@@ -46,7 +54,10 @@
       "name": "Format welcome",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [720, 320]
+      "position": [
+        720,
+        320
+      ]
     },
     {
       "parameters": {
@@ -56,14 +67,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `<@${$json.user.id}>`,\n  \"embeds\": [{\n    \"title\": \"🎉 عضو جديد انضم إلينا!\",\n    \"description\": $json.welcomeText,\n    \"thumbnail\": { \"url\": $json.user.avatarUrl },\n    \"fields\": [\n      { \"name\": \"العضو\", \"value\": `<@${$json.user.id}>`, \"inline\": true },\n      { \"name\": \"رقمه\", \"value\": `#${$json.memberCount}`, \"inline\": true }\n    ],\n    \"color\": 3066993,\n    \"timestamp\": new Date().toISOString()\n  }]\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `<@${$json.user.id}>`,\n  \"embeds\": [{\n    \"title\": \"🎉 عضو جديد انضم إلينا!\",\n    \"description\": $json.welcomeText,\n    \"thumbnail\": { \"url\": $json.user.avatarUrl },\n    \"fields\": [\n      { \"name\": \"العضو\", \"value\": `<@${$json.user.id}>`, \"inline\": true },\n      { \"name\": \"رقمه\", \"value\": `#${$json.memberCount}`, \"inline\": true }\n    ],\n    \"color\": 3066993,\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "send-welcome",
       "name": "Discord: post welcome",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 240],
+      "position": [
+        960,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -79,14 +95,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"recipient_id\": $('Format welcome').first().json.user.id }",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({ \"recipient_id\": $('Format welcome').first().json.user.id }) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "open-dm",
       "name": "Discord: open DM",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 240],
+      "position": [
+        1200,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -102,14 +123,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"🌟 أهلاً بك في alitravians\",\n    \"description\": \"شكراً لانضمامك! إليك بعض الأشياء المهمة:\\n\\n📜 **القواعد:** اقرأ <#قناة_القواعد>\\n💬 **الدردشة العامة:** <#قناة_الدردشة>\\n🎮 **المسابقات:** <#قناة_المسابقات>\\n🎫 **الدعم:** استخدم `/ticket` في أي قناة\\n🎂 **عيد ميلادك:** سجله بـ `/birthday`\\n📊 **مستواك:** تابعه بـ `/level`\\n\\n💡 يمكنك ذكر البوت بأي سؤال وسيرد عليك بالذكاء الاصطناعي!\",\n    \"color\": 5814783,\n    \"footer\": { \"text\": \"نتمنى لك وقتاً ممتعاً معنا\" }\n  }]\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🌟 أهلاً بك في alitravians\",\n    \"description\": \"شكراً لانضمامك! إليك بعض الأشياء المهمة:\\n\\n📜 **القواعد:** اقرأ <#قناة_القواعد>\\n💬 **الدردشة العامة:** <#قناة_الدردشة>\\n🎮 **المسابقات:** <#قناة_المسابقات>\\n🎫 **الدعم:** استخدم `/ticket` في أي قناة\\n🎂 **عيد ميلادك:** سجله بـ `/birthday`\\n📊 **مستواك:** تابعه بـ `/level`\\n\\n💡 يمكنك ذكر البوت بأي سؤال وسيرد عليك بالذكاء الاصطناعي!\",\n    \"color\": 5814783,\n    \"footer\": { \"text\": \"نتمنى لك وقتاً ممتعاً معنا\" }\n  }]\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "dm-rules",
       "name": "Discord: send DM rules",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 240],
+      "position": [
+        1440,
+        240
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -123,13 +149,18 @@
         "url": "=https://discord.com/api/v10/guilds/{{ $('Format welcome').first().json.guildId }}/members/{{ $('Format welcome').first().json.user.id }}/roles/{{ $env.DEFAULT_ROLE_ID }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": { "ignoreResponseCode": true }
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "assign-role",
       "name": "Discord: assign default role",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 400],
+      "position": [
+        1200,
+        400
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -140,27 +171,76 @@
   ],
   "connections": {
     "Webhook: member-join": {
-      "main": [[{ "node": "Groq: generate welcome", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Groq: generate welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Groq: generate welcome": {
-      "main": [[{ "node": "Format welcome", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Format welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Format welcome": {
       "main": [
         [
-          { "node": "Discord: post welcome", "type": "main", "index": 0 },
-          { "node": "Discord: assign default role", "type": "main", "index": 0 }
+          {
+            "node": "Discord: post welcome",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Discord: assign default role",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Discord: post welcome": {
-      "main": [[{ "node": "Discord: open DM", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: open DM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: open DM": {
-      "main": [[{ "node": "Discord: send DM rules", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: send DM rules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "welcome" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "welcome"
+    }
+  ]
 }

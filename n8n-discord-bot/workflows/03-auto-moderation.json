@@ -12,7 +12,10 @@
       "name": "Webhook: message-create",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
-      "position": [240, 320],
+      "position": [
+        240,
+        320
+      ],
       "webhookId": "discord-message-create-mod"
     },
     {
@@ -23,18 +26,29 @@
       "name": "Scan for banned words",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 320]
+      "position": [
+        480,
+        320
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
           "conditions": [
             {
               "id": "cond-viol",
               "leftValue": "={{ $json.isViolation }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true", "singleValue": true }
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
             }
           ],
           "combinator": "and"
@@ -44,7 +58,10 @@
       "name": "IF: violation",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 320]
+      "position": [
+        720,
+        320
+      ]
     },
     {
       "parameters": {
@@ -52,13 +69,18 @@
         "url": "=https://discord.com/api/v10/channels/{{ $json.channelId }}/messages/{{ $json.messageId }}",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "options": { "ignoreResponseCode": true }
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "delete-msg",
       "name": "Discord: delete message",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [960, 200],
+      "position": [
+        960,
+        200
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -74,14 +96,17 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"content\": `⚠️ <@${$('Scan for banned words').first().json.author.id}> رسالتك تم حذفها لاحتوائها على كلمات ممنوعة. يُرجى الالتزام بقواعد السيرفر.`,\n  \"allowed_mentions\": { \"users\": [$('Scan for banned words').first().json.author.id] }\n}",
+        "jsonBody": "={{ JSON.stringify({\n  \"content\": `⚠️ <@${$('Scan for banned words').first().json.author.id}> رسالتك تم حذفها لاحتوائها على كلمات ممنوعة. يُرجى الالتزام بقواعد السيرفر.`,\n  \"allowed_mentions\": { \"users\": [$('Scan for banned words').first().json.author.id] }\n}) }}",
         "options": {}
       },
       "id": "warn-user",
       "name": "Discord: warn user",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 200],
+      "position": [
+        1200,
+        200
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -97,14 +122,19 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"embeds\": [{\n    \"title\": \"🚨 إجراء إشراف تلقائي\",\n    \"description\": `**العضو:** <@${$('Scan for banned words').first().json.author.id}> (${$('Scan for banned words').first().json.author.username})\\n**القناة:** <#${$('Scan for banned words').first().json.channelId}>\\n**الكلمات الممنوعة:** ${$('Scan for banned words').first().json.bannedWordsFound.join(', ')}\\n**المحتوى الأصلي:**\\n\\`\\`\\`${($('Scan for banned words').first().json.content || '').slice(0, 500)}\\`\\`\\``,\n    \"color\": 15158332,\n    \"timestamp\": new Date().toISOString()\n  }]\n}",
-        "options": { "ignoreResponseCode": true }
+        "jsonBody": "={{ JSON.stringify({\n  \"embeds\": [{\n    \"title\": \"🚨 إجراء إشراف تلقائي\",\n    \"description\": `**العضو:** <@${$('Scan for banned words').first().json.author.id}> (${$('Scan for banned words').first().json.author.username})\\n**القناة:** <#${$('Scan for banned words').first().json.channelId}>\\n**الكلمات الممنوعة:** ${$('Scan for banned words').first().json.bannedWordsFound.join(', ')}\\n**المحتوى الأصلي:**\\n\\`\\`\\`${($('Scan for banned words').first().json.content || '').slice(0, 500)}\\`\\`\\``,\n    \"color\": 15158332,\n    \"timestamp\": new Date().toISOString()\n  }]\n}) }}",
+        "options": {
+          "ignoreResponseCode": true
+        }
       },
       "id": "log-mod",
       "name": "Discord: log to mod channel",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 200],
+      "position": [
+        1440,
+        200
+      ],
       "credentials": {
         "httpHeaderAuth": {
           "id": "discord-bot-auth",
@@ -115,22 +145,72 @@
   ],
   "connections": {
     "Webhook: message-create": {
-      "main": [[{ "node": "Scan for banned words", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Scan for banned words",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Scan for banned words": {
-      "main": [[{ "node": "IF: violation", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "IF: violation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "IF: violation": {
-      "main": [[{ "node": "Discord: delete message", "type": "main", "index": 0 }], []]
+      "main": [
+        [
+          {
+            "node": "Discord: delete message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
     },
     "Discord: delete message": {
-      "main": [[{ "node": "Discord: warn user", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: warn user",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Discord: warn user": {
-      "main": [[{ "node": "Discord: log to mod channel", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Discord: log to mod channel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": false,
-  "settings": { "executionOrder": "v1" },
-  "tags": [{ "name": "discord" }, { "name": "moderation" }]
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "name": "discord"
+    },
+    {
+      "name": "moderation"
+    }
+  ]
 }
