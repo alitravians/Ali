@@ -105,6 +105,23 @@ async def main() -> int:
             discord_guild_id=interaction.guild_id,
             discord_user_id=interaction.user.id,
         )
+        # Without a reply Discord shows "The application did not respond"
+        # (or freezes a deferred ``thinking…`` spinner forever). Send an
+        # ephemeral apology so the user gets immediate feedback even on
+        # an uncaught crash. Wrap in try/except so a failure to reply
+        # (closed connection, permission missing, etc.) doesn't itself
+        # propagate back into the error handler.
+        try:
+            msg = "حصل خطأ غير متوقع. تم إبلاغ الإدارة تلقائياً."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
+        except discord.HTTPException as reply_exc:
+            log.warning(
+                "failed to send ephemeral error reply for %s: %s",
+                command_name, reply_exc,
+            )
 
     cogs = [
         "bot.cogs.welcome",
@@ -175,6 +192,12 @@ async def main() -> int:
                 "bot task exited with %s: %s",
                 type(bot_exc).__name__, bot_exc, exc_info=bot_exc,
             )
+            # LoggingIntegration is configured with event_level=None
+            # (see bot.observability) so this log line alone wouldn't
+            # reach Sentry. Capture explicitly so a dead gateway, a
+            # revoked token, or any other terminal bot.start() failure
+            # surfaces as an alert instead of being buried in Fly logs.
+            capture_exception(bot_exc, discord_event="bot_task_crashed")
         else:
             log.error("bot task exited cleanly (unexpected); shutting down")
         stop_task.cancel()
