@@ -12,6 +12,60 @@ import {
   PermissionFlagsBits,
 } from 'discord.js';
 import { fetch } from 'undici';
+import {
+  initSentry,
+  captureException,
+  installGlobalErrorHandlers,
+  flushSentry,
+} from './observability.js';
+
+await initSentry();
+installGlobalErrorHandlers();
+
+// Coarse per-key rate limiter for Sentry reports. A misconfigured n8n
+// webhook on a busy guild can produce tens of thousands of MESSAGE_CREATE
+// fanout failures per minute — each one creating an event is wasteful
+// of Sentry's quota (every report after the first communicates the same
+// information: "this webhook is broken"). Emit at most once per key per
+// ``SENTRY_REPORT_INTERVAL_MS`` window; subsequent failures still log to
+// stdout normally.
+//
+// Operator notes:
+//   - Number() returns NaN for non-numeric strings, and ``now - last <
+//     NaN`` is always false, which would silently disable rate-limiting.
+//     We guard with isFinite + non-negative and fall back to the 60s
+//     default so a typo can't bypass the throttle.
+//   - Setting this to 0 is an intentional escape hatch: useful during
+//     active incident debugging when you want EVERY failure mirrored to
+//     Sentry. Re-set to 60000 (or unset) when the incident is resolved
+//     so a runaway webhook can't burn quota.
+let SENTRY_REPORT_INTERVAL_MS = Number(
+  process.env.SENTRY_REPORT_INTERVAL_MS || 60_000,
+);
+if (!Number.isFinite(SENTRY_REPORT_INTERVAL_MS) || SENTRY_REPORT_INTERVAL_MS < 0) {
+  console.warn(
+    `[sentry] SENTRY_REPORT_INTERVAL_MS='${process.env.SENTRY_REPORT_INTERVAL_MS}' is not a non-negative number; falling back to 60000ms`,
+  );
+  SENTRY_REPORT_INTERVAL_MS = 60_000;
+}
+const _sentryLastReport = new Map();
+function shouldReportToSentry(key) {
+  const now = Date.now();
+  const last = _sentryLastReport.get(key) || 0;
+  if (now - last < SENTRY_REPORT_INTERVAL_MS) return false;
+  _sentryLastReport.set(key, now);
+  // Bound the map so a long-running process can't accumulate entries for
+  // every transient eventPath/status combination (each entry is tiny but
+  // a leak is a leak). 1000 distinct keys is far beyond any realistic
+  // workload — the bridge has ~20 event paths total.
+  if (_sentryLastReport.size > 1000) {
+    const cutoff = now - SENTRY_REPORT_INTERVAL_MS;
+    for (const [k, t] of _sentryLastReport) {
+      if (t < cutoff) _sentryLastReport.delete(k);
+    }
+  }
+  return true;
+}
 
 const REQUIRED_ENV = ['DISCORD_BOT_TOKEN', 'N8N_WEBHOOK_BASE'];
 for (const key of REQUIRED_ENV) {
@@ -81,6 +135,22 @@ async function forward(eventPath, payload) {
       console.warn(
         `[forward] ${eventPath} -> ${url} returned ${res.status}`,
       );
+      // n8n returning 4xx/5xx is the bridge's loudest "something is wrong"
+      // signal — workflow disabled, webhook path renamed, n8n out of
+      // memory. The payload itself is too noisy for Sentry's quota so we
+      // only ship the routing metadata, and we rate-limit per
+      // (eventPath, status) pair so a misconfigured webhook on a busy
+      // guild can't burn Sentry quota at MESSAGE_CREATE volume.
+      if (shouldReportToSentry(`n8n:${eventPath}:${res.status}`)) {
+        captureException(
+          new Error(`n8n webhook returned ${res.status}`),
+          {
+            n8n_event: eventPath,
+            n8n_status: res.status,
+            n8n_url: url,
+          },
+        );
+      }
     }
     // undici requires the body be consumed/cancelled before the socket is
     // returned to the pool. Without this, MESSAGE_CREATE fanout will exhaust
@@ -88,6 +158,14 @@ async function forward(eventPath, payload) {
     await res.body?.cancel().catch(() => null);
   } catch (err) {
     console.error(`[forward] ${eventPath} failed:`, err.message);
+    // Network-level failure (DNS, timeout, connection refused). Distinct
+    // from a 4xx/5xx response above — this means we never reached n8n
+    // at all, which usually points to alitravians-n8n being down or a
+    // Fly internal-network blip. Same rate-limit logic: when n8n is
+    // hard-down, every fanout fails, so cap the Sentry spam.
+    if (shouldReportToSentry(`n8n-network:${eventPath}:${err.code || err.name}`)) {
+      captureException(err, { n8n_event: eventPath, n8n_url: url });
+    }
   }
 }
 
@@ -350,6 +428,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.on('error', (err) => {
   console.error('[client error]', err);
+  // discord.js emits 'error' for gateway reconnect failures, shard
+  // crashes, and unhandled exceptions inside event listeners. Without
+  // capturing here they would only appear in Fly logs. Rate-limited
+  // per error name to match the forward() pattern — a shard
+  // reconnect storm could otherwise burn Sentry quota with N copies
+  // of the same WebSocket error before discord.js's internal
+  // backoff kicks in.
+  const key = `discord:client_error:${err?.name || err?.code || 'unknown'}`;
+  if (shouldReportToSentry(key)) {
+    captureException(err, { discord_event: 'client_error' });
+  }
 });
 
 // Minimal HTTP health server so Fly.io can detect hung event loops, not just
@@ -379,6 +468,10 @@ async function shutdown(signal) {
   // kill_timeout is the backstop if either of these hangs.
   await new Promise((resolve) => healthServer.close(() => resolve()));
   try { await client.destroy(); } catch {}
+  // Drain any buffered Sentry events before exit so a last-minute
+  // forward() failure that happened during shutdown still reaches the
+  // dashboard. flushSentry is a no-op when Sentry is disabled.
+  await flushSentry(2000);
   process.exit(0);
 }
 
