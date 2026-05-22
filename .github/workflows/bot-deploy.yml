@@ -1,7 +1,11 @@
 name: BOON Community Bot — Deploy
 on:
   push:
-    branches: [main]
+    branches: [arabic-localization]
+    paths:
+      - "boon-community-bot/**"
+      - ".github/workflows/bot-deploy.yml"
+  pull_request:
     paths:
       - "boon-community-bot/**"
       - ".github/workflows/bot-deploy.yml"
@@ -28,7 +32,7 @@ jobs:
     name: deploy to Fly.io
     needs: lint
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/arabic-localization' && github.event_name == 'push'
     concurrency: deploy-group
     defaults:
       run:
