@@ -430,8 +430,15 @@ client.on('error', (err) => {
   console.error('[client error]', err);
   // discord.js emits 'error' for gateway reconnect failures, shard
   // crashes, and unhandled exceptions inside event listeners. Without
-  // capturing here they would only appear in Fly logs.
-  captureException(err, { discord_event: 'client_error' });
+  // capturing here they would only appear in Fly logs. Rate-limited
+  // per error name to match the forward() pattern — a shard
+  // reconnect storm could otherwise burn Sentry quota with N copies
+  // of the same WebSocket error before discord.js's internal
+  // backoff kicks in.
+  const key = `discord:client_error:${err?.name || err?.code || 'unknown'}`;
+  if (shouldReportToSentry(key)) {
+    captureException(err, { discord_event: 'client_error' });
+  }
 });
 
 // Minimal HTTP health server so Fly.io can detect hung event loops, not just
