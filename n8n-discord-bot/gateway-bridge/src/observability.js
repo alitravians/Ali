@@ -33,11 +33,21 @@ export async function initSentry() {
     return false;
   }
 
+  // Sentry expects tracesSampleRate in [0, 1]. The SDK clamps internally
+  // and warns, but normalize here for consistency with the rest of the
+  // env-var validation so logs from a typo'd value point at our code,
+  // not Sentry's.
   let sampleRate = 0.0;
   const raw = process.env.SENTRY_TRACES_SAMPLE_RATE;
   if (raw) {
     const parsed = Number(raw);
-    if (Number.isFinite(parsed)) sampleRate = parsed;
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed <= 1) {
+      sampleRate = parsed;
+    } else {
+      console.warn(
+        `[sentry] SENTRY_TRACES_SAMPLE_RATE='${raw}' is not in [0,1]; falling back to 0`,
+      );
+    }
   }
 
   try {
@@ -46,10 +56,13 @@ export async function initSentry() {
       environment: process.env.SENTRY_ENVIRONMENT || 'production',
       release: process.env.SENTRY_RELEASE || undefined,
       tracesSampleRate: sampleRate,
-      // Discord bot tokens, bridge HMAC secrets, and n8n webhook URLs must
-      // never leave the process. ``sendDefaultPii`` defaults to false
-      // already; pin it explicitly so a future SDK default flip can't
-      // surprise us.
+      // ``sendDefaultPii`` controls Sentry's *automatic* PII collection
+      // (request headers, cookies, IPs). Pinning false stops the SDK
+      // from ever auto-attaching anything that could leak the Discord
+      // bot token or the bridge HMAC secret (carried in custom
+      // headers). It does NOT scrub manually-set extras — those are
+      // the caller's responsibility (see captureException sites in
+      // index.js for what context we intentionally ship).
       sendDefaultPii: false,
       maxBreadcrumbs: 50,
     });

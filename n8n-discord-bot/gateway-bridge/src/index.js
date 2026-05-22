@@ -29,10 +29,16 @@ installGlobalErrorHandlers();
 // information: "this webhook is broken"). Emit at most once per key per
 // ``SENTRY_REPORT_INTERVAL_MS`` window; subsequent failures still log to
 // stdout normally.
-// Number() returns NaN for non-numeric strings, and ``now - last < NaN``
-// always evaluates false — which would silently disable rate-limiting.
-// Guard with isFinite and fall back to the 60s default so an operator
-// can't accidentally turn the throttle off via a typo.
+//
+// Operator notes:
+//   - Number() returns NaN for non-numeric strings, and ``now - last <
+//     NaN`` is always false, which would silently disable rate-limiting.
+//     We guard with isFinite + non-negative and fall back to the 60s
+//     default so a typo can't bypass the throttle.
+//   - Setting this to 0 is an intentional escape hatch: useful during
+//     active incident debugging when you want EVERY failure mirrored to
+//     Sentry. Re-set to 60000 (or unset) when the incident is resolved
+//     so a runaway webhook can't burn quota.
 let SENTRY_REPORT_INTERVAL_MS = Number(
   process.env.SENTRY_REPORT_INTERVAL_MS || 60_000,
 );
