@@ -16,10 +16,40 @@ import {
   initSentry,
   captureException,
   installGlobalErrorHandlers,
+  flushSentry,
 } from './observability.js';
 
 await initSentry();
 installGlobalErrorHandlers();
+
+// Coarse per-key rate limiter for Sentry reports. A misconfigured n8n
+// webhook on a busy guild can produce tens of thousands of MESSAGE_CREATE
+// fanout failures per minute — each one creating an event is wasteful
+// of Sentry's quota (every report after the first communicates the same
+// information: "this webhook is broken"). Emit at most once per key per
+// ``SENTRY_REPORT_INTERVAL_MS`` window; subsequent failures still log to
+// stdout normally.
+const SENTRY_REPORT_INTERVAL_MS = Number(
+  process.env.SENTRY_REPORT_INTERVAL_MS || 60_000,
+);
+const _sentryLastReport = new Map();
+function shouldReportToSentry(key) {
+  const now = Date.now();
+  const last = _sentryLastReport.get(key) || 0;
+  if (now - last < SENTRY_REPORT_INTERVAL_MS) return false;
+  _sentryLastReport.set(key, now);
+  // Bound the map so a long-running process can't accumulate entries for
+  // every transient eventPath/status combination (each entry is tiny but
+  // a leak is a leak). 1000 distinct keys is far beyond any realistic
+  // workload — the bridge has ~20 event paths total.
+  if (_sentryLastReport.size > 1000) {
+    const cutoff = now - SENTRY_REPORT_INTERVAL_MS;
+    for (const [k, t] of _sentryLastReport) {
+      if (t < cutoff) _sentryLastReport.delete(k);
+    }
+  }
+  return true;
+}
 
 const REQUIRED_ENV = ['DISCORD_BOT_TOKEN', 'N8N_WEBHOOK_BASE'];
 for (const key of REQUIRED_ENV) {
@@ -91,17 +121,20 @@ async function forward(eventPath, payload) {
       );
       // n8n returning 4xx/5xx is the bridge's loudest "something is wrong"
       // signal — workflow disabled, webhook path renamed, n8n out of
-      // memory. Report once per response so we can alert on it; the
-      // payload itself is too noisy for Sentry's quota so we only ship
-      // the routing metadata.
-      captureException(
-        new Error(`n8n webhook returned ${res.status}`),
-        {
-          n8n_event: eventPath,
-          n8n_status: res.status,
-          n8n_url: url,
-        },
-      );
+      // memory. The payload itself is too noisy for Sentry's quota so we
+      // only ship the routing metadata, and we rate-limit per
+      // (eventPath, status) pair so a misconfigured webhook on a busy
+      // guild can't burn Sentry quota at MESSAGE_CREATE volume.
+      if (shouldReportToSentry(`n8n:${eventPath}:${res.status}`)) {
+        captureException(
+          new Error(`n8n webhook returned ${res.status}`),
+          {
+            n8n_event: eventPath,
+            n8n_status: res.status,
+            n8n_url: url,
+          },
+        );
+      }
     }
     // undici requires the body be consumed/cancelled before the socket is
     // returned to the pool. Without this, MESSAGE_CREATE fanout will exhaust
@@ -112,8 +145,11 @@ async function forward(eventPath, payload) {
     // Network-level failure (DNS, timeout, connection refused). Distinct
     // from a 4xx/5xx response above — this means we never reached n8n
     // at all, which usually points to alitravians-n8n being down or a
-    // Fly internal-network blip.
-    captureException(err, { n8n_event: eventPath, n8n_url: url });
+    // Fly internal-network blip. Same rate-limit logic: when n8n is
+    // hard-down, every fanout fails, so cap the Sentry spam.
+    if (shouldReportToSentry(`n8n-network:${eventPath}:${err.code || err.name}`)) {
+      captureException(err, { n8n_event: eventPath, n8n_url: url });
+    }
   }
 }
 
@@ -409,6 +445,10 @@ async function shutdown(signal) {
   // kill_timeout is the backstop if either of these hangs.
   await new Promise((resolve) => healthServer.close(() => resolve()));
   try { await client.destroy(); } catch {}
+  // Drain any buffered Sentry events before exit so a last-minute
+  // forward() failure that happened during shutdown still reaches the
+  // dashboard. flushSentry is a no-op when Sentry is disabled.
+  await flushSentry(2000);
   process.exit(0);
 }
 

@@ -56,8 +56,11 @@ export async function initSentry() {
   } catch (err) {
     // @sentry/node.init is extremely defensive today, but observability is
     // optional and must NEVER take the bridge down. Log and fall through
-    // to the disabled state.
+    // to the disabled state. Null out _sentry so a later helper can't
+    // accidentally use a half-initialized SDK if the dynamic import
+    // succeeded but init() rejected.
     console.error('[sentry] init failed — Sentry disabled:', err?.message);
+    _sentry = null;
     return false;
   }
 
@@ -88,6 +91,20 @@ export function captureException(err, extra = {}) {
   }
 }
 
+// Wait for the in-memory Sentry transport buffer to flush, up to
+// ``timeoutMs``. Resolves to true on full flush, false on timeout / when
+// Sentry is disabled. The shutdown paths await this before calling
+// ``process.exit`` so an uncaught crash or a SIGTERM doesn't drop the
+// final error report into /dev/null.
+export async function flushSentry(timeoutMs = 2000) {
+  if (!_initialized || !_sentry) return false;
+  try {
+    return await _sentry.close(timeoutMs);
+  } catch {
+    return false;
+  }
+}
+
 // Wire up Node's global crash handlers so an uncaught throw on a
 // background promise or in an event listener doesn't disappear into
 // stderr. discord.js intentionally swallows event-listener errors in
@@ -99,10 +116,15 @@ export function installGlobalErrorHandlers() {
     captureException(err, { source: 'unhandledRejection' });
   });
   process.on('uncaughtException', (err) => {
+    // Registering a listener for 'uncaughtException' overrides Node's
+    // default behavior of printing + exiting, so we must:
+    //   1. capture the event,
+    //   2. await the Sentry transport flush (otherwise the buffered
+    //      report dies with the process before it reaches Sentry),
+    //   3. then exit — a crashed process must NOT keep serving
+    //      requests with potentially corrupt in-memory state.
     captureException(err, { source: 'uncaughtException' });
-    // Match Node's default behavior: log + let the process die. Don't
-    // resurrect a crashed process — Fly's machine restart is the right
-    // recovery path.
     console.error('[fatal] uncaughtException', err);
+    flushSentry(2000).finally(() => process.exit(1));
   });
 }
