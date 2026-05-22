@@ -4,12 +4,14 @@ from __future__ import annotations
 import asyncio
 import logging
 import sys
+from typing import Any
 
 import discord
 from discord.ext import commands
 
 from .config import Settings
 from .db import Database
+from .observability import capture_exception, init_sentry
 
 logging.basicConfig(
     level=logging.INFO,
@@ -17,6 +19,8 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger("bot")
+
+init_sentry()
 
 
 class CompetitionsBot(commands.Bot):
@@ -65,16 +69,59 @@ class CompetitionsBot(commands.Bot):
             try:
                 await self.load_extension(cog)
                 log.info("loaded cog: %s", cog)
-            except Exception:
+            except Exception as exc:
                 log.exception("failed to load cog %s", cog)
+                capture_exception(exc, cog=cog)
 
         guild = discord.Object(id=self.settings.guild_id)
         try:
             self.tree.copy_global_to(guild=guild)
             synced = await self.tree.sync(guild=guild)
             log.info("synced %d guild commands to %s", len(synced), self.settings.guild_id)
-        except Exception:
+        except Exception as exc:
             log.exception("failed to sync slash commands")
+            capture_exception(exc, discord_event="tree_sync")
+
+        @self.event
+        async def on_error(event: str, *args: Any, **kwargs: Any) -> None:
+            log.exception("event %s failed", event)
+            exc = sys.exc_info()[1]
+            if exc is not None:
+                capture_exception(exc, discord_event=event)
+
+        @self.tree.error
+        async def on_app_command_error(
+            interaction: discord.Interaction,
+            error: discord.app_commands.AppCommandError,
+        ) -> None:
+            # discord.py wraps the original exception inside CommandInvokeError;
+            # unwrap it so Sentry groups by the *real* root cause rather than
+            # collapsing every slash-command failure into one giant issue.
+            root = getattr(error, "original", error)
+            command_name = (
+                interaction.command.qualified_name if interaction.command else "<unknown>"
+            )
+            log.exception("slash command %s failed", command_name, exc_info=root)
+            capture_exception(
+                root,
+                discord_command=command_name,
+                discord_guild_id=interaction.guild_id,
+                discord_user_id=interaction.user.id,
+            )
+            try:
+                msg = "حصل خطأ غير متوقع. تم إبلاغ الإدارة تلقائياً."
+                if interaction.response.is_done():
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
+            except Exception as reply_exc:
+                # Best-effort apology UI — if the reply itself fails (websocket
+                # closed, perms missing, 3-second window expired), log it but
+                # don't let it propagate back into the error handler.
+                log.warning(
+                    "failed to send ephemeral error reply for %s: %s",
+                    command_name, reply_exc,
+                )
 
     async def on_ready(self) -> None:
         log.info("Logged in as %s (id=%s) — guilds=%d", self.user, self.user and self.user.id, len(self.guilds))
