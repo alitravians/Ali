@@ -9,3 +9,8 @@ Pillow>=10.4,<12
 # in Pillow (otherwise letters appear isolated / left-to-right).
 arabic-reshaper>=3.0,<4
 python-bidi>=0.4,<1
+# sentry-sdk reports uncaught exceptions (welcome card render failures,
+# discord gateway crashes, github webhook errors) to Sentry. The DSN is
+# read at runtime from the SENTRY_DSN env var; if unset, the SDK is a
+# no-op so local/CI runs stay identical to before.
+sentry-sdk[aiohttp]>=2.18,<3

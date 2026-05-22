@@ -21,6 +21,7 @@ from aiohttp import web
 from discord.ext import commands
 
 from bot.config import load_server_config, load_settings
+from bot.observability import capture_exception, init_sentry
 
 
 async def main() -> int:
@@ -30,6 +31,11 @@ async def main() -> int:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     log = logging.getLogger("boon-bot")
+
+    # Init Sentry as early as possible — *after* logging is configured
+    # (so the LoggingIntegration sees the same level the operator set)
+    # but *before* any cogs load, so a cog import error is reported too.
+    init_sentry()
 
     # If `server_config.json` is missing, the bot can still start and answer
     # /version / /install, but channel-aware features (welcome, github relay)
@@ -76,6 +82,29 @@ async def main() -> int:
     @bot.event
     async def on_error(event: str, *args: Any, **kwargs: Any) -> None:
         log.exception("event %s failed", event)
+        exc = sys.exc_info()[1]
+        if exc is not None:
+            capture_exception(exc, discord_event=event)
+
+    @bot.tree.error
+    async def on_app_command_error(
+        interaction: discord.Interaction,
+        error: discord.app_commands.AppCommandError,
+    ) -> None:
+        # discord.py wraps the original exception inside CommandInvokeError;
+        # unwrap it so Sentry groups by the *real* root cause rather than
+        # grouping every slash-command failure into one giant issue.
+        root = getattr(error, "original", error)
+        command_name = (
+            interaction.command.qualified_name if interaction.command else "<unknown>"
+        )
+        log.exception("slash command %s failed", command_name, exc_info=root)
+        capture_exception(
+            root,
+            discord_command=command_name,
+            discord_guild_id=interaction.guild_id,
+            discord_user_id=interaction.user.id,
+        )
 
     cogs = [
         "bot.cogs.welcome",
@@ -89,8 +118,9 @@ async def main() -> int:
         try:
             await bot.load_extension(ext)
             log.info("loaded cog %s", ext)
-        except Exception:
+        except Exception as exc:
             log.exception("failed to load cog %s", ext)
+            capture_exception(exc, cog=ext)
 
     # Health endpoint + GitHub release webhook receiver, both on `settings.http_port`.
     from bot.cogs.github_listener import build_http_app
