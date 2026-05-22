@@ -4,9 +4,11 @@ Sentry init is intentionally optional — when ``SENTRY_DSN`` is unset
 (local dev, CI lint, anyone forking the bot) all helpers in this module
 become cheap no-ops, so the bot still runs identically to before.
 
-The integration prefers structured tags over free-text breadcrumbs so
-that Discord-specific facets (guild, command, user) can be used as
-filters in the Sentry UI without having to scan stack traces.
+The slash-command error handler in ``main.py`` passes Discord-specific
+context (command name, guild ID, user ID) as ``extra`` kwargs to
+``capture_exception``, which scopes them to that single Sentry event
+via ``sentry_sdk.new_scope()``. This avoids the classic ``Hub``-scope
+leak where tags from one error report bleed into the next.
 
 Operationally, set the DSN as a Fly.io secret:
 
@@ -23,10 +25,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    import discord
+from typing import Any
 
 log = logging.getLogger("boon-bot.observability")
 
@@ -62,10 +61,16 @@ def init_sentry() -> bool:
         environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
         release=os.environ.get("SENTRY_RELEASE") or None,
         traces_sample_rate=sample_rate,
-        # Send error-level logs as Sentry events; INFO+ become breadcrumbs.
+        # INFO+ logs become breadcrumbs. ``event_level=None`` suppresses
+        # automatic event creation from ERROR-level log records, so the
+        # only Sentry events are the ones the bot explicitly captures
+        # via ``capture_exception`` — avoids the double-report path
+        # where ``log.exception(...) + capture_exception(...)`` sitting
+        # next to each other in main.py would otherwise generate two
+        # separate Sentry events (DedupeIntegration is best-effort).
         integrations=[
             AioHttpIntegration(),
-            LoggingIntegration(level=logging.INFO, event_level=logging.ERROR),
+            LoggingIntegration(level=logging.INFO, event_level=None),
         ],
         # Bot tokens, github PATs, and discord webhook signing secrets must
         # never leave the process. ``send_default_pii`` defaults to False
@@ -80,11 +85,12 @@ def init_sentry() -> bool:
     return True
 
 
-def set_command_context(interaction: discord.Interaction,
-                        command_name: str) -> None:
-    """Tag the current Sentry scope with the command + guild + user.
+def capture_exception(exc: BaseException, **extra: Any) -> None:
+    """Capture an exception with optional extra context. No-op if disabled.
 
-    Safe to call when Sentry is disabled — falls through quietly.
+    Extras are scoped to this single call via ``sentry_sdk.new_scope()``
+    so they cannot leak into unrelated Sentry events fired later from
+    the same task (or from child tasks that inherit the contextvar).
     """
     if not _INITIALIZED:
         return
@@ -92,27 +98,7 @@ def set_command_context(interaction: discord.Interaction,
         import sentry_sdk
     except ImportError:
         return
-
-    scope = sentry_sdk.get_isolation_scope()
-    scope.set_tag("discord.command", command_name)
-    if interaction.guild_id is not None:
-        scope.set_tag("discord.guild_id", str(interaction.guild_id))
-    # We do NOT capture username / display name — only the numeric ID,
-    # which is non-PII (it's the same ID Discord exposes in every audit
-    # log). This keeps us aligned with send_default_pii=False above.
-    scope.set_user({"id": str(interaction.user.id)})
-
-
-def capture_exception(exc: BaseException, **extra: Any) -> None:
-    """Capture an exception with optional extra context. No-op if disabled."""
-    if not _INITIALIZED:
-        return
-    try:
-        import sentry_sdk
-    except ImportError:
-        return
-    if extra:
-        scope = sentry_sdk.get_isolation_scope()
+    with sentry_sdk.new_scope() as scope:
         for key, value in extra.items():
             scope.set_extra(key, value)
-    sentry_sdk.capture_exception(exc)
+        sentry_sdk.capture_exception(exc)
