@@ -12,6 +12,14 @@ import {
   PermissionFlagsBits,
 } from 'discord.js';
 import { fetch } from 'undici';
+import {
+  initSentry,
+  captureException,
+  installGlobalErrorHandlers,
+} from './observability.js';
+
+await initSentry();
+installGlobalErrorHandlers();
 
 const REQUIRED_ENV = ['DISCORD_BOT_TOKEN', 'N8N_WEBHOOK_BASE'];
 for (const key of REQUIRED_ENV) {
@@ -81,6 +89,19 @@ async function forward(eventPath, payload) {
       console.warn(
         `[forward] ${eventPath} -> ${url} returned ${res.status}`,
       );
+      // n8n returning 4xx/5xx is the bridge's loudest "something is wrong"
+      // signal — workflow disabled, webhook path renamed, n8n out of
+      // memory. Report once per response so we can alert on it; the
+      // payload itself is too noisy for Sentry's quota so we only ship
+      // the routing metadata.
+      captureException(
+        new Error(`n8n webhook returned ${res.status}`),
+        {
+          n8n_event: eventPath,
+          n8n_status: res.status,
+          n8n_url: url,
+        },
+      );
     }
     // undici requires the body be consumed/cancelled before the socket is
     // returned to the pool. Without this, MESSAGE_CREATE fanout will exhaust
@@ -88,6 +109,11 @@ async function forward(eventPath, payload) {
     await res.body?.cancel().catch(() => null);
   } catch (err) {
     console.error(`[forward] ${eventPath} failed:`, err.message);
+    // Network-level failure (DNS, timeout, connection refused). Distinct
+    // from a 4xx/5xx response above — this means we never reached n8n
+    // at all, which usually points to alitravians-n8n being down or a
+    // Fly internal-network blip.
+    captureException(err, { n8n_event: eventPath, n8n_url: url });
   }
 }
 
@@ -350,6 +376,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
 client.on('error', (err) => {
   console.error('[client error]', err);
+  // discord.js emits 'error' for gateway reconnect failures, shard
+  // crashes, and unhandled exceptions inside event listeners. Without
+  // capturing here they would only appear in Fly logs.
+  captureException(err, { discord_event: 'client_error' });
 });
 
 // Minimal HTTP health server so Fly.io can detect hung event loops, not just

@@ -10,6 +10,7 @@
     "register-commands": "node src/register-commands.js"
   },
   "dependencies": {
+    "@sentry/node": "^8.40.0",
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5",
     "undici": "^6.21.0"
