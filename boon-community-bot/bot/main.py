@@ -117,7 +117,12 @@ async def main() -> int:
                 await interaction.followup.send(msg, ephemeral=True)
             else:
                 await interaction.response.send_message(msg, ephemeral=True)
-        except discord.HTTPException as reply_exc:
+        except Exception as reply_exc:
+            # Best-effort apology — discord.HTTPException is the common
+            # case (closed websocket, missing perms, 3-second window
+            # expired), but raw aiohttp.ClientError or anything else
+            # raised during the reply must not propagate back into the
+            # error handler and turn one bug into two Sentry issues.
             log.warning(
                 "failed to send ephemeral error reply for %s: %s",
                 command_name, reply_exc,

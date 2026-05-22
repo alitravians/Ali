@@ -56,29 +56,38 @@ def init_sentry() -> bool:
     except ValueError:
         sample_rate = 0.0
 
-    sentry_sdk.init(
-        dsn=dsn,
-        environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
-        release=os.environ.get("SENTRY_RELEASE") or None,
-        traces_sample_rate=sample_rate,
-        # INFO+ logs become breadcrumbs. ``event_level=None`` suppresses
-        # automatic event creation from ERROR-level log records, so the
-        # only Sentry events are the ones the bot explicitly captures
-        # via ``capture_exception`` — avoids the double-report path
-        # where ``log.exception(...) + capture_exception(...)`` sitting
-        # next to each other in main.py would otherwise generate two
-        # separate Sentry events (DedupeIntegration is best-effort).
-        integrations=[
-            AioHttpIntegration(),
-            LoggingIntegration(level=logging.INFO, event_level=None),
-        ],
-        # Bot tokens, github PATs, and discord webhook signing secrets must
-        # never leave the process. ``send_default_pii`` defaults to False
-        # already; pin it explicitly so a future SDK default flip can't
-        # surprise us.
-        send_default_pii=False,
-        max_breadcrumbs=50,
-    )
+    try:
+        sentry_sdk.init(
+            dsn=dsn,
+            environment=os.environ.get("SENTRY_ENVIRONMENT", "production"),
+            release=os.environ.get("SENTRY_RELEASE") or None,
+            traces_sample_rate=sample_rate,
+            # INFO+ logs become breadcrumbs. ``event_level=None`` suppresses
+            # automatic event creation from ERROR-level log records, so the
+            # only Sentry events are the ones the bot explicitly captures
+            # via ``capture_exception`` — avoids the double-report path
+            # where ``log.exception(...) + capture_exception(...)`` sitting
+            # next to each other in main.py would otherwise generate two
+            # separate Sentry events (DedupeIntegration is best-effort).
+            integrations=[
+                AioHttpIntegration(),
+                LoggingIntegration(level=logging.INFO, event_level=None),
+            ],
+            # Bot tokens, github PATs, and discord webhook signing secrets must
+            # never leave the process. ``send_default_pii`` defaults to False
+            # already; pin it explicitly so a future SDK default flip can't
+            # surprise us.
+            send_default_pii=False,
+            max_breadcrumbs=50,
+        )
+    except Exception:
+        # ``sentry_sdk.init`` is extremely defensive today, but the
+        # whole point of this module is that observability is optional
+        # — a bad DSN, a malformed integration, or a future SDK that
+        # learns to validate eagerly must NEVER take the bot down.
+        # Log and fall through as if SENTRY_DSN were unset.
+        log.exception("sentry_sdk.init failed — Sentry disabled")
+        return False
     _INITIALIZED = True
     log.info("Sentry initialized (env=%s)",
              os.environ.get("SENTRY_ENVIRONMENT", "production"))
