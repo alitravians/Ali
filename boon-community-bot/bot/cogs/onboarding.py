@@ -1327,7 +1327,13 @@ class Onboarding(commands.Cog):
             ch = await guild.create_text_channel(
                 name=_safe_channel_name(member),
                 category=cat,
-                overwrites=overwrites,
+                # discord.py's type stubs declare the read-side
+                # ``Category.overwrites`` as ``Mapping[Role|Member|Object, …]``
+                # but the write-side ``create_text_channel(overwrites=…)`` as
+                # ``Mapping[Role|Member, …]`` (no Object). At runtime an Object
+                # key is fine — the gateway only needs the numeric id + type
+                # tag — so this is a stub asymmetry rather than a real bug.
+                overwrites=overwrites,  # type: ignore[arg-type]
                 topic=f"onboarding personal channel for {member}",
                 reason="auto: onboarding",
             )
