@@ -29,9 +29,19 @@ installGlobalErrorHandlers();
 // information: "this webhook is broken"). Emit at most once per key per
 // ``SENTRY_REPORT_INTERVAL_MS`` window; subsequent failures still log to
 // stdout normally.
-const SENTRY_REPORT_INTERVAL_MS = Number(
+// Number() returns NaN for non-numeric strings, and ``now - last < NaN``
+// always evaluates false — which would silently disable rate-limiting.
+// Guard with isFinite and fall back to the 60s default so an operator
+// can't accidentally turn the throttle off via a typo.
+let SENTRY_REPORT_INTERVAL_MS = Number(
   process.env.SENTRY_REPORT_INTERVAL_MS || 60_000,
 );
+if (!Number.isFinite(SENTRY_REPORT_INTERVAL_MS) || SENTRY_REPORT_INTERVAL_MS < 0) {
+  console.warn(
+    `[sentry] SENTRY_REPORT_INTERVAL_MS='${process.env.SENTRY_REPORT_INTERVAL_MS}' is not a non-negative number; falling back to 60000ms`,
+  );
+  SENTRY_REPORT_INTERVAL_MS = 60_000;
+}
 const _sentryLastReport = new Map();
 function shouldReportToSentry(key) {
   const now = Date.now();

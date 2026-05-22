@@ -91,15 +91,20 @@ export function captureException(err, extra = {}) {
   }
 }
 
-// Wait for the in-memory Sentry transport buffer to flush, up to
-// ``timeoutMs``. Resolves to true on full flush, false on timeout / when
-// Sentry is disabled. The shutdown paths await this before calling
-// ``process.exit`` so an uncaught crash or a SIGTERM doesn't drop the
-// final error report into /dev/null.
+// Drain the in-memory Sentry transport buffer (up to ``timeoutMs``),
+// returning true on a full flush and false on timeout / when Sentry is
+// disabled. The shutdown paths await this right before ``process.exit``
+// so an uncaught crash or a SIGTERM doesn't drop the final error report
+// into /dev/null.
+//
+// Uses ``flush()`` (non-destructive — SDK keeps accepting events after)
+// rather than ``close()`` so a future caller can drain buffered events
+// from a long-running context (e.g. a periodic health-check endpoint)
+// without silently killing Sentry for the rest of the process.
 export async function flushSentry(timeoutMs = 2000) {
   if (!_initialized || !_sentry) return false;
   try {
-    return await _sentry.close(timeoutMs);
+    return await _sentry.flush(timeoutMs);
   } catch {
     return false;
   }
