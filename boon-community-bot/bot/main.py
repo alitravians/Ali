@@ -21,6 +21,7 @@ from aiohttp import web
 from discord.ext import commands
 
 from bot.config import load_server_config, load_settings
+from bot.observability import capture_exception, init_sentry
 
 
 async def main() -> int:
@@ -30,6 +31,11 @@ async def main() -> int:
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     )
     log = logging.getLogger("boon-bot")
+
+    # Init Sentry as early as possible — *after* logging is configured
+    # (so the LoggingIntegration sees the same level the operator set)
+    # but *before* any cogs load, so a cog import error is reported too.
+    init_sentry()
 
     # If `server_config.json` is missing, the bot can still start and answer
     # /version / /install, but channel-aware features (welcome, github relay)
@@ -76,6 +82,51 @@ async def main() -> int:
     @bot.event
     async def on_error(event: str, *args: Any, **kwargs: Any) -> None:
         log.exception("event %s failed", event)
+        exc = sys.exc_info()[1]
+        if exc is not None:
+            capture_exception(exc, discord_event=event)
+
+    @bot.tree.error
+    async def on_app_command_error(
+        interaction: discord.Interaction,
+        error: discord.app_commands.AppCommandError,
+    ) -> None:
+        # discord.py wraps the original exception inside CommandInvokeError;
+        # unwrap it so Sentry groups by the *real* root cause rather than
+        # grouping every slash-command failure into one giant issue.
+        root = getattr(error, "original", error)
+        command_name = (
+            interaction.command.qualified_name if interaction.command else "<unknown>"
+        )
+        log.exception("slash command %s failed", command_name, exc_info=root)
+        capture_exception(
+            root,
+            discord_command=command_name,
+            discord_guild_id=interaction.guild_id,
+            discord_user_id=interaction.user.id,
+        )
+        # Without a reply Discord shows "The application did not respond"
+        # (or freezes a deferred ``thinking…`` spinner forever). Send an
+        # ephemeral apology so the user gets immediate feedback even on
+        # an uncaught crash. Wrap in try/except so a failure to reply
+        # (closed connection, permission missing, etc.) doesn't itself
+        # propagate back into the error handler.
+        try:
+            msg = "حصل خطأ غير متوقع. تم إبلاغ الإدارة تلقائياً."
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
+        except Exception as reply_exc:
+            # Best-effort apology — discord.HTTPException is the common
+            # case (closed websocket, missing perms, 3-second window
+            # expired), but raw aiohttp.ClientError or anything else
+            # raised during the reply must not propagate back into the
+            # error handler and turn one bug into two Sentry issues.
+            log.warning(
+                "failed to send ephemeral error reply for %s: %s",
+                command_name, reply_exc,
+            )
 
     cogs = [
         "bot.cogs.welcome",
@@ -89,8 +140,9 @@ async def main() -> int:
         try:
             await bot.load_extension(ext)
             log.info("loaded cog %s", ext)
-        except Exception:
+        except Exception as exc:
             log.exception("failed to load cog %s", ext)
+            capture_exception(exc, cog=ext)
 
     # Health endpoint + GitHub release webhook receiver, both on `settings.http_port`.
     from bot.cogs.github_listener import build_http_app
@@ -145,6 +197,12 @@ async def main() -> int:
                 "bot task exited with %s: %s",
                 type(bot_exc).__name__, bot_exc, exc_info=bot_exc,
             )
+            # LoggingIntegration is configured with event_level=None
+            # (see bot.observability) so this log line alone wouldn't
+            # reach Sentry. Capture explicitly so a dead gateway, a
+            # revoked token, or any other terminal bot.start() failure
+            # surfaces as an alert instead of being buried in Fly logs.
+            capture_exception(bot_exc, discord_event="bot_task_crashed")
         else:
             log.error("bot task exited cleanly (unexpected); shutting down")
         stop_task.cancel()

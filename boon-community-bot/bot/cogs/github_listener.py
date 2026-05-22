@@ -26,6 +26,7 @@ from aiohttp import web
 from discord.ext import commands
 
 from bot.config import Settings
+from bot.observability import capture_exception
 
 log = logging.getLogger("boon-bot.github")
 
@@ -143,8 +144,18 @@ def build_http_app(bot: commands.Bot, settings: Settings) -> web.Application:
                 await _handle_pr(bot, payload)
             else:
                 log.info("ignored event: %s", event)
-        except Exception:
+        except Exception as exc:
             log.exception("webhook handler failed for event=%s", event)
+            # GitHub will retry 5xx responses, so a Sentry event tagged
+            # with the event type + delivery id makes triage much easier
+            # when a bad payload (or a Discord API outage) wedges the
+            # relay. Delivery id is the GitHub-assigned UUID that ties
+            # this Sentry event back to the provider-side retry log.
+            capture_exception(
+                exc,
+                github_event=event,
+                github_delivery=req.headers.get("X-GitHub-Delivery", ""),
+            )
             return web.Response(status=500, text="handler error")
 
         return web.Response(text="ok")
