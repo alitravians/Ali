@@ -446,7 +446,8 @@ local function autoSellLoop(gen)
                         local t = ""
                         pcall(function() t = v.Text end)
                         local n = v.Name:lower()
-                        if t:find("تحديد الكل") or t:find("Select All") or n:find("selectall") or n:find("select_all") then
+                        local tl = t:lower()
+                        if t:find("تحديد الكل") or tl:find("select all") or n:find("selectall") or n:find("select_all") then
                             pcall(function()
                                 for _, conn in pairs(getconnections(v.MouseButton1Click)) do
                                     conn:Fire()
@@ -505,7 +506,7 @@ local function autoMineLoop(gen)
                 for name, remote in pairs(cachedRemotes) do
                     local n = name:lower()
                     if n:find("mine") or n:find("rock") or n:find("ore") or n:find("boulder")
-                        or n:find("hit") or n:find("swing") or n:find("break") or n:find("dig") then
+                        or n:find("dig") or n:find("pickaxe") then
                         pcall(function()
                             if remote:IsA("RemoteEvent") then
                                 remote:FireServer()
@@ -1132,7 +1133,9 @@ InfoTab:CreateButton({
         log("================================================================")
         log("  BOON Hub - FULL GAME SCAN")
         log("  Game PlaceId: " .. tostring(game.PlaceId))
-        log("  Game Name: " .. tostring(game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name))
+        local gameName = "Unknown"
+        pcall(function() gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name end)
+        log("  Game Name: " .. gameName)
         log("  Player: " .. player.Name .. " (UserId: " .. tostring(player.UserId) .. ")")
         log("  Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S"))
         log("================================================================")
@@ -1320,19 +1323,18 @@ InfoTab:CreateButton({
             end
         end)
 
-        -- Section 12: Player stats/leaderstats
+        -- Section 12: Player stats/leaderstats and all player children
         log("\n\n=== 12. PLAYER STATS / LEADERSTATS ===")
-        local ls = player:FindFirstChild("leaderstats")
-        if ls then
-            for _, stat in pairs(ls:GetChildren()) do
-                log("  " .. stat.ClassName .. ": " .. stat.Name .. " = " .. tostring(stat.Value))
-            end
-        else
-            log("  No leaderstats folder found")
-        end
         for _, child in pairs(player:GetChildren()) do
-            if child:IsA("Folder") or child:IsA("StringValue") or child:IsA("IntValue") or child:IsA("NumberValue") or child:IsA("BoolValue") then
-                log("  [PlayerChild] " .. child.ClassName .. ": " .. child.Name .. " = " .. tostring(child.Value))
+            local val = ""
+            pcall(function() val = " = " .. tostring(child.Value) end)
+            log("  [PlayerChild] " .. child.ClassName .. ": " .. child.Name .. val)
+            if child:IsA("Folder") then
+                for _, sub in pairs(child:GetChildren()) do
+                    local subVal = ""
+                    pcall(function() subVal = " = " .. tostring(sub.Value) end)
+                    log("    " .. sub.ClassName .. ": " .. sub.Name .. subVal)
+                end
             end
         end
 
@@ -1351,11 +1353,14 @@ InfoTab:CreateButton({
         if saved then
             Rayfield:Notify({Title = "Scan Saved!", Content = "File: " .. fileName .. "\nFind it in your executor's workspace folder and send it to the developer.", Duration = 20})
         else
+            local clipOk = false
             pcall(function()
                 setclipboard(output)
-                Rayfield:Notify({Title = "Copied!", Content = "Scan results copied to clipboard! Paste in notepad and save as txt.", Duration = 15})
+                clipOk = true
             end)
-            if not saved then
+            if clipOk then
+                Rayfield:Notify({Title = "Copied!", Content = "Scan results copied to clipboard! Paste in notepad and save as txt.", Duration = 15})
+            else
                 print(output)
                 Rayfield:Notify({Title = "Scan Done!", Content = "Results printed to F9 console (Ctrl+A to select all).", Duration = 10})
             end
