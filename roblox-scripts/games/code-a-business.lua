@@ -39,24 +39,23 @@ if game.PlaceId ~= 109141895577255 then
     return
 end
 
--- Load Rayfield UI (try sirius.menu first, then GitHub fallback)
-local Rayfield
+-- Load Fluent UI library
+local Fluent
 do
-    local rayfieldUrls = {
-        "https://sirius.menu/rayfield",
-        "https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua",
+    local fluentUrls = {
+        "https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua",
     }
-    for _, url in ipairs(rayfieldUrls) do
+    for _, url in ipairs(fluentUrls) do
         local ok, result = pcall(function()
             return loadstring(game:HttpGet(url))()
         end)
         if ok and result then
-            Rayfield = result
+            Fluent = result
             break
         end
     end
-    if not Rayfield then
-        warn("[BOON Hub] Failed to load Rayfield UI library from all sources!")
+    if not Fluent then
+        warn("[BOON Hub] Failed to load Fluent UI library!")
         return
     end
 end
@@ -795,213 +794,179 @@ end
 setupAntiAfk()
 
 -- ============================================================
--- CREATE RAYFIELD WINDOW
+-- CREATE FLUENT WINDOW
 -- ============================================================
-local Window = Rayfield:CreateWindow({
-    Name = "BOON Hub - Code a Business",
-    Icon = 0,
-    LoadingTitle = "BOON Hub Loading...",
-    LoadingSubtitle = "Code a Business Script",
-    Theme = "Default",
-    DisableBuildWarnings = true,
-    DisableRayfieldPrompts = true,
-    ConfigurationSaving = {
-        Enabled = false,
-        FolderName = "BOONHub",
-        FileName = "CodeABusiness"
-    },
-    Discord = {
-        Enabled = false,
-        Invite = "",
-        RememberJoins = true
-    },
-    KeySystem = false
+local Window = Fluent:CreateWindow({
+    Title = "BOON Hub",
+    SubTitle = "Code a Business",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(520, 420),
+    Acrylic = false,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightControl
 })
+
+local Tabs = {
+    Coding = Window:AddTab({ Title = "Coding", Icon = "code" }),
+    Farming = Window:AddTab({ Title = "Farming", Icon = "pickaxe" }),
+    Collect = Window:AddTab({ Title = "Collect", Icon = "star" }),
+    Player = Window:AddTab({ Title = "Player", Icon = "user" }),
+    Info = Window:AddTab({ Title = "Info", Icon = "info" }),
+}
 
 -- ============ CODING TAB ============
-local CodingTab = Window:CreateTab("Coding", "code")
-CodingTab:CreateSection("Auto Coding System")
+Tabs.Coding:AddParagraph({ Title = "Auto Coding System", Content = "Automate coding and collecting code." })
 
-CodingTab:CreateToggle({
-    Name = "Auto Code",
-    CurrentValue = false,
-    Flag = "AutoCodingToggle",
-    Callback = function(v)
-        autoCodingGen = autoCodingGen + 1
-        autoCodingEnabled = v
-        if v then
-            autoCodingLoop(autoCodingGen)
-            Rayfield:Notify({Title = "Auto Code", Content = "Started auto coding!", Duration = 3})
-        else
-            Rayfield:Notify({Title = "Auto Code", Content = "Stopped auto coding.", Duration = 3})
-        end
+local autoCodingToggle = Tabs.Coding:AddToggle("AutoCodingToggle", { Title = "Auto Code", Default = false })
+autoCodingToggle:OnChanged(function()
+    local v = autoCodingToggle.Value
+    autoCodingGen = autoCodingGen + 1
+    autoCodingEnabled = v
+    if v then
+        autoCodingLoop(autoCodingGen)
+        Fluent:Notify({Title = "Auto Code", Content = "Started auto coding!", Duration = 3})
+    else
+        Fluent:Notify({Title = "Auto Code", Content = "Stopped auto coding.", Duration = 3})
     end
+end)
+
+Tabs.Coding:AddSlider("CodingDelay", {
+    Title = "Coding Speed (delay)",
+    Default = 5,
+    Min = 1,
+    Max = 30,
+    Rounding = 1,
+    Callback = function(v) codingDelay = v / 10 end
 })
 
-CodingTab:CreateSlider({
-    Name = "Coding Speed (delay)",
-    Range = {0.1, 3},
-    Increment = 0.1,
-    CurrentValue = 0.5,
-    Suffix = "s",
-    Flag = "CodingDelay",
-    Callback = function(v) codingDelay = v end
-})
-
-CodingTab:CreateToggle({
-    Name = "Auto Collect Code",
-    CurrentValue = false,
-    Flag = "AutoCollectCodeToggle",
-    Callback = function(v)
-        autoCollectCodeGen = autoCollectCodeGen + 1
-        autoCollectCodeEnabled = v
-        if v then
-            autoCollectCodeLoop(autoCollectCodeGen)
-            Rayfield:Notify({Title = "Auto Collect", Content = "Collecting code from all PCs!", Duration = 3})
-        else
-            Rayfield:Notify({Title = "Auto Collect", Content = "Stopped collecting.", Duration = 3})
-        end
+local autoCollectCodeToggle = Tabs.Coding:AddToggle("AutoCollectCodeToggle", { Title = "Auto Collect Code", Default = false })
+autoCollectCodeToggle:OnChanged(function()
+    local v = autoCollectCodeToggle.Value
+    autoCollectCodeGen = autoCollectCodeGen + 1
+    autoCollectCodeEnabled = v
+    if v then
+        autoCollectCodeLoop(autoCollectCodeGen)
+        Fluent:Notify({Title = "Auto Collect", Content = "Collecting code from all PCs!", Duration = 3})
+    else
+        Fluent:Notify({Title = "Auto Collect", Content = "Stopped collecting.", Duration = 3})
     end
-})
+end)
 
-CodingTab:CreateSlider({
-    Name = "Collect Speed (delay)",
-    Range = {0.5, 5},
-    Increment = 0.5,
-    CurrentValue = 1,
-    Suffix = "s",
-    Flag = "CollectDelay",
-    Callback = function(v) collectDelay = v end
+Tabs.Coding:AddSlider("CollectDelay", {
+    Title = "Collect Speed (delay)",
+    Default = 10,
+    Min = 5,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(v) collectDelay = v / 10 end
 })
 
 -- ============ FARMING TAB ============
-local FarmingTab = Window:CreateTab("Farming", "pickaxe")
-FarmingTab:CreateSection("Auto Sell")
+Tabs.Farming:AddParagraph({ Title = "Auto Sell", Content = "Automatically sell software." })
 
-FarmingTab:CreateToggle({
-    Name = "Auto Sell",
-    CurrentValue = false,
-    Flag = "AutoSellToggle",
-    Callback = function(v)
-        autoSellGen = autoSellGen + 1
-        autoSellEnabled = v
-        if v then
-            autoSellLoop(autoSellGen)
-            Rayfield:Notify({Title = "Auto Sell", Content = "Selling all items automatically! (Select All → Sell)", Duration = 3})
-        end
+local autoSellToggle = Tabs.Farming:AddToggle("AutoSellToggle", { Title = "Auto Sell", Default = false })
+autoSellToggle:OnChanged(function()
+    local v = autoSellToggle.Value
+    autoSellGen = autoSellGen + 1
+    autoSellEnabled = v
+    if v then
+        autoSellLoop(autoSellGen)
+        Fluent:Notify({Title = "Auto Sell", Content = "Selling automatically! (Select All > Sell)", Duration = 3})
     end
+end)
+
+Tabs.Farming:AddSlider("SellDelay", {
+    Title = "Sell Speed (delay)",
+    Default = 10,
+    Min = 5,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(v) sellDelay = v / 10 end
 })
 
-FarmingTab:CreateSlider({
-    Name = "Sell Speed (delay)",
-    Range = {0.5, 5},
-    Increment = 0.5,
-    CurrentValue = 1,
-    Suffix = "s",
-    Flag = "SellDelay",
-    Callback = function(v) sellDelay = v end
-})
+Tabs.Farming:AddParagraph({ Title = "Mining & Fishing", Content = "Automate mining and fishing." })
 
-FarmingTab:CreateSection("Mining & Fishing")
-
-FarmingTab:CreateToggle({
-    Name = "Auto Mine",
-    CurrentValue = false,
-    Flag = "AutoMineToggle",
-    Callback = function(v)
-        autoMineGen = autoMineGen + 1
-        autoMineEnabled = v
-        if v then
-            autoMineLoop(autoMineGen)
-            Rayfield:Notify({Title = "Auto Mine", Content = "Mining automatically!", Duration = 3})
-        end
+local autoMineToggle = Tabs.Farming:AddToggle("AutoMineToggle", { Title = "Auto Mine", Default = false })
+autoMineToggle:OnChanged(function()
+    local v = autoMineToggle.Value
+    autoMineGen = autoMineGen + 1
+    autoMineEnabled = v
+    if v then
+        autoMineLoop(autoMineGen)
+        Fluent:Notify({Title = "Auto Mine", Content = "Mining automatically!", Duration = 3})
     end
+end)
+
+Tabs.Farming:AddSlider("MineDelay", {
+    Title = "Mine Speed (delay)",
+    Default = 5,
+    Min = 1,
+    Max = 30,
+    Rounding = 1,
+    Callback = function(v) mineDelay = v / 10 end
 })
 
-FarmingTab:CreateSlider({
-    Name = "Mine Speed (delay)",
-    Range = {0.1, 3},
-    Increment = 0.1,
-    CurrentValue = 0.5,
-    Suffix = "s",
-    Flag = "MineDelay",
-    Callback = function(v) mineDelay = v end
-})
-
-FarmingTab:CreateToggle({
-    Name = "Auto Fish",
-    CurrentValue = false,
-    Flag = "AutoFishToggle",
-    Callback = function(v)
-        autoFishGen = autoFishGen + 1
-        autoFishEnabled = v
-        if v then
-            autoFishLoop(autoFishGen)
-            Rayfield:Notify({Title = "Auto Fish", Content = "Fishing automatically!", Duration = 3})
-        end
+local autoFishToggle = Tabs.Farming:AddToggle("AutoFishToggle", { Title = "Auto Fish", Default = false })
+autoFishToggle:OnChanged(function()
+    local v = autoFishToggle.Value
+    autoFishGen = autoFishGen + 1
+    autoFishEnabled = v
+    if v then
+        autoFishLoop(autoFishGen)
+        Fluent:Notify({Title = "Auto Fish", Content = "Fishing automatically!", Duration = 3})
     end
+end)
+
+Tabs.Farming:AddSlider("FishDelay", {
+    Title = "Fish Speed (delay)",
+    Default = 10,
+    Min = 5,
+    Max = 50,
+    Rounding = 1,
+    Callback = function(v) fishDelay = v / 10 end
 })
 
-FarmingTab:CreateSlider({
-    Name = "Fish Speed (delay)",
-    Range = {0.5, 5},
-    Increment = 0.5,
-    CurrentValue = 1,
-    Suffix = "s",
-    Flag = "FishDelay",
-    Callback = function(v) fishDelay = v end
-})
-
-FarmingTab:CreateToggle({
-    Name = "Auto Buy Fish Shop",
-    CurrentValue = false,
-    Flag = "AutoBuyFishShopToggle",
-    Callback = function(v)
-        autoBuyFishShopGen = autoBuyFishShopGen + 1
-        autoBuyFishShopEnabled = v
-        if v then
-            autoBuyFishShopLoop(autoBuyFishShopGen)
-            Rayfield:Notify({Title = "Fish Shop", Content = "Auto buying from fish shop!", Duration = 3})
-        end
+local autoBuyFishShopToggle = Tabs.Farming:AddToggle("AutoBuyFishShopToggle", { Title = "Auto Buy Fish Shop", Default = false })
+autoBuyFishShopToggle:OnChanged(function()
+    local v = autoBuyFishShopToggle.Value
+    autoBuyFishShopGen = autoBuyFishShopGen + 1
+    autoBuyFishShopEnabled = v
+    if v then
+        autoBuyFishShopLoop(autoBuyFishShopGen)
+        Fluent:Notify({Title = "Fish Shop", Content = "Auto buying from fish shop!", Duration = 3})
     end
-})
+end)
 
 -- ============ COLLECT TAB ============
-local CollectTab = Window:CreateTab("Collect", "star")
-CollectTab:CreateSection("Auto Collection")
+Tabs.Collect:AddParagraph({ Title = "Auto Collection", Content = "Automatically collect rewards and items." })
 
-CollectTab:CreateToggle({
-    Name = "Auto Collect Meteors",
-    CurrentValue = false,
-    Flag = "AutoMeteorToggle",
-    Callback = function(v)
-        autoMeteorGen = autoMeteorGen + 1
-        autoMeteorEnabled = v
-        if v then
-            autoMeteorLoop(autoMeteorGen)
-            Rayfield:Notify({Title = "Meteors", Content = "Collecting meteors automatically!", Duration = 3})
-        end
+local autoMeteorToggle = Tabs.Collect:AddToggle("AutoMeteorToggle", { Title = "Auto Collect Meteors", Default = false })
+autoMeteorToggle:OnChanged(function()
+    local v = autoMeteorToggle.Value
+    autoMeteorGen = autoMeteorGen + 1
+    autoMeteorEnabled = v
+    if v then
+        autoMeteorLoop(autoMeteorGen)
+        Fluent:Notify({Title = "Meteors", Content = "Collecting meteors automatically!", Duration = 3})
     end
-})
+end)
 
-CollectTab:CreateToggle({
-    Name = "Auto Collect Time Rewards",
-    CurrentValue = false,
-    Flag = "AutoTimeRewardToggle",
-    Callback = function(v)
-        autoTimeRewardGen = autoTimeRewardGen + 1
-        autoTimeRewardEnabled = v
-        if v then
-            autoTimeRewardLoop(autoTimeRewardGen)
-            Rayfield:Notify({Title = "Time Rewards", Content = "Claiming rewards automatically!", Duration = 3})
-        end
+local autoTimeRewardToggle = Tabs.Collect:AddToggle("AutoTimeRewardToggle", { Title = "Auto Collect Time Rewards", Default = false })
+autoTimeRewardToggle:OnChanged(function()
+    local v = autoTimeRewardToggle.Value
+    autoTimeRewardGen = autoTimeRewardGen + 1
+    autoTimeRewardEnabled = v
+    if v then
+        autoTimeRewardLoop(autoTimeRewardGen)
+        Fluent:Notify({Title = "Time Rewards", Content = "Claiming rewards automatically!", Duration = 3})
     end
-})
+end)
 
-CollectTab:CreateSection("Manual Actions")
+Tabs.Collect:AddParagraph({ Title = "Manual Actions", Content = "One-click actions." })
 
-CollectTab:CreateButton({
-    Name = "Collect All Codes Now",
+Tabs.Collect:AddButton({
+    Title = "Collect All Codes Now",
+    Description = "Collect tokens and chests",
     Callback = function()
         pcall(function()
             fireRemote("CollectSoftwareDeveloperToken")
@@ -1027,12 +992,13 @@ CollectTab:CreateButton({
                 end
             end
         end)
-        Rayfield:Notify({Title = "Collect All", Content = "Collected tokens and chests!", Duration = 3})
+        Fluent:Notify({Title = "Collect All", Content = "Collected tokens and chests!", Duration = 3})
     end
 })
 
-CollectTab:CreateButton({
-    Name = "Sell Everything Now",
+Tabs.Collect:AddButton({
+    Title = "Sell Everything Now",
+    Description = "Open Manage > Software > Select All > Sell",
     Callback = function()
         pcall(function()
             -- Fire Software.Sell remote
@@ -1051,6 +1017,7 @@ CollectTab:CreateButton({
             -- Click GUI buttons
             local gui = player.PlayerGui
             if gui then
+                -- Step 1: Click CoreButtons.Sell to open Manage
                 local sellCoreBtn = gui:FindFirstChild("Main")
                 if sellCoreBtn then
                     sellCoreBtn = sellCoreBtn:FindFirstChild("SideFrame")
@@ -1062,11 +1029,28 @@ CollectTab:CreateButton({
                         end)
                     end
                 end
-                task.wait(0.3)
+                task.wait(0.5)
+
+                -- Step 2: Click Software tab
                 local manageGui = gui:FindFirstChild("Manage")
                 if manageGui then
                     local frame = manageGui:FindFirstChild("Frame")
                     if frame then
+                        local tabBar = frame:FindFirstChild("TabBar")
+                        if tabBar then
+                            local softwareTab = tabBar:FindFirstChild("Software")
+                            if softwareTab then
+                                local softwareBtn = softwareTab:FindFirstChild("Software")
+                                if softwareBtn then
+                                    pcall(function()
+                                        for _, conn in pairs(getconnections(softwareBtn.MouseButton1Click)) do conn:Fire() end
+                                    end)
+                                end
+                            end
+                        end
+                        task.wait(0.3)
+
+                        -- Step 3: SelectAll then Sell
                         local bottomBar = frame:FindFirstChild("BottomBar")
                         if bottomBar then
                             local selectAll = bottomBar:FindFirstChild("SelectAll")
@@ -1087,12 +1071,13 @@ CollectTab:CreateButton({
                 end
             end
         end)
-        Rayfield:Notify({Title = "Sell All", Content = "Sold everything!", Duration = 3})
+        Fluent:Notify({Title = "Sell All", Content = "Sold everything!", Duration = 3})
     end
 })
 
-CollectTab:CreateButton({
-    Name = "Buy All Merchant Items",
+Tabs.Collect:AddButton({
+    Title = "Buy All Merchant Items",
+    Description = "Buy from merchant and market",
     Callback = function()
         pcall(function()
             local vendorFolder = ReplicatedStorage:FindFirstChild("Remotes")
@@ -1109,82 +1094,69 @@ CollectTab:CreateButton({
                 end
             end
         end)
-        Rayfield:Notify({Title = "Merchant", Content = "Bought from merchant!", Duration = 3})
+        Fluent:Notify({Title = "Merchant", Content = "Bought from merchant!", Duration = 3})
     end
 })
 
 -- ============ PLAYER TAB ============
-local PlayerTab = Window:CreateTab("Player", "user")
-PlayerTab:CreateSection("Movement")
+Tabs.Player:AddParagraph({ Title = "Movement", Content = "Speed and movement hacks." })
 
-PlayerTab:CreateToggle({
-    Name = "Speed Hack",
-    CurrentValue = false,
-    Flag = "SpeedToggle",
-    Callback = function(v)
-        speedEnabled = v
-        if not v then
-            local _, humanoid = getCharacter()
-            if humanoid then
-                humanoid.WalkSpeed = 16
-            end
+local speedToggle = Tabs.Player:AddToggle("SpeedToggle", { Title = "Speed Hack", Default = false })
+speedToggle:OnChanged(function()
+    local v = speedToggle.Value
+    speedEnabled = v
+    if not v then
+        local _, humanoid = getCharacter()
+        if humanoid then
+            humanoid.WalkSpeed = 16
         end
     end
-})
+end)
 
-PlayerTab:CreateSlider({
-    Name = "Walk Speed",
-    Range = {16, 500},
-    Increment = 1,
-    CurrentValue = 16,
-    Suffix = " studs/s",
-    Flag = "SpeedValue",
+Tabs.Player:AddSlider("SpeedValue", {
+    Title = "Walk Speed",
+    Default = 16,
+    Min = 16,
+    Max = 500,
+    Rounding = 0,
     Callback = function(v) desiredSpeed = v end
 })
 
-PlayerTab:CreateSection("Visual")
+Tabs.Player:AddParagraph({ Title = "Visual", Content = "Visual enhancements." })
 
-PlayerTab:CreateToggle({
-    Name = "Fullbright",
-    CurrentValue = false,
-    Flag = "FullbrightToggle",
-    Callback = function(v)
-        fullbrightEnabled = v
-        if v then
-            enableFullbright()
-            Rayfield:Notify({Title = "Fullbright", Content = "Fullbright enabled!", Duration = 3})
-        else
-            disableFullbright()
-        end
+local fullbrightToggle = Tabs.Player:AddToggle("FullbrightToggle", { Title = "Fullbright", Default = false })
+fullbrightToggle:OnChanged(function()
+    local v = fullbrightToggle.Value
+    fullbrightEnabled = v
+    if v then
+        enableFullbright()
+        Fluent:Notify({Title = "Fullbright", Content = "Fullbright enabled!", Duration = 3})
+    else
+        disableFullbright()
     end
-})
+end)
 
-PlayerTab:CreateSection("Misc")
+Tabs.Player:AddParagraph({ Title = "Misc", Content = "Other utilities." })
 
-PlayerTab:CreateToggle({
-    Name = "Anti-AFK",
-    CurrentValue = true,
-    Flag = "AntiAfkToggle",
-    Callback = function(v)
-        antiAfkEnabled = v
-        Rayfield:Notify({Title = "Anti-AFK", Content = v and "Anti-AFK enabled!" or "Anti-AFK disabled.", Duration = 3})
-    end
-})
+local antiAfkToggle = Tabs.Player:AddToggle("AntiAfkToggle", { Title = "Anti-AFK", Default = true })
+antiAfkToggle:OnChanged(function()
+    local v = antiAfkToggle.Value
+    antiAfkEnabled = v
+    Fluent:Notify({Title = "Anti-AFK", Content = v and "Anti-AFK enabled!" or "Anti-AFK disabled.", Duration = 3})
+end)
 
 -- ============ INFO TAB ============
-local InfoTab = Window:CreateTab("Info", "info")
-
-InfoTab:CreateParagraph({
+Tabs.Info:AddParagraph({
     Title = "BOON Hub - Code a Business",
-    Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Programs/Apps/Platforms)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nToggle UI: default Rayfield keybind"
+    Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Software)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nMinimize: RightControl"
 })
 
-local remotesParagraph = InfoTab:CreateParagraph({
+Tabs.Info:AddParagraph({
     Title = "Remotes Found",
-    Content = "Scanning game remotes..."
+    Content = "Loading..."
 })
 
--- Update remote info
+-- Update remote info after delay
 task.spawn(function()
     task.wait(2)
     local remoteList = {}
@@ -1192,16 +1164,15 @@ task.spawn(function()
         table.insert(remoteList, name .. " (" .. remote.ClassName .. ")")
     end
     table.sort(remoteList)
-    local remoteText = #remoteList > 0 and table.concat(remoteList, "\n") or "No remotes found in ReplicatedStorage"
-    pcall(function()
-        remotesParagraph:Set({Title = "Remotes Found", Content = remoteText})
-    end)
+    local remoteText = #remoteList > 0 and table.concat(remoteList, "\n") or "No remotes found"
+    print("[BOON Hub] Remotes: " .. remoteText)
 end)
 
-InfoTab:CreateButton({
-    Name = "FULL GAME SCAN (saves to file)",
+Tabs.Info:AddButton({
+    Title = "FULL GAME SCAN (saves to file)",
+    Description = "Scan the entire game and save as txt",
     Callback = function()
-        Rayfield:Notify({Title = "Scanning...", Content = "Please wait, scanning entire game...", Duration = 5})
+        Fluent:Notify({Title = "Scanning...", Content = "Please wait, scanning entire game...", Duration = 5})
 
         local lines = {}
         local function log(s) lines[#lines + 1] = s end
@@ -1437,7 +1408,7 @@ InfoTab:CreateButton({
         end)
 
         if saved then
-            Rayfield:Notify({Title = "Scan Saved!", Content = "File: " .. fileName .. "\nFind it in your executor's workspace folder and send it to the developer.", Duration = 20})
+            Fluent:Notify({Title = "Scan Saved!", Content = "File: " .. fileName .. "\nFind it in your executor's workspace folder.", Duration = 20})
         else
             local clipOk = false
             pcall(function()
@@ -1445,14 +1416,17 @@ InfoTab:CreateButton({
                 clipOk = true
             end)
             if clipOk then
-                Rayfield:Notify({Title = "Copied!", Content = "Scan results copied to clipboard! Paste in notepad and save as txt.", Duration = 15})
+                Fluent:Notify({Title = "Copied!", Content = "Scan results copied to clipboard!", Duration = 15})
             else
                 print(output)
-                Rayfield:Notify({Title = "Scan Done!", Content = "Results printed to F9 console (Ctrl+A to select all).", Duration = 10})
+                Fluent:Notify({Title = "Scan Done!", Content = "Results printed to F9 console.", Duration = 10})
             end
         end
     end
 })
+
+-- Select first tab
+Window:SelectTab(1)
 
 -- ============ HEARTBEAT LOOP ============
 RunService.Heartbeat:Connect(function()
@@ -1466,8 +1440,8 @@ RunService.Heartbeat:Connect(function()
 end)
 
 -- Notify script loaded
-Rayfield:Notify({
+Fluent:Notify({
     Title = "BOON Hub Loaded",
-    Content = "Code a Business script is ready!\nToggle UI: default Rayfield keybind",
+    Content = "Code a Business script is ready!\nMinimize: RightControl",
     Duration = 5
 })
