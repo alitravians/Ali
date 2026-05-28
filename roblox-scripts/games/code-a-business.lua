@@ -32,7 +32,6 @@ local TweenService = game:GetService("TweenService")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
 
 -- Verify game
 if game.PlaceId ~= 109141895577255 then
@@ -82,11 +81,6 @@ local function getCharacter()
     local rootPart = char:FindFirstChild("HumanoidRootPart")
     return char, humanoid, rootPart
 end
-
--- Auto-update character reference on respawn
-player.CharacterAdded:Connect(function(char)
-    character = char
-end)
 
 -- Find remotes helper
 local function findRemote(name, className)

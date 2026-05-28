@@ -30,18 +30,7 @@ if gameScripts[placeId] then
     end)
     if not success then
         warn("[BOON Hub] Failed to load game script: " .. tostring(err))
-        -- Fallback to universal
-        print("[BOON Hub] Falling back to universal script...")
-        pcall(function()
-            loadstring(game:HttpGet(REPO .. "/universal.lua"))()
-        end)
     end
 else
-    print("[BOON Hub] No game-specific script found. Loading universal script...")
-    local success, err = pcall(function()
-        loadstring(game:HttpGet(REPO .. "/universal.lua"))()
-    end)
-    if not success then
-        warn("[BOON Hub] Failed to load universal script: " .. tostring(err))
-    end
+    warn("[BOON Hub] No script available for this game (PlaceId: " .. tostring(placeId) .. ")")
 end
