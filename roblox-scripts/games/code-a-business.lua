@@ -423,70 +423,60 @@ end
 -- ============================================================
 -- AUTO SELL
 -- Automatically sells programs/apps/platforms
--- Fires sell-related remotes and interacts with sell areas
+-- Works by clicking GUI buttons: "Select All" then "Sell"
 -- ============================================================
 local function autoSellLoop(gen)
     task.spawn(function()
         while autoSellEnabled and autoSellGen == gen do
             pcall(function()
-                -- Method 1: Fire ALL remotes with sell-related names
+                local gui = player.PlayerGui
+                if not gui then return end
+
+                -- Step 1: Click "Select All" / "تحديد الكل" button first
+                for _, v in pairs(gui:GetDescendants()) do
+                    if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then
+                        local t = ""
+                        pcall(function() t = v.Text end)
+                        local n = v.Name:lower()
+                        if t:find("تحديد الكل") or t:find("Select All") or n:find("selectall") or n:find("select_all") then
+                            pcall(function()
+                                for _, conn in pairs(getconnections(v.MouseButton1Click)) do
+                                    conn:Fire()
+                                end
+                            end)
+                        end
+                    end
+                end
+
+                task.wait(0.3)
+
+                -- Step 2: Click "Sell" / "بيع" button
+                for _, v in pairs(gui:GetDescendants()) do
+                    if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then
+                        local t = ""
+                        pcall(function() t = v.Text end)
+                        local n = v.Name:lower()
+                        if t == "بيع" or t:lower() == "sell" or n:find("sell") then
+                            pcall(function()
+                                for _, conn in pairs(getconnections(v.MouseButton1Click)) do
+                                    conn:Fire()
+                                end
+                            end)
+                        end
+                    end
+                end
+
+                -- Step 3: Also fire any sell-related remotes
                 for name, remote in pairs(cachedRemotes) do
                     local n = name:lower()
                     if n:find("sell") then
                         pcall(function()
                             if remote:IsA("RemoteEvent") then
                                 remote:FireServer()
-                                if sellType == "Programs" or sellType == "All" then
-                                    remote:FireServer("Program")
-                                    remote:FireServer("Programs")
-                                end
-                                if sellType == "Apps" or sellType == "All" then
-                                    remote:FireServer("App")
-                                    remote:FireServer("Apps")
-                                end
-                                if sellType == "Platforms" or sellType == "All" then
-                                    remote:FireServer("Platform")
-                                    remote:FireServer("Platforms")
-                                end
                             elseif remote:IsA("RemoteFunction") then
                                 remote:InvokeServer()
                             end
                         end)
-                    end
-                end
-
-                -- Method 2: Fire sell-related ProximityPrompts
-                for _, v in pairs(Workspace:GetDescendants()) do
-                    if v:IsA("ProximityPrompt") and v.Enabled then
-                        local parent = v.Parent
-                        if parent then
-                            local parentName = parent.Name:lower()
-                            local action = v.ActionText:lower()
-                            if parentName:find("sell") or parentName:find("shop") or parentName:find("store")
-                                or parentName:find("trade") or parentName:find("npc") or parentName:find("vendor")
-                                or action:find("sell") or action:find("trade") or action:find("shop") then
-                                firePrompt(v)
-                            end
-                        end
-                    end
-                end
-
-                -- Method 3: Click sell GUI buttons
-                local gui = player.PlayerGui
-                if gui then
-                    for _, v in pairs(gui:GetDescendants()) do
-                        if v:IsA("TextButton") and v.Visible then
-                            local n = v.Name:lower()
-                            local t = ""
-                            pcall(function() t = v.Text:lower() end)
-                            if n:find("sell") or t:find("sell") or t:find("بيع") then
-                                pcall(function()
-                                    for _, conn in pairs(getconnections(v.MouseButton1Click)) do
-                                        conn:Fire()
-                                    end
-                                end)
-                            end
-                        end
                     end
                 end
             end)
@@ -1178,7 +1168,9 @@ InfoTab:CreateButton({
         local gui = player.PlayerGui
         if gui then
             for _, v in pairs(gui:GetChildren()) do
-                print("  " .. v.ClassName .. ": " .. v.Name .. " | Enabled: " .. tostring(v.Enabled))
+                local enabled = "N/A"
+                pcall(function() enabled = tostring(v.Enabled) end)
+                print("  " .. v.ClassName .. ": " .. v.Name .. " | Enabled: " .. enabled)
             end
         end
 
