@@ -64,6 +64,16 @@ local mineDelay = 0.5
 local fishDelay = 1
 local sellType = "Programs"
 
+-- Generation counters to prevent concurrent loop instances
+local autoCodingGen = 0
+local autoCollectCodeGen = 0
+local autoSellGen = 0
+local autoMineGen = 0
+local autoFishGen = 0
+local autoMeteorGen = 0
+local autoTimeRewardGen = 0
+local autoBuyFishShopGen = 0
+
 -- Utility: get character safely
 local function getCharacter()
     local char = player.Character
@@ -233,9 +243,9 @@ end
 -- Simulates keyboard input to auto-type code on computers
 -- Works by finding the coding UI and triggering key presses
 -- ============================================================
-local function autoCodingLoop()
+local function autoCodingLoop(gen)
     task.spawn(function()
-        while autoCodingEnabled do
+        while autoCodingEnabled and autoCodingGen == gen do
             pcall(function()
                 -- Method 1: Fire the coding remote directly
                 fireRemote("Code")
@@ -315,9 +325,9 @@ end
 -- AUTO COLLECT CODE
 -- Collects completed code/programs from all PCs
 -- ============================================================
-local function autoCollectCodeLoop()
+local function autoCollectCodeLoop(gen)
     task.spawn(function()
-        while autoCollectCodeEnabled do
+        while autoCollectCodeEnabled and autoCollectCodeGen == gen do
             pcall(function()
                 -- Fire collect remotes
                 fireRemote("CollectCode")
@@ -375,9 +385,9 @@ end
 -- AUTO SELL
 -- Automatically sells programs/apps/platforms
 -- ============================================================
-local function autoSellLoop()
+local function autoSellLoop(gen)
     task.spawn(function()
-        while autoSellEnabled do
+        while autoSellEnabled and autoSellGen == gen do
             pcall(function()
                 -- Fire sell remotes
                 fireRemote("Sell")
@@ -425,9 +435,9 @@ end
 -- AUTO MINE
 -- Automatically mines resources
 -- ============================================================
-local function autoMineLoop()
+local function autoMineLoop(gen)
     task.spawn(function()
-        while autoMineEnabled do
+        while autoMineEnabled and autoMineGen == gen do
             pcall(function()
                 -- Fire mining remotes
                 fireRemote("Mine")
@@ -469,9 +479,9 @@ end
 -- AUTO FISH
 -- Automatically fishes
 -- ============================================================
-local function autoFishLoop()
+local function autoFishLoop(gen)
     task.spawn(function()
-        while autoFishEnabled do
+        while autoFishEnabled and autoFishGen == gen do
             pcall(function()
                 fireRemote("Fish")
                 fireRemote("CastRod")
@@ -502,9 +512,9 @@ end
 -- AUTO COLLECT METEOR
 -- Collects meteors by triggering E prompts
 -- ============================================================
-local function autoMeteorLoop()
+local function autoMeteorLoop(gen)
     task.spawn(function()
-        while autoMeteorEnabled do
+        while autoMeteorEnabled and autoMeteorGen == gen do
             pcall(function()
                 fireRemote("CollectMeteor")
                 fireRemote("MeteorCollect")
@@ -547,9 +557,9 @@ end
 -- AUTO TIME REWARD
 -- Collects playtime rewards automatically
 -- ============================================================
-local function autoTimeRewardLoop()
+local function autoTimeRewardLoop(gen)
     task.spawn(function()
-        while autoTimeRewardEnabled do
+        while autoTimeRewardEnabled and autoTimeRewardGen == gen do
             pcall(function()
                 fireRemote("ClaimReward")
                 fireRemote("ClaimTimeReward")
@@ -588,9 +598,9 @@ end
 -- AUTO BUY FISH SHOP
 -- Buys items from the fishing shop
 -- ============================================================
-local function autoBuyFishShopLoop()
+local function autoBuyFishShopLoop(gen)
     task.spawn(function()
-        while autoBuyFishShopEnabled do
+        while autoBuyFishShopEnabled and autoBuyFishShopGen == gen do
             pcall(function()
                 fireRemote("BuyFishShop")
                 fireRemote("BuyFish")
@@ -698,9 +708,10 @@ CodingTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoCodingToggle",
     Callback = function(v)
+        autoCodingGen = autoCodingGen + 1
         autoCodingEnabled = v
         if v then
-            autoCodingLoop()
+            autoCodingLoop(autoCodingGen)
             Rayfield:Notify({Title = "Auto Code", Content = "Started auto coding!", Duration = 3})
         else
             Rayfield:Notify({Title = "Auto Code", Content = "Stopped auto coding.", Duration = 3})
@@ -723,9 +734,10 @@ CodingTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoCollectCodeToggle",
     Callback = function(v)
+        autoCollectCodeGen = autoCollectCodeGen + 1
         autoCollectCodeEnabled = v
         if v then
-            autoCollectCodeLoop()
+            autoCollectCodeLoop(autoCollectCodeGen)
             Rayfield:Notify({Title = "Auto Collect", Content = "Collecting code from all PCs!", Duration = 3})
         else
             Rayfield:Notify({Title = "Auto Collect", Content = "Stopped collecting.", Duration = 3})
@@ -752,9 +764,10 @@ FarmingTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoSellToggle",
     Callback = function(v)
+        autoSellGen = autoSellGen + 1
         autoSellEnabled = v
         if v then
-            autoSellLoop()
+            autoSellLoop(autoSellGen)
             Rayfield:Notify({Title = "Auto Sell", Content = "Selling " .. sellType .. " automatically!", Duration = 3})
         end
     end
@@ -785,9 +798,10 @@ FarmingTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoMineToggle",
     Callback = function(v)
+        autoMineGen = autoMineGen + 1
         autoMineEnabled = v
         if v then
-            autoMineLoop()
+            autoMineLoop(autoMineGen)
             Rayfield:Notify({Title = "Auto Mine", Content = "Mining automatically!", Duration = 3})
         end
     end
@@ -808,9 +822,10 @@ FarmingTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoFishToggle",
     Callback = function(v)
+        autoFishGen = autoFishGen + 1
         autoFishEnabled = v
         if v then
-            autoFishLoop()
+            autoFishLoop(autoFishGen)
             Rayfield:Notify({Title = "Auto Fish", Content = "Fishing automatically!", Duration = 3})
         end
     end
@@ -831,9 +846,10 @@ FarmingTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoBuyFishShopToggle",
     Callback = function(v)
+        autoBuyFishShopGen = autoBuyFishShopGen + 1
         autoBuyFishShopEnabled = v
         if v then
-            autoBuyFishShopLoop()
+            autoBuyFishShopLoop(autoBuyFishShopGen)
             Rayfield:Notify({Title = "Fish Shop", Content = "Auto buying from fish shop!", Duration = 3})
         end
     end
@@ -848,9 +864,10 @@ CollectTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoMeteorToggle",
     Callback = function(v)
+        autoMeteorGen = autoMeteorGen + 1
         autoMeteorEnabled = v
         if v then
-            autoMeteorLoop()
+            autoMeteorLoop(autoMeteorGen)
             Rayfield:Notify({Title = "Meteors", Content = "Collecting meteors automatically!", Duration = 3})
         end
     end
@@ -861,9 +878,10 @@ CollectTab:CreateToggle({
     CurrentValue = false,
     Flag = "AutoTimeRewardToggle",
     Callback = function(v)
+        autoTimeRewardGen = autoTimeRewardGen + 1
         autoTimeRewardEnabled = v
         if v then
-            autoTimeRewardLoop()
+            autoTimeRewardLoop(autoTimeRewardGen)
             Rayfield:Notify({Title = "Time Rewards", Content = "Claiming rewards automatically!", Duration = 3})
         end
     end
