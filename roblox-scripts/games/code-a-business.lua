@@ -1151,7 +1151,7 @@ Tabs.Info:AddParagraph({
     Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Software)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nMinimize: RightControl"
 })
 
-Tabs.Info:AddParagraph({
+local remotesParagraph = Tabs.Info:AddParagraph({
     Title = "Remotes Found",
     Content = "Loading..."
 })
@@ -1165,7 +1165,9 @@ task.spawn(function()
     end
     table.sort(remoteList)
     local remoteText = #remoteList > 0 and table.concat(remoteList, "\n") or "No remotes found"
-    print("[BOON Hub] Remotes: " .. remoteText)
+    pcall(function()
+        remotesParagraph:Set({Title = "Remotes Found (" .. #remoteList .. ")", Content = remoteText})
+    end)
 end)
 
 Tabs.Info:AddButton({
