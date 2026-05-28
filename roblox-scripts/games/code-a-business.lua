@@ -696,8 +696,9 @@ end
 -- Uses actual remote: PreventKickAfk + VirtualUser fallback
 -- ============================================================
 local function setupAntiAfk()
-    -- Fire PreventKickAfk remote periodically
+    -- Fire PreventKickAfk remote periodically (wait before first fire)
     task.spawn(function()
+        task.wait(60)
         while true do
             if antiAfkEnabled then
                 fireRemote("PreventKickAfk")
@@ -725,7 +726,6 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "BOON Hub Loading...",
     LoadingSubtitle = "Code a Business Script",
     Theme = "Default",
-    ToggleUIKeybind = "K",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
@@ -1038,7 +1038,7 @@ local InfoTab = Window:CreateTab("Info", "info")
 
 InfoTab:CreateParagraph({
     Title = "BOON Hub - Code a Business",
-    Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Programs/Apps/Platforms)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nToggle UI: K"
+    Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Programs/Apps/Platforms)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nToggle UI: default Rayfield keybind"
 })
 
 local remotesParagraph = InfoTab:CreateParagraph({
@@ -1333,6 +1333,6 @@ Rayfield:LoadConfiguration()
 -- Notify script loaded
 Rayfield:Notify({
     Title = "BOON Hub Loaded",
-    Content = "Code a Business script is ready!\nToggle UI: K",
+    Content = "Code a Business script is ready!\nToggle UI: default Rayfield keybind",
     Duration = 5
 })
