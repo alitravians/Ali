@@ -1,0 +1,1 @@
+print("This script has been removed.")
