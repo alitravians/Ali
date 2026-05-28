@@ -223,35 +223,74 @@ local function autoCodingLoop(gen)
     task.spawn(function()
         while autoCodingEnabled and autoCodingGen == gen do
             pcall(function()
-                -- Step 1: Start a coding session
-                fireRemote("StartPlayerCodingSession")
+                local gui = player.PlayerGui
+                if not gui then return end
+
+                -- Step 1: Fire StartPlayerCodingSession to begin coding
+                local startRemote = ReplicatedStorage:FindFirstChild("Remotes")
+                if startRemote then
+                    startRemote = startRemote:FindFirstChild("Server")
+                    if startRemote then
+                        startRemote = startRemote:FindFirstChild("StartPlayerCodingSession")
+                        if startRemote then
+                            pcall(function() startRemote:FireServer() end)
+                        end
+                    end
+                end
+
+                task.wait(0.5)
 
                 -- Step 2: Pop all programming bubbles in the MakeSoftware GUI
-                local gui = player.PlayerGui
-                if gui then
-                    local makeSoftware = gui:FindFirstChild("MakeSoftware")
-                    if makeSoftware then
-                        local bubblesFolder = makeSoftware:FindFirstChild("ProgrammingBubbles")
-                        if bubblesFolder then
-                            for _, bubble in pairs(bubblesFolder:GetChildren()) do
-                                if bubble:IsA("GuiObject") and bubble.Visible then
-                                    fireRemote("PopProgrammingBubble")
-                                    pcall(function()
-                                        for _, conn in pairs(getconnections(bubble.MouseButton1Click)) do
-                                            conn:Fire()
+                local makeSoftware = gui:FindFirstChild("MakeSoftware")
+                if makeSoftware then
+                    -- Click bubbles via GUI
+                    local bubblesFolder = makeSoftware:FindFirstChild("ProgrammingBubbles")
+                    if bubblesFolder then
+                        for _, bubble in pairs(bubblesFolder:GetChildren()) do
+                            if bubble:IsA("GuiObject") and bubble.Visible then
+                                -- Fire remote for each bubble
+                                local popRemote = ReplicatedStorage:FindFirstChild("Remotes")
+                                if popRemote then
+                                    popRemote = popRemote:FindFirstChild("Server")
+                                    if popRemote then
+                                        popRemote = popRemote:FindFirstChild("PopProgrammingBubble")
+                                        if popRemote then
+                                            pcall(function() popRemote:FireServer() end)
                                         end
-                                    end)
+                                    end
                                 end
+                                -- Also click the bubble directly
+                                pcall(function()
+                                    for _, conn in pairs(getconnections(bubble.MouseButton1Click)) do
+                                        conn:Fire()
+                                    end
+                                end)
                             end
                         end
+                    end
+
+                    -- Also try clicking ChangeSoftware button if available
+                    local changeSw = makeSoftware:FindFirstChild("ChangeSoftware")
+                    if changeSw then
+                        pcall(function()
+                            for _, conn in pairs(getconnections(changeSw.MouseButton1Click)) do
+                                conn:Fire()
+                            end
+                        end)
                     end
                 end
 
                 -- Step 3: Try to complete the current coding program
                 pcall(function()
-                    local completeRemote = getRemote("CompletePlayerCodingProgram")
-                    if completeRemote and completeRemote:IsA("RemoteFunction") then
-                        completeRemote:InvokeServer()
+                    local completeRemote = ReplicatedStorage:FindFirstChild("Remotes")
+                    if completeRemote then
+                        completeRemote = completeRemote:FindFirstChild("Server")
+                        if completeRemote then
+                            completeRemote = completeRemote:FindFirstChild("CompletePlayerCodingProgram")
+                            if completeRemote and completeRemote:IsA("RemoteFunction") then
+                                completeRemote:InvokeServer()
+                            end
+                        end
                     end
                 end)
             end)
@@ -269,11 +308,30 @@ local function autoCollectCodeLoop(gen)
     task.spawn(function()
         while autoCollectCodeEnabled and autoCollectCodeGen == gen do
             pcall(function()
-                -- Collect software developer tokens
-                fireRemote("CollectSoftwareDeveloperToken")
-
-                -- Collect chests (Daily, Vip, Potion, Amulet, Diamond)
-                fireRemote("CollectChest")
+                -- Collect software developer tokens via exact path
+                local serverRemotes = ReplicatedStorage:FindFirstChild("Remotes")
+                if serverRemotes then
+                    serverRemotes = serverRemotes:FindFirstChild("Server")
+                    if serverRemotes then
+                        local tokenRemote = serverRemotes:FindFirstChild("CollectSoftwareDeveloperToken")
+                        if tokenRemote then
+                            pcall(function() tokenRemote:FireServer() end)
+                        end
+                        local chestRemote = serverRemotes:FindFirstChild("CollectChest")
+                        if chestRemote then
+                            pcall(function() chestRemote:FireServer() end)
+                        end
+                        -- Also claim play rewards and daily rewards
+                        local playReward = serverRemotes:FindFirstChild("PlayRewardClaimed")
+                        if playReward then
+                            pcall(function() playReward:FireServer() end)
+                        end
+                        local dailyReward = serverRemotes:FindFirstChild("DailyRewardClaimed")
+                        if dailyReward then
+                            pcall(function() dailyReward:FireServer() end)
+                        end
+                    end
+                end
 
                 -- Touch chest CollectParts in the world
                 local char, _, rootPart = getCharacter()
@@ -351,13 +409,32 @@ local function autoSellLoop(gen)
                     end
                 end
 
-                task.wait(0.3)
+                task.wait(0.5)
 
-                -- Step 2: Click SelectAll in Manage screen
+                -- Step 2: Open Software tab in Manage screen
                 local manageGui = gui:FindFirstChild("Manage")
                 if manageGui then
                     local frame = manageGui:FindFirstChild("Frame")
                     if frame then
+                        -- Click Software tab first
+                        local tabBar = frame:FindFirstChild("TabBar")
+                        if tabBar then
+                            local softwareTab = tabBar:FindFirstChild("Software")
+                            if softwareTab then
+                                local softwareBtn = softwareTab:FindFirstChild("Software")
+                                if softwareBtn then
+                                    pcall(function()
+                                        for _, conn in pairs(getconnections(softwareBtn.MouseButton1Click)) do
+                                            conn:Fire()
+                                        end
+                                    end)
+                                end
+                            end
+                        end
+
+                        task.wait(0.3)
+
+                        -- Step 3: Click SelectAll
                         local bottomBar = frame:FindFirstChild("BottomBar")
                         if bottomBar then
                             local selectAll = bottomBar:FindFirstChild("SelectAll")
@@ -371,7 +448,7 @@ local function autoSellLoop(gen)
 
                             task.wait(0.3)
 
-                            -- Step 3: Click Sell in Manage screen
+                            -- Step 4: Click Sell
                             local sellBtn = bottomBar:FindFirstChild("Sell")
                             if sellBtn then
                                 pcall(function()
