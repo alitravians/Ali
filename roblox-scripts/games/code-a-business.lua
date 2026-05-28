@@ -1124,95 +1124,221 @@ end)
 InfoTab:CreateButton({
     Name = "FULL GAME SCAN (saves to file)",
     Callback = function()
+        Rayfield:Notify({Title = "Scanning...", Content = "Please wait, scanning entire game...", Duration = 5})
+
         local lines = {}
         local function log(s) lines[#lines + 1] = s end
 
-        log("========================================")
-        log("  BOON Hub - Full Game Scan")
-        log("  Game: " .. tostring(game.PlaceId))
-        log("  Player: " .. player.Name)
-        log("========================================")
+        log("================================================================")
+        log("  BOON Hub - FULL GAME SCAN")
+        log("  Game PlaceId: " .. tostring(game.PlaceId))
+        log("  Game Name: " .. tostring(game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name))
+        log("  Player: " .. player.Name .. " (UserId: " .. tostring(player.UserId) .. ")")
+        log("  Timestamp: " .. os.date("%Y-%m-%d %H:%M:%S"))
+        log("================================================================")
 
-        log("\n--- ALL REMOTES (ReplicatedStorage) ---")
+        -- Section 1: ALL RemoteEvents and RemoteFunctions
+        log("\n\n=== 1. ALL REMOTES (ReplicatedStorage) ===")
+        local remoteCount = 0
         for _, v in pairs(ReplicatedStorage:GetDescendants()) do
             if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-                log("  " .. v.ClassName .. ": " .. v:GetFullName())
+                remoteCount = remoteCount + 1
+                log("  " .. v.ClassName .. ": " .. v.Name .. " | Path: " .. v:GetFullName())
             end
         end
+        log("  TOTAL: " .. remoteCount .. " remotes")
 
-        log("\n--- ALL PROXIMITY PROMPTS (Workspace) ---")
+        -- Section 2: ALL ProximityPrompts
+        log("\n\n=== 2. ALL PROXIMITY PROMPTS (Workspace) ===")
+        local ppCount = 0
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
-                local action, obj, key = "", "", ""
+                ppCount = ppCount + 1
+                local action, obj, key, enabled, holdDur, maxDist = "", "", "", "", "", ""
                 pcall(function() action = v.ActionText end)
                 pcall(function() obj = v.ObjectText end)
                 pcall(function() key = tostring(v.KeyboardKeyCode) end)
-                log("  [PP] " .. v:GetFullName() .. " | Action: " .. action .. " | Object: " .. obj .. " | Key: " .. key)
+                pcall(function() enabled = tostring(v.Enabled) end)
+                pcall(function() holdDur = tostring(v.HoldDuration) end)
+                pcall(function() maxDist = tostring(v.MaxActivationDistance) end)
+                log("  [PP] " .. v:GetFullName())
+                log("        Action: " .. action .. " | Object: " .. obj .. " | Key: " .. key)
+                log("        Enabled: " .. enabled .. " | HoldDuration: " .. holdDur .. " | MaxDist: " .. maxDist)
             end
         end
+        log("  TOTAL: " .. ppCount .. " prompts")
 
-        log("\n--- ALL CLICK DETECTORS (Workspace) ---")
+        -- Section 3: ALL ClickDetectors
+        log("\n\n=== 3. ALL CLICK DETECTORS (Workspace) ===")
+        local cdCount = 0
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("ClickDetector") then
-                log("  [CD] " .. v:GetFullName())
+                cdCount = cdCount + 1
+                local maxDist = ""
+                pcall(function() maxDist = tostring(v.MaxActivationDistance) end)
+                log("  [CD] " .. v:GetFullName() .. " | MaxDist: " .. maxDist)
             end
         end
+        log("  TOTAL: " .. cdCount .. " detectors")
 
-        log("\n--- WORKSPACE TOP-LEVEL ---")
+        -- Section 4: Workspace structure (2 levels deep)
+        log("\n\n=== 4. WORKSPACE STRUCTURE (2 levels) ===")
         for _, v in pairs(Workspace:GetChildren()) do
             log("  " .. v.ClassName .. ": " .. v.Name)
-        end
-
-        log("\n--- PLAYER PLOT / TYCOON ---")
-        for _, v in pairs(Workspace:GetDescendants()) do
-            if (v:IsA("Model") or v:IsA("Folder")) and (v.Name == player.Name or v.Name == tostring(player.UserId)) then
-                log("  Found player area: " .. v:GetFullName())
+            if v:IsA("Model") or v:IsA("Folder") then
                 for _, child in pairs(v:GetChildren()) do
                     log("    " .. child.ClassName .. ": " .. child.Name)
                 end
             end
         end
 
-        log("\n--- PLAYER GUI SCREENS ---")
+        -- Section 5: Player area / plot / tycoon
+        log("\n\n=== 5. PLAYER AREA / PLOT ===")
+        local foundPlot = false
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if (v:IsA("Model") or v:IsA("Folder")) then
+                local vn = v.Name:lower()
+                if vn == player.Name:lower() or vn == tostring(player.UserId)
+                    or vn:find("plot") or vn:find("tycoon") or vn:find("office") then
+                    foundPlot = true
+                    log("  Found: " .. v:GetFullName() .. " (" .. v.ClassName .. ")")
+                    for _, child in pairs(v:GetChildren()) do
+                        log("    " .. child.ClassName .. ": " .. child.Name)
+                        if child:IsA("Model") or child:IsA("Folder") then
+                            for _, sub in pairs(child:GetChildren()) do
+                                log("      " .. sub.ClassName .. ": " .. sub.Name)
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        if not foundPlot then log("  No player area found") end
+
+        -- Section 6: ALL ScreenGuis and their children
+        log("\n\n=== 6. PLAYER GUI - ALL SCREENS ===")
         local gui = player.PlayerGui
         if gui then
-            for _, v in pairs(gui:GetChildren()) do
+            for _, screen in pairs(gui:GetChildren()) do
                 local enabled = "N/A"
-                pcall(function() enabled = tostring(v.Enabled) end)
-                log("  " .. v.ClassName .. ": " .. v.Name .. " | Enabled: " .. enabled)
+                pcall(function() enabled = tostring(screen.Enabled) end)
+                log("  " .. screen.ClassName .. ": " .. screen.Name .. " | Enabled: " .. enabled)
+                pcall(function()
+                    for _, child in pairs(screen:GetChildren()) do
+                        log("    " .. child.ClassName .. ": " .. child.Name)
+                    end
+                end)
             end
         end
 
-        log("\n--- PLAYER GUI BUTTONS (all TextButton/ImageButton) ---")
+        -- Section 7: ALL GUI Buttons with text and visibility
+        log("\n\n=== 7. ALL GUI BUTTONS (TextButton/ImageButton) ===")
+        local btnCount = 0
         if gui then
             for _, v in pairs(gui:GetDescendants()) do
                 if v:IsA("TextButton") or v:IsA("ImageButton") then
-                    local t = ""
+                    btnCount = btnCount + 1
+                    local t, vis, active = "", "", ""
                     pcall(function() t = v.Text end)
-                    local vis = "?"
                     pcall(function() vis = tostring(v.Visible) end)
-                    log("  [BTN] " .. v:GetFullName() .. " | Text: " .. t .. " | Visible: " .. vis)
+                    pcall(function() active = tostring(v.Active) end)
+                    log("  [BTN] " .. v:GetFullName())
+                    log("        Text: \"" .. t .. "\" | Visible: " .. vis .. " | Active: " .. active)
+                end
+            end
+        end
+        log("  TOTAL: " .. btnCount .. " buttons")
+
+        -- Section 8: ALL TextLabels (shows game text/data)
+        log("\n\n=== 8. ALL GUI TEXT LABELS ===")
+        local labelCount = 0
+        if gui then
+            for _, v in pairs(gui:GetDescendants()) do
+                if v:IsA("TextLabel") then
+                    local t, vis = "", ""
+                    pcall(function() t = v.Text end)
+                    pcall(function() vis = tostring(v.Visible) end)
+                    if t ~= "" then
+                        labelCount = labelCount + 1
+                        if labelCount <= 100 then
+                            log("  [LBL] " .. v:GetFullName())
+                            log("        Text: \"" .. t .. "\" | Visible: " .. vis)
+                        end
+                    end
+                end
+            end
+        end
+        if labelCount > 100 then
+            log("  ... and " .. (labelCount - 100) .. " more labels")
+        end
+        log("  TOTAL: " .. labelCount .. " non-empty labels")
+
+        -- Section 9: ALL TextBoxes (input fields)
+        log("\n\n=== 9. ALL GUI TEXT BOXES (inputs) ===")
+        if gui then
+            for _, v in pairs(gui:GetDescendants()) do
+                if v:IsA("TextBox") then
+                    local t, placeholder = "", ""
+                    pcall(function() t = v.Text end)
+                    pcall(function() placeholder = v.PlaceholderText end)
+                    log("  [INPUT] " .. v:GetFullName())
+                    log("          Text: \"" .. t .. "\" | Placeholder: \"" .. placeholder .. "\"")
                 end
             end
         end
 
-        log("\n--- TOUCH TRANSMITTERS (collectibles) ---")
+        -- Section 10: TouchTransmitters
+        log("\n\n=== 10. TOUCH TRANSMITTERS (collectibles) ===")
         local ttCount = 0
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("TouchTransmitter") then
                 ttCount = ttCount + 1
-                if ttCount <= 50 then
+                if ttCount <= 100 then
                     log("  [TT] " .. v:GetFullName())
                 end
             end
         end
-        if ttCount > 50 then
-            log("  ... and " .. (ttCount - 50) .. " more")
+        if ttCount > 100 then
+            log("  ... and " .. (ttCount - 100) .. " more")
+        end
+        log("  TOTAL: " .. ttCount .. " touch transmitters")
+
+        -- Section 11: Remotes in other services
+        log("\n\n=== 11. REMOTES IN OTHER LOCATIONS ===")
+        pcall(function()
+            for _, v in pairs(game:GetService("Workspace"):GetDescendants()) do
+                if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+                    log("  [Workspace] " .. v.ClassName .. ": " .. v:GetFullName())
+                end
+            end
+        end)
+        pcall(function()
+            for _, v in pairs(player:GetDescendants()) do
+                if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+                    log("  [Player] " .. v.ClassName .. ": " .. v:GetFullName())
+                end
+            end
+        end)
+
+        -- Section 12: Player stats/leaderstats
+        log("\n\n=== 12. PLAYER STATS / LEADERSTATS ===")
+        local ls = player:FindFirstChild("leaderstats")
+        if ls then
+            for _, stat in pairs(ls:GetChildren()) do
+                log("  " .. stat.ClassName .. ": " .. stat.Name .. " = " .. tostring(stat.Value))
+            end
+        else
+            log("  No leaderstats folder found")
+        end
+        for _, child in pairs(player:GetChildren()) do
+            if child:IsA("Folder") or child:IsA("StringValue") or child:IsA("IntValue") or child:IsA("NumberValue") or child:IsA("BoolValue") then
+                log("  [PlayerChild] " .. child.ClassName .. ": " .. child.Name .. " = " .. tostring(child.Value))
+            end
         end
 
-        log("\n========================================")
-        log("  Scan complete!")
-        log("========================================")
+        log("\n\n================================================================")
+        log("  Scan complete! " .. remoteCount .. " remotes, " .. ppCount .. " prompts, " .. cdCount .. " detectors, " .. btnCount .. " buttons")
+        log("================================================================")
 
         local output = table.concat(lines, "\n")
         local fileName = "BOON_GameScan_" .. game.PlaceId .. ".txt"
@@ -1223,10 +1349,16 @@ InfoTab:CreateButton({
         end)
 
         if saved then
-            Rayfield:Notify({Title = "Scan Saved!", Content = "File saved as: " .. fileName .. "\nFind it in your executor's workspace folder.", Duration = 15})
+            Rayfield:Notify({Title = "Scan Saved!", Content = "File: " .. fileName .. "\nFind it in your executor's workspace folder and send it to the developer.", Duration = 20})
         else
-            print(output)
-            Rayfield:Notify({Title = "Scan Done!", Content = "Could not save file. Results printed to F9 console instead.", Duration = 10})
+            pcall(function()
+                setclipboard(output)
+                Rayfield:Notify({Title = "Copied!", Content = "Scan results copied to clipboard! Paste in notepad and save as txt.", Duration = 15})
+            end)
+            if not saved then
+                print(output)
+                Rayfield:Notify({Title = "Scan Done!", Content = "Results printed to F9 console (Ctrl+A to select all).", Duration = 10})
+            end
         end
     end
 })
