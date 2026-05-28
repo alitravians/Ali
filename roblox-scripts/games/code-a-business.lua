@@ -625,8 +625,10 @@ local function enableFullbright()
     Lighting.FogEnd = 1e10
     Lighting.GlobalShadows = false
 
+    savedLighting.effects = {}
     for _, v in pairs(Lighting:GetDescendants()) do
         if v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("ColorCorrectionEffect") or v:IsA("SunRaysEffect") then
+            table.insert(savedLighting.effects, {effect = v, enabled = v.Enabled})
             v.Enabled = false
         end
     end
@@ -638,6 +640,13 @@ local function disableFullbright()
         Lighting.Brightness = savedLighting.Brightness
         Lighting.FogEnd = savedLighting.FogEnd
         Lighting.GlobalShadows = savedLighting.GlobalShadows
+    end
+    if savedLighting.effects then
+        for _, entry in pairs(savedLighting.effects) do
+            if entry.effect and entry.effect.Parent then
+                entry.effect.Enabled = entry.enabled
+            end
+        end
     end
 end
 

@@ -15,7 +15,10 @@ local gameScripts = {
 }
 
 local placeId = game.PlaceId
-local gameName = game:GetService("MarketplaceService"):GetProductInfo(placeId).Name or "Unknown Game"
+local gameName = "Unknown Game"
+pcall(function()
+    gameName = game:GetService("MarketplaceService"):GetProductInfo(placeId).Name or "Unknown Game"
+end)
 
 print("[BOON Hub] v" .. VERSION)
 print("[BOON Hub] Game: " .. gameName .. " (PlaceId: " .. tostring(placeId) .. ")")
