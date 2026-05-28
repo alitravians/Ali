@@ -80,7 +80,6 @@ local collectDelay = 1
 local sellDelay = 1
 local mineDelay = 0.5
 local fishDelay = 1
-local sellType = "Programs"
 
 -- Generation counters to prevent concurrent loop instances
 local autoCodingGen = 0
@@ -206,52 +205,6 @@ local function firePrompt(prompt)
     end
 end
 
--- Find player's computers/PCs in workspace
-local function findPlayerComputers()
-    local computers = {}
-    -- Look for the player's tycoon/plot/office area
-    local playerPlot = nil
-
-    -- Common patterns: player's folder in workspace, tycoon model, etc.
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if v:IsA("Model") or v:IsA("Folder") then
-            if v.Name == player.Name or v.Name == tostring(player.UserId) then
-                playerPlot = v
-                break
-            end
-        end
-    end
-
-    -- Search for computers/PCs
-    local searchAreas = playerPlot and {playerPlot} or {Workspace}
-    for _, area in pairs(searchAreas) do
-        for _, v in pairs(area:GetDescendants()) do
-            if v:IsA("Model") and (
-                v.Name:lower():find("computer") or
-                v.Name:lower():find("pc") or
-                v.Name:lower():find("desk") or
-                v.Name:lower():find("monitor") or
-                v.Name:lower():find("setup")
-            ) then
-                table.insert(computers, v)
-            end
-        end
-    end
-
-    return computers
-end
-
--- Find collectible items (meteors, code bubbles, etc.)
-local function findCollectibles(namePattern)
-    local items = {}
-    for _, v in pairs(Workspace:GetDescendants()) do
-        if (v:IsA("BasePart") or v:IsA("Model")) and v.Name:lower():find(namePattern:lower()) then
-            table.insert(items, v)
-        end
-    end
-    return items
-end
-
 -- Teleport to position safely
 local function teleportTo(position)
     local char, humanoid, rootPart = getCharacter()
@@ -262,91 +215,45 @@ end
 
 -- ============================================================
 -- AUTO CODING
--- Interacts with computers via ProximityPrompts, ClickDetectors,
--- and fires all coding-related remotes found in the game
+-- Starts a coding session via StartPlayerCodingSession remote,
+-- pops programming bubbles via PopProgrammingBubble remote,
+-- and completes programs via CompletePlayerCodingProgram remote
 -- ============================================================
 local function autoCodingLoop(gen)
     task.spawn(function()
         while autoCodingEnabled and autoCodingGen == gen do
             pcall(function()
-                -- Method 1: Fire remotes with coding-specific names
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("code") or n:find("coding") or n:find("type") or n:find("write")
-                        or n:find("compile") or n:find("addline") or n:find("writeline") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
-                            end
-                        end)
-                    end
-                end
+                -- Step 1: Start a coding session
+                fireRemote("StartPlayerCodingSession")
 
-                -- Method 2: Fire ProximityPrompts on coding-related objects near player
-                local char, _, rootPart = getCharacter()
-                if rootPart then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("ProximityPrompt") and v.Enabled then
-                            local promptPart = v.Parent
-                            if promptPart and promptPart:IsA("BasePart") then
-                                local dist = (promptPart.Position - rootPart.Position).Magnitude
-                                if dist < 30 then
-                                    local pn = promptPart.Name:lower()
-                                    local action = v.ActionText:lower()
-                                    if pn:find("computer") or pn:find("pc") or pn:find("desk")
-                                        or pn:find("monitor") or pn:find("setup") or pn:find("screen")
-                                        or pn:find("code") or pn:find("coding") or pn:find("laptop")
-                                        or action:find("code") or action:find("type") or action:find("program") then
-                                        firePrompt(v)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- Method 3: Fire ClickDetectors on coding-related objects near player
-                if rootPart then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("ClickDetector") then
-                            local clickPart = v.Parent
-                            if clickPart and clickPart:IsA("BasePart") then
-                                local dist = (clickPart.Position - rootPart.Position).Magnitude
-                                if dist < 30 then
-                                    local cn = clickPart.Name:lower()
-                                    if cn:find("computer") or cn:find("pc") or cn:find("desk")
-                                        or cn:find("monitor") or cn:find("screen") or cn:find("code")
-                                        or cn:find("laptop") then
-                                        pcall(function() fireclickdetector(v) end)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-
-                -- Method 4: Click GUI buttons related to coding
+                -- Step 2: Pop all programming bubbles in the MakeSoftware GUI
                 local gui = player.PlayerGui
                 if gui then
-                    for _, v in pairs(gui:GetDescendants()) do
-                        if v:IsA("TextButton") and v.Visible then
-                            local n = v.Name:lower()
-                            local t = ""
-                            pcall(function() t = v.Text:lower() end)
-                            if n:find("code") or n:find("type") or n:find("write")
-                                or n:find("compile") or n:find("submit")
-                                or t:find("code") or t:find("compile") then
-                                pcall(function()
-                                    for _, conn in pairs(getconnections(v.MouseButton1Click)) do
-                                        conn:Fire()
-                                    end
-                                end)
+                    local makeSoftware = gui:FindFirstChild("MakeSoftware")
+                    if makeSoftware then
+                        local bubblesFolder = makeSoftware:FindFirstChild("ProgrammingBubbles")
+                        if bubblesFolder then
+                            for _, bubble in pairs(bubblesFolder:GetChildren()) do
+                                if bubble:IsA("GuiObject") and bubble.Visible then
+                                    fireRemote("PopProgrammingBubble")
+                                    pcall(function()
+                                        for _, conn in pairs(getconnections(bubble.MouseButton1Click)) do
+                                            conn:Fire()
+                                        end
+                                    end)
+                                end
                             end
                         end
                     end
                 end
+
+                -- Step 3: Try to complete the current coding program
+                pcall(function()
+                    local completeRemote = getRemote("CompletePlayerCodingProgram")
+                    if completeRemote and completeRemote:IsA("RemoteFunction") then
+                        completeRemote:InvokeServer()
+                    end
+                end)
             end)
             task.wait(codingDelay)
         end
@@ -355,69 +262,37 @@ end
 
 -- ============================================================
 -- AUTO COLLECT CODE
--- Collects completed code/programs from all PCs
--- Uses touch, ProximityPrompts, and remotes
+-- Collects software developer tokens and chests
+-- Uses actual remotes: CollectSoftwareDeveloperToken, CollectChest
 -- ============================================================
 local function autoCollectCodeLoop(gen)
     task.spawn(function()
         while autoCollectCodeEnabled and autoCollectCodeGen == gen do
             pcall(function()
-                -- Method 1: Fire ALL remotes with collect-related names
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("collect") or n:find("pickup") or n:find("grab")
-                        or n:find("bubble") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
-                            end
-                        end)
-                    end
-                end
+                -- Collect software developer tokens
+                fireRemote("CollectSoftwareDeveloperToken")
 
-                -- Method 2: Touch collectible parts (bubbles, drops, items with TouchTransmitter)
+                -- Collect chests (Daily, Vip, Potion, Amulet, Diamond)
+                fireRemote("CollectChest")
+
+                -- Touch chest CollectParts in the world
                 local char, _, rootPart = getCharacter()
                 if rootPart then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("BasePart") and v:FindFirstChildOfClass("TouchTransmitter") then
-                            local vn = v.Name:lower()
-                            local pn = v.Parent and v.Parent.Name:lower() or ""
-                            if vn:find("code") or vn:find("bubble") or vn:find("collect")
-                                or vn:find("drop") or vn:find("item") or vn:find("pickup")
-                                or vn:find("software") or vn:find("program")
-                                or pn:find("code") or pn:find("bubble") or pn:find("collect")
-                                or pn:find("drop") or pn:find("software") then
-                                local dist = (v.Position - rootPart.Position).Magnitude
-                                if dist < 50 then
-                                    pcall(function()
-                                        firetouchinterest(rootPart, v, 0)
-                                        task.wait()
-                                        firetouchinterest(rootPart, v, 1)
-                                    end)
-                                end
-                            end
+                    local chestsFolder = Workspace:FindFirstChild("Map")
+                    if chestsFolder then
+                        chestsFolder = chestsFolder:FindFirstChild("Gameplay")
+                        if chestsFolder then
+                            chestsFolder = chestsFolder:FindFirstChild("Chests")
                         end
                     end
-                end
-
-                -- Method 3: Fire ProximityPrompts for collection
-                if rootPart then
-                    for _, v in pairs(Workspace:GetDescendants()) do
-                        if v:IsA("ProximityPrompt") and v.Enabled then
-                            local promptPart = v.Parent
-                            if promptPart and promptPart:IsA("BasePart") then
-                                local dist = (promptPart.Position - rootPart.Position).Magnitude
-                                if dist < 50 then
-                                    local pn = promptPart.Name:lower()
-                                    local action = v.ActionText:lower()
-                                    if pn:find("code") or pn:find("bubble") or pn:find("collect")
-                                        or pn:find("pickup") or pn:find("drop") or pn:find("item")
-                                        or action:find("collect") or action:find("pick") or action:find("grab") then
-                                        firePrompt(v)
-                                    end
-                                end
+                    if chestsFolder then
+                        for _, chest in pairs(chestsFolder:GetDescendants()) do
+                            if chest:IsA("BasePart") and chest.Name == "CollectPart" then
+                                pcall(function()
+                                    firetouchinterest(rootPart, chest, 0)
+                                    task.wait()
+                                    firetouchinterest(rootPart, chest, 1)
+                                end)
                             end
                         end
                     end
@@ -430,8 +305,9 @@ end
 
 -- ============================================================
 -- AUTO SELL
--- Automatically sells programs/apps/platforms
--- Works by clicking GUI buttons: "Select All" then "Sell"
+-- Sells software via GUI: opens Sell screen, SelectAll, then Sell
+-- Also fires Software.Sell remote directly
+-- Actual paths: Main.SideFrame.CoreButtons.Sell → Manage.Frame.BottomBar.SelectAll → Manage.Frame.BottomBar.Sell
 -- ============================================================
 local function autoSellLoop(gen)
     task.spawn(function()
@@ -440,52 +316,71 @@ local function autoSellLoop(gen)
                 local gui = player.PlayerGui
                 if not gui then return end
 
-                -- Step 1: Click "Select All" / "تحديد الكل" button first
-                for _, v in pairs(gui:GetDescendants()) do
-                    if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then
-                        local t = ""
-                        pcall(function() t = v.Text end)
-                        local n = v.Name:lower()
-                        local tl = t:lower()
-                        if t:find("تحديد الكل") or tl:find("select all") or n:find("selectall") or n:find("select_all") then
-                            pcall(function()
-                                for _, conn in pairs(getconnections(v.MouseButton1Click)) do
-                                    conn:Fire()
-                                end
-                            end)
+                -- Method 1: Fire Software.Sell remote directly
+                local sellRemote = ReplicatedStorage:FindFirstChild("Remotes")
+                if sellRemote then
+                    sellRemote = sellRemote:FindFirstChild("Server")
+                    if sellRemote then
+                        sellRemote = sellRemote:FindFirstChild("Software")
+                        if sellRemote then
+                            sellRemote = sellRemote:FindFirstChild("Sell")
+                            if sellRemote then
+                                pcall(function() sellRemote:FireServer() end)
+                            end
+                        end
+                    end
+                end
+
+                -- Method 2: Click GUI buttons by exact path
+                -- Step 1: Click "Sell" CoreButton to open the Manage screen
+                local sellCoreBtn = gui:FindFirstChild("Main")
+                if sellCoreBtn then
+                    sellCoreBtn = sellCoreBtn:FindFirstChild("SideFrame")
+                    if sellCoreBtn then
+                        sellCoreBtn = sellCoreBtn:FindFirstChild("CoreButtons")
+                        if sellCoreBtn then
+                            sellCoreBtn = sellCoreBtn:FindFirstChild("Sell")
+                            if sellCoreBtn then
+                                pcall(function()
+                                    for _, conn in pairs(getconnections(sellCoreBtn.MouseButton1Click)) do
+                                        conn:Fire()
+                                    end
+                                end)
+                            end
                         end
                     end
                 end
 
                 task.wait(0.3)
 
-                -- Step 2: Click "Sell" / "بيع" button
-                for _, v in pairs(gui:GetDescendants()) do
-                    if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Visible then
-                        local t = ""
-                        pcall(function() t = v.Text end)
-                        local n = v.Name:lower()
-                        if t == "بيع" or t:lower() == "sell" or n:find("sell") then
-                            pcall(function()
-                                for _, conn in pairs(getconnections(v.MouseButton1Click)) do
-                                    conn:Fire()
-                                end
-                            end)
-                        end
-                    end
-                end
-
-                -- Step 3: Also fire any sell-related remotes
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("sell") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
+                -- Step 2: Click SelectAll in Manage screen
+                local manageGui = gui:FindFirstChild("Manage")
+                if manageGui then
+                    local frame = manageGui:FindFirstChild("Frame")
+                    if frame then
+                        local bottomBar = frame:FindFirstChild("BottomBar")
+                        if bottomBar then
+                            local selectAll = bottomBar:FindFirstChild("SelectAll")
+                            if selectAll then
+                                pcall(function()
+                                    for _, conn in pairs(getconnections(selectAll.MouseButton1Click)) do
+                                        conn:Fire()
+                                    end
+                                end)
                             end
-                        end)
+
+                            task.wait(0.3)
+
+                            -- Step 3: Click Sell in Manage screen
+                            local sellBtn = bottomBar:FindFirstChild("Sell")
+                            if sellBtn then
+                                pcall(function()
+                                    for _, conn in pairs(getconnections(sellBtn.MouseButton1Click)) do
+                                        conn:Fire()
+                                    end
+                                end)
+                            end
+                        end
                     end
                 end
             end)
@@ -496,46 +391,54 @@ end
 
 -- ============================================================
 -- AUTO MINE
--- Automatically mines resources via remotes and prompts
+-- Uses actual remotes: Mining.UpdateOreHealth, Mining.UpdateBoulderHealth
+-- Fires ProximityPrompts on boulders in Workspace.Interiors.Mines
 -- ============================================================
 local function autoMineLoop(gen)
     task.spawn(function()
         while autoMineEnabled and autoMineGen == gen do
             pcall(function()
-                -- Fire ALL remotes with mine-related names
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("mine") or n:find("rock") or n:find("ore") or n:find("boulder")
-                        or n:find("dig") or n:find("pickaxe") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
+                -- Fire Mining remotes by exact path
+                local miningFolder = ReplicatedStorage:FindFirstChild("Remotes")
+                if miningFolder then
+                    miningFolder = miningFolder:FindFirstChild("Server")
+                    if miningFolder then
+                        miningFolder = miningFolder:FindFirstChild("Mining")
+                        if miningFolder then
+                            local updateOre = miningFolder:FindFirstChild("UpdateOreHealth")
+                            if updateOre then
+                                pcall(function() updateOre:InvokeServer() end)
                             end
-                        end)
-                    end
-                end
-
-                -- Fire mine-related ProximityPrompts and ClickDetectors
-                for _, v in pairs(Workspace:GetDescendants()) do
-                    if v:IsA("ProximityPrompt") and v.Enabled then
-                        local parent = v.Parent
-                        if parent then
-                            local pn = parent.Name:lower()
-                            local action = v.ActionText:lower()
-                            if pn:find("mine") or pn:find("rock") or pn:find("ore") or pn:find("boulder") or pn:find("crystal")
-                                or action:find("mine") or action:find("break") or action:find("dig") then
-                                firePrompt(v)
+                            local updateBoulder = miningFolder:FindFirstChild("UpdateBoulderHealth")
+                            if updateBoulder then
+                                pcall(function() updateBoulder:InvokeServer() end)
+                            end
+                            local genOre = miningFolder:FindFirstChild("GenerateOreSpawnOre")
+                            if genOre then
+                                pcall(function() genOre:InvokeServer() end)
+                            end
+                            local useTnt = miningFolder:FindFirstChild("UseTnt")
+                            if useTnt then
+                                pcall(function() useTnt:FireServer() end)
                             end
                         end
                     end
-                    if v:IsA("ClickDetector") then
-                        local parent = v.Parent
-                        if parent then
-                            local pn = parent.Name:lower()
-                            if pn:find("mine") or pn:find("rock") or pn:find("ore") then
-                                pcall(function() fireclickdetector(v) end)
+                end
+
+                -- Fire ProximityPrompts on boulders in all mines
+                local minesFolder = Workspace:FindFirstChild("Interiors")
+                if minesFolder then
+                    minesFolder = minesFolder:FindFirstChild("Mines")
+                    if minesFolder then
+                        for _, mine in pairs(minesFolder:GetChildren()) do
+                            local boulders = mine:FindFirstChild("Boulders")
+                            if boulders then
+                                for _, boulder in pairs(boulders:GetChildren()) do
+                                    local pp = boulder:FindFirstChildWhichIsA("ProximityPrompt")
+                                    if pp and pp.Enabled then
+                                        firePrompt(pp)
+                                    end
+                                end
                             end
                         end
                     end
@@ -548,34 +451,50 @@ end
 
 -- ============================================================
 -- AUTO FISH
--- Automatically fishes via remotes and prompts
+-- Uses actual remotes: Fishing.CastBobber, Fishing.ResolveFishingAttempt
+-- Touches FishingSpots in Workspace.Map.Gameplay.FishingSpots
 -- ============================================================
 local function autoFishLoop(gen)
     task.spawn(function()
         while autoFishEnabled and autoFishGen == gen do
             pcall(function()
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("fish") or n:find("rod") or n:find("cast") or n:find("reel") or n:find("catch") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
+                -- Fire Fishing remotes by exact path
+                local fishingFolder = ReplicatedStorage:FindFirstChild("Remotes")
+                if fishingFolder then
+                    fishingFolder = fishingFolder:FindFirstChild("Server")
+                    if fishingFolder then
+                        fishingFolder = fishingFolder:FindFirstChild("Fishing")
+                        if fishingFolder then
+                            local castBobber = fishingFolder:FindFirstChild("CastBobber")
+                            if castBobber then
+                                pcall(function() castBobber:FireServer() end)
                             end
-                        end)
+                            local resolve = fishingFolder:FindFirstChild("ResolveFishingAttempt")
+                            if resolve then
+                                pcall(function() resolve:InvokeServer() end)
+                            end
+                        end
                     end
                 end
 
-                for _, v in pairs(Workspace:GetDescendants()) do
-                    if v:IsA("ProximityPrompt") and v.Enabled then
-                        local parent = v.Parent
-                        if parent then
-                            local pn = parent.Name:lower()
-                            local action = v.ActionText:lower()
-                            if pn:find("fish") or pn:find("rod") or pn:find("pond") or pn:find("lake")
-                                or action:find("fish") or action:find("cast") then
-                                firePrompt(v)
+                -- Touch fishing spot OpenParts
+                local char, _, rootPart = getCharacter()
+                if rootPart then
+                    local fishSpots = Workspace:FindFirstChild("Map")
+                    if fishSpots then
+                        fishSpots = fishSpots:FindFirstChild("Gameplay")
+                        if fishSpots then
+                            fishSpots = fishSpots:FindFirstChild("FishingSpots")
+                            if fishSpots then
+                                for _, spot in pairs(fishSpots:GetDescendants()) do
+                                    if spot:IsA("BasePart") and spot.Name == "OpenPart" then
+                                        pcall(function()
+                                            firetouchinterest(rootPart, spot, 0)
+                                            task.wait()
+                                            firetouchinterest(rootPart, spot, 1)
+                                        end)
+                                    end
+                                end
                             end
                         end
                     end
@@ -588,43 +507,36 @@ end
 
 -- ============================================================
 -- AUTO COLLECT METEOR
--- Collects meteors via ProximityPrompts and touch
+-- Uses actual remote: MeteorMerge
+-- Collects meteors from Workspace.RunTime.Meteors
 -- ============================================================
 local function autoMeteorLoop(gen)
     task.spawn(function()
         while autoMeteorEnabled and autoMeteorGen == gen do
             pcall(function()
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("meteor") or n:find("comet") or n:find("asteroid") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
-                            end
-                        end)
-                    end
-                end
+                -- Fire MeteorMerge remote
+                fireRemote("MeteorMerge")
 
-                for _, v in pairs(Workspace:GetDescendants()) do
-                    local vname = v.Name:lower()
-                    if vname:find("meteor") or vname:find("comet") or vname:find("asteroid") then
-                        if v:IsA("BasePart") or v:IsA("Model") then
-                            for _, child in pairs(v:GetDescendants()) do
-                                if child:IsA("ProximityPrompt") then
-                                    firePrompt(child)
-                                end
-                            end
-                            local char, _, rootPart = getCharacter()
-                            if rootPart then
-                                local targetPart = v:IsA("Model") and v:FindFirstChildWhichIsA("BasePart") or v
-                                if targetPart and targetPart:IsA("BasePart") then
+                -- Touch/interact with meteors in RunTime.Meteors folder
+                local char, _, rootPart = getCharacter()
+                if rootPart then
+                    local meteorsFolder = Workspace:FindFirstChild("RunTime")
+                    if meteorsFolder then
+                        meteorsFolder = meteorsFolder:FindFirstChild("Meteors")
+                        if meteorsFolder then
+                            for _, meteor in pairs(meteorsFolder:GetChildren()) do
+                                local targetPart = meteor:IsA("BasePart") and meteor or meteor:FindFirstChildWhichIsA("BasePart")
+                                if targetPart then
                                     pcall(function()
                                         firetouchinterest(rootPart, targetPart, 0)
                                         task.wait()
                                         firetouchinterest(rootPart, targetPart, 1)
                                     end)
+                                    for _, pp in pairs(meteor:GetDescendants()) do
+                                        if pp:IsA("ProximityPrompt") and pp.Enabled then
+                                            firePrompt(pp)
+                                        end
+                                    end
                                 end
                             end
                         end
@@ -638,34 +550,57 @@ end
 
 -- ============================================================
 -- AUTO TIME REWARD
--- Collects playtime rewards via remotes and GUI buttons
+-- Uses actual remotes: PlayRewardClaimed, DailyRewardClaimed, LeaveRewardClaimed
+-- Clicks Claim buttons in PlayRewards and LeaveReward GUIs
 -- ============================================================
 local function autoTimeRewardLoop(gen)
     task.spawn(function()
         while autoTimeRewardEnabled and autoTimeRewardGen == gen do
             pcall(function()
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if n:find("claim") or n:find("reward") or n:find("playtime") or n:find("gift") then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
-                            end
-                        end)
-                    end
-                end
+                -- Fire reward remotes directly
+                fireRemote("PlayRewardClaimed")
+                fireRemote("DailyRewardClaimed")
+                fireRemote("LeaveRewardClaimed")
 
+                -- Click Claim button in LeaveReward GUI
                 local gui = player.PlayerGui
                 if gui then
-                    for _, v in pairs(gui:GetDescendants()) do
-                        if v:IsA("TextButton") then
-                            local bname = v.Name:lower()
-                            local t = ""
-                            pcall(function() t = v.Text:lower() end)
-                            if bname:find("claim") or bname:find("reward") or bname:find("collect")
-                                or t:find("claim") or t:find("collect") or t:find("reward") then
+                    local leaveReward = gui:FindFirstChild("LeaveReward")
+                    if leaveReward then
+                        for _, v in pairs(leaveReward:GetDescendants()) do
+                            if (v:IsA("TextButton") or v:IsA("ImageButton")) and v.Name == "Claim" then
+                                pcall(function()
+                                    if v.Visible then
+                                        for _, conn in pairs(getconnections(v.MouseButton1Click)) do
+                                            conn:Fire()
+                                        end
+                                    end
+                                end)
+                            end
+                        end
+                    end
+
+                    -- Click in PlayRewards GUI
+                    local playRewards = gui:FindFirstChild("PlayRewards")
+                    if playRewards then
+                        for _, v in pairs(playRewards:GetDescendants()) do
+                            if (v:IsA("TextButton") or v:IsA("ImageButton")) then
+                                pcall(function()
+                                    if v.Visible and v.Active then
+                                        for _, conn in pairs(getconnections(v.MouseButton1Click)) do
+                                            conn:Fire()
+                                        end
+                                    end
+                                end)
+                            end
+                        end
+                    end
+
+                    -- Click in DailyRewards GUI
+                    local dailyRewards = gui:FindFirstChild("DailyRewards")
+                    if dailyRewards then
+                        for _, v in pairs(dailyRewards:GetDescendants()) do
+                            if (v:IsA("TextButton") or v:IsA("ImageButton")) then
                                 pcall(function()
                                     if v.Visible and v.Active then
                                         for _, conn in pairs(getconnections(v.MouseButton1Click)) do
@@ -685,35 +620,26 @@ end
 
 -- ============================================================
 -- AUTO BUY FISH SHOP
--- Buys items from the fishing shop via remotes and prompts
+-- Uses actual remotes: Vendor.BuyMerchantItem, Vendor.BuyMarketItem
 -- ============================================================
 local function autoBuyFishShopLoop(gen)
     task.spawn(function()
         while autoBuyFishShopEnabled and autoBuyFishShopGen == gen do
             pcall(function()
-                for name, remote in pairs(cachedRemotes) do
-                    local n = name:lower()
-                    if (n:find("buy") or n:find("purchase")) and (n:find("fish") or n:find("market") or n:find("shop")) then
-                        pcall(function()
-                            if remote:IsA("RemoteEvent") then
-                                remote:FireServer()
-                            elseif remote:IsA("RemoteFunction") then
-                                remote:InvokeServer()
+                -- Fire vendor buy remotes by exact path
+                local vendorFolder = ReplicatedStorage:FindFirstChild("Remotes")
+                if vendorFolder then
+                    vendorFolder = vendorFolder:FindFirstChild("Server")
+                    if vendorFolder then
+                        vendorFolder = vendorFolder:FindFirstChild("Vendor")
+                        if vendorFolder then
+                            local buyMerchant = vendorFolder:FindFirstChild("BuyMerchantItem")
+                            if buyMerchant then
+                                pcall(function() buyMerchant:FireServer() end)
                             end
-                        end)
-                    end
-                end
-
-                for _, v in pairs(Workspace:GetDescendants()) do
-                    if v:IsA("ProximityPrompt") and v.Enabled then
-                        local parent = v.Parent
-                        if parent then
-                            local pn = parent.Name:lower()
-                            local action = v.ActionText:lower()
-                            if (pn:find("fish") or action:find("fish"))
-                                and (pn:find("shop") or pn:find("market") or pn:find("buy") or pn:find("store")
-                                    or action:find("buy") or action:find("purchase")) then
-                                firePrompt(v)
+                            local buyMarket = vendorFolder:FindFirstChild("BuyMarketItem")
+                            if buyMarket then
+                                pcall(function() buyMarket:FireServer() end)
                             end
                         end
                     end
@@ -767,8 +693,19 @@ end
 
 -- ============================================================
 -- ANTI-AFK
+-- Uses actual remote: PreventKickAfk + VirtualUser fallback
 -- ============================================================
 local function setupAntiAfk()
+    -- Fire PreventKickAfk remote periodically
+    task.spawn(function()
+        while true do
+            if antiAfkEnabled then
+                fireRemote("PreventKickAfk")
+            end
+            task.wait(60)
+        end
+    end)
+    -- VirtualUser fallback for Idled event
     player.Idled:Connect(function()
         if antiAfkEnabled then
             VirtualUser:CaptureController()
@@ -788,6 +725,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "BOON Hub Loading...",
     LoadingSubtitle = "Code a Business Script",
     Theme = "Default",
+    ToggleUIKeybind = "K",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
