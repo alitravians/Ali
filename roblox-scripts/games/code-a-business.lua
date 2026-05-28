@@ -950,7 +950,15 @@ PlayerTab:CreateToggle({
     Name = "Speed Hack",
     CurrentValue = false,
     Flag = "SpeedToggle",
-    Callback = function(v) speedEnabled = v end
+    Callback = function(v)
+        speedEnabled = v
+        if not v then
+            local _, humanoid = getCharacter()
+            if humanoid then
+                humanoid.WalkSpeed = 16
+            end
+        end
+    end
 })
 
 PlayerTab:CreateSlider({
