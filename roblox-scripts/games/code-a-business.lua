@@ -1008,7 +1008,7 @@ InfoTab:CreateParagraph({
     Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Programs/Apps/Platforms)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nToggle UI: RightControl"
 })
 
-InfoTab:CreateParagraph({
+local remotesParagraph = InfoTab:CreateParagraph({
     Title = "Remotes Found",
     Content = "Scanning game remotes..."
 })
@@ -1022,7 +1022,9 @@ task.spawn(function()
     end
     table.sort(remoteList)
     local remoteText = #remoteList > 0 and table.concat(remoteList, "\n") or "No remotes found in ReplicatedStorage"
-    -- The paragraph is already created, player can check the Info tab
+    pcall(function()
+        remotesParagraph:Set({Title = "Remotes Found", Content = remoteText})
+    end)
 end)
 
 InfoTab:CreateButton({
