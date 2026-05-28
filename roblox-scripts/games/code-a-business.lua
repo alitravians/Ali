@@ -39,12 +39,12 @@ if game.PlaceId ~= 109141895577255 then
     return
 end
 
--- Load Rayfield UI (try direct GitHub URL first, then sirius.menu fallback)
+-- Load Rayfield UI (try sirius.menu first, then GitHub fallback)
 local Rayfield
 do
     local rayfieldUrls = {
-        "https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua",
         "https://sirius.menu/rayfield",
+        "https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua",
     }
     for _, url in ipairs(rayfieldUrls) do
         local ok, result = pcall(function()
@@ -726,10 +726,17 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "BOON Hub Loading...",
     LoadingSubtitle = "Code a Business Script",
     Theme = "Default",
+    DisableBuildWarnings = true,
+    DisableRayfieldPrompts = true,
     ConfigurationSaving = {
-        Enabled = true,
-        FolderName = nil,
-        FileName = "BOONHub_CodeABusiness"
+        Enabled = false,
+        FolderName = "BOONHub",
+        FileName = "CodeABusiness"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "",
+        RememberJoins = true
     },
     KeySystem = false
 })
