@@ -704,7 +704,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "BOON Hub Loading...",
     LoadingSubtitle = "Code a Business Script",
     Theme = "Default",
-    ToggleUIKeybind = "RightControl",
+    ToggleUIKeybind = "RightShift",
     ConfigurationSaving = {
         Enabled = true,
         FolderName = nil,
@@ -1025,7 +1025,7 @@ local InfoTab = Window:CreateTab("Info", "info")
 
 InfoTab:CreateParagraph({
     Title = "BOON Hub - Code a Business",
-    Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Programs/Apps/Platforms)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nToggle UI: RightControl"
+    Content = "Script for Code a Business (Coding Simulator 2)\n\nFeatures:\n- Auto Code & Auto Collect\n- Auto Sell (Programs/Apps/Platforms)\n- Auto Mine & Auto Fish\n- Auto Meteor Collector\n- Auto Time Rewards\n- Speed Hack & Fullbright\n- Anti-AFK\n\nToggle UI: RightShift"
 })
 
 local remotesParagraph = InfoTab:CreateParagraph({
@@ -1090,6 +1090,6 @@ Rayfield:LoadConfiguration()
 -- Notify script loaded
 Rayfield:Notify({
     Title = "BOON Hub Loaded",
-    Content = "Code a Business script is ready!\nToggle UI: RightControl",
+    Content = "Code a Business script is ready!\nToggle UI: RightShift",
     Duration = 5
 })
