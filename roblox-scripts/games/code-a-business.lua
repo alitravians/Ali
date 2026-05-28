@@ -152,6 +152,14 @@ end
 
 local cachedRemotes = discoverRemotes()
 
+-- Re-discover remotes periodically in case game adds them dynamically
+task.spawn(function()
+    while true do
+        task.wait(30)
+        cachedRemotes = discoverRemotes()
+    end
+end)
+
 local function getRemote(name)
     if cachedRemotes[name] then return cachedRemotes[name] end
     -- Try to find it again
@@ -261,12 +269,11 @@ local function autoCodingLoop(gen)
     task.spawn(function()
         while autoCodingEnabled and autoCodingGen == gen do
             pcall(function()
-                -- Method 1: Fire ALL remotes with coding-related names
+                -- Method 1: Fire remotes with coding-specific names
                 for name, remote in pairs(cachedRemotes) do
                     local n = name:lower()
                     if n:find("code") or n:find("coding") or n:find("type") or n:find("write")
-                        or n:find("compile") or n:find("program") or n:find("complete")
-                        or n:find("start") or n:find("work") or n:find("finish") then
+                        or n:find("compile") or n:find("addline") or n:find("writeline") then
                         pcall(function()
                             if remote:IsA("RemoteEvent") then
                                 remote:FireServer()
@@ -277,7 +284,7 @@ local function autoCodingLoop(gen)
                     end
                 end
 
-                -- Method 2: Fire ALL ProximityPrompts in/near player's area
+                -- Method 2: Fire ProximityPrompts on coding-related objects near player
                 local char, _, rootPart = getCharacter()
                 if rootPart then
                     for _, v in pairs(Workspace:GetDescendants()) do
@@ -286,14 +293,21 @@ local function autoCodingLoop(gen)
                             if promptPart and promptPart:IsA("BasePart") then
                                 local dist = (promptPart.Position - rootPart.Position).Magnitude
                                 if dist < 30 then
-                                    firePrompt(v)
+                                    local pn = promptPart.Name:lower()
+                                    local action = v.ActionText:lower()
+                                    if pn:find("computer") or pn:find("pc") or pn:find("desk")
+                                        or pn:find("monitor") or pn:find("setup") or pn:find("screen")
+                                        or pn:find("code") or pn:find("coding") or pn:find("laptop")
+                                        or action:find("code") or action:find("type") or action:find("program") then
+                                        firePrompt(v)
+                                    end
                                 end
                             end
                         end
                     end
                 end
 
-                -- Method 3: Fire ClickDetectors near player
+                -- Method 3: Fire ClickDetectors on coding-related objects near player
                 if rootPart then
                     for _, v in pairs(Workspace:GetDescendants()) do
                         if v:IsA("ClickDetector") then
@@ -301,7 +315,12 @@ local function autoCodingLoop(gen)
                             if clickPart and clickPart:IsA("BasePart") then
                                 local dist = (clickPart.Position - rootPart.Position).Magnitude
                                 if dist < 30 then
-                                    pcall(function() fireclickdetector(v) end)
+                                    local cn = clickPart.Name:lower()
+                                    if cn:find("computer") or cn:find("pc") or cn:find("desk")
+                                        or cn:find("monitor") or cn:find("screen") or cn:find("code")
+                                        or cn:find("laptop") then
+                                        pcall(function() fireclickdetector(v) end)
+                                    end
                                 end
                             end
                         end
@@ -346,8 +365,8 @@ local function autoCollectCodeLoop(gen)
                 -- Method 1: Fire ALL remotes with collect-related names
                 for name, remote in pairs(cachedRemotes) do
                     local n = name:lower()
-                    if n:find("collect") or n:find("pickup") or n:find("grab") or n:find("claim")
-                        or n:find("bubble") or n:find("store") then
+                    if n:find("collect") or n:find("pickup") or n:find("grab")
+                        or n:find("bubble") then
                         pcall(function()
                             if remote:IsA("RemoteEvent") then
                                 remote:FireServer()
@@ -413,7 +432,7 @@ local function autoSellLoop(gen)
                 -- Method 1: Fire ALL remotes with sell-related names
                 for name, remote in pairs(cachedRemotes) do
                     local n = name:lower()
-                    if n:find("sell") or n:find("purchase") or n:find("trade") or n:find("shop") then
+                    if n:find("sell") then
                         pcall(function()
                             if remote:IsA("RemoteEvent") then
                                 remote:FireServer()
