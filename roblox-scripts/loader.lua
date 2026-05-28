@@ -25,11 +25,24 @@ print("[BOON Hub] Game: " .. gameName .. " (PlaceId: " .. tostring(placeId) .. "
 
 if gameScripts[placeId] then
     print("[BOON Hub] Loading game-specific script...")
-    local success, err = pcall(function()
-        loadstring(game:HttpGet(gameScripts[placeId]))()
+    local scriptUrl = gameScripts[placeId]
+    local downloadOk, content = pcall(function()
+        return game:HttpGet(scriptUrl)
     end)
-    if not success then
-        warn("[BOON Hub] Failed to load game script: " .. tostring(err))
+    if not downloadOk or not content or content == "" then
+        warn("[BOON Hub] Failed to download script from: " .. scriptUrl)
+        warn("[BOON Hub] HttpGet error: " .. tostring(content))
+        return
+    end
+    print("[BOON Hub] Downloaded " .. tostring(#content) .. " bytes")
+    local fn, parseErr = loadstring(content)
+    if not fn then
+        warn("[BOON Hub] Script parse error: " .. tostring(parseErr))
+        return
+    end
+    local runOk, runErr = pcall(fn)
+    if not runOk then
+        warn("[BOON Hub] Script runtime error: " .. tostring(runErr))
     end
 else
     warn("[BOON Hub] No script available for this game (PlaceId: " .. tostring(placeId) .. ")")

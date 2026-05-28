@@ -164,13 +164,14 @@ end
 
 -- Fire remote safely
 local function fireRemote(name, ...)
+    local args = {...}
     local remote = getRemote(name)
     if remote then
         local success, err = pcall(function()
             if remote:IsA("RemoteEvent") then
-                remote:FireServer(...)
+                remote:FireServer(unpack(args))
             elseif remote:IsA("RemoteFunction") then
-                return remote:InvokeServer(...)
+                return remote:InvokeServer(unpack(args))
             end
         end)
         if not success then
