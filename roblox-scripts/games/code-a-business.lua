@@ -335,9 +335,9 @@ local function autoCodingLoop(gen)
                             local n = v.Name:lower()
                             local t = ""
                             pcall(function() t = v.Text:lower() end)
-                            if n:find("code") or n:find("type") or n:find("write") or n:find("start")
-                                or n:find("compile") or n:find("run") or n:find("submit")
-                                or t:find("code") or t:find("start") or t:find("compile") then
+                            if n:find("code") or n:find("type") or n:find("write")
+                                or n:find("compile") or n:find("submit")
+                                or t:find("code") or t:find("compile") then
                                 pcall(function()
                                     for _, conn in pairs(getconnections(v.MouseButton1Click)) do
                                         conn:Fire()
@@ -377,18 +377,26 @@ local function autoCollectCodeLoop(gen)
                     end
                 end
 
-                -- Method 2: Touch all collectible parts (bubbles, drops, items)
+                -- Method 2: Touch collectible parts (bubbles, drops, items with TouchTransmitter)
                 local char, _, rootPart = getCharacter()
                 if rootPart then
                     for _, v in pairs(Workspace:GetDescendants()) do
                         if v:IsA("BasePart") and v:FindFirstChildOfClass("TouchTransmitter") then
-                            local dist = (v.Position - rootPart.Position).Magnitude
-                            if dist < 50 then
-                                pcall(function()
-                                    firetouchinterest(rootPart, v, 0)
-                                    task.wait()
-                                    firetouchinterest(rootPart, v, 1)
-                                end)
+                            local vn = v.Name:lower()
+                            local pn = v.Parent and v.Parent.Name:lower() or ""
+                            if vn:find("code") or vn:find("bubble") or vn:find("collect")
+                                or vn:find("drop") or vn:find("item") or vn:find("pickup")
+                                or vn:find("software") or vn:find("program")
+                                or pn:find("code") or pn:find("bubble") or pn:find("collect")
+                                or pn:find("drop") or pn:find("software") then
+                                local dist = (v.Position - rootPart.Position).Magnitude
+                                if dist < 50 then
+                                    pcall(function()
+                                        firetouchinterest(rootPart, v, 0)
+                                        task.wait()
+                                        firetouchinterest(rootPart, v, 1)
+                                    end)
+                                end
                             end
                         end
                     end
@@ -856,17 +864,9 @@ FarmingTab:CreateToggle({
         autoSellEnabled = v
         if v then
             autoSellLoop(autoSellGen)
-            Rayfield:Notify({Title = "Auto Sell", Content = "Selling " .. sellType .. " automatically!", Duration = 3})
+            Rayfield:Notify({Title = "Auto Sell", Content = "Selling all items automatically! (Select All → Sell)", Duration = 3})
         end
     end
-})
-
-FarmingTab:CreateDropdown({
-    Name = "Sell Type",
-    Options = {"Programs", "Apps", "Platforms", "All"},
-    CurrentOption = {"Programs"},
-    Flag = "SellTypeDropdown",
-    Callback = function(opts) sellType = opts[1] or "Programs" end
 })
 
 FarmingTab:CreateSlider({
@@ -1122,76 +1122,112 @@ task.spawn(function()
 end)
 
 InfoTab:CreateButton({
-    Name = "FULL GAME SCAN (F9 Console) - RUN THIS FIRST!",
+    Name = "FULL GAME SCAN (saves to file)",
     Callback = function()
-        print("\n========================================")
-        print("  BOON Hub - Full Game Scan")
-        print("========================================")
+        local lines = {}
+        local function log(s) lines[#lines + 1] = s end
 
-        print("\n--- ALL REMOTES (ReplicatedStorage) ---")
+        log("========================================")
+        log("  BOON Hub - Full Game Scan")
+        log("  Game: " .. tostring(game.PlaceId))
+        log("  Player: " .. player.Name)
+        log("========================================")
+
+        log("\n--- ALL REMOTES (ReplicatedStorage) ---")
         for _, v in pairs(ReplicatedStorage:GetDescendants()) do
             if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
-                print("  " .. v.ClassName .. ": " .. v:GetFullName())
+                log("  " .. v.ClassName .. ": " .. v:GetFullName())
             end
         end
 
-        print("\n--- ALL PROXIMITY PROMPTS (Workspace) ---")
+        log("\n--- ALL PROXIMITY PROMPTS (Workspace) ---")
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
-                print("  [PP] " .. v:GetFullName() .. " | Action: " .. v.ActionText .. " | Object: " .. v.ObjectText .. " | Key: " .. tostring(v.KeyboardKeyCode))
+                local action, obj, key = "", "", ""
+                pcall(function() action = v.ActionText end)
+                pcall(function() obj = v.ObjectText end)
+                pcall(function() key = tostring(v.KeyboardKeyCode) end)
+                log("  [PP] " .. v:GetFullName() .. " | Action: " .. action .. " | Object: " .. obj .. " | Key: " .. key)
             end
         end
 
-        print("\n--- ALL CLICK DETECTORS (Workspace) ---")
+        log("\n--- ALL CLICK DETECTORS (Workspace) ---")
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("ClickDetector") then
-                print("  [CD] " .. v:GetFullName())
+                log("  [CD] " .. v:GetFullName())
             end
         end
 
-        print("\n--- WORKSPACE TOP-LEVEL ---")
+        log("\n--- WORKSPACE TOP-LEVEL ---")
         for _, v in pairs(Workspace:GetChildren()) do
-            print("  " .. v.ClassName .. ": " .. v.Name)
+            log("  " .. v.ClassName .. ": " .. v.Name)
         end
 
-        print("\n--- PLAYER PLOT / TYCOON ---")
+        log("\n--- PLAYER PLOT / TYCOON ---")
         for _, v in pairs(Workspace:GetDescendants()) do
             if (v:IsA("Model") or v:IsA("Folder")) and (v.Name == player.Name or v.Name == tostring(player.UserId)) then
-                print("  Found player area: " .. v:GetFullName())
+                log("  Found player area: " .. v:GetFullName())
                 for _, child in pairs(v:GetChildren()) do
-                    print("    " .. child.ClassName .. ": " .. child.Name)
+                    log("    " .. child.ClassName .. ": " .. child.Name)
                 end
             end
         end
 
-        print("\n--- PLAYER GUI SCREENS ---")
+        log("\n--- PLAYER GUI SCREENS ---")
         local gui = player.PlayerGui
         if gui then
             for _, v in pairs(gui:GetChildren()) do
                 local enabled = "N/A"
                 pcall(function() enabled = tostring(v.Enabled) end)
-                print("  " .. v.ClassName .. ": " .. v.Name .. " | Enabled: " .. enabled)
+                log("  " .. v.ClassName .. ": " .. v.Name .. " | Enabled: " .. enabled)
             end
         end
 
-        print("\n--- TOUCH TRANSMITTERS (collectibles) ---")
+        log("\n--- PLAYER GUI BUTTONS (all TextButton/ImageButton) ---")
+        if gui then
+            for _, v in pairs(gui:GetDescendants()) do
+                if v:IsA("TextButton") or v:IsA("ImageButton") then
+                    local t = ""
+                    pcall(function() t = v.Text end)
+                    local vis = "?"
+                    pcall(function() vis = tostring(v.Visible) end)
+                    log("  [BTN] " .. v:GetFullName() .. " | Text: " .. t .. " | Visible: " .. vis)
+                end
+            end
+        end
+
+        log("\n--- TOUCH TRANSMITTERS (collectibles) ---")
         local ttCount = 0
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("TouchTransmitter") then
                 ttCount = ttCount + 1
-                if ttCount <= 20 then
-                    print("  [TT] " .. v:GetFullName())
+                if ttCount <= 50 then
+                    log("  [TT] " .. v:GetFullName())
                 end
             end
         end
-        if ttCount > 20 then
-            print("  ... and " .. (ttCount - 20) .. " more")
+        if ttCount > 50 then
+            log("  ... and " .. (ttCount - 50) .. " more")
         end
 
-        print("\n========================================")
-        print("  Scan complete! Send this output to the developer.")
-        print("========================================\n")
-        Rayfield:Notify({Title = "Scan Done!", Content = "Open F9 console and screenshot the results!", Duration = 10})
+        log("\n========================================")
+        log("  Scan complete!")
+        log("========================================")
+
+        local output = table.concat(lines, "\n")
+        local fileName = "BOON_GameScan_" .. game.PlaceId .. ".txt"
+        local saved = false
+        pcall(function()
+            writefile(fileName, output)
+            saved = true
+        end)
+
+        if saved then
+            Rayfield:Notify({Title = "Scan Saved!", Content = "File saved as: " .. fileName .. "\nFind it in your executor's workspace folder.", Duration = 15})
+        else
+            print(output)
+            Rayfield:Notify({Title = "Scan Done!", Content = "Could not save file. Results printed to F9 console instead.", Duration = 10})
+        end
     end
 })
 
