@@ -1130,6 +1130,9 @@ InfoTab:CreateButton({
         local lines = {}
         local function log(s) lines[#lines + 1] = s end
 
+        local remoteCount, ppCount, cdCount, btnCount = 0, 0, 0, 0
+        local scanOk, scanErr = pcall(function()
+
         log("================================================================")
         log("  BOON Hub - FULL GAME SCAN")
         log("  Game PlaceId: " .. tostring(game.PlaceId))
@@ -1142,7 +1145,7 @@ InfoTab:CreateButton({
 
         -- Section 1: ALL RemoteEvents and RemoteFunctions
         log("\n\n=== 1. ALL REMOTES (ReplicatedStorage) ===")
-        local remoteCount = 0
+        remoteCount = 0
         for _, v in pairs(ReplicatedStorage:GetDescendants()) do
             if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
                 remoteCount = remoteCount + 1
@@ -1153,7 +1156,7 @@ InfoTab:CreateButton({
 
         -- Section 2: ALL ProximityPrompts
         log("\n\n=== 2. ALL PROXIMITY PROMPTS (Workspace) ===")
-        local ppCount = 0
+        ppCount = 0
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("ProximityPrompt") then
                 ppCount = ppCount + 1
@@ -1173,7 +1176,7 @@ InfoTab:CreateButton({
 
         -- Section 3: ALL ClickDetectors
         log("\n\n=== 3. ALL CLICK DETECTORS (Workspace) ===")
-        local cdCount = 0
+        cdCount = 0
         for _, v in pairs(Workspace:GetDescendants()) do
             if v:IsA("ClickDetector") then
                 cdCount = cdCount + 1
@@ -1236,7 +1239,7 @@ InfoTab:CreateButton({
 
         -- Section 7: ALL GUI Buttons with text and visibility
         log("\n\n=== 7. ALL GUI BUTTONS (TextButton/ImageButton) ===")
-        local btnCount = 0
+        btnCount = 0
         if gui then
             for _, v in pairs(gui:GetDescendants()) do
                 if v:IsA("TextButton") or v:IsA("ImageButton") then
@@ -1341,6 +1344,13 @@ InfoTab:CreateButton({
         log("\n\n================================================================")
         log("  Scan complete! " .. remoteCount .. " remotes, " .. ppCount .. " prompts, " .. cdCount .. " detectors, " .. btnCount .. " buttons")
         log("================================================================")
+
+        end) -- end pcall(function()
+
+        if not scanOk then
+            log("\n\n[SCAN ERROR] " .. tostring(scanErr))
+            log("Partial scan results are shown above.")
+        end
 
         local output = table.concat(lines, "\n")
         local fileName = "BOON_GameScan_" .. game.PlaceId .. ".txt"
