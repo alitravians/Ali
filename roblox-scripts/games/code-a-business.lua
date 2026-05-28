@@ -39,8 +39,27 @@ if game.PlaceId ~= 109141895577255 then
     return
 end
 
--- Load Rayfield UI
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Load Rayfield UI (try direct GitHub URL first, then sirius.menu fallback)
+local Rayfield
+do
+    local rayfieldUrls = {
+        "https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua",
+        "https://sirius.menu/rayfield",
+    }
+    for _, url in ipairs(rayfieldUrls) do
+        local ok, result = pcall(function()
+            return loadstring(game:HttpGet(url))()
+        end)
+        if ok and result then
+            Rayfield = result
+            break
+        end
+    end
+    if not Rayfield then
+        warn("[BOON Hub] Failed to load Rayfield UI library from all sources!")
+        return
+    end
+end
 
 -- State variables
 local autoCodingEnabled = false
