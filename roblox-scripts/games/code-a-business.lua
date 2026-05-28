@@ -927,20 +927,30 @@ CollectTab:CreateButton({
     Name = "Collect All Codes Now",
     Callback = function()
         pcall(function()
-            fireRemote("CollectCode")
-            fireRemote("Collect")
-            fireRemote("CollectAll")
+            fireRemote("CollectSoftwareDeveloperToken")
+            fireRemote("CollectChest")
 
-            for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") then
-                    local parentName = v.Parent and v.Parent.Name:lower() or ""
-                    if parentName:find("code") or parentName:find("collect") or parentName:find("bubble") then
-                        firePrompt(v)
+            local char, _, rootPart = getCharacter()
+            if rootPart then
+                local chestsFolder = Workspace:FindFirstChild("Map")
+                if chestsFolder then
+                    chestsFolder = chestsFolder:FindFirstChild("Gameplay")
+                    if chestsFolder then chestsFolder = chestsFolder:FindFirstChild("Chests") end
+                end
+                if chestsFolder then
+                    for _, chest in pairs(chestsFolder:GetDescendants()) do
+                        if chest:IsA("BasePart") and chest.Name == "CollectPart" then
+                            pcall(function()
+                                firetouchinterest(rootPart, chest, 0)
+                                task.wait()
+                                firetouchinterest(rootPart, chest, 1)
+                            end)
+                        end
                     end
                 end
             end
         end)
-        Rayfield:Notify({Title = "Collect All", Content = "Collected all available codes!", Duration = 3})
+        Rayfield:Notify({Title = "Collect All", Content = "Collected tokens and chests!", Duration = 3})
     end
 })
 
@@ -948,13 +958,57 @@ CollectTab:CreateButton({
     Name = "Sell Everything Now",
     Callback = function()
         pcall(function()
-            fireRemote("SellAll")
-            fireRemote("Sell", "Program")
-            fireRemote("Sell", "App")
-            fireRemote("Sell", "Platform")
-            fireRemote("SellPrograms")
-            fireRemote("SellApps")
-            fireRemote("SellPlatforms")
+            -- Fire Software.Sell remote
+            local sellRemote = ReplicatedStorage:FindFirstChild("Remotes")
+            if sellRemote then
+                sellRemote = sellRemote:FindFirstChild("Server")
+                if sellRemote then
+                    sellRemote = sellRemote:FindFirstChild("Software")
+                    if sellRemote then
+                        sellRemote = sellRemote:FindFirstChild("Sell")
+                        if sellRemote then sellRemote:FireServer() end
+                    end
+                end
+            end
+
+            -- Click GUI buttons
+            local gui = player.PlayerGui
+            if gui then
+                local sellCoreBtn = gui:FindFirstChild("Main")
+                if sellCoreBtn then
+                    sellCoreBtn = sellCoreBtn:FindFirstChild("SideFrame")
+                    if sellCoreBtn then sellCoreBtn = sellCoreBtn:FindFirstChild("CoreButtons") end
+                    if sellCoreBtn then sellCoreBtn = sellCoreBtn:FindFirstChild("Sell") end
+                    if sellCoreBtn then
+                        pcall(function()
+                            for _, conn in pairs(getconnections(sellCoreBtn.MouseButton1Click)) do conn:Fire() end
+                        end)
+                    end
+                end
+                task.wait(0.3)
+                local manageGui = gui:FindFirstChild("Manage")
+                if manageGui then
+                    local frame = manageGui:FindFirstChild("Frame")
+                    if frame then
+                        local bottomBar = frame:FindFirstChild("BottomBar")
+                        if bottomBar then
+                            local selectAll = bottomBar:FindFirstChild("SelectAll")
+                            if selectAll then
+                                pcall(function()
+                                    for _, conn in pairs(getconnections(selectAll.MouseButton1Click)) do conn:Fire() end
+                                end)
+                            end
+                            task.wait(0.3)
+                            local sellBtn = bottomBar:FindFirstChild("Sell")
+                            if sellBtn then
+                                pcall(function()
+                                    for _, conn in pairs(getconnections(sellBtn.MouseButton1Click)) do conn:Fire() end
+                                end)
+                            end
+                        end
+                    end
+                end
+            end
         end)
         Rayfield:Notify({Title = "Sell All", Content = "Sold everything!", Duration = 3})
     end
@@ -964,16 +1018,16 @@ CollectTab:CreateButton({
     Name = "Buy All Merchant Items",
     Callback = function()
         pcall(function()
-            fireRemote("BuyMerchant")
-            fireRemote("BuyAll")
-            fireRemote("PurchaseAll")
-            fireRemote("BuyFromMerchant")
-
-            for _, v in pairs(Workspace:GetDescendants()) do
-                if v:IsA("ProximityPrompt") then
-                    local parentName = v.Parent and v.Parent.Name:lower() or ""
-                    if parentName:find("merchant") or parentName:find("trader") or parentName:find("vendor") then
-                        firePrompt(v)
+            local vendorFolder = ReplicatedStorage:FindFirstChild("Remotes")
+            if vendorFolder then
+                vendorFolder = vendorFolder:FindFirstChild("Server")
+                if vendorFolder then
+                    vendorFolder = vendorFolder:FindFirstChild("Vendor")
+                    if vendorFolder then
+                        local buyMerchant = vendorFolder:FindFirstChild("BuyMerchantItem")
+                        if buyMerchant then pcall(function() buyMerchant:FireServer() end) end
+                        local buyMarket = vendorFolder:FindFirstChild("BuyMarketItem")
+                        if buyMarket then pcall(function() buyMarket:FireServer() end) end
                     end
                 end
             end
@@ -1333,9 +1387,6 @@ RunService.Heartbeat:Connect(function()
         humanoid.WalkSpeed = desiredSpeed
     end
 end)
-
--- Load saved configuration
-Rayfield:LoadConfiguration()
 
 -- Notify script loaded
 Rayfield:Notify({
