@@ -17,7 +17,7 @@
     - Fullbright
 
     Loadstring:
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/main/roblox-scripts/games/code-a-business.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/arabic-localization/roblox-scripts/games/code-a-business.lua"))()
 ]]
 
 -- Services
@@ -52,7 +52,7 @@ local autoFishEnabled = false
 local autoMeteorEnabled = false
 local autoTimeRewardEnabled = false
 local autoBuyFishShopEnabled = false
-local antiAfkEnabled = false
+local antiAfkEnabled = true
 local speedEnabled = false
 local fullbrightEnabled = false
 local desiredSpeed = 16
@@ -80,7 +80,6 @@ end)
 
 -- Find remotes helper
 local function findRemote(name, className)
-    className = className or "RemoteEvent"
     -- Search in common locations
     local locations = {
         ReplicatedStorage,
@@ -93,16 +92,24 @@ local function findRemote(name, className)
     for _, location in pairs(locations) do
         if location then
             local remote = location:FindFirstChild(name)
-            if remote and remote:IsA(className) then
-                return remote
+            if remote then
+                if className then
+                    if remote:IsA(className) then return remote end
+                elseif remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction") then
+                    return remote
+                end
             end
         end
     end
 
     -- Deep search
     for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-        if v.Name == name and v:IsA(className) then
-            return v
+        if v.Name == name then
+            if className then
+                if v:IsA(className) then return v end
+            elseif v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then
+                return v
+            end
         end
     end
 

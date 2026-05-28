@@ -3,10 +3,10 @@
     Automatically detects the game and loads the appropriate script.
     
     Usage:
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/main/roblox-scripts/loader.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/arabic-localization/roblox-scripts/loader.lua"))()
 ]]
 
-local REPO = "https://raw.githubusercontent.com/alitravians/Ali/main/roblox-scripts"
+local REPO = "https://raw.githubusercontent.com/alitravians/Ali/arabic-localization/roblox-scripts"
 local VERSION = "1.0.0"
 
 -- Game-specific script mappings (PlaceId -> script path)
