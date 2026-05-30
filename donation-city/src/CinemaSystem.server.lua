@@ -860,15 +860,25 @@ local function playMovie(presser)
 	playing = false
 end
 
--- مُشغّل آمن: يضمن أن قفل البدء (starting) لا يبقى عالقاً أبداً حتى لو فشل playMovie
--- (طبقة حماية إضافية: لو حصل خطأ قبل أن يصفّر playMovie العلَم، نصفّره هنا فلا تتعطّل العروض القادمة)
+-- مُشغّل آمن: يضمن أن أعلام البدء/التشغيل (starting/playing) لا تبقى عالقة أبداً حتى لو فشل playMovie.
+-- لو حصل خطأ في أي مرحلة، نصفّر العلَمين ونُعيد القاعة لحالتها الطبيعية فلا تتعطّل العروض القادمة.
 local function launchMovie(presser)
 	starting = true
 	task.spawn(function()
 		local ok, err = pcall(playMovie, presser)
 		if not ok then
-			starting = false
 			warn("[CinemaSystem] playMovie error: " .. tostring(err))
+			-- تنظيف شامل (finally): صفّر الأعلام وأرجع القاعة لوضع الخمول مهما كان مكان الفشل
+			starting = false
+			playing = false
+			stopRequested = false
+			pcall(unlockAll)
+			pcall(function() setGate(false) end)
+			pcall(function() setLights(true) end)
+			pcall(function() setProjector(false) end)
+			pcall(setScreenIdle)
+			if marqueeLabel then marqueeLabel.Text = "🎬 سينما مدينة التبرعات" end
+			if playPrompt then playPrompt.Enabled = true end
 		end
 	end)
 end
@@ -1427,8 +1437,8 @@ _G.AdminIsPlaying = function(): boolean
 	return playing
 end
 _G.AdminPlayMovie = function(): boolean
-	if playing then return false end
-	task.spawn(function() playMovie(nil) end)
+	if playing or starting then return false end
+	launchMovie(nil)  -- نمرّ عبر المُشغّل الآمن (قفل البدء + تنظيف عند الفشل) بدل استدعاء playMovie مباشرة
 	return true
 end
 _G.AdminStopMovie = function(): boolean

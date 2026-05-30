@@ -62,17 +62,27 @@ end
 ------------------------------------------------------------------------
 -- Remotes
 ------------------------------------------------------------------------
-local folder = Instance.new("Folder")
-folder.Name = "TicketRemotes"
-folder.Parent = ReplicatedStorage
+-- نفس النمط الدفاعي في BoothSystem/CinemaServices: لا نُنشئ نسخة مكرّرة لو كانت موجودة
+local folder = ReplicatedStorage:FindFirstChild("TicketRemotes")
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "TicketRemotes"
+	folder.Parent = ReplicatedStorage
+end
 
-local claimRemote = Instance.new("RemoteEvent")
-claimRemote.Name = "ClaimTicket"
-claimRemote.Parent = folder
+local claimRemote = folder:FindFirstChild("ClaimTicket")
+if not claimRemote then
+	claimRemote = Instance.new("RemoteEvent")
+	claimRemote.Name = "ClaimTicket"
+	claimRemote.Parent = folder
+end
 
-local notifyRemote = Instance.new("RemoteEvent")
-notifyRemote.Name = "Notify"
-notifyRemote.Parent = folder
+local notifyRemote = folder:FindFirstChild("Notify")
+if not notifyRemote then
+	notifyRemote = Instance.new("RemoteEvent")
+	notifyRemote.Name = "Notify"
+	notifyRemote.Parent = folder
+end
 
 ------------------------------------------------------------------------
 -- مزامنة سمات اللاعب للواجهة
