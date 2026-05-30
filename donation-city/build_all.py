@@ -16,6 +16,7 @@ UPDATES = [
     ("src/CustomChat.client.lua",     "CUSTOM CHAT (Client)"),
     ("src/LoadingScreen.client.lua",  "Premium Loading Screen"),
     ("src/TicketSystem.server.lua",   "TICKET SYSTEM (Server)"),
+    ("src/BoothSystem.server.lua",    "BOOTH SYSTEM — SERVER LOGIC"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:

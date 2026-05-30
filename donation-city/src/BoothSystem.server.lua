@@ -504,8 +504,8 @@ function applyVisual(b)
 		end
 	end
 
-	-- update prompt verb
-	local prompt = b.model:FindFirstChildWhichIsA("ProximityPrompt", true)
+	-- update prompt verb (استهدف BoothPrompt تحديداً حتى لا نعدّل SitPrompt الخاص بالمقعد)
+	local prompt = b.model:FindFirstChild("BoothPrompt", true)
 	if prompt then
 		if claimed then
 			prompt.ActionText = "افتح المتجر"

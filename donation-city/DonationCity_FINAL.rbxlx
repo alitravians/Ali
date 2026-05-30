@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٩",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.١٠",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -2097,8 +2097,9 @@ local function unlockAll()
 end
 
 local function playMovie(presser)
-	if playing then return end
+	if playing then starting = false; return end
 	playing = true
+	starting = false  -- العرض بدأ فعلياً: ارفع قفل البدء (يمنع سباق التشغيل المزدوج)
 	stopRequested = false
 	if playPrompt then playPrompt.Enabled = false end
 	-- اجلس اللاعب الذي ضغط البروجكتر ثم اقفل كل الجالسين
@@ -2385,7 +2386,6 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 		starting = true
 		sitInSeat(player, seat)
 		task.spawn(function() playMovie(player) end)
-		starting = false
 		return
 	end
 
@@ -2427,6 +2427,7 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 	-- لا يوجد عرض: إجلاس في الصف المختار ← بدء العرض
 	starting = true
 	seatPlayerInRow(player, row)
+	-- ملاحظة: starting يُصفَّر داخل playMovie بعد ضبط playing=true (يمنع سباق التشغيل المزدوج)
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, "🎬 مقعد " .. rowName[row] .. " — يبدأ العرض الآن!")
 	end
@@ -3441,8 +3442,8 @@ function applyVisual(b)
 		end
 	end
 
-	-- update prompt verb
-	local prompt = b.model:FindFirstChildWhichIsA("ProximityPrompt", true)
+	-- update prompt verb (استهدف BoothPrompt تحديداً حتى لا نعدّل SitPrompt الخاص بالمقعد)
+	local prompt = b.model:FindFirstChild("BoothPrompt", true)
 	if prompt then
 		if claimed then
 			prompt.ActionText = "افتح المتجر"
@@ -5831,7 +5832,8 @@ local function openStore(player)
 			local icon  = (info and info.IconImageAssetId) or 0
 			local owned = false
 			if it.kind == "gamepass" then
-				owned = _G.IsVIP(player) or ownsGamePass(player, it.id)
+				-- «مملوك» فقط للباقة نفسها — لا تُعلّم كل الباقات مملوكة لأعضاء VIP
+				owned = (it.id == CONFIG.VipGamePassId and _G.IsVIP(player)) or ownsGamePass(player, it.id)
 			end
 			table.insert(items, {
 				kind = it.kind, id = it.id, name = it.name, emoji = it.emoji,

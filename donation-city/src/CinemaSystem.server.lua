@@ -707,8 +707,9 @@ local function unlockAll()
 end
 
 local function playMovie(presser)
-	if playing then return end
+	if playing then starting = false; return end
 	playing = true
+	starting = false  -- العرض بدأ فعلياً: ارفع قفل البدء (يمنع سباق التشغيل المزدوج)
 	stopRequested = false
 	if playPrompt then playPrompt.Enabled = false end
 	-- اجلس اللاعب الذي ضغط البروجكتر ثم اقفل كل الجالسين
@@ -995,7 +996,6 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 		starting = true
 		sitInSeat(player, seat)
 		task.spawn(function() playMovie(player) end)
-		starting = false
 		return
 	end
 
@@ -1037,6 +1037,7 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 	-- لا يوجد عرض: إجلاس في الصف المختار ← بدء العرض
 	starting = true
 	seatPlayerInRow(player, row)
+	-- ملاحظة: starting يُصفَّر داخل playMovie بعد ضبط playing=true (يمنع سباق التشغيل المزدوج)
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, "🎬 مقعد " .. rowName[row] .. " — يبدأ العرض الآن!")
 	end

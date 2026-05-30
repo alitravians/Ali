@@ -1598,7 +1598,8 @@ local function openStore(player)
 			local icon  = (info and info.IconImageAssetId) or 0
 			local owned = false
 			if it.kind == "gamepass" then
-				owned = _G.IsVIP(player) or ownsGamePass(player, it.id)
+				-- «مملوك» فقط للباقة نفسها — لا تُعلّم كل الباقات مملوكة لأعضاء VIP
+				owned = (it.id == CONFIG.VipGamePassId and _G.IsVIP(player)) or ownsGamePass(player, it.id)
 			end
 			table.insert(items, {
 				kind = it.kind, id = it.id, name = it.name, emoji = it.emoji,
