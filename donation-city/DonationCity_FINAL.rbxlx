@@ -2370,21 +2370,26 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 		end
 		-- الدفع: كوينز أو تذكرة (حسب اختيار اللاعب)
 		local method = (payload.pay == "ticket") and "ticket" or "coins"
+		-- نُجلس اللاعب أولاً لتأمين المقعد ثم نخصم — حتى لا يخسر دفعته لو حُجز المقعد لحظة الاختيار
+		if not sitInSeat(player, seat) then
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "❌ هذا المقعد محجوز، اختر غيره.") end
+			openSeatMenu(player)
+			return
+		end
 		if not paySeat(player, method) then
+			local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			if hum then hum.Sit = false end  -- لم يدفع: أوقفه فلا يجلس مجاناً
 			notifyPayFail(player, method)
 			openSeatMenu(player)
 			return
 		end
 		notifyPaid(player, method)
-		if playing or starting then
-			if sitInSeat(player, seat) then
-				local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-				if hum and CONFIG.LockViewers then lockHumanoid(hum, seat) end
-			end
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if (playing or starting) then
+			if hum and CONFIG.LockViewers then lockHumanoid(hum, seat) end
 			return
 		end
 		starting = true
-		sitInSeat(player, seat)
 		task.spawn(function() playMovie(player) end)
 		return
 	end
@@ -2401,32 +2406,30 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 		return
 	end
 
-	-- تأكّد من وجود مقعد فاضٍ قبل الخصم
-	local front, back = classifySeats()
-	local primary = (row == "back") and back or front
-	local secondary = (row == "back") and front or back
-	if not (findFreeInGroup(primary) or findFreeInGroup(secondary)) then
+	-- نُجلس اللاعب أولاً لتأمين مقعد في الصف المطلوب ثم نخصم — حتى لا يخسر دفعته لو امتلأت المقاعد لحظة الاختيار
+	local seat = seatPlayerInRow(player, row)
+	if not seat then
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "❌ لا توجد مقاعد فاضية حالياً.") end
 		return
 	end
 
 	if not paySeat(player, method) then
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then hum.Sit = false end  -- لم يدفع: أوقفه فلا يجلس مجاناً
 		notifyPayFail(player, method)
 		return
 	end
 	notifyPaid(player, method)
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 
 	-- العرض شغّال: اجلس كمتفرّج متأخّر واقفله، بدون إعادة تشغيل
 	if playing or starting then
-		local seat = seatPlayerInRow(player, row)
-		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-		if seat and hum and CONFIG.LockViewers then lockHumanoid(hum, seat) end
+		if hum and CONFIG.LockViewers then lockHumanoid(hum, seat) end
 		return
 	end
 
-	-- لا يوجد عرض: إجلاس في الصف المختار ← بدء العرض
+	-- لا يوجد عرض: العرض يبدأ الآن
 	starting = true
-	seatPlayerInRow(player, row)
 	-- ملاحظة: starting يُصفَّر داخل playMovie بعد ضبط playing=true (يمنع سباق التشغيل المزدوج)
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, "🎬 مقعد " .. rowName[row] .. " — يبدأ العرض الآن!")
