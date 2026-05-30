@@ -141,6 +141,8 @@ local function fetchInfo(id: number)
 	if cacheGP then return cacheGP, "GamePass" end
 	local cacheDP = infoCache["Product:" .. id]
 	if cacheDP then return cacheDP, "Product" end
+	-- معرّف مُتحقَّق سابقاً أنه خاطئ — نتذكّره لتجنّب تكرار طلبات GetProductInfo (حماية من حدود روبلوكس)
+	if infoCache["bad:" .. id] then return nil, nil end
 
 	local ok, info = pcall(function()
 		return MarketplaceService:GetProductInfo(id, Enum.InfoType.GamePass)
@@ -158,6 +160,8 @@ local function fetchInfo(id: number)
 		return info, "Product"
 	end
 
+	-- لا Game Pass ولا Product صالح — خزّن النتيجة السلبية فلا نعيد الطلب لنفس المعرّف
+	infoCache["bad:" .. id] = true
 	return nil, nil
 end
 

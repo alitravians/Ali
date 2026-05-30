@@ -41,7 +41,7 @@ local CONFIG = {
 	AdminIds      = { [2771986878] = true }, -- 👑 المخوّلون بلوحة الإدارة (Queen_Tarif)
 	-- كود الدخول للوحة الإدارة: نُخزّن بصمته (hash) فقط — لا يظهر الكود الصريح في الملفات
 	-- المرفوعة على المستودع. اللاعب يُدخل الكود كالعادة داخل اللعبة ونقارن بصمته بالبصمة المخزّنة.
-	AdminCodeHash = 1568060,  -- بصمة كود الإدارة (polynomial hash) — الكود نفسه غير مكتوب هنا
+	AdminCodeHash = 510727321,  -- بصمة كود الإدارة (polynomial hash) — الكود نفسه غير مكتوب هنا
 }
 
 -- أفلام السينما (Modular — أضف أفلاماً جديدة هنا مستقبلاً)
@@ -1570,16 +1570,17 @@ MarketplaceService.ProcessReceipt = function(receipt)
 		if ok and already then return Enum.ProductPurchaseDecision.PurchaseGranted end
 	end
 
-	grantProduct(player, info)
-
-	-- لا نؤكّد الشراء إلا بعد حفظ مفتاح الإيصال فعلاً — وإلا نُعيد NotProcessedYet
-	-- ليُعيد روبلوكس المحاولة لاحقاً (يمنع المنح المزدوج لو انهار السيرفر قبل تثبيت الحفظ)
+	-- نخزّن مفتاح الإيصال أولاً ثم نمنح (at-most-once): لو فشل الحفظ نُعيد NotProcessedYet
+	-- بدون منح، فيُعيد روبلوكس المحاولة بأمان. ومنح المنتج تزامني (لا yield) فلا توجد
+	-- نافذة سباق بعد نجاح الحفظ — يُغلق احتمال المنح المزدوج تماماً.
 	if receiptStore then
 		local saveOk = pcall(function() receiptStore:SetAsync(key, true) end)
 		if not saveOk then
 			return Enum.ProductPurchaseDecision.NotProcessedYet
 		end
 	end
+
+	grantProduct(player, info)
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 
