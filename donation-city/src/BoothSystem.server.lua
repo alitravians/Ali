@@ -611,6 +611,7 @@ local function releaseBooth(key: string, silent: boolean?)
 	b.products = {}
 	b.visits = 0
 	b.sales = 0
+	b.buyers = {}
 	b.ownerPresent = false
 	-- kick anyone off the seat and reset it
 	if b.seat then
@@ -742,11 +743,17 @@ end
 -- Buying  (server holds the real id → cannot be spoofed by client)
 ------------------------------------------------------------------------
 local function buy(player: Player, key: string, index: number)
+	if type(index) ~= "number" then return end
 	local b = booths[key]
 	if not b or b.ownerId == 0 then return end
 	local p = b.products[index]
 	if not p then return end
-	b.visits += 1
+	-- عدّاد الزيارات = عدد الزوّار الفريدين (لا عدد الضغطات) — حتى لا يُضخّم بتكرار الطلب
+	b.buyers = b.buyers or {}
+	if not b.buyers[player.UserId] then
+		b.buyers[player.UserId] = true
+		b.visits += 1
+	end
 	local ok, err = pcall(function()
 		if p.kind == "Product" then
 			MarketplaceService:PromptProductPurchase(player, p.id)

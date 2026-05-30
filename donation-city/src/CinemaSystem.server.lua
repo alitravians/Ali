@@ -155,7 +155,11 @@ local function seatPlayerInRow(player, row: string)
 	local primary = (row == "back") and back or front
 	local secondary = (row == "back") and front or back
 	local seat = findFreeInGroup(primary) or findFreeInGroup(secondary)
-	if seat then pcall(function() seat:Sit(hum) end) end
+	if seat then
+		local ok = pcall(function() seat:Sit(hum) end)
+		-- نتأكد أن الجلوس نجح فعلاً قبل أن نُرجع المقعد (وإلا يُخصم من اللاعب دون أن يجلس)
+		if not (ok and hum.SeatPart == seat) then return nil end
+	end
 	return seat
 end
 
@@ -165,8 +169,9 @@ local function sitInSeat(player, seat)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum or not seat or seat.Occupant ~= nil then return false end
 	if hum.SeatPart then return true end
-	pcall(function() seat:Sit(hum) end)
-	return true
+	local ok = pcall(function() seat:Sit(hum) end)
+	-- لا نُرجع نجاحاً إلا إذا جلس اللاعب فعلاً في هذا المقعد (وإلا يُخصم منه دون أن يجلس)
+	return ok and (hum.SeatPart == seat)
 end
 
 -- seat a player on a free chair; returns the Seat used (or nil)
@@ -974,7 +979,7 @@ if playPrompt then
 			end
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم استخدام تذكرة — استمتع بالفيلم!") end
 		end
-		playMovie(player)
+		launchMovie(player)  -- المُشغّل الآمن: قفل البدء + تنظيف عند الفشل
 	end)
 else
 	warn("[CinemaSystem] Projector ProximityPrompt not found.")
