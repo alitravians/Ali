@@ -16,6 +16,7 @@
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextService       = game:GetService("TextService")
+local DataStoreService  = game:GetService("DataStoreService")
 
 ------------------------------------------------------------------------
 -- الإعدادات
@@ -61,6 +62,26 @@ local lastSpoke: { [number]: number } = {}
 local PERMANENT = 4102444800 -- ختم زمني بعيد جداً (سنة ٢١٠٠) = كتم دائم
 local mutedUntil: { [number]: number } = {}  -- userId -> ختم زمني لنهاية الكتم
 
+-- حفظ دائم للكتم (يبقى عبر إعادة الدخول وإعادة تشغيل السيرفر) — يمنع تجاوز الكتم بالخروج والدخول.
+-- يعمل تلقائياً في اللعبة المنشورة (نفس آلية حفظ الرتب في CinemaServices).
+local muteStore
+pcall(function() muteStore = DataStoreService:GetDataStore("CinemaMutes_v1") end)
+
+-- يخزّن/يحذف ختم الكتم في DataStore (غير حاجب — داخل task.spawn مع pcall)
+local function persistMute(uid: number)
+	if not muteStore then return end
+	local until_ = mutedUntil[uid]
+	task.spawn(function()
+		pcall(function()
+			if until_ then
+				muteStore:SetAsync("m_" .. uid, until_)
+			else
+				muteStore:RemoveAsync("m_" .. uid)
+			end
+		end)
+	end)
+end
+
 local function remainingFor(uid: number): number
 	local until_ = mutedUntil[uid]
 	if not until_ then return 0 end
@@ -90,6 +111,7 @@ _G.ChatSetMuted = function(userId, on: boolean, seconds)
 	else
 		mutedUntil[uid] = nil
 	end
+	persistMute(uid)  -- حفظ دائم: يبقى الكتم حتى لو خرج اللاعب ودخل من جديد
 	-- أبلغ اللاعب المستهدف ليُعطّل/يُفعّل صندوق الكتابة عنده + الوقت المتبقي
 	local target = Players:GetPlayerByUserId(uid)
 	if target then
@@ -158,22 +180,48 @@ end
 
 Players.PlayerRemoving:Connect(function(plr)
 	lastSpoke[plr.UserId] = nil
-	mutedUntil[plr.UserId] = nil
+	-- ملاحظة: لا نحذف mutedUntil هنا عمداً — حتى لا يتجاوز المكتوم كتمه بمجرد الخروج والدخول.
+	-- الكتم الزمني ينتهي تلقائياً بانقضاء وقته (os.time)، والدائم يبقى حتى يفكّه إداري.
+end)
+
+-- حمّل حالة الكتم المحفوظة عند دخول اللاعب (تبقى مقفلة عبر الجلسات وإعادة التشغيل)
+Players.PlayerAdded:Connect(function(plr)
+	if not muteStore then return end
+	task.spawn(function()
+		local ok, val = pcall(function() return muteStore:GetAsync("m_" .. plr.UserId) end)
+		if not (ok and type(val) == "number") then return end
+		if val >= PERMANENT or val > os.time() then
+			mutedUntil[plr.UserId] = val
+			-- أبلغ اللاعب بحالة الكتم بعد جهوزية واجهته
+			task.delay(2.5, function()
+				if plr and plr.Parent and mutedUntil[plr.UserId] then
+					local rem = remainingFor(plr.UserId)
+					pushRemote:FireClient(plr, {
+						muteState = true,
+						remaining = (rem == math.huge) and -1 or rem,
+					})
+				end
+			end)
+		else
+			-- انقضى الكتم الزمني أثناء غيابه: نظّفه من التخزين
+			pcall(function() muteStore:RemoveAsync("m_" .. plr.UserId) end)
+		end
+	end)
 end)
 
 ------------------------------------------------------------------------
--- فلترة النص للبثّ العام (آمن ضد الأخطاء + احتياطي عند الفشل)
--- نستخدم GetNonChatStringForBroadcastAsync لأنها أبسط وأنسب للبثّ للجميع،
--- ولو فشل الفلتر (مثلاً قيود المنطقة / معاينة الستوديو) نرجّع النص الأصلي
--- بدل ما تختفي الرسالة — عشان الدردشة تشتغل دائماً.
+-- فلترة النص للبثّ العام (آمن ضد الأخطاء)
+-- نستخدم GetNonChatStringForBroadcastAsync لأنها أبسط وأنسب للبثّ للجميع.
+-- ⚠️ الفلترة إلزامية من روبلوكس: لو فشل الفلتر أو رجّع نصاً فارغاً، نُرجّع nil
+-- (نحجب الرسالة) بدل بثّ نص غير مُفلتر — حماية للّاعبين والتزاماً بسياسات روبلوكس.
 ------------------------------------------------------------------------
-local function safeFilter(text: string, fromUserId: number): string
+local function safeFilter(text: string, fromUserId: number): string?
 	local ok, result = pcall(function()
 		return TextService:FilterStringAsync(text, fromUserId)
 	end)
 	if not ok or not result then
-		warn("[CustomChat] FilterStringAsync فشل، استخدام النص الأصلي: " .. tostring(result))
-		return text
+		warn("[CustomChat] FilterStringAsync فشل — حُجبت الرسالة (الفلترة إلزامية): " .. tostring(result))
+		return nil
 	end
 
 	local ok2, broadcastStr = pcall(function()
@@ -183,8 +231,8 @@ local function safeFilter(text: string, fromUserId: number): string
 		return broadcastStr
 	end
 
-	warn("[CustomChat] نتيجة الفلتر فارغة، استخدام النص الأصلي")
-	return text
+	warn("[CustomChat] نتيجة الفلتر فارغة — حُجبت الرسالة")
+	return nil
 end
 
 ------------------------------------------------------------------------
@@ -246,9 +294,15 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 	if now - last < MIN_INTERVAL then return end
 	lastSpoke[sender.UserId] = now
 
-	-- الفلترة الرسمية (مع احتياطي)
+	-- الفلترة الرسمية (إلزامية): إن فشلت أو رجعت فارغة نحجب الرسالة ونُعلم المرسِل فقط
 	local shownText = safeFilter(text, sender.UserId)
-	if shownText == "" then return end
+	if not shownText or shownText == "" then
+		pushRemote:FireClient(sender, {
+			system = true,
+			text = "⚠️ تعذّرت فلترة رسالتك الآن — لم تُرسَل. حاول مرة أخرى بعد قليل.",
+		})
+		return
+	end
 
 	local senderName = sender.DisplayName ~= "" and sender.DisplayName or sender.Name
 
