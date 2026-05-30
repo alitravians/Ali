@@ -860,6 +860,19 @@ local function playMovie(presser)
 	playing = false
 end
 
+-- مُشغّل آمن: يضمن أن قفل البدء (starting) لا يبقى عالقاً أبداً حتى لو فشل playMovie
+-- (طبقة حماية إضافية: لو حصل خطأ قبل أن يصفّر playMovie العلَم، نصفّره هنا فلا تتعطّل العروض القادمة)
+local function launchMovie(presser)
+	starting = true
+	task.spawn(function()
+		local ok, err = pcall(playMovie, presser)
+		if not ok then
+			starting = false
+			warn("[CinemaSystem] playMovie error: " .. tostring(err))
+		end
+	end)
+end
+
 ------------------------------------------------------------------------
 -- REMOTE: قائمة اختيار المقعد (تُعرض على العميل عبر LocalScript: CinemaSeatMenu)
 ------------------------------------------------------------------------
@@ -999,8 +1012,7 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 			if hum and CONFIG.LockViewers then lockHumanoid(hum, seat) end
 			return
 		end
-		starting = true
-		task.spawn(function() playMovie(player) end)
+		launchMovie(player)
 		return
 	end
 
@@ -1039,12 +1051,12 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 	end
 
 	-- لا يوجد عرض: العرض يبدأ الآن
-	starting = true
 	-- ملاحظة: starting يُصفَّر داخل playMovie بعد ضبط playing=true (يمنع سباق التشغيل المزدوج)
+	-- وlaunchMovie يضمن تصفيره أيضاً حتى لو فشل playMovie (طبقة حماية إضافية ضد التعليق)
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, "🎬 مقعد " .. rowName[row] .. " — يبدأ العرض الآن!")
 	end
-	task.spawn(function() playMovie(player) end)
+	launchMovie(player)
 end)
 
 ------------------------------------------------------------------------
