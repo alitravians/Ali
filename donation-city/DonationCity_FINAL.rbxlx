@@ -2493,7 +2493,8 @@ if playPrompt then
 			return
 		end
 		-- السلوك القديم (بدون قائمة): تذكرة ← بدء مباشر
-		if playing then
+		-- نفحص playing وكذلك starting لسدّ نافذة سباق نادرة قد تُستهلك فيها تذكرتان لعرض واحد
+		if playing or starting then
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎬 العرض جارٍ الآن، انتظر انتهاءه.") end
 			return
 		end
