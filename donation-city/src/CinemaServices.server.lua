@@ -1214,7 +1214,8 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			if not canDo(RANK_W.mod) then return end  -- الكتم: مشرف فأعلى
 			local target, tid = targetOf()
 			if tid and tid ~= player.UserId then
-				if weightOf(target) >= myW then
+				-- استخدم رتبة الـ userId (تعمل حتى لو الهدف غير متصل) لمنع تجاوز الصلاحية على إداري مفصول
+				if (RANK_W[rankOfId(tid)] or 0) >= myW then
 					adminNotify(player, "🚫 لا يمكنك كتم إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
 				end
 				-- مدة الكتم بالدقائق (nil/0 = دائم)؛ نحوّلها لثوانٍ
@@ -1285,7 +1286,8 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			if (RANK_W[newRank] or 0) >= myW then
 				adminNotify(player, "🚫 لا يمكنك منح رتبة مثل رتبتك أو أعلى."); sendAdminPanel(player); return
 			end
-			if weightOf(target) >= myW then
+			-- رتبة الهدف عبر userId (تعمل حتى لو غير متصل) لمنع تجاوز الصلاحية على إداري مفصول
+			if (RANK_W[rankOfId(tid)] or 0) >= myW then
 				adminNotify(player, "🚫 لا يمكنك تعديل إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
 			end
 			local nm = (target and (target.DisplayName ~= "" and target.DisplayName or target.Name)) or ("#" .. tid)

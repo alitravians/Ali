@@ -1042,7 +1042,6 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 		_G.NotifyPlayer(player, "🎬 مقعد " .. rowName[row] .. " — يبدأ العرض الآن!")
 	end
 	task.spawn(function() playMovie(player) end)
-	starting = false
 end)
 
 ------------------------------------------------------------------------

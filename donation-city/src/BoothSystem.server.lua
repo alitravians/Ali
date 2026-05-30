@@ -898,7 +898,7 @@ end
 Players.PlayerRemoving:Connect(function(player)
 	local key = ownerToBooth[player.UserId]
 	if key then releaseBooth(key) end
-	donorTotals[player.UserId] = nil
+	-- نُبقي donorTotals طوال عمر السيرفر حتى لا يختفي المتبرّع من لوحة كبار المتبرّعين عند خروجه
 end)
 
 Players.PlayerAdded:Connect(function(player)
