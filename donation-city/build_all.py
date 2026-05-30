@@ -6,6 +6,15 @@ import sys
 SRC = "DonationCity_FINAL.rbxlx"
 
 # (source file, unique marker that appears inside that script's CDATA)
+#
+# NOTE: src/WorldBuilder.server.lua is intentionally NOT in this list. It is a
+# one-time map generator: its output (floor, chairs, booths, cinema building,
+# etc.) was already "baked" into DonationCity_FINAL.rbxlx as static instances,
+# and the script itself is not embedded as a live Script in the rbxlx. There is
+# therefore no CDATA marker to target, and editing src/WorldBuilder.server.lua
+# will NOT affect the shipped game. It is kept in src/ for reference only. To
+# regenerate the map from scratch, run it manually in Studio on an empty place
+# and save the result. See README.md ("طريقة الاستخدام") for details.
 UPDATES = [
     ("src/CinemaSystem.server.lua",   "CINEMA SYSTEM"),
     ("src/CinemaServices.server.lua", "CINEMA SERVICES"),

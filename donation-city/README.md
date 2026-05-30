@@ -7,7 +7,7 @@
 - **Game / Place ID:** `10237943037`
 - **الإصدار الحالي:** `٢.٩.١١` (v2.9.11)
 - **ملف اللعبة:** `DonationCity_FINAL.rbxlx` (يُفتح في Roblox Studio)
-- **كود لوحة الإدارة داخل اللعبة:** *(سري — لا يُكتب هنا. موجود في `CONFIG.AdminCode` داخل `src/CinemaServices.server.lua`، للمالك فقط)*
+- **كود لوحة الإدارة داخل اللعبة:** *(سري — لا يُكتب هنا. يُخزَّن كبصمة `CONFIG.AdminCodeHash` فقط داخل `src/CinemaServices.server.lua`، والكود الصريح غير مكتوب في المستودع)*
 
 > ⚠️ ملاحظة مهمة: مزايا الحفظ الدائم (DataStore) والمزامنة بين السيرفرات (MessagingService)
 > — مثل **وضع الصيانة** و**الكوينز** و**التذاكر** — تشتغل فقط في **اللعبة المنشورة (Published)**
@@ -40,7 +40,7 @@ donation-city/
 | `BoothSystem.server.lua` | Script | ServerScriptService | أكشاك (Booths) والتفاعل بزر E |
 | `CinemaExterior.server.lua` | Script | ServerScriptService | بناء واجهة/خارج السينما |
 | `CinemaDecor.server.lua` | Script | ServerScriptService | الديكور والإضاءة |
-| `WorldBuilder.server.lua` | Script | ServerScriptService | بناء العالم/الخريطة |
+| `WorldBuilder.server.lua` | Script (مولّد لمرّة واحدة) | — | بناء العالم/الخريطة برمجياً. **مرجعي فقط:** نتيجته «مخبوزة» مسبقاً كمجسّمات ثابتة داخل ملف اللعبة، فلا يحقنه `build_all.py` ولا يوجد كسكربت حيّ في الـ rbxlx (انظر الملاحظة في «طريقة الاستخدام»). |
 
 ---
 
@@ -48,6 +48,8 @@ donation-city/
 
 المصدر الحقيقي للكود هو مجلد `src/`. ملف اللعبة `.rbxlx` يحتوي نسخة محقونة من هذه السكربتات.
 لتعديل أي سكربت: **عدّل في `src/` ثم ابنِ** — لا تعدّل داخل ملف الـ rbxlx يدوياً.
+
+> ⚠️ **استثناء — `WorldBuilder.server.lua`:** هذا سكربت مولّد لمرّة واحدة بنى الخريطة برمجياً، ونتيجته (الأرضية، الكراسي، البوثات، مبنى السينما...) محفوظة الآن كمجسّمات ثابتة داخل `DonationCity_FINAL.rbxlx`. لذلك **هو غير مُدرَج في `build_all.py`** ولا يُحقن عند البناء، وتعديله في `src/` لن ينعكس على اللعبة. للاحتفاظ به كمرجع للخريطة فقط. لو احتجت إعادة توليد الخريطة من الصفر، شغّله يدوياً في Studio على مكان فارغ ثم احفظ النتيجة.
 
 ### 1) عدّل الكود
 عدّل الملف المطلوب داخل `src/` (مثلاً `src/CinemaServices.server.lua`).
