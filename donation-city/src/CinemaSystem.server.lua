@@ -1498,7 +1498,7 @@ _G.AdminRestartMovie = function(): boolean
 			local t0 = os.clock()
 			while playing and (os.clock() - t0) < 20 do task.wait(0.2) end
 		end
-		if not playing then playMovie(nil) end
+		if not playing and not starting then launchMovie(nil) end  -- المُشغّل الآمن: قفل البدء + تنظيف عند الفشل
 	end)
 	return true
 end

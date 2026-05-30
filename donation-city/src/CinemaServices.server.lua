@@ -39,7 +39,9 @@ local CONFIG = {
 	SaveEvery     = 60,    -- حفظ دوري (ثواني)
 	CurrencyName  = "كوينز",
 	AdminIds      = { [2771986878] = true }, -- 👑 المخوّلون بلوحة الإدارة (Queen_Tarif)
-	AdminCode     = "3131",  -- كود الدخول للوحة الإدارة (لا يُعرض بصرياً)
+	-- كود الدخول للوحة الإدارة: نُخزّن بصمته (hash) فقط — لا يظهر الكود الصريح في الملفات
+	-- المرفوعة على المستودع. اللاعب يُدخل الكود كالعادة داخل اللعبة ونقارن بصمته بالبصمة المخزّنة.
+	AdminCodeHash = 1568060,  -- بصمة كود الإدارة (polynomial hash) — الكود نفسه غير مكتوب هنا
 }
 
 -- أفلام السينما (Modular — أضف أفلاماً جديدة هنا مستقبلاً)
@@ -553,9 +555,19 @@ local function setRank(uid: number, rank: string?, name: string?)
 	if broadcastTeam then broadcastTeam() end
 end
 
+-- بصمة نصّية (polynomial hash) — تُطابق نفس الخوارزمية المستخدمة لحساب CONFIG.AdminCodeHash.
+-- الغرض: عدم تخزين كود الإدارة الصريح في الكود المصدري المرفوع على المستودع.
+local function hashCode(s: string): number
+	local h = 0
+	for i = 1, #s do
+		h = (h * 31 + string.byte(s, i)) % 1000000007
+	end
+	return h
+end
+
 local function authedAdmin(player: Player, code): boolean
-	-- يُفتح للوحة: المالك/الأدمن/المشرف بكود الدخول الصحيح
-	return weightOf(player) >= RANK_W.mod and tostring(code) == CONFIG.AdminCode
+	-- يُفتح للوحة: المالك/الأدمن/المشرف بكود الدخول الصحيح (نقارن البصمة لا النص الصريح)
+	return weightOf(player) >= RANK_W.mod and hashCode(tostring(code)) == CONFIG.AdminCodeHash
 end
 
 -- عند الدخول: عيّن سمة الرتبة وبلّغ العميل (بعد جهوزية الجلسة)
