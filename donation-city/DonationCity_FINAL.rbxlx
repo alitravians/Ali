@@ -4790,6 +4790,8 @@ local function notify(player, text)
 end
 
 local freeTicketAt = {}  -- [UserId] = os.clock() لآخر تذكرة مجانية (كولداون دقيقتين)
+-- نظّف مؤقّت التذكرة المجانية عند خروج اللاعب (تفادي نموّ الجدول بلا حدّ)
+Players.PlayerRemoving:Connect(function(player) freeTicketAt[player.UserId] = nil end)
 
 local function openBoxOffice(player)
 	lobbyRemote:FireClient(player, {
