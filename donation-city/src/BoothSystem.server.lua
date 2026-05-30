@@ -141,8 +141,10 @@ local function fetchInfo(id: number)
 	if cacheGP then return cacheGP, "GamePass" end
 	local cacheDP = infoCache["Product:" .. id]
 	if cacheDP then return cacheDP, "Product" end
-	-- معرّف مُتحقَّق سابقاً أنه خاطئ — نتذكّره لتجنّب تكرار طلبات GetProductInfo (حماية من حدود روبلوكس)
-	if infoCache["bad:" .. id] then return nil, nil end
+	-- معرّف فشل سابقاً — كاش سلبي مؤقّت (60 ثانية فقط) لتجنّب تكرار الطلبات،
+	-- مع السماح بإعادة المحاولة بعد انقضاء المدة (فقد يكون الفشل عابراً: خنق/شبكة).
+	local badAt = infoCache["bad:" .. id]
+	if badAt and (os.clock() - badAt) < 60 then return nil, nil end
 
 	local ok, info = pcall(function()
 		return MarketplaceService:GetProductInfo(id, Enum.InfoType.GamePass)
@@ -160,8 +162,9 @@ local function fetchInfo(id: number)
 		return info, "Product"
 	end
 
-	-- لا Game Pass ولا Product صالح — خزّن النتيجة السلبية فلا نعيد الطلب لنفس المعرّف
-	infoCache["bad:" .. id] = true
+	-- لا Game Pass ولا Product صالح — كاش سلبي مؤقّت (وقت الفشل) بدل دائم،
+	-- فلا نحرم منتجاً صحيحاً بسبب فشل عابر؛ نعيد المحاولة بعد ٦٠ ثانية.
+	infoCache["bad:" .. id] = os.clock()
 	return nil, nil
 end
 

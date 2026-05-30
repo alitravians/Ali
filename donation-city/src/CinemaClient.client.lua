@@ -2530,6 +2530,7 @@ end
 -- 🎬 مالك العرض → بدء الفيلم    ·    📢 مايك الإعلان → بثّ إعلان
 ------------------------------------------------------------------------
 local perkBuilt = {}
+local perkBtns  = {}  -- مراجع الأزرار لإظهارها/إخفائها عند تغيّر الصلاحية أثناء الجلسة
 
 local function showAnnouncerModal()
 	local _, card = makeModal(UDim2.fromOffset(420, 300))
@@ -2564,6 +2565,7 @@ local function showAnnouncerModal()
 end
 
 applyPerks = function(data)
+	-- 🎬 زر بدء العرض (مالك العرض) — يُبنى مرة ويُظهر/يُخفى حسب الصلاحية
 	if data.showrunner and not perkBuilt.showrunner then
 		perkBuilt.showrunner = true
 		local b = new("TextButton", {
@@ -2579,7 +2581,11 @@ applyPerks = function(data)
 			playSound(SOUNDS.Click, SOUND_VOLUME)
 			lobbyRemote:FireServer({ action = "showrunnerPlay" })
 		end)
+		perkBtns.showrunner = b
+	elseif perkBtns.showrunner then
+		perkBtns.showrunner.Visible = data.showrunner == true
 	end
+	-- 📢 زر الإعلان (حامل الباقة أو مشرف فأعلى أو VIP) — يظهر/يختفي فوراً عند تغيّر الصلاحية
 	if data.announcer and not perkBuilt.announcer then
 		perkBuilt.announcer = true
 		local b = new("TextButton", {
@@ -2595,6 +2601,9 @@ applyPerks = function(data)
 			playSound(SOUNDS.Click, SOUND_VOLUME)
 			showAnnouncerModal()
 		end)
+		perkBtns.announcer = b
+	elseif perkBtns.announcer then
+		perkBtns.announcer.Visible = data.announcer == true
 	end
 end
 

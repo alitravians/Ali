@@ -64,6 +64,8 @@ local coinStore
 pcall(function() coinStore = DataStoreService:GetDataStore("CinemaCoins_v1") end)
 
 local applyAllPasses  -- forward declaration (فحص ومنح الباقات الدائمة عند الدخول)
+local canUseAnnouncer -- forward declaration: من يحق له الإعلان (مشرف فأعلى / VIP / حامل الباقة)
+local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
 
 local function loadCoins(userId: number): number
@@ -168,6 +170,7 @@ local function grantVip(player: Player, announce: boolean?): boolean
 	player:SetAttribute("VIP", true)
 	applyVipTag(player)
 	if _G.AwardAchievement then _G.AwardAchievement(player, "vip") end
+	if sendPerks then sendPerks(player) end  -- 📢 يظهر زر الإعلان فوراً لعضو VIP الجديد
 	pcall(function() saveCoins(player.UserId) end)
 	if announce ~= false and _G.NotifyPlayer then
 		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — لاونج خاص، تذاكر بنص السعر، دخل مضاعف، وتاج ذهبي.")
@@ -186,6 +189,7 @@ local function revokeVip(player: Player): boolean
 		local t = head and head:FindFirstChild("VipTag")
 		if t then t:Destroy() end
 	end
+	if sendPerks then sendPerks(player) end  -- 📢 يخفي زر الإعلان فوراً عند سحب VIP (إن لم يكن مشرفاً)
 	pcall(function() saveCoins(player.UserId) end)
 	return true
 end
@@ -238,7 +242,19 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 game:BindToClose(function()
-	for userId in pairs(sessions) do saveCoins(userId) end
+	-- حفظ متوازٍ لكل اللاعبين: يتفادى تجاوز مهلة الإغلاق (30s) لو فيه عدد كبير باللحظة الأخيرة
+	local pending = 0
+	for userId in pairs(sessions) do
+		pending += 1
+		task.spawn(function()
+			pcall(saveCoins, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
+	end
 end)
 
 -- دخل تلقائي + حفظ دوري
@@ -404,11 +420,14 @@ local function refreshBadge(player: Player)
 end
 
 -- إبلاغ العميل بالباقات لإظهار الأزرار الخاصة (مالك العرض / مايك الإعلان)
-local function sendPerks(player: Player)
+sendPerks = function(player: Player)
+	-- 📢 الإعلان متاح لحاملي الباقة + كل مشرف فأعلى (يُحسب عبر canUseAnnouncer)
+	local mayAnnounce = ownsPassKey(player, "announcer")
+		or (canUseAnnouncer ~= nil and canUseAnnouncer(player))
 	lobbyRemote:FireClient(player, {
 		action     = "perks",
 		showrunner = ownsPassKey(player, "showrunner"),
-		announcer  = ownsPassKey(player, "announcer"),
+		announcer  = mayAnnounce,
 		buffet     = ownsPassKey(player, "buffet"),
 		neon       = ownsPassKey(player, "neon"),
 	})
@@ -527,6 +546,12 @@ local function weightOf(player: Player): number
 	return RANK_W[rankOf(player)] or 0
 end
 
+-- 📢 يحق له الإعلان: كل مشرف فأعلى (مشرف/أدمن/مالك) أو عضو VIP. تُستخدم في sendPerks وأمر announcerSay.
+canUseAnnouncer = function(player: Player): boolean
+	if weightOf(player) >= RANK_W.mod then return true end
+	return (_G.IsVIP and _G.IsVIP(player)) == true
+end
+
 -- كشف للدردشة المخصّصة: رتبة الاسم (owner/admin/mod/staff/vip/"")
 _G.GetChatRank = function(player: Player): string
 	local r = rankOf(player)
@@ -559,6 +584,7 @@ local function setRank(uid: number, rank: string?, name: string?)
 	if target then
 		target:SetAttribute("Rank", rank or "")
 		pushRankInfo(target)
+		sendPerks(target)  -- 📢 يظهر/يختفي زر الإعلان فوراً حسب الرتبة الجديدة (بدون إعادة دخول)
 		if rememberTeamName then rememberTeamName(target) end
 	end
 	-- صفحة الفريق تتحدّث تلقائياً عند تغيّر الرتب
@@ -1037,9 +1063,9 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		end
 
 	elseif payload.action == "announcerSay" then
-		-- 📢 مايك الإعلان: بثّ رسالة لكل اللاعبين
-		if not ownsPassKey(player, "announcer") then
-			notify(player, "📢 هذه الميزة لحاملي باقة «مايك الإعلان» فقط.")
+		-- 📢 مايك الإعلان: بثّ رسالة لكل اللاعبين (حاملو الباقة + كل مشرف فأعلى)
+		if not (ownsPassKey(player, "announcer") or canUseAnnouncer(player)) then
+			notify(player, "📢 الإعلان متاح لحاملي باقة «مايك الإعلان» أو للمشرفين فأعلى فقط.")
 			return
 		end
 		local text = tostring(payload.text or "")

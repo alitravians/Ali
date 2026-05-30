@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.١١",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.١٢",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -3243,8 +3243,10 @@ local function fetchInfo(id: number)
 	if cacheGP then return cacheGP, "GamePass" end
 	local cacheDP = infoCache["Product:" .. id]
 	if cacheDP then return cacheDP, "Product" end
-	-- معرّف مُتحقَّق سابقاً أنه خاطئ — نتذكّره لتجنّب تكرار طلبات GetProductInfo (حماية من حدود روبلوكس)
-	if infoCache["bad:" .. id] then return nil, nil end
+	-- معرّف فشل سابقاً — كاش سلبي مؤقّت (60 ثانية فقط) لتجنّب تكرار الطلبات،
+	-- مع السماح بإعادة المحاولة بعد انقضاء المدة (فقد يكون الفشل عابراً: خنق/شبكة).
+	local badAt = infoCache["bad:" .. id]
+	if badAt and (os.clock() - badAt) < 60 then return nil, nil end
 
 	local ok, info = pcall(function()
 		return MarketplaceService:GetProductInfo(id, Enum.InfoType.GamePass)
@@ -3262,8 +3264,9 @@ local function fetchInfo(id: number)
 		return info, "Product"
 	end
 
-	-- لا Game Pass ولا Product صالح — خزّن النتيجة السلبية فلا نعيد الطلب لنفس المعرّف
-	infoCache["bad:" .. id] = true
+	-- لا Game Pass ولا Product صالح — كاش سلبي مؤقّت (وقت الفشل) بدل دائم،
+	-- فلا نحرم منتجاً صحيحاً بسبب فشل عابر؛ نعيد المحاولة بعد ٦٠ ثانية.
+	infoCache["bad:" .. id] = os.clock()
 	return nil, nil
 end
 
@@ -4345,8 +4348,18 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 game:BindToClose(function()
+	-- حفظ متوازٍ يتفادى تجاوز مهلة الإغلاق (30s) عند وجود عدد كبير من اللاعبين
+	local pending = 0
 	for userId in pairs(sessions) do
-		saveData(userId)
+		pending += 1
+		task.spawn(function()
+			pcall(saveData, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
 	end
 end)
 
@@ -4490,6 +4503,8 @@ local coinStore
 pcall(function() coinStore = DataStoreService:GetDataStore("CinemaCoins_v1") end)
 
 local applyAllPasses  -- forward declaration (فحص ومنح الباقات الدائمة عند الدخول)
+local canUseAnnouncer -- forward declaration: من يحق له الإعلان (مشرف فأعلى / VIP / حامل الباقة)
+local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
 
 local function loadCoins(userId: number): number
@@ -4594,6 +4609,7 @@ local function grantVip(player: Player, announce: boolean?): boolean
 	player:SetAttribute("VIP", true)
 	applyVipTag(player)
 	if _G.AwardAchievement then _G.AwardAchievement(player, "vip") end
+	if sendPerks then sendPerks(player) end  -- 📢 يظهر زر الإعلان فوراً لعضو VIP الجديد
 	pcall(function() saveCoins(player.UserId) end)
 	if announce ~= false and _G.NotifyPlayer then
 		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — لاونج خاص، تذاكر بنص السعر، دخل مضاعف، وتاج ذهبي.")
@@ -4612,6 +4628,7 @@ local function revokeVip(player: Player): boolean
 		local t = head and head:FindFirstChild("VipTag")
 		if t then t:Destroy() end
 	end
+	if sendPerks then sendPerks(player) end  -- 📢 يخفي زر الإعلان فوراً عند سحب VIP (إن لم يكن مشرفاً)
 	pcall(function() saveCoins(player.UserId) end)
 	return true
 end
@@ -4664,7 +4681,19 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 game:BindToClose(function()
-	for userId in pairs(sessions) do saveCoins(userId) end
+	-- حفظ متوازٍ لكل اللاعبين: يتفادى تجاوز مهلة الإغلاق (30s) لو فيه عدد كبير باللحظة الأخيرة
+	local pending = 0
+	for userId in pairs(sessions) do
+		pending += 1
+		task.spawn(function()
+			pcall(saveCoins, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
+	end
 end)
 
 -- دخل تلقائي + حفظ دوري
@@ -4830,11 +4859,14 @@ local function refreshBadge(player: Player)
 end
 
 -- إبلاغ العميل بالباقات لإظهار الأزرار الخاصة (مالك العرض / مايك الإعلان)
-local function sendPerks(player: Player)
+sendPerks = function(player: Player)
+	-- 📢 الإعلان متاح لحاملي الباقة + كل مشرف فأعلى (يُحسب عبر canUseAnnouncer)
+	local mayAnnounce = ownsPassKey(player, "announcer")
+		or (canUseAnnouncer ~= nil and canUseAnnouncer(player))
 	lobbyRemote:FireClient(player, {
 		action     = "perks",
 		showrunner = ownsPassKey(player, "showrunner"),
-		announcer  = ownsPassKey(player, "announcer"),
+		announcer  = mayAnnounce,
 		buffet     = ownsPassKey(player, "buffet"),
 		neon       = ownsPassKey(player, "neon"),
 	})
@@ -4953,6 +4985,12 @@ local function weightOf(player: Player): number
 	return RANK_W[rankOf(player)] or 0
 end
 
+-- 📢 يحق له الإعلان: كل مشرف فأعلى (مشرف/أدمن/مالك) أو عضو VIP. تُستخدم في sendPerks وأمر announcerSay.
+canUseAnnouncer = function(player: Player): boolean
+	if weightOf(player) >= RANK_W.mod then return true end
+	return (_G.IsVIP and _G.IsVIP(player)) == true
+end
+
 -- كشف للدردشة المخصّصة: رتبة الاسم (owner/admin/mod/staff/vip/"")
 _G.GetChatRank = function(player: Player): string
 	local r = rankOf(player)
@@ -4985,6 +5023,7 @@ local function setRank(uid: number, rank: string?, name: string?)
 	if target then
 		target:SetAttribute("Rank", rank or "")
 		pushRankInfo(target)
+		sendPerks(target)  -- 📢 يظهر/يختفي زر الإعلان فوراً حسب الرتبة الجديدة (بدون إعادة دخول)
 		if rememberTeamName then rememberTeamName(target) end
 	end
 	-- صفحة الفريق تتحدّث تلقائياً عند تغيّر الرتب
@@ -5463,9 +5502,9 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		end
 
 	elseif payload.action == "announcerSay" then
-		-- 📢 مايك الإعلان: بثّ رسالة لكل اللاعبين
-		if not ownsPassKey(player, "announcer") then
-			notify(player, "📢 هذه الميزة لحاملي باقة «مايك الإعلان» فقط.")
+		-- 📢 مايك الإعلان: بثّ رسالة لكل اللاعبين (حاملو الباقة + كل مشرف فأعلى)
+		if not (ownsPassKey(player, "announcer") or canUseAnnouncer(player)) then
+			notify(player, "📢 الإعلان متاح لحاملي باقة «مايك الإعلان» أو للمشرفين فأعلى فقط.")
 			return
 		end
 		local text = tostring(payload.text or "")
@@ -10512,6 +10551,7 @@ end
 -- 🎬 مالك العرض → بدء الفيلم    ·    📢 مايك الإعلان → بثّ إعلان
 ------------------------------------------------------------------------
 local perkBuilt = {}
+local perkBtns  = {}  -- مراجع الأزرار لإظهارها/إخفائها عند تغيّر الصلاحية أثناء الجلسة
 
 local function showAnnouncerModal()
 	local _, card = makeModal(UDim2.fromOffset(420, 300))
@@ -10546,6 +10586,7 @@ local function showAnnouncerModal()
 end
 
 applyPerks = function(data)
+	-- 🎬 زر بدء العرض (مالك العرض) — يُبنى مرة ويُظهر/يُخفى حسب الصلاحية
 	if data.showrunner and not perkBuilt.showrunner then
 		perkBuilt.showrunner = true
 		local b = new("TextButton", {
@@ -10561,7 +10602,11 @@ applyPerks = function(data)
 			playSound(SOUNDS.Click, SOUND_VOLUME)
 			lobbyRemote:FireServer({ action = "showrunnerPlay" })
 		end)
+		perkBtns.showrunner = b
+	elseif perkBtns.showrunner then
+		perkBtns.showrunner.Visible = data.showrunner == true
 	end
+	-- 📢 زر الإعلان (حامل الباقة أو مشرف فأعلى أو VIP) — يظهر/يختفي فوراً عند تغيّر الصلاحية
 	if data.announcer and not perkBuilt.announcer then
 		perkBuilt.announcer = true
 		local b = new("TextButton", {
@@ -10577,6 +10622,9 @@ applyPerks = function(data)
 			playSound(SOUNDS.Click, SOUND_VOLUME)
 			showAnnouncerModal()
 		end)
+		perkBtns.announcer = b
+	elseif perkBtns.announcer then
+		perkBtns.announcer.Visible = data.announcer == true
 	end
 end
 

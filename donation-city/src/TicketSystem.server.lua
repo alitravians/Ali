@@ -145,8 +145,18 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 game:BindToClose(function()
+	-- حفظ متوازٍ يتفادى تجاوز مهلة الإغلاق (30s) عند وجود عدد كبير من اللاعبين
+	local pending = 0
 	for userId in pairs(sessions) do
-		saveData(userId)
+		pending += 1
+		task.spawn(function()
+			pcall(saveData, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
 	end
 end)
 
