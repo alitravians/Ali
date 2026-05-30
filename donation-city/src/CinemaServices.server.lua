@@ -91,13 +91,28 @@ local function setAsyncRetry(key: string, value)
 	return false
 end
 
+-- حفظ ذكي: نكتب فقط المفاتيح التي تغيّرت فعلاً عن آخر حفظ ناجح (s._saved)
+-- لتخفيف ضغط طلبات DataStore (ميزانية ~60+10×لاعب/دقيقة) وتجنّب الخنق.
+local HttpService = game:GetService("HttpService")
 local function saveCoins(userId: number)
 	local s = sessions[userId]
 	if not s or not coinStore then return end
-	setAsyncRetry("c_" .. userId, s.coins)
-	setAsyncRetry("v_" .. userId, s.vip == true)
-	setAsyncRetry("a_" .. userId, s.ach or {})
-	setAsyncRetry("rt_" .. userId, s.rated == true)
+	s._saved = s._saved or {}
+	if s._saved.coins ~= s.coins then
+		if setAsyncRetry("c_" .. userId, s.coins) then s._saved.coins = s.coins end
+	end
+	local vip = s.vip == true
+	if s._saved.vip ~= vip then
+		if setAsyncRetry("v_" .. userId, vip) then s._saved.vip = vip end
+	end
+	local achEnc = HttpService:JSONEncode(s.ach or {})
+	if s._saved.ach ~= achEnc then
+		if setAsyncRetry("a_" .. userId, s.ach or {}) then s._saved.ach = achEnc end
+	end
+	local rated = s.rated == true
+	if s._saved.rated ~= rated then
+		if setAsyncRetry("rt_" .. userId, rated) then s._saved.rated = rated end
+	end
 end
 
 local function setCoins(player: Player, amount: number)
@@ -217,7 +232,9 @@ Players.PlayerAdded:Connect(function(player)
 		pcall(function() local d = coinStore:GetAsync("a_" .. player.UserId); if type(d) == "table" then ach = d end end)
 		pcall(function() rated = coinStore:GetAsync("rt_" .. player.UserId) == true end)
 	end
-	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {} }
+	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {},
+		-- بصمة آخر قيم محفوظة (تُهيّأ بالقيم المُحمّلة) كي لا نعيد كتابة ما لم يتغيّر
+		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true } }
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
@@ -271,7 +288,11 @@ task.spawn(function()
 		end
 		if t >= CONFIG.SaveEvery then
 			t = 0
-			for userId in pairs(sessions) do saveCoins(userId) end
+			-- حفظ دوري متوازٍ (خيط لكل لاعب) — يتفادى خنق DataStore عند عدد لاعبين كبير،
+			-- مع الحفظ الذكي (saveCoins يكتب المتغيّر فقط) يبقى الضغط ضمن الميزانية.
+			for userId in pairs(sessions) do
+				task.spawn(function() pcall(saveCoins, userId) end)
+			end
 		end
 	end
 end)

@@ -1054,6 +1054,7 @@ seatRemote.OnServerEvent:Connect(function(player, payload)
 		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
 		if hum then hum.Sit = false end  -- لم يدفع: أوقفه فلا يجلس مجاناً
 		notifyPayFail(player, method)
+		openSeatMenu(player)  -- أعد فتح القائمة (اتساقاً مع مسار «chooseSeat»)
 		return
 	end
 	notifyPaid(player, method)
