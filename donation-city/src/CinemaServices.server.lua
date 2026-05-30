@@ -39,9 +39,8 @@ local CONFIG = {
 	SaveEvery     = 60,    -- حفظ دوري (ثواني)
 	CurrencyName  = "كوينز",
 	AdminIds      = { [2771986878] = true }, -- 👑 المخوّلون بلوحة الإدارة (Queen_Tarif)
-	-- كود الدخول للوحة الإدارة: نُخزّن بصمته (hash) فقط — لا يظهر الكود الصريح في الملفات
-	-- المرفوعة على المستودع. اللاعب يُدخل الكود كالعادة داخل اللعبة ونقارن بصمته بالبصمة المخزّنة.
-	AdminCodeHash = 510727321,  -- بصمة كود الإدارة (polynomial hash) — الكود نفسه غير مكتوب هنا
+	-- فتح لوحة الإدارة يعتمد على الرتبة فقط (مشرف فأعلى)، والمالك ثابت بالـ UserId.
+	-- لا يوجد «كود دخول» مخزّن في الكود — فلا توجد بصمة قابلة للتخمين من المستودع.
 }
 
 -- أفلام السينما (Modular — أضف أفلاماً جديدة هنا مستقبلاً)
@@ -612,19 +611,11 @@ local function setRank(uid: number, rank: string?, name: string?)
 	if broadcastTeam then broadcastTeam() end
 end
 
--- بصمة نصّية (polynomial hash) — تُطابق نفس الخوارزمية المستخدمة لحساب CONFIG.AdminCodeHash.
--- الغرض: عدم تخزين كود الإدارة الصريح في الكود المصدري المرفوع على المستودع.
-local function hashCode(s: string): number
-	local h = 0
-	for i = 1, #s do
-		h = (h * 31 + string.byte(s, i)) % 1000000007
-	end
-	return h
-end
-
-local function authedAdmin(player: Player, code): boolean
-	-- يُفتح للوحة: المالك/الأدمن/المشرف بكود الدخول الصحيح (نقارن البصمة لا النص الصريح)
-	return weightOf(player) >= RANK_W.mod and hashCode(tostring(code)) == CONFIG.AdminCodeHash
+local function authedAdmin(player: Player): boolean
+	-- الحماية بالرتبة فقط: المالك (ثابت بالـ UserId) + الأدمن + المشرف.
+	-- ألغينا «كود الدخول» نهائياً لأن أي بصمة لكود قصير قابلة للتخمين من المستودع؛
+	-- الرتبة هي الحماية الفعلية ولا تُمنح إلا من مخوّل أعلى.
+	return weightOf(player) >= RANK_W.mod
 end
 
 -- عند الدخول: عيّن سمة الرتبة وبلّغ العميل (بعد جهوزية الجلسة)
@@ -1114,16 +1105,16 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		})
 
 	elseif payload.action == "adminAuth" then
-		-- محاولة فتح لوحة الإدارة بالكود
-		if authedAdmin(player, payload.code) then
+		-- فتح لوحة الإدارة — التحقق بالرتبة فقط (مشرف فأعلى)
+		if authedAdmin(player) then
 			sendAdminPanel(player)
 		else
 			lobbyRemote:FireClient(player, { action = "adminDenied" })
 		end
 
 	elseif payload.action == "admin" then
-		-- تنفيذ أمر إداري (يُتحقق من الصلاحية والكود في كل مرة)
-		if not authedAdmin(player, payload.code) then
+		-- تنفيذ أمر إداري (يُتحقق من الرتبة في كل مرة)
+		if not authedAdmin(player) then
 			lobbyRemote:FireClient(player, { action = "adminDenied" })
 			return
 		end

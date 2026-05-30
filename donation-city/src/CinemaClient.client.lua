@@ -227,8 +227,6 @@ local showAdminPanel -- forward declaration (لوحة الإدارة)
 local showAnnounce   -- forward declaration (إعلان عام على الشاشة)
 local showMaintenance -- forward declaration (شاشة الصيانة)
 local maintenanceFrame -- شاشة الصيانة المعروضة حالياً
-local promptAdminCode -- forward declaration (نافذة إدخال كود الإدارة)
-local adminCode      -- يُحفظ بعد إدخال الكود الصحيح لإعادة استخدامه في الأوامر
 local adminTab = "stats"  -- التبويب المختار حالياً (يُحفظ بين التحديثات)
 local lastAdminData       -- آخر بيانات لوحة الإدارة (لإعادة الفتح بعد نافذة فرعية)
 local myRank = ""         -- رتبتي الإدارية (owner/admin/mod/staff/"") — من السيرفر
@@ -760,8 +758,7 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 	elseif data.action == "adminOpen" then
 		showAdminPanel(data)
 	elseif data.action == "adminDenied" then
-		adminCode = nil
-		showAnnounce({ text = "❌ كود غير صحيح أو لا تملك صلاحية الإدارة." })
+		showAnnounce({ text = "❌ لا تملك صلاحية الإدارة (مشرف فأعلى)." })
 	elseif data.action == "rankInfo" then
 		myRank = typeof(data.rank) == "string" and data.rank or ""
 		if updateAdminButton then updateAdminButton() end
@@ -1336,11 +1333,8 @@ showMaintenance = function(data)
 	adminBtn.MouseButton1Click:Connect(function()
 		-- لا نلغي التجميد ولا الصيانة — فقط نفتح لوحة الإدارة فوق الشاشة لإلغاء الصيانة
 		-- (الشاشة تختفي تلقائياً ما دامت اللوحة مفتوحة، وترجع لو أغلقتها بدون إلغاء الصيانة)
-		if adminCode then
-			lobbyRemote:FireServer({ action = "admin", code = adminCode, cmd = "refresh" })
-		elseif promptAdminCode then
-			promptAdminCode()
-		end
+		-- فتح لوحة الإدارة مباشرة (التحقق بالرتبة في السيرفر)
+		lobbyRemote:FireServer({ action = "adminAuth" })
 	end)
 end
 
@@ -1363,7 +1357,7 @@ showAdminPanel = function(data)
 	end)
 
 	local function cmd(t)
-		t.action = "admin"; t.code = adminCode
+		t.action = "admin"
 		lobbyRemote:FireServer(t)
 	end
 
@@ -2199,39 +2193,6 @@ showAdminPanel = function(data)
 	close.MouseButton1Click:Connect(closeActive)
 end
 
--- نافذة إدخال كود الإدارة
-promptAdminCode = function()
-	local _, card = makeModal(UDim2.fromOffset(360, 230))
-	new("TextLabel", {
-		BackgroundTransparency = 1, Text = "🔒 دخول الإدارة", Font = Enum.Font.GothamBlack, TextSize = 24,
-		TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 40), Position = UDim2.fromOffset(14, 16),
-		TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-	})
-	new("TextLabel", {
-		BackgroundTransparency = 1, Text = "أدخل كود الدخول:", Font = Enum.Font.GothamMedium, TextSize = 15,
-		TextColor3 = SUBT, Size = UDim2.new(1, -28, 0, 24), Position = UDim2.fromOffset(14, 60),
-		TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-	})
-	local box = new("TextBox", {
-		Name = "Code", PlaceholderText = "••••", Text = "", ClearTextOnFocus = true,
-		Font = Enum.Font.GothamBold, TextSize = 22, TextColor3 = TEXT, BackgroundColor3 = CARD,
-		Size = UDim2.new(1, -28, 0, 48), Position = UDim2.fromOffset(14, 92),
-		TextXAlignment = Enum.TextXAlignment.Center, Parent = card,
-	}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = PURPLE, Transparency = 0.3 }) })
-	local go = styledButton(card, {
-		Name = "Go", Text = "دخول", Font = Enum.Font.GothamBlack, TextSize = 17, TextColor3 = Color3.fromRGB(20, 16, 8),
-		BackgroundColor3 = GOLD, Size = UDim2.new(1, -28, 0, 44),
-		Position = UDim2.new(0.5, 0, 1, -14), AnchorPoint = Vector2.new(0.5, 1), Parent = card,
-	})
-	local function submit()
-		adminCode = box.Text
-		closeActive()
-		lobbyRemote:FireServer({ action = "adminAuth", code = adminCode })
-	end
-	go.MouseButton1Click:Connect(submit)
-	box.FocusLost:Connect(function(enter) if enter then submit() end end)
-end
-
 -- زر الإدارة (يظهر للمالك دائماً، وللمشرفين/الأدمن عند منحهم رتبة من السيرفر)
 local adminTabBtn = new("TextButton", {
 	Name = "AdminTab", Text = "👑 إدارة", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = Color3.fromRGB(20, 16, 8),
@@ -2245,7 +2206,8 @@ local adminTabBtn = new("TextButton", {
 })
 adminTabBtn.MouseButton1Click:Connect(function()
 	playSound(SOUNDS.Click, SOUND_VOLUME)
-	promptAdminCode()
+	-- فتح لوحة الإدارة مباشرة (التحقق بالرتبة في السيرفر)
+	lobbyRemote:FireServer({ action = "adminAuth" })
 end)
 
 -- يُحدّث ظهور الزر ونصّه حسب الرتبة القادمة من السيرفر (rankInfo)
