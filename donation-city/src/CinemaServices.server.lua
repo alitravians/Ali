@@ -79,13 +79,23 @@ local function loadVip(userId: number): boolean
 	return (ok and data == true) or false
 end
 
+-- حفظ مع إعادة المحاولة (3 محاولات) — يصمد أمام تذبذب الشبكة/خنق DataStore
+-- خصوصاً عند الخروج (PlayerRemoving) وإغلاق السيرفر (BindToClose).
+local function setAsyncRetry(key: string, value)
+	for _ = 1, 3 do
+		if pcall(function() coinStore:SetAsync(key, value) end) then return true end
+		task.wait(1)
+	end
+	return false
+end
+
 local function saveCoins(userId: number)
 	local s = sessions[userId]
 	if not s or not coinStore then return end
-	pcall(function() coinStore:SetAsync("c_" .. userId, s.coins) end)
-	pcall(function() coinStore:SetAsync("v_" .. userId, s.vip == true) end)
-	pcall(function() coinStore:SetAsync("a_" .. userId, s.ach or {}) end)
-	pcall(function() coinStore:SetAsync("rt_" .. userId, s.rated == true) end)
+	setAsyncRetry("c_" .. userId, s.coins)
+	setAsyncRetry("v_" .. userId, s.vip == true)
+	setAsyncRetry("a_" .. userId, s.ach or {})
+	setAsyncRetry("rt_" .. userId, s.rated == true)
 end
 
 local function setCoins(player: Player, amount: number)
@@ -1562,8 +1572,13 @@ MarketplaceService.ProcessReceipt = function(receipt)
 
 	grantProduct(player, info)
 
+	-- لا نؤكّد الشراء إلا بعد حفظ مفتاح الإيصال فعلاً — وإلا نُعيد NotProcessedYet
+	-- ليُعيد روبلوكس المحاولة لاحقاً (يمنع المنح المزدوج لو انهار السيرفر قبل تثبيت الحفظ)
 	if receiptStore then
-		pcall(function() receiptStore:SetAsync(key, true) end)
+		local saveOk = pcall(function() receiptStore:SetAsync(key, true) end)
+		if not saveOk then
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
@@ -1733,6 +1748,7 @@ end
 
 -- فعاليات دورية (Special Events)
 task.spawn(function()
+	local doubleToken = 0  -- عدّاد أحداث المضاعفة (لتجنب الإنهاء المبكر عند تداخل حدثين)
 	local kinds = {
 		{ kind = "double",    text = "🎉 حدث خاص: دخل الكوينز مضاعف لمدة دقيقة!" },
 		{ kind = "fireworks", text = "🎆 احتفال في ساحة المدينة — استمتعوا بالألعاب النارية!" },
@@ -1748,7 +1764,10 @@ task.spawn(function()
 		end
 		if e.kind == "double" then
 			_G.EventIncomeMult = 2
-			task.delay(60, function() _G.EventIncomeMult = 1 end)
+			-- رمز (token) يمنع إنهاء حدث لاحق مبكّراً: لا نُرجع المضاعف إلى 1 إلا إذا لم يبدأ حدث أحدث
+			doubleToken += 1
+			local myToken = doubleToken
+			task.delay(60, function() if doubleToken == myToken then _G.EventIncomeMult = 1 end end)
 		end
 	end
 end)
