@@ -1847,19 +1847,22 @@ local function surface(parent, face)
 	return sg
 end
 
--- شبّاك التذاكر (يسار المدخل)
+-- شبّاك التذاكر (بين المقعد الأيسر والمدخل حتى لا يتداخل مع المقعد)
 do
-	local bx = -22
+	local bx = -15
 	local bz = -100
 	local base = part("BoxOfficeBase", Vector3.new(11, 4, 3), Vector3.new(bx, GROUND_Y + 2, bz), DARK)
 	part("BoxOfficeTop", Vector3.new(12, 0.5, 3.6), Vector3.new(bx, GROUND_Y + 4.25, bz), Color3.fromRGB(40, 30, 64), Enum.Material.Metal)
-	local sign = part("BoxOfficeSign", Vector3.new(11, 3, 0.4), Vector3.new(bx, GROUND_Y + 7, bz - 1.3), PANEL)
-	part("BoxOfficeTrim", Vector3.new(11.4, 0.3, 0.5), Vector3.new(bx, GROUND_Y + 8.6, bz - 1.3), GOLD, Enum.Material.Neon)
-	local sg = surface(sign, Enum.NormalId.Front)
-	local lbl = Instance.new("TextLabel")
-	lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-	lbl.TextColor3 = GOLD; lbl.Text = "🎟️ شبّاك التذاكر"; lbl.Parent = sg
+	local sign = part("BoxOfficeSign", Vector3.new(11, 3, 0.4), Vector3.new(bx, GROUND_Y + 7, bz), PANEL)
+	part("BoxOfficeTrim", Vector3.new(11.4, 0.3, 0.5), Vector3.new(bx, GROUND_Y + 8.6, bz), GOLD, Enum.Material.Neon)
+	-- نص اللافتة على وجهَي اللوحة (Back نحو الجمهور +Z + Front) حتى لا تظهر معكوسة
+	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front }) do
+		local sg = surface(sign, face)
+		local lbl = Instance.new("TextLabel")
+		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
+		lbl.TextColor3 = GOLD; lbl.Text = "🎟️ شبّاك التذاكر"; lbl.Parent = sg
+	end
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "شبّاك التذاكر"
