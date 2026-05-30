@@ -80,11 +80,11 @@ local gui = new("ScreenGui", {
 	Parent = playerGui,
 })
 
--- 💬 زر مُصغّر (فقاعة) أسفل يسار الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
+-- 💬 زر مُصغّر (فقاعة) أسفل يمين الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
 local launcher = new("TextButton", {
 	Name = "ChatLauncher",
-	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(0, 12, 1, -12),
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, -12, 1, -12),
 	Size = UDim2.new(0, 52, 0, 52),
 	BackgroundColor3 = PURPLE,
 	BackgroundTransparency = 0.05,
@@ -101,8 +101,8 @@ new("UIStroke", { Color = CYAN, Thickness = 1.5, Transparency = 0.3, Parent = la
 -- شارة عدد الرسائل غير المقروءة فوق الفقاعة
 local badge = new("TextLabel", {
 	Name = "Badge",
-	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, 2, 0, -2),
+	AnchorPoint = Vector2.new(0, 0),
+	Position = UDim2.new(0, -2, 0, -2),
 	Size = UDim2.new(0, 22, 0, 22),
 	BackgroundColor3 = Color3.fromRGB(255, 70, 90),
 	Font = Enum.Font.GothamBold,
@@ -117,8 +117,8 @@ new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
 
 local root = new("Frame", {
 	Name = "ChatRoot",
-	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(0, 12, 1, -12),
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, -12, 1, -12),
 	Size = UDim2.new(0, 380, 0, 300),
 	BackgroundColor3 = CARD,
 	BackgroundTransparency = 0.12,
