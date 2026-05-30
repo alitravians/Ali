@@ -926,7 +926,8 @@ local function applyMaintenance(on: boolean, msg: string?)
 			action = "maintenance",
 			on = maintenanceOn,
 			text = maintenanceMsg,
-			admin = isAdmin(p),
+			-- «admin» = من يحق له فتح اللوحة لإلغاء الصيانة (مشرف فأعلى)، لا المالك فقط
+			admin = authedAdmin(p),
 		})
 	end
 end
@@ -957,7 +958,7 @@ end)
 Players.PlayerAdded:Connect(function(p)
 	task.delay(2.5, function()
 		if maintenanceOn and p and p.Parent then
-			lobbyRemote:FireClient(p, { action = "maintenance", on = true, text = maintenanceMsg, admin = isAdmin(p) })
+			lobbyRemote:FireClient(p, { action = "maintenance", on = true, text = maintenanceMsg, admin = authedAdmin(p) })
 		end
 	end)
 end)
