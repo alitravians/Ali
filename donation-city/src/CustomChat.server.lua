@@ -49,6 +49,15 @@ if not pushRemote then
 	pushRemote.Parent = folder
 end
 
+-- 🔒 الدردشة الخاصة (هَمس): العميل يرسل (targetUserId, text)، والسيرفر يبثّ
+-- الرسالة للطرفين فقط (المرسِل + المستقبِل) — لا أحد غيرهما يراها.
+local whisperRemote = folder:FindFirstChild("Whisper")
+if not whisperRemote then
+	whisperRemote = Instance.new("RemoteEvent")
+	whisperRemote.Name = "Whisper"
+	whisperRemote.Parent = folder
+end
+
 ------------------------------------------------------------------------
 -- حدّ السرعة لكل لاعب
 ------------------------------------------------------------------------
@@ -318,4 +327,76 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 	end
 end)
 
-print("[CustomChat] السيرفر جاهز — دردشة مخصّصة مع فلترة رسمية.")
+------------------------------------------------------------------------
+-- 🔒 استقبال رسالة خاصة (هَمس) — تُبثّ للطرفين فقط
+------------------------------------------------------------------------
+local lastWhisper: { [number]: number } = {}
+
+whisperRemote.OnServerEvent:Connect(function(sender: Player, targetUserId, rawText)
+	-- تحقّق صارم من المدخلات (لا نثق بالعميل أبداً)
+	if typeof(rawText) ~= "string" then return end
+	local targetId = tonumber(targetUserId)
+	if not targetId then return end
+	if targetId == sender.UserId then return end  -- لا يهمس لنفسه
+
+	local target = Players:GetPlayerByUserId(targetId)
+	if not target then
+		pushRemote:FireClient(sender, { system = true, text = "⚠️ هذا اللاعب لم يعد في السيرفر." })
+		return
+	end
+
+	local senderRole = roleOf(sender)
+	local canBypassDisabled = (ADMIN_LABEL[senderRole] ~= nil) or senderRole == "staff"
+
+	-- لو الدردشة مغلقة: الإداريون والطاقم فقط يتجاوزون
+	if not chatEnabled and not canBypassDisabled then
+		pushRemote:FireClient(sender, { system = true, text = "🔒 الدردشة مغلقة حالياً من الإدارة." })
+		return
+	end
+
+	-- المكتوم لا يقدر يرسل خاص أيضاً
+	if _G.ChatIsMuted(sender.UserId) then
+		pushRemote:FireClient(sender, { system = true, text = "🚫 أنت مكتوم — لا يمكنك إرسال رسائل خاصة." })
+		return
+	end
+
+	local text = rawText:gsub("[\r\n\t]", " ")
+	text = text:gsub("^%s+", ""):gsub("%s+$", "")
+	if text == "" then return end
+	if #text > MAX_LEN then text = text:sub(1, MAX_LEN) end
+
+	-- حدّ السرعة للهمس
+	local now = os.clock()
+	if now - (lastWhisper[sender.UserId] or 0) < MIN_INTERVAL then return end
+	lastWhisper[sender.UserId] = now
+
+	-- الفلترة الرسمية إلزامية: إن فشلت نحجب ونُعلم المرسِل فقط
+	local shownText = safeFilter(text, sender.UserId)
+	if not shownText or shownText == "" then
+		pushRemote:FireClient(sender, { system = true, text = "⚠️ تعذّرت فلترة رسالتك الآن — لم تُرسَل." })
+		return
+	end
+
+	local senderName = sender.DisplayName ~= "" and sender.DisplayName or sender.Name
+	local targetName = target.DisplayName ~= "" and target.DisplayName or target.Name
+
+	-- نسخة للمرسِل (mine=true) ونسخة للمستقبِل (mine=false) — لا أحد غيرهما
+	pushRemote:FireClient(sender, {
+		private = true, mine = true,
+		fromName = senderName, toName = targetName,
+		fromUserId = sender.UserId, toUserId = targetId,
+		role = senderRole, text = shownText,
+	})
+	pushRemote:FireClient(target, {
+		private = true, mine = false,
+		fromName = senderName, toName = targetName,
+		fromUserId = sender.UserId, toUserId = targetId,
+		role = senderRole, text = shownText,
+	})
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+	lastWhisper[plr.UserId] = nil
+end)
+
+print("[CustomChat] السيرفر جاهز — دردشة مخصّصة مع فلترة رسمية + همس خاص.")

@@ -25,6 +25,7 @@ local folder     = ReplicatedStorage:WaitForChild("CustomChat", 30)
 if not folder then return end
 local sayRemote  = folder:WaitForChild("Say")
 local pushRemote = folder:WaitForChild("Push")
+local whisperRemote = folder:WaitForChild("Whisper")
 
 ------------------------------------------------------------------------
 -- لوحة الألوان (نفس ثيم اللعبة النيون)
@@ -36,6 +37,7 @@ local VIPCOL = Color3.fromRGB(214, 138, 255)
 local CARD   = Color3.fromRGB(18, 14, 32)
 local TEXT   = Color3.fromRGB(244, 242, 255)
 local MUTED  = Color3.fromRGB(170, 165, 200)
+local PINK   = Color3.fromRGB(255, 138, 216)   -- لون الرسائل الخاصة (الهَمس)
 
 local MAX_MESSAGES = 60          -- أقصى عدد رسائل محفوظة بالواجهة
 local MAX_LEN      = 200
@@ -78,19 +80,55 @@ local gui = new("ScreenGui", {
 	Parent = playerGui,
 })
 
+-- 💬 زر مُصغّر (فقاعة) أسفل يسار الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
+local launcher = new("TextButton", {
+	Name = "ChatLauncher",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 12, 1, -12),
+	Size = UDim2.new(0, 52, 0, 52),
+	BackgroundColor3 = PURPLE,
+	BackgroundTransparency = 0.05,
+	Font = Enum.Font.GothamBold,
+	Text = "💬",
+	TextColor3 = TEXT,
+	TextSize = 24,
+	AutoButtonColor = true,
+	Parent = gui,
+})
+new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = launcher })
+new("UIStroke", { Color = CYAN, Thickness = 1.5, Transparency = 0.3, Parent = launcher })
+
+-- شارة عدد الرسائل غير المقروءة فوق الفقاعة
+local badge = new("TextLabel", {
+	Name = "Badge",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, 2, 0, -2),
+	Size = UDim2.new(0, 22, 0, 22),
+	BackgroundColor3 = Color3.fromRGB(255, 70, 90),
+	Font = Enum.Font.GothamBold,
+	Text = "0",
+	TextColor3 = Color3.fromRGB(255, 255, 255),
+	TextSize = 12,
+	Visible = false,
+	ZIndex = 3,
+	Parent = launcher,
+})
+new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
+
 local root = new("Frame", {
 	Name = "ChatRoot",
 	AnchorPoint = Vector2.new(0, 1),
 	Position = UDim2.new(0, 12, 1, -12),
-	Size = UDim2.new(0, 380, 0, 250),
+	Size = UDim2.new(0, 380, 0, 300),
 	BackgroundColor3 = CARD,
-	BackgroundTransparency = 0.15,
+	BackgroundTransparency = 0.12,
 	BorderSizePixel = 0,
+	Visible = false,            -- تبدأ مخفيّة (مصغّرة) — تُفتح من الفقاعة
 	Parent = gui,
 })
 new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = root })
 new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.35, Parent = root })
-new("UISizeConstraint", { MinSize = Vector2.new(240, 140), MaxSize = Vector2.new(520, 420), Parent = root })
+new("UISizeConstraint", { MinSize = Vector2.new(260, 180), MaxSize = Vector2.new(520, 460), Parent = root })
 
 -- شريط العنوان
 local header = new("Frame", {
@@ -128,11 +166,73 @@ local toggleBtn = new("TextButton", {
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = toggleBtn })
 
+------------------------------------------------------------------------
+-- صفّ الوضع: عام / خاص (هَمس) + اختيار المستقبِل
+------------------------------------------------------------------------
+local modeRow = new("Frame", {
+	Name = "ModeRow",
+	Position = UDim2.new(0, 8, 0, 40),
+	Size = UDim2.new(1, -16, 0, 30),
+	BackgroundTransparency = 1,
+	Parent = root,
+})
+
+local publicBtn = new("TextButton", {
+	Name = "PublicBtn",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, 0, 0, 0),
+	Size = UDim2.new(0, 78, 1, 0),
+	BackgroundColor3 = CYAN,
+	BackgroundTransparency = 0.05,
+	Font = Enum.Font.GothamBold,
+	Text = "🌐 عام",
+	TextColor3 = Color3.fromRGB(8, 12, 20),
+	TextSize = 14,
+	AutoButtonColor = true,
+	Parent = modeRow,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 9), Parent = publicBtn })
+
+local privateBtn = new("TextButton", {
+	Name = "PrivateBtn",
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, -84, 0, 0),
+	Size = UDim2.new(0, 84, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(40, 30, 56),
+	BackgroundTransparency = 0.1,
+	Font = Enum.Font.GothamBold,
+	Text = "🔒 خاص",
+	TextColor3 = TEXT,
+	TextSize = 14,
+	AutoButtonColor = true,
+	Parent = modeRow,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 9), Parent = privateBtn })
+
+-- زر اختيار اللاعب المستقبِل (يظهر فقط في وضع الخاص)
+local targetBtn = new("TextButton", {
+	Name = "TargetBtn",
+	Position = UDim2.new(0, 0, 0, 0),
+	Size = UDim2.new(1, -176, 1, 0),
+	BackgroundColor3 = Color3.fromRGB(28, 22, 48),
+	BackgroundTransparency = 0.1,
+	Font = Enum.Font.GothamMedium,
+	Text = "👤 اختر لاعباً…",
+	TextColor3 = PINK,
+	TextSize = 13,
+	TextTruncate = Enum.TextTruncate.AtEnd,
+	AutoButtonColor = true,
+	Visible = false,
+	Parent = modeRow,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 9), Parent = targetBtn })
+new("UIStroke", { Color = PINK, Thickness = 1, Transparency = 0.5, Parent = targetBtn })
+
 -- قائمة الرسائل
 local list = new("ScrollingFrame", {
 	Name = "Messages",
-	Position = UDim2.new(0, 8, 0, 40),
-	Size = UDim2.new(1, -16, 1, -88),
+	Position = UDim2.new(0, 8, 0, 76),
+	Size = UDim2.new(1, -16, 1, -124),
 	BackgroundColor3 = Color3.fromRGB(10, 8, 20),
 	BackgroundTransparency = 0.35,
 	BorderSizePixel = 0,
@@ -281,6 +381,36 @@ local function addMessage(name: string, text: string, nameColor: Color3, opts)
 		return lbl
 	end
 
+	-- 🔒 رسالة خاصة (همس): إطار وردي مميّز يوضّح أنها بينك وبين الطرف الآخر فقط
+	if opts.private then
+		local lbl = new("TextLabel", {
+			Name = "PrivateMsg",
+			LayoutOrder = orderCounter,
+			Size = UDim2.new(1, 0, 0, 0),
+			AutomaticSize = Enum.AutomaticSize.Y,
+			BackgroundColor3 = Color3.fromRGB(40, 20, 42),
+			BackgroundTransparency = 0.1,
+			Font = Enum.Font.GothamMedium,
+			RichText = true,
+			Text = string.format('<font color="%s">🔒 %s</font>  <font color="%s">%s</font>',
+				colorHex(PINK), escapeRich(name), colorHex(TEXT), escapeRich(text)),
+			TextColor3 = TEXT,
+			TextSize = 14,
+			TextWrapped = true,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			TextYAlignment = Enum.TextYAlignment.Top,
+			Parent = list,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = lbl })
+		new("UIStroke", { Color = PINK, Thickness = 1, Transparency = 0.45, Parent = lbl })
+		new("UIPadding", {
+			PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+			PaddingTop = UDim.new(0, 5), PaddingBottom = UDim.new(0, 5), Parent = lbl,
+		})
+		trimOldMessages(); scrollToBottom()
+		return lbl
+	end
+
 	-- رسالة نظام: رمادية مائلة بدون وسم مرسِل
 	if opts.system then
 		local lbl = new("TextLabel", {
@@ -379,6 +509,143 @@ local function setMuted(on: boolean, remaining)
 end
 
 ------------------------------------------------------------------------
+-- 🔒 وضع الخاص (الهَمس): اختيار اللاعب + تبديل الوضع
+------------------------------------------------------------------------
+local privateMode = false
+local whisperTargetId: number? = nil
+local whisperTargetName: string? = nil
+
+-- نافذة اختيار اللاعب (تظهر فوق قائمة الرسائل)
+local picker = new("Frame", {
+	Name = "PlayerPicker",
+	Position = UDim2.new(0, 8, 0, 76),
+	Size = UDim2.new(1, -16, 1, -124),
+	BackgroundColor3 = Color3.fromRGB(14, 10, 26),
+	BackgroundTransparency = 0.02,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 5,
+	Parent = root,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = picker })
+new("UIStroke", { Color = PINK, Thickness = 1.2, Transparency = 0.4, Parent = picker })
+new("TextLabel", {
+	Name = "PickerTitle",
+	Size = UDim2.new(1, -12, 0, 26),
+	Position = UDim2.new(0, 6, 0, 4),
+	BackgroundTransparency = 1,
+	Font = Enum.Font.GothamBold,
+	Text = "🔒 اختر لاعباً للدردشة الخاصة",
+	TextColor3 = PINK,
+	TextSize = 13,
+	TextXAlignment = Enum.TextXAlignment.Right,
+	ZIndex = 6,
+	Parent = picker,
+})
+local pickerList = new("ScrollingFrame", {
+	Name = "PickerList",
+	Position = UDim2.new(0, 6, 0, 32),
+	Size = UDim2.new(1, -12, 1, -38),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = PINK,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollingDirection = Enum.ScrollingDirection.Y,
+	ZIndex = 6,
+	Parent = picker,
+})
+new("UIListLayout", {
+	FillDirection = Enum.FillDirection.Vertical,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Padding = UDim.new(0, 4),
+	Parent = pickerList,
+})
+
+local function setTarget(plr: Player?)
+	if plr then
+		whisperTargetId = plr.UserId
+		whisperTargetName = plr.DisplayName ~= "" and plr.DisplayName or plr.Name
+		targetBtn.Text = "👤 إلى: " .. whisperTargetName
+		box.PlaceholderText = "خاص إلى " .. whisperTargetName .. "…"
+	else
+		whisperTargetId = nil
+		whisperTargetName = nil
+		targetBtn.Text = "👤 اختر لاعباً…"
+		box.PlaceholderText = "اكتب رسالتك…"
+	end
+end
+
+local function rebuildPicker()
+	for _, c in ipairs(pickerList:GetChildren()) do
+		if c:IsA("TextButton") then c:Destroy() end
+	end
+	local others = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then table.insert(others, plr) end
+	end
+	if #others == 0 then
+		local empty = new("TextButton", {
+			Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1,
+			Font = Enum.Font.GothamMedium, Text = "لا يوجد لاعبون آخرون حالياً",
+			TextColor3 = MUTED, TextSize = 12, AutoButtonColor = false, ZIndex = 6,
+			Parent = pickerList,
+		})
+		return
+	end
+	for i, plr in ipairs(others) do
+		local b = new("TextButton", {
+			Name = "P_" .. plr.UserId,
+			LayoutOrder = i,
+			Size = UDim2.new(1, 0, 0, 32),
+			BackgroundColor3 = Color3.fromRGB(30, 22, 48),
+			BackgroundTransparency = 0.1,
+			Font = Enum.Font.GothamMedium,
+			Text = "👤 " .. (plr.DisplayName ~= "" and plr.DisplayName or plr.Name),
+			TextColor3 = TEXT, TextSize = 13,
+			TextXAlignment = Enum.TextXAlignment.Right,
+			AutoButtonColor = true, ZIndex = 6,
+			Parent = pickerList,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = b })
+		new("UIPadding", { PaddingRight = UDim.new(0, 8), PaddingLeft = UDim.new(0, 8), Parent = b })
+		b.MouseButton1Click:Connect(function()
+			setTarget(plr)
+			picker.Visible = false
+		end)
+	end
+end
+
+local function setPrivateMode(on: boolean)
+	privateMode = on
+	publicBtn.BackgroundColor3 = on and Color3.fromRGB(40, 30, 56) or CYAN
+	publicBtn.TextColor3 = on and TEXT or Color3.fromRGB(8, 12, 20)
+	privateBtn.BackgroundColor3 = on and PINK or Color3.fromRGB(40, 30, 56)
+	privateBtn.TextColor3 = on and Color3.fromRGB(20, 8, 18) or TEXT
+	targetBtn.Visible = on
+	if on then
+		setTarget(nil)
+		rebuildPicker()
+		picker.Visible = true
+	else
+		picker.Visible = false
+		box.PlaceholderText = "اكتب رسالتك…"
+	end
+end
+
+publicBtn.MouseButton1Click:Connect(function() setPrivateMode(false) end)
+privateBtn.MouseButton1Click:Connect(function() setPrivateMode(true) end)
+targetBtn.MouseButton1Click:Connect(function()
+	rebuildPicker()
+	picker.Visible = not picker.Visible
+end)
+Players.PlayerRemoving:Connect(function(plr)
+	if whisperTargetId == plr.UserId then setTarget(nil) end
+	if picker.Visible then rebuildPicker() end
+end)
+
+------------------------------------------------------------------------
 -- الإرسال
 ------------------------------------------------------------------------
 local function sendMessage()
@@ -387,6 +654,18 @@ local function sendMessage()
 	text = text:gsub("^%s+", ""):gsub("%s+$", "")
 	if text == "" then return end
 	if #text > MAX_LEN then text = text:sub(1, MAX_LEN) end
+
+	if privateMode then
+		if not whisperTargetId then
+			addMessage("النظام", "👤 اختر لاعباً أولاً لإرسال رسالة خاصة.", PINK, { system = true })
+			rebuildPicker(); picker.Visible = true
+			return
+		end
+		box.Text = ""
+		whisperRemote:FireServer(whisperTargetId, text)
+		return
+	end
+
 	box.Text = ""
 	sayRemote:FireServer(text)
 end
@@ -400,6 +679,49 @@ box.FocusLost:Connect(function(enterPressed)
 		task.defer(function()
 			box:CaptureFocus()
 		end)
+	end
+end)
+
+------------------------------------------------------------------------
+-- 💬 فتح/تصغير اللوحة عبر الفقاعة + شارة الرسائل غير المقروءة
+------------------------------------------------------------------------
+local isOpen = false
+local unread = 0
+
+local function openChat()
+	isOpen = true
+	unread = 0
+	badge.Visible = false
+	launcher.Visible = false
+	root.Visible = true
+	root.Size = UDim2.new(0, 380, 0, 0)
+	TweenService:Create(root, TweenInfo.new(0.18, Enum.EasingStyle.Quad),
+		{ Size = UDim2.new(0, 380, 0, 300) }):Play()
+end
+
+local function closeChat()
+	isOpen = false
+	root.Visible = false
+	launcher.Visible = true
+	if privateMode then picker.Visible = false end
+end
+
+local function notifyUnread()
+	if isOpen then return end
+	unread += 1
+	badge.Text = unread > 9 and "9+" or tostring(unread)
+	badge.Visible = true
+end
+
+launcher.MouseButton1Click:Connect(openChat)
+toggleBtn.MouseButton1Click:Connect(closeChat)
+
+-- اختصار: مفتاح / يفتح اللوحة وصندوق الكتابة (على الكمبيوتر)
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then return end
+	if input.KeyCode == Enum.KeyCode.Slash then
+		if not isOpen then openChat() end
+		task.defer(function() box:CaptureFocus() end)
 	end
 end)
 
@@ -432,6 +754,23 @@ pushRemote.OnClientEvent:Connect(function(data)
 		return
 	end
 
+	-- 🔒 رسالة خاصة (همس) — يراها الطرفان فقط
+	if data.private then
+		local ptext = typeof(data.text) == "string" and data.text or ""
+		if ptext == "" then return end
+		local from = typeof(data.fromName) == "string" and data.fromName or "لاعب"
+		local to   = typeof(data.toName) == "string" and data.toName or "لاعب"
+		local label
+		if data.mine then
+			label = "[خاص] أنت ➜ " .. to
+		else
+			label = "[خاص] " .. from .. " ➜ أنت"
+		end
+		addMessage(label, ptext, PINK, { private = true })
+		notifyUnread()
+		return
+	end
+
 	local name = typeof(data.name) == "string" and data.name or "لاعب"
 	local text = typeof(data.text) == "string" and data.text or ""
 	if text == "" then return end
@@ -439,6 +778,7 @@ pushRemote.OnClientEvent:Connect(function(data)
 	-- رسالة إدارية ($) — تنسيق مميّز + صوت
 	if typeof(data.adminMsg) == "string" and data.adminMsg ~= "" then
 		addMessage(name, text, GOLD, { admin = data.adminMsg })
+		notifyUnread()
 		return
 	end
 
@@ -460,30 +800,7 @@ pushRemote.OnClientEvent:Connect(function(data)
 	end
 
 	addMessage(tag .. name, text, col)
-end)
-
-------------------------------------------------------------------------
--- طيّ / فتح
-------------------------------------------------------------------------
-local collapsed = false
-local OPEN_SIZE = UDim2.new(0, 380, 0, 250)
-
-toggleBtn.MouseButton1Click:Connect(function()
-	collapsed = not collapsed
-	list.Visible = not collapsed
-	inputRow.Visible = not collapsed
-	toggleBtn.Text = collapsed and "▢" or "—"
-	local goal = collapsed and UDim2.new(0, 380, 0, 36) or OPEN_SIZE
-	TweenService:Create(root, TweenInfo.new(0.2, Enum.EasingStyle.Quad), { Size = goal }):Play()
-end)
-
--- اختصار: مفتاح / يفتح صندوق الكتابة (مثل دردشة روبلوكس) على الكمبيوتر
-UserInputService.InputBegan:Connect(function(input, processed)
-	if processed then return end
-	if input.KeyCode == Enum.KeyCode.Slash then
-		if collapsed then toggleBtn:Activate() end
-		task.defer(function() box:CaptureFocus() end)
-	end
+	notifyUnread()
 end)
 
 -- رسالة ترحيب أولى

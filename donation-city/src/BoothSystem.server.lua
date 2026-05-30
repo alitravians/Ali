@@ -279,7 +279,9 @@ local function indexBooth(key: string)
 		title.Position = UDim2.fromOffset(10, 12)
 		title.Size = UDim2.new(1, -20, 0, 34)
 		title.Font = Enum.Font.GothamBlack
-		title.TextScaled = true
+		title.TextScaled = false
+		title.TextSize = 18
+		title.TextWrapped = true
 		title.TextColor3 = Color3.fromRGB(244, 242, 255)
 		title.Text = key .. " Booth"
 		title.Parent = card
@@ -290,7 +292,9 @@ local function indexBooth(key: string)
 		status.Position = UDim2.new(0, 10, 1, -40)
 		status.Size = UDim2.new(1, -20, 0, 30)
 		status.Font = Enum.Font.GothamBold
-		status.TextScaled = true
+		status.TextScaled = false
+		status.TextSize = 14
+		status.TextWrapped = true
 		status.TextColor3 = Color3.fromRGB(120, 255, 160)
 		status.Text = "✅ متاح — اضغط E للحجز"
 		status.Parent = card
@@ -301,7 +305,9 @@ local function indexBooth(key: string)
 		hint.Position = UDim2.new(0, 80, 0, 46)
 		hint.Size = UDim2.new(1, -90, 0, 26)
 		hint.Font = Enum.Font.Gotham
-		hint.TextScaled = true
+		hint.TextScaled = false
+		hint.TextSize = 12
+		hint.TextWrapped = true
 		hint.TextColor3 = Color3.fromRGB(182, 176, 214)
 		hint.Text = ""
 		hint.Visible = false
