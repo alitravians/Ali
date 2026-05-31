@@ -8998,6 +8998,16 @@ Players.PlayerRemoving:Connect(function(player)
 			endMatch("B")
 		elseif remainB == 0 and remainA > 0 then
 			endMatch("A")
+		elseif remainA == 0 and remainB == 0 then
+			-- كل اللاعبين غادروا بنفس اللحظة — نعيد الملعب للحالة الأولية
+			match.phase = "idle"
+			match.scoreA, match.scoreB = 0, 0
+			match.server, match.lastTouch = "A", nil
+			match.achA, match.achB = false, false
+			serveToken += 1   -- يلغي أي إرسال مجدول
+			ball.Anchored = true
+			ball.CFrame = CFrame.new(VCX, FLOOR_Y + 7, NET_Z)
+			updateBoard()
 		end
 	end
 end)
