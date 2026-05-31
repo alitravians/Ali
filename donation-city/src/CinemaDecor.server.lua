@@ -35,6 +35,12 @@ task.spawn(function()
 	local okBB, cf, size = pcall(function() return fountain:GetBoundingBox() end)
 	if not okBB or not cf then return end
 
+	-- النافورة الجديدة (Fountain of Sidon) ماؤها حيّ ذاتياً عبر Beams (TextureSpeed)
+	-- فلا نضيف فوقها رذاذ جسيمات ولا نلوّن قطعها Neon (كان ذلك حلاً لنافورة منحوتة
+	-- ثابتة بلا Beams). نكتفي بالصوت الناعم. لو كانت النافورة بلا Beams (موديل قديم)
+	-- نُفعّل الرذاذ + تموّج الأعمدة كبديل تلقائي.
+	local selfAnimated = fountain:FindFirstChildWhichIsA("Beam", true) ~= nil
+
 	-- جزء مُصدِر غير مرئي قرب أعلى النافورة (محور المركز)
 	local top = cf.Position + Vector3.new(0, size.Y * 0.28, 0)
 	local emitter = Instance.new("Part")
@@ -48,6 +54,7 @@ task.spawn(function()
 	emitter.Transparency = 1
 	emitter.Parent = fountain
 
+	if not selfAnimated then
 	-- ماء النافورة الحيّ: نوّافات جسيمات واضحة (تطلع لأعلى وتتقوّس وتتساقط).
 	-- الجسيمات تتحرّك دائماً فيُرى الماء «حيّاً» مهما كانت هندسة الموديل ثابتة.
 	local WATER1 = Color3.fromRGB(215, 242, 255)
@@ -97,6 +104,7 @@ task.spawn(function()
 	mist.Speed = NumberRange.new(0.5, 1.4)
 	mist.SpreadAngle = Vector2.new(50, 50)
 	mist.Parent = emitter
+	end  -- if not selfAnimated (رذاذ + ضباب)
 
 	-- صوت ماء ناعم ٣D محلي: يُسمع وأنت قريب، واطي وغير مزعج.
 	-- نجرّب عدة أصوات ماء ونثبّت أول واحد يتحمّل فعلاً (تفادي قيود خصوصية الصوت).
@@ -126,10 +134,10 @@ task.spawn(function()
 		warn("[CinemaDecor] fountain water sound failed to load (audio privacy?)")
 	end
 
+	if not selfAnimated then
 	------------------------------------------------------------------
-	-- حيوية الماء: ماء النافورة منحوت ثابت في الموديل، فنعطيه إحساس
-	-- «تدفّق» بموجة شفافية تنزل من الأعلى للأسفل عبر أعمدة الماء + تمايل
-	-- رأسي بسيط جداً. خفيف (تحديث ~٢٠ مرة/ث) فلا يسبب لاق.
+	-- حيوية الماء (بديل للنافورة المنحوتة الثابتة فقط): موجة شفافية تنزل
+	-- من الأعلى للأسفل عبر أعمدة الماء + تمايل رأسي بسيط. خفيف (~٢٠ مرة/ث).
 	------------------------------------------------------------------
 	local streams = {}              -- أعمدة/أقواس الماء (قطع شفافة رفيعة)
 	local minY, maxY = math.huge, -math.huge
@@ -165,6 +173,7 @@ task.spawn(function()
 			end
 		end)
 	end
+	end  -- if not selfAnimated (تموّج الأعمدة)
 end)
 
 ----------------------------------------------------------------------

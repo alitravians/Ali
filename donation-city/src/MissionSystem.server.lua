@@ -45,7 +45,8 @@ local POOL = {
 	{ key = "parkour_done",cat = "parkour",event = "parkour_done",target = 1,   coins = 250, desc = "أكمل مسار الباركور كاملاً" },
 	-- 👥 اجتماعي
 	{ key = "chat_msg",    cat = "social", event = "chat_msg",    target = 1,   coins = 50,  desc = "أرسل رسالة في الدردشة" },
-	{ key = "team_form",   cat = "social", event = "team_form",   target = 1,   coins = 50,  desc = "كوّن فريقاً في كرة الطائرة" },
+	-- ملاحظة: مهمة «تكوين فريق كرة الطائرة» أُزيلت لأن نظام الكرة الطائرة غير
+	-- مُفعّل في اللعبة، فكانت مهمة يومية مستحيلة الإكمال تعطّل تقدّم اللاعب.
 }
 local POOL_BY_KEY = {}
 for _, m in ipairs(POOL) do POOL_BY_KEY[m.key] = m end
