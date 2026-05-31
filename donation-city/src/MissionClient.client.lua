@@ -114,7 +114,7 @@ local scroll = new("ScrollingFrame", {
 -- بناء صف مهمة
 ----------------------------------------------------------------------
 local CAT_EMOJI = {
-	cinema = "🎬", booth = "🛍️", beach = "🏖️", volley = "🏐", parkour = "🧗", social = "👥",
+	cinema = "🎬", booth = "🛍️", beach = "🏖️", parkour = "🧗", social = "👥",
 }
 
 local function makeRow(order, m)
