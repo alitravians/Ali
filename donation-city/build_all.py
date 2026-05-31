@@ -2,6 +2,8 @@
 # Unified builder: replaces ALL embedded script sources in the rbxlx from src/
 # by locating a unique marker inside each script's CDATA block.
 import sys
+import shutil
+import os
 
 SRC = "DonationCity_FINAL.rbxlx"
 
@@ -60,6 +62,11 @@ for path, marker in UPDATES:
     content = content[:start_inner] + source + content[end_inner:]
     print(f"updated {marker}: {len(old)} -> {len(source)} chars")
 
-with open(SRC, "w", encoding="utf-8") as f:
+# نسخة احتياطية قبل الكتابة + كتابة ذرّية (ملف مؤقّت ثم استبدال) — تحمي من تلف الملف لو انقطعت العملية
+if os.path.exists(SRC):
+    shutil.copy(SRC, SRC + ".bak")
+tmp = SRC + ".tmp"
+with open(tmp, "w", encoding="utf-8") as f:
     f.write(content)
+os.replace(tmp, SRC)
 print(f"file now {len(content)} bytes")
