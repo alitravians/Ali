@@ -154,17 +154,18 @@ for _, n in ipairs(nodes) do
 			period = n.period, phase = math.random() * 1.0,
 			hx = n.size.X / 2 + 1.2, hz = n.size.Z / 2 + 1.2, lastPos = n.pos }
 	elseif n.blink then
-		local warnT = 0.4
+		local warnT = 0.9   -- تحذير أطول (وميض) قبل الاختفاء — توقيت عادل
 		blinkers[#blinkers + 1] = { part = p, onT = n.blink.on, warnT = warnT, offT = n.blink.off,
 			cycle = n.blink.on + warnT + n.blink.off, phase = math.random() * 3 }
 	end
 	if n.beam then
 		-- عقبة دوّارة منخفضة لا تتجاوز حدود المنصّة (لا تقذف اللاعب للفراغ) وبطيئة يُمكن قفزها
 		local len = math.max(3, n.size.X - 1)
-		local barCenter = n.pos + V(0, 1.4, 0)
-		local bar = newPart({ Name = "Obstacle", Size = V(len, 0.6, 0.6),
+		local barCenter = n.pos + V(0, 1.2, 0)
+		local bar = newPart({ Name = "Obstacle", Size = V(len, 0.5, 0.5),
 			Position = barCenter, Color = C_OBST, Material = Enum.Material.Neon })
-		rotators[#rotators + 1] = { part = bar, center = barCenter, speed = 45 }
+		bar.CanCollide = false   -- لا تصدّ اللاعب ولا تقذفه للفراغ — مجرّد عائق يُقفز فوقه توقيتاً
+		rotators[#rotators + 1] = { part = bar, center = barCenter, speed = 30 }
 	end
 end
 
@@ -185,6 +186,24 @@ end
 
 local finishPad = newPart({ Name = "FinishPad", Size = V(8, 1, 8),
 	Position = FINISH_POS, Color = GOLD, Material = Enum.Material.Neon })
+
+----------------------------------------------------------------------
+-- بوابة دخول قرب الانطلاق الرئيسي: قف عليها فتنتقل مباشرة لبداية المسار
+-- (تجعل الباركور سهل الوصول من الساحة — «يناسب الماب»)
+----------------------------------------------------------------------
+local entryPad = newPart({ Name = "ParkourEntry", Size = V(10, 0.6, 10),
+	Position = V(0, 2.2, 50), Color = C_EASY, Material = Enum.Material.Neon })
+do
+	local sign = newPart({ Name = "ParkourEntrySign", Size = V(8, 3.4, 0.4),
+		Position = V(0, 5.4, 50), Color = Color3.fromRGB(24, 30, 46) })
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.CanvasSize = Vector2.new(720, 300)
+		sg.LightInfluence = 0; sg.Parent = sign
+		local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
+		lbl.TextColor3 = GOLD; lbl.Text = "🧗 الباركور\n<font size=\"30\">قف هنا للانتقال للبداية</font>"; lbl.Parent = sg
+	end
+end
 
 ----------------------------------------------------------------------
 -- نقاط الحفظ المرئية (Pads)
@@ -361,6 +380,16 @@ end
 hookTouch(course:FindFirstChild("Plat_S1"), function(player)
 	local st = runState[player.UserId]
 	if not (st and st.inRun) then startRun(player) end
+end)
+
+-- بوابة الدخول: تنقل اللاعب لبداية المسار وتبدأ الجولة (بمهلة بسيطة لمنع التكرار)
+local entryCooldown = {}
+hookTouch(entryPad, function(player)
+	if entryCooldown[player.UserId] then return end
+	entryCooldown[player.UserId] = true
+	teleportTo(player, CFrame.new(START_POS + V(0, 4, 0)))
+	startRun(player)
+	task.delay(2, function() entryCooldown[player.UserId] = nil end)
 end)
 
 for i, pad in ipairs(cpPads) do
