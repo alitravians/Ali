@@ -20,6 +20,7 @@ local remotes = ReplicatedStorage:WaitForChild("ParkourRemotes", 30)
 if not remotes then return end
 local progressRemote = remotes:WaitForChild("Progress", 30)
 if not progressRemote then return end
+local stopRemote = remotes:WaitForChild("Stop", 30)
 
 ----------------------------------------------------------------------
 -- بناء الواجهة
@@ -28,33 +29,51 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "ParkourHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
--- شريط التقدّم (أعلى الوسط)
+-- شريط التقدّم (أعلى الوسط) — مصغّر ليأخذ مساحة أقل من الشاشة
 local bar = Instance.new("Frame")
 bar.AnchorPoint = Vector2.new(0.5, 0)
-bar.Position = UDim2.new(0.5, 0, 0, 12)
-bar.Size = UDim2.fromOffset(360, 64)
+bar.Position = UDim2.new(0.5, 0, 0, 10)
+bar.Size = UDim2.fromOffset(248, 46)
 bar.BackgroundColor3 = Color3.fromRGB(18, 20, 34)
 bar.BackgroundTransparency = 0.1
 bar.Visible = false
 bar.Parent = gui
-local barCorner = Instance.new("UICorner"); barCorner.CornerRadius = UDim.new(0, 14); barCorner.Parent = bar
-local barStroke = Instance.new("UIStroke"); barStroke.Color = Color3.fromRGB(255, 205, 70); barStroke.Thickness = 2; barStroke.Parent = bar
+local barCorner = Instance.new("UICorner"); barCorner.CornerRadius = UDim.new(0, 10); barCorner.Parent = bar
+local barStroke = Instance.new("UIStroke"); barStroke.Color = Color3.fromRGB(255, 205, 70); barStroke.Thickness = 1.5; barStroke.Parent = bar
 
 local title = Instance.new("TextLabel")
-title.BackgroundTransparency = 1; title.Position = UDim2.new(0, 10, 0, 6); title.Size = UDim2.new(1, -20, 0, 24)
+title.BackgroundTransparency = 1; title.Position = UDim2.new(0, 8, 0, 4); title.Size = UDim2.new(1, -16, 0, 17)
 title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.TextXAlignment = Enum.TextXAlignment.Center
 title.TextColor3 = Color3.fromRGB(255, 215, 90); title.Text = "🧗 الباركور"; title.Parent = bar
 
 local info = Instance.new("TextLabel")
-info.BackgroundTransparency = 1; info.Position = UDim2.new(0, 10, 0, 32); info.Size = UDim2.new(1, -20, 0, 26)
+info.BackgroundTransparency = 1; info.Position = UDim2.new(0, 8, 0, 22); info.Size = UDim2.new(1, -16, 0, 18)
 info.Font = Enum.Font.GothamMedium; info.TextScaled = true; info.TextXAlignment = Enum.TextXAlignment.Center
 info.TextColor3 = Color3.fromRGB(235, 235, 245); info.Text = ""; info.Parent = bar
 
 -- شريط النسبة المئوية (خط سفلي)
 local pct = Instance.new("Frame")
 pct.AnchorPoint = Vector2.new(0, 1); pct.Position = UDim2.new(0, 0, 1, 0)
-pct.Size = UDim2.new(0, 0, 0, 5); pct.BackgroundColor3 = Color3.fromRGB(90, 200, 120); pct.BorderSizePixel = 0
+pct.Size = UDim2.new(0, 0, 0, 4); pct.BackgroundColor3 = Color3.fromRGB(90, 200, 120); pct.BorderSizePixel = 0
 pct.Parent = bar
+
+-- زر «إيقاف الباركور / خروج» (يظهر فقط أثناء اللعب)
+local stopBtn = Instance.new("TextButton")
+stopBtn.AnchorPoint = Vector2.new(0.5, 0)
+stopBtn.Position = UDim2.new(0.5, 0, 0, 60)
+stopBtn.Size = UDim2.fromOffset(168, 28)
+stopBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
+stopBtn.BackgroundTransparency = 0.05
+stopBtn.Font = Enum.Font.GothamBold; stopBtn.TextSize = 15
+stopBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBtn.Text = "❌ إيقاف الباركور"
+stopBtn.AutoButtonColor = true
+stopBtn.Visible = false
+stopBtn.Parent = gui
+local sbC = Instance.new("UICorner"); sbC.CornerRadius = UDim.new(0, 9); sbC.Parent = stopBtn
+stopBtn.Activated:Connect(function()
+	if stopRemote then stopRemote:FireServer() end
+end)
 
 ----------------------------------------------------------------------
 -- نافذة الإكمال
@@ -99,16 +118,16 @@ local STAGE_NAMES = { [1] = "سهلة", [2] = "متوسطة", [3] = "صعبة", 
 progressRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
 	if data.state == "finish" then
-		active = false; bar.Visible = false
+		active = false; bar.Visible = false; stopBtn.Visible = false
 		showFinish(fmtTime(data.time or 0), data.reward or 0)
 		return
 	end
 	if data.state == "idle" then
-		active = false; bar.Visible = false
+		active = false; bar.Visible = false; stopBtn.Visible = false
 		return
 	end
 	-- run
-	active = true; bar.Visible = true
+	active = true; bar.Visible = true; stopBtn.Visible = true
 	baseTime = data.time or 0; baseClock = os.clock()
 	curStage = data.stage or 1; curCp = data.cp or 1; curTotal = data.total or 1; curPct = data.percent or 0
 	pct.BackgroundColor3 = STAGE_COLORS[curStage] or STAGE_COLORS[1]

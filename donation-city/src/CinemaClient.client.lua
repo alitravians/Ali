@@ -106,8 +106,10 @@ end
 -- يحسب موضع كل زر يدوياً حسب LayoutOrder → يستحيل التداخل مهما حصل.
 local DOCK_GAP = 10
 local dockSide: { [Instance]: number } = {}
+local dockCenterY: { [Instance]: number } = {}   -- كسر ارتفاع مركز الرصيف (0.5 = وسط)
 local function relayoutDock(dock: Instance)
 	local side = dockSide[dock] or -1
+	local cy = dockCenterY[dock] or 0.5
 	local btns = {}
 	for _, c in ipairs(dock:GetChildren()) do
 		if c:IsA("GuiButton") then table.insert(btns, c) end
@@ -120,7 +122,7 @@ local function relayoutDock(dock: Instance)
 	for _, b in ipairs(btns) do
 		local h = b.Size.Y.Offset
 		b.AnchorPoint = Vector2.new(side < 0 and 0 or 1, 0.5)
-		b.Position = UDim2.new(side < 0 and 0 or 1, 0, 0.5, y + h / 2)
+		b.Position = UDim2.new(side < 0 and 0 or 1, 0, cy, y + h / 2)
 		y += h + DOCK_GAP
 	end
 end
@@ -146,6 +148,8 @@ local function makeDock(side: number)
 end
 local leftDock  = makeDock(-1)
 local rightDock = makeDock(1)
+-- «المزيد» وأزرار اليمين أعلى على الشاشة (لا وسط)
+dockCenterY[rightDock] = 0.34
 
 local activeRoot: Instance? = nil
 
@@ -1162,27 +1166,28 @@ end
 local announceFrame
 showAnnounce = function(data)
 	if announceFrame and announceFrame.Parent then announceFrame:Destroy() end
+	-- يظهر على اليسار بجانب زر المهام اليومية (ينزلق من خارج اليسار)
 	local frame = new("Frame", {
-		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, -90), Size = UDim2.new(0, 560, 0, 64), ZIndex = 80, Parent = gui,
+		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, -400, 0.5, 150), Size = UDim2.new(0, 360, 0, 58), ZIndex = 80, Parent = gui,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 16) }),
 		new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.1 }),
 		new("UIGradient", { Rotation = 20, Color = ColorSequence.new(CARD2, CARD) }),
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = tostring(data.text or ""), Font = Enum.Font.GothamBlack,
-			TextSize = 20, TextColor3 = GOLD, TextScaled = false, TextWrapped = true,
-			Size = UDim2.new(1, -28, 1, -10), Position = UDim2.fromOffset(14, 5), ZIndex = 81,
+			TextSize = 18, TextColor3 = GOLD, TextScaled = false, TextWrapped = true,
+			Size = UDim2.new(1, -24, 1, -10), Position = UDim2.fromOffset(12, 5), ZIndex = 81,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		}),
 	})
 	announceFrame = frame
 	TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Position = UDim2.new(0.5, 0, 0, 18) }):Play()
+		{ Position = UDim2.new(0, 12, 0.5, 150) }):Play()
 	task.delay(5, function()
 		if frame and frame.Parent and announceFrame == frame then
 			local tw = TweenService:Create(frame, TweenInfo.new(0.4),
-				{ Position = UDim2.new(0.5, 0, 0, -90) })
+				{ Position = UDim2.new(0, -400, 0.5, 150) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
 		end

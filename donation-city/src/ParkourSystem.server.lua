@@ -36,6 +36,10 @@ local progressRemote = remotes:FindFirstChild("Progress")
 if not progressRemote then
 	progressRemote = Instance.new("RemoteEvent"); progressRemote.Name = "Progress"; progressRemote.Parent = remotes
 end
+local stopRemote = remotes:FindFirstChild("Stop")
+if not stopRemote then
+	stopRemote = Instance.new("RemoteEvent"); stopRemote.Name = "Stop"; stopRemote.Parent = remotes
+end
 
 ----------------------------------------------------------------------
 -- DataStores (best time + completions + leaderboards)
@@ -60,7 +64,10 @@ local STAGE_COLOR = { [1] = C_EASY, [2] = C_MED, [3] = C_HARD, [4] = C_LEGEND }
 
 -- مركز الباركور ونطاق التفعيل (لإيقاف الحركة عند الخمول)
 local COURSE_CENTER = V(-133, 18, 40)
-local ACTIVE_RANGE2 = 155 * 155
+-- نطاق ضيّق يغطّي المسار كاملاً (~50 ستد من المركز) فقط؛ يبقى المحرّك خاملاً
+-- تماماً (صفر استهلاك) ما لم يكن لاعب فعلاً عند الباركور — لا عند الساحة/الانطلاق.
+local ACTIVE_RANGE2 = 75 * 75
+local EXIT_POS = V(0, 5, 45)   -- نقطة خروج آمنة (قرب الانطلاق الرئيسي بعيداً عن المسار)
 
 local course = Instance.new("Model")
 course.Name = "ParkourCourse"
@@ -220,6 +227,19 @@ local function startRun(player)
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اوصل أبعد نقطة وسجّل أسرع وقت.") end
 	sendProgress(player)
 end
+
+-- إيقاف الباركور والخروج (زر «إيقاف الباركور» في الواجهة)
+local function stopRun(player)
+	local st = runState[player.UserId]
+	if st then st.inRun = false end
+	teleportTo(player, CFrame.new(EXIT_POS))
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🛑 أوقفت الباركور وخرجت من المسار.") end
+	progressRemote:FireClient(player, { state = "idle" })
+end
+
+stopRemote.OnServerEvent:Connect(function(player)
+	stopRun(player)
+end)
 
 ----------------------------------------------------------------------
 -- كاش أسماء اللاعبين + تنسيق الوقت

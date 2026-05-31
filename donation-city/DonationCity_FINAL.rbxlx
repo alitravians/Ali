@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٢٦",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٢٧",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -2874,19 +2874,20 @@ local function buildNPC(opts)
 	local uniform = opts.uniform or Color3.fromRGB(150, 30, 40)
 	local pants   = Color3.fromRGB(35, 32, 48)
 	local cf      = opts.footCFrame
+	local s       = opts.scale or 1   -- معامل التكبير (هيكل أطول/أكبر للمرشد)
 
-	local hrp = part("HumanoidRootPart", Vector3.new(2, 2, 1), uniform); hrp.Transparency = 1
-	hrp.CFrame = cf * CFrame.new(0, 3, 0)
-	part("Torso", Vector3.new(2, 2, 1), uniform).CFrame = cf * CFrame.new(0, 3, 0)
-	part("Collar", Vector3.new(2.05, 0.4, 1.05), Color3.fromRGB(245, 245, 250)).CFrame = cf * CFrame.new(0, 3.85, 0)
-	part("LeftArm",  Vector3.new(1, 2, 1), uniform).CFrame = cf * CFrame.new(-1.5, 3, 0)
-	local rArm = part("RightArm", Vector3.new(1, 2, 1), uniform); rArm.CFrame = cf * CFrame.new(1.5, 3, 0)
-	part("LeftLeg",  Vector3.new(1, 2, 1), pants).CFrame = cf * CFrame.new(-0.5, 1, 0)
-	part("RightLeg", Vector3.new(1, 2, 1), pants).CFrame = cf * CFrame.new(0.5, 1, 0)
-	part("Hair", Vector3.new(1.35, 0.5, 1.35), Color3.fromRGB(40, 30, 25)).CFrame = cf * CFrame.new(0, 5.3, 0)
+	local hrp = part("HumanoidRootPart", Vector3.new(2, 2, 1) * s, uniform); hrp.Transparency = 1
+	hrp.CFrame = cf * CFrame.new(0, 3 * s, 0)
+	part("Torso", Vector3.new(2, 2, 1) * s, uniform).CFrame = cf * CFrame.new(0, 3 * s, 0)
+	part("Collar", Vector3.new(2.05, 0.4, 1.05) * s, Color3.fromRGB(245, 245, 250)).CFrame = cf * CFrame.new(0, 3.85 * s, 0)
+	part("LeftArm",  Vector3.new(1, 2, 1) * s, uniform).CFrame = cf * CFrame.new(-1.5 * s, 3 * s, 0)
+	local rArm = part("RightArm", Vector3.new(1, 2, 1) * s, uniform); rArm.CFrame = cf * CFrame.new(1.5 * s, 3 * s, 0)
+	part("LeftLeg",  Vector3.new(1, 2, 1) * s, pants).CFrame = cf * CFrame.new(-0.5 * s, 1 * s, 0)
+	part("RightLeg", Vector3.new(1, 2, 1) * s, pants).CFrame = cf * CFrame.new(0.5 * s, 1 * s, 0)
+	part("Hair", Vector3.new(1.35, 0.5, 1.35) * s, Color3.fromRGB(40, 30, 25)).CFrame = cf * CFrame.new(0, 5.3 * s, 0)
 
-	local head = part("Head", Vector3.new(1.25, 1.25, 1.25), skin)
-	head.CFrame = cf * CFrame.new(0, 4.6, 0)
+	local head = part("Head", Vector3.new(1.25, 1.25, 1.25) * s, skin)
+	head.CFrame = cf * CFrame.new(0, 4.6 * s, 0)
 	local face = Instance.new("Decal")
 	face.Name = "face"; face.Texture = "rbxasset://textures/face.png"; face.Face = Enum.NormalId.Front; face.Parent = head
 	model.PrimaryPart = hrp
@@ -2894,7 +2895,7 @@ local function buildNPC(opts)
 	-- لوحة الاسم فوق الرأس
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-	bb.StudsOffset = Vector3.new(0, 2.3, 0); bb.AlwaysOnTop = true; bb.Parent = head
+	bb.StudsOffset = Vector3.new(0, 2.3 * s, 0); bb.AlwaysOnTop = true; bb.Parent = head
 	local tagLbl = Instance.new("TextLabel")
 	tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
 	tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true; tagLbl.Text = opts.tag
@@ -2928,9 +2929,9 @@ local function buildNPC(opts)
 		local phase = math.random() * 6.28
 		while model.Parent do
 			local t = os.clock() + phase
-			head.CFrame = cf * CFrame.new(0, 4.6, 0) * CFrame.Angles(0, math.sin(t * 1.1) * 0.13, 0)
+			head.CFrame = cf * CFrame.new(0, 4.6 * s, 0) * CFrame.Angles(0, math.sin(t * 1.1) * 0.13, 0)
 			if opts.wave then
-				rArm.CFrame = cf * CFrame.new(1.5, 3, 0) * CFrame.Angles(0, 0, -math.abs(math.sin(t * 2.2)) * 1.3)
+				rArm.CFrame = cf * CFrame.new(1.5 * s, 3 * s, 0) * CFrame.Angles(0, 0, -math.abs(math.sin(t * 2.2)) * 1.3)
 			end
 			task.wait(0.06)
 		end
@@ -2971,7 +2972,7 @@ pcall(function()
 	)
 	buildNPC({
 		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),
-		uniform = Color3.fromRGB(70, 60, 150), footCFrame = guideFoot,
+		uniform = Color3.fromRGB(70, 60, 150), footCFrame = guideFoot, scale = 1.5,
 		promptText = "تحدّث", promptObj = "مرشد السينما", wave = true, onTrigger = guideTalk,
 	})
 
@@ -7465,7 +7466,7 @@ newPart({ Name = "WetSand", Size = Vector3.new(10, 1, SAND_Z),
 -- + قاع صلب وحواجز غير مرئية تمنع اللاعب من السقوط تحت الماب.
 local Terrain = Workspace.Terrain
 
-local SEA_W   = 120                  -- عرض البحر (محور X، شرق الشاطئ)
+local SEA_W   = 150                  -- عرض البحر (محور X، شرق الشاطئ) — بحر أوسع
 local SEA_L   = SAND_Z               -- طول البحر (محور Z) يحاذي الرمل
 local SEA_CX  = shoreX + SEA_W / 2   -- مركز البحر
 local WATER_TOP    = SAND_Y          -- سطح الماء (يحاذي مستوى الرمل تقريباً)
@@ -7664,6 +7665,135 @@ lamp(shoreX - 8, CZ - 44); lamp(shoreX - 8, CZ + 44)
 lamp(CX, CZ - 60); lamp(CX, CZ + 60)
 
 ----------------------------------------------------------------------
+-- سياج خشبي حول الشاطئ (حدّ بصري + مظهر) — يترك فتحة الممشى مفتوحة
+----------------------------------------------------------------------
+local FENCE = Color3.fromRGB(160, 110, 70)
+local function fenceRun(x0, z0, x1, z1)
+	local dx, dz = x1 - x0, z1 - z0
+	local len = math.sqrt(dx * dx + dz * dz)
+	local n = math.max(1, math.floor(len / 6))
+	for i = 0, n do
+		local t = i / n
+		newPart({ Name = "FencePost", Size = Vector3.new(0.5, 4, 0.5),
+			Position = Vector3.new(x0 + dx * t, SAND_Y + 2, z0 + dz * t),
+			Color = FENCE, Material = Enum.Material.Wood, CanCollide = false })
+	end
+	local ang = math.atan2(dz, dx)
+	for _, hy in ipairs({ SAND_Y + 1.4, SAND_Y + 2.8 }) do
+		newPart({ Name = "FenceRail", Size = Vector3.new(len, 0.3, 0.3),
+			CFrame = CFrame.new((x0 + x1) / 2, hy, (z0 + z1) / 2) * CFrame.Angles(0, -ang, 0),
+			Color = FENCE, Material = Enum.Material.Wood, CanCollide = false })
+	end
+end
+do
+	local bxW, bxE = CX - SAND_X / 2, CX + SAND_X / 2
+	local bzN, bzS = CZ - SAND_Z / 2, CZ + SAND_Z / 2
+	fenceRun(bxW, bzN, bxE - 4, bzN)        -- الشمال
+	fenceRun(bxW, bzS, bxE - 4, bzS)        -- الجنوب
+	fenceRun(bxW, bzN, bxW, CZ - 18)        -- الغرب (الجزء الشمالي)
+	fenceRun(bxW, CZ + 18, bxW, bzS)        -- الغرب (الجزء الجنوبي) — بينهما فتحة الممشى
+end
+
+----------------------------------------------------------------------
+-- ٣ ألعاب أطفال على الرمل (مستوحاة من صور المرجع) — كلّها ثابتة (بلا حلقات)
+----------------------------------------------------------------------
+local PLAY = {
+	red = Color3.fromRGB(235, 90, 90), yel = Color3.fromRGB(255, 205, 70),
+	blu = Color3.fromRGB(80, 160, 240), grn = Color3.fromRGB(90, 200, 120),
+	steel = Color3.fromRGB(150, 160, 175),
+}
+
+-- (1) زحليقة لولبية
+local function spiralSlide(cx, cz)
+	local baseY = SAND_Y + 0.5
+	newPart({ Name = "SpiralPole", Shape = Enum.PartType.Cylinder, Size = Vector3.new(14, 1.2, 1.2),
+		CFrame = CFrame.new(cx, baseY + 7, cz) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = PLAY.steel, Material = Enum.Material.Metal })
+	newPart({ Name = "SpiralTop", Size = Vector3.new(5, 0.6, 5),
+		Position = Vector3.new(cx, baseY + 13.5, cz), Color = PLAY.blu, Material = Enum.Material.SmoothPlastic })
+	local turns, steps, r = 1.75, 28, 4.2
+	for i = 0, steps do
+		local t = i / steps
+		local ang = t * turns * math.pi * 2
+		local y = (baseY + 13) - t * 12
+		newPart({ Name = "SpiralChute", Size = Vector3.new(2.6, 0.4, 2.6),
+			CFrame = CFrame.new(cx + math.cos(ang) * r, y, cz + math.sin(ang) * r)
+				* CFrame.Angles(0, -ang, math.rad(12)),
+			Color = (i % 2 == 0) and PLAY.yel or PLAY.red, Material = Enum.Material.SmoothPlastic,
+			CanCollide = false })
+	end
+	for a = 0, 3 do
+		local ang = math.rad(a * 90)
+		newPart({ Name = "SpiralRail", Size = Vector3.new(0.3, 4, 0.3),
+			Position = Vector3.new(cx + math.cos(ang) * 2.2, baseY + 15, cz + math.sin(ang) * 2.2),
+			Color = PLAY.steel, Material = Enum.Material.Metal })
+	end
+end
+
+-- (2) لعبة التوازن (Seesaw)
+local function seesaw(cx, cz)
+	local baseY = SAND_Y + 0.5
+	newPart({ Name = "SeesawFulcrum", Size = Vector3.new(1.6, 2.4, 4),
+		Position = Vector3.new(cx, baseY + 1.2, cz), Color = PLAY.grn, Material = Enum.Material.SmoothPlastic })
+	newPart({ Name = "SeesawPlank", Size = Vector3.new(12, 0.5, 1.8),
+		CFrame = CFrame.new(cx, baseY + 2.4, cz) * CFrame.Angles(0, 0, math.rad(9)),
+		Color = PLAY.red, Material = Enum.Material.WoodPlanks })
+	for _, sgn in ipairs({ -1, 1 }) do
+		local sx = cx + sgn * 5
+		local sy = baseY + 2.4 + sgn * (5 * math.tan(math.rad(9)))
+		newPart({ Name = "SeesawSeat", Size = Vector3.new(2, 0.4, 1.6),
+			Position = Vector3.new(sx, sy + 0.6, cz), Color = PLAY.yel, Material = Enum.Material.SmoothPlastic })
+		newPart({ Name = "SeesawGrip", Size = Vector3.new(0.3, 1.6, 0.3),
+			Position = Vector3.new(sx, sy + 1.6, cz), Color = PLAY.steel, Material = Enum.Material.Metal })
+	end
+end
+
+-- (3) مجموعة ألعاب: مراجيح + زحليقة مستقيمة
+local function swingSet(cx, cz)
+	local baseY = SAND_Y + 0.5
+	for _, sgn in ipairs({ -1, 1 }) do
+		newPart({ Name = "SwingLeg", Size = Vector3.new(0.5, 9, 0.5),
+			CFrame = CFrame.new(cx - 4, baseY + 4.3, cz + sgn * 2.6) * CFrame.Angles(math.rad(sgn * 14), 0, 0),
+			Color = PLAY.blu, Material = Enum.Material.Metal })
+		newPart({ Name = "SwingLeg", Size = Vector3.new(0.5, 9, 0.5),
+			CFrame = CFrame.new(cx + 4, baseY + 4.3, cz + sgn * 2.6) * CFrame.Angles(math.rad(sgn * 14), 0, 0),
+			Color = PLAY.blu, Material = Enum.Material.Metal })
+	end
+	newPart({ Name = "SwingBeam", Size = Vector3.new(9, 0.6, 0.6),
+		Position = Vector3.new(cx, baseY + 8.2, cz), Color = PLAY.steel, Material = Enum.Material.Metal })
+	for _, ox in ipairs({ -2.4, 2.4 }) do
+		for _, cc in ipairs({ -0.7, 0.7 }) do
+			newPart({ Name = "SwingChain", Size = Vector3.new(0.18, 4, 0.18),
+				Position = Vector3.new(cx + ox, baseY + 6, cz + cc), Color = PLAY.steel,
+				Material = Enum.Material.Metal, CanCollide = false })
+		end
+		newPart({ Name = "SwingSeat", Size = Vector3.new(1.8, 0.3, 1.4),
+			Position = Vector3.new(cx + ox, baseY + 4, cz), Color = PLAY.yel,
+			Material = Enum.Material.SmoothPlastic, CanCollide = false })
+	end
+	local sx = cx + 9
+	newPart({ Name = "SlideTopPad", Size = Vector3.new(4, 0.5, 4),
+		Position = Vector3.new(sx, baseY + 6.5, cz), Color = PLAY.grn, Material = Enum.Material.SmoothPlastic })
+	for _, sgn in ipairs({ -1, 1 }) do
+		newPart({ Name = "SlideLadderLeg", Size = Vector3.new(0.4, 7, 0.4),
+			Position = Vector3.new(sx + 1.5, baseY + 3.5, cz + sgn * 1.6),
+			Color = PLAY.steel, Material = Enum.Material.Metal })
+	end
+	newPart({ Name = "SlideChute", Size = Vector3.new(3, 0.4, 9),
+		CFrame = CFrame.new(sx - 3.5, baseY + 4, cz) * CFrame.Angles(math.rad(34), 0, 0),
+		Color = PLAY.red, Material = Enum.Material.SmoothPlastic })
+	for _, sgn in ipairs({ -1, 1 }) do
+		newPart({ Name = "SlideWall", Size = Vector3.new(0.3, 1.2, 9),
+			CFrame = CFrame.new(sx - 3.5 + sgn * 1.5, baseY + 4.4, cz) * CFrame.Angles(math.rad(34), 0, 0),
+			Color = PLAY.yel, Material = Enum.Material.SmoothPlastic, CanCollide = false })
+	end
+end
+
+spiralSlide(CX - 16, CZ - 44)
+seesaw(CX - 28, CZ + 2)
+swingSet(CX - 22, CZ + 44)
+
+----------------------------------------------------------------------
 -- لوحة ترحيب «🏖️ الشاطئ» تُقرأ من الوجهين
 ----------------------------------------------------------------------
 do
@@ -7729,6 +7859,10 @@ local progressRemote = remotes:FindFirstChild("Progress")
 if not progressRemote then
 	progressRemote = Instance.new("RemoteEvent"); progressRemote.Name = "Progress"; progressRemote.Parent = remotes
 end
+local stopRemote = remotes:FindFirstChild("Stop")
+if not stopRemote then
+	stopRemote = Instance.new("RemoteEvent"); stopRemote.Name = "Stop"; stopRemote.Parent = remotes
+end
 
 ----------------------------------------------------------------------
 -- DataStores (best time + completions + leaderboards)
@@ -7753,7 +7887,10 @@ local STAGE_COLOR = { [1] = C_EASY, [2] = C_MED, [3] = C_HARD, [4] = C_LEGEND }
 
 -- مركز الباركور ونطاق التفعيل (لإيقاف الحركة عند الخمول)
 local COURSE_CENTER = V(-133, 18, 40)
-local ACTIVE_RANGE2 = 155 * 155
+-- نطاق ضيّق يغطّي المسار كاملاً (~50 ستد من المركز) فقط؛ يبقى المحرّك خاملاً
+-- تماماً (صفر استهلاك) ما لم يكن لاعب فعلاً عند الباركور — لا عند الساحة/الانطلاق.
+local ACTIVE_RANGE2 = 75 * 75
+local EXIT_POS = V(0, 5, 45)   -- نقطة خروج آمنة (قرب الانطلاق الرئيسي بعيداً عن المسار)
 
 local course = Instance.new("Model")
 course.Name = "ParkourCourse"
@@ -7913,6 +8050,19 @@ local function startRun(player)
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اوصل أبعد نقطة وسجّل أسرع وقت.") end
 	sendProgress(player)
 end
+
+-- إيقاف الباركور والخروج (زر «إيقاف الباركور» في الواجهة)
+local function stopRun(player)
+	local st = runState[player.UserId]
+	if st then st.inRun = false end
+	teleportTo(player, CFrame.new(EXIT_POS))
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🛑 أوقفت الباركور وخرجت من المسار.") end
+	progressRemote:FireClient(player, { state = "idle" })
+end
+
+stopRemote.OnServerEvent:Connect(function(player)
+	stopRun(player)
+end)
 
 ----------------------------------------------------------------------
 -- كاش أسماء اللاعبين + تنسيق الوقت
@@ -8558,10 +8708,10 @@ local RunService       = game:GetService("RunService")
 ----------------------------------------------------------------------
 local VCX, VCZ = 150, -100        -- مركز الملعب (جنوب الشاطئ، بجانب البحر)
 local FLOOR_Y  = 1.5              -- سطح أرضية الملعب (أعلى نقطة)
-local HALF_W   = 9                -- نصف عرض الملعب (محور X)
-local HALF_L   = 18               -- نصف طول كل جهة (محور Z)
+local HALF_W   = 11               -- نصف عرض الملعب (محور X) — ملعب أوسع
+local HALF_L   = 22               -- نصف طول كل جهة (محور Z) — ملعب أطول
 local NET_Z    = VCZ              -- الشبكة في المنتصف (Z ثابت)
-local NET_X0, NET_X1 = VCX - 10, VCX + 10
+local NET_X0, NET_X1 = VCX - (HALF_W + 2), VCX + (HALF_W + 2)
 local LAND_Y   = 3.2              -- ارتفاع يُعتبر دونه أن الكرة لمست الأرض
 local MATCH_POINTS = 7            -- نقاط الفوز (مع فارق نقطتين، وسقف 11)
 local HARD_CAP = 11
@@ -8613,13 +8763,13 @@ end
 newPart({ Name = "CourtSand", Size = Vector3.new(2 * HALF_W + 16, 1, 2 * HALF_L + 16),
 	Position = Vector3.new(VCX, FLOOR_Y - 0.5, VCZ), Color = SAND, Material = Enum.Material.Sand })
 
--- أرضية اللعب (سطح أنعم لارتداد الكرة) — جهتان ملوّنتان خفيفتان
+-- أرضية اللعب — جهة الفريق A زرقاء وجهة الفريق B حمراء (تمييز واضح)
 newPart({ Name = "FloorA", Size = Vector3.new(2 * HALF_W, 0.4, HALF_L),
-	Position = Vector3.new(VCX, FLOOR_Y, VCZ - HALF_L / 2), Color = Color3.fromRGB(225, 200, 150),
-	Material = Enum.Material.Sand, Transparency = 0.15, CanCollide = false })
+	Position = Vector3.new(VCX, FLOOR_Y, VCZ - HALF_L / 2), Color = Color3.fromRGB(120, 165, 235),
+	Material = Enum.Material.SmoothPlastic, Transparency = 0.1, CanCollide = false })
 newPart({ Name = "FloorB", Size = Vector3.new(2 * HALF_W, 0.4, HALF_L),
-	Position = Vector3.new(VCX, FLOOR_Y, VCZ + HALF_L / 2), Color = Color3.fromRGB(150, 175, 210),
-	Material = Enum.Material.Sand, Transparency = 0.15, CanCollide = false })
+	Position = Vector3.new(VCX, FLOOR_Y, VCZ + HALF_L / 2), Color = Color3.fromRGB(235, 110, 110),
+	Material = Enum.Material.SmoothPlastic, Transparency = 0.1, CanCollide = false })
 
 -- خطوط حدود الملعب (نيون رفيع فوق الرمل)
 local function line(cx, cz, sx, sz)
@@ -8644,6 +8794,35 @@ newPart({ Name = "NetTop", Size = Vector3.new(2 * HALF_W + 2, 0.5, 0.4),
 newPart({ Name = "NetBody", Size = Vector3.new(2 * HALF_W + 2, 5.4, 0.4),
 	Position = Vector3.new(VCX, FLOOR_Y + 5.1, NET_Z), Color = NETCOL, Material = Enum.Material.ForceField,
 	Transparency = 0.2 })
+
+----------------------------------------------------------------------
+-- شبك محيط بالملعب (مظهر احترافي) — تجميلي لا يصطدم باللاعب
+----------------------------------------------------------------------
+local FENCE_COL = Color3.fromRGB(150, 162, 175)
+local FENCE_H   = 11
+local function fenceSide(cx, cz, length, axis)
+	for _, hy in ipairs({ FLOOR_Y + 1, FLOOR_Y + FENCE_H }) do
+		local sz = (axis == "x") and Vector3.new(length, 0.3, 0.3) or Vector3.new(0.3, 0.3, length)
+		newPart({ Name = "FenceRail", Size = sz, Position = Vector3.new(cx, hy, cz),
+			Color = FENCE_COL, Material = Enum.Material.Metal, CanCollide = false })
+	end
+	local n = math.max(2, math.floor(length / 4))
+	for i = 0, n do
+		local off = (i / n - 0.5) * length
+		local px = cx + ((axis == "x") and off or 0)
+		local pz = cz + ((axis == "z") and off or 0)
+		newPart({ Name = "FenceBar", Size = Vector3.new(0.25, FENCE_H, 0.25),
+			Position = Vector3.new(px, FLOOR_Y + FENCE_H / 2, pz),
+			Color = FENCE_COL, Material = Enum.Material.Metal, CanCollide = false })
+	end
+	local psz = (axis == "x") and Vector3.new(length, FENCE_H - 1.5, 0.1) or Vector3.new(0.1, FENCE_H - 1.5, length)
+	newPart({ Name = "FenceMesh", Size = psz, Position = Vector3.new(cx, FLOOR_Y + FENCE_H / 2, cz),
+		Color = FENCE_COL, Material = Enum.Material.ForceField, Transparency = 0.55, CanCollide = false })
+end
+-- شرق + الخطّان الخلفيان (نترك الغرب للمدرّج والشمال لمنطقة الانضمام)
+fenceSide(VCX + HALF_W + 2, VCZ, 2 * HALF_L + 4, "z")     -- الشرق
+fenceSide(VCX, VCZ - HALF_L - 2, 2 * HALF_W + 4, "x")     -- خلف A (شمال)
+fenceSide(VCX, VCZ + HALF_L + 2, 2 * HALF_W + 4, "x")     -- خلف B (جنوب)
 
 ----------------------------------------------------------------------
 -- مدرّج مشاهدة صغير (غرب الملعب)
@@ -8678,8 +8857,13 @@ end
 ----------------------------------------------------------------------
 -- لوحة النتائج الحيّة (فوق الشبكة، تُقرأ من الجهتين)
 ----------------------------------------------------------------------
-local scoreBoard = newPart({ Name = "ScoreBoard", Size = Vector3.new(2 * HALF_W + 2, 6, 0.6),
-	Position = Vector3.new(VCX, FLOOR_Y + 12.5, NET_Z), Color = DARK, Material = Enum.Material.SmoothPlastic })
+-- عمودا تثبيت للوحة (ترتفع فوق سقف المدرّج والشبكة)
+newPart({ Name = "ScoreMastL", Size = Vector3.new(0.7, 17, 0.7),
+	Position = Vector3.new(NET_X0, FLOOR_Y + 8.5, NET_Z), Color = POST, Material = Enum.Material.Metal })
+newPart({ Name = "ScoreMastR", Size = Vector3.new(0.7, 17, 0.7),
+	Position = Vector3.new(NET_X1, FLOOR_Y + 8.5, NET_Z), Color = POST, Material = Enum.Material.Metal })
+local scoreBoard = newPart({ Name = "ScoreBoard", Size = Vector3.new(2 * HALF_W + 6, 7, 0.6),
+	Position = Vector3.new(VCX, FLOOR_Y + 17, NET_Z), Color = DARK, Material = Enum.Material.SmoothPlastic })
 
 local scoreLabels = {}  -- face -> { title, score, sub }
 local function buildScoreFace(sg)
@@ -9915,11 +10099,11 @@ local gui = new("ScreenGui", {
 	Parent = playerGui,
 })
 
--- 💬 زر مُصغّر (فقاعة) أسفل يمين الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
+-- 💬 زر مُصغّر (فقاعة) أعلى يسار الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
 local launcher = new("TextButton", {
 	Name = "ChatLauncher",
-	AnchorPoint = Vector2.new(1, 1),
-	Position = UDim2.new(1, -12, 1, -12),
+	AnchorPoint = Vector2.new(0, 0),
+	Position = UDim2.new(0, 12, 0, 12),
 	Size = UDim2.new(0, 52, 0, 52),
 	BackgroundColor3 = PURPLE,
 	BackgroundTransparency = 0.05,
@@ -9936,8 +10120,8 @@ new("UIStroke", { Color = CYAN, Thickness = 1.5, Transparency = 0.3, Parent = la
 -- شارة عدد الرسائل غير المقروءة فوق الفقاعة
 local badge = new("TextLabel", {
 	Name = "Badge",
-	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.new(0, -2, 0, -2),
+	AnchorPoint = Vector2.new(1, 1),
+	Position = UDim2.new(1, 4, 1, 4),
 	Size = UDim2.new(0, 22, 0, 22),
 	BackgroundColor3 = Color3.fromRGB(255, 70, 90),
 	Font = Enum.Font.GothamBold,
@@ -9952,8 +10136,8 @@ new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
 
 local root = new("Frame", {
 	Name = "ChatRoot",
-	AnchorPoint = Vector2.new(1, 1),
-	Position = UDim2.new(1, -12, 1, -12),
+	AnchorPoint = Vector2.new(0, 0),
+	Position = UDim2.new(0, 12, 0, 72),
 	Size = UDim2.new(0, 380, 0, 300),
 	BackgroundColor3 = CARD,
 	BackgroundTransparency = 0.12,
@@ -10861,8 +11045,10 @@ end
 -- يحسب موضع كل زر يدوياً حسب LayoutOrder → يستحيل التداخل مهما حصل.
 local DOCK_GAP = 10
 local dockSide: { [Instance]: number } = {}
+local dockCenterY: { [Instance]: number } = {}   -- كسر ارتفاع مركز الرصيف (0.5 = وسط)
 local function relayoutDock(dock: Instance)
 	local side = dockSide[dock] or -1
+	local cy = dockCenterY[dock] or 0.5
 	local btns = {}
 	for _, c in ipairs(dock:GetChildren()) do
 		if c:IsA("GuiButton") then table.insert(btns, c) end
@@ -10875,7 +11061,7 @@ local function relayoutDock(dock: Instance)
 	for _, b in ipairs(btns) do
 		local h = b.Size.Y.Offset
 		b.AnchorPoint = Vector2.new(side < 0 and 0 or 1, 0.5)
-		b.Position = UDim2.new(side < 0 and 0 or 1, 0, 0.5, y + h / 2)
+		b.Position = UDim2.new(side < 0 and 0 or 1, 0, cy, y + h / 2)
 		y += h + DOCK_GAP
 	end
 end
@@ -10901,6 +11087,8 @@ local function makeDock(side: number)
 end
 local leftDock  = makeDock(-1)
 local rightDock = makeDock(1)
+-- «المزيد» وأزرار اليمين أعلى على الشاشة (لا وسط)
+dockCenterY[rightDock] = 0.34
 
 local activeRoot: Instance? = nil
 
@@ -11917,27 +12105,28 @@ end
 local announceFrame
 showAnnounce = function(data)
 	if announceFrame and announceFrame.Parent then announceFrame:Destroy() end
+	-- يظهر على اليسار بجانب زر المهام اليومية (ينزلق من خارج اليسار)
 	local frame = new("Frame", {
-		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, -90), Size = UDim2.new(0, 560, 0, 64), ZIndex = 80, Parent = gui,
+		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, -400, 0.5, 150), Size = UDim2.new(0, 360, 0, 58), ZIndex = 80, Parent = gui,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 16) }),
 		new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.1 }),
 		new("UIGradient", { Rotation = 20, Color = ColorSequence.new(CARD2, CARD) }),
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = tostring(data.text or ""), Font = Enum.Font.GothamBlack,
-			TextSize = 20, TextColor3 = GOLD, TextScaled = false, TextWrapped = true,
-			Size = UDim2.new(1, -28, 1, -10), Position = UDim2.fromOffset(14, 5), ZIndex = 81,
+			TextSize = 18, TextColor3 = GOLD, TextScaled = false, TextWrapped = true,
+			Size = UDim2.new(1, -24, 1, -10), Position = UDim2.fromOffset(12, 5), ZIndex = 81,
 			TextXAlignment = Enum.TextXAlignment.Center,
 		}),
 	})
 	announceFrame = frame
 	TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Position = UDim2.new(0.5, 0, 0, 18) }):Play()
+		{ Position = UDim2.new(0, 12, 0.5, 150) }):Play()
 	task.delay(5, function()
 		if frame and frame.Parent and announceFrame == frame then
 			local tw = TweenService:Create(frame, TweenInfo.new(0.4),
-				{ Position = UDim2.new(0.5, 0, 0, -90) })
+				{ Position = UDim2.new(0, -400, 0.5, 150) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
 		end
@@ -13980,6 +14169,7 @@ local remotes = ReplicatedStorage:WaitForChild("ParkourRemotes", 30)
 if not remotes then return end
 local progressRemote = remotes:WaitForChild("Progress", 30)
 if not progressRemote then return end
+local stopRemote = remotes:WaitForChild("Stop", 30)
 
 ----------------------------------------------------------------------
 -- بناء الواجهة
@@ -13988,33 +14178,51 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "ParkourHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
--- شريط التقدّم (أعلى الوسط)
+-- شريط التقدّم (أعلى الوسط) — مصغّر ليأخذ مساحة أقل من الشاشة
 local bar = Instance.new("Frame")
 bar.AnchorPoint = Vector2.new(0.5, 0)
-bar.Position = UDim2.new(0.5, 0, 0, 12)
-bar.Size = UDim2.fromOffset(360, 64)
+bar.Position = UDim2.new(0.5, 0, 0, 10)
+bar.Size = UDim2.fromOffset(248, 46)
 bar.BackgroundColor3 = Color3.fromRGB(18, 20, 34)
 bar.BackgroundTransparency = 0.1
 bar.Visible = false
 bar.Parent = gui
-local barCorner = Instance.new("UICorner"); barCorner.CornerRadius = UDim.new(0, 14); barCorner.Parent = bar
-local barStroke = Instance.new("UIStroke"); barStroke.Color = Color3.fromRGB(255, 205, 70); barStroke.Thickness = 2; barStroke.Parent = bar
+local barCorner = Instance.new("UICorner"); barCorner.CornerRadius = UDim.new(0, 10); barCorner.Parent = bar
+local barStroke = Instance.new("UIStroke"); barStroke.Color = Color3.fromRGB(255, 205, 70); barStroke.Thickness = 1.5; barStroke.Parent = bar
 
 local title = Instance.new("TextLabel")
-title.BackgroundTransparency = 1; title.Position = UDim2.new(0, 10, 0, 6); title.Size = UDim2.new(1, -20, 0, 24)
+title.BackgroundTransparency = 1; title.Position = UDim2.new(0, 8, 0, 4); title.Size = UDim2.new(1, -16, 0, 17)
 title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.TextXAlignment = Enum.TextXAlignment.Center
 title.TextColor3 = Color3.fromRGB(255, 215, 90); title.Text = "🧗 الباركور"; title.Parent = bar
 
 local info = Instance.new("TextLabel")
-info.BackgroundTransparency = 1; info.Position = UDim2.new(0, 10, 0, 32); info.Size = UDim2.new(1, -20, 0, 26)
+info.BackgroundTransparency = 1; info.Position = UDim2.new(0, 8, 0, 22); info.Size = UDim2.new(1, -16, 0, 18)
 info.Font = Enum.Font.GothamMedium; info.TextScaled = true; info.TextXAlignment = Enum.TextXAlignment.Center
 info.TextColor3 = Color3.fromRGB(235, 235, 245); info.Text = ""; info.Parent = bar
 
 -- شريط النسبة المئوية (خط سفلي)
 local pct = Instance.new("Frame")
 pct.AnchorPoint = Vector2.new(0, 1); pct.Position = UDim2.new(0, 0, 1, 0)
-pct.Size = UDim2.new(0, 0, 0, 5); pct.BackgroundColor3 = Color3.fromRGB(90, 200, 120); pct.BorderSizePixel = 0
+pct.Size = UDim2.new(0, 0, 0, 4); pct.BackgroundColor3 = Color3.fromRGB(90, 200, 120); pct.BorderSizePixel = 0
 pct.Parent = bar
+
+-- زر «إيقاف الباركور / خروج» (يظهر فقط أثناء اللعب)
+local stopBtn = Instance.new("TextButton")
+stopBtn.AnchorPoint = Vector2.new(0.5, 0)
+stopBtn.Position = UDim2.new(0.5, 0, 0, 60)
+stopBtn.Size = UDim2.fromOffset(168, 28)
+stopBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
+stopBtn.BackgroundTransparency = 0.05
+stopBtn.Font = Enum.Font.GothamBold; stopBtn.TextSize = 15
+stopBtn.TextColor3 = Color3.new(1, 1, 1)
+stopBtn.Text = "❌ إيقاف الباركور"
+stopBtn.AutoButtonColor = true
+stopBtn.Visible = false
+stopBtn.Parent = gui
+local sbC = Instance.new("UICorner"); sbC.CornerRadius = UDim.new(0, 9); sbC.Parent = stopBtn
+stopBtn.Activated:Connect(function()
+	if stopRemote then stopRemote:FireServer() end
+end)
 
 ----------------------------------------------------------------------
 -- نافذة الإكمال
@@ -14059,16 +14267,16 @@ local STAGE_NAMES = { [1] = "سهلة", [2] = "متوسطة", [3] = "صعبة", 
 progressRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
 	if data.state == "finish" then
-		active = false; bar.Visible = false
+		active = false; bar.Visible = false; stopBtn.Visible = false
 		showFinish(fmtTime(data.time or 0), data.reward or 0)
 		return
 	end
 	if data.state == "idle" then
-		active = false; bar.Visible = false
+		active = false; bar.Visible = false; stopBtn.Visible = false
 		return
 	end
 	-- run
-	active = true; bar.Visible = true
+	active = true; bar.Visible = true; stopBtn.Visible = true
 	baseTime = data.time or 0; baseClock = os.clock()
 	curStage = data.stage or 1; curCp = data.cp or 1; curTotal = data.total or 1; curPct = data.percent or 0
 	pct.BackgroundColor3 = STAGE_COLORS[curStage] or STAGE_COLORS[1]
@@ -14409,8 +14617,8 @@ print("[MissionClient] ready — missions UI + welcome + beginner guide.")
 ║  الجري والقفز المتطوّر — SPRINT & JUMP (Client)                       ║
 ║  المكان: StarterPlayerScripts    ·     النوع: LocalScript              ║
 ║                                                                        ║
-║  • جري بالضغط على Shift (أو زر باللمس للجوال) — سرعة أعلى.             ║
-║  • شريط طاقة: يَنقُص أثناء الجري ويتجدّد عند التوقّف (لا جري بلا طاقة). ║
+║  • جري بالتبديل (ضغطة Shift أو زر اللمس) — تجري بلا حدّ وقت.            ║
+║  • ضغطة ثانية توقف الجري. لا يوجد استنزاف طاقة.                        ║
 ║  • مؤثّرات قفز وهبوط (جسيمات + صوت) لحركة أكثر حيويّة.                 ║
 ║  • يبلّغ السيرفر بثواني الجري وعدد القفزات (لإنجازَي «عدّاء» و«قفّاز»). ║
 ║  • آمن مع قفل الحركة في السينما (لا يتدخّل إن كانت السرعة مقفولة).     ║
@@ -14430,10 +14638,6 @@ local pg = player:WaitForChild("PlayerGui")
 ----------------------------------------------------------------------
 local NORMAL_SPEED = 16
 local SPRINT_SPEED = 28
-local MAX_ENERGY   = 100
-local DRAIN_RATE   = 100 / 8     -- استنزاف كامل خلال ~8 ثوانٍ جري
-local CHARGE_RATE  = 100 / 12    -- شحن كامل خلال ~12 ثانية توقّف
-local MIN_TO_START = 8           -- أقل طاقة للبدء بالجري
 
 ----------------------------------------------------------------------
 -- ربط السيرفر (تقارير الجري/القفز) — اختياري (لا يعطّل المؤثرات لو غاب)
@@ -14451,7 +14655,9 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "SprintHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
+-- (أُلغي شريط الطاقة — الجري الآن تبديل بلا حدّ وقت) — نبقيه مخفيّاً
 local barBack = Instance.new("Frame")
+barBack.Visible = false
 barBack.Name = "EnergyBack"
 barBack.AnchorPoint = Vector2.new(0.5, 1)
 barBack.Position = UDim2.new(0.5, 0, 1, -18)
@@ -14482,14 +14688,14 @@ barLabel.TextStrokeTransparency = 0.5
 barLabel.Text = "⚡ طاقة الجري"
 barLabel.Parent = barBack
 
--- زر جري للجوال (يظهر فقط على الأجهزة اللمسية)
+-- زر جري للجوال (أصغر + أعلى على الشاشة، يظهر فقط على الأجهزة اللمسية)
 local touchBtn
 if UserInputService.TouchEnabled then
 	touchBtn = Instance.new("TextButton")
 	touchBtn.Name = "SprintButton"
 	touchBtn.AnchorPoint = Vector2.new(1, 1)
-	touchBtn.Position = UDim2.new(1, -30, 1, -90)
-	touchBtn.Size = UDim2.fromOffset(96, 96)
+	touchBtn.Position = UDim2.new(1, -22, 1, -210)
+	touchBtn.Size = UDim2.fromOffset(60, 60)
 	touchBtn.BackgroundColor3 = Color3.fromRGB(70, 140, 240)
 	touchBtn.BackgroundTransparency = 0.2
 	touchBtn.Text = "🏃"
@@ -14501,36 +14707,33 @@ end
 ----------------------------------------------------------------------
 -- حالة الجري والطاقة
 ----------------------------------------------------------------------
-local energy = MAX_ENERGY
-local wantSprint = false   -- زرّ الجري مضغوط
-local exhausted = false     -- نفدت الطاقة: ننتظر تجاوز الحدّ الأدنى قبل السماح بالجري
+local wantSprint = false   -- حالة تبديل الجري (تشغيل/إيقاف)
 
-local function setSprintInput(on)
-	wantSprint = on
+local function refreshBtn()
+	if not touchBtn then return end
+	if wantSprint then
+		touchBtn.BackgroundColor3 = Color3.fromRGB(90, 210, 130)   -- أخضر = الجري مُفعّل
+		touchBtn.Text = "🏃‍♂️"
+	else
+		touchBtn.BackgroundColor3 = Color3.fromRGB(70, 140, 240)
+		touchBtn.Text = "🏃"
+	end
+end
+
+-- تبديل الجري: ضغطة تُشغّل، وضغطة تُوقف (بلا حدّ وقت)
+local function toggleSprint()
+	wantSprint = not wantSprint
+	refreshBtn()
 end
 
 UserInputService.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-		setSprintInput(true)
-	end
-end)
-UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-		setSprintInput(false)
+		toggleSprint()
 	end
 end)
 if touchBtn then
-	touchBtn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setSprintInput(true)
-		end
-	end)
-	touchBtn.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setSprintInput(false)
-		end
-	end)
+	touchBtn.Activated:Connect(toggleSprint)
 end
 
 ----------------------------------------------------------------------
@@ -14581,9 +14784,21 @@ local function attachEffects(char)
 	end)
 end
 
+-- كتم صوت الموت الافتراضي («oof») المزعج عند السقوط/الموت
+local function muteDeathSound(char)
+	task.spawn(function()
+		local hrp = char:WaitForChild("HumanoidRootPart", 10)
+		if not hrp then return end
+		local died = hrp:FindFirstChild("Died") or hrp:WaitForChild("Died", 6)
+		if died and died:IsA("Sound") then died.Volume = 0; died:Destroy() end
+	end)
+end
+
 local function onChar(char)
 	-- صفّر حالة الجري عند ولادة شخصية جديدة
 	wantSprint = false
+	refreshBtn()
+	muteDeathSound(char)
 	task.spawn(attachEffects, char)
 end
 if player.Character then onChar(player.Character) end
@@ -14601,20 +14816,15 @@ RunService.RenderStepped:Connect(function(dt)
 
 	-- هل الشخصية تتحرّك فعلاً؟ (للجري الفعلي فقط)
 	local moving = hum.MoveDirection.Magnitude > 0.1
-	local sprinting = wantSprint and moving and not exhausted and energy > 0
+	local sprinting = wantSprint and moving   -- بلا حدّ وقت/طاقة
 
-	-- إدارة الطاقة
+	-- تقرير ثواني الجري (لإنجاز «عدّاء») دون أي استنزاف
 	if sprinting then
-		energy = math.max(0, energy - DRAIN_RATE * dt)
-		if energy <= 0 then exhausted = true end
 		sprintReportAccum += dt
 		if sprintReportAccum >= 1 and reportRemote then
 			reportRemote:FireServer("sprint", sprintReportAccum)
 			sprintReportAccum = 0
 		end
-	else
-		energy = math.min(MAX_ENERGY, energy + CHARGE_RATE * dt)
-		if exhausted and energy >= MIN_TO_START then exhausted = false end
 	end
 
 	-- تطبيق السرعة بأمان: لا نلمس السرعة إلا إن كانت بقيمتها الطبيعية/سرعة الجري
@@ -14623,17 +14833,6 @@ RunService.RenderStepped:Connect(function(dt)
 		if hum.WalkSpeed == NORMAL_SPEED then hum.WalkSpeed = SPRINT_SPEED end
 	else
 		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
-	end
-
-	-- تحديث الشريط
-	local frac = energy / MAX_ENERGY
-	barFill.Size = UDim2.new(frac, -4, 1, -4)
-	if sprinting then
-		barFill.BackgroundColor3 = Color3.fromRGB(255, 180, 70)   -- برتقالي أثناء الجري
-	elseif energy < MIN_TO_START then
-		barFill.BackgroundColor3 = Color3.fromRGB(230, 80, 80)     -- أحمر عند النفاد
-	else
-		barFill.BackgroundColor3 = Color3.fromRGB(90, 220, 140)    -- أخضر جاهز
 	end
 end)
 ]]></string>

@@ -1325,19 +1325,20 @@ local function buildNPC(opts)
 	local uniform = opts.uniform or Color3.fromRGB(150, 30, 40)
 	local pants   = Color3.fromRGB(35, 32, 48)
 	local cf      = opts.footCFrame
+	local s       = opts.scale or 1   -- معامل التكبير (هيكل أطول/أكبر للمرشد)
 
-	local hrp = part("HumanoidRootPart", Vector3.new(2, 2, 1), uniform); hrp.Transparency = 1
-	hrp.CFrame = cf * CFrame.new(0, 3, 0)
-	part("Torso", Vector3.new(2, 2, 1), uniform).CFrame = cf * CFrame.new(0, 3, 0)
-	part("Collar", Vector3.new(2.05, 0.4, 1.05), Color3.fromRGB(245, 245, 250)).CFrame = cf * CFrame.new(0, 3.85, 0)
-	part("LeftArm",  Vector3.new(1, 2, 1), uniform).CFrame = cf * CFrame.new(-1.5, 3, 0)
-	local rArm = part("RightArm", Vector3.new(1, 2, 1), uniform); rArm.CFrame = cf * CFrame.new(1.5, 3, 0)
-	part("LeftLeg",  Vector3.new(1, 2, 1), pants).CFrame = cf * CFrame.new(-0.5, 1, 0)
-	part("RightLeg", Vector3.new(1, 2, 1), pants).CFrame = cf * CFrame.new(0.5, 1, 0)
-	part("Hair", Vector3.new(1.35, 0.5, 1.35), Color3.fromRGB(40, 30, 25)).CFrame = cf * CFrame.new(0, 5.3, 0)
+	local hrp = part("HumanoidRootPart", Vector3.new(2, 2, 1) * s, uniform); hrp.Transparency = 1
+	hrp.CFrame = cf * CFrame.new(0, 3 * s, 0)
+	part("Torso", Vector3.new(2, 2, 1) * s, uniform).CFrame = cf * CFrame.new(0, 3 * s, 0)
+	part("Collar", Vector3.new(2.05, 0.4, 1.05) * s, Color3.fromRGB(245, 245, 250)).CFrame = cf * CFrame.new(0, 3.85 * s, 0)
+	part("LeftArm",  Vector3.new(1, 2, 1) * s, uniform).CFrame = cf * CFrame.new(-1.5 * s, 3 * s, 0)
+	local rArm = part("RightArm", Vector3.new(1, 2, 1) * s, uniform); rArm.CFrame = cf * CFrame.new(1.5 * s, 3 * s, 0)
+	part("LeftLeg",  Vector3.new(1, 2, 1) * s, pants).CFrame = cf * CFrame.new(-0.5 * s, 1 * s, 0)
+	part("RightLeg", Vector3.new(1, 2, 1) * s, pants).CFrame = cf * CFrame.new(0.5 * s, 1 * s, 0)
+	part("Hair", Vector3.new(1.35, 0.5, 1.35) * s, Color3.fromRGB(40, 30, 25)).CFrame = cf * CFrame.new(0, 5.3 * s, 0)
 
-	local head = part("Head", Vector3.new(1.25, 1.25, 1.25), skin)
-	head.CFrame = cf * CFrame.new(0, 4.6, 0)
+	local head = part("Head", Vector3.new(1.25, 1.25, 1.25) * s, skin)
+	head.CFrame = cf * CFrame.new(0, 4.6 * s, 0)
 	local face = Instance.new("Decal")
 	face.Name = "face"; face.Texture = "rbxasset://textures/face.png"; face.Face = Enum.NormalId.Front; face.Parent = head
 	model.PrimaryPart = hrp
@@ -1345,7 +1346,7 @@ local function buildNPC(opts)
 	-- لوحة الاسم فوق الرأس
 	local bb = Instance.new("BillboardGui")
 	bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-	bb.StudsOffset = Vector3.new(0, 2.3, 0); bb.AlwaysOnTop = true; bb.Parent = head
+	bb.StudsOffset = Vector3.new(0, 2.3 * s, 0); bb.AlwaysOnTop = true; bb.Parent = head
 	local tagLbl = Instance.new("TextLabel")
 	tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
 	tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true; tagLbl.Text = opts.tag
@@ -1379,9 +1380,9 @@ local function buildNPC(opts)
 		local phase = math.random() * 6.28
 		while model.Parent do
 			local t = os.clock() + phase
-			head.CFrame = cf * CFrame.new(0, 4.6, 0) * CFrame.Angles(0, math.sin(t * 1.1) * 0.13, 0)
+			head.CFrame = cf * CFrame.new(0, 4.6 * s, 0) * CFrame.Angles(0, math.sin(t * 1.1) * 0.13, 0)
 			if opts.wave then
-				rArm.CFrame = cf * CFrame.new(1.5, 3, 0) * CFrame.Angles(0, 0, -math.abs(math.sin(t * 2.2)) * 1.3)
+				rArm.CFrame = cf * CFrame.new(1.5 * s, 3 * s, 0) * CFrame.Angles(0, 0, -math.abs(math.sin(t * 2.2)) * 1.3)
 			end
 			task.wait(0.06)
 		end
@@ -1422,7 +1423,7 @@ pcall(function()
 	)
 	buildNPC({
 		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),
-		uniform = Color3.fromRGB(70, 60, 150), footCFrame = guideFoot,
+		uniform = Color3.fromRGB(70, 60, 150), footCFrame = guideFoot, scale = 1.5,
 		promptText = "تحدّث", promptObj = "مرشد السينما", wave = true, onTrigger = guideTalk,
 	})
 

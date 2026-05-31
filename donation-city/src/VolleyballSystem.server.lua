@@ -24,10 +24,10 @@ local RunService       = game:GetService("RunService")
 ----------------------------------------------------------------------
 local VCX, VCZ = 150, -100        -- مركز الملعب (جنوب الشاطئ، بجانب البحر)
 local FLOOR_Y  = 1.5              -- سطح أرضية الملعب (أعلى نقطة)
-local HALF_W   = 9                -- نصف عرض الملعب (محور X)
-local HALF_L   = 18               -- نصف طول كل جهة (محور Z)
+local HALF_W   = 11               -- نصف عرض الملعب (محور X) — ملعب أوسع
+local HALF_L   = 22               -- نصف طول كل جهة (محور Z) — ملعب أطول
 local NET_Z    = VCZ              -- الشبكة في المنتصف (Z ثابت)
-local NET_X0, NET_X1 = VCX - 10, VCX + 10
+local NET_X0, NET_X1 = VCX - (HALF_W + 2), VCX + (HALF_W + 2)
 local LAND_Y   = 3.2              -- ارتفاع يُعتبر دونه أن الكرة لمست الأرض
 local MATCH_POINTS = 7            -- نقاط الفوز (مع فارق نقطتين، وسقف 11)
 local HARD_CAP = 11
@@ -79,13 +79,13 @@ end
 newPart({ Name = "CourtSand", Size = Vector3.new(2 * HALF_W + 16, 1, 2 * HALF_L + 16),
 	Position = Vector3.new(VCX, FLOOR_Y - 0.5, VCZ), Color = SAND, Material = Enum.Material.Sand })
 
--- أرضية اللعب (سطح أنعم لارتداد الكرة) — جهتان ملوّنتان خفيفتان
+-- أرضية اللعب — جهة الفريق A زرقاء وجهة الفريق B حمراء (تمييز واضح)
 newPart({ Name = "FloorA", Size = Vector3.new(2 * HALF_W, 0.4, HALF_L),
-	Position = Vector3.new(VCX, FLOOR_Y, VCZ - HALF_L / 2), Color = Color3.fromRGB(225, 200, 150),
-	Material = Enum.Material.Sand, Transparency = 0.15, CanCollide = false })
+	Position = Vector3.new(VCX, FLOOR_Y, VCZ - HALF_L / 2), Color = Color3.fromRGB(120, 165, 235),
+	Material = Enum.Material.SmoothPlastic, Transparency = 0.1, CanCollide = false })
 newPart({ Name = "FloorB", Size = Vector3.new(2 * HALF_W, 0.4, HALF_L),
-	Position = Vector3.new(VCX, FLOOR_Y, VCZ + HALF_L / 2), Color = Color3.fromRGB(150, 175, 210),
-	Material = Enum.Material.Sand, Transparency = 0.15, CanCollide = false })
+	Position = Vector3.new(VCX, FLOOR_Y, VCZ + HALF_L / 2), Color = Color3.fromRGB(235, 110, 110),
+	Material = Enum.Material.SmoothPlastic, Transparency = 0.1, CanCollide = false })
 
 -- خطوط حدود الملعب (نيون رفيع فوق الرمل)
 local function line(cx, cz, sx, sz)
@@ -110,6 +110,35 @@ newPart({ Name = "NetTop", Size = Vector3.new(2 * HALF_W + 2, 0.5, 0.4),
 newPart({ Name = "NetBody", Size = Vector3.new(2 * HALF_W + 2, 5.4, 0.4),
 	Position = Vector3.new(VCX, FLOOR_Y + 5.1, NET_Z), Color = NETCOL, Material = Enum.Material.ForceField,
 	Transparency = 0.2 })
+
+----------------------------------------------------------------------
+-- شبك محيط بالملعب (مظهر احترافي) — تجميلي لا يصطدم باللاعب
+----------------------------------------------------------------------
+local FENCE_COL = Color3.fromRGB(150, 162, 175)
+local FENCE_H   = 11
+local function fenceSide(cx, cz, length, axis)
+	for _, hy in ipairs({ FLOOR_Y + 1, FLOOR_Y + FENCE_H }) do
+		local sz = (axis == "x") and Vector3.new(length, 0.3, 0.3) or Vector3.new(0.3, 0.3, length)
+		newPart({ Name = "FenceRail", Size = sz, Position = Vector3.new(cx, hy, cz),
+			Color = FENCE_COL, Material = Enum.Material.Metal, CanCollide = false })
+	end
+	local n = math.max(2, math.floor(length / 4))
+	for i = 0, n do
+		local off = (i / n - 0.5) * length
+		local px = cx + ((axis == "x") and off or 0)
+		local pz = cz + ((axis == "z") and off or 0)
+		newPart({ Name = "FenceBar", Size = Vector3.new(0.25, FENCE_H, 0.25),
+			Position = Vector3.new(px, FLOOR_Y + FENCE_H / 2, pz),
+			Color = FENCE_COL, Material = Enum.Material.Metal, CanCollide = false })
+	end
+	local psz = (axis == "x") and Vector3.new(length, FENCE_H - 1.5, 0.1) or Vector3.new(0.1, FENCE_H - 1.5, length)
+	newPart({ Name = "FenceMesh", Size = psz, Position = Vector3.new(cx, FLOOR_Y + FENCE_H / 2, cz),
+		Color = FENCE_COL, Material = Enum.Material.ForceField, Transparency = 0.55, CanCollide = false })
+end
+-- شرق + الخطّان الخلفيان (نترك الغرب للمدرّج والشمال لمنطقة الانضمام)
+fenceSide(VCX + HALF_W + 2, VCZ, 2 * HALF_L + 4, "z")     -- الشرق
+fenceSide(VCX, VCZ - HALF_L - 2, 2 * HALF_W + 4, "x")     -- خلف A (شمال)
+fenceSide(VCX, VCZ + HALF_L + 2, 2 * HALF_W + 4, "x")     -- خلف B (جنوب)
 
 ----------------------------------------------------------------------
 -- مدرّج مشاهدة صغير (غرب الملعب)
@@ -144,8 +173,13 @@ end
 ----------------------------------------------------------------------
 -- لوحة النتائج الحيّة (فوق الشبكة، تُقرأ من الجهتين)
 ----------------------------------------------------------------------
-local scoreBoard = newPart({ Name = "ScoreBoard", Size = Vector3.new(2 * HALF_W + 2, 6, 0.6),
-	Position = Vector3.new(VCX, FLOOR_Y + 12.5, NET_Z), Color = DARK, Material = Enum.Material.SmoothPlastic })
+-- عمودا تثبيت للوحة (ترتفع فوق سقف المدرّج والشبكة)
+newPart({ Name = "ScoreMastL", Size = Vector3.new(0.7, 17, 0.7),
+	Position = Vector3.new(NET_X0, FLOOR_Y + 8.5, NET_Z), Color = POST, Material = Enum.Material.Metal })
+newPart({ Name = "ScoreMastR", Size = Vector3.new(0.7, 17, 0.7),
+	Position = Vector3.new(NET_X1, FLOOR_Y + 8.5, NET_Z), Color = POST, Material = Enum.Material.Metal })
+local scoreBoard = newPart({ Name = "ScoreBoard", Size = Vector3.new(2 * HALF_W + 6, 7, 0.6),
+	Position = Vector3.new(VCX, FLOOR_Y + 17, NET_Z), Color = DARK, Material = Enum.Material.SmoothPlastic })
 
 local scoreLabels = {}  -- face -> { title, score, sub }
 local function buildScoreFace(sg)

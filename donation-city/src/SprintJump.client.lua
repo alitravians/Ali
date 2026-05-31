@@ -3,8 +3,8 @@
 ║  الجري والقفز المتطوّر — SPRINT & JUMP (Client)                       ║
 ║  المكان: StarterPlayerScripts    ·     النوع: LocalScript              ║
 ║                                                                        ║
-║  • جري بالضغط على Shift (أو زر باللمس للجوال) — سرعة أعلى.             ║
-║  • شريط طاقة: يَنقُص أثناء الجري ويتجدّد عند التوقّف (لا جري بلا طاقة). ║
+║  • جري بالتبديل (ضغطة Shift أو زر اللمس) — تجري بلا حدّ وقت.            ║
+║  • ضغطة ثانية توقف الجري. لا يوجد استنزاف طاقة.                        ║
 ║  • مؤثّرات قفز وهبوط (جسيمات + صوت) لحركة أكثر حيويّة.                 ║
 ║  • يبلّغ السيرفر بثواني الجري وعدد القفزات (لإنجازَي «عدّاء» و«قفّاز»). ║
 ║  • آمن مع قفل الحركة في السينما (لا يتدخّل إن كانت السرعة مقفولة).     ║
@@ -24,10 +24,6 @@ local pg = player:WaitForChild("PlayerGui")
 ----------------------------------------------------------------------
 local NORMAL_SPEED = 16
 local SPRINT_SPEED = 28
-local MAX_ENERGY   = 100
-local DRAIN_RATE   = 100 / 8     -- استنزاف كامل خلال ~8 ثوانٍ جري
-local CHARGE_RATE  = 100 / 12    -- شحن كامل خلال ~12 ثانية توقّف
-local MIN_TO_START = 8           -- أقل طاقة للبدء بالجري
 
 ----------------------------------------------------------------------
 -- ربط السيرفر (تقارير الجري/القفز) — اختياري (لا يعطّل المؤثرات لو غاب)
@@ -45,7 +41,9 @@ local gui = Instance.new("ScreenGui")
 gui.Name = "SprintHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
+-- (أُلغي شريط الطاقة — الجري الآن تبديل بلا حدّ وقت) — نبقيه مخفيّاً
 local barBack = Instance.new("Frame")
+barBack.Visible = false
 barBack.Name = "EnergyBack"
 barBack.AnchorPoint = Vector2.new(0.5, 1)
 barBack.Position = UDim2.new(0.5, 0, 1, -18)
@@ -76,14 +74,14 @@ barLabel.TextStrokeTransparency = 0.5
 barLabel.Text = "⚡ طاقة الجري"
 barLabel.Parent = barBack
 
--- زر جري للجوال (يظهر فقط على الأجهزة اللمسية)
+-- زر جري للجوال (أصغر + أعلى على الشاشة، يظهر فقط على الأجهزة اللمسية)
 local touchBtn
 if UserInputService.TouchEnabled then
 	touchBtn = Instance.new("TextButton")
 	touchBtn.Name = "SprintButton"
 	touchBtn.AnchorPoint = Vector2.new(1, 1)
-	touchBtn.Position = UDim2.new(1, -30, 1, -90)
-	touchBtn.Size = UDim2.fromOffset(96, 96)
+	touchBtn.Position = UDim2.new(1, -22, 1, -210)
+	touchBtn.Size = UDim2.fromOffset(60, 60)
 	touchBtn.BackgroundColor3 = Color3.fromRGB(70, 140, 240)
 	touchBtn.BackgroundTransparency = 0.2
 	touchBtn.Text = "🏃"
@@ -95,36 +93,33 @@ end
 ----------------------------------------------------------------------
 -- حالة الجري والطاقة
 ----------------------------------------------------------------------
-local energy = MAX_ENERGY
-local wantSprint = false   -- زرّ الجري مضغوط
-local exhausted = false     -- نفدت الطاقة: ننتظر تجاوز الحدّ الأدنى قبل السماح بالجري
+local wantSprint = false   -- حالة تبديل الجري (تشغيل/إيقاف)
 
-local function setSprintInput(on)
-	wantSprint = on
+local function refreshBtn()
+	if not touchBtn then return end
+	if wantSprint then
+		touchBtn.BackgroundColor3 = Color3.fromRGB(90, 210, 130)   -- أخضر = الجري مُفعّل
+		touchBtn.Text = "🏃‍♂️"
+	else
+		touchBtn.BackgroundColor3 = Color3.fromRGB(70, 140, 240)
+		touchBtn.Text = "🏃"
+	end
+end
+
+-- تبديل الجري: ضغطة تُشغّل، وضغطة تُوقف (بلا حدّ وقت)
+local function toggleSprint()
+	wantSprint = not wantSprint
+	refreshBtn()
 end
 
 UserInputService.InputBegan:Connect(function(input, gpe)
 	if gpe then return end
 	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-		setSprintInput(true)
-	end
-end)
-UserInputService.InputEnded:Connect(function(input)
-	if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
-		setSprintInput(false)
+		toggleSprint()
 	end
 end)
 if touchBtn then
-	touchBtn.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setSprintInput(true)
-		end
-	end)
-	touchBtn.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			setSprintInput(false)
-		end
-	end)
+	touchBtn.Activated:Connect(toggleSprint)
 end
 
 ----------------------------------------------------------------------
@@ -175,9 +170,21 @@ local function attachEffects(char)
 	end)
 end
 
+-- كتم صوت الموت الافتراضي («oof») المزعج عند السقوط/الموت
+local function muteDeathSound(char)
+	task.spawn(function()
+		local hrp = char:WaitForChild("HumanoidRootPart", 10)
+		if not hrp then return end
+		local died = hrp:FindFirstChild("Died") or hrp:WaitForChild("Died", 6)
+		if died and died:IsA("Sound") then died.Volume = 0; died:Destroy() end
+	end)
+end
+
 local function onChar(char)
 	-- صفّر حالة الجري عند ولادة شخصية جديدة
 	wantSprint = false
+	refreshBtn()
+	muteDeathSound(char)
 	task.spawn(attachEffects, char)
 end
 if player.Character then onChar(player.Character) end
@@ -195,20 +202,15 @@ RunService.RenderStepped:Connect(function(dt)
 
 	-- هل الشخصية تتحرّك فعلاً؟ (للجري الفعلي فقط)
 	local moving = hum.MoveDirection.Magnitude > 0.1
-	local sprinting = wantSprint and moving and not exhausted and energy > 0
+	local sprinting = wantSprint and moving   -- بلا حدّ وقت/طاقة
 
-	-- إدارة الطاقة
+	-- تقرير ثواني الجري (لإنجاز «عدّاء») دون أي استنزاف
 	if sprinting then
-		energy = math.max(0, energy - DRAIN_RATE * dt)
-		if energy <= 0 then exhausted = true end
 		sprintReportAccum += dt
 		if sprintReportAccum >= 1 and reportRemote then
 			reportRemote:FireServer("sprint", sprintReportAccum)
 			sprintReportAccum = 0
 		end
-	else
-		energy = math.min(MAX_ENERGY, energy + CHARGE_RATE * dt)
-		if exhausted and energy >= MIN_TO_START then exhausted = false end
 	end
 
 	-- تطبيق السرعة بأمان: لا نلمس السرعة إلا إن كانت بقيمتها الطبيعية/سرعة الجري
@@ -217,16 +219,5 @@ RunService.RenderStepped:Connect(function(dt)
 		if hum.WalkSpeed == NORMAL_SPEED then hum.WalkSpeed = SPRINT_SPEED end
 	else
 		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
-	end
-
-	-- تحديث الشريط
-	local frac = energy / MAX_ENERGY
-	barFill.Size = UDim2.new(frac, -4, 1, -4)
-	if sprinting then
-		barFill.BackgroundColor3 = Color3.fromRGB(255, 180, 70)   -- برتقالي أثناء الجري
-	elseif energy < MIN_TO_START then
-		barFill.BackgroundColor3 = Color3.fromRGB(230, 80, 80)     -- أحمر عند النفاد
-	else
-		barFill.BackgroundColor3 = Color3.fromRGB(90, 220, 140)    -- أخضر جاهز
 	end
 end)

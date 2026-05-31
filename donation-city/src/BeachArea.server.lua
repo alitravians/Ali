@@ -66,7 +66,7 @@ newPart({ Name = "WetSand", Size = Vector3.new(10, 1, SAND_Z),
 -- + قاع صلب وحواجز غير مرئية تمنع اللاعب من السقوط تحت الماب.
 local Terrain = Workspace.Terrain
 
-local SEA_W   = 120                  -- عرض البحر (محور X، شرق الشاطئ)
+local SEA_W   = 150                  -- عرض البحر (محور X، شرق الشاطئ) — بحر أوسع
 local SEA_L   = SAND_Z               -- طول البحر (محور Z) يحاذي الرمل
 local SEA_CX  = shoreX + SEA_W / 2   -- مركز البحر
 local WATER_TOP    = SAND_Y          -- سطح الماء (يحاذي مستوى الرمل تقريباً)
@@ -263,6 +263,135 @@ end
 lamp(walkX - 2, CZ - 36); lamp(walkX - 2, CZ + 36)
 lamp(shoreX - 8, CZ - 44); lamp(shoreX - 8, CZ + 44)
 lamp(CX, CZ - 60); lamp(CX, CZ + 60)
+
+----------------------------------------------------------------------
+-- سياج خشبي حول الشاطئ (حدّ بصري + مظهر) — يترك فتحة الممشى مفتوحة
+----------------------------------------------------------------------
+local FENCE = Color3.fromRGB(160, 110, 70)
+local function fenceRun(x0, z0, x1, z1)
+	local dx, dz = x1 - x0, z1 - z0
+	local len = math.sqrt(dx * dx + dz * dz)
+	local n = math.max(1, math.floor(len / 6))
+	for i = 0, n do
+		local t = i / n
+		newPart({ Name = "FencePost", Size = Vector3.new(0.5, 4, 0.5),
+			Position = Vector3.new(x0 + dx * t, SAND_Y + 2, z0 + dz * t),
+			Color = FENCE, Material = Enum.Material.Wood, CanCollide = false })
+	end
+	local ang = math.atan2(dz, dx)
+	for _, hy in ipairs({ SAND_Y + 1.4, SAND_Y + 2.8 }) do
+		newPart({ Name = "FenceRail", Size = Vector3.new(len, 0.3, 0.3),
+			CFrame = CFrame.new((x0 + x1) / 2, hy, (z0 + z1) / 2) * CFrame.Angles(0, -ang, 0),
+			Color = FENCE, Material = Enum.Material.Wood, CanCollide = false })
+	end
+end
+do
+	local bxW, bxE = CX - SAND_X / 2, CX + SAND_X / 2
+	local bzN, bzS = CZ - SAND_Z / 2, CZ + SAND_Z / 2
+	fenceRun(bxW, bzN, bxE - 4, bzN)        -- الشمال
+	fenceRun(bxW, bzS, bxE - 4, bzS)        -- الجنوب
+	fenceRun(bxW, bzN, bxW, CZ - 18)        -- الغرب (الجزء الشمالي)
+	fenceRun(bxW, CZ + 18, bxW, bzS)        -- الغرب (الجزء الجنوبي) — بينهما فتحة الممشى
+end
+
+----------------------------------------------------------------------
+-- ٣ ألعاب أطفال على الرمل (مستوحاة من صور المرجع) — كلّها ثابتة (بلا حلقات)
+----------------------------------------------------------------------
+local PLAY = {
+	red = Color3.fromRGB(235, 90, 90), yel = Color3.fromRGB(255, 205, 70),
+	blu = Color3.fromRGB(80, 160, 240), grn = Color3.fromRGB(90, 200, 120),
+	steel = Color3.fromRGB(150, 160, 175),
+}
+
+-- (1) زحليقة لولبية
+local function spiralSlide(cx, cz)
+	local baseY = SAND_Y + 0.5
+	newPart({ Name = "SpiralPole", Shape = Enum.PartType.Cylinder, Size = Vector3.new(14, 1.2, 1.2),
+		CFrame = CFrame.new(cx, baseY + 7, cz) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = PLAY.steel, Material = Enum.Material.Metal })
+	newPart({ Name = "SpiralTop", Size = Vector3.new(5, 0.6, 5),
+		Position = Vector3.new(cx, baseY + 13.5, cz), Color = PLAY.blu, Material = Enum.Material.SmoothPlastic })
+	local turns, steps, r = 1.75, 28, 4.2
+	for i = 0, steps do
+		local t = i / steps
+		local ang = t * turns * math.pi * 2
+		local y = (baseY + 13) - t * 12
+		newPart({ Name = "SpiralChute", Size = Vector3.new(2.6, 0.4, 2.6),
+			CFrame = CFrame.new(cx + math.cos(ang) * r, y, cz + math.sin(ang) * r)
+				* CFrame.Angles(0, -ang, math.rad(12)),
+			Color = (i % 2 == 0) and PLAY.yel or PLAY.red, Material = Enum.Material.SmoothPlastic,
+			CanCollide = false })
+	end
+	for a = 0, 3 do
+		local ang = math.rad(a * 90)
+		newPart({ Name = "SpiralRail", Size = Vector3.new(0.3, 4, 0.3),
+			Position = Vector3.new(cx + math.cos(ang) * 2.2, baseY + 15, cz + math.sin(ang) * 2.2),
+			Color = PLAY.steel, Material = Enum.Material.Metal })
+	end
+end
+
+-- (2) لعبة التوازن (Seesaw)
+local function seesaw(cx, cz)
+	local baseY = SAND_Y + 0.5
+	newPart({ Name = "SeesawFulcrum", Size = Vector3.new(1.6, 2.4, 4),
+		Position = Vector3.new(cx, baseY + 1.2, cz), Color = PLAY.grn, Material = Enum.Material.SmoothPlastic })
+	newPart({ Name = "SeesawPlank", Size = Vector3.new(12, 0.5, 1.8),
+		CFrame = CFrame.new(cx, baseY + 2.4, cz) * CFrame.Angles(0, 0, math.rad(9)),
+		Color = PLAY.red, Material = Enum.Material.WoodPlanks })
+	for _, sgn in ipairs({ -1, 1 }) do
+		local sx = cx + sgn * 5
+		local sy = baseY + 2.4 + sgn * (5 * math.tan(math.rad(9)))
+		newPart({ Name = "SeesawSeat", Size = Vector3.new(2, 0.4, 1.6),
+			Position = Vector3.new(sx, sy + 0.6, cz), Color = PLAY.yel, Material = Enum.Material.SmoothPlastic })
+		newPart({ Name = "SeesawGrip", Size = Vector3.new(0.3, 1.6, 0.3),
+			Position = Vector3.new(sx, sy + 1.6, cz), Color = PLAY.steel, Material = Enum.Material.Metal })
+	end
+end
+
+-- (3) مجموعة ألعاب: مراجيح + زحليقة مستقيمة
+local function swingSet(cx, cz)
+	local baseY = SAND_Y + 0.5
+	for _, sgn in ipairs({ -1, 1 }) do
+		newPart({ Name = "SwingLeg", Size = Vector3.new(0.5, 9, 0.5),
+			CFrame = CFrame.new(cx - 4, baseY + 4.3, cz + sgn * 2.6) * CFrame.Angles(math.rad(sgn * 14), 0, 0),
+			Color = PLAY.blu, Material = Enum.Material.Metal })
+		newPart({ Name = "SwingLeg", Size = Vector3.new(0.5, 9, 0.5),
+			CFrame = CFrame.new(cx + 4, baseY + 4.3, cz + sgn * 2.6) * CFrame.Angles(math.rad(sgn * 14), 0, 0),
+			Color = PLAY.blu, Material = Enum.Material.Metal })
+	end
+	newPart({ Name = "SwingBeam", Size = Vector3.new(9, 0.6, 0.6),
+		Position = Vector3.new(cx, baseY + 8.2, cz), Color = PLAY.steel, Material = Enum.Material.Metal })
+	for _, ox in ipairs({ -2.4, 2.4 }) do
+		for _, cc in ipairs({ -0.7, 0.7 }) do
+			newPart({ Name = "SwingChain", Size = Vector3.new(0.18, 4, 0.18),
+				Position = Vector3.new(cx + ox, baseY + 6, cz + cc), Color = PLAY.steel,
+				Material = Enum.Material.Metal, CanCollide = false })
+		end
+		newPart({ Name = "SwingSeat", Size = Vector3.new(1.8, 0.3, 1.4),
+			Position = Vector3.new(cx + ox, baseY + 4, cz), Color = PLAY.yel,
+			Material = Enum.Material.SmoothPlastic, CanCollide = false })
+	end
+	local sx = cx + 9
+	newPart({ Name = "SlideTopPad", Size = Vector3.new(4, 0.5, 4),
+		Position = Vector3.new(sx, baseY + 6.5, cz), Color = PLAY.grn, Material = Enum.Material.SmoothPlastic })
+	for _, sgn in ipairs({ -1, 1 }) do
+		newPart({ Name = "SlideLadderLeg", Size = Vector3.new(0.4, 7, 0.4),
+			Position = Vector3.new(sx + 1.5, baseY + 3.5, cz + sgn * 1.6),
+			Color = PLAY.steel, Material = Enum.Material.Metal })
+	end
+	newPart({ Name = "SlideChute", Size = Vector3.new(3, 0.4, 9),
+		CFrame = CFrame.new(sx - 3.5, baseY + 4, cz) * CFrame.Angles(math.rad(34), 0, 0),
+		Color = PLAY.red, Material = Enum.Material.SmoothPlastic })
+	for _, sgn in ipairs({ -1, 1 }) do
+		newPart({ Name = "SlideWall", Size = Vector3.new(0.3, 1.2, 9),
+			CFrame = CFrame.new(sx - 3.5 + sgn * 1.5, baseY + 4.4, cz) * CFrame.Angles(math.rad(34), 0, 0),
+			Color = PLAY.yel, Material = Enum.Material.SmoothPlastic, CanCollide = false })
+	end
+end
+
+spiralSlide(CX - 16, CZ - 44)
+seesaw(CX - 28, CZ + 2)
+swingSet(CX - 22, CZ + 44)
 
 ----------------------------------------------------------------------
 -- لوحة ترحيب «🏖️ الشاطئ» تُقرأ من الوجهين
