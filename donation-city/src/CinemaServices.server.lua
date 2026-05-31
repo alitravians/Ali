@@ -1848,22 +1848,36 @@ local function surface(parent, face)
 	return sg
 end
 
--- شبّاك التذاكر (بين المقعد الأيسر والمدخل حتى لا يتداخل مع المقعد)
-do
-	local bx = -15
-	local bz = -100
-	local base = part("BoxOfficeBase", Vector3.new(11, 4, 3), Vector3.new(bx, GROUND_Y + 2, bz), DARK)
-	part("BoxOfficeTop", Vector3.new(12, 0.5, 3.6), Vector3.new(bx, GROUND_Y + 4.25, bz), Color3.fromRGB(40, 30, 64), Enum.Material.Metal)
-	local sign = part("BoxOfficeSign", Vector3.new(11, 3, 0.4), Vector3.new(bx, GROUND_Y + 7, bz), PANEL)
-	part("BoxOfficeTrim", Vector3.new(11.4, 0.3, 0.5), Vector3.new(bx, GROUND_Y + 8.6, bz), GOLD, Enum.Material.Neon)
-	-- نص اللافتة على وجهَي اللوحة (Back نحو الجمهور +Z + Front) حتى لا تظهر معكوسة
+-- ينشئ واجهة على وجهَي اللوح (Back نحو الجمهور +Z و Front) فلا يظهر النص معكوساً من أي جهة
+local function dualSurface(parent, builder)
 	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front }) do
-		local sg = surface(sign, face)
+		builder(surface(parent, face))
+	end
+end
+
+-- 🎫 شبّاك التذاكر — كشك احترافي بلافتة تُقرأ من الوجهين (لا تظهر معكوسة)
+do
+	local bx, bz = -15, -100
+	-- جسم الكاونتر + سطح علوي بارز
+	local base = part("BoxOfficeBase", Vector3.new(12, 6, 4), Vector3.new(bx, GROUND_Y + 3, bz), DARK)
+	part("BoxOfficeCounter", Vector3.new(13.4, 0.7, 5), Vector3.new(bx, GROUND_Y + 6.4, bz + 0.5), Color3.fromRGB(46, 34, 72), Enum.Material.Metal)
+	-- جدار خلفي + سقف بارز
+	part("BoxOfficeWall", Vector3.new(12, 8, 1), Vector3.new(bx, GROUND_Y + 10, bz - 1.5), PANEL)
+	part("BoxOfficeRoof", Vector3.new(14, 0.9, 6), Vector3.new(bx, GROUND_Y + 14.4, bz - 0.2), Color3.fromRGB(30, 22, 48), Enum.Material.Metal)
+	-- نافذة شباك مضيئة (إيحاء واجهة الخدمة، تواجه اللاعبين +Z)
+	local glass = part("BoxOfficeGlass", Vector3.new(9, 3.4, 0.3), Vector3.new(bx, GROUND_Y + 9.3, bz + 1.9), CYAN, Enum.Material.Neon)
+	glass.Transparency = 0.55; glass.CanCollide = false
+	-- لافتة علوية + إطار نيون ذهبي (أعلى/أسفل)
+	local sign = part("BoxOfficeSign", Vector3.new(12.6, 2.8, 0.5), Vector3.new(bx, GROUND_Y + 13.1, bz - 0.9), PANEL)
+	part("BoxOfficeTrimTop", Vector3.new(13, 0.32, 0.62), Vector3.new(bx, GROUND_Y + 14.7, bz - 0.9), GOLD, Enum.Material.Neon)
+	part("BoxOfficeTrimBot", Vector3.new(13, 0.32, 0.62), Vector3.new(bx, GROUND_Y + 11.6, bz - 0.9), GOLD, Enum.Material.Neon)
+	-- نص اللافتة على الوجهين فلا يظهر معكوساً من أي زاوية
+	dualSurface(sign, function(sg)
 		local lbl = Instance.new("TextLabel")
 		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
 		lbl.TextColor3 = GOLD; lbl.Text = "🎟️ شبّاك التذاكر"; lbl.Parent = sg
-	end
+	end)
 
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.ActionText = "شبّاك التذاكر"
@@ -1876,8 +1890,8 @@ do
 	prompt.Triggered:Connect(openBoxOffice)
 end
 
--- لوحة العروض الحيّة (يمين المدخل)
-local showLabel, subLabel
+-- لوحة العروض الحيّة (يمين المدخل) — نص على الوجهين فلا يظهر معكوساً من الخلف
+local showLabels, subLabels = {}, {}
 do
 	local sx = 22
 	local sz = -100
@@ -1885,37 +1899,40 @@ do
 	local panel = part("ShowtimesPanel", Vector3.new(13, 7.5, 0.6), Vector3.new(sx, GROUND_Y + 10, sz), PANEL)
 	part("ShowtimesFrame", Vector3.new(13.5, 0.35, 0.7), Vector3.new(sx, GROUND_Y + 13.9, sz), CYAN, Enum.Material.Neon)
 	part("ShowtimesFrameB", Vector3.new(13.5, 0.35, 0.7), Vector3.new(sx, GROUND_Y + 6.1, sz), PURPLE, Enum.Material.Neon)
-	local sg = surface(panel, Enum.NormalId.Front)
-	local pad = Instance.new("Frame")
-	pad.BackgroundTransparency = 1; pad.Size = UDim2.fromScale(1, 1); pad.Parent = sg
-	local layout = Instance.new("UIListLayout")
-	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	layout.VerticalAlignment = Enum.VerticalAlignment.Center
-	layout.Padding = UDim.new(0, 14); layout.Parent = pad
+	dualSurface(panel, function(sg)
+		local pad = Instance.new("Frame")
+		pad.BackgroundTransparency = 1; pad.Size = UDim2.fromScale(1, 1); pad.Parent = sg
+		local layout = Instance.new("UIListLayout")
+		layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		layout.VerticalAlignment = Enum.VerticalAlignment.Center
+		layout.Padding = UDim.new(0, 14); layout.Parent = pad
 
-	local title = Instance.new("TextLabel")
-	title.BackgroundTransparency = 1; title.Size = UDim2.new(1, -40, 0, 90)
-	title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.RichText = true
-	title.TextColor3 = GOLD; title.Text = "🎬 الآن في العرض"; title.LayoutOrder = 1; title.Parent = pad
+		local title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1; title.Size = UDim2.new(1, -40, 0, 90)
+		title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.RichText = true
+		title.TextColor3 = GOLD; title.Text = "🎬 الآن في العرض"; title.LayoutOrder = 1; title.Parent = pad
 
-	showLabel = Instance.new("TextLabel")
-	showLabel.BackgroundTransparency = 1; showLabel.Size = UDim2.new(1, -40, 0, 110)
-	showLabel.Font = Enum.Font.GothamBold; showLabel.TextScaled = true
-	showLabel.TextColor3 = Color3.fromRGB(244, 242, 255); showLabel.Text = FILMS[1].title
-	showLabel.LayoutOrder = 2; showLabel.Parent = pad
+		local showLabel = Instance.new("TextLabel")
+		showLabel.BackgroundTransparency = 1; showLabel.Size = UDim2.new(1, -40, 0, 110)
+		showLabel.Font = Enum.Font.GothamBold; showLabel.TextScaled = true
+		showLabel.TextColor3 = Color3.fromRGB(244, 242, 255); showLabel.Text = FILMS[1].title
+		showLabel.LayoutOrder = 2; showLabel.Parent = pad
+		showLabels[#showLabels + 1] = showLabel
 
-	subLabel = Instance.new("TextLabel")
-	subLabel.BackgroundTransparency = 1; subLabel.Size = UDim2.new(1, -40, 0, 70)
-	subLabel.Font = Enum.Font.GothamMedium; subLabel.TextScaled = true
-	subLabel.TextColor3 = CYAN; subLabel.Text = "متاح الآن — توجّه للبروجكتر"
-	subLabel.LayoutOrder = 3; subLabel.Parent = pad
+		local subLabel = Instance.new("TextLabel")
+		subLabel.BackgroundTransparency = 1; subLabel.Size = UDim2.new(1, -40, 0, 70)
+		subLabel.Font = Enum.Font.GothamMedium; subLabel.TextScaled = true
+		subLabel.TextColor3 = CYAN; subLabel.Text = "متاح الآن — توجّه للبروجكتر"
+		subLabel.LayoutOrder = 3; subLabel.Parent = pad
+		subLabels[#subLabels + 1] = subLabel
+	end)
 end
 
 ------------------------------------------------------------------------
 -- نظام صفّ الانتظار (Queue) — ينضمّ اللاعب وقت العرض ويُستدعى عند انتهائه
 -- أعضاء VIP لهم أولوية في مقدّمة الصف.
 ------------------------------------------------------------------------
-local queueLabel
+local queueLabels = {}  -- لوحات الوجهين (نُحدّثها كلها معاً)
 local queue = {}  -- مصفوفة userId بالترتيب
 
 local function inQueue(userId)
@@ -1924,9 +1941,8 @@ local function inQueue(userId)
 end
 
 local function updateQueueSign()
-	if queueLabel then
-		queueLabel.Text = (#queue > 0) and ("⏳ بالانتظار: " .. #queue) or "🟢 لا يوجد انتظار"
-	end
+	local txt = (#queue > 0) and ("⏳ بالانتظار: " .. #queue) or "🟢 لا يوجد انتظار"
+	for _, ql in ipairs(queueLabels) do ql.Text = txt end
 end
 
 local function joinQueue(player)
@@ -1977,19 +1993,21 @@ do
 	part("QueueTrim", Vector3.new(8.4, 0.3, 0.6), Vector3.new(qx, GROUND_Y + 10.2, qz), CYAN, Enum.Material.Neon)
 	-- شريط أرضي يرشد لمكان الوقوف
 	part("QueueMat", Vector3.new(3, 0.1, 10), Vector3.new(qx, GROUND_Y + 0.06, qz - 6), Color3.fromRGB(40, 30, 64), Enum.Material.Neon).CanCollide = false
-	local sg = surface(panel, Enum.NormalId.Front)
-	local box = Instance.new("Frame")
-	box.BackgroundTransparency = 1; box.Size = UDim2.fromScale(1, 1); box.Parent = sg
-	local lay = Instance.new("UIListLayout")
-	lay.HorizontalAlignment = Enum.HorizontalAlignment.Center
-	lay.VerticalAlignment = Enum.VerticalAlignment.Center; lay.Padding = UDim.new(0, 6); lay.Parent = box
-	local t = Instance.new("TextLabel")
-	t.BackgroundTransparency = 1; t.Size = UDim2.new(1, -20, 0, 70); t.Font = Enum.Font.GothamBlack
-	t.TextScaled = true; t.TextColor3 = GOLD; t.Text = "🎟️ صفّ الدخول"; t.LayoutOrder = 1; t.Parent = box
-	queueLabel = Instance.new("TextLabel")
-	queueLabel.BackgroundTransparency = 1; queueLabel.Size = UDim2.new(1, -20, 0, 60)
-	queueLabel.Font = Enum.Font.GothamBold; queueLabel.TextScaled = true
-	queueLabel.TextColor3 = CYAN; queueLabel.Text = "🟢 لا يوجد انتظار"; queueLabel.LayoutOrder = 2; queueLabel.Parent = box
+	dualSurface(panel, function(sg)
+		local box = Instance.new("Frame")
+		box.BackgroundTransparency = 1; box.Size = UDim2.fromScale(1, 1); box.Parent = sg
+		local lay = Instance.new("UIListLayout")
+		lay.HorizontalAlignment = Enum.HorizontalAlignment.Center
+		lay.VerticalAlignment = Enum.VerticalAlignment.Center; lay.Padding = UDim.new(0, 6); lay.Parent = box
+		local t = Instance.new("TextLabel")
+		t.BackgroundTransparency = 1; t.Size = UDim2.new(1, -20, 0, 70); t.Font = Enum.Font.GothamBlack
+		t.TextScaled = true; t.TextColor3 = GOLD; t.Text = "🎟️ صفّ الدخول"; t.LayoutOrder = 1; t.Parent = box
+		local ql = Instance.new("TextLabel")
+		ql.BackgroundTransparency = 1; ql.Size = UDim2.new(1, -20, 0, 60)
+		ql.Font = Enum.Font.GothamBold; ql.TextScaled = true
+		ql.TextColor3 = CYAN; ql.Text = "🟢 لا يوجد انتظار"; ql.LayoutOrder = 2; ql.Parent = box
+		queueLabels[#queueLabels + 1] = ql
+	end)
 
 	-- منطقة تفاعل غير مرئية على مستوى اللاعب فوق شريط الوقوف
 	-- (الزر السابق كان على اللوحة المرتفعة فيختفي حسب بُعد الوقوف)
@@ -2079,14 +2097,14 @@ task.spawn(function()
 		local playing = cinema:GetAttribute("Playing") or false
 		if lastPlaying and not playing then flushQueue() end
 		lastPlaying = playing
-		if showLabel and subLabel then
-			showLabel.Text = FILMS[1].title
+		for _, sl in ipairs(showLabels) do sl.Text = FILMS[1].title end
+		for _, sub in ipairs(subLabels) do
 			if playing then
-				subLabel.TextColor3 = Color3.fromRGB(255, 130, 130)
-				subLabel.Text = "🔴 العرض جارٍ — يتبقّى " .. fmt(cinema:GetAttribute("Remain") or 0)
+				sub.TextColor3 = Color3.fromRGB(255, 130, 130)
+				sub.Text = "🔴 العرض جارٍ — يتبقّى " .. fmt(cinema:GetAttribute("Remain") or 0)
 			else
-				subLabel.TextColor3 = CYAN
-				subLabel.Text = "🟢 متاح الآن — توجّه للبروجكتر لبدء العرض"
+				sub.TextColor3 = CYAN
+				sub.Text = "🟢 متاح الآن — توجّه للبروجكتر لبدء العرض"
 			end
 		end
 		task.wait(1)
