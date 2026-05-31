@@ -1,0 +1,26 @@
+# نسخ احتياطية وملفات بناء مؤقتة
+*.bak
+*.bak_*
+*.backup.rbxlx
+*.prebuild.bak
+*.prev*.bak
+*_v2.rbxlx
+
+# وسائط خام كبيرة (لا تُرفع)
+*.mp4
+*.zip
+frames/
+extracted/
+loading_bg_*.png
+loading_theme_bg.png
+frames_preview.png
+
+# مخرجات/سجلات مؤقتة
+*err*.txt
+e.txt
+e2.txt
+
+# أدوات محلية
+luau
+luau-analyze
+luau-ast
