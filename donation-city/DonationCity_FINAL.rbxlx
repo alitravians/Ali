@@ -1264,6 +1264,26 @@ local function safeFilter(text: string, fromUserId: number): string?
 	return nil
 end
 
+-- فلترة مخصّصة لمستلِم معيّن (GetChatForUserAsync) — أقل تشدّداً من البثّ العام
+-- وأنسب للرسائل الخاصة (همس).
+local function safeFilterForUser(text: string, fromUserId: number, targetUserId: number): string?
+	local ok, result = pcall(function()
+		return TextService:FilterStringAsync(text, fromUserId)
+	end)
+	if not ok or not result then
+		warn("[CustomChat] FilterStringAsync فشل (همس) — حُجبت الرسالة")
+		return nil
+	end
+	local ok2, filtered = pcall(function()
+		return result:GetChatForUserAsync(targetUserId)
+	end)
+	if ok2 and typeof(filtered) == "string" and filtered ~= "" then
+		return filtered
+	end
+	warn("[CustomChat] GetChatForUserAsync فشل — حُجبت رسالة الهمس")
+	return nil
+end
+
 ------------------------------------------------------------------------
 -- استقبال رسالة من لاعب، فلترتها، وبثّها للجميع
 ------------------------------------------------------------------------
@@ -1390,8 +1410,9 @@ whisperRemote.OnServerEvent:Connect(function(sender: Player, targetUserId, rawTe
 	if now - (lastWhisper[sender.UserId] or 0) < MIN_INTERVAL then return end
 	lastWhisper[sender.UserId] = now
 
-	-- الفلترة الرسمية إلزامية: إن فشلت نحجب ونُعلم المرسِل فقط
-	local shownText = safeFilter(text, sender.UserId)
+	-- فلترة مخصّصة للمستلِم (GetChatForUserAsync) — أقل تشدّداً من البثّ العام، فلا تتحوّل كلمات
+	-- عادية إلى #### بين لاعبين بالغين.
+	local shownText = safeFilterForUser(text, sender.UserId, target.UserId)
 	if not shownText or shownText == "" then
 		pushRemote:FireClient(sender, { system = true, text = "⚠️ تعذّرت فلترة رسالتك الآن — لم تُرسَل." })
 		return
@@ -4541,6 +4562,7 @@ pcall(function() coinStore = DataStoreService:GetDataStore("CinemaCoins_v1") end
 local applyAllPasses  -- forward declaration (فحص ومنح الباقات الدائمة عند الدخول)
 local canUseAnnouncer -- forward declaration: من يحق له الإعلان (مشرف فأعلى / VIP / حامل الباقة)
 local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
+local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
 
 local function loadCoins(userId: number): number
@@ -4726,6 +4748,9 @@ Players.PlayerAdded:Connect(function(player)
 
 	-- فحص ومنح الباقات الدائمة الإضافية (بوفيه/مالك العرض/أثر نيون/مايك الإعلان)
 	if applyAllPasses then task.spawn(applyAllPasses, player) end
+
+	-- 🛟 سلّم أي مشتريات Robux مؤجّلة (لو خرج اللاعب أثناء معالجة الإيصال سابقاً)
+	if drainPendingGrants then task.spawn(drainPendingGrants, player) end
 end)
 
 Players.PlayerRemoving:Connect(function(player)
@@ -6074,6 +6099,63 @@ local function grantProduct(player: Player, info)
 	end
 end
 
+------------------------------------------------------------------------
+-- 🛟 طابور تسليم مؤجّل لمشتريات الـ Robux (Developer Products)
+-- جذر المشكلة: ProcessReceipt يحفظ مفتاح الإيصال أولاً (at-most-once) ثم يمنح،
+-- فلو خرج اللاعب أثناء مهلة الحفظ (yield) تُمسح جلسته فيضيع المنتج رغم خصم الـ Robux.
+-- الحل الكامل: لو لم تكن الجلسة جاهزة وقت المنح، نخزّن المنتج في طابور دائم بالـ
+-- DataStore يُسلَّم تلقائياً فور عودة اللاعب — فلا يضيع أي شراء أبداً.
+------------------------------------------------------------------------
+local function pendKey(userId: number): string
+	return "pend_" .. userId
+end
+
+-- يضيف منتجاً للطابور الدائم (UpdateAsync ذرّي مع إعادة محاولة)
+local function enqueuePendingGrant(userId: number, info): boolean
+	if not coinStore then return false end
+	for _ = 1, 3 do
+		local ok = pcall(function()
+			coinStore:UpdateAsync(pendKey(userId), function(old)
+				old = (type(old) == "table") and old or {}
+				table.insert(old, { kind = info.kind, amount = info.amount })
+				return old
+			end)
+		end)
+		if ok then return true end
+		task.wait(1)
+	end
+	return false
+end
+
+-- يمنح المنتج إن كان اللاعب حاضراً، وإلا يخزّنه في الطابور الدائم لتسليمه عند عودته.
+-- يُعيد true لو سُلّم أو خُزّن بأمان (يمكن إغلاق الإيصال)، false لو تعذّر الأمران.
+local function deliverOrQueue(userId: number, info): boolean
+	local player = Players:GetPlayerByUserId(userId)
+	if player and sessions[userId] then
+		grantProduct(player, info)
+		return true
+	end
+	return enqueuePendingGrant(userId, info)
+end
+
+-- يُستدعى عند دخول اللاعب: يقرأ الطابور، يسلّم كل المنتجات، ثم يمسحه.
+function drainPendingGrants(player: Player)
+	if not coinStore then return end
+	local items
+	local ok = pcall(function() items = coinStore:GetAsync(pendKey(player.UserId)) end)
+	if not ok or type(items) ~= "table" or #items == 0 then return end
+	for _, info in ipairs(items) do
+		if sessions[player.UserId] and player.Parent then
+			grantProduct(player, info)
+		end
+	end
+	-- امسح الطابور بعد التسليم (إعادة محاولة) كي لا يتكرّر المنح في الدخول القادم
+	for _ = 1, 3 do
+		if pcall(function() coinStore:RemoveAsync(pendKey(player.UserId)) end) then break end
+		task.wait(1)
+	end
+end
+
 MarketplaceService.ProcessReceipt = function(receipt)
 	local info = PRODUCTS[receipt.ProductId]
 	if not info then return Enum.ProductPurchaseDecision.NotProcessedYet end
@@ -6097,7 +6179,12 @@ MarketplaceService.ProcessReceipt = function(receipt)
 		end
 	end
 
-	grantProduct(player, info)
+	-- التسليم: لو خرج اللاعب أثناء مهلة الحفظ أعلاه (سباق نادر) فجلسته اختفت،
+	-- فبدل أن يضيع المنتج بصمت نخزّنه في طابور دائم يُسلَّم فور عودته.
+	if not deliverOrQueue(receipt.PlayerId, info) then
+		-- تعذّر التسليم والتخزين معاً (نادر جداً) — لا نغلق الإيصال ليُعيد روبلوكس المحاولة لاحقاً.
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
 

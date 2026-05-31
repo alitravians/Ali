@@ -244,6 +244,26 @@ local function safeFilter(text: string, fromUserId: number): string?
 	return nil
 end
 
+-- فلترة مخصّصة لمستلِم معيّن (GetChatForUserAsync) — أقل تشدّداً من البثّ العام
+-- وأنسب للرسائل الخاصة (همس).
+local function safeFilterForUser(text: string, fromUserId: number, targetUserId: number): string?
+	local ok, result = pcall(function()
+		return TextService:FilterStringAsync(text, fromUserId)
+	end)
+	if not ok or not result then
+		warn("[CustomChat] FilterStringAsync فشل (همس) — حُجبت الرسالة")
+		return nil
+	end
+	local ok2, filtered = pcall(function()
+		return result:GetChatForUserAsync(targetUserId)
+	end)
+	if ok2 and typeof(filtered) == "string" and filtered ~= "" then
+		return filtered
+	end
+	warn("[CustomChat] GetChatForUserAsync فشل — حُجبت رسالة الهمس")
+	return nil
+end
+
 ------------------------------------------------------------------------
 -- استقبال رسالة من لاعب، فلترتها، وبثّها للجميع
 ------------------------------------------------------------------------
@@ -370,8 +390,9 @@ whisperRemote.OnServerEvent:Connect(function(sender: Player, targetUserId, rawTe
 	if now - (lastWhisper[sender.UserId] or 0) < MIN_INTERVAL then return end
 	lastWhisper[sender.UserId] = now
 
-	-- الفلترة الرسمية إلزامية: إن فشلت نحجب ونُعلم المرسِل فقط
-	local shownText = safeFilter(text, sender.UserId)
+	-- فلترة مخصّصة للمستلِم (GetChatForUserAsync) — أقل تشدّداً من البثّ العام، فلا تتحوّل كلمات
+	-- عادية إلى #### بين لاعبين بالغين.
+	local shownText = safeFilterForUser(text, sender.UserId, target.UserId)
 	if not shownText or shownText == "" then
 		pushRemote:FireClient(sender, { system = true, text = "⚠️ تعذّرت فلترة رسالتك الآن — لم تُرسَل." })
 		return
