@@ -21,6 +21,7 @@ local Workspace          = game:GetService("Workspace")
 local Players             = game:GetService("Players")
 local MarketplaceService  = game:GetService("MarketplaceService")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
+local DataStoreService    = game:GetService("DataStoreService")
 
 local MAX_PRODUCTS = 6
 local CLAIM_DISTANCE = 0  -- prompt handles distance
@@ -609,7 +610,35 @@ end
 
 -- admin-controlled flags (toggled from the owner admin panel)
 local boothsEnabled = true
+
+-- حظر المطالبة بالبوث: محفوظ بالـ DataStore (يبقى بعد إعادة تشغيل السيرفر) أسوةً
+-- بكتم الدردشة. مفتاح مفهرس واحد (index) يحوي كل المحظورين، مع كاش بالذاكرة.
 local bannedFromClaim = {}
+local banStore
+pcall(function() banStore = DataStoreService:GetDataStore("BoothBans_v1") end)
+
+local function loadBoothBans()
+	if not banStore then return end
+	local ok, data = pcall(function() return banStore:GetAsync("index") end)
+	if ok and type(data) == "table" then
+		for k in pairs(data) do
+			local uid = tonumber(k)
+			if uid then bannedFromClaim[uid] = true end
+		end
+	end
+end
+
+local function saveBoothBans()
+	if not banStore then return end
+	local out = {}
+	for uid in pairs(bannedFromClaim) do out[tostring(uid)] = true end  -- مفاتيح نصية آمنة للـ JSON
+	for _ = 1, 3 do
+		if pcall(function() banStore:SetAsync("index", out) end) then return end
+		task.wait(1)
+	end
+end
+
+loadBoothBans()
 
 ------------------------------------------------------------------------
 -- Claim / release
@@ -1029,6 +1058,7 @@ _G.BoothSetBanned = function(userId: number, banned: boolean)
 	else
 		bannedFromClaim[userId] = nil
 	end
+	task.spawn(saveBoothBans)  -- ثبّت الحظر فوراً فلا يضيع عند إعادة التشغيل
 end
 
 _G.BoothIsBanned = function(userId: number): boolean
