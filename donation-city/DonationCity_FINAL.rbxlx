@@ -9369,6 +9369,10 @@ Players.PlayerRemoving:Connect(function(player)
 		removeFrom(match.teamA, player.UserId)
 		removeFrom(match.teamB, player.UserId)
 		updateBoard()
+	elseif match.phase == "over" then
+		-- المباراة انتهت والمكافآت سُلّمت — فقط نزيله من القائمة بلا إعادة احتساب فوز
+		removeFrom(match.teamA, player.UserId)
+		removeFrom(match.teamB, player.UserId)
 	else
 		-- غادر لاعب أثناء مباراة → الخصم يفوز افتراضياً
 		removeFrom(match.teamA, player.UserId)
