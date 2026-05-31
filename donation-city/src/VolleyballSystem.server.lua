@@ -595,7 +595,7 @@ end)
 -- لوحة المتصدّرين (أكثر اللاعبين فوزاً)
 ----------------------------------------------------------------------
 local lbBoard = newPart({ Name = "VolleyLeaderboard", Size = Vector3.new(10, 13, 0.6),
-	Position = Vector3.new(VCX - HALF_W - 16, FLOOR_Y + 7, VCZ), Color = DARK,
+	Color = DARK,
 	CFrame = CFrame.new(VCX - HALF_W - 16, FLOOR_Y + 7, VCZ) * CFrame.Angles(0, math.rad(90), 0) })
 
 local lbList
