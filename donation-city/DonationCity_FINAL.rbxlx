@@ -8086,7 +8086,7 @@ local function trampoline(x, z)
 		CFrame = CFrame.new(x, GY + 2, z) * CFrame.Angles(0, 0, math.rad(90)),
 		Color = Color3.fromRGB(30, 30, 40), Material = Enum.Material.SmoothPlastic })
 	local boing = sound(mat, 5466166437, 0.6)
-	local debounce = {}
+	local debounce = setmetatable({}, { __mode = "k" })  -- مفاتيح ضعيفة: تُجمَع الشخصيات المحذوفة تلقائياً
 	mat.Touched:Connect(function(hit)
 		local char = hit and hit.Parent
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -8155,12 +8155,16 @@ local function buildSwing(px, pz, facing)
 	seat.Color = RED; seat.Material = Enum.Material.SmoothPlastic
 	seat.Position = Vector3.new(px, pivotY - armLen, pz)
 	seat.Parent = pg
-	-- حبلان مرئيان
+	-- حبلان مرئيان (يتأرجحان مع المقعد ضمن حلقة التحريك)
+	local ropes = {}
 	for _, ox in ipairs({ -1.6, 1.6 }) do
-		newPart({ Name = "SwingRope", Size = Vector3.new(0.18, armLen, 0.18),
-			Position = Vector3.new(px + ox, pivotY - armLen / 2, pz), Color = Color3.fromRGB(60, 50, 40), CanCollide = false })
+		ropes[#ropes + 1] = {
+			part = newPart({ Name = "SwingRope", Size = Vector3.new(0.18, armLen, 0.18),
+				Position = Vector3.new(px + ox, pivotY - armLen / 2, pz), Color = Color3.fromRGB(60, 50, 40), CanCollide = false }),
+			ox = ox,
+		}
 	end
-	table.insert(swings, { seat = seat, pivot = Vector3.new(px, pivotY, pz), arm = armLen, phase = #swings * 0.9, facing = facing or 0 })
+	table.insert(swings, { seat = seat, pivot = Vector3.new(px, pivotY, pz), arm = armLen, phase = #swings * 0.9, facing = facing or 0, ropes = ropes })
 end
 buildSwing(CX - 6, CZ + 4)
 buildSwing(CX + 8, CZ + 4, math.pi)
@@ -8194,10 +8198,14 @@ RunService.Heartbeat:Connect(function(dt)
 	for _, sw in ipairs(swings) do
 		if sw.seat.Parent then
 			local theta = math.rad(28) * math.sin(t * 1.6 + sw.phase)
-			local cf = CFrame.new(sw.pivot)
-				* CFrame.Angles(theta, sw.facing, 0)
-				* CFrame.new(0, -sw.arm, 0)
-			sw.seat.CFrame = cf
+			local swivel = CFrame.new(sw.pivot) * CFrame.Angles(theta, sw.facing, 0)
+			sw.seat.CFrame = swivel * CFrame.new(0, -sw.arm, 0)
+			-- الحبال تتبع نفس دوران البندول فتبقى موصولة بالمقعد
+			if sw.ropes then
+				for _, r in ipairs(sw.ropes) do
+					r.part.CFrame = swivel * CFrame.new(r.ox, -sw.arm / 2, 0)
+				end
+			end
 		end
 	end
 	-- دوّار
