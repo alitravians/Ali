@@ -1642,13 +1642,29 @@ local STORE_ITEMS = {
 	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", desc = "تذكرة سينما فورية بضغطة واحدة" },
 }
 
+-- كاش معلومات المتجر: النجاح يُحفظ دائماً (المعلومات نادراً ما تتغيّر)،
+-- والفشل يُحفظ مؤقتاً (TTL) فقط حتى نتعافى تلقائياً من أعطال API العابرة بدل
+-- تثبيت قيمة فاشلة للأبد.
 local infoCache = {}
+local INFO_FAIL_TTL = 60  -- ثانية
 local function getInfoCached(id: number, infoType)
 	if not id or id == 0 then return nil end
-	if infoCache[id] ~= nil then return infoCache[id] or nil end
+	local cached = infoCache[id]
+	if cached ~= nil then
+		if cached == false then return nil end          -- لا قيمة سلبية محفوظة (نجاح فقط يُخزّن دائماً)
+		if cached.fail then
+			if os.clock() < cached.expiry then return nil end  -- ضمن مهلة الفشل المؤقت
+		else
+			return cached.info                          -- نجاح محفوظ دائماً
+		end
+	end
 	local ok, info = pcall(function() return MarketplaceService:GetProductInfo(id, infoType) end)
-	infoCache[id] = (ok and info) or false
-	return infoCache[id] or nil
+	if ok and info then
+		infoCache[id] = { info = info }
+		return info
+	end
+	infoCache[id] = { fail = true, expiry = os.clock() + INFO_FAIL_TTL }
+	return nil
 end
 
 local function ownsGamePass(player: Player, passId: number): boolean

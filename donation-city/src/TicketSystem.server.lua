@@ -104,10 +104,12 @@ local function applyDailyReward(player)
 	if not s then return false end
 	local now = os.time()
 	if (now - (s.lastDaily or 0)) >= CONFIG.DailySeconds then
+		local before = s.tickets
 		s.tickets = math.clamp(s.tickets + CONFIG.DailyTickets, 0, CONFIG.MaxTickets)
+		local added = s.tickets - before
 		s.lastDaily = now
 		syncAttributes(player)
-		notifyRemote:FireClient(player, "🎁 مكافأتك اليومية: +" .. CONFIG.DailyTickets .. " تذاكر! لديك الآن " .. s.tickets .. ".")
+		notifyRemote:FireClient(player, "🎁 مكافأتك اليومية: +" .. added .. " تذاكر! لديك الآن " .. s.tickets .. ".")
 		task.spawn(function() saveData(player.UserId) end)
 		return true
 	end
