@@ -35,10 +35,10 @@ task.spawn(function()
 	local okBB, cf, size = pcall(function() return fountain:GetBoundingBox() end)
 	if not okBB or not cf then return end
 
-	-- النافورة الجديدة (Fountain of Sidon) ماؤها حيّ ذاتياً عبر Beams (TextureSpeed)
-	-- فلا نضيف فوقها رذاذ جسيمات ولا نلوّن قطعها Neon (كان ذلك حلاً لنافورة منحوتة
-	-- ثابتة بلا Beams). نكتفي بالصوت الناعم. لو كانت النافورة بلا Beams (موديل قديم)
-	-- نُفعّل الرذاذ + تموّج الأعمدة كبديل تلقائي.
+	-- حيوية الماء (طلب صريح من المستخدم: «حركة الماء ثابته... تبرمج لها سكربت»):
+	-- نُضيف نوّافات جسيمات واضحة فوق النافورة دائماً (سواء فيها Beams أو منحوتة)
+	-- فالحركة مضمونة للعين، ونُقوّي حركة الـBeams الأصلية للموديل. تموّج أعمدة
+	-- Neon الثقيل يبقى فقط للنافورة المنحوتة بلا Beams (selfAnimated=false).
 	local selfAnimated = fountain:FindFirstChildWhichIsA("Beam", true) ~= nil
 
 	-- جزء مُصدِر غير مرئي قرب أعلى النافورة (محور المركز)
@@ -54,8 +54,7 @@ task.spawn(function()
 	emitter.Transparency = 1
 	emitter.Parent = fountain
 
-	if not selfAnimated then
-	-- ماء النافورة الحيّ: نوّافات جسيمات واضحة (تطلع لأعلى وتتقوّس وتتساقط).
+	-- ماء النافورة الحيّ (يُفعَّل دائماً): نوّافات جسيمات واضحة (تطلع لأعلى وتتقوّس وتتساقط).
 	-- الجسيمات تتحرّك دائماً فيُرى الماء «حيّاً» مهما كانت هندسة الموديل ثابتة.
 	local WATER1 = Color3.fromRGB(215, 242, 255)
 	local WATER2 = Color3.fromRGB(120, 195, 245)
@@ -104,7 +103,20 @@ task.spawn(function()
 	mist.Speed = NumberRange.new(0.5, 1.4)
 	mist.SpreadAngle = Vector2.new(50, 50)
 	mist.Parent = emitter
-	end  -- if not selfAnimated (رذاذ + ضباب)
+
+	-- نُقوّي حركة الـBeams الأصلية للموديل (ماء الموديل نفسه) فيبان جريانها واضحاً.
+	if selfAnimated then
+		for _, d in ipairs(fountain:GetDescendants()) do
+			if d:IsA("Beam") then
+				d.Enabled = true
+				local ts = d.TextureSpeed
+				if ts == 0 then ts = -1 end
+				-- نضاعف السرعة مع الإبقاء على الاتجاه لحركة ماء أوضح للعين.
+				local dir = ts < 0 and -1 or 1
+				d.TextureSpeed = dir * math.max(2.5, math.abs(ts) * 2.5)
+			end
+		end
+	end
 
 	-- صوت ماء ناعم ٣D محلي: يُسمع وأنت قريب، واطي وغير مزعج.
 	-- نجرّب عدة أصوات ماء ونثبّت أول واحد يتحمّل فعلاً (تفادي قيود خصوصية الصوت).

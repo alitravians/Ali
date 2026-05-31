@@ -449,8 +449,17 @@ Players.PlayerAdded:Connect(function(player)
 			end
 		end)
 	end
-	player.CharacterRemoving:Connect(function()
+	-- الموديل الأصلي فيه ٤١ «بلوك موت» (Touched -> Humanoid.Health = 0). نُبقي
+	-- هذي السكربتات كما هي (نظيفة)، لكن بدل ما يرجع اللاعب لمركز المدينة عند الموت،
+	-- نرجّعه لآخر نقطة حفظ ونُكمّل الجولة — فالموت داخل المسار = استئناف من الشيك بوينت.
+	player.CharacterAdded:Connect(function(char)
 		local st = runState[player.UserId]
-		if st and st.inRun then st.inRun = false; stopProgressLoop(st); updateFallWatcher() end
+		if not st or not st.inRun then return end
+		local hrp = char:WaitForChild("HumanoidRootPart", 5)
+		if hrp then
+			task.wait()  -- إطار واحد حتى يستقرّ التحكّم قبل النقل
+			hrp.CFrame = st.cpCF or SPAWN_CF
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "↩️ رجعناك لآخر نقطة حفظ.") end
+		end
 	end)
 end)

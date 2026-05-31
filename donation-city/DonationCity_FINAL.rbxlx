@@ -6812,10 +6812,10 @@ task.spawn(function()
 	local okBB, cf, size = pcall(function() return fountain:GetBoundingBox() end)
 	if not okBB or not cf then return end
 
-	-- النافورة الجديدة (Fountain of Sidon) ماؤها حيّ ذاتياً عبر Beams (TextureSpeed)
-	-- فلا نضيف فوقها رذاذ جسيمات ولا نلوّن قطعها Neon (كان ذلك حلاً لنافورة منحوتة
-	-- ثابتة بلا Beams). نكتفي بالصوت الناعم. لو كانت النافورة بلا Beams (موديل قديم)
-	-- نُفعّل الرذاذ + تموّج الأعمدة كبديل تلقائي.
+	-- حيوية الماء (طلب صريح من المستخدم: «حركة الماء ثابته... تبرمج لها سكربت»):
+	-- نُضيف نوّافات جسيمات واضحة فوق النافورة دائماً (سواء فيها Beams أو منحوتة)
+	-- فالحركة مضمونة للعين، ونُقوّي حركة الـBeams الأصلية للموديل. تموّج أعمدة
+	-- Neon الثقيل يبقى فقط للنافورة المنحوتة بلا Beams (selfAnimated=false).
 	local selfAnimated = fountain:FindFirstChildWhichIsA("Beam", true) ~= nil
 
 	-- جزء مُصدِر غير مرئي قرب أعلى النافورة (محور المركز)
@@ -6831,8 +6831,7 @@ task.spawn(function()
 	emitter.Transparency = 1
 	emitter.Parent = fountain
 
-	if not selfAnimated then
-	-- ماء النافورة الحيّ: نوّافات جسيمات واضحة (تطلع لأعلى وتتقوّس وتتساقط).
+	-- ماء النافورة الحيّ (يُفعَّل دائماً): نوّافات جسيمات واضحة (تطلع لأعلى وتتقوّس وتتساقط).
 	-- الجسيمات تتحرّك دائماً فيُرى الماء «حيّاً» مهما كانت هندسة الموديل ثابتة.
 	local WATER1 = Color3.fromRGB(215, 242, 255)
 	local WATER2 = Color3.fromRGB(120, 195, 245)
@@ -6881,7 +6880,20 @@ task.spawn(function()
 	mist.Speed = NumberRange.new(0.5, 1.4)
 	mist.SpreadAngle = Vector2.new(50, 50)
 	mist.Parent = emitter
-	end  -- if not selfAnimated (رذاذ + ضباب)
+
+	-- نُقوّي حركة الـBeams الأصلية للموديل (ماء الموديل نفسه) فيبان جريانها واضحاً.
+	if selfAnimated then
+		for _, d in ipairs(fountain:GetDescendants()) do
+			if d:IsA("Beam") then
+				d.Enabled = true
+				local ts = d.TextureSpeed
+				if ts == 0 then ts = -1 end
+				-- نضاعف السرعة مع الإبقاء على الاتجاه لحركة ماء أوضح للعين.
+				local dir = ts < 0 and -1 or 1
+				d.TextureSpeed = dir * math.max(2.5, math.abs(ts) * 2.5)
+			end
+		end
+	end
 
 	-- صوت ماء ناعم ٣D محلي: يُسمع وأنت قريب، واطي وغير مزعج.
 	-- نجرّب عدة أصوات ماء ونثبّت أول واحد يتحمّل فعلاً (تفادي قيود خصوصية الصوت).
@@ -8055,9 +8067,18 @@ Players.PlayerAdded:Connect(function(player)
 			end
 		end)
 	end
-	player.CharacterRemoving:Connect(function()
+	-- الموديل الأصلي فيه ٤١ «بلوك موت» (Touched -> Humanoid.Health = 0). نُبقي
+	-- هذي السكربتات كما هي (نظيفة)، لكن بدل ما يرجع اللاعب لمركز المدينة عند الموت،
+	-- نرجّعه لآخر نقطة حفظ ونُكمّل الجولة — فالموت داخل المسار = استئناف من الشيك بوينت.
+	player.CharacterAdded:Connect(function(char)
 		local st = runState[player.UserId]
-		if st and st.inRun then st.inRun = false; stopProgressLoop(st); updateFallWatcher() end
+		if not st or not st.inRun then return end
+		local hrp = char:WaitForChild("HumanoidRootPart", 5)
+		if hrp then
+			task.wait()  -- إطار واحد حتى يستقرّ التحكّم قبل النقل
+			hrp.CFrame = st.cpCF or SPAWN_CF
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "↩️ رجعناك لآخر نقطة حفظ.") end
+		end
 	end)
 end)
 ]]></string>
@@ -13320,15 +13341,18 @@ progressRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
 	if data.state == "finish" then
 		active = false; bar.Visible = false; stopBtn.Visible = false
+		player:SetAttribute("InParkour", false)   -- يسمح بالجري ثانية خارج المسار
 		showFinish(fmtTime(data.time or 0), data.reward or 0)
 		return
 	end
 	if data.state == "idle" then
 		active = false; bar.Visible = false; stopBtn.Visible = false
+		player:SetAttribute("InParkour", false)
 		return
 	end
 	-- run
 	active = true; bar.Visible = true; stopBtn.Visible = true
+	player:SetAttribute("InParkour", true)   -- يوقف الجري داخل المسار (سرعة ثابتة للتحكّم)
 	baseTime = data.time or 0; baseClock = os.clock()
 	curStage = data.stage or 1; curCp = data.cp or 1; curTotal = data.total or 1; curPct = data.percent or 0
 	pct.BackgroundColor3 = STAGE_COLORS[curStage] or STAGE_COLORS[1]
@@ -13860,6 +13884,14 @@ RunService.RenderStepped:Connect(function(dt)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
+
+	-- داخل الباركور: نوقف الجري ونرجع السرعة الطبيعية (تحكّم دقيق بالقفزات).
+	-- لا نلمس السرعة إن كانت مقفولة على 0 (سينما/تحميل).
+	if player:GetAttribute("InParkour") then
+		if wantSprint then wantSprint = false; refreshBtn() end
+		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		return
+	end
 
 	-- هل الشخصية تتحرّك فعلاً؟ (للجري الفعلي فقط)
 	local moving = hum.MoveDirection.Magnitude > 0.1
@@ -21283,7 +21315,8 @@ end)
         </Vector3>
         <float name="Transparency">0</float>
       </Properties>
-    </Item>
+    <Item class="SurfaceGui" referent="SCREEN0001"><Properties><string name="Name">CustomImageScreen</string><token name="Face">1</token><bool name="Enabled">true</bool><float name="LightInfluence">0</float><bool name="AlwaysOnTop">false</bool><token name="SizingMode">1</token><float name="PixelsPerStud">50</float><bool name="ResetOnSpawn">false</bool></Properties><Item class="ImageLabel" referent="SCREEN0002"><Properties><string name="Name">Image</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><Color3uint8 name="BackgroundColor3">1189442</Color3uint8><float name="BackgroundTransparency">0</float><token name="ScaleType">3</token><Content name="Image"><null/></Content></Properties><Item class="TextLabel" referent="SCREEN0003"><Properties><string name="Name">Hint</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><float name="BackgroundTransparency">1</float><bool name="Visible">true</bool><Color3uint8 name="TextColor3">14808575</Color3uint8><bool name="TextScaled">true</bool><string name="Text">📷 صورتك المخصّصة تظهر هنا
+أرسل لي رقم الصورة (Asset ID) بعد رفعها لروبلوكس</string></Properties></Item></Item></Item></Item>
     <Item class="Model" referent="349">
       <Properties>
         <string name="Name">Tree1</string>
@@ -143313,7 +143346,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000096">
+          <Item class="Script" referent="PK000096">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{A421D8CA-EE02-4DD3-A403-7F7086E8C48B}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132de</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000097">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -143335,7 +143393,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000097">
+        <Item class="Part" referent="PK000098">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -143434,7 +143492,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000098">
+          <Item class="Script" referent="PK000099">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{C23A1E58-10DC-4CC6-A8D8-1A570F5C36F2}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132e1</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000100">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -143456,7 +143539,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000099">
+        <Item class="Part" referent="PK000101">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -143555,7 +143638,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000100">
+          <Item class="Script" referent="PK000102">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{3FFD06AE-FB1C-477C-B3C9-224AD3EF1CF5}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132e4</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000103">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -143577,7 +143685,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000101">
+        <Item class="Part" referent="PK000104">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -143676,7 +143784,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000102">
+          <Item class="Script" referent="PK000105">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{328D4A68-7147-48F6-AAC4-17ACF01DEB39}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132e7</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000106">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -143698,7 +143831,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000103">
+        <Item class="Part" referent="PK000107">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -143797,7 +143930,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000104">
+          <Item class="Script" referent="PK000108">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{891E7FBF-042B-4769-8CC3-20E12C15D445}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132ea</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000109">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -143820,7 +143978,7 @@ end)
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000105">
+      <Item class="Folder" referent="PK000110">
         <Properties>
           <string name="Name">Stage 10</string>
           <BinaryString name="AttributesSerialize"/>
@@ -143831,7 +143989,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132ec</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000106">
+        <Item class="Part" referent="PK000111">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -143931,7 +144089,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000107">
+        <Item class="Part" referent="PK000112">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144031,7 +144189,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000108">
+        <Item class="Part" referent="PK000113">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144131,7 +144289,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000109">
+        <Item class="Part" referent="PK000114">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144231,7 +144389,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000110">
+        <Item class="Part" referent="PK000115">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144331,7 +144489,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000111">
+        <Item class="Part" referent="PK000116">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144431,7 +144589,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000112">
+        <Item class="Part" referent="PK000117">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144531,7 +144689,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000113">
+        <Item class="Part" referent="PK000118">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144631,7 +144789,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000114">
+        <Item class="Part" referent="PK000119">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144731,7 +144889,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000115">
+        <Item class="Part" referent="PK000120">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144831,7 +144989,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000116">
+        <Item class="Part" referent="PK000121">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -144931,7 +145089,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000117">
+        <Item class="Part" referent="PK000122">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145031,7 +145189,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000118">
+        <Item class="Part" referent="PK000123">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145132,7 +145290,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000119">
+      <Item class="Folder" referent="PK000124">
         <Properties>
           <string name="Name">Stage 11</string>
           <BinaryString name="AttributesSerialize"/>
@@ -145143,7 +145301,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000132fa</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000120">
+        <Item class="Part" referent="PK000125">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145243,7 +145401,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000121">
+        <Item class="Part" referent="PK000126">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145343,7 +145501,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000122">
+        <Item class="Part" referent="PK000127">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145443,7 +145601,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000123">
+        <Item class="Part" referent="PK000128">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145543,7 +145701,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000124">
+        <Item class="Part" referent="PK000129">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -145644,7 +145802,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000125">
+      <Item class="Folder" referent="PK000130">
         <Properties>
           <string name="Name">Stage 12</string>
           <BinaryString name="AttributesSerialize"/>
@@ -145655,7 +145813,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013300</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000126">
+        <Item class="Part" referent="PK000131">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -145755,7 +145913,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000127">
+        <Item class="Part" referent="PK000132">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -145855,7 +146013,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000128">
+        <Item class="Part" referent="PK000133">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -145955,7 +146113,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000129">
+        <Item class="Part" referent="PK000134">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146055,7 +146213,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000130">
+        <Item class="Part" referent="PK000135">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146155,7 +146313,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000131">
+        <Item class="Part" referent="PK000136">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146255,7 +146413,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000132">
+        <Item class="Part" referent="PK000137">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146355,7 +146513,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000133">
+        <Item class="Part" referent="PK000138">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146455,7 +146613,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000134">
+        <Item class="Part" referent="PK000139">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146555,7 +146713,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000135">
+        <Item class="Part" referent="PK000140">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146655,7 +146813,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000136">
+        <Item class="Part" referent="PK000141">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146755,7 +146913,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000137">
+        <Item class="Part" referent="PK000142">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146855,7 +147013,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000138">
+        <Item class="Part" referent="PK000143">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -146955,7 +147113,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000139">
+        <Item class="Part" referent="PK000144">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -147055,7 +147213,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000140">
+        <Item class="Part" referent="PK000145">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -147155,7 +147313,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000141">
+        <Item class="Part" referent="PK000146">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -147256,7 +147414,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000142">
+      <Item class="Folder" referent="PK000147">
         <Properties>
           <string name="Name">Stage 2</string>
           <BinaryString name="AttributesSerialize"/>
@@ -147267,7 +147425,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013311</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000143">
+        <Item class="Part" referent="PK000148">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -147367,7 +147525,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000144">
+        <Item class="Part" referent="PK000149">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -147467,7 +147625,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000145">
+        <Item class="Part" referent="PK000150">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -147567,7 +147725,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000146">
+        <Item class="Part" referent="PK000151">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -147667,7 +147825,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000147">
+        <Item class="Part" referent="PK000152">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -147767,7 +147925,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000148">
+        <Item class="Part" referent="PK000153">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -147867,7 +148025,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000149">
+        <Item class="Part" referent="PK000154">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -147967,7 +148125,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000150">
+        <Item class="Part" referent="PK000155">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148067,7 +148225,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000151">
+        <Item class="Part" referent="PK000156">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148168,7 +148326,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000152">
+      <Item class="Folder" referent="PK000157">
         <Properties>
           <string name="Name">Stage 13</string>
           <BinaryString name="AttributesSerialize"/>
@@ -148179,7 +148337,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001331b</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000153">
+        <Item class="Part" referent="PK000158">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -148279,7 +148437,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000154">
+        <Item class="Part" referent="PK000159">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148379,7 +148537,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000155">
+        <Item class="Part" referent="PK000160">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148479,7 +148637,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000156">
+        <Item class="Part" referent="PK000161">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148579,7 +148737,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000157">
+        <Item class="Part" referent="PK000162">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148679,7 +148837,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000158">
+        <Item class="Part" referent="PK000163">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148780,7 +148938,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000159">
+      <Item class="Folder" referent="PK000164">
         <Properties>
           <string name="Name">Stage 14</string>
           <BinaryString name="AttributesSerialize"/>
@@ -148791,7 +148949,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013322</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000160">
+        <Item class="Part" referent="PK000165">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -148891,7 +149049,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000161">
+        <Item class="Part" referent="PK000166">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -148991,7 +149149,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000162">
+        <Item class="Part" referent="PK000167">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149091,7 +149249,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000163">
+        <Item class="Part" referent="PK000168">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149191,7 +149349,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000164">
+        <Item class="Part" referent="PK000169">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149291,7 +149449,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000165">
+        <Item class="Part" referent="PK000170">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149392,7 +149550,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000166">
+      <Item class="Folder" referent="PK000171">
         <Properties>
           <string name="Name">Stage 15</string>
           <BinaryString name="AttributesSerialize"/>
@@ -149403,7 +149561,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013329</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000167">
+        <Item class="Part" referent="PK000172">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -149503,7 +149661,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000168">
+        <Item class="Part" referent="PK000173">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149603,7 +149761,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000169">
+        <Item class="Part" referent="PK000174">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149703,7 +149861,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000170">
+        <Item class="Part" referent="PK000175">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149803,7 +149961,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000171">
+        <Item class="Part" referent="PK000176">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -149903,7 +150061,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000172">
+        <Item class="Part" referent="PK000177">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150003,7 +150161,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000173">
+        <Item class="Part" referent="PK000178">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150103,7 +150261,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000174">
+        <Item class="Part" referent="PK000179">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150203,7 +150361,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000175">
+        <Item class="Part" referent="PK000180">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150303,7 +150461,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000176">
+        <Item class="Part" referent="PK000181">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150403,7 +150561,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000177">
+        <Item class="Part" referent="PK000182">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150503,7 +150661,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000178">
+        <Item class="Part" referent="PK000183">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150603,7 +150761,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000179">
+        <Item class="Part" referent="PK000184">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150703,7 +150861,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000180">
+        <Item class="Part" referent="PK000185">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150803,7 +150961,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000181">
+        <Item class="Part" referent="PK000186">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -150903,7 +151061,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000182">
+        <Item class="Part" referent="PK000187">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151003,7 +151161,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000183">
+        <Item class="Part" referent="PK000188">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151104,7 +151262,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000184">
+      <Item class="Folder" referent="PK000189">
         <Properties>
           <string name="Name">Stage 16</string>
           <BinaryString name="AttributesSerialize"/>
@@ -151115,7 +151273,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001333b</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000185">
+        <Item class="Part" referent="PK000190">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -151215,7 +151373,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000186">
+        <Item class="Part" referent="PK000191">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151315,7 +151473,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000187">
+        <Item class="Part" referent="PK000192">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151414,7 +151572,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000188">
+          <Item class="Script" referent="PK000193">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{A66A4EA5-0408-4E65-901C-7EF60CDB88E6}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001333f</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000194">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -151436,7 +151619,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000189">
+        <Item class="Part" referent="PK000195">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151535,7 +151718,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000190">
+          <Item class="Script" referent="PK000196">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{8D098399-E35F-49F4-A1AB-8CC2DA790C5A}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013342</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000197">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -151557,7 +151765,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000191">
+        <Item class="Part" referent="PK000198">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151656,7 +151864,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000192">
+          <Item class="Script" referent="PK000199">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{668B513E-A7D9-4235-87F0-48C806128806}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013345</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000200">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -151678,7 +151911,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000193">
+        <Item class="Part" referent="PK000201">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151777,7 +152010,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000194">
+          <Item class="Script" referent="PK000202">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{37347C55-FEC9-4DB0-8AB8-8D3E92E6E54F}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013348</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000203">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -151799,7 +152057,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000195">
+        <Item class="Part" referent="PK000204">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -151898,7 +152156,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000196">
+          <Item class="Script" referent="PK000205">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{EF20CF80-5C59-4D3A-BE9E-FA19AEC3468E}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001334b</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000206">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -151920,7 +152203,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000197">
+        <Item class="Part" referent="PK000207">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152019,7 +152302,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000198">
+          <Item class="Script" referent="PK000208">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{2BDE92CC-E8E1-4F26-A909-5185155875B4}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001334e</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000209">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -152041,7 +152349,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000199">
+        <Item class="Part" referent="PK000210">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152140,7 +152448,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000200">
+          <Item class="Script" referent="PK000211">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{BE98969E-20D2-475B-8A8E-714914512973}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013351</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000212">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -152162,7 +152495,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000201">
+        <Item class="Part" referent="PK000213">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152261,7 +152594,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000202">
+          <Item class="Script" referent="PK000214">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{56D0D573-67E9-43FA-A949-A594BB23C3BB}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013354</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000215">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -152283,7 +152641,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000203">
+        <Item class="Part" referent="PK000216">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152382,7 +152740,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000204">
+          <Item class="Script" referent="PK000217">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{929E5BF7-4095-45F8-B2DE-6DFA3CF469AD}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013357</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000218">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -152404,7 +152787,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000205">
+        <Item class="Part" referent="PK000219">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152503,7 +152886,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000206">
+          <Item class="Script" referent="PK000220">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{453A647A-F5BD-454E-9CBE-A3A4360DC58B}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001335a</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000221">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -152525,7 +152933,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000207">
+        <Item class="Part" referent="PK000222">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152624,7 +153032,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000208">
+          <Item class="Script" referent="PK000223">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{01E6EDEB-DA2F-4AB7-8B96-29E3C33746EB}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001335d</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000224">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -152647,7 +153080,7 @@ end)
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000209">
+      <Item class="Folder" referent="PK000225">
         <Properties>
           <string name="Name">Stage 17</string>
           <BinaryString name="AttributesSerialize"/>
@@ -152658,7 +153091,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001335f</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000210">
+        <Item class="Part" referent="PK000226">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -152758,7 +153191,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000211">
+        <Item class="Part" referent="PK000227">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -152859,7 +153292,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000212">
+      <Item class="Folder" referent="PK000228">
         <Properties>
           <string name="Name">Stage 18</string>
           <BinaryString name="AttributesSerialize"/>
@@ -152870,7 +153303,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013362</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000213">
+        <Item class="Part" referent="PK000229">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -152970,7 +153403,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000214">
+        <Item class="Part" referent="PK000230">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153070,7 +153503,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000215">
+        <Item class="Part" referent="PK000231">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153170,7 +153603,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000216">
+        <Item class="Part" referent="PK000232">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153270,7 +153703,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000217">
+        <Item class="Part" referent="PK000233">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153370,7 +153803,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000218">
+        <Item class="Part" referent="PK000234">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153470,7 +153903,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000219">
+        <Item class="Part" referent="PK000235">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153570,7 +154003,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000220">
+        <Item class="Part" referent="PK000236">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153670,7 +154103,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000221">
+        <Item class="Part" referent="PK000237">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153770,7 +154203,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000222">
+        <Item class="Part" referent="PK000238">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153870,7 +154303,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000223">
+        <Item class="Part" referent="PK000239">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -153970,7 +154403,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000224">
+        <Item class="Part" referent="PK000240">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154071,7 +154504,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000225">
+      <Item class="Folder" referent="PK000241">
         <Properties>
           <string name="Name">Stage 19</string>
           <BinaryString name="AttributesSerialize"/>
@@ -154082,7 +154515,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001336f</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000226">
+        <Item class="Part" referent="PK000242">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -154182,7 +154615,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000227">
+        <Item class="Part" referent="PK000243">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154283,7 +154716,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000228">
+      <Item class="Folder" referent="PK000244">
         <Properties>
           <string name="Name">Stage 20</string>
           <BinaryString name="AttributesSerialize"/>
@@ -154294,7 +154727,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013372</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000229">
+        <Item class="Part" referent="PK000245">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -154394,7 +154827,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000230">
+        <Item class="Part" referent="PK000246">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154493,7 +154926,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000231">
+          <Item class="Script" referent="PK000247">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{339D54C9-066C-4627-AB35-2455C9C0FEE3}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013375</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000248">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -154515,7 +154973,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000232">
+        <Item class="Part" referent="PK000249">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154614,7 +155072,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000233">
+          <Item class="Script" referent="PK000250">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{451EE156-0F7C-4E87-825D-4D9A27E507CE}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013378</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000251">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -154636,7 +155119,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000234">
+        <Item class="Part" referent="PK000252">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154735,7 +155218,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000235">
+          <Item class="Script" referent="PK000253">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{A71FAFBB-69B8-49B5-A225-E0C350449631}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001337b</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000254">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -154757,7 +155265,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000236">
+        <Item class="Part" referent="PK000255">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154856,7 +155364,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000237">
+          <Item class="Script" referent="PK000256">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{C033BDFD-1D4A-405C-8C79-1CC2B74E5F85}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001337e</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000257">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -154878,7 +155411,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000238">
+        <Item class="Part" referent="PK000258">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -154978,7 +155511,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000239">
+        <Item class="Part" referent="PK000259">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155077,7 +155610,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000240">
+          <Item class="Script" referent="PK000260">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{1EBC9510-8757-42FB-A50E-1DA9866FA5FC}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013382</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000261">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -155099,7 +155657,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000241">
+        <Item class="Part" referent="PK000262">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155198,7 +155756,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000242">
+          <Item class="Script" referent="PK000263">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{3EDECB86-0846-40BA-B356-9B7F4178A2B2}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013385</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000264">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -155220,7 +155803,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000243">
+        <Item class="Part" referent="PK000265">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155319,7 +155902,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000244">
+          <Item class="Script" referent="PK000266">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{6D3D685D-87C1-446F-8E06-9A504F361C62}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013388</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000267">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -155342,7 +155950,7 @@ end)
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000245">
+      <Item class="Folder" referent="PK000268">
         <Properties>
           <string name="Name">Stage 20</string>
           <BinaryString name="AttributesSerialize"/>
@@ -155353,7 +155961,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001338a</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000246">
+        <Item class="Part" referent="PK000269">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -155454,7 +156062,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000247">
+      <Item class="Folder" referent="PK000270">
         <Properties>
           <string name="Name">Stage 21</string>
           <BinaryString name="AttributesSerialize"/>
@@ -155465,7 +156073,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001338c</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000248">
+        <Item class="Part" referent="PK000271">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -155565,7 +156173,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000249">
+        <Item class="Part" referent="PK000272">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155665,7 +156273,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000250">
+        <Item class="Part" referent="PK000273">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155765,7 +156373,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000251">
+        <Item class="Part" referent="PK000274">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155865,7 +156473,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000252">
+        <Item class="Part" referent="PK000275">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -155965,7 +156573,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000253">
+        <Item class="Part" referent="PK000276">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156065,7 +156673,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000254">
+        <Item class="Part" referent="PK000277">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156165,7 +156773,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000255">
+        <Item class="Part" referent="PK000278">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156265,7 +156873,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000256">
+        <Item class="Part" referent="PK000279">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156365,7 +156973,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000257">
+        <Item class="Part" referent="PK000280">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156465,7 +157073,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000258">
+        <Item class="Part" referent="PK000281">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156565,7 +157173,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000259">
+        <Item class="Part" referent="PK000282">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156665,7 +157273,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000260">
+        <Item class="Part" referent="PK000283">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156765,7 +157373,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000261">
+        <Item class="Part" referent="PK000284">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156865,7 +157473,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000262">
+        <Item class="Part" referent="PK000285">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -156965,7 +157573,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000263">
+        <Item class="Part" referent="PK000286">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157065,7 +157673,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000264">
+        <Item class="Part" referent="PK000287">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157165,7 +157773,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000265">
+        <Item class="Part" referent="PK000288">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157266,7 +157874,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000266">
+      <Item class="Folder" referent="PK000289">
         <Properties>
           <string name="Name">Stage 22</string>
           <BinaryString name="AttributesSerialize"/>
@@ -157277,7 +157885,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef70001339f</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000267">
+        <Item class="Part" referent="PK000290">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -157377,7 +157985,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000268">
+        <Item class="Part" referent="PK000291">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157477,7 +158085,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000269">
+        <Item class="Part" referent="PK000292">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157576,7 +158184,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000270">
+          <Item class="Script" referent="PK000293">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{CE5E1773-14DA-46B8-A1BC-B538E8F16C76}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133a3</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000294">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -157598,7 +158231,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000271">
+        <Item class="Part" referent="PK000295">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157697,7 +158330,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000272">
+          <Item class="Script" referent="PK000296">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{B71684BE-9EB8-4A61-9136-B28756F0291B}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133a6</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000297">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -157719,7 +158377,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000273">
+        <Item class="Part" referent="PK000298">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157818,7 +158476,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000274">
+          <Item class="Script" referent="PK000299">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{6689B152-5154-40B6-9A2F-E6B0662B780D}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133a9</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000300">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -157840,7 +158523,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000275">
+        <Item class="Part" referent="PK000301">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -157939,7 +158622,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000276">
+          <Item class="Script" referent="PK000302">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{80188BF9-79D8-4C92-A0EE-63538D6CFEFD}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133ac</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000303">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -157961,7 +158669,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000277">
+        <Item class="Part" referent="PK000304">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -158060,7 +158768,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000278">
+          <Item class="Script" referent="PK000305">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{29592E99-800F-4641-97F1-C53409671094}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133af</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000306">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -158082,7 +158815,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000279">
+        <Item class="Part" referent="PK000307">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -158181,7 +158914,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000280">
+          <Item class="Script" referent="PK000308">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{5F76415A-D77D-4095-AC29-F556C10E5464}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133b2</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000309">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -158204,7 +158962,7 @@ end)
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000281">
+      <Item class="Folder" referent="PK000310">
         <Properties>
           <string name="Name">Stage 23</string>
           <BinaryString name="AttributesSerialize"/>
@@ -158215,7 +158973,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133b4</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000282">
+        <Item class="Part" referent="PK000311">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158315,7 +159073,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000283">
+        <Item class="Part" referent="PK000312">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158415,7 +159173,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000284">
+        <Item class="Part" referent="PK000313">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158515,7 +159273,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000285">
+        <Item class="Part" referent="PK000314">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158615,7 +159373,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000286">
+        <Item class="Part" referent="PK000315">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158715,7 +159473,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000287">
+        <Item class="Part" referent="PK000316">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158815,7 +159573,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000288">
+        <Item class="Part" referent="PK000317">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -158915,7 +159673,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000289">
+        <Item class="Part" referent="PK000318">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -159015,7 +159773,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000290">
+        <Item class="Part" referent="PK000319">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -159116,7 +159874,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000291">
+      <Item class="Folder" referent="PK000320">
         <Properties>
           <string name="Name">Stage 24</string>
           <BinaryString name="AttributesSerialize"/>
@@ -159127,7 +159885,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133be</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000292">
+        <Item class="Part" referent="PK000321">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -159227,7 +159985,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000293">
+        <Item class="Part" referent="PK000322">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -159328,7 +160086,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000294">
+      <Item class="Folder" referent="PK000323">
         <Properties>
           <string name="Name">Stage 25</string>
           <BinaryString name="AttributesSerialize"/>
@@ -159339,7 +160097,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133c1</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000295">
+        <Item class="Part" referent="PK000324">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -159439,7 +160197,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000296">
+        <Item class="Part" referent="PK000325">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -159539,7 +160297,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000297">
+        <Item class="Part" referent="PK000326">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -159639,7 +160397,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000298">
+        <Item class="Part" referent="PK000327">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -159739,7 +160497,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000299">
+        <Item class="Part" referent="PK000328">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -159839,7 +160597,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000300">
+        <Item class="Part" referent="PK000329">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -159939,7 +160697,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000301">
+        <Item class="Part" referent="PK000330">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160040,7 +160798,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000302">
+      <Item class="Folder" referent="PK000331">
         <Properties>
           <string name="Name">Stage 26</string>
           <BinaryString name="AttributesSerialize"/>
@@ -160051,7 +160809,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133c9</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000303">
+        <Item class="Part" referent="PK000332">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -160151,7 +160909,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000304">
+        <Item class="Part" referent="PK000333">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160251,7 +161009,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000305">
+        <Item class="Part" referent="PK000334">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160350,7 +161108,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000306">
+          <Item class="Script" referent="PK000335">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{FD0AE53A-D281-48E2-A1BC-A0338066D4EF}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133cd</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000336">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -160372,7 +161155,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000307">
+        <Item class="Part" referent="PK000337">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160471,7 +161254,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000308">
+          <Item class="Script" referent="PK000338">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{1B4AB3C7-0355-4E9F-ACD1-790EE7545FC7}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133d0</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000339">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -160493,7 +161301,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000309">
+        <Item class="Part" referent="PK000340">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160592,7 +161400,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000310">
+          <Item class="Script" referent="PK000341">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{10B949F3-1744-4B2D-9316-7E51404B6B1D}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133d3</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000342">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -160614,7 +161447,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000311">
+        <Item class="Part" referent="PK000343">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160713,7 +161546,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000312">
+          <Item class="Script" referent="PK000344">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{DC930957-4FED-4293-8D5B-9E763150E46E}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133d6</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000345">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -160735,7 +161593,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000313">
+        <Item class="Part" referent="PK000346">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160834,7 +161692,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000314">
+          <Item class="Script" referent="PK000347">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{D6A38E84-3382-4831-BD90-96C55A9671DC}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133d9</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000348">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -160856,7 +161739,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000315">
+        <Item class="Part" referent="PK000349">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -160955,7 +161838,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000316">
+          <Item class="Script" referent="PK000350">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{3DE3BBE8-C4E4-48F4-BC68-0E912FDF7FDA}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133dc</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000351">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -160977,7 +161885,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000317">
+        <Item class="Part" referent="PK000352">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161076,7 +161984,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000318">
+          <Item class="Script" referent="PK000353">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{1FB22F3B-B137-4E9B-8F22-36970710A627}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133df</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000354">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -161098,7 +162031,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000319">
+        <Item class="Part" referent="PK000355">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161197,7 +162130,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000320">
+          <Item class="Script" referent="PK000356">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{36490D1A-3AEF-4A05-A823-E30929F07FF2}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133e2</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000357">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -161220,7 +162178,7 @@ end)
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000321">
+      <Item class="Folder" referent="PK000358">
         <Properties>
           <string name="Name">Stage 27</string>
           <BinaryString name="AttributesSerialize"/>
@@ -161231,7 +162189,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133e4</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000322">
+        <Item class="Part" referent="PK000359">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -161331,7 +162289,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000323">
+        <Item class="Part" referent="PK000360">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161431,7 +162389,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000324">
+        <Item class="Part" referent="PK000361">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161531,7 +162489,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000325">
+        <Item class="Part" referent="PK000362">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161631,7 +162589,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000326">
+        <Item class="Part" referent="PK000363">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161731,7 +162689,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000327">
+        <Item class="Part" referent="PK000364">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161831,7 +162789,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000328">
+        <Item class="Part" referent="PK000365">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -161931,7 +162889,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000329">
+        <Item class="Part" referent="PK000366">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -162032,7 +162990,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000330">
+      <Item class="Folder" referent="PK000367">
         <Properties>
           <string name="Name">Stage 29</string>
           <BinaryString name="AttributesSerialize"/>
@@ -162043,7 +163001,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133ed</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000331">
+        <Item class="Part" referent="PK000368">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -162143,7 +163101,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000332">
+        <Item class="Part" referent="PK000369">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -162243,7 +163201,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000333">
+        <Item class="Part" referent="PK000370">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -162342,7 +163300,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000334">
+          <Item class="Script" referent="PK000371">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{74CA358F-5420-489E-B8F1-8038F36B2B0D}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133f1</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000372">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -162364,7 +163347,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000335">
+        <Item class="Part" referent="PK000373">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -162463,7 +163446,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000336">
+          <Item class="Script" referent="PK000374">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{D1A91E46-DC48-4D33-91CB-78A2800EAB67}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133f4</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000375">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -162485,7 +163493,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000337">
+        <Item class="Part" referent="PK000376">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -162584,7 +163592,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000338">
+          <Item class="Script" referent="PK000377">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{9ECAD4B3-4F02-40AF-B85D-DA4EC55C87BD}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133f7</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000378">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -162606,7 +163639,7 @@ end)
             </Properties>
           </Item>
         </Item>
-        <Item class="Part" referent="PK000339">
+        <Item class="Part" referent="PK000379">
           <Properties>
             <string name="Name">Part</string>
             <bool name="Anchored">true</bool>
@@ -162705,7 +163738,32 @@ end)
               <Z>0</Z>
             </Vector3>
           </Properties>
-          <Item class="PointLight" referent="PK000340">
+          <Item class="Script" referent="PK000380">
+            <Properties>
+              <string name="Name">Script</string>
+              <BinaryString name="AttributesSerialize"/>
+              <SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
+              <bool name="Disabled">false</bool>
+              <UniqueId name="HistoryId">14b46bb60e7a903806df8a640001f712</UniqueId>
+              <ContentId name="LinkedSource">
+                <null>
+                </null>
+              </ContentId>
+              <token name="RunContext">0</token>
+              <bool name="DefinesCapabilities">false</bool>
+              <string name="ScriptGuid">{930CFD1C-4814-46B9-977B-FAED1CE2EA1C}</string>
+              <string name="Source">script.Parent.Touched:connect(function(Hit)
+	if Hit and Hit.Parent and Hit.Parent:FindFirstChild("Humanoid")then
+		Hit.Parent.Humanoid.Health = 0
+	end
+end)
+</string>
+              <int64 name="SourceAssetId">-1</int64>
+              <BinaryString name="Tags"/>
+              <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133fa</UniqueId>
+            </Properties>
+          </Item>
+          <Item class="PointLight" referent="PK000381">
             <Properties>
               <string name="Name">PointLight</string>
               <BinaryString name="AttributesSerialize"/>
@@ -162728,7 +163786,7 @@ end)
           </Item>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000341">
+      <Item class="Folder" referent="PK000382">
         <Properties>
           <string name="Name">Stage 28</string>
           <BinaryString name="AttributesSerialize"/>
@@ -162739,7 +163797,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef7000133fc</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000342">
+        <Item class="Part" referent="PK000383">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -162839,7 +163897,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000343">
+        <Item class="Part" referent="PK000384">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -162939,7 +163997,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000344">
+        <Item class="Part" referent="PK000385">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -163039,7 +164097,7 @@ end)
             </Vector3>
           </Properties>
         </Item>
-        <Item class="Part" referent="PK000345">
+        <Item class="Part" referent="PK000386">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>
@@ -163140,7 +164198,7 @@ end)
           </Properties>
         </Item>
       </Item>
-      <Item class="Folder" referent="PK000346">
+      <Item class="Folder" referent="PK000387">
         <Properties>
           <string name="Name">Stage 30</string>
           <BinaryString name="AttributesSerialize"/>
@@ -163151,7 +164209,7 @@ end)
           <BinaryString name="Tags"/>
           <UniqueId name="UniqueId">5ce7477bd1a9e6b206dfaef700013401</UniqueId>
         </Properties>
-        <Item class="Part" referent="PK000347">
+        <Item class="Part" referent="PK000388">
           <Properties>
             <string name="Name">Platform</string>
             <bool name="Anchored">true</bool>

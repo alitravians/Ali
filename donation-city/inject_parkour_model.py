@@ -5,8 +5,13 @@
 # at runtime (that TOWER data is removed from the script in the same change).
 #
 # The model ships with 42 Scripts + a disguised "Package"/"TextureConfiguration"
-# require-style module pair (same backdoor family as the other store assets), a
-# Camera and a NumberPose. We STRIP ALL of that and keep only geometry + lights.
+# require-style module pair + a "Module" value disguised as a NumberPose whose
+# Value is a numeric asset id (require(91638724979309) = remote code execution =
+# CONFIRMED BACKDOOR), plus a Camera. Per the user's standing rule (clean store
+# scripts are kept AS-IS; only confirmed-malicious parts are removed), we KEEP the
+# 41 clean "kill-brick" Scripts (Touched -> Humanoid.Health = 0, no unsafe calls)
+# and REMOVE ONLY the backdoor (the requiring Script + TextureConfiguration
+# ModuleScript + the NumberPose "Module"). Lights/geometry are kept.
 # Every BasePart is Anchored = true (zero physics = zero lag). The model's
 # SpawnLocation is KEPT (ParkourSystem reads its position as the course start)
 # but DISABLED (Enabled=false) so it can never hijack the city's player spawns.
@@ -44,13 +49,40 @@ BASEPARTS = {"Part","MeshPart","WedgePart","CornerWedgePart","TrussPart",
 
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
 
+# Patterns that mark a Script as malicious/unsafe. The only non-kill Script in
+# this model ("Package") matches via require(...) -> require(<assetId>).
+BACKDOOR_PATS = ("require(", "loadstring", "getfenv", "setfenv",
+                "HttpGet", "HttpGetAsync", "GetObjects", "InsertService",
+                ":GetAsync", ":SetAsync", "DataStoreService")
+
+def script_source(item):
+    pr = item.find("Properties")
+    if pr is None:
+        return ""
+    for c in pr:
+        if c.get("name") == "Source":
+            return c.text or ""
+    return ""
+
+def is_clean_script(item):
+    src = script_source(item)
+    return not any(p in src for p in BACKDOOR_PATS)
+
 def strip_tree(item):
     for child in list(item):
-        if child.tag == "Item":
-            if child.get("class") in STRIP:
-                item.remove(child)
-            else:
+        if child.tag != "Item":
+            continue
+        cls = child.get("class")
+        if cls == "Script":
+            # KEEP clean (kill-brick) scripts AS-IS; remove backdoor scripts only.
+            if is_clean_script(child):
                 strip_tree(child)
+            else:
+                item.remove(child)
+        elif cls in STRIP:
+            item.remove(child)
+        else:
+            strip_tree(child)
 
 def baseparts(item):
     for it in item.iter("Item"):
@@ -83,12 +115,20 @@ if top is None:
 n_scr_before = sum(1 for it in top.iter("Item")
                    if it.get("class") in ("Script","LocalScript","ModuleScript"))
 strip_tree(top)
-n_scr_after = sum(1 for it in top.iter("Item")
-                  if it.get("class") in ("Script","LocalScript","ModuleScript"))
+kept_scripts = [it for it in top.iter("Item") if it.get("class") == "Script"]
+n_mod = sum(1 for it in top.iter("Item")
+            if it.get("class") in ("ModuleScript", "LocalScript"))
+bad = [it for it in kept_scripts
+       if any(p in script_source(it) for p in BACKDOOR_PATS)]
 n_spawn = sum(1 for it in top.iter("Item") if it.get("class") == "SpawnLocation")
-print(f"scripts {n_scr_before} -> {n_scr_after} (must be 0); SpawnLocations kept = {n_spawn}")
-if n_scr_after != 0:
-    sys.exit("ERROR: scripts remain after strip")
+print(f"scripts {n_scr_before} -> kept Script={len(kept_scripts)} (kill-bricks), "
+      f"ModuleScript/LocalScript={n_mod} (must be 0), "
+      f"backdoor-pattern scripts remaining={len(bad)} (must be 0); "
+      f"SpawnLocations kept={n_spawn}")
+if n_mod != 0 or bad:
+    sys.exit("ERROR: unsafe scripts remain after selective strip")
+if len(kept_scripts) == 0:
+    sys.exit("ERROR: expected to keep the clean kill-brick scripts, kept 0")
 
 # ---------- locate spawn part to compute the translation delta ----------
 spawn_pos = None

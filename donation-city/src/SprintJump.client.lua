@@ -194,6 +194,14 @@ RunService.RenderStepped:Connect(function(dt)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 
+	-- داخل الباركور: نوقف الجري ونرجع السرعة الطبيعية (تحكّم دقيق بالقفزات).
+	-- لا نلمس السرعة إن كانت مقفولة على 0 (سينما/تحميل).
+	if player:GetAttribute("InParkour") then
+		if wantSprint then wantSprint = false; refreshBtn() end
+		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		return
+	end
+
 	-- هل الشخصية تتحرّك فعلاً؟ (للجري الفعلي فقط)
 	local moving = hum.MoveDirection.Magnitude > 0.1
 	local sprinting = wantSprint and moving   -- بلا حدّ وقت/طاقة
