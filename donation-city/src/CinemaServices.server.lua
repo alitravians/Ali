@@ -1701,8 +1701,10 @@ local ACH = {
 	buyer        = { emoji = "🛒", name = "داعم",       desc = "دعمت اللعبة بشراء بالـ Robux" },
 	rater        = { emoji = "🗳️", name = "ناقد",       desc = "قيّمت فيلماً" },
 	arcade       = { emoji = "🕹️", name = "لاعب أركيد", desc = "لعبت في صالة الأركيد" },
+	parkour_first = { emoji = "🧗", name = "متسلّق",     desc = "أنهيت أول مرحلة باركور" },
+	parkour_done  = { emoji = "🏁", name = "بطل الباركور", desc = "أكملت مسار الباركور كاملاً" },
 }
-local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade" }
+local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done" }
 
 _G.AwardAchievement = function(player: Player, key: string)
 	local s = sessions[player.UserId]

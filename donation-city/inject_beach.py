@@ -24,7 +24,11 @@ ref = d.find('referent="CinemaExteriorRef"')
 if ref == -1:
     sys.exit("ERROR: CinemaExterior Item not found")
 marker = d.find("CINEMA EXTERIOR", ref)
+if marker == -1:
+    sys.exit("ERROR: CINEMA EXTERIOR marker not found after referent")
 cdata_end = d.find("]]>", marker)
+if cdata_end == -1:
+    sys.exit("ERROR: CDATA end not found after CINEMA EXTERIOR marker")
 item_end = d.find("</Item>", cdata_end)
 if item_end == -1:
     sys.exit("ERROR: could not find </Item> for CinemaExterior")

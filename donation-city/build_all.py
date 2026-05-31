@@ -27,6 +27,8 @@ UPDATES = [
     ("src/TicketSystem.server.lua",   "TICKET SYSTEM (Server)"),
     ("src/BoothSystem.server.lua",    "BOOTH SYSTEM — SERVER LOGIC"),
     ("src/BeachArea.server.lua",      "BEACH AREA (Server)"),
+    ("src/ParkourSystem.server.lua",  "PARKOUR SYSTEM (Server)"),
+    ("src/ParkourClient.client.lua",  "PARKOUR CLIENT (Client)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:
