@@ -109,23 +109,41 @@ task.spawn(function()
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			if s and hrp then
 				local pos = hrp.Position
+				local hum = char:FindFirstChildOfClass("Humanoid")
 
-				-- زيارة المناطق
+				-- عضوية المناطق (نحسبها مرّة لإعادة استخدامها للزيارة + المهام)
+				local inZone = {}
 				for _, a in ipairs(AREAS) do
-					if not s.visited[a.key] then
-						local dx, dz = pos.X - a.cx, pos.Z - a.cz
-						if (dx * dx + dz * dz) <= (a.r * a.r) then
-							s.visited[a.key] = true
-							s.visitCount += 1
-							if _G.NotifyPlayer then
-								_G.NotifyPlayer(player, string.format("🗺️ اكتشفت منطقة جديدة! (%d/%d)", s.visitCount, TOTAL_AREAS))
-							end
+					local dx, dz = pos.X - a.cx, pos.Z - a.cz
+					inZone[a.key] = (dx * dx + dz * dz) <= (a.r * a.r)
+				end
+
+				-- زيارة المناطق (إنجاز «مستكشف»)
+				for _, a in ipairs(AREAS) do
+					if not s.visited[a.key] and inZone[a.key] then
+						s.visited[a.key] = true
+						s.visitCount += 1
+						if _G.NotifyPlayer then
+							_G.NotifyPlayer(player, string.format("🗺️ اكتشفت منطقة جديدة! (%d/%d)", s.visitCount, TOTAL_AREAS))
 						end
 					end
 				end
 				if not s.doneExplorer and s.visitCount >= TOTAL_AREAS then
 					s.doneExplorer = true
 					award(player, "explorer")
+				end
+
+				-- مهام المناطق (نظام المهام)
+				if _G.ReportMission then
+					-- 🏖️ زيارة الشاطئ (مرّة واحدة عبر tag) + البقاء فيه (وقت)
+					if inZone["beach"] then
+						_G.ReportMission(player, "beach_visit", 1, "beach")
+						_G.ReportMission(player, "beach_time", TICK)
+					end
+					-- 🎬 الجلوس داخل قاعة السينما (يتطلّب جلوساً فعلياً لا مجرّد القرب — مكافحة AFK)
+					if inZone["cinema"] and hum and hum.Sit then
+						_G.ReportMission(player, "cinema_sit", TICK)
+					end
 				end
 
 				-- وقت البقاء التفاعلي (يُحتسب فقط إن تحرّك اللاعب — مكافحة AFK)

@@ -1,0 +1,363 @@
+--[[
+╔══════════════════════════════════════════════════════════════════════╗
+║  المهام اليومية والأسبوعية — MISSION SYSTEM (Server)                  ║
+║  المكان: ServerScriptService     ·     النوع: Script                   ║
+║                                                                        ║
+║  • ٤ مهام يومية تُختار لكل لاعب وتتجدّد كل ٢٤ ساعة (مع عدّاد التحديث).  ║
+║  • مهمة أسبوعية كبرى تتجدّد كل ٧ أيام (جائزة ضخمة + إنجاز).            ║
+║  • التقدّم يُبلَّغ عبر _G.ReportMission(player, event, amount?, tag?).   ║
+║  • الجوائز كوينز عبر _G.AddCoins؛ مكافأة إتمام كل المهام اليومية.       ║
+║  • محفوظ بالـ DataStore (يبقى بين الجلسات) — pcall + إعادة محاولة.      ║
+║  • رسالة ترحيب + علامة «أول مرة» تُرسَل للعميل (دليل المبتدئين).        ║
+╚══════════════════════════════════════════════════════════════════════╝
+]]
+
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStoreService  = game:GetService("DataStoreService")
+
+----------------------------------------------------------------------
+-- إعدادات عامة
+----------------------------------------------------------------------
+local DAILY_COUNT     = 4        -- عدد المهام اليومية لكل لاعب
+local DAILY_PERIOD    = 86400    -- يوم بالثواني
+local WEEKLY_PERIOD   = 604800   -- أسبوع بالثواني
+local DAILY_ALL_BONUS = 500      -- مكافأة إتمام كل المهام اليومية
+
+----------------------------------------------------------------------
+-- بنك المهام اليومية: key = معرّف · event = الحدث · target = الهدف · coins = الجائزة
+----------------------------------------------------------------------
+local POOL = {
+	-- 🎬 السينما
+	{ key = "ticket_buy",  cat = "cinema", event = "ticket_buy",  target = 1,   coins = 50,  desc = "اشترِ تذكرة سينما" },
+	{ key = "movie_watch", cat = "cinema", event = "movie_watch", target = 1,   coins = 100, desc = "شاهد فيلماً كاملاً" },
+	{ key = "cinema_sit",  cat = "cinema", event = "cinema_sit",  target = 300, coins = 100, desc = "اجلس في قاعة السينما ٥ دقائق", time = true },
+	-- 🛍️ البوثات
+	{ key = "booth_visit", cat = "booth",  event = "booth_visit", target = 3,   coins = 50,  desc = "زُر ٣ بوثات مختلفة" },
+	{ key = "booth_buy",   cat = "booth",  event = "booth_buy",   target = 1,   coins = 100, desc = "اشترِ منتجاً من أحد البوثات" },
+	{ key = "booth_add",   cat = "booth",  event = "booth_add",   target = 1,   coins = 100, desc = "أضف منتجاً إلى بوثك" },
+	-- 🏖️ الشاطئ
+	{ key = "beach_visit", cat = "beach",  event = "beach_visit", target = 1,   coins = 50,  desc = "زُر منطقة الشاطئ" },
+	{ key = "beach_time",  cat = "beach",  event = "beach_time",  target = 120, coins = 50,  desc = "ابقَ في الشاطئ دقيقتين", time = true },
+	-- 🏐 كرة الطائرة
+	{ key = "vb_play",     cat = "volley", event = "vb_play",     target = 1,   coins = 100, desc = "العب مباراة كرة طائرة" },
+	{ key = "vb_win",      cat = "volley", event = "vb_win",      target = 1,   coins = 250, desc = "افز بمباراة كرة طائرة" },
+	{ key = "vb_points",   cat = "volley", event = "vb_points",   target = 5,   coins = 100, desc = "سجّل ٥ نقاط في كرة الطائرة" },
+	-- 🧗 الباركور
+	{ key = "parkour_cp",  cat = "parkour",event = "parkour_cp",  target = 1,   coins = 50,  desc = "اجتز نقطة حفظ في الباركور" },
+	{ key = "parkour_cp5", cat = "parkour",event = "parkour_cp",  target = 5,   coins = 150, desc = "اجتز ٥ نقاط حفظ في الباركور" },
+	{ key = "parkour_done",cat = "parkour",event = "parkour_done",target = 1,   coins = 250, desc = "أكمل مسار الباركور كاملاً" },
+	-- 👥 اجتماعي
+	{ key = "chat_msg",    cat = "social", event = "chat_msg",    target = 1,   coins = 50,  desc = "أرسل رسالة في الدردشة" },
+	{ key = "team_form",   cat = "social", event = "team_form",   target = 1,   coins = 50,  desc = "كوّن فريقاً في كرة الطائرة" },
+}
+local POOL_BY_KEY = {}
+for _, m in ipairs(POOL) do POOL_BY_KEY[m.key] = m end
+
+-- 🗓️ بنك المهام الأسبوعية الكبرى (جائزة ٥٠٠٠ كوينز + إنجاز «بطل الأسبوع»)
+local WEEKLY_POOL = {
+	{ key = "w_movies",  event = "movie_watch",  target = 5,  coins = 5000, desc = "شاهد ٥ أفلام هذا الأسبوع" },
+	{ key = "w_vbwins",  event = "vb_win",       target = 10, coins = 5000, desc = "افز بـ ١٠ مباريات كرة طائرة" },
+	{ key = "w_parkour", event = "parkour_done", target = 3,  coins = 5000, desc = "أكمل الباركور ٣ مرّات" },
+}
+local WEEKLY_BY_KEY = {}
+for _, m in ipairs(WEEKLY_POOL) do WEEKLY_BY_KEY[m.key] = m end
+
+----------------------------------------------------------------------
+-- DataStore
+----------------------------------------------------------------------
+local store
+pcall(function() store = DataStoreService:GetDataStore("Missions_v1") end)
+
+local function loadData(userId)
+	if not store then return nil end
+	local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
+	if ok and type(data) == "table" then return data end
+	return nil
+end
+
+local sessions = {}  -- [userId] = data table (انظر الأسفل) + { dSeen, wSeen, dirty }
+
+local function saveData(userId)
+	if not store then return end
+	local s = sessions[userId]
+	if not s then return end
+	local payload = {
+		v = 1,
+		dDay = s.dDay, dList = s.dList, dProg = s.dProg, dDone = s.dDone, dBonus = s.dBonus,
+		dSeen = s.dSeen,
+		wWeek = s.wWeek, wKey = s.wKey, wProg = s.wProg, wDone = s.wDone, wSeen = s.wSeen,
+	}
+	for _ = 1, 3 do
+		if pcall(function() store:SetAsync("m_" .. userId, payload) end) then return end
+		task.wait(1)
+	end
+end
+
+----------------------------------------------------------------------
+-- Remotes (server↔client)
+----------------------------------------------------------------------
+local folder = ReplicatedStorage:FindFirstChild("MissionRemotes")
+if not folder then
+	folder = Instance.new("Folder")
+	folder.Name = "MissionRemotes"
+	folder.Parent = ReplicatedStorage
+end
+local function makeRemote(name)
+	local r = folder:FindFirstChild(name)
+	if not r then
+		r = Instance.new("RemoteEvent")
+		r.Name = name
+		r.Parent = folder
+	end
+	return r
+end
+local syncRemote    = makeRemote("Sync")     -- server → client: حالة المهام للواجهة
+local welcomeRemote = makeRemote("Welcome")  -- server → client: ترحيب + أول مرة
+local requestRemote = makeRemote("Request")  -- client → server: اطلب التحديث
+
+----------------------------------------------------------------------
+-- أدوات
+----------------------------------------------------------------------
+local function notify(player, text)
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, text) end
+end
+
+local function dayNumber()  return math.floor(os.time() / DAILY_PERIOD) end
+local function weekNumber() return math.floor(os.time() / WEEKLY_PERIOD) end
+
+-- اختيار عشوائي ثابت (يعتمد على userId+الفترة) — يختلف بين اللاعبين والأيام
+local function pickDaily(userId, day)
+	local rng = Random.new(userId * 100000 + day)
+	local keys = {}
+	for _, m in ipairs(POOL) do keys[#keys + 1] = m.key end
+	-- خلط Fisher–Yates
+	for i = #keys, 2, -1 do
+		local j = rng:NextInteger(1, i)
+		keys[i], keys[j] = keys[j], keys[i]
+	end
+	local chosen = {}
+	for i = 1, math.min(DAILY_COUNT, #keys) do chosen[i] = keys[i] end
+	return chosen
+end
+
+local function pickWeekly(userId, week)
+	local rng = Random.new(userId * 7777 + week)
+	return WEEKLY_POOL[rng:NextInteger(1, #WEEKLY_POOL)].key
+end
+
+----------------------------------------------------------------------
+-- بناء/تجديد حالة اللاعب
+----------------------------------------------------------------------
+local function refreshDaily(s, userId)
+	s.dDay  = dayNumber()
+	s.dList = pickDaily(userId, s.dDay)
+	s.dProg, s.dDone, s.dSeen, s.dBonus = {}, {}, {}, false
+	for _, k in ipairs(s.dList) do s.dProg[k] = 0; s.dSeen[k] = {} end
+end
+
+local function refreshWeekly(s, userId)
+	s.wWeek = weekNumber()
+	s.wKey  = pickWeekly(userId, s.wWeek)
+	s.wProg, s.wDone, s.wSeen = 0, false, {}
+end
+
+local function ensureFresh(player)
+	local s = sessions[player.UserId]
+	if not s then return end
+	if s.dDay ~= dayNumber() then
+		refreshDaily(s, player.UserId)
+		notify(player, "📋 تجدّدت مهامك اليومية! افتح لوحة المهام.")
+		task.spawn(function() saveData(player.UserId) end)
+	end
+	if s.wWeek ~= weekNumber() then
+		refreshWeekly(s, player.UserId)
+		task.spawn(function() saveData(player.UserId) end)
+	end
+end
+
+----------------------------------------------------------------------
+-- إرسال الحالة للعميل (للواجهة)
+----------------------------------------------------------------------
+local function buildPayload(player)
+	local s = sessions[player.UserId]
+	if not s then return nil end
+	local daily = {}
+	for _, k in ipairs(s.dList) do
+		local m = POOL_BY_KEY[k]
+		if m then
+			daily[#daily + 1] = {
+				key = k, desc = m.desc, cat = m.cat, coins = m.coins,
+				prog = math.min(s.dProg[k] or 0, m.target), target = m.target,
+				done = s.dDone[k] == true, time = m.time == true,
+			}
+		end
+	end
+	local wm = WEEKLY_BY_KEY[s.wKey]
+	local weekly = wm and {
+		desc = wm.desc, coins = wm.coins,
+		prog = math.min(s.wProg or 0, wm.target), target = wm.target, done = s.wDone == true,
+	} or nil
+	return {
+		daily = daily,
+		bonusCoins = DAILY_ALL_BONUS, bonusDone = s.dBonus == true,
+		weekly = weekly,
+		dailyReset  = (s.dDay + 1) * DAILY_PERIOD,    -- وقت التجديد القادم (epoch)
+		weeklyReset = (s.wWeek + 1) * WEEKLY_PERIOD,
+	}
+end
+
+local function pushSync(player)
+	local payload = buildPayload(player)
+	if payload then syncRemote:FireClient(player, payload) end
+end
+
+----------------------------------------------------------------------
+-- منح الجوائز
+----------------------------------------------------------------------
+local function grantCoins(player, n)
+	if _G.AddCoins then _G.AddCoins(player, n) end
+end
+
+local function checkDailyBonus(player, s)
+	if s.dBonus then return end
+	for _, k in ipairs(s.dList) do
+		if not s.dDone[k] then return end
+	end
+	s.dBonus = true
+	grantCoins(player, DAILY_ALL_BONUS)
+	if _G.AwardAchievement then _G.AwardAchievement(player, "daily_master") end
+	notify(player, string.format("🎯 أكملت كل مهام اليوم! مكافأة إضافية +%d كوينز + لقب «منجِز اليوم».", DAILY_ALL_BONUS))
+end
+
+----------------------------------------------------------------------
+-- استقبال التقدّم من باقي الأنظمة
+--   _G.ReportMission(player, event, amount?, tag?)
+----------------------------------------------------------------------
+_G.ReportMission = function(player, event, amount, tag)
+	if typeof(player) ~= "Instance" then return end
+	local s = sessions[player.UserId]
+	if not s then return end
+	ensureFresh(player)
+	amount = tonumber(amount) or 1
+	if amount <= 0 then return end
+	local changed = false
+
+	-- المهام اليومية
+	for _, k in ipairs(s.dList) do
+		local m = POOL_BY_KEY[k]
+		if m and m.event == event and not s.dDone[k] then
+			if tag ~= nil then
+				s.dSeen[k] = s.dSeen[k] or {}
+				if s.dSeen[k][tag] then m = nil end  -- علامة مكرّرة → تجاهل
+				if m then s.dSeen[k][tag] = true end
+			end
+			if m then
+				s.dProg[k] = (s.dProg[k] or 0) + amount
+				changed = true
+				if s.dProg[k] >= m.target then
+					s.dDone[k] = true
+					grantCoins(player, m.coins)
+					notify(player, string.format("✅ مهمة مكتملة: %s (+%d كوينز)", m.desc, m.coins))
+					checkDailyBonus(player, s)
+				end
+			end
+		end
+	end
+
+	-- المهمة الأسبوعية
+	local wm = WEEKLY_BY_KEY[s.wKey]
+	if wm and wm.event == event and not s.wDone then
+		local count = true
+		if tag ~= nil then
+			s.wSeen = s.wSeen or {}
+			if s.wSeen[tag] then count = false else s.wSeen[tag] = true end
+		end
+		if count then
+			s.wProg = (s.wProg or 0) + amount
+			changed = true
+			if s.wProg >= wm.target then
+				s.wDone = true
+				grantCoins(player, wm.coins)
+				if _G.AwardAchievement then _G.AwardAchievement(player, "weekly_hero") end
+				notify(player, string.format("🏅 أكملت المهمة الأسبوعية! +%d كوينز + لقب «بطل الأسبوع».", wm.coins))
+			end
+		end
+	end
+
+	if changed then
+		s.dirty = true
+		pushSync(player)
+	end
+end
+
+----------------------------------------------------------------------
+-- دورة الحياة
+----------------------------------------------------------------------
+Players.PlayerAdded:Connect(function(player)
+	local data = loadData(player.UserId)
+	local firstTime = (data == nil)
+	local s = {}
+	sessions[player.UserId] = s
+	if data and data.dList and data.dProg then
+		s.dDay, s.dList, s.dProg = data.dDay, data.dList, data.dProg
+		s.dDone, s.dBonus, s.dSeen = data.dDone or {}, data.dBonus == true, data.dSeen or {}
+		s.wWeek, s.wKey, s.wProg = data.wWeek, data.wKey, data.wProg or 0
+		s.wDone, s.wSeen = data.wDone == true, data.wSeen or {}
+	else
+		refreshDaily(s, player.UserId)
+		refreshWeekly(s, player.UserId)
+	end
+	-- جدّد إن انقضت الفترة منذ آخر جلسة
+	if s.dDay ~= dayNumber() then refreshDaily(s, player.UserId) end
+	if s.wWeek ~= weekNumber() then refreshWeekly(s, player.UserId) end
+	-- احفظ فوراً للاعب الجديد كي لا يُعتبر «أول مرة» مجدداً
+	task.spawn(function() saveData(player.UserId) end)
+
+	-- ترحيب + دليل المبتدئين (مرة واحدة)
+	task.delay(3, function()
+		if not player.Parent then return end
+		welcomeRemote:FireClient(player, { firstTime = firstTime })
+		pushSync(player)
+	end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	saveData(player.UserId)
+	sessions[player.UserId] = nil
+end)
+
+-- طلب العميل تحديث الحالة (عند فتح اللوحة)
+requestRemote.OnServerEvent:Connect(function(player)
+	ensureFresh(player)
+	pushSync(player)
+end)
+
+-- حفظ دوري لمن تغيّرت حالته
+task.spawn(function()
+	while true do
+		task.wait(60)
+		for userId, s in pairs(sessions) do
+			if s.dirty then
+				s.dirty = false
+				task.spawn(function() pcall(saveData, userId) end)
+			end
+		end
+	end
+end)
+
+-- فحص دوري لتجديد المهام للاعبين المتصلين عند انقضاء اليوم/الأسبوع
+task.spawn(function()
+	while true do
+		task.wait(30)
+		for _, player in ipairs(Players:GetPlayers()) do
+			ensureFresh(player)
+		end
+	end
+end)
+
+game:BindToClose(function()
+	for userId in pairs(sessions) do pcall(saveData, userId) end
+end)
+
+print("[MissionSystem] ready — daily/weekly missions, activity-based economy.")

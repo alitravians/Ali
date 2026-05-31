@@ -33,6 +33,8 @@ UPDATES = [
     ("src/VolleyballSystem.server.lua", "VOLLEYBALL SYSTEM (Server)"),
     ("src/ActivitySystem.server.lua", "ACTIVITY SYSTEM (Server)"),
     ("src/SprintJump.client.lua",    "SPRINT & JUMP (Client)"),
+    ("src/MissionSystem.server.lua", "MISSION SYSTEM (Server)"),
+    ("src/MissionClient.client.lua", "MISSION CLIENT (Client)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:

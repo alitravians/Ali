@@ -345,6 +345,9 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 			text = shownText,
 		})
 	end
+
+	-- مهمة اجتماعية: «أرسل رسالة بالدردشة»
+	if _G.ReportMission then _G.ReportMission(sender, "chat_msg", 1) end
 end)
 
 ------------------------------------------------------------------------

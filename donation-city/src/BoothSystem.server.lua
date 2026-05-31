@@ -748,6 +748,7 @@ local function addProduct(player: Player, input: string)
 		kind = kind,
 	})
 	notify(player, "تمت إضافة: " .. (info.Name or id), "ok")
+	if _G.ReportMission then _G.ReportMission(player, "booth_add", 1) end
 	applyVisual(b)
 	broadcastState()
 end
@@ -845,6 +846,7 @@ local function recordSale(buyerPlayer: Player, productId: number, robux: number)
 					if _G.AwardBadge then
 						pcall(function() _G.AwardBadge(buyerPlayer, "DONOR") end)
 					end
+					if _G.ReportMission then _G.ReportMission(buyerPlayer, "booth_buy", 1) end
 
 					broadcastState()
 					broadcastLeaderboards()
@@ -977,6 +979,26 @@ task.spawn(function()
 	while true do
 		task.wait(15)
 		broadcastLeaderboards()
+	end
+end)
+
+-- تتبّع زيارة البوثات لمهمة «زُر ٣ بوثات مختلفة» — قُرب اللاعب من جسم البوث (tag=key لمنع التكرار)
+task.spawn(function()
+	while true do
+		task.wait(2)
+		if _G.ReportMission then
+			for _, player in ipairs(Players:GetPlayers()) do
+				local char = player.Character
+				local hrp = char and char:FindFirstChild("HumanoidRootPart")
+				if hrp then
+					for key, b in pairs(booths) do
+						if b.body and (hrp.Position - b.body.Position).Magnitude <= 14 then
+							_G.ReportMission(player, "booth_visit", 1, key)
+						end
+					end
+				end
+			end
+		end
 	end
 end)
 

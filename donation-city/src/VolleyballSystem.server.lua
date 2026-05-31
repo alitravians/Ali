@@ -344,6 +344,10 @@ local function endMatch(winnerTeam)
 				_G.AwardAchievement(p, "vb_first")
 				_G.AwardAchievement(p, "vb_win")
 			end
+			if _G.ReportMission then
+				_G.ReportMission(p, "vb_play", 1)
+				_G.ReportMission(p, "vb_win", 1)
+			end
 			if _G.NotifyPlayer then _G.NotifyPlayer(p, "🏆 فزت بمباراة كرة الطائرة! +150 كوينز") end
 		end
 	end
@@ -352,6 +356,7 @@ local function endMatch(winnerTeam)
 		if p then
 			if _G.AddCoins then _G.AddCoins(p, 40) end
 			if _G.AwardAchievement then _G.AwardAchievement(p, "vb_first") end
+			if _G.ReportMission then _G.ReportMission(p, "vb_play", 1) end
 			if _G.NotifyPlayer then _G.NotifyPlayer(p, "🏐 انتهت المباراة — حاول مرة أخرى! +40 كوينز") end
 		end
 	end
@@ -391,6 +396,13 @@ local function awardPoint(team, reason)
 				local p = Players:GetPlayerByUserId(id)
 				if p and _G.AwardAchievement then _G.AwardAchievement(p, "vb_points") end
 			end
+		end
+	end
+	-- مهمة «سجّل ٥ نقاط»: نقطة لكل لاعب في الفريق المسجِّل
+	if _G.ReportMission then
+		for _, id in ipairs(teamArr(team)) do
+			local p = Players:GetPlayerByUserId(id)
+			if p then _G.ReportMission(p, "vb_points", 1) end
 		end
 	end
 	notifyTeams(string.format("🏐 نقطة لفريق %s (%s) — %d:%d",
@@ -517,7 +529,10 @@ local function startMatch(player)
 	for _, t in ipairs({ "A", "B" }) do
 		for _, id in ipairs(teamArr(t)) do
 			local p = Players:GetPlayerByUserId(id)
-			if p then teleportToSide(p, t) end
+			if p then
+				teleportToSide(p, t)
+				if _G.ReportMission then _G.ReportMission(p, "team_form", 1) end
+			end
 		end
 	end
 	notifyAll(string.format("🏐 بدأت مباراة كرة الطائرة %dضد%d! 🔵 %s  ضد  🔴 %s",

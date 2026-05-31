@@ -927,4 +927,11 @@ end)
 -- رسالة ترحيب أولى
 addMessage("النظام", "مرحباً بك! اكتب رسالتك واضغط إرسال (أو Enter).", PURPLE)
 
+-- واجهة عامة: تسمح للأنظمة الأخرى (مثل نظام المهام) بنشر رسالة نظام في الدردشة
+_G.ChatSystemMessage = function(text)
+	if typeof(text) == "string" and text ~= "" then
+		pcall(function() addMessage("النظام", text, PURPLE, { system = true }) end)
+	end
+end
+
 print("[CustomChat] العميل جاهز — واجهة الدردشة المخصّصة.")

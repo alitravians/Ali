@@ -833,15 +833,14 @@ local function playMovie(presser)
 		end
 	end
 
-	-- شارة "عاشق السينما" لكل من شاهد الفيلم حتى النهاية
-	if _G.AwardBadge then
-		for _, seat in ipairs(getSeats()) do
-			local occ = seat.Occupant
-			local char = occ and occ.Parent
-			local viewer = char and Players:GetPlayerFromCharacter(char)
-			if viewer then
-				_G.AwardBadge(viewer, "CINEMA")
-			end
+	-- شارة "عاشق السينما" + تقدّم مهمة «شاهد فيلماً كاملاً» لكل من شاهد حتى النهاية
+	for _, seat in ipairs(getSeats()) do
+		local occ = seat.Occupant
+		local char = occ and occ.Parent
+		local viewer = char and Players:GetPlayerFromCharacter(char)
+		if viewer then
+			if _G.AwardBadge then _G.AwardBadge(viewer, "CINEMA") end
+			if _G.ReportMission then _G.ReportMission(viewer, "movie_watch", 1) end
 		end
 	end
 

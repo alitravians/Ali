@@ -277,25 +277,16 @@ game:BindToClose(function()
 	end
 end)
 
--- دخل تلقائي + حفظ دوري
+-- حفظ دوري (بلا دخل تلقائي — اقتصاد قائم على النشاط فقط)
+-- ملاحظة اقتصادية: أُلغي الدخل التلقائي «+كوينز لمجرد البقاء» نهائياً.
+-- الكوينز تُكتسب الآن من نشاط فعلي فقط (المهام/الباركور/كرة الطائرة/الأركيد).
 task.spawn(function()
-	local t = 0
 	while true do
-		task.wait(CONFIG.IncomeEvery)
-		t += CONFIG.IncomeEvery
-		for _, player in ipairs(Players:GetPlayers()) do
-			if sessions[player.UserId] then
-				local amt = CONFIG.IncomeAmount * (_G.IsVIP(player) and CONFIG.VipIncomeMult or 1) * (_G.EventIncomeMult or 1)
-				_G.AddCoins(player, amt)
-			end
-		end
-		if t >= CONFIG.SaveEvery then
-			t = 0
-			-- حفظ دوري متوازٍ (خيط لكل لاعب) — يتفادى خنق DataStore عند عدد لاعبين كبير،
-			-- مع الحفظ الذكي (saveCoins يكتب المتغيّر فقط) يبقى الضغط ضمن الميزانية.
-			for userId in pairs(sessions) do
-				task.spawn(function() pcall(saveCoins, userId) end)
-			end
+		task.wait(CONFIG.SaveEvery)
+		-- حفظ دوري متوازٍ (خيط لكل لاعب) — يتفادى خنق DataStore عند عدد لاعبين كبير،
+		-- مع الحفظ الذكي (saveCoins يكتب المتغيّر فقط) يبقى الضغط ضمن الميزانية.
+		for userId in pairs(sessions) do
+			task.spawn(function() pcall(saveCoins, userId) end)
 		end
 	end
 end)
@@ -986,9 +977,10 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		if _G.SpendCoins(player, price) then
 			if _G.AddTickets then _G.AddTickets(player, 1) end
 			if _G.AwardAchievement then _G.AwardAchievement(player, "first_ticket") end
+			if _G.ReportMission then _G.ReportMission(player, "ticket_buy", 1) end
 			notify(player, "✅ اشتريت تذكرة بـ " .. price .. " كوينز — استمتع!")
 		else
-			notify(player, "❌ لا تملك كوينز كافية. اكسب المزيد بالبقاء في اللعبة.")
+			notify(player, "❌ لا تملك كوينز كافية. أكمل المهام والأنشطة لتجمع المزيد.")
 		end
 		openBoxOffice(player)  -- تحديث الأرقام في الواجهة
 
@@ -1810,8 +1802,10 @@ local ACH = {
 	marathon      = { emoji = "⏱️", name = "ماراثوني",    desc = "قضيت ساعة كاملة من اللعب النشط" },
 	sprinter      = { emoji = "🏃", name = "عدّاء",       desc = "ركضت 5 دقائق متراكمة" },
 	jumper        = { emoji = "🦘", name = "قفّاز",       desc = "قفزت 100 قفزة" },
+	daily_master  = { emoji = "🎯", name = "منجِز اليوم",  desc = "أكملت كل المهام اليومية" },
+	weekly_hero   = { emoji = "🏅", name = "بطل الأسبوع",  desc = "أكملت المهمة الأسبوعية الكبرى" },
 }
-local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "vb_first", "vb_win", "vb_points", "explorer", "marathon", "sprinter", "jumper" }
+local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "vb_first", "vb_win", "vb_points", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
 
 _G.AwardAchievement = function(player: Player, key: string)
 	local s = sessions[player.UserId]
@@ -1899,11 +1893,11 @@ end
 
 -- فعاليات دورية (Special Events)
 task.spawn(function()
-	local doubleToken = 0  -- عدّاد أحداث المضاعفة (لتجنب الإنهاء المبكر عند تداخل حدثين)
+	-- ملاحظة: حُذف حدث «الدخل المضاعف» مع إلغاء الدخل التلقائي — بقيت الأحداث الاحتفالية فقط.
 	local kinds = {
-		{ kind = "double",    text = "🎉 حدث خاص: دخل الكوينز مضاعف لمدة دقيقة!" },
 		{ kind = "fireworks", text = "🎆 احتفال في ساحة المدينة — استمتعوا بالألعاب النارية!" },
 		{ kind = "popcorn",   text = "🍿 عرض اليوم: مرّوا على بسطة الفشار!" },
+		{ kind = "missions",  text = "📋 لا تنسَ مهامك اليومية — أكملها لتجمع الكوينز!" },
 	}
 	while true do
 		task.wait(math.random(180, 300))
@@ -1912,13 +1906,6 @@ task.spawn(function()
 		broadcast(e.text)
 		for _, p in ipairs(Players:GetPlayers()) do
 			lobbyRemote:FireClient(p, { action = "event", kind = e.kind })
-		end
-		if e.kind == "double" then
-			_G.EventIncomeMult = 2
-			-- رمز (token) يمنع إنهاء حدث لاحق مبكّراً: لا نُرجع المضاعف إلى 1 إلا إذا لم يبدأ حدث أحدث
-			doubleToken += 1
-			local myToken = doubleToken
-			task.delay(60, function() if doubleToken == myToken then _G.EventIncomeMult = 1 end end)
 		end
 	end
 end)

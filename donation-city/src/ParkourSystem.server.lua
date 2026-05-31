@@ -332,6 +332,7 @@ local function finishRun(player)
 		_G.AwardAchievement(player, "parkour_first")
 		_G.AwardAchievement(player, "parkour_done")
 	end
+	if _G.ReportMission then _G.ReportMission(player, "parkour_done", 1) end
 	applyChampionEffect(player)
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, string.format("🏁 أكملت الباركور! الوقت %s — مكافأة %d كوينز + لقب «بطل الباركور» 🏆", fmtTime(elapsed), reward))
@@ -367,6 +368,7 @@ for i, pad in ipairs(cpPads) do
 			st.cpIndex = i
 			st.reached[i] = true
 			if _G.AddCoins then _G.AddCoins(player, 20) end   -- مكافأة وصول نقطة جديدة
+			if _G.ReportMission then _G.ReportMission(player, "parkour_cp", 1, "cp" .. i) end
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ نقطة حفظ " .. i .. "/" .. TOTAL_CP .. " (+20 كوينز)") end
 			sendProgress(player)
 		end
