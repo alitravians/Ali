@@ -1415,9 +1415,11 @@ pcall(function()
 	local popPos  = popcorn and popcorn.Position or gatePos
 
 	-- مرشد خارج المدخل (أمام البوابة، يستقبل القادمين قبل الدخول)
+	-- دُفِع للأمام (Z+) وجانباً (X+) ليبتعد عن عمود المدخل الأسود خلفه،
+	-- فلا يتداخل وسمه العلوي «مرشد السينما» مع العمود من زاوية الكاميرا.
 	local guideFoot = CFrame.lookAt(
-		Vector3.new(gatePos.X + 8, groundY, gatePos.Z + 11),
-		Vector3.new(gatePos.X + 8, groundY, gatePos.Z + 34)
+		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 17),
+		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 40)
 	)
 	buildNPC({
 		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),

@@ -1641,20 +1641,38 @@ local function deliverOrQueue(userId: number, info): boolean
 	return enqueuePendingGrant(userId, info)
 end
 
--- يُستدعى عند دخول اللاعب: يقرأ الطابور، يسلّم كل المنتجات، ثم يمسحه.
+-- يُستدعى عند دخول اللاعب: يقرأ الطابور، يسلّم المنتجات، ثم يزيل المُسلَّم فقط ذرّياً.
 function drainPendingGrants(player: Player)
 	if not coinStore then return end
 	local items
 	local ok = pcall(function() items = coinStore:GetAsync(pendKey(player.UserId)) end)
 	if not ok or type(items) ~= "table" or #items == 0 then return end
+	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أثناء التسليم)
+	local delivered = 0
 	for _, info in ipairs(items) do
 		if sessions[player.UserId] and player.Parent then
 			grantProduct(player, info)
+			delivered += 1
+		else
+			break
 		end
 	end
-	-- امسح الطابور بعد التسليم (إعادة محاولة) كي لا يتكرّر المنح في الدخول القادم
+	if delivered == 0 then return end
+	-- إزالة ذرّية لأوّل (delivered) عناصر فقط عبر UpdateAsync بدل RemoveAsync للمفتاح كله:
+	-- لو أضاف سيرفر آخر منتجاً جديداً بين القراءة والإزالة، يبقى محفوظاً في ذيل الطابور
+	-- (لأن enqueue يُلحق في النهاية) فلا يضيع أي شراء حتى مع سباق نادر عبر السيرفرات.
 	for _ = 1, 3 do
-		if pcall(function() coinStore:RemoveAsync(pendKey(player.UserId)) end) then break end
+		local okTrim = pcall(function()
+			coinStore:UpdateAsync(pendKey(player.UserId), function(old)
+				if type(old) ~= "table" then return {} end
+				local rest = {}
+				for i = delivered + 1, #old do
+					rest[#rest + 1] = old[i]
+				end
+				return rest  -- الباقي (أو {} فارغ) — لا نُعيد nil كي لا تُلغى الكتابة
+			end)
+		end)
+		if okTrim then break end
 		task.wait(1)
 	end
 end
@@ -1927,7 +1945,9 @@ local function surface(parent, face)
 	sg.Face = face or Enum.NormalId.Front
 	sg.CanvasSize = Vector2.new(800, 480)
 	sg.LightInfluence = 0
-	sg.Adornee = parent
+	-- ملاحظة: لا نضبط Adornee. الـ SurfaceGui المُلصق مباشرةً بالجزء (Parent = part)
+	-- يلتصق بوجهه ويُحجَب صحيحاً بجسم الجزء المعتم — فلا يَنفُذ نص الوجه الخلفي للأمام.
+	-- ضبط Adornee (حتى على نفس الجزء) كان يجعله يتجاوز الحجب فيظهر النص مزدوجاً/معكوساً.
 	sg.Parent = parent
 	return sg
 end
