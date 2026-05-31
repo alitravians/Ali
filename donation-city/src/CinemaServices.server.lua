@@ -1699,7 +1699,16 @@ MarketplaceService.ProcessReceipt = function(receipt)
 		-- قبل الإعادة، وإلا فإن محاولة روبلوكس التالية ستجد المفتاح فتُعيد PurchaseGranted
 		-- بلا تسليم → يضيع الشراء المدفوع. الحذف يضمن إعادة المحاولة الكاملة لاحقاً (at-least-once).
 		if receiptStore then
-			pcall(function() receiptStore:RemoveAsync(key) end)
+			-- إعادة المحاولة (٣ مرّات) مثل بقية كتابات المتجر: محاولة واحدة قد تفشل
+			-- تحت ضغط/خنق DataStore فيبقى المفتاح ويُعاد PurchaseGranted بلا تسليم.
+			local removed = false
+			for _ = 1, 3 do
+				if pcall(function() receiptStore:RemoveAsync(key) end) then removed = true break end
+				task.wait(1)
+			end
+			if not removed then
+				warn("[Store] CRITICAL: تعذّر حذف مفتاح الإيصال " .. key .. " بعد فشل التسليم — قد يضيع الشراء")
+			end
 		end
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
@@ -1732,7 +1741,6 @@ local function getInfoCached(id: number, infoType)
 	if not id or id == 0 then return nil end
 	local cached = infoCache[id]
 	if cached ~= nil then
-		if cached == false then return nil end          -- لا قيمة سلبية محفوظة (نجاح فقط يُخزّن دائماً)
 		if cached.fail then
 			if os.clock() < cached.expiry then return nil end  -- ضمن مهلة الفشل المؤقت
 		else
