@@ -62,11 +62,43 @@ newPart({ Name = "WetSand", Size = Vector3.new(10, 1, SAND_Z),
 	Position = Vector3.new(shoreX - 3, SAND_Y - 0.15, CZ),
 	Color = Color3.fromRGB(205, 184, 132), Material = Enum.Material.Sand })
 
--- البحر (مادّة Water: حركة ماء وانعكاس واقعيان على القطعة)
-local sea = newPart({ Name = "Sea", Size = Vector3.new(120, 1, 240),
-	Position = Vector3.new(shoreX + 60, SAND_Y - 0.4, CZ), Color = SEA,
-	Material = Enum.Material.Water, Transparency = 0.15, Reflectance = 0.25, CanCollide = false })
-sea.CanQuery = false
+-- البحر: ماء Terrain حقيقي قابل للسباحة (الـ Part بمادّة Water لا يسمح بالسباحة في Roblox)
+-- + قاع صلب وحواجز غير مرئية تمنع اللاعب من السقوط تحت الماب.
+local Terrain = Workspace.Terrain
+
+local SEA_W   = 120                  -- عرض البحر (محور X، شرق الشاطئ)
+local SEA_L   = SAND_Z               -- طول البحر (محور Z) يحاذي الرمل
+local SEA_CX  = shoreX + SEA_W / 2   -- مركز البحر
+local WATER_TOP    = SAND_Y          -- سطح الماء (يحاذي مستوى الرمل تقريباً)
+local WATER_BOTTOM = -16             -- قاع منطقة الماء (عمق سباحة مريح)
+local WATER_H  = WATER_TOP - WATER_BOTTOM
+local WATER_CY = (WATER_TOP + WATER_BOTTOM) / 2
+
+-- 1) ملء ماء Terrain فعلي — هو الوحيد الذي يفعّل السباحة للّاعب
+pcall(function()
+	Terrain:FillBlock(
+		CFrame.new(SEA_CX, WATER_CY, CZ),
+		Vector3.new(SEA_W, WATER_H, SEA_L),
+		Enum.Material.Water
+	)
+end)
+
+-- 2) قاع بحر صلب: لو غاص اللاعب حتى القاع يقف عليه فلا يسقط تحت الماب أبداً
+newPart({ Name = "SeaBed", Size = Vector3.new(SEA_W + 12, 2, SEA_L + 12),
+	Position = Vector3.new(SEA_CX, WATER_BOTTOM - 1, CZ),
+	Color = Color3.fromRGB(196, 178, 130), Material = Enum.Material.Sand })
+
+-- 3) حواجز غير مرئية حول البحر (شرق/شمال/جنوب) تمنع السباحة خارج الماء نحو الفراغ
+local WALL_CY = (8 + (WATER_BOTTOM - 1)) / 2
+local WALL_H  = 8 - (WATER_BOTTOM - 1)
+local function seaWall(name, sx, sz, px, pz)
+	local w = newPart({ Name = name, Size = Vector3.new(sx, WALL_H, sz),
+		Position = Vector3.new(px, WALL_CY, pz), Transparency = 1 })
+	w.CanQuery = false
+end
+seaWall("SeaWallE", 2, SEA_L + 12, SEA_CX + SEA_W / 2 + 1, CZ)   -- الحائط الشرقي (أعمق نقطة)
+seaWall("SeaWallN", SEA_W + 4, 2, SEA_CX, CZ - SEA_L / 2 - 1)    -- الحائط الشمالي
+seaWall("SeaWallS", SEA_W + 4, 2, SEA_CX, CZ + SEA_L / 2 + 1)    -- الحائط الجنوبي
 
 ----------------------------------------------------------------------
 -- أمواج متحركة عند خط الشاطئ
@@ -80,18 +112,33 @@ for i = 1, 3 do
 	waves[i] = { part = w, baseX = shoreX - 2 - i * 4, phase = i * 1.1 }
 end
 
+-- حركة الأمواج تعمل فقط عند وجود لاعب قريب من الشاطئ (توفير موارد السيرفر)
+local Players = game:GetService("Players")
+local WAVE_RANGE2 = 160 * 160
 task.spawn(function()
 	while beach.Parent do
-		local t = os.clock()
-		for _, w in ipairs(waves) do
-			local s = math.sin(t * 1.4 + w.phase)
-			local p = w.part
-			if p.Parent then
-				p.Position = Vector3.new(w.baseX + s * 2.5, SAND_Y - 0.05, CZ)
-				p.Transparency = 0.4 + 0.2 * (0.5 + 0.5 * s)
+		local someoneNear = false
+		for _, pl in ipairs(Players:GetPlayers()) do
+			local hrp = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				local dx, dz = hrp.Position.X - CX, hrp.Position.Z - CZ
+				if dx * dx + dz * dz <= WAVE_RANGE2 then someoneNear = true; break end
 			end
 		end
-		task.wait(0.06)
+		if someoneNear then
+			local t = os.clock()
+			for _, w in ipairs(waves) do
+				local s = math.sin(t * 1.4 + w.phase)
+				local p = w.part
+				if p.Parent then
+					p.Position = Vector3.new(w.baseX + s * 2.5, SAND_Y - 0.05, CZ)
+					p.Transparency = 0.4 + 0.2 * (0.5 + 0.5 * s)
+				end
+			end
+			task.wait(0.08)
+		else
+			task.wait(1)   -- خمول: فحص خفيف كل ثانية بدل ١٦ مرة بالثانية
+		end
 	end
 end)
 

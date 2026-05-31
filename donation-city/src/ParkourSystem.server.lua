@@ -4,21 +4,26 @@
 ║  المكان: ServerScriptService     ·     النوع: Script                   ║
 ║                                                                        ║
 ║  • مسار متدرّج الصعوبة: سهل → متوسط → صعب → أسطوري                      ║
-║  • منصّات ثابتة + متحركة + عقبات دوّارة + منصّات تختفي وتظهر             ║
+║  • مسافات قفز عادلة ضمن قدرة اللاعب + منصّات واضحة غير متداخلة           ║
+║  • منصّات متحركة تحمل اللاعب فعلاً + عقبات دوّارة + منصّات تختفي وتظهر    ║
 ║  • Checkpoints مع حفظ تلقائي + العودة لآخر نقطة عند السقوط              ║
-║  • واجهة تقدّم (مرحلة/نسبة/وقت) عبر ParkourProgress RemoteEvent         ║
 ║  • جوائز عند الإكمال (كوينز + إنجاز + تاج «بطل الباركور» + بريق)         ║
 ║  • لوحات متصدرين: أسرع وقت (دائم/يومي) + الأكثر إكمالاً (OrderedDataStore)║
-║  • منطقة مستقلة غرب الخريطة، آمنة على الأداء (StreamingEnabled-friendly)║
+║                                                                        ║
+║  ⚙️ الأداء (إصلاح اللاق الجذري): كل الحركة (المنصّات/العقبات/الاختفاء)   ║
+║     تُدار في حلقة Heartbeat واحدة فقط، وتتوقّف تماماً عندما لا يوجد لاعب  ║
+║     قريب من الباركور → صفر استهلاك للسيرفر أثناء الخمول.                 ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
 local Workspace        = game:GetService("Workspace")
-local Players           = game:GetService("Players")
+local Players          = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService     = game:GetService("TweenService")
 local DataStoreService = game:GetService("DataStoreService")
 local RunService       = game:GetService("RunService")
+
+local V   = Vector3.new
+local TAU = math.pi * 2
 
 ----------------------------------------------------------------------
 -- إعداد الـ RemoteEvent للتقدّم (واجهة العميل)
@@ -51,6 +56,11 @@ local C_LEGEND = Color3.fromRGB(200, 110, 255)
 local C_CP     = Color3.fromRGB(255, 215, 90)
 local C_OBST   = Color3.fromRGB(255, 70, 70)
 local GOLD     = Color3.fromRGB(255, 205, 70)
+local STAGE_COLOR = { [1] = C_EASY, [2] = C_MED, [3] = C_HARD, [4] = C_LEGEND }
+
+-- مركز الباركور ونطاق التفعيل (لإيقاف الحركة عند الخمول)
+local COURSE_CENTER = V(-133, 18, 40)
+local ACTIVE_RANGE2 = 155 * 155
 
 local course = Instance.new("Model")
 course.Name = "ParkourCourse"
@@ -63,8 +73,8 @@ local function newPart(props)
 	p.TopSurface = Enum.SurfaceType.Smooth
 	p.BottomSurface = Enum.SurfaceType.Smooth
 	p.Name = props.Name or "Plat"
-	p.Size = props.Size or Vector3.new(8, 1, 8)
-	if props.CFrame then p.CFrame = props.CFrame else p.Position = props.Position or Vector3.new() end
+	p.Size = props.Size or V(8, 1, 8)
+	if props.CFrame then p.CFrame = props.CFrame else p.Position = props.Position or V() end
 	p.Color = props.Color or Color3.fromRGB(180, 180, 180)
 	p.Material = props.Material or Enum.Material.SmoothPlastic
 	if props.Transparency then p.Transparency = props.Transparency end
@@ -73,111 +83,88 @@ local function newPart(props)
 end
 
 ----------------------------------------------------------------------
--- مسار المنصّات (غرب الخريطة، صاعد بالارتفاع)
--- kind: "static" | "move" | "blink" | "beam"
+-- مسار المنصّات — مسافات قفز عادلة (قفزة Roblox الافتراضية ترفع ~7 وتقطع ~10-12)
+-- لا تتجاوز الفجوات الأفقية ~10، ولا يزيد الصعود لكل قفزة عن ~2، فالمسار
+-- صعب بآلياته (منصّات صغيرة/متحركة/تختفي/عقبات) لا بمسافات مستحيلة.
+--
+-- خصائص العقدة: move="x"/"z" + dist + period | blink={on,off} | beam=true [+fast]
+-- (أول عقدة في كل مرحلة تكون ثابتة دائماً لأنها نقطة حفظ)
 ----------------------------------------------------------------------
 local nodes = {
-	-- ── المرحلة السهلة (منصّات واسعة، قفزات قصيرة) ──
-	{ stage = 1, kind = "static", size = Vector3.new(10, 1, 10), pos = Vector3.new(-95, 4, 70), color = C_EASY },
-	{ stage = 1, kind = "static", size = Vector3.new(9, 1, 9),   pos = Vector3.new(-106, 5, 70), color = C_EASY },
-	{ stage = 1, kind = "static", size = Vector3.new(9, 1, 9),   pos = Vector3.new(-117, 6, 66), color = C_EASY },
-	{ stage = 1, kind = "static", size = Vector3.new(8, 1, 8),   pos = Vector3.new(-128, 7, 71), color = C_EASY },
-	{ stage = 1, kind = "static", size = Vector3.new(8, 1, 8),   pos = Vector3.new(-139, 8, 75), color = C_EASY },
-	-- ── المرحلة المتوسطة (منصّات متحركة + عقبة دوّارة) ──
-	{ stage = 2, kind = "static", size = Vector3.new(12, 1, 12), pos = Vector3.new(-151, 10, 72), color = C_MED },
-	{ stage = 2, kind = "beam",   size = Vector3.new(12, 1, 12), pos = Vector3.new(-151, 10, 72), color = C_MED }, -- عقبة دوّارة فوق المنصّة السابقة
-	{ stage = 2, kind = "move",   size = Vector3.new(7, 1, 7),   pos = Vector3.new(-162, 12, 72), color = C_MED, axis = "z", dist = 7, time = 2.2 },
-	{ stage = 2, kind = "static", size = Vector3.new(7, 1, 7),   pos = Vector3.new(-173, 14, 72), color = C_MED },
-	{ stage = 2, kind = "move",   size = Vector3.new(6, 1, 6),   pos = Vector3.new(-173, 16, 60), color = C_MED, axis = "x", dist = 8, time = 2.0 },
-	-- ── المرحلة الصعبة (متحركة أسرع + منصّات تختفي + قفزات أدق) ──
-	{ stage = 3, kind = "static", size = Vector3.new(8, 1, 8),   pos = Vector3.new(-173, 18, 48), color = C_HARD },
-	{ stage = 3, kind = "blink",  size = Vector3.new(6, 1, 6),   pos = Vector3.new(-164, 20, 44), color = C_HARD, on = 1.6, off = 1.1 },
-	{ stage = 3, kind = "move",   size = Vector3.new(5, 1, 5),   pos = Vector3.new(-155, 22, 44), color = C_HARD, axis = "z", dist = 9, time = 1.4 },
-	{ stage = 3, kind = "blink",  size = Vector3.new(5, 1, 5),   pos = Vector3.new(-146, 24, 40), color = C_HARD, on = 1.3, off = 1.1 },
-	{ stage = 3, kind = "static", size = Vector3.new(6, 1, 6),   pos = Vector3.new(-137, 26, 38), color = C_HARD },
-	-- ── المرحلة الأسطورية (مسار طويل + كل العقبات + قفزات نادرة) ──
-	{ stage = 4, kind = "move",   size = Vector3.new(4.5, 1, 4.5), pos = Vector3.new(-128, 28, 38), color = C_LEGEND, axis = "x", dist = 10, time = 1.2 },
-	{ stage = 4, kind = "blink",  size = Vector3.new(4.5, 1, 4.5), pos = Vector3.new(-119, 30, 34), color = C_LEGEND, on = 1.0, off = 1.0 },
-	{ stage = 4, kind = "static", size = Vector3.new(5, 1, 5),     pos = Vector3.new(-110, 32, 32), color = C_LEGEND },
-	{ stage = 4, kind = "beam",   size = Vector3.new(11, 1, 11),   pos = Vector3.new(-110, 32, 32), color = C_LEGEND }, -- دوّار سريع
-	{ stage = 4, kind = "move",   size = Vector3.new(4, 1, 4),     pos = Vector3.new(-101, 34, 30), color = C_LEGEND, axis = "z", dist = 11, time = 1.0 },
-	{ stage = 4, kind = "blink",  size = Vector3.new(4, 1, 4),     pos = Vector3.new(-92, 36, 26), color = C_LEGEND, on = 0.9, off = 1.0 },
-	{ stage = 4, kind = "static", size = Vector3.new(6, 1, 6),     pos = Vector3.new(-83, 38, 24), color = C_LEGEND },
+	-- ── سهلة (منصّات واسعة، فجوات ~8، صعود ~1-2) ──
+	{ stage = 1, pos = V(-95,  4, 70), size = V(10, 1, 10) },   -- البداية
+	{ stage = 1, pos = V(-103, 6, 70), size = V(9, 1, 9) },
+	{ stage = 1, pos = V(-111, 7, 73), size = V(9, 1, 9) },
+	{ stage = 1, pos = V(-119, 8, 70), size = V(9, 1, 9) },
+	{ stage = 1, pos = V(-127, 9, 70), size = V(8, 1, 8) },
+	-- ── متوسطة (منصّة متحركة + عقبة دوّارة، فجوات ~9) ──
+	{ stage = 2, pos = V(-136, 11, 70), size = V(9, 1, 9) },                                  -- نقطة حفظ (ثابتة)
+	{ stage = 2, pos = V(-145, 12, 70), size = V(7, 1, 7), move = "x", dist = 5, period = 4.0 },
+	{ stage = 2, pos = V(-154, 13, 70), size = V(8, 1, 8) },
+	{ stage = 2, pos = V(-163, 14, 70), size = V(8, 1, 8), beam = true },                     -- عقبة دوّارة فوقها
+	{ stage = 2, pos = V(-172, 15, 70), size = V(7, 1, 7) },
+	-- ── صعبة (منصّات تختفي + متحركة، فجوات ~9-10، منعطف جنوباً) ──
+	{ stage = 3, pos = V(-172, 17, 61), size = V(7, 1, 7) },                                  -- نقطة حفظ (ثابتة)
+	{ stage = 3, pos = V(-172, 18, 52), size = V(6, 1, 6), blink = { on = 2.2, off = 1.3 } },
+	{ stage = 3, pos = V(-172, 19, 43), size = V(6, 1, 6), move = "z", dist = 5, period = 3.6 },
+	{ stage = 3, pos = V(-166, 20, 36), size = V(6, 1, 6), blink = { on = 2.0, off = 1.2 } },
+	{ stage = 3, pos = V(-159, 21, 29), size = V(6, 1, 6) },
+	-- ── أسطورية (مسار أطول + كل الآليات، فجوات ~9) ──
+	{ stage = 4, pos = V(-152, 23, 24), size = V(6, 1, 6) },                                  -- نقطة حفظ (ثابتة)
+	{ stage = 4, pos = V(-144, 24, 20), size = V(5, 1, 5), move = "x", dist = 5, period = 3.2 },
+	{ stage = 4, pos = V(-136, 25, 16), size = V(5, 1, 5), blink = { on = 1.6, off = 1.2 } },
+	{ stage = 4, pos = V(-128, 26, 13), size = V(5, 1, 5), beam = true, fast = true },
+	{ stage = 4, pos = V(-120, 28, 10), size = V(6, 1, 6), move = "z", dist = 6, period = 3.0 },
+	{ stage = 4, pos = V(-112, 29,  8), size = V(6, 1, 6) },                                  -- آخر منصّة قبل النهاية
 }
 
--- نقاط الحفظ (CFrame): تبدأ من منصّة البداية ثم نهاية كل مرحلة
+local START_POS  = V(-95, 4, 70)
+local FINISH_POS  = V(-104, 30, 8)
+
+----------------------------------------------------------------------
+-- بناء المنصّات + تسجيل العناصر الديناميكية (بلا أي حلقة لكل عنصر)
+----------------------------------------------------------------------
+local movers   = {}   -- { part, base, dir, half, period, phase, hx, hz, lastPos }
+local blinkers = {}   -- { part, onT, warnT, offT, cycle, phase }
+local rotators = {}   -- { part, center, speed }
+
 local checkpoints = {}   -- [i] = { cf = CFrame, y = number }
 local function addCheckpoint(pos)
-	local cf = CFrame.new(pos + Vector3.new(0, 4, 0))
-	table.insert(checkpoints, { cf = cf, y = pos.Y })
-end
-
-----------------------------------------------------------------------
--- بناء المنصّات والسلوكيات الديناميكية
-----------------------------------------------------------------------
-local function buildMove(p, axis, dist, timeSec)
-	local base = p.Position
-	local goal = (axis == "x") and (base + Vector3.new(dist, 0, 0)) or (base + Vector3.new(0, 0, dist))
-	local info = TweenInfo.new(timeSec, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
-	TweenService:Create(p, info, { Position = goal }):Play()
-end
-
-local function buildBlink(p, onT, offT)
-	task.spawn(function()
-		while p.Parent do
-			p.Transparency = 0; p.CanCollide = true
-			task.wait(onT)
-			p.Transparency = 0.55; p.CanCollide = true   -- تحذير قبل الاختفاء
-			task.wait(0.35)
-			p.Transparency = 1; p.CanCollide = false
-			task.wait(offT)
-		end
-	end)
-end
-
-local function buildBeam(centerPos, fast)
-	-- عقبة دوّارة فوق المنصّة (يجب القفز فوقها أثناء مرورها)
-	local beam = newPart({ Name = "Obstacle", Size = Vector3.new(11, 0.8, 0.8),
-		Position = centerPos + Vector3.new(0, 2.2, 0), Color = C_OBST, Material = Enum.Material.Neon })
-	beam.CanCollide = true
-	local speed = fast and 150 or 90    -- درجة/ثانية
-	task.spawn(function()
-		local ang = 0
-		while beam.Parent do
-			ang = (ang + speed * 0.05) % 360
-			beam.CFrame = CFrame.new(centerPos + Vector3.new(0, 2.2, 0)) * CFrame.Angles(0, math.rad(ang), 0)
-			task.wait(0.05)
-		end
-	end)
+	table.insert(checkpoints, { cf = CFrame.new(pos + V(0, 4, 0)), y = pos.Y })
 end
 
 local lastStage = 0
 for _, n in ipairs(nodes) do
-	-- أضف checkpoint عند بداية البلاطة الأولى من كل مرحلة
-	if n.stage ~= lastStage and n.kind ~= "beam" then
+	if n.stage ~= lastStage then
 		addCheckpoint(n.pos)
 		lastStage = n.stage
 	end
-	if n.kind == "beam" then
-		buildBeam(n.pos, n.stage >= 4)
-	else
-		local p = newPart({ Name = "Plat_S" .. n.stage, Size = n.size, Position = n.pos,
-			Color = n.color, Material = Enum.Material.SmoothPlastic })
-		if n.kind == "move" then buildMove(p, n.axis, n.dist, n.time)
-		elseif n.kind == "blink" then buildBlink(p, n.on, n.off) end
+	local p = newPart({ Name = "Plat_S" .. n.stage, Size = n.size, Position = n.pos,
+		Color = STAGE_COLOR[n.stage] or C_EASY, Material = Enum.Material.SmoothPlastic })
+	if n.move then
+		local dir = (n.move == "x") and V(1, 0, 0) or V(0, 0, 1)
+		movers[#movers + 1] = { part = p, base = n.pos, dir = dir, half = n.dist / 2,
+			period = n.period, phase = math.random() * 1.0,
+			hx = n.size.X / 2 + 1.2, hz = n.size.Z / 2 + 1.2, lastPos = n.pos }
+	elseif n.blink then
+		local warnT = 0.4
+		blinkers[#blinkers + 1] = { part = p, onT = n.blink.on, warnT = warnT, offT = n.blink.off,
+			cycle = n.blink.on + warnT + n.blink.off, phase = math.random() * 3 }
+	end
+	if n.beam then
+		local len = n.size.X + 3
+		local bar = newPart({ Name = "Obstacle", Size = V(len, 0.8, 0.8),
+			Position = n.pos + V(0, 2.4, 0), Color = C_OBST, Material = Enum.Material.Neon })
+		rotators[#rotators + 1] = { part = bar, center = n.pos + V(0, 2.4, 0), speed = n.fast and 120 or 70 }
 	end
 end
 
 ----------------------------------------------------------------------
--- منصّة البداية + لوح + نقطة بداية، ومنصّة النهاية
+-- لوحة البداية (نص على الوجوه) + منصّة النهاية المضيئة
 ----------------------------------------------------------------------
-local START_POS  = Vector3.new(-95, 4, 70)
-local FINISH_POS = Vector3.new(-83, 38, 24)
-
--- لوحة البداية
 do
-	local board = newPart({ Name = "ParkourSign", Size = Vector3.new(12, 4, 0.6),
-		Position = START_POS + Vector3.new(0, 7, 0), Color = Color3.fromRGB(24, 30, 46) })
+	local board = newPart({ Name = "ParkourSign", Size = V(12, 4, 0.6),
+		Position = START_POS + V(0, 7, 0), Color = Color3.fromRGB(24, 30, 46) })
 	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front, Enum.NormalId.Left, Enum.NormalId.Right }) do
 		local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.CanvasSize = Vector2.new(800, 260)
 		sg.LightInfluence = 0; sg.Adornee = board; sg.Parent = board
@@ -187,8 +174,7 @@ do
 	end
 end
 
--- منصّة النهاية مضيئة
-local finishPad = newPart({ Name = "FinishPad", Size = Vector3.new(8, 1, 8),
+local finishPad = newPart({ Name = "FinishPad", Size = V(8, 1, 8),
 	Position = FINISH_POS, Color = GOLD, Material = Enum.Material.Neon })
 
 ----------------------------------------------------------------------
@@ -196,17 +182,16 @@ local finishPad = newPart({ Name = "FinishPad", Size = Vector3.new(8, 1, 8),
 ----------------------------------------------------------------------
 local cpPads = {}
 for i, cp in ipairs(checkpoints) do
-	local pad = newPart({ Name = "Checkpoint" .. i, Size = Vector3.new(10, 0.4, 10),
-		Position = Vector3.new(cp.cf.X, cp.y + 0.7, cp.cf.Z), Color = C_CP,
+	cpPads[i] = newPart({ Name = "Checkpoint" .. i, Size = V(10, 0.4, 10),
+		Position = V(cp.cf.X, cp.y + 0.7, cp.cf.Z), Color = C_CP,
 		Material = Enum.Material.Neon, Transparency = 0.25, CanCollide = false })
-	cpPads[i] = pad
 end
 local TOTAL_CP = #checkpoints
 
 ----------------------------------------------------------------------
 -- حالة اللاعبين أثناء الجري
 ----------------------------------------------------------------------
-local runState = {}   -- [userId] = { cpIndex=int, startT=number, inRun=bool, reached={}, bestCp=int }
+local runState = {}   -- [userId] = { cpIndex, startT, inRun, reached }
 
 local function sendProgress(player)
 	local st = runState[player.UserId]
@@ -237,7 +222,7 @@ local function startRun(player)
 end
 
 ----------------------------------------------------------------------
--- كاش أسماء اللاعبين للوحات
+-- كاش أسماء اللاعبين + تنسيق الوقت
 ----------------------------------------------------------------------
 local nameCache = {}
 local function nameFor(userId)
@@ -267,7 +252,7 @@ local function applyChampionEffect(player)
 	if head and not head:FindFirstChild("ParkourTitle") then
 		local bb = Instance.new("BillboardGui")
 		bb.Name = "ParkourTitle"; bb.Adornee = head; bb.Size = UDim2.fromOffset(180, 36)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0); bb.AlwaysOnTop = true; bb.Parent = head
+		bb.StudsOffsetWorldSpace = V(0, 3.4, 0); bb.AlwaysOnTop = true; bb.Parent = head
 		local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
 		lbl.TextColor3 = Color3.fromRGB(190, 120, 255); lbl.TextStrokeTransparency = 0.3
@@ -285,12 +270,12 @@ end
 
 local function recordLeaderboard(userId, elapsed)
 	task.spawn(function()
-		local centi = math.floor(elapsed * 100)   -- وقت بالسنتي ثانية (أقل = أفضل)
-		local prev, completions = nil, 1
+		local centi = math.floor(elapsed * 100)
+		local prev = nil
 		if bestStore then
 			pcall(function()
 				local d = bestStore:GetAsync("u_" .. userId)
-				if type(d) == "table" then prev = d.time; completions = (d.completions or 0) + 1 end
+				if type(d) == "table" then prev = d.time end
 			end)
 			pcall(function()
 				bestStore:UpdateAsync("u_" .. userId, function(old)
@@ -302,7 +287,6 @@ local function recordLeaderboard(userId, elapsed)
 				end)
 			end)
 		end
-		-- OrderedDataStore: أسرع وقت (نخزّن الأقل) — ولا نكتب إلا لو تحسّن
 		if timeRank and (not prev or centi < prev) then
 			pcall(function() timeRank:SetAsync(tostring(userId), centi) end)
 		end
@@ -314,7 +298,7 @@ local function recordLeaderboard(userId, elapsed)
 		end
 		if compRank then
 			pcall(function()
-				compRank:SetAsync(tostring(userId), completions)
+				compRank:UpdateAsync(tostring(userId), function(old) return (tonumber(old) or 0) + 1 end)
 			end)
 		end
 	end)
@@ -325,7 +309,6 @@ local function finishRun(player)
 	if not st or not st.inRun then return end
 	local elapsed = os.clock() - st.startT
 	st.inRun = false
-	-- جوائز
 	local reward = 250
 	if _G.AddCoins then _G.AddCoins(player, reward) end
 	if _G.AwardAchievement then
@@ -345,6 +328,7 @@ end
 -- لمس البداية / النقاط / النهاية
 ----------------------------------------------------------------------
 local function hookTouch(part, fn)
+	if not part then return end
 	part.Touched:Connect(function(hit)
 		local char = hit and hit.Parent
 		local player = char and Players:GetPlayerFromCharacter(char)
@@ -352,13 +336,11 @@ local function hookTouch(part, fn)
 	end)
 end
 
--- البداية: قف على منصّة البداية لبدء العدّاد (مرة واحدة لكل جولة)
-hookTouch(course:FindFirstChild("Plat_S1") or finishPad, function(player)
+hookTouch(course:FindFirstChild("Plat_S1"), function(player)
 	local st = runState[player.UserId]
 	if not (st and st.inRun) then startRun(player) end
 end)
 
--- نقاط الحفظ
 for i, pad in ipairs(cpPads) do
 	hookTouch(pad, function(player)
 		local st = runState[player.UserId]
@@ -367,7 +349,7 @@ for i, pad in ipairs(cpPads) do
 		if i > st.cpIndex then
 			st.cpIndex = i
 			st.reached[i] = true
-			if _G.AddCoins then _G.AddCoins(player, 20) end   -- مكافأة وصول نقطة جديدة
+			if _G.AddCoins then _G.AddCoins(player, 20) end
 			if _G.ReportMission then _G.ReportMission(player, "parkour_cp", 1, "cp" .. i) end
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ نقطة حفظ " .. i .. "/" .. TOTAL_CP .. " (+20 كوينز)") end
 			sendProgress(player)
@@ -375,34 +357,101 @@ for i, pad in ipairs(cpPads) do
 	end)
 end
 
--- النهاية
 hookTouch(finishPad, function(player)
 	local st = runState[player.UserId]
-	if st and st.inRun and st.cpIndex >= TOTAL_CP - 0 then finishRun(player) end
+	if st and st.inRun and st.cpIndex >= TOTAL_CP then finishRun(player) end
 end)
 
 ----------------------------------------------------------------------
--- العودة لآخر نقطة عند السقوط + تحديث الوقت
+-- ⚙️ المحرّك الموحّد: حلقة Heartbeat واحدة فقط (تتوقّف عند الخمول)
+--   تتولّى: المنصّات المتحركة (مع حمل اللاعب) + التختّفي + العقبات الدوّارة
+--   + إعادة اللاعب لآخر نقطة عند السقوط. لا يوجد أي task.spawn لكل عنصر.
 ----------------------------------------------------------------------
-task.spawn(function()
-	while true do
-		for _, player in ipairs(Players:GetPlayers()) do
-			local st = runState[player.UserId]
-			if st and st.inRun then
-				local cp = checkpoints[st.cpIndex]
-				local char = player.Character
-				local hrp = char and char:FindFirstChild("HumanoidRootPart")
-				if hrp and cp and hrp.Position.Y < (cp.y - 6) then
-					teleportTo(player, cp.cf)
-					if _G.NotifyPlayer then _G.NotifyPlayer(player, "↩️ رجعناك لآخر نقطة حفظ.") end
+local startClock = os.clock()
+local active = false
+
+local function resetDynamic()
+	for _, b in ipairs(blinkers) do
+		b.part.Transparency = 0; b.part.CanCollide = true
+	end
+	for _, m in ipairs(movers) do
+		m.part.CFrame = CFrame.new(m.base); m.lastPos = m.base
+	end
+end
+
+RunService.Heartbeat:Connect(function()
+	-- جمع اللاعبين القريبين من الباركور
+	local near = {}
+	for _, pl in ipairs(Players:GetPlayers()) do
+		local char = pl.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local dx, dz = hrp.Position.X - COURSE_CENTER.X, hrp.Position.Z - COURSE_CENTER.Z
+			if dx * dx + dz * dz <= ACTIVE_RANGE2 then
+				near[#near + 1] = { pl = pl, hrp = hrp }
+			end
+		end
+	end
+
+	if #near == 0 then
+		if active then resetDynamic(); active = false end
+		return
+	end
+	local justActivated = not active
+	active = true
+
+	local t = os.clock() - startClock
+
+	-- المنصّات المتحركة + حمل اللاعب الواقف عليها
+	for _, m in ipairs(movers) do
+		local off = math.sin((t / m.period + m.phase) * TAU) * m.half
+		local np = m.base + m.dir * off
+		if justActivated then m.lastPos = np end
+		local delta = np - m.lastPos
+		m.part.CFrame = CFrame.new(np)
+		if delta.Magnitude > 0 then
+			for _, e in ipairs(near) do
+				local rel = e.hrp.Position - np
+				if math.abs(rel.X) <= m.hx and math.abs(rel.Z) <= m.hz and rel.Y > 0 and rel.Y < 5.5 then
+					e.hrp.CFrame = e.hrp.CFrame + delta
 				end
 			end
 		end
-		task.wait(0.2)
+		m.lastPos = np
+	end
+
+	-- المنصّات التي تختفي وتظهر
+	for _, b in ipairs(blinkers) do
+		local p = (t + b.phase) % b.cycle
+		if p < b.onT then
+			b.part.Transparency = 0; b.part.CanCollide = true
+		elseif p < b.onT + b.warnT then
+			b.part.Transparency = 0.5; b.part.CanCollide = true     -- تحذير قبل الاختفاء
+		else
+			b.part.Transparency = 1; b.part.CanCollide = false
+		end
+	end
+
+	-- العقبات الدوّارة
+	for _, r in ipairs(rotators) do
+		local ang = (t * r.speed) % 360
+		r.part.CFrame = CFrame.new(r.center) * CFrame.Angles(0, math.rad(ang), 0)
+	end
+
+	-- العودة لآخر نقطة حفظ عند السقوط
+	for _, e in ipairs(near) do
+		local st = runState[e.pl.UserId]
+		if st and st.inRun then
+			local cp = checkpoints[st.cpIndex]
+			if cp and e.hrp.Position.Y < (cp.y - 6) then
+				e.hrp.CFrame = cp.cf
+				if _G.NotifyPlayer then _G.NotifyPlayer(e.pl, "↩️ رجعناك لآخر نقطة حفظ.") end
+			end
+		end
 	end
 end)
 
--- تحديث عدّاد الوقت على الواجهة كل ثانية
+-- تحديث عدّاد الوقت على الواجهة كل ثانية (خفيف)
 task.spawn(function()
 	while true do
 		for _, player in ipairs(Players:GetPlayers()) do
@@ -413,7 +462,7 @@ task.spawn(function()
 	end
 end)
 
--- عند موت/إعادة ظهور اللاعب أثناء الجولة، أرجعه لآخر نقطة حفظ
+-- عند إعادة الظهور أثناء الجولة، أرجع اللاعب لآخر نقطة حفظ
 Players.PlayerAdded:Connect(function(player)
 	player.CharacterAdded:Connect(function()
 		task.wait(0.6)
@@ -432,7 +481,7 @@ end)
 -- لوحات المتصدّرين (أسرع وقت دائم + يومي + الأكثر إكمالاً)
 ----------------------------------------------------------------------
 local function makeBoard(title, pos)
-	local board = newPart({ Name = "LB_" .. title, Size = Vector3.new(12, 14, 0.6),
+	local board = newPart({ Name = "LB_" .. title, Size = V(12, 14, 0.6),
 		Position = pos, Color = Color3.fromRGB(18, 20, 34) })
 	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
 	sg.CanvasSize = Vector2.new(420, 520); sg.LightInfluence = 0; sg.Adornee = board; sg.Parent = board
@@ -445,9 +494,9 @@ local function makeBoard(title, pos)
 	return frame
 end
 
-local fastestFrame = makeBoard("🏆 أسرع الأوقات", Vector3.new(-95, 11, 78))
-local dailyFrame   = makeBoard("🥇 أسرع اليوم",   Vector3.new(-83, 11, 78))
-local compFrame    = makeBoard("🔥 الأكثر إكمالاً", Vector3.new(-71, 11, 78))
+local fastestFrame = makeBoard("🏆 أسرع الأوقات", V(-95, 11, 78))
+local dailyFrame   = makeBoard("🥇 أسرع اليوم",   V(-83, 11, 78))
+local compFrame    = makeBoard("🔥 الأكثر إكمالاً", V(-71, 11, 78))
 
 local function fillBoard(frame, ranked, fmtVal)
 	for _, c in ipairs(frame:GetChildren()) do
@@ -494,4 +543,4 @@ task.spawn(function()
 	end
 end)
 
-print("[ParkourSystem] Course ready —", TOTAL_CP, "checkpoints")
+print("[ParkourSystem] Course ready —", TOTAL_CP, "checkpoints,", #movers, "movers,", #blinkers, "blinkers,", #rotators, "rotators")

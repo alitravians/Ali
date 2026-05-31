@@ -268,13 +268,13 @@ local serveSpot = {
 	B = Vector3.new(VCX, FLOOR_Y + 6, VCZ + HALF_L - 2),
 }
 
--- ردّ الكرة لجهة الخصم (لمسة لاعب أو إرسال)
+-- ردّ الكرة لجهة الخصم (لمسة لاعب أو إرسال) — أقواس أهدأ وأطول مكوثاً ليسهل اللحاق بها
 local function hitBall(fromTeam, isServe)
 	local dirZ = (fromTeam == "A") and 1 or -1   -- A ترسل نحو +Z (جهة B)
-	local vy = isServe and 38 or 44
-	local vz = dirZ * (isServe and 26 or 30)
-	local vx = (VCX - ball.Position.X) * 1.4     -- توجيه نحو منتصف العرض
-	vx = math.clamp(vx, -22, 22)
+	local vy = isServe and 36 or 40              -- ارتفاع أعلى = وقت أطول للوصول تحت الكرة
+	local vz = dirZ * (isServe and 15 or 18)     -- سرعة أفقية أهدأ = تبقى داخل الملعب
+	local vx = (VCX - ball.Position.X) * 1.1     -- توجيه نحو منتصف العرض
+	vx = math.clamp(vx, -15, 15)
 	ball.AssemblyLinearVelocity = Vector3.new(vx, vy, vz)
 	ball.AssemblyAngularVelocity = Vector3.new(math.random(-6, 6), 0, math.random(-6, 6))
 end
@@ -443,10 +443,32 @@ local function inCourtBounds(pos)
 		and pos.Z >= (VCZ - HALF_L - 0.5) and pos.Z <= (VCZ + HALF_L + 0.5)
 end
 
+local HIT_RADIUS2 = 9 * 9          -- نصف قطر اللحاق بالكرة (أفقياً) ليردّها اللاعب
+
 task.spawn(function()
 	while true do
 		if match.phase == "rally" and not match.scoredLock then
 			local pos = ball.Position
+			-- ── ردّ تلقائي عند وجود لاعب قريب في جهته (يجعل اللعب ممكناً فعلاً) ──
+			-- الكرة هابطة وضمن متناول اللاعب: إن وُجد زميل قريب أفقياً نردّها للخصم.
+			local vy = ball.AssemblyLinearVelocity.Y
+			if pos.Y > LAND_Y and pos.Y < 12 and vy < 4 and (os.clock() - lastHitClock) > 0.45 then
+				local side = (pos.Z < NET_Z) and "A" or "B"
+				for _, id in ipairs(teamArr(side)) do
+					local p = Players:GetPlayerByUserId(id)
+					local hrp = p and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+					if hrp then
+						local dx = hrp.Position.X - pos.X
+						local dz = hrp.Position.Z - pos.Z
+						if dx * dx + dz * dz <= HIT_RADIUS2 then
+							lastHitClock = os.clock()
+							match.lastTouch = side
+							hitBall(side, false)
+							break
+						end
+					end
+				end
+			end
 			-- سقطت على الأرض أو خرجت بعيداً جداً
 			if pos.Y <= LAND_Y or pos.Y < FLOOR_Y - 30 then
 				match.scoredLock = true
