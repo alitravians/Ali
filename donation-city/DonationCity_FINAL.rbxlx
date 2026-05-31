@@ -8983,19 +8983,19 @@ local LocalPlayer = Players.LocalPlayer
 local playerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
 ------------------------------------------------------------------------
--- إخفاء دردشة روبلوكس الافتراضية (الأيقونة أعلى يسار الشاشة) — اللاعب طلب
--- يكون الشات في الزاوية اليمنى السفلى فقط (زرّنا البنفسجي). فنوقف الواجهة
--- الرسمية ونبقي دردشتنا المخصّصة وحدها، بلا أيقونتين متكرّرتين.
+-- إظهار دردشة روبلوكس الافتراضية (الأيقونة أعلى يسار الشاشة) — اللاعب طلب
+-- أن يكون زرّنا المخصّص بجانب زر الشات الأصلي أعلى اليسار، فنُبقي الواجهة
+-- الرسمية ظاهرة ونضع زرّنا بجوارها (لا نخفيها).
 ------------------------------------------------------------------------
 local function showDefaultChat()
-	-- TextChatService الحديث: نوقف نافذة الدردشة وشريط الإدخال الرسميَّين
+	-- TextChatService الحديث: نُبقي نافذة الدردشة وشريط الإدخال الرسميَّين ظاهرين
 	pcall(function()
 		local win = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
 		if win then win.Enabled = true end
 		local bar = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
 		if bar then bar.Enabled = true end
 	end)
-	-- النظام القديم (Legacy): نوقف واجهة الدردشة من CoreGui
+	-- النظام القديم (Legacy): نُبقي واجهة الدردشة من CoreGui ظاهرة
 	pcall(function()
 		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)
 	end)
@@ -9126,7 +9126,7 @@ do
 	end)
 end
 
--- 💬 زر مُصغّر (فقاعة) أسفل يمين الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
+-- 💬 زر مُصغّر (فقاعة) أعلى يسار الشاشة بجانب زر شات روبلوكس الأصلي — يفتح/يخفي لوحة الدردشة.
 -- launcher button: TOP-LEFT, beside the native Roblox chat icon (pixel offset approximate; easy to nudge)
 local launcher = new("TextButton", {
 	Name = "ChatLauncher",
