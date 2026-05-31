@@ -14,6 +14,13 @@
 
 local Workspace  = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local Players    = game:GetService("Players")
+
+-- جداول debounce للترامبولين مفهرسة بـ UserId (رقم)؛ ننظّفها عند خروج اللاعب
+local trampDebounces = {}
+Players.PlayerRemoving:Connect(function(plr)
+	for _, d in ipairs(trampDebounces) do d[plr.UserId] = nil end
+end)
 
 local CX, CZ = 0, 130           -- مركز المنطقة (جنوب الساحة)
 local GY = 0.8                  -- سطح أرضية اللعب
@@ -114,13 +121,16 @@ local function trampoline(x, z)
 		CFrame = CFrame.new(x, GY + 2, z) * CFrame.Angles(0, 0, math.rad(90)),
 		Color = Color3.fromRGB(30, 30, 40), Material = Enum.Material.SmoothPlastic })
 	local boing = sound(mat, 5466166437, 0.6)
-	local debounce = setmetatable({}, { __mode = "k" })  -- مفاتيح ضعيفة: تُجمَع الشخصيات المحذوفة تلقائياً
+	local debounce = {}                 -- مفهرس بـ UserId (رقم) ويُنظّف عند خروج اللاعب
+	trampDebounces[#trampDebounces + 1] = debounce
 	mat.Touched:Connect(function(hit)
 		local char = hit and hit.Parent
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		if not (hum and hrp) then return end
-		local id = char
+		local plr = Players:GetPlayerFromCharacter(char)
+		if not plr then return end
+		local id = plr.UserId
 		if debounce[id] and os.clock() - debounce[id] < 0.4 then return end
 		debounce[id] = os.clock()
 		local v = hrp.AssemblyLinearVelocity
