@@ -526,6 +526,7 @@ Players.PlayerAdded:Connect(function(player)
 end)
 Players.PlayerRemoving:Connect(function(player)
 	runState[player.UserId] = nil
+	entryCooldown[player.UserId] = nil
 end)
 
 ----------------------------------------------------------------------
