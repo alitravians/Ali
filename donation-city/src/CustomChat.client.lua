@@ -42,6 +42,30 @@ local PINK   = Color3.fromRGB(255, 138, 216)   -- لون الرسائل الخا
 local MAX_MESSAGES = 60          -- أقصى عدد رسائل محفوظة بالواجهة
 local MAX_LEN      = 200
 
+------------------------------------------------------------------------
+-- اختصارات السمايلات النصية ← تتحوّل تلقائياً إلى إيموجي (الأطول أولاً)
+------------------------------------------------------------------------
+local EMOJI_SHORTCODES = {
+	{ "<3", "❤️" }, { ":'(", "😢" },
+	{ ":-)", "🙂" }, { ":-(", "🙁" }, { ":-D", "😄" }, { ":-P", "😛" }, { ";-)", "😉" },
+	{ ":D", "😄" }, { ":P", "😛" }, { ":p", "😛" }, { ";)", "😉" },
+	{ ":)", "🙂" }, { ":(", "🙁" }, { ":o", "😮" }, { ":O", "😮" },
+	{ ":|", "😐" }, { ":*", "😘" }, { "xD", "🤣" }, { "XD", "🤣" },
+}
+
+local function escPat(s: string): string
+	return (s:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1"))
+end
+
+-- يحوّل الاختصارات النصية إلى إيموجي (مثل ":)" ← 🙂 و"<3" ← ❤️)
+local function applyEmojiShortcodes(text: string): string
+	for _, pair in ipairs(EMOJI_SHORTCODES) do
+		local code, emoji = pair[1], pair[2]
+		text = text:gsub(escPat(code), function() return emoji end)
+	end
+	return text
+end
+
 local function new(class: string, props: { [string]: any }): Instance
 	local inst = Instance.new(class)
 	for k, v in pairs(props) do
@@ -283,8 +307,8 @@ new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = sendBtn })
 
 local box = new("TextBox", {
 	Name = "Input",
-	Position = UDim2.new(0, 84, 0, 0),
-	Size = UDim2.new(1, -84, 1, 0),
+	Position = UDim2.new(0, 130, 0, 0),
+	Size = UDim2.new(1, -130, 1, 0),
 	BackgroundColor3 = Color3.fromRGB(28, 22, 48),
 	BackgroundTransparency = 0.1,
 	Font = Enum.Font.Gotham,
@@ -653,6 +677,7 @@ local function sendMessage()
 	local text = box.Text
 	text = text:gsub("^%s+", ""):gsub("%s+$", "")
 	if text == "" then return end
+	text = applyEmojiShortcodes(text)
 	if #text > MAX_LEN then text = text:sub(1, MAX_LEN) end
 
 	if privateMode then
@@ -683,6 +708,101 @@ box.FocusLost:Connect(function(enterPressed)
 end)
 
 ------------------------------------------------------------------------
+-- 😊 لوحة السمايلات (الإيموجي) — زر يفتح شبكة سمايلات تُدرَج في الرسالة
+------------------------------------------------------------------------
+local EMOJIS = {
+	"😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎",
+	"🤩", "🥳", "😉", "🙂", "🙁", "😮", "😢", "😭",
+	"😡", "🤔", "😴", "😱", "👍", "👎", "👏", "🙏",
+	"💪", "🔥", "⭐", "❤️", "💜", "🎉", "🎁", "🍿",
+	"🎬", "👑", "💎", "✨",
+}
+
+-- زر السمايلات داخل صفّ الإدخال (بين زر الإرسال وخانة الكتابة)
+local emojiBtn = new("TextButton", {
+	Name = "Emoji",
+	Size = UDim2.new(0, 40, 1, 0),
+	Position = UDim2.new(0, 84, 0, 0),
+	BackgroundColor3 = Color3.fromRGB(40, 30, 66),
+	BackgroundTransparency = 0.05,
+	Font = Enum.Font.GothamBold,
+	Text = "😊",
+	TextColor3 = TEXT,
+	TextSize = 20,
+	AutoButtonColor = true,
+	Parent = inputRow,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = emojiBtn })
+new("UIStroke", { Color = GOLD, Thickness = 1, Transparency = 0.5, Parent = emojiBtn })
+
+-- اللوحة تظهر فوق صفّ الإدخال
+local emojiPanel = new("Frame", {
+	Name = "EmojiPanel",
+	AnchorPoint = Vector2.new(0, 1),
+	Position = UDim2.new(0, 8, 1, -52),
+	Size = UDim2.new(1, -16, 0, 150),
+	BackgroundColor3 = Color3.fromRGB(14, 10, 26),
+	BackgroundTransparency = 0.02,
+	BorderSizePixel = 0,
+	Visible = false,
+	ZIndex = 8,
+	Parent = root,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = emojiPanel })
+new("UIStroke", { Color = PURPLE, Thickness = 1, Transparency = 0.4, Parent = emojiPanel })
+
+local emojiScroll = new("ScrollingFrame", {
+	Name = "Grid",
+	Position = UDim2.new(0, 8, 0, 8),
+	Size = UDim2.new(1, -16, 1, -16),
+	BackgroundTransparency = 1,
+	BorderSizePixel = 0,
+	ScrollBarThickness = 4,
+	ScrollBarImageColor3 = PURPLE,
+	CanvasSize = UDim2.new(0, 0, 0, 0),
+	AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ZIndex = 8,
+	Parent = emojiPanel,
+})
+new("UIGridLayout", {
+	CellSize = UDim2.new(0, 40, 0, 40),
+	CellPadding = UDim2.new(0, 6, 0, 6),
+	HorizontalAlignment = Enum.HorizontalAlignment.Right,
+	SortOrder = Enum.SortOrder.LayoutOrder,
+	Parent = emojiScroll,
+})
+
+local function insertEmoji(e: string)
+	if isMuted then return end
+	local t = box.Text
+	if #t + #e > MAX_LEN then return end
+	box.Text = t .. e
+	box:CaptureFocus()
+end
+
+for i, e in ipairs(EMOJIS) do
+	local cell = new("TextButton", {
+		Name = "E" .. i,
+		BackgroundColor3 = Color3.fromRGB(30, 22, 50),
+		BackgroundTransparency = 0.15,
+		Font = Enum.Font.GothamBold,
+		Text = e,
+		TextSize = 22,
+		TextColor3 = TEXT,
+		AutoButtonColor = true,
+		LayoutOrder = i,
+		ZIndex = 8,
+		Parent = emojiScroll,
+	})
+	new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = cell })
+	cell.MouseButton1Click:Connect(function() insertEmoji(e) end)
+end
+
+emojiBtn.MouseButton1Click:Connect(function()
+	emojiPanel.Visible = not emojiPanel.Visible
+end)
+
+------------------------------------------------------------------------
 -- 💬 فتح/تصغير اللوحة عبر الفقاعة + شارة الرسائل غير المقروءة
 ------------------------------------------------------------------------
 local isOpen = false
@@ -703,6 +823,7 @@ local function closeChat()
 	isOpen = false
 	root.Visible = false
 	launcher.Visible = true
+	emojiPanel.Visible = false
 	if privateMode then picker.Visible = false end
 end
 
