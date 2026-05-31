@@ -249,10 +249,13 @@ local function indexBooth(key: string)
 		local bb = Instance.new("BillboardGui")
 		bb.Name = "BoothBoard"
 		bb.Adornee = body
-		bb.Size = UDim2.fromOffset(240, 120)
-		bb.StudsOffset = Vector3.new(0, 8.5, 0)
-		bb.AlwaysOnTop = true
-		bb.MaxDistance = 140
+		-- لوحة أصغر وأنظف: لا تطفو فوق كل العناصر (AlwaysOnTop=false) فلا تتكدّس
+		-- لوحات البوثات فوق بعضها، وتظهر فقط لمن اقترب من البوث (MaxDistance) بدل
+		-- ما تطلع الستّ لوحات دفعة وحدة من بعيد وتزعج الرؤية.
+		bb.Size = UDim2.fromOffset(208, 104)
+		bb.StudsOffset = Vector3.new(0, 9, 0)
+		bb.AlwaysOnTop = false
+		bb.MaxDistance = 48
 		bb.LightInfluence = 0
 		bb.Parent = body
 

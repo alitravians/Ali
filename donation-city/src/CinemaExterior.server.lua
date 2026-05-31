@@ -227,10 +227,14 @@ end
 -- مقاعد + نباتات أمام المدخل
 ----------------------------------------------------------------------
 for _, dx in ipairs({ -28, 28 }) do
-	newPart({ Name = "Bench", Size = Vector3.new(10, 0.6, 3), Position = Vector3.new(dx, 2.3, -98),
-		Color = Color3.fromRGB(120, 80, 55), Material = Enum.Material.Wood })
-	newPart({ Name = "BenchBack", Size = Vector3.new(10, 3, 0.6), Position = Vector3.new(dx, 3.8, -99.2),
-		Color = Color3.fromRGB(120, 80, 55), Material = Enum.Material.Wood })
+	-- المقعد على الجهة اليمنى فقط؛ الجهة اليسرى فيها لوحة «قوانين وتعليمات السينما»
+	-- فلا حاجة لمقعد يزدحم بجانبها (يبقى نباتٌ خفيف لتأثيث المكان بشكل مرتّب).
+	if dx > 0 then
+		newPart({ Name = "Bench", Size = Vector3.new(10, 0.6, 3), Position = Vector3.new(dx, 2.3, -98),
+			Color = Color3.fromRGB(120, 80, 55), Material = Enum.Material.Wood })
+		newPart({ Name = "BenchBack", Size = Vector3.new(10, 3, 0.6), Position = Vector3.new(dx, 3.8, -99.2),
+			Color = Color3.fromRGB(120, 80, 55), Material = Enum.Material.Wood })
+	end
 	for _, px in ipairs({ -5.5, 5.5 }) do
 		newPart({ Name = "Pot", Size = Vector3.new(2.4, 2.4, 2.4), Position = Vector3.new(dx + px, 2.2, -94),
 			Color = Color3.fromRGB(90, 70, 60), Material = Enum.Material.Slate })
