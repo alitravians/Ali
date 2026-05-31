@@ -48,45 +48,54 @@ task.spawn(function()
 	emitter.Transparency = 1
 	emitter.Parent = fountain
 
-	-- رذاذ يطلع لأعلى ثم يتساقط مثل ماء النافورة (خفيف ومتحرّك)
-	local spray = Instance.new("ParticleEmitter")
-	spray.Texture = "rbxasset://textures/particles/smoke_main.dds"
-	spray.Color = ColorSequence.new(Color3.fromRGB(205, 235, 255))
-	spray.LightEmission = 0.35
-	spray.LightInfluence = 0
-	spray.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.35),
-		NumberSequenceKeypoint.new(0.7, 0.55),
-		NumberSequenceKeypoint.new(1, 1),
-	})
-	spray.Size = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.45),
-		NumberSequenceKeypoint.new(1, 1.4),
-	})
-	spray.Lifetime = NumberRange.new(0.9, 1.4)
-	spray.Rate = 55
-	spray.Speed = NumberRange.new(9, 13)
-	spray.SpreadAngle = Vector2.new(16, 16)
-	spray.Acceleration = Vector3.new(0, -34, 0)        -- يرجع يتساقط
-	spray.EmissionDirection = Enum.NormalId.Top
-	spray.Rotation = NumberRange.new(0, 360)
-	spray.Drag = 1.5
-	spray.Parent = emitter
+	-- ماء النافورة الحيّ: نوّافات جسيمات واضحة (تطلع لأعلى وتتقوّس وتتساقط).
+	-- الجسيمات تتحرّك دائماً فيُرى الماء «حيّاً» مهما كانت هندسة الموديل ثابتة.
+	local WATER1 = Color3.fromRGB(215, 242, 255)
+	local WATER2 = Color3.fromRGB(120, 195, 245)
+	local function makeJet(rate, speed, spread, sz0, sz1)
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+		e.Color = ColorSequence.new(WATER1, WATER2)
+		e.LightEmission = 0.6
+		e.LightInfluence = 0
+		e.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.05),
+			NumberSequenceKeypoint.new(0.75, 0.3),
+			NumberSequenceKeypoint.new(1, 1),
+		})
+		e.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, sz0),
+			NumberSequenceKeypoint.new(1, sz1),
+		})
+		e.Lifetime = NumberRange.new(1.0, 1.6)
+		e.Rate = rate
+		e.Speed = NumberRange.new(speed, speed + 4)
+		e.SpreadAngle = Vector2.new(spread, spread)
+		e.Acceleration = Vector3.new(0, -48, 0)        -- جاذبية: يرجع يتساقط مثل الماء
+		e.EmissionDirection = Enum.NormalId.Top
+		e.Rotation = NumberRange.new(0, 360)
+		e.RotSpeed = NumberRange.new(-50, 50)
+		e.Drag = 1.0
+		e.Parent = emitter
+		return e
+	end
+	makeJet(150, 24, 9, 0.9, 0.35)   -- عمود مركزي قوي صاعد
+	makeJet(90, 15, 38, 0.8, 0.3)    -- تاج يتفرّع للخارج ويتساقط (شكل النافورة الكلاسيكي)
 
-	-- ضباب/رذاذ ناعم خفيف يلفّ القمة
+	-- ضباب/رذاذ ناعم يلفّ القمة (إحساس ببخار الماء)
 	local mist = Instance.new("ParticleEmitter")
 	mist.Texture = "rbxasset://textures/particles/smoke_main.dds"
 	mist.Color = ColorSequence.new(Color3.fromRGB(228, 246, 255))
 	mist.LightEmission = 0.2
 	mist.Transparency = NumberSequence.new({
-		NumberSequenceKeypoint.new(0, 0.72),
+		NumberSequenceKeypoint.new(0, 0.65),
 		NumberSequenceKeypoint.new(1, 1),
 	})
-	mist.Size = NumberSequence.new(1.3, 2.6)
-	mist.Lifetime = NumberRange.new(1.2, 1.8)
-	mist.Rate = 9
-	mist.Speed = NumberRange.new(0.4, 1.1)
-	mist.SpreadAngle = Vector2.new(45, 45)
+	mist.Size = NumberSequence.new(1.6, 3.2)
+	mist.Lifetime = NumberRange.new(1.2, 1.9)
+	mist.Rate = 12
+	mist.Speed = NumberRange.new(0.5, 1.4)
+	mist.SpreadAngle = Vector2.new(50, 50)
 	mist.Parent = emitter
 
 	-- صوت ماء ناعم ٣D محلي: يُسمع وأنت قريب، واطي وغير مزعج.
@@ -127,6 +136,11 @@ task.spawn(function()
 	for _, d in ipairs(fountain:GetDescendants()) do
 		if d:IsA("BasePart") and d.Transparency > 0.05 and d.Transparency < 0.98
 			and d.Size.X <= 1.2 and d.Size.Z <= 1.2 and d.Size.Y >= 0.4 then
+			-- نلوّن أعمدة الماء أزرق متوهّج (Neon) فتبدو ماءً حقيقياً لا أعمدة رمادية
+			pcall(function()
+				d.Color = Color3.fromRGB(150, 205, 245)
+				d.Material = Enum.Material.Neon
+			end)
 			streams[#streams + 1] = { part = d, baseT = d.Transparency, y0 = d.Position.Y, cf0 = d.CFrame }
 			minY = math.min(minY, d.Position.Y)
 			maxY = math.max(maxY, d.Position.Y)
@@ -144,11 +158,10 @@ task.spawn(function()
 			for _, s in ipairs(streams) do
 				-- موجة تنزل للأسفل (ماء يتدفّق): الطور حسب الارتفاع
 				local h = (s.y0 - minY) / span
-				local w = math.sin(clk * 3.0 + h * 9.0)
-				-- شفافية تتموّج حول قيمتها الأصلية (تبقى «ماء» واضح)
-				s.part.Transparency = math.clamp(s.baseT + w * 0.22, 0.12, 0.9)
-				-- تمايل رأسي خفيف جداً يعطي إحساس جريان
-				s.part.CFrame = s.cf0 + Vector3.new(0, w * 0.06, 0)
+				local w = math.sin(clk * 4.0 + h * 10.0)
+				-- موجة تدفّق واضحة: شفافية تنبض + ارتفاع يتمايل فيبدو الماء جارياً
+				s.part.Transparency = math.clamp(s.baseT + w * 0.35, 0.05, 0.92)
+				s.part.CFrame = s.cf0 + Vector3.new(0, w * 0.18, 0)
 			end
 		end)
 	end
