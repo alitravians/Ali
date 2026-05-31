@@ -1695,7 +1695,12 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	-- التسليم: لو خرج اللاعب أثناء مهلة الحفظ أعلاه (سباق نادر) فجلسته اختفت،
 	-- فبدل أن يضيع المنتج بصمت نخزّنه في طابور دائم يُسلَّم فور عودته.
 	if not deliverOrQueue(receipt.PlayerId, info) then
-		-- تعذّر التسليم والتخزين معاً (نادر جداً) — لا نغلق الإيصال ليُعيد روبلوكس المحاولة لاحقاً.
+		-- تعذّر التسليم والتخزين معاً (نادر جداً) — نحذف مفتاح الإيصال المحفوظ أعلاه
+		-- قبل الإعادة، وإلا فإن محاولة روبلوكس التالية ستجد المفتاح فتُعيد PurchaseGranted
+		-- بلا تسليم → يضيع الشراء المدفوع. الحذف يضمن إعادة المحاولة الكاملة لاحقاً (at-least-once).
+		if receiptStore then
+			pcall(function() receiptStore:RemoveAsync(key) end)
+		end
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
