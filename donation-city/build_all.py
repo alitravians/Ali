@@ -26,6 +26,7 @@ UPDATES = [
     ("src/LoadingScreen.client.lua",  "Premium Loading Screen"),
     ("src/TicketSystem.server.lua",   "TICKET SYSTEM (Server)"),
     ("src/BoothSystem.server.lua",    "BOOTH SYSTEM — SERVER LOGIC"),
+    ("src/BeachArea.server.lua",      "BEACH AREA (Server)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:
