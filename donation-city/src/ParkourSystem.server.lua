@@ -3,30 +3,34 @@
 ║  نظام الباركور — PARKOUR SYSTEM (Server)                              ║
 ║  المكان: ServerScriptService     ·     النوع: Script                   ║
 ║                                                                        ║
-║  • مسار متدرّج الصعوبة: سهل → متوسط → صعب → أسطوري                      ║
-║  • مسافات قفز عادلة ضمن قدرة اللاعب + منصّات واضحة غير متداخلة           ║
-║  • منصّات متحركة تحمل اللاعب فعلاً + عقبات دوّارة + منصّات تختفي وتظهر    ║
-║  • Checkpoints مع حفظ تلقائي + العودة لآخر نقطة عند السقوط              ║
-║  • جوائز عند الإكمال (كوينز + إنجاز + تاج «بطل الباركور» + بريق)         ║
-║  • لوحات متصدرين: أسرع وقت (دائم/يومي) + الأكثر إكمالاً (OrderedDataStore)║
+║  برج تسلّق احترافي (مستورد من متجر Roblox: Tower Of Hell Kit)          ║
+║  ─ الهندسة فقط (سلالم/سقالات/جدران/مناطق موت/لوحة فوز) مأخوذة من        ║
+║    الموديل الأصلي ومُعاد توضيعها في مكان الباركور القديم بالضبط.        ║
+║  ─ كل سكربتات الـ kit الأصلية (حلقة الجولات/اقتصاد منفصل/متجر الأثَر)    ║
+║    أُسقطت تماماً ومُنع تعارضها؛ المنطق هنا من عندنا فقط.                 ║
 ║                                                                        ║
-║  ⚙️ الأداء (إصلاح اللاق الجذري): كل الحركة (المنصّات/العقبات/الاختفاء)   ║
-║     تُدار في حلقة Heartbeat واحدة فقط، وتتوقّف تماماً عندما لا يوجد لاعب  ║
-║     قريب من الباركور → صفر استهلاك للسيرفر أثناء الخمول.                 ║
+║  • منصّة دخول في المدينة تنقل اللاعب لقاعدة البرج وتبدأ الجولة.          ║
+║  • نقاط حفظ تلقائية حسب الارتفاع (تلمس درجة أعلى = تتحدّث نقطتك).         ║
+║  • تلمس منطقة موت / تسقط → ترجع لآخر نقطة حفظ (وليس طرد لكل اللاعبين).    ║
+║  • تلمس لوحة الفوز → كوينز + إنجاز + احتساب مهمة + تهنئة + خروج آمن.      ║
+║  • زر «إيقاف» يرجّعك للمدينة. أفضل وقت شخصي محفوظ (DataStore).           ║
+║                                                                        ║
+║  ⚙️ الأداء: لا توجد أجزاء متحركة ولا أي حلقة دائمة على السيرفر؛ كل شيء   ║
+║     مبني على أحداث Touched فقط، وحلقة التقدّم تعمل فقط أثناء جولة لاعب    ║
+║     نشِطة وتنتهي تلقائياً → صفر استهلاك أثناء الخمول (لا لاق نهائياً).    ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
-local Workspace        = game:GetService("Workspace")
-local Players          = game:GetService("Players")
+local Workspace         = game:GetService("Workspace")
+local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataStoreService = game:GetService("DataStoreService")
-local RunService       = game:GetService("RunService")
+local RunService        = game:GetService("RunService")
+local DataStoreService  = game:GetService("DataStoreService")
 
-local V   = Vector3.new
-local TAU = math.pi * 2
+local V = Vector3.new
 
 ----------------------------------------------------------------------
--- إعداد الـ RemoteEvent للتقدّم (واجهة العميل)
+-- RemoteEvents (نفس عقد الواجهة القديمة: Progress / Stop)
 ----------------------------------------------------------------------
 local remotes = ReplicatedStorage:FindFirstChild("ParkourRemotes")
 if not remotes then
@@ -42,197 +46,212 @@ if not stopRemote then
 end
 
 ----------------------------------------------------------------------
--- DataStores (best time + completions + leaderboards)
+-- أفضل وقت شخصي (اختياري، آمن بـ pcall)
 ----------------------------------------------------------------------
-local bestStore, timeRank, compRank, dailyRank
-pcall(function() bestStore = DataStoreService:GetDataStore("ParkourBest_v1") end)
-pcall(function() timeRank  = DataStoreService:GetOrderedDataStore("ParkourTimeRank_v1") end)
-pcall(function() compRank  = DataStoreService:GetOrderedDataStore("ParkourCompRank_v1") end)
-pcall(function() dailyRank = DataStoreService:GetOrderedDataStore("ParkourDaily_" .. os.date("!%Y%m%d")) end)
+local bestStore
+pcall(function() bestStore = DataStoreService:GetDataStore("ParkourBest_v2") end)
 
 ----------------------------------------------------------------------
--- ألوان وثوابت
+-- بيانات هندسة البرج (مُولّدة آلياً من الموديل الأصلي، مُعاد توضيعها)
+-- المركز الأفقي ≈ (-138, 42)، القاعدة عند Y=18 (نفس مكان الباركور القديم).
 ----------------------------------------------------------------------
-local C_EASY   = Color3.fromRGB(90, 200, 120)
-local C_MED    = Color3.fromRGB(95, 170, 255)
-local C_HARD   = Color3.fromRGB(255, 150, 70)
-local C_LEGEND = Color3.fromRGB(200, 110, 255)
-local C_CP     = Color3.fromRGB(255, 215, 90)
-local C_OBST   = Color3.fromRGB(255, 70, 70)
-local GOLD     = Color3.fromRGB(255, 205, 70)
-local STAGE_COLOR = { [1] = C_EASY, [2] = C_MED, [3] = C_HARD, [4] = C_LEGEND }
+local TOWER = {
+{cls="Part",grp="Finish",nm="Finish",cf={-151.084,63.1431,69.8956,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={12.9793,14.2862,1.0383},c={0,255,0},mat="Neon",tr=0.85,col=false,shape="Block"},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-119.6213,30.893,64.8454,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-121.0355,30.893,63.4312,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-122.4497,30.893,62.017,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-153.0136,40.893,16.0178,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-151.1658,40.893,15.2525,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-149.3181,40.893,14.4871,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-145.6225,40.893,12.9564,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-147.4703,40.893,13.7217,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-140.128,50.393,47.7604,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-136.4325,50.393,49.2911,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-138.2803,50.393,48.5257,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="TrussPart",grp="Trusses",nm="Truss",cf={-141.9758,50.393,46.995,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={2,10,2},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,style=0},
+{cls="Part",grp="Steps",nm="Part",cf={-138,19.8931,7.4896,-1,0,-0,0,1,0,0,0,-1},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-109.8292,22.8931,26.3127,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-149.6687,18.8931,9.8106,-0.9239,0,-0.3827,0,1,0,0.3827,0,-0.9239},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-107.5081,23.8931,37.9814,-0,0,1,0,1,0,-1,0,-0},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-116.439,25.8931,59.5424,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-116.439,21.8931,16.4204,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-126.3313,20.8931,9.8106,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-109.8292,24.8931,49.6502,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-127.661,35.8931,67.5149,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,6.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-130.7225,35.8931,60.1238,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-132.8273,35.8931,55.0425,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-137.0368,35.8931,44.8798,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-134.932,35.8931,49.9611,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-145.6472,35.8931,24.0925,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-143.5424,35.8931,29.1738,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-139.3329,35.8931,39.3365,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-141.4376,35.8931,34.2552,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,2.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-148.7086,35.8931,16.7015,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={10.2293,0.7862,7.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-144.6468,55.3931,61.2144,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,3.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-149.6687,45.3931,9.8106,-0.9239,0,-0.3827,0,1,0,0.3827,0,-0.9239},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-138,45.3931,7.4896,-1,0,-0,0,1,0,0,0,-1},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-126.3313,45.3931,9.8106,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={13.7293,0.7862,8.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-130.9659,45.3931,28.1857,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,45.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-140.246,55.3931,50.5898,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,3.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-142.5421,55.3931,56.1331,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,3.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Steps",nm="Part",cf={-146.9429,55.3931,66.7577,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,3.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-138,44.3931,71.9733,1,0,0,0,1,0,0,0,1},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-106.5956,44.3931,24.9733,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-104.0081,44.3931,37.9814,-0,0,1,0,1,0,-1,0,-0},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-113.9641,44.3931,62.0173,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-124.9919,44.3931,69.3858,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-106.5956,44.3931,50.9895,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-162.0359,44.3931,13.9456,-0.7071,0,-0.7071,0,1,0,0.7071,0,-0.7071},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-138,44.3931,3.9896,-1,0,-0,0,1,0,0,0,-1},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-169.4044,44.3931,24.9733,-0.3827,0,-0.9239,0,1,0,0.9239,0,-0.3827},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-151.0081,44.3931,6.577,-0.9239,0,-0.3827,0,1,0,0.3827,0,-0.9239},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-113.9641,44.3931,13.9455,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-124.9919,44.3931,6.577,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-171.9919,44.3931,37.9814,0,0,-1,0,1,0,1,0,0},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-169.4044,44.3931,50.9896,0.3827,0,-0.9239,0,1,0,0.9239,0,0.3827},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-151.0081,36.8931,69.3858,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={13.7293,38.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-162.0359,44.3931,62.0173,0.7071,0,-0.7071,0,1,0,0.7071,0,0.7071},sz={13.7293,53.7862,1.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-153.3042,56.1431,74.9291,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={13.7293,0.2862,13.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-155.409,63.3931,80.0104,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={13.7293,14.7862,2.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-147.068,63.3931,77.5122,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={0.2293,14.7862,13.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-159.3094,63.3931,72.4417,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={0.7293,14.7862,13.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-153.3042,70.6431,74.9291,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={13.7293,1.2862,13.0383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-153.9294,71.1431,31.3833,-0.3827,0,-0.9239,0,1,0,0.9239,0,-0.3827},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-120.7581,71.1431,37.9814,-0,0,1,0,1,0,-1,0,-0},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-122.0706,71.1431,44.5796,0.3827,0,0.9239,0,1,0,-0.9239,0,0.3827},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-131.4018,71.1431,22.052,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-153.9294,71.1431,44.5796,0.3827,0,-0.9239,0,1,0,0.9239,0,0.3827},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-144.5982,71.1431,22.052,-0.9239,0,-0.3827,0,1,0,0.3827,0,-0.9239},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-144.5982,71.1431,53.9108,0.9239,0,-0.3827,0,1,0,0.3827,0,0.9239},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-125.8082,71.1431,25.7896,-0.7071,0,0.7071,0,1,0,-0.7071,0,-0.7071},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-131.4018,71.1431,53.9108,0.9239,0,0.3827,0,1,0,-0.3827,0,0.9239},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-125.8082,71.1431,50.1733,0.7071,0,0.7071,0,1,0,-0.7071,0,0.7071},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-138,71.1431,20.7396,-1,0,-0,0,1,0,0,0,-1},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-122.0706,71.1431,31.3832,-0.3827,0,0.9239,0,1,0,-0.9239,0,-0.3827},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-138,71.1431,55.2233,1,0,0,0,1,0,0,0,1},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-150.1918,71.1431,50.1733,0.7071,0,-0.7071,0,1,0,0.7071,0,0.7071},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-155.2419,71.1431,37.9814,0,0,-1,0,1,0,1,0,0},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="Walls",nm="Part",cf={-150.1919,71.1431,25.7896,-0.7071,0,-0.7071,0,1,0,0.7071,0,-0.7071},sz={13.7293,0.2862,34.5383},c={13,105,172},mat="SmoothPlastic",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-125.5127,46.1784,15.0204,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-127.2348,46.1784,19.1779,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-130.8702,46.1784,27.9548,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-129.1482,46.1784,23.7973,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-137.9499,46.1784,45.0465,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-136.2278,46.1784,40.8891,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-134.3144,46.1784,36.2697,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="Part",grp="KillParts",nm="Part",cf={-132.5923,46.1784,32.1122,-0.9239,0,0.3827,0,1,0,-0.3827,0,-0.9239},sz={8.2293,0.7862,1.0383},c={255,0,0},mat="Neon",tr=0,col=true,shape="Block"},
+{cls="SpawnLocation",grp="Spawn",nm="Spawn",cf={-140.1053,18,37.4541,1,0,0,0,1,0,0,0,1},sz={12,1,12},c={163,162,165},mat="Plastic",tr=1,col=false},
+}
 
--- مركز الباركور ونطاق التفعيل (لإيقاف الحركة عند الخمول)
-local COURSE_CENTER = V(-138, 18, 42)
--- نطاق ضيّق يغطّي المسار كاملاً (~50 ستد من المركز) فقط؛ يبقى المحرّك خاملاً
--- تماماً (صفر استهلاك) ما لم يكن لاعب فعلاً عند الباركور — لا عند الساحة/الانطلاق.
-local ACTIVE_RANGE2 = 75 * 75
-local EXIT_POS = V(0, 5, 45)   -- نقطة خروج آمنة (قرب الانطلاق الرئيسي بعيداً عن المسار)
+local MATERIALS = {
+	Plastic       = Enum.Material.Plastic,
+	SmoothPlastic = Enum.Material.SmoothPlastic,
+	Neon          = Enum.Material.Neon,
+	Metal         = Enum.Material.Metal,
+	Wood          = Enum.Material.Wood,
+	Ice           = Enum.Material.Ice,
+	Brick         = Enum.Material.Brick,
+}
+local SHAPES = {
+	Block    = Enum.PartType.Block,
+	Ball     = Enum.PartType.Ball,
+	Cylinder = Enum.PartType.Cylinder,
+}
 
+----------------------------------------------------------------------
+-- ثوابت التوضيع
+----------------------------------------------------------------------
+local SPAWN_POS  = V(-140.1053, 18, 37.4541)        -- قاعدة البرج (من الموديل الأصلي)
+local SPAWN_CF   = CFrame.new(SPAWN_POS + V(0, 3.5, 0))
+local BASE_Y     = 18
+local FINISH_Y   = 63.1431
+local FALL_Y     = BASE_Y - 12                       -- أقل من القاعدة = سقوط
+local EXIT_POS   = V(0, 5, 45)                        -- خروج آمن قرب الانطلاق الرئيسي
+local ENTRY_POS  = V(-95, 4.5, 70)                    -- منصّة دخول أرضية (نفس مكان مدخل الباركور القديم)
+
+----------------------------------------------------------------------
+-- بناء الهندسة
+----------------------------------------------------------------------
 local course = Instance.new("Model")
 course.Name = "ParkourCourse"
 course.Parent = Workspace
 
-local function newPart(props)
-	local p = Instance.new("Part")
-	p.Anchored = true
-	p.CanCollide = props.CanCollide ~= false
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Name = props.Name or "Plat"
-	p.Size = props.Size or V(8, 1, 8)
-	if props.CFrame then p.CFrame = props.CFrame else p.Position = props.Position or V() end
-	p.Color = props.Color or Color3.fromRGB(180, 180, 180)
-	p.Material = props.Material or Enum.Material.SmoothPlastic
-	if props.Transparency then p.Transparency = props.Transparency end
-	p.Parent = props.Parent or course
-	return p
-end
+local steps, killParts = {}, {}
+local finishPart
 
-----------------------------------------------------------------------
--- مسار المنصّات — مسافات قفز عادلة (قفزة Roblox الافتراضية ترفع ~7 وتقطع ~10-12)
--- لا تتجاوز الفجوات الأفقية ~10، ولا يزيد الصعود لكل قفزة عن ~2، فالمسار
--- صعب بآلياته (منصّات صغيرة/متحركة/تختفي/عقبات) لا بمسافات مستحيلة.
---
--- خصائص العقدة: move="x"/"z" + dist + period | blink={on,off} | beam=true [+fast]
--- (أول عقدة في كل مرحلة تكون ثابتة دائماً لأنها نقطة حفظ)
-----------------------------------------------------------------------
-local nodes = {
-	-- ── سهلة: منصّات كبيرة متقاربة كالدرج (بلا عقبات، فجوة حافة ~0-1، صعود 1) ──
-	{ stage = 1, pos = V(-95,  4, 70), size = V(10, 1, 10) },   -- البداية
-	{ stage = 1, pos = V(-104, 5, 70), size = V(9, 1, 9) },
-	{ stage = 1, pos = V(-113, 6, 70), size = V(9, 1, 9) },
-	{ stage = 1, pos = V(-122, 7, 70), size = V(9, 1, 9) },
-	{ stage = 1, pos = V(-131, 8, 70), size = V(9, 1, 9) },
-	-- ── متوسطة: منصّة متحركة جانبياً (تبقي الفجوة ثابتة) + عقبة دوّارة بطيئة تُقفز ──
-	{ stage = 2, pos = V(-141, 10, 70), size = V(9, 1, 9) },                                    -- نقطة حفظ (ثابتة)
-	{ stage = 2, pos = V(-151, 11, 70), size = V(8, 1, 8), move = "z", dist = 4, period = 4.5 },
-	{ stage = 2, pos = V(-161, 12, 70), size = V(8, 1, 8) },
-	{ stage = 2, pos = V(-171, 13, 70), size = V(8, 1, 8), beam = true },                       -- عقبة دوّارة منخفضة (تُقفز)
-	{ stage = 2, pos = V(-180, 14, 70), size = V(8, 1, 8) },
-	-- ── صعبة: منعطف جنوباً + منصّة تختفي بمهلة كريمة + متحركة جانبياً ──
-	{ stage = 3, pos = V(-180, 16, 61), size = V(8, 1, 8) },                                    -- نقطة حفظ (ثابتة)
-	{ stage = 3, pos = V(-180, 17, 52), size = V(7, 1, 7), blink = { on = 3.0, off = 1.0 } },
-	{ stage = 3, pos = V(-180, 18, 43), size = V(7, 1, 7), move = "x", dist = 4, period = 4.0 },
-	{ stage = 3, pos = V(-180, 19, 34), size = V(7, 1, 7) },
-	{ stage = 3, pos = V(-173, 20, 28), size = V(7, 1, 7) },
-	-- ── أسطورية: كل الآليات (مُهدّأة) + مسار صاعد، فجوات حافة ~2 ──
-	{ stage = 4, pos = V(-166, 22, 23), size = V(7, 1, 7) },                                    -- نقطة حفظ (ثابتة)
-	{ stage = 4, pos = V(-158, 23, 20), size = V(6, 1, 6), move = "z", dist = 4, period = 3.6 },
-	{ stage = 4, pos = V(-150, 24, 17), size = V(6, 1, 6), blink = { on = 2.6, off = 1.0 } },
-	{ stage = 4, pos = V(-142, 25, 14), size = V(6, 1, 6), beam = true },
-	{ stage = 4, pos = V(-134, 26, 11), size = V(6, 1, 6), move = "z", dist = 4, period = 3.4 },
-	{ stage = 4, pos = V(-126, 28,  9), size = V(7, 1, 7) },                                    -- آخر منصّة قبل النهاية
-}
+for _, d in ipairs(TOWER) do
+	if d.grp == "Spawn" then
+		-- لا نُنشئ SpawnLocation حقيقي (لئلا يُحيا كل اللاعبين داخل البرج)؛
+		-- نستخدم إحداثيتها فقط، ونضع منصّة بداية صغيرة مرئية.
+		local pad = Instance.new("Part")
+		pad.Name = "ParkourBasePad"; pad.Anchored = true; pad.CanCollide = true
+		pad.Size = V(d.sz[1], 1, d.sz[3]); pad.Position = SPAWN_POS
+		pad.Color = Color3.fromRGB(70, 200, 120); pad.Material = Enum.Material.Neon
+		pad.Transparency = 0.35; pad.TopSurface = Enum.SurfaceType.Smooth
+		pad.Parent = course
+	else
+		local cls = d.cls == "TrussPart" and "TrussPart" or "Part"
+		local p = Instance.new(cls)
+		p.Anchored = true
+		p.CanCollide = d.col ~= false
+		p.Name = d.nm or d.grp
+		p.Size = V(d.sz[1], d.sz[2], d.sz[3])
+		local cf = d.cf
+		p.CFrame = CFrame.new(cf[1], cf[2], cf[3], cf[4], cf[5], cf[6], cf[7], cf[8], cf[9], cf[10], cf[11], cf[12])
+		p.Color = Color3.fromRGB(d.c[1], d.c[2], d.c[3])
+		p.Material = MATERIALS[d.mat] or Enum.Material.SmoothPlastic
+		p.Transparency = d.tr or 0
+		if cls == "Part" then
+			p.TopSurface = Enum.SurfaceType.Smooth
+			p.BottomSurface = Enum.SurfaceType.Smooth
+			if d.shape and SHAPES[d.shape] then p.Shape = SHAPES[d.shape] end
+		end
+		p.Parent = course
 
-local START_POS  = V(-95, 4, 70)
-local FINISH_POS  = V(-117, 29, 9)
-
-----------------------------------------------------------------------
--- بناء المنصّات + تسجيل العناصر الديناميكية (بلا أي حلقة لكل عنصر)
-----------------------------------------------------------------------
-local movers   = {}   -- { part, base, dir, half, period, phase, hx, hz, lastPos }
-local blinkers = {}   -- { part, onT, warnT, offT, cycle, phase }
-local rotators = {}   -- { part, center, speed }
-
-local checkpoints = {}   -- [i] = { cf = CFrame, y = number }
-local function addCheckpoint(pos)
-	table.insert(checkpoints, { cf = CFrame.new(pos + V(0, 4, 0)), y = pos.Y })
-end
-
-local lastStage = 0
-for _, n in ipairs(nodes) do
-	if n.stage ~= lastStage then
-		addCheckpoint(n.pos)
-		lastStage = n.stage
-	end
-	local p = newPart({ Name = "Plat_S" .. n.stage, Size = n.size, Position = n.pos,
-		Color = STAGE_COLOR[n.stage] or C_EASY, Material = Enum.Material.SmoothPlastic })
-	if n.move then
-		local dir = (n.move == "x") and V(1, 0, 0) or V(0, 0, 1)
-		movers[#movers + 1] = { part = p, base = n.pos, dir = dir, half = n.dist / 2,
-			period = n.period, phase = math.random() * 1.0,
-			hx = n.size.X / 2 + 1.2, hz = n.size.Z / 2 + 1.2, lastPos = n.pos }
-	elseif n.blink then
-		local warnT = 0.9   -- تحذير أطول (وميض) قبل الاختفاء — توقيت عادل
-		blinkers[#blinkers + 1] = { part = p, onT = n.blink.on, warnT = warnT, offT = n.blink.off,
-			cycle = n.blink.on + warnT + n.blink.off, phase = math.random() * 3 }
-	end
-	if n.beam then
-		-- عقبة دوّارة منخفضة لا تتجاوز حدود المنصّة (لا تقذف اللاعب للفراغ) وبطيئة يُمكن قفزها
-		local len = math.max(3, n.size.X - 1)
-		local barCenter = n.pos + V(0, 1.2, 0)
-		local bar = newPart({ Name = "Obstacle", Size = V(len, 0.5, 0.5),
-			Position = barCenter, Color = C_OBST, Material = Enum.Material.Neon })
-		bar.CanCollide = false   -- لا تصدّ اللاعب ولا تقذفه للفراغ — مجرّد عائق يُقفز فوقه توقيتاً
-		rotators[#rotators + 1] = { part = bar, center = barCenter, speed = 30 }
+		if d.grp == "Steps" then
+			table.insert(steps, p)
+		elseif d.grp == "KillParts" then
+			p.CanCollide = false                 -- مناطق موت تُلمس فقط
+			table.insert(killParts, p)
+		elseif d.grp == "Finish" then
+			p.CanCollide = false
+			finishPart = p
+		end
 	end
 end
 
 ----------------------------------------------------------------------
--- لوحة البداية (نص على الوجوه) + منصّة النهاية المضيئة
+-- منصّة الدخول في المدينة + لافتة
 ----------------------------------------------------------------------
+local entryPad = Instance.new("Part")
+entryPad.Name = "ParkourEntry"; entryPad.Anchored = true; entryPad.CanCollide = true
+entryPad.Size = V(10, 0.6, 10); entryPad.Position = ENTRY_POS
+entryPad.Color = Color3.fromRGB(255, 205, 70); entryPad.Material = Enum.Material.Neon
+entryPad.Transparency = 0.15; entryPad.TopSurface = Enum.SurfaceType.Smooth
+entryPad.Parent = course
+
 do
-	local board = newPart({ Name = "ParkourSign", Size = V(12, 4, 0.6),
-		Position = START_POS + V(0, 7, 0), Color = Color3.fromRGB(24, 30, 46) })
-	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front, Enum.NormalId.Left, Enum.NormalId.Right }) do
-		local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.CanvasSize = Vector2.new(800, 260)
-		sg.LightInfluence = 0; sg.Adornee = board; sg.Parent = board
-		local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = GOLD; lbl.Text = "🧗 الباركور\n<font size=\"34\">قف على المنصّة لتبدأ</font>"; lbl.Parent = sg
-	end
-end
-
-local finishPad = newPart({ Name = "FinishPad", Size = V(8, 1, 8),
-	Position = FINISH_POS, Color = GOLD, Material = Enum.Material.Neon })
-
-----------------------------------------------------------------------
--- بوابة دخول قرب الانطلاق الرئيسي: قف عليها فتنتقل مباشرة لبداية المسار
--- (تجعل الباركور سهل الوصول من الساحة — «يناسب الماب»)
-----------------------------------------------------------------------
-local entryPad = newPart({ Name = "ParkourEntry", Size = V(10, 0.6, 10),
-	Position = V(0, 2.2, 50), Color = C_EASY, Material = Enum.Material.Neon })
-do
-	local sign = newPart({ Name = "ParkourEntrySign", Size = V(8, 3.4, 0.4),
-		Position = V(0, 5.4, 50), Color = Color3.fromRGB(24, 30, 46) })
-	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
-		local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.CanvasSize = Vector2.new(720, 300)
-		sg.LightInfluence = 0; sg.Parent = sign
-		local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = GOLD; lbl.Text = "🧗 الباركور\n<font size=\"30\">قف هنا للانتقال للبداية</font>"; lbl.Parent = sg
-	end
+	local sign = Instance.new("Part")
+	sign.Name = "ParkourEntrySign"; sign.Anchored = true; sign.CanCollide = false
+	sign.Size = V(8, 3.4, 0.4); sign.Position = ENTRY_POS + V(0, 4, 0)
+	sign.Color = Color3.fromRGB(24, 30, 46); sign.Material = Enum.Material.SmoothPlastic
+	sign.Parent = course
+	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
+	sg.CanvasSize = Vector2.new(720, 300); sg.LightInfluence = 0; sg.Parent = sign
+	local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
+	lbl.TextColor3 = Color3.fromRGB(255, 205, 70)
+	lbl.Text = "🧗 برج الباركور\n<font size=\"30\">قف هنا للانتقال للبداية</font>"
+	lbl.Parent = sg
 end
 
 ----------------------------------------------------------------------
--- نقاط الحفظ المرئية (Pads)
+-- أدوات
 ----------------------------------------------------------------------
-local cpPads = {}
-for i, cp in ipairs(checkpoints) do
-	cpPads[i] = newPart({ Name = "Checkpoint" .. i, Size = V(10, 0.4, 10),
-		Position = V(cp.cf.X, cp.y + 0.7, cp.cf.Z), Color = C_CP,
-		Material = Enum.Material.Neon, Transparency = 0.25, CanCollide = false })
-end
-local TOTAL_CP = #checkpoints
-
-----------------------------------------------------------------------
--- حالة اللاعبين أثناء الجري
-----------------------------------------------------------------------
-local runState = {}   -- [userId] = { cpIndex, startT, inRun, reached }
-
-local function sendProgress(player)
-	local st = runState[player.UserId]
-	if not st then return end
-	local elapsed = st.inRun and (os.clock() - st.startT) or 0
-	progressRemote:FireClient(player, {
-		state   = st.inRun and "run" or "idle",
-		stage   = math.min(st.cpIndex, 4),
-		cp      = st.cpIndex,
-		total   = TOTAL_CP,
-		percent = math.floor((st.cpIndex / TOTAL_CP) * 100),
-		time    = elapsed,
-	})
+local function fmtTime(sec)
+	local m = math.floor(sec / 60)
+	local s = sec - m * 60
+	return string.format("%d:%05.2f", m, s)
 end
 
 local function teleportTo(player, cf)
@@ -241,21 +260,74 @@ local function teleportTo(player, cf)
 	if hrp then hrp.CFrame = cf end
 end
 
+local function playerFromHit(hit)
+	local char = hit and hit.Parent
+	if not char then return nil end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum or hum.Health <= 0 then return nil end
+	return Players:GetPlayerFromCharacter(char)
+end
+
+----------------------------------------------------------------------
+-- حالة الجولة لكل لاعب
+----------------------------------------------------------------------
+local runState = {}   -- [userId] = { inRun, startT, cpCF, cpY, best, loop }
+local updateFallWatcher   -- forward declaration (يُعرّف لاحقاً)
+
+local function progressPercent(player)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return 0 end
+	local pct = (hrp.Position.Y - BASE_Y) / (FINISH_Y - BASE_Y) * 100
+	return math.clamp(math.floor(pct), 0, 100)
+end
+
+local function sendProgress(player, state)
+	local st = runState[player.UserId]
+	local elapsed = (st and st.inRun) and (os.clock() - st.startT) or 0
+	local pct = (st and st.inRun) and progressPercent(player) or 0
+	progressRemote:FireClient(player, {
+		state   = state or ((st and st.inRun) and "run" or "idle"),
+		stage   = math.clamp(math.floor(pct / 25) + 1, 1, 4),
+		cp      = math.clamp(math.floor(pct / 25) + 1, 1, 4),
+		total   = 4,
+		percent = pct,
+		time    = elapsed,
+	})
+end
+
+local function stopProgressLoop(st)
+	if st and st.loop then
+		task.cancel(st.loop)
+		st.loop = nil
+	end
+end
+
 local function startRun(player)
 	local st = runState[player.UserId]
 	if st and st.inRun then return end
-	runState[player.UserId] = { cpIndex = 1, startT = os.clock(), inRun = true, reached = { [1] = true } }
-	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اوصل أبعد نقطة وسجّل أسرع وقت.") end
-	sendProgress(player)
+	st = { inRun = true, startT = os.clock(), cpCF = SPAWN_CF, cpY = BASE_Y, best = st and st.best }
+	runState[player.UserId] = st
+	teleportTo(player, SPAWN_CF)
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اطلع لأعلى البرج ووصل للوحة الخضراء.") end
+	sendProgress(player, "run")
+	-- حلقة تقدّم تعمل فقط أثناء جولة هذا اللاعب وتنتهي تلقائياً
+	st.loop = task.spawn(function()
+		while runState[player.UserId] == st and st.inRun do
+			sendProgress(player, "run")
+			task.wait(0.6)
+		end
+	end)
+	if updateFallWatcher then updateFallWatcher() end
 end
 
--- إيقاف الباركور والخروج (زر «إيقاف الباركور» في الواجهة)
 local function stopRun(player)
 	local st = runState[player.UserId]
-	if st then st.inRun = false end
+	if st then st.inRun = false; stopProgressLoop(st) end
 	teleportTo(player, CFrame.new(EXIT_POS))
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🛑 أوقفت الباركور وخرجت من المسار.") end
 	progressRemote:FireClient(player, { state = "idle" })
+	if updateFallWatcher then updateFallWatcher() end
 end
 
 stopRemote.OnServerEvent:Connect(function(player)
@@ -263,336 +335,159 @@ stopRemote.OnServerEvent:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- كاش أسماء اللاعبين + تنسيق الوقت
+-- منصّة الدخول: تبدأ الجولة وتنقل للقاعدة
 ----------------------------------------------------------------------
-local nameCache = {}
-local function nameFor(userId)
-	if nameCache[userId] then return nameCache[userId] end
-	local nm = "لاعب"
-	local pl = Players:GetPlayerByUserId(userId)
-	if pl then nm = pl.DisplayName else
-		pcall(function() nm = Players:GetNameFromUserIdAsync(userId) end)
-	end
-	nameCache[userId] = nm
-	return nm
-end
-
-local function fmtTime(sec)
-	local m = math.floor(sec / 60)
-	local s = sec - m * 60
-	return string.format("%d:%05.2f", m, s)
-end
-
-----------------------------------------------------------------------
--- إكمال المسار + الجوائز + تسجيل المتصدرين
-----------------------------------------------------------------------
-local function applyChampionEffect(player)
-	local char = player.Character
-	if not char then return end
-	local head = char:FindFirstChild("Head")
-	if head and not head:FindFirstChild("ParkourTitle") then
-		local bb = Instance.new("BillboardGui")
-		bb.Name = "ParkourTitle"; bb.Adornee = head; bb.Size = UDim2.fromOffset(180, 36)
-		bb.StudsOffsetWorldSpace = V(0, 3.4, 0); bb.AlwaysOnTop = true; bb.Parent = head
-		local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(190, 120, 255); lbl.TextStrokeTransparency = 0.3
-		lbl.Text = "🏁 بطل الباركور"; lbl.Parent = bb
-	end
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	if hrp then
-		local spark = Instance.new("ParticleEmitter")
-		spark.Texture = "rbxassetid://243660364"; spark.Lifetime = NumberRange.new(0.8, 1.4)
-		spark.Rate = 60; spark.Speed = NumberRange.new(4, 8); spark.Rotation = NumberRange.new(0, 360)
-		spark.Color = ColorSequence.new(GOLD); spark.Parent = hrp
-		task.delay(4, function() spark.Enabled = false; task.wait(2); spark:Destroy() end)
-	end
-end
-
-local function recordLeaderboard(userId, elapsed)
-	task.spawn(function()
-		local centi = math.floor(elapsed * 100)
-		local prev = nil
-		if bestStore then
-			pcall(function()
-				local d = bestStore:GetAsync("u_" .. userId)
-				if type(d) == "table" then prev = d.time end
-			end)
-			pcall(function()
-				bestStore:UpdateAsync("u_" .. userId, function(old)
-					old = (type(old) == "table") and old or {}
-					old.name = nameFor(userId)
-					old.completions = (old.completions or 0) + 1
-					if not old.time or centi < old.time then old.time = centi end
-					return old
-				end)
-			end)
-		end
-		if timeRank and (not prev or centi < prev) then
-			pcall(function() timeRank:SetAsync(tostring(userId), centi) end)
-		end
-		if dailyRank then
-			pcall(function()
-				local cur = dailyRank:GetAsync(tostring(userId))
-				if not cur or centi < cur then dailyRank:SetAsync(tostring(userId), centi) end
-			end)
-		end
-		if compRank then
-			pcall(function()
-				compRank:UpdateAsync(tostring(userId), function(old) return (tonumber(old) or 0) + 1 end)
-			end)
-		end
-	end)
-end
-
-local function finishRun(player)
-	local st = runState[player.UserId]
-	if not st or not st.inRun then return end
-	local elapsed = os.clock() - st.startT
-	st.inRun = false
-	local reward = 250
-	if _G.AddCoins then _G.AddCoins(player, reward) end
-	if _G.AwardAchievement then
-		_G.AwardAchievement(player, "parkour_first")
-		_G.AwardAchievement(player, "parkour_done")
-	end
-	if _G.ReportMission then _G.ReportMission(player, "parkour_done", 1) end
-	applyChampionEffect(player)
-	if _G.NotifyPlayer then
-		_G.NotifyPlayer(player, string.format("🏁 أكملت الباركور! الوقت %s — مكافأة %d كوينز + لقب «بطل الباركور» 🏆", fmtTime(elapsed), reward))
-	end
-	recordLeaderboard(player.UserId, elapsed)
-	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = reward, percent = 100, total = TOTAL_CP })
-end
-
-----------------------------------------------------------------------
--- لمس البداية / النقاط / النهاية
-----------------------------------------------------------------------
-local function hookTouch(part, fn)
-	if not part then return end
-	part.Touched:Connect(function(hit)
-		local char = hit and hit.Parent
-		local player = char and Players:GetPlayerFromCharacter(char)
-		if player then fn(player) end
-	end)
-end
-
-hookTouch(course:FindFirstChild("Plat_S1"), function(player)
-	local st = runState[player.UserId]
-	if not (st and st.inRun) then startRun(player) end
-end)
-
--- بوابة الدخول: تنقل اللاعب لبداية المسار وتبدأ الجولة (بمهلة بسيطة لمنع التكرار)
 local entryCooldown = {}
-hookTouch(entryPad, function(player)
+entryPad.Touched:Connect(function(hit)
+	local player = playerFromHit(hit)
+	if not player then return end
 	if entryCooldown[player.UserId] then return end
 	entryCooldown[player.UserId] = true
-	teleportTo(player, CFrame.new(START_POS + V(0, 4, 0)))
 	startRun(player)
 	task.delay(2, function() entryCooldown[player.UserId] = nil end)
 end)
 
-for i, pad in ipairs(cpPads) do
-	hookTouch(pad, function(player)
+----------------------------------------------------------------------
+-- نقاط الحفظ التلقائية: تلمس درجة أعلى من نقطتك الحالية = تتحدّث
+----------------------------------------------------------------------
+for _, step in ipairs(steps) do
+	local topY = step.Position.Y + step.Size.Y / 2
+	step.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
 		local st = runState[player.UserId]
-		if not st then startRun(player); st = runState[player.UserId] end
-		if not st.inRun then return end
-		if i > st.cpIndex then
-			st.cpIndex = i
-			st.reached[i] = true
-			if _G.AddCoins then _G.AddCoins(player, 20) end
-			if _G.ReportMission then _G.ReportMission(player, "parkour_cp", 1, "cp" .. i) end
-			if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ نقطة حفظ " .. i .. "/" .. TOTAL_CP .. " (+20 كوينز)") end
-			sendProgress(player)
+		if not st or not st.inRun then return end
+		if topY > st.cpY + 1.5 then
+			st.cpY = topY
+			st.cpCF = CFrame.new(step.Position.X, topY + 3.5, step.Position.Z)
 		end
 	end)
 end
 
-hookTouch(finishPad, function(player)
+----------------------------------------------------------------------
+-- مناطق الموت: ترجع لآخر نقطة حفظ
+----------------------------------------------------------------------
+local killCooldown = {}
+local function respawnAtCheckpoint(player)
 	local st = runState[player.UserId]
-	if st and st.inRun and st.cpIndex >= TOTAL_CP then finishRun(player) end
-end)
-
-----------------------------------------------------------------------
--- ⚙️ المحرّك الموحّد: حلقة Heartbeat واحدة فقط (تتوقّف عند الخمول)
---   تتولّى: المنصّات المتحركة (مع حمل اللاعب) + التختّفي + العقبات الدوّارة
---   + إعادة اللاعب لآخر نقطة عند السقوط. لا يوجد أي task.spawn لكل عنصر.
-----------------------------------------------------------------------
-local startClock = os.clock()
-local active = false
-
-local function resetDynamic()
-	for _, b in ipairs(blinkers) do
-		b.part.Transparency = 0; b.part.CanCollide = true
-	end
-	for _, m in ipairs(movers) do
-		m.part.CFrame = CFrame.new(m.base); m.lastPos = m.base
-	end
+	if not st or not st.inRun then return end
+	if killCooldown[player.UserId] then return end
+	killCooldown[player.UserId] = true
+	teleportTo(player, st.cpCF or SPAWN_CF)
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "↩️ رجعناك لآخر نقطة حفظ.") end
+	task.delay(0.6, function() killCooldown[player.UserId] = nil end)
 end
 
-RunService.Heartbeat:Connect(function()
-	-- جمع اللاعبين القريبين من الباركور
-	local near = {}
-	for _, pl in ipairs(Players:GetPlayers()) do
-		local char = pl.Character
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			local dx, dz = hrp.Position.X - COURSE_CENTER.X, hrp.Position.Z - COURSE_CENTER.Z
-			if dx * dx + dz * dz <= ACTIVE_RANGE2 then
-				near[#near + 1] = { pl = pl, hrp = hrp }
+for _, kp in ipairs(killParts) do
+	kp.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if player then respawnAtCheckpoint(player) end
+	end)
+end
+
+----------------------------------------------------------------------
+-- لوحة الفوز: كوينز + إنجاز + مهمة + تهنئة + أفضل وقت + خروج
+----------------------------------------------------------------------
+local REWARD = 250
+local finishCooldown = {}
+if finishPart then
+	finishPart.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		local st = runState[player.UserId]
+		if not st or not st.inRun then return end
+		if finishCooldown[player.UserId] then return end
+		finishCooldown[player.UserId] = true
+
+		st.inRun = false
+		stopProgressLoop(st)
+		if updateFallWatcher then updateFallWatcher() end
+		local elapsed = os.clock() - st.startT
+
+		-- أفضل وقت شخصي
+		local isRecord = false
+		if not st.best or elapsed < st.best then
+			st.best = elapsed; isRecord = true
+			if bestStore then
+				pcall(function() bestStore:SetAsync(tostring(player.UserId), math.floor(elapsed * 100)) end)
 			end
 		end
+
+		if _G.AddCoins then _G.AddCoins(player, REWARD) end
+		if _G.AwardAchievement then
+			_G.AwardAchievement(player, "parkour_first")
+			_G.AwardAchievement(player, "parkour_done")
+		end
+		if _G.ReportMission then _G.ReportMission(player, "parkour_done", 1) end
+		if _G.NotifyPlayer then
+			_G.NotifyPlayer(player, string.format(
+				"🏁 أكملت برج الباركور! الوقت %s%s — مكافأة %d كوينز + لقب «بطل الباركور» 🏆",
+				fmtTime(elapsed), isRecord and " (رقم قياسي جديد!)" or "", REWARD))
+		end
+
+		progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = 4 })
+		task.delay(2, function()
+			teleportTo(player, CFrame.new(EXIT_POS))
+			finishCooldown[player.UserId] = nil
+		end)
+	end)
+end
+
+----------------------------------------------------------------------
+-- مراقبة السقوط أسفل القاعدة (للاعبين النشطين فقط) عبر Heartbeat واحد
+-- يعمل فقط عند وجود لاعب نشِط واحد على الأقل، ويتوقّف تماماً عند الخمول.
+----------------------------------------------------------------------
+local fallConn
+updateFallWatcher = function()
+	local anyActive = false
+	for _, st in pairs(runState) do
+		if st.inRun then anyActive = true; break end
 	end
-
-	if #near == 0 then
-		if active then resetDynamic(); active = false end
-		return
-	end
-	local justActivated = not active
-	active = true
-
-	local t = os.clock() - startClock
-
-	-- المنصّات المتحركة + حمل اللاعب الواقف عليها
-	for _, m in ipairs(movers) do
-		local off = math.sin((t / m.period + m.phase) * TAU) * m.half
-		local np = m.base + m.dir * off
-		if justActivated then m.lastPos = np end
-		local delta = np - m.lastPos
-		m.part.CFrame = CFrame.new(np)
-		if delta.Magnitude > 0 then
-			for _, e in ipairs(near) do
-				local rel = e.hrp.Position - np
-				if math.abs(rel.X) <= m.hx and math.abs(rel.Z) <= m.hz and rel.Y > 0 and rel.Y < 5.5 then
-					e.hrp.CFrame = e.hrp.CFrame + delta
+	if anyActive and not fallConn then
+		fallConn = RunService.Heartbeat:Connect(function()
+			for _, player in ipairs(Players:GetPlayers()) do
+				local st = runState[player.UserId]
+				if st and st.inRun then
+					local char = player.Character
+					local hrp = char and char:FindFirstChild("HumanoidRootPart")
+					if hrp and hrp.Position.Y < FALL_Y then
+						respawnAtCheckpoint(player)
+					end
 				end
 			end
-		end
-		m.lastPos = np
+		end)
+	elseif not anyActive and fallConn then
+		fallConn:Disconnect(); fallConn = nil
 	end
+end
 
-	-- المنصّات التي تختفي وتظهر
-	for _, b in ipairs(blinkers) do
-		local p = (t + b.phase) % b.cycle
-		if p < b.onT then
-			b.part.Transparency = 0; b.part.CanCollide = true
-		elseif p < b.onT + b.warnT then
-			b.part.Transparency = 0.5; b.part.CanCollide = true     -- تحذير قبل الاختفاء
-		else
-			b.part.Transparency = 1; b.part.CanCollide = false
-		end
-	end
-
-	-- العقبات الدوّارة
-	for _, r in ipairs(rotators) do
-		local ang = (t * r.speed) % 360
-		r.part.CFrame = CFrame.new(r.center) * CFrame.Angles(0, math.rad(ang), 0)
-	end
-
-	-- العودة لآخر نقطة حفظ عند السقوط
-	for _, e in ipairs(near) do
-		local st = runState[e.pl.UserId]
-		if st and st.inRun then
-			local cp = checkpoints[st.cpIndex]
-			if cp and e.hrp.Position.Y < (cp.y - 6) then
-				e.hrp.CFrame = cp.cf
-				if _G.NotifyPlayer then _G.NotifyPlayer(e.pl, "↩️ رجعناك لآخر نقطة حفظ.") end
-			end
-		end
-	end
-end)
-
--- تحديث عدّاد الوقت على الواجهة كل ثانية (خفيف)
-task.spawn(function()
-	while true do
-		for _, player in ipairs(Players:GetPlayers()) do
-			local st = runState[player.UserId]
-			if st and st.inRun then sendProgress(player) end
-		end
-		task.wait(1)
-	end
-end)
-
--- عند إعادة الظهور أثناء الجولة، أرجع اللاعب لآخر نقطة حفظ
-Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Connect(function()
-		task.wait(0.6)
-		local st = runState[player.UserId]
-		if st and st.inRun then
-			local cp = checkpoints[st.cpIndex]
-			if cp then teleportTo(player, cp.cf) end
-		end
-	end)
-end)
+----------------------------------------------------------------------
+-- تنظيف عند خروج اللاعب + إعادة فحص المراقب
+----------------------------------------------------------------------
 Players.PlayerRemoving:Connect(function(player)
+	local st = runState[player.UserId]
+	stopProgressLoop(st)
 	runState[player.UserId] = nil
 	entryCooldown[player.UserId] = nil
+	killCooldown[player.UserId] = nil
+	finishCooldown[player.UserId] = nil
+	updateFallWatcher()
 end)
 
-----------------------------------------------------------------------
--- لوحات المتصدّرين (أسرع وقت دائم + يومي + الأكثر إكمالاً)
-----------------------------------------------------------------------
-local function makeBoard(title, pos)
-	local board = newPart({ Name = "LB_" .. title, Size = V(12, 14, 0.6),
-		Position = pos, Color = Color3.fromRGB(18, 20, 34) })
-	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
-	sg.CanvasSize = Vector2.new(420, 520); sg.LightInfluence = 0; sg.Adornee = board; sg.Parent = board
-	local frame = Instance.new("Frame"); frame.BackgroundTransparency = 1; frame.Size = UDim2.fromScale(1, 1); frame.Parent = sg
-	local layout = Instance.new("UIListLayout"); layout.Padding = UDim.new(0, 6)
-	layout.SortOrder = Enum.SortOrder.LayoutOrder; layout.Parent = frame
-	local head = Instance.new("TextLabel"); head.BackgroundTransparency = 1; head.Size = UDim2.new(1, 0, 0, 56)
-	head.Font = Enum.Font.GothamBlack; head.TextScaled = true; head.TextColor3 = GOLD; head.Text = title
-	head.LayoutOrder = 0; head.Parent = frame
-	return frame
-end
-
-local fastestFrame = makeBoard("🏆 أسرع الأوقات", V(-95, 11, 78))
-local dailyFrame   = makeBoard("🥇 أسرع اليوم",   V(-83, 11, 78))
-local compFrame    = makeBoard("🔥 الأكثر إكمالاً", V(-71, 11, 78))
-
-local function fillBoard(frame, ranked, fmtVal)
-	for _, c in ipairs(frame:GetChildren()) do
-		if c:IsA("TextLabel") and c.LayoutOrder > 0 then c:Destroy() end
+-- إيقاف الجولة عند الموت/إعادة الإحياء (لا تبقى الحالة عالقة)
+Players.PlayerAdded:Connect(function(player)
+	-- استرجاع أفضل وقت محفوظ (اختياري)
+	if bestStore then
+		task.spawn(function()
+			local ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
+			if ok and type(v) == "number" then
+				runState[player.UserId] = runState[player.UserId] or {}
+				runState[player.UserId].best = v / 100
+			end
+		end)
 	end
-	if #ranked == 0 then
-		local empty = Instance.new("TextLabel"); empty.BackgroundTransparency = 1
-		empty.Size = UDim2.new(1, 0, 0, 40); empty.Font = Enum.Font.Gotham; empty.TextScaled = true
-		empty.TextColor3 = Color3.fromRGB(200, 200, 210); empty.Text = "لا توجد نتائج بعد"
-		empty.LayoutOrder = 1; empty.Parent = frame
-		return
-	end
-	for i, e in ipairs(ranked) do
-		local row = Instance.new("TextLabel"); row.BackgroundTransparency = 1
-		row.Size = UDim2.new(1, 0, 0, 40); row.Font = Enum.Font.GothamMedium; row.TextScaled = true
-		row.TextColor3 = (i == 1) and GOLD or Color3.fromRGB(230, 230, 240)
-		row.Text = string.format("%d. %s — %s", i, nameFor(e.id), fmtVal(e.val))
-		row.LayoutOrder = i; row.Parent = frame
-	end
-end
-
-local function readRank(store, ascending)
-	local out = {}
-	if not store then return out end
-	pcall(function()
-		local pages = store:GetSortedAsync(ascending, 8)
-		for _, e in ipairs(pages:GetCurrentPage()) do
-			table.insert(out, { id = tonumber(e.key), val = e.value })
-		end
+	player.CharacterRemoving:Connect(function()
+		local st = runState[player.UserId]
+		if st and st.inRun then st.inRun = false; stopProgressLoop(st); updateFallWatcher() end
 	end)
-	return out
-end
-
-local function refreshBoards()
-	fillBoard(fastestFrame, readRank(timeRank, true),  function(v) return fmtTime(v / 100) end)
-	fillBoard(dailyFrame,   readRank(dailyRank, true),  function(v) return fmtTime(v / 100) end)
-	fillBoard(compFrame,    readRank(compRank, false), function(v) return v .. " مرة" end)
-end
-
-task.spawn(function()
-	while true do
-		refreshBoards()
-		task.wait(60)
-	end
 end)
-
-print("[ParkourSystem] Course ready —", TOTAL_CP, "checkpoints,", #movers, "movers,", #blinkers, "blinkers,", #rotators, "rotators")
