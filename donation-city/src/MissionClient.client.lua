@@ -58,7 +58,8 @@ local gui = new("ScreenGui", {
 
 local openBtn = new("TextButton", {
 	Name = "OpenBtn", Parent = gui,
-	AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0.5, 60),
+	-- أعلى اليسار بجانب زر الدردشة (صفّ علوي ثابت — لا يتداخل مع أزرار الوسط)
+	AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 74, 0, 14),
 	Size = UDim2.new(0, 116, 0, 44),
 	BackgroundColor3 = PURPLE, Text = "📋 المهام",
 	Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = WHITE,

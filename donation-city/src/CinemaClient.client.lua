@@ -1166,10 +1166,10 @@ end
 local announceFrame
 showAnnounce = function(data)
 	if announceFrame and announceFrame.Parent then announceFrame:Destroy() end
-	-- يظهر على اليسار بجانب زر المهام اليومية (ينزلق من خارج اليسار)
+	-- شريط إعلان أعلى وسط الشاشة (ينزلق من الأعلى) — بعيد عن أعمدة الأزرار الجانبية
 	local frame = new("Frame", {
-		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0, 0.5),
-		Position = UDim2.new(0, -400, 0.5, 150), Size = UDim2.new(0, 360, 0, 58), ZIndex = 80, Parent = gui,
+		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0.5, 0),
+		Position = UDim2.new(0.5, 0, 0, -90), Size = UDim2.new(0, 360, 0, 58), ZIndex = 80, Parent = gui,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 16) }),
 		new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.1 }),
@@ -1183,11 +1183,11 @@ showAnnounce = function(data)
 	})
 	announceFrame = frame
 	TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ Position = UDim2.new(0, 12, 0.5, 150) }):Play()
+		{ Position = UDim2.new(0.5, 0, 0, 14) }):Play()
 	task.delay(5, function()
 		if frame and frame.Parent and announceFrame == frame then
 			local tw = TweenService:Create(frame, TweenInfo.new(0.4),
-				{ Position = UDim2.new(0, -400, 0.5, 150) })
+				{ Position = UDim2.new(0.5, 0, 0, -90) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
 		end

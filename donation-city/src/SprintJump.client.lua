@@ -80,7 +80,7 @@ if UserInputService.TouchEnabled then
 	touchBtn = Instance.new("TextButton")
 	touchBtn.Name = "SprintButton"
 	touchBtn.AnchorPoint = Vector2.new(1, 1)
-	touchBtn.Position = UDim2.new(1, -22, 1, -210)
+	touchBtn.Position = UDim2.new(1, -22, 1, -150)
 	touchBtn.Size = UDim2.fromOffset(60, 60)
 	touchBtn.BackgroundColor3 = Color3.fromRGB(70, 140, 240)
 	touchBtn.BackgroundTransparency = 0.2
