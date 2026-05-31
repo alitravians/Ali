@@ -24,7 +24,6 @@ local AREAS = {
 	{ key = "beach",      cx = 150,  cz = 20,   r = 95  },  -- الشاطئ
 	{ key = "parkour",    cx = -130, cz = 70,   r = 100 },  -- الباركور (غرب)
 	{ key = "playground", cx = 0,    cz = 130,  r = 60  },  -- ألعاب الأطفال (شمال)
-	{ key = "volleyball", cx = 150,  cz = -100, r = 55  },  -- كرة الطائرة (جنوب الشاطئ)
 }
 local TOTAL_AREAS = #AREAS
 

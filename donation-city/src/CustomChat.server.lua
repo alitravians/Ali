@@ -224,12 +224,23 @@ end)
 -- ⚠️ الفلترة إلزامية من روبلوكس: لو فشل الفلتر أو رجّع نصاً فارغاً، نُرجّع nil
 -- (نحجب الرسالة) بدل بثّ نص غير مُفلتر — حماية للّاعبين والتزاماً بسياسات روبلوكس.
 ------------------------------------------------------------------------
+-- فلترة النص مع إعادة محاولة واحدة عند الفشل المؤقت (الشبكة/الـAPI)
+local function tryFilter(text: string, fromUserId: number)
+	for attempt = 1, 2 do
+		local ok, result = pcall(function()
+			return TextService:FilterStringAsync(text, fromUserId)
+		end)
+		if ok and result then return result end
+		warn("[CustomChat] FilterStringAsync فشل (محاولة " .. attempt .. "): " .. tostring(result))
+		if attempt == 1 then task.wait(0.35) end
+	end
+	return nil
+end
+
 local function safeFilter(text: string, fromUserId: number): string?
-	local ok, result = pcall(function()
-		return TextService:FilterStringAsync(text, fromUserId)
-	end)
-	if not ok or not result then
-		warn("[CustomChat] FilterStringAsync فشل — حُجبت الرسالة (الفلترة إلزامية): " .. tostring(result))
+	local result = tryFilter(text, fromUserId)
+	if not result then
+		warn("[CustomChat] FilterStringAsync فشل — حُجبت الرسالة (الفلترة إلزامية)")
 		return nil
 	end
 
@@ -247,20 +258,30 @@ end
 -- فلترة مخصّصة لمستلِم معيّن (GetChatForUserAsync) — أقل تشدّداً من البثّ العام
 -- وأنسب للرسائل الخاصة (همس).
 local function safeFilterForUser(text: string, fromUserId: number, targetUserId: number): string?
-	local ok, result = pcall(function()
-		return TextService:FilterStringAsync(text, fromUserId)
-	end)
-	if not ok or not result then
+	local result = tryFilter(text, fromUserId)
+	if not result then
 		warn("[CustomChat] FilterStringAsync فشل (همس) — حُجبت الرسالة")
 		return nil
 	end
+
+	-- ١) الفلترة المخصّصة للمستلِم (الأفضل للرسائل الخاصة)
 	local ok2, filtered = pcall(function()
 		return result:GetChatForUserAsync(targetUserId)
 	end)
 	if ok2 and typeof(filtered) == "string" and filtered ~= "" then
 		return filtered
 	end
-	warn("[CustomChat] GetChatForUserAsync فشل — حُجبت رسالة الهمس")
+
+	-- ٢) احتياطي: لو فشلت الفلترة المخصّصة، نستخدم فلتر البثّ العام بدل حجب الرسالة كلياً
+	warn("[CustomChat] GetChatForUserAsync فشل (همس) — التحوّل لفلتر البثّ العام")
+	local ok3, broadcastStr = pcall(function()
+		return result:GetNonChatStringForBroadcastAsync()
+	end)
+	if ok3 and typeof(broadcastStr) == "string" and broadcastStr ~= "" then
+		return broadcastStr
+	end
+
+	warn("[CustomChat] تعذّرت فلترة رسالة الهمس بكل الطرق — حُجبت")
 	return nil
 end
 

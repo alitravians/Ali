@@ -39,10 +39,6 @@ local POOL = {
 	-- 🏖️ الشاطئ
 	{ key = "beach_visit", cat = "beach",  event = "beach_visit", target = 1,   coins = 50,  desc = "زُر منطقة الشاطئ" },
 	{ key = "beach_time",  cat = "beach",  event = "beach_time",  target = 120, coins = 50,  desc = "ابقَ في الشاطئ دقيقتين", time = true },
-	-- 🏐 كرة الطائرة
-	{ key = "vb_play",     cat = "volley", event = "vb_play",     target = 1,   coins = 100, desc = "العب مباراة كرة طائرة" },
-	{ key = "vb_win",      cat = "volley", event = "vb_win",      target = 1,   coins = 250, desc = "افز بمباراة كرة طائرة" },
-	{ key = "vb_points",   cat = "volley", event = "vb_points",   target = 5,   coins = 100, desc = "سجّل ٥ نقاط في كرة الطائرة" },
 	-- 🧗 الباركور
 	{ key = "parkour_cp",  cat = "parkour",event = "parkour_cp",  target = 1,   coins = 50,  desc = "اجتز نقطة حفظ في الباركور" },
 	{ key = "parkour_cp5", cat = "parkour",event = "parkour_cp",  target = 5,   coins = 150, desc = "اجتز ٥ نقاط حفظ في الباركور" },
@@ -57,7 +53,6 @@ for _, m in ipairs(POOL) do POOL_BY_KEY[m.key] = m end
 -- 🗓️ بنك المهام الأسبوعية الكبرى (جائزة ٥٠٠٠ كوينز + إنجاز «بطل الأسبوع»)
 local WEEKLY_POOL = {
 	{ key = "w_movies",  event = "movie_watch",  target = 5,  coins = 5000, desc = "شاهد ٥ أفلام هذا الأسبوع" },
-	{ key = "w_vbwins",  event = "vb_win",       target = 10, coins = 5000, desc = "افز بـ ١٠ مباريات كرة طائرة" },
 	{ key = "w_parkour", event = "parkour_done", target = 3,  coins = 5000, desc = "أكمل الباركور ٣ مرّات" },
 }
 local WEEKLY_BY_KEY = {}

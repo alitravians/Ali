@@ -1808,9 +1808,6 @@ local ACH = {
 	arcade       = { emoji = "🕹️", name = "لاعب أركيد", desc = "لعبت في صالة الأركيد" },
 	parkour_first = { emoji = "🧗", name = "متسلّق",     desc = "أنهيت أول مرحلة باركور" },
 	parkour_done  = { emoji = "🏁", name = "بطل الباركور", desc = "أكملت مسار الباركور كاملاً" },
-	vb_first      = { emoji = "🏐", name = "لاعب كرة طائرة", desc = "لعبت أول مباراة كرة طائرة" },
-	vb_win        = { emoji = "🥇", name = "بطل الكرة الطائرة", desc = "فزت بأول مباراة كرة طائرة" },
-	vb_points     = { emoji = "🔥", name = "هدّاف",      desc = "سجّل فريقك 5 نقاط في مباراة" },
 	explorer      = { emoji = "🗺️", name = "مستكشف",     desc = "زرت جميع مناطق الماب" },
 	marathon      = { emoji = "⏱️", name = "ماراثوني",    desc = "قضيت ساعة كاملة من اللعب النشط" },
 	sprinter      = { emoji = "🏃", name = "عدّاء",       desc = "ركضت 5 دقائق متراكمة" },
@@ -1818,7 +1815,7 @@ local ACH = {
 	daily_master  = { emoji = "🎯", name = "منجِز اليوم",  desc = "أكملت كل المهام اليومية" },
 	weekly_hero   = { emoji = "🏅", name = "بطل الأسبوع",  desc = "أكملت المهمة الأسبوعية الكبرى" },
 }
-local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "vb_first", "vb_win", "vb_points", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
+local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
 
 _G.AwardAchievement = function(player: Player, key: string)
 	local s = sessions[player.UserId]

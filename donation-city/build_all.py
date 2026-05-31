@@ -32,7 +32,6 @@ UPDATES = [
     ("src/ParkourSystem.server.lua",  "PARKOUR SYSTEM (Server)"),
     ("src/ParkourClient.client.lua",  "PARKOUR CLIENT (Client)"),
     ("src/PlaygroundArea.server.lua", "PLAYGROUND (Server)"),
-    ("src/VolleyballSystem.server.lua", "VOLLEYBALL SYSTEM (Server)"),
     ("src/ActivitySystem.server.lua", "ACTIVITY SYSTEM (Server)"),
     ("src/SprintJump.client.lua",    "SPRINT & JUMP (Client)"),
     ("src/MissionSystem.server.lua", "MISSION SYSTEM (Server)"),

@@ -16,9 +16,38 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
 local SoundService      = game:GetService("SoundService")
+local StarterGui        = game:GetService("StarterGui")
+local TextChatService   = game:GetService("TextChatService")
 
 local LocalPlayer = Players.LocalPlayer
 local playerGui   = LocalPlayer:WaitForChild("PlayerGui")
+
+------------------------------------------------------------------------
+-- إخفاء دردشة روبلوكس الافتراضية (الأيقونة أعلى يسار الشاشة) — اللاعب طلب
+-- يكون الشات في الزاوية اليمنى السفلى فقط (زرّنا البنفسجي). فنوقف الواجهة
+-- الرسمية ونبقي دردشتنا المخصّصة وحدها، بلا أيقونتين متكرّرتين.
+------------------------------------------------------------------------
+local function showDefaultChat()
+	-- TextChatService الحديث: نوقف نافذة الدردشة وشريط الإدخال الرسميَّين
+	pcall(function()
+		local win = TextChatService:FindFirstChildOfClass("ChatWindowConfiguration")
+		if win then win.Enabled = true end
+		local bar = TextChatService:FindFirstChildOfClass("ChatInputBarConfiguration")
+		if bar then bar.Enabled = true end
+	end)
+	-- النظام القديم (Legacy): نوقف واجهة الدردشة من CoreGui
+	pcall(function()
+		StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, true)
+	end)
+end
+showDefaultChat()
+-- نعيد المحاولة بضع مرّات لأن StarterGui/الإعدادات قد لا تكون جاهزة فوراً
+task.spawn(function()
+	for _ = 1, 10 do
+		task.wait(0.5)
+		showDefaultChat()
+	end
+end)
 
 -- الريموتات (السيرفر ينشئها)
 local folder     = ReplicatedStorage:WaitForChild("CustomChat", 30)
@@ -100,16 +129,50 @@ local gui = new("ScreenGui", {
 	ResetOnSpawn = false,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
 	DisplayOrder = 50,
-	IgnoreGuiInset = false,
+	IgnoreGuiInset = true,    -- absolute screen coords (align with Roblox top bar, top-left)
 	Parent = playerGui,
 })
 
--- 💬 زر مُصغّر (فقاعة) أعلى يسار الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
+------------------------------------------------------------------------
+-- ختم نسخة مرئي مؤقّت: يثبت للّاعب أنه يشغّل آخر ملف فعلاً (يختفي تلقائياً).
+-- إذا ما ظهر هذا الشريط عند Play → معناه الملف المفتوح قديم وليس آخر نسخة.
+------------------------------------------------------------------------
+do
+	local stampGui = Instance.new("ScreenGui")
+	stampGui.Name = "BuildStamp"
+	stampGui.ResetOnSpawn = false
+	stampGui.DisplayOrder = 999
+	stampGui.IgnoreGuiInset = true
+	stampGui.Parent = playerGui
+	local lbl = Instance.new("TextLabel")
+	lbl.AnchorPoint = Vector2.new(0.5, 0)
+	lbl.Position = UDim2.new(0.5, 0, 0, 6)
+	lbl.Size = UDim2.new(0, 360, 0, 30)
+	lbl.BackgroundColor3 = Color3.fromRGB(20, 140, 70)
+	lbl.BackgroundTransparency = 0.1
+	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
+	lbl.Font = Enum.Font.GothamBold
+	lbl.TextSize = 15
+	lbl.Text = "✅ Build A1 — new aquarium + chat top-left"
+	lbl.Parent = stampGui
+	local cr = Instance.new("UICorner"); cr.CornerRadius = UDim.new(0, 8); cr.Parent = lbl
+	task.delay(12, function()
+		for i = 1, 20 do
+			lbl.BackgroundTransparency = 0.1 + i * 0.045
+			lbl.TextTransparency = i * 0.05
+			task.wait(0.05)
+		end
+		stampGui:Destroy()
+	end)
+end
+
+-- 💬 زر مُصغّر (فقاعة) أسفل يمين الشاشة — يفتح/يخفي لوحة الدردشة، فلا تزعج اللاعب.
+-- launcher button: TOP-LEFT, beside the native Roblox chat icon (pixel offset approximate; easy to nudge)
 local launcher = new("TextButton", {
 	Name = "ChatLauncher",
 	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.new(0, 12, 0, 12),
-	Size = UDim2.new(0, 52, 0, 52),
+	Position = UDim2.new(0, 160, 0, 4),
+	Size = UDim2.new(0, 38, 0, 38),
 	BackgroundColor3 = PURPLE,
 	BackgroundTransparency = 0.05,
 	Font = Enum.Font.GothamBold,
@@ -125,8 +188,8 @@ new("UIStroke", { Color = CYAN, Thickness = 1.5, Transparency = 0.3, Parent = la
 -- شارة عدد الرسائل غير المقروءة فوق الفقاعة
 local badge = new("TextLabel", {
 	Name = "Badge",
-	AnchorPoint = Vector2.new(1, 1),
-	Position = UDim2.new(1, 4, 1, 4),
+	AnchorPoint = Vector2.new(1, 0),
+	Position = UDim2.new(1, 4, 0, -6),
 	Size = UDim2.new(0, 22, 0, 22),
 	BackgroundColor3 = Color3.fromRGB(255, 70, 90),
 	Font = Enum.Font.GothamBold,
@@ -139,10 +202,11 @@ local badge = new("TextLabel", {
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
 
+-- chat panel opens from TOP-LEFT (drops below the launcher) instead of bottom-right
 local root = new("Frame", {
 	Name = "ChatRoot",
 	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.new(0, 12, 0, 72),
+	Position = UDim2.new(0, 12, 0, 90),
 	Size = UDim2.new(0, 380, 0, 300),
 	BackgroundColor3 = CARD,
 	BackgroundTransparency = 0.12,
@@ -711,11 +775,37 @@ end)
 -- 😊 لوحة السمايلات (الإيموجي) — زر يفتح شبكة سمايلات تُدرَج في الرسالة
 ------------------------------------------------------------------------
 local EMOJIS = {
-	"😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎",
-	"🤩", "🥳", "😉", "🙂", "🙁", "😮", "😢", "😭",
-	"😡", "🤔", "😴", "😱", "👍", "👎", "👏", "🙏",
-	"💪", "🔥", "⭐", "❤️", "💜", "🎉", "🎁", "🍿",
-	"🎬", "👑", "💎", "✨",
+	-- وجوه ومشاعر
+	"😀", "😁", "😂", "🤣", "😊", "😇", "🙂", "🙃",
+	"😉", "😌", "😍", "🥰", "😘", "😗", "😙", "😚",
+	"😋", "😛", "😝", "😜", "🤪", "🤨", "🧐", "🤓",
+	"😎", "🥸", "🤩", "🥳", "😏", "😒", "😞", "😔",
+	"😟", "😕", "🙁", "☹️", "😣", "😖", "😫", "😩",
+	"🥺", "😢", "😭", "😤", "😠", "😡", "🤬", "🤯",
+	"😳", "🥵", "🥶", "😱", "😨", "😰", "😥", "😓",
+	"🤗", "🤔", "🤭", "🤫", "🤥", "😶", "😐", "😑",
+	"😬", "🙄", "😮", "😲", "🥱", "😴", "🤤", "😪",
+	"😵", "🤐", "🥴", "🤢", "🤮", "🤧", "😷", "🤒",
+	"🤕", "🤑", "🤠", "😈", "👿", "👻", "💀", "👽",
+	"🤖", "🎃", "😺", "😸", "😻", "😼", "😹", "😽",
+	-- إيماءات وأيدي
+	"👍", "👎", "👌", "🤌", "🤏", "✌️", "🤞", "🫰",
+	"🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️",
+	"✋", "🤚", "🖐️", "🖖", "👋", "🤝", "👏", "🙌",
+	"👐", "🙏", "✍️", "💪", "🦾", "👀", "👁️", "🧠",
+	-- قلوب ورموز
+	"❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍",
+	"🤎", "💔", "❣️", "💕", "💞", "💓", "💗", "💖",
+	"💘", "💝", "💟", "💯", "💢", "💥", "💫", "💦",
+	"💨", "🔥", "⭐", "🌟", "✨", "⚡", "🌈", "☀️",
+	-- احتفال وأشياء
+	"🎉", "🎊", "🎈", "🎁", "🎀", "🏆", "🥇", "🥈",
+	"🥉", "👑", "💎", "💰", "🪙", "🎮", "🕹️", "🎲",
+	"🎬", "🍿", "🎤", "🎧", "🎵", "🎶", "📣", "🔔",
+	-- طعام وحيوانات
+	"🍕", "🍔", "🍟", "🌭", "🍩", "🍪", "🍰", "🧁",
+	"🍫", "🍬", "🍭", "🍦", "☕", "🥤", "🍓", "🍉",
+	"🐶", "🐱", "🦁", "🐯", "🐰", "🦊", "🐻", "🐼",
 }
 
 -- زر السمايلات داخل صفّ الإدخال (بين زر الإرسال وخانة الكتابة)
