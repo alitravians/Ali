@@ -63,7 +63,7 @@ local GOLD     = Color3.fromRGB(255, 205, 70)
 local STAGE_COLOR = { [1] = C_EASY, [2] = C_MED, [3] = C_HARD, [4] = C_LEGEND }
 
 -- مركز الباركور ونطاق التفعيل (لإيقاف الحركة عند الخمول)
-local COURSE_CENTER = V(-133, 18, 40)
+local COURSE_CENTER = V(-138, 18, 42)
 -- نطاق ضيّق يغطّي المسار كاملاً (~50 ستد من المركز) فقط؛ يبقى المحرّك خاملاً
 -- تماماً (صفر استهلاك) ما لم يكن لاعب فعلاً عند الباركور — لا عند الساحة/الانطلاق.
 local ACTIVE_RANGE2 = 75 * 75
@@ -98,35 +98,35 @@ end
 -- (أول عقدة في كل مرحلة تكون ثابتة دائماً لأنها نقطة حفظ)
 ----------------------------------------------------------------------
 local nodes = {
-	-- ── سهلة (منصّات واسعة، فجوات ~8، صعود ~1-2) ──
+	-- ── سهلة: منصّات كبيرة متقاربة كالدرج (بلا عقبات، فجوة حافة ~0-1، صعود 1) ──
 	{ stage = 1, pos = V(-95,  4, 70), size = V(10, 1, 10) },   -- البداية
-	{ stage = 1, pos = V(-103, 6, 70), size = V(9, 1, 9) },
-	{ stage = 1, pos = V(-111, 7, 73), size = V(9, 1, 9) },
-	{ stage = 1, pos = V(-119, 8, 70), size = V(9, 1, 9) },
-	{ stage = 1, pos = V(-127, 9, 70), size = V(8, 1, 8) },
-	-- ── متوسطة (منصّة متحركة + عقبة دوّارة، فجوات ~9) ──
-	{ stage = 2, pos = V(-136, 11, 70), size = V(9, 1, 9) },                                  -- نقطة حفظ (ثابتة)
-	{ stage = 2, pos = V(-145, 12, 70), size = V(7, 1, 7), move = "x", dist = 5, period = 4.0 },
-	{ stage = 2, pos = V(-154, 13, 70), size = V(8, 1, 8) },
-	{ stage = 2, pos = V(-163, 14, 70), size = V(8, 1, 8), beam = true },                     -- عقبة دوّارة فوقها
-	{ stage = 2, pos = V(-172, 15, 70), size = V(7, 1, 7) },
-	-- ── صعبة (منصّات تختفي + متحركة، فجوات ~9-10، منعطف جنوباً) ──
-	{ stage = 3, pos = V(-172, 17, 61), size = V(7, 1, 7) },                                  -- نقطة حفظ (ثابتة)
-	{ stage = 3, pos = V(-172, 18, 52), size = V(6, 1, 6), blink = { on = 2.2, off = 1.3 } },
-	{ stage = 3, pos = V(-172, 19, 43), size = V(6, 1, 6), move = "z", dist = 5, period = 3.6 },
-	{ stage = 3, pos = V(-166, 20, 36), size = V(6, 1, 6), blink = { on = 2.0, off = 1.2 } },
-	{ stage = 3, pos = V(-159, 21, 29), size = V(6, 1, 6) },
-	-- ── أسطورية (مسار أطول + كل الآليات، فجوات ~9) ──
-	{ stage = 4, pos = V(-152, 23, 24), size = V(6, 1, 6) },                                  -- نقطة حفظ (ثابتة)
-	{ stage = 4, pos = V(-144, 24, 20), size = V(5, 1, 5), move = "x", dist = 5, period = 3.2 },
-	{ stage = 4, pos = V(-136, 25, 16), size = V(5, 1, 5), blink = { on = 1.6, off = 1.2 } },
-	{ stage = 4, pos = V(-128, 26, 13), size = V(5, 1, 5), beam = true, fast = true },
-	{ stage = 4, pos = V(-120, 28, 10), size = V(6, 1, 6), move = "z", dist = 6, period = 3.0 },
-	{ stage = 4, pos = V(-112, 29,  8), size = V(6, 1, 6) },                                  -- آخر منصّة قبل النهاية
+	{ stage = 1, pos = V(-104, 5, 70), size = V(9, 1, 9) },
+	{ stage = 1, pos = V(-113, 6, 70), size = V(9, 1, 9) },
+	{ stage = 1, pos = V(-122, 7, 70), size = V(9, 1, 9) },
+	{ stage = 1, pos = V(-131, 8, 70), size = V(9, 1, 9) },
+	-- ── متوسطة: منصّة متحركة جانبياً (تبقي الفجوة ثابتة) + عقبة دوّارة بطيئة تُقفز ──
+	{ stage = 2, pos = V(-141, 10, 70), size = V(9, 1, 9) },                                    -- نقطة حفظ (ثابتة)
+	{ stage = 2, pos = V(-151, 11, 70), size = V(8, 1, 8), move = "z", dist = 4, period = 4.5 },
+	{ stage = 2, pos = V(-161, 12, 70), size = V(8, 1, 8) },
+	{ stage = 2, pos = V(-171, 13, 70), size = V(8, 1, 8), beam = true },                       -- عقبة دوّارة منخفضة (تُقفز)
+	{ stage = 2, pos = V(-180, 14, 70), size = V(8, 1, 8) },
+	-- ── صعبة: منعطف جنوباً + منصّة تختفي بمهلة كريمة + متحركة جانبياً ──
+	{ stage = 3, pos = V(-180, 16, 61), size = V(8, 1, 8) },                                    -- نقطة حفظ (ثابتة)
+	{ stage = 3, pos = V(-180, 17, 52), size = V(7, 1, 7), blink = { on = 3.0, off = 1.0 } },
+	{ stage = 3, pos = V(-180, 18, 43), size = V(7, 1, 7), move = "x", dist = 4, period = 4.0 },
+	{ stage = 3, pos = V(-180, 19, 34), size = V(7, 1, 7) },
+	{ stage = 3, pos = V(-173, 20, 28), size = V(7, 1, 7) },
+	-- ── أسطورية: كل الآليات (مُهدّأة) + مسار صاعد، فجوات حافة ~2 ──
+	{ stage = 4, pos = V(-166, 22, 23), size = V(7, 1, 7) },                                    -- نقطة حفظ (ثابتة)
+	{ stage = 4, pos = V(-158, 23, 20), size = V(6, 1, 6), move = "z", dist = 4, period = 3.6 },
+	{ stage = 4, pos = V(-150, 24, 17), size = V(6, 1, 6), blink = { on = 2.6, off = 1.0 } },
+	{ stage = 4, pos = V(-142, 25, 14), size = V(6, 1, 6), beam = true },
+	{ stage = 4, pos = V(-134, 26, 11), size = V(6, 1, 6), move = "z", dist = 4, period = 3.4 },
+	{ stage = 4, pos = V(-126, 28,  9), size = V(7, 1, 7) },                                    -- آخر منصّة قبل النهاية
 }
 
 local START_POS  = V(-95, 4, 70)
-local FINISH_POS  = V(-104, 30, 8)
+local FINISH_POS  = V(-117, 29, 9)
 
 ----------------------------------------------------------------------
 -- بناء المنصّات + تسجيل العناصر الديناميكية (بلا أي حلقة لكل عنصر)
@@ -159,10 +159,12 @@ for _, n in ipairs(nodes) do
 			cycle = n.blink.on + warnT + n.blink.off, phase = math.random() * 3 }
 	end
 	if n.beam then
-		local len = n.size.X + 3
-		local bar = newPart({ Name = "Obstacle", Size = V(len, 0.8, 0.8),
-			Position = n.pos + V(0, 2.4, 0), Color = C_OBST, Material = Enum.Material.Neon })
-		rotators[#rotators + 1] = { part = bar, center = n.pos + V(0, 2.4, 0), speed = n.fast and 120 or 70 }
+		-- عقبة دوّارة منخفضة لا تتجاوز حدود المنصّة (لا تقذف اللاعب للفراغ) وبطيئة يُمكن قفزها
+		local len = math.max(3, n.size.X - 1)
+		local barCenter = n.pos + V(0, 1.4, 0)
+		local bar = newPart({ Name = "Obstacle", Size = V(len, 0.6, 0.6),
+			Position = barCenter, Color = C_OBST, Material = Enum.Material.Neon })
+		rotators[#rotators + 1] = { part = bar, center = barCenter, speed = 45 }
 	end
 end
 
