@@ -100,26 +100,18 @@ if course then
 		return true
 	end
 
-	-- أعلى نقطة في الموديل = القمة، ومركز القمة الأفقي
-	local maxTop = -math.huge
+	-- القمة = أعلى منصّة يمكن الوقوف عليها فعلاً (نتجاهل العناصر الزخرفية العالية
+	-- كالأعلام/الهوائيات حتى لا يرتفع مُحفِّز الفوز فوق متناول اللاعب). نجمع كذلك
+	-- المنصّات وأقراص نقاط الحفظ في نفس المرور.
+	local topWalkableY = -math.huge
+	local maxAnyY = -math.huge
 	for _, d in ipairs(course:GetDescendants()) do
 		if d:IsA("BasePart") then
 			local topY = d.Position.Y + d.Size.Y / 2
-			if topY > maxTop then maxTop = topY end
-		end
-	end
-	FINISH_Y = maxTop
-	FALL_Y   = BASE_Y - 14
-
-	local sumX, sumZ, nTop = 0, 0, 0
-	for _, d in ipairs(course:GetDescendants()) do
-		if d:IsA("BasePart") then
-			local topY = d.Position.Y + d.Size.Y / 2
-			if topY >= maxTop - 8 then
-				sumX += d.Position.X; sumZ += d.Position.Z; nTop += 1
-			end
+			if topY > maxAnyY then maxAnyY = topY end
 			if d ~= spawnPart and isWalkable(d) then
 				table.insert(steps, d)
+				if topY > topWalkableY then topWalkableY = topY end
 			end
 			local par = d.Parent
 			if par and par.Name == "CheckPoints" then
@@ -127,15 +119,28 @@ if course then
 			end
 		end
 	end
+	-- لو لم نجد أي منصّة (موديل غير متوقّع) نرجع لأعلى نقطة عامة كاحتياط.
+	local summitY = (topWalkableY > -math.huge) and topWalkableY or maxAnyY
+	FINISH_Y = summitY
+	FALL_Y   = BASE_Y - 14
+
+	-- مركز القمة الأفقي: متوسط المنصّات القريبة من القمة (لا أي قطعة)
+	local sumX, sumZ, nTop = 0, 0, 0
+	for _, d in ipairs(steps) do
+		local topY = d.Position.Y + d.Size.Y / 2
+		if topY >= summitY - 8 then
+			sumX += d.Position.X; sumZ += d.Position.Z; nTop += 1
+		end
+	end
 	local fx = nTop > 0 and (sumX / nTop) or SPAWN_POS.X
 	local fz = nTop > 0 and (sumZ / nTop) or SPAWN_POS.Z
 
-	-- مُحفِّز الفوز: صندوق شفاف غير صلب فوق القمة (يلمسه اللاعب عند الوصول)
+	-- مُحفِّز الفوز: صندوق شفاف غير صلب فوق أعلى منصّة (يلمسه اللاعب عند الوصول)
 	finishPart = Instance.new("Part")
 	finishPart.Name = "ParkourFinish"; finishPart.Anchored = true; finishPart.CanCollide = false
 	finishPart.CanTouch = true; finishPart.Transparency = 1
 	finishPart.Size = V(34, 12, 34)
-	finishPart.CFrame = CFrame.new(fx, maxTop + 3, fz)
+	finishPart.CFrame = CFrame.new(fx, summitY + 3, fz)
 	finishPart.Parent = course
 else
 	warn("[ParkourSystem] لم يُعثر على موديل ParkourCourse — تأكد من حقن الموديل في Workspace.")
@@ -223,7 +228,8 @@ end
 
 local function stopProgressLoop(st)
 	if st and st.loop then
-		task.cancel(st.loop)
+		-- pcall: قد تكون الحلقة قد انتهت بنفسها (خرجت بـ return) فلا تُلغى مرتين
+		pcall(task.cancel, st.loop)
 		st.loop = nil
 	end
 end
@@ -240,11 +246,14 @@ local function startRun(player)
 	st.loop = task.spawn(function()
 		while runState[player.UserId] == st and st.inRun do
 			sendProgress(player, "run")
-			-- احتياطي للفوز: لو وصل القمة دون لمس المُحفِّز
+			-- احتياطي للفوز: لو وصل القمة دون لمس المُحفِّز. ننفّذه في خيط مستقل
+			-- ونخرج من الحلقة بـ return (بدل استدعاء finishRun هنا الذي يُلغي هذا
+			-- الخيط نفسه أثناء تنفيذه — نمط هشّ).
 			local char = player.Character
 			local hrp = char and char:FindFirstChild("HumanoidRootPart")
 			if hrp and hrp.Position.Y >= FINISH_Y - 4 then
-				if finishRun then finishRun(player) end
+				if finishRun then task.spawn(finishRun, player) end
+				return
 			end
 			task.wait(0.6)
 		end

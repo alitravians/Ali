@@ -218,7 +218,9 @@ end
 local function checkDailyBonus(player, s)
 	if s.dBonus then return end
 	for _, k in ipairs(s.dList) do
-		if not s.dDone[k] then return end
+		-- تجاهل أي مفتاح مهمة أُزيل من البنك (بيانات قديمة محفوظة): لا يجب أن يمنع
+		-- مكافأة «إكمال كل المهام»، لأنه لن يصبح مكتملاً أبداً (لا يُعرَض ولا يُحتسب).
+		if POOL_BY_KEY[k] and not s.dDone[k] then return end
 	end
 	s.dBonus = true
 	grantCoins(player, DAILY_ALL_BONUS)
@@ -304,6 +306,15 @@ Players.PlayerAdded:Connect(function(player)
 		refreshDaily(s, player.UserId)
 		refreshWeekly(s, player.UserId)
 	end
+	-- ترحيل بيانات قديمة: لو القائمة المحفوظة تحوي مفتاح مهمة أُزيل من البنك
+	-- (مثل مهام الكرة الطائرة بعد إزالة نظامها)، جدّد القائمة فوراً كي يحصل
+	-- اللاعب على مهام صالحة بدل أن يعلق بمهمة مستحيلة تعطّل مكافأة الإكمال.
+	if s.dList then
+		for _, k in ipairs(s.dList) do
+			if not POOL_BY_KEY[k] then refreshDaily(s, player.UserId); break end
+		end
+	end
+	if s.wKey and not WEEKLY_BY_KEY[s.wKey] then refreshWeekly(s, player.UserId) end
 	-- جدّد إن انقضت الفترة منذ آخر جلسة
 	if s.dDay ~= dayNumber() then refreshDaily(s, player.UserId) end
 	if s.wWeek ~= weekNumber() then refreshWeekly(s, player.UserId) end
