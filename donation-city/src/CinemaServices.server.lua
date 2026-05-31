@@ -1897,7 +1897,9 @@ local showLabels, subLabels = {}, {}
 do
 	local sx = 22
 	local sz = -100
-	part("ShowtimesPost", Vector3.new(1.5, 12, 1.5), Vector3.new(sx, GROUND_Y + 6, sz + 0.5), DARK, Enum.Material.Metal)
+	-- دعامتان جانبيتان خلف اللوحة (لا تغطّيان النص) بدل عمود وسطي أمامها
+	part("ShowtimesPostL", Vector3.new(1.2, 12, 1.2), Vector3.new(sx - 7.2, GROUND_Y + 6, sz - 0.6), DARK, Enum.Material.Metal)
+	part("ShowtimesPostR", Vector3.new(1.2, 12, 1.2), Vector3.new(sx + 7.2, GROUND_Y + 6, sz - 0.6), DARK, Enum.Material.Metal)
 	local panel = part("ShowtimesPanel", Vector3.new(13, 7.5, 0.6), Vector3.new(sx, GROUND_Y + 10, sz), PANEL)
 	part("ShowtimesFrame", Vector3.new(13.5, 0.35, 0.7), Vector3.new(sx, GROUND_Y + 13.9, sz), CYAN, Enum.Material.Neon)
 	part("ShowtimesFrameB", Vector3.new(13.5, 0.35, 0.7), Vector3.new(sx, GROUND_Y + 6.1, sz), PURPLE, Enum.Material.Neon)
@@ -1990,7 +1992,9 @@ end)
 -- لافتة صفّ الانتظار + زر الانضمام (وسط المدخل)
 do
 	local qx, qz = 0, -94
-	part("QueuePost", Vector3.new(1.2, 9, 1.2), Vector3.new(qx, GROUND_Y + 4.5, qz + 0.4), DARK, Enum.Material.Metal)
+	-- دعامتان جانبيتان خلف اللوحة (لا تغطّيان النص)
+	part("QueuePostL", Vector3.new(1, 9, 1), Vector3.new(qx - 4.6, GROUND_Y + 4.5, qz - 0.5), DARK, Enum.Material.Metal)
+	part("QueuePostR", Vector3.new(1, 9, 1), Vector3.new(qx + 4.6, GROUND_Y + 4.5, qz - 0.5), DARK, Enum.Material.Metal)
 	local panel = part("QueuePanel", Vector3.new(8, 3, 0.5), Vector3.new(qx, GROUND_Y + 8.5, qz), PANEL)
 	part("QueueTrim", Vector3.new(8.4, 0.3, 0.6), Vector3.new(qx, GROUND_Y + 10.2, qz), CYAN, Enum.Material.Neon)
 	-- شريط أرضي يرشد لمكان الوقوف

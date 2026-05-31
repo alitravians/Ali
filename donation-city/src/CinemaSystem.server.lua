@@ -1416,8 +1416,8 @@ pcall(function()
 
 	-- مرشد خارج المدخل (أمام البوابة، يستقبل القادمين قبل الدخول)
 	local guideFoot = CFrame.lookAt(
-		Vector3.new(gatePos.X + 5, groundY, gatePos.Z + 7),
-		Vector3.new(gatePos.X + 5, groundY, gatePos.Z + 30)
+		Vector3.new(gatePos.X + 8, groundY, gatePos.Z + 11),
+		Vector3.new(gatePos.X + 8, groundY, gatePos.Z + 34)
 	)
 	buildNPC({
 		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),
