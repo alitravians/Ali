@@ -1355,6 +1355,9 @@ end
 -- 🧊 التجميد: نثبّت اللاعب مكانه (لا يقدر يتحرك) ونعيد التطبيق عند كل ظهور
 ------------------------------------------------------------------------
 local frozen: { [number]: boolean } = {}
+-- مهلة /spawn لكل لاعب (تمنع تكرار LoadCharacter بسرعة)
+local SPAWN_COOLDOWN = 5
+local spawnCooldown: { [number]: number } = {}
 local function applyFreeze(player: Player)
 	local root, hum = rootOf(player), humanoidOf(player)
 	if hum then hum.WalkSpeed = 0; hum.JumpPower = 0; hum.JumpHeight = 0 end
@@ -1377,7 +1380,7 @@ Players.PlayerAdded:Connect(function(plr)
 		if frozen[plr.UserId] then applyFreeze(plr) end
 	end)
 end)
-Players.PlayerRemoving:Connect(function(plr) frozen[plr.UserId] = nil end)
+Players.PlayerRemoving:Connect(function(plr) frozen[plr.UserId] = nil; spawnCooldown[plr.UserId] = nil end)
 
 ------------------------------------------------------------------------
 -- ⚙️ صلاحيات الأوامر القابلة للتحكم (من لوحة الإدارة)
@@ -1565,8 +1568,16 @@ local function handleCommand(sender: Player, raw: string)
 		local v = (_G.IsVIP and _G.IsVIP(sender)) == true
 		tellSender(sender, v and "⭐ أنت عضو VIP — استمتع بالمزايا!" or "⭐ لست VIP حالياً. زر متجر اللعبة للاشتراك.")
 	elseif cmd == "spawn" or cmd == "سبون" then
-		if sender.Character then sender:LoadCharacter() end
-		tellSender(sender, "🔄 رجّعناك لنقطة الانطلاق.")
+		-- مهلة بسيطة تمنع تكرار LoadCharacter بسرعة (إجهاد السيرفر/حالات غير متوقّعة)
+		local now = os.clock()
+		local last = spawnCooldown[sender.UserId]
+		if last and (now - last) < SPAWN_COOLDOWN then
+			tellSender(sender, ("⏳ تمهّل — جرّب /spawn بعد %d ثانية."):format(math.ceil(SPAWN_COOLDOWN - (now - last))))
+		else
+			spawnCooldown[sender.UserId] = now
+			if sender.Character then sender:LoadCharacter() end
+			tellSender(sender, "🔄 رجّعناك لنقطة الانطلاق.")
+		end
 	elseif cmd == "flip" or cmd == "عملة" then
 		local r = (math.random(2) == 1) and "صورة 👑" or "كتابة ✍️"
 		broadcastSystem("🪙 " .. senderName .. " قذف العملة: " .. r)
