@@ -7323,7 +7323,7 @@ task.spawn(function()
 	local cashier = buildCashierModel({
 		name = "TicketCashier", tag = "🎟️ موظف التذاكر",
 		tagColor = Color3.fromRGB(255, 205, 90),
-		target = target, faceDir = Vector3.new(0, 0, 1),
+		target = target, faceDir = Vector3.new(0, 0, -1),   -- يواجه نافذة الشباك/اللاعبين (-Z)
 		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
 		maxDist = 16, onTrigger = openBoxOffice,
 	})
