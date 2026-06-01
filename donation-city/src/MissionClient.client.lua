@@ -58,8 +58,8 @@ local gui = new("ScreenGui", {
 
 local openBtn = new("TextButton", {
 	Name = "OpenBtn", Parent = gui,
-	-- أعلى اليسار بجانب زر الدردشة (صفّ علوي ثابت — لا يتداخل مع أزرار الوسط)
-	AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 74, 0, 14),
+	-- أعلى اليسار تحت الشريط العلوي لروبلوكس (لا يتداخل مع أزرار روبلوكس ولا الوسط)
+	AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 62),
 	Size = UDim2.new(0, 116, 0, 44),
 	BackgroundColor3 = PURPLE, Text = "📋 المهام",
 	Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = WHITE,
@@ -114,7 +114,7 @@ local scroll = new("ScrollingFrame", {
 -- بناء صف مهمة
 ----------------------------------------------------------------------
 local CAT_EMOJI = {
-	cinema = "🎬", booth = "🛍️", beach = "🏖️", volley = "🏐", parkour = "🧗", social = "👥",
+	cinema = "🎬", booth = "🛍️", beach = "🏖️", parkour = "🧗", social = "👥",
 }
 
 local function makeRow(order, m)
@@ -283,8 +283,7 @@ local function showBeginnerGuide()
 			"١- اختر بوثاً خاصاً بك.",
 			"٢- شاهد فيلماً داخل السينما.",
 			"٣- جرّب الباركور.",
-			"٤- شارك في مباراة كرة الطائرة.",
-			"٥- أكمل المهام اليومية لتحصل على الكوينز.",
+			"٤- أكمل المهام اليومية لتحصل على الكوينز.",
 		}, "\n"),
 	})
 	new("TextButton", {

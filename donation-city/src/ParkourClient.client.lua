@@ -119,15 +119,18 @@ progressRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
 	if data.state == "finish" then
 		active = false; bar.Visible = false; stopBtn.Visible = false
+		player:SetAttribute("InParkour", false)   -- يسمح بالجري ثانية خارج المسار
 		showFinish(fmtTime(data.time or 0), data.reward or 0)
 		return
 	end
 	if data.state == "idle" then
 		active = false; bar.Visible = false; stopBtn.Visible = false
+		player:SetAttribute("InParkour", false)
 		return
 	end
 	-- run
 	active = true; bar.Visible = true; stopBtn.Visible = true
+	player:SetAttribute("InParkour", true)   -- يوقف الجري داخل المسار (سرعة ثابتة للتحكّم)
 	baseTime = data.time or 0; baseClock = os.clock()
 	curStage = data.stage or 1; curCp = data.cp or 1; curTotal = data.total or 1; curPct = data.percent or 0
 	pct.BackgroundColor3 = STAGE_COLORS[curStage] or STAGE_COLORS[1]

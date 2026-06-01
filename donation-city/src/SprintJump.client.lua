@@ -152,20 +152,14 @@ local function attachEffects(char)
 	})
 	puff.Parent = att
 
-	-- أصوات قفز/هبوط (معرّفات قابلة للتبديل — 0/خطأ = صامت بلا ضرر)
-	local jumpSound = Instance.new("Sound")
-	jumpSound.Name = "SJ_Jump"; jumpSound.SoundId = "rbxassetid://5466166437"; jumpSound.Volume = 0.35; jumpSound.Parent = hrp
-	local landSound = Instance.new("Sound")
-	landSound.Name = "SJ_Land"; landSound.SoundId = "rbxassetid://5466166437"; landSound.Volume = 0.45; landSound.Parent = hrp
+	-- (أُزيلت أصوات القفز/الهبوط بناءً على طلب المستخدم — نبقي مؤثّر الجسيمات فقط)
 
 	hum.StateChanged:Connect(function(_, newState)
 		if newState == Enum.HumanoidStateType.Jumping then
 			puff:Emit(10)
-			pcall(function() jumpSound:Play() end)
 			if reportRemote then reportRemote:FireServer("jump") end
 		elseif newState == Enum.HumanoidStateType.Landed then
 			puff:Emit(16)
-			pcall(function() landSound:Play() end)
 		end
 	end)
 end
@@ -199,6 +193,14 @@ RunService.RenderStepped:Connect(function(dt)
 	local char = player.Character
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
+
+	-- داخل الباركور: نوقف الجري ونرجع السرعة الطبيعية (تحكّم دقيق بالقفزات).
+	-- لا نلمس السرعة إن كانت مقفولة على 0 (سينما/تحميل).
+	if player:GetAttribute("InParkour") then
+		if wantSprint then wantSprint = false; refreshBtn() end
+		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		return
+	end
 
 	-- هل الشخصية تتحرّك فعلاً؟ (للجري الفعلي فقط)
 	local moving = hum.MoveDirection.Magnitude > 0.1

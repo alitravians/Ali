@@ -1394,6 +1394,7 @@ showAdminPanel = function(data)
 	if myW >= RANK_W.admin then
 		table.insert(tabs, { key = "mods", label = "👮 المشرفون" })
 		table.insert(tabs, { key = "team", label = "👥 الفريق" })
+		table.insert(tabs, { key = "commands", label = "⌘ الأوامر" })
 		table.insert(tabs, { key = "show", label = "🎬 العرض" })
 		table.insert(tabs, { key = "settings", label = "⚙️ الإعدادات" })
 	end
@@ -2157,10 +2158,60 @@ showAdminPanel = function(data)
 		note("ℹ️ كل عضو يظهر تحت قسمه في صفحة «👥 الفريق». لو ما حدّدت مسؤولية تظهر رتبته تلقائياً. صور الأفتار تعمل في اللعبة المنشورة.")
 	end
 
+	-- ===== ⌘ تبويب الأوامر: التحكم بمستوى صلاحية كل أمر =====
+	local function buildCommands()
+		sectionLabel("⌘ صلاحيات الأوامر — اختر مستوى كل أمر")
+		note("لكل أمر مستوى مطلوب: «الجميع» متاح للكل · «المشرفون» للمشرف فأعلى · «الأداريون» للأدمن فأعلى · «معطّل» يوقف الأمر. يُحفظ تلقائياً ويُطبّق فوراً على الجميع. (الأمران /help و /clear متاحان دائماً للجميع.)")
+
+		local LV_EVERYONE, LV_MOD, LV_ADMIN, LV_OFF = 0, 2, 3, 99
+		local LEVELS = {
+			{ v = LV_EVERYONE, t = "الجميع",    c = Color3.fromRGB(120, 220, 140) },
+			{ v = LV_MOD,      t = "المشرفون",  c = CYAN },
+			{ v = LV_ADMIN,    t = "الأداريون", c = GOLD },
+			{ v = LV_OFF,      t = "معطّل",      c = Color3.fromRGB(232, 96, 110) },
+		}
+
+		local perms = data.cmdPerms
+		if typeof(perms) ~= "table" or #perms == 0 then
+			note("… لا توجد أوامر متاحة للعرض حالياً.")
+			return
+		end
+
+		for _, c in ipairs(perms) do
+			local f = rowFrame(66)
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = tostring(c.label or ("/" .. tostring(c.key))),
+				Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = TEXT,
+				Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 0),
+				TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, Parent = f,
+			})
+			local chips = new("Frame", {
+				BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 32), Position = UDim2.fromOffset(0, 30), Parent = f,
+			})
+			local nL = #LEVELS
+			for li, lv in ipairs(LEVELS) do
+				local active = (tonumber(c.level) == lv.v)
+				local chip = styledButton(chips, {
+					Text = lv.t, Font = Enum.Font.GothamBold, TextSize = 12,
+					TextColor3 = active and Color3.fromRGB(18, 14, 28) or TEXT,
+					BackgroundColor3 = active and lv.c or CARD,
+					Size = UDim2.new(1 / nL, -5, 1, 0),
+					Position = UDim2.new((nL - li) / nL, 2, 0, 0), Parent = chips,
+				})
+				if not active then
+					chip.MouseButton1Click:Connect(function()
+						cmd({ cmd = "setCmdPerm", key = c.key, level = lv.v })
+					end)
+				end
+			end
+		end
+	end
+
 	-- ===== ربط التبويبات =====
 	local builders = {
 		stats = buildStats, show = buildShow, players = buildPlayers,
 		settings = buildSettings, chat = buildChat, mods = buildMods, team = buildTeam,
+		commands = buildCommands,
 	}
 	local function selectTab(key)
 		adminTab = key
