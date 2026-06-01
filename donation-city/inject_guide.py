@@ -116,7 +116,7 @@ def main():
                 sss.remove(ch); removed += 1
 
     sss.append(model)
-    tree.write(MAIN, xml_declaration=True, encoding="utf-8")
+    tree.write(MAIN, xml_declaration=False, encoding="utf-8")
     print(f"injected '{MODEL_NAME}' into ServerScriptService "
           f"({parts} BaseParts anchored, removed {removed} old).")
 
