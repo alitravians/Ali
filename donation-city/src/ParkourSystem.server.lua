@@ -375,6 +375,7 @@ finishRun = function(player)
 		_G.AwardAchievement(player, "parkour_first")
 		_G.AwardAchievement(player, "parkour_done")
 	end
+	if _G.AwardBadge then _G.AwardBadge(player, "PARKOUR") end
 	if _G.ReportMission then _G.ReportMission(player, "parkour_done", 1) end
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, string.format(

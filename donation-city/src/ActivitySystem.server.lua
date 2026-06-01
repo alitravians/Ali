@@ -130,6 +130,7 @@ task.spawn(function()
 				if not s.doneExplorer and s.visitCount >= TOTAL_AREAS then
 					s.doneExplorer = true
 					award(player, "explorer")
+					if _G.AwardBadge then _G.AwardBadge(player, "EXPLORER") end
 				end
 
 				-- مهام المناطق (نظام المهام)
