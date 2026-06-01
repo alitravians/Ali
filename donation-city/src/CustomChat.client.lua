@@ -135,39 +135,6 @@ local gui = new("ScreenGui", {
 	Parent = playerGui,
 })
 
-------------------------------------------------------------------------
--- ختم نسخة مرئي مؤقّت: يثبت للّاعب أنه يشغّل آخر ملف فعلاً (يختفي تلقائياً).
--- إذا ما ظهر هذا الشريط عند Play → معناه الملف المفتوح قديم وليس آخر نسخة.
-------------------------------------------------------------------------
-do
-	local stampGui = Instance.new("ScreenGui")
-	stampGui.Name = "BuildStamp"
-	stampGui.ResetOnSpawn = false
-	stampGui.DisplayOrder = 999
-	stampGui.IgnoreGuiInset = true
-	stampGui.Parent = playerGui
-	local lbl = Instance.new("TextLabel")
-	lbl.AnchorPoint = Vector2.new(0.5, 0)
-	lbl.Position = UDim2.new(0.5, 0, 0, 6)
-	lbl.Size = UDim2.new(0, 360, 0, 30)
-	lbl.BackgroundColor3 = Color3.fromRGB(20, 140, 70)
-	lbl.BackgroundTransparency = 0.1
-	lbl.TextColor3 = Color3.fromRGB(255, 255, 255)
-	lbl.Font = Enum.Font.GothamBold
-	lbl.TextSize = 15
-	lbl.Text = "✅ Build A1 — new aquarium + chat top-left"
-	lbl.Parent = stampGui
-	local cr = Instance.new("UICorner"); cr.CornerRadius = UDim.new(0, 8); cr.Parent = lbl
-	task.delay(12, function()
-		for i = 1, 20 do
-			lbl.BackgroundTransparency = 0.1 + i * 0.045
-			lbl.TextTransparency = i * 0.05
-			task.wait(0.05)
-		end
-		stampGui:Destroy()
-	end)
-end
-
 -- 💬 زر مُصغّر (فقاعة) أعلى يسار الشاشة بجانب زر شات روبلوكس الأصلي — يفتح/يخفي لوحة الدردشة.
 -- launcher button: TOP-LEFT, beside the native Roblox chat icon (pixel offset approximate; easy to nudge)
 local launcher = new("TextButton", {
