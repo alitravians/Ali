@@ -7255,9 +7255,10 @@ local function buildCashierModel(opts)
 	-- الحجم (معتدل) قبل التموضع
 	pcall(function() model:ScaleTo(CASHIER_SCALE) end)
 
-	-- وضعية الجلوس: ندوّر الساقين للأمام (نحو اللاعبين +Z) حول مفصل الورك نفسه (R6).
-	-- ندوّر حول محور X المحلي للجذع مع الحفاظ على نقطة ارتكاز المفصل (موضع C0) كما هي،
-	-- فتنثني الساقان للأمام بشكل واقعي بدل أن تتأرجح القطعة حول مركز الجذع.
+	-- وضعية الجلوس: ندوّر الساقين للأمام (نحو الجهة التي يواجهها الجذع) حول مفصل الورك (R6).
+	-- ملاحظة دقيقة: «أمام» الجذع هو محوره المحلي -Z (اتجاه LookVector)، لذا نستخدم +π/2
+	-- حول محور X المحلي لتتقدّم الساقان أمام الجسم؛ (-π/2 كانت تدفعهما للخلف فيبان مائلاً).
+	-- نحافظ على نقطة ارتكاز المفصل (موضع C0) كما هي فتنثني الساق حول الورك لا حول مركز الجذع.
 	local torso = model:FindFirstChild("Torso")
 	if torso then
 		for _, hipName in ipairs({ "Right Hip", "Left Hip" }) do
@@ -7266,7 +7267,7 @@ local function buildCashierModel(opts)
 				local c0 = hip.C0
 				local pivot = c0.Position
 				local orient = c0 - pivot                              -- اتجاه فقط (بلا إزاحة)
-				hip.C0 = CFrame.new(pivot) * CFrame.Angles(-math.pi / 2, 0, 0) * orient
+				hip.C0 = CFrame.new(pivot) * CFrame.Angles(math.pi / 2, 0, 0) * orient
 			end
 		end
 	end
