@@ -278,8 +278,6 @@ task.spawn(function()
 	local function isFish(part)
 		if not part:IsA("BasePart") then return false end
 		local n = part.Name:lower()
-		local p = part.Parent
-		local pn = (p and p.Name or ""):lower()
 		local underFish = false
 		local anc = part
 		while anc and anc ~= aquarium do
@@ -345,11 +343,7 @@ task.spawn(function()
 		return cur + norm(target - cur) * alpha
 	end
 
-	-- فقاعات: نجمع باعثات الفقاعات الموجودة + باعث صغير جاهز للانفجار
-	local emitters = {}
-	for _, d in ipairs(aquarium:GetDescendants()) do
-		if d:IsA("ParticleEmitter") then table.insert(emitters, d) end
-	end
+	-- فقاعات: باعث صغير جاهز للانفجار عند القضم
 	local function bubbleBurst(atPos, n)
 		local a = Instance.new("Part")
 		a.Size = Vector3.new(0.2, 0.2, 0.2); a.Transparency = 1; a.Anchored = true
@@ -432,7 +426,7 @@ task.spawn(function()
 
 		-- أقرب أكل حيّ لكل سمكة (للتجمّع والقضم)
 		for _, f in ipairs(fishes) do
-			local target, steer, speed
+			local target, speed
 			if feeding then
 				-- اختر أقرب قطعة أكل حيّة
 				local best, bestD = nil, 1e9
