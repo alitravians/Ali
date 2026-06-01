@@ -1359,7 +1359,9 @@ local function buildCharacterModel(opts)
 	-- استقرار القدمين على الأرضية الفعلية تحته عبر شعاع لأسفل (يتجاهل المرشد نفسه)
 	local rp = RaycastParams.new()
 	rp.FilterType = Enum.RaycastFilterType.Exclude
-	rp.FilterDescendantsInstances = { model }
+	local ignore = { model }
+	for _, ig in ipairs(opts.raycastIgnore or {}) do table.insert(ignore, ig) end  -- نتجاهل الكاونتر/الديكور حتى يستقر على الأرض لا فوقه
+	rp.FilterDescendantsInstances = ignore
 	local fp = opts.footCFrame.Position
 	local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
 	local feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
@@ -1539,16 +1541,18 @@ pcall(function()
 		buildNPC(guideOpts)
 	end
 
-	-- خادم واحد عند بسطة الفشار يقدّم الطلبات
+	-- خادم واحد جنب بسطة الفشار يقدّم الطلبات — موضع مكشوف على يسار الكاونتر
+	-- (أرضية مفتوحة غير محجوبة بالكاونتر) ومواجه للقادمين من المدخل، فيبان واضحاً.
 	local waiterFoot = CFrame.lookAt(
-		Vector3.new(popPos.X + 4, groundY, popPos.Z - 2),
-		Vector3.new(popPos.X + 4, groundY, popPos.Z - 25)
+		Vector3.new(popPos.X - 7, groundY, popPos.Z),
+		Vector3.new(popPos.X - 7, groundY, popPos.Z + 25)
 	)
 	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
 	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
 	local waiterOpts = {
 		name = "CinemaWaiter", tag = "🍿 خادم السينما", tagColor = Color3.fromRGB(255, 205, 90),
 		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
+		raycastIgnore = popcorn and { popcorn } or nil,  -- لا يُحسب فوق الكاونتر
 		promptText = "اطلب طلبك", promptObj = "خادم السينما", onTrigger = waiterServe,
 	}
 	if not buildCharacterModel(waiterOpts) then
