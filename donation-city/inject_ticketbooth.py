@@ -29,7 +29,7 @@ SRC  = "ticketbooth_new.rbxmx"     # repo-local copy of the Creator Store model 
 MODEL_NAME = "TicketBooth"         # stable name (no space) for the injected model
 TX, TZ    = -15.0, -100.0          # same plaza spot as the old procedural booth
 GROUND_Y  = 1.0                    # plaza floor (model foot sits here)
-ROT_Y_DEG = -90.0                  # native screen faces +X; rotate -90deg so it faces +Z (toward the plaza/players)
+ROT_Y_DEG = 90.0                   # face the TICKETS front toward the plaza/players (was -90 which put the front facing away; +90 flips it 180deg the right way)
 PREF      = "TB"                   # unique-referent prefix
 
 # Backdoor items to remove, matched by (class, Name). Everything else is kept.
