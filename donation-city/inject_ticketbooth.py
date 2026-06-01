@@ -183,5 +183,24 @@ for it in baseparts(cp):
         set_r(cf, k, v)
 
 ws.append(cp)
+
+# ---------- merge SharedStrings blobs (md5-dedup) ----------
+# MeshPart / UnionOperation physics+mesh data live in <SharedStrings> referenced
+# by md5. Without merging the source model's blobs into the main file, those refs
+# dangle and the booth's 32 unions/meshes render broken. Same step as the other
+# injectors (inject_aquarium / inject_fountain / inject_parkour_model).
+main_ss = root.find("SharedStrings")
+if main_ss is None:
+    main_ss = etree.SubElement(root, "SharedStrings")
+have = {e.get("md5") for e in main_ss}
+src_ss = sroot.find("SharedStrings")
+added = 0
+if src_ss is not None:
+    for e in src_ss:
+        md5 = e.get("md5")
+        if md5 not in have:
+            main_ss.append(copy.deepcopy(e)); have.add(md5); added += 1
+print(f"merged SharedStrings: +{added} (total {len(main_ss)})")
+
 tree.write(MAIN, encoding="utf-8", xml_declaration=False)
 print(f"injected '{MODEL_NAME}' ({sum(1 for _ in cp.iter('Item'))} items) at ({TX},{GROUND_Y},{TZ}) rotY={ROT_Y_DEG}")
