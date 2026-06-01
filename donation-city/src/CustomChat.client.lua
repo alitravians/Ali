@@ -196,8 +196,8 @@ local header = new("Frame", {
 })
 new("TextLabel", {
 	Name = "Title",
-	Size = UDim2.new(1, -90, 1, 0),
-	Position = UDim2.new(0, 12, 0, 0),
+	Size = UDim2.new(1, -88, 1, 0),
+	Position = UDim2.new(0, 44, 0, 0),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
 	Text = "💬 الدردشة",
@@ -1036,7 +1036,7 @@ cmdBackdrop.MouseButton1Click:Connect(closeCommands)
 
 -- زر ⌘ في رأس لوحة الدردشة يفتح لوحة الأوامر
 local cmdBtn = new("TextButton", {
-	Name = "CmdBtn", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -42, 0.5, 0),
+	Name = "CmdBtn", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
 	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.2,
 	Font = Enum.Font.GothamBold, Text = "📋", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 15,
 	AutoButtonColor = true, Parent = header,
