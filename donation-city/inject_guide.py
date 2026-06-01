@@ -27,7 +27,7 @@ PREF = "GUIDE_"   # unique referent prefix to avoid clashes with the main file
 BASEPARTS = {"Part", "MeshPart", "WedgePart", "CornerWedgePart", "TrussPart",
              "UnionOperation", "Seat", "VehicleSeat"}
 MALICIOUS = ("loadstring", "getfenv", "setfenv", "HttpGet", "HttpGetAsync",
-             "GetObjects", "InsertService")
+             "GetObjects", "InsertService", "require(")
 SCRIPTY = {"Script", "LocalScript", "ModuleScript"}
 
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
