@@ -1319,7 +1319,8 @@ local groundY = floorPart and (floorPart.Position.Y + floorPart.Size.Y / 2) or 0
 
 -- مرشد السينما: نستنسخ موديل الشخصية الجاهز (Black Mesa Scientist) من قالب
 -- مخفي في ServerScriptService، ونضيف سلوكنا الخاص (وسم + زر تفاعل + حركة وقوف)
--- خارج الموديل — فيبقى الموديل كما صمّمه صاحبه دون أي تعديل بداخله.
+-- خارج الموديل — لا نضيف أي سكربتات أو منطق لعبة بداخله (نضبط فقط خصائص عرض:
+-- تثبيت القطع، صحة الـ Humanoid، والحجم) فيبقى تصميمه الأصلي كما هو.
 local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط عند المدخل
 local function buildGuideModel(opts)
 	local template = ServerScriptService:FindFirstChild("CinemaGuideModel")
