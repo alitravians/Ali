@@ -124,9 +124,27 @@ def main():
                 sss.remove(ch); removed += 1
 
     sss.append(model)
+
+    # Merge SharedStrings blobs (md5-dedup): MeshParts reference mesh/physics data by
+    # md5 in <SharedStrings>; without merging they dangle. The current guide model has
+    # none, but keep this consistent with inject_cashier/ticketbooth so a future mesh
+    # model swap can't silently break geometry.
+    main_ss = root.find("SharedStrings")
+    if main_ss is None:
+        main_ss = etree.SubElement(root, "SharedStrings")
+    have = {e.get("md5") for e in main_ss}
+    src_ss = src_root.find("SharedStrings")
+    added = 0
+    if src_ss is not None:
+        for e in src_ss:
+            md5 = e.get("md5")
+            if md5 not in have:
+                main_ss.append(copy.deepcopy(e)); have.add(md5); added += 1
+
     tree.write(MAIN, xml_declaration=False, encoding="utf-8")
     print(f"injected '{MODEL_NAME}' into ServerScriptService "
-          f"({parts} BaseParts anchored, removed {removed} old).")
+          f"({parts} BaseParts anchored, removed {removed} old); "
+          f"merged SharedStrings +{added}.")
 
 
 if __name__ == "__main__":

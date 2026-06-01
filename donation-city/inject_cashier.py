@@ -100,8 +100,11 @@ def audit(model):
     for pat in scan_text(raw):
         if pat not in seen:
             # flag raw-only hits not already reported from a script source. Dedup is
-            # by EXACT pattern token so a "HttpGetAsync" script hit can't mask a
-            # separate raw "HttpGet" hit (substring overlap would have hidden it).
+            # only to avoid duplicate diagnostic lines; it never affects the security
+            # gate (any entry in `bad` => reject below). Note scan_text is substring
+            # based, so a script "HttpGetAsync" hit also adds "HttpGet" to `seen` — a
+            # later raw-only "HttpGet" would be deduped, but the model is rejected
+            # regardless since both are already in `bad`.
             bad.append(f"raw -> {pat}")
             seen.add(pat)
     return scripts, bad
