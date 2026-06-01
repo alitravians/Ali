@@ -102,7 +102,7 @@ mnx=mny=mnz=1e18; mxx=mxy=mxz=-1e18
 for it in baseparts(model):
     pr = it.find("Properties")
     cf = pr.find("CoordinateFrame[@name='CFrame']") if pr is not None else None
-    sz = pr.find("Vector3[@name='size']") if pr is not None else None
+    sz = (pr.find("Vector3[@name='size']") or pr.find("Vector3[@name='Size']")) if pr is not None else None
     if cf is None or sz is None: continue
     cx, cy, cz = get(cf,"X"), get(cf,"Y"), get(cf,"Z")
     hx, hy, hz = get(sz,"X")/2, get(sz,"Y")/2, get(sz,"Z")/2
