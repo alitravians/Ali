@@ -21326,7 +21326,7 @@ end)
         </Vector3>
       </Properties>
     </Item>
-    <Item class="Part" referent="348">
+    <Item class="SpawnLocation" referent="348">
       <Properties>
         <string name="Name">SpawnLocation</string>
         <bool name="Anchored">true</bool>
@@ -21352,7 +21352,7 @@ end)
           <Z>18</Z>
         </Vector3>
         <float name="Transparency">0</float>
-      </Properties>
+      <bool name="Enabled">true</bool><bool name="Neutral">true</bool><bool name="AllowTeamChangeOnTouch">false</bool><bool name="CanCollide">true</bool><int name="Duration">0</int></Properties>
     </Item>
     <Item class="Model" referent="349">
       <Properties>
