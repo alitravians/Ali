@@ -379,10 +379,10 @@ local CMD_EVERYONE, CMD_MOD, CMD_ADMIN, CMD_OFF = 0, 2, 3, 99
 -- (help و clear متاحان دائماً للجميع وغير مدرجين هنا فلا يمكن تعطيلهما.)
 local CMD_DEFS = {
 	-- 🟢 ترفيهية/عامة
-	{ key = "me",       label = "✦ /me — تعبير عن فعل",      def = CMD_EVERYONE },
+	{ key = "me",       label = "🎭 /me — تعبير عن فعل",      def = CMD_EVERYONE },
 	{ key = "roll",     label = "🎲 /roll — رمي نرد",          def = CMD_EVERYONE },
-	{ key = "flip",     label = "🪙 /flip — قذف عملة",         def = CMD_EVERYONE },
-	{ key = "coins",    label = "🪙 /coins — رصيدك",           def = CMD_EVERYONE },
+	{ key = "flip",     label = "💰 /flip — قذف عملة",         def = CMD_EVERYONE },
+	{ key = "coins",    label = "💰 /coins — رصيدك",           def = CMD_EVERYONE },
 	{ key = "tickets",  label = "🎟️ /tickets — تذاكرك",       def = CMD_EVERYONE },
 	{ key = "online",   label = "👥 /online — عدد المتصلين",   def = CMD_EVERYONE },
 	{ key = "spawn",    label = "🔄 /spawn — العودة للانطلاق", def = CMD_EVERYONE },
@@ -395,7 +395,7 @@ local CMD_DEFS = {
 	{ key = "kick",     label = "👢 /kick — طرد لاعب",         def = CMD_ADMIN },
 	{ key = "bring",    label = "🧲 /bring · /pull — سحب لاعب", def = CMD_ADMIN },
 	{ key = "to",       label = "🏃 /to — الانتقال للاعب",     def = CMD_ADMIN },
-	{ key = "freeze",   label = "🧊 /freeze — تجميد لاعب",     def = CMD_ADMIN },
+	{ key = "freeze",   label = "❄️ /freeze — تجميد لاعب",     def = CMD_ADMIN },
 	{ key = "unfreeze", label = "🌤️ /unfreeze — فك التجميد",   def = CMD_ADMIN },
 	{ key = "fly",      label = "🕊️ /fly — طيران",            def = CMD_ADMIN },
 	{ key = "give",     label = "🎁 /give — منح عملات",        def = CMD_ADMIN },
@@ -554,7 +554,7 @@ local function handleCommand(sender: Player, raw: string)
 		tellSender(sender, "👥 عدد المتصلين الآن: " .. #Players:GetPlayers())
 	elseif cmd == "coins" or cmd == "رصيد" then
 		local c = (_G.GetCoins and _G.GetCoins(sender)) or 0
-		tellSender(sender, "🪙 رصيدك: " .. tostring(c) .. " عملة")
+		tellSender(sender, "💰 رصيدك: " .. tostring(c) .. " عملة")
 	elseif cmd == "tickets" or cmd == "تذاكر" then
 		local t = (_G.GetTickets and _G.GetTickets(sender)) or 0
 		tellSender(sender, "🎟️ تذاكرك: " .. tostring(t))
@@ -574,7 +574,7 @@ local function handleCommand(sender: Player, raw: string)
 		end
 	elseif cmd == "flip" or cmd == "عملة" then
 		local r = (math.random(2) == 1) and "صورة 👑" or "كتابة ✍️"
-		broadcastSystem("🪙 " .. senderName .. " قذف العملة: " .. r)
+		broadcastSystem("💰 " .. senderName .. " قذف العملة: " .. r)
 	elseif cmd == "roll" or cmd == "نرد" then
 		local maxN = math.clamp(math.floor(tonumber(rest) or 100), 2, 1000000)
 		broadcastSystem("🎲 " .. senderName .. " رمى النرد (1–" .. maxN .. "): " .. math.random(1, maxN))
@@ -583,7 +583,7 @@ local function handleCommand(sender: Player, raw: string)
 		if act == "" then tellSender(sender, "✍️ الاستخدام: /me <فعل> — مثال: /me يرقص"); return end
 		local f = safeFilter(act, sender.UserId)
 		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة رسالتك."); return end
-		broadcastSystem("💬 ✦ " .. senderName .. " " .. f)
+		broadcastSystem("🎭 " .. senderName .. " " .. f)
 
 	-- ============ أوامر المشرفين (Mod فأعلى) ============
 	elseif cmd == "announce" or cmd == "اعلان" or cmd == "إعلان" then
@@ -635,8 +635,8 @@ local function handleCommand(sender: Player, raw: string)
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
 		if weightOf(target) >= w and target ~= sender then tellSender(sender, "🚫 لا يمكنك تجميد من رتبته مثلك أو أعلى."); return end
 		setFrozen(target, true)
-		tellSender(sender, "🧊 تم تجميد " .. target.DisplayName .. ".")
-		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🧊 تم تجميدك مؤقتاً من الإدارة.") end
+		tellSender(sender, "❄️ تم تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "❄️ تم تجميدك مؤقتاً من الإدارة.") end
 	elseif cmd == "unfreeze" or cmd == "فك_تجميد" or cmd == "تذويب" then
 		local target = findPlayer(rest:match("^(%S+)"))
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
@@ -654,7 +654,7 @@ local function handleCommand(sender: Player, raw: string)
 		if not amt or amt == 0 then tellSender(sender, "✍️ الاستخدام: /give <لاعب> <عدد العملات>"); return end
 		amt = math.clamp(math.floor(amt), -1000000, 1000000)
 		if _G.AddCoins then _G.AddCoins(target, amt) end
-		tellSender(sender, "🪙 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
+		tellSender(sender, "💰 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
 		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🎁 استلمت " .. tostring(amt) .. " عملة من الإدارة!") end
 	elseif cmd == "speed" or cmd == "سرعة" then
 		local nStr, who = rest:match("^(%S+)%s*(.*)$")

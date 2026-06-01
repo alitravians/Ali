@@ -1293,7 +1293,8 @@ do
 			Size = UDim2.new(1, -130, 0, 20), Position = UDim2.fromOffset(64, 46), Parent = panel,
 		})
 		local close = styledButton(panel, {
-			Name = "X", Text = "✕", Font = Enum.Font.GothamBlack, TextSize = 18, TextColor3 = TEXT,
+			-- نستخدم «×» (U+00D7) بدل «✕» (U+2715) لأن الأخير لا يتوفّر في خط روبلوكس فيظهر مربّعاً فارغاً
+			Name = "X", Text = "×", Font = Enum.Font.GothamBlack, TextSize = 26, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(48, 40, 64), Size = UDim2.fromOffset(38, 38),
 			Position = UDim2.fromOffset(14, 14), Parent = panel,
 		})
@@ -1661,7 +1662,7 @@ showAdminPanel = function(data)
 	if myW >= RANK_W.admin then
 		table.insert(tabs, { key = "mods", label = "👮 المشرفون" })
 		table.insert(tabs, { key = "team", label = "👥 الفريق" })
-		table.insert(tabs, { key = "commands", label = "⌘ الأوامر" })
+		table.insert(tabs, { key = "commands", label = "📋 الأوامر" })
 		table.insert(tabs, { key = "show", label = "🎬 العرض" })
 		table.insert(tabs, { key = "settings", label = "⚙️ الإعدادات" })
 	end
@@ -2427,7 +2428,7 @@ showAdminPanel = function(data)
 
 	-- ===== ⌘ تبويب الأوامر: التحكم بمستوى صلاحية كل أمر =====
 	local function buildCommands()
-		sectionLabel("⌘ صلاحيات الأوامر — اختر مستوى كل أمر")
+		sectionLabel("📋 صلاحيات الأوامر — اختر مستوى كل أمر")
 		note("لكل أمر مستوى مطلوب: «الجميع» متاح للكل · «المشرفون» للمشرف فأعلى · «الأداريون» للأدمن فأعلى · «معطّل» يوقف الأمر. يُحفظ تلقائياً ويُطبّق فوراً على الجميع. (الأمران /help و /clear متاحان دائماً للجميع.)")
 
 		local LV_EVERYONE, LV_MOD, LV_ADMIN, LV_OFF = 0, 2, 3, 99

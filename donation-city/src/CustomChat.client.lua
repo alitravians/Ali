@@ -196,8 +196,8 @@ local header = new("Frame", {
 })
 new("TextLabel", {
 	Name = "Title",
-	Size = UDim2.new(1, -44, 1, 0),
-	Position = UDim2.new(0, 12, 0, 0),
+	Size = UDim2.new(1, -88, 1, 0),
+	Position = UDim2.new(0, 44, 0, 0),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
 	Text = "💬 الدردشة",
@@ -769,7 +769,7 @@ local EMOJIS = {
 	"💨", "🔥", "⭐", "🌟", "✨", "⚡", "🌈", "☀️",
 	-- احتفال وأشياء
 	"🎉", "🎊", "🎈", "🎁", "🎀", "🏆", "🥇", "🥈",
-	"🥉", "👑", "💎", "💰", "🪙", "🎮", "🕹️", "🎲",
+	"🥉", "👑", "💎", "💰", "💵", "🎮", "🕹️", "🎲",
 	"🎬", "🍿", "🎤", "🎧", "🎵", "🎶", "📣", "🔔",
 	-- طعام وحيوانات
 	"🍕", "🍔", "🍟", "🌭", "🍩", "🍪", "🍰", "🧁",
@@ -942,7 +942,7 @@ new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.3, Parent = 
 new("UISizeConstraint", { MinSize = Vector2.new(300, 320), MaxSize = Vector2.new(520, 560), Parent = cmdPanel })
 
 new("TextLabel", {
-	Name = "Title", BackgroundTransparency = 1, Text = "⌘ لوحة الأوامر",
+	Name = "Title", BackgroundTransparency = 1, Text = "📋 لوحة الأوامر",
 	Font = Enum.Font.GothamBlack, TextSize = 20, TextColor3 = GOLD,
 	Size = UDim2.new(1, -56, 0, 40), Position = UDim2.fromOffset(14, 10),
 	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
@@ -950,7 +950,7 @@ new("TextLabel", {
 local cmdClose = new("TextButton", {
 	Name = "Close", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 30),
 	Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromRGB(48, 40, 64),
-	Font = Enum.Font.GothamBold, Text = "✕", TextColor3 = TEXT, TextSize = 16,
+	Font = Enum.Font.GothamBold, Text = "×", TextColor3 = TEXT, TextSize = 22,
 	AutoButtonColor = true, ZIndex = 22, Parent = cmdPanel,
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdClose })
@@ -1036,9 +1036,9 @@ cmdBackdrop.MouseButton1Click:Connect(closeCommands)
 
 -- زر ⌘ في رأس لوحة الدردشة يفتح لوحة الأوامر
 local cmdBtn = new("TextButton", {
-	Name = "CmdBtn", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -42, 0.5, 0),
+	Name = "CmdBtn", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
 	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.15,
-	Font = Enum.Font.GothamBold, Text = "⌘", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 17,
+	Font = Enum.Font.GothamBold, Text = "📋", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 15,
 	AutoButtonColor = true, Parent = header,
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdBtn })

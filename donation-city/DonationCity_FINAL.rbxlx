@@ -1399,10 +1399,10 @@ local CMD_EVERYONE, CMD_MOD, CMD_ADMIN, CMD_OFF = 0, 2, 3, 99
 -- (help و clear متاحان دائماً للجميع وغير مدرجين هنا فلا يمكن تعطيلهما.)
 local CMD_DEFS = {
 	-- 🟢 ترفيهية/عامة
-	{ key = "me",       label = "✦ /me — تعبير عن فعل",      def = CMD_EVERYONE },
+	{ key = "me",       label = "🎭 /me — تعبير عن فعل",      def = CMD_EVERYONE },
 	{ key = "roll",     label = "🎲 /roll — رمي نرد",          def = CMD_EVERYONE },
-	{ key = "flip",     label = "🪙 /flip — قذف عملة",         def = CMD_EVERYONE },
-	{ key = "coins",    label = "🪙 /coins — رصيدك",           def = CMD_EVERYONE },
+	{ key = "flip",     label = "💰 /flip — قذف عملة",         def = CMD_EVERYONE },
+	{ key = "coins",    label = "💰 /coins — رصيدك",           def = CMD_EVERYONE },
 	{ key = "tickets",  label = "🎟️ /tickets — تذاكرك",       def = CMD_EVERYONE },
 	{ key = "online",   label = "👥 /online — عدد المتصلين",   def = CMD_EVERYONE },
 	{ key = "spawn",    label = "🔄 /spawn — العودة للانطلاق", def = CMD_EVERYONE },
@@ -1415,7 +1415,7 @@ local CMD_DEFS = {
 	{ key = "kick",     label = "👢 /kick — طرد لاعب",         def = CMD_ADMIN },
 	{ key = "bring",    label = "🧲 /bring · /pull — سحب لاعب", def = CMD_ADMIN },
 	{ key = "to",       label = "🏃 /to — الانتقال للاعب",     def = CMD_ADMIN },
-	{ key = "freeze",   label = "🧊 /freeze — تجميد لاعب",     def = CMD_ADMIN },
+	{ key = "freeze",   label = "❄️ /freeze — تجميد لاعب",     def = CMD_ADMIN },
 	{ key = "unfreeze", label = "🌤️ /unfreeze — فك التجميد",   def = CMD_ADMIN },
 	{ key = "fly",      label = "🕊️ /fly — طيران",            def = CMD_ADMIN },
 	{ key = "give",     label = "🎁 /give — منح عملات",        def = CMD_ADMIN },
@@ -1574,7 +1574,7 @@ local function handleCommand(sender: Player, raw: string)
 		tellSender(sender, "👥 عدد المتصلين الآن: " .. #Players:GetPlayers())
 	elseif cmd == "coins" or cmd == "رصيد" then
 		local c = (_G.GetCoins and _G.GetCoins(sender)) or 0
-		tellSender(sender, "🪙 رصيدك: " .. tostring(c) .. " عملة")
+		tellSender(sender, "💰 رصيدك: " .. tostring(c) .. " عملة")
 	elseif cmd == "tickets" or cmd == "تذاكر" then
 		local t = (_G.GetTickets and _G.GetTickets(sender)) or 0
 		tellSender(sender, "🎟️ تذاكرك: " .. tostring(t))
@@ -1594,7 +1594,7 @@ local function handleCommand(sender: Player, raw: string)
 		end
 	elseif cmd == "flip" or cmd == "عملة" then
 		local r = (math.random(2) == 1) and "صورة 👑" or "كتابة ✍️"
-		broadcastSystem("🪙 " .. senderName .. " قذف العملة: " .. r)
+		broadcastSystem("💰 " .. senderName .. " قذف العملة: " .. r)
 	elseif cmd == "roll" or cmd == "نرد" then
 		local maxN = math.clamp(math.floor(tonumber(rest) or 100), 2, 1000000)
 		broadcastSystem("🎲 " .. senderName .. " رمى النرد (1–" .. maxN .. "): " .. math.random(1, maxN))
@@ -1603,7 +1603,7 @@ local function handleCommand(sender: Player, raw: string)
 		if act == "" then tellSender(sender, "✍️ الاستخدام: /me <فعل> — مثال: /me يرقص"); return end
 		local f = safeFilter(act, sender.UserId)
 		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة رسالتك."); return end
-		broadcastSystem("💬 ✦ " .. senderName .. " " .. f)
+		broadcastSystem("🎭 " .. senderName .. " " .. f)
 
 	-- ============ أوامر المشرفين (Mod فأعلى) ============
 	elseif cmd == "announce" or cmd == "اعلان" or cmd == "إعلان" then
@@ -1655,8 +1655,8 @@ local function handleCommand(sender: Player, raw: string)
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
 		if weightOf(target) >= w and target ~= sender then tellSender(sender, "🚫 لا يمكنك تجميد من رتبته مثلك أو أعلى."); return end
 		setFrozen(target, true)
-		tellSender(sender, "🧊 تم تجميد " .. target.DisplayName .. ".")
-		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🧊 تم تجميدك مؤقتاً من الإدارة.") end
+		tellSender(sender, "❄️ تم تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "❄️ تم تجميدك مؤقتاً من الإدارة.") end
 	elseif cmd == "unfreeze" or cmd == "فك_تجميد" or cmd == "تذويب" then
 		local target = findPlayer(rest:match("^(%S+)"))
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
@@ -1674,7 +1674,7 @@ local function handleCommand(sender: Player, raw: string)
 		if not amt or amt == 0 then tellSender(sender, "✍️ الاستخدام: /give <لاعب> <عدد العملات>"); return end
 		amt = math.clamp(math.floor(amt), -1000000, 1000000)
 		if _G.AddCoins then _G.AddCoins(target, amt) end
-		tellSender(sender, "🪙 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
+		tellSender(sender, "💰 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
 		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🎁 استلمت " .. tostring(amt) .. " عملة من الإدارة!") end
 	elseif cmd == "speed" or cmd == "سرعة" then
 		local nStr, who = rest:match("^(%S+)%s*(.*)$")
@@ -9746,8 +9746,8 @@ local header = new("Frame", {
 })
 new("TextLabel", {
 	Name = "Title",
-	Size = UDim2.new(1, -44, 1, 0),
-	Position = UDim2.new(0, 12, 0, 0),
+	Size = UDim2.new(1, -88, 1, 0),
+	Position = UDim2.new(0, 44, 0, 0),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
 	Text = "💬 الدردشة",
@@ -10319,7 +10319,7 @@ local EMOJIS = {
 	"💨", "🔥", "⭐", "🌟", "✨", "⚡", "🌈", "☀️",
 	-- احتفال وأشياء
 	"🎉", "🎊", "🎈", "🎁", "🎀", "🏆", "🥇", "🥈",
-	"🥉", "👑", "💎", "💰", "🪙", "🎮", "🕹️", "🎲",
+	"🥉", "👑", "💎", "💰", "💵", "🎮", "🕹️", "🎲",
 	"🎬", "🍿", "🎤", "🎧", "🎵", "🎶", "📣", "🔔",
 	-- طعام وحيوانات
 	"🍕", "🍔", "🍟", "🌭", "🍩", "🍪", "🍰", "🧁",
@@ -10492,7 +10492,7 @@ new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.3, Parent = 
 new("UISizeConstraint", { MinSize = Vector2.new(300, 320), MaxSize = Vector2.new(520, 560), Parent = cmdPanel })
 
 new("TextLabel", {
-	Name = "Title", BackgroundTransparency = 1, Text = "⌘ لوحة الأوامر",
+	Name = "Title", BackgroundTransparency = 1, Text = "📋 لوحة الأوامر",
 	Font = Enum.Font.GothamBlack, TextSize = 20, TextColor3 = GOLD,
 	Size = UDim2.new(1, -56, 0, 40), Position = UDim2.fromOffset(14, 10),
 	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
@@ -10500,7 +10500,7 @@ new("TextLabel", {
 local cmdClose = new("TextButton", {
 	Name = "Close", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 30),
 	Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromRGB(48, 40, 64),
-	Font = Enum.Font.GothamBold, Text = "✕", TextColor3 = TEXT, TextSize = 16,
+	Font = Enum.Font.GothamBold, Text = "×", TextColor3 = TEXT, TextSize = 22,
 	AutoButtonColor = true, ZIndex = 22, Parent = cmdPanel,
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdClose })
@@ -10586,9 +10586,9 @@ cmdBackdrop.MouseButton1Click:Connect(closeCommands)
 
 -- زر ⌘ في رأس لوحة الدردشة يفتح لوحة الأوامر
 local cmdBtn = new("TextButton", {
-	Name = "CmdBtn", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -42, 0.5, 0),
+	Name = "CmdBtn", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
 	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.15,
-	Font = Enum.Font.GothamBold, Text = "⌘", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 17,
+	Font = Enum.Font.GothamBold, Text = "📋", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 15,
 	AutoButtonColor = true, Parent = header,
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdBtn })
@@ -12110,7 +12110,8 @@ do
 			Size = UDim2.new(1, -130, 0, 20), Position = UDim2.fromOffset(64, 46), Parent = panel,
 		})
 		local close = styledButton(panel, {
-			Name = "X", Text = "✕", Font = Enum.Font.GothamBlack, TextSize = 18, TextColor3 = TEXT,
+			-- نستخدم «×» (U+00D7) بدل «✕» (U+2715) لأن الأخير لا يتوفّر في خط روبلوكس فيظهر مربّعاً فارغاً
+			Name = "X", Text = "×", Font = Enum.Font.GothamBlack, TextSize = 26, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(48, 40, 64), Size = UDim2.fromOffset(38, 38),
 			Position = UDim2.fromOffset(14, 14), Parent = panel,
 		})
@@ -12478,7 +12479,7 @@ showAdminPanel = function(data)
 	if myW >= RANK_W.admin then
 		table.insert(tabs, { key = "mods", label = "👮 المشرفون" })
 		table.insert(tabs, { key = "team", label = "👥 الفريق" })
-		table.insert(tabs, { key = "commands", label = "⌘ الأوامر" })
+		table.insert(tabs, { key = "commands", label = "📋 الأوامر" })
 		table.insert(tabs, { key = "show", label = "🎬 العرض" })
 		table.insert(tabs, { key = "settings", label = "⚙️ الإعدادات" })
 	end
@@ -13244,7 +13245,7 @@ showAdminPanel = function(data)
 
 	-- ===== ⌘ تبويب الأوامر: التحكم بمستوى صلاحية كل أمر =====
 	local function buildCommands()
-		sectionLabel("⌘ صلاحيات الأوامر — اختر مستوى كل أمر")
+		sectionLabel("📋 صلاحيات الأوامر — اختر مستوى كل أمر")
 		note("لكل أمر مستوى مطلوب: «الجميع» متاح للكل · «المشرفون» للمشرف فأعلى · «الأداريون» للأدمن فأعلى · «معطّل» يوقف الأمر. يُحفظ تلقائياً ويُطبّق فوراً على الجميع. (الأمران /help و /clear متاحان دائماً للجميع.)")
 
 		local LV_EVERYONE, LV_MOD, LV_ADMIN, LV_OFF = 0, 2, 3, 99
@@ -14587,7 +14588,7 @@ local header = new("TextLabel", {
 local closeBtn = new("TextButton", {
 	Parent = panel, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10),
 	Size = UDim2.new(0, 34, 0, 34), BackgroundColor3 = Color3.fromRGB(200, 70, 70),
-	Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = WHITE,
+	Text = "×", Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = WHITE,
 }, { corner(8) })
 
 local timerLbl = new("TextLabel", {
@@ -14645,14 +14646,14 @@ local function makeRow(order, m)
 	end
 	new("TextLabel", {
 		Parent = barBg, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0),
-		Text = m.done and "✔ مكتملة" or progTxt, Font = Enum.Font.GothamBold,
+		Text = m.done and "✓ مكتملة" or progTxt, Font = Enum.Font.GothamBold,
 		TextSize = 12, TextColor3 = WHITE,
 	})
 
 	new("TextLabel", {
 		Parent = row, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 34),
 		Size = UDim2.new(0, 96, 0, 16), BackgroundTransparency = 1,
-		Text = m.done and "✅ +" .. m.coins or ("🪙 +" .. m.coins), Font = Enum.Font.GothamBold,
+		Text = m.done and "✅ +" .. m.coins or ("💰 +" .. m.coins), Font = Enum.Font.GothamBold,
 		TextSize = 14, TextColor3 = m.done and GREEN or GOLD,
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
