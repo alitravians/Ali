@@ -44,7 +44,7 @@ local CONFIG = {
 	-- صوت الفيلم: مفعّل بصوت افتراضي. للأفضل والضمان ارفع صوتك من
 	-- create.roblox.com → Audio وضع رقمه هنا (الأصوات المرفوعة من حسابك مضمونة).
 	-- عند استخدام VideoId: لو MovieSoundId=0 يُشغّل صوت الفيديو نفسه، وإلا يُشغّل هذا الصوت متزامناً.
-	MovieSoundId  = 127462066627494,  -- صوت الفيلم المرفوع على حساب Queen_Tarif (0 = مغلق)
+	MovieSoundId  = 127462066627494,  -- صوت الفيلم الذي اختاره المستخدم (0 = مغلق) — لازم منح التجربة إذن الصوت
 	PopcornSoundId = 0,          -- صوت قرمشة الفشار (0 = مغلق) ضع رقم asset لتفعيله
 	PopcornBites   = 8,          -- عدد القضمات في علبة الفشار الواحدة
 	LobbyMusicId   = 0,          -- موسيقى اللوبي (ضع رقم Audio asset مرفوع من حسابك، 0 = بدون)
@@ -761,13 +761,26 @@ local function playMovie(presser)
 		end)
 	end
 
-	if movieSound then pcall(function() ContentProvider:PreloadAsync({ movieSound }) end) end
+	-- preload the separate movie audio and detect whether it ACTUALLY loaded.
+	-- custom audio is private by default; if this experience isn't granted
+	-- permission to the asset, it fails to load — and if we still muted the
+	-- video the audience would hear nothing. So gate the mute on a real load.
+	local movieSoundOk = false
+	if movieSound then
+		pcall(function() ContentProvider:PreloadAsync({ movieSound }) end)
+		movieSoundOk = movieSound.IsLoaded
+		if not movieSoundOk then
+			warn(("[Cinema] movie audio rbxassetid://%s failed to load — falling back to the video's own audio. "
+				.. "To use this custom sound, grant THIS experience permission to the audio on its Roblox asset page "
+				.. "(Configure -> Permissions) and make sure its moderation status is Approved."):format(tostring(CONFIG.MovieSoundId)))
+		end
+	end
 
 	-- مدة العرض: تتبع طول الفيديو، وإلا طول الصوت، وإلا مدة عشوائية افتراضية
 	local duration
 	if hasVideo and screenVideo.TimeLength and screenVideo.TimeLength > 0 then
 		duration = screenVideo.TimeLength
-	elseif movieSound and movieSound.TimeLength and movieSound.TimeLength > 0 then
+	elseif movieSoundOk and movieSound and movieSound.TimeLength and movieSound.TimeLength > 0 then
 		duration = movieSound.TimeLength
 	else
 		duration = math.random(CONFIG.MovieMinSeconds, CONFIG.MovieMaxSeconds)
@@ -789,7 +802,7 @@ local function playMovie(presser)
 		screenTitle.Visible = false
 		screenSub.Visible = false
 		screenVideo.Visible = true
-		screenVideo.Volume = movieSound and 0 or 1  -- لو فيه صوت منفصل نكتم صوت الفيديو
+		screenVideo.Volume = (movieSound and movieSoundOk) and 0 or 1  -- نكتم صوت الفيديو فقط لو صوتنا المنفصل حُمّل فعلاً (وإلا نُبقي صوت الفيديو بدل الصمت)
 		screenVideo.TimePosition = 0
 		screenVideo.Playing = true
 	elseif hasSlides then
@@ -798,7 +811,7 @@ local function playMovie(presser)
 		screenSub.Visible = false
 		if screenBg then screenBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0) end
 	end
-	if movieSound then movieSound.TimePosition = 0; movieSound:Play() end
+	if movieSound and movieSoundOk then movieSound.TimePosition = 0; movieSound:Play() end
 
 	-- مدة المشهد/اللقطة الواحدة: في وضع السلايد-شو نوزّع اللقطات بالتساوي على مدة الصوت
 	local segSeconds = CONFIG.SceneSeconds

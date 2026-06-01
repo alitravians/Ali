@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Injects ActivitySystem (Script, after VolleyballSystem) and SprintJump
+# Injects ActivitySystem (Script, after PlaygroundArea) and SprintJump
 # (LocalScript, after ParkourClient) into the rbxlx. Idempotent.
 import sys
 
@@ -38,10 +38,11 @@ def make_item(cls, ref, name, src, indent):
         + "%s</Item>" % pad
     )
 
-# 1) ActivitySystem (server) after VolleyballSystem
+# 1) ActivitySystem (server) after PlaygroundArea
+#    (was anchored after VolleyballSystem, but volleyball was removed from the game)
 if 'referent="ActivitySystemRef"' not in d:
     src = read("src/ActivitySystem.server.lua")
-    at = item_end_after(d, "VolleyballSystemRef")
+    at = item_end_after(d, "PlaygroundAreaRef")
     d = d[:at] + make_item("Script", "ActivitySystemRef", "ActivitySystem", src, 4) + d[at:]
     print("Injected ActivitySystem (%d chars)" % len(src))
 else:

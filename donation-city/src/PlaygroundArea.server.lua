@@ -1,283 +1,311 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
-║  منطقة ألعاب الأطفال — PLAYGROUND (Server)                            ║
-║  المكان: ServerScriptService     ·     النوع: Script                   ║
+║  لوحات المناطق — PLAYGROUND (Server)                                   ║
 ║                                                                        ║
-║  • زحليقة قابلة للاستخدام (سطح منخفض الاحتكاك = انزلاق واقعي) + صوت     ║
-║  • مراجيح بمقاعد تتأرجح فعلياً (اللاعب يجلس فتتحرك به)                  ║
-║  • دوّار دائري (Merry-go-round) بمقاعد تدور باللاعبين                  ║
-║  • ترامبولين بقفز ارتدادي حقيقي + صوت                                  ║
-║  • جدار تسلّق صغير (TrussPart قابل للتسلّق) + بيت ألعاب مصغّر          ║
-║  • منطقة مستقلة جنوب الساحة، آمنة على الأداء                           ║
+║  أُزيلت ساحة الألعاب القديمة والشاطئ القديم، واستُبدلا بموقعَي «مبنى       ║
+║  قيد الإنشاء» منفصلين (هندسة ثابتة في الـ Workspace). هذا السكربت يبني   ║
+║  لوحة تعريفية لكل منطقة (الشاطئ / صالة الألعاب) — «قيد الإنشاء» — لين     ║
+║  نعيد تصميم كل منطقة مستقبلاً. لوحات ثابتة خفيفة = صفر لاق.              ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
-local Workspace  = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local Players    = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
 
--- جداول debounce للترامبولين مفهرسة بـ UserId (رقم)؛ ننظّفها عند خروج اللاعب
-local trampDebounces = {}
-Players.PlayerRemoving:Connect(function(plr)
-	for _, d in ipairs(trampDebounces) do d[plr.UserId] = nil end
-end)
+-- مواقع المنطقتين (الجهة المقابلة للمدينة من كل مبنى)
+local SIGNS = {
+	{
+		name  = "BeachZoneSign",
+		pos   = Vector3.new(96, 0, 80),
+		title = "🏖️ منطقة الشاطئ",
+		sub   = "قيد الإنشاء",
+		color = Color3.fromRGB(45, 150, 220),
+	},
+	{
+		name  = "GameHallZoneSign",
+		pos   = Vector3.new(96, 0, -110),
+		title = "🎮 صالة الألعاب",
+		sub   = "قيد الإنشاء",
+		color = Color3.fromRGB(165, 95, 215),
+	},
+}
 
-local CX, CZ = 0, 130           -- مركز المنطقة (جنوب الساحة)
-local GY = 0.8                  -- سطح أرضية اللعب
+local function makeFace(board: BasePart, face: Enum.NormalId, cfg)
+	local sg = Instance.new("SurfaceGui")
+	sg.Name = "SignFace"
+	sg.Face = face
+	sg.CanvasSize = Vector2.new(900, 300)
+	sg.LightInfluence = 0
+	sg.AlwaysOnTop = false
+	sg.Adornee = board
+	sg.Parent = board
 
-local SOFT  = Color3.fromRGB(120, 200, 170)
-local RED   = Color3.fromRGB(235, 90, 90)
-local BLUE  = Color3.fromRGB(90, 150, 235)
-local YEL   = Color3.fromRGB(245, 205, 70)
-local GRN   = Color3.fromRGB(110, 200, 120)
-local WOOD  = Color3.fromRGB(150, 100, 60)
-local METAL = Color3.fromRGB(200, 200, 210)
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, -20, 0.58, 0)
+	title.Position = UDim2.new(0, 10, 0.04, 0)
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.RichText = true
+	title.Text = cfg.title
+	title.TextColor3 = cfg.color
+	title.Parent = sg
 
-local pg = Instance.new("Model")
-pg.Name = "Playground"
-pg.Parent = Workspace
-
-local function newPart(props)
-	local p = Instance.new("Part")
-	p.Anchored = props.Anchored ~= false
-	p.CanCollide = props.CanCollide ~= false
-	p.TopSurface = Enum.SurfaceType.Smooth
-	p.BottomSurface = Enum.SurfaceType.Smooth
-	p.Name = props.Name or "Part"
-	if props.Shape then p.Shape = props.Shape end
-	p.Size = props.Size or Vector3.new(1, 1, 1)
-	if props.CFrame then p.CFrame = props.CFrame else p.Position = props.Position or Vector3.new() end
-	p.Color = props.Color or Color3.fromRGB(180, 180, 180)
-	p.Material = props.Material or Enum.Material.SmoothPlastic
-	if props.Transparency then p.Transparency = props.Transparency end
-	p.Parent = props.Parent or pg
-	return p
+	local sub = Instance.new("TextLabel")
+	sub.BackgroundTransparency = 1
+	sub.Size = UDim2.new(1, -20, 0.34, 0)
+	sub.Position = UDim2.new(0, 10, 0.62, 0)
+	sub.Font = Enum.Font.GothamBold
+	sub.TextScaled = true
+	sub.Text = "🚧 " .. cfg.sub .. " 🚧"
+	sub.TextColor3 = Color3.fromRGB(255, 210, 90)
+	sub.Parent = sg
 end
 
-local function sound(parent, id, vol)
-	local s = Instance.new("Sound")
-	s.SoundId = "rbxassetid://" .. id
-	s.Volume = vol or 0.6
-	s.RollOffMaxDistance = 60
-	s.Parent = parent
-	return s
-end
+local function makeSign(cfg)
+	local model = Instance.new("Model")
+	model.Name = cfg.name
 
--- أرضية لعب ناعمة
-newPart({ Name = "PlayFloor", Size = Vector3.new(90, 1, 80), Position = Vector3.new(CX, GY, CZ),
-	Color = SOFT, Material = Enum.Material.SmoothPlastic })
-
--- سياج خفيف حول المنطقة
-for _, d in ipairs({ { 0, -40, 90, 1 }, { 0, 40, 90, 1 }, { -45, 0, 1, 80 }, { 45, 0, 1, 80 } }) do
-	newPart({ Name = "Fence", Size = Vector3.new(d[3], 4, d[4]),
-		Position = Vector3.new(CX + d[1], GY + 2, CZ + d[2]), Color = Color3.fromRGB(230, 230, 235),
-		Material = Enum.Material.SmoothPlastic, CanCollide = false })
-end
-
-----------------------------------------------------------------------
--- 🛝 الزحليقة (سطح منخفض الاحتكاك = انزلاق واقعي) + درج صعود
-----------------------------------------------------------------------
-do
-	local sx, sz = CX - 28, CZ - 18
-	-- برج علوي
-	newPart({ Name = "SlideTower", Size = Vector3.new(7, 12, 7), Position = Vector3.new(sx, GY + 6, sz),
-		Color = RED, Material = Enum.Material.SmoothPlastic })
-	newPart({ Name = "SlideTop", Size = Vector3.new(8, 1, 8), Position = Vector3.new(sx, GY + 12.5, sz),
-		Color = YEL })
-	-- درج صعود
-	for i = 1, 6 do
-		newPart({ Name = "Step", Size = Vector3.new(6, 1, 1.6),
-			Position = Vector3.new(sx, GY + 1.5 * i, sz + 4 + i * 1.3), Color = METAL, Material = Enum.Material.Metal })
+	-- عمودان حاملان
+	for _, dz in ipairs({ -6, 6 }) do
+		local post = Instance.new("Part")
+		post.Name = "Post"
+		post.Anchored = true
+		post.CanCollide = true
+		post.Size = Vector3.new(1, 11, 1)
+		post.Position = cfg.pos + Vector3.new(0, 5.5, dz)
+		post.Color = Color3.fromRGB(55, 58, 68)
+		post.Material = Enum.Material.Metal
+		post.Parent = model
 	end
-	-- سطح الانزلاق المائل (احتكاك شبه معدوم)
-	local slide = newPart({ Name = "Slide", Size = Vector3.new(6, 1, 22),
-		CFrame = CFrame.new(sx, GY + 7, sz - 9) * CFrame.Angles(math.rad(38), 0, 0),
-		Color = BLUE, Material = Enum.Material.SmoothPlastic })
-	slide.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.02, 0, 1, 1)  -- friction ≈ 0
-	-- حواف جانبية
-	for _, ox in ipairs({ -3.2, 3.2 }) do
-		local rail = newPart({ Name = "SlideRail", Size = Vector3.new(0.6, 2, 22),
-			CFrame = CFrame.new(sx + ox, GY + 7.6, sz - 9) * CFrame.Angles(math.rad(38), 0, 0),
-			Color = Color3.fromRGB(255, 255, 255) })
-		rail.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.02, 0, 1, 1)
+
+	-- اللوحة (رفيعة على محور X فتكون وجوهها العريضة باتجاه المدينة/المبنى)
+	local board = Instance.new("Part")
+	board.Name = "Board"
+	board.Anchored = true
+	board.CanCollide = false
+	board.Size = Vector3.new(0.6, 6, 18)
+	board.Position = cfg.pos + Vector3.new(0, 12, 0)
+	board.Color = Color3.fromRGB(20, 24, 36)
+	board.Material = Enum.Material.SmoothPlastic
+	board.Parent = model
+
+	makeFace(board, Enum.NormalId.Left, cfg)   -- الوجه المقابل للمدينة (-X)
+	makeFace(board, Enum.NormalId.Right, cfg)  -- الوجه المقابل للمبنى (+X)
+
+	model.Parent = Workspace
+end
+
+for _, cfg in ipairs(SIGNS) do
+	local ok, err = pcall(makeSign, cfg)
+	if not ok then
+		warn("[Playground] تعذّر بناء لوحة " .. cfg.name .. ": " .. tostring(err))
 	end
-	-- صوت انزلاق عند لمس السطح
-	local swoosh = sound(slide, 5733671759, 0.5)   -- استبدل المعرّف لو رغبت
-	local lastPlay = 0
-	slide.Touched:Connect(function(hit)
-		local hum = hit and hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
-		if hum and os.clock() - lastPlay > 1.2 then lastPlay = os.clock(); swoosh:Play() end
-	end)
 end
 
 ----------------------------------------------------------------------
--- 🤸 الترامبولين (قفز ارتدادي حقيقي) + صوت
+-- 👮 شرطي الأمن جنب كل لوحة: تفاعل بزر E → فقاعة كلام تدريجية + صوت ناعم
 ----------------------------------------------------------------------
-local function trampoline(x, z)
-	-- إطار
-	newPart({ Name = "TrampFrame", Shape = Enum.PartType.Cylinder, Size = Vector3.new(2, 9, 9),
-		CFrame = CFrame.new(x, GY + 1, z) * CFrame.Angles(0, 0, math.rad(90)), Color = Color3.fromRGB(40, 40, 60) })
-	local mat = newPart({ Name = "TrampMat", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.6, 8, 8),
-		CFrame = CFrame.new(x, GY + 2, z) * CFrame.Angles(0, 0, math.rad(90)),
-		Color = Color3.fromRGB(30, 30, 40), Material = Enum.Material.SmoothPlastic })
-	local boing = sound(mat, 5466166437, 0.6)
-	local debounce = {}                 -- مفهرس بـ UserId (رقم) ويُنظّف عند خروج اللاعب
-	trampDebounces[#trampDebounces + 1] = debounce
-	mat.Touched:Connect(function(hit)
-		local char = hit and hit.Parent
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		local hrp = char and char:FindFirstChild("HumanoidRootPart")
-		if not (hum and hrp) then return end
-		local plr = Players:GetPlayerFromCharacter(char)
-		if not plr then return end
-		local id = plr.UserId
-		if debounce[id] and os.clock() - debounce[id] < 0.4 then return end
-		debounce[id] = os.clock()
-		local v = hrp.AssemblyLinearVelocity
-		hrp.AssemblyLinearVelocity = Vector3.new(v.X, 75, v.Z)
-		boing:Play()
-	end)
-end
-trampoline(CX + 26, CZ - 20)
-trampoline(CX + 26, CZ - 6)
+-- صوت همس قصير لطيف (٣D محلي، واطي، يُسمع بس وأنت قريب) — نبضة لكل كلمة.
+local TALK_SOUND = "rbxassetid://131238032"
 
-----------------------------------------------------------------------
--- 🧗 جدار تسلّق صغير (TrussPart قابل للتسلّق) + منصّة علوية
-----------------------------------------------------------------------
-do
-	local wx, wz = CX - 30, CZ + 26
-	newPart({ Name = "ClimbBase", Size = Vector3.new(12, 1, 4), Position = Vector3.new(wx, GY + 0.5, wz), Color = WOOD })
-	for i = -1, 1 do
-		local truss = Instance.new("TrussPart")
-		truss.Anchored = true
-		truss.Size = Vector3.new(2, 14, 2)
-		truss.Position = Vector3.new(wx + i * 3.5, GY + 7.5, wz)
-		truss.Color = Color3.fromRGB(255, 140, 60)
-		truss.Parent = pg
+local GUARDS = {
+	{
+		model = "PoliceGuard_Beach",
+		accent = Color3.fromRGB(45, 150, 220),
+	},
+	{
+		model = "PoliceGuard_GameHall",
+		accent = Color3.fromRGB(165, 95, 215),
+	},
+}
+
+-- جُمل الشرطي (تُكتب تدريجياً سطراً بعد سطر)
+local LINES = {
+	"🚧 هذا المبنى تحت الصيانة حالياً.",
+	"نشتغل عليه وهو قيد الإنشاء…",
+	"إن شاء الله يفتح قريباً 🔜",
+	"نعتذر عن الإزعاج 🙏 شكراً لصبرك.",
+}
+
+local CHAR_DELAY = 0.045   -- سرعة ظهور الحرف
+local LINE_PAUSE = 0.7     -- توقّف بين الجُمل
+local END_HOLD   = 2.0     -- بقاء الفقاعة بعد انتهاء الكلام
+
+local function buildBubble(head: BasePart, accent: Color3)
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "GuardSpeech"
+	bb.Adornee = head
+	bb.Size = UDim2.new(0, 300, 0, 140)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 4.4, 0)
+	bb.AlwaysOnTop = true
+	bb.MaxDistance = 60
+	bb.Enabled = false
+	bb.Parent = head
+
+	local frame = Instance.new("Frame")
+	frame.Name = "Panel"
+	frame.AnchorPoint = Vector2.new(0.5, 1)
+	frame.Position = UDim2.new(0.5, 0, 1, -14)
+	frame.Size = UDim2.new(1, 0, 1, -14)
+	frame.BackgroundColor3 = Color3.fromRGB(18, 20, 34)
+	frame.BackgroundTransparency = 0.12
+	frame.BorderSizePixel = 0
+	frame.Parent = bb
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 14)
+	local stroke = Instance.new("UIStroke", frame)
+	stroke.Color = accent
+	stroke.Thickness = 2
+	stroke.Transparency = 0.1
+	local pad = Instance.new("UIPadding", frame)
+	pad.PaddingLeft = UDim.new(0, 12); pad.PaddingRight = UDim.new(0, 12)
+	pad.PaddingTop = UDim.new(0, 8);   pad.PaddingBottom = UDim.new(0, 8)
+
+	-- ذيل صغير يشير للشرطي
+	local tail = Instance.new("TextLabel")
+	tail.Name = "Tail"
+	tail.BackgroundTransparency = 1
+	tail.AnchorPoint = Vector2.new(0.5, 0)
+	tail.Position = UDim2.new(0.5, 0, 1, -15)
+	tail.Size = UDim2.new(0, 30, 0, 24)
+	tail.Font = Enum.Font.GothamBlack
+	tail.Text = "▼"
+	tail.TextScaled = true
+	tail.TextColor3 = Color3.fromRGB(18, 20, 34)
+	tail.ZIndex = 0
+	tail.Parent = bb
+
+	-- شارة علوية «👮 الأمن»
+	local badge = Instance.new("TextLabel")
+	badge.Name = "Badge"
+	badge.AnchorPoint = Vector2.new(0, 0)
+	badge.Position = UDim2.new(0, 0, 0, 0)
+	badge.Size = UDim2.new(0, 96, 0, 26)
+	badge.BackgroundColor3 = accent
+	badge.BackgroundTransparency = 0.05
+	badge.Font = Enum.Font.GothamBlack
+	badge.Text = "👮 الأمن"
+	badge.TextColor3 = Color3.fromRGB(255, 255, 255)
+	badge.TextSize = 15
+	badge.Parent = frame
+	Instance.new("UICorner", badge).CornerRadius = UDim.new(1, 0)
+
+	-- نص الكلام (يُكتب تدريجياً)
+	local body = Instance.new("TextLabel")
+	body.Name = "Body"
+	body.BackgroundTransparency = 1
+	body.AnchorPoint = Vector2.new(0.5, 1)
+	body.Position = UDim2.new(0.5, 0, 1, 0)
+	body.Size = UDim2.new(1, 0, 1, -32)
+	body.Font = Enum.Font.GothamMedium
+	body.RichText = true
+	body.TextWrapped = true
+	body.TextYAlignment = Enum.TextYAlignment.Center
+	body.TextXAlignment = Enum.TextXAlignment.Center
+	body.TextSize = 19
+	body.TextColor3 = Color3.fromRGB(240, 244, 255)
+	body.Text = ""
+	body.Parent = frame
+
+	return bb, body
+end
+
+local function setupGuard(cfg)
+	local model = Workspace:FindFirstChild(cfg.model)
+	if not model then return end
+	local head = model:FindFirstChild("Head") or model:FindFirstChildWhichIsA("BasePart")
+	if not head then return end
+
+	-- إخفاء خانة الاسم/الصحّة الافتراضية (تعكس العربي) واستبدالها بلوحة اسم مخصّصة
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayName = ""
+		hum.HealthDisplayType = Enum.HumanoidHealthDisplayType.AlwaysOff
+		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
 	end
-	newPart({ Name = "ClimbTop", Size = Vector3.new(12, 1, 6), Position = Vector3.new(wx, GY + 14.5, wz + 2), Color = GRN })
-end
 
-----------------------------------------------------------------------
--- 🏠 بيت ألعاب مصغّر
-----------------------------------------------------------------------
-do
-	local hx, hz = CX + 28, CZ + 24
-	newPart({ Name = "HouseFloor", Size = Vector3.new(12, 1, 12), Position = Vector3.new(hx, GY + 0.5, hz), Color = WOOD })
-	-- جدران مع فتحة باب
-	newPart({ Name = "HouseWall", Size = Vector3.new(12, 8, 1), Position = Vector3.new(hx, GY + 4.5, hz - 5.5), Color = YEL })
-	newPart({ Name = "HouseWall", Size = Vector3.new(1, 8, 12), Position = Vector3.new(hx - 5.5, GY + 4.5, hz), Color = RED })
-	newPart({ Name = "HouseWall", Size = Vector3.new(1, 8, 12), Position = Vector3.new(hx + 5.5, GY + 4.5, hz), Color = RED })
-	newPart({ Name = "HouseWallA", Size = Vector3.new(4, 8, 1), Position = Vector3.new(hx - 4, GY + 4.5, hz + 5.5), Color = YEL })
-	newPart({ Name = "HouseWallB", Size = Vector3.new(4, 8, 1), Position = Vector3.new(hx + 4, GY + 4.5, hz + 5.5), Color = YEL })
-	-- سقف هرمي بسيط
-	newPart({ Name = "HouseRoof", Size = Vector3.new(14, 1, 14), CFrame = CFrame.new(hx, GY + 9.5, hz), Color = Color3.fromRGB(160, 60, 60) })
-	newPart({ Name = "HouseRoofTop", Size = Vector3.new(8, 1, 8), CFrame = CFrame.new(hx, GY + 11, hz) * CFrame.Angles(0, math.rad(45), 0), Color = Color3.fromRGB(140, 50, 50) })
-end
+	-- لوحة اسم احترافية (TextLabel يدعم العربي صح، مثل لوحات المناطق)
+	local nameBb = Instance.new("BillboardGui")
+	nameBb.Name = "NameTag"
+	nameBb.Adornee = head
+	nameBb.Size = UDim2.new(0, 170, 0, 38)
+	nameBb.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0)
+	nameBb.AlwaysOnTop = true
+	nameBb.MaxDistance = 70
+	nameBb.Parent = head
+	local nameFrame = Instance.new("Frame")
+	nameFrame.Size = UDim2.new(1, 0, 1, 0)
+	nameFrame.BackgroundColor3 = Color3.fromRGB(18, 20, 34)
+	nameFrame.BackgroundTransparency = 0.15
+	nameFrame.BorderSizePixel = 0
+	nameFrame.Parent = nameBb
+	Instance.new("UICorner", nameFrame).CornerRadius = UDim.new(1, 0)
+	local nameStroke = Instance.new("UIStroke", nameFrame)
+	nameStroke.Color = cfg.accent
+	nameStroke.Thickness = 2
+	local nameLbl = Instance.new("TextLabel")
+	nameLbl.BackgroundTransparency = 1
+	nameLbl.Size = UDim2.new(1, -10, 1, 0)
+	nameLbl.Position = UDim2.new(0, 5, 0, 0)
+	nameLbl.Font = Enum.Font.GothamBold
+	nameLbl.RichText = true
+	nameLbl.Text = "👮 أمن المدينة"
+	nameLbl.TextScaled = true
+	nameLbl.TextColor3 = Color3.fromRGB(240, 244, 255)
+	nameLbl.Parent = nameFrame
 
-----------------------------------------------------------------------
--- 🪑 مقاعد متحركة (مراجيح + دوّار) — مقاعد مثبّتة CFrame واللاعب يُلحَم بها
-----------------------------------------------------------------------
--- مرجوحة: مقعد يتأرجح كبندول حول محور علوي
-local swings = {}
-local function buildSwing(px, pz, facing)
-	-- إطار المرجوحة (قائمان + عارضة)
-	newPart({ Name = "SwingPost", Size = Vector3.new(0.8, 12, 0.8), Position = Vector3.new(px - 5, GY + 6, pz), Color = METAL, Material = Enum.Material.Metal })
-	newPart({ Name = "SwingPost", Size = Vector3.new(0.8, 12, 0.8), Position = Vector3.new(px + 5, GY + 6, pz), Color = METAL, Material = Enum.Material.Metal })
-	newPart({ Name = "SwingBar", Size = Vector3.new(11, 0.8, 0.8), Position = Vector3.new(px, GY + 12, pz), Color = METAL, Material = Enum.Material.Metal })
-	local pivotY = GY + 11.6
-	local armLen = 7
-	local seat = Instance.new("Seat")
-	seat.Name = "SwingSeat"; seat.Anchored = true; seat.CanCollide = true
-	seat.Size = Vector3.new(4, 0.6, 3)
-	seat.Color = RED; seat.Material = Enum.Material.SmoothPlastic
-	seat.Position = Vector3.new(px, pivotY - armLen, pz)
-	seat.Parent = pg
-	-- حبلان مرئيان (يتأرجحان مع المقعد ضمن حلقة التحريك)
-	local ropes = {}
-	for _, ox in ipairs({ -1.6, 1.6 }) do
-		ropes[#ropes + 1] = {
-			part = newPart({ Name = "SwingRope", Size = Vector3.new(0.18, armLen, 0.18),
-				Position = Vector3.new(px + ox, pivotY - armLen / 2, pz), Color = Color3.fromRGB(60, 50, 40), CanCollide = false }),
-			ox = ox,
-		}
-	end
-	table.insert(swings, { seat = seat, pivot = Vector3.new(px, pivotY, pz), arm = armLen, phase = #swings * 0.9, facing = facing or 0, ropes = ropes })
-end
-buildSwing(CX - 6, CZ + 4)
-buildSwing(CX + 8, CZ + 4, math.pi)
+	local sound = Instance.new("Sound")
+	sound.Name = "GuardTalk"
+	sound.SoundId = TALK_SOUND
+	sound.Volume = 0.28
+	sound.RollOffMode = Enum.RollOffMode.InverseTapered
+	sound.RollOffMinDistance = 6
+	sound.RollOffMaxDistance = 28
+	sound.Parent = head
 
--- دوّار دائري: قرص يدور + مقاعد على المحيط
-local roundabout = nil
-local roundSeats = {}
-do
-	local rx, rz = CX, CZ - 30
-	local centerY = GY + 1.6
-	newPart({ Name = "RoundPole", Size = Vector3.new(1.2, 4, 1.2), Position = Vector3.new(rx, GY + 2, rz), Color = METAL, Material = Enum.Material.Metal })
-	roundabout = newPart({ Name = "RoundDisc", Shape = Enum.PartType.Cylinder, Size = Vector3.new(1, 16, 16),
-		CFrame = CFrame.new(rx, centerY, rz) * CFrame.Angles(0, 0, math.rad(90)), Color = BLUE, Material = Enum.Material.SmoothPlastic })
-	for i = 0, 3 do
-		local seat = Instance.new("Seat")
-		seat.Name = "RoundSeat"; seat.Anchored = true; seat.CanCollide = true
-		seat.Size = Vector3.new(2.6, 0.6, 2.6); seat.Color = YEL; seat.Material = Enum.Material.SmoothPlastic
-		seat.Parent = pg
-		table.insert(roundSeats, { seat = seat, baseAngle = math.rad(i * 90) })
-	end
-	roundabout:SetAttribute("CX", rx); roundabout:SetAttribute("CY", centerY + 1); roundabout:SetAttribute("CZ", rz)
-end
+	local bb, body = buildBubble(head, cfg.accent)
 
-----------------------------------------------------------------------
--- حلقة التحريك (مراجيح + دوّار) — Heartbeat سلس
-----------------------------------------------------------------------
-local roundAngle = 0
-RunService.Heartbeat:Connect(function(dt)
-	local t = os.clock()
-	-- مراجيح: بندول
-	for _, sw in ipairs(swings) do
-		if sw.seat.Parent then
-			local theta = math.rad(28) * math.sin(t * 1.6 + sw.phase)
-			local swivel = CFrame.new(sw.pivot) * CFrame.Angles(theta, sw.facing, 0)
-			sw.seat.CFrame = swivel * CFrame.new(0, -sw.arm, 0)
-			-- الحبال تتبع نفس دوران البندول فتبقى موصولة بالمقعد
-			if sw.ropes then
-				for _, r in ipairs(sw.ropes) do
-					r.part.CFrame = swivel * CFrame.new(r.ox, -sw.arm / 2, 0)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TalkPrompt"
+	prompt.ActionText = "تحدّث"
+	prompt.ObjectText = "👮 الأمن"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.RequiresLineOfSight = false
+	prompt.MaxActivationDistance = 12
+	prompt.Parent = head
+
+	local talking = false
+	prompt.Triggered:Connect(function()
+		if talking then return end
+		talking = true
+		prompt.Enabled = false
+		bb.Enabled = true
+		body.Text = ""
+		for _, line in ipairs(LINES) do
+			for first, last in utf8.graphemes(line) do
+				body.Text = string.sub(line, 1, last) .. "<font color=\"#FFD24A\">▌</font>"
+				if first == 1 or string.sub(line, first, last) == " " then
+					sound.PlaybackSpeed = 0.92 + math.random() * 0.16
+					sound:Play()
 				end
+				task.wait(CHAR_DELAY)
 			end
+			body.Text = line
+			task.wait(LINE_PAUSE)
 		end
-	end
-	-- دوّار
-	if roundabout and roundabout.Parent then
-		roundAngle = (roundAngle + dt * 0.8) % (math.pi * 2)
-		local rx = roundabout:GetAttribute("CX")
-		local ry = roundabout:GetAttribute("CY")
-		local rz = roundabout:GetAttribute("CZ")
-		roundabout.CFrame = CFrame.new(rx, ry - 1, rz) * CFrame.Angles(0, 0, math.rad(90)) * CFrame.Angles(roundAngle, 0, 0)
-		for _, rs in ipairs(roundSeats) do
-			if rs.seat.Parent then
-				local a = roundAngle + rs.baseAngle
-				rs.seat.CFrame = CFrame.new(rx, ry, rz)
-					* CFrame.Angles(0, a, 0)
-					* CFrame.new(0, 0, 5.2)
-					* CFrame.Angles(0, math.pi, 0)
-			end
-		end
-	end
-end)
+		task.wait(END_HOLD)
+		bb.Enabled = false
+		body.Text = ""
+		prompt.Enabled = true
+		talking = false
+	end)
+end
 
-----------------------------------------------------------------------
--- لوحة ترحيب
-----------------------------------------------------------------------
-do
-	newPart({ Name = "PgSignPost", Size = Vector3.new(1, 9, 1), Position = Vector3.new(CX, GY + 4.5, CZ - 40), Color = WOOD })
-	local board = newPart({ Name = "PlaygroundSign", Size = Vector3.new(14, 4, 0.6), Position = Vector3.new(CX, GY + 9.5, CZ - 40), Color = Color3.fromRGB(40, 60, 90) })
-	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front, Enum.NormalId.Left, Enum.NormalId.Right }) do
-		local sg = Instance.new("SurfaceGui"); sg.Face = face; sg.CanvasSize = Vector2.new(820, 240)
-		sg.LightInfluence = 0; sg.Adornee = board; sg.Parent = board
-		local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(255, 225, 150); lbl.Text = "🛝 ساحة الألعاب"; lbl.Parent = sg
+for _, cfg in ipairs(GUARDS) do
+	local ok, err = pcall(setupGuard, cfg)
+	if not ok then
+		warn("[Playground] تعذّر تجهيز الشرطي " .. cfg.model .. ": " .. tostring(err))
 	end
 end
 
-print("[Playground] ready at", CX, CZ)
+print("[Playground] لوحات المناطق + شرطيا الأمن جاهزون (الشاطئ + صالة الألعاب — قيد الإنشاء).")
