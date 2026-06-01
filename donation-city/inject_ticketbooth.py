@@ -20,6 +20,11 @@ from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
 SRC  = "ticketbooth_new.rbxmx"     # repo-local copy of the Creator Store model (asset 105621582718050)
+# NOTE: ticketbooth_new.rbxmx is generated from the user's binary .rbxm via lune
+# (current rbx-dom). The old rbxmk v0.9.1 conversion mis-serialised the modern CSG
+# union props (e.g. SolidMeshHolder as <SharedString> instead of <NetAssetRef>),
+# which made Studio reject the place with "Invalid type conversion from
+# SharedString to NetAsset". lune emits the current, Studio-correct element types.
 
 MODEL_NAME = "TicketBooth"         # stable name (no space) for the injected model
 TX, TZ    = -15.0, -100.0          # same plaza spot as the old procedural booth
