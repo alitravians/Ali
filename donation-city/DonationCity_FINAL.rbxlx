@@ -1873,9 +1873,13 @@ print("[CustomChat] السيرفر جاهز — دردشة مخصّصة مع ف�
 	║    • متبرّع كريم  — عند أول تبرع (يناديها سكربت البوثات).               ║
 	║    • عاشق السينما — عند اكتمال أول فيلم (يناديها سكربت السينما).         ║
 	║    • جامع التذاكر — عند بلوغ الحد الأقصى للتذاكر (يناديها نظام التذاكر). ║
+	║    • بطل الباركور — عند إكمال مسار الباركور (يناديها نظام الباركور).     ║
+	║    • مستكشف المدينة — عند زيارة كل المناطق (يناديها نظام النشاط).        ║
+	║    • طاقم المدينة — تكريمية لأعضاء الإدارة/الإشراف (تلقائياً بالدخول).   ║
 	║                                                                        ║
 	║  API لباقي السكربتات:  _G.AwardBadge(player, "DONOR")                  ║
 	║  المفاتيح: FIRST_VISIT · DONOR · CINEMA · TICKETS · LOYAL              ║
+	║           · PARKOUR · EXPLORER · STAFF                                 ║
 	╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -1892,6 +1896,9 @@ local BADGE_IDS = {
 	CINEMA      = 2250602283618115,  -- عاشق السينما
 	TICKETS     = 3455171715645213,  -- جامع التذاكر
 	LOYAL       = 2829867823404545,  -- صديق المدينة
+	PARKOUR     = 1607820276935635,  -- بطل الباركور
+	EXPLORER    = 2250297071909187,  -- مستكشف المدينة
+	STAFF       = 1801654870065253,  -- طاقم المدينة
 }
 
 ------------------------------------------------------------------------
@@ -1931,9 +1938,33 @@ pcall(function()
 	visitsStore = DataStoreService:GetDataStore("DonationCity_Visits")
 end)
 
+------------------------------------------------------------------------
+-- طاقم المدينة: تُمنح تلقائياً لأعضاء الإدارة/الإشراف (owner/admin/mod/staff)
+-- نعتمد على نظام الرتب في السينما (_G.GetChatRank) الذي قد يتأخّر بالتحميل،
+-- لذلك ننتظره بمحاولات قصيرة قبل الفحص.
+------------------------------------------------------------------------
+local STAFF_RANKS = { owner = true, admin = true, mod = true, staff = true }
+
+local function tryAwardStaff(player: Player)
+	for _ = 1, 20 do                       -- ~10 ثوانٍ كحدّ أقصى
+		if not player.Parent then return end  -- خرج اللاعب
+		if _G.GetChatRank then
+			local rank = _G.GetChatRank(player)
+			if STAFF_RANKS[rank] then
+				_G.AwardBadge(player, "STAFF")
+			end
+			return                          -- نظام الرتب جاهز — انتهينا
+		end
+		task.wait(0.5)
+	end
+end
+
 Players.PlayerAdded:Connect(function(player)
 	-- أول زيارة — فوراً
 	_G.AwardBadge(player, "FIRST_VISIT")
+
+	-- طاقم المدينة — بعد جهوزية نظام الرتب
+	task.spawn(tryAwardStaff, player)
 
 	-- صديق المدينة — لو زار من قبل
 	if not visitsStore then return end
@@ -1950,7 +1981,7 @@ Players.PlayerAdded:Connect(function(player)
 	end
 end)
 
-print("[BadgeAwards] جاهز — 5 شارات مفعّلة.")
+print("[BadgeAwards] جاهز — 8 شارات مفعّلة.")
 ]]></string>
       </Properties>
     </Item>
@@ -8444,6 +8475,7 @@ finishRun = function(player)
 		_G.AwardAchievement(player, "parkour_first")
 		_G.AwardAchievement(player, "parkour_done")
 	end
+	if _G.AwardBadge then _G.AwardBadge(player, "PARKOUR") end
 	if _G.ReportMission then _G.ReportMission(player, "parkour_done", 1) end
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, string.format(
@@ -8987,6 +9019,7 @@ task.spawn(function()
 				if not s.doneExplorer and s.visitCount >= TOTAL_AREAS then
 					s.doneExplorer = true
 					award(player, "explorer")
+					if _G.AwardBadge then _G.AwardBadge(player, "EXPLORER") end
 				end
 
 				-- مهام المناطق (نظام المهام)
