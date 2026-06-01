@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Injects ActivitySystem (Script, after VolleyballSystem) and SprintJump
+# Injects ActivitySystem (Script, after PlaygroundArea) and SprintJump
 # (LocalScript, after ParkourClient) into the rbxlx. Idempotent.
 import sys
 
