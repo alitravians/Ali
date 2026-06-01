@@ -15,7 +15,7 @@
 #     Ding:play()). These are the model's own legitimate door behaviour, so we
 #     keep them untouched. No Devin scripts are added inside the model; the
 #     ticket-purchase ProximityPrompt lives in CinemaServices.server.lua.
-import sys, copy, math
+import sys, copy, math, re
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
@@ -39,8 +39,12 @@ BACKDOOR = {
     ("ModuleScript", "Layout"),
     ("NumberPose", "Pose"),
 }
+# Case-insensitive substring backdoor patterns (dynamic code + remote IO).
 DANGER = ("loadstring", "getfenv", "setfenv", "HttpGet", "HttpGetAsync",
-          "GetObjects", "require(")
+          "GetObjects", "InsertService")
+# require(...) in ANY Lua calling convention: require(x), require"x", require'x',
+# require[[x]], plus aliasing (`= require`). Mirrors inject_cashier/inject_guide.
+REQUIRE_RX = re.compile(r"""require\s*[(\"'\[]|=\s*require\b""")
 BASEPARTS = {"Part","MeshPart","WedgePart","CornerWedgePart","TrussPart",
              "UnionOperation","Seat","VehicleSeat"}
 
@@ -111,9 +115,12 @@ bad = []
 for it in model.iter("Item"):
     if it.get("class") in ("Script","LocalScript","ModuleScript"):
         src = script_source(it)
+        low = src.lower()
         for pat in DANGER:
-            if pat in src:
+            if pat.lower() in low:
                 bad.append((it.get("class"), nm(it), pat))
+        if REQUIRE_RX.search(src):
+            bad.append((it.get("class"), nm(it), "require"))
 if bad:
     sys.exit(f"ERROR: dangerous pattern still present after cleanup: {bad}")
 kept = [(it.get("class"), nm(it)) for it in model.iter("Item")

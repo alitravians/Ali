@@ -2141,8 +2141,9 @@ local function buildCashierModel(opts)
 	end
 	if not biggest then model:Destroy(); return nil end
 
-	-- الحجم المعتدل قبل التموضع
-	pcall(function() model:ScaleTo(CASHIER_SCALE) end)
+	-- الحجم المعتدل قبل التموضع (مع تحذير إن فشل ScaleTo فلا يبقى الموديل ضخماً بصمت)
+	local scaled = pcall(function() model:ScaleTo(CASHIER_SCALE) end)
+	if not scaled then warn("[TicketCashier] ScaleTo فشل؛ قد يظهر الموديل بحجمه الأصلي") end
 
 	-- التوجيه: الموديل مُصمَّم ووجهه نحو محور -Z؛ ندوّره (yaw حول Y) ليطابق faceDir
 	-- (افتراضياً +X نحو نافذة/كاونتر الشباك حيث يقف اللاعبون)، ثم نُسقطه على الأرضية.

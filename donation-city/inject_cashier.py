@@ -85,11 +85,16 @@ def audit(model):
             for pat in scan_text(script_source(it)):
                 bad.append(f"{it.get('class')} '{name}' -> {pat}")
                 seen.add(pat)
-            # defence-in-depth: reject any non-null LinkedSource (external code ref)
+            # defence-in-depth: reject any non-null LinkedSource (external code ref).
+            # The value lives in a child element (<url>rbxassetid://..</url>) or is
+            # <null/>; lxml's .text on the parent is empty, so we must inspect children.
             for ls in it.findall("./Properties/*[@name='LinkedSource']"):
-                txt = (ls.text or "").strip()
-                if txt and ls.tag.lower() != "null":
-                    bad.append(f"{it.get('class')} '{name}' -> LinkedSource:{txt}")
+                val = (ls.text or "").strip()
+                for child in ls:
+                    if child.tag.lower() != "null" and (child.text or "").strip():
+                        val = child.text.strip()
+                if val:
+                    bad.append(f"{it.get('class')} '{name}' -> LinkedSource:{val}")
     # defence-in-depth: scan the whole serialised model too (values, attributes...)
     raw = etree.tostring(model, encoding="unicode")
     for pat in scan_text(raw):
