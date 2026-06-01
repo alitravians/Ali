@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-# Adds a "CustomImageScreen" SurfaceGui on the TOP face of the city's main
-# SpawnLocation pad (the glowing light-cyan square at ~(0,1.3,60) the user
-# pointed at) so a custom user image can be displayed on it. Idempotent:
-# removes any prior CustomImageScreen on that part before re-adding.
+# Adds a "CustomImageScreen" SurfaceGui on the TOP face of the NEW FOUNTAIN's
+# glowing square (the leaning light-cyan "Lava" block at ~(16.8,5,0) inside the
+# CityFountain model that the user pointed at) so a custom user image is shown
+# on it. Idempotent: removes ANY prior CustomImageScreen anywhere in Workspace
+# (incl. the earlier mistaken placement on the SpawnLocation pad) before adding.
 #
 # The user's image (93628047304202) is a Decal asset, which does NOT render
 # directly in an ImageLabel. So this static SurfaceGui starts as a dark screen
@@ -27,29 +28,34 @@ def name_of(it):
     return it.findtext("Properties/string[@name='Name']") or ""
 
 
-# locate the main SpawnLocation pad (top-level child of Workspace).
+# idempotent: drop ANY prior CustomImageScreen anywhere in Workspace (this
+# includes the earlier mistaken placement on the SpawnLocation pad). We walk
+# parent->child so we can remove from whatever part currently holds it.
+removed = 0
+for parent in ws.iter("Item"):
+    for c in list(parent):
+        if c.tag == "Item" and c.get("class") == "SurfaceGui" and name_of(c) == SCREEN_NAME:
+            parent.remove(c)
+            removed += 1
+print(f"removed {removed} prior '{SCREEN_NAME}' (clean: no old-on-new)")
+
+# locate the NEW fountain's glowing square: CityFountain model -> "Lava" part
+# (a 6x6 leaning block, translucent Ice over a Neon "MiniLava" => glows cyan).
+fount = None
+for it in ws.iter("Item"):
+    if it.get("class") == "Model" and name_of(it) == "CityFountain":
+        fount = it
+        break
+if fount is None:
+    sys.exit("ERROR: CityFountain model not found")
 pad = None
-for it in ws.findall("Item"):
-    if it.get("class") in ("SpawnLocation", "Part") and name_of(it) == "SpawnLocation":
+for it in fount.iter("Item"):
+    if it.get("class") == "Part" and name_of(it) == "Lava":
         pad = it
         break
 if pad is None:
-    # fall back to the known glowing pad by referent
-    for it in ws.iter("Item"):
-        if it.get("referent") == "348":
-            pad = it
-            break
-if pad is None:
-    sys.exit("ERROR: SpawnLocation pad not found")
-print("pad:", name_of(pad), pad.get("class"), "ref", pad.get("referent"))
-
-# idempotent: drop any prior screen we added.
-removed = 0
-for c in list(pad):
-    if c.tag == "Item" and c.get("class") == "SurfaceGui" and name_of(c) == SCREEN_NAME:
-        pad.remove(c)
-        removed += 1
-print(f"removed {removed} prior '{SCREEN_NAME}'")
+    sys.exit("ERROR: fountain 'Lava' square not found")
+print("target square:", name_of(pad), pad.get("class"), "ref", pad.get("referent"))
 
 
 def el(parent, tag, name=None, text=None):

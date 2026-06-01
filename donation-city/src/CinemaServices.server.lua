@@ -321,43 +321,64 @@ if not bgValue then
 	bgValue.Value = "" -- يبقى فارغاً حتى يُحلّ الرقم، فيستخدم العميل خلفيته النيون مؤقتاً
 	bgValue.Parent = ReplicatedStorage
 end
--- يطبّق رقم الصورة المُحلّ على شاشة الصورة المخصّصة فوق منصّة الانطلاق
--- (SurfaceGui ثابتة اسمها CustomImageScreen). نضبط Image على السيرفر فيتكرّر
--- للجميع، ونخفي نص التلميح بمجرّد ظهور الصورة.
+-- يطبّق رقم الصورة المُحلّ على شاشة الصورة المخصّصة. الشاشة الآن على «المربّع
+-- المضيء» داخل النافورة الجديدة (SurfaceGui اسمها CustomImageScreen). نبحث عنها
+-- في أي مكان بالـ Workspace، نضبط Image على السيرفر فيتكرّر للجميع، ونخفي
+-- نص التلميح بمجرّد ظهور الصورة.
 local function applyCustomScreen(texture)
-	if not texture or texture == "" then return end
-	local pad = Workspace:FindFirstChild("SpawnLocation")
-	if not pad then
-		for _, d in ipairs(Workspace:GetChildren()) do
-			if d:IsA("SpawnLocation") then pad = d; break end
+	if not texture or texture == "" then return false end
+	local applied = false
+	for _, sg in ipairs(Workspace:GetDescendants()) do
+		if sg:IsA("SurfaceGui") and sg.Name == "CustomImageScreen" then
+			local img = sg:FindFirstChild("Image", true)
+			if img and img:IsA("ImageLabel") then
+				img.Image = texture
+				img.BackgroundTransparency = 1
+				local hint = img:FindFirstChild("Hint")
+				if hint then hint.Visible = false end
+				applied = true
+			end
 		end
 	end
-	local sg = pad and pad:FindFirstChild("CustomImageScreen")
-	if not sg then return end
-	local img = sg:FindFirstChild("Image", true)
-	if img and img:IsA("ImageLabel") then
-		img.Image = texture
-		img.BackgroundTransparency = 1
-		local hint = img:FindFirstChild("Hint")
-		if hint then hint.Visible = false end
-	end
+	return applied
 end
 
-task.spawn(function()
+-- يحوّل رقم الـ Decal إلى رقم الصورة الداخلي (Texture) عبر InsertService.
+-- يُعيد سلسلة rbxassetid أو nil. (الـ Decal لا يُرسَم مباشرة في ImageLabel.)
+local function resolveDecalTexture(decalId)
 	local InsertService = game:GetService("InsertService")
 	local ok, model = pcall(function()
-		return InsertService:LoadAsset(LOADING_BG_DECAL_ID)
+		return InsertService:LoadAsset(decalId)
 	end)
 	if ok and model then
 		local decal = model:FindFirstChildWhichIsA("Decal", true)
-		if decal and decal.Texture and decal.Texture ~= "" then
-			bgValue.Value = decal.Texture -- رقم الصورة الحقيقي (rbxassetid://...)
-			applyCustomScreen(decal.Texture)
-		end
+		local tex = decal and decal.Texture
 		model:Destroy()
-	else
-		warn("[LoadingBG] تعذّر تحويل رقم الـ Decal إلى صورة: " .. tostring(model))
+		if tex and tex ~= "" then return tex end
 	end
+	return nil
+end
+
+-- محاولات متكرّرة: الصورة (Decal) قد تكون جديدة جداً (تحت المعالجة/المراجعة) أو
+-- يتأخّر تحميلها، فنعيد المحاولة عدّة مرّات بفواصل متزايدة بدل محاولة واحدة.
+-- طبقة احتياطية: نجرّب أيضاً ضبط رقم الـ Decal مباشرة (بعض الإصدارات تحلّه ذاتياً).
+task.spawn(function()
+	local idStr = "rbxassetid://" .. LOADING_BG_DECAL_ID
+	-- طبقة أولى فورية: اعرض رقم الـ Decal مباشرة (يظهر فوراً لو حلّه المحرّك).
+	applyCustomScreen(idStr)
+
+	local delays = { 0, 3, 5, 8, 12, 20, 30 }   -- ~78s إجمالاً عبر عدة محاولات
+	for _, wait_s in ipairs(delays) do
+		if wait_s > 0 then task.wait(wait_s) end
+		local tex = resolveDecalTexture(LOADING_BG_DECAL_ID)
+		if tex then
+			bgValue.Value = tex                  -- رقم الصورة الحقيقي (rbxassetid://...)
+			applyCustomScreen(tex)
+			return
+		end
+	end
+	warn("[CustomImage] تعذّر تحويل رقم الـ Decal " .. LOADING_BG_DECAL_ID ..
+		" إلى صورة بعد عدّة محاولات — تأكّد أنّ الصورة Public ومُعتمدة، وأنّ اللعبة لنفس الحساب المالك.")
 end)
 
 local cinema = Workspace:WaitForChild("Cinema")
