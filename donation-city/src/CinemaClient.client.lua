@@ -20,6 +20,7 @@ local playerGui   = LocalPlayer:WaitForChild("PlayerGui")
 
 local remotes    = ReplicatedStorage:WaitForChild("CinemaRemotes")
 local seatRemote = remotes:WaitForChild("SeatMenu")
+local lobbyRemote = remotes:WaitForChild("Lobby")  -- يُعرَّف مبكراً لأن دوال النوافذ (شبّاك التذاكر/المتجر) تستعمله قبل هذا الموضع
 
 ------------------------------------------------------------------------
 -- CONFIG (ألوان + أصوات الزجاج — قابلة للتعديل)
@@ -752,7 +753,6 @@ seatRemote.OnClientEvent:Connect(function(data)
 	end
 end)
 
-local lobbyRemote = remotes:WaitForChild("Lobby")
 local onTeamData      -- forward declaration (تُعرّف في كتلة صفحة الفريق أدناه)
 lobbyRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
