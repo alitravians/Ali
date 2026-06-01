@@ -2007,38 +2007,32 @@ local function dualSurface(parent, builder)
 	end
 end
 
--- 🎫 شبّاك التذاكر — كشك احترافي بلافتة تُقرأ من الوجهين (لا تظهر معكوسة)
+-- 🎫 شبّاك التذاكر — صار موديل من المتجر (مُنظّف من الباك-دور) محقون في Workspace
+-- باسم "TicketBooth" عبر inject_ticketbooth.py. لا نعدّل سكربتات الموديل الأصلية؛
+-- منطق الشراء يبقى في سكربتنا عبر ProximityPrompt على نقطة تفاعل أمام الموديل.
 do
 	local bx, bz = -15, -100
-	-- جسم الكاونتر + سطح علوي بارز
-	local base = part("BoxOfficeBase", Vector3.new(12, 6, 4), Vector3.new(bx, GROUND_Y + 3, bz), DARK)
-	part("BoxOfficeCounter", Vector3.new(13.4, 0.7, 5), Vector3.new(bx, GROUND_Y + 6.4, bz + 0.5), Color3.fromRGB(46, 34, 72), Enum.Material.Metal)
-	-- جدار خلفي + سقف بارز
-	part("BoxOfficeWall", Vector3.new(12, 8, 1), Vector3.new(bx, GROUND_Y + 10, bz - 1.5), PANEL)
-	part("BoxOfficeRoof", Vector3.new(14, 0.9, 6), Vector3.new(bx, GROUND_Y + 14.4, bz - 0.2), Color3.fromRGB(30, 22, 48), Enum.Material.Metal)
-	-- نافذة شباك مضيئة (إيحاء واجهة الخدمة، تواجه اللاعبين +Z)
-	local glass = part("BoxOfficeGlass", Vector3.new(9, 3.4, 0.3), Vector3.new(bx, GROUND_Y + 9.3, bz + 1.9), CYAN, Enum.Material.Neon)
-	glass.Transparency = 0.55; glass.CanCollide = false
-	-- لافتة علوية + إطار نيون ذهبي (أعلى/أسفل)
-	local sign = part("BoxOfficeSign", Vector3.new(12.6, 2.8, 0.5), Vector3.new(bx, GROUND_Y + 13.1, bz - 0.9), PANEL)
-	part("BoxOfficeTrimTop", Vector3.new(13, 0.32, 0.62), Vector3.new(bx, GROUND_Y + 14.7, bz - 0.9), GOLD, Enum.Material.Neon)
-	part("BoxOfficeTrimBot", Vector3.new(13, 0.32, 0.62), Vector3.new(bx, GROUND_Y + 11.6, bz - 0.9), GOLD, Enum.Material.Neon)
-	-- نص اللافتة على الوجهين فلا يظهر معكوساً من أي زاوية
-	dualSurface(sign, function(sg)
-		local lbl = Instance.new("TextLabel")
-		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = GOLD; lbl.Text = "🎟️ شبّاك التذاكر"; lbl.Parent = sg
-	end)
+	-- نقطة تفاعل شفّافة أمام واجهة الموديل (الموديل يواجه +Z) — لا تصطدم ولا تُستعلَم
+	local hub = Instance.new("Part")
+	hub.Name = "TicketBoothInteract"
+	hub.Anchored = true
+	hub.CanCollide = false
+	hub.CanQuery = false
+	hub.CanTouch = false
+	hub.Transparency = 1
+	hub.Size = Vector3.new(8, 10, 8)
+	hub.CFrame = CFrame.new(bx, GROUND_Y + 5, bz + 7)
+	hub.Parent = workspace
 
 	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "TicketBoothPrompt"
 	prompt.ActionText = "شبّاك التذاكر"
 	prompt.ObjectText = "اشترِ تذكرة"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 12
+	prompt.MaxActivationDistance = 14
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = base
+	prompt.Parent = hub
 	prompt.Triggered:Connect(openBoxOffice)
 end
 

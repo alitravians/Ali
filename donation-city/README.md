@@ -163,6 +163,10 @@ python3 build_all.py
 5. لإضافة منتج/باقة جديدة: عدّل `PRODUCT_IDS` / `CONFIG.*GamePassId` و`STORE_ITEMS` في `src/CinemaServices.server.lua`.
 
 ### ⚠️ ملاحظة أمان عن ملفات الموديلات الخام (`*.rbxmx`)
-بعض ملفات المصدر المحفوظة في المستودع (مثل `new_aquarium.rbxmx`) هي موديلات من Creator Store **بصيغتها الأصلية كما حمّلها المستخدم**، وقد تحتوي على سكربتات باك-دور معروفة (عائلة `LightConfig`/`Type`/`EasyConfiguration` التي تستخدم `require(assetId)` لتنفيذ كود خارجي). **هذه السكربتات لا تدخل اللعبة إطلاقاً**: حاقن الموديل (`inject_aquarium.py` وأمثاله) يحذف كل الفئات السكربتية (`Script`/`LocalScript`/`ModuleScript`/`NumberPose`/`Timer`/`Pose`/...) عبر مجموعة `STRIP` قبل دمج الهندسة في `DonationCity_FINAL.rbxlx`. فالملف الخام محفوظ فقط ليكون الحقن قابلاً للتكرار، والكود الخبيث يُجرَّد وقت البناء ولا يصل للسيرفر.
+بعض ملفات المصدر المحفوظة في المستودع (مثل `new_aquarium.rbxmx` و`ticketbooth_new.rbxmx`) هي موديلات من Creator Store **بصيغتها الأصلية كما حمّلها المستخدم**، وقد تحتوي على سكربتات باك-دور معروفة (عائلة `LightConfig`/`Type`/`Layout`/`EasyConfiguration` التي تستخدم `require(assetId)` عبر قيمة `NumberPose` متنكّرة لتنفيذ كود خارجي). **هذه السكربتات لا تدخل اللعبة إطلاقاً**:
+- `inject_aquarium.py` (ديكور ثابت) يحذف **كل** الفئات السكربتية (`Script`/`LocalScript`/`ModuleScript`/`NumberPose`/`Timer`/`Pose`/...) عبر مجموعة `STRIP`.
+- `inject_ticketbooth.py` يتبع قاعدة المستخدم: يحذف **فقط** الباك-دور المؤكّد (`Structure` + `Type` + `Layout` + `Pose`) ويُبقي السكربتات النظيفة الأصلية كما هي (سكربتات الباب/الصوت)، ثم يفحص ما تبقّى للتأكد من خلوّه من `require(`/`loadstring`/`getfenv`/`HttpGet`.
+
+في الحالتين يُثبَّت كل BasePart (Anchored) ويُدمَج في `DonationCity_FINAL.rbxlx`. فالملف الخام محفوظ فقط ليكون الحقن قابلاً للتكرار، والكود الخبيث يُجرَّد/يُحذف وقت البناء ولا يصل للسيرفر.
 
 > أداة فحص الصياغة (اختياري): يوجد ثنائي `luau`/`luau-analyze` في بيئة التطوير الأصلية لفحص أخطاء Lua قبل البناء.
