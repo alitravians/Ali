@@ -1949,8 +1949,8 @@ local function tryAwardStaff(player: Player)
 	for _ = 1, 20 do                       -- ~10 ثوانٍ كحدّ أقصى
 		if not player.Parent then return end  -- خرج اللاعب
 		if _G.GetChatRank then
-			local rank = _G.GetChatRank(player)
-			if STAFF_RANKS[rank] then
+			local ok, rank = pcall(_G.GetChatRank, player)
+			if ok and STAFF_RANKS[rank] then
 				_G.AwardBadge(player, "STAFF")
 			end
 			return                          -- نظام الرتب جاهز — انتهينا
