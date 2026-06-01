@@ -16,14 +16,15 @@
 # NumberValue children (AQMinX..AQMaxZ + AQWaterTopY). CinemaDecor.server.lua
 # reads those exact bounds, so fish are clamped to the real cavity and can never
 # leave the glass from any angle/state.
-import sys, copy
+import sys, copy, math
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
 SRC  = "/home/ubuntu/attachments/60018371-51e0-4ec9-a1a2-e92f5a972545/134151351475382.rbxmx"
 
 MODEL_NAME = "Aquarium"
-TX, TZ   = 30.0, 0.0    # east of the centre fountain (radius ~12); arc of booths opens east.
+TX, TZ   = 0.0, -48.0   # spot 2: NORTH of the centre fountain (user pick), clear of the plaza.
+ROT_Y_DEG = 90.0        # rotate 90deg about Y so the long (27-stud) face spans the plaza, not its thin side.
 GROUND_Y = 0.0          # plaza floor (model foot sits here)
 SCALE    = 1.0          # native size (27 long x ~9.6 tall x 3 deep)
 PREF     = "AQ"         # unique-referent prefix
@@ -155,7 +156,19 @@ for it in cp.iter("Item"):
         txt = (refel.text or "").strip()
         refel.text = refmap.get(txt, "null")
 
-# anchor + translate every BasePart (no scale: SCALE==1.0)
+# Y-rotation applied to the whole model about its vertical centre axis.
+# Ry(theta) rows; rotating an offset (lx,ly,lz): rx=c*lx+s*lz, rz=-s*lx+c*lz.
+_th = math.radians(ROT_Y_DEG)
+_c, _s = math.cos(_th), math.sin(_th)
+RY = [[_c, 0.0, _s], [0.0, 1.0, 0.0], [-_s, 0.0, _c]]
+
+def set_r(cf, idx, val):
+    el = cf.find(idx)
+    if el is None:
+        el = etree.SubElement(cf, idx)
+    el.text = f"{val:.6f}"
+
+# anchor + rotate(Y) + translate every BasePart (no scale: SCALE==1.0)
 for it in baseparts(cp):
     pr = it.find("Properties")
     anc = pr.find("bool[@name='Anchored']")
@@ -164,10 +177,22 @@ for it in baseparts(cp):
     anc.text = "true"
     cf = pr.find("CoordinateFrame[@name='CFrame']")
     if cf is None: continue
+    # 1) rotate the position offset (about model centre cx,cz) then translate
     x,y,z = get(cf,"X"),get(cf,"Y"),get(cf,"Z")
-    cf.find("X").text=f"{(x-cx)*SCALE + TX:.5f}"
+    lx, lz = (x-cx)*SCALE, (z-cz)*SCALE
+    rx = _c*lx + _s*lz
+    rz = -_s*lx + _c*lz
+    cf.find("X").text=f"{rx + TX:.5f}"
     cf.find("Y").text=f"{(y-footY)*SCALE + GROUND_Y:.5f}"
-    cf.find("Z").text=f"{(z-cz)*SCALE + TZ:.5f}"
+    cf.find("Z").text=f"{rz + TZ:.5f}"
+    # 2) rotate the orientation: R_new = RY * R_old
+    O = rmat(cf)  # [R00,R01,R02,R10,R11,R12,R20,R21,R22]
+    Old = [[O[0],O[1],O[2]],[O[3],O[4],O[5]],[O[6],O[7],O[8]]]
+    New = [[sum(RY[i][k]*Old[k][j] for k in range(3)) for j in range(3)] for i in range(3)]
+    keys = ("R00","R01","R02","R10","R11","R12","R20","R21","R22")
+    flat = [New[0][0],New[0][1],New[0][2],New[1][0],New[1][1],New[1][2],New[2][0],New[2][1],New[2][2]]
+    for k, v in zip(keys, flat):
+        set_r(cf, k, v)
 
 # ---------- compute TRUE interior cavity from transparent glass panes ----------
 gx0=gy0=gz0=1e18; gx1=gy1=gz1=-1e18; npane=0
@@ -183,8 +208,15 @@ for it in baseparts(cp):
     npane += 1
 if npane == 0:
     sys.exit("ERROR: no transparent glass panes found to derive bounds")
-inX0, inX1 = gx0 + INSET_X, gx1 - INSET_X
-inZ0, inZ1 = gz0 + INSET_Z, gz1 - INSET_Z
+# rotation-aware insets: the SMALL inset must go on the THIN (depth) axis so it
+# never collapses, regardless of how the tank was rotated. Pick by world span.
+spanX, spanZ = (gx1 - gx0), (gz1 - gz0)
+if spanX <= spanZ:           # world X is the thin (depth) axis
+    iX, iZ = INSET_X, INSET_Z
+else:                        # world Z is the thin (depth) axis (after 90deg rot)
+    iX, iZ = INSET_Z, INSET_X
+inX0, inX1 = gx0 + iX, gx1 - iX
+inZ0, inZ1 = gz0 + iZ, gz1 - iZ
 inY0, inY1 = gy0 + INSET_Y_BOT, gy1 - INSET_Y_TOP
 # guard against inverted/too-thin axes
 if inX0 > inX1: inX0 = inX1 = (gx0+gx1)/2
