@@ -1682,7 +1682,13 @@ local function handleCommand(sender: Player, raw: string)
 		if not n then tellSender(sender, "✍️ الاستخدام: /speed <رقم> [لاعب]"); return end
 		local target = (who ~= "" and findPlayer(who)) or sender
 		local h = humanoidOf(target)
-		if h then h.WalkSpeed = math.clamp(n, 0, 300); tellSender(sender, "🏃 سرعة " .. target.DisplayName .. " = " .. math.clamp(n, 0, 300)) else tellSender(sender, "❓ اللاعب غير ظاهر.") end
+		if h then
+			local sp = math.clamp(n, 0, 300)
+			-- نضبط السِمة أيضاً كي يبني عليها نظام الجري بدل أن يعيد السرعة لقيمته القديمة
+			target:SetAttribute("BaseWalkSpeed", sp)
+			h.WalkSpeed = sp
+			tellSender(sender, "🏃 سرعة " .. target.DisplayName .. " = " .. sp)
+		else tellSender(sender, "❓ اللاعب غير ظاهر.") end
 	elseif cmd == "heal" or cmd == "شفاء" then
 		local target = (rest ~= "" and findPlayer(rest:match("^(%S+)"))) or sender
 		local h = humanoidOf(target)
