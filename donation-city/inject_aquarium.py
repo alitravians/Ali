@@ -78,8 +78,8 @@ def rmat(cf):
 def world_aabb_of(it):
     """rotation-aware world AABB (cx,cy,cz, ex,ey,ez) of a BasePart Item."""
     pr = it.find("Properties")
-    cf = pr.find("CoordinateFrame[@name='CFrame']")
-    sz = pr.find("Vector3[@name='size']")
+    cf = pr.find("CoordinateFrame[@name='CFrame']") or pr.find("CFrame[@name='CFrame']")
+    sz = pr.find("Vector3[@name='size']") or pr.find("Vector3[@name='Size']")
     if cf is None or sz is None:
         return None
     cx, cy, cz = get(cf,"X"), get(cf,"Y"), get(cf,"Z")
