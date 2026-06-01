@@ -20,7 +20,7 @@ import sys, copy, math
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
-SRC  = "/home/ubuntu/attachments/60018371-51e0-4ec9-a1a2-e92f5a972545/134151351475382.rbxmx"
+SRC  = "new_aquarium.rbxmx"   # repo-local copy of the Creator Store model (asset 134151351475382)
 
 MODEL_NAME = "Aquarium"
 TX, TZ   = 0.0, -48.0   # spot 2: NORTH of the centre fountain (user pick), clear of the plaza.

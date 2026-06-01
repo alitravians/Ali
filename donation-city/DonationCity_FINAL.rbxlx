@@ -4824,7 +4824,7 @@ end)
 
 -- حفظ دوري (بلا دخل تلقائي — اقتصاد قائم على النشاط فقط)
 -- ملاحظة اقتصادية: أُلغي الدخل التلقائي «+كوينز لمجرد البقاء» نهائياً.
--- الكوينز تُكتسب الآن من نشاط فعلي فقط (المهام/الباركور/كرة الطائرة/الأركيد).
+-- الكوينز تُكتسب الآن من نشاط فعلي فقط (المهام/الباركور/الأركيد).
 task.spawn(function()
 	while true do
 		task.wait(CONFIG.SaveEvery)
@@ -8447,7 +8447,7 @@ print("[Playground] لوحات المناطق + شرطيا الأمن جاهزو
 ║  نظام النشاط والإنجازات الموسّعة — ACTIVITY SYSTEM (Server)            ║
 ║  المكان: ServerScriptService     ·     النوع: Script                   ║
 ║                                                                        ║
-║  • تتبّع زيارة مناطق الماب (سينما/شاطئ/باركور/ألعاب أطفال/كرة طائرة)    ║
+║  • تتبّع زيارة مناطق الماب (سينما/شاطئ/باركور/ألعاب أطفال)             ║
 ║    → إنجاز «مستكشف» عند زيارة كل المناطق.                              ║
 ║  • تتبّع وقت البقاء (تفاعليّاً) → إنجاز «ماراثوني» بعد ساعة.            ║
 ║  • استقبال تقارير الجري/القفز من العميل (RemoteEvent) بأمان (مع حدّ)    ║
@@ -13694,8 +13694,7 @@ local function showBeginnerGuide()
 			"١- اختر بوثاً خاصاً بك.",
 			"٢- شاهد فيلماً داخل السينما.",
 			"٣- جرّب الباركور.",
-			"٤- شارك في مباراة كرة الطائرة.",
-			"٥- أكمل المهام اليومية لتحصل على الكوينز.",
+			"٤- أكمل المهام اليومية لتحصل على الكوينز.",
 		}, "\n"),
 	})
 	new("TextButton", {
@@ -20190,7 +20189,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-53.40000</X>
             <Y>3.5</Y>
-            <Z>40.01154</Z>
+            <Z>40.01244</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20217,7 +20216,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-49.40010</X>
             <Y>4</Y>
-            <Z>40.00158</Z>
+            <Z>40.00248</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20256,7 +20255,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-48.38520</X>
             <Y>4</Y>
-            <Z>45.99895</Z>
+            <Z>45.99985</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20283,7 +20282,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-48.41506</X>
             <Y>4</Y>
-            <Z>33.99925</Z>
+            <Z>34.00015</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20310,7 +20309,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-51.90004</X>
             <Y>8.5</Y>
-            <Z>40.00781</Z>
+            <Z>40.00871</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20337,7 +20336,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-46.60000</X>
             <Y>8</Y>
-            <Z>39.99453</Z>
+            <Z>39.99543</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20364,7 +20363,7 @@ end)
           <CoordinateFrame name="CFrame">
             <X>-51.90004</X>
             <Y>11</Y>
-            <Z>40.00781</Z>
+            <Z>40.00871</Z>
             <R00>-0.002502</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20396,9 +20395,9 @@ end)
           <string name="Name">Body</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-53.67183</X>
+            <X>-53.39961</X>
             <Y>3.5</Y>
-            <Z>7.49292</Z>
+            <Z>7.92409</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20423,9 +20422,9 @@ end)
           <string name="Name">Counter</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-49.67230</X>
+            <X>-49.40008</X>
             <Y>4</Y>
-            <Z>7.55364</Z>
+            <Z>7.98481</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20462,9 +20461,9 @@ end)
           <string name="Name">PostL</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-48.76350</X>
+            <X>-48.49128</X>
             <Y>4</Y>
-            <Z>13.56814</Z>
+            <Z>13.99931</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20489,9 +20488,9 @@ end)
           <string name="Name">PostR</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-48.58132</X>
+            <X>-48.30910</X>
             <Y>4</Y>
-            <Z>1.56952</Z>
+            <Z>2.00069</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20516,9 +20515,9 @@ end)
           <string name="Name">Roof</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-52.17200</X>
+            <X>-51.89978</X>
             <Y>8.5</Y>
-            <Z>7.51570</Z>
+            <Z>7.94687</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20543,9 +20542,9 @@ end)
           <string name="Name">RoofTrim</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-46.87261</X>
+            <X>-46.60039</X>
             <Y>8</Y>
-            <Z>7.59616</Z>
+            <Z>8.02733</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20570,9 +20569,9 @@ end)
           <string name="Name">Sign</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-52.17200</X>
+            <X>-51.89978</X>
             <Y>11</Y>
-            <Z>7.51570</Z>
+            <Z>7.94687</Z>
             <R00>0.015181</R00>
             <R01>0.000000</R01>
             <R02>0.999885</R02>
@@ -20604,9 +20603,9 @@ end)
           <string name="Name">Body</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-53.67774</X>
+            <X>-53.39952</X>
             <Y>3.5</Y>
-            <Z>-7.48557</Z>
+            <Z>-7.91456</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20631,9 +20630,9 @@ end)
           <string name="Name">Counter</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-49.67841</X>
+            <X>-49.40019</X>
             <Y>4</Y>
-            <Z>-7.55392</Z>
+            <Z>-7.98290</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20670,9 +20669,9 @@ end)
           <string name="Name">PostL</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-48.57607</X>
+            <X>-48.29785</X>
             <Y>4</Y>
-            <Z>-1.57202</Z>
+            <Z>-2.00101</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20697,9 +20696,9 @@ end)
           <string name="Name">PostR</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-48.78110</X>
+            <X>-48.50288</X>
             <Y>4</Y>
-            <Z>-13.57001</Z>
+            <Z>-13.99900</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20724,9 +20723,9 @@ end)
           <string name="Name">Roof</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-52.17800</X>
+            <X>-51.89977</X>
             <Y>8.5</Y>
-            <Z>-7.51122</Z>
+            <Z>-7.94020</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20751,9 +20750,9 @@ end)
           <string name="Name">RoofTrim</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-46.87871</X>
+            <X>-46.60048</X>
             <Y>8</Y>
-            <Z>-7.60187</Z>
+            <Z>-8.03085</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20778,9 +20777,9 @@ end)
           <string name="Name">Sign</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-52.17800</X>
+            <X>-51.89977</X>
             <Y>11</Y>
-            <Z>-7.51122</Z>
+            <Z>-7.94020</Z>
             <R00>-0.017099</R00>
             <R01>0.000000</R01>
             <R02>0.999854</R02>
@@ -20812,9 +20811,9 @@ end)
           <string name="Name">Body</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-54.79658</X>
+            <X>-53.40000</X>
             <Y>3.5</Y>
-            <Z>24.16011</Z>
+            <Z>24.01255</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20839,9 +20838,9 @@ end)
           <string name="Name">Counter</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-50.79667</X>
+            <X>-49.40009</X>
             <Y>4</Y>
-            <Z>24.15007</Z>
+            <Z>24.00251</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20878,9 +20877,9 @@ end)
           <string name="Name">PostL</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-49.78165</X>
+            <X>-48.38507</X>
             <Y>4</Y>
-            <Z>30.14741</Z>
+            <Z>29.99985</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20905,9 +20904,9 @@ end)
           <string name="Name">PostR</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-49.81176</X>
+            <X>-48.41518</X>
             <Y>4</Y>
-            <Z>18.14771</Z>
+            <Z>18.00015</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20932,9 +20931,9 @@ end)
           <string name="Name">Roof</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-53.29661</X>
+            <X>-51.90003</X>
             <Y>8.5</Y>
-            <Z>24.15634</Z>
+            <Z>24.00878</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20959,9 +20958,9 @@ end)
           <string name="Name">RoofTrim</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-47.99658</X>
+            <X>-46.60000</X>
             <Y>8</Y>
-            <Z>24.14313</Z>
+            <Z>23.99557</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -20986,9 +20985,9 @@ end)
           <string name="Name">Sign</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-53.29661</X>
+            <X>-51.90003</X>
             <Y>11</Y>
-            <Z>24.15634</Z>
+            <Z>24.00878</Z>
             <R00>-0.002497</R00>
             <R01>0.000000</R01>
             <R02>0.999997</R02>
@@ -21020,11 +21019,11 @@ end)
           <string name="Name">Body</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-54.81613</X>
+            <X>-53.39992</X>
             <Y>3.5</Y>
-            <Z>-24.16903</Z>
+            <Z>-24.03529</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>
@@ -21047,11 +21046,11 @@ end)
           <string name="Name">Counter</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-50.81632</X>
+            <X>-49.40011</X>
             <Y>4</Y>
-            <Z>-24.14080</Z>
+            <Z>-24.00706</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>
@@ -21086,11 +21085,11 @@ end)
           <string name="Name">PostL</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-49.85872</X>
+            <X>-48.44251</X>
             <Y>4</Y>
-            <Z>-18.13402</Z>
+            <Z>-18.00028</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>
@@ -21113,11 +21112,11 @@ end)
           <string name="Name">PostR</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-49.77402</X>
+            <X>-48.35781</X>
             <Y>4</Y>
-            <Z>-30.13346</Z>
+            <Z>-29.99972</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>
@@ -21140,11 +21139,11 @@ end)
           <string name="Name">Roof</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-53.31620</X>
+            <X>-51.89999</X>
             <Y>8.5</Y>
-            <Z>-24.15844</Z>
+            <Z>-24.02470</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>
@@ -21167,11 +21166,11 @@ end)
           <string name="Name">RoofTrim</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-48.01628</X>
+            <X>-46.60007</X>
             <Y>8</Y>
-            <Z>-24.12094</Z>
+            <Z>-23.98720</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>
@@ -21194,11 +21193,11 @@ end)
           <string name="Name">Sign</string>
           <bool name="Anchored">true</bool>
           <CoordinateFrame name="CFrame">
-            <X>-53.31620</X>
+            <X>-51.89999</X>
             <Y>11</Y>
-            <Z>-24.15844</Z>
+            <Z>-24.02470</Z>
             <R00>0.007070</R00>
-            <R01>-0.000000</R01>
+            <R01>0.000000</R01>
             <R02>0.999975</R02>
             <R10>0.000000</R10>
             <R11>1.000000</R11>

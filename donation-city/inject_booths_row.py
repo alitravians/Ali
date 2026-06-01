@@ -22,9 +22,9 @@ SPACING = 16.0                                  # gap between booth centres (~4-
 ORDER = ["Bronze", "Silver", "Gold", "Emerald", "Ruby", "Diamond"]   # north -> south
 BP = {"Part","MeshPart","UnionOperation","WedgePart","TrussPart","Seat","CornerWedgePart"}
 
-# centred symmetric Z slots: 6 booths, spacing 13 -> z in [-32.5 .. +32.5]
+# centred symmetric Z slots: 6 booths, spacing 16 -> z in [-40 .. +40]
 N = len(ORDER)
-ZS = [(i - (N - 1) / 2.0) * SPACING for i in range(N)]   # [-32.5,-19.5,-6.5,6.5,19.5,32.5]
+ZS = [(i - (N - 1) / 2.0) * SPACING for i in range(N)]   # [-40,-24,-8,8,24,40]
 
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
 def fget(cf, t, d=0.0):
