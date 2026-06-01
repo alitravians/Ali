@@ -168,7 +168,6 @@ task.spawn(function()
 	end
 	if #streams > 0 then
 		local span = math.max(1, maxY - minY)
-		local RunService = game:GetService("RunService")
 		local clk, acc = 0, 0
 		RunService.Heartbeat:Connect(function(dt)
 			clk = clk + dt
