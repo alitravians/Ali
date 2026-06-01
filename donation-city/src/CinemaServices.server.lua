@@ -2108,11 +2108,11 @@ local function dualSurface(parent, builder)
 	end
 end
 
--- 👤 كاشير شباك التذاكر: نستنسخ موديل «Cashier» (مُتحقَّق منه — نظيف؛ سكربت الحركة
--- Animate مُعطّل فقط) من قالب مخفي في ServerScriptService، ونُجلسه على الكرسي الأقرب
--- لنافذة الشباك مواجهاً اللاعبين. لا نضيف أي منطق لعبة داخل الموديل — زر الشراء يُربط
--- هنا في سكربتنا. التموضع يُحسب وقت التشغيل من كرسي موديل «TicketBooth» المحقون.
-local CASHIER_SCALE = 1.0   -- حجم طبيعي يناسب الجلوس خلف الكاونتر بلا تداخل
+-- 👤 كاشير شباك التذاكر: نستنسخ موديل الموظف الجاهز (مُتحقَّق منه — نظيف 100%: صفر
+-- سكربتات، مجرد قطع Parts/Meshes جالس على كرسيّه) من قالب مخفي في ServerScriptService،
+-- ونضعه خلف كاونتر الشباك مواجهاً اللاعبين عبر النافذة، كقطعة ديكور ثابتة. لا منطق
+-- داخل الموديل — زر الشراء + لوحة الاسم يُربطان هنا في سكربتنا. التموضع يُحسب وقت التشغيل.
+local CASHIER_SCALE = 0.5    -- تصغير الموديل (أصله ~12 ستد) لحجم معتدل يناسب خلف الكاونتر
 local function buildCashierModel(opts)
 	-- ننتظر القالب والشباك حتى لو تأخّر تحميلهما (حماية من سباق التهيئة) بمهلة قصيرة
 	local template = ServerScriptService:WaitForChild("CashierModel", 10)
@@ -2121,81 +2121,54 @@ local function buildCashierModel(opts)
 	local booth = Workspace:WaitForChild("TicketBooth", 10)
 	if not booth then return nil end
 
-	-- نختار الكرسي الأقرب لنقطة التفاعل (نافذة الشباك الفعّالة)
-	local seat, best = nil, math.huge
-	for _, d in ipairs(booth:GetDescendants()) do
-		if d:IsA("Seat") then
-			local dist = (d.Position - opts.target).Magnitude
-			if dist < best then best = dist; seat = d end
-		end
-	end
-	if not seat then return nil end   -- بلا كرسي لا نُجلس الكاشير (نرجع للاحتياطي)
-
 	local model = template:Clone()
 	model.Name = opts.name or "TicketCashier"
 
-	-- نتحقق من جذر الشخصية مبكّراً بعد الاستنساخ مباشرة (وننظّف النسخة إن غاب)
-	local hrp = model:FindFirstChild("HumanoidRootPart")
-	if not hrp then model:Destroy(); return nil end
-	model.PrimaryPart = hrp
-
-	-- تعطيل سكربت الحركة احتياطياً حتى لا يطغى على وضعية الجلوس (مُعطّل أصلاً بالقالب)
-	local animate = model:FindFirstChild("Animate")
-	if animate then pcall(function() animate.Disabled = true end) end
-
-	-- عرض ثابت آمن: لا يموت، لا يتحرك، لا يدور تلقائياً
-	local hum = model:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum.MaxHealth = 100; hum.Health = 100
-		hum.WalkSpeed = 0; hum.AutoRotate = false
-		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-		hum.PlatformStand = true
-		for _, st in ipairs({ Enum.HumanoidStateType.Dead, Enum.HumanoidStateType.FallingDown,
-			Enum.HumanoidStateType.Ragdoll, Enum.HumanoidStateType.GettingUp }) do
-			pcall(function() hum:SetStateEnabled(st, false) end)
-		end
-	end
-
-	-- نُثبّت جذر الشخصية فقط؛ بقية القطع موصولة به عبر Motor6D فتبقى صلبة بلا فيزياء
+	-- موديل ثابت: نُثبّت كل القطع (Anchored) بلا اصطدام؛ ونرصد أكبر قطعة (لربط زر التفاعل)
+	-- وأعلى قطعة (الرأس — لتعليق لوحة الاسم). لا نضبط PrimaryPart حتى يبقى محور الموديل
+	-- محاذياً للعالم فيصحّ حساب الدوران والإسقاط على الأرض.
+	local biggest, bestVol = nil, -1
+	local topPart, bestY = nil, -math.huge
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BasePart") then
+			d.Anchored = true
 			d.CanCollide = false
 			d.Massless = true
-			d.Anchored = (d == hrp)
+			local v = d.Size.X * d.Size.Y * d.Size.Z
+			if v > bestVol then bestVol = v; biggest = d end
+			if d.Position.Y > bestY then bestY = d.Position.Y; topPart = d end
 		end
 	end
+	if not biggest then model:Destroy(); return nil end
 
-	-- الحجم (معتدل) قبل التموضع
+	-- الحجم المعتدل قبل التموضع
 	pcall(function() model:ScaleTo(CASHIER_SCALE) end)
 
-	-- وضعية الجلوس: ندوّر الساقين للأمام (نحو الجهة التي يواجهها الجذع) حول مفصل الورك (R6).
-	-- ملاحظة دقيقة: «أمام» الجذع هو محوره المحلي -Z (اتجاه LookVector)، لذا نستخدم +π/2
-	-- حول محور X المحلي لتتقدّم الساقان أمام الجسم؛ (-π/2 كانت تدفعهما للخلف فيبان مائلاً).
-	-- نحافظ على نقطة ارتكاز المفصل (موضع C0) كما هي فتنثني الساق حول الورك لا حول مركز الجذع.
-	local torso = model:FindFirstChild("Torso")
-	if torso then
-		for _, hipName in ipairs({ "Right Hip", "Left Hip" }) do
-			local hip = torso:FindFirstChild(hipName)
-			if hip and hip:IsA("Motor6D") then
-				local c0 = hip.C0
-				local pivot = c0.Position
-				local orient = c0 - pivot                              -- اتجاه فقط (بلا إزاحة)
-				hip.C0 = CFrame.new(pivot) * CFrame.Angles(math.pi / 2, 0, 0) * orient
-			end
-		end
-	end
+	-- التوجيه: الموديل مُصمَّم ووجهه نحو محور -Z؛ ندوّره (yaw حول Y) ليطابق faceDir
+	-- (افتراضياً +X نحو نافذة/كاونتر الشباك حيث يقف اللاعبون)، ثم نُسقطه على الأرضية.
+	local faceDir = opts.faceDir or Vector3.new(1, 0, 0)
+	local authored = Vector3.new(0, 0, -1)                 -- اتجاه وجه الموديل الأصلي
+	local yaw = math.atan2(faceDir.X, faceDir.Z) - math.atan2(authored.X, authored.Z)
+	local target = opts.target or Vector3.new(0, GROUND_Y, 0)
+	local pivot = model:GetPivot()
+	model:PivotTo(CFrame.new(target.X, pivot.Position.Y, target.Z) * CFrame.Angles(0, yaw, 0))
 
-	-- التموضع فوق الكرسي مواجهاً اللاعبين (+Z نحو الساحة)
-	local seatTopY = seat.Position.Y + seat.Size.Y / 2
-	local hipY = seatTopY + 1.0 * CASHIER_SCALE          -- مركز الجذر فوق سطح الكرسي
-	local sitPos = Vector3.new(seat.Position.X, hipY, seat.Position.Z)
-	local faceDir = opts.faceDir or Vector3.new(0, 0, 1)
-	model:PivotTo(CFrame.lookAt(sitPos, sitPos + faceDir))
+	-- الاستقرار على الأرضية الفعلية: شعاع لأسفل يبدأ تحت السقف ويتجاهل الموديل نفسه،
+	-- ثم نرفع الموديل حتى تلامس أدنى نقطة فيه سطح الأرض (بلا طيران ولا غرق).
+	local rp = RaycastParams.new()
+	rp.FilterType = Enum.RaycastFilterType.Exclude
+	rp.FilterDescendantsInstances = { model }
+	local from = Vector3.new(target.X, target.Y + 8, target.Z)
+	local hit = Workspace:Raycast(from, Vector3.new(0, -30, 0), rp)
+	local bcf, bsize = model:GetBoundingBox()
+	local floorY = hit and hit.Position.Y or target.Y
+	local lift = floorY - (bcf.Position.Y - bsize.Y / 2)
+	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
 
 	model.Parent = booth
 
-	-- لوحة الاسم فوق الرأس
-	local head = model:FindFirstChild("Head") or hrp
+	-- لوحة الاسم فوق الرأس (أعلى قطعة)
+	local head = topPart or biggest
 	if head then
 		local bb = Instance.new("BillboardGui")
 		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
@@ -2208,7 +2181,7 @@ local function buildCashierModel(opts)
 		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
 	end
 
-	-- زر التفاعل: التحدث مع الكاشير يفتح شباك التذاكر
+	-- زر التفاعل: التحدث مع الكاشير يفتح شباك التذاكر (يُربط بأكبر قطعة في الموديل)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "TicketBoothPrompt"
 	prompt.ActionText = opts.promptText or "شبّاك التذاكر"
@@ -2217,7 +2190,7 @@ local function buildCashierModel(opts)
 	prompt.HoldDuration = 0
 	prompt.MaxActivationDistance = opts.maxDist or 16
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = head
+	prompt.Parent = biggest
 	if opts.onTrigger then prompt.Triggered:Connect(opts.onTrigger) end
 
 	return model
@@ -2230,14 +2203,16 @@ end
 -- نُشغّله في خيط منفصل (task.spawn) حتى لا تُعطّل مهلة WaitForChild — في الحالة
 -- النادرة لغياب الشباك — تهيئة بقية عناصر السينما (لوحة العروض/الطابور/كبار الزوار).
 task.spawn(function()
-	local bx, bz = -15, -100
-	local target = Vector3.new(bx, GROUND_Y, bz + 7)
+	-- موضع الموظف خلف الكاونتر (نافذة الشباك على المحور +X عند x≈-8.6)، في منتصف
+	-- الشباك تقريباً، مواجهاً اللاعبين الواقفين أمام النافذة (+X).
+	local bx, bz = -12.5, -99.7
+	local target = Vector3.new(bx, GROUND_Y, bz)
 
-	-- نُجلس الكاشير على كرسي الشباك ونربط زر الشراء به (الأكثر واقعية)
+	-- نضع الموظف الجاهز (الجالس على كرسيّه) خلف الكاونتر ونربط زر الشراء به (الأكثر واقعية)
 	local cashier = buildCashierModel({
 		name = "TicketCashier", tag = "🎟️ موظف التذاكر",
 		tagColor = Color3.fromRGB(255, 205, 90),
-		target = target, faceDir = Vector3.new(0, 0, -1),   -- يواجه نافذة الشباك/اللاعبين (-Z)
+		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه نافذة الشباك/اللاعبين (+X)
 		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
 		maxDist = 16, onTrigger = openBoxOffice,
 	})

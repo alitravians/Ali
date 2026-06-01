@@ -88,6 +88,24 @@ if model is None:
 removed = remove_backdoor(model)
 print("removed backdoor items:", removed)
 
+# Remove the booth's built-in chairs: the new ready-seated employee model
+# (CashierModel) brings its OWN chair, so the original 3 "Chair" groups (each a
+# Model holding a Seat + "Chair Base") would clash/overlap. Drop every "Chair"
+# Model wholesale (its Seat + base go with it).
+def remove_chairs(item):
+    dropped = []
+    for child in list(item):
+        if child.tag != "Item":
+            continue
+        if child.get("class") == "Model" and nm(child) == "Chair":
+            item.remove(child); dropped.append(nm(child))
+        else:
+            dropped += remove_chairs(child)
+    return dropped
+
+chairs = remove_chairs(model)
+print(f"removed {len(chairs)} built-in 'Chair' model(s) (new employee has its own)")
+
 # verify the surviving scripts are clean (no remote-code-exec patterns)
 bad = []
 for it in model.iter("Item"):

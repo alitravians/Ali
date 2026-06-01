@@ -1,29 +1,23 @@
 #!/usr/bin/env python3
-# CDATA-preserving (lxml) insertion of the ticket-booth cashier character model
-# ("Cashier", user-supplied Creator Store asset 6821242503 by @Stixxal) as a
-# hidden TEMPLATE under ServerScriptService, named "CashierModel".
+# CDATA-preserving (lxml) insertion of the ticket-booth employee model (user-supplied
+# ready-seated Creator Store model, asset 8284847763, "dave lol") as a hidden TEMPLATE
+# under ServerScriptService, named "CashierModel".
 #
 # AUDIT RESULT (per the project model-integration rule — keep clean scripts AS-IS,
 # remove ONLY proven malicious parts):
-#   The model holds a single Script "Animate" — the standard Roblox R6 character
-#   animation script (plays idle/walk/run from roblox.com animation assets). It
-#   contains ZERO malicious patterns (no loadstring / require / getfenv / HttpGet /
-#   InsertService / GetObjects). So the model is CLEAN and we adopt it AS-IS: we do
-#   NOT strip the Animate script and we do NOT add any game logic inside the model.
+#   The model is a STATIC PROP: 27 BaseParts (Part/MeshPart) of an employee already
+#   posed sitting on his own chair, with ZERO scripts, ZERO LinkedSource, and ZERO
+#   malicious patterns. There is therefore no possible backdoor; we adopt it AS-IS
+#   and add NO game logic inside the model.
 #
-#   We DO set Animate.Disabled = true, for two reasons (display-only, not a code
-#   change to the script): (1) the cashier is a STATIC seated NPC posed by our own
-#   CinemaServices.server.lua, so the walking/idle animation must not override the
-#   seated pose; (2) a template living under ServerScriptService would otherwise
-#   run the Animate script needlessly. The script itself is kept untouched.
+# The employee behaviour (placement behind the counter facing players + name tag +
+# the box-office ProximityPrompt) lives in our own CinemaServices.server.lua, which
+# clones this template, scales it to a moderate size, rotates it to face the ticket
+# window (+X), and rests it on the booth floor via a downward raycast.
 #
-# The cashier behaviour (seated pose on the booth chair + name tag + the box-office
-# ProximityPrompt) lives in our own CinemaServices.server.lua, which clones this
-# template and seats it on the chair nearest the ticket window, facing players.
-#
-# Why a ServerScriptService template (not Workspace): the cashier's world position
-# is computed at runtime from the injected "TicketBooth" model's chair, so we keep
-# a single source of truth in the server script and clone the template into place.
+# Why a ServerScriptService template (not Workspace): the employee's world position
+# is computed at runtime relative to the injected "TicketBooth" model, so we keep a
+# single source of truth in the server script and clone the template into place.
 # A ServerScriptService child never replicates/renders, so there is no stray model.
 #
 # Idempotent: re-running removes any previous "CashierModel" first.
@@ -31,7 +25,7 @@ import sys, copy, re
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
-SRC  = "cashier_worker.rbxmx"
+SRC  = "employee_seated.rbxmx"
 MODEL_NAME = "CashierModel"
 PREF = "CASH_"   # unique referent prefix to avoid clashes with the main file
 
@@ -91,6 +85,11 @@ def audit(model):
             for pat in scan_text(script_source(it)):
                 bad.append(f"{it.get('class')} '{name}' -> {pat}")
                 seen.add(pat)
+            # defence-in-depth: reject any non-null LinkedSource (external code ref)
+            for ls in it.findall("./Properties/*[@name='LinkedSource']"):
+                txt = (ls.text or "").strip()
+                if txt and ls.tag.lower() != "null":
+                    bad.append(f"{it.get('class')} '{name}' -> LinkedSource:{txt}")
     # defence-in-depth: scan the whole serialised model too (values, attributes...)
     raw = etree.tostring(model, encoding="unicode")
     for pat in scan_text(raw):
