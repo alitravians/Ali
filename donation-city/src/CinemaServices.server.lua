@@ -2226,7 +2226,9 @@ end
 -- باسم "TicketBooth" عبر inject_ticketbooth.py. لا نعدّل سكربتات الموديل الأصلية؛
 -- منطق الشراء يبقى في سكربتنا: يُربط بزر تفاعل على الكاشير الجالس، وإن تعذّر نرجع
 -- لنقطة تفاعل شفّافة أمام الموديل كاحتياط.
-do
+-- نُشغّله في خيط منفصل (task.spawn) حتى لا تُعطّل مهلة WaitForChild — في الحالة
+-- النادرة لغياب الشباك — تهيئة بقية عناصر السينما (لوحة العروض/الطابور/كبار الزوار).
+task.spawn(function()
 	local bx, bz = -15, -100
 	local target = Vector3.new(bx, GROUND_Y, bz + 7)
 
@@ -2263,7 +2265,7 @@ do
 		prompt.Parent = hub
 		prompt.Triggered:Connect(openBoxOffice)
 	end
-end
+end)
 
 -- لوحة العروض الحيّة (يمين المدخل) — نص على الوجهين فلا يظهر معكوساً من الخلف
 local showLabels, subLabels = {}, {}

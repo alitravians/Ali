@@ -83,19 +83,23 @@ def audit(model):
     """Per-script malicious-pattern scan. Clean scripts are allowed (kept AS-IS).
     Returns (scripts_found, malicious_hits)."""
     scripts, bad = [], []
+    seen = set()   # exact pattern tokens already reported (dedup by token, not substring)
     for it in model.iter("Item"):
         if it.get("class") in SCRIPTY:
             name = it.findtext("Properties/string[@name='Name']") or "?"
             scripts.append(f"{it.get('class')}:{name}")
             for pat in scan_text(script_source(it)):
                 bad.append(f"{it.get('class')} '{name}' -> {pat}")
+                seen.add(pat)
     # defence-in-depth: scan the whole serialised model too (values, attributes...)
     raw = etree.tostring(model, encoding="unicode")
     for pat in scan_text(raw):
-        if not any(pat in b for b in bad):
-            # only flag if it is NOT already accounted for by a script source hit
-            # (avoids duplicate noise); a raw-only hit is still suspicious.
+        if pat not in seen:
+            # flag raw-only hits not already reported from a script source. Dedup is
+            # by EXACT pattern token so a "HttpGetAsync" script hit can't mask a
+            # separate raw "HttpGet" hit (substring overlap would have hidden it).
             bad.append(f"raw -> {pat}")
+            seen.add(pat)
     return scripts, bad
 
 
