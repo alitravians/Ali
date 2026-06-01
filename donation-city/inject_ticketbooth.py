@@ -121,6 +121,16 @@ for it in model.iter("Item"):
                 bad.append((it.get("class"), nm(it), pat))
         if REQUIRE_RX.search(src):
             bad.append((it.get("class"), nm(it), "require"))
+# defence-in-depth: scan the whole serialised model too (values, attributes...),
+# mirroring inject_cashier / inject_guide so a pattern hidden outside a script
+# source can't slip through.
+raw = etree.tostring(model, encoding="unicode")
+rawlow = raw.lower()
+for pat in DANGER:
+    if pat.lower() in rawlow and not any(pat == b[2] for b in bad):
+        bad.append(("raw", "-", pat))
+if REQUIRE_RX.search(raw) and not any(b[2] == "require" for b in bad):
+    bad.append(("raw", "-", "require"))
 if bad:
     sys.exit(f"ERROR: dangerous pattern still present after cleanup: {bad}")
 kept = [(it.get("class"), nm(it)) for it in model.iter("Item")
