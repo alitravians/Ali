@@ -3358,15 +3358,23 @@ local function buildCharacterModel(opts)
 	-- وقوفه أمام المدخل مواجهاً القادمين (نفس اتجاه المرشد السابق)
 	model:PivotTo(opts.footCFrame)
 
-	-- استقرار القدمين على الأرضية الفعلية تحته عبر شعاع لأسفل (يتجاهل المرشد نفسه)
-	local rp = RaycastParams.new()
-	rp.FilterType = Enum.RaycastFilterType.Exclude
-	local ignore = { model }
-	for _, ig in ipairs(opts.raycastIgnore or {}) do table.insert(ignore, ig) end  -- نتجاهل الكاونتر/الديكور حتى يستقر على الأرض لا فوقه
-	rp.FilterDescendantsInstances = ignore
+	-- استقرار القدمين على الأرض:
+	-- داخل السينما الأرضية مستوية ومعروفة (groundY) → نستعملها مباشرة،
+	-- لتفادي أن يصطدم الشعاع بسقف المبنى فوق الخادم فيُرفع على السطح.
+	-- خارج المبنى (المرشد) نستعمل شعاعاً لأسفل لإيجاد الأرضية الفعلية.
 	local fp = opts.footCFrame.Position
-	local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
-	local feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
+	local feetY
+	if opts.useGroundY and opts.groundY then
+		feetY = opts.groundY
+	else
+		local rp = RaycastParams.new()
+		rp.FilterType = Enum.RaycastFilterType.Exclude
+		local ignore = { model }
+		for _, ig in ipairs(opts.raycastIgnore or {}) do table.insert(ignore, ig) end
+		rp.FilterDescendantsInstances = ignore
+		local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
+		feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
+	end
 	local bcf, bsize = model:GetBoundingBox()
 	local lift = feetY - (bcf.Position.Y - bsize.Y / 2)
 	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
@@ -3545,16 +3553,18 @@ pcall(function()
 
 	-- خادم واحد جنب بسطة الفشار يقدّم الطلبات — موضع مكشوف على يسار الكاونتر
 	-- (أرضية مفتوحة غير محجوبة بالكاونتر) ومواجه للقادمين من المدخل، فيبان واضحاً.
+	-- يواجه اللاعبين (الجهة المكشوفة). موديل Staff Worker واجهته على المحور المعاكس
+	-- مقارنةً بالمرشد، فنصوّب الهدف للجهة المعاكسة ليظهر وجهه للقادمين (غير معكوس).
 	local waiterFoot = CFrame.lookAt(
 		Vector3.new(popPos.X - 7, groundY, popPos.Z),
-		Vector3.new(popPos.X - 7, groundY, popPos.Z + 25)
+		Vector3.new(popPos.X - 7, groundY, popPos.Z - 25)
 	)
 	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
 	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
 	local waiterOpts = {
 		name = "CinemaWaiter", tag = "🍿 خادم السينما", tagColor = Color3.fromRGB(255, 205, 90),
 		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
-		raycastIgnore = popcorn and { popcorn } or nil,  -- لا يُحسب فوق الكاونتر
+		useGroundY = true,  -- أرضية السينما مستوية: استعمل groundY مباشرة (لا شعاع يصطدم بالسقف)
 		promptText = "اطلب طلبك", promptObj = "خادم السينما", onTrigger = waiterServe,
 	}
 	if not buildCharacterModel(waiterOpts) then
