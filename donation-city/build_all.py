@@ -18,6 +18,7 @@ SRC = "DonationCity_FINAL.rbxlx"
 # regenerate the map from scratch, run it manually in Studio on an empty place
 # and save the result. See README.md ("طريقة الاستخدام") for details.
 UPDATES = [
+    ("src/BadgeAwards.server.lua",    "BADGE AWARDS (Server)"),
     ("src/CinemaSystem.server.lua",   "CINEMA SYSTEM"),
     ("src/CinemaServices.server.lua", "CINEMA SERVICES"),
     ("src/CinemaClient.client.lua",   "CINEMA CLIENT"),
@@ -32,7 +33,6 @@ UPDATES = [
     ("src/ParkourSystem.server.lua",  "PARKOUR SYSTEM (Server)"),
     ("src/ParkourClient.client.lua",  "PARKOUR CLIENT (Client)"),
     ("src/PlaygroundArea.server.lua", "PLAYGROUND (Server)"),
-    ("src/VolleyballSystem.server.lua", "VOLLEYBALL SYSTEM (Server)"),
     ("src/ActivitySystem.server.lua", "ACTIVITY SYSTEM (Server)"),
     ("src/SprintJump.client.lua",    "SPRINT & JUMP (Client)"),
     ("src/MissionSystem.server.lua", "MISSION SYSTEM (Server)"),

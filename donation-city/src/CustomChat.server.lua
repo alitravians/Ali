@@ -224,12 +224,23 @@ end)
 -- ⚠️ الفلترة إلزامية من روبلوكس: لو فشل الفلتر أو رجّع نصاً فارغاً، نُرجّع nil
 -- (نحجب الرسالة) بدل بثّ نص غير مُفلتر — حماية للّاعبين والتزاماً بسياسات روبلوكس.
 ------------------------------------------------------------------------
+-- فلترة النص مع إعادة محاولة واحدة عند الفشل المؤقت (الشبكة/الـAPI)
+local function tryFilter(text: string, fromUserId: number)
+	for attempt = 1, 2 do
+		local ok, result = pcall(function()
+			return TextService:FilterStringAsync(text, fromUserId)
+		end)
+		if ok and result then return result end
+		warn("[CustomChat] FilterStringAsync فشل (محاولة " .. attempt .. "): " .. tostring(result))
+		if attempt == 1 then task.wait(0.35) end
+	end
+	return nil
+end
+
 local function safeFilter(text: string, fromUserId: number): string?
-	local ok, result = pcall(function()
-		return TextService:FilterStringAsync(text, fromUserId)
-	end)
-	if not ok or not result then
-		warn("[CustomChat] FilterStringAsync فشل — حُجبت الرسالة (الفلترة إلزامية): " .. tostring(result))
+	local result = tryFilter(text, fromUserId)
+	if not result then
+		warn("[CustomChat] FilterStringAsync فشل — حُجبت الرسالة (الفلترة إلزامية)")
 		return nil
 	end
 
@@ -247,21 +258,424 @@ end
 -- فلترة مخصّصة لمستلِم معيّن (GetChatForUserAsync) — أقل تشدّداً من البثّ العام
 -- وأنسب للرسائل الخاصة (همس).
 local function safeFilterForUser(text: string, fromUserId: number, targetUserId: number): string?
-	local ok, result = pcall(function()
-		return TextService:FilterStringAsync(text, fromUserId)
-	end)
-	if not ok or not result then
+	local result = tryFilter(text, fromUserId)
+	if not result then
 		warn("[CustomChat] FilterStringAsync فشل (همس) — حُجبت الرسالة")
 		return nil
 	end
+
+	-- ١) الفلترة المخصّصة للمستلِم (الأفضل للرسائل الخاصة)
 	local ok2, filtered = pcall(function()
 		return result:GetChatForUserAsync(targetUserId)
 	end)
 	if ok2 and typeof(filtered) == "string" and filtered ~= "" then
 		return filtered
 	end
-	warn("[CustomChat] GetChatForUserAsync فشل — حُجبت رسالة الهمس")
+
+	-- ٢) احتياطي: لو فشلت الفلترة المخصّصة، نستخدم فلتر البثّ العام بدل حجب الرسالة كلياً
+	warn("[CustomChat] GetChatForUserAsync فشل (همس) — التحوّل لفلتر البثّ العام")
+	local ok3, broadcastStr = pcall(function()
+		return result:GetNonChatStringForBroadcastAsync()
+	end)
+	if ok3 and typeof(broadcastStr) == "string" and broadcastStr ~= "" then
+		return broadcastStr
+	end
+
+	warn("[CustomChat] تعذّرت فلترة رسالة الهمس بكل الطرق — حُجبت")
 	return nil
+end
+
+------------------------------------------------------------------------
+-- ⌘ نظام أوامر الدردشة (Chat Commands)
+--   أي رسالة تبدأ بـ "/" تُعالَج كأمر ولا تُبَثّ كرسالة عادية.
+--   الصلاحيات تُحسَب من رتبة المتحدّث (owner/admin/mod) عبر roleOf.
+------------------------------------------------------------------------
+local Workspace = game:GetService("Workspace")
+
+local RANK_WEIGHT = { owner = 4, admin = 3, mod = 2, staff = 1, vip = 0, [""] = 0 }
+local function weightOf(player: Player): number
+	return RANK_WEIGHT[roleOf(player)] or 0
+end
+
+-- رسالة نظام موجّهة للمرسِل فقط (رد على الأمر)
+local function tellSender(player: Player, text: string)
+	pushRemote:FireClient(player, { system = true, text = text })
+end
+
+-- بثّ رسالة نظام لكل اللاعبين (لأوامر مرئية مثل /roll و/me)
+local function broadcastSystem(text: string)
+	for _, recipient in ipairs(Players:GetPlayers()) do
+		pushRemote:FireClient(recipient, { system = true, text = text })
+	end
+end
+
+-- إيجاد لاعب بالاسم (تطابق تام ثم جزئي على الاسم أو الاسم المعروض)
+local function findPlayer(query: string?): Player?
+	if not query or query == "" then return nil end
+	query = query:lower()
+	local partial: Player? = nil
+	for _, p in ipairs(Players:GetPlayers()) do
+		local n, d = p.Name:lower(), p.DisplayName:lower()
+		if n == query or d == query then return p end
+		if not partial and (n:sub(1, #query) == query or d:sub(1, #query) == query) then partial = p end
+	end
+	return partial
+end
+
+local function rootOf(player: Player): BasePart?
+	local ch = player.Character
+	return ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart? or nil
+end
+local function humanoidOf(player: Player): Humanoid?
+	local ch = player.Character
+	return ch and ch:FindFirstChildOfClass("Humanoid") or nil
+end
+
+------------------------------------------------------------------------
+-- 🧊 التجميد: نثبّت اللاعب مكانه (لا يقدر يتحرك) ونعيد التطبيق عند كل ظهور
+------------------------------------------------------------------------
+local frozen: { [number]: boolean } = {}
+-- مهلة /spawn لكل لاعب (تمنع تكرار LoadCharacter بسرعة)
+local SPAWN_COOLDOWN = 5
+local spawnCooldown: { [number]: number } = {}
+local function applyFreeze(player: Player)
+	local root, hum = rootOf(player), humanoidOf(player)
+	if hum then hum.WalkSpeed = 0; hum.JumpPower = 0; hum.JumpHeight = 0 end
+	if root then root.Anchored = true end
+end
+local function setFrozen(player: Player, on: boolean)
+	if on then
+		frozen[player.UserId] = true
+		applyFreeze(player)
+	else
+		frozen[player.UserId] = nil
+		local root, hum = rootOf(player), humanoidOf(player)
+		if hum then
+			-- استعد السرعة الأساسية (سرعة باقة «البرق» إن مُلكت، وإلا 16) لا رقماً ثابتاً
+			local base = player:GetAttribute("BaseWalkSpeed")
+			hum.WalkSpeed = (type(base) == "number" and base > 0) and base or 16
+			hum.JumpPower = 50; hum.JumpHeight = 7.2
+		end
+		if root then root.Anchored = false end
+	end
+end
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		task.wait(0.4)
+		if frozen[plr.UserId] then applyFreeze(plr) end
+	end)
+end)
+Players.PlayerRemoving:Connect(function(plr) frozen[plr.UserId] = nil; spawnCooldown[plr.UserId] = nil end)
+
+------------------------------------------------------------------------
+-- ⚙️ صلاحيات الأوامر القابلة للتحكم (من لوحة الإدارة)
+--   لكل أمر «مستوى مطلوب» يقرّره الأدمن: 0=الجميع · 2=المشرفون فأعلى ·
+--   3=الأداريون فأعلى · 99=معطّل. يُحفظ في DataStore فيبقى ثابت بعد
+--   إعادة التشغيل، ويُطبّق فوراً على كل اللاعبين.
+------------------------------------------------------------------------
+local CMD_EVERYONE, CMD_MOD, CMD_ADMIN, CMD_OFF = 0, 2, 3, 99
+
+-- تعريف الأوامر القابلة للتحكم: المفتاح القانوني · الوصف للوحة · المستوى الافتراضي.
+-- (help و clear متاحان دائماً للجميع وغير مدرجين هنا فلا يمكن تعطيلهما.)
+local CMD_DEFS = {
+	-- 🟢 ترفيهية/عامة
+	{ key = "me",       label = "🎭 /me — تعبير عن فعل",      def = CMD_EVERYONE },
+	{ key = "roll",     label = "🎲 /roll — رمي نرد",          def = CMD_EVERYONE },
+	{ key = "flip",     label = "💰 /flip — قذف عملة",         def = CMD_EVERYONE },
+	{ key = "coins",    label = "💰 /coins — رصيدك",           def = CMD_EVERYONE },
+	{ key = "tickets",  label = "🎟️ /tickets — تذاكرك",       def = CMD_EVERYONE },
+	{ key = "online",   label = "👥 /online — عدد المتصلين",   def = CMD_EVERYONE },
+	{ key = "spawn",    label = "🔄 /spawn — العودة للانطلاق", def = CMD_EVERYONE },
+	{ key = "vip",      label = "⭐ /vip — حالة VIP",          def = CMD_EVERYONE },
+	-- 🔰 إشراف
+	{ key = "announce", label = "📢 /announce — إعلان للكل",   def = CMD_MOD },
+	{ key = "mute",     label = "🔇 /mute — كتم لاعب",         def = CMD_MOD },
+	{ key = "unmute",   label = "🔊 /unmute — فك الكتم",       def = CMD_MOD },
+	-- 🛡️ إدارة
+	{ key = "kick",     label = "👢 /kick — طرد لاعب",         def = CMD_ADMIN },
+	{ key = "bring",    label = "🧲 /bring · /pull — سحب لاعب", def = CMD_ADMIN },
+	{ key = "to",       label = "🏃 /to — الانتقال للاعب",     def = CMD_ADMIN },
+	{ key = "freeze",   label = "❄️ /freeze — تجميد لاعب",     def = CMD_ADMIN },
+	{ key = "unfreeze", label = "🌤️ /unfreeze — فك التجميد",   def = CMD_ADMIN },
+	{ key = "fly",      label = "🕊️ /fly — طيران",            def = CMD_ADMIN },
+	{ key = "give",     label = "🎁 /give — منح عملات",        def = CMD_ADMIN },
+	{ key = "speed",    label = "⚡ /speed — سرعة المشي",       def = CMD_ADMIN },
+	{ key = "heal",     label = "❤️ /heal — شفاء لاعب",        def = CMD_ADMIN },
+}
+
+-- كل المرادفات (عربي/إنجليزي) → المفتاح القانوني
+local CMD_ALIAS: { [string]: string } = {
+	help = "help", commands = "help", cmds = "help", ["اوامر"] = "help", ["أوامر"] = "help",
+	clear = "clear", ["مسح"] = "clear",
+	online = "online", ["المتصلين"] = "online",
+	coins = "coins", ["رصيد"] = "coins",
+	tickets = "tickets", ["تذاكر"] = "tickets",
+	vip = "vip",
+	spawn = "spawn", ["سبون"] = "spawn",
+	flip = "flip", ["عملة"] = "flip",
+	roll = "roll", ["نرد"] = "roll",
+	me = "me",
+	announce = "announce", ["اعلان"] = "announce", ["إعلان"] = "announce",
+	mute = "mute", ["كتم"] = "mute",
+	unmute = "unmute", ["فك"] = "unmute",
+	kick = "kick", ["طرد"] = "kick",
+	bring = "bring", pull = "bring", ["احضار"] = "bring", ["إحضار"] = "bring", ["سحب"] = "bring",
+	to = "to", goto = "to", ["انتقال"] = "to",
+	freeze = "freeze", ["تجميد"] = "freeze",
+	unfreeze = "unfreeze", ["تذويب"] = "unfreeze", ["فك_تجميد"] = "unfreeze",
+	fly = "fly", ["طيران"] = "fly",
+	give = "give", ["منح"] = "give",
+	speed = "speed", ["سرعة"] = "speed",
+	heal = "heal", ["شفاء"] = "heal",
+}
+
+local CMD_DEF_BY_KEY: { [string]: { key: string, label: string, def: number } } = {}
+for _, d in ipairs(CMD_DEFS) do CMD_DEF_BY_KEY[d.key] = d end
+
+-- أوامر تبثّ نصاً مرئياً لبقية اللاعبين → تخضع للكتم (بقية الأوامر ذاتية فلا تتأثر)
+local BROADCAST_CMD: { [string]: boolean } = { me = true, roll = true, flip = true, announce = true }
+
+-- المستويات الحالية (تبدأ من الافتراضي ثم تُحدَّث من DataStore/الإدارة)
+local cmdLevel: { [string]: number } = {}
+for _, d in ipairs(CMD_DEFS) do cmdLevel[d.key] = d.def end
+
+local cmdStore: DataStore? = nil
+pcall(function() cmdStore = DataStoreService:GetDataStore("ChatCmdPerms_v1") end)
+if cmdStore then
+	local ok, saved = pcall(function() return (cmdStore :: DataStore):GetAsync("levels") end)
+	if ok and typeof(saved) == "table" then
+		for k, v in pairs(saved) do
+			if CMD_DEF_BY_KEY[k] and typeof(v) == "number" then cmdLevel[k] = v end
+		end
+	end
+end
+
+local function saveCmdLevels()
+	if not cmdStore then return end
+	local out: { [string]: number } = {}
+	for k, v in pairs(cmdLevel) do out[k] = v end
+	pcall(function() (cmdStore :: DataStore):SetAsync("levels", out) end)
+end
+
+-- بناء قائمة الأوامر بمستوياتها الحالية (للوحة الأوامر/الإدارة)
+local function buildCmdList()
+	local list = {}
+	for _, d in ipairs(CMD_DEFS) do
+		table.insert(list, { key = d.key, label = d.label, level = cmdLevel[d.key] or d.def, def = d.def })
+	end
+	return list
+end
+
+-- إرسال الإعدادات للاعب واحد (مع وزن رتبته ليُعرف ما هو متاح له)
+local function sendCmdConfig(p: Player)
+	pushRemote:FireClient(p, { cmdConfig = buildCmdList(), myWeight = weightOf(p) })
+end
+
+-- بثّ تحديث الإعدادات لكل العملاء (لتحديث لوحة الأوامر فوراً)
+local function broadcastCmdConfig()
+	local list = buildCmdList()
+	for _, p in ipairs(Players:GetPlayers()) do
+		pushRemote:FireClient(p, { cmdConfig = list, myWeight = weightOf(p) })
+	end
+end
+
+-- عند الدخول: أرسل إعدادات الأوامر للّاعب (بعد لحظة حتى يجهز العميل)
+Players.PlayerAdded:Connect(function(plr)
+	task.delay(2, function()
+		if plr.Parent then sendCmdConfig(plr) end
+	end)
+end)
+
+-- 🌐 واجهات للوحة الإدارة (CinemaServices) ---------------------------------
+-- قائمة الأوامر بمستوياتها الحالية (لإرسالها مع لوحة الإدارة)
+_G.ChatCmdConfigGet = function()
+	local list = {}
+	for _, d in ipairs(CMD_DEFS) do
+		table.insert(list, { key = d.key, label = d.label, level = cmdLevel[d.key] or d.def, def = d.def })
+	end
+	return list
+end
+-- تغيير مستوى أمر (يستدعيها السيرفر بعد التحقق من رتبة الطالب)
+_G.ChatCmdConfigSet = function(key: string, level: number): boolean
+	if not CMD_DEF_BY_KEY[key] then return false end
+	if not (level == CMD_EVERYONE or level == CMD_MOD or level == CMD_ADMIN or level == CMD_OFF) then
+		return false
+	end
+	cmdLevel[key] = level
+	saveCmdLevels()
+	broadcastCmdConfig()
+	return true
+end
+
+------------------------------------------------------------------------
+-- المعالج الرئيسي للأوامر — يرجع true دائماً (الرسالة لا تُبَثّ كدردشة)
+------------------------------------------------------------------------
+local function handleCommand(sender: Player, raw: string)
+	local cmd, rest = raw:sub(2):match("^(%S+)%s*(.*)$")
+	if not cmd then return end
+	cmd = cmd:lower()
+	local w = weightOf(sender)
+	local senderName = sender.DisplayName ~= "" and sender.DisplayName or sender.Name
+
+	-- المفتاح القانوني للأمر (يدعم المرادفات العربية/الإنجليزية)
+	local key = CMD_ALIAS[cmd]
+	if not key then
+		tellSender(sender, "❓ أمر غير معروف: /" .. cmd .. " — اكتب /help لعرض كل الأوامر.")
+		return
+	end
+
+	-- بوابة الصلاحية الموحّدة: help و clear متاحان دائماً للجميع،
+	-- وبقية الأوامر تخضع للمستوى المضبوط من لوحة الإدارة.
+	if key ~= "help" and key ~= "clear" then
+		local lvl = cmdLevel[key] or (CMD_DEF_BY_KEY[key] and CMD_DEF_BY_KEY[key].def) or CMD_EVERYONE
+		if lvl >= CMD_OFF then
+			tellSender(sender, "🚫 هذا الأمر معطّل حالياً من الإدارة.")
+			return
+		end
+		if w < lvl then
+			local who = (lvl >= CMD_ADMIN) and "للأداريين فأعلى" or "للمشرفين فأعلى"
+			tellSender(sender, "🔒 هذا الأمر " .. who .. " فقط.")
+			return
+		end
+	end
+
+	-- المكتوم يُمنَع من الأوامر التي تبثّ نصاً للآخرين (يبقى يستخدم الأوامر الذاتية)
+	if BROADCAST_CMD[key] and _G.ChatIsMuted and _G.ChatIsMuted(sender.UserId) then
+		tellSender(sender, "🚫 أنت مكتوم — لا يمكنك استخدام أوامر البثّ. بإمكانك /help و/clear وغيرها.")
+		return
+	end
+
+	-- ============ أوامر متاحة للجميع ============
+	if cmd == "help" or cmd == "commands" or cmd == "cmds" or cmd == "اوامر" or cmd == "أوامر" then
+		pushRemote:FireClient(sender, { openCommands = true })
+	elseif cmd == "clear" or cmd == "مسح" then
+		pushRemote:FireClient(sender, { clearChat = true })
+	elseif cmd == "online" or cmd == "المتصلين" then
+		tellSender(sender, "👥 عدد المتصلين الآن: " .. #Players:GetPlayers())
+	elseif cmd == "coins" or cmd == "رصيد" then
+		local c = (_G.GetCoins and _G.GetCoins(sender)) or 0
+		tellSender(sender, "💰 رصيدك: " .. tostring(c) .. " عملة")
+	elseif cmd == "tickets" or cmd == "تذاكر" then
+		local t = (_G.GetTickets and _G.GetTickets(sender)) or 0
+		tellSender(sender, "🎟️ تذاكرك: " .. tostring(t))
+	elseif cmd == "vip" then
+		local v = (_G.IsVIP and _G.IsVIP(sender)) == true
+		tellSender(sender, v and "⭐ أنت عضو VIP — استمتع بالمزايا!" or "⭐ لست VIP حالياً. زر متجر اللعبة للاشتراك.")
+	elseif cmd == "spawn" or cmd == "سبون" then
+		-- مهلة بسيطة تمنع تكرار LoadCharacter بسرعة (إجهاد السيرفر/حالات غير متوقّعة)
+		local now = os.clock()
+		local last = spawnCooldown[sender.UserId]
+		if last and (now - last) < SPAWN_COOLDOWN then
+			tellSender(sender, ("⏳ تمهّل — جرّب /spawn بعد %d ثانية."):format(math.ceil(SPAWN_COOLDOWN - (now - last))))
+		else
+			spawnCooldown[sender.UserId] = now
+			if sender.Character then sender:LoadCharacter() end
+			tellSender(sender, "🔄 رجّعناك لنقطة الانطلاق.")
+		end
+	elseif cmd == "flip" or cmd == "عملة" then
+		local r = (math.random(2) == 1) and "صورة 👑" or "كتابة ✍️"
+		broadcastSystem("💰 " .. senderName .. " قذف العملة: " .. r)
+	elseif cmd == "roll" or cmd == "نرد" then
+		local maxN = math.clamp(math.floor(tonumber(rest) or 100), 2, 1000000)
+		broadcastSystem("🎲 " .. senderName .. " رمى النرد (1–" .. maxN .. "): " .. math.random(1, maxN))
+	elseif cmd == "me" then
+		local act = rest:gsub("^%s+", "")
+		if act == "" then tellSender(sender, "✍️ الاستخدام: /me <فعل> — مثال: /me يرقص"); return end
+		local f = safeFilter(act, sender.UserId)
+		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة رسالتك."); return end
+		broadcastSystem("🎭 " .. senderName .. " " .. f)
+
+	-- ============ أوامر المشرفين (Mod فأعلى) ============
+	elseif cmd == "announce" or cmd == "اعلان" or cmd == "إعلان" then
+		local msg = rest:gsub("^%s+", "")
+		if msg == "" then tellSender(sender, "✍️ الاستخدام: /announce <النص>"); return end
+		local f = safeFilter(msg, sender.UserId)
+		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة الإعلان."); return end
+		if _G.ChatBroadcastAdmin then _G.ChatBroadcastAdmin("📢 إعلان", senderName, f) else broadcastSystem("📢 " .. f) end
+		if _G.AdminSetMarquee then pcall(function() _G.AdminSetMarquee("📢 " .. f) end) end
+	elseif cmd == "mute" or cmd == "كتم" then
+		local who, a = rest:match("^(%S+)%s*(%S*)")
+		local target = findPlayer(who)
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if weightOf(target) >= w then tellSender(sender, "🚫 لا يمكنك كتم من رتبته مثلك أو أعلى."); return end
+		local minutes = tonumber(a)
+		if _G.ChatSetMuted then _G.ChatSetMuted(target.UserId, true, minutes and math.floor(minutes * 60) or 0) end
+		tellSender(sender, "🔇 تم كتم " .. target.DisplayName .. " (" .. (minutes and (tostring(minutes) .. " دقيقة") or "دائم") .. ").")
+	elseif cmd == "unmute" or cmd == "فك" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if _G.ChatSetMuted then _G.ChatSetMuted(target.UserId, false) end
+		tellSender(sender, "🔊 تم فك الكتم عن " .. target.DisplayName .. ".")
+
+	-- ============ أوامر الأدمن (Admin فأعلى) ============
+	elseif cmd == "kick" or cmd == "طرد" then
+		local who, reason = rest:match("^(%S+)%s*(.*)$")
+		local target = findPlayer(who)
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if weightOf(target) >= w then tellSender(sender, "🚫 لا يمكنك طرد من رتبته مثلك أو أعلى."); return end
+		-- نفلتر السبب لأنه يُعرَض للاعب المطرود (سياسة روبلوكس: كل نص مستخدم يُعرَض لآخرين يجب فلترته)
+		local r = (reason ~= "" and reason) or "بدون سبب محدّد"
+		if reason ~= "" then r = safeFilter(reason, sender.UserId) or "بدون سبب محدّد" end
+		target:Kick("🚫 طُردت من اللعبة.\nالسبب: " .. r)
+		tellSender(sender, "👢 تم طرد " .. target.DisplayName .. " — السبب: " .. r)
+	elseif cmd == "bring" or cmd == "pull" or cmd == "احضار" or cmd == "إحضار" or cmd == "سحب" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		local sr, tr = rootOf(sender), target and rootOf(target)
+		if not (target and sr and tr) then tellSender(sender, "❓ تعذّر السحب (تأكد من الاسم وأن اللاعب ظاهر)."); return end
+		tr.CFrame = sr.CFrame * CFrame.new(0, 0, -4)
+		tellSender(sender, "🧲 تم سحب " .. target.DisplayName .. " إليك.")
+	elseif cmd == "to" or cmd == "goto" or cmd == "انتقال" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		local sr, tr = rootOf(sender), target and rootOf(target)
+		if not (target and sr and tr) then tellSender(sender, "❓ تعذّر الانتقال."); return end
+		sr.CFrame = tr.CFrame * CFrame.new(0, 0, -4)
+		tellSender(sender, "🏃 انتقلت إلى " .. target.DisplayName .. ".")
+	elseif cmd == "freeze" or cmd == "تجميد" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if weightOf(target) >= w and target ~= sender then tellSender(sender, "🚫 لا يمكنك تجميد من رتبته مثلك أو أعلى."); return end
+		setFrozen(target, true)
+		tellSender(sender, "❄️ تم تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "❄️ تم تجميدك مؤقتاً من الإدارة.") end
+	elseif cmd == "unfreeze" or cmd == "فك_تجميد" or cmd == "تذويب" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		setFrozen(target, false)
+		tellSender(sender, "🌤️ تم فك تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🌤️ تم فك تجميدك — تقدر تتحرك الآن.") end
+	elseif cmd == "fly" or cmd == "طيران" then
+		local speed = math.clamp(math.floor(tonumber(rest) or 60), 16, 300)
+		pushRemote:FireClient(sender, { flyToggle = true, flySpeed = speed })
+	elseif cmd == "give" or cmd == "منح" then
+		local who, amtStr = rest:match("^(%S+)%s*(%S*)$")
+		local target = findPlayer(who)
+		local amt = tonumber(amtStr)
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if not amt or amt == 0 then tellSender(sender, "✍️ الاستخدام: /give <لاعب> <عدد العملات>"); return end
+		amt = math.clamp(math.floor(amt), -1000000, 1000000)
+		if _G.AddCoins then _G.AddCoins(target, amt) end
+		tellSender(sender, "💰 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🎁 استلمت " .. tostring(amt) .. " عملة من الإدارة!") end
+	elseif cmd == "speed" or cmd == "سرعة" then
+		local nStr, who = rest:match("^(%S+)%s*(.*)$")
+		local n = tonumber(nStr)
+		if not n then tellSender(sender, "✍️ الاستخدام: /speed <رقم> [لاعب]"); return end
+		local target = (who ~= "" and findPlayer(who)) or sender
+		local h = humanoidOf(target)
+		if h then
+			local sp = math.clamp(n, 0, 300)
+			-- نضبط السِمة أيضاً كي يبني عليها نظام الجري بدل أن يعيد السرعة لقيمته القديمة
+			target:SetAttribute("BaseWalkSpeed", sp)
+			h.WalkSpeed = sp
+			tellSender(sender, "🏃 سرعة " .. target.DisplayName .. " = " .. sp)
+		else tellSender(sender, "❓ اللاعب غير ظاهر.") end
+	elseif cmd == "heal" or cmd == "شفاء" then
+		local target = (rest ~= "" and findPlayer(rest:match("^(%S+)"))) or sender
+		local h = humanoidOf(target)
+		if h then h.Health = h.MaxHealth; tellSender(sender, "❤️ تم شفاء " .. target.DisplayName .. ".") else tellSender(sender, "❓ اللاعب غير ظاهر.") end
+	else
+		tellSender(sender, "❓ أمر غير معروف: /" .. cmd .. " — اكتب /help لعرض كل الأوامر.")
+	end
 end
 
 ------------------------------------------------------------------------
@@ -285,6 +699,18 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 		return
 	end
 
+	local text = rawText:gsub("[\r\n\t]", " ")           -- إزالة أسطر/تبويب
+	text = text:gsub("^%s+", ""):gsub("%s+$", "")        -- قصّ الفراغات
+	if text == "" then return end
+
+	-- ⌘ الأوامر: أي رسالة تبدأ بـ "/" تُعالَج كأمر ولا تُبَثّ كدردشة.
+	--   نوجّهها قبل فحص الكتم حتى لا يُحرَم المكتوم من الأوامر الذاتية (help/clear/spawn…)؛
+	--   والكتم يُفحَص داخل المعالج للأوامر الباثّة للآخرين فقط (me/roll/flip/announce).
+	if text:sub(1, 1) == "/" and text ~= "/" then
+		handleCommand(sender, text)
+		return
+	end
+
 	-- المكتوم لا يقدر يرسل (يُبلَّغ فقط هو مع الوقت المتبقي)
 	if _G.ChatIsMuted(sender.UserId) then
 		local rem = remainingFor(sender.UserId)
@@ -300,10 +726,6 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 		})
 		return
 	end
-
-	local text = rawText:gsub("[\r\n\t]", " ")           -- إزالة أسطر/تبويب
-	text = text:gsub("^%s+", ""):gsub("%s+$", "")        -- قصّ الفراغات
-	if text == "" then return end
 
 	-- الكتابة الإدارية: تبدأ بـ "$" والمرسِل owner/admin/mod
 	local adminLabel = nil

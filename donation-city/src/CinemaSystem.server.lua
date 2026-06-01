@@ -16,6 +16,7 @@ local Players          = game:GetService("Players")
 local ContentProvider  = game:GetService("ContentProvider")
 local TweenService     = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local cinema = Workspace:WaitForChild("Cinema")
 
@@ -44,7 +45,7 @@ local CONFIG = {
 	-- صوت الفيلم: مفعّل بصوت افتراضي. للأفضل والضمان ارفع صوتك من
 	-- create.roblox.com → Audio وضع رقمه هنا (الأصوات المرفوعة من حسابك مضمونة).
 	-- عند استخدام VideoId: لو MovieSoundId=0 يُشغّل صوت الفيديو نفسه، وإلا يُشغّل هذا الصوت متزامناً.
-	MovieSoundId  = 127462066627494,  -- صوت الفيلم المرفوع على حساب Queen_Tarif (0 = مغلق)
+	MovieSoundId  = 103107585005213,  -- صوت الفيلم الذي اختاره المستخدم (0 = مغلق) — لازم منح التجربة إذن الصوت
 	PopcornSoundId = 0,          -- صوت قرمشة الفشار (0 = مغلق) ضع رقم asset لتفعيله
 	PopcornBites   = 8,          -- عدد القضمات في علبة الفشار الواحدة
 	LobbyMusicId   = 0,          -- موسيقى اللوبي (ضع رقم Audio asset مرفوع من حسابك، 0 = بدون)
@@ -761,13 +762,26 @@ local function playMovie(presser)
 		end)
 	end
 
-	if movieSound then pcall(function() ContentProvider:PreloadAsync({ movieSound }) end) end
+	-- preload the separate movie audio and detect whether it ACTUALLY loaded.
+	-- custom audio is private by default; if this experience isn't granted
+	-- permission to the asset, it fails to load — and if we still muted the
+	-- video the audience would hear nothing. So gate the mute on a real load.
+	local movieSoundOk = false
+	if movieSound then
+		pcall(function() ContentProvider:PreloadAsync({ movieSound }) end)
+		movieSoundOk = movieSound.IsLoaded
+		if not movieSoundOk then
+			warn(("[Cinema] movie audio rbxassetid://%s failed to load — falling back to the video's own audio. "
+				.. "To use this custom sound, grant THIS experience permission to the audio on its Roblox asset page "
+				.. "(Configure -> Permissions) and make sure its moderation status is Approved."):format(tostring(CONFIG.MovieSoundId)))
+		end
+	end
 
 	-- مدة العرض: تتبع طول الفيديو، وإلا طول الصوت، وإلا مدة عشوائية افتراضية
 	local duration
 	if hasVideo and screenVideo.TimeLength and screenVideo.TimeLength > 0 then
 		duration = screenVideo.TimeLength
-	elseif movieSound and movieSound.TimeLength and movieSound.TimeLength > 0 then
+	elseif movieSoundOk and movieSound and movieSound.TimeLength and movieSound.TimeLength > 0 then
 		duration = movieSound.TimeLength
 	else
 		duration = math.random(CONFIG.MovieMinSeconds, CONFIG.MovieMaxSeconds)
@@ -789,7 +803,7 @@ local function playMovie(presser)
 		screenTitle.Visible = false
 		screenSub.Visible = false
 		screenVideo.Visible = true
-		screenVideo.Volume = movieSound and 0 or 1  -- لو فيه صوت منفصل نكتم صوت الفيديو
+		screenVideo.Volume = (movieSound and movieSoundOk) and 0 or 1  -- نكتم صوت الفيديو فقط لو صوتنا المنفصل حُمّل فعلاً (وإلا نُبقي صوت الفيديو بدل الصمت)
 		screenVideo.TimePosition = 0
 		screenVideo.Playing = true
 	elseif hasSlides then
@@ -798,7 +812,7 @@ local function playMovie(presser)
 		screenSub.Visible = false
 		if screenBg then screenBg.BackgroundColor3 = Color3.fromRGB(0, 0, 0) end
 	end
-	if movieSound then movieSound.TimePosition = 0; movieSound:Play() end
+	if movieSound and movieSoundOk then movieSound.TimePosition = 0; movieSound:Play() end
 
 	-- مدة المشهد/اللقطة الواحدة: في وضع السلايد-شو نوزّع اللقطات بالتساوي على مدة الصوت
 	local segSeconds = CONFIG.SceneSeconds
@@ -1303,6 +1317,108 @@ end
 local floorPart = get("Floor")
 local groundY = floorPart and (floorPart.Position.Y + floorPart.Size.Y / 2) or 0
 
+-- شخصيات السينما الجاهزة (المرشد + الخادم): نستنسخ موديل شخصية جاهز من قالب
+-- مخفي في ServerScriptService، ونضيف سلوكنا الخاص (وسم + زر تفاعل + حركة وقوف)
+-- خارج الموديل — لا نضيف أي سكربتات أو منطق لعبة بداخله (نضبط فقط خصائص عرض:
+-- تثبيت القطع، صحة الـ Humanoid، والحجم) فيبقى تصميمه الأصلي كما هو.
+-- نفس الدالة تخدم المرشد والخادم؛ القالب والحجم يُمرّران عبر opts.
+local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط
+local function buildCharacterModel(opts)
+	local template = ServerScriptService:FindFirstChild(opts.template or "CinemaGuideModel")
+	if not template then return nil end
+
+	local model = template:Clone()
+	model.Name = opts.name
+
+	-- عرض ثابت آمن: لا يموت ولا يصطدم، وكل القطع مثبّتة
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.MaxHealth = 100
+		hum.Health = 100
+		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) end)
+	end
+	local refPart
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			if d.Name == "Torso" then refPart = d end
+		end
+	end
+	refPart = refPart or model:FindFirstChildWhichIsA("BasePart")
+	model.PrimaryPart = model.PrimaryPart or refPart
+
+	-- نضبط الحجم والمكان قبل الإضافة للعالم حتى لا تظهر ومضة عند مكان القالب الأصلي
+	-- حجم معتدل (يُحسب التموضع بعده)
+	pcall(function() model:ScaleTo(opts.modelScale or GUIDE_SCALE) end)
+
+	-- وقوفه أمام المدخل مواجهاً القادمين (نفس اتجاه المرشد السابق)
+	model:PivotTo(opts.footCFrame)
+
+	-- استقرار القدمين على الأرض:
+	-- داخل السينما الأرضية مستوية ومعروفة (groundY) → نستعملها مباشرة،
+	-- لتفادي أن يصطدم الشعاع بسقف المبنى فوق الخادم فيُرفع على السطح.
+	-- خارج المبنى (المرشد) نستعمل شعاعاً لأسفل لإيجاد الأرضية الفعلية.
+	local fp = opts.footCFrame.Position
+	local feetY
+	if opts.useGroundY and opts.groundY then
+		feetY = opts.groundY
+	else
+		local rp = RaycastParams.new()
+		rp.FilterType = Enum.RaycastFilterType.Exclude
+		local ignore = { model }
+		for _, ig in ipairs(opts.raycastIgnore or {}) do table.insert(ignore, ig) end
+		rp.FilterDescendantsInstances = ignore
+		local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
+		feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
+	end
+	local bcf, bsize = model:GetBoundingBox()
+	local lift = feetY - (bcf.Position.Y - bsize.Y / 2)
+	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
+	local basePivot = model:GetPivot()
+
+	model.Parent = cinema
+
+	-- لوحة الاسم فوق الرأس
+	local head = model:FindFirstChild("Head") or refPart
+	if head then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
+		bb.StudsOffset = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true; bb.Parent = head
+		local tagLbl = Instance.new("TextLabel")
+		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
+		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true; tagLbl.Text = opts.tag
+		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
+		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+	end
+
+	-- زر التفاعل (نفس سلوك المرشد السابق)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = opts.promptText or "تحدّث"
+	prompt.ObjectText = opts.promptObj or opts.tag
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0.3
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = model.PrimaryPart or head
+	if opts.onTrigger then prompt.Triggered:Connect(opts.onTrigger) end
+
+	-- حركة وقوف خفيفة: تمايل بسيط + تنفّس عمودي للموديل كاملاً (تبقى الإكسسوارات ملتصقة)
+	task.spawn(function()
+		local phase = math.random() * 6.28
+		while model.Parent do
+			local t = os.clock() + phase
+			model:PivotTo(basePivot
+				* CFrame.new(0, math.sin(t * 1.6) * 0.05, 0)
+				* CFrame.Angles(0, math.sin(t * 0.8) * 0.06, 0))
+			task.wait(0.07)
+		end
+	end)
+
+	return model
+end
+
 local function buildNPC(opts)
 	local model = Instance.new("Model")
 	model.Name = opts.name
@@ -1421,22 +1537,41 @@ pcall(function()
 		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 17),
 		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 40)
 	)
-	buildNPC({
+	local guideOpts = {
 		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),
-		uniform = Color3.fromRGB(70, 60, 150), footCFrame = guideFoot, scale = 1.5,
-		promptText = "تحدّث", promptObj = "مرشد السينما", wave = true, onTrigger = guideTalk,
-	})
+		footCFrame = guideFoot, groundY = groundY,
+		promptText = "تحدّث", promptObj = "مرشد السينما", onTrigger = guideTalk,
+	}
+	-- المرشد الجديد من الموديل الجاهز؛ وإن غاب القالب نرجع للمرشد المبني برمجياً كاحتياط
+	guideOpts.template = "CinemaGuideModel"
+	if not buildCharacterModel(guideOpts) then
+		guideOpts.uniform = Color3.fromRGB(70, 60, 150); guideOpts.scale = 1.5; guideOpts.wave = true
+		buildNPC(guideOpts)
+	end
 
-	-- خادم واحد عند بسطة الفشار يقدّم الطلبات
+	-- خادم واحد جنب بسطة الفشار يقدّم الطلبات — موضع مكشوف على يسار الكاونتر
+	-- (أرضية مفتوحة غير محجوبة بالكاونتر) ومواجه للقادمين من المدخل، فيبان واضحاً.
+	-- يواجه اللاعبين (الجهة المكشوفة). موديل Staff Worker واجهته على المحور المعاكس
+	-- مقارنةً بالمرشد، فنصوّب الهدف للجهة المعاكسة ليظهر وجهه للقادمين (غير معكوس).
 	local waiterFoot = CFrame.lookAt(
-		Vector3.new(popPos.X + 4, groundY, popPos.Z - 2),
-		Vector3.new(popPos.X + 4, groundY, popPos.Z - 25)
+		Vector3.new(popPos.X - 7, groundY, popPos.Z),
+		Vector3.new(popPos.X - 7, groundY, popPos.Z - 25)
 	)
-	buildNPC({
-		name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
-		footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
-		tray = true, onTrigger = waiterServe,
-	})
+	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
+	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
+	local waiterOpts = {
+		name = "CinemaWaiter", tag = "🍿 خادم السينما", tagColor = Color3.fromRGB(255, 205, 90),
+		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
+		useGroundY = true,  -- أرضية السينما مستوية: استعمل groundY مباشرة (لا شعاع يصطدم بالسقف)
+		promptText = "اطلب طلبك", promptObj = "خادم السينما", onTrigger = waiterServe,
+	}
+	if not buildCharacterModel(waiterOpts) then
+		buildNPC({
+			name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
+			footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
+			tray = true, onTrigger = waiterServe,
+		})
+	end
 end)
 
 ------------------------------------------------------------------------
