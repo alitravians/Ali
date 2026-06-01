@@ -54,7 +54,9 @@ others = 0
 for it in root.iter("Item"):
     if it.get("class") == "SpawnLocation" and it is not pad:
         opr = it.find("Properties")
-        en = opr.find("bool[@name='Enabled']") if opr is not None else None
+        if opr is None:
+            continue
+        en = opr.find("bool[@name='Enabled']")
         if en is None:
             en = etree.SubElement(opr, "bool"); en.set("name", "Enabled")
         en.text = "false"
