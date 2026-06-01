@@ -11942,6 +11942,8 @@ do
 		local function paint(v)
 			v = math.clamp(math.floor(v + 0.5), minV, maxV)
 			curV = v
+			-- نحفظ القيمة في بيانات المتجر حتى لا يرجع الشريط لقيمة قديمة عند تبديل التصنيف وإعادة بنائه
+			if data then data.speedValue = v end
 			local pct = (v - minV) / math.max(maxV - minV, 1)
 			fill.Size = UDim2.fromScale(pct, 1)
 			knob.Position = UDim2.new(pct, 0, 0.5, 0)
@@ -12219,7 +12221,11 @@ do
 
 	-- مزامنة شريط السرعة مع القيمة التي ثبّتها السيرفر
 	onStoreSpeedSet = function(v)
-		if speedUpdateUI and tonumber(v) then speedUpdateUI(v) end
+		local n = tonumber(v)
+		if not n then return end
+		-- نُحدّث بيانات المتجر أيضاً لتبقى القيمة صحيحة حتى لو أُعيد بناء الشريط لاحقاً
+		if storeData then storeData.speedValue = n end
+		if speedUpdateUI then speedUpdateUI(n) end
 	end
 
 	-- الزر الثابت على يسار الشاشة لفتح/إغلاق المتجر
