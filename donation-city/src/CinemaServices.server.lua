@@ -2173,7 +2173,9 @@ local function buildCashierModel(opts)
 	if head then
 		local bb = Instance.new("BillboardGui")
 		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-		bb.StudsOffset = Vector3.new(0, 2.4, 0); bb.AlwaysOnTop = true; bb.Parent = head
+		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
+		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)
+		bb.AlwaysOnTop = true; bb.Parent = head
 		local tagLbl = Instance.new("TextLabel")
 		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
 		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true

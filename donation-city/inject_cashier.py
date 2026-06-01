@@ -119,8 +119,12 @@ def reprefix(model):
             mapping[r] = PREF + r
             it.set("referent", PREF + r)
     for ref in model.iter("Ref"):
-        if ref.text and ref.text.strip() in mapping:
-            ref.text = mapping[ref.text.strip()]
+        if ref.text and ref.text.strip():
+            # remap internal refs; nullify any ref pointing outside the model so a
+            # stale referent can't accidentally resolve to an unrelated instance in
+            # the main file (matches inject_ticketbooth). Self-contained models have
+            # all refs in `mapping`, so this is a no-op for them.
+            ref.text = mapping.get(ref.text.strip(), "null")
     return mapping
 
 
