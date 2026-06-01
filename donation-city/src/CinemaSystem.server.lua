@@ -780,7 +780,7 @@ local function playMovie(presser)
 	local duration
 	if hasVideo and screenVideo.TimeLength and screenVideo.TimeLength > 0 then
 		duration = screenVideo.TimeLength
-	elseif movieSound and movieSound.TimeLength and movieSound.TimeLength > 0 then
+	elseif movieSoundOk and movieSound and movieSound.TimeLength and movieSound.TimeLength > 0 then
 		duration = movieSound.TimeLength
 	else
 		duration = math.random(CONFIG.MovieMinSeconds, CONFIG.MovieMaxSeconds)
