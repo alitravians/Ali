@@ -2114,10 +2114,11 @@ end
 -- هنا في سكربتنا. التموضع يُحسب وقت التشغيل من كرسي موديل «TicketBooth» المحقون.
 local CASHIER_SCALE = 1.0   -- حجم طبيعي يناسب الجلوس خلف الكاونتر بلا تداخل
 local function buildCashierModel(opts)
-	local template = ServerScriptService:FindFirstChild("CashierModel")
+	-- ننتظر القالب والشباك حتى لو تأخّر تحميلهما (حماية من سباق التهيئة) بمهلة قصيرة
+	local template = ServerScriptService:WaitForChild("CashierModel", 10)
 	if not template then return nil end
 
-	local booth = Workspace:FindFirstChild("TicketBooth")
+	local booth = Workspace:WaitForChild("TicketBooth", 10)
 	if not booth then return nil end
 
 	-- نختار الكرسي الأقرب لنقطة التفاعل (نافذة الشباك الفعّالة)
@@ -2132,6 +2133,11 @@ local function buildCashierModel(opts)
 
 	local model = template:Clone()
 	model.Name = opts.name or "TicketCashier"
+
+	-- نتحقق من جذر الشخصية مبكّراً بعد الاستنساخ مباشرة (وننظّف النسخة إن غاب)
+	local hrp = model:FindFirstChild("HumanoidRootPart")
+	if not hrp then model:Destroy(); return nil end
+	model.PrimaryPart = hrp
 
 	-- تعطيل سكربت الحركة احتياطياً حتى لا يطغى على وضعية الجلوس (مُعطّل أصلاً بالقالب)
 	local animate = model:FindFirstChild("Animate")
@@ -2151,8 +2157,6 @@ local function buildCashierModel(opts)
 	end
 
 	-- نُثبّت جذر الشخصية فقط؛ بقية القطع موصولة به عبر Motor6D فتبقى صلبة بلا فيزياء
-	local hrp = model:FindFirstChild("HumanoidRootPart")
-	if not hrp then return nil end
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BasePart") then
 			d.CanCollide = false
@@ -2160,7 +2164,6 @@ local function buildCashierModel(opts)
 			d.Anchored = (d == hrp)
 		end
 	end
-	model.PrimaryPart = hrp
 
 	-- الحجم (معتدل) قبل التموضع
 	pcall(function() model:ScaleTo(CASHIER_SCALE) end)

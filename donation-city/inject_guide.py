@@ -16,7 +16,7 @@
 # child never replicates/renders, so there is no stray model at the origin.
 #
 # Idempotent: re-running removes any previous "CinemaGuideModel" first.
-import sys, copy
+import sys, copy, re
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
@@ -26,8 +26,13 @@ PREF = "GUIDE_"   # unique referent prefix to avoid clashes with the main file
 
 BASEPARTS = {"Part", "MeshPart", "WedgePart", "CornerWedgePart", "TrussPart",
              "UnionOperation", "Seat", "VehicleSeat"}
+# Substring backdoor / remote-code-execution patterns (dynamic code + remote IO).
 MALICIOUS = ("loadstring", "getfenv", "setfenv", "HttpGet", "HttpGetAsync",
-             "GetObjects", "InsertService", "require(")
+             "GetObjects", "InsertService")
+# require(...) in ANY Lua calling convention: require(x), require"x", require'x',
+# require[[x]] (no parentheses), plus aliasing (`local r = require`). Catches the
+# require-by-asset-id backdoor family even when obfuscated.
+REQUIRE_RX = re.compile(r"""require\s*[(\"'\[]|=\s*require\b""")
 SCRIPTY = {"Script", "LocalScript", "ModuleScript"}
 
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
@@ -53,8 +58,10 @@ def audit(model):
             bad.append(f"script:{it.get('class')}")
     raw = etree.tostring(model, encoding="unicode")
     for pat in MALICIOUS:
-        if pat in raw:
+        if pat.lower() in raw.lower():
             bad.append(f"pattern:{pat}")
+    if REQUIRE_RX.search(raw):
+        bad.append("pattern:require")
     return bad
 
 

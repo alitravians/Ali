@@ -27,7 +27,7 @@
 # A ServerScriptService child never replicates/renders, so there is no stray model.
 #
 # Idempotent: re-running removes any previous "CashierModel" first.
-import sys, copy
+import sys, copy, re
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
@@ -38,10 +38,23 @@ PREF = "CASH_"   # unique referent prefix to avoid clashes with the main file
 BASEPARTS = {"Part", "MeshPart", "WedgePart", "CornerWedgePart", "TrussPart",
              "UnionOperation", "Seat", "VehicleSeat"}
 SCRIPTY = {"Script", "LocalScript", "ModuleScript"}
-# Backdoor / remote-code-execution patterns. `require(` catches require-by-asset-id
-# (the disguised-module backdoor family); the rest catch dynamic code + remote IO.
+# Substring backdoor / remote-code-execution patterns (dynamic code + remote IO).
 MALICIOUS = ("loadstring", "getfenv", "setfenv", "HttpGet", "HttpGetAsync",
-             "GetObjects", "InsertService", "require(")
+             "GetObjects", "InsertService")
+# require(...) in ANY Lua calling convention: require(x), require"x", require'x',
+# require[[x]] (no parentheses), plus aliasing (`local r = require`). This catches
+# the require-by-asset-id backdoor family even when obfuscated, closing the gap a
+# plain "require(" substring would miss.
+REQUIRE_RX = re.compile(r"""require\s*[(\"'\[]|=\s*require\b""")
+
+
+def scan_text(text):
+    """Return the list of malicious-pattern labels found in `text`."""
+    low = text.lower()
+    hits = [pat for pat in MALICIOUS if pat.lower() in low]
+    if REQUIRE_RX.search(text):
+        hits.append("require")
+    return hits
 
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
 
@@ -74,14 +87,12 @@ def audit(model):
         if it.get("class") in SCRIPTY:
             name = it.findtext("Properties/string[@name='Name']") or "?"
             scripts.append(f"{it.get('class')}:{name}")
-            srclow = script_source(it).lower()
-            for pat in MALICIOUS:
-                if pat.lower() in srclow:
-                    bad.append(f"{it.get('class')} '{name}' -> {pat}")
+            for pat in scan_text(script_source(it)):
+                bad.append(f"{it.get('class')} '{name}' -> {pat}")
     # defence-in-depth: scan the whole serialised model too (values, attributes...)
-    raw = etree.tostring(model, encoding="unicode").lower()
-    for pat in MALICIOUS:
-        if pat.lower() in raw and not any(pat in b for b in bad):
+    raw = etree.tostring(model, encoding="unicode")
+    for pat in scan_text(raw):
+        if not any(pat in b for b in bad):
             # only flag if it is NOT already accounted for by a script source hit
             # (avoids duplicate noise); a raw-only hit is still suspicious.
             bad.append(f"raw -> {pat}")
