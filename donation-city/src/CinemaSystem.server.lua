@@ -16,6 +16,7 @@ local Players          = game:GetService("Players")
 local ContentProvider  = game:GetService("ContentProvider")
 local TweenService     = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local ServerScriptService = game:GetService("ServerScriptService")
 
 local cinema = Workspace:WaitForChild("Cinema")
 
@@ -1316,6 +1317,89 @@ end
 local floorPart = get("Floor")
 local groundY = floorPart and (floorPart.Position.Y + floorPart.Size.Y / 2) or 0
 
+-- مرشد السينما: نستنسخ موديل الشخصية الجاهز (Black Mesa Scientist) من قالب
+-- مخفي في ServerScriptService، ونضيف سلوكنا الخاص (وسم + زر تفاعل + حركة وقوف)
+-- خارج الموديل — فيبقى الموديل كما صمّمه صاحبه دون أي تعديل بداخله.
+local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط عند المدخل
+local function buildGuideModel(opts)
+	local template = ServerScriptService:FindFirstChild("CinemaGuideModel")
+	if not template then return nil end
+
+	local model = template:Clone()
+	model.Name = opts.name
+
+	-- عرض ثابت آمن: لا يموت ولا يصطدم، وكل القطع مثبّتة
+	local hum = model:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.MaxHealth = 100
+		hum.Health = 100
+		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false) end)
+	end
+	local refPart
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			if d.Name == "Torso" then refPart = d end
+		end
+	end
+	refPart = refPart or model:FindFirstChildWhichIsA("BasePart")
+	model.PrimaryPart = model.PrimaryPart or refPart
+
+	model.Parent = cinema
+
+	-- حجم معتدل (يُحسب التموضع بعده)
+	pcall(function() model:ScaleTo(GUIDE_SCALE) end)
+
+	-- وقوفه أمام المدخل مواجهاً القادمين، مع استقرار القدمين على الأرض.
+	-- وجه الموديل على الجهة +Z المحلية، فنُدير 180° ليواجه اتجاه الاستقبال.
+	local facing = opts.footCFrame * CFrame.Angles(0, math.pi, 0)
+	model:PivotTo(facing)
+	local bcf, bsize = model:GetBoundingBox()
+	local lift = (opts.groundY or 0) - (bcf.Position.Y - bsize.Y / 2)
+	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
+	local basePivot = model:GetPivot()
+
+	-- لوحة الاسم فوق الرأس
+	local head = model:FindFirstChild("Head") or refPart
+	if head then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
+		bb.StudsOffset = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true; bb.Parent = head
+		local tagLbl = Instance.new("TextLabel")
+		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
+		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true; tagLbl.Text = opts.tag
+		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
+		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+	end
+
+	-- زر التفاعل (نفس سلوك المرشد السابق)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText = opts.promptText or "تحدّث"
+	prompt.ObjectText = opts.promptObj or opts.tag
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0.3
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = model.PrimaryPart or head
+	if opts.onTrigger then prompt.Triggered:Connect(opts.onTrigger) end
+
+	-- حركة وقوف خفيفة: تمايل بسيط + تنفّس عمودي للموديل كاملاً (تبقى الإكسسوارات ملتصقة)
+	task.spawn(function()
+		local phase = math.random() * 6.28
+		while model.Parent do
+			local t = os.clock() + phase
+			model:PivotTo(basePivot
+				* CFrame.new(0, math.sin(t * 1.6) * 0.05, 0)
+				* CFrame.Angles(0, math.sin(t * 0.8) * 0.06, 0))
+			task.wait(0.07)
+		end
+	end)
+
+	return model
+end
+
 local function buildNPC(opts)
 	local model = Instance.new("Model")
 	model.Name = opts.name
@@ -1434,11 +1518,16 @@ pcall(function()
 		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 17),
 		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 40)
 	)
-	buildNPC({
+	local guideOpts = {
 		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),
-		uniform = Color3.fromRGB(70, 60, 150), footCFrame = guideFoot, scale = 1.5,
-		promptText = "تحدّث", promptObj = "مرشد السينما", wave = true, onTrigger = guideTalk,
-	})
+		footCFrame = guideFoot, groundY = groundY,
+		promptText = "تحدّث", promptObj = "مرشد السينما", onTrigger = guideTalk,
+	}
+	-- المرشد الجديد من الموديل الجاهز؛ وإن غاب القالب نرجع للمرشد المبني برمجياً كاحتياط
+	if not buildGuideModel(guideOpts) then
+		guideOpts.uniform = Color3.fromRGB(70, 60, 150); guideOpts.scale = 1.5; guideOpts.wave = true
+		buildNPC(guideOpts)
+	end
 
 	-- خادم واحد عند بسطة الفشار يقدّم الطلبات
 	local waiterFoot = CFrame.lookAt(
