@@ -15,6 +15,7 @@
 
 local Players            = game:GetService("Players")
 local Workspace          = game:GetService("Workspace")
+local ServerScriptService= game:GetService("ServerScriptService")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local DataStoreService   = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -2107,34 +2108,143 @@ local function dualSurface(parent, builder)
 	end
 end
 
--- 🎫 شبّاك التذاكر — صار موديل من المتجر (مُنظّف من الباك-دور) محقون في Workspace
--- باسم "TicketBooth" عبر inject_ticketbooth.py. لا نعدّل سكربتات الموديل الأصلية؛
--- منطق الشراء يبقى في سكربتنا عبر ProximityPrompt على نقطة تفاعل أمام الموديل.
-do
-	local bx, bz = -15, -100
-	-- نقطة تفاعل شفّافة أمام واجهة الموديل (الموديل يواجه +Z) — لا تصطدم ولا تُستعلَم
-	local hub = Instance.new("Part")
-	hub.Name = "TicketBoothInteract"
-	hub.Anchored = true
-	hub.CanCollide = false
-	hub.CanQuery = false
-	hub.CanTouch = false
-	hub.Transparency = 1
-	hub.Size = Vector3.new(8, 10, 8)
-	hub.CFrame = CFrame.new(bx, GROUND_Y + 5, bz + 7)
-	hub.Parent = workspace
+-- 👤 كاشير شباك التذاكر: نستنسخ موديل الموظف الجاهز (مُتحقَّق منه — نظيف 100%: صفر
+-- سكربتات، مجرد قطع Parts/Meshes جالس على كرسيّه) من قالب مخفي في ServerScriptService،
+-- ونضعه خلف كاونتر الشباك مواجهاً اللاعبين عبر النافذة، كقطعة ديكور ثابتة. لا منطق
+-- داخل الموديل — زر الشراء + لوحة الاسم يُربطان هنا في سكربتنا. التموضع يُحسب وقت التشغيل.
+local CASHIER_SCALE = 0.5    -- تصغير الموديل (أصله ~12 ستد) لحجم معتدل يناسب خلف الكاونتر
+local function buildCashierModel(opts)
+	-- ننتظر القالب والشباك حتى لو تأخّر تحميلهما (حماية من سباق التهيئة) بمهلة قصيرة
+	local template = ServerScriptService:WaitForChild("CashierModel", 10)
+	if not template then return nil end
 
+	local booth = Workspace:WaitForChild("TicketBooth", 10)
+	if not booth then return nil end
+
+	local model = template:Clone()
+	model.Name = opts.name or "TicketCashier"
+
+	-- موديل ثابت: نُثبّت كل القطع (Anchored) بلا اصطدام؛ ونرصد أكبر قطعة (لربط زر التفاعل)
+	-- وأعلى قطعة (الرأس — لتعليق لوحة الاسم). لا نضبط PrimaryPart حتى يبقى محور الموديل
+	-- محاذياً للعالم فيصحّ حساب الدوران والإسقاط على الأرض.
+	local biggest, bestVol = nil, -1
+	local topPart, bestY = nil, -math.huge
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.Massless = true
+			local v = d.Size.X * d.Size.Y * d.Size.Z
+			if v > bestVol then bestVol = v; biggest = d end
+			if d.Position.Y > bestY then bestY = d.Position.Y; topPart = d end
+		end
+	end
+	if not biggest then model:Destroy(); return nil end
+
+	-- الحجم المعتدل قبل التموضع (مع تحذير إن فشل ScaleTo فلا يبقى الموديل ضخماً بصمت)
+	local scaled = pcall(function() model:ScaleTo(CASHIER_SCALE) end)
+	if not scaled then warn("[TicketCashier] ScaleTo فشل؛ قد يظهر الموديل بحجمه الأصلي") end
+
+	-- التوجيه: الموديل مُصمَّم ووجهه نحو محور -Z؛ ندوّره (yaw حول Y) ليطابق faceDir
+	-- (افتراضياً +X نحو نافذة/كاونتر الشباك حيث يقف اللاعبون)، ثم نُسقطه على الأرضية.
+	local faceDir = opts.faceDir or Vector3.new(1, 0, 0)
+	local authored = Vector3.new(0, 0, -1)                 -- اتجاه وجه الموديل الأصلي
+	local yaw = math.atan2(faceDir.X, faceDir.Z) - math.atan2(authored.X, authored.Z)
+	local target = opts.target or Vector3.new(0, GROUND_Y, 0)
+	local pivot = model:GetPivot()
+	model:PivotTo(CFrame.new(target.X, pivot.Position.Y, target.Z) * CFrame.Angles(0, yaw, 0))
+
+	-- الاستقرار على الأرضية الفعلية: شعاع لأسفل يبدأ تحت السقف ويتجاهل الموديل نفسه،
+	-- ثم نرفع الموديل حتى تلامس أدنى نقطة فيه سطح الأرض (بلا طيران ولا غرق).
+	local rp = RaycastParams.new()
+	rp.FilterType = Enum.RaycastFilterType.Exclude
+	rp.FilterDescendantsInstances = { model }
+	local from = Vector3.new(target.X, target.Y + 8, target.Z)
+	local hit = Workspace:Raycast(from, Vector3.new(0, -30, 0), rp)
+	local bcf, bsize = model:GetBoundingBox()
+	local floorY = hit and hit.Position.Y or target.Y
+	local lift = floorY - (bcf.Position.Y - bsize.Y / 2)
+	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
+
+	model.Parent = booth
+
+	-- لوحة الاسم فوق الرأس (أعلى قطعة)
+	local head = topPart or biggest
+	if head then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
+		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
+		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)
+		bb.AlwaysOnTop = true; bb.Parent = head
+		local tagLbl = Instance.new("TextLabel")
+		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
+		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true
+		tagLbl.Text = opts.tag or "🎟️ موظف التذاكر"
+		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
+		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+	end
+
+	-- زر التفاعل: التحدث مع الكاشير يفتح شباك التذاكر (يُربط بأكبر قطعة في الموديل)
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "TicketBoothPrompt"
-	prompt.ActionText = "شبّاك التذاكر"
-	prompt.ObjectText = "اشترِ تذكرة"
+	prompt.ActionText = opts.promptText or "شبّاك التذاكر"
+	prompt.ObjectText = opts.promptObj or "اشترِ تذكرة"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 14
+	prompt.MaxActivationDistance = opts.maxDist or 16
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = hub
-	prompt.Triggered:Connect(openBoxOffice)
+	prompt.Parent = biggest
+	if opts.onTrigger then prompt.Triggered:Connect(opts.onTrigger) end
+
+	return model
 end
+
+-- 🎫 شبّاك التذاكر — صار موديل من المتجر (مُنظّف من الباك-دور) محقون في Workspace
+-- باسم "TicketBooth" عبر inject_ticketbooth.py. لا نعدّل سكربتات الموديل الأصلية؛
+-- منطق الشراء يبقى في سكربتنا: يُربط بزر تفاعل على الكاشير الجالس، وإن تعذّر نرجع
+-- لنقطة تفاعل شفّافة أمام الموديل كاحتياط.
+-- نُشغّله في خيط منفصل (task.spawn) حتى لا تُعطّل مهلة WaitForChild — في الحالة
+-- النادرة لغياب الشباك — تهيئة بقية عناصر السينما (لوحة العروض/الطابور/كبار الزوار).
+task.spawn(function()
+	-- موضع الموظف خلف الكاونتر (نافذة الشباك على المحور +X عند x≈-8.6)، في منتصف
+	-- الشباك تقريباً، مواجهاً اللاعبين الواقفين أمام النافذة (+X).
+	local bx, bz = -12.5, -99.7
+	local target = Vector3.new(bx, GROUND_Y, bz)
+
+	-- نضع الموظف الجاهز (الجالس على كرسيّه) خلف الكاونتر ونربط زر الشراء به (الأكثر واقعية)
+	local cashier = buildCashierModel({
+		name = "TicketCashier", tag = "🎟️ موظف التذاكر",
+		tagColor = Color3.fromRGB(255, 205, 90),
+		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه نافذة الشباك/اللاعبين (+X)
+		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
+		maxDist = 16, onTrigger = openBoxOffice,
+	})
+
+	-- احتياطي: لو غاب قالب الكاشير أو الكرسي، نُبقي نقطة تفاعل شفّافة أمام الموديل
+	if not cashier then
+		local hub = Instance.new("Part")
+		hub.Name = "TicketBoothInteract"
+		hub.Anchored = true
+		hub.CanCollide = false
+		hub.CanQuery = false
+		hub.CanTouch = false
+		hub.Transparency = 1
+		hub.Size = Vector3.new(8, 10, 8)
+		hub.CFrame = CFrame.new(bx, GROUND_Y + 5, bz + 7)
+		hub.Parent = Workspace
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "TicketBoothPrompt"
+		prompt.ActionText = "شبّاك التذاكر"
+		prompt.ObjectText = "اشترِ تذكرة"
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = hub
+		prompt.Triggered:Connect(openBoxOffice)
+	end
+end)
 
 -- لوحة العروض الحيّة (يمين المدخل) — نص على الوجهين فلا يظهر معكوساً من الخلف
 local showLabels, subLabels = {}, {}

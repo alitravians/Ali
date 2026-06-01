@@ -15,7 +15,7 @@
 #     Ding:play()). These are the model's own legitimate door behaviour, so we
 #     keep them untouched. No Devin scripts are added inside the model; the
 #     ticket-purchase ProximityPrompt lives in CinemaServices.server.lua.
-import sys, copy, math
+import sys, copy, math, re
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
@@ -39,8 +39,12 @@ BACKDOOR = {
     ("ModuleScript", "Layout"),
     ("NumberPose", "Pose"),
 }
+# Case-insensitive substring backdoor patterns (dynamic code + remote IO).
 DANGER = ("loadstring", "getfenv", "setfenv", "HttpGet", "HttpGetAsync",
-          "GetObjects", "require(")
+          "GetObjects", "InsertService")
+# require(...) in ANY Lua calling convention: require(x), require"x", require'x',
+# require[[x]], plus aliasing (`= require`). Mirrors inject_cashier/inject_guide.
+REQUIRE_RX = re.compile(r"""require\s*[(\"'\[]|=\s*require\b""")
 BASEPARTS = {"Part","MeshPart","WedgePart","CornerWedgePart","TrussPart",
              "UnionOperation","Seat","VehicleSeat"}
 
@@ -88,14 +92,45 @@ if model is None:
 removed = remove_backdoor(model)
 print("removed backdoor items:", removed)
 
+# Remove the booth's built-in chairs: the new ready-seated employee model
+# (CashierModel) brings its OWN chair, so the original 3 "Chair" groups (each a
+# Model holding a Seat + "Chair Base") would clash/overlap. Drop every "Chair"
+# Model wholesale (its Seat + base go with it).
+def remove_chairs(item):
+    dropped = []
+    for child in list(item):
+        if child.tag != "Item":
+            continue
+        if child.get("class") == "Model" and nm(child) == "Chair":
+            item.remove(child); dropped.append(nm(child))
+        else:
+            dropped += remove_chairs(child)
+    return dropped
+
+chairs = remove_chairs(model)
+print(f"removed {len(chairs)} built-in 'Chair' model(s) (new employee has its own)")
+
 # verify the surviving scripts are clean (no remote-code-exec patterns)
 bad = []
 for it in model.iter("Item"):
     if it.get("class") in ("Script","LocalScript","ModuleScript"):
         src = script_source(it)
+        low = src.lower()
         for pat in DANGER:
-            if pat in src:
+            if pat.lower() in low:
                 bad.append((it.get("class"), nm(it), pat))
+        if REQUIRE_RX.search(src):
+            bad.append((it.get("class"), nm(it), "require"))
+# defence-in-depth: scan the whole serialised model too (values, attributes...),
+# mirroring inject_cashier / inject_guide so a pattern hidden outside a script
+# source can't slip through.
+raw = etree.tostring(model, encoding="unicode")
+rawlow = raw.lower()
+for pat in DANGER:
+    if pat.lower() in rawlow and not any(pat == b[2] for b in bad):
+        bad.append(("raw", "-", pat))
+if REQUIRE_RX.search(raw) and not any(b[2] == "require" for b in bad):
+    bad.append(("raw", "-", "require"))
 if bad:
     sys.exit(f"ERROR: dangerous pattern still present after cleanup: {bad}")
 kept = [(it.get("class"), nm(it)) for it in model.iter("Item")
