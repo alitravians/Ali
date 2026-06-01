@@ -1351,12 +1351,18 @@ local function buildGuideModel(opts)
 	-- حجم معتدل (يُحسب التموضع بعده)
 	pcall(function() model:ScaleTo(GUIDE_SCALE) end)
 
-	-- وقوفه أمام المدخل مواجهاً القادمين، مع استقرار القدمين على الأرض.
-	-- وجه الموديل على الجهة +Z المحلية، فنُدير 180° ليواجه اتجاه الاستقبال.
-	local facing = opts.footCFrame * CFrame.Angles(0, math.pi, 0)
-	model:PivotTo(facing)
+	-- وقوفه أمام المدخل مواجهاً القادمين (نفس اتجاه المرشد السابق)
+	model:PivotTo(opts.footCFrame)
+
+	-- استقرار القدمين على الأرضية الفعلية تحته عبر شعاع لأسفل (يتجاهل المرشد نفسه)
+	local rp = RaycastParams.new()
+	rp.FilterType = Enum.RaycastFilterType.Exclude
+	rp.FilterDescendantsInstances = { model }
+	local fp = opts.footCFrame.Position
+	local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
+	local feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
 	local bcf, bsize = model:GetBoundingBox()
-	local lift = (opts.groundY or 0) - (bcf.Position.Y - bsize.Y / 2)
+	local lift = feetY - (bcf.Position.Y - bsize.Y / 2)
 	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
 	local basePivot = model:GetPivot()
 
