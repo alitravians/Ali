@@ -427,6 +427,9 @@ local CMD_ALIAS: { [string]: string } = {
 local CMD_DEF_BY_KEY: { [string]: { key: string, label: string, def: number } } = {}
 for _, d in ipairs(CMD_DEFS) do CMD_DEF_BY_KEY[d.key] = d end
 
+-- أوامر تبثّ نصاً مرئياً لبقية اللاعبين → تخضع للكتم (بقية الأوامر ذاتية فلا تتأثر)
+local BROADCAST_CMD: { [string]: boolean } = { me = true, roll = true, flip = true, announce = true }
+
 -- المستويات الحالية (تبدأ من الافتراضي ثم تُحدَّث من DataStore/الإدارة)
 local cmdLevel: { [string]: number } = {}
 for _, d in ipairs(CMD_DEFS) do cmdLevel[d.key] = d.def end
@@ -531,6 +534,12 @@ local function handleCommand(sender: Player, raw: string)
 		end
 	end
 
+	-- المكتوم يُمنَع من الأوامر التي تبثّ نصاً للآخرين (يبقى يستخدم الأوامر الذاتية)
+	if BROADCAST_CMD[key] and _G.ChatIsMuted and _G.ChatIsMuted(sender.UserId) then
+		tellSender(sender, "🚫 أنت مكتوم — لا يمكنك استخدام أوامر البثّ. بإمكانك /help و/clear وغيرها.")
+		return
+	end
+
 	-- ============ أوامر متاحة للجميع ============
 	if cmd == "help" or cmd == "commands" or cmd == "cmds" or cmd == "اوامر" or cmd == "أوامر" then
 		pushRemote:FireClient(sender, { openCommands = true })
@@ -599,7 +608,9 @@ local function handleCommand(sender: Player, raw: string)
 		local target = findPlayer(who)
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
 		if weightOf(target) >= w then tellSender(sender, "🚫 لا يمكنك طرد من رتبته مثلك أو أعلى."); return end
+		-- نفلتر السبب لأنه يُعرَض للاعب المطرود (سياسة روبلوكس: كل نص مستخدم يُعرَض لآخرين يجب فلترته)
 		local r = (reason ~= "" and reason) or "بدون سبب محدّد"
+		if reason ~= "" then r = safeFilter(reason, sender.UserId) or "بدون سبب محدّد" end
 		target:Kick("🚫 طُردت من اللعبة.\nالسبب: " .. r)
 		tellSender(sender, "👢 تم طرد " .. target.DisplayName .. " — السبب: " .. r)
 	elseif cmd == "bring" or cmd == "pull" or cmd == "احضار" or cmd == "إحضار" or cmd == "سحب" then
@@ -677,6 +688,18 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 		return
 	end
 
+	local text = rawText:gsub("[\r\n\t]", " ")           -- إزالة أسطر/تبويب
+	text = text:gsub("^%s+", ""):gsub("%s+$", "")        -- قصّ الفراغات
+	if text == "" then return end
+
+	-- ⌘ الأوامر: أي رسالة تبدأ بـ "/" تُعالَج كأمر ولا تُبَثّ كدردشة.
+	--   نوجّهها قبل فحص الكتم حتى لا يُحرَم المكتوم من الأوامر الذاتية (help/clear/spawn…)؛
+	--   والكتم يُفحَص داخل المعالج للأوامر الباثّة للآخرين فقط (me/roll/flip/announce).
+	if text:sub(1, 1) == "/" and text ~= "/" then
+		handleCommand(sender, text)
+		return
+	end
+
 	-- المكتوم لا يقدر يرسل (يُبلَّغ فقط هو مع الوقت المتبقي)
 	if _G.ChatIsMuted(sender.UserId) then
 		local rem = remainingFor(sender.UserId)
@@ -690,16 +713,6 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 			system = true,
 			text = "🚫 أنت مكتوم من الإدارة — لا يمكنك الإرسال. " .. when,
 		})
-		return
-	end
-
-	local text = rawText:gsub("[\r\n\t]", " ")           -- إزالة أسطر/تبويب
-	text = text:gsub("^%s+", ""):gsub("%s+$", "")        -- قصّ الفراغات
-	if text == "" then return end
-
-	-- ⌘ الأوامر: أي رسالة تبدأ بـ "/" تُعالَج كأمر ولا تُبَثّ كدردشة
-	if text:sub(1, 1) == "/" and text ~= "/" then
-		handleCommand(sender, text)
 		return
 	end
 
