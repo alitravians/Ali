@@ -928,6 +928,8 @@ local function sendAdminPanel(player)
 		teamTitle    = teamCfg.title,
 		teamSections = teamGrouped(true, true),
 		teamSecList  = teamCfg.sections,
+		-- ⌘ صلاحيات أوامر الدردشة (قابلة للتحكم من اللوحة) — من CustomChat
+		cmdPerms = (_G.ChatCmdConfigGet and _G.ChatCmdConfigGet()) or {},
 	})
 end
 
@@ -1571,6 +1573,21 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				saveTeam()
 				if broadcastTeam then broadcastTeam() end
 				logAdmin(adminName, "حدّث مسؤولية عضو")
+			end
+			sendAdminPanel(player)
+			return
+		elseif cmd == "setCmdPerm" then
+			-- ⌘ تغيير مستوى أمر دردشة (الأداريون فأعلى فقط)
+			if not canDo(RANK_W.admin) then return end
+			local key = tostring(payload.key or "")
+			local level = tonumber(payload.level)
+			if key ~= "" and level and _G.ChatCmdConfigSet then
+				local ok = _G.ChatCmdConfigSet(key, level) == true
+				if ok then
+					logAdmin(adminName, "ضبط صلاحية الأمر /" .. key .. " = " .. tostring(level))
+				else
+					adminNotify(player, "ℹ️ تعذّر ضبط هذا الأمر.")
+				end
 			end
 			sendAdminPanel(player)
 			return

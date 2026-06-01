@@ -1306,6 +1306,366 @@ local function safeFilterForUser(text: string, fromUserId: number, targetUserId:
 end
 
 ------------------------------------------------------------------------
+-- ⌘ نظام أوامر الدردشة (Chat Commands)
+--   أي رسالة تبدأ بـ "/" تُعالَج كأمر ولا تُبَثّ كرسالة عادية.
+--   الصلاحيات تُحسَب من رتبة المتحدّث (owner/admin/mod) عبر roleOf.
+------------------------------------------------------------------------
+local Workspace = game:GetService("Workspace")
+
+local RANK_WEIGHT = { owner = 4, admin = 3, mod = 2, staff = 1, vip = 0, [""] = 0 }
+local function weightOf(player: Player): number
+	return RANK_WEIGHT[roleOf(player)] or 0
+end
+
+-- رسالة نظام موجّهة للمرسِل فقط (رد على الأمر)
+local function tellSender(player: Player, text: string)
+	pushRemote:FireClient(player, { system = true, text = text })
+end
+
+-- بثّ رسالة نظام لكل اللاعبين (لأوامر مرئية مثل /roll و/me)
+local function broadcastSystem(text: string)
+	for _, recipient in ipairs(Players:GetPlayers()) do
+		pushRemote:FireClient(recipient, { system = true, text = text })
+	end
+end
+
+-- إيجاد لاعب بالاسم (تطابق تام ثم جزئي على الاسم أو الاسم المعروض)
+local function findPlayer(query: string?): Player?
+	if not query or query == "" then return nil end
+	query = query:lower()
+	local partial: Player? = nil
+	for _, p in ipairs(Players:GetPlayers()) do
+		local n, d = p.Name:lower(), p.DisplayName:lower()
+		if n == query or d == query then return p end
+		if not partial and (n:sub(1, #query) == query or d:sub(1, #query) == query) then partial = p end
+	end
+	return partial
+end
+
+local function rootOf(player: Player): BasePart?
+	local ch = player.Character
+	return ch and ch:FindFirstChild("HumanoidRootPart") :: BasePart? or nil
+end
+local function humanoidOf(player: Player): Humanoid?
+	local ch = player.Character
+	return ch and ch:FindFirstChildOfClass("Humanoid") or nil
+end
+
+------------------------------------------------------------------------
+-- 🧊 التجميد: نثبّت اللاعب مكانه (لا يقدر يتحرك) ونعيد التطبيق عند كل ظهور
+------------------------------------------------------------------------
+local frozen: { [number]: boolean } = {}
+local function applyFreeze(player: Player)
+	local root, hum = rootOf(player), humanoidOf(player)
+	if hum then hum.WalkSpeed = 0; hum.JumpPower = 0; hum.JumpHeight = 0 end
+	if root then root.Anchored = true end
+end
+local function setFrozen(player: Player, on: boolean)
+	if on then
+		frozen[player.UserId] = true
+		applyFreeze(player)
+	else
+		frozen[player.UserId] = nil
+		local root, hum = rootOf(player), humanoidOf(player)
+		if hum then hum.WalkSpeed = 16; hum.JumpPower = 50; hum.JumpHeight = 7.2 end
+		if root then root.Anchored = false end
+	end
+end
+Players.PlayerAdded:Connect(function(plr)
+	plr.CharacterAdded:Connect(function()
+		task.wait(0.4)
+		if frozen[plr.UserId] then applyFreeze(plr) end
+	end)
+end)
+Players.PlayerRemoving:Connect(function(plr) frozen[plr.UserId] = nil end)
+
+------------------------------------------------------------------------
+-- ⚙️ صلاحيات الأوامر القابلة للتحكم (من لوحة الإدارة)
+--   لكل أمر «مستوى مطلوب» يقرّره الأدمن: 0=الجميع · 2=المشرفون فأعلى ·
+--   3=الأداريون فأعلى · 99=معطّل. يُحفظ في DataStore فيبقى ثابت بعد
+--   إعادة التشغيل، ويُطبّق فوراً على كل اللاعبين.
+------------------------------------------------------------------------
+local CMD_EVERYONE, CMD_MOD, CMD_ADMIN, CMD_OFF = 0, 2, 3, 99
+
+-- تعريف الأوامر القابلة للتحكم: المفتاح القانوني · الوصف للوحة · المستوى الافتراضي.
+-- (help و clear متاحان دائماً للجميع وغير مدرجين هنا فلا يمكن تعطيلهما.)
+local CMD_DEFS = {
+	-- 🟢 ترفيهية/عامة
+	{ key = "me",       label = "✦ /me — تعبير عن فعل",      def = CMD_EVERYONE },
+	{ key = "roll",     label = "🎲 /roll — رمي نرد",          def = CMD_EVERYONE },
+	{ key = "flip",     label = "🪙 /flip — قذف عملة",         def = CMD_EVERYONE },
+	{ key = "coins",    label = "🪙 /coins — رصيدك",           def = CMD_EVERYONE },
+	{ key = "tickets",  label = "🎟️ /tickets — تذاكرك",       def = CMD_EVERYONE },
+	{ key = "online",   label = "👥 /online — عدد المتصلين",   def = CMD_EVERYONE },
+	{ key = "spawn",    label = "🔄 /spawn — العودة للانطلاق", def = CMD_EVERYONE },
+	{ key = "vip",      label = "⭐ /vip — حالة VIP",          def = CMD_EVERYONE },
+	-- 🔰 إشراف
+	{ key = "announce", label = "📢 /announce — إعلان للكل",   def = CMD_MOD },
+	{ key = "mute",     label = "🔇 /mute — كتم لاعب",         def = CMD_MOD },
+	{ key = "unmute",   label = "🔊 /unmute — فك الكتم",       def = CMD_MOD },
+	-- 🛡️ إدارة
+	{ key = "kick",     label = "👢 /kick — طرد لاعب",         def = CMD_ADMIN },
+	{ key = "bring",    label = "🧲 /bring · /pull — سحب لاعب", def = CMD_ADMIN },
+	{ key = "to",       label = "🏃 /to — الانتقال للاعب",     def = CMD_ADMIN },
+	{ key = "freeze",   label = "🧊 /freeze — تجميد لاعب",     def = CMD_ADMIN },
+	{ key = "unfreeze", label = "🌤️ /unfreeze — فك التجميد",   def = CMD_ADMIN },
+	{ key = "fly",      label = "🕊️ /fly — طيران",            def = CMD_ADMIN },
+	{ key = "give",     label = "🎁 /give — منح عملات",        def = CMD_ADMIN },
+	{ key = "speed",    label = "⚡ /speed — سرعة المشي",       def = CMD_ADMIN },
+	{ key = "heal",     label = "❤️ /heal — شفاء لاعب",        def = CMD_ADMIN },
+}
+
+-- كل المرادفات (عربي/إنجليزي) → المفتاح القانوني
+local CMD_ALIAS: { [string]: string } = {
+	help = "help", commands = "help", cmds = "help", ["اوامر"] = "help", ["أوامر"] = "help",
+	clear = "clear", ["مسح"] = "clear",
+	online = "online", ["المتصلين"] = "online",
+	coins = "coins", ["رصيد"] = "coins",
+	tickets = "tickets", ["تذاكر"] = "tickets",
+	vip = "vip",
+	spawn = "spawn", ["سبون"] = "spawn",
+	flip = "flip", ["عملة"] = "flip",
+	roll = "roll", ["نرد"] = "roll",
+	me = "me",
+	announce = "announce", ["اعلان"] = "announce", ["إعلان"] = "announce",
+	mute = "mute", ["كتم"] = "mute",
+	unmute = "unmute", ["فك"] = "unmute",
+	kick = "kick", ["طرد"] = "kick",
+	bring = "bring", pull = "bring", ["احضار"] = "bring", ["إحضار"] = "bring", ["سحب"] = "bring",
+	to = "to", goto = "to", ["انتقال"] = "to",
+	freeze = "freeze", ["تجميد"] = "freeze",
+	unfreeze = "unfreeze", ["تذويب"] = "unfreeze", ["فك_تجميد"] = "unfreeze",
+	fly = "fly", ["طيران"] = "fly",
+	give = "give", ["منح"] = "give",
+	speed = "speed", ["سرعة"] = "speed",
+	heal = "heal", ["شفاء"] = "heal",
+}
+
+local CMD_DEF_BY_KEY: { [string]: { key: string, label: string, def: number } } = {}
+for _, d in ipairs(CMD_DEFS) do CMD_DEF_BY_KEY[d.key] = d end
+
+-- المستويات الحالية (تبدأ من الافتراضي ثم تُحدَّث من DataStore/الإدارة)
+local cmdLevel: { [string]: number } = {}
+for _, d in ipairs(CMD_DEFS) do cmdLevel[d.key] = d.def end
+
+local cmdStore: DataStore? = nil
+pcall(function() cmdStore = DataStoreService:GetDataStore("ChatCmdPerms_v1") end)
+if cmdStore then
+	local ok, saved = pcall(function() return (cmdStore :: DataStore):GetAsync("levels") end)
+	if ok and typeof(saved) == "table" then
+		for k, v in pairs(saved) do
+			if CMD_DEF_BY_KEY[k] and typeof(v) == "number" then cmdLevel[k] = v end
+		end
+	end
+end
+
+local function saveCmdLevels()
+	if not cmdStore then return end
+	local out: { [string]: number } = {}
+	for k, v in pairs(cmdLevel) do out[k] = v end
+	pcall(function() (cmdStore :: DataStore):SetAsync("levels", out) end)
+end
+
+-- بناء قائمة الأوامر بمستوياتها الحالية (للوحة الأوامر/الإدارة)
+local function buildCmdList()
+	local list = {}
+	for _, d in ipairs(CMD_DEFS) do
+		table.insert(list, { key = d.key, label = d.label, level = cmdLevel[d.key] or d.def, def = d.def })
+	end
+	return list
+end
+
+-- إرسال الإعدادات للاعب واحد (مع وزن رتبته ليُعرف ما هو متاح له)
+local function sendCmdConfig(p: Player)
+	pushRemote:FireClient(p, { cmdConfig = buildCmdList(), myWeight = weightOf(p) })
+end
+
+-- بثّ تحديث الإعدادات لكل العملاء (لتحديث لوحة الأوامر فوراً)
+local function broadcastCmdConfig()
+	local list = buildCmdList()
+	for _, p in ipairs(Players:GetPlayers()) do
+		pushRemote:FireClient(p, { cmdConfig = list, myWeight = weightOf(p) })
+	end
+end
+
+-- عند الدخول: أرسل إعدادات الأوامر للّاعب (بعد لحظة حتى يجهز العميل)
+Players.PlayerAdded:Connect(function(plr)
+	task.delay(2, function()
+		if plr.Parent then sendCmdConfig(plr) end
+	end)
+end)
+
+-- 🌐 واجهات للوحة الإدارة (CinemaServices) ---------------------------------
+-- قائمة الأوامر بمستوياتها الحالية (لإرسالها مع لوحة الإدارة)
+_G.ChatCmdConfigGet = function()
+	local list = {}
+	for _, d in ipairs(CMD_DEFS) do
+		table.insert(list, { key = d.key, label = d.label, level = cmdLevel[d.key] or d.def, def = d.def })
+	end
+	return list
+end
+-- تغيير مستوى أمر (يستدعيها السيرفر بعد التحقق من رتبة الطالب)
+_G.ChatCmdConfigSet = function(key: string, level: number): boolean
+	if not CMD_DEF_BY_KEY[key] then return false end
+	if not (level == CMD_EVERYONE or level == CMD_MOD or level == CMD_ADMIN or level == CMD_OFF) then
+		return false
+	end
+	cmdLevel[key] = level
+	saveCmdLevels()
+	broadcastCmdConfig()
+	return true
+end
+
+------------------------------------------------------------------------
+-- المعالج الرئيسي للأوامر — يرجع true دائماً (الرسالة لا تُبَثّ كدردشة)
+------------------------------------------------------------------------
+local function handleCommand(sender: Player, raw: string)
+	local cmd, rest = raw:sub(2):match("^(%S+)%s*(.*)$")
+	if not cmd then return end
+	cmd = cmd:lower()
+	local w = weightOf(sender)
+	local senderName = sender.DisplayName ~= "" and sender.DisplayName or sender.Name
+
+	-- المفتاح القانوني للأمر (يدعم المرادفات العربية/الإنجليزية)
+	local key = CMD_ALIAS[cmd]
+	if not key then
+		tellSender(sender, "❓ أمر غير معروف: /" .. cmd .. " — اكتب /help لعرض كل الأوامر.")
+		return
+	end
+
+	-- بوابة الصلاحية الموحّدة: help و clear متاحان دائماً للجميع،
+	-- وبقية الأوامر تخضع للمستوى المضبوط من لوحة الإدارة.
+	if key ~= "help" and key ~= "clear" then
+		local lvl = cmdLevel[key] or (CMD_DEF_BY_KEY[key] and CMD_DEF_BY_KEY[key].def) or CMD_EVERYONE
+		if lvl >= CMD_OFF then
+			tellSender(sender, "🚫 هذا الأمر معطّل حالياً من الإدارة.")
+			return
+		end
+		if w < lvl then
+			local who = (lvl >= CMD_ADMIN) and "للأداريين فأعلى" or "للمشرفين فأعلى"
+			tellSender(sender, "🔒 هذا الأمر " .. who .. " فقط.")
+			return
+		end
+	end
+
+	-- ============ أوامر متاحة للجميع ============
+	if cmd == "help" or cmd == "commands" or cmd == "cmds" or cmd == "اوامر" or cmd == "أوامر" then
+		pushRemote:FireClient(sender, { openCommands = true })
+	elseif cmd == "clear" or cmd == "مسح" then
+		pushRemote:FireClient(sender, { clearChat = true })
+	elseif cmd == "online" or cmd == "المتصلين" then
+		tellSender(sender, "👥 عدد المتصلين الآن: " .. #Players:GetPlayers())
+	elseif cmd == "coins" or cmd == "رصيد" then
+		local c = (_G.GetCoins and _G.GetCoins(sender)) or 0
+		tellSender(sender, "🪙 رصيدك: " .. tostring(c) .. " عملة")
+	elseif cmd == "tickets" or cmd == "تذاكر" then
+		local t = (_G.GetTickets and _G.GetTickets(sender)) or 0
+		tellSender(sender, "🎟️ تذاكرك: " .. tostring(t))
+	elseif cmd == "vip" then
+		local v = (_G.IsVIP and _G.IsVIP(sender)) == true
+		tellSender(sender, v and "⭐ أنت عضو VIP — استمتع بالمزايا!" or "⭐ لست VIP حالياً. زر متجر اللعبة للاشتراك.")
+	elseif cmd == "spawn" or cmd == "سبون" then
+		if sender.Character then sender:LoadCharacter() end
+		tellSender(sender, "🔄 رجّعناك لنقطة الانطلاق.")
+	elseif cmd == "flip" or cmd == "عملة" then
+		local r = (math.random(2) == 1) and "صورة 👑" or "كتابة ✍️"
+		broadcastSystem("🪙 " .. senderName .. " قذف العملة: " .. r)
+	elseif cmd == "roll" or cmd == "نرد" then
+		local maxN = math.clamp(math.floor(tonumber(rest) or 100), 2, 1000000)
+		broadcastSystem("🎲 " .. senderName .. " رمى النرد (1–" .. maxN .. "): " .. math.random(1, maxN))
+	elseif cmd == "me" then
+		local act = rest:gsub("^%s+", "")
+		if act == "" then tellSender(sender, "✍️ الاستخدام: /me <فعل> — مثال: /me يرقص"); return end
+		local f = safeFilter(act, sender.UserId)
+		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة رسالتك."); return end
+		broadcastSystem("💬 ✦ " .. senderName .. " " .. f)
+
+	-- ============ أوامر المشرفين (Mod فأعلى) ============
+	elseif cmd == "announce" or cmd == "اعلان" or cmd == "إعلان" then
+		local msg = rest:gsub("^%s+", "")
+		if msg == "" then tellSender(sender, "✍️ الاستخدام: /announce <النص>"); return end
+		local f = safeFilter(msg, sender.UserId)
+		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة الإعلان."); return end
+		if _G.ChatBroadcastAdmin then _G.ChatBroadcastAdmin("📢 إعلان", senderName, f) else broadcastSystem("📢 " .. f) end
+		if _G.AdminSetMarquee then pcall(function() _G.AdminSetMarquee("📢 " .. f) end) end
+	elseif cmd == "mute" or cmd == "كتم" then
+		local who, a = rest:match("^(%S+)%s*(%S*)")
+		local target = findPlayer(who)
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if weightOf(target) >= w then tellSender(sender, "🚫 لا يمكنك كتم من رتبته مثلك أو أعلى."); return end
+		local minutes = tonumber(a)
+		if _G.ChatSetMuted then _G.ChatSetMuted(target.UserId, true, minutes and math.floor(minutes * 60) or 0) end
+		tellSender(sender, "🔇 تم كتم " .. target.DisplayName .. " (" .. (minutes and (tostring(minutes) .. " دقيقة") or "دائم") .. ").")
+	elseif cmd == "unmute" or cmd == "فك" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if _G.ChatSetMuted then _G.ChatSetMuted(target.UserId, false) end
+		tellSender(sender, "🔊 تم فك الكتم عن " .. target.DisplayName .. ".")
+
+	-- ============ أوامر الأدمن (Admin فأعلى) ============
+	elseif cmd == "kick" or cmd == "طرد" then
+		local who, reason = rest:match("^(%S+)%s*(.*)$")
+		local target = findPlayer(who)
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if weightOf(target) >= w then tellSender(sender, "🚫 لا يمكنك طرد من رتبته مثلك أو أعلى."); return end
+		local r = (reason ~= "" and reason) or "بدون سبب محدّد"
+		target:Kick("🚫 طُردت من اللعبة.\nالسبب: " .. r)
+		tellSender(sender, "👢 تم طرد " .. target.DisplayName .. " — السبب: " .. r)
+	elseif cmd == "bring" or cmd == "pull" or cmd == "احضار" or cmd == "إحضار" or cmd == "سحب" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		local sr, tr = rootOf(sender), target and rootOf(target)
+		if not (target and sr and tr) then tellSender(sender, "❓ تعذّر السحب (تأكد من الاسم وأن اللاعب ظاهر)."); return end
+		tr.CFrame = sr.CFrame * CFrame.new(0, 0, -4)
+		tellSender(sender, "🧲 تم سحب " .. target.DisplayName .. " إليك.")
+	elseif cmd == "to" or cmd == "goto" or cmd == "انتقال" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		local sr, tr = rootOf(sender), target and rootOf(target)
+		if not (target and sr and tr) then tellSender(sender, "❓ تعذّر الانتقال."); return end
+		sr.CFrame = tr.CFrame * CFrame.new(0, 0, -4)
+		tellSender(sender, "🏃 انتقلت إلى " .. target.DisplayName .. ".")
+	elseif cmd == "freeze" or cmd == "تجميد" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if weightOf(target) >= w and target ~= sender then tellSender(sender, "🚫 لا يمكنك تجميد من رتبته مثلك أو أعلى."); return end
+		setFrozen(target, true)
+		tellSender(sender, "🧊 تم تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🧊 تم تجميدك مؤقتاً من الإدارة.") end
+	elseif cmd == "unfreeze" or cmd == "فك_تجميد" or cmd == "تذويب" then
+		local target = findPlayer(rest:match("^(%S+)"))
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		setFrozen(target, false)
+		tellSender(sender, "🌤️ تم فك تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🌤️ تم فك تجميدك — تقدر تتحرك الآن.") end
+	elseif cmd == "fly" or cmd == "طيران" then
+		local speed = math.clamp(math.floor(tonumber(rest) or 60), 16, 300)
+		pushRemote:FireClient(sender, { flyToggle = true, flySpeed = speed })
+	elseif cmd == "give" or cmd == "منح" then
+		local who, amtStr = rest:match("^(%S+)%s*(%S*)$")
+		local target = findPlayer(who)
+		local amt = tonumber(amtStr)
+		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
+		if not amt or amt == 0 then tellSender(sender, "✍️ الاستخدام: /give <لاعب> <عدد العملات>"); return end
+		amt = math.clamp(math.floor(amt), -1000000, 1000000)
+		if _G.AddCoins then _G.AddCoins(target, amt) end
+		tellSender(sender, "🪙 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🎁 استلمت " .. tostring(amt) .. " عملة من الإدارة!") end
+	elseif cmd == "speed" or cmd == "سرعة" then
+		local nStr, who = rest:match("^(%S+)%s*(.*)$")
+		local n = tonumber(nStr)
+		if not n then tellSender(sender, "✍️ الاستخدام: /speed <رقم> [لاعب]"); return end
+		local target = (who ~= "" and findPlayer(who)) or sender
+		local h = humanoidOf(target)
+		if h then h.WalkSpeed = math.clamp(n, 0, 300); tellSender(sender, "🏃 سرعة " .. target.DisplayName .. " = " .. math.clamp(n, 0, 300)) else tellSender(sender, "❓ اللاعب غير ظاهر.") end
+	elseif cmd == "heal" or cmd == "شفاء" then
+		local target = (rest ~= "" and findPlayer(rest:match("^(%S+)"))) or sender
+		local h = humanoidOf(target)
+		if h then h.Health = h.MaxHealth; tellSender(sender, "❤️ تم شفاء " .. target.DisplayName .. ".") else tellSender(sender, "❓ اللاعب غير ظاهر.") end
+	else
+		tellSender(sender, "❓ أمر غير معروف: /" .. cmd .. " — اكتب /help لعرض كل الأوامر.")
+	end
+end
+
+------------------------------------------------------------------------
 -- استقبال رسالة من لاعب، فلترتها، وبثّها للجميع
 ------------------------------------------------------------------------
 sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
@@ -1345,6 +1705,12 @@ sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
 	local text = rawText:gsub("[\r\n\t]", " ")           -- إزالة أسطر/تبويب
 	text = text:gsub("^%s+", ""):gsub("%s+$", "")        -- قصّ الفراغات
 	if text == "" then return end
+
+	-- ⌘ الأوامر: أي رسالة تبدأ بـ "/" تُعالَج كأمر ولا تُبَثّ كدردشة
+	if text:sub(1, 1) == "/" and text ~= "/" then
+		handleCommand(sender, text)
+		return
+	end
 
 	-- الكتابة الإدارية: تبدأ بـ "$" والمرسِل owner/admin/mod
 	local adminLabel = nil
@@ -5486,6 +5852,8 @@ local function sendAdminPanel(player)
 		teamTitle    = teamCfg.title,
 		teamSections = teamGrouped(true, true),
 		teamSecList  = teamCfg.sections,
+		-- ⌘ صلاحيات أوامر الدردشة (قابلة للتحكم من اللوحة) — من CustomChat
+		cmdPerms = (_G.ChatCmdConfigGet and _G.ChatCmdConfigGet()) or {},
 	})
 end
 
@@ -6129,6 +6497,21 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				saveTeam()
 				if broadcastTeam then broadcastTeam() end
 				logAdmin(adminName, "حدّث مسؤولية عضو")
+			end
+			sendAdminPanel(player)
+			return
+		elseif cmd == "setCmdPerm" then
+			-- ⌘ تغيير مستوى أمر دردشة (الأداريون فأعلى فقط)
+			if not canDo(RANK_W.admin) then return end
+			local key = tostring(payload.key or "")
+			local level = tonumber(payload.level)
+			if key ~= "" and level and _G.ChatCmdConfigSet then
+				local ok = _G.ChatCmdConfigSet(key, level) == true
+				if ok then
+					logAdmin(adminName, "ضبط صلاحية الأمر /" .. key .. " = " .. tostring(level))
+				else
+					adminNotify(player, "ℹ️ تعذّر ضبط هذا الأمر.")
+				end
 			end
 			sendAdminPanel(player)
 			return
@@ -9037,7 +9420,9 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
+local RunService        = game:GetService("RunService")
 local SoundService      = game:GetService("SoundService")
+local Workspace         = game:GetService("Workspace")
 local StarterGui        = game:GetService("StarterGui")
 local TextChatService   = game:GetService("TextChatService")
 
@@ -9959,10 +10344,274 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 ------------------------------------------------------------------------
+-- 🧹 مسح كل رسائل الواجهة (أمر /clear)
+------------------------------------------------------------------------
+local function clearMessages()
+	for _, c in ipairs(list:GetChildren()) do
+		if c:IsA("TextLabel") or c:IsA("Frame") then c:Destroy() end
+	end
+end
+
+------------------------------------------------------------------------
+-- ⌘ لوحة الأوامر — تشرح الأوامر وتبيّن المتاح لك مقابل المقفول
+------------------------------------------------------------------------
+local OKGREEN = Color3.fromRGB(120, 220, 140)
+local LOCKCOL = Color3.fromRGB(255, 184, 92)
+local OFFCOL  = Color3.fromRGB(232, 96, 110)
+
+local cmdList: { any } = {}    -- آخر إعدادات وصلت من السيرفر
+local myWeight = 0             -- وزن رتبتي (لتحديد المتاح)
+
+-- طبقة معتمة خلف اللوحة
+local cmdBackdrop = new("TextButton", {
+	Name = "CmdBackdrop", Text = "", AutoButtonColor = false, Modal = true,
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.5,
+	Size = UDim2.fromScale(1, 1), Visible = false, ZIndex = 20, Parent = gui,
+})
+
+local cmdPanel = new("Frame", {
+	Name = "CommandsPanel",
+	AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(440, 480), BackgroundColor3 = CARD, BackgroundTransparency = 0.02,
+	BorderSizePixel = 0, ZIndex = 21, Parent = cmdBackdrop,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 16), Parent = cmdPanel })
+new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.3, Parent = cmdPanel })
+new("UISizeConstraint", { MinSize = Vector2.new(300, 320), MaxSize = Vector2.new(520, 560), Parent = cmdPanel })
+
+new("TextLabel", {
+	Name = "Title", BackgroundTransparency = 1, Text = "⌘ لوحة الأوامر",
+	Font = Enum.Font.GothamBlack, TextSize = 20, TextColor3 = GOLD,
+	Size = UDim2.new(1, -56, 0, 40), Position = UDim2.fromOffset(14, 10),
+	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
+})
+local cmdClose = new("TextButton", {
+	Name = "Close", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 30),
+	Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromRGB(48, 40, 64),
+	Font = Enum.Font.GothamBold, Text = "✕", TextColor3 = TEXT, TextSize = 16,
+	AutoButtonColor = true, ZIndex = 22, Parent = cmdPanel,
+})
+new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdClose })
+
+new("TextLabel", {
+	Name = "Hint", BackgroundTransparency = 1,
+	Text = "اكتب الأمر في الدردشة مسبوقاً بـ «/». الأخضر متاح لك، والمقفول للمشرفين/الأداريين حسب ضبط الإدارة.",
+	Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = MUTED, TextWrapped = true,
+	Size = UDim2.new(1, -28, 0, 40), Position = UDim2.fromOffset(14, 48),
+	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
+})
+
+local cmdScroll = new("ScrollingFrame", {
+	Name = "List", BackgroundTransparency = 1, BorderSizePixel = 0,
+	Position = UDim2.fromOffset(14, 92), Size = UDim2.new(1, -28, 1, -106),
+	CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollBarThickness = 6, ScrollBarImageColor3 = PURPLE, ZIndex = 22, Parent = cmdPanel,
+})
+new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = cmdScroll })
+
+-- صفّ أمر واحد: الوصف يميناً + شارة الحالة يساراً
+local function addCmdRow(orderIdx: number, label: string, statusText: string, statusColor: Color3)
+	local row = new("Frame", {
+		BackgroundColor3 = Color3.fromRGB(24, 18, 42), BackgroundTransparency = 0.15,
+		Size = UDim2.new(1, 0, 0, 42), LayoutOrder = orderIdx, ZIndex = 22, Parent = cmdScroll,
+	})
+	new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = row })
+	new("TextLabel", {
+		BackgroundTransparency = 1, Text = label, Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = TEXT,
+		Size = UDim2.new(1, -130, 1, 0), Position = UDim2.new(0, 122, 0, 0),
+		TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 22, Parent = row,
+	})
+	local badge2 = new("TextLabel", {
+		BackgroundColor3 = statusColor, BackgroundTransparency = 0.82,
+		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(108, 26),
+		Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = statusColor, Text = statusText,
+		ZIndex = 22, Parent = row,
+	})
+	new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = badge2 })
+	new("UIStroke", { Color = statusColor, Thickness = 1, Transparency = 0.4, Parent = badge2 })
+end
+
+local function statusFor(level: number): (string, Color3)
+	if level >= 99 then
+		return "🚫 معطّل", OFFCOL
+	elseif myWeight >= level then
+		return "✓ متاح لك", OKGREEN
+	elseif level >= 3 then
+		return "🛡️ للأداريين", LOCKCOL
+	else
+		return "🔰 للمشرفين", LOCKCOL
+	end
+end
+
+local function rebuildCommands()
+	for _, c in ipairs(cmdScroll:GetChildren()) do
+		if c:IsA("Frame") then c:Destroy() end
+	end
+	-- أمران دائماً متاحان للجميع وغير قابلين للتعطيل
+	addCmdRow(1, "❓ /help — تفتح هذه اللوحة", "✓ متاح لك", OKGREEN)
+	addCmdRow(2, "🧹 /clear — مسح الدردشة", "✓ متاح لك", OKGREEN)
+	local i = 3
+	for _, d in ipairs(cmdList) do
+		local lvl = tonumber(d.level) or 0
+		local st, col = statusFor(lvl)
+		addCmdRow(i, tostring(d.label or ("/" .. tostring(d.key))), st, col)
+		i += 1
+	end
+end
+
+local cmdPanelOpen = false
+local function openCommands()
+	cmdPanelOpen = true
+	rebuildCommands()
+	cmdBackdrop.Visible = true
+end
+local function closeCommands()
+	cmdPanelOpen = false
+	cmdBackdrop.Visible = false
+end
+cmdClose.MouseButton1Click:Connect(closeCommands)
+cmdBackdrop.MouseButton1Click:Connect(closeCommands)
+
+-- زر ⌘ في رأس لوحة الدردشة يفتح لوحة الأوامر
+local cmdBtn = new("TextButton", {
+	Name = "CmdBtn", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -42, 0.5, 0),
+	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.15,
+	Font = Enum.Font.GothamBold, Text = "⌘", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 17,
+	AutoButtonColor = true, Parent = header,
+})
+new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdBtn })
+cmdBtn.MouseButton1Click:Connect(openCommands)
+
+------------------------------------------------------------------------
+-- 🕊️ متحكّم الطيران (أمر /fly) — BodyGyro + BodyVelocity مع WASD ومسافة/كنترول
+------------------------------------------------------------------------
+local flying = false
+local flySpeed = 60
+local flyBV: BodyVelocity? = nil
+local flyBG: BodyGyro? = nil
+local flyConns: { RBXScriptConnection } = {}
+local move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
+local boost = false
+
+local function stopFly()
+	flying = false
+	for _, c in ipairs(flyConns) do pcall(function() c:Disconnect() end) end
+	flyConns = {}
+	if flyBV then flyBV:Destroy(); flyBV = nil end
+	if flyBG then flyBG:Destroy(); flyBG = nil end
+	move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
+	local ch = LocalPlayer.Character
+	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+	if hum then hum.PlatformStand = false end
+end
+
+local function startFly(speed: number?)
+	local ch = LocalPlayer.Character
+	if not ch then return end
+	local root = ch:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = ch:FindFirstChildOfClass("Humanoid")
+	if not root then return end
+	flySpeed = speed or flySpeed
+	flying = true
+	if hum then hum.PlatformStand = true end
+
+	local bg = Instance.new("BodyGyro")
+	bg.P = 9e4
+	bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	bg.CFrame = root.CFrame
+	bg.Parent = root
+	flyBG = bg
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	bv.Velocity = Vector3.zero
+	bv.Parent = root
+	flyBV = bv
+
+	table.insert(flyConns, UserInputService.InputBegan:Connect(function(inp, gpe)
+		if gpe then return end
+		local k = inp.KeyCode
+		if k == Enum.KeyCode.W then move.f = 1
+		elseif k == Enum.KeyCode.S then move.b = 1
+		elseif k == Enum.KeyCode.A then move.l = 1
+		elseif k == Enum.KeyCode.D then move.r = 1
+		elseif k == Enum.KeyCode.Space then move.u = 1
+		elseif k == Enum.KeyCode.LeftControl or k == Enum.KeyCode.RightControl then move.d = 1
+		elseif k == Enum.KeyCode.LeftShift or k == Enum.KeyCode.RightShift then boost = true
+		end
+	end))
+	table.insert(flyConns, UserInputService.InputEnded:Connect(function(inp)
+		local k = inp.KeyCode
+		if k == Enum.KeyCode.W then move.f = 0
+		elseif k == Enum.KeyCode.S then move.b = 0
+		elseif k == Enum.KeyCode.A then move.l = 0
+		elseif k == Enum.KeyCode.D then move.r = 0
+		elseif k == Enum.KeyCode.Space then move.u = 0
+		elseif k == Enum.KeyCode.LeftControl or k == Enum.KeyCode.RightControl then move.d = 0
+		elseif k == Enum.KeyCode.LeftShift or k == Enum.KeyCode.RightShift then boost = false
+		end
+	end))
+	table.insert(flyConns, RunService.RenderStepped:Connect(function()
+		local cam = Workspace.CurrentCamera
+		if not (flyBV and flyBG and cam) then return end
+		flyBG.CFrame = cam.CFrame
+		local dir = Vector3.zero
+		if move.f == 1 then dir += cam.CFrame.LookVector end
+		if move.b == 1 then dir -= cam.CFrame.LookVector end
+		if move.r == 1 then dir += cam.CFrame.RightVector end
+		if move.l == 1 then dir -= cam.CFrame.RightVector end
+		if move.u == 1 then dir += Vector3.new(0, 1, 0) end
+		if move.d == 1 then dir -= Vector3.new(0, 1, 0) end
+		if dir.Magnitude > 0 then
+			flyBV.Velocity = dir.Unit * flySpeed * (boost and 2.2 or 1)
+		else
+			flyBV.Velocity = Vector3.zero
+		end
+	end))
+end
+
+-- لو مات/ظهر من جديد وهو طائر، أوقف الطيران (تنظيف آمن)
+LocalPlayer.CharacterAdded:Connect(function()
+	if flying then stopFly() end
+end)
+
+------------------------------------------------------------------------
 -- استقبال الرسائل المبثوثة
 ------------------------------------------------------------------------
 pushRemote.OnClientEvent:Connect(function(data)
 	if typeof(data) ~= "table" then return end
+
+	-- ⌘ إعدادات الأوامر (قائمة + وزن رتبتي) — لتحديث لوحة الأوامر
+	if data.cmdConfig ~= nil then
+		if typeof(data.cmdConfig) == "table" then cmdList = data.cmdConfig end
+		if tonumber(data.myWeight) then myWeight = tonumber(data.myWeight) :: number end
+		if cmdPanelOpen then rebuildCommands() end
+		return
+	end
+
+	-- ❓ فتح لوحة الأوامر (أمر /help)
+	if data.openCommands then
+		openCommands()
+		return
+	end
+
+	-- 🧹 مسح الدردشة (أمر /clear)
+	if data.clearChat then
+		clearMessages()
+		return
+	end
+
+	-- 🕊️ تبديل الطيران (أمر /fly) — السيرفر تحقّق من الصلاحية مسبقاً
+	if data.flyToggle then
+		if flying then
+			stopFly()
+			addMessage("النظام", "🕊️ تم إيقاف الطيران.", PURPLE, { system = true })
+		else
+			startFly(tonumber(data.flySpeed))
+			addMessage("النظام", "🕊️ تم تفعيل الطيران — WASD للتحرك، مسافة للأعلى، Ctrl للأسفل، Shift للسرعة. اكتب /fly مرة ثانية للإيقاف.", PURPLE, { system = true })
+		end
+		return
+	end
 
 	-- تحديث حالة الكتم (من الإدارة)
 	if data.muteState ~= nil then
@@ -11450,6 +12099,7 @@ showAdminPanel = function(data)
 	if myW >= RANK_W.admin then
 		table.insert(tabs, { key = "mods", label = "👮 المشرفون" })
 		table.insert(tabs, { key = "team", label = "👥 الفريق" })
+		table.insert(tabs, { key = "commands", label = "⌘ الأوامر" })
 		table.insert(tabs, { key = "show", label = "🎬 العرض" })
 		table.insert(tabs, { key = "settings", label = "⚙️ الإعدادات" })
 	end
@@ -12213,10 +12863,60 @@ showAdminPanel = function(data)
 		note("ℹ️ كل عضو يظهر تحت قسمه في صفحة «👥 الفريق». لو ما حدّدت مسؤولية تظهر رتبته تلقائياً. صور الأفتار تعمل في اللعبة المنشورة.")
 	end
 
+	-- ===== ⌘ تبويب الأوامر: التحكم بمستوى صلاحية كل أمر =====
+	local function buildCommands()
+		sectionLabel("⌘ صلاحيات الأوامر — اختر مستوى كل أمر")
+		note("لكل أمر مستوى مطلوب: «الجميع» متاح للكل · «المشرفون» للمشرف فأعلى · «الأداريون» للأدمن فأعلى · «معطّل» يوقف الأمر. يُحفظ تلقائياً ويُطبّق فوراً على الجميع. (الأمران /help و /clear متاحان دائماً للجميع.)")
+
+		local LV_EVERYONE, LV_MOD, LV_ADMIN, LV_OFF = 0, 2, 3, 99
+		local LEVELS = {
+			{ v = LV_EVERYONE, t = "الجميع",    c = Color3.fromRGB(120, 220, 140) },
+			{ v = LV_MOD,      t = "المشرفون",  c = CYAN },
+			{ v = LV_ADMIN,    t = "الأداريون", c = GOLD },
+			{ v = LV_OFF,      t = "معطّل",      c = Color3.fromRGB(232, 96, 110) },
+		}
+
+		local perms = data.cmdPerms
+		if typeof(perms) ~= "table" or #perms == 0 then
+			note("… لا توجد أوامر متاحة للعرض حالياً.")
+			return
+		end
+
+		for _, c in ipairs(perms) do
+			local f = rowFrame(66)
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = tostring(c.label or ("/" .. tostring(c.key))),
+				Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = TEXT,
+				Size = UDim2.new(1, 0, 0, 24), Position = UDim2.fromOffset(0, 0),
+				TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, Parent = f,
+			})
+			local chips = new("Frame", {
+				BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 32), Position = UDim2.fromOffset(0, 30), Parent = f,
+			})
+			local nL = #LEVELS
+			for li, lv in ipairs(LEVELS) do
+				local active = (tonumber(c.level) == lv.v)
+				local chip = styledButton(chips, {
+					Text = lv.t, Font = Enum.Font.GothamBold, TextSize = 12,
+					TextColor3 = active and Color3.fromRGB(18, 14, 28) or TEXT,
+					BackgroundColor3 = active and lv.c or CARD,
+					Size = UDim2.new(1 / nL, -5, 1, 0),
+					Position = UDim2.new((nL - li) / nL, 2, 0, 0), Parent = chips,
+				})
+				if not active then
+					chip.MouseButton1Click:Connect(function()
+						cmd({ cmd = "setCmdPerm", key = c.key, level = lv.v })
+					end)
+				end
+			end
+		end
+	end
+
 	-- ===== ربط التبويبات =====
 	local builders = {
 		stats = buildStats, show = buildShow, players = buildPlayers,
 		settings = buildSettings, chat = buildChat, mods = buildMods, team = buildTeam,
+		commands = buildCommands,
 	}
 	local function selectTab(key)
 		adminTab = key

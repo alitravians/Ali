@@ -15,7 +15,9 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
+local RunService        = game:GetService("RunService")
 local SoundService      = game:GetService("SoundService")
+local Workspace         = game:GetService("Workspace")
 local StarterGui        = game:GetService("StarterGui")
 local TextChatService   = game:GetService("TextChatService")
 
@@ -937,10 +939,274 @@ UserInputService.InputBegan:Connect(function(input, processed)
 end)
 
 ------------------------------------------------------------------------
+-- 🧹 مسح كل رسائل الواجهة (أمر /clear)
+------------------------------------------------------------------------
+local function clearMessages()
+	for _, c in ipairs(list:GetChildren()) do
+		if c:IsA("TextLabel") or c:IsA("Frame") then c:Destroy() end
+	end
+end
+
+------------------------------------------------------------------------
+-- ⌘ لوحة الأوامر — تشرح الأوامر وتبيّن المتاح لك مقابل المقفول
+------------------------------------------------------------------------
+local OKGREEN = Color3.fromRGB(120, 220, 140)
+local LOCKCOL = Color3.fromRGB(255, 184, 92)
+local OFFCOL  = Color3.fromRGB(232, 96, 110)
+
+local cmdList: { any } = {}    -- آخر إعدادات وصلت من السيرفر
+local myWeight = 0             -- وزن رتبتي (لتحديد المتاح)
+
+-- طبقة معتمة خلف اللوحة
+local cmdBackdrop = new("TextButton", {
+	Name = "CmdBackdrop", Text = "", AutoButtonColor = false, Modal = true,
+	BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 0.5,
+	Size = UDim2.fromScale(1, 1), Visible = false, ZIndex = 20, Parent = gui,
+})
+
+local cmdPanel = new("Frame", {
+	Name = "CommandsPanel",
+	AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+	Size = UDim2.fromOffset(440, 480), BackgroundColor3 = CARD, BackgroundTransparency = 0.02,
+	BorderSizePixel = 0, ZIndex = 21, Parent = cmdBackdrop,
+})
+new("UICorner", { CornerRadius = UDim.new(0, 16), Parent = cmdPanel })
+new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.3, Parent = cmdPanel })
+new("UISizeConstraint", { MinSize = Vector2.new(300, 320), MaxSize = Vector2.new(520, 560), Parent = cmdPanel })
+
+new("TextLabel", {
+	Name = "Title", BackgroundTransparency = 1, Text = "⌘ لوحة الأوامر",
+	Font = Enum.Font.GothamBlack, TextSize = 20, TextColor3 = GOLD,
+	Size = UDim2.new(1, -56, 0, 40), Position = UDim2.fromOffset(14, 10),
+	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
+})
+local cmdClose = new("TextButton", {
+	Name = "Close", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 30),
+	Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromRGB(48, 40, 64),
+	Font = Enum.Font.GothamBold, Text = "✕", TextColor3 = TEXT, TextSize = 16,
+	AutoButtonColor = true, ZIndex = 22, Parent = cmdPanel,
+})
+new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdClose })
+
+new("TextLabel", {
+	Name = "Hint", BackgroundTransparency = 1,
+	Text = "اكتب الأمر في الدردشة مسبوقاً بـ «/». الأخضر متاح لك، والمقفول للمشرفين/الأداريين حسب ضبط الإدارة.",
+	Font = Enum.Font.GothamMedium, TextSize = 12, TextColor3 = MUTED, TextWrapped = true,
+	Size = UDim2.new(1, -28, 0, 40), Position = UDim2.fromOffset(14, 48),
+	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
+})
+
+local cmdScroll = new("ScrollingFrame", {
+	Name = "List", BackgroundTransparency = 1, BorderSizePixel = 0,
+	Position = UDim2.fromOffset(14, 92), Size = UDim2.new(1, -28, 1, -106),
+	CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+	ScrollBarThickness = 6, ScrollBarImageColor3 = PURPLE, ZIndex = 22, Parent = cmdPanel,
+})
+new("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder, Parent = cmdScroll })
+
+-- صفّ أمر واحد: الوصف يميناً + شارة الحالة يساراً
+local function addCmdRow(orderIdx: number, label: string, statusText: string, statusColor: Color3)
+	local row = new("Frame", {
+		BackgroundColor3 = Color3.fromRGB(24, 18, 42), BackgroundTransparency = 0.15,
+		Size = UDim2.new(1, 0, 0, 42), LayoutOrder = orderIdx, ZIndex = 22, Parent = cmdScroll,
+	})
+	new("UICorner", { CornerRadius = UDim.new(0, 10), Parent = row })
+	new("TextLabel", {
+		BackgroundTransparency = 1, Text = label, Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = TEXT,
+		Size = UDim2.new(1, -130, 1, 0), Position = UDim2.new(0, 122, 0, 0),
+		TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, ZIndex = 22, Parent = row,
+	})
+	local badge2 = new("TextLabel", {
+		BackgroundColor3 = statusColor, BackgroundTransparency = 0.82,
+		AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0), Size = UDim2.fromOffset(108, 26),
+		Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = statusColor, Text = statusText,
+		ZIndex = 22, Parent = row,
+	})
+	new("UICorner", { CornerRadius = UDim.new(0, 8), Parent = badge2 })
+	new("UIStroke", { Color = statusColor, Thickness = 1, Transparency = 0.4, Parent = badge2 })
+end
+
+local function statusFor(level: number): (string, Color3)
+	if level >= 99 then
+		return "🚫 معطّل", OFFCOL
+	elseif myWeight >= level then
+		return "✓ متاح لك", OKGREEN
+	elseif level >= 3 then
+		return "🛡️ للأداريين", LOCKCOL
+	else
+		return "🔰 للمشرفين", LOCKCOL
+	end
+end
+
+local function rebuildCommands()
+	for _, c in ipairs(cmdScroll:GetChildren()) do
+		if c:IsA("Frame") then c:Destroy() end
+	end
+	-- أمران دائماً متاحان للجميع وغير قابلين للتعطيل
+	addCmdRow(1, "❓ /help — تفتح هذه اللوحة", "✓ متاح لك", OKGREEN)
+	addCmdRow(2, "🧹 /clear — مسح الدردشة", "✓ متاح لك", OKGREEN)
+	local i = 3
+	for _, d in ipairs(cmdList) do
+		local lvl = tonumber(d.level) or 0
+		local st, col = statusFor(lvl)
+		addCmdRow(i, tostring(d.label or ("/" .. tostring(d.key))), st, col)
+		i += 1
+	end
+end
+
+local cmdPanelOpen = false
+local function openCommands()
+	cmdPanelOpen = true
+	rebuildCommands()
+	cmdBackdrop.Visible = true
+end
+local function closeCommands()
+	cmdPanelOpen = false
+	cmdBackdrop.Visible = false
+end
+cmdClose.MouseButton1Click:Connect(closeCommands)
+cmdBackdrop.MouseButton1Click:Connect(closeCommands)
+
+-- زر ⌘ في رأس لوحة الدردشة يفتح لوحة الأوامر
+local cmdBtn = new("TextButton", {
+	Name = "CmdBtn", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -42, 0.5, 0),
+	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.15,
+	Font = Enum.Font.GothamBold, Text = "⌘", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 17,
+	AutoButtonColor = true, Parent = header,
+})
+new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdBtn })
+cmdBtn.MouseButton1Click:Connect(openCommands)
+
+------------------------------------------------------------------------
+-- 🕊️ متحكّم الطيران (أمر /fly) — BodyGyro + BodyVelocity مع WASD ومسافة/كنترول
+------------------------------------------------------------------------
+local flying = false
+local flySpeed = 60
+local flyBV: BodyVelocity? = nil
+local flyBG: BodyGyro? = nil
+local flyConns: { RBXScriptConnection } = {}
+local move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
+local boost = false
+
+local function stopFly()
+	flying = false
+	for _, c in ipairs(flyConns) do pcall(function() c:Disconnect() end) end
+	flyConns = {}
+	if flyBV then flyBV:Destroy(); flyBV = nil end
+	if flyBG then flyBG:Destroy(); flyBG = nil end
+	move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
+	local ch = LocalPlayer.Character
+	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
+	if hum then hum.PlatformStand = false end
+end
+
+local function startFly(speed: number?)
+	local ch = LocalPlayer.Character
+	if not ch then return end
+	local root = ch:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local hum = ch:FindFirstChildOfClass("Humanoid")
+	if not root then return end
+	flySpeed = speed or flySpeed
+	flying = true
+	if hum then hum.PlatformStand = true end
+
+	local bg = Instance.new("BodyGyro")
+	bg.P = 9e4
+	bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+	bg.CFrame = root.CFrame
+	bg.Parent = root
+	flyBG = bg
+
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+	bv.Velocity = Vector3.zero
+	bv.Parent = root
+	flyBV = bv
+
+	table.insert(flyConns, UserInputService.InputBegan:Connect(function(inp, gpe)
+		if gpe then return end
+		local k = inp.KeyCode
+		if k == Enum.KeyCode.W then move.f = 1
+		elseif k == Enum.KeyCode.S then move.b = 1
+		elseif k == Enum.KeyCode.A then move.l = 1
+		elseif k == Enum.KeyCode.D then move.r = 1
+		elseif k == Enum.KeyCode.Space then move.u = 1
+		elseif k == Enum.KeyCode.LeftControl or k == Enum.KeyCode.RightControl then move.d = 1
+		elseif k == Enum.KeyCode.LeftShift or k == Enum.KeyCode.RightShift then boost = true
+		end
+	end))
+	table.insert(flyConns, UserInputService.InputEnded:Connect(function(inp)
+		local k = inp.KeyCode
+		if k == Enum.KeyCode.W then move.f = 0
+		elseif k == Enum.KeyCode.S then move.b = 0
+		elseif k == Enum.KeyCode.A then move.l = 0
+		elseif k == Enum.KeyCode.D then move.r = 0
+		elseif k == Enum.KeyCode.Space then move.u = 0
+		elseif k == Enum.KeyCode.LeftControl or k == Enum.KeyCode.RightControl then move.d = 0
+		elseif k == Enum.KeyCode.LeftShift or k == Enum.KeyCode.RightShift then boost = false
+		end
+	end))
+	table.insert(flyConns, RunService.RenderStepped:Connect(function()
+		local cam = Workspace.CurrentCamera
+		if not (flyBV and flyBG and cam) then return end
+		flyBG.CFrame = cam.CFrame
+		local dir = Vector3.zero
+		if move.f == 1 then dir += cam.CFrame.LookVector end
+		if move.b == 1 then dir -= cam.CFrame.LookVector end
+		if move.r == 1 then dir += cam.CFrame.RightVector end
+		if move.l == 1 then dir -= cam.CFrame.RightVector end
+		if move.u == 1 then dir += Vector3.new(0, 1, 0) end
+		if move.d == 1 then dir -= Vector3.new(0, 1, 0) end
+		if dir.Magnitude > 0 then
+			flyBV.Velocity = dir.Unit * flySpeed * (boost and 2.2 or 1)
+		else
+			flyBV.Velocity = Vector3.zero
+		end
+	end))
+end
+
+-- لو مات/ظهر من جديد وهو طائر، أوقف الطيران (تنظيف آمن)
+LocalPlayer.CharacterAdded:Connect(function()
+	if flying then stopFly() end
+end)
+
+------------------------------------------------------------------------
 -- استقبال الرسائل المبثوثة
 ------------------------------------------------------------------------
 pushRemote.OnClientEvent:Connect(function(data)
 	if typeof(data) ~= "table" then return end
+
+	-- ⌘ إعدادات الأوامر (قائمة + وزن رتبتي) — لتحديث لوحة الأوامر
+	if data.cmdConfig ~= nil then
+		if typeof(data.cmdConfig) == "table" then cmdList = data.cmdConfig end
+		if tonumber(data.myWeight) then myWeight = tonumber(data.myWeight) :: number end
+		if cmdPanelOpen then rebuildCommands() end
+		return
+	end
+
+	-- ❓ فتح لوحة الأوامر (أمر /help)
+	if data.openCommands then
+		openCommands()
+		return
+	end
+
+	-- 🧹 مسح الدردشة (أمر /clear)
+	if data.clearChat then
+		clearMessages()
+		return
+	end
+
+	-- 🕊️ تبديل الطيران (أمر /fly) — السيرفر تحقّق من الصلاحية مسبقاً
+	if data.flyToggle then
+		if flying then
+			stopFly()
+			addMessage("النظام", "🕊️ تم إيقاف الطيران.", PURPLE, { system = true })
+		else
+			startFly(tonumber(data.flySpeed))
+			addMessage("النظام", "🕊️ تم تفعيل الطيران — WASD للتحرك، مسافة للأعلى، Ctrl للأسفل، Shift للسرعة. اكتب /fly مرة ثانية للإيقاف.", PURPLE, { system = true })
+		end
+		return
+	end
 
 	-- تحديث حالة الكتم (من الإدارة)
 	if data.muteState ~= nil then
