@@ -107,18 +107,6 @@ def audit(model):
     return scripts, bad
 
 
-def disable_animate(model):
-    """Display-only: disable the standard 'Animate' script so it does not override
-    our seated pose (the script is kept, just not running)."""
-    done = 0
-    for it in model.iter("Item"):
-        if it.get("class") == "Script" and \
-                (it.findtext("Properties/string[@name='Name']") or "") == "Animate":
-            set_prop_bool(it, "Disabled", True)
-            done += 1
-    return done
-
-
 def reprefix(model):
     """Make every referent in the model unique and keep all <Ref>/joint links valid."""
     mapping = {}
@@ -148,9 +136,6 @@ def main():
         sys.exit("ABORT: model is NOT clean — malicious hits: " + ", ".join(bad))
     print("audit: scripts found =", scripts or "none",
           "| malicious patterns = NONE -> adopting AS-IS")
-
-    disabled = disable_animate(model)
-    print(f"display-only: disabled {disabled} 'Animate' script(s) (kept, not removed)")
 
     # name + unique referents
     nm = model.find("./Properties/string[@name='Name']")

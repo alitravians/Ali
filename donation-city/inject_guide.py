@@ -57,8 +57,9 @@ def audit(model):
         if it.get("class") in SCRIPTY:
             bad.append(f"script:{it.get('class')}")
     raw = etree.tostring(model, encoding="unicode")
+    rawlow = raw.lower()
     for pat in MALICIOUS:
-        if pat.lower() in raw.lower():
+        if pat.lower() in rawlow:
             bad.append(f"pattern:{pat}")
     if REQUIRE_RX.search(raw):
         bad.append("pattern:require")
