@@ -22,8 +22,20 @@ local pg = player:WaitForChild("PlayerGui")
 ----------------------------------------------------------------------
 -- إعدادات
 ----------------------------------------------------------------------
-local NORMAL_SPEED = 16
-local SPRINT_SPEED = 28
+local DEFAULT_NORMAL = 16   -- السرعة الافتراضية لمن لا يملك «سرعة البرق»
+local SPRINT_BOOST   = 12   -- دفعة الجري فوق السرعة الأساسية (16+12 = 28 كالسابق)
+local SPRINT_CAP     = 40   -- سقف أمان لسرعة الجري (يمنع «الطيران»)
+
+-- السرعة الأساسية الحالية للاعب: يضبطها السيرفر عبر سِمة BaseWalkSpeed لحامل
+-- باقة «سرعة البرق» (16→32)؛ ومن لا يملكها تبقى 16. نظام الجري يبني عليها.
+local function baseSpeed(): number
+	local b = player:GetAttribute("BaseWalkSpeed")
+	if type(b) == "number" and b > 0 then return b end
+	return DEFAULT_NORMAL
+end
+local function sprintSpeed(normal: number): number
+	return math.min(normal + SPRINT_BOOST, SPRINT_CAP)
+end
 
 ----------------------------------------------------------------------
 -- ربط السيرفر (تقارير الجري/القفز) — اختياري (لا يعطّل المؤثرات لو غاب)
@@ -152,20 +164,14 @@ local function attachEffects(char)
 	})
 	puff.Parent = att
 
-	-- أصوات قفز/هبوط (معرّفات قابلة للتبديل — 0/خطأ = صامت بلا ضرر)
-	local jumpSound = Instance.new("Sound")
-	jumpSound.Name = "SJ_Jump"; jumpSound.SoundId = "rbxassetid://5466166437"; jumpSound.Volume = 0.35; jumpSound.Parent = hrp
-	local landSound = Instance.new("Sound")
-	landSound.Name = "SJ_Land"; landSound.SoundId = "rbxassetid://5466166437"; landSound.Volume = 0.45; landSound.Parent = hrp
+	-- (أُزيلت أصوات القفز/الهبوط بناءً على طلب المستخدم — نبقي مؤثّر الجسيمات فقط)
 
 	hum.StateChanged:Connect(function(_, newState)
 		if newState == Enum.HumanoidStateType.Jumping then
 			puff:Emit(10)
-			pcall(function() jumpSound:Play() end)
 			if reportRemote then reportRemote:FireServer("jump") end
 		elseif newState == Enum.HumanoidStateType.Landed then
 			puff:Emit(16)
-			pcall(function() landSound:Play() end)
 		end
 	end)
 end
@@ -200,6 +206,17 @@ RunService.RenderStepped:Connect(function(dt)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 
+	local NORMAL = baseSpeed()                 -- السرعة الأساسية (16 أو سرعة باقة البرق)
+	local SPRINT = sprintSpeed(NORMAL)         -- سرعة الجري = الأساسية + دفعة (بسقف أمان)
+
+	-- داخل الباركور: نوقف الجري ونرجع السرعة الطبيعية (تحكّم دقيق بالقفزات).
+	-- لا نلمس السرعة إن كانت مقفولة على 0 (سينما/تحميل).
+	if player:GetAttribute("InParkour") then
+		if wantSprint then wantSprint = false; refreshBtn() end
+		if hum.WalkSpeed == SPRINT then hum.WalkSpeed = NORMAL end
+		return
+	end
+
 	-- هل الشخصية تتحرّك فعلاً؟ (للجري الفعلي فقط)
 	local moving = hum.MoveDirection.Magnitude > 0.1
 	local sprinting = wantSprint and moving   -- بلا حدّ وقت/طاقة
@@ -216,8 +233,8 @@ RunService.RenderStepped:Connect(function(dt)
 	-- تطبيق السرعة بأمان: لا نلمس السرعة إلا إن كانت بقيمتها الطبيعية/سرعة الجري
 	-- (هكذا لو قفلت السينما الحركة على 0 لا نكسر القفل)
 	if sprinting then
-		if hum.WalkSpeed == NORMAL_SPEED then hum.WalkSpeed = SPRINT_SPEED end
+		if hum.WalkSpeed == NORMAL then hum.WalkSpeed = SPRINT end
 	else
-		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		if hum.WalkSpeed == SPRINT then hum.WalkSpeed = NORMAL end
 	end
 end)

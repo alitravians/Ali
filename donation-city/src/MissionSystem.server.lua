@@ -39,17 +39,14 @@ local POOL = {
 	-- 🏖️ الشاطئ
 	{ key = "beach_visit", cat = "beach",  event = "beach_visit", target = 1,   coins = 50,  desc = "زُر منطقة الشاطئ" },
 	{ key = "beach_time",  cat = "beach",  event = "beach_time",  target = 120, coins = 50,  desc = "ابقَ في الشاطئ دقيقتين", time = true },
-	-- 🏐 كرة الطائرة
-	{ key = "vb_play",     cat = "volley", event = "vb_play",     target = 1,   coins = 100, desc = "العب مباراة كرة طائرة" },
-	{ key = "vb_win",      cat = "volley", event = "vb_win",      target = 1,   coins = 250, desc = "افز بمباراة كرة طائرة" },
-	{ key = "vb_points",   cat = "volley", event = "vb_points",   target = 5,   coins = 100, desc = "سجّل ٥ نقاط في كرة الطائرة" },
 	-- 🧗 الباركور
 	{ key = "parkour_cp",  cat = "parkour",event = "parkour_cp",  target = 1,   coins = 50,  desc = "اجتز نقطة حفظ في الباركور" },
 	{ key = "parkour_cp5", cat = "parkour",event = "parkour_cp",  target = 5,   coins = 150, desc = "اجتز ٥ نقاط حفظ في الباركور" },
 	{ key = "parkour_done",cat = "parkour",event = "parkour_done",target = 1,   coins = 250, desc = "أكمل مسار الباركور كاملاً" },
 	-- 👥 اجتماعي
 	{ key = "chat_msg",    cat = "social", event = "chat_msg",    target = 1,   coins = 50,  desc = "أرسل رسالة في الدردشة" },
-	{ key = "team_form",   cat = "social", event = "team_form",   target = 1,   coins = 50,  desc = "كوّن فريقاً في كرة الطائرة" },
+	-- ملاحظة: مهمة «تكوين فريق كرة الطائرة» أُزيلت لأن نظام الكرة الطائرة غير
+	-- مُفعّل في اللعبة، فكانت مهمة يومية مستحيلة الإكمال تعطّل تقدّم اللاعب.
 }
 local POOL_BY_KEY = {}
 for _, m in ipairs(POOL) do POOL_BY_KEY[m.key] = m end
@@ -57,7 +54,6 @@ for _, m in ipairs(POOL) do POOL_BY_KEY[m.key] = m end
 -- 🗓️ بنك المهام الأسبوعية الكبرى (جائزة ٥٠٠٠ كوينز + إنجاز «بطل الأسبوع»)
 local WEEKLY_POOL = {
 	{ key = "w_movies",  event = "movie_watch",  target = 5,  coins = 5000, desc = "شاهد ٥ أفلام هذا الأسبوع" },
-	{ key = "w_vbwins",  event = "vb_win",       target = 10, coins = 5000, desc = "افز بـ ١٠ مباريات كرة طائرة" },
 	{ key = "w_parkour", event = "parkour_done", target = 3,  coins = 5000, desc = "أكمل الباركور ٣ مرّات" },
 }
 local WEEKLY_BY_KEY = {}
@@ -222,7 +218,9 @@ end
 local function checkDailyBonus(player, s)
 	if s.dBonus then return end
 	for _, k in ipairs(s.dList) do
-		if not s.dDone[k] then return end
+		-- تجاهل أي مفتاح مهمة أُزيل من البنك (بيانات قديمة محفوظة): لا يجب أن يمنع
+		-- مكافأة «إكمال كل المهام»، لأنه لن يصبح مكتملاً أبداً (لا يُعرَض ولا يُحتسب).
+		if POOL_BY_KEY[k] and not s.dDone[k] then return end
 	end
 	s.dBonus = true
 	grantCoins(player, DAILY_ALL_BONUS)
@@ -308,6 +306,15 @@ Players.PlayerAdded:Connect(function(player)
 		refreshDaily(s, player.UserId)
 		refreshWeekly(s, player.UserId)
 	end
+	-- ترحيل بيانات قديمة: لو القائمة المحفوظة تحوي مفتاح مهمة أُزيل من البنك
+	-- (مثل مهام الكرة الطائرة بعد إزالة نظامها)، جدّد القائمة فوراً كي يحصل
+	-- اللاعب على مهام صالحة بدل أن يعلق بمهمة مستحيلة تعطّل مكافأة الإكمال.
+	if s.dList then
+		for _, k in ipairs(s.dList) do
+			if not POOL_BY_KEY[k] then refreshDaily(s, player.UserId); break end
+		end
+	end
+	if s.wKey and not WEEKLY_BY_KEY[s.wKey] then refreshWeekly(s, player.UserId) end
 	-- جدّد إن انقضت الفترة منذ آخر جلسة
 	if s.dDay ~= dayNumber() then refreshDaily(s, player.UserId) end
 	if s.wWeek ~= weekNumber() then refreshWeekly(s, player.UserId) end

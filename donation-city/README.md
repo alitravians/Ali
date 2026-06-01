@@ -1,5 +1,7 @@
 # 🎬 مدينة التبرعات — Donation City (لعبة Roblox)
 
+> 👋 **مطوّر جديد؟** ابدأ من ملف التسليم الشامل: [`docs/HANDOFF_للمطور_الجديد.md`](docs/HANDOFF_%D9%84%D9%84%D9%85%D8%B7%D9%88%D8%B1_%D8%A7%D9%84%D8%AC%D8%AF%D9%8A%D8%AF.md) — يشرح القواعد الإلزامية، وين وصلنا، وكيف تبني/تنشر باحترافية.
+
 لعبة سينما/مدينة تفاعلية على Roblox، فيها نظام كوينز، تذاكر، مقاعد سينما، متجر بالـ Robux،
 نظام رتب وإدارة، أقسام فريق عمل، ووضع صيانة دائم. كل واجهات اللعبة بالعربي مع دعم RTL.
 
@@ -161,5 +163,12 @@ python3 build_all.py
 3. جرّب من اللعبة المنشورة (مو الاستديو) للمزايا التي تعتمد على DataStore/Robux.
 4. رقم الإصدار يُحدّث في `src/LoadingScreen.client.lua` (متغير `MenuVersion`).
 5. لإضافة منتج/باقة جديدة: عدّل `PRODUCT_IDS` / `CONFIG.*GamePassId` و`STORE_ITEMS` في `src/CinemaServices.server.lua`.
+
+### ⚠️ ملاحظة أمان عن ملفات الموديلات الخام (`*.rbxmx`)
+بعض ملفات المصدر المحفوظة في المستودع (مثل `new_aquarium.rbxmx` و`ticketbooth_new.rbxmx`) هي موديلات من Creator Store **بصيغتها الأصلية كما حمّلها المستخدم**، وقد تحتوي على سكربتات باك-دور معروفة (عائلة `LightConfig`/`Type`/`Layout`/`EasyConfiguration` التي تستخدم `require(assetId)` عبر قيمة `NumberPose` متنكّرة لتنفيذ كود خارجي). **هذه السكربتات لا تدخل اللعبة إطلاقاً**:
+- `inject_aquarium.py` (ديكور ثابت) يحذف **كل** الفئات السكربتية (`Script`/`LocalScript`/`ModuleScript`/`NumberPose`/`Timer`/`Pose`/...) عبر مجموعة `STRIP`.
+- `inject_ticketbooth.py` يتبع قاعدة المستخدم: يحذف **فقط** الباك-دور المؤكّد (`Structure` + `Type` + `Layout` + `Pose`) ويُبقي السكربتات النظيفة الأصلية كما هي (سكربتات الباب/الصوت)، ثم يفحص ما تبقّى للتأكد من خلوّه من `require(`/`loadstring`/`getfenv`/`HttpGet`.
+
+في الحالتين يُثبَّت كل BasePart (Anchored) ويُدمَج في `DonationCity_FINAL.rbxlx`. فالملف الخام محفوظ فقط ليكون الحقن قابلاً للتكرار، والكود الخبيث يُجرَّد/يُحذف وقت البناء ولا يصل للسيرفر.
 
 > أداة فحص الصياغة (اختياري): يوجد ثنائي `luau`/`luau-analyze` في بيئة التطوير الأصلية لفحص أخطاء Lua قبل البناء.

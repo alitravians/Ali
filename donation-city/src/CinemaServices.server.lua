@@ -15,6 +15,7 @@
 
 local Players            = game:GetService("Players")
 local Workspace          = game:GetService("Workspace")
+local ServerScriptService= game:GetService("ServerScriptService")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local DataStoreService   = game:GetService("DataStoreService")
 local MarketplaceService = game:GetService("MarketplaceService")
@@ -35,6 +36,11 @@ local CONFIG = {
 	ShowrunnerGamePassId = 1860580500, -- 🎬 مالك العرض — 199 R$
 	NeonTrailGamePassId  = 1862887909, -- ✨ أثر نيون — 79 R$
 	AnnouncerGamePassId  = 1860172487, -- 📢 مايك الإعلان — 89 R$
+	SpeedGamePassId      = 1861667386, -- ⚡ سرعة البرق — 60 R$ (تحكّم بسرعة المشي)
+	-- حدود سرعة المشي لباقة «سرعة البرق» — السيرفر يثبّت القيمة دائماً (حماية من الغش)
+	SpeedMin      = 16,    -- السرعة الافتراضية في روبلوكس (الحد الأدنى)
+	SpeedMax      = 32,    -- أقصى سرعة مسموحة لحامل الباقة (زيادة واقعية لا «طيران»)
+	SpeedDefault  = 24,    -- سرعة البداية بعد الشراء
 	VipIncomeMult = 2,     -- مضاعف الدخل لأعضاء VIP
 	SaveEvery     = 60,    -- حفظ دوري (ثواني)
 	CurrencyName  = "كوينز",
@@ -63,6 +69,7 @@ local coinStore
 pcall(function() coinStore = DataStoreService:GetDataStore("CinemaCoins_v1") end)
 
 local applyAllPasses  -- forward declaration (فحص ومنح الباقات الدائمة عند الدخول)
+local applySpeed      -- forward declaration: تثبيت سرعة المشي لحامل باقة «سرعة البرق»
 local canUseAnnouncer -- forward declaration: من يحق له الإعلان (مشرف فأعلى / VIP / حامل الباقة)
 local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
@@ -79,6 +86,14 @@ local function loadVip(userId: number): boolean
 	if not coinStore then return false end
 	local ok, data = pcall(function() return coinStore:GetAsync("v_" .. userId) end)
 	return (ok and data == true) or false
+end
+
+-- تحميل سرعة المشي المحفوظة لحامل باقة «سرعة البرق» (افتراضي إن لم تُحفظ بعد)
+local function loadSpeed(userId: number): number
+	if not coinStore then return CONFIG.SpeedDefault end
+	local ok, data = pcall(function() return coinStore:GetAsync("spd_" .. userId) end)
+	if ok and type(data) == "number" then return data end
+	return CONFIG.SpeedDefault
 end
 
 -- حفظ مع إعادة المحاولة (3 محاولات) — يصمد أمام تذبذب الشبكة/خنق DataStore
@@ -112,6 +127,10 @@ local function saveCoins(userId: number)
 	local rated = s.rated == true
 	if s._saved.rated ~= rated then
 		if setAsyncRetry("rt_" .. userId, rated) then s._saved.rated = rated end
+	end
+	local spd = math.floor(tonumber(s.speed) or CONFIG.SpeedDefault)
+	if s._saved.speed ~= spd then
+		if setAsyncRetry("spd_" .. userId, spd) then s._saved.speed = spd end
 	end
 end
 
@@ -232,9 +251,10 @@ Players.PlayerAdded:Connect(function(player)
 		pcall(function() local d = coinStore:GetAsync("a_" .. player.UserId); if type(d) == "table" then ach = d end end)
 		pcall(function() rated = coinStore:GetAsync("rt_" .. player.UserId) == true end)
 	end
-	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {},
+	local speed = loadSpeed(player.UserId)
+	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {}, speed = speed,
 		-- بصمة آخر قيم محفوظة (تُهيّأ بالقيم المُحمّلة) كي لا نعيد كتابة ما لم يتغيّر
-		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true } }
+		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true, speed = math.floor(speed) } }
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
@@ -279,7 +299,7 @@ end)
 
 -- حفظ دوري (بلا دخل تلقائي — اقتصاد قائم على النشاط فقط)
 -- ملاحظة اقتصادية: أُلغي الدخل التلقائي «+كوينز لمجرد البقاء» نهائياً.
--- الكوينز تُكتسب الآن من نشاط فعلي فقط (المهام/الباركور/كرة الطائرة/الأركيد).
+-- الكوينز تُكتسب الآن من نشاط فعلي فقط (المهام/الباركور/الأركيد).
 task.spawn(function()
 	while true do
 		task.wait(CONFIG.SaveEvery)
@@ -321,20 +341,64 @@ if not bgValue then
 	bgValue.Value = "" -- يبقى فارغاً حتى يُحلّ الرقم، فيستخدم العميل خلفيته النيون مؤقتاً
 	bgValue.Parent = ReplicatedStorage
 end
-task.spawn(function()
+-- يطبّق رقم الصورة المُحلّ على شاشة الصورة المخصّصة. الشاشة الآن على «المربّع
+-- المضيء» داخل النافورة الجديدة (SurfaceGui اسمها CustomImageScreen). نبحث عنها
+-- في أي مكان بالـ Workspace، نضبط Image على السيرفر فيتكرّر للجميع، ونخفي
+-- نص التلميح بمجرّد ظهور الصورة.
+local function applyCustomScreen(texture)
+	if not texture or texture == "" then return false end
+	local applied = false
+	for _, sg in ipairs(Workspace:GetDescendants()) do
+		if sg:IsA("SurfaceGui") and sg.Name == "CustomImageScreen" then
+			local img = sg:FindFirstChild("Image", true)
+			if img and img:IsA("ImageLabel") then
+				img.Image = texture
+				img.BackgroundTransparency = 1
+				local hint = img:FindFirstChild("Hint")
+				if hint then hint.Visible = false end
+				applied = true
+			end
+		end
+	end
+	return applied
+end
+
+-- يحوّل رقم الـ Decal إلى رقم الصورة الداخلي (Texture) عبر InsertService.
+-- يُعيد سلسلة rbxassetid أو nil. (الـ Decal لا يُرسَم مباشرة في ImageLabel.)
+local function resolveDecalTexture(decalId)
 	local InsertService = game:GetService("InsertService")
 	local ok, model = pcall(function()
-		return InsertService:LoadAsset(LOADING_BG_DECAL_ID)
+		return InsertService:LoadAsset(decalId)
 	end)
 	if ok and model then
 		local decal = model:FindFirstChildWhichIsA("Decal", true)
-		if decal and decal.Texture and decal.Texture ~= "" then
-			bgValue.Value = decal.Texture -- رقم الصورة الحقيقي (rbxassetid://...)
-		end
+		local tex = decal and decal.Texture
 		model:Destroy()
-	else
-		warn("[LoadingBG] تعذّر تحويل رقم الـ Decal إلى صورة: " .. tostring(model))
+		if tex and tex ~= "" then return tex end
 	end
+	return nil
+end
+
+-- محاولات متكرّرة: الصورة (Decal) قد تكون جديدة جداً (تحت المعالجة/المراجعة) أو
+-- يتأخّر تحميلها، فنعيد المحاولة عدّة مرّات بفواصل متزايدة بدل محاولة واحدة.
+-- طبقة احتياطية: نجرّب أيضاً ضبط رقم الـ Decal مباشرة (بعض الإصدارات تحلّه ذاتياً).
+task.spawn(function()
+	local idStr = "rbxassetid://" .. LOADING_BG_DECAL_ID
+	-- طبقة أولى فورية: اعرض رقم الـ Decal مباشرة (يظهر فوراً لو حلّه المحرّك).
+	applyCustomScreen(idStr)
+
+	local delays = { 0, 3, 5, 8, 12, 20, 30 }   -- ~78s إجمالاً عبر عدة محاولات
+	for _, wait_s in ipairs(delays) do
+		if wait_s > 0 then task.wait(wait_s) end
+		local tex = resolveDecalTexture(LOADING_BG_DECAL_ID)
+		if tex then
+			bgValue.Value = tex                  -- رقم الصورة الحقيقي (rbxassetid://...)
+			applyCustomScreen(tex)
+			return
+		end
+	end
+	warn("[CustomImage] تعذّر تحويل رقم الـ Decal " .. LOADING_BG_DECAL_ID ..
+		" إلى صورة بعد عدّة محاولات — تأكّد أنّ الصورة Public ومُعتمدة، وأنّ اللعبة لنفس الحساب المالك.")
 end)
 
 local cinema = Workspace:WaitForChild("Cinema")
@@ -373,6 +437,8 @@ local PASS_DEFS = {
 	  msg = "✨ تم تفعيل «أثر نيون» — توهّج حصري سماوي↔وردي يتبع خطواتك!" },
 	{ key = "announcer",  id = CONFIG.AnnouncerGamePassId,  badge = "📢",
 	  msg = "📢 تم تفعيل «مايك الإعلان» — تقدر تبثّ إعلاناتك لكل اللاعبين." },
+	{ key = "speed",      id = CONFIG.SpeedGamePassId,      badge = "⚡",
+	  msg = "⚡ تم تفعيل «سرعة البرق» — تحكّم بسرعة مشيك من شريط التمرير داخل المتجر!" },
 }
 
 local function ownsPassKey(player: Player, key: string): boolean
@@ -380,6 +446,32 @@ local function ownsPassKey(player: Player, key: string): boolean
 	return (s and s.passes and s.passes[key]) == true
 end
 _G.OwnsCinemaPass = ownsPassKey
+
+-- ⚡ سرعة البرق: تثبيت سرعة المشي على السيرفر (حماية من الغش)
+-- القيمة دائماً محصورة بين SpeedMin و SpeedMax وتُطبّق فقط لمن يملك الباقة.
+local function clampSpeed(v: number?): number
+	local n = tonumber(v) or CONFIG.SpeedDefault
+	return math.clamp(math.floor(n), CONFIG.SpeedMin, CONFIG.SpeedMax)
+end
+
+applySpeed = function(player: Player)
+	local s = sessions[player.UserId]
+	if not s then return end
+	local owns = s.passes ~= nil and s.passes.speed == true
+	-- السرعة الأساسية: المالك = اختياره (محصور)، غير المالك = الحد الأدنى (16)
+	local base = owns and clampSpeed(s.speed) or CONFIG.SpeedMin
+	-- نُعلن السرعة الأساسية كسِمة كي يبني عليها نظام الجري (SprintJump) بدل رقم ثابت
+	-- (السِمات التي يضبطها السيرفر تتزامن للعميل تلقائياً)
+	player:SetAttribute("BaseWalkSpeed", base)
+	local char = player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	-- نطبّق السرعة فقط للمالك؛ غير المالك يُترك لبقية الأنظمة (الجري/السينما) كما هو
+	if owns then
+		hum.WalkSpeed = base
+	end
+end
 
 -- ✨ أثر نيون يتبع اللاعب (Trail على الجذع)
 local function applyNeonTrail(player: Player)
@@ -441,12 +533,18 @@ sendPerks = function(player: Player)
 	-- 📢 الإعلان متاح لحاملي الباقة + كل مشرف فأعلى (يُحسب عبر canUseAnnouncer)
 	local mayAnnounce = ownsPassKey(player, "announcer")
 		or (canUseAnnouncer ~= nil and canUseAnnouncer(player))
+	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action     = "perks",
 		showrunner = ownsPassKey(player, "showrunner"),
 		announcer  = mayAnnounce,
 		buffet     = ownsPassKey(player, "buffet"),
 		neon       = ownsPassKey(player, "neon"),
+		-- ⚡ تحكّم السرعة: العميل يعرف هل يملك الباقة + القيمة الحالية والحدود
+		speed      = ownsPassKey(player, "speed"),
+		speedValue = clampSpeed(s and s.speed),
+		speedMin   = CONFIG.SpeedMin,
+		speedMax   = CONFIG.SpeedMax,
 	})
 end
 
@@ -458,6 +556,11 @@ local function grantPass(player: Player, key: string, announce: boolean?)
 	if s.passes[key] then return end
 	s.passes[key] = true
 	if key == "neon" then applyNeonTrail(player) end
+	if key == "speed" then
+		-- أول مرة: ابدأ بالسرعة الافتراضية إن لم تكن محفوظة، ثم طبّق
+		if not tonumber(s.speed) then s.speed = CONFIG.SpeedDefault end
+		applySpeed(player)
+	end
 	refreshBadge(player)
 	if _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
 	for _, d in ipairs(PASS_DEFS) do
@@ -487,11 +590,13 @@ applyAllPasses = function(player: Player)
 		end
 	end
 	sendPerks(player)
-	-- أعد تطبيق الأثر/الشارة عند كل ولادة للشخصية
+	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
+	-- أعد تطبيق الأثر/الشارة/السرعة عند كل ولادة للشخصية
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
 		if s.passes.neon then applyNeonTrail(player) end
 		refreshBadge(player)
+		applySpeed(player)
 	end)
 end
 
@@ -884,6 +989,8 @@ local function sendAdminPanel(player)
 		teamTitle    = teamCfg.title,
 		teamSections = teamGrouped(true, true),
 		teamSecList  = teamCfg.sections,
+		-- ⌘ صلاحيات أوامر الدردشة (قابلة للتحكم من اللوحة) — من CustomChat
+		cmdPerms = (_G.ChatCmdConfigGet and _G.ChatCmdConfigGet()) or {},
 	})
 end
 
@@ -1060,6 +1167,20 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				MarketplaceService:PromptGamePassPurchase(player, pid)
 			end)
 		end
+
+	elseif payload.action == "setSpeed" then
+		-- ⚡ سرعة البرق: ضبط سرعة المشي — التحقق من الملكية + تثبيت القيمة على السيرفر
+		if not ownsPassKey(player, "speed") then
+			notify(player, "⚡ تحكّم السرعة متاح لحاملي باقة «سرعة البرق» فقط.")
+			return
+		end
+		local s = sessions[player.UserId]
+		if not s then return end
+		local v = clampSpeed(payload.speed)   -- السيرفر هو من يحصر القيمة (حماية من الغش)
+		s.speed = v
+		applySpeed(player)
+		-- اعكس القيمة المثبّتة للعميل ليضبط شريط التمرير على نفس القيمة الفعلية
+		lobbyRemote:FireClient(player, { action = "speedSet", speed = v })
 
 	elseif payload.action == "showrunnerPlay" then
 		-- 🎬 مالك العرض: بدء الفيلم بأي وقت
@@ -1530,6 +1651,21 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			end
 			sendAdminPanel(player)
 			return
+		elseif cmd == "setCmdPerm" then
+			-- ⌘ تغيير مستوى أمر دردشة (الأداريون فأعلى فقط)
+			if not canDo(RANK_W.admin) then return end
+			local key = tostring(payload.key or "")
+			local level = tonumber(payload.level)
+			if key ~= "" and level and _G.ChatCmdConfigSet then
+				local ok = _G.ChatCmdConfigSet(key, level) == true
+				if ok then
+					logAdmin(adminName, "ضبط صلاحية الأمر /" .. key .. " = " .. tostring(level))
+				else
+					adminNotify(player, "ℹ️ تعذّر ضبط هذا الأمر.")
+				end
+			end
+			sendAdminPanel(player)
+			return
 		elseif cmd == "refresh" then
 			-- لا شيء؛ يُعاد الإرسال أدناه
 		end
@@ -1720,16 +1856,19 @@ end
 -- تعرض كل المميزات القابلة للشراء بالـ Robux (Game Pass + Developer Products).
 -- تُجلب الأسعار والأيقونات تلقائياً من Roblox (GetProductInfo) مع قيم احتياطية.
 ------------------------------------------------------------------------
+-- cat: تصنيف العنصر في المتجر (speed=السرعة · packs=الباقات · coins=حزم كوينز) — يستخدمه العميل للفلترة
+-- featured: العنصر المميّز الذي يظهر في بانر العرض الكبير (Hero) بأعلى المتجر
 local STORE_ITEMS = {
-	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
-	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
-	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
-	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
-	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins250,    name = "💰 حزمة ٢٥٠ كوينز",   price = 25,  emoji = "💰", desc = "٢٥٠ كوينز تُضاف فوراً لرصيدك" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins600,    name = "💰 حزمة ٦٠٠ كوينز",   price = 50,  emoji = "💰", desc = "٦٠٠ كوينز — وفّر ٢٠٪" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins1500,   name = "💎 حزمة ١٥٠٠ كوينز",  price = 100, emoji = "💎", desc = "١٥٠٠ كوينز — أفضل قيمة" },
-	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", desc = "تذكرة سينما فورية بضغطة واحدة" },
+	{ kind = "gamepass", id = CONFIG.SpeedGamePassId,      name = "⚡ سرعة البرق",     price = 60,  emoji = "⚡", cat = "speed",  featured = true, desc = "تحكّم بسرعة مشيك وزِدها عبر شريط تمرير خاص داخل المتجر — مشتراة مرة وتبقى لك للأبد" },
+	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
+	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
+	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", cat = "packs", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
+	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", cat = "packs", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
+	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", cat = "packs", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins250,    name = "💰 حزمة ٢٥٠ كوينز",   price = 25,  emoji = "💰", cat = "coins", desc = "٢٥٠ كوينز تُضاف فوراً لرصيدك" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins600,    name = "💰 حزمة ٦٠٠ كوينز",   price = 50,  emoji = "💰", cat = "coins", desc = "٦٠٠ كوينز — وفّر ٢٠٪" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins1500,   name = "💎 حزمة ١٥٠٠ كوينز",  price = 100, emoji = "💎", cat = "coins", desc = "١٥٠٠ كوينز — أفضل قيمة" },
+	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", cat = "coins", desc = "تذكرة سينما فورية بضغطة واحدة" },
 }
 
 -- كاش معلومات المتجر: النجاح يُحفظ دائماً (المعلومات نادراً ما تتغيّر)،
@@ -1780,14 +1919,20 @@ local function openStore(player)
 			table.insert(items, {
 				kind = it.kind, id = it.id, name = it.name, emoji = it.emoji,
 				desc = it.desc, price = price, icon = icon, owned = owned,
+				cat = it.cat, featured = it.featured == true,
 			})
 		end
 	end
+	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action = "store",
 		items  = items,
 		coins  = _G.GetCoins(player),
 		vip    = _G.IsVIP(player),
+		-- ⚡ حالة باقة السرعة لعرض شريط التمرير في بطاقتها داخل المتجر
+		speedValue = clampSpeed(s and s.speed),
+		speedMin   = CONFIG.SpeedMin,
+		speedMax   = CONFIG.SpeedMax,
 	})
 end
 _G.OpenStore = openStore
@@ -1808,9 +1953,6 @@ local ACH = {
 	arcade       = { emoji = "🕹️", name = "لاعب أركيد", desc = "لعبت في صالة الأركيد" },
 	parkour_first = { emoji = "🧗", name = "متسلّق",     desc = "أنهيت أول مرحلة باركور" },
 	parkour_done  = { emoji = "🏁", name = "بطل الباركور", desc = "أكملت مسار الباركور كاملاً" },
-	vb_first      = { emoji = "🏐", name = "لاعب كرة طائرة", desc = "لعبت أول مباراة كرة طائرة" },
-	vb_win        = { emoji = "🥇", name = "بطل الكرة الطائرة", desc = "فزت بأول مباراة كرة طائرة" },
-	vb_points     = { emoji = "🔥", name = "هدّاف",      desc = "سجّل فريقك 5 نقاط في مباراة" },
 	explorer      = { emoji = "🗺️", name = "مستكشف",     desc = "زرت جميع مناطق الماب" },
 	marathon      = { emoji = "⏱️", name = "ماراثوني",    desc = "قضيت ساعة كاملة من اللعب النشط" },
 	sprinter      = { emoji = "🏃", name = "عدّاء",       desc = "ركضت 5 دقائق متراكمة" },
@@ -1818,7 +1960,7 @@ local ACH = {
 	daily_master  = { emoji = "🎯", name = "منجِز اليوم",  desc = "أكملت كل المهام اليومية" },
 	weekly_hero   = { emoji = "🏅", name = "بطل الأسبوع",  desc = "أكملت المهمة الأسبوعية الكبرى" },
 }
-local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "vb_first", "vb_win", "vb_points", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
+local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
 
 _G.AwardAchievement = function(player: Player, key: string)
 	local s = sessions[player.UserId]
@@ -1966,40 +2108,143 @@ local function dualSurface(parent, builder)
 	end
 end
 
--- 🎫 شبّاك التذاكر — كشك احترافي بلافتة تُقرأ من الوجهين (لا تظهر معكوسة)
-do
-	local bx, bz = -15, -100
-	-- جسم الكاونتر + سطح علوي بارز
-	local base = part("BoxOfficeBase", Vector3.new(12, 6, 4), Vector3.new(bx, GROUND_Y + 3, bz), DARK)
-	part("BoxOfficeCounter", Vector3.new(13.4, 0.7, 5), Vector3.new(bx, GROUND_Y + 6.4, bz + 0.5), Color3.fromRGB(46, 34, 72), Enum.Material.Metal)
-	-- جدار خلفي + سقف بارز
-	part("BoxOfficeWall", Vector3.new(12, 8, 1), Vector3.new(bx, GROUND_Y + 10, bz - 1.5), PANEL)
-	part("BoxOfficeRoof", Vector3.new(14, 0.9, 6), Vector3.new(bx, GROUND_Y + 14.4, bz - 0.2), Color3.fromRGB(30, 22, 48), Enum.Material.Metal)
-	-- نافذة شباك مضيئة (إيحاء واجهة الخدمة، تواجه اللاعبين +Z)
-	local glass = part("BoxOfficeGlass", Vector3.new(9, 3.4, 0.3), Vector3.new(bx, GROUND_Y + 9.3, bz + 1.9), CYAN, Enum.Material.Neon)
-	glass.Transparency = 0.55; glass.CanCollide = false
-	-- لافتة علوية + إطار نيون ذهبي (أعلى/أسفل)
-	local sign = part("BoxOfficeSign", Vector3.new(12.6, 2.8, 0.5), Vector3.new(bx, GROUND_Y + 13.1, bz - 0.9), PANEL)
-	part("BoxOfficeTrimTop", Vector3.new(13, 0.32, 0.62), Vector3.new(bx, GROUND_Y + 14.7, bz - 0.9), GOLD, Enum.Material.Neon)
-	part("BoxOfficeTrimBot", Vector3.new(13, 0.32, 0.62), Vector3.new(bx, GROUND_Y + 11.6, bz - 0.9), GOLD, Enum.Material.Neon)
-	-- نص اللافتة على الوجهين فلا يظهر معكوساً من أي زاوية
-	dualSurface(sign, function(sg)
-		local lbl = Instance.new("TextLabel")
-		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = GOLD; lbl.Text = "🎟️ شبّاك التذاكر"; lbl.Parent = sg
-	end)
+-- 👤 كاشير شباك التذاكر: نستنسخ موديل الموظف الجاهز (مُتحقَّق منه — نظيف 100%: صفر
+-- سكربتات، مجرد قطع Parts/Meshes جالس على كرسيّه) من قالب مخفي في ServerScriptService،
+-- ونضعه خلف كاونتر الشباك مواجهاً اللاعبين عبر النافذة، كقطعة ديكور ثابتة. لا منطق
+-- داخل الموديل — زر الشراء + لوحة الاسم يُربطان هنا في سكربتنا. التموضع يُحسب وقت التشغيل.
+local CASHIER_SCALE = 0.5    -- تصغير الموديل (أصله ~12 ستد) لحجم معتدل يناسب خلف الكاونتر
+local function buildCashierModel(opts)
+	-- ننتظر القالب والشباك حتى لو تأخّر تحميلهما (حماية من سباق التهيئة) بمهلة قصيرة
+	local template = ServerScriptService:WaitForChild("CashierModel", 10)
+	if not template then return nil end
 
+	local booth = Workspace:WaitForChild("TicketBooth", 10)
+	if not booth then return nil end
+
+	local model = template:Clone()
+	model.Name = opts.name or "TicketCashier"
+
+	-- موديل ثابت: نُثبّت كل القطع (Anchored) بلا اصطدام؛ ونرصد أكبر قطعة (لربط زر التفاعل)
+	-- وأعلى قطعة (الرأس — لتعليق لوحة الاسم). لا نضبط PrimaryPart حتى يبقى محور الموديل
+	-- محاذياً للعالم فيصحّ حساب الدوران والإسقاط على الأرض.
+	local biggest, bestVol = nil, -1
+	local topPart, bestY = nil, -math.huge
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.Massless = true
+			local v = d.Size.X * d.Size.Y * d.Size.Z
+			if v > bestVol then bestVol = v; biggest = d end
+			if d.Position.Y > bestY then bestY = d.Position.Y; topPart = d end
+		end
+	end
+	if not biggest then model:Destroy(); return nil end
+
+	-- الحجم المعتدل قبل التموضع (مع تحذير إن فشل ScaleTo فلا يبقى الموديل ضخماً بصمت)
+	local scaled = pcall(function() model:ScaleTo(CASHIER_SCALE) end)
+	if not scaled then warn("[TicketCashier] ScaleTo فشل؛ قد يظهر الموديل بحجمه الأصلي") end
+
+	-- التوجيه: الموديل مُصمَّم ووجهه نحو محور -Z؛ ندوّره (yaw حول Y) ليطابق faceDir
+	-- (افتراضياً +X نحو نافذة/كاونتر الشباك حيث يقف اللاعبون)، ثم نُسقطه على الأرضية.
+	local faceDir = opts.faceDir or Vector3.new(1, 0, 0)
+	local authored = Vector3.new(0, 0, -1)                 -- اتجاه وجه الموديل الأصلي
+	local yaw = math.atan2(faceDir.X, faceDir.Z) - math.atan2(authored.X, authored.Z)
+	local target = opts.target or Vector3.new(0, GROUND_Y, 0)
+	local pivot = model:GetPivot()
+	model:PivotTo(CFrame.new(target.X, pivot.Position.Y, target.Z) * CFrame.Angles(0, yaw, 0))
+
+	-- الاستقرار على الأرضية الفعلية: شعاع لأسفل يبدأ تحت السقف ويتجاهل الموديل نفسه،
+	-- ثم نرفع الموديل حتى تلامس أدنى نقطة فيه سطح الأرض (بلا طيران ولا غرق).
+	local rp = RaycastParams.new()
+	rp.FilterType = Enum.RaycastFilterType.Exclude
+	rp.FilterDescendantsInstances = { model }
+	local from = Vector3.new(target.X, target.Y + 8, target.Z)
+	local hit = Workspace:Raycast(from, Vector3.new(0, -30, 0), rp)
+	local bcf, bsize = model:GetBoundingBox()
+	local floorY = hit and hit.Position.Y or target.Y
+	local lift = floorY - (bcf.Position.Y - bsize.Y / 2)
+	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
+
+	model.Parent = booth
+
+	-- لوحة الاسم فوق الرأس (أعلى قطعة)
+	local head = topPart or biggest
+	if head then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
+		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
+		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)
+		bb.AlwaysOnTop = true; bb.Parent = head
+		local tagLbl = Instance.new("TextLabel")
+		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
+		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true
+		tagLbl.Text = opts.tag or "🎟️ موظف التذاكر"
+		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
+		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+	end
+
+	-- زر التفاعل: التحدث مع الكاشير يفتح شباك التذاكر (يُربط بأكبر قطعة في الموديل)
 	local prompt = Instance.new("ProximityPrompt")
-	prompt.ActionText = "شبّاك التذاكر"
-	prompt.ObjectText = "اشترِ تذكرة"
+	prompt.Name = "TicketBoothPrompt"
+	prompt.ActionText = opts.promptText or "شبّاك التذاكر"
+	prompt.ObjectText = opts.promptObj or "اشترِ تذكرة"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 12
+	prompt.MaxActivationDistance = opts.maxDist or 16
 	prompt.RequiresLineOfSight = false
-	prompt.Parent = base
-	prompt.Triggered:Connect(openBoxOffice)
+	prompt.Parent = biggest
+	if opts.onTrigger then prompt.Triggered:Connect(opts.onTrigger) end
+
+	return model
 end
+
+-- 🎫 شبّاك التذاكر — صار موديل من المتجر (مُنظّف من الباك-دور) محقون في Workspace
+-- باسم "TicketBooth" عبر inject_ticketbooth.py. لا نعدّل سكربتات الموديل الأصلية؛
+-- منطق الشراء يبقى في سكربتنا: يُربط بزر تفاعل على الكاشير الجالس، وإن تعذّر نرجع
+-- لنقطة تفاعل شفّافة أمام الموديل كاحتياط.
+-- نُشغّله في خيط منفصل (task.spawn) حتى لا تُعطّل مهلة WaitForChild — في الحالة
+-- النادرة لغياب الشباك — تهيئة بقية عناصر السينما (لوحة العروض/الطابور/كبار الزوار).
+task.spawn(function()
+	-- موضع الموظف خلف الكاونتر (نافذة الشباك على المحور +X عند x≈-8.6)، في منتصف
+	-- الشباك تقريباً، مواجهاً اللاعبين الواقفين أمام النافذة (+X).
+	local bx, bz = -12.5, -99.7
+	local target = Vector3.new(bx, GROUND_Y, bz)
+
+	-- نضع الموظف الجاهز (الجالس على كرسيّه) خلف الكاونتر ونربط زر الشراء به (الأكثر واقعية)
+	local cashier = buildCashierModel({
+		name = "TicketCashier", tag = "🎟️ موظف التذاكر",
+		tagColor = Color3.fromRGB(255, 205, 90),
+		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه نافذة الشباك/اللاعبين (+X)
+		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
+		maxDist = 16, onTrigger = openBoxOffice,
+	})
+
+	-- احتياطي: لو غاب قالب الكاشير أو الكرسي، نُبقي نقطة تفاعل شفّافة أمام الموديل
+	if not cashier then
+		local hub = Instance.new("Part")
+		hub.Name = "TicketBoothInteract"
+		hub.Anchored = true
+		hub.CanCollide = false
+		hub.CanQuery = false
+		hub.CanTouch = false
+		hub.Transparency = 1
+		hub.Size = Vector3.new(8, 10, 8)
+		hub.CFrame = CFrame.new(bx, GROUND_Y + 5, bz + 7)
+		hub.Parent = Workspace
+
+		local prompt = Instance.new("ProximityPrompt")
+		prompt.Name = "TicketBoothPrompt"
+		prompt.ActionText = "شبّاك التذاكر"
+		prompt.ObjectText = "اشترِ تذكرة"
+		prompt.KeyboardKeyCode = Enum.KeyCode.E
+		prompt.HoldDuration = 0
+		prompt.MaxActivationDistance = 14
+		prompt.RequiresLineOfSight = false
+		prompt.Parent = hub
+		prompt.Triggered:Connect(openBoxOffice)
+	end
+end)
 
 -- لوحة العروض الحيّة (يمين المدخل) — نص على الوجهين فلا يظهر معكوساً من الخلف
 local showLabels, subLabels = {}, {}
