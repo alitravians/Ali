@@ -4,16 +4,18 @@
 # pointed at) so a custom user image can be displayed on it. Idempotent:
 # removes any prior CustomImageScreen on that part before re-adding.
 #
-# The image asset id is configurable via the IMAGE_ASSET_ID constant below.
-# Leave it as "" (empty) to show the "send me your AssetID" placeholder; set it
-# to the numeric id the user gives after they upload the image to Roblox, then
-# rerun this script + build_all.py.
+# The user's image (93628047304202) is a Decal asset, which does NOT render
+# directly in an ImageLabel. So this static SurfaceGui starts as a dark screen
+# with a brief "loading" hint, and CinemaServices.server.lua resolves the decal
+# to its real Texture (via InsertService, reusing the loading-screen resolver)
+# and assigns it to this screen's Image at runtime — replicating to all clients.
+# IMAGE_ASSET_ID below is kept for documentation/reference only.
 import sys
 from lxml import etree
 
 MAIN = "DonationCity_FINAL.rbxlx"
 SCREEN_NAME = "CustomImageScreen"
-IMAGE_ASSET_ID = ""   # e.g. "1234567890" once the user uploads their image
+IMAGE_ASSET_ID = "93628047304202"   # user's uploaded image (Decal; resolved server-side)
 
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
 tree = etree.parse(MAIN, P)
@@ -95,13 +97,10 @@ el(pi, "string", "Name", "Image")
 udim2(pi, "Size", 1, 0, 1, 0)
 udim2(pi, "Position", 0, 0, 0, 0)
 el(pi, "Color3uint8", "BackgroundColor3", color_uint(18, 38, 66))
-el(pi, "float", "BackgroundTransparency", "0" if not IMAGE_ASSET_ID else "1")
-el(pi, "token", "ScaleType", "3")      # Fit (keep aspect ratio)
+el(pi, "float", "BackgroundTransparency", "0")   # dark screen until server resolves the decal
+el(pi, "token", "ScaleType", "4")      # Crop: fills the square fully, no distortion
 img_content = el(pi, "Content", "Image")
-if IMAGE_ASSET_ID:
-    el(img_content, "url", text="rbxassetid://" + str(IMAGE_ASSET_ID))
-else:
-    el(img_content, "null")
+el(img_content, "null")               # server sets the resolved Texture at runtime
 
 # ---- placeholder hint (hidden once a real image is set) ----
 hint = etree.SubElement(img, "Item"); hint.set("class", "TextLabel"); hint.set("referent", nref())
@@ -110,10 +109,10 @@ el(ph, "string", "Name", "Hint")
 udim2(ph, "Size", 1, 0, 1, 0)
 udim2(ph, "Position", 0, 0, 0, 0)
 el(ph, "float", "BackgroundTransparency", "1")
-el(ph, "bool", "Visible", "false" if IMAGE_ASSET_ID else "true")
+el(ph, "bool", "Visible", "true")     # server hides this once the image is applied
 el(ph, "Color3uint8", "TextColor3", color_uint(225, 245, 255))
 el(ph, "bool", "TextScaled", "true")
-el(ph, "string", "Text", "📷 صورتك المخصّصة تظهر هنا\nأرسل لي رقم الصورة (Asset ID) بعد رفعها لروبلوكس")
+el(ph, "string", "Text", "🖼️ جارٍ تحميل صورتك...")
 
 tree.write(MAIN, encoding="utf-8", xml_declaration=False)
 print("wrote", MAIN, "| image asset id:", IMAGE_ASSET_ID or "(placeholder)")

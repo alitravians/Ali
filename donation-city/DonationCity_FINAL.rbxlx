@@ -4866,6 +4866,28 @@ if not bgValue then
 	bgValue.Value = "" -- يبقى فارغاً حتى يُحلّ الرقم، فيستخدم العميل خلفيته النيون مؤقتاً
 	bgValue.Parent = ReplicatedStorage
 end
+-- يطبّق رقم الصورة المُحلّ على شاشة الصورة المخصّصة فوق منصّة الانطلاق
+-- (SurfaceGui ثابتة اسمها CustomImageScreen). نضبط Image على السيرفر فيتكرّر
+-- للجميع، ونخفي نص التلميح بمجرّد ظهور الصورة.
+local function applyCustomScreen(texture)
+	if not texture or texture == "" then return end
+	local pad = Workspace:FindFirstChild("SpawnLocation")
+	if not pad then
+		for _, d in ipairs(Workspace:GetChildren()) do
+			if d:IsA("SpawnLocation") then pad = d; break end
+		end
+	end
+	local sg = pad and pad:FindFirstChild("CustomImageScreen")
+	if not sg then return end
+	local img = sg:FindFirstChild("Image", true)
+	if img and img:IsA("ImageLabel") then
+		img.Image = texture
+		img.BackgroundTransparency = 1
+		local hint = img:FindFirstChild("Hint")
+		if hint then hint.Visible = false end
+	end
+end
+
 task.spawn(function()
 	local InsertService = game:GetService("InsertService")
 	local ok, model = pcall(function()
@@ -4875,6 +4897,7 @@ task.spawn(function()
 		local decal = model:FindFirstChildWhichIsA("Decal", true)
 		if decal and decal.Texture and decal.Texture ~= "" then
 			bgValue.Value = decal.Texture -- رقم الصورة الحقيقي (rbxassetid://...)
+			applyCustomScreen(decal.Texture)
 		end
 		model:Destroy()
 	else
@@ -21315,8 +21338,7 @@ end)
         </Vector3>
         <float name="Transparency">0</float>
       </Properties>
-    <Item class="SurfaceGui" referent="SCREEN0001"><Properties><string name="Name">CustomImageScreen</string><token name="Face">1</token><bool name="Enabled">true</bool><float name="LightInfluence">0</float><bool name="AlwaysOnTop">false</bool><token name="SizingMode">1</token><float name="PixelsPerStud">50</float><bool name="ResetOnSpawn">false</bool></Properties><Item class="ImageLabel" referent="SCREEN0002"><Properties><string name="Name">Image</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><Color3uint8 name="BackgroundColor3">1189442</Color3uint8><float name="BackgroundTransparency">0</float><token name="ScaleType">3</token><Content name="Image"><null/></Content></Properties><Item class="TextLabel" referent="SCREEN0003"><Properties><string name="Name">Hint</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><float name="BackgroundTransparency">1</float><bool name="Visible">true</bool><Color3uint8 name="TextColor3">14808575</Color3uint8><bool name="TextScaled">true</bool><string name="Text">📷 صورتك المخصّصة تظهر هنا
-أرسل لي رقم الصورة (Asset ID) بعد رفعها لروبلوكس</string></Properties></Item></Item></Item></Item>
+    <Item class="SurfaceGui" referent="SCREEN0001"><Properties><string name="Name">CustomImageScreen</string><token name="Face">1</token><bool name="Enabled">true</bool><float name="LightInfluence">0</float><bool name="AlwaysOnTop">false</bool><token name="SizingMode">1</token><float name="PixelsPerStud">50</float><bool name="ResetOnSpawn">false</bool></Properties><Item class="ImageLabel" referent="SCREEN0002"><Properties><string name="Name">Image</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><Color3uint8 name="BackgroundColor3">1189442</Color3uint8><float name="BackgroundTransparency">0</float><token name="ScaleType">4</token><Content name="Image"><null/></Content></Properties><Item class="TextLabel" referent="SCREEN0003"><Properties><string name="Name">Hint</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><float name="BackgroundTransparency">1</float><bool name="Visible">true</bool><Color3uint8 name="TextColor3">14808575</Color3uint8><bool name="TextScaled">true</bool><string name="Text">🖼️ جارٍ تحميل صورتك...</string></Properties></Item></Item></Item></Item>
     <Item class="Model" referent="349">
       <Properties>
         <string name="Name">Tree1</string>

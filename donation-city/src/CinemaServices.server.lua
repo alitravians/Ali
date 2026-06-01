@@ -321,6 +321,28 @@ if not bgValue then
 	bgValue.Value = "" -- يبقى فارغاً حتى يُحلّ الرقم، فيستخدم العميل خلفيته النيون مؤقتاً
 	bgValue.Parent = ReplicatedStorage
 end
+-- يطبّق رقم الصورة المُحلّ على شاشة الصورة المخصّصة فوق منصّة الانطلاق
+-- (SurfaceGui ثابتة اسمها CustomImageScreen). نضبط Image على السيرفر فيتكرّر
+-- للجميع، ونخفي نص التلميح بمجرّد ظهور الصورة.
+local function applyCustomScreen(texture)
+	if not texture or texture == "" then return end
+	local pad = Workspace:FindFirstChild("SpawnLocation")
+	if not pad then
+		for _, d in ipairs(Workspace:GetChildren()) do
+			if d:IsA("SpawnLocation") then pad = d; break end
+		end
+	end
+	local sg = pad and pad:FindFirstChild("CustomImageScreen")
+	if not sg then return end
+	local img = sg:FindFirstChild("Image", true)
+	if img and img:IsA("ImageLabel") then
+		img.Image = texture
+		img.BackgroundTransparency = 1
+		local hint = img:FindFirstChild("Hint")
+		if hint then hint.Visible = false end
+	end
+end
+
 task.spawn(function()
 	local InsertService = game:GetService("InsertService")
 	local ok, model = pcall(function()
@@ -330,6 +352,7 @@ task.spawn(function()
 		local decal = model:FindFirstChildWhichIsA("Decal", true)
 		if decal and decal.Texture and decal.Texture ~= "" then
 			bgValue.Value = decal.Texture -- رقم الصورة الحقيقي (rbxassetid://...)
+			applyCustomScreen(decal.Texture)
 		end
 		model:Destroy()
 	else
