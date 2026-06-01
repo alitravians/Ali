@@ -1519,7 +1519,9 @@ local function unfreezeChar(char)
 	if hrp then hrp.Anchored = false end
 	if hum then
 		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-		hum.WalkSpeed = 16
+		-- استعد السرعة الأساسية (سرعة باقة «البرق» إن مُلكت، وإلا 16) بدل رقم ثابت
+		local base = LocalPlayer:GetAttribute("BaseWalkSpeed")
+		hum.WalkSpeed = (type(base) == "number" and base > 0) and base or 16
 		hum.JumpPower = 50
 		pcall(function() hum.JumpHeight = 7.2 end)
 	end

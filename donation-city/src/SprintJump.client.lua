@@ -22,8 +22,20 @@ local pg = player:WaitForChild("PlayerGui")
 ----------------------------------------------------------------------
 -- إعدادات
 ----------------------------------------------------------------------
-local NORMAL_SPEED = 16
-local SPRINT_SPEED = 28
+local DEFAULT_NORMAL = 16   -- السرعة الافتراضية لمن لا يملك «سرعة البرق»
+local SPRINT_BOOST   = 12   -- دفعة الجري فوق السرعة الأساسية (16+12 = 28 كالسابق)
+local SPRINT_CAP     = 40   -- سقف أمان لسرعة الجري (يمنع «الطيران»)
+
+-- السرعة الأساسية الحالية للاعب: يضبطها السيرفر عبر سِمة BaseWalkSpeed لحامل
+-- باقة «سرعة البرق» (16→32)؛ ومن لا يملكها تبقى 16. نظام الجري يبني عليها.
+local function baseSpeed(): number
+	local b = player:GetAttribute("BaseWalkSpeed")
+	if type(b) == "number" and b > 0 then return b end
+	return DEFAULT_NORMAL
+end
+local function sprintSpeed(normal: number): number
+	return math.min(normal + SPRINT_BOOST, SPRINT_CAP)
+end
 
 ----------------------------------------------------------------------
 -- ربط السيرفر (تقارير الجري/القفز) — اختياري (لا يعطّل المؤثرات لو غاب)
@@ -194,11 +206,14 @@ RunService.RenderStepped:Connect(function(dt)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 
+	local NORMAL = baseSpeed()                 -- السرعة الأساسية (16 أو سرعة باقة البرق)
+	local SPRINT = sprintSpeed(NORMAL)         -- سرعة الجري = الأساسية + دفعة (بسقف أمان)
+
 	-- داخل الباركور: نوقف الجري ونرجع السرعة الطبيعية (تحكّم دقيق بالقفزات).
 	-- لا نلمس السرعة إن كانت مقفولة على 0 (سينما/تحميل).
 	if player:GetAttribute("InParkour") then
 		if wantSprint then wantSprint = false; refreshBtn() end
-		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		if hum.WalkSpeed == SPRINT then hum.WalkSpeed = NORMAL end
 		return
 	end
 
@@ -218,8 +233,8 @@ RunService.RenderStepped:Connect(function(dt)
 	-- تطبيق السرعة بأمان: لا نلمس السرعة إلا إن كانت بقيمتها الطبيعية/سرعة الجري
 	-- (هكذا لو قفلت السينما الحركة على 0 لا نكسر القفل)
 	if sprinting then
-		if hum.WalkSpeed == NORMAL_SPEED then hum.WalkSpeed = SPRINT_SPEED end
+		if hum.WalkSpeed == NORMAL then hum.WalkSpeed = SPRINT end
 	else
-		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		if hum.WalkSpeed == SPRINT then hum.WalkSpeed = NORMAL end
 	end
 end)

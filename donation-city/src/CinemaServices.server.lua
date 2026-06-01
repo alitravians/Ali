@@ -456,13 +456,19 @@ end
 applySpeed = function(player: Player)
 	local s = sessions[player.UserId]
 	if not s then return end
+	local owns = s.passes ~= nil and s.passes.speed == true
+	-- السرعة الأساسية: المالك = اختياره (محصور)، غير المالك = الحد الأدنى (16)
+	local base = owns and clampSpeed(s.speed) or CONFIG.SpeedMin
+	-- نُعلن السرعة الأساسية كسِمة كي يبني عليها نظام الجري (SprintJump) بدل رقم ثابت
+	-- (السِمات التي يضبطها السيرفر تتزامن للعميل تلقائياً)
+	player:SetAttribute("BaseWalkSpeed", base)
 	local char = player.Character
 	if not char then return end
 	local hum = char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
-	-- غير المالك يبقى على السرعة الافتراضية — لا نلمسها
-	if s.passes and s.passes.speed then
-		hum.WalkSpeed = clampSpeed(s.speed)
+	-- نطبّق السرعة فقط للمالك؛ غير المالك يُترك لبقية الأنظمة (الجري/السينما) كما هو
+	if owns then
+		hum.WalkSpeed = base
 	end
 end
 

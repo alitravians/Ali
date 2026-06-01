@@ -350,7 +350,12 @@ local function setFrozen(player: Player, on: boolean)
 	else
 		frozen[player.UserId] = nil
 		local root, hum = rootOf(player), humanoidOf(player)
-		if hum then hum.WalkSpeed = 16; hum.JumpPower = 50; hum.JumpHeight = 7.2 end
+		if hum then
+			-- استعد السرعة الأساسية (سرعة باقة «البرق» إن مُلكت، وإلا 16) لا رقماً ثابتاً
+			local base = player:GetAttribute("BaseWalkSpeed")
+			hum.WalkSpeed = (type(base) == "number" and base > 0) and base or 16
+			hum.JumpPower = 50; hum.JumpHeight = 7.2
+		end
 		if root then root.Anchored = false end
 	end
 end
