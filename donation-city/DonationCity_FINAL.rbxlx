@@ -3319,13 +3319,14 @@ end
 local floorPart = get("Floor")
 local groundY = floorPart and (floorPart.Position.Y + floorPart.Size.Y / 2) or 0
 
--- مرشد السينما: نستنسخ موديل الشخصية الجاهز (Black Mesa Scientist) من قالب
+-- شخصيات السينما الجاهزة (المرشد + الخادم): نستنسخ موديل شخصية جاهز من قالب
 -- مخفي في ServerScriptService، ونضيف سلوكنا الخاص (وسم + زر تفاعل + حركة وقوف)
 -- خارج الموديل — لا نضيف أي سكربتات أو منطق لعبة بداخله (نضبط فقط خصائص عرض:
 -- تثبيت القطع، صحة الـ Humanoid، والحجم) فيبقى تصميمه الأصلي كما هو.
-local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط عند المدخل
-local function buildGuideModel(opts)
-	local template = ServerScriptService:FindFirstChild("CinemaGuideModel")
+-- نفس الدالة تخدم المرشد والخادم؛ القالب والحجم يُمرّران عبر opts.
+local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط
+local function buildCharacterModel(opts)
+	local template = ServerScriptService:FindFirstChild(opts.template or "CinemaGuideModel")
 	if not template then return nil end
 
 	local model = template:Clone()
@@ -3352,7 +3353,7 @@ local function buildGuideModel(opts)
 
 	-- نضبط الحجم والمكان قبل الإضافة للعالم حتى لا تظهر ومضة عند مكان القالب الأصلي
 	-- حجم معتدل (يُحسب التموضع بعده)
-	pcall(function() model:ScaleTo(GUIDE_SCALE) end)
+	pcall(function() model:ScaleTo(opts.modelScale or GUIDE_SCALE) end)
 
 	-- وقوفه أمام المدخل مواجهاً القادمين (نفس اتجاه المرشد السابق)
 	model:PivotTo(opts.footCFrame)
@@ -3534,7 +3535,8 @@ pcall(function()
 		promptText = "تحدّث", promptObj = "مرشد السينما", onTrigger = guideTalk,
 	}
 	-- المرشد الجديد من الموديل الجاهز؛ وإن غاب القالب نرجع للمرشد المبني برمجياً كاحتياط
-	if not buildGuideModel(guideOpts) then
+	guideOpts.template = "CinemaGuideModel"
+	if not buildCharacterModel(guideOpts) then
 		guideOpts.uniform = Color3.fromRGB(70, 60, 150); guideOpts.scale = 1.5; guideOpts.wave = true
 		buildNPC(guideOpts)
 	end
@@ -3544,11 +3546,20 @@ pcall(function()
 		Vector3.new(popPos.X + 4, groundY, popPos.Z - 2),
 		Vector3.new(popPos.X + 4, groundY, popPos.Z - 25)
 	)
-	buildNPC({
-		name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
-		footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
-		tray = true, onTrigger = waiterServe,
-	})
+	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
+	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
+	local waiterOpts = {
+		name = "CinemaWaiter", tag = "🍿 خادم السينما", tagColor = Color3.fromRGB(255, 205, 90),
+		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
+		promptText = "اطلب طلبك", promptObj = "خادم السينما", onTrigger = waiterServe,
+	}
+	if not buildCharacterModel(waiterOpts) then
+		buildNPC({
+			name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
+			footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
+			tray = true, onTrigger = waiterServe,
+		})
+	end
 end)
 
 ------------------------------------------------------------------------
@@ -13172,6 +13183,808 @@ print("[MissionSystem] ready — daily/weekly missions, activity-based economy."
 			</Properties>
 		</Item>
 	</Item>
+<Item class="Model" referent="SERVER_0">
+    <Properties>
+      <string name="Name">CinemaServerModel</string>
+      <CoordinateFrame name="ModelInPrimary">
+        <X>0</X>
+        <Y>0</Y>
+        <Z>0</Z>
+        <R00>1</R00>
+        <R01>0</R01>
+        <R02>0</R02>
+        <R10>0</R10>
+        <R11>1</R11>
+        <R12>0</R12>
+        <R20>0</R20>
+        <R21>0</R21>
+        <R22>1</R22>
+      </CoordinateFrame>
+      <Ref name="PrimaryPart">null</Ref>
+    </Properties>
+    <Item class="Part" referent="SERVER_1">
+      <Properties>
+        <string name="Name">Torso</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">4</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-40.84185</X>
+          <Y>3.000004</Y>
+          <Z>31.038954</Z>
+          <R00>-0.9999997</R00>
+          <R01>-0.00000018635522</R01>
+          <R02>0.000000029802322</R02>
+          <R10>-0.00000018635524</R10>
+          <R11>1</R11>
+          <R12>-0.00000012052737</R12>
+          <R20>-0.000000029802322</R20>
+          <R21>-0.00000012052737</R21>
+          <R22>-0.9999997</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">15382674</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">0</float>
+        <float name="LeftParamB">0</float>
+        <token name="LeftSurface">2</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">0</float>
+        <float name="RightParamB">0</float>
+        <token name="RightSurface">2</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>2</X>
+          <Y>2</Y>
+          <Z>1</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">3</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+      <Item class="Motor6D" referent="SERVER_2">
+        <Properties>
+          <string name="Name">Right Shoulder</string>
+          <CoordinateFrame name="C0">
+            <X>1</X>
+            <Y>0.5</Y>
+            <Z>0</Z>
+            <R00>0</R00>
+            <R01>0</R01>
+            <R02>1</R02>
+            <R10>0</R10>
+            <R11>1</R11>
+            <R12>0</R12>
+            <R20>-1</R20>
+            <R21>0</R21>
+            <R22>0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>-0.5</X>
+            <Y>0.5</Y>
+            <Z>0</Z>
+            <R00>0</R00>
+            <R01>0</R01>
+            <R02>1</R02>
+            <R10>0</R10>
+            <R11>1</R11>
+            <R12>0</R12>
+            <R20>-1</R20>
+            <R21>0</R21>
+            <R22>0</R22>
+          </CoordinateFrame>
+          <float name="DesiredAngle">0</float>
+          <float name="MaxVelocity">0.15</float>
+          <Ref name="Part0">SERVER_1</Ref>
+          <Ref name="Part1">SERVER_3</Ref>
+        </Properties>
+      </Item>
+      <Item class="Motor6D" referent="SERVER_4">
+        <Properties>
+          <string name="Name">Left Shoulder</string>
+          <CoordinateFrame name="C0">
+            <X>-1</X>
+            <Y>0.5</Y>
+            <Z>0</Z>
+            <R00>0</R00>
+            <R01>0</R01>
+            <R02>-1</R02>
+            <R10>0</R10>
+            <R11>1</R11>
+            <R12>0</R12>
+            <R20>1</R20>
+            <R21>0</R21>
+            <R22>0</R22>
+          </CoordinateFrame>
+          <CoordinateFrame name="C1">
+            <X>0.5</X>
+            <Y>0.5</Y>
+            <Z>0</Z>
+            <R00>0</R00>
+            <R01>0</R01>
+            <R02>-1</R02>
+            <R10>0</R10>
+            <R11>1</R11>
+            <R12>0</R12>
+            <R20>1</R20>
+            <R21>0</R21>
+            <R22>0</R22>
+          </CoordinateFrame>
+          <float name="DesiredAngle">0</float>
+          <float name="MaxVelocity">0.15</float>
+          <Ref name="Part0">SERVER_1</Ref>
+          <Ref name="Part1">SERVER_5</Ref>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="Part" referent="SERVER_5">
+      <Properties>
+        <string name="Name">Left Arm</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">4</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-39.341866</X>
+          <Y>3.000004</Y>
+          <Z>31.038935</Z>
+          <R00>-0.9999997</R00>
+          <R01>-0.00000018635522</R01>
+          <R02>0.000000029802322</R02>
+          <R10>-0.00000018635524</R10>
+          <R11>1</R11>
+          <R12>-0.00000012052737</R12>
+          <R20>-0.000000029802322</R20>
+          <R21>-0.00000012052737</R21>
+          <R22>-0.9999997</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">15382674</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>1</X>
+          <Y>2</Y>
+          <Z>1</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">3</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+    <Item class="Part" referent="SERVER_3">
+      <Properties>
+        <string name="Name">Right Arm</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">4</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-42.34185</X>
+          <Y>3.000004</Y>
+          <Z>31.038958</Z>
+          <R00>-0.9999997</R00>
+          <R01>-0.00000018635522</R01>
+          <R02>0.000000029802322</R02>
+          <R10>-0.00000018635524</R10>
+          <R11>1</R11>
+          <R12>-0.00000012052737</R12>
+          <R20>-0.000000029802322</R20>
+          <R21>-0.00000012052737</R21>
+          <R22>-0.9999997</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">15382674</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>1</X>
+          <Y>2</Y>
+          <Z>1</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">3</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+    <Item class="Humanoid" referent="SERVER_6">
+      <Properties>
+        <string name="Name">Humanoid</string>
+        <token name="DisplayDistanceType">0</token>
+        <float name="HealthDisplayDistance">100</float>
+        <float name="Health_XML">0</float>
+        <float name="MaxHealth">0</float>
+        <float name="NameDisplayDistance">100</float>
+        <token name="NameOcclusion">0</token>
+        <float name="WalkSpeed">16</float>
+      </Properties>
+    </Item>
+    <Item class="CharacterMesh" referent="SERVER_7">
+      <Properties>
+        <string name="Name">Admin Left Arm</string>
+        <int64 name="BaseTextureId">0</int64>
+        <token name="BodyPart">2</token>
+        <int64 name="MeshId">130092904</int64>
+        <int64 name="OverlayTextureId">130090169</int64>
+      </Properties>
+    </Item>
+    <Item class="CharacterMesh" referent="SERVER_8">
+      <Properties>
+        <string name="Name">Admin Right Arm</string>
+        <int64 name="BaseTextureId">0</int64>
+        <token name="BodyPart">3</token>
+        <int64 name="MeshId">130092911</int64>
+        <int64 name="OverlayTextureId">130090169</int64>
+      </Properties>
+    </Item>
+    <Item class="CharacterMesh" referent="SERVER_9">
+      <Properties>
+        <string name="Name">Admin Torso</string>
+        <int64 name="BaseTextureId">0</int64>
+        <token name="BodyPart">1</token>
+        <int64 name="MeshId">130092883</int64>
+        <int64 name="OverlayTextureId">130090169</int64>
+      </Properties>
+    </Item>
+    <Item class="Part" referent="SERVER_10">
+      <Properties>
+        <string name="Name">Left Leg</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">0</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-40.396843</X>
+          <Y>0.999952</Y>
+          <Z>30.981062</Z>
+          <R00>-1</R00>
+          <R01>0.00000000000000000000021796464</R01>
+          <R02>0.0000023890523</R02>
+          <R10>0.00000000000000000000021796404</R10>
+          <R11>1</R11>
+          <R12>-0.00000000000000000000024968445</R12>
+          <R20>-0.0000023890523</R20>
+          <R21>-0.00000000000000000000024968394</R21>
+          <R22>-1</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">15382674</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>1</X>
+          <Y>2</Y>
+          <Z>1</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">3</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+    <Item class="Part" referent="SERVER_11">
+      <Properties>
+        <string name="Name">Right Leg</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">0</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-41.396843</X>
+          <Y>0.999952</Y>
+          <Z>30.981047</Z>
+          <R00>-1</R00>
+          <R01>0.00000000000000000000021796464</R01>
+          <R02>0.0000023890523</R02>
+          <R10>0.00000000000000000000021796404</R10>
+          <R11>1</R11>
+          <R12>-0.00000000000000000000024968445</R12>
+          <R20>-0.0000023890523</R20>
+          <R21>-0.00000000000000000000024968394</R21>
+          <R22>-1</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">15382674</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>1</X>
+          <Y>2</Y>
+          <Z>1</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">3</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+    </Item>
+    <Item class="CharacterMesh" referent="SERVER_12">
+      <Properties>
+        <string name="Name">Roblox 2.0 Right Leg</string>
+        <int64 name="BaseTextureId">0</int64>
+        <token name="BodyPart">5</token>
+        <int64 name="MeshId">27111882</int64>
+        <int64 name="OverlayTextureId">0</int64>
+      </Properties>
+    </Item>
+    <Item class="CharacterMesh" referent="SERVER_13">
+      <Properties>
+        <string name="Name">Roblox 2.0 Left Leg</string>
+        <int64 name="BaseTextureId">0</int64>
+        <token name="BodyPart">4</token>
+        <int64 name="MeshId">27111857</int64>
+        <int64 name="OverlayTextureId">0</int64>
+      </Properties>
+    </Item>
+    <Item class="Pants" referent="SERVER_14">
+      <Properties>
+        <string name="Name">Pants</string>
+        <ContentId name="PantsTemplate">
+          <url>http://www.roblox.com/asset/?id=190036487</url>
+        </ContentId>
+      </Properties>
+    </Item>
+    <Item class="Shirt" referent="SERVER_15">
+      <Properties>
+        <string name="Name">Shirt</string>
+        <ContentId name="ShirtTemplate">
+          <url>http://www.roblox.com/asset/?id=179835914</url>
+        </ContentId>
+      </Properties>
+    </Item>
+    <Item class="Part" referent="SERVER_16">
+      <Properties>
+        <string name="Name">Handle</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">0</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-40.866207</X>
+          <Y>4.426666</Y>
+          <Z>31.058401</Z>
+          <R00>-0.99999803</R00>
+          <R01>-0.0006935008</R01>
+          <R02>-0.0018548511</R02>
+          <R10>-0.00073200813</R10>
+          <R11>0.9997826</R11>
+          <R12>0.020840824</R12>
+          <R20>0.0018399947</R20>
+          <R21>0.020842161</R21>
+          <R22>-0.99978113</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">10724005</Color3uint8>
+        <token name="formFactorRaw">3</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>1.4600267</X>
+          <Y>1.119998</Y>
+          <Z>1.6300027</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">0</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+      <Item class="SpecialMesh" referent="SERVER_17">
+        <Properties>
+          <string name="Name">Mesh</string>
+          <token name="LODX">2</token>
+          <token name="LODY">2</token>
+          <ContentId name="MeshId">
+            <url><![CDATA[http://www.roblox.com/asset/?id=173773318 ]]></url>
+          </ContentId>
+          <token name="MeshType">5</token>
+          <Vector3 name="Offset">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+          </Vector3>
+          <Vector3 name="Scale">
+            <X>1</X>
+            <Y>1</Y>
+            <Z>1</Z>
+          </Vector3>
+          <ContentId name="TextureId">
+            <url><![CDATA[http://www.roblox.com/asset/?id=173773429 ]]></url>
+          </ContentId>
+          <Vector3 name="VertexColor">
+            <X>1</X>
+            <Y>1</Y>
+            <Z>1</Z>
+          </Vector3>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="Part" referent="SERVER_18">
+      <Properties>
+        <string name="Name">Handle</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">0</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-41.167114</X>
+          <Y>5.477972</Y>
+          <Z>30.980833</Z>
+          <R00>-0.99999803</R00>
+          <R01>-0.0006935008</R01>
+          <R02>-0.0018548511</R02>
+          <R10>-0.00073200813</R10>
+          <R11>0.9997826</R11>
+          <R12>0.020840824</R12>
+          <R20>0.0018399947</R20>
+          <R21>0.020842161</R21>
+          <R22>-0.99978113</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">10724005</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>2</X>
+          <Y>1</Y>
+          <Z>2</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">0</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+      <Item class="SpecialMesh" referent="SERVER_19">
+        <Properties>
+          <string name="Name">Mesh</string>
+          <token name="LODX">2</token>
+          <token name="LODY">2</token>
+          <ContentId name="MeshId">
+            <url>http://www.roblox.com/asset/?id=12311217</url>
+          </ContentId>
+          <token name="MeshType">5</token>
+          <Vector3 name="Offset">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+          </Vector3>
+          <Vector3 name="Scale">
+            <X>1</X>
+            <Y>0.9</Y>
+            <Z>1</Z>
+          </Vector3>
+          <ContentId name="TextureId">
+            <url>http://www.roblox.com/asset/?id=12311158</url>
+          </ContentId>
+          <Vector3 name="VertexColor">
+            <X>1</X>
+            <Y>1</Y>
+            <Z>1</Z>
+          </Vector3>
+        </Properties>
+      </Item>
+    </Item>
+    <Item class="Part" referent="SERVER_20">
+      <Properties>
+        <string name="Name">Head</string>
+        <bool name="Anchored">true</bool>
+        <float name="BackParamA">-0.5</float>
+        <float name="BackParamB">0.5</float>
+        <token name="BackSurface">0</token>
+        <token name="BackSurfaceInput">0</token>
+        <float name="BottomParamA">-0.5</float>
+        <float name="BottomParamB">0.5</float>
+        <token name="BottomSurface">4</token>
+        <token name="BottomSurfaceInput">0</token>
+        <CoordinateFrame name="CFrame">
+          <X>-40.866405</X>
+          <Y>4.428745</Y>
+          <Z>30.958477</Z>
+          <R00>-0.99999803</R00>
+          <R01>-0.0006935008</R01>
+          <R02>-0.0018548511</R02>
+          <R10>-0.00073200813</R10>
+          <R11>0.9997826</R11>
+          <R12>0.020840824</R12>
+          <R20>0.0018399947</R20>
+          <R21>0.020842161</R21>
+          <R22>-0.99978113</R22>
+        </CoordinateFrame>
+        <bool name="CanCollide">false</bool>
+        <Color3uint8 name="Color3uint8">15382674</Color3uint8>
+        <token name="formFactorRaw">0</token>
+        <float name="FrontParamA">-0.5</float>
+        <float name="FrontParamB">0.5</float>
+        <token name="FrontSurface">0</token>
+        <token name="FrontSurfaceInput">0</token>
+        <float name="LeftParamA">-0.5</float>
+        <float name="LeftParamB">0.5</float>
+        <token name="LeftSurface">0</token>
+        <token name="LeftSurfaceInput">0</token>
+        <bool name="Locked">false</bool>
+        <token name="Material">256</token>
+        <float name="Reflectance">0</float>
+        <float name="RightParamA">-0.5</float>
+        <float name="RightParamB">0.5</float>
+        <token name="RightSurface">0</token>
+        <token name="RightSurfaceInput">0</token>
+        <Vector3 name="RotVelocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+        <token name="shape">1</token>
+        <Vector3 name="size">
+          <X>2</X>
+          <Y>1</Y>
+          <Z>1</Z>
+        </Vector3>
+        <float name="TopParamA">-0.5</float>
+        <float name="TopParamB">0.5</float>
+        <token name="TopSurface">0</token>
+        <token name="TopSurfaceInput">0</token>
+        <float name="Transparency">0</float>
+        <Vector3 name="Velocity">
+          <X>0</X>
+          <Y>0</Y>
+          <Z>0</Z>
+        </Vector3>
+      </Properties>
+      <Item class="SpecialMesh" referent="SERVER_21">
+        <Properties>
+          <string name="Name">Mesh</string>
+          <token name="LODX">2</token>
+          <token name="LODY">2</token>
+          <ContentId name="MeshId">
+            <null>
+            </null>
+          </ContentId>
+          <token name="MeshType">0</token>
+          <Vector3 name="Offset">
+            <X>0</X>
+            <Y>0</Y>
+            <Z>0</Z>
+          </Vector3>
+          <Vector3 name="Scale">
+            <X>1.25</X>
+            <Y>1.25</Y>
+            <Z>1.25</Z>
+          </Vector3>
+          <ContentId name="TextureId">
+            <null>
+            </null>
+          </ContentId>
+          <Vector3 name="VertexColor">
+            <X>1</X>
+            <Y>1</Y>
+            <Z>1</Z>
+          </Vector3>
+        </Properties>
+      </Item>
+      <Item class="Decal" referent="SERVER_22">
+        <Properties>
+          <string name="Name">face</string>
+          <token name="Face">5</token>
+          <Content name="TextureContent">
+            <uri>rbxasset://textures/face.png</uri>
+          </Content>
+          <float name="Transparency">0</float>
+        </Properties>
+      </Item>
+    </Item>
+  </Item>
 </Item>
   <Item class="SoundService" referent="12">
     <Properties>

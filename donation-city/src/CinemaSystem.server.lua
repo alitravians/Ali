@@ -1317,13 +1317,14 @@ end
 local floorPart = get("Floor")
 local groundY = floorPart and (floorPart.Position.Y + floorPart.Size.Y / 2) or 0
 
--- مرشد السينما: نستنسخ موديل الشخصية الجاهز (Black Mesa Scientist) من قالب
+-- شخصيات السينما الجاهزة (المرشد + الخادم): نستنسخ موديل شخصية جاهز من قالب
 -- مخفي في ServerScriptService، ونضيف سلوكنا الخاص (وسم + زر تفاعل + حركة وقوف)
 -- خارج الموديل — لا نضيف أي سكربتات أو منطق لعبة بداخله (نضبط فقط خصائص عرض:
 -- تثبيت القطع، صحة الـ Humanoid، والحجم) فيبقى تصميمه الأصلي كما هو.
-local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط عند المدخل
-local function buildGuideModel(opts)
-	local template = ServerScriptService:FindFirstChild("CinemaGuideModel")
+-- نفس الدالة تخدم المرشد والخادم؛ القالب والحجم يُمرّران عبر opts.
+local GUIDE_SCALE = 1.12   -- حجم معتدل: قريب من حجم اللاعب مع حضور بسيط
+local function buildCharacterModel(opts)
+	local template = ServerScriptService:FindFirstChild(opts.template or "CinemaGuideModel")
 	if not template then return nil end
 
 	local model = template:Clone()
@@ -1350,7 +1351,7 @@ local function buildGuideModel(opts)
 
 	-- نضبط الحجم والمكان قبل الإضافة للعالم حتى لا تظهر ومضة عند مكان القالب الأصلي
 	-- حجم معتدل (يُحسب التموضع بعده)
-	pcall(function() model:ScaleTo(GUIDE_SCALE) end)
+	pcall(function() model:ScaleTo(opts.modelScale or GUIDE_SCALE) end)
 
 	-- وقوفه أمام المدخل مواجهاً القادمين (نفس اتجاه المرشد السابق)
 	model:PivotTo(opts.footCFrame)
@@ -1532,7 +1533,8 @@ pcall(function()
 		promptText = "تحدّث", promptObj = "مرشد السينما", onTrigger = guideTalk,
 	}
 	-- المرشد الجديد من الموديل الجاهز؛ وإن غاب القالب نرجع للمرشد المبني برمجياً كاحتياط
-	if not buildGuideModel(guideOpts) then
+	guideOpts.template = "CinemaGuideModel"
+	if not buildCharacterModel(guideOpts) then
 		guideOpts.uniform = Color3.fromRGB(70, 60, 150); guideOpts.scale = 1.5; guideOpts.wave = true
 		buildNPC(guideOpts)
 	end
@@ -1542,11 +1544,20 @@ pcall(function()
 		Vector3.new(popPos.X + 4, groundY, popPos.Z - 2),
 		Vector3.new(popPos.X + 4, groundY, popPos.Z - 25)
 	)
-	buildNPC({
-		name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
-		footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
-		tray = true, onTrigger = waiterServe,
-	})
+	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
+	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
+	local waiterOpts = {
+		name = "CinemaWaiter", tag = "🍿 خادم السينما", tagColor = Color3.fromRGB(255, 205, 90),
+		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
+		promptText = "اطلب طلبك", promptObj = "خادم السينما", onTrigger = waiterServe,
+	}
+	if not buildCharacterModel(waiterOpts) then
+		buildNPC({
+			name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
+			footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
+			tray = true, onTrigger = waiterServe,
+		})
+	end
 end)
 
 ------------------------------------------------------------------------
