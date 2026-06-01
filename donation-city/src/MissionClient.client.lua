@@ -91,7 +91,7 @@ local header = new("TextLabel", {
 local closeBtn = new("TextButton", {
 	Parent = panel, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10),
 	Size = UDim2.new(0, 34, 0, 34), BackgroundColor3 = Color3.fromRGB(200, 70, 70),
-	Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = WHITE,
+	Text = "×", Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = WHITE,
 }, { corner(8) })
 
 local timerLbl = new("TextLabel", {
@@ -149,14 +149,14 @@ local function makeRow(order, m)
 	end
 	new("TextLabel", {
 		Parent = barBg, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0),
-		Text = m.done and "✔ مكتملة" or progTxt, Font = Enum.Font.GothamBold,
+		Text = m.done and "✓ مكتملة" or progTxt, Font = Enum.Font.GothamBold,
 		TextSize = 12, TextColor3 = WHITE,
 	})
 
 	new("TextLabel", {
 		Parent = row, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 34),
 		Size = UDim2.new(0, 96, 0, 16), BackgroundTransparency = 1,
-		Text = m.done and "✅ +" .. m.coins or ("🪙 +" .. m.coins), Font = Enum.Font.GothamBold,
+		Text = m.done and "✅ +" .. m.coins or ("💰 +" .. m.coins), Font = Enum.Font.GothamBold,
 		TextSize = 14, TextColor3 = m.done and GREEN or GOLD,
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})

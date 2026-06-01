@@ -226,7 +226,8 @@ local function styledButton(parent, props, enabled: boolean)
 end
 
 local showSeatMenu   -- forward declaration
-local showStore      -- forward declaration (المتجر — لوحة جانبية يسار الشاشة)
+local showStore      -- forward declaration (المتجر — نافذة وسط الشاشة)
+local onStoreSpeedSet -- forward declaration (تحديث شريط سرعة المشي في المتجر بعد تأكيد السيرفر)
 local showAdminPanel -- forward declaration (لوحة الإدارة)
 local showAnnounce   -- forward declaration (إعلان عام على الشاشة)
 local showMaintenance -- forward declaration (شاشة الصيانة)
@@ -780,6 +781,8 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 		playEventFx(data)
 	elseif data.action == "perks" then
 		if applyPerks then applyPerks(data) end
+	elseif data.action == "speedSet" then
+		if onStoreSpeedSet then onStoreSpeedSet(data.speed) end
 	elseif data.action == "teamData" then
 		if onTeamData then onTeamData(data) end
 	end
@@ -999,145 +1002,414 @@ do
 end
 
 ------------------------------------------------------------------------
--- المتجر — زر ثابت على يسار الشاشة + لوحة جانبية احترافية
+-- 🛒 المتجر — نافذة احترافية وسط الشاشة («فاترينة»): شريط تصنيفات جانبي
+-- + بانر عرض كبير (Hero) للمنتج المميّز + شبكة بطاقات المنتجات.
+-- باقة «سرعة البرق» المملوكة تعرض شريط تمرير للتحكم بسرعة المشي (يثبّته السيرفر).
 ------------------------------------------------------------------------
 do
-	local PANEL_W = 350
-	local storeRoot      -- اللوحة المفتوحة حالياً
+	local PW, PH = 800, 540          -- مقاس النافذة (يصغّره UIScale تلقائياً على الجوال)
+	local storeRoot                  -- الخلفية+النافذة المفتوحة حالياً
 	local storeOpen = false
+	local storeData                  -- آخر بيانات وردت من السيرفر
+	local activeCat = "all"          -- التصنيف المختار حالياً
+	local speedUpdateUI              -- دالة مزامنة شريط السرعة مع قيمة السيرفر (إن عُرض)
+	local uisConns = {}              -- اتصالات UserInputService للسلايدر (تُفصل عند الإغلاق)
 
-	local function closeStore()
-		if not storeRoot then return end
+	local CATS = {
+		{ key = "all",   label = "الكل" },
+		{ key = "packs", label = "الباقات" },
+		{ key = "coins", label = "حزم كوينز" },
+		{ key = "speed", label = "السرعة" },
+	}
+
+	local function clearConns()
+		for _, c in ipairs(uisConns) do pcall(function() c:Disconnect() end) end
+		uisConns = {}
+	end
+
+	local function destroyStore(animated)
+		speedUpdateUI = nil
+		clearConns()
 		local r = storeRoot
 		storeRoot = nil
 		storeOpen = false
-		local tw = TweenService:Create(r, TweenInfo.new(0.22, Enum.EasingStyle.Quad),
-			{ Position = UDim2.new(0, -PANEL_W - 30, 0.5, 0) })
-		tw:Play()
-		tw.Completed:Once(function() if r and r.Parent then r:Destroy() end end)
+		if not r then return end
+		if not animated then if r.Parent then r:Destroy() end return end
+		TweenService:Create(r, TweenInfo.new(0.18), { BackgroundTransparency = 1 }):Play()
+		for _, d in ipairs(r:GetDescendants()) do
+			if d:IsA("GuiObject") then
+				TweenService:Create(d, TweenInfo.new(0.16), { BackgroundTransparency = 1 }):Play()
+				if d:IsA("TextLabel") or d:IsA("TextButton") then
+					TweenService:Create(d, TweenInfo.new(0.16), { TextTransparency = 1 }):Play()
+				end
+			end
+		end
+		task.delay(0.2, function() if r and r.Parent then r:Destroy() end end)
 	end
+	local function closeStore() destroyStore(true) end
 
-	-- بطاقة عنصر واحد داخل المتجر
-	local function buildItem(parent, item)
-		local card = new("Frame", {
-			Name = "Item", BackgroundColor3 = CARD2, Size = UDim2.new(1, -8, 0, 132),
-			Parent = parent,
+	-- أيقونة العنصر (صورة Roblox أو رمز احتياطي) داخل قرص أنيق
+	local function buildIcon(parent, item, size, anchor, pos)
+		local rad = math.floor(size * 0.22)
+		local holder = new("Frame", {
+			BackgroundColor3 = CARD, BorderSizePixel = 0, Size = UDim2.fromOffset(size, size),
+			AnchorPoint = anchor, Position = pos, Parent = parent,
 		}, {
-			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
-			new("UIStroke", { Color = item.kind == "gamepass" and GOLD or PURPLE, Thickness = 1.5, Transparency = 0.4 }),
+			new("UICorner", { CornerRadius = UDim.new(0, rad) }),
+			new("UIStroke", { Color = GOLD, Thickness = 1.4, Transparency = 0.4 }),
+			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
-
-		-- أيقونة (تُجلب من Roblox) أو رمز احتياطي
 		if item.icon and item.icon ~= 0 then
 			new("ImageLabel", {
-				BackgroundColor3 = CARD, Image = "rbxassetid://" .. tostring(item.icon),
-				Size = UDim2.fromOffset(66, 66), AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -12, 0, 12), Parent = card,
-			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }) })
+				BackgroundTransparency = 1, Image = "rbxassetid://" .. tostring(item.icon),
+				Size = UDim2.fromScale(1, 1), Parent = holder,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, rad) }) })
 		else
 			new("TextLabel", {
-				BackgroundColor3 = CARD, Text = item.emoji or "🛒", Font = Enum.Font.GothamBlack, TextSize = 34,
-				TextColor3 = TEXT, Size = UDim2.fromOffset(66, 66), AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -12, 0, 12), Parent = card,
-			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }) })
+				BackgroundTransparency = 1, Text = item.emoji or "🛒", Font = Enum.Font.GothamBlack,
+				TextScaled = true, TextColor3 = TEXT, AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.6, 0.6), Parent = holder,
+			})
 		end
+		return holder
+	end
+
+	-- إطلاق عملية الشراء (Game Pass أو منتج) + حالة انتظار مؤقتة على الزر
+	local function fireBuy(item, btn, label)
+		btn.Text = "⏳ جاري فتح نافذة الشراء..."
+		task.delay(2, function() if btn and btn.Parent then btn.Text = label end end)
+		if item.kind == "gamepass" then
+			lobbyRemote:FireServer({ action = "buyGamePass", passId = item.id })
+		else
+			lobbyRemote:FireServer({ action = "buyProduct", productId = item.id })
+		end
+	end
+
+	-- شريط تمرير سرعة المشي (يظهر فقط لمالك «سرعة البرق») — السيرفر هو من يثبّت القيمة
+	local function buildSpeedSlider(parent, posY, data)
+		local minV = tonumber(data.speedMin) or 16
+		local maxV = tonumber(data.speedMax) or 32
+		local curV = math.clamp(tonumber(data.speedValue) or minV, minV, maxV)
+
+		local box = new("Frame", {
+			BackgroundColor3 = CARD, BorderSizePixel = 0,
+			Size = UDim2.new(1, -32, 0, 74), Position = UDim2.fromOffset(16, posY), Parent = parent,
+		}, {
+			new("UICorner", { CornerRadius = UDim.new(0, 12) }),
+			new("UIStroke", { Color = GOLD, Thickness = 1.2, Transparency = 0.5 }),
+		})
+		local valLbl = new("TextLabel", {
+			BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = GOLD,
+			TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(1, -24, 0, 24),
+			Position = UDim2.fromOffset(12, 8), Parent = box,
+		})
+		local track = new("Frame", {
+			Active = true, BackgroundColor3 = Color3.fromRGB(44, 38, 64), BorderSizePixel = 0,
+			Size = UDim2.new(1, -28, 0, 10), Position = UDim2.fromOffset(14, 48), Parent = box,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+		local fill = new("Frame", {
+			BackgroundColor3 = GOLD, BorderSizePixel = 0, Size = UDim2.fromScale(0, 1), Parent = track,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+		local knob = new("TextButton", {
+			Text = "", AutoButtonColor = false, BackgroundColor3 = TEXT, ZIndex = 3,
+			Size = UDim2.fromOffset(22, 22), AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0, 0, 0.5, 0), Parent = track,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }), new("UIStroke", { Color = GOLD, Thickness = 2 }) })
+
+		local function paint(v)
+			v = math.clamp(math.floor(v + 0.5), minV, maxV)
+			curV = v
+			-- نحفظ القيمة في بيانات المتجر حتى لا يرجع الشريط لقيمة قديمة عند تبديل التصنيف وإعادة بنائه
+			if data then data.speedValue = v end
+			local pct = (v - minV) / math.max(maxV - minV, 1)
+			fill.Size = UDim2.fromScale(pct, 1)
+			knob.Position = UDim2.new(pct, 0, 0.5, 0)
+			valLbl.Text = "🏃 سرعتك: " .. toAr(v) .. " / " .. toAr(maxV)
+		end
+		paint(curV)
+		speedUpdateUI = paint   -- ليُحدّثها تأكيد السيرفر (speedSet)
+
+		local dragging = false
+		local function valueFromX(x)
+			local absX = track.AbsolutePosition.X
+			local absW = math.max(track.AbsoluteSize.X, 1)
+			local sx = math.clamp((x - absX) / absW, 0, 1)
+			return minV + sx * (maxV - minV)
+		end
+		local function startDrag(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				paint(valueFromX(input.Position.X))
+			end
+		end
+		knob.InputBegan:Connect(startDrag)
+		track.InputBegan:Connect(startDrag)
+		table.insert(uisConns, UserInputService.InputChanged:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch) then
+				paint(valueFromX(input.Position.X))
+			end
+		end))
+		table.insert(uisConns, UserInputService.InputEnded:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch) then
+				dragging = false
+				lobbyRemote:FireServer({ action = "setSpeed", speed = curV })  -- السيرفر يحصر القيمة ويطبّقها
+			end
+		end))
+		return box
+	end
+
+	-- بانر العرض الكبير (Hero) للمنتج المميّز (سرعة البرق)
+	local function buildHero(parent, item, order)
+		local ownedSpeed = item.owned and item.cat == "speed"
+		local hero = new("Frame", {
+			Name = "Hero", BackgroundColor3 = CARD2, BorderSizePixel = 0, LayoutOrder = order or 1,
+			Size = UDim2.new(1, 0, 0, ownedSpeed and 252 or 196), Parent = parent,
+		}, {
+			new("UICorner", { CornerRadius = UDim.new(0, 18) }),
+			new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.25 }),
+			new("UIGradient", { Rotation = 30, Color = ColorSequence.new(Color3.fromRGB(60, 42, 100), CARD) }),
+		})
 
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 18,
-			TextColor3 = TEXT, Size = UDim2.new(1, -92, 0, 28), Position = UDim2.fromOffset(12, 12),
-			TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, Parent = card,
+			BackgroundColor3 = GOLD, Text = "★ مميّز", Font = Enum.Font.GothamBlack, TextSize = 13,
+			TextColor3 = Color3.fromRGB(30, 22, 8), Size = UDim2.fromOffset(84, 26),
+			Position = UDim2.fromOffset(14, 14), Parent = hero,
+		}, { new("UICorner", { CornerRadius = UDim.new(0, 8) }) })
+
+		buildIcon(hero, item, 104, Vector2.new(1, 0), UDim2.new(1, -16, 0, 16))
+
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 28,
+			TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -144, 0, 36), Position = UDim2.fromOffset(16, 48), Parent = hero,
 		})
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = item.desc or "", Font = Enum.Font.GothamMedium, TextSize = 13,
-			TextColor3 = SUBT, Size = UDim2.new(1, -92, 0, 44), Position = UDim2.fromOffset(12, 42),
-			TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
-			TextWrapped = true, Parent = card,
+			BackgroundTransparency = 1, Text = item.desc or "", Font = Enum.Font.GothamMedium, TextSize = 15,
+			TextColor3 = SUBT, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true, Size = UDim2.new(1, -144, 0, 50), Position = UDim2.fromOffset(16, 88), Parent = hero,
 		})
 
 		if item.owned then
-			styledButton(card, {
-				Name = "Owned", Text = "✓ مملوك", Font = Enum.Font.GothamBlack, TextSize = 16,
-				TextColor3 = Color3.fromRGB(20, 28, 18), BackgroundColor3 = Color3.fromRGB(150, 235, 170),
-				Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 90), Parent = card,
-			}, false)
+			new("TextLabel", {
+				BackgroundColor3 = Color3.fromRGB(150, 235, 170), Text = "✓ مملوك", Font = Enum.Font.GothamBlack,
+				TextSize = 14, TextColor3 = Color3.fromRGB(20, 28, 18), Size = UDim2.fromOffset(104, 28),
+				AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 130), Parent = hero,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, 8) }) })
+			if ownedSpeed and storeData and storeData.speed ~= false then
+				buildSpeedSlider(hero, 168, storeData)
+			end
 		else
-			local buy = styledButton(card, {
-				Name = "Buy", Text = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$", Font = Enum.Font.GothamBlack,
-				TextSize = 16, TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
-				Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 90), Parent = card,
+			local label = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$"
+			local buy = styledButton(hero, {
+				Name = "Buy", Text = label, Font = Enum.Font.GothamBlack, TextSize = 18,
+				TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
+				Size = UDim2.new(1, -32, 0, 44), Position = UDim2.fromOffset(16, 142), Parent = hero,
 			})
 			buy.MouseButton1Click:Connect(function()
-				buy.Text = "⏳ جاري فتح نافذة الشراء..."
-				task.delay(2, function() if buy and buy.Parent then buy.Text = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$" end end)
-				if item.kind == "gamepass" then
-					lobbyRemote:FireServer({ action = "buyGamePass", passId = item.id })
-				else
-					lobbyRemote:FireServer({ action = "buyProduct", productId = item.id })
-				end
+				playSound(SOUNDS.Click, SOUND_VOLUME)
+				fireBuy(item, buy, label)
 			end)
 		end
+		return hero
+	end
+
+	-- بطاقة منتج صغيرة داخل الشبكة (مقاسها يحدّده UIGridLayout)
+	local function buildCard(parent, item)
+		local card = new("Frame", {
+			Name = "Item", BackgroundColor3 = CARD2, BorderSizePixel = 0, Parent = parent,
+		}, {
+			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
+			new("UIStroke", { Color = item.kind == "gamepass" and GOLD or PURPLE, Thickness = 1.4, Transparency = 0.45 }),
+		})
+		buildIcon(card, item, 54, Vector2.new(1, 0), UDim2.new(1, -10, 0, 10))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 17,
+			TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = UDim2.new(1, -76, 0, 26), Position = UDim2.fromOffset(10, 10), Parent = card,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = item.desc or "", Font = Enum.Font.GothamMedium, TextSize = 13,
+			TextColor3 = SUBT, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true, Size = UDim2.new(1, -20, 0, 46), Position = UDim2.fromOffset(10, 42), Parent = card,
+		})
+		if item.owned then
+			styledButton(card, {
+				Name = "Owned", Text = "✓ مملوك", Font = Enum.Font.GothamBlack, TextSize = 15,
+				TextColor3 = Color3.fromRGB(20, 28, 18), BackgroundColor3 = Color3.fromRGB(150, 235, 170),
+				Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
+			}, false)
+		else
+			local label = "🛒 " .. toAr(item.price or 0) .. " R$"
+			local buy = styledButton(card, {
+				Name = "Buy", Text = label, Font = Enum.Font.GothamBlack, TextSize = 15,
+				TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
+				Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
+			})
+			buy.MouseButton1Click:Connect(function()
+				playSound(SOUNDS.Click, SOUND_VOLUME)
+				fireBuy(item, buy, label)
+			end)
+		end
+		return card
 	end
 
 	showStore = function(data)
-		closeStore()
+		storeData = data
+		local keepCat = activeCat or "all"
+		if storeRoot then destroyStore(false) end
 		storeOpen = true
+
+		local backdrop = new("TextButton", {
+			Name = "StoreBackdrop", Text = "", AutoButtonColor = false, Modal = true,
+			BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1), Parent = gui,
+		})
+		storeRoot = backdrop
+		backdrop.MouseButton1Click:Connect(closeStore)
+		TweenService:Create(backdrop, TweenInfo.new(0.2), { BackgroundTransparency = 0.5 }):Play()
+
 		local panel = new("Frame", {
-			Name = "StorePanel", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, -PANEL_W - 30, 0.5, 0), Size = UDim2.new(0, PANEL_W, 0.88, 0), Parent = gui,
+			Name = "StorePanel", Active = true, BackgroundColor3 = CARD, BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(math.floor(PW * 0.92), math.floor(PH * 0.92)), Parent = backdrop,
 		}, {
-			new("UICorner", { CornerRadius = UDim.new(0, 20) }),
+			new("UICorner", { CornerRadius = UDim.new(0, 22) }),
 			new("UIStroke", { Color = PURPLE, Thickness = 2, Transparency = 0.2 }),
 			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
-		storeRoot = panel
+		TweenService:Create(panel, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Size = UDim2.fromOffset(PW, PH) }):Play()
 
-		-- رأس اللوحة
+		-- الرأس: العنوان + الرصيد + زر الإغلاق
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = "🛒 المتجر", Font = Enum.Font.GothamBlack, TextSize = 28,
-			TextColor3 = GOLD, Size = UDim2.new(1, -56, 0, 44), Position = UDim2.fromOffset(14, 12),
-			TextXAlignment = Enum.TextXAlignment.Right, Parent = panel,
+			BackgroundTransparency = 1, Text = "🛒 متجر مدينة التبرعات", Font = Enum.Font.GothamBlack,
+			TextSize = 24, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -130, 0, 32), Position = UDim2.fromOffset(64, 14), Parent = panel,
 		})
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = "💰 رصيدك: " .. toAr(data.coins or 0) .. " كوينز",
-			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = CYAN,
-			Size = UDim2.new(1, -28, 0, 22), Position = UDim2.fromOffset(14, 56),
-			TextXAlignment = Enum.TextXAlignment.Right, Parent = panel,
+			Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = CYAN, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -130, 0, 20), Position = UDim2.fromOffset(64, 46), Parent = panel,
 		})
-
-		-- زر إغلاق (×)
 		local close = styledButton(panel, {
-			Name = "X", Text = "X", Font = Enum.Font.GothamBlack, TextSize = 18, TextColor3 = TEXT,
+			-- نستخدم «×» (U+00D7) بدل «✕» (U+2715) لأن الأخير لا يتوفّر في خط روبلوكس فيظهر مربّعاً فارغاً
+			Name = "X", Text = "×", Font = Enum.Font.GothamBlack, TextSize = 26, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(48, 40, 64), Size = UDim2.fromOffset(38, 38),
-			Position = UDim2.fromOffset(12, 14), Parent = panel,
+			Position = UDim2.fromOffset(14, 14), Parent = panel,
 		})
 		close.MouseButton1Click:Connect(closeStore)
 
-		-- قائمة العناصر
-		local scroll = new("ScrollingFrame", {
-			BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -16, 1, -94),
-			Position = UDim2.fromOffset(8, 86), CanvasSize = UDim2.new(),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6, ScrollBarImageColor3 = PURPLE,
-			Parent = panel,
+		-- شريط التصنيفات العمودي (يمين النافذة)
+		local rail = new("Frame", {
+			Name = "Rail", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -14, 0, 78), Size = UDim2.new(0, 150, 1, -92), Parent = panel,
 		}, {
-			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder,
-				HorizontalAlignment = Enum.HorizontalAlignment.Center }),
-			new("UIPadding", { PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 8) }),
+			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
 		})
 
-		for _, item in ipairs(data.items or {}) do
-			buildItem(scroll, item)
+		-- منطقة المحتوى (يسار شريط التصنيفات)
+		local content = new("ScrollingFrame", {
+			Name = "Content", BackgroundTransparency = 1, BorderSizePixel = 0,
+			Position = UDim2.fromOffset(14, 78), Size = UDim2.new(1, -192, 1, -92),
+			CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 6, ScrollBarImageColor3 = PURPLE, Parent = panel,
+		}, {
+			new("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }),
+			new("UIPadding", { PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 8) }),
+		})
+
+		local function renderContent()
+			speedUpdateUI = nil
+			clearConns()
+			for _, ch in ipairs(content:GetChildren()) do
+				if not ch:IsA("UIListLayout") and not ch:IsA("UIPadding") then ch:Destroy() end
+			end
+			local featured
+			for _, it in ipairs(storeData.items or {}) do
+				if it.featured then featured = it; break end
+			end
+			if (activeCat == "all" or activeCat == "speed") and featured then
+				buildHero(content, featured, 1)
+			end
+			if activeCat == "speed" then return end
+
+			local grid = new("Frame", {
+				Name = "Grid", BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y,
+				Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 2, Parent = content,
+			}, {
+				new("UIGridLayout", {
+					CellSize = UDim2.fromOffset(280, 150), CellPadding = UDim2.fromOffset(12, 12),
+					HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+			})
+			local any = false
+			for _, it in ipairs(storeData.items or {}) do
+				local show = false
+				if activeCat == "all" then show = not it.featured
+				elseif activeCat == "packs" then show = (it.cat == "packs")
+				elseif activeCat == "coins" then show = (it.cat == "coins") end
+				if show then buildCard(grid, it); any = true end
+			end
+			if not any then grid:Destroy() end
 		end
 
-		TweenService:Create(panel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Position = UDim2.new(0, 12, 0.5, 0) }):Play()
+		local catBtns = {}
+		local function setActive(key)
+			activeCat = key
+			for k, b in pairs(catBtns) do
+				local on = (k == key)
+				b.BackgroundColor3 = on and PURPLE or Color3.fromRGB(36, 30, 64)
+				b.TextColor3 = on and Color3.fromRGB(22, 14, 40) or TEXT
+			end
+			renderContent()
+		end
+		for i, c in ipairs(CATS) do
+			local b = new("TextButton", {
+				Name = "Cat_" .. c.key, Text = c.label, Font = Enum.Font.GothamBlack, TextSize = 16,
+				TextColor3 = TEXT, BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
+				Size = UDim2.new(1, 0, 0, 46), LayoutOrder = i, Parent = rail,
+			}, {
+				new("UICorner", { CornerRadius = UDim.new(0, 12) }),
+				new("UIStroke", { Color = PURPLE, Thickness = 1.2, Transparency = 0.5 }),
+			})
+			catBtns[c.key] = b
+			b.MouseEnter:Connect(function()
+				playSound(SOUNDS.Hover, SOUND_VOLUME)
+				if activeCat ~= c.key then
+					TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(56, 46, 92) }):Play()
+				end
+			end)
+			b.MouseLeave:Connect(function()
+				if activeCat ~= c.key then
+					TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(36, 30, 64) }):Play()
+				end
+			end)
+			b.MouseButton1Click:Connect(function()
+				playSound(SOUNDS.Click, SOUND_VOLUME)
+				setActive(c.key)
+			end)
+		end
+
+		setActive(keepCat)
 	end
 
-	-- الزر الثابت على يسار الشاشة
+	-- مزامنة شريط السرعة مع القيمة التي ثبّتها السيرفر
+	onStoreSpeedSet = function(v)
+		local n = tonumber(v)
+		if not n then return end
+		-- نُحدّث بيانات المتجر أيضاً لتبقى القيمة صحيحة حتى لو أُعيد بناء الشريط لاحقاً
+		if storeData then storeData.speedValue = n end
+		if speedUpdateUI then speedUpdateUI(n) end
+	end
+
+	-- الزر الثابت على يسار الشاشة لفتح/إغلاق المتجر
 	local tab = new("TextButton", {
 		Name = "StoreTab", Text = "🛒 المتجر", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT,
 		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-		LayoutOrder = 1, Size = UDim2.fromOffset(132, 46),
-		Parent = leftDock,
+		LayoutOrder = 1, Size = UDim2.fromOffset(132, 46), Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 		new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.2 }),
@@ -1254,7 +1526,9 @@ local function unfreezeChar(char)
 	if hrp then hrp.Anchored = false end
 	if hum then
 		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-		hum.WalkSpeed = 16
+		-- استعد السرعة الأساسية (سرعة باقة «البرق» إن مُلكت، وإلا 16) بدل رقم ثابت
+		local base = LocalPlayer:GetAttribute("BaseWalkSpeed")
+		hum.WalkSpeed = (type(base) == "number" and base > 0) and base or 16
 		hum.JumpPower = 50
 		pcall(function() hum.JumpHeight = 7.2 end)
 	end
@@ -1394,7 +1668,7 @@ showAdminPanel = function(data)
 	if myW >= RANK_W.admin then
 		table.insert(tabs, { key = "mods", label = "👮 المشرفون" })
 		table.insert(tabs, { key = "team", label = "👥 الفريق" })
-		table.insert(tabs, { key = "commands", label = "⌘ الأوامر" })
+		table.insert(tabs, { key = "commands", label = "📋 الأوامر" })
 		table.insert(tabs, { key = "show", label = "🎬 العرض" })
 		table.insert(tabs, { key = "settings", label = "⚙️ الإعدادات" })
 	end
@@ -2160,7 +2434,7 @@ showAdminPanel = function(data)
 
 	-- ===== ⌘ تبويب الأوامر: التحكم بمستوى صلاحية كل أمر =====
 	local function buildCommands()
-		sectionLabel("⌘ صلاحيات الأوامر — اختر مستوى كل أمر")
+		sectionLabel("📋 صلاحيات الأوامر — اختر مستوى كل أمر")
 		note("لكل أمر مستوى مطلوب: «الجميع» متاح للكل · «المشرفون» للمشرف فأعلى · «الأداريون» للأدمن فأعلى · «معطّل» يوقف الأمر. يُحفظ تلقائياً ويُطبّق فوراً على الجميع. (الأمران /help و /clear متاحان دائماً للجميع.)")
 
 		local LV_EVERYONE, LV_MOD, LV_ADMIN, LV_OFF = 0, 2, 3, 99

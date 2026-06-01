@@ -1370,7 +1370,12 @@ local function setFrozen(player: Player, on: boolean)
 	else
 		frozen[player.UserId] = nil
 		local root, hum = rootOf(player), humanoidOf(player)
-		if hum then hum.WalkSpeed = 16; hum.JumpPower = 50; hum.JumpHeight = 7.2 end
+		if hum then
+			-- استعد السرعة الأساسية (سرعة باقة «البرق» إن مُلكت، وإلا 16) لا رقماً ثابتاً
+			local base = player:GetAttribute("BaseWalkSpeed")
+			hum.WalkSpeed = (type(base) == "number" and base > 0) and base or 16
+			hum.JumpPower = 50; hum.JumpHeight = 7.2
+		end
 		if root then root.Anchored = false end
 	end
 end
@@ -1394,10 +1399,10 @@ local CMD_EVERYONE, CMD_MOD, CMD_ADMIN, CMD_OFF = 0, 2, 3, 99
 -- (help و clear متاحان دائماً للجميع وغير مدرجين هنا فلا يمكن تعطيلهما.)
 local CMD_DEFS = {
 	-- 🟢 ترفيهية/عامة
-	{ key = "me",       label = "✦ /me — تعبير عن فعل",      def = CMD_EVERYONE },
+	{ key = "me",       label = "🎭 /me — تعبير عن فعل",      def = CMD_EVERYONE },
 	{ key = "roll",     label = "🎲 /roll — رمي نرد",          def = CMD_EVERYONE },
-	{ key = "flip",     label = "🪙 /flip — قذف عملة",         def = CMD_EVERYONE },
-	{ key = "coins",    label = "🪙 /coins — رصيدك",           def = CMD_EVERYONE },
+	{ key = "flip",     label = "💰 /flip — قذف عملة",         def = CMD_EVERYONE },
+	{ key = "coins",    label = "💰 /coins — رصيدك",           def = CMD_EVERYONE },
 	{ key = "tickets",  label = "🎟️ /tickets — تذاكرك",       def = CMD_EVERYONE },
 	{ key = "online",   label = "👥 /online — عدد المتصلين",   def = CMD_EVERYONE },
 	{ key = "spawn",    label = "🔄 /spawn — العودة للانطلاق", def = CMD_EVERYONE },
@@ -1410,7 +1415,7 @@ local CMD_DEFS = {
 	{ key = "kick",     label = "👢 /kick — طرد لاعب",         def = CMD_ADMIN },
 	{ key = "bring",    label = "🧲 /bring · /pull — سحب لاعب", def = CMD_ADMIN },
 	{ key = "to",       label = "🏃 /to — الانتقال للاعب",     def = CMD_ADMIN },
-	{ key = "freeze",   label = "🧊 /freeze — تجميد لاعب",     def = CMD_ADMIN },
+	{ key = "freeze",   label = "❄️ /freeze — تجميد لاعب",     def = CMD_ADMIN },
 	{ key = "unfreeze", label = "🌤️ /unfreeze — فك التجميد",   def = CMD_ADMIN },
 	{ key = "fly",      label = "🕊️ /fly — طيران",            def = CMD_ADMIN },
 	{ key = "give",     label = "🎁 /give — منح عملات",        def = CMD_ADMIN },
@@ -1569,7 +1574,7 @@ local function handleCommand(sender: Player, raw: string)
 		tellSender(sender, "👥 عدد المتصلين الآن: " .. #Players:GetPlayers())
 	elseif cmd == "coins" or cmd == "رصيد" then
 		local c = (_G.GetCoins and _G.GetCoins(sender)) or 0
-		tellSender(sender, "🪙 رصيدك: " .. tostring(c) .. " عملة")
+		tellSender(sender, "💰 رصيدك: " .. tostring(c) .. " عملة")
 	elseif cmd == "tickets" or cmd == "تذاكر" then
 		local t = (_G.GetTickets and _G.GetTickets(sender)) or 0
 		tellSender(sender, "🎟️ تذاكرك: " .. tostring(t))
@@ -1589,7 +1594,7 @@ local function handleCommand(sender: Player, raw: string)
 		end
 	elseif cmd == "flip" or cmd == "عملة" then
 		local r = (math.random(2) == 1) and "صورة 👑" or "كتابة ✍️"
-		broadcastSystem("🪙 " .. senderName .. " قذف العملة: " .. r)
+		broadcastSystem("💰 " .. senderName .. " قذف العملة: " .. r)
 	elseif cmd == "roll" or cmd == "نرد" then
 		local maxN = math.clamp(math.floor(tonumber(rest) or 100), 2, 1000000)
 		broadcastSystem("🎲 " .. senderName .. " رمى النرد (1–" .. maxN .. "): " .. math.random(1, maxN))
@@ -1598,7 +1603,7 @@ local function handleCommand(sender: Player, raw: string)
 		if act == "" then tellSender(sender, "✍️ الاستخدام: /me <فعل> — مثال: /me يرقص"); return end
 		local f = safeFilter(act, sender.UserId)
 		if not f or f == "" then tellSender(sender, "⚠️ تعذّرت فلترة رسالتك."); return end
-		broadcastSystem("💬 ✦ " .. senderName .. " " .. f)
+		broadcastSystem("🎭 " .. senderName .. " " .. f)
 
 	-- ============ أوامر المشرفين (Mod فأعلى) ============
 	elseif cmd == "announce" or cmd == "اعلان" or cmd == "إعلان" then
@@ -1650,8 +1655,8 @@ local function handleCommand(sender: Player, raw: string)
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
 		if weightOf(target) >= w and target ~= sender then tellSender(sender, "🚫 لا يمكنك تجميد من رتبته مثلك أو أعلى."); return end
 		setFrozen(target, true)
-		tellSender(sender, "🧊 تم تجميد " .. target.DisplayName .. ".")
-		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🧊 تم تجميدك مؤقتاً من الإدارة.") end
+		tellSender(sender, "❄️ تم تجميد " .. target.DisplayName .. ".")
+		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "❄️ تم تجميدك مؤقتاً من الإدارة.") end
 	elseif cmd == "unfreeze" or cmd == "فك_تجميد" or cmd == "تذويب" then
 		local target = findPlayer(rest:match("^(%S+)"))
 		if not target then tellSender(sender, "❓ ما لقيت لاعباً بهذا الاسم."); return end
@@ -1669,7 +1674,7 @@ local function handleCommand(sender: Player, raw: string)
 		if not amt or amt == 0 then tellSender(sender, "✍️ الاستخدام: /give <لاعب> <عدد العملات>"); return end
 		amt = math.clamp(math.floor(amt), -1000000, 1000000)
 		if _G.AddCoins then _G.AddCoins(target, amt) end
-		tellSender(sender, "🪙 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
+		tellSender(sender, "💰 منحت " .. target.DisplayName .. " " .. tostring(amt) .. " عملة.")
 		if target ~= sender and _G.NotifyPlayer then _G.NotifyPlayer(target, "🎁 استلمت " .. tostring(amt) .. " عملة من الإدارة!") end
 	elseif cmd == "speed" or cmd == "سرعة" then
 		local nStr, who = rest:match("^(%S+)%s*(.*)$")
@@ -1677,7 +1682,13 @@ local function handleCommand(sender: Player, raw: string)
 		if not n then tellSender(sender, "✍️ الاستخدام: /speed <رقم> [لاعب]"); return end
 		local target = (who ~= "" and findPlayer(who)) or sender
 		local h = humanoidOf(target)
-		if h then h.WalkSpeed = math.clamp(n, 0, 300); tellSender(sender, "🏃 سرعة " .. target.DisplayName .. " = " .. math.clamp(n, 0, 300)) else tellSender(sender, "❓ اللاعب غير ظاهر.") end
+		if h then
+			local sp = math.clamp(n, 0, 300)
+			-- نضبط السِمة أيضاً كي يبني عليها نظام الجري بدل أن يعيد السرعة لقيمته القديمة
+			target:SetAttribute("BaseWalkSpeed", sp)
+			h.WalkSpeed = sp
+			tellSender(sender, "🏃 سرعة " .. target.DisplayName .. " = " .. sp)
+		else tellSender(sender, "❓ اللاعب غير ظاهر.") end
 	elseif cmd == "heal" or cmd == "شفاء" then
 		local target = (rest ~= "" and findPlayer(rest:match("^(%S+)"))) or sender
 		local h = humanoidOf(target)
@@ -5014,6 +5025,11 @@ local CONFIG = {
 	ShowrunnerGamePassId = 1860580500, -- 🎬 مالك العرض — 199 R$
 	NeonTrailGamePassId  = 1862887909, -- ✨ أثر نيون — 79 R$
 	AnnouncerGamePassId  = 1860172487, -- 📢 مايك الإعلان — 89 R$
+	SpeedGamePassId      = 1861667386, -- ⚡ سرعة البرق — 60 R$ (تحكّم بسرعة المشي)
+	-- حدود سرعة المشي لباقة «سرعة البرق» — السيرفر يثبّت القيمة دائماً (حماية من الغش)
+	SpeedMin      = 16,    -- السرعة الافتراضية في روبلوكس (الحد الأدنى)
+	SpeedMax      = 32,    -- أقصى سرعة مسموحة لحامل الباقة (زيادة واقعية لا «طيران»)
+	SpeedDefault  = 24,    -- سرعة البداية بعد الشراء
 	VipIncomeMult = 2,     -- مضاعف الدخل لأعضاء VIP
 	SaveEvery     = 60,    -- حفظ دوري (ثواني)
 	CurrencyName  = "كوينز",
@@ -5042,6 +5058,7 @@ local coinStore
 pcall(function() coinStore = DataStoreService:GetDataStore("CinemaCoins_v1") end)
 
 local applyAllPasses  -- forward declaration (فحص ومنح الباقات الدائمة عند الدخول)
+local applySpeed      -- forward declaration: تثبيت سرعة المشي لحامل باقة «سرعة البرق»
 local canUseAnnouncer -- forward declaration: من يحق له الإعلان (مشرف فأعلى / VIP / حامل الباقة)
 local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
@@ -5058,6 +5075,14 @@ local function loadVip(userId: number): boolean
 	if not coinStore then return false end
 	local ok, data = pcall(function() return coinStore:GetAsync("v_" .. userId) end)
 	return (ok and data == true) or false
+end
+
+-- تحميل سرعة المشي المحفوظة لحامل باقة «سرعة البرق» (افتراضي إن لم تُحفظ بعد)
+local function loadSpeed(userId: number): number
+	if not coinStore then return CONFIG.SpeedDefault end
+	local ok, data = pcall(function() return coinStore:GetAsync("spd_" .. userId) end)
+	if ok and type(data) == "number" then return data end
+	return CONFIG.SpeedDefault
 end
 
 -- حفظ مع إعادة المحاولة (3 محاولات) — يصمد أمام تذبذب الشبكة/خنق DataStore
@@ -5091,6 +5116,10 @@ local function saveCoins(userId: number)
 	local rated = s.rated == true
 	if s._saved.rated ~= rated then
 		if setAsyncRetry("rt_" .. userId, rated) then s._saved.rated = rated end
+	end
+	local spd = math.floor(tonumber(s.speed) or CONFIG.SpeedDefault)
+	if s._saved.speed ~= spd then
+		if setAsyncRetry("spd_" .. userId, spd) then s._saved.speed = spd end
 	end
 end
 
@@ -5211,9 +5240,10 @@ Players.PlayerAdded:Connect(function(player)
 		pcall(function() local d = coinStore:GetAsync("a_" .. player.UserId); if type(d) == "table" then ach = d end end)
 		pcall(function() rated = coinStore:GetAsync("rt_" .. player.UserId) == true end)
 	end
-	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {},
+	local speed = loadSpeed(player.UserId)
+	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {}, speed = speed,
 		-- بصمة آخر قيم محفوظة (تُهيّأ بالقيم المُحمّلة) كي لا نعيد كتابة ما لم يتغيّر
-		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true } }
+		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true, speed = math.floor(speed) } }
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
@@ -5396,6 +5426,8 @@ local PASS_DEFS = {
 	  msg = "✨ تم تفعيل «أثر نيون» — توهّج حصري سماوي↔وردي يتبع خطواتك!" },
 	{ key = "announcer",  id = CONFIG.AnnouncerGamePassId,  badge = "📢",
 	  msg = "📢 تم تفعيل «مايك الإعلان» — تقدر تبثّ إعلاناتك لكل اللاعبين." },
+	{ key = "speed",      id = CONFIG.SpeedGamePassId,      badge = "⚡",
+	  msg = "⚡ تم تفعيل «سرعة البرق» — تحكّم بسرعة مشيك من شريط التمرير داخل المتجر!" },
 }
 
 local function ownsPassKey(player: Player, key: string): boolean
@@ -5403,6 +5435,32 @@ local function ownsPassKey(player: Player, key: string): boolean
 	return (s and s.passes and s.passes[key]) == true
 end
 _G.OwnsCinemaPass = ownsPassKey
+
+-- ⚡ سرعة البرق: تثبيت سرعة المشي على السيرفر (حماية من الغش)
+-- القيمة دائماً محصورة بين SpeedMin و SpeedMax وتُطبّق فقط لمن يملك الباقة.
+local function clampSpeed(v: number?): number
+	local n = tonumber(v) or CONFIG.SpeedDefault
+	return math.clamp(math.floor(n), CONFIG.SpeedMin, CONFIG.SpeedMax)
+end
+
+applySpeed = function(player: Player)
+	local s = sessions[player.UserId]
+	if not s then return end
+	local owns = s.passes ~= nil and s.passes.speed == true
+	-- السرعة الأساسية: المالك = اختياره (محصور)، غير المالك = الحد الأدنى (16)
+	local base = owns and clampSpeed(s.speed) or CONFIG.SpeedMin
+	-- نُعلن السرعة الأساسية كسِمة كي يبني عليها نظام الجري (SprintJump) بدل رقم ثابت
+	-- (السِمات التي يضبطها السيرفر تتزامن للعميل تلقائياً)
+	player:SetAttribute("BaseWalkSpeed", base)
+	local char = player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	-- نطبّق السرعة فقط للمالك؛ غير المالك يُترك لبقية الأنظمة (الجري/السينما) كما هو
+	if owns then
+		hum.WalkSpeed = base
+	end
+end
 
 -- ✨ أثر نيون يتبع اللاعب (Trail على الجذع)
 local function applyNeonTrail(player: Player)
@@ -5464,12 +5522,18 @@ sendPerks = function(player: Player)
 	-- 📢 الإعلان متاح لحاملي الباقة + كل مشرف فأعلى (يُحسب عبر canUseAnnouncer)
 	local mayAnnounce = ownsPassKey(player, "announcer")
 		or (canUseAnnouncer ~= nil and canUseAnnouncer(player))
+	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action     = "perks",
 		showrunner = ownsPassKey(player, "showrunner"),
 		announcer  = mayAnnounce,
 		buffet     = ownsPassKey(player, "buffet"),
 		neon       = ownsPassKey(player, "neon"),
+		-- ⚡ تحكّم السرعة: العميل يعرف هل يملك الباقة + القيمة الحالية والحدود
+		speed      = ownsPassKey(player, "speed"),
+		speedValue = clampSpeed(s and s.speed),
+		speedMin   = CONFIG.SpeedMin,
+		speedMax   = CONFIG.SpeedMax,
 	})
 end
 
@@ -5481,6 +5545,11 @@ local function grantPass(player: Player, key: string, announce: boolean?)
 	if s.passes[key] then return end
 	s.passes[key] = true
 	if key == "neon" then applyNeonTrail(player) end
+	if key == "speed" then
+		-- أول مرة: ابدأ بالسرعة الافتراضية إن لم تكن محفوظة، ثم طبّق
+		if not tonumber(s.speed) then s.speed = CONFIG.SpeedDefault end
+		applySpeed(player)
+	end
 	refreshBadge(player)
 	if _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
 	for _, d in ipairs(PASS_DEFS) do
@@ -5510,11 +5579,13 @@ applyAllPasses = function(player: Player)
 		end
 	end
 	sendPerks(player)
-	-- أعد تطبيق الأثر/الشارة عند كل ولادة للشخصية
+	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
+	-- أعد تطبيق الأثر/الشارة/السرعة عند كل ولادة للشخصية
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
 		if s.passes.neon then applyNeonTrail(player) end
 		refreshBadge(player)
+		applySpeed(player)
 	end)
 end
 
@@ -6085,6 +6156,20 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				MarketplaceService:PromptGamePassPurchase(player, pid)
 			end)
 		end
+
+	elseif payload.action == "setSpeed" then
+		-- ⚡ سرعة البرق: ضبط سرعة المشي — التحقق من الملكية + تثبيت القيمة على السيرفر
+		if not ownsPassKey(player, "speed") then
+			notify(player, "⚡ تحكّم السرعة متاح لحاملي باقة «سرعة البرق» فقط.")
+			return
+		end
+		local s = sessions[player.UserId]
+		if not s then return end
+		local v = clampSpeed(payload.speed)   -- السيرفر هو من يحصر القيمة (حماية من الغش)
+		s.speed = v
+		applySpeed(player)
+		-- اعكس القيمة المثبّتة للعميل ليضبط شريط التمرير على نفس القيمة الفعلية
+		lobbyRemote:FireClient(player, { action = "speedSet", speed = v })
 
 	elseif payload.action == "showrunnerPlay" then
 		-- 🎬 مالك العرض: بدء الفيلم بأي وقت
@@ -6760,16 +6845,19 @@ end
 -- تعرض كل المميزات القابلة للشراء بالـ Robux (Game Pass + Developer Products).
 -- تُجلب الأسعار والأيقونات تلقائياً من Roblox (GetProductInfo) مع قيم احتياطية.
 ------------------------------------------------------------------------
+-- cat: تصنيف العنصر في المتجر (speed=السرعة · packs=الباقات · coins=حزم كوينز) — يستخدمه العميل للفلترة
+-- featured: العنصر المميّز الذي يظهر في بانر العرض الكبير (Hero) بأعلى المتجر
 local STORE_ITEMS = {
-	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
-	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
-	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
-	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
-	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins250,    name = "💰 حزمة ٢٥٠ كوينز",   price = 25,  emoji = "💰", desc = "٢٥٠ كوينز تُضاف فوراً لرصيدك" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins600,    name = "💰 حزمة ٦٠٠ كوينز",   price = 50,  emoji = "💰", desc = "٦٠٠ كوينز — وفّر ٢٠٪" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins1500,   name = "💎 حزمة ١٥٠٠ كوينز",  price = 100, emoji = "💎", desc = "١٥٠٠ كوينز — أفضل قيمة" },
-	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", desc = "تذكرة سينما فورية بضغطة واحدة" },
+	{ kind = "gamepass", id = CONFIG.SpeedGamePassId,      name = "⚡ سرعة البرق",     price = 60,  emoji = "⚡", cat = "speed",  featured = true, desc = "تحكّم بسرعة مشيك وزِدها عبر شريط تمرير خاص داخل المتجر — مشتراة مرة وتبقى لك للأبد" },
+	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
+	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
+	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", cat = "packs", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
+	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", cat = "packs", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
+	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", cat = "packs", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins250,    name = "💰 حزمة ٢٥٠ كوينز",   price = 25,  emoji = "💰", cat = "coins", desc = "٢٥٠ كوينز تُضاف فوراً لرصيدك" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins600,    name = "💰 حزمة ٦٠٠ كوينز",   price = 50,  emoji = "💰", cat = "coins", desc = "٦٠٠ كوينز — وفّر ٢٠٪" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins1500,   name = "💎 حزمة ١٥٠٠ كوينز",  price = 100, emoji = "💎", cat = "coins", desc = "١٥٠٠ كوينز — أفضل قيمة" },
+	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", cat = "coins", desc = "تذكرة سينما فورية بضغطة واحدة" },
 }
 
 -- كاش معلومات المتجر: النجاح يُحفظ دائماً (المعلومات نادراً ما تتغيّر)،
@@ -6820,14 +6908,20 @@ local function openStore(player)
 			table.insert(items, {
 				kind = it.kind, id = it.id, name = it.name, emoji = it.emoji,
 				desc = it.desc, price = price, icon = icon, owned = owned,
+				cat = it.cat, featured = it.featured == true,
 			})
 		end
 	end
+	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action = "store",
 		items  = items,
 		coins  = _G.GetCoins(player),
 		vip    = _G.IsVIP(player),
+		-- ⚡ حالة باقة السرعة لعرض شريط التمرير في بطاقتها داخل المتجر
+		speedValue = clampSpeed(s and s.speed),
+		speedMin   = CONFIG.SpeedMin,
+		speedMax   = CONFIG.SpeedMax,
 	})
 end
 _G.OpenStore = openStore
@@ -9658,8 +9752,8 @@ local header = new("Frame", {
 })
 new("TextLabel", {
 	Name = "Title",
-	Size = UDim2.new(1, -44, 1, 0),
-	Position = UDim2.new(0, 12, 0, 0),
+	Size = UDim2.new(1, -88, 1, 0),
+	Position = UDim2.new(0, 44, 0, 0),
 	BackgroundTransparency = 1,
 	Font = Enum.Font.GothamBold,
 	Text = "💬 الدردشة",
@@ -10231,7 +10325,7 @@ local EMOJIS = {
 	"💨", "🔥", "⭐", "🌟", "✨", "⚡", "🌈", "☀️",
 	-- احتفال وأشياء
 	"🎉", "🎊", "🎈", "🎁", "🎀", "🏆", "🥇", "🥈",
-	"🥉", "👑", "💎", "💰", "🪙", "🎮", "🕹️", "🎲",
+	"🥉", "👑", "💎", "💰", "💵", "🎮", "🕹️", "🎲",
 	"🎬", "🍿", "🎤", "🎧", "🎵", "🎶", "📣", "🔔",
 	-- طعام وحيوانات
 	"🍕", "🍔", "🍟", "🌭", "🍩", "🍪", "🍰", "🧁",
@@ -10404,7 +10498,7 @@ new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.3, Parent = 
 new("UISizeConstraint", { MinSize = Vector2.new(300, 320), MaxSize = Vector2.new(520, 560), Parent = cmdPanel })
 
 new("TextLabel", {
-	Name = "Title", BackgroundTransparency = 1, Text = "⌘ لوحة الأوامر",
+	Name = "Title", BackgroundTransparency = 1, Text = "📋 لوحة الأوامر",
 	Font = Enum.Font.GothamBlack, TextSize = 20, TextColor3 = GOLD,
 	Size = UDim2.new(1, -56, 0, 40), Position = UDim2.fromOffset(14, 10),
 	TextXAlignment = Enum.TextXAlignment.Right, ZIndex = 22, Parent = cmdPanel,
@@ -10412,7 +10506,7 @@ new("TextLabel", {
 local cmdClose = new("TextButton", {
 	Name = "Close", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 12, 0, 30),
 	Size = UDim2.fromOffset(30, 30), BackgroundColor3 = Color3.fromRGB(48, 40, 64),
-	Font = Enum.Font.GothamBold, Text = "✕", TextColor3 = TEXT, TextSize = 16,
+	Font = Enum.Font.GothamBold, Text = "×", TextColor3 = TEXT, TextSize = 22,
 	AutoButtonColor = true, ZIndex = 22, Parent = cmdPanel,
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdClose })
@@ -10498,9 +10592,9 @@ cmdBackdrop.MouseButton1Click:Connect(closeCommands)
 
 -- زر ⌘ في رأس لوحة الدردشة يفتح لوحة الأوامر
 local cmdBtn = new("TextButton", {
-	Name = "CmdBtn", AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -42, 0.5, 0),
-	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.15,
-	Font = Enum.Font.GothamBold, Text = "⌘", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 17,
+	Name = "CmdBtn", AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 8, 0.5, 0),
+	Size = UDim2.fromOffset(28, 28), BackgroundColor3 = GOLD, BackgroundTransparency = 0.2,
+	Font = Enum.Font.GothamBold, Text = "📋", TextColor3 = Color3.fromRGB(20, 16, 8), TextSize = 15,
 	AutoButtonColor = true, Parent = header,
 })
 new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = cmdBtn })
@@ -10955,7 +11049,8 @@ local function styledButton(parent, props, enabled: boolean)
 end
 
 local showSeatMenu   -- forward declaration
-local showStore      -- forward declaration (المتجر — لوحة جانبية يسار الشاشة)
+local showStore      -- forward declaration (المتجر — نافذة وسط الشاشة)
+local onStoreSpeedSet -- forward declaration (تحديث شريط سرعة المشي في المتجر بعد تأكيد السيرفر)
 local showAdminPanel -- forward declaration (لوحة الإدارة)
 local showAnnounce   -- forward declaration (إعلان عام على الشاشة)
 local showMaintenance -- forward declaration (شاشة الصيانة)
@@ -11509,6 +11604,8 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 		playEventFx(data)
 	elseif data.action == "perks" then
 		if applyPerks then applyPerks(data) end
+	elseif data.action == "speedSet" then
+		if onStoreSpeedSet then onStoreSpeedSet(data.speed) end
 	elseif data.action == "teamData" then
 		if onTeamData then onTeamData(data) end
 	end
@@ -11728,145 +11825,414 @@ do
 end
 
 ------------------------------------------------------------------------
--- المتجر — زر ثابت على يسار الشاشة + لوحة جانبية احترافية
+-- 🛒 المتجر — نافذة احترافية وسط الشاشة («فاترينة»): شريط تصنيفات جانبي
+-- + بانر عرض كبير (Hero) للمنتج المميّز + شبكة بطاقات المنتجات.
+-- باقة «سرعة البرق» المملوكة تعرض شريط تمرير للتحكم بسرعة المشي (يثبّته السيرفر).
 ------------------------------------------------------------------------
 do
-	local PANEL_W = 350
-	local storeRoot      -- اللوحة المفتوحة حالياً
+	local PW, PH = 800, 540          -- مقاس النافذة (يصغّره UIScale تلقائياً على الجوال)
+	local storeRoot                  -- الخلفية+النافذة المفتوحة حالياً
 	local storeOpen = false
+	local storeData                  -- آخر بيانات وردت من السيرفر
+	local activeCat = "all"          -- التصنيف المختار حالياً
+	local speedUpdateUI              -- دالة مزامنة شريط السرعة مع قيمة السيرفر (إن عُرض)
+	local uisConns = {}              -- اتصالات UserInputService للسلايدر (تُفصل عند الإغلاق)
 
-	local function closeStore()
-		if not storeRoot then return end
+	local CATS = {
+		{ key = "all",   label = "الكل" },
+		{ key = "packs", label = "الباقات" },
+		{ key = "coins", label = "حزم كوينز" },
+		{ key = "speed", label = "السرعة" },
+	}
+
+	local function clearConns()
+		for _, c in ipairs(uisConns) do pcall(function() c:Disconnect() end) end
+		uisConns = {}
+	end
+
+	local function destroyStore(animated)
+		speedUpdateUI = nil
+		clearConns()
 		local r = storeRoot
 		storeRoot = nil
 		storeOpen = false
-		local tw = TweenService:Create(r, TweenInfo.new(0.22, Enum.EasingStyle.Quad),
-			{ Position = UDim2.new(0, -PANEL_W - 30, 0.5, 0) })
-		tw:Play()
-		tw.Completed:Once(function() if r and r.Parent then r:Destroy() end end)
+		if not r then return end
+		if not animated then if r.Parent then r:Destroy() end return end
+		TweenService:Create(r, TweenInfo.new(0.18), { BackgroundTransparency = 1 }):Play()
+		for _, d in ipairs(r:GetDescendants()) do
+			if d:IsA("GuiObject") then
+				TweenService:Create(d, TweenInfo.new(0.16), { BackgroundTransparency = 1 }):Play()
+				if d:IsA("TextLabel") or d:IsA("TextButton") then
+					TweenService:Create(d, TweenInfo.new(0.16), { TextTransparency = 1 }):Play()
+				end
+			end
+		end
+		task.delay(0.2, function() if r and r.Parent then r:Destroy() end end)
 	end
+	local function closeStore() destroyStore(true) end
 
-	-- بطاقة عنصر واحد داخل المتجر
-	local function buildItem(parent, item)
-		local card = new("Frame", {
-			Name = "Item", BackgroundColor3 = CARD2, Size = UDim2.new(1, -8, 0, 132),
-			Parent = parent,
+	-- أيقونة العنصر (صورة Roblox أو رمز احتياطي) داخل قرص أنيق
+	local function buildIcon(parent, item, size, anchor, pos)
+		local rad = math.floor(size * 0.22)
+		local holder = new("Frame", {
+			BackgroundColor3 = CARD, BorderSizePixel = 0, Size = UDim2.fromOffset(size, size),
+			AnchorPoint = anchor, Position = pos, Parent = parent,
 		}, {
-			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
-			new("UIStroke", { Color = item.kind == "gamepass" and GOLD or PURPLE, Thickness = 1.5, Transparency = 0.4 }),
+			new("UICorner", { CornerRadius = UDim.new(0, rad) }),
+			new("UIStroke", { Color = GOLD, Thickness = 1.4, Transparency = 0.4 }),
+			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
-
-		-- أيقونة (تُجلب من Roblox) أو رمز احتياطي
 		if item.icon and item.icon ~= 0 then
 			new("ImageLabel", {
-				BackgroundColor3 = CARD, Image = "rbxassetid://" .. tostring(item.icon),
-				Size = UDim2.fromOffset(66, 66), AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -12, 0, 12), Parent = card,
-			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }) })
+				BackgroundTransparency = 1, Image = "rbxassetid://" .. tostring(item.icon),
+				Size = UDim2.fromScale(1, 1), Parent = holder,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, rad) }) })
 		else
 			new("TextLabel", {
-				BackgroundColor3 = CARD, Text = item.emoji or "🛒", Font = Enum.Font.GothamBlack, TextSize = 34,
-				TextColor3 = TEXT, Size = UDim2.fromOffset(66, 66), AnchorPoint = Vector2.new(1, 0),
-				Position = UDim2.new(1, -12, 0, 12), Parent = card,
-			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }) })
+				BackgroundTransparency = 1, Text = item.emoji or "🛒", Font = Enum.Font.GothamBlack,
+				TextScaled = true, TextColor3 = TEXT, AnchorPoint = Vector2.new(0.5, 0.5),
+				Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.6, 0.6), Parent = holder,
+			})
 		end
+		return holder
+	end
+
+	-- إطلاق عملية الشراء (Game Pass أو منتج) + حالة انتظار مؤقتة على الزر
+	local function fireBuy(item, btn, label)
+		btn.Text = "⏳ جاري فتح نافذة الشراء..."
+		task.delay(2, function() if btn and btn.Parent then btn.Text = label end end)
+		if item.kind == "gamepass" then
+			lobbyRemote:FireServer({ action = "buyGamePass", passId = item.id })
+		else
+			lobbyRemote:FireServer({ action = "buyProduct", productId = item.id })
+		end
+	end
+
+	-- شريط تمرير سرعة المشي (يظهر فقط لمالك «سرعة البرق») — السيرفر هو من يثبّت القيمة
+	local function buildSpeedSlider(parent, posY, data)
+		local minV = tonumber(data.speedMin) or 16
+		local maxV = tonumber(data.speedMax) or 32
+		local curV = math.clamp(tonumber(data.speedValue) or minV, minV, maxV)
+
+		local box = new("Frame", {
+			BackgroundColor3 = CARD, BorderSizePixel = 0,
+			Size = UDim2.new(1, -32, 0, 74), Position = UDim2.fromOffset(16, posY), Parent = parent,
+		}, {
+			new("UICorner", { CornerRadius = UDim.new(0, 12) }),
+			new("UIStroke", { Color = GOLD, Thickness = 1.2, Transparency = 0.5 }),
+		})
+		local valLbl = new("TextLabel", {
+			BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = GOLD,
+			TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(1, -24, 0, 24),
+			Position = UDim2.fromOffset(12, 8), Parent = box,
+		})
+		local track = new("Frame", {
+			Active = true, BackgroundColor3 = Color3.fromRGB(44, 38, 64), BorderSizePixel = 0,
+			Size = UDim2.new(1, -28, 0, 10), Position = UDim2.fromOffset(14, 48), Parent = box,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+		local fill = new("Frame", {
+			BackgroundColor3 = GOLD, BorderSizePixel = 0, Size = UDim2.fromScale(0, 1), Parent = track,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }) })
+		local knob = new("TextButton", {
+			Text = "", AutoButtonColor = false, BackgroundColor3 = TEXT, ZIndex = 3,
+			Size = UDim2.fromOffset(22, 22), AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.new(0, 0, 0.5, 0), Parent = track,
+		}, { new("UICorner", { CornerRadius = UDim.new(1, 0) }), new("UIStroke", { Color = GOLD, Thickness = 2 }) })
+
+		local function paint(v)
+			v = math.clamp(math.floor(v + 0.5), minV, maxV)
+			curV = v
+			-- نحفظ القيمة في بيانات المتجر حتى لا يرجع الشريط لقيمة قديمة عند تبديل التصنيف وإعادة بنائه
+			if data then data.speedValue = v end
+			local pct = (v - minV) / math.max(maxV - minV, 1)
+			fill.Size = UDim2.fromScale(pct, 1)
+			knob.Position = UDim2.new(pct, 0, 0.5, 0)
+			valLbl.Text = "🏃 سرعتك: " .. toAr(v) .. " / " .. toAr(maxV)
+		end
+		paint(curV)
+		speedUpdateUI = paint   -- ليُحدّثها تأكيد السيرفر (speedSet)
+
+		local dragging = false
+		local function valueFromX(x)
+			local absX = track.AbsolutePosition.X
+			local absW = math.max(track.AbsoluteSize.X, 1)
+			local sx = math.clamp((x - absX) / absW, 0, 1)
+			return minV + sx * (maxV - minV)
+		end
+		local function startDrag(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch then
+				dragging = true
+				paint(valueFromX(input.Position.X))
+			end
+		end
+		knob.InputBegan:Connect(startDrag)
+		track.InputBegan:Connect(startDrag)
+		table.insert(uisConns, UserInputService.InputChanged:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch) then
+				paint(valueFromX(input.Position.X))
+			end
+		end))
+		table.insert(uisConns, UserInputService.InputEnded:Connect(function(input)
+			if dragging and (input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch) then
+				dragging = false
+				lobbyRemote:FireServer({ action = "setSpeed", speed = curV })  -- السيرفر يحصر القيمة ويطبّقها
+			end
+		end))
+		return box
+	end
+
+	-- بانر العرض الكبير (Hero) للمنتج المميّز (سرعة البرق)
+	local function buildHero(parent, item, order)
+		local ownedSpeed = item.owned and item.cat == "speed"
+		local hero = new("Frame", {
+			Name = "Hero", BackgroundColor3 = CARD2, BorderSizePixel = 0, LayoutOrder = order or 1,
+			Size = UDim2.new(1, 0, 0, ownedSpeed and 252 or 196), Parent = parent,
+		}, {
+			new("UICorner", { CornerRadius = UDim.new(0, 18) }),
+			new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.25 }),
+			new("UIGradient", { Rotation = 30, Color = ColorSequence.new(Color3.fromRGB(60, 42, 100), CARD) }),
+		})
 
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 18,
-			TextColor3 = TEXT, Size = UDim2.new(1, -92, 0, 28), Position = UDim2.fromOffset(12, 12),
-			TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd, Parent = card,
+			BackgroundColor3 = GOLD, Text = "★ مميّز", Font = Enum.Font.GothamBlack, TextSize = 13,
+			TextColor3 = Color3.fromRGB(30, 22, 8), Size = UDim2.fromOffset(84, 26),
+			Position = UDim2.fromOffset(14, 14), Parent = hero,
+		}, { new("UICorner", { CornerRadius = UDim.new(0, 8) }) })
+
+		buildIcon(hero, item, 104, Vector2.new(1, 0), UDim2.new(1, -16, 0, 16))
+
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 28,
+			TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -144, 0, 36), Position = UDim2.fromOffset(16, 48), Parent = hero,
 		})
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = item.desc or "", Font = Enum.Font.GothamMedium, TextSize = 13,
-			TextColor3 = SUBT, Size = UDim2.new(1, -92, 0, 44), Position = UDim2.fromOffset(12, 42),
-			TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
-			TextWrapped = true, Parent = card,
+			BackgroundTransparency = 1, Text = item.desc or "", Font = Enum.Font.GothamMedium, TextSize = 15,
+			TextColor3 = SUBT, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true, Size = UDim2.new(1, -144, 0, 50), Position = UDim2.fromOffset(16, 88), Parent = hero,
 		})
 
 		if item.owned then
-			styledButton(card, {
-				Name = "Owned", Text = "✓ مملوك", Font = Enum.Font.GothamBlack, TextSize = 16,
-				TextColor3 = Color3.fromRGB(20, 28, 18), BackgroundColor3 = Color3.fromRGB(150, 235, 170),
-				Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 90), Parent = card,
-			}, false)
+			new("TextLabel", {
+				BackgroundColor3 = Color3.fromRGB(150, 235, 170), Text = "✓ مملوك", Font = Enum.Font.GothamBlack,
+				TextSize = 14, TextColor3 = Color3.fromRGB(20, 28, 18), Size = UDim2.fromOffset(104, 28),
+				AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 130), Parent = hero,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, 8) }) })
+			if ownedSpeed and storeData and storeData.speed ~= false then
+				buildSpeedSlider(hero, 168, storeData)
+			end
 		else
-			local buy = styledButton(card, {
-				Name = "Buy", Text = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$", Font = Enum.Font.GothamBlack,
-				TextSize = 16, TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
-				Size = UDim2.new(1, -24, 0, 34), Position = UDim2.fromOffset(12, 90), Parent = card,
+			local label = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$"
+			local buy = styledButton(hero, {
+				Name = "Buy", Text = label, Font = Enum.Font.GothamBlack, TextSize = 18,
+				TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
+				Size = UDim2.new(1, -32, 0, 44), Position = UDim2.fromOffset(16, 142), Parent = hero,
 			})
 			buy.MouseButton1Click:Connect(function()
-				buy.Text = "⏳ جاري فتح نافذة الشراء..."
-				task.delay(2, function() if buy and buy.Parent then buy.Text = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$" end end)
-				if item.kind == "gamepass" then
-					lobbyRemote:FireServer({ action = "buyGamePass", passId = item.id })
-				else
-					lobbyRemote:FireServer({ action = "buyProduct", productId = item.id })
-				end
+				playSound(SOUNDS.Click, SOUND_VOLUME)
+				fireBuy(item, buy, label)
 			end)
 		end
+		return hero
+	end
+
+	-- بطاقة منتج صغيرة داخل الشبكة (مقاسها يحدّده UIGridLayout)
+	local function buildCard(parent, item)
+		local card = new("Frame", {
+			Name = "Item", BackgroundColor3 = CARD2, BorderSizePixel = 0, Parent = parent,
+		}, {
+			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
+			new("UIStroke", { Color = item.kind == "gamepass" and GOLD or PURPLE, Thickness = 1.4, Transparency = 0.45 }),
+		})
+		buildIcon(card, item, 54, Vector2.new(1, 0), UDim2.new(1, -10, 0, 10))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 17,
+			TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd,
+			Size = UDim2.new(1, -76, 0, 26), Position = UDim2.fromOffset(10, 10), Parent = card,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = item.desc or "", Font = Enum.Font.GothamMedium, TextSize = 13,
+			TextColor3 = SUBT, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+			TextWrapped = true, Size = UDim2.new(1, -20, 0, 46), Position = UDim2.fromOffset(10, 42), Parent = card,
+		})
+		if item.owned then
+			styledButton(card, {
+				Name = "Owned", Text = "✓ مملوك", Font = Enum.Font.GothamBlack, TextSize = 15,
+				TextColor3 = Color3.fromRGB(20, 28, 18), BackgroundColor3 = Color3.fromRGB(150, 235, 170),
+				Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
+			}, false)
+		else
+			local label = "🛒 " .. toAr(item.price or 0) .. " R$"
+			local buy = styledButton(card, {
+				Name = "Buy", Text = label, Font = Enum.Font.GothamBlack, TextSize = 15,
+				TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
+				Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
+			})
+			buy.MouseButton1Click:Connect(function()
+				playSound(SOUNDS.Click, SOUND_VOLUME)
+				fireBuy(item, buy, label)
+			end)
+		end
+		return card
 	end
 
 	showStore = function(data)
-		closeStore()
+		storeData = data
+		local keepCat = activeCat or "all"
+		if storeRoot then destroyStore(false) end
 		storeOpen = true
+
+		local backdrop = new("TextButton", {
+			Name = "StoreBackdrop", Text = "", AutoButtonColor = false, Modal = true,
+			BackgroundColor3 = Color3.new(0, 0, 0), BackgroundTransparency = 1,
+			Size = UDim2.fromScale(1, 1), Parent = gui,
+		})
+		storeRoot = backdrop
+		backdrop.MouseButton1Click:Connect(closeStore)
+		TweenService:Create(backdrop, TweenInfo.new(0.2), { BackgroundTransparency = 0.5 }):Play()
+
 		local panel = new("Frame", {
-			Name = "StorePanel", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0, 0.5),
-			Position = UDim2.new(0, -PANEL_W - 30, 0.5, 0), Size = UDim2.new(0, PANEL_W, 0.88, 0), Parent = gui,
+			Name = "StorePanel", Active = true, BackgroundColor3 = CARD, BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+			Size = UDim2.fromOffset(math.floor(PW * 0.92), math.floor(PH * 0.92)), Parent = backdrop,
 		}, {
-			new("UICorner", { CornerRadius = UDim.new(0, 20) }),
+			new("UICorner", { CornerRadius = UDim.new(0, 22) }),
 			new("UIStroke", { Color = PURPLE, Thickness = 2, Transparency = 0.2 }),
 			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
-		storeRoot = panel
+		TweenService:Create(panel, TweenInfo.new(0.26, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
+			{ Size = UDim2.fromOffset(PW, PH) }):Play()
 
-		-- رأس اللوحة
+		-- الرأس: العنوان + الرصيد + زر الإغلاق
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = "🛒 المتجر", Font = Enum.Font.GothamBlack, TextSize = 28,
-			TextColor3 = GOLD, Size = UDim2.new(1, -56, 0, 44), Position = UDim2.fromOffset(14, 12),
-			TextXAlignment = Enum.TextXAlignment.Right, Parent = panel,
+			BackgroundTransparency = 1, Text = "🛒 متجر مدينة التبرعات", Font = Enum.Font.GothamBlack,
+			TextSize = 24, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -130, 0, 32), Position = UDim2.fromOffset(64, 14), Parent = panel,
 		})
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = "💰 رصيدك: " .. toAr(data.coins or 0) .. " كوينز",
-			Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = CYAN,
-			Size = UDim2.new(1, -28, 0, 22), Position = UDim2.fromOffset(14, 56),
-			TextXAlignment = Enum.TextXAlignment.Right, Parent = panel,
+			Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = CYAN, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -130, 0, 20), Position = UDim2.fromOffset(64, 46), Parent = panel,
 		})
-
-		-- زر إغلاق (×)
 		local close = styledButton(panel, {
-			Name = "X", Text = "X", Font = Enum.Font.GothamBlack, TextSize = 18, TextColor3 = TEXT,
+			-- نستخدم «×» (U+00D7) بدل «✕» (U+2715) لأن الأخير لا يتوفّر في خط روبلوكس فيظهر مربّعاً فارغاً
+			Name = "X", Text = "×", Font = Enum.Font.GothamBlack, TextSize = 26, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(48, 40, 64), Size = UDim2.fromOffset(38, 38),
-			Position = UDim2.fromOffset(12, 14), Parent = panel,
+			Position = UDim2.fromOffset(14, 14), Parent = panel,
 		})
 		close.MouseButton1Click:Connect(closeStore)
 
-		-- قائمة العناصر
-		local scroll = new("ScrollingFrame", {
-			BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -16, 1, -94),
-			Position = UDim2.fromOffset(8, 86), CanvasSize = UDim2.new(),
-			AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollBarThickness = 6, ScrollBarImageColor3 = PURPLE,
-			Parent = panel,
+		-- شريط التصنيفات العمودي (يمين النافذة)
+		local rail = new("Frame", {
+			Name = "Rail", BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0),
+			Position = UDim2.new(1, -14, 0, 78), Size = UDim2.new(0, 150, 1, -92), Parent = panel,
 		}, {
-			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder,
-				HorizontalAlignment = Enum.HorizontalAlignment.Center }),
-			new("UIPadding", { PaddingTop = UDim.new(0, 4), PaddingBottom = UDim.new(0, 8) }),
+			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
 		})
 
-		for _, item in ipairs(data.items or {}) do
-			buildItem(scroll, item)
+		-- منطقة المحتوى (يسار شريط التصنيفات)
+		local content = new("ScrollingFrame", {
+			Name = "Content", BackgroundTransparency = 1, BorderSizePixel = 0,
+			Position = UDim2.fromOffset(14, 78), Size = UDim2.new(1, -192, 1, -92),
+			CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 6, ScrollBarImageColor3 = PURPLE, Parent = panel,
+		}, {
+			new("UIListLayout", { Padding = UDim.new(0, 12), SortOrder = Enum.SortOrder.LayoutOrder }),
+			new("UIPadding", { PaddingRight = UDim.new(0, 6), PaddingBottom = UDim.new(0, 8) }),
+		})
+
+		local function renderContent()
+			speedUpdateUI = nil
+			clearConns()
+			for _, ch in ipairs(content:GetChildren()) do
+				if not ch:IsA("UIListLayout") and not ch:IsA("UIPadding") then ch:Destroy() end
+			end
+			local featured
+			for _, it in ipairs(storeData.items or {}) do
+				if it.featured then featured = it; break end
+			end
+			if (activeCat == "all" or activeCat == "speed") and featured then
+				buildHero(content, featured, 1)
+			end
+			if activeCat == "speed" then return end
+
+			local grid = new("Frame", {
+				Name = "Grid", BackgroundTransparency = 1, AutomaticSize = Enum.AutomaticSize.Y,
+				Size = UDim2.new(1, 0, 0, 0), LayoutOrder = 2, Parent = content,
+			}, {
+				new("UIGridLayout", {
+					CellSize = UDim2.fromOffset(280, 150), CellPadding = UDim2.fromOffset(12, 12),
+					HorizontalAlignment = Enum.HorizontalAlignment.Center, SortOrder = Enum.SortOrder.LayoutOrder,
+				}),
+			})
+			local any = false
+			for _, it in ipairs(storeData.items or {}) do
+				local show = false
+				if activeCat == "all" then show = not it.featured
+				elseif activeCat == "packs" then show = (it.cat == "packs")
+				elseif activeCat == "coins" then show = (it.cat == "coins") end
+				if show then buildCard(grid, it); any = true end
+			end
+			if not any then grid:Destroy() end
 		end
 
-		TweenService:Create(panel, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-			{ Position = UDim2.new(0, 12, 0.5, 0) }):Play()
+		local catBtns = {}
+		local function setActive(key)
+			activeCat = key
+			for k, b in pairs(catBtns) do
+				local on = (k == key)
+				b.BackgroundColor3 = on and PURPLE or Color3.fromRGB(36, 30, 64)
+				b.TextColor3 = on and Color3.fromRGB(22, 14, 40) or TEXT
+			end
+			renderContent()
+		end
+		for i, c in ipairs(CATS) do
+			local b = new("TextButton", {
+				Name = "Cat_" .. c.key, Text = c.label, Font = Enum.Font.GothamBlack, TextSize = 16,
+				TextColor3 = TEXT, BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
+				Size = UDim2.new(1, 0, 0, 46), LayoutOrder = i, Parent = rail,
+			}, {
+				new("UICorner", { CornerRadius = UDim.new(0, 12) }),
+				new("UIStroke", { Color = PURPLE, Thickness = 1.2, Transparency = 0.5 }),
+			})
+			catBtns[c.key] = b
+			b.MouseEnter:Connect(function()
+				playSound(SOUNDS.Hover, SOUND_VOLUME)
+				if activeCat ~= c.key then
+					TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(56, 46, 92) }):Play()
+				end
+			end)
+			b.MouseLeave:Connect(function()
+				if activeCat ~= c.key then
+					TweenService:Create(b, TweenInfo.new(0.12), { BackgroundColor3 = Color3.fromRGB(36, 30, 64) }):Play()
+				end
+			end)
+			b.MouseButton1Click:Connect(function()
+				playSound(SOUNDS.Click, SOUND_VOLUME)
+				setActive(c.key)
+			end)
+		end
+
+		setActive(keepCat)
 	end
 
-	-- الزر الثابت على يسار الشاشة
+	-- مزامنة شريط السرعة مع القيمة التي ثبّتها السيرفر
+	onStoreSpeedSet = function(v)
+		local n = tonumber(v)
+		if not n then return end
+		-- نُحدّث بيانات المتجر أيضاً لتبقى القيمة صحيحة حتى لو أُعيد بناء الشريط لاحقاً
+		if storeData then storeData.speedValue = n end
+		if speedUpdateUI then speedUpdateUI(n) end
+	end
+
+	-- الزر الثابت على يسار الشاشة لفتح/إغلاق المتجر
 	local tab = new("TextButton", {
 		Name = "StoreTab", Text = "🛒 المتجر", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT,
 		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-		LayoutOrder = 1, Size = UDim2.fromOffset(132, 46),
-		Parent = leftDock,
+		LayoutOrder = 1, Size = UDim2.fromOffset(132, 46), Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 		new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.2 }),
@@ -11983,7 +12349,9 @@ local function unfreezeChar(char)
 	if hrp then hrp.Anchored = false end
 	if hum then
 		hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
-		hum.WalkSpeed = 16
+		-- استعد السرعة الأساسية (سرعة باقة «البرق» إن مُلكت، وإلا 16) بدل رقم ثابت
+		local base = LocalPlayer:GetAttribute("BaseWalkSpeed")
+		hum.WalkSpeed = (type(base) == "number" and base > 0) and base or 16
 		hum.JumpPower = 50
 		pcall(function() hum.JumpHeight = 7.2 end)
 	end
@@ -12123,7 +12491,7 @@ showAdminPanel = function(data)
 	if myW >= RANK_W.admin then
 		table.insert(tabs, { key = "mods", label = "👮 المشرفون" })
 		table.insert(tabs, { key = "team", label = "👥 الفريق" })
-		table.insert(tabs, { key = "commands", label = "⌘ الأوامر" })
+		table.insert(tabs, { key = "commands", label = "📋 الأوامر" })
 		table.insert(tabs, { key = "show", label = "🎬 العرض" })
 		table.insert(tabs, { key = "settings", label = "⚙️ الإعدادات" })
 	end
@@ -12889,7 +13257,7 @@ showAdminPanel = function(data)
 
 	-- ===== ⌘ تبويب الأوامر: التحكم بمستوى صلاحية كل أمر =====
 	local function buildCommands()
-		sectionLabel("⌘ صلاحيات الأوامر — اختر مستوى كل أمر")
+		sectionLabel("📋 صلاحيات الأوامر — اختر مستوى كل أمر")
 		note("لكل أمر مستوى مطلوب: «الجميع» متاح للكل · «المشرفون» للمشرف فأعلى · «الأداريون» للأدمن فأعلى · «معطّل» يوقف الأمر. يُحفظ تلقائياً ويُطبّق فوراً على الجميع. (الأمران /help و /clear متاحان دائماً للجميع.)")
 
 		local LV_EVERYONE, LV_MOD, LV_ADMIN, LV_OFF = 0, 2, 3, 99
@@ -14232,7 +14600,7 @@ local header = new("TextLabel", {
 local closeBtn = new("TextButton", {
 	Parent = panel, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 10),
 	Size = UDim2.new(0, 34, 0, 34), BackgroundColor3 = Color3.fromRGB(200, 70, 70),
-	Text = "✕", Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = WHITE,
+	Text = "×", Font = Enum.Font.GothamBold, TextSize = 24, TextColor3 = WHITE,
 }, { corner(8) })
 
 local timerLbl = new("TextLabel", {
@@ -14290,14 +14658,14 @@ local function makeRow(order, m)
 	end
 	new("TextLabel", {
 		Parent = barBg, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0),
-		Text = m.done and "✔ مكتملة" or progTxt, Font = Enum.Font.GothamBold,
+		Text = m.done and "✓ مكتملة" or progTxt, Font = Enum.Font.GothamBold,
 		TextSize = 12, TextColor3 = WHITE,
 	})
 
 	new("TextLabel", {
 		Parent = row, AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -10, 0, 34),
 		Size = UDim2.new(0, 96, 0, 16), BackgroundTransparency = 1,
-		Text = m.done and "✅ +" .. m.coins or ("🪙 +" .. m.coins), Font = Enum.Font.GothamBold,
+		Text = m.done and "✅ +" .. m.coins or ("💰 +" .. m.coins), Font = Enum.Font.GothamBold,
 		TextSize = 14, TextColor3 = m.done and GREEN or GOLD,
 		TextXAlignment = Enum.TextXAlignment.Right,
 	})
@@ -14480,8 +14848,20 @@ local pg = player:WaitForChild("PlayerGui")
 ----------------------------------------------------------------------
 -- إعدادات
 ----------------------------------------------------------------------
-local NORMAL_SPEED = 16
-local SPRINT_SPEED = 28
+local DEFAULT_NORMAL = 16   -- السرعة الافتراضية لمن لا يملك «سرعة البرق»
+local SPRINT_BOOST   = 12   -- دفعة الجري فوق السرعة الأساسية (16+12 = 28 كالسابق)
+local SPRINT_CAP     = 40   -- سقف أمان لسرعة الجري (يمنع «الطيران»)
+
+-- السرعة الأساسية الحالية للاعب: يضبطها السيرفر عبر سِمة BaseWalkSpeed لحامل
+-- باقة «سرعة البرق» (16→32)؛ ومن لا يملكها تبقى 16. نظام الجري يبني عليها.
+local function baseSpeed(): number
+	local b = player:GetAttribute("BaseWalkSpeed")
+	if type(b) == "number" and b > 0 then return b end
+	return DEFAULT_NORMAL
+end
+local function sprintSpeed(normal: number): number
+	return math.min(normal + SPRINT_BOOST, SPRINT_CAP)
+end
 
 ----------------------------------------------------------------------
 -- ربط السيرفر (تقارير الجري/القفز) — اختياري (لا يعطّل المؤثرات لو غاب)
@@ -14652,11 +15032,14 @@ RunService.RenderStepped:Connect(function(dt)
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	if not hum then return end
 
+	local NORMAL = baseSpeed()                 -- السرعة الأساسية (16 أو سرعة باقة البرق)
+	local SPRINT = sprintSpeed(NORMAL)         -- سرعة الجري = الأساسية + دفعة (بسقف أمان)
+
 	-- داخل الباركور: نوقف الجري ونرجع السرعة الطبيعية (تحكّم دقيق بالقفزات).
 	-- لا نلمس السرعة إن كانت مقفولة على 0 (سينما/تحميل).
 	if player:GetAttribute("InParkour") then
 		if wantSprint then wantSprint = false; refreshBtn() end
-		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		if hum.WalkSpeed == SPRINT then hum.WalkSpeed = NORMAL end
 		return
 	end
 
@@ -14676,9 +15059,9 @@ RunService.RenderStepped:Connect(function(dt)
 	-- تطبيق السرعة بأمان: لا نلمس السرعة إلا إن كانت بقيمتها الطبيعية/سرعة الجري
 	-- (هكذا لو قفلت السينما الحركة على 0 لا نكسر القفل)
 	if sprinting then
-		if hum.WalkSpeed == NORMAL_SPEED then hum.WalkSpeed = SPRINT_SPEED end
+		if hum.WalkSpeed == NORMAL then hum.WalkSpeed = SPRINT end
 	else
-		if hum.WalkSpeed == SPRINT_SPEED then hum.WalkSpeed = NORMAL_SPEED end
+		if hum.WalkSpeed == SPRINT then hum.WalkSpeed = NORMAL end
 	end
 end)
 ]]></string>

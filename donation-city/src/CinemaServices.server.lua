@@ -35,6 +35,11 @@ local CONFIG = {
 	ShowrunnerGamePassId = 1860580500, -- 🎬 مالك العرض — 199 R$
 	NeonTrailGamePassId  = 1862887909, -- ✨ أثر نيون — 79 R$
 	AnnouncerGamePassId  = 1860172487, -- 📢 مايك الإعلان — 89 R$
+	SpeedGamePassId      = 1861667386, -- ⚡ سرعة البرق — 60 R$ (تحكّم بسرعة المشي)
+	-- حدود سرعة المشي لباقة «سرعة البرق» — السيرفر يثبّت القيمة دائماً (حماية من الغش)
+	SpeedMin      = 16,    -- السرعة الافتراضية في روبلوكس (الحد الأدنى)
+	SpeedMax      = 32,    -- أقصى سرعة مسموحة لحامل الباقة (زيادة واقعية لا «طيران»)
+	SpeedDefault  = 24,    -- سرعة البداية بعد الشراء
 	VipIncomeMult = 2,     -- مضاعف الدخل لأعضاء VIP
 	SaveEvery     = 60,    -- حفظ دوري (ثواني)
 	CurrencyName  = "كوينز",
@@ -63,6 +68,7 @@ local coinStore
 pcall(function() coinStore = DataStoreService:GetDataStore("CinemaCoins_v1") end)
 
 local applyAllPasses  -- forward declaration (فحص ومنح الباقات الدائمة عند الدخول)
+local applySpeed      -- forward declaration: تثبيت سرعة المشي لحامل باقة «سرعة البرق»
 local canUseAnnouncer -- forward declaration: من يحق له الإعلان (مشرف فأعلى / VIP / حامل الباقة)
 local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
@@ -79,6 +85,14 @@ local function loadVip(userId: number): boolean
 	if not coinStore then return false end
 	local ok, data = pcall(function() return coinStore:GetAsync("v_" .. userId) end)
 	return (ok and data == true) or false
+end
+
+-- تحميل سرعة المشي المحفوظة لحامل باقة «سرعة البرق» (افتراضي إن لم تُحفظ بعد)
+local function loadSpeed(userId: number): number
+	if not coinStore then return CONFIG.SpeedDefault end
+	local ok, data = pcall(function() return coinStore:GetAsync("spd_" .. userId) end)
+	if ok and type(data) == "number" then return data end
+	return CONFIG.SpeedDefault
 end
 
 -- حفظ مع إعادة المحاولة (3 محاولات) — يصمد أمام تذبذب الشبكة/خنق DataStore
@@ -112,6 +126,10 @@ local function saveCoins(userId: number)
 	local rated = s.rated == true
 	if s._saved.rated ~= rated then
 		if setAsyncRetry("rt_" .. userId, rated) then s._saved.rated = rated end
+	end
+	local spd = math.floor(tonumber(s.speed) or CONFIG.SpeedDefault)
+	if s._saved.speed ~= spd then
+		if setAsyncRetry("spd_" .. userId, spd) then s._saved.speed = spd end
 	end
 end
 
@@ -232,9 +250,10 @@ Players.PlayerAdded:Connect(function(player)
 		pcall(function() local d = coinStore:GetAsync("a_" .. player.UserId); if type(d) == "table" then ach = d end end)
 		pcall(function() rated = coinStore:GetAsync("rt_" .. player.UserId) == true end)
 	end
-	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {},
+	local speed = loadSpeed(player.UserId)
+	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {}, speed = speed,
 		-- بصمة آخر قيم محفوظة (تُهيّأ بالقيم المُحمّلة) كي لا نعيد كتابة ما لم يتغيّر
-		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true } }
+		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true, speed = math.floor(speed) } }
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
@@ -417,6 +436,8 @@ local PASS_DEFS = {
 	  msg = "✨ تم تفعيل «أثر نيون» — توهّج حصري سماوي↔وردي يتبع خطواتك!" },
 	{ key = "announcer",  id = CONFIG.AnnouncerGamePassId,  badge = "📢",
 	  msg = "📢 تم تفعيل «مايك الإعلان» — تقدر تبثّ إعلاناتك لكل اللاعبين." },
+	{ key = "speed",      id = CONFIG.SpeedGamePassId,      badge = "⚡",
+	  msg = "⚡ تم تفعيل «سرعة البرق» — تحكّم بسرعة مشيك من شريط التمرير داخل المتجر!" },
 }
 
 local function ownsPassKey(player: Player, key: string): boolean
@@ -424,6 +445,32 @@ local function ownsPassKey(player: Player, key: string): boolean
 	return (s and s.passes and s.passes[key]) == true
 end
 _G.OwnsCinemaPass = ownsPassKey
+
+-- ⚡ سرعة البرق: تثبيت سرعة المشي على السيرفر (حماية من الغش)
+-- القيمة دائماً محصورة بين SpeedMin و SpeedMax وتُطبّق فقط لمن يملك الباقة.
+local function clampSpeed(v: number?): number
+	local n = tonumber(v) or CONFIG.SpeedDefault
+	return math.clamp(math.floor(n), CONFIG.SpeedMin, CONFIG.SpeedMax)
+end
+
+applySpeed = function(player: Player)
+	local s = sessions[player.UserId]
+	if not s then return end
+	local owns = s.passes ~= nil and s.passes.speed == true
+	-- السرعة الأساسية: المالك = اختياره (محصور)، غير المالك = الحد الأدنى (16)
+	local base = owns and clampSpeed(s.speed) or CONFIG.SpeedMin
+	-- نُعلن السرعة الأساسية كسِمة كي يبني عليها نظام الجري (SprintJump) بدل رقم ثابت
+	-- (السِمات التي يضبطها السيرفر تتزامن للعميل تلقائياً)
+	player:SetAttribute("BaseWalkSpeed", base)
+	local char = player.Character
+	if not char then return end
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
+	-- نطبّق السرعة فقط للمالك؛ غير المالك يُترك لبقية الأنظمة (الجري/السينما) كما هو
+	if owns then
+		hum.WalkSpeed = base
+	end
+end
 
 -- ✨ أثر نيون يتبع اللاعب (Trail على الجذع)
 local function applyNeonTrail(player: Player)
@@ -485,12 +532,18 @@ sendPerks = function(player: Player)
 	-- 📢 الإعلان متاح لحاملي الباقة + كل مشرف فأعلى (يُحسب عبر canUseAnnouncer)
 	local mayAnnounce = ownsPassKey(player, "announcer")
 		or (canUseAnnouncer ~= nil and canUseAnnouncer(player))
+	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action     = "perks",
 		showrunner = ownsPassKey(player, "showrunner"),
 		announcer  = mayAnnounce,
 		buffet     = ownsPassKey(player, "buffet"),
 		neon       = ownsPassKey(player, "neon"),
+		-- ⚡ تحكّم السرعة: العميل يعرف هل يملك الباقة + القيمة الحالية والحدود
+		speed      = ownsPassKey(player, "speed"),
+		speedValue = clampSpeed(s and s.speed),
+		speedMin   = CONFIG.SpeedMin,
+		speedMax   = CONFIG.SpeedMax,
 	})
 end
 
@@ -502,6 +555,11 @@ local function grantPass(player: Player, key: string, announce: boolean?)
 	if s.passes[key] then return end
 	s.passes[key] = true
 	if key == "neon" then applyNeonTrail(player) end
+	if key == "speed" then
+		-- أول مرة: ابدأ بالسرعة الافتراضية إن لم تكن محفوظة، ثم طبّق
+		if not tonumber(s.speed) then s.speed = CONFIG.SpeedDefault end
+		applySpeed(player)
+	end
 	refreshBadge(player)
 	if _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
 	for _, d in ipairs(PASS_DEFS) do
@@ -531,11 +589,13 @@ applyAllPasses = function(player: Player)
 		end
 	end
 	sendPerks(player)
-	-- أعد تطبيق الأثر/الشارة عند كل ولادة للشخصية
+	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
+	-- أعد تطبيق الأثر/الشارة/السرعة عند كل ولادة للشخصية
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
 		if s.passes.neon then applyNeonTrail(player) end
 		refreshBadge(player)
+		applySpeed(player)
 	end)
 end
 
@@ -1106,6 +1166,20 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				MarketplaceService:PromptGamePassPurchase(player, pid)
 			end)
 		end
+
+	elseif payload.action == "setSpeed" then
+		-- ⚡ سرعة البرق: ضبط سرعة المشي — التحقق من الملكية + تثبيت القيمة على السيرفر
+		if not ownsPassKey(player, "speed") then
+			notify(player, "⚡ تحكّم السرعة متاح لحاملي باقة «سرعة البرق» فقط.")
+			return
+		end
+		local s = sessions[player.UserId]
+		if not s then return end
+		local v = clampSpeed(payload.speed)   -- السيرفر هو من يحصر القيمة (حماية من الغش)
+		s.speed = v
+		applySpeed(player)
+		-- اعكس القيمة المثبّتة للعميل ليضبط شريط التمرير على نفس القيمة الفعلية
+		lobbyRemote:FireClient(player, { action = "speedSet", speed = v })
 
 	elseif payload.action == "showrunnerPlay" then
 		-- 🎬 مالك العرض: بدء الفيلم بأي وقت
@@ -1781,16 +1855,19 @@ end
 -- تعرض كل المميزات القابلة للشراء بالـ Robux (Game Pass + Developer Products).
 -- تُجلب الأسعار والأيقونات تلقائياً من Roblox (GetProductInfo) مع قيم احتياطية.
 ------------------------------------------------------------------------
+-- cat: تصنيف العنصر في المتجر (speed=السرعة · packs=الباقات · coins=حزم كوينز) — يستخدمه العميل للفلترة
+-- featured: العنصر المميّز الذي يظهر في بانر العرض الكبير (Hero) بأعلى المتجر
 local STORE_ITEMS = {
-	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
-	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
-	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
-	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
-	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins250,    name = "💰 حزمة ٢٥٠ كوينز",   price = 25,  emoji = "💰", desc = "٢٥٠ كوينز تُضاف فوراً لرصيدك" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins600,    name = "💰 حزمة ٦٠٠ كوينز",   price = 50,  emoji = "💰", desc = "٦٠٠ كوينز — وفّر ٢٠٪" },
-	{ kind = "product",  id = PRODUCT_IDS.Coins1500,   name = "💎 حزمة ١٥٠٠ كوينز",  price = 100, emoji = "💎", desc = "١٥٠٠ كوينز — أفضل قيمة" },
-	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", desc = "تذكرة سينما فورية بضغطة واحدة" },
+	{ kind = "gamepass", id = CONFIG.SpeedGamePassId,      name = "⚡ سرعة البرق",     price = 60,  emoji = "⚡", cat = "speed",  featured = true, desc = "تحكّم بسرعة مشيك وزِدها عبر شريط تمرير خاص داخل المتجر — مشتراة مرة وتبقى لك للأبد" },
+	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
+	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
+	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", cat = "packs", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
+	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", cat = "packs", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
+	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", cat = "packs", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins250,    name = "💰 حزمة ٢٥٠ كوينز",   price = 25,  emoji = "💰", cat = "coins", desc = "٢٥٠ كوينز تُضاف فوراً لرصيدك" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins600,    name = "💰 حزمة ٦٠٠ كوينز",   price = 50,  emoji = "💰", cat = "coins", desc = "٦٠٠ كوينز — وفّر ٢٠٪" },
+	{ kind = "product",  id = PRODUCT_IDS.Coins1500,   name = "💎 حزمة ١٥٠٠ كوينز",  price = 100, emoji = "💎", cat = "coins", desc = "١٥٠٠ كوينز — أفضل قيمة" },
+	{ kind = "product",  id = PRODUCT_IDS.Ticket,      name = "🎟️ تذكرة فورية",       price = 15,  emoji = "🎟️", cat = "coins", desc = "تذكرة سينما فورية بضغطة واحدة" },
 }
 
 -- كاش معلومات المتجر: النجاح يُحفظ دائماً (المعلومات نادراً ما تتغيّر)،
@@ -1841,14 +1918,20 @@ local function openStore(player)
 			table.insert(items, {
 				kind = it.kind, id = it.id, name = it.name, emoji = it.emoji,
 				desc = it.desc, price = price, icon = icon, owned = owned,
+				cat = it.cat, featured = it.featured == true,
 			})
 		end
 	end
+	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action = "store",
 		items  = items,
 		coins  = _G.GetCoins(player),
 		vip    = _G.IsVIP(player),
+		-- ⚡ حالة باقة السرعة لعرض شريط التمرير في بطاقتها داخل المتجر
+		speedValue = clampSpeed(s and s.speed),
+		speedMin   = CONFIG.SpeedMin,
+		speedMax   = CONFIG.SpeedMax,
 	})
 end
 _G.OpenStore = openStore
