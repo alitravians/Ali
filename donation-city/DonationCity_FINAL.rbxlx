@@ -3350,8 +3350,7 @@ local function buildGuideModel(opts)
 	refPart = refPart or model:FindFirstChildWhichIsA("BasePart")
 	model.PrimaryPart = model.PrimaryPart or refPart
 
-	model.Parent = cinema
-
+	-- نضبط الحجم والمكان قبل الإضافة للعالم حتى لا تظهر ومضة عند مكان القالب الأصلي
 	-- حجم معتدل (يُحسب التموضع بعده)
 	pcall(function() model:ScaleTo(GUIDE_SCALE) end)
 
@@ -3363,6 +3362,8 @@ local function buildGuideModel(opts)
 	local lift = (opts.groundY or 0) - (bcf.Position.Y - bsize.Y / 2)
 	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
 	local basePivot = model:GetPivot()
+
+	model.Parent = cinema
 
 	-- لوحة الاسم فوق الرأس
 	local head = model:FindFirstChild("Head") or refPart
