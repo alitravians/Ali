@@ -266,7 +266,7 @@ def menu_preview(bg, path):
             m = Image.new("L",(W,H),0); ImageDraw.Draw(m).rounded_rectangle(box,radius=16,fill=255)
             base.paste(grad,(0,0),m); d = ImageDraw.Draw(base)
         else:
-            rounded(d, box, 16, fill+(0,) if False else fill)
+            rounded(d, box, 16, fill)
         d.rounded_rectangle(box,radius=16,outline=stroke,width=2)
         d.text((cx,y+bh//2), ar(txt), font=font("Amiri-Bold.ttf",36), fill=(255,255,255), anchor="mm")
     d.text((cx,int(H*0.93)), ar("الإصدار ٢.٩.٢٨"), font=font("Amiri-Bold.ttf",26), fill=(200,210,230), anchor="mm")
