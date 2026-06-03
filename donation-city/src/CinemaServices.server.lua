@@ -571,7 +571,8 @@ sendPerks = function(player: Player)
 end
 
 -- منح باقة (تُستدعى عند الدخول لمن يملكها أو بعد إتمام الشراء)
-local function grantPass(player: Player, key: string, announce: boolean?)
+--   awardBuyer=false → لا تُمنح إنجاز "مُشترٍ" (تُستخدم للإهداء من الإدارة، لأن اللاعب لم يشترِ)
+local function grantPass(player: Player, key: string, announce: boolean?, awardBuyer: boolean?)
 	local s = sessions[player.UserId]
 	if not s then return end
 	s.passes = s.passes or {}
@@ -584,7 +585,7 @@ local function grantPass(player: Player, key: string, announce: boolean?)
 		applySpeed(player)
 	end
 	refreshBadge(player)
-	if _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
+	if awardBuyer ~= false and _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
 	for _, d in ipairs(PASS_DEFS) do
 		if d.key == key and announce ~= false then notify(player, d.msg) end
 	end
@@ -726,7 +727,7 @@ local function adminGrantPass(uid: number, key: string): boolean
 	if not setGrant(uid, key, true) then return false end  -- ممنوحة أصلاً أو مفتاح غير صالح
 	local target = Players:GetPlayerByUserId(uid)
 	if target then
-		grantPass(target, key, true)
+		grantPass(target, key, true, false)  -- إهداء مجاني: لا يُمنح إنجاز "مُشترٍ"
 		sendPerks(target)  -- حدّث واجهة المزايا فوراً (أزرار العرض/الإعلان/شريط السرعة)
 	end
 	return true
@@ -737,17 +738,18 @@ local function adminRevokePass(uid: number, key: string): boolean
 	if not setGrant(uid, key, false) then return false end  -- غير ممنوحة من الإدارة
 	local target = Players:GetPlayerByUserId(uid)
 	if target then
-		-- لو يملك الباص فعلاً من المتجر، لا نزيل المزايا
+		-- نزيل المؤثرات فقط لو تأكّدنا أنه لا يملك الباص من المتجر.
+		-- لو فشل التحقق (خطأ شبكة) نُبقي المؤثرات احتياطاً كي لا نسلب باصاً مشترى.
 		local pid = 0
 		for _, d in ipairs(PASS_DEFS) do if d.key == key then pid = d.id break end end
-		local ownsReal = false
+		local removeFx = true
 		if pid ~= 0 then
 			local ok, owns = pcall(function()
 				return MarketplaceService:UserOwnsGamePassAsync(uid, pid)
 			end)
-			ownsReal = ok and owns == true
+			if not ok or owns == true then removeFx = false end  -- فشل التحقق أو يملكه فعلاً → لا تُزال
 		end
-		if not ownsReal then removePassEffects(target, key) end
+		if removeFx then removePassEffects(target, key) end
 	end
 	return true
 end
@@ -1693,7 +1695,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		elseif cmd == "grantPass" then
 			-- 🎁 إهداء باقة مجاناً (دائمة عبر DataStore) — أدمن فأعلى
 			local target, tid = targetOf()
-			local uid = tid or tonumber(payload.userId)
+			local uid = tid
 			local key = tostring(payload.pass or "")
 			if not uid then
 				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
@@ -1712,7 +1714,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		elseif cmd == "revokePass" then
 			-- 🗑️ سحب باقة ممنوحة — أدمن فأعلى (لو يملكها من المتجر تبقى)
 			local target, tid = targetOf()
-			local uid = tid or tonumber(payload.userId)
+			local uid = tid
 			local key = tostring(payload.pass or "")
 			if not uid then
 				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
