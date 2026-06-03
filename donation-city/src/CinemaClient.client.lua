@@ -1968,6 +1968,58 @@ showAdminPanel = function(data)
 		end)
 	end
 
+	-- 🎁 إهداء/سحب Game Pass مجاناً للاعب (أدمن فأعلى) — نافذة منبثقة فيها كل الباقات
+	local PASS_LIST = {
+		{ key = "vip",        name = "⭐ عضوية VIP",   vip = true },
+		{ key = "buffet",     name = "🍿 بوفيه مفتوح" },
+		{ key = "showrunner", name = "🎬 مالك العرض" },
+		{ key = "speed",      name = "⚡ سرعة البرق" },
+		{ key = "neon",       name = "✨ أثر نيون" },
+		{ key = "announcer",  name = "📢 مايك الإعلان" },
+	}
+	local function passesPrompt(pl)
+		local _, c = makeModal(UDim2.fromOffset(400, 470))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "🎁 باقات " .. (pl.display or pl.name), Font = Enum.Font.GothamBlack,
+			TextSize = 19, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 36), Position = UDim2.fromOffset(14, 12),
+			TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "أهدِ أو اسحب أي باقة مجاناً (دائمة عبر الحساب)",
+			Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = SUBT,
+			Size = UDim2.new(1, -28, 0, 20), Position = UDim2.fromOffset(14, 48), TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		local y = 78
+		for _, p in ipairs(PASS_LIST) do
+			local has
+			if p.vip then has = (pl.vip == true) else has = (pl.passes and pl.passes[p.key] == true) end
+			local b = styledButton(c, {
+				Text = (has and "🗑️ سحب  " or "🎁 إهداء  ") .. p.name,
+				Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT,
+				BackgroundColor3 = has and RED_BTN or GREEN_BTN,
+				Size = UDim2.new(1, -28, 0, 42), Position = UDim2.fromOffset(14, y), Parent = c,
+			})
+			y += 50
+			b.MouseButton1Click:Connect(function()
+				closeActive()
+				if p.vip then
+					cmd({ cmd = has and "vipRevoke" or "vipGrant", userId = pl.userId })
+				else
+					cmd({ cmd = has and "revokePass" or "grantPass", userId = pl.userId, pass = p.key })
+				end
+				if lastAdminData then showAdminPanel(lastAdminData) end
+			end)
+		end
+		local cancel = styledButton(c, {
+			Text = "إغلاق", Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD2,
+			Size = UDim2.new(1, -28, 0, 40), Position = UDim2.new(0.5, 0, 1, -12), AnchorPoint = Vector2.new(0.5, 1), Parent = c,
+		})
+		cancel.MouseButton1Click:Connect(function()
+			closeActive()
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end)
+	end
+
 	local RANK_BADGE = { owner = " 👑", admin = " 🛡️", mod = " 🔰", staff = " 🎬" }
 	local function makePlayerRow(parent, pl)
 		local isSelf = pl.userId == LocalPlayer.UserId
@@ -1988,6 +2040,7 @@ showAdminPanel = function(data)
 				end })
 				table.insert(actions, { "📍 انتقال", CYAN, function() cmd({ cmd = "teleport", userId = pl.userId }) end })
 				table.insert(actions, { pl.vip and "🚫 VIP" or "⭐ VIP", GOLD, function() cmd({ cmd = pl.vip and "vipRevoke" or "vipGrant", userId = pl.userId }) end })
+				table.insert(actions, { "🎁 باقات", Color3.fromRGB(150, 60, 130), function() passesPrompt(pl) end })
 				table.insert(actions, { pl.banned and "✅ حجز" or "🚫 حجز", ORG_BTN, function() cmd({ cmd = pl.banned and "unban" or "ban", userId = pl.userId }) end })
 				table.insert(actions, { "🏷️ رتبة", Color3.fromRGB(90, 70, 140), function() rankPrompt(pl) end })
 			end
