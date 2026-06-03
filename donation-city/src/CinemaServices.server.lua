@@ -774,6 +774,7 @@ local function popGiftNotices(uid: number): { string }
 		giftQueueStore:UpdateAsync("u" .. uid, function(old)
 			captured = old
 			if old == nil then return nil end  -- لا شيء معلّق → لا تكتب
+			if type(old) == "table" and next(old) == nil then return nil end  -- فارغ أصلاً → لا تكتب (توفير حصّة DataStore)
 			return {}  -- امسح الطابور بعد الالتقاط
 		end)
 	end)
@@ -783,6 +784,18 @@ local function popGiftNotices(uid: number): { string }
 		end
 	end
 	return keys
+end
+
+-- حذف إشعار إهداء معلّق من الطابور (يُستدعى عند السحب قبل دخول اللاعب)
+local function dequeueGiftNotice(uid: number, key: string)
+	if not giftQueueStore then return end
+	pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			if type(old) ~= "table" or old[key] == nil then return nil end  -- غير موجود → لا تكتب
+			old[key] = nil
+			return old
+		end)
+	end)
 end
 
 -- إهداء باقة (دائم). يُطبَّق فوراً لو اللاعب حاضر.
@@ -802,6 +815,7 @@ end
 -- سحب باقة ممنوحة. لو يملكها فعلاً من المتجر تبقى له.
 local function adminRevokePass(uid: number, key: string): boolean
 	if not setGrant(uid, key, false) then return false end  -- غير ممنوحة من الإدارة
+	dequeueGiftNotice(uid, key)  -- نظّف أي إشعار معلّق لباقة سُحبت قبل دخول صاحبها
 	local target = Players:GetPlayerByUserId(uid)
 	if target then
 		-- نزيل المؤثرات فقط لو تأكّدنا أنه لا يملك الباص من المتجر.

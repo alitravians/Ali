@@ -237,6 +237,7 @@ local function popGiftNotices(uid)
 		giftQueueStore:UpdateAsync("u" .. uid, function(old)
 			captured = old
 			if old == nil then return nil end
+			if type(old) == "table" and next(old) == nil then return nil end
 			return {}
 		end)
 	end)
@@ -261,8 +262,20 @@ local function adminGrantPass(uid, key)
 	return true
 end
 
+local function dequeueGiftNotice(uid, key)
+	if not giftQueueStore then return end
+	pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			if type(old) ~= "table" or old[key] == nil then return nil end
+			old[key] = nil
+			return old
+		end)
+	end)
+end
+
 local function adminRevokePass(uid, key)
 	if not setGrant(uid, key, false) then return false end
+	dequeueGiftNotice(uid, key)
 	return true
 end
 
@@ -390,6 +403,30 @@ reset()
 local E = mkPlayer(606); present[606] = E; sessions[606] = { passes = {} }
 adminGrantPass(606, "announcer")
 check("لا قيد في طابور الإهداء للحاضر", giftStore:raw()["u606"] == nil)
+
+print("== T9: السحب قبل الدخول ينظّف مدخل الطابور (لا تبقى بيانات يتيمة) ==")
+reset()
+adminGrantPass(707, "neon")   -- غائب → طابور + منحة
+check("المدخل موجود في الطابور بعد الإهداء", giftStore:raw()["u707"] ~= nil and giftStore:raw()["u707"].neon == true)
+adminRevokePass(707, "neon")  -- سحب قبل الدخول
+local q707 = giftStore:raw()["u707"]
+check("مدخل الطابور أُزيل بعد السحب", q707 == nil or q707.neon == nil)
+
+print("== T10: popGiftNotices على طابور فارغ لا يكتب (توفير حصّة) ==")
+reset()
+-- اصنع طابوراً فارغاً صريحاً
+giftStore:raw()["u808"] = {}
+local writes = 0
+local origUpdate = giftStore.UpdateAsync
+giftStore.UpdateAsync = function(self, key, transform)
+	local cur = transform(deepcopy(self:raw()[key]))
+	if cur ~= nil then writes = writes + 1; self:raw()[key] = deepcopy(cur) end
+	return deepcopy(self:raw()[key])
+end
+local got = popGiftNotices(808)
+giftStore.UpdateAsync = origUpdate
+check("لا إشعارات من طابور فارغ", #got == 0)
+check("لم تحدث أي كتابة DataStore للطابور الفارغ", writes == 0)
 
 print(string.format("\n==== النتيجة: %d نجح / %d فشل ====", pass, fail))
 if fail > 0 then error("بعض الفحوصات فشلت") end
