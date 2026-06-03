@@ -50,6 +50,7 @@ end)
 -- واجهة شريط الطاقة
 ----------------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
+gui.AutoLocalize = false  -- 🌐 النص العربي يظهر للجميع (إيقاف الترجمة التلقائية)
 gui.Name = "SprintHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 

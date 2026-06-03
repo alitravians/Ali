@@ -199,6 +199,8 @@ local PAL = THEMES[CONFIG.Theme] or THEMES.DarkNeon
 ------------------------------------------------------------------------
 local function new(class, props, children)
 	local inst = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة (النص العربي يظهر للجميع)
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then inst.AutoLocalize = false end
 	for k, v in pairs(props or {}) do inst[k] = v end
 	for _, c in ipairs(children or {}) do c.Parent = inst end
 	return inst

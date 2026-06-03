@@ -268,6 +268,8 @@ local PAL = THEMES[CONFIG.Theme] or THEMES.DarkNeon
 ------------------------------------------------------------------------
 local function new(class, props, children)
 	local inst = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة (النص العربي يظهر للجميع)
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then inst.AutoLocalize = false end
 	for k, v in pairs(props or {}) do inst[k] = v end
 	for _, c in ipairs(children or {}) do c.Parent = inst end
 	return inst
@@ -2195,6 +2197,7 @@ end
 ------------------------------------------------------------------------
 local function makeSurface(targetPart, pps)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Name = "Display"
 	sg.Adornee = targetPart
 	sg.Face = Enum.NormalId.Back
@@ -3386,6 +3389,7 @@ local function buildCharacterModel(opts)
 	local head = model:FindFirstChild("Head") or refPart
 	if head then
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
 		bb.StudsOffset = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true; bb.Parent = head
 		local tagLbl = Instance.new("TextLabel")
@@ -3463,6 +3467,7 @@ local function buildNPC(opts)
 
 	-- لوحة الاسم فوق الرأس
 	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
 	bb.StudsOffset = Vector3.new(0, 2.3 * s, 0); bb.AlwaysOnTop = true; bb.Parent = head
 	local tagLbl = Instance.new("TextLabel")
@@ -3979,6 +3984,7 @@ local function indexBooth(key: string)
 	-- so the text can never appear mirrored)
 	if body then
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "BoothBoard"
 		bb.Adornee = body
 		-- لوحة أصغر وأنظف: لا تطفو فوق كل العناصر (AlwaysOnTop=false) فلا تتكدّس
@@ -5308,6 +5314,7 @@ local function applyVipTag(player: Player)
 		local head = char:WaitForChild("Head", 8)
 		if not head or head:FindFirstChild("VipTag") then return end
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(120, 34)
 		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
@@ -5662,6 +5669,7 @@ local function refreshBadge(player: Player)
 	if #emojis == 0 then if bb then bb:Destroy() end return end
 	if not bb then
 		bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "PassBadge"; bb.Adornee = head; bb.Size = UDim2.fromOffset(150, 30)
 		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
@@ -7383,6 +7391,7 @@ end
 
 local function surface(parent, face)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Face = face or Enum.NormalId.Front
 	sg.CanvasSize = Vector2.new(800, 480)
 	sg.LightInfluence = 0
@@ -7464,6 +7473,7 @@ local function buildCashierModel(opts)
 	local head = topPart or biggest
 	if head then
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
 		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
 		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)
@@ -8331,6 +8341,7 @@ local function dualSurface(part, canvasSize, builder)
 	local out = {}
 	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front }) do
 		local g = Instance.new("SurfaceGui")
+		g.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		g.Face = face
 		g.CanvasSize = canvasSize
 		g.Parent = part
@@ -8772,6 +8783,7 @@ do
 	sign.Color = Color3.fromRGB(24, 30, 46); sign.Material = Enum.Material.SmoothPlastic
 	sign.Parent = Workspace
 	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.CanvasSize = Vector2.new(720, 300); sg.LightInfluence = 0; sg.Parent = sign
 	local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
@@ -9109,6 +9121,7 @@ local SIGNS = {
 
 local function makeFace(board: BasePart, face: Enum.NormalId, cfg)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Name = "SignFace"
 	sg.Face = face
 	sg.CanvasSize = Vector2.new(900, 300)
@@ -9211,6 +9224,7 @@ local END_HOLD   = 2.0     -- بقاء الفقاعة بعد انتهاء الك
 
 local function buildBubble(head: BasePart, accent: Color3)
 	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	bb.Name = "GuardSpeech"
 	bb.Adornee = head
 	bb.Size = UDim2.new(0, 300, 0, 140)
@@ -9303,6 +9317,7 @@ local function setupGuard(cfg)
 
 	-- لوحة اسم احترافية (TextLabel يدعم العربي صح، مثل لوحات المناطق)
 	local nameBb = Instance.new("BillboardGui")
+	nameBb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	nameBb.Name = "NameTag"
 	nameBb.Adornee = head
 	nameBb.Size = UDim2.new(0, 170, 0, 38)
@@ -14308,6 +14323,8 @@ end
 
 local function new(class: string, props: { [string]: any }): Instance
 	local inst = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة (النص العربي يظهر للجميع)
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then inst.AutoLocalize = false end
 	for k, v in pairs(props) do
 		if k ~= "Parent" then
 			(inst :: any)[k] = v
@@ -15529,6 +15546,8 @@ end
 
 local function new(class: string, props, children)
 	local o = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة: النص العربي المصدر يظهر للجميع مهما كانت لغة الحساب
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then o.AutoLocalize = false end
 	for k, v in pairs(props or {}) do o[k] = v end
 	for _, c in ipairs(children or {}) do c.Parent = o end
 	return o
@@ -19111,6 +19130,7 @@ local stopRemote = remotes:WaitForChild("Stop", 30)
 -- بناء الواجهة
 ----------------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
+gui.AutoLocalize = false  -- 🌐 النص العربي يظهر للجميع (إيقاف الترجمة التلقائية)
 gui.Name = "ParkourHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
@@ -19276,6 +19296,8 @@ local WHITE  = Color3.fromRGB(245, 245, 255)
 
 local function new(class, props, children)
 	local o = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة (النص العربي يظهر للجميع)
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then o.AutoLocalize = false end
 	for k, v in pairs(props or {}) do o[k] = v end
 	for _, c in ipairs(children or {}) do c.Parent = o end
 	return o
@@ -19603,6 +19625,7 @@ end)
 -- واجهة شريط الطاقة
 ----------------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
+gui.AutoLocalize = false  -- 🌐 النص العربي يظهر للجميع (إيقاف الترجمة التلقائية)
 gui.Name = "SprintHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
@@ -121073,7 +121096,7 @@ end)
 						</Vector3>
 					</Properties>
 				</Item>
-			<Item class="SurfaceGui" referent="SCREEN0001"><Properties><string name="Name">CustomImageScreen</string><token name="Face">1</token><bool name="Enabled">true</bool><float name="LightInfluence">0</float><bool name="AlwaysOnTop">false</bool><token name="SizingMode">1</token><float name="PixelsPerStud">50</float><bool name="ResetOnSpawn">false</bool></Properties><Item class="ImageLabel" referent="SCREEN0002"><Properties><string name="Name">Image</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><Color3uint8 name="BackgroundColor3">1189442</Color3uint8><float name="BackgroundTransparency">0</float><token name="ScaleType">4</token><Content name="Image"><null/></Content></Properties><Item class="TextLabel" referent="SCREEN0003"><Properties><string name="Name">Hint</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><float name="BackgroundTransparency">1</float><bool name="Visible">true</bool><Color3uint8 name="TextColor3">14808575</Color3uint8><bool name="TextScaled">true</bool><string name="Text">🖼️ جارٍ تحميل صورتك...</string></Properties></Item></Item></Item></Item>
+			<Item class="SurfaceGui" referent="SCREEN0001"><Properties><bool name="AutoLocalize">false</bool><string name="Name">CustomImageScreen</string><token name="Face">1</token><bool name="Enabled">true</bool><float name="LightInfluence">0</float><bool name="AlwaysOnTop">false</bool><token name="SizingMode">1</token><float name="PixelsPerStud">50</float><bool name="ResetOnSpawn">false</bool></Properties><Item class="ImageLabel" referent="SCREEN0002"><Properties><string name="Name">Image</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><Color3uint8 name="BackgroundColor3">1189442</Color3uint8><float name="BackgroundTransparency">0</float><token name="ScaleType">4</token><Content name="Image"><null/></Content></Properties><Item class="TextLabel" referent="SCREEN0003"><Properties><string name="Name">Hint</string><UDim2 name="Size"><XS>1</XS><XO>0</XO><YS>1</YS><YO>0</YO></UDim2><UDim2 name="Position"><XS>0</XS><XO>0</XO><YS>0</YS><YO>0</YO></UDim2><float name="BackgroundTransparency">1</float><bool name="Visible">true</bool><Color3uint8 name="TextColor3">14808575</Color3uint8><bool name="TextScaled">true</bool><string name="Text">🖼️ جارٍ تحميل صورتك...</string></Properties></Item></Item></Item></Item>
 			<Item class="Part" referent="FS000028">
 				<Properties>
 					<bool name="Anchored">true</bool>

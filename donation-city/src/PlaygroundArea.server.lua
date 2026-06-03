@@ -31,6 +31,7 @@ local SIGNS = {
 
 local function makeFace(board: BasePart, face: Enum.NormalId, cfg)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Name = "SignFace"
 	sg.Face = face
 	sg.CanvasSize = Vector2.new(900, 300)
@@ -133,6 +134,7 @@ local END_HOLD   = 2.0     -- بقاء الفقاعة بعد انتهاء الك
 
 local function buildBubble(head: BasePart, accent: Color3)
 	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	bb.Name = "GuardSpeech"
 	bb.Adornee = head
 	bb.Size = UDim2.new(0, 300, 0, 140)
@@ -225,6 +227,7 @@ local function setupGuard(cfg)
 
 	-- لوحة اسم احترافية (TextLabel يدعم العربي صح، مثل لوحات المناطق)
 	local nameBb = Instance.new("BillboardGui")
+	nameBb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	nameBb.Name = "NameTag"
 	nameBb.Adornee = head
 	nameBb.Size = UDim2.new(0, 170, 0, 38)

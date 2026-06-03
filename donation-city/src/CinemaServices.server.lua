@@ -181,6 +181,7 @@ local function applyVipTag(player: Player)
 		local head = char:WaitForChild("Head", 8)
 		if not head or head:FindFirstChild("VipTag") then return end
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(120, 34)
 		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
@@ -535,6 +536,7 @@ local function refreshBadge(player: Player)
 	if #emojis == 0 then if bb then bb:Destroy() end return end
 	if not bb then
 		bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "PassBadge"; bb.Adornee = head; bb.Size = UDim2.fromOffset(150, 30)
 		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
@@ -2256,6 +2258,7 @@ end
 
 local function surface(parent, face)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Face = face or Enum.NormalId.Front
 	sg.CanvasSize = Vector2.new(800, 480)
 	sg.LightInfluence = 0
@@ -2337,6 +2340,7 @@ local function buildCashierModel(opts)
 	local head = topPart or biggest
 	if head then
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
 		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
 		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)

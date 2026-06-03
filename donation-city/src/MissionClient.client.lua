@@ -40,6 +40,8 @@ local WHITE  = Color3.fromRGB(245, 245, 255)
 
 local function new(class, props, children)
 	local o = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة (النص العربي يظهر للجميع)
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then o.AutoLocalize = false end
 	for k, v in pairs(props or {}) do o[k] = v end
 	for _, c in ipairs(children or {}) do c.Parent = o end
 	return o

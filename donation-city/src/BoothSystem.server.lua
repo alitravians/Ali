@@ -261,6 +261,7 @@ local function indexBooth(key: string)
 	-- so the text can never appear mirrored)
 	if body then
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "BoothBoard"
 		bb.Adornee = body
 		-- لوحة أصغر وأنظف: لا تطفو فوق كل العناصر (AlwaysOnTop=false) فلا تتكدّس

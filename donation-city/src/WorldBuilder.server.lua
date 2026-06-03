@@ -336,6 +336,7 @@ do
 		Color = Color3.fromRGB(18, 14, 32), Material = Enum.Material.SmoothPlastic, Parent = aquarium })
 	board.Orientation = Vector3.new(0, -35, 0)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Face = Enum.NormalId.Front; sg.CanvasSize = Vector2.new(560, 256)
 	sg.AlwaysOnTop = false; sg.Parent = board
 	local bg = Instance.new("Frame"); bg.Size = UDim2.fromScale(1, 1)
@@ -410,6 +411,7 @@ local function buildBooth(index: number, position: Vector3, color: Color3, amoun
 		Parent = model,
 	})
 	local signGui = Instance.new("SurfaceGui")
+	signGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	signGui.Face = Enum.NormalId.Front
 	signGui.CanvasSize = Vector2.new(400, 120)
 	signGui.Parent = sign
@@ -545,6 +547,7 @@ local marquee = newPart({
 	Parent = cinema,
 })
 local marqueeGui = Instance.new("SurfaceGui")
+marqueeGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 marqueeGui.Face = Enum.NormalId.Front
 marqueeGui.CanvasSize = Vector2.new(800, 200)
 marqueeGui.Parent = marquee
@@ -568,6 +571,7 @@ local screen = newPart({
 })
 -- SurfaceGui للشاشة (تعرض النصوص/الصور/الفيديو)
 local screenGui = Instance.new("SurfaceGui")
+screenGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 screenGui.Name = "ScreenDisplay"
 screenGui.Face = Enum.NormalId.Front
 screenGui.CanvasSize = Vector2.new(1280, 640)
@@ -689,6 +693,7 @@ local board = newPart({
 	Parent = cinema,
 })
 local boardGui = Instance.new("SurfaceGui")
+boardGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 boardGui.Face = Enum.NormalId.Front
 boardGui.CanvasSize = Vector2.new(560, 400)
 boardGui.Parent = board
@@ -744,6 +749,7 @@ local popSign = newPart({
 	Parent = cinema,
 })
 local popGui = Instance.new("SurfaceGui")
+popGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 popGui.Face = Enum.NormalId.Front
 popGui.CanvasSize = Vector2.new(400, 100)
 popGui.Parent = popSign
