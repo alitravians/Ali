@@ -5704,7 +5704,8 @@ sendPerks = function(player: Player)
 end
 
 -- منح باقة (تُستدعى عند الدخول لمن يملكها أو بعد إتمام الشراء)
-local function grantPass(player: Player, key: string, announce: boolean?)
+--   awardBuyer=false → لا تُمنح إنجاز "مُشترٍ" (تُستخدم للإهداء من الإدارة، لأن اللاعب لم يشترِ)
+local function grantPass(player: Player, key: string, announce: boolean?, awardBuyer: boolean?)
 	local s = sessions[player.UserId]
 	if not s then return end
 	s.passes = s.passes or {}
@@ -5717,7 +5718,7 @@ local function grantPass(player: Player, key: string, announce: boolean?)
 		applySpeed(player)
 	end
 	refreshBadge(player)
-	if _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
+	if awardBuyer ~= false and _G.AwardAchievement then _G.AwardAchievement(player, "buyer") end
 	for _, d in ipairs(PASS_DEFS) do
 		if d.key == key and announce ~= false then notify(player, d.msg) end
 	end
@@ -5731,6 +5732,166 @@ local function passKeyById(id: number): string?
 	return nil
 end
 
+------------------------------------------------------------------------
+-- 🎁 إهداء/سحب Game Pass من لوحة الإدارة (مجاني، دائم عبر DataStore)
+--   • يُخزَّن لكل لاعب بمفتاح مستقل ("u"..uid) → يعمل عبر كل السيرفرات وبعد إعادة التشغيل.
+--   • القيمة: { buffet=true, speed=true, ... } مفاتيح الباقات الممنوحة.
+--   • الباقة الممنوحة تعطي نفس مزايا الشراء الحقيقي (تمرّ عبر grantPass).
+--   • السحب يزيل المنحة فقط؛ لو اللاعب يملك الباص فعلاً من المتجر يبقى عنده.
+------------------------------------------------------------------------
+local passGrantStore
+pcall(function() passGrantStore = DataStoreService:GetDataStore("CinemaPassGrants_v1") end)
+
+-- كاش بالذاكرة: [uid(number)] = { [key]=true }
+local passGrants = {}
+
+local function isValidPassKey(key: string?): boolean
+	if not key then return false end
+	for _, d in ipairs(PASS_DEFS) do if d.key == key then return true end end
+	return false
+end
+
+-- اسم الباقة للعرض في إشعارات الإدارة
+local function passNameByKey(key: string): string
+	local NAMES = {
+		buffet = "🍿 بوفيه مفتوح", showrunner = "🎬 مالك العرض", neon = "✨ أثر نيون",
+		announcer = "📢 مايك الإعلان", speed = "⚡ سرعة البرق",
+	}
+	return NAMES[key] or key
+end
+
+-- تنقية بيانات DataStore لمفاتيح باقات صالحة فقط
+local function sanitizeGrants(data: any): { [string]: boolean }
+	local g = {}
+	if type(data) == "table" then
+		for k, v in pairs(data) do
+			if v == true and isValidPassKey(tostring(k)) then g[tostring(k)] = true end
+		end
+	end
+	return g
+end
+
+-- قراءة منح اللاعب. الحاضر: من الكاش. غير الحاضر: من DataStore مباشرة (لا نخزّن كاشاً يَقدُم).
+local function readPassGrants(uid: number): { [string]: boolean }
+	if not uid then return {} end
+	if passGrants[uid] then return passGrants[uid] end
+	local g = {}
+	if passGrantStore then
+		local ok, data = pcall(function() return passGrantStore:GetAsync("u" .. uid) end)
+		if ok then g = sanitizeGrants(data) end
+	end
+	-- نُبقي الكاش فقط للاعب حاضر في هذا السيرفر (يُمسح عند خروجه)
+	if Players:GetPlayerByUserId(uid) then passGrants[uid] = g end
+	return g
+end
+
+-- تعديل منحة ذرّياً عبر UpdateAsync (يمنع ضياع التحديثات بين السيرفرات). يُرجع true لو تغيّرت الحالة.
+local function setGrant(uid: number, key: string, on: boolean): boolean
+	if not uid or not isValidPassKey(key) then return false end
+	local changed = false
+	if passGrantStore then
+		local ok = pcall(function()
+			passGrantStore:UpdateAsync("u" .. uid, function(old)
+				local g = sanitizeGrants(old)
+				if on then
+					if g[key] then return nil end       -- ممنوحة أصلاً → ألغِ الكتابة
+					g[key] = true
+				else
+					if not g[key] then return nil end   -- غير ممنوحة → ألغِ الكتابة
+					g[key] = nil
+				end
+				changed = true
+				return g
+			end)
+		end)
+		if not ok then
+			-- فشل الخدمة: طبّق على الكاش كحل احتياطي حتى لا تتعطل التجربة
+			local g = passGrants[uid] or {}
+			if on ~= (g[key] == true) then g[key] = on or nil; changed = true end
+			if Players:GetPlayerByUserId(uid) then passGrants[uid] = g end
+			return changed
+		end
+	else
+		-- بدون DataStore (استوديو/اختبار): عدّل الكاش مباشرة
+		local g = passGrants[uid] or {}
+		if on ~= (g[key] == true) then g[key] = on or nil; changed = true end
+		passGrants[uid] = g
+		return changed
+	end
+	-- نجح DataStore: زامن الكاش للحاضر فقط، وامسحه لغير الحاضر
+	if changed then
+		if Players:GetPlayerByUserId(uid) then
+			local g = passGrants[uid] or {}
+			g[key] = on or nil
+			passGrants[uid] = g
+		else
+			passGrants[uid] = nil
+		end
+	end
+	return changed
+end
+
+-- إزالة مؤثرات باقة من لاعب حاضر (عكس grantPass) — تُستدعى عند السحب فقط
+local function removePassEffects(player: Player, key: string)
+	local s = sessions[player.UserId]
+	if not s then return end
+	if s.passes then s.passes[key] = nil end
+	if key == "neon" then
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if root then
+			for _, n in ipairs({ "NeonTrail", "NeonTrailTop", "NeonTrailBottom" }) do
+				local o = root:FindFirstChild(n); if o then o:Destroy() end
+			end
+		end
+	elseif key == "speed" then
+		-- يرجع لغير المالك: السرعة الأساسية = الحد الأدنى
+		applySpeed(player)
+		local char = player.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = CONFIG.SpeedMin end
+	end
+	refreshBadge(player)
+	sendPerks(player)
+end
+
+-- إهداء باقة (دائم). يُطبَّق فوراً لو اللاعب حاضر.
+local function adminGrantPass(uid: number, key: string): boolean
+	if not setGrant(uid, key, true) then return false end  -- ممنوحة أصلاً أو مفتاح غير صالح
+	local target = Players:GetPlayerByUserId(uid)
+	if target then
+		grantPass(target, key, true, false)  -- إهداء مجاني: لا يُمنح إنجاز "مُشترٍ"
+		sendPerks(target)  -- حدّث واجهة المزايا فوراً (أزرار العرض/الإعلان/شريط السرعة)
+	end
+	return true
+end
+
+-- سحب باقة ممنوحة. لو يملكها فعلاً من المتجر تبقى له.
+local function adminRevokePass(uid: number, key: string): boolean
+	if not setGrant(uid, key, false) then return false end  -- غير ممنوحة من الإدارة
+	local target = Players:GetPlayerByUserId(uid)
+	if target then
+		-- نزيل المؤثرات فقط لو تأكّدنا أنه لا يملك الباص من المتجر.
+		-- لو فشل التحقق (خطأ شبكة) نُبقي المؤثرات احتياطاً كي لا نسلب باصاً مشترى.
+		local pid = 0
+		for _, d in ipairs(PASS_DEFS) do if d.key == key then pid = d.id break end end
+		local removeFx = true
+		if pid ~= 0 then
+			local ok, owns = pcall(function()
+				return MarketplaceService:UserOwnsGamePassAsync(uid, pid)
+			end)
+			if not ok or owns == true then removeFx = false end  -- فشل التحقق أو يملكه فعلاً → لا تُزال
+		end
+		if removeFx then removePassEffects(target, key) end
+	end
+	return true
+end
+
+-- نظّف الكاش عند خروج اللاعب (يُعاد التحميل من DataStore عند دخوله مجدداً)
+Players.PlayerRemoving:Connect(function(p)
+	passGrants[p.UserId] = nil
+end)
+
 -- فحص كل الباقات عند دخول اللاعب + تثبيت المؤثرات على كل ظهور للشخصية
 applyAllPasses = function(player: Player)
 	local s = sessions[player.UserId]
@@ -5743,6 +5904,12 @@ applyAllPasses = function(player: Player)
 			end)
 			if ok and owns then grantPass(player, d.key, false) end
 		end
+	end
+	-- + الباقات الممنوحة من الإدارة (مجاناً، دائمة عبر DataStore)
+	-- awardBuyer=false: إهداء مجاني → لا يُمنح إنجاز «مُشترٍ» عند الدخول
+	local granted = readPassGrants(player.UserId)
+	for key in pairs(granted) do
+		if isValidPassKey(key) then grantPass(player, key, false, false) end
 	end
 	sendPerks(player)
 	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
@@ -6233,6 +6400,15 @@ local function sendAdminPanel(player)
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
 		local bi = mapBanActive(p.UserId)
+		-- passes = كل الباقات النشطة (شراء + إهداء)؛ grants = الممنوحة من الإدارة فقط
+		-- بهذا تُظهر اللوحة «سحب» للمُهدى فقط، و«مُشتراة» للمملوك من المتجر.
+		local pPasses = {}
+		local ps = sessions[p.UserId]
+		if ps and ps.passes then
+			for k, v in pairs(ps.passes) do if v then pPasses[k] = true end end
+		end
+		local pGrants = {}
+		for k in pairs(readPassGrants(p.UserId)) do pGrants[k] = true end
 		table.insert(list, {
 			name = p.Name, display = p.DisplayName, userId = p.UserId,
 			vip = (_G.IsVIP and _G.IsVIP(p)) or false,
@@ -6241,6 +6417,8 @@ local function sendAdminPanel(player)
 			mapBanned = bi ~= nil,
 			mapBanUntil = bi and (bi["until"] or 0) or nil,
 			rank = rankOfId(p.UserId),
+			passes = pPasses,
+			grants = pGrants,
 		})
 	end
 	lobbyRemote:FireClient(player, {
@@ -6532,6 +6710,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			broadcast=true, boothsEnable=true, boothsDisable=true, boothRelease=true,
 			maintenanceOn=true, maintenanceOff=true, vipGrant=true, vipRevoke=true,
 			ban=true, unban=true, mapBan=true, mapUnban=true,
+			grantPass=true, revokePass=true,
 		}
 		if MAP_CMDS[cmd] and not canDo(RANK_W.admin) then return end
 		-- ===== العرض =====
@@ -6647,6 +6826,46 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 					adminNotify(player, "ℹ️ " .. target.Name .. " ليس عضو VIP.")
 				end
 			end
+		elseif cmd == "grantPass" then
+			-- 🎁 إهداء باقة مجاناً (دائمة عبر DataStore) — أدمن فأعلى
+			local target, tid = targetOf()
+			local uid = tid
+			local key = tostring(payload.pass or "")
+			if not uid then
+				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
+			end
+			if not isValidPassKey(key) then
+				adminNotify(player, "ℹ️ باقة غير صالحة."); sendAdminPanel(player); return
+			end
+			local nm = passNameByKey(key)
+			local who = target and target.Name or ("#" .. uid)
+			if adminGrantPass(uid, key) then
+				adminNotify(player, "🎁 أهديت «" .. nm .. "» لـ " .. who .. ".")
+				logAdmin(adminName, "أهدى باقة «" .. nm .. "» لـ " .. who)
+			else
+				adminNotify(player, "ℹ️ «" .. nm .. "» ممنوحة لهذا اللاعب أصلاً.")
+			end
+			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
+		elseif cmd == "revokePass" then
+			-- 🗑️ سحب باقة ممنوحة — أدمن فأعلى (لو يملكها من المتجر تبقى)
+			local target, tid = targetOf()
+			local uid = tid
+			local key = tostring(payload.pass or "")
+			if not uid then
+				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
+			end
+			if not isValidPassKey(key) then
+				adminNotify(player, "ℹ️ باقة غير صالحة."); sendAdminPanel(player); return
+			end
+			local nm = passNameByKey(key)
+			local who = target and target.Name or ("#" .. uid)
+			if adminRevokePass(uid, key) then
+				adminNotify(player, "🗑️ سحبت «" .. nm .. "» من " .. who .. ".")
+				logAdmin(adminName, "سحب باقة «" .. nm .. "» من " .. who)
+			else
+				adminNotify(player, "ℹ️ «" .. nm .. "» ليست ممنوحة من الإدارة لهذا اللاعب.")
+			end
+			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
 		elseif cmd == "ban" then
 			local target, tid = targetOf()
 			if tid and tid ~= player.UserId then
@@ -17462,6 +17681,75 @@ showAdminPanel = function(data)
 		end)
 	end
 
+	-- 🎁 إهداء/سحب Game Pass مجاناً للاعب (أدمن فأعلى) — نافذة منبثقة فيها كل الباقات
+	local PASS_LIST = {
+		{ key = "vip",        name = "⭐ عضوية VIP",   vip = true },
+		{ key = "buffet",     name = "🍿 بوفيه مفتوح" },
+		{ key = "showrunner", name = "🎬 مالك العرض" },
+		{ key = "speed",      name = "⚡ سرعة البرق" },
+		{ key = "neon",       name = "✨ أثر نيون" },
+		{ key = "announcer",  name = "📢 مايك الإعلان" },
+	}
+	local function passesPrompt(pl)
+		local _, c = makeModal(UDim2.fromOffset(400, 470))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "🎁 باقات " .. (pl.display or pl.name), Font = Enum.Font.GothamBlack,
+			TextSize = 19, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 36), Position = UDim2.fromOffset(14, 12),
+			TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "أهدِ أو اسحب أي باقة مجاناً (دائمة عبر الحساب)",
+			Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = SUBT,
+			Size = UDim2.new(1, -28, 0, 20), Position = UDim2.fromOffset(14, 48), TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		local y = 78
+		for _, p in ipairs(PASS_LIST) do
+			-- granted = ممنوحة من الإدارة (قابلة للسحب) · owns = نشطة بأي طريقة
+			local granted, owns
+			if p.vip then
+				granted = (pl.vip == true)   -- VIP يُدار بنظامه (منح/سحب دائماً متاح)
+				owns = granted
+			else
+				granted = (pl.grants and pl.grants[p.key] == true)
+				owns = (pl.passes and pl.passes[p.key] == true)
+			end
+			local purchased = owns and not granted  -- يملكها من المتجر (لا تُسحب)
+			local label, color, enabled
+			if granted then
+				label = "🗑️ سحب  " .. p.name; color = RED_BTN; enabled = true
+			elseif purchased then
+				label = "✔️ مُشتراة  " .. p.name; color = CARD2; enabled = false
+			else
+				label = "🎁 إهداء  " .. p.name; color = GREEN_BTN; enabled = true
+			end
+			local b = styledButton(c, {
+				Text = label, Font = Enum.Font.GothamBold, TextSize = 15,
+				TextColor3 = enabled and TEXT or SUBT, BackgroundColor3 = color,
+				Size = UDim2.new(1, -28, 0, 42), Position = UDim2.fromOffset(14, y), Parent = c,
+			}, enabled)
+			y += 50
+			if enabled then
+				b.MouseButton1Click:Connect(function()
+					closeActive()
+					if p.vip then
+						cmd({ cmd = granted and "vipRevoke" or "vipGrant", userId = pl.userId })
+					else
+						cmd({ cmd = granted and "revokePass" or "grantPass", userId = pl.userId, pass = p.key })
+					end
+					if lastAdminData then showAdminPanel(lastAdminData) end
+				end)
+			end
+		end
+		local cancel = styledButton(c, {
+			Text = "إغلاق", Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD2,
+			Size = UDim2.new(1, -28, 0, 40), Position = UDim2.new(0.5, 0, 1, -12), AnchorPoint = Vector2.new(0.5, 1), Parent = c,
+		})
+		cancel.MouseButton1Click:Connect(function()
+			closeActive()
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end)
+	end
+
 	local RANK_BADGE = { owner = " 👑", admin = " 🛡️", mod = " 🔰", staff = " 🎬" }
 	local function makePlayerRow(parent, pl)
 		local isSelf = pl.userId == LocalPlayer.UserId
@@ -17482,6 +17770,7 @@ showAdminPanel = function(data)
 				end })
 				table.insert(actions, { "📍 انتقال", CYAN, function() cmd({ cmd = "teleport", userId = pl.userId }) end })
 				table.insert(actions, { pl.vip and "🚫 VIP" or "⭐ VIP", GOLD, function() cmd({ cmd = pl.vip and "vipRevoke" or "vipGrant", userId = pl.userId }) end })
+				table.insert(actions, { "🎁 باقات", Color3.fromRGB(150, 60, 130), function() passesPrompt(pl) end })
 				table.insert(actions, { pl.banned and "✅ حجز" or "🚫 حجز", ORG_BTN, function() cmd({ cmd = pl.banned and "unban" or "ban", userId = pl.userId }) end })
 				table.insert(actions, { "🏷️ رتبة", Color3.fromRGB(90, 70, 140), function() rankPrompt(pl) end })
 			end
