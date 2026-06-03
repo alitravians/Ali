@@ -626,38 +626,75 @@ local function passNameByKey(key: string): string
 	return NAMES[key] or key
 end
 
--- قراءة منح اللاعب (من الكاش أو DataStore). تُرجع جدولاً (قد يكون فارغاً).
+-- تنقية بيانات DataStore لمفاتيح باقات صالحة فقط
+local function sanitizeGrants(data: any): { [string]: boolean }
+	local g = {}
+	if type(data) == "table" then
+		for k, v in pairs(data) do
+			if v == true and isValidPassKey(tostring(k)) then g[tostring(k)] = true end
+		end
+	end
+	return g
+end
+
+-- قراءة منح اللاعب. الحاضر: من الكاش. غير الحاضر: من DataStore مباشرة (لا نخزّن كاشاً يَقدُم).
 local function readPassGrants(uid: number): { [string]: boolean }
 	if not uid then return {} end
 	if passGrants[uid] then return passGrants[uid] end
 	local g = {}
 	if passGrantStore then
 		local ok, data = pcall(function() return passGrantStore:GetAsync("u" .. uid) end)
-		if ok and type(data) == "table" then
-			for k, v in pairs(data) do
-				if v == true and isValidPassKey(tostring(k)) then g[tostring(k)] = true end
-			end
-		end
+		if ok then g = sanitizeGrants(data) end
 	end
-	passGrants[uid] = g
+	-- نُبقي الكاش فقط للاعب حاضر في هذا السيرفر (يُمسح عند خروجه)
+	if Players:GetPlayerByUserId(uid) then passGrants[uid] = g end
 	return g
 end
 
--- حفظ منح اللاعب (3 محاولات؛ يحذف المفتاح إن لم تبقَ منح)
-local function savePassGrants(uid: number)
-	if not passGrantStore or not uid then return end
-	local g = passGrants[uid] or {}
-	local hasAny = next(g) ~= nil
-	task.spawn(function()
-		for _ = 1, 3 do
-			local ok = pcall(function()
-				if hasAny then passGrantStore:SetAsync("u" .. uid, g)
-				else passGrantStore:RemoveAsync("u" .. uid) end
+-- تعديل منحة ذرّياً عبر UpdateAsync (يمنع ضياع التحديثات بين السيرفرات). يُرجع true لو تغيّرت الحالة.
+local function setGrant(uid: number, key: string, on: boolean): boolean
+	if not uid or not isValidPassKey(key) then return false end
+	local changed = false
+	if passGrantStore then
+		local ok = pcall(function()
+			passGrantStore:UpdateAsync("u" .. uid, function(old)
+				local g = sanitizeGrants(old)
+				if on then
+					if g[key] then return nil end       -- ممنوحة أصلاً → ألغِ الكتابة
+					g[key] = true
+				else
+					if not g[key] then return nil end   -- غير ممنوحة → ألغِ الكتابة
+					g[key] = nil
+				end
+				changed = true
+				return g
 			end)
-			if ok then return end
-			task.wait(1)
+		end)
+		if not ok then
+			-- فشل الخدمة: طبّق على الكاش كحل احتياطي حتى لا تتعطل التجربة
+			local g = passGrants[uid] or {}
+			if on ~= (g[key] == true) then g[key] = on or nil; changed = true end
+			if Players:GetPlayerByUserId(uid) then passGrants[uid] = g end
+			return changed
 		end
-	end)
+	else
+		-- بدون DataStore (استوديو/اختبار): عدّل الكاش مباشرة
+		local g = passGrants[uid] or {}
+		if on ~= (g[key] == true) then g[key] = on or nil; changed = true end
+		passGrants[uid] = g
+		return changed
+	end
+	-- نجح DataStore: زامن الكاش للحاضر فقط، وامسحه لغير الحاضر
+	if changed then
+		if Players:GetPlayerByUserId(uid) then
+			local g = passGrants[uid] or {}
+			g[key] = on or nil
+			passGrants[uid] = g
+		else
+			passGrants[uid] = nil
+		end
+	end
+	return changed
 end
 
 -- إزالة مؤثرات باقة من لاعب حاضر (عكس grantPass) — تُستدعى عند السحب فقط
@@ -686,25 +723,18 @@ end
 
 -- إهداء باقة (دائم). يُطبَّق فوراً لو اللاعب حاضر.
 local function adminGrantPass(uid: number, key: string): boolean
-	if not uid or not isValidPassKey(key) then return false end
-	local g = readPassGrants(uid)
-	if g[key] then return false end  -- ممنوحة أصلاً
-	g[key] = true
-	passGrants[uid] = g
-	savePassGrants(uid)
+	if not setGrant(uid, key, true) then return false end  -- ممنوحة أصلاً أو مفتاح غير صالح
 	local target = Players:GetPlayerByUserId(uid)
-	if target then grantPass(target, key, true) end
+	if target then
+		grantPass(target, key, true)
+		sendPerks(target)  -- حدّث واجهة المزايا فوراً (أزرار العرض/الإعلان/شريط السرعة)
+	end
 	return true
 end
 
 -- سحب باقة ممنوحة. لو يملكها فعلاً من المتجر تبقى له.
 local function adminRevokePass(uid: number, key: string): boolean
-	if not uid or not isValidPassKey(key) then return false end
-	local g = readPassGrants(uid)
-	if not g[key] then return false end  -- غير ممنوحة من الإدارة
-	g[key] = nil
-	passGrants[uid] = g
-	savePassGrants(uid)
+	if not setGrant(uid, key, false) then return false end  -- غير ممنوحة من الإدارة
 	local target = Players:GetPlayerByUserId(uid)
 	if target then
 		-- لو يملك الباص فعلاً من المتجر، لا نزيل المزايا
@@ -1234,12 +1264,15 @@ local function sendAdminPanel(player)
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
 		local bi = mapBanActive(p.UserId)
-		-- الباقات النشطة حالياً للاعب (شراء أو إهداء) لإظهار حالة الإهداء/السحب باللوحة
+		-- passes = كل الباقات النشطة (شراء + إهداء)؛ grants = الممنوحة من الإدارة فقط
+		-- بهذا تُظهر اللوحة «سحب» للمُهدى فقط، و«مُشتراة» للمملوك من المتجر.
 		local pPasses = {}
 		local ps = sessions[p.UserId]
 		if ps and ps.passes then
 			for k, v in pairs(ps.passes) do if v then pPasses[k] = true end end
 		end
+		local pGrants = {}
+		for k in pairs(readPassGrants(p.UserId)) do pGrants[k] = true end
 		table.insert(list, {
 			name = p.Name, display = p.DisplayName, userId = p.UserId,
 			vip = (_G.IsVIP and _G.IsVIP(p)) or false,
@@ -1249,6 +1282,7 @@ local function sendAdminPanel(player)
 			mapBanUntil = bi and (bi["until"] or 0) or nil,
 			rank = rankOfId(p.UserId),
 			passes = pPasses,
+			grants = pGrants,
 		})
 	end
 	lobbyRemote:FireClient(player, {

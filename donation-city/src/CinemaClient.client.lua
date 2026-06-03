@@ -1991,24 +1991,41 @@ showAdminPanel = function(data)
 		})
 		local y = 78
 		for _, p in ipairs(PASS_LIST) do
-			local has
-			if p.vip then has = (pl.vip == true) else has = (pl.passes and pl.passes[p.key] == true) end
+			-- granted = ممنوحة من الإدارة (قابلة للسحب) · owns = نشطة بأي طريقة
+			local granted, owns
+			if p.vip then
+				granted = (pl.vip == true)   -- VIP يُدار بنظامه (منح/سحب دائماً متاح)
+				owns = granted
+			else
+				granted = (pl.grants and pl.grants[p.key] == true)
+				owns = (pl.passes and pl.passes[p.key] == true)
+			end
+			local purchased = owns and not granted  -- يملكها من المتجر (لا تُسحب)
+			local label, color, enabled
+			if granted then
+				label = "🗑️ سحب  " .. p.name; color = RED_BTN; enabled = true
+			elseif purchased then
+				label = "✔️ مُشتراة  " .. p.name; color = CARD2; enabled = false
+			else
+				label = "🎁 إهداء  " .. p.name; color = GREEN_BTN; enabled = true
+			end
 			local b = styledButton(c, {
-				Text = (has and "🗑️ سحب  " or "🎁 إهداء  ") .. p.name,
-				Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT,
-				BackgroundColor3 = has and RED_BTN or GREEN_BTN,
+				Text = label, Font = Enum.Font.GothamBold, TextSize = 15,
+				TextColor3 = enabled and TEXT or SUBT, BackgroundColor3 = color,
 				Size = UDim2.new(1, -28, 0, 42), Position = UDim2.fromOffset(14, y), Parent = c,
-			})
+			}, enabled)
 			y += 50
-			b.MouseButton1Click:Connect(function()
-				closeActive()
-				if p.vip then
-					cmd({ cmd = has and "vipRevoke" or "vipGrant", userId = pl.userId })
-				else
-					cmd({ cmd = has and "revokePass" or "grantPass", userId = pl.userId, pass = p.key })
-				end
-				if lastAdminData then showAdminPanel(lastAdminData) end
-			end)
+			if enabled then
+				b.MouseButton1Click:Connect(function()
+					closeActive()
+					if p.vip then
+						cmd({ cmd = granted and "vipRevoke" or "vipGrant", userId = pl.userId })
+					else
+						cmd({ cmd = granted and "revokePass" or "grantPass", userId = pl.userId, pass = p.key })
+					end
+					if lastAdminData then showAdminPanel(lastAdminData) end
+				end)
+			end
 		end
 		local cancel = styledButton(c, {
 			Text = "إغلاق", Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD2,
