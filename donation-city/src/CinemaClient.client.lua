@@ -787,6 +787,9 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 		if onStoreSpeedSet then onStoreSpeedSet(data.speed) end
 	elseif data.action == "teamData" then
 		if onTeamData then onTeamData(data) end
+	elseif data.action == "giftAward" then
+		-- 🎁 إشعار إهداء باقة من الإدارة (شريط علوي احترافي)
+		showAnnounce({ text = tostring(data.text or "🎁 أهدتك الإدارة باقة مجاناً!") })
 	end
 end)
 

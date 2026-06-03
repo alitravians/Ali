@@ -5855,6 +5855,69 @@ local function removePassEffects(player: Player, key: string)
 	sendPerks(player)
 end
 
+------------------------------------------------------------------------
+-- 🎁 إشعار الإهداء الاحترافي (يوضّح أنها هدية من الإدارة)
+--   • للحاضر: شريط إعلان علوي فوري عبر lobbyRemote (مسار مُجرّب وموثوق).
+--   • للغائب: يُحفظ في طابور دائم ويظهر له مرة واحدة أول دخول بعد الإهداء.
+------------------------------------------------------------------------
+local giftQueueStore
+pcall(function() giftQueueStore = DataStoreService:GetDataStore("CinemaGiftQueue_v1") end)
+
+-- نص إشعار الإهداء (مفرد أو مجمّع لعدة باقات)
+local function giftNoticeText(keys: { string }): string
+	local names = {}
+	for _, k in ipairs(keys) do names[#names + 1] = "«" .. passNameByKey(k) .. "»" end
+	if #names == 0 then return "" end
+	if #names == 1 then
+		return "🎁 أهدتك إدارة مدينة التبرعات باقة " .. names[1] .. " مجاناً — مزاياها مفعّلة الآن، استمتع بها!"
+	end
+	return "🎁 أهدتك إدارة مدينة التبرعات الباقات التالية مجاناً: " .. table.concat(names, "، ") .. " — مفعّلة الآن!"
+end
+
+-- إرسال إشعار الإهداء للاعب حاضر (شريط إعلان علوي احترافي)
+local function sendGiftNotice(target: Player, keys: { string })
+	local text = giftNoticeText(keys)
+	if text ~= "" then lobbyRemote:FireClient(target, { action = "giftAward", text = text }) end
+end
+
+-- إدراج إشعار إهداء للاعب غائب → يظهر له أول مرة يدخل (ذرّياً عبر UpdateAsync)
+local function queueGiftNotice(uid: number, key: string)
+	if not giftQueueStore or not isValidPassKey(key) then return end
+	pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			local g = {}
+			if type(old) == "table" then
+				for k, v in pairs(old) do
+					if v == true and isValidPassKey(tostring(k)) then g[tostring(k)] = true end
+				end
+			end
+			if g[key] then return nil end  -- مُدرَج أصلاً → ألغِ الكتابة
+			g[key] = true
+			return g
+		end)
+	end)
+end
+
+-- التقاط (وحذف) إشعارات الإهداء المعلّقة للاعب — تُستدعى مرة عند الدخول
+local function popGiftNotices(uid: number): { string }
+	local keys = {}
+	if not giftQueueStore then return keys end
+	local captured
+	local ok = pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			captured = old
+			if old == nil then return nil end  -- لا شيء معلّق → لا تكتب
+			return {}  -- امسح الطابور بعد الالتقاط
+		end)
+	end)
+	if ok and type(captured) == "table" then
+		for k, v in pairs(captured) do
+			if v == true and isValidPassKey(tostring(k)) then keys[#keys + 1] = tostring(k) end
+		end
+	end
+	return keys
+end
+
 -- إهداء باقة (دائم). يُطبَّق فوراً لو اللاعب حاضر.
 local function adminGrantPass(uid: number, key: string): boolean
 	if not setGrant(uid, key, true) then return false end  -- ممنوحة أصلاً أو مفتاح غير صالح
@@ -5862,6 +5925,9 @@ local function adminGrantPass(uid: number, key: string): boolean
 	if target then
 		grantPass(target, key, true, false)  -- إهداء مجاني: لا يُمنح إنجاز "مُشترٍ"
 		sendPerks(target)  -- حدّث واجهة المزايا فوراً (أزرار العرض/الإعلان/شريط السرعة)
+		sendGiftNotice(target, { key })  -- 🎁 إشعار إهداء احترافي فوري على الشاشة
+	else
+		queueGiftNotice(uid, key)  -- غائب → يظهر له الإشعار أول مرة يدخل
 	end
 	return true
 end
@@ -5913,6 +5979,19 @@ applyAllPasses = function(player: Player)
 	end
 	sendPerks(player)
 	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
+	-- 🎁 إشعارات إهداء معلّقة (مُنحت أثناء غيابه) → تظهر مرة واحدة الآن
+	task.spawn(function()
+		local pending = popGiftNotices(player.UserId)
+		if #pending == 0 then return end
+		-- اعرض فقط ما زال ممنوحاً فعلاً (قد يكون سُحب قبل دخوله)
+		local stillGranted = {}
+		for _, k in ipairs(pending) do
+			if granted[k] then stillGranted[#stillGranted + 1] = k end
+		end
+		if #stillGranted == 0 then return end
+		task.wait(2)  -- مهلة بسيطة حتى تجهز واجهة اللاعب بعد الدخول
+		if player.Parent then sendGiftNotice(player, stillGranted) end
+	end)
 	-- أعد تطبيق الأثر/الشارة/السرعة عند كل ولادة للشخصية
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
@@ -16500,6 +16579,9 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 		if onStoreSpeedSet then onStoreSpeedSet(data.speed) end
 	elseif data.action == "teamData" then
 		if onTeamData then onTeamData(data) end
+	elseif data.action == "giftAward" then
+		-- 🎁 إشعار إهداء باقة من الإدارة (شريط علوي احترافي)
+		showAnnounce({ text = tostring(data.text or "🎁 أهدتك الإدارة باقة مجاناً!") })
 	end
 end)
 
