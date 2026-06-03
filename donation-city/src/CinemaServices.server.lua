@@ -759,6 +759,120 @@ Players.PlayerRemoving:Connect(function(player)
 	end)
 end)
 
+------------------------------------------------------------------------
+-- 🔨 حظر اللاعبين من الماب (بنمط الأيام) — متاح للأدمن فأعلى فقط
+-- محفوظ بـ DataStore (كل لاعب بمفتاح مستقل) فيعمل عبر كل السيرفرات وبعد
+-- إعادة التشغيل. عند دخول لاعب حظره ساري → يُطرد فوراً برسالة تبيّن المدة.
+--   • القيمة المخزّنة: { until=<epoch> (0 = دائم), name, by, reason }
+------------------------------------------------------------------------
+local banStore
+pcall(function() banStore = DataStoreService:GetDataStore("CinemaMapBans_v1") end)
+
+-- كاش بالذاكرة: [uid(number)] = { until=number, name=string, by=string, reason=string }
+local mapBans = {}
+
+local function normBan(uid: number, v): any
+	if type(v) ~= "table" then return nil end
+	return {
+		["until"] = tonumber(v["until"]) or 0,
+		name      = tostring(v.name or ("#" .. uid)),
+		by        = tostring(v.by or ""),
+		reason    = tostring(v.reason or ""),
+	}
+end
+
+-- قراءة طازجة من DataStore (تُحدّث الكاش). على خطأ شبكة ترجع الكاش الحالي.
+local function readBan(uid: number?)
+	if not uid then return nil end
+	if not banStore then return mapBans[uid] end
+	local ok, v = pcall(function() return banStore:GetAsync("u" .. uid) end)
+	if ok then
+		mapBans[uid] = normBan(uid, v)  -- v=nil → يمسح الكاش
+		return mapBans[uid]
+	end
+	return mapBans[uid]
+end
+
+-- يُرجع سجل الحظر الساري من الكاش (ويحذف المنتهي تلقائياً)، أو nil لو غير محظور
+local function mapBanActive(uid: number?)
+	if not uid then return nil end
+	local b = mapBans[uid]
+	if not b then return nil end
+	local untilT = b["until"] or 0
+	if untilT ~= 0 and os.time() >= untilT then
+		mapBans[uid] = nil
+		if banStore then pcall(function() banStore:RemoveAsync("u" .. uid) end) end
+		return nil
+	end
+	return b
+end
+
+-- نص المدة المتبقية للحظر (يوم/ساعة/دقيقة) لرسالة الطرد
+local function banRemainingText(b): string
+	local untilT = b["until"] or 0
+	if untilT == 0 then return "بشكل دائم" end
+	local secs  = math.max(0, untilT - os.time())
+	local days  = math.floor(secs / 86400)
+	local hours = math.floor((secs % 86400) / 3600)
+	if days >= 1 then
+		return "لمدة " .. tostring(days) .. " يوم" .. (hours > 0 and (" و" .. tostring(hours) .. " ساعة") or "")
+	elseif hours >= 1 then
+		return "لمدة " .. tostring(hours) .. " ساعة"
+	end
+	local mins = math.max(1, math.floor((secs % 3600) / 60))
+	return "لمدة " .. tostring(mins) .. " دقيقة"
+end
+
+local function banKickMsg(b): string
+	local msg = "🔨 أنت محظور من «مدينة التبرعات» " .. banRemainingText(b) .. "."
+	if b.reason and #b.reason > 0 then msg = msg .. "\nالسبب: " .. b.reason end
+	return msg
+end
+
+-- تعيين حظر: days=0 → دائم. يحفظ ويطرد اللاعب فوراً لو كان حاضراً.
+local function setMapBan(uid: number, days: number?, name: string?, by: string?, reason: string?)
+	if not uid then return end
+	if CONFIG.AdminIds[uid] then return end  -- المالك لا يُحظر
+	local d = math.max(0, tonumber(days) or 0)
+	local rec = {
+		["until"] = (d > 0) and (os.time() + math.floor(d * 86400)) or 0,
+		name   = tostring(name or (mapBans[uid] and mapBans[uid].name) or ("#" .. uid)),
+		by     = tostring(by or ""),
+		reason = string.sub(tostring(reason or ""), 1, 140),
+	}
+	mapBans[uid] = rec
+	if banStore then pcall(function() banStore:SetAsync("u" .. uid, rec) end) end
+	local target = Players:GetPlayerByUserId(uid)
+	if target then
+		task.delay(0.3, function()
+			if target and target.Parent then target:Kick(banKickMsg(rec)) end
+		end)
+	end
+end
+
+local function clearMapBan(uid: number)
+	if not uid then return end
+	mapBans[uid] = nil
+	if banStore then pcall(function() banStore:RemoveAsync("u" .. uid) end) end
+end
+
+-- تطبيق الحظر عند الدخول: فحص طازج من DataStore ثم طرد لو الحظر ساري
+local function enforceBanOnJoin(player: Player)
+	if not player then return end
+	if CONFIG.AdminIds[player.UserId] then return end
+	readBan(player.UserId)
+	local b = mapBanActive(player.UserId)
+	if b and player.Parent then
+		player:Kick(banKickMsg(b))
+	end
+end
+
+Players.PlayerAdded:Connect(enforceBanOnJoin)
+-- لاعبون حاضرون لحظة بدء السيرفر (نادر) — افحصهم أيضاً
+for _, p in ipairs(Players:GetPlayers()) do
+	task.spawn(enforceBanOnJoin, p)
+end
+
 -- قائمة المشرفين الحاليين (للوحة) — تدمج الحاضرين والمخزّنين
 local function rankList()
 	local out = {}
@@ -982,11 +1096,14 @@ end
 local function sendAdminPanel(player)
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
+		local bi = mapBanActive(p.UserId)
 		table.insert(list, {
 			name = p.Name, display = p.DisplayName, userId = p.UserId,
 			vip = (_G.IsVIP and _G.IsVIP(p)) or false,
 			banned = (_G.BoothIsBanned and _G.BoothIsBanned(p.UserId)) or false,
 			muted = (_G.ChatIsMuted and _G.ChatIsMuted(p.UserId)) or false,
+			mapBanned = bi ~= nil,
+			mapBanUntil = bi and (bi["until"] or 0) or nil,
 			rank = rankOfId(p.UserId),
 		})
 	end
@@ -1278,7 +1395,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			lightsOn=true, lightsOff=true, lightLevel=true, ambient=true, music=true,
 			broadcast=true, boothsEnable=true, boothsDisable=true, boothRelease=true,
 			maintenanceOn=true, maintenanceOff=true, vipGrant=true, vipRevoke=true,
-			ban=true, unban=true,
+			ban=true, unban=true, mapBan=true, mapUnban=true,
 		}
 		if MAP_CMDS[cmd] and not canDo(RANK_W.admin) then return end
 		-- ===== العرض =====
@@ -1409,6 +1526,33 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				if target then adminNotify(target, "✅ رُفِع المنع — تقدر تحجز بوثاً الآن.") end
 				adminNotify(player, "✅ رُفِع المنع عن " .. (target and target.Name or ("#" .. tid)) .. ".")
 				logAdmin(adminName, "رفع منع " .. (target and target.Name or tostring(tid)))
+			end
+		elseif cmd == "mapBan" then
+			-- 🔨 حظر من الماب بنمط الأيام (days=0 → دائم) — أدمن فأعلى (محمي بـ MAP_CMDS)
+			local target, tid = targetOf()
+			if tid and tid ~= player.UserId then
+				if CONFIG.AdminIds[tid] then
+					adminNotify(player, "🚫 لا يمكن حظر المالك."); sendAdminPanel(player); return
+				end
+				-- استخدم رتبة الـ userId (تعمل حتى لو الهدف غير متصل) لمنع حظر إداري أعلى
+				if (RANK_W[rankOfId(tid)] or 0) >= myW then
+					adminNotify(player, "🚫 لا يمكنك حظر إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
+				end
+				local days = math.max(0, math.floor(tonumber(payload.days) or 0))
+				local nm = (target and target.Name) or (mapBans[tid] and mapBans[tid].name) or ("#" .. tid)
+				local reason = string.sub(tostring(payload.reason or ""), 1, 140)
+				setMapBan(tid, days, nm, adminName, reason)
+				local when = (days > 0) and ("لمدة " .. tostring(days) .. " يوم") or "بشكل دائم"
+				adminNotify(player, "🔨 حُظر " .. nm .. " من الماب " .. when .. ".")
+				logAdmin(adminName, "حظر من الماب " .. nm .. " (" .. when .. ")")
+			end
+		elseif cmd == "mapUnban" then
+			local _, tid = targetOf()
+			if tid then
+				local nm = (mapBans[tid] and mapBans[tid].name) or ("#" .. tid)
+				clearMapBan(tid)
+				adminNotify(player, "♻️ رُفِع حظر الماب عن " .. nm .. ".")
+				logAdmin(adminName, "رفع حظر الماب عن " .. nm)
 			end
 		elseif cmd == "mute" then
 			if not canDo(RANK_W.mod) then return end  -- الكتم: مشرف فأعلى

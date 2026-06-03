@@ -1878,6 +1878,48 @@ showAdminPanel = function(data)
 		end)
 	end
 
+	-- 🔨 اختيار مدة حظر اللاعب من الماب (يوم/٣/٧/١٤/٣٠/دائم) — للأدمن فأعلى
+	local function banPrompt(pl)
+		local _, c = makeModal(UDim2.fromOffset(380, 320))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "🔨 حظر " .. (pl.display or pl.name) .. " من الماب", Font = Enum.Font.GothamBlack,
+			TextSize = 18, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 40), Position = UDim2.fromOffset(14, 14),
+			TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "اختر مدة الحظر (بالأيام):", Font = Enum.Font.GothamMedium, TextSize = 14, TextColor3 = SUBT,
+			Size = UDim2.new(1, -28, 0, 22), Position = UDim2.fromOffset(14, 54), TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		local durs = {
+			{ "يوم", 1 }, { "٣ أيام", 3 }, { "٧ أيام", 7 },
+			{ "١٤ يوم", 14 }, { "٣٠ يوم", 30 }, { "♾️ دائم", 0 },
+		}
+		local function pick(days)
+			closeActive()
+			cmd({ cmd = "mapBan", userId = pl.userId, days = days })
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end
+		local cols = 2
+		for i, d in ipairs(durs) do
+			local r = math.floor((i - 1) / cols)
+			local col = (i - 1) % cols
+			local b = styledButton(c, {
+				Text = d[1], Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT,
+				BackgroundColor3 = (d[2] == 0) and RED_BTN or NEU_BTN,
+				Size = UDim2.new(0.5, -19, 0, 44), Position = UDim2.fromOffset(14 + col * (170 + 8), 84 + r * 52), Parent = c,
+			})
+			b.MouseButton1Click:Connect(function() pick(d[2]) end)
+		end
+		local cancel = styledButton(c, {
+			Text = "إلغاء", Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD2,
+			Size = UDim2.new(1, -28, 0, 40), Position = UDim2.new(0.5, 0, 1, -12), AnchorPoint = Vector2.new(0.5, 1), Parent = c,
+		})
+		cancel.MouseButton1Click:Connect(function()
+			closeActive()
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end)
+	end
+
 	-- 🏷️ تعيين رتبة لاعب (Admin/Moderator/Cinema Staff/إزالة) — للأدمن فأعلى
 	local function rankPrompt(pl)
 		local _, c = makeModal(UDim2.fromOffset(380, 330))
@@ -1939,6 +1981,9 @@ showAdminPanel = function(data)
 			end
 			if myW >= RANK_W.admin then
 				table.insert(actions, { "👢 طرد", RED_BTN, function() kickConfirm(pl) end })
+				table.insert(actions, { pl.mapBanned and "♻️ فك الحظر" or "🔨 حظر", Color3.fromRGB(150, 40, 40), function()
+					if pl.mapBanned then cmd({ cmd = "mapUnban", userId = pl.userId }) else banPrompt(pl) end
+				end })
 				table.insert(actions, { "📍 انتقال", CYAN, function() cmd({ cmd = "teleport", userId = pl.userId }) end })
 				table.insert(actions, { pl.vip and "🚫 VIP" or "⭐ VIP", GOLD, function() cmd({ cmd = pl.vip and "vipRevoke" or "vipGrant", userId = pl.userId }) end })
 				table.insert(actions, { pl.banned and "✅ حجز" or "🚫 حجز", ORG_BTN, function() cmd({ cmd = pl.banned and "unban" or "ban", userId = pl.userId }) end })
@@ -1955,6 +2000,7 @@ showAdminPanel = function(data)
 		local badges = RANK_BADGE[pl.rank or ""] or ""
 		if pl.vip then badges = badges .. " ⭐" end
 		if pl.banned then badges = badges .. " 🚫" end
+		if pl.mapBanned then badges = badges .. " 🔨" end
 		if pl.muted then badges = badges .. " 🔇" end
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = "👤 " .. (pl.display or pl.name) .. badges, Font = Enum.Font.GothamBold,
