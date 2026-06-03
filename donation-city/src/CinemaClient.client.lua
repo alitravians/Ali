@@ -2243,7 +2243,7 @@ showAdminPanel = function(data)
 	-- ===== تبويب الشات (مشرف فأعلى): رسالة إدارية + إعلان + تفعيل/تعطيل =====
 	local function buildChat()
 		sectionLabel("📨 رسالة إدارية (تظهر بخط أسود عريض + صوت)")
-		note("تُرسل لكل اللاعبين بصيغة [" .. ((myRankNow == "owner" and "OWNER") or (myRankNow == "admin" and "ADMIN") or "MODERATOR") .. "]. (أو اكتب في الدردشة: $رسالتك)")
+		note("تُرسل لكل اللاعبين بصيغة [" .. ((myRankNow == "owner" and "المالك") or (myRankNow == "admin" and "أدمن") or "مشرف") .. "]. (أو اكتب في الدردشة: $رسالتك)")
 		local af = rowFrame(44)
 		local abox = new("TextBox", {
 			PlaceholderText = "نص الرسالة الإدارية...", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
@@ -3471,7 +3471,9 @@ do
 	end
 
 	openManage = function(key)
-		local _, card = makeModal("👑 إدارة بوثك (" .. key .. ")", 480, 580)
+		local mst = boothStates[key]
+		local mlbl = (mst and mst.keyLabel) or key
+		local _, card = makeModal("👑 إدارة بوثك (" .. mlbl .. ")", 480, 580)
 		rebuildManage(card, key)
 		card:SetAttribute("BoothKey", key)
 		card.Name = "ManageCard"

@@ -567,6 +567,7 @@ local function snapshot()
 		out[key] = {
 			ownerId = b.ownerId,
 			ownerName = b.ownerName,
+			keyLabel = tierLabel(key),
 			welcome = b.welcome,
 			colorIndex = b.colorIndex,
 			products = prods,
