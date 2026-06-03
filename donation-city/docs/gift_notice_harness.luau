@@ -302,9 +302,13 @@ applyAllPasses = function(player)
 	task.spawn(function()
 		local pending = popGiftNotices(player.UserId)
 		if #pending == 0 then return end
+		local freshOk, freshData = pcall(function()
+			return passGrantStore and passGrantStore:GetAsync("u" .. player.UserId)
+		end)
+		local validGrants = (freshOk and sanitizeGrants(freshData)) or granted
 		local stillGranted = {}
 		for _, k in ipairs(pending) do
-			if granted[k] then stillGranted[#stillGranted + 1] = k end
+			if validGrants[k] then stillGranted[#stillGranted + 1] = k end
 		end
 		if #stillGranted == 0 then return end
 		task.wait(2)
@@ -448,6 +452,16 @@ D.Parent = {}
 applyAllPasses(D)
 check("الإشعار ظهر في الدخول التالي", hasFireWith(909, "سرعة البرق"))
 check("الطابور أُفرغ بعد التسليم الناجح", next(giftStore:raw()["u909"] or {}) == nil)
+
+print("== T12: منحة من سيرفر آخر (لقطة granted قديمة) → تظهر بالقراءة الطازجة ==")
+reset()
+-- منحة موجودة في المتجر الدائم + طابور الإهداء، لكن كاش هذا السيرفر قديم لا يحويها
+grantStore:raw()["u1212"] = { neon = true }
+giftStore:raw()["u1212"] = { neon = true }
+passGrants[1212] = {}  -- لقطة قديمة (تحاكي منحة سيرفر آخر بعد ملء الكاش)
+local E = mkPlayer(1212); present[1212] = E; sessions[1212] = { passes = {} }
+applyAllPasses(E)
+check("ظهر الإشعار رغم اللقطة القديمة (قراءة طازجة)", hasFireWith(1212, "أثر نيون"))
 
 print(string.format("\n==== النتيجة: %d نجح / %d فشل ====", pass, fail))
 if fail > 0 then error("بعض الفحوصات فشلت") end

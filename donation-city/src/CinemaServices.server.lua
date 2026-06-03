@@ -867,10 +867,15 @@ applyAllPasses = function(player: Player)
 	task.spawn(function()
 		local pending = popGiftNotices(player.UserId)
 		if #pending == 0 then return end
-		-- اعرض فقط ما زال ممنوحاً فعلاً (قد يكون سُحب قبل دخوله)
+		-- اقرأ المنح طازجة من DataStore (تشمل منح/سحب سيرفر آخر) لتفادي لقطة قديمة
+		local freshOk, freshData = pcall(function()
+			return passGrantStore and passGrantStore:GetAsync("u" .. player.UserId)
+		end)
+		local validGrants = (freshOk and sanitizeGrants(freshData)) or granted
+		-- اعرض فقط ما زال ممنوحاً فعلاً (لو سُحب قبل دخوله لا يظهر إشعار مضلِّل)
 		local stillGranted = {}
 		for _, k in ipairs(pending) do
-			if granted[k] then stillGranted[#stillGranted + 1] = k end
+			if validGrants[k] then stillGranted[#stillGranted + 1] = k end
 		end
 		if #stillGranted == 0 then return end
 		task.wait(2)  -- مهلة بسيطة حتى تجهز واجهة اللاعب بعد الدخول

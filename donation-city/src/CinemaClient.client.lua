@@ -1447,7 +1447,7 @@ showAnnounce = function(data)
 	-- يكبر ارتفاع الشريط تلقائياً ليتسع للنص الطويل (عدة باقات) مع حدّ أدنى 58 يبقي الشكل المعتاد للنص القصير
 	local frame = new("Frame", {
 		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, -90), Size = UDim2.new(0, 360, 0, 0),
+		Position = UDim2.new(0.5, 0, 0, -160), Size = UDim2.new(0, 360, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 80, Parent = gui,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 16) }),
@@ -1470,8 +1470,10 @@ showAnnounce = function(data)
 		{ Position = UDim2.new(0.5, 0, 0, 14) }):Play()
 	task.delay(5, function()
 		if frame and frame.Parent and announceFrame == frame then
+			-- إخفاء كامل مهما كبر الارتفاع (نص عدة باقات)
+			local hideY = -(math.ceil(frame.AbsoluteSize.Y) + 24)
 			local tw = TweenService:Create(frame, TweenInfo.new(0.4),
-				{ Position = UDim2.new(0.5, 0, 0, -90) })
+				{ Position = UDim2.new(0.5, 0, 0, hideY) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
 		end
