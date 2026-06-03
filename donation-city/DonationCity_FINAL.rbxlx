@@ -5906,9 +5906,10 @@ applyAllPasses = function(player: Player)
 		end
 	end
 	-- + الباقات الممنوحة من الإدارة (مجاناً، دائمة عبر DataStore)
+	-- awardBuyer=false: إهداء مجاني → لا يُمنح إنجاز «مُشترٍ» عند الدخول
 	local granted = readPassGrants(player.UserId)
 	for key in pairs(granted) do
-		if isValidPassKey(key) then grantPass(player, key, false) end
+		if isValidPassKey(key) then grantPass(player, key, false, false) end
 	end
 	sendPerks(player)
 	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
@@ -6844,6 +6845,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			else
 				adminNotify(player, "ℹ️ «" .. nm .. "» ممنوحة لهذا اللاعب أصلاً.")
 			end
+			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
 		elseif cmd == "revokePass" then
 			-- 🗑️ سحب باقة ممنوحة — أدمن فأعلى (لو يملكها من المتجر تبقى)
 			local target, tid = targetOf()
@@ -6863,6 +6865,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			else
 				adminNotify(player, "ℹ️ «" .. nm .. "» ليست ممنوحة من الإدارة لهذا اللاعب.")
 			end
+			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
 		elseif cmd == "ban" then
 			local target, tid = targetOf()
 			if tid and tid ~= player.UserId then
