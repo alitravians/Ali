@@ -5913,7 +5913,8 @@ local function mapBanActive(uid: number?)
 	local untilT = b["until"] or 0
 	if untilT ~= 0 and os.time() >= untilT then
 		mapBans[uid] = nil
-		if banStore then pcall(function() banStore:RemoveAsync("u" .. uid) end) end
+		-- تنظيف المخزّن المنتهي بخيط منفصل حتى لا يُعطّل المستدعي (مثل حلقة sendAdminPanel)
+		if banStore then task.spawn(function() pcall(function() banStore:RemoveAsync("u" .. uid) end) end) end
 		return nil
 	end
 	return b
@@ -17581,6 +17582,31 @@ showAdminPanel = function(data)
 			TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.fromScale(1, 1),
 			TextXAlignment = Enum.TextXAlignment.Right, Parent = sf,
 		}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = PURPLE, Transparency = 0.4 }) })
+		-- 🔨 حظر/فك حظر بالـ UserID — للأدمن فأعلى (يعمل حتى لو اللاعب غير موجود بالماب، ويتيح فكّ الحظر الدائم)
+		if myW >= RANK_W.admin then
+			sectionLabel("🔨 حظر / فك حظر بالـ UserID")
+			note("يعمل حتى لو اللاعب غير موجود الآن — لفكّ حظر دائم أو حظر شخص غائب.")
+			local idf = rowFrame(40)
+			local idBox = new("TextBox", {
+				PlaceholderText = "UserID (أرقام)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
+				TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.new(0.62, -4, 1, 0),
+				Position = UDim2.fromScale(0.38, 0), TextXAlignment = Enum.TextXAlignment.Right, Parent = idf,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = PURPLE, Transparency = 0.4 }) })
+			local dayBox = new("TextBox", {
+				PlaceholderText = "أيام (0=دائم)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
+				TextSize = 14, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.new(0.38, -4, 1, 0),
+				Position = UDim2.fromScale(0, 0), TextXAlignment = Enum.TextXAlignment.Center, Parent = idf,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = PURPLE, Transparency = 0.4 }) })
+			bigButton("🔨 حظر بالـ ID", Color3.fromRGB(150, 40, 40), function()
+				local uid = tonumber((idBox.Text or ""):match("%d+"))
+				local days = math.max(0, math.floor(tonumber(dayBox.Text) or 0))
+				if uid then cmd({ cmd = "mapBan", userId = uid, days = days }) end
+			end)
+			bigButton("♻️ فك الحظر بالـ ID", GREEN_BTN, function()
+				local uid = tonumber((idBox.Text or ""):match("%d+"))
+				if uid then cmd({ cmd = "mapUnban", userId = uid }) end
+			end)
+		end
 		local holder = new("Frame", {
 			BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
 			LayoutOrder = nextOrder(), Parent = content,

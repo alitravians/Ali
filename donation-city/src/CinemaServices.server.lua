@@ -801,7 +801,8 @@ local function mapBanActive(uid: number?)
 	local untilT = b["until"] or 0
 	if untilT ~= 0 and os.time() >= untilT then
 		mapBans[uid] = nil
-		if banStore then pcall(function() banStore:RemoveAsync("u" .. uid) end) end
+		-- تنظيف المخزّن المنتهي بخيط منفصل حتى لا يُعطّل المستدعي (مثل حلقة sendAdminPanel)
+		if banStore then task.spawn(function() pcall(function() banStore:RemoveAsync("u" .. uid) end) end) end
 		return nil
 	end
 	return b
