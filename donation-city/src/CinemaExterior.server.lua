@@ -60,6 +60,7 @@ local function dualSurface(part, canvasSize, builder)
 	local out = {}
 	for _, face in ipairs({ Enum.NormalId.Back, Enum.NormalId.Front }) do
 		local g = Instance.new("SurfaceGui")
+		g.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		g.Face = face
 		g.CanvasSize = canvasSize
 		g.Parent = part

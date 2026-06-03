@@ -99,6 +99,8 @@ end
 
 local function new(class: string, props: { [string]: any }): Instance
 	local inst = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة (النص العربي يظهر للجميع)
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then inst.AutoLocalize = false end
 	for k, v in pairs(props) do
 		if k ~= "Parent" then
 			(inst :: any)[k] = v

@@ -52,6 +52,8 @@ end
 
 local function new(class: string, props, children)
 	local o = Instance.new(class)
+	-- 🌐 إيقاف الترجمة التلقائية على حاويات الواجهة: النص العربي المصدر يظهر للجميع مهما كانت لغة الحساب
+	if class == "ScreenGui" or class == "BillboardGui" or class == "SurfaceGui" then o.AutoLocalize = false end
 	for k, v in pairs(props or {}) do o[k] = v end
 	for _, c in ipairs(children or {}) do c.Parent = o end
 	return o

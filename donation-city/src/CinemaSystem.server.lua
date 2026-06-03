@@ -193,6 +193,7 @@ end
 ------------------------------------------------------------------------
 local function makeSurface(targetPart, pps)
 	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.Name = "Display"
 	sg.Adornee = targetPart
 	sg.Face = Enum.NormalId.Back
@@ -1384,6 +1385,7 @@ local function buildCharacterModel(opts)
 	local head = model:FindFirstChild("Head") or refPart
 	if head then
 		local bb = Instance.new("BillboardGui")
+		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
 		bb.StudsOffset = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true; bb.Parent = head
 		local tagLbl = Instance.new("TextLabel")
@@ -1461,6 +1463,7 @@ local function buildNPC(opts)
 
 	-- لوحة الاسم فوق الرأس
 	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
 	bb.StudsOffset = Vector3.new(0, 2.3 * s, 0); bb.AlwaysOnTop = true; bb.Parent = head
 	local tagLbl = Instance.new("TextLabel")

@@ -26,6 +26,7 @@ local stopRemote = remotes:WaitForChild("Stop", 30)
 -- بناء الواجهة
 ----------------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
+gui.AutoLocalize = false  -- 🌐 النص العربي يظهر للجميع (إيقاف الترجمة التلقائية)
 gui.Name = "ParkourHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 

@@ -166,6 +166,7 @@ do
 	sign.Color = Color3.fromRGB(24, 30, 46); sign.Material = Enum.Material.SmoothPlastic
 	sign.Parent = Workspace
 	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
+	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.CanvasSize = Vector2.new(720, 300); sg.LightInfluence = 0; sg.Parent = sign
 	local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
