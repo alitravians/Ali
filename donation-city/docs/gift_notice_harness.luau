@@ -267,8 +267,11 @@ local function dequeueGiftNotice(uid, key)
 	pcall(function()
 		giftQueueStore:UpdateAsync("u" .. uid, function(old)
 			if type(old) ~= "table" or old[key] == nil then return nil end
-			old[key] = nil
-			return old
+			local g = {}
+			for k, v in pairs(old) do
+				if v == true and isValidPassKey(tostring(k)) and tostring(k) ~= key then g[tostring(k)] = true end
+			end
+			return g
 		end)
 	end)
 end
@@ -305,7 +308,11 @@ applyAllPasses = function(player)
 		end
 		if #stillGranted == 0 then return end
 		task.wait(2)
-		if player.Parent then sendGiftNotice(player, stillGranted) end
+		if player.Parent then
+			sendGiftNotice(player, stillGranted)
+		else
+			for _, k in ipairs(stillGranted) do queueGiftNotice(player.UserId, k) end
+		end
 	end)
 end
 
@@ -427,6 +434,20 @@ local got = popGiftNotices(808)
 giftStore.UpdateAsync = origUpdate
 check("لا إشعارات من طابور فارغ", #got == 0)
 check("لم تحدث أي كتابة DataStore للطابور الفارغ", writes == 0)
+
+print("== T11: خروج اللاعب أثناء مهلة التسليم → يُعاد الإدراج (لا يضيع) ==")
+reset()
+adminGrantPass(909, "speed")  -- غائب → طابور + منحة
+local D = mkPlayer(909); present[909] = D; sessions[909] = { passes = {} }
+D.Parent = nil  -- حاكِ خروجه قبل لحظة التسليم
+applyAllPasses(D)
+check("لا إشعار أُرسل (اللاعب خرج)", not hasFireWith(909, "سرعة البرق"))
+check("أُعيد الإشعار للطابور (لم يضع)", giftStore:raw()["u909"] ~= nil and giftStore:raw()["u909"].speed == true)
+-- الدخول التالي وهو حاضر → يظهر الإشعار
+D.Parent = {}
+applyAllPasses(D)
+check("الإشعار ظهر في الدخول التالي", hasFireWith(909, "سرعة البرق"))
+check("الطابور أُفرغ بعد التسليم الناجح", next(giftStore:raw()["u909"] or {}) == nil)
 
 print(string.format("\n==== النتيجة: %d نجح / %d فشل ====", pass, fail))
 if fail > 0 then error("بعض الفحوصات فشلت") end

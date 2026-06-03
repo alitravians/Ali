@@ -5925,8 +5925,11 @@ local function dequeueGiftNotice(uid: number, key: string)
 	pcall(function()
 		giftQueueStore:UpdateAsync("u" .. uid, function(old)
 			if type(old) ~= "table" or old[key] == nil then return nil end  -- غير موجود → لا تكتب
-			old[key] = nil
-			return old
+			local g = {}  -- أعد بناء نسخة معقّمة (اتساقاً مع queueGiftNotice)
+			for k, v in pairs(old) do
+				if v == true and isValidPassKey(tostring(k)) and tostring(k) ~= key then g[tostring(k)] = true end
+			end
+			return g
 		end)
 	end)
 end
@@ -6004,7 +6007,12 @@ applyAllPasses = function(player: Player)
 		end
 		if #stillGranted == 0 then return end
 		task.wait(2)  -- مهلة بسيطة حتى تجهز واجهة اللاعب بعد الدخول
-		if player.Parent then sendGiftNotice(player, stillGranted) end
+		if player.Parent then
+			sendGiftNotice(player, stillGranted)
+		else
+			-- خرج قبل التسليم → أعد الإدراج كي لا يضيع الإشعار (يظهر أول دخول قادم)
+			for _, k in ipairs(stillGranted) do queueGiftNotice(player.UserId, k) end
+		end
 	end)
 	-- أعد تطبيق الأثر/الشارة/السرعة عند كل ولادة للشخصية
 	player.CharacterAdded:Connect(function()
