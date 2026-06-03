@@ -1444,18 +1444,25 @@ local announceFrame
 showAnnounce = function(data)
 	if announceFrame and announceFrame.Parent then announceFrame:Destroy() end
 	-- شريط إعلان أعلى وسط الشاشة (ينزلق من الأعلى) — بعيد عن أعمدة الأزرار الجانبية
+	-- يكبر ارتفاع الشريط تلقائياً ليتسع للنص الطويل (عدة باقات) مع حدّ أدنى 58 يبقي الشكل المعتاد للنص القصير
 	local frame = new("Frame", {
 		Name = "Announce", BackgroundColor3 = CARD, AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, -90), Size = UDim2.new(0, 360, 0, 58), ZIndex = 80, Parent = gui,
+		Position = UDim2.new(0.5, 0, 0, -90), Size = UDim2.new(0, 360, 0, 0),
+		AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 80, Parent = gui,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 16) }),
 		new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.1 }),
 		new("UIGradient", { Rotation = 20, Color = ColorSequence.new(CARD2, CARD) }),
+		new("UISizeConstraint", { MinSize = Vector2.new(360, 58) }),
+		new("UIPadding", {
+			PaddingTop = UDim.new(0, 8), PaddingBottom = UDim.new(0, 8),
+			PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12),
+		}),
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = tostring(data.text or ""), Font = Enum.Font.GothamBlack,
 			TextSize = 18, TextColor3 = GOLD, TextScaled = false, TextWrapped = true,
-			Size = UDim2.new(1, -24, 1, -10), Position = UDim2.fromOffset(12, 5), ZIndex = 81,
-			TextXAlignment = Enum.TextXAlignment.Center,
+			AutomaticSize = Enum.AutomaticSize.Y, Size = UDim2.new(1, 0, 0, 42), ZIndex = 81,
+			TextXAlignment = Enum.TextXAlignment.Center, TextYAlignment = Enum.TextYAlignment.Center,
 		}),
 	})
 	announceFrame = frame
