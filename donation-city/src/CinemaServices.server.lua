@@ -333,7 +333,11 @@ end
 -- InsertService ونستخرج رقم الصورة الحقيقي، ونخزّنه في StringValue يقرأه
 -- العميل (شاشة اللودينغ + القائمة الرئيسية). الطريقة الرسمية الموصى بها.
 ------------------------------------------------------------------------
-local LOADING_BG_DECAL_ID = 93628047304202
+-- 🎯 مصدران منفصلان للصورة (مفصولان عمداً):
+--   • القائمة الرئيسية (شاشة اللودينغ) → خلفية «الشفق القطبي» الجديدة.
+--   • شاشة النافورة (CustomImageScreen) → تبقى صورة البنت الأصلية بدون تغيير.
+local MENU_BG_DECAL_ID     = 80412693584456 -- خلفية القائمة الرئيسية (شفق قطبي، Decal جديد)
+local FOUNTAIN_BG_DECAL_ID = 93628047304202 -- صورة النافورة الأصلية (تبقى كما هي)
 local bgValue = ReplicatedStorage:FindFirstChild("LoadingBgImage")
 if not bgValue then
 	bgValue = Instance.new("StringValue")
@@ -382,22 +386,38 @@ end
 -- محاولات متكرّرة: الصورة (Decal) قد تكون جديدة جداً (تحت المعالجة/المراجعة) أو
 -- يتأخّر تحميلها، فنعيد المحاولة عدّة مرّات بفواصل متزايدة بدل محاولة واحدة.
 -- طبقة احتياطية: نجرّب أيضاً ضبط رقم الـ Decal مباشرة (بعض الإصدارات تحلّه ذاتياً).
+-- (أ) خلفية القائمة الرئيسية → الشفق القطبي الجديد. نحلّه ونخزّنه في
+--     LoadingBgImage فقط (يقرأه عميل القائمة) — لا يمسّ شاشة النافورة.
 task.spawn(function()
-	local idStr = "rbxassetid://" .. LOADING_BG_DECAL_ID
+	local delays = { 0, 3, 5, 8, 12, 20, 30 }   -- ~78s إجمالاً عبر عدة محاولات
+	for _, wait_s in ipairs(delays) do
+		if wait_s > 0 then task.wait(wait_s) end
+		local tex = resolveDecalTexture(MENU_BG_DECAL_ID)
+		if tex then
+			bgValue.Value = tex                  -- رقم الصورة الحقيقي (rbxassetid://...)
+			return
+		end
+	end
+	warn("[MenuBG] تعذّر تحويل رقم الـ Decal " .. MENU_BG_DECAL_ID ..
+		" إلى صورة بعد عدّة محاولات — تأكّد أنّ الصورة Public ومُعتمدة، وأنّ اللعبة لنفس الحساب المالك.")
+end)
+
+-- (ب) شاشة النافورة (CustomImageScreen) → تبقى صورة البنت الأصلية بدون تغيير.
+task.spawn(function()
+	local idStr = "rbxassetid://" .. FOUNTAIN_BG_DECAL_ID
 	-- طبقة أولى فورية: اعرض رقم الـ Decal مباشرة (يظهر فوراً لو حلّه المحرّك).
 	applyCustomScreen(idStr)
 
 	local delays = { 0, 3, 5, 8, 12, 20, 30 }   -- ~78s إجمالاً عبر عدة محاولات
 	for _, wait_s in ipairs(delays) do
 		if wait_s > 0 then task.wait(wait_s) end
-		local tex = resolveDecalTexture(LOADING_BG_DECAL_ID)
+		local tex = resolveDecalTexture(FOUNTAIN_BG_DECAL_ID)
 		if tex then
-			bgValue.Value = tex                  -- رقم الصورة الحقيقي (rbxassetid://...)
 			applyCustomScreen(tex)
 			return
 		end
 	end
-	warn("[CustomImage] تعذّر تحويل رقم الـ Decal " .. LOADING_BG_DECAL_ID ..
+	warn("[FountainImage] تعذّر تحويل رقم الـ Decal " .. FOUNTAIN_BG_DECAL_ID ..
 		" إلى صورة بعد عدّة محاولات — تأكّد أنّ الصورة Public ومُعتمدة، وأنّ اللعبة لنفس الحساب المالك.")
 end)
 
