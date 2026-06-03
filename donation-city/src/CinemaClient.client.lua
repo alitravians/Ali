@@ -2127,7 +2127,7 @@ showAdminPanel = function(data)
 			note("يعمل حتى لو اللاعب غير موجود الآن — لفكّ حظر دائم أو حظر شخص غائب.")
 			local idf = rowFrame(40)
 			local idBox = new("TextBox", {
-				PlaceholderText = "UserID (أرقام)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
+				PlaceholderText = "رقم اللاعب (أرقام)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
 				TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.new(0.62, -4, 1, 0),
 				Position = UDim2.fromScale(0.38, 0), TextXAlignment = Enum.TextXAlignment.Right, Parent = idf,
 			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = PURPLE, Transparency = 0.4 }) })
@@ -2215,7 +2215,7 @@ showAdminPanel = function(data)
 				}, { new("UICorner", { CornerRadius = UDim.new(0, 10) }) })
 				new("TextLabel", {
 					BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = TEXT,
-					Text = (b.present and "🟢 " or "⚪ ") .. (b.ownerName or "?") .. " · " .. (b.key or "") .. " · " .. toAr(b.sales or 0) .. " دعم",
+					Text = (b.present and "🟢 " or "⚪ ") .. (b.ownerName or "?") .. " · " .. (b.keyLabel or b.key or "") .. " · " .. toAr(b.sales or 0) .. " دعم",
 					Size = UDim2.new(1, -96, 1, 0), Position = UDim2.fromOffset(8, 0),
 					TextXAlignment = Enum.TextXAlignment.Right, Parent = f,
 				})
@@ -3242,7 +3242,7 @@ do
 	local function openShop(key: string)
 		local st = boothStates[key]
 		if not st or st.ownerId == 0 then infoToast("هذا البوث متاح — اضغط E لحجزه.", true); return end
-		local _, card = makeModal("🏪 " .. (st.ownerName or "Player") .. "'s Booth", 460, 520)
+		local _, card = makeModal("🏪 بوث " .. (st.ownerName or "لاعب"), 460, 520)
 
 		local welcome = new("TextLabel", {
 			BackgroundTransparency = 1, Text = st.welcome ~= "" and st.welcome or "أهلاً بكم! 🎬",
@@ -3501,7 +3501,7 @@ do
 			end
 		end
 		column("💝 الأكثر دعماً", lbDonors, 0, function(it) return (it.name or "?") .. " — R$ " .. toAr(it.robux or 0) end)
-		column("🔥 أكثر البوثات", lbPopular, 0.5, function(it) return (it.ownerName or it.key) .. " — " .. toAr(it.sales or 0) .. " بيع" end)
+		column("🔥 أكثر البوثات", lbPopular, 0.5, function(it) return (it.ownerName or it.keyLabel or it.key) .. " — " .. toAr(it.sales or 0) .. " بيع" end)
 	end
 
 	--------------------------------------------------------------------

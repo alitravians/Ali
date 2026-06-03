@@ -1637,7 +1637,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			end
 			local nm = (target and (target.DisplayName ~= "" and target.DisplayName or target.Name)) or ("#" .. tid)
 			setRank(tid, newRank, nm)
-			local LBL = { admin = "Admin", mod = "Moderator", staff = "Cinema Staff" }
+			local LBL = { admin = "أدمن", mod = "مشرف", staff = "طاقم السينما" }
 			if target then adminNotify(target, "🏷️ عيّنتك الإدارة برتبة " .. (LBL[newRank] or newRank) .. ".") end
 			adminNotify(player, "🏷️ صار " .. nm .. " — " .. (LBL[newRank] or newRank) .. ".")
 			logAdmin(adminName, "رتبة " .. (LBL[newRank] or newRank) .. " لـ " .. nm)

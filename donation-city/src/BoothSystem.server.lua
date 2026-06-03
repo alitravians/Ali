@@ -29,6 +29,19 @@ local CLAIM_DISTANCE = 0  -- prompt handles distance
 -- Booth tiers (must match the Model names "DonationBooth_<key>" in Workspace)
 local BOOTH_KEYS = { "Bronze", "Silver", "Gold", "Emerald", "Ruby", "Diamond" }
 
+-- Arabic display names for booth tiers (keys stay internal/English for identity)
+local TIER_AR = {
+	Bronze  = "برونزي",
+	Silver  = "فضي",
+	Gold    = "ذهبي",
+	Emerald = "زمردي",
+	Ruby    = "ياقوتي",
+	Diamond = "ماسي",
+}
+local function tierLabel(key: string?): string
+	return (key and TIER_AR[key]) or tostring(key or "")
+end
+
 -- Palette used for the default "available" glow of each booth
 local DEFAULT_COLORS = {
 	Bronze  = Color3.fromRGB(242, 115, 89),
@@ -237,7 +250,7 @@ local function indexBooth(key: string)
 	if prompt then
 		prompt.Name = "BoothPrompt"
 		prompt.ActionText = "احجز هذا البوث"
-		prompt.ObjectText = key .. " Booth"
+		prompt.ObjectText = "بوث " .. tierLabel(key)
 		prompt.KeyboardKeyCode = Enum.KeyCode.E
 		prompt.RequiresLineOfSight = false
 		prompt.MaxActivationDistance = 12
@@ -290,7 +303,7 @@ local function indexBooth(key: string)
 		title.TextSize = 18
 		title.TextWrapped = true
 		title.TextColor3 = Color3.fromRGB(244, 242, 255)
-		title.Text = key .. " Booth"
+		title.Text = "بوث " .. tierLabel(key)
 		title.Parent = card
 
 		local status = Instance.new("TextLabel")
@@ -491,7 +504,7 @@ function applyVisual(b)
 				local avatar = card:FindFirstChild("Avatar")
 				local hint   = card:FindFirstChild("Hint")
 				if claimed then
-					if title then title.Text = (b.ownerName or "Player") .. "'s Booth" end
+					if title then title.Text = "بوث " .. (b.ownerName or "لاعب") end
 					if status then
 						if b.ownerPresent then
 							status.Text = "🟢 صاحب البوث موجود — اضغط E"
@@ -512,7 +525,7 @@ function applyVisual(b)
 						hint.Text = toArS(#b.products) .. " منتج · " .. toArS(b.sales) .. " دعم"
 					end
 				else
-					if title then title.Text = b.key .. " Booth"; title.Position = UDim2.fromOffset(10, 12); title.Size = UDim2.new(1, -20, 0, 34) end
+					if title then title.Text = "بوث " .. tierLabel(b.key); title.Position = UDim2.fromOffset(10, 12); title.Size = UDim2.new(1, -20, 0, 34) end
 					if status then status.Text = "✅ متاح — اضغط E للحجز"; status.TextColor3 = Color3.fromRGB(120, 255, 160) end
 					if avatar then avatar.Visible = false; avatar.Image = "" end
 					if hint then hint.Visible = false end
@@ -526,10 +539,10 @@ function applyVisual(b)
 	if prompt then
 		if claimed then
 			prompt.ActionText = "افتح المتجر"
-			prompt.ObjectText = (b.ownerName or "Player") .. "'s Booth"
+			prompt.ObjectText = "بوث " .. (b.ownerName or "لاعب")
 		else
 			prompt.ActionText = "احجز هذا البوث"
-			prompt.ObjectText = b.key .. " Booth"
+			prompt.ObjectText = "بوث " .. tierLabel(b.key)
 		end
 	end
 end
@@ -585,7 +598,7 @@ local function leaderboards()
 	local popular = {}
 	for key, b in pairs(booths) do
 		if b.ownerId ~= 0 then
-			table.insert(popular, { key = key, ownerName = b.ownerName, sales = b.sales, visits = b.visits })
+			table.insert(popular, { key = key, keyLabel = tierLabel(key), ownerName = b.ownerName, sales = b.sales, visits = b.visits })
 		end
 	end
 	table.sort(popular, function(a, b)
@@ -1036,6 +1049,7 @@ _G.BoothAdminList = function()
 		if b and b.ownerId ~= 0 then
 			table.insert(out, {
 				key = key,
+				keyLabel = tierLabel(key),
 				ownerName = b.ownerName,
 				ownerId = b.ownerId,
 				products = #b.products,

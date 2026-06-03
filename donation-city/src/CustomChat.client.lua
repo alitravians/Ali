@@ -389,6 +389,7 @@ end
 
 -- أيقونات وألوان خلفية الرسالة الإدارية حسب الرتبة
 local ADMIN_ICON = { OWNER = "👑", ADMIN = "🛡️", MODERATOR = "🔰" }
+local ADMIN_AR = { OWNER = "المالك", ADMIN = "أدمن", MODERATOR = "مشرف" }
 local ADMIN_BG = {
 	OWNER     = Color3.fromRGB(255, 205, 90),
 	ADMIN     = Color3.fromRGB(255, 130, 130),
@@ -420,7 +421,7 @@ local function addMessage(name: string, text: string, nameColor: Color3, opts)
 			Font = Enum.Font.GothamBlack,
 			RichText = true,
 			Text = string.format('%s [%s] %s: %s',
-				icon, label, escapeRich(name), escapeRich(text)),
+				icon, (ADMIN_AR[label] or label), escapeRich(name), escapeRich(text)),
 			TextColor3 = Color3.fromRGB(12, 10, 16),
 			TextSize = 17,
 			TextWrapped = true,
