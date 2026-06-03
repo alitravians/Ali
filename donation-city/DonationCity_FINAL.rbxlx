@@ -3747,6 +3747,19 @@ local CLAIM_DISTANCE = 0  -- prompt handles distance
 -- Booth tiers (must match the Model names "DonationBooth_<key>" in Workspace)
 local BOOTH_KEYS = { "Bronze", "Silver", "Gold", "Emerald", "Ruby", "Diamond" }
 
+-- Arabic display names for booth tiers (keys stay internal/English for identity)
+local TIER_AR = {
+	Bronze  = "برونزي",
+	Silver  = "فضي",
+	Gold    = "ذهبي",
+	Emerald = "زمردي",
+	Ruby    = "ياقوتي",
+	Diamond = "ماسي",
+}
+local function tierLabel(key: string?): string
+	return (key and TIER_AR[key]) or tostring(key or "")
+end
+
 -- Palette used for the default "available" glow of each booth
 local DEFAULT_COLORS = {
 	Bronze  = Color3.fromRGB(242, 115, 89),
@@ -3955,7 +3968,7 @@ local function indexBooth(key: string)
 	if prompt then
 		prompt.Name = "BoothPrompt"
 		prompt.ActionText = "احجز هذا البوث"
-		prompt.ObjectText = key .. " Booth"
+		prompt.ObjectText = "بوث " .. tierLabel(key)
 		prompt.KeyboardKeyCode = Enum.KeyCode.E
 		prompt.RequiresLineOfSight = false
 		prompt.MaxActivationDistance = 12
@@ -4008,7 +4021,7 @@ local function indexBooth(key: string)
 		title.TextSize = 18
 		title.TextWrapped = true
 		title.TextColor3 = Color3.fromRGB(244, 242, 255)
-		title.Text = key .. " Booth"
+		title.Text = "بوث " .. tierLabel(key)
 		title.Parent = card
 
 		local status = Instance.new("TextLabel")
@@ -4209,7 +4222,7 @@ function applyVisual(b)
 				local avatar = card:FindFirstChild("Avatar")
 				local hint   = card:FindFirstChild("Hint")
 				if claimed then
-					if title then title.Text = (b.ownerName or "Player") .. "'s Booth" end
+					if title then title.Text = "بوث " .. (b.ownerName or "لاعب") end
 					if status then
 						if b.ownerPresent then
 							status.Text = "🟢 صاحب البوث موجود — اضغط E"
@@ -4230,7 +4243,7 @@ function applyVisual(b)
 						hint.Text = toArS(#b.products) .. " منتج · " .. toArS(b.sales) .. " دعم"
 					end
 				else
-					if title then title.Text = b.key .. " Booth"; title.Position = UDim2.fromOffset(10, 12); title.Size = UDim2.new(1, -20, 0, 34) end
+					if title then title.Text = "بوث " .. tierLabel(b.key); title.Position = UDim2.fromOffset(10, 12); title.Size = UDim2.new(1, -20, 0, 34) end
 					if status then status.Text = "✅ متاح — اضغط E للحجز"; status.TextColor3 = Color3.fromRGB(120, 255, 160) end
 					if avatar then avatar.Visible = false; avatar.Image = "" end
 					if hint then hint.Visible = false end
@@ -4244,10 +4257,10 @@ function applyVisual(b)
 	if prompt then
 		if claimed then
 			prompt.ActionText = "افتح المتجر"
-			prompt.ObjectText = (b.ownerName or "Player") .. "'s Booth"
+			prompt.ObjectText = "بوث " .. (b.ownerName or "لاعب")
 		else
 			prompt.ActionText = "احجز هذا البوث"
-			prompt.ObjectText = b.key .. " Booth"
+			prompt.ObjectText = "بوث " .. tierLabel(b.key)
 		end
 	end
 end
@@ -4272,6 +4285,7 @@ local function snapshot()
 		out[key] = {
 			ownerId = b.ownerId,
 			ownerName = b.ownerName,
+			keyLabel = tierLabel(key),
 			welcome = b.welcome,
 			colorIndex = b.colorIndex,
 			products = prods,
@@ -4303,7 +4317,7 @@ local function leaderboards()
 	local popular = {}
 	for key, b in pairs(booths) do
 		if b.ownerId ~= 0 then
-			table.insert(popular, { key = key, ownerName = b.ownerName, sales = b.sales, visits = b.visits })
+			table.insert(popular, { key = key, keyLabel = tierLabel(key), ownerName = b.ownerName, sales = b.sales, visits = b.visits })
 		end
 	end
 	table.sort(popular, function(a, b)
@@ -4754,6 +4768,7 @@ _G.BoothAdminList = function()
 		if b and b.ownerId ~= 0 then
 			table.insert(out, {
 				key = key,
+				keyLabel = tierLabel(key),
 				ownerName = b.ownerName,
 				ownerId = b.ownerId,
 				products = #b.products,
@@ -6749,7 +6764,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			end
 			local nm = (target and (target.DisplayName ~= "" and target.DisplayName or target.Name)) or ("#" .. tid)
 			setRank(tid, newRank, nm)
-			local LBL = { admin = "Admin", mod = "Moderator", staff = "Cinema Staff" }
+			local LBL = { admin = "أدمن", mod = "مشرف", staff = "طاقم السينما" }
 			if target then adminNotify(target, "🏷️ عيّنتك الإدارة برتبة " .. (LBL[newRank] or newRank) .. ".") end
 			adminNotify(player, "🏷️ صار " .. nm .. " — " .. (LBL[newRank] or newRank) .. ".")
 			logAdmin(adminName, "رتبة " .. (LBL[newRank] or newRank) .. " لـ " .. nm)
@@ -14583,6 +14598,7 @@ end
 
 -- أيقونات وألوان خلفية الرسالة الإدارية حسب الرتبة
 local ADMIN_ICON = { OWNER = "👑", ADMIN = "🛡️", MODERATOR = "🔰" }
+local ADMIN_AR = { OWNER = "المالك", ADMIN = "أدمن", MODERATOR = "مشرف" }
 local ADMIN_BG = {
 	OWNER     = Color3.fromRGB(255, 205, 90),
 	ADMIN     = Color3.fromRGB(255, 130, 130),
@@ -14614,7 +14630,7 @@ local function addMessage(name: string, text: string, nameColor: Color3, opts)
 			Font = Enum.Font.GothamBlack,
 			RichText = true,
 			Text = string.format('%s [%s] %s: %s',
-				icon, label, escapeRich(name), escapeRich(text)),
+				icon, (ADMIN_AR[label] or label), escapeRich(name), escapeRich(text)),
 			TextColor3 = Color3.fromRGB(12, 10, 16),
 			TextSize = 17,
 			TextWrapped = true,
@@ -17588,7 +17604,7 @@ showAdminPanel = function(data)
 			note("يعمل حتى لو اللاعب غير موجود الآن — لفكّ حظر دائم أو حظر شخص غائب.")
 			local idf = rowFrame(40)
 			local idBox = new("TextBox", {
-				PlaceholderText = "UserID (أرقام)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
+				PlaceholderText = "رقم اللاعب (أرقام)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
 				TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.new(0.62, -4, 1, 0),
 				Position = UDim2.fromScale(0.38, 0), TextXAlignment = Enum.TextXAlignment.Right, Parent = idf,
 			}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = PURPLE, Transparency = 0.4 }) })
@@ -17676,7 +17692,7 @@ showAdminPanel = function(data)
 				}, { new("UICorner", { CornerRadius = UDim.new(0, 10) }) })
 				new("TextLabel", {
 					BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 13, TextColor3 = TEXT,
-					Text = (b.present and "🟢 " or "⚪ ") .. (b.ownerName or "?") .. " · " .. (b.key or "") .. " · " .. toAr(b.sales or 0) .. " دعم",
+					Text = (b.present and "🟢 " or "⚪ ") .. (b.ownerName or "?") .. " · " .. (b.keyLabel or b.key or "") .. " · " .. toAr(b.sales or 0) .. " دعم",
 					Size = UDim2.new(1, -96, 1, 0), Position = UDim2.fromOffset(8, 0),
 					TextXAlignment = Enum.TextXAlignment.Right, Parent = f,
 				})
@@ -17704,7 +17720,7 @@ showAdminPanel = function(data)
 	-- ===== تبويب الشات (مشرف فأعلى): رسالة إدارية + إعلان + تفعيل/تعطيل =====
 	local function buildChat()
 		sectionLabel("📨 رسالة إدارية (تظهر بخط أسود عريض + صوت)")
-		note("تُرسل لكل اللاعبين بصيغة [" .. ((myRankNow == "owner" and "OWNER") or (myRankNow == "admin" and "ADMIN") or "MODERATOR") .. "]. (أو اكتب في الدردشة: $رسالتك)")
+		note("تُرسل لكل اللاعبين بصيغة [" .. ((myRankNow == "owner" and "المالك") or (myRankNow == "admin" and "أدمن") or "مشرف") .. "]. (أو اكتب في الدردشة: $رسالتك)")
 		local af = rowFrame(44)
 		local abox = new("TextBox", {
 			PlaceholderText = "نص الرسالة الإدارية...", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamMedium,
@@ -18703,7 +18719,7 @@ do
 	local function openShop(key: string)
 		local st = boothStates[key]
 		if not st or st.ownerId == 0 then infoToast("هذا البوث متاح — اضغط E لحجزه.", true); return end
-		local _, card = makeModal("🏪 " .. (st.ownerName or "Player") .. "'s Booth", 460, 520)
+		local _, card = makeModal("🏪 بوث " .. (st.ownerName or "لاعب"), 460, 520)
 
 		local welcome = new("TextLabel", {
 			BackgroundTransparency = 1, Text = st.welcome ~= "" and st.welcome or "أهلاً بكم! 🎬",
@@ -18932,7 +18948,9 @@ do
 	end
 
 	openManage = function(key)
-		local _, card = makeModal("👑 إدارة بوثك (" .. key .. ")", 480, 580)
+		local mst = boothStates[key]
+		local mlbl = (mst and mst.keyLabel) or key
+		local _, card = makeModal("👑 إدارة بوثك (" .. mlbl .. ")", 480, 580)
 		rebuildManage(card, key)
 		card:SetAttribute("BoothKey", key)
 		card.Name = "ManageCard"
@@ -18962,7 +18980,7 @@ do
 			end
 		end
 		column("💝 الأكثر دعماً", lbDonors, 0, function(it) return (it.name or "?") .. " — R$ " .. toAr(it.robux or 0) end)
-		column("🔥 أكثر البوثات", lbPopular, 0.5, function(it) return (it.ownerName or it.key) .. " — " .. toAr(it.sales or 0) .. " بيع" end)
+		column("🔥 أكثر البوثات", lbPopular, 0.5, function(it) return (it.ownerName or it.keyLabel or it.key) .. " — " .. toAr(it.sales or 0) .. " بيع" end)
 	end
 
 	--------------------------------------------------------------------
