@@ -238,7 +238,7 @@ end
 local function startRun(player)
 	local st = runState[player.UserId]
 	if st and st.inRun then return end
-	st = { inRun = true, startT = os.clock(), cpCF = SPAWN_CF, cpY = BASE_Y, best = st and st.best }
+	st = { inRun = true, startT = os.clock(), cpCF = SPAWN_CF, cpY = BASE_Y, best = st and st.best, bestLoaded = st and st.bestLoaded }
 	runState[player.UserId] = st
 	teleportTo(player, SPAWN_CF)
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اطلع لأعلى ووصل للقمة.") end
@@ -366,7 +366,8 @@ finishRun = function(player)
 	local isRecord = false
 	if not st.best or elapsed < st.best then
 		st.best = elapsed; isRecord = true
-		if bestStore then
+		-- 🛡️ لا نكتب رقماً قياسياً فوق المخزّن إن فشلت قراءته (قد يكون الحقيقي أسرع)
+		if bestStore and st.bestLoaded ~= false then
 			pcall(function() bestStore:SetAsync(tostring(player.UserId), math.floor(elapsed * 100)) end)
 		end
 	end
@@ -443,11 +444,25 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	-- استرجاع أفضل وقت محفوظ (اختياري)
 	if bestStore then
+		-- ابدأ بـ bestLoaded=false (قبل اكتمال القراءة) كي لا يُكتب رقم فوق المخزّن أثناء نافذة التحميل
+		runState[player.UserId] = runState[player.UserId] or {}
+		runState[player.UserId].bestLoaded = false
 		task.spawn(function()
-			local ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
-			if ok and type(v) == "number" then
-				runState[player.UserId] = runState[player.UserId] or {}
-				runState[player.UserId].best = v / 100
+			-- قراءة مع إعادة محاولة تميّز الفشل عن العدم
+			local ok, v
+			for attempt = 1, 4 do
+				ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
+				if ok then break end
+				if attempt < 4 then task.wait(0.5 * attempt) end
+			end
+			-- لا نُعيد إنشاء الإدخال لو غادر اللاعب أثناء القراءة (PlayerRemoving مسحه) — تفادي تسريب يتيم
+			local rs = runState[player.UserId]
+			if not rs then return end
+			if ok then
+				if type(v) == "number" then rs.best = v / 100 end
+				rs.bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
+			else
+				rs.bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
 			end
 		end)
 	end

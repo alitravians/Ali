@@ -4934,17 +4934,27 @@ local sessions = {}
 local ticketStore
 pcall(function() ticketStore = DataStoreService:GetDataStore("CinemaTickets_v1") end)
 
+-- قراءة مع إعادة محاولة تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, data): ok=false ⇒ فشلت كل المحاولات ⇒ لا تُعامل اللاعب كجديد ولا تحفظ فوقه.
 local function loadData(userId)
-	if not ticketStore then return nil end
-	local ok, data = pcall(function() return ticketStore:GetAsync("t_" .. userId) end)
-	if ok and type(data) == "table" then return data end
-	return nil
+	if not ticketStore then return true, nil end  -- بلا متجر = بلا حفظ، عامله كجديد
+	for attempt = 1, 4 do
+		local ok, data = pcall(function() return ticketStore:GetAsync("t_" .. userId) end)
+		if ok then
+			if type(data) == "table" then return true, data end
+			return true, nil  -- لاعب جديد فعلاً
+		end
+		if attempt < 4 then task.wait(0.5 * attempt) end
+	end
+	return false, nil  -- فشل قراءة
 end
 
 local function saveData(userId)
 	if not ticketStore then return end
 	local s = sessions[userId]
 	if not s then return end
+	-- 🛡️ حارس: لا نكتب فوق تذاكر لم نقرأها بنجاح
+	if s.dataLoaded == false then return end
 	for _ = 1, 3 do
 		local ok = pcall(function()
 			ticketStore:SetAsync("t_" .. userId, { tickets = s.tickets, lastDaily = s.lastDaily })
@@ -5012,13 +5022,23 @@ local function applyDailyReward(player)
 end
 
 Players.PlayerAdded:Connect(function(player)
-	local saved = loadData(player.UserId)
+	local ok, saved = loadData(player.UserId)
 	local now = os.time()
-	if saved then
+	if not ok then
+		-- 🛡️ فشل قراءة: لا نعتبره جديداً ولا نحفظ فوقه. جلسة مؤقّتة محميّة بـ dataLoaded=false
+		sessions[player.UserId] = {
+			tickets = math.clamp(CONFIG.StartTickets, 0, CONFIG.MaxTickets),
+			lastDaily = now,
+			nextClaimAt = now + CONFIG.ClaimCooldown,
+			dataLoaded = false,
+		}
+		notifyRemote:FireClient(player, "⚠️ تعذّر تحميل تذاكرك بسبب ضغط الخادم. لحمايتها لن يُحفظ تغيّرها هذه الجلسة — أعد الدخول لاحقاً.")
+	elseif saved then
 		sessions[player.UserId] = {
 			tickets = math.clamp(saved.tickets or 0, 0, CONFIG.MaxTickets),
 			lastDaily = saved.lastDaily or 0,
 			nextClaimAt = now + CONFIG.ClaimCooldown,
+			dataLoaded = true,
 		}
 	else
 		-- لاعب جديد: يبدأ بتذاكر ويُحتسب اليوم كأول مكافأة
@@ -5026,6 +5046,7 @@ Players.PlayerAdded:Connect(function(player)
 			tickets = CONFIG.StartTickets,
 			lastDaily = now,
 			nextClaimAt = now + CONFIG.ClaimCooldown,
+			dataLoaded = true,
 		}
 		notifyRemote:FireClient(player, "🎟️ مرحباً! حصلت على " .. CONFIG.StartTickets .. " تذاكر للبداية.")
 		task.spawn(function() saveData(player.UserId) end)
@@ -5208,25 +5229,41 @@ local sendPerks       -- forward declaration: إبلاغ العميل بالأز
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
 
-local function loadCoins(userId: number): number
-	if not coinStore then return CONFIG.StartCoins end
-	local ok, data = pcall(function() return coinStore:GetAsync("c_" .. userId) end)
-	if ok and type(data) == "number" then return data end
-	return CONFIG.StartCoins
+-- قراءة مع إعادة المحاولة (تباعد متزايد) — تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, value): ok=true ⇒ نجحت القراءة (value قد يكون nil = لاعب جديد)؛
+-- ok=false ⇒ فشلت كل المحاولات (خنق/انقطاع) ⇒ يجب عدم الكتابة فوق بيانات اللاعب.
+local function getAsyncRetry(key: string): (boolean, any)
+	if not coinStore then return true, nil end  -- بلا متجر = بلا حفظ، عامله كقراءة ناجحة فارغة
+	for attempt = 1, 4 do
+		local ok, val = pcall(function() return coinStore:GetAsync(key) end)
+		if ok then return true, val end
+		if attempt < 4 then task.wait(0.5 * attempt) end  -- 0.5s, 1s, 1.5s (لا انتظار بعد آخر محاولة)
+	end
+	return false, nil
 end
 
-local function loadVip(userId: number): boolean
-	if not coinStore then return false end
-	local ok, data = pcall(function() return coinStore:GetAsync("v_" .. userId) end)
-	return (ok and data == true) or false
+local function loadCoins(userId: number): (boolean, number)
+	if not coinStore then return true, CONFIG.StartCoins end  -- بلا متجر = بلا حفظ، عامله كجديد
+	local ok, data = getAsyncRetry("c_" .. userId)
+	if not ok then return false, CONFIG.StartCoins end  -- فشل قراءة: لا تثق بالافتراضي
+	if type(data) == "number" then return true, data end
+	return true, CONFIG.StartCoins  -- لاعب جديد فعلاً
+end
+
+local function loadVip(userId: number): (boolean, boolean)
+	if not coinStore then return true, false end
+	local ok, data = getAsyncRetry("v_" .. userId)
+	if not ok then return false, false end
+	return true, data == true
 end
 
 -- تحميل سرعة المشي المحفوظة لحامل باقة «سرعة البرق» (افتراضي إن لم تُحفظ بعد)
-local function loadSpeed(userId: number): number
-	if not coinStore then return CONFIG.SpeedDefault end
-	local ok, data = pcall(function() return coinStore:GetAsync("spd_" .. userId) end)
-	if ok and type(data) == "number" then return data end
-	return CONFIG.SpeedDefault
+local function loadSpeed(userId: number): (boolean, number)
+	if not coinStore then return true, CONFIG.SpeedDefault end
+	local ok, data = getAsyncRetry("spd_" .. userId)
+	if not ok then return false, CONFIG.SpeedDefault end
+	if type(data) == "number" then return true, data end
+	return true, CONFIG.SpeedDefault
 end
 
 -- حفظ مع إعادة المحاولة (3 محاولات) — يصمد أمام تذبذب الشبكة/خنق DataStore
@@ -5245,6 +5282,8 @@ local HttpService = game:GetService("HttpService")
 local function saveCoins(userId: number)
 	local s = sessions[userId]
 	if not s or not coinStore then return end
+	-- 🛡️ حارس: لا نكتب أبداً فوق بيانات لم نقرأها بنجاح (تجنّب محو رصيد حقيقي عند فشل القراءة)
+	if s.dataLoaded == false then return end
 	s._saved = s._saved or {}
 	if s._saved.coins ~= s.coins then
 		if setAsyncRetry("c_" .. userId, s.coins) then s._saved.coins = s.coins end
@@ -5366,7 +5405,7 @@ end
 -- player lifecycle
 ------------------------------------------------------------------------
 Players.PlayerAdded:Connect(function(player)
-	local coins = loadCoins(player.UserId)
+	local okCoins, coins = loadCoins(player.UserId)
 	local stats = player:FindFirstChild("leaderstats")
 	if not stats then
 		stats = Instance.new("Folder")
@@ -5379,16 +5418,32 @@ Players.PlayerAdded:Connect(function(player)
 		value.Name = CONFIG.CurrencyName
 		value.Parent = stats
 	end
-	local vip = loadVip(player.UserId)
+	local okVip, vip = loadVip(player.UserId)
+	-- إنجازات/تقييم: نقرأهما بإعادة محاولة ونتتبّع نجاح القراءة (كي لا نكتب فوقها عند الفشل)
 	local ach, rated = {}, false
+	local okAch, okRated = true, true
 	if coinStore then
-		pcall(function() local d = coinStore:GetAsync("a_" .. player.UserId); if type(d) == "table" then ach = d end end)
-		pcall(function() rated = coinStore:GetAsync("rt_" .. player.UserId) == true end)
+		local a1, aData = getAsyncRetry("a_" .. player.UserId)
+		okAch = a1
+		if a1 and type(aData) == "table" then ach = aData end
+		local r1, rData = getAsyncRetry("rt_" .. player.UserId)
+		okRated = r1
+		if r1 then rated = rData == true end
 	end
-	local speed = loadSpeed(player.UserId)
+	local okSpeed, speed = loadSpeed(player.UserId)
+	-- 🛡️ إن فشلت أي قراءة حرجة ⇒ dataLoaded=false ⇒ يُمنع الحفظ فوق البيانات الحقيقية
+	local dataLoaded = okCoins and okVip and okAch and okRated and okSpeed
 	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {}, speed = speed,
+		dataLoaded = dataLoaded,
 		-- بصمة آخر قيم محفوظة (تُهيّأ بالقيم المُحمّلة) كي لا نعيد كتابة ما لم يتغيّر
 		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true, speed = math.floor(speed) } }
+	if not dataLoaded then
+		-- أبلغ اللاعب أن بياناته لم تُحمّل، واحمها من الكتابة فوقها
+		task.spawn(function()
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "⚠️ تعذّر تحميل بياناتك بسبب ضغط الخادم. لحمايتها لن يُحفظ تقدّمك هذه الجلسة — أعد الدخول لاحقاً.") end
+		end)
+		warn("[CinemaServices] فشل تحميل بيانات اللاعب " .. player.UserId .. " — تم تفعيل حارس الحفظ (dataLoaded=false)")
+	end
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
@@ -7387,7 +7442,10 @@ end
 -- يُعيد true لو سُلّم أو خُزّن بأمان (يمكن إغلاق الإيصال)، false لو تعذّر الأمران.
 local function deliverOrQueue(userId: number, info): boolean
 	local player = Players:GetPlayerByUserId(userId)
-	if player and sessions[userId] then
+	-- نُسلّم فوراً فقط لو الجلسة حاضرة وبياناتها مُحمّلة بنجاح؛ لو dataLoaded=false فالحفظ
+	-- محظور (حارس الحماية) فالمنح في الذاكرة سيضيع عند العودة → نخزّنه في الطابور الدائم
+	-- ليُسلَّم على جلسة سليمة. لو تعذّر التخزين أيضاً (متجر متدهور) يُعيد false → NotProcessedYet.
+	if player and sessions[userId] and sessions[userId].dataLoaded ~= false then
 		grantProduct(player, info)
 		return true
 	end
@@ -7397,13 +7455,18 @@ end
 -- يُستدعى عند دخول اللاعب: يقرأ الطابور، يسلّم المنتجات، ثم يزيل المُسلَّم فقط ذرّياً.
 function drainPendingGrants(player: Player)
 	if not coinStore then return end
-	local items
-	local ok = pcall(function() items = coinStore:GetAsync(pendKey(player.UserId)) end)
+	-- 🛡️ لا نُفرّغ الطابور أثناء جلسة متدهورة: المنح في الذاكرة لن يُحفظ (حارس الحفظ)،
+	-- ولو أزلنا العناصر من الطابور لضاعت نهائياً. نتركها لتُسلَّم على جلسة سليمة لاحقاً.
+	local s0 = sessions[player.UserId]
+	if not s0 or s0.dataLoaded == false then return end
+	-- قراءة الطابور بإعادة محاولة (اتساقاً مع بقية القراءات) — تميّز الفشل عن العدم
+	local ok, items = getAsyncRetry(pendKey(player.UserId))
 	if not ok or type(items) ~= "table" or #items == 0 then return end
-	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أثناء التسليم)
+	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أو تدهورت جلسته أثناء التسليم)
 	local delivered = 0
 	for _, info in ipairs(items) do
-		if sessions[player.UserId] and player.Parent then
+		local s = sessions[player.UserId]
+		if s and s.dataLoaded ~= false and player.Parent then
 			grantProduct(player, info)
 			delivered += 1
 		else
@@ -9180,7 +9243,7 @@ end
 local function startRun(player)
 	local st = runState[player.UserId]
 	if st and st.inRun then return end
-	st = { inRun = true, startT = os.clock(), cpCF = SPAWN_CF, cpY = BASE_Y, best = st and st.best }
+	st = { inRun = true, startT = os.clock(), cpCF = SPAWN_CF, cpY = BASE_Y, best = st and st.best, bestLoaded = st and st.bestLoaded }
 	runState[player.UserId] = st
 	teleportTo(player, SPAWN_CF)
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اطلع لأعلى ووصل للقمة.") end
@@ -9308,7 +9371,8 @@ finishRun = function(player)
 	local isRecord = false
 	if not st.best or elapsed < st.best then
 		st.best = elapsed; isRecord = true
-		if bestStore then
+		-- 🛡️ لا نكتب رقماً قياسياً فوق المخزّن إن فشلت قراءته (قد يكون الحقيقي أسرع)
+		if bestStore and st.bestLoaded ~= false then
 			pcall(function() bestStore:SetAsync(tostring(player.UserId), math.floor(elapsed * 100)) end)
 		end
 	end
@@ -9385,11 +9449,25 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	-- استرجاع أفضل وقت محفوظ (اختياري)
 	if bestStore then
+		-- ابدأ بـ bestLoaded=false (قبل اكتمال القراءة) كي لا يُكتب رقم فوق المخزّن أثناء نافذة التحميل
+		runState[player.UserId] = runState[player.UserId] or {}
+		runState[player.UserId].bestLoaded = false
 		task.spawn(function()
-			local ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
-			if ok and type(v) == "number" then
-				runState[player.UserId] = runState[player.UserId] or {}
-				runState[player.UserId].best = v / 100
+			-- قراءة مع إعادة محاولة تميّز الفشل عن العدم
+			local ok, v
+			for attempt = 1, 4 do
+				ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
+				if ok then break end
+				if attempt < 4 then task.wait(0.5 * attempt) end
+			end
+			-- لا نُعيد إنشاء الإدخال لو غادر اللاعب أثناء القراءة (PlayerRemoving مسحه) — تفادي تسريب يتيم
+			local rs = runState[player.UserId]
+			if not rs then return end
+			if ok then
+				if type(v) == "number" then rs.best = v / 100 end
+				rs.bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
+			else
+				rs.bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
 			end
 		end)
 	end
@@ -9972,11 +10050,19 @@ for _, m in ipairs(WEEKLY_POOL) do WEEKLY_BY_KEY[m.key] = m end
 local store
 pcall(function() store = DataStoreService:GetDataStore("Missions_v1") end)
 
+-- قراءة مع إعادة محاولة تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, data): ok=false ⇒ فشلت كل المحاولات ⇒ لا تُعامل اللاعب كـ«أول مرة» ولا تحفظ فوقه.
 local function loadData(userId)
-	if not store then return nil end
-	local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
-	if ok and type(data) == "table" then return data end
-	return nil
+	if not store then return true, nil end  -- بلا متجر = بلا حفظ، عامله كجديد
+	for attempt = 1, 4 do
+		local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
+		if ok then
+			if type(data) == "table" then return true, data end
+			return true, nil  -- لاعب جديد فعلاً
+		end
+		if attempt < 4 then task.wait(0.5 * attempt) end
+	end
+	return false, nil  -- فشل قراءة
 end
 
 local sessions = {}  -- [userId] = data table (انظر الأسفل) + { dSeen, wSeen, dirty }
@@ -9985,6 +10071,8 @@ local function saveData(userId)
 	if not store then return end
 	local s = sessions[userId]
 	if not s then return end
+	-- 🛡️ حارس: لا نكتب فوق تقدّم لم نقرأه بنجاح
+	if s.dataLoaded == false then return end
 	local payload = {
 		v = 1,
 		dDay = s.dDay, dList = s.dList, dProg = s.dProg, dDone = s.dDone, dBonus = s.dBonus,
@@ -10200,16 +10288,26 @@ end
 -- دورة الحياة
 ----------------------------------------------------------------------
 Players.PlayerAdded:Connect(function(player)
-	local data = loadData(player.UserId)
-	local firstTime = (data == nil)
+	local ok, data = loadData(player.UserId)
+	local firstTime = ok and (data == nil)
 	local s = {}
 	sessions[player.UserId] = s
-	if data and data.dList and data.dProg then
+	if not ok then
+		-- 🛡️ فشل قراءة: لا نعتبره «أول مرة» ولا نحفظ فوقه. نعرض مهام مؤقّتة محميّة بـ dataLoaded=false
+		s.dataLoaded = false
+		refreshDaily(s, player.UserId)
+		refreshWeekly(s, player.UserId)
+		if _G.NotifyPlayer then
+			task.spawn(function() _G.NotifyPlayer(player, "⚠️ تعذّر تحميل تقدّم مهامك بسبب ضغط الخادم. لن يُحفظ هذه الجلسة — أعد الدخول لاحقاً.") end)
+		end
+	elseif data and data.dList and data.dProg then
+		s.dataLoaded = true
 		s.dDay, s.dList, s.dProg = data.dDay, data.dList, data.dProg
 		s.dDone, s.dBonus, s.dSeen = data.dDone or {}, data.dBonus == true, data.dSeen or {}
 		s.wWeek, s.wKey, s.wProg = data.wWeek, data.wKey, data.wProg or 0
 		s.wDone, s.wSeen = data.wDone == true, data.wSeen or {}
 	else
+		s.dataLoaded = true
 		refreshDaily(s, player.UserId)
 		refreshWeekly(s, player.UserId)
 	end
@@ -10225,7 +10323,8 @@ Players.PlayerAdded:Connect(function(player)
 	-- جدّد إن انقضت الفترة منذ آخر جلسة
 	if s.dDay ~= dayNumber() then refreshDaily(s, player.UserId) end
 	if s.wWeek ~= weekNumber() then refreshWeekly(s, player.UserId) end
-	-- احفظ فوراً للاعب الجديد كي لا يُعتبر «أول مرة» مجدداً
+	-- احفظ فوراً (يُفيد اللاعب الجديد كي لا يُعتبر «أول مرة» مجدداً، ولِيُثبّت أي تجديد
+	-- فترة/ترحيل للقدامى). محميّ بحارس saveData: لو dataLoaded=false لا يكتب شيئاً.
 	task.spawn(function() saveData(player.UserId) end)
 
 	-- ترحيب + دليل المبتدئين (مرة واحدة)
@@ -10271,7 +10370,19 @@ task.spawn(function()
 end)
 
 game:BindToClose(function()
-	for userId in pairs(sessions) do pcall(saveData, userId) end
+	-- حفظ متوازٍ يتفادى تجاوز مهلة الإغلاق (30s) عند وجود عدد كبير من اللاعبين
+	local pending = 0
+	for userId in pairs(sessions) do
+		pending += 1
+		task.spawn(function()
+			pcall(saveData, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
+	end
 end)
 
 print("[MissionSystem] ready — daily/weekly missions, activity-based economy.")
