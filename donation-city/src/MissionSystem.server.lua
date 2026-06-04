@@ -65,11 +65,19 @@ for _, m in ipairs(WEEKLY_POOL) do WEEKLY_BY_KEY[m.key] = m end
 local store
 pcall(function() store = DataStoreService:GetDataStore("Missions_v1") end)
 
+-- قراءة مع إعادة محاولة تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, data): ok=false ⇒ فشلت كل المحاولات ⇒ لا تُعامل اللاعب كـ«أول مرة» ولا تحفظ فوقه.
 local function loadData(userId)
-	if not store then return nil end
-	local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
-	if ok and type(data) == "table" then return data end
-	return nil
+	if not store then return true, nil end  -- بلا متجر = بلا حفظ، عامله كجديد
+	for attempt = 1, 4 do
+		local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
+		if ok then
+			if type(data) == "table" then return true, data end
+			return true, nil  -- لاعب جديد فعلاً
+		end
+		if attempt < 4 then task.wait(0.5 * attempt) end
+	end
+	return false, nil  -- فشل قراءة
 end
 
 local sessions = {}  -- [userId] = data table (انظر الأسفل) + { dSeen, wSeen, dirty }
@@ -78,6 +86,8 @@ local function saveData(userId)
 	if not store then return end
 	local s = sessions[userId]
 	if not s then return end
+	-- 🛡️ حارس: لا نكتب فوق تقدّم لم نقرأه بنجاح
+	if s.dataLoaded == false then return end
 	local payload = {
 		v = 1,
 		dDay = s.dDay, dList = s.dList, dProg = s.dProg, dDone = s.dDone, dBonus = s.dBonus,
@@ -293,16 +303,26 @@ end
 -- دورة الحياة
 ----------------------------------------------------------------------
 Players.PlayerAdded:Connect(function(player)
-	local data = loadData(player.UserId)
-	local firstTime = (data == nil)
+	local ok, data = loadData(player.UserId)
+	local firstTime = ok and (data == nil)
 	local s = {}
 	sessions[player.UserId] = s
-	if data and data.dList and data.dProg then
+	if not ok then
+		-- 🛡️ فشل قراءة: لا نعتبره «أول مرة» ولا نحفظ فوقه. نعرض مهام مؤقّتة محميّة بـ dataLoaded=false
+		s.dataLoaded = false
+		refreshDaily(s, player.UserId)
+		refreshWeekly(s, player.UserId)
+		if _G.NotifyPlayer then
+			task.spawn(function() _G.NotifyPlayer(player, "⚠️ تعذّر تحميل تقدّم مهامك بسبب ضغط الخادم. لن يُحفظ هذه الجلسة — أعد الدخول لاحقاً.") end)
+		end
+	elseif data and data.dList and data.dProg then
+		s.dataLoaded = true
 		s.dDay, s.dList, s.dProg = data.dDay, data.dList, data.dProg
 		s.dDone, s.dBonus, s.dSeen = data.dDone or {}, data.dBonus == true, data.dSeen or {}
 		s.wWeek, s.wKey, s.wProg = data.wWeek, data.wKey, data.wProg or 0
 		s.wDone, s.wSeen = data.wDone == true, data.wSeen or {}
 	else
+		s.dataLoaded = true
 		refreshDaily(s, player.UserId)
 		refreshWeekly(s, player.UserId)
 	end
@@ -318,7 +338,8 @@ Players.PlayerAdded:Connect(function(player)
 	-- جدّد إن انقضت الفترة منذ آخر جلسة
 	if s.dDay ~= dayNumber() then refreshDaily(s, player.UserId) end
 	if s.wWeek ~= weekNumber() then refreshWeekly(s, player.UserId) end
-	-- احفظ فوراً للاعب الجديد كي لا يُعتبر «أول مرة» مجدداً
+	-- احفظ فوراً (يُفيد اللاعب الجديد كي لا يُعتبر «أول مرة» مجدداً، ولِيُثبّت أي تجديد
+	-- فترة/ترحيل للقدامى). محميّ بحارس saveData: لو dataLoaded=false لا يكتب شيئاً.
 	task.spawn(function() saveData(player.UserId) end)
 
 	-- ترحيب + دليل المبتدئين (مرة واحدة)
@@ -364,7 +385,19 @@ task.spawn(function()
 end)
 
 game:BindToClose(function()
-	for userId in pairs(sessions) do pcall(saveData, userId) end
+	-- حفظ متوازٍ يتفادى تجاوز مهلة الإغلاق (30s) عند وجود عدد كبير من اللاعبين
+	local pending = 0
+	for userId in pairs(sessions) do
+		pending += 1
+		task.spawn(function()
+			pcall(saveData, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
+	end
 end)
 
 print("[MissionSystem] ready — daily/weekly missions, activity-based economy.")

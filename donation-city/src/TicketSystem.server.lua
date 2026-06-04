@@ -39,17 +39,27 @@ local sessions = {}
 local ticketStore
 pcall(function() ticketStore = DataStoreService:GetDataStore("CinemaTickets_v1") end)
 
+-- قراءة مع إعادة محاولة تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, data): ok=false ⇒ فشلت كل المحاولات ⇒ لا تُعامل اللاعب كجديد ولا تحفظ فوقه.
 local function loadData(userId)
-	if not ticketStore then return nil end
-	local ok, data = pcall(function() return ticketStore:GetAsync("t_" .. userId) end)
-	if ok and type(data) == "table" then return data end
-	return nil
+	if not ticketStore then return true, nil end  -- بلا متجر = بلا حفظ، عامله كجديد
+	for attempt = 1, 4 do
+		local ok, data = pcall(function() return ticketStore:GetAsync("t_" .. userId) end)
+		if ok then
+			if type(data) == "table" then return true, data end
+			return true, nil  -- لاعب جديد فعلاً
+		end
+		if attempt < 4 then task.wait(0.5 * attempt) end
+	end
+	return false, nil  -- فشل قراءة
 end
 
 local function saveData(userId)
 	if not ticketStore then return end
 	local s = sessions[userId]
 	if not s then return end
+	-- 🛡️ حارس: لا نكتب فوق تذاكر لم نقرأها بنجاح
+	if s.dataLoaded == false then return end
 	for _ = 1, 3 do
 		local ok = pcall(function()
 			ticketStore:SetAsync("t_" .. userId, { tickets = s.tickets, lastDaily = s.lastDaily })
@@ -117,13 +127,23 @@ local function applyDailyReward(player)
 end
 
 Players.PlayerAdded:Connect(function(player)
-	local saved = loadData(player.UserId)
+	local ok, saved = loadData(player.UserId)
 	local now = os.time()
-	if saved then
+	if not ok then
+		-- 🛡️ فشل قراءة: لا نعتبره جديداً ولا نحفظ فوقه. جلسة مؤقّتة محميّة بـ dataLoaded=false
+		sessions[player.UserId] = {
+			tickets = math.clamp(CONFIG.StartTickets, 0, CONFIG.MaxTickets),
+			lastDaily = now,
+			nextClaimAt = now + CONFIG.ClaimCooldown,
+			dataLoaded = false,
+		}
+		notifyRemote:FireClient(player, "⚠️ تعذّر تحميل تذاكرك بسبب ضغط الخادم. لحمايتها لن يُحفظ تغيّرها هذه الجلسة — أعد الدخول لاحقاً.")
+	elseif saved then
 		sessions[player.UserId] = {
 			tickets = math.clamp(saved.tickets or 0, 0, CONFIG.MaxTickets),
 			lastDaily = saved.lastDaily or 0,
 			nextClaimAt = now + CONFIG.ClaimCooldown,
+			dataLoaded = true,
 		}
 	else
 		-- لاعب جديد: يبدأ بتذاكر ويُحتسب اليوم كأول مكافأة
@@ -131,6 +151,7 @@ Players.PlayerAdded:Connect(function(player)
 			tickets = CONFIG.StartTickets,
 			lastDaily = now,
 			nextClaimAt = now + CONFIG.ClaimCooldown,
+			dataLoaded = true,
 		}
 		notifyRemote:FireClient(player, "🎟️ مرحباً! حصلت على " .. CONFIG.StartTickets .. " تذاكر للبداية.")
 		task.spawn(function() saveData(player.UserId) end)

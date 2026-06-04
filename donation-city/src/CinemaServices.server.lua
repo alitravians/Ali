@@ -75,25 +75,41 @@ local sendPerks       -- forward declaration: إبلاغ العميل بالأز
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
 
-local function loadCoins(userId: number): number
-	if not coinStore then return CONFIG.StartCoins end
-	local ok, data = pcall(function() return coinStore:GetAsync("c_" .. userId) end)
-	if ok and type(data) == "number" then return data end
-	return CONFIG.StartCoins
+-- قراءة مع إعادة المحاولة (تباعد متزايد) — تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, value): ok=true ⇒ نجحت القراءة (value قد يكون nil = لاعب جديد)؛
+-- ok=false ⇒ فشلت كل المحاولات (خنق/انقطاع) ⇒ يجب عدم الكتابة فوق بيانات اللاعب.
+local function getAsyncRetry(key: string): (boolean, any)
+	if not coinStore then return true, nil end  -- بلا متجر = بلا حفظ، عامله كقراءة ناجحة فارغة
+	for attempt = 1, 4 do
+		local ok, val = pcall(function() return coinStore:GetAsync(key) end)
+		if ok then return true, val end
+		if attempt < 4 then task.wait(0.5 * attempt) end  -- 0.5s, 1s, 1.5s (لا انتظار بعد آخر محاولة)
+	end
+	return false, nil
 end
 
-local function loadVip(userId: number): boolean
-	if not coinStore then return false end
-	local ok, data = pcall(function() return coinStore:GetAsync("v_" .. userId) end)
-	return (ok and data == true) or false
+local function loadCoins(userId: number): (boolean, number)
+	if not coinStore then return true, CONFIG.StartCoins end  -- بلا متجر = بلا حفظ، عامله كجديد
+	local ok, data = getAsyncRetry("c_" .. userId)
+	if not ok then return false, CONFIG.StartCoins end  -- فشل قراءة: لا تثق بالافتراضي
+	if type(data) == "number" then return true, data end
+	return true, CONFIG.StartCoins  -- لاعب جديد فعلاً
+end
+
+local function loadVip(userId: number): (boolean, boolean)
+	if not coinStore then return true, false end
+	local ok, data = getAsyncRetry("v_" .. userId)
+	if not ok then return false, false end
+	return true, data == true
 end
 
 -- تحميل سرعة المشي المحفوظة لحامل باقة «سرعة البرق» (افتراضي إن لم تُحفظ بعد)
-local function loadSpeed(userId: number): number
-	if not coinStore then return CONFIG.SpeedDefault end
-	local ok, data = pcall(function() return coinStore:GetAsync("spd_" .. userId) end)
-	if ok and type(data) == "number" then return data end
-	return CONFIG.SpeedDefault
+local function loadSpeed(userId: number): (boolean, number)
+	if not coinStore then return true, CONFIG.SpeedDefault end
+	local ok, data = getAsyncRetry("spd_" .. userId)
+	if not ok then return false, CONFIG.SpeedDefault end
+	if type(data) == "number" then return true, data end
+	return true, CONFIG.SpeedDefault
 end
 
 -- حفظ مع إعادة المحاولة (3 محاولات) — يصمد أمام تذبذب الشبكة/خنق DataStore
@@ -112,6 +128,8 @@ local HttpService = game:GetService("HttpService")
 local function saveCoins(userId: number)
 	local s = sessions[userId]
 	if not s or not coinStore then return end
+	-- 🛡️ حارس: لا نكتب أبداً فوق بيانات لم نقرأها بنجاح (تجنّب محو رصيد حقيقي عند فشل القراءة)
+	if s.dataLoaded == false then return end
 	s._saved = s._saved or {}
 	if s._saved.coins ~= s.coins then
 		if setAsyncRetry("c_" .. userId, s.coins) then s._saved.coins = s.coins end
@@ -233,7 +251,7 @@ end
 -- player lifecycle
 ------------------------------------------------------------------------
 Players.PlayerAdded:Connect(function(player)
-	local coins = loadCoins(player.UserId)
+	local okCoins, coins = loadCoins(player.UserId)
 	local stats = player:FindFirstChild("leaderstats")
 	if not stats then
 		stats = Instance.new("Folder")
@@ -246,16 +264,32 @@ Players.PlayerAdded:Connect(function(player)
 		value.Name = CONFIG.CurrencyName
 		value.Parent = stats
 	end
-	local vip = loadVip(player.UserId)
+	local okVip, vip = loadVip(player.UserId)
+	-- إنجازات/تقييم: نقرأهما بإعادة محاولة ونتتبّع نجاح القراءة (كي لا نكتب فوقها عند الفشل)
 	local ach, rated = {}, false
+	local okAch, okRated = true, true
 	if coinStore then
-		pcall(function() local d = coinStore:GetAsync("a_" .. player.UserId); if type(d) == "table" then ach = d end end)
-		pcall(function() rated = coinStore:GetAsync("rt_" .. player.UserId) == true end)
+		local a1, aData = getAsyncRetry("a_" .. player.UserId)
+		okAch = a1
+		if a1 and type(aData) == "table" then ach = aData end
+		local r1, rData = getAsyncRetry("rt_" .. player.UserId)
+		okRated = r1
+		if r1 then rated = rData == true end
 	end
-	local speed = loadSpeed(player.UserId)
+	local okSpeed, speed = loadSpeed(player.UserId)
+	-- 🛡️ إن فشلت أي قراءة حرجة ⇒ dataLoaded=false ⇒ يُمنع الحفظ فوق البيانات الحقيقية
+	local dataLoaded = okCoins and okVip and okAch and okRated and okSpeed
 	sessions[player.UserId] = { coins = coins, value = value, vip = vip, ach = ach, rated = rated, passes = {}, speed = speed,
+		dataLoaded = dataLoaded,
 		-- بصمة آخر قيم محفوظة (تُهيّأ بالقيم المُحمّلة) كي لا نعيد كتابة ما لم يتغيّر
 		_saved = { coins = coins, vip = vip == true, ach = HttpService:JSONEncode(ach), rated = rated == true, speed = math.floor(speed) } }
+	if not dataLoaded then
+		-- أبلغ اللاعب أن بياناته لم تُحمّل، واحمها من الكتابة فوقها
+		task.spawn(function()
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "⚠️ تعذّر تحميل بياناتك بسبب ضغط الخادم. لحمايتها لن يُحفظ تقدّمك هذه الجلسة — أعد الدخول لاحقاً.") end
+		end)
+		warn("[CinemaServices] فشل تحميل بيانات اللاعب " .. player.UserId .. " — تم تفعيل حارس الحفظ (dataLoaded=false)")
+	end
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
@@ -722,6 +756,85 @@ local function removePassEffects(player: Player, key: string)
 	sendPerks(player)
 end
 
+------------------------------------------------------------------------
+-- 🎁 إشعار الإهداء الاحترافي (يوضّح أنها هدية من الإدارة)
+--   • للحاضر: شريط إعلان علوي فوري عبر lobbyRemote (مسار مُجرّب وموثوق).
+--   • للغائب: يُحفظ في طابور دائم ويظهر له مرة واحدة أول دخول بعد الإهداء.
+------------------------------------------------------------------------
+local giftQueueStore
+pcall(function() giftQueueStore = DataStoreService:GetDataStore("CinemaGiftQueue_v1") end)
+
+-- نص إشعار الإهداء (مفرد أو مجمّع لعدة باقات)
+local function giftNoticeText(keys: { string }): string
+	local names = {}
+	for _, k in ipairs(keys) do names[#names + 1] = "«" .. passNameByKey(k) .. "»" end
+	if #names == 0 then return "" end
+	if #names == 1 then
+		return "🎁 أهدتك إدارة مدينة التبرعات باقة " .. names[1] .. " مجاناً — مزاياها مفعّلة الآن، استمتع بها!"
+	end
+	return "🎁 أهدتك إدارة مدينة التبرعات الباقات التالية مجاناً: " .. table.concat(names, "، ") .. " — مفعّلة الآن!"
+end
+
+-- إرسال إشعار الإهداء للاعب حاضر (شريط إعلان علوي احترافي)
+local function sendGiftNotice(target: Player, keys: { string })
+	local text = giftNoticeText(keys)
+	if text ~= "" then lobbyRemote:FireClient(target, { action = "giftAward", text = text }) end
+end
+
+-- إدراج إشعار إهداء للاعب غائب → يظهر له أول مرة يدخل (ذرّياً عبر UpdateAsync)
+local function queueGiftNotice(uid: number, key: string)
+	if not giftQueueStore or not isValidPassKey(key) then return end
+	pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			local g = {}
+			if type(old) == "table" then
+				for k, v in pairs(old) do
+					if v == true and isValidPassKey(tostring(k)) then g[tostring(k)] = true end
+				end
+			end
+			if g[key] then return nil end  -- مُدرَج أصلاً → ألغِ الكتابة
+			g[key] = true
+			return g
+		end)
+	end)
+end
+
+-- التقاط (وحذف) إشعارات الإهداء المعلّقة للاعب — تُستدعى مرة عند الدخول
+local function popGiftNotices(uid: number): { string }
+	local keys = {}
+	if not giftQueueStore then return keys end
+	local captured
+	local ok = pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			captured = old
+			if old == nil then return nil end  -- لا شيء معلّق → لا تكتب
+			if type(old) == "table" and next(old) == nil then return nil end  -- فارغ أصلاً → لا تكتب (توفير حصّة DataStore)
+			return {}  -- امسح الطابور بعد الالتقاط
+		end)
+	end)
+	if ok and type(captured) == "table" then
+		for k, v in pairs(captured) do
+			if v == true and isValidPassKey(tostring(k)) then keys[#keys + 1] = tostring(k) end
+		end
+	end
+	return keys
+end
+
+-- حذف إشعار إهداء معلّق من الطابور (يُستدعى عند السحب قبل دخول اللاعب)
+local function dequeueGiftNotice(uid: number, key: string)
+	if not giftQueueStore then return end
+	pcall(function()
+		giftQueueStore:UpdateAsync("u" .. uid, function(old)
+			if type(old) ~= "table" or old[key] == nil then return nil end  -- غير موجود → لا تكتب
+			local g = {}  -- أعد بناء نسخة معقّمة (اتساقاً مع queueGiftNotice)
+			for k, v in pairs(old) do
+				if v == true and isValidPassKey(tostring(k)) and tostring(k) ~= key then g[tostring(k)] = true end
+			end
+			return g
+		end)
+	end)
+end
+
 -- إهداء باقة (دائم). يُطبَّق فوراً لو اللاعب حاضر.
 local function adminGrantPass(uid: number, key: string): boolean
 	if not setGrant(uid, key, true) then return false end  -- ممنوحة أصلاً أو مفتاح غير صالح
@@ -729,6 +842,9 @@ local function adminGrantPass(uid: number, key: string): boolean
 	if target then
 		grantPass(target, key, true, false)  -- إهداء مجاني: لا يُمنح إنجاز "مُشترٍ"
 		sendPerks(target)  -- حدّث واجهة المزايا فوراً (أزرار العرض/الإعلان/شريط السرعة)
+		sendGiftNotice(target, { key })  -- 🎁 إشعار إهداء احترافي فوري على الشاشة
+	else
+		queueGiftNotice(uid, key)  -- غائب → يظهر له الإشعار أول مرة يدخل
 	end
 	return true
 end
@@ -736,6 +852,7 @@ end
 -- سحب باقة ممنوحة. لو يملكها فعلاً من المتجر تبقى له.
 local function adminRevokePass(uid: number, key: string): boolean
 	if not setGrant(uid, key, false) then return false end  -- غير ممنوحة من الإدارة
+	dequeueGiftNotice(uid, key)  -- نظّف أي إشعار معلّق لباقة سُحبت قبل دخول صاحبها
 	local target = Players:GetPlayerByUserId(uid)
 	if target then
 		-- نزيل المؤثرات فقط لو تأكّدنا أنه لا يملك الباص من المتجر.
@@ -780,6 +897,29 @@ applyAllPasses = function(player: Player)
 	end
 	sendPerks(player)
 	applySpeed(player)  -- ⚡ ثبّت السرعة فوراً لو الشخصية موجودة
+	-- 🎁 إشعارات إهداء معلّقة (مُنحت أثناء غيابه) → تظهر مرة واحدة الآن
+	task.spawn(function()
+		local pending = popGiftNotices(player.UserId)
+		if #pending == 0 then return end
+		-- اقرأ المنح طازجة من DataStore (تشمل منح/سحب سيرفر آخر) لتفادي لقطة قديمة
+		local freshOk, freshData = pcall(function()
+			return passGrantStore and passGrantStore:GetAsync("u" .. player.UserId)
+		end)
+		local validGrants = (freshOk and sanitizeGrants(freshData)) or granted
+		-- اعرض فقط ما زال ممنوحاً فعلاً (لو سُحب قبل دخوله لا يظهر إشعار مضلِّل)
+		local stillGranted = {}
+		for _, k in ipairs(pending) do
+			if validGrants[k] then stillGranted[#stillGranted + 1] = k end
+		end
+		if #stillGranted == 0 then return end
+		task.wait(2)  -- مهلة بسيطة حتى تجهز واجهة اللاعب بعد الدخول
+		if player.Parent then
+			sendGiftNotice(player, stillGranted)
+		else
+			-- خرج قبل التسليم → أعد الإدراج كي لا يضيع الإشعار (يظهر أول دخول قادم)
+			for _, k in ipairs(stillGranted) do queueGiftNotice(player.UserId, k) end
+		end
+	end)
 	-- أعد تطبيق الأثر/الشارة/السرعة عند كل ولادة للشخصية
 	player.CharacterAdded:Connect(function()
 		task.wait(0.5)
@@ -2148,7 +2288,10 @@ end
 -- يُعيد true لو سُلّم أو خُزّن بأمان (يمكن إغلاق الإيصال)، false لو تعذّر الأمران.
 local function deliverOrQueue(userId: number, info): boolean
 	local player = Players:GetPlayerByUserId(userId)
-	if player and sessions[userId] then
+	-- نُسلّم فوراً فقط لو الجلسة حاضرة وبياناتها مُحمّلة بنجاح؛ لو dataLoaded=false فالحفظ
+	-- محظور (حارس الحماية) فالمنح في الذاكرة سيضيع عند العودة → نخزّنه في الطابور الدائم
+	-- ليُسلَّم على جلسة سليمة. لو تعذّر التخزين أيضاً (متجر متدهور) يُعيد false → NotProcessedYet.
+	if player and sessions[userId] and sessions[userId].dataLoaded ~= false then
 		grantProduct(player, info)
 		return true
 	end
@@ -2158,13 +2301,18 @@ end
 -- يُستدعى عند دخول اللاعب: يقرأ الطابور، يسلّم المنتجات، ثم يزيل المُسلَّم فقط ذرّياً.
 function drainPendingGrants(player: Player)
 	if not coinStore then return end
-	local items
-	local ok = pcall(function() items = coinStore:GetAsync(pendKey(player.UserId)) end)
+	-- 🛡️ لا نُفرّغ الطابور أثناء جلسة متدهورة: المنح في الذاكرة لن يُحفظ (حارس الحفظ)،
+	-- ولو أزلنا العناصر من الطابور لضاعت نهائياً. نتركها لتُسلَّم على جلسة سليمة لاحقاً.
+	local s0 = sessions[player.UserId]
+	if not s0 or s0.dataLoaded == false then return end
+	-- قراءة الطابور بإعادة محاولة (اتساقاً مع بقية القراءات) — تميّز الفشل عن العدم
+	local ok, items = getAsyncRetry(pendKey(player.UserId))
 	if not ok or type(items) ~= "table" or #items == 0 then return end
-	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أثناء التسليم)
+	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أو تدهورت جلسته أثناء التسليم)
 	local delivered = 0
 	for _, info in ipairs(items) do
-		if sessions[player.UserId] and player.Parent then
+		local s = sessions[player.UserId]
+		if s and s.dataLoaded ~= false and player.Parent then
 			grantProduct(player, info)
 			delivered += 1
 		else
