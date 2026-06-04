@@ -9460,12 +9460,14 @@ Players.PlayerAdded:Connect(function(player)
 				if ok then break end
 				if attempt < 4 then task.wait(0.5 * attempt) end
 			end
-			runState[player.UserId] = runState[player.UserId] or {}
+			-- لا نُعيد إنشاء الإدخال لو غادر اللاعب أثناء القراءة (PlayerRemoving مسحه) — تفادي تسريب يتيم
+			local rs = runState[player.UserId]
+			if not rs then return end
 			if ok then
-				if type(v) == "number" then runState[player.UserId].best = v / 100 end
-				runState[player.UserId].bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
+				if type(v) == "number" then rs.best = v / 100 end
+				rs.bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
 			else
-				runState[player.UserId].bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
+				rs.bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
 			end
 		end)
 	end
