@@ -227,6 +227,31 @@ do
 	check("Coins T4: إعادة المحاولة نجحت → حمّل 777 dataLoaded=true", m.sessions[4].coins == 777 and m.sessions[4].dataLoaded == true)
 end
 
+-- --- COINS: شراء Robux أثناء جلسة متدهورة لا يضيع (يُحوّل للطابور الدائم) ---
+do
+	-- نسخة حرفية من منطق deliverOrQueue بعد الإصلاح
+	local sessions = {}
+	local pending = {}  -- userId -> { info, ... }  (طابور دائم)
+	local function grant(uid) sessions[uid].granted = (sessions[uid].granted or 0) + 1 end
+	local function deliverOrQueue(uid, info)
+		local present = sessions[uid] ~= nil
+		if present and sessions[uid].dataLoaded ~= false then
+			grant(uid); return "granted"
+		end
+		pending[uid] = pending[uid] or {}; table.insert(pending[uid], info)
+		return "queued"
+	end
+	-- جلسة متدهورة (dataLoaded=false) تشتري كوينز
+	sessions[1] = { dataLoaded = false, granted = 0 }
+	local r = deliverOrQueue(1, { kind = "coins", amount = 250 })
+	check("Purchase T1a: شراء أثناء التدهور يُحوّل للطابور (لا يُمنح في الذاكرة)", r == "queued" and sessions[1].granted == 0)
+	check("Purchase T1b: المنتج محفوظ في الطابور الدائم", pending[1] and #pending[1] == 1)
+	-- جلسة سليمة (dataLoaded=true) تشتري كوينز → تُسلَّم فوراً
+	sessions[2] = { dataLoaded = true, granted = 0 }
+	local r2 = deliverOrQueue(2, { kind = "coins", amount = 600 })
+	check("Purchase T2: شراء أثناء جلسة سليمة يُسلَّم فوراً", r2 == "granted" and sessions[2].granted == 1)
+end
+
 -- --- TICKETS -------------------------------------------------------------
 do
 	local store = makeStore(); local m = makeTicketModule(store)

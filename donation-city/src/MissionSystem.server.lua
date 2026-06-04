@@ -75,7 +75,7 @@ local function loadData(userId)
 			if type(data) == "table" then return true, data end
 			return true, nil  -- لاعب جديد فعلاً
 		end
-		task.wait(0.5 * attempt)
+		if attempt < 4 then task.wait(0.5 * attempt) end
 	end
 	return false, nil  -- فشل قراءة
 end
@@ -384,7 +384,19 @@ task.spawn(function()
 end)
 
 game:BindToClose(function()
-	for userId in pairs(sessions) do pcall(saveData, userId) end
+	-- حفظ متوازٍ يتفادى تجاوز مهلة الإغلاق (30s) عند وجود عدد كبير من اللاعبين
+	local pending = 0
+	for userId in pairs(sessions) do
+		pending += 1
+		task.spawn(function()
+			pcall(saveData, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
+	end
 end)
 
 print("[MissionSystem] ready — daily/weekly missions, activity-based economy.")

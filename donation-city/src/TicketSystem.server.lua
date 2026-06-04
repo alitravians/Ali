@@ -49,7 +49,7 @@ local function loadData(userId)
 			if type(data) == "table" then return true, data end
 			return true, nil  -- لاعب جديد فعلاً
 		end
-		task.wait(0.5 * attempt)
+		if attempt < 4 then task.wait(0.5 * attempt) end
 	end
 	return false, nil  -- فشل قراءة
 end

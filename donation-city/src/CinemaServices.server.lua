@@ -79,11 +79,11 @@ local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, pas
 -- تُرجع (ok, value): ok=true ⇒ نجحت القراءة (value قد يكون nil = لاعب جديد)؛
 -- ok=false ⇒ فشلت كل المحاولات (خنق/انقطاع) ⇒ يجب عدم الكتابة فوق بيانات اللاعب.
 local function getAsyncRetry(key: string): (boolean, any)
-	if not coinStore then return false, nil end
+	if not coinStore then return true, nil end  -- بلا متجر = بلا حفظ، عامله كقراءة ناجحة فارغة
 	for attempt = 1, 4 do
 		local ok, val = pcall(function() return coinStore:GetAsync(key) end)
 		if ok then return true, val end
-		task.wait(0.5 * attempt)  -- 0.5s, 1s, 1.5s
+		if attempt < 4 then task.wait(0.5 * attempt) end  -- 0.5s, 1s, 1.5s (لا انتظار بعد آخر محاولة)
 	end
 	return false, nil
 end
@@ -2288,7 +2288,10 @@ end
 -- يُعيد true لو سُلّم أو خُزّن بأمان (يمكن إغلاق الإيصال)، false لو تعذّر الأمران.
 local function deliverOrQueue(userId: number, info): boolean
 	local player = Players:GetPlayerByUserId(userId)
-	if player and sessions[userId] then
+	-- نُسلّم فوراً فقط لو الجلسة حاضرة وبياناتها مُحمّلة بنجاح؛ لو dataLoaded=false فالحفظ
+	-- محظور (حارس الحماية) فالمنح في الذاكرة سيضيع عند العودة → نخزّنه في الطابور الدائم
+	-- ليُسلَّم على جلسة سليمة. لو تعذّر التخزين أيضاً (متجر متدهور) يُعيد false → NotProcessedYet.
+	if player and sessions[userId] and sessions[userId].dataLoaded ~= false then
 		grantProduct(player, info)
 		return true
 	end

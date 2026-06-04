@@ -444,18 +444,21 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	-- استرجاع أفضل وقت محفوظ (اختياري)
 	if bestStore then
+		-- ابدأ بـ bestLoaded=false (قبل اكتمال القراءة) كي لا يُكتب رقم فوق المخزّن أثناء نافذة التحميل
+		runState[player.UserId] = runState[player.UserId] or {}
+		runState[player.UserId].bestLoaded = false
 		task.spawn(function()
 			-- قراءة مع إعادة محاولة تميّز الفشل عن العدم
 			local ok, v
 			for attempt = 1, 4 do
 				ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
 				if ok then break end
-				task.wait(0.5 * attempt)
+				if attempt < 4 then task.wait(0.5 * attempt) end
 			end
 			runState[player.UserId] = runState[player.UserId] or {}
 			if ok then
-				runState[player.UserId].bestLoaded = true
 				if type(v) == "number" then runState[player.UserId].best = v / 100 end
+				runState[player.UserId].bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
 			else
 				runState[player.UserId].bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
 			end

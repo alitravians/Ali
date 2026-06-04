@@ -4944,7 +4944,7 @@ local function loadData(userId)
 			if type(data) == "table" then return true, data end
 			return true, nil  -- لاعب جديد فعلاً
 		end
-		task.wait(0.5 * attempt)
+		if attempt < 4 then task.wait(0.5 * attempt) end
 	end
 	return false, nil  -- فشل قراءة
 end
@@ -5233,11 +5233,11 @@ local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, pas
 -- تُرجع (ok, value): ok=true ⇒ نجحت القراءة (value قد يكون nil = لاعب جديد)؛
 -- ok=false ⇒ فشلت كل المحاولات (خنق/انقطاع) ⇒ يجب عدم الكتابة فوق بيانات اللاعب.
 local function getAsyncRetry(key: string): (boolean, any)
-	if not coinStore then return false, nil end
+	if not coinStore then return true, nil end  -- بلا متجر = بلا حفظ، عامله كقراءة ناجحة فارغة
 	for attempt = 1, 4 do
 		local ok, val = pcall(function() return coinStore:GetAsync(key) end)
 		if ok then return true, val end
-		task.wait(0.5 * attempt)  -- 0.5s, 1s, 1.5s
+		if attempt < 4 then task.wait(0.5 * attempt) end  -- 0.5s, 1s, 1.5s (لا انتظار بعد آخر محاولة)
 	end
 	return false, nil
 end
@@ -7442,7 +7442,10 @@ end
 -- يُعيد true لو سُلّم أو خُزّن بأمان (يمكن إغلاق الإيصال)، false لو تعذّر الأمران.
 local function deliverOrQueue(userId: number, info): boolean
 	local player = Players:GetPlayerByUserId(userId)
-	if player and sessions[userId] then
+	-- نُسلّم فوراً فقط لو الجلسة حاضرة وبياناتها مُحمّلة بنجاح؛ لو dataLoaded=false فالحفظ
+	-- محظور (حارس الحماية) فالمنح في الذاكرة سيضيع عند العودة → نخزّنه في الطابور الدائم
+	-- ليُسلَّم على جلسة سليمة. لو تعذّر التخزين أيضاً (متجر متدهور) يُعيد false → NotProcessedYet.
+	if player and sessions[userId] and sessions[userId].dataLoaded ~= false then
 		grantProduct(player, info)
 		return true
 	end
@@ -9441,18 +9444,21 @@ end)
 Players.PlayerAdded:Connect(function(player)
 	-- استرجاع أفضل وقت محفوظ (اختياري)
 	if bestStore then
+		-- ابدأ بـ bestLoaded=false (قبل اكتمال القراءة) كي لا يُكتب رقم فوق المخزّن أثناء نافذة التحميل
+		runState[player.UserId] = runState[player.UserId] or {}
+		runState[player.UserId].bestLoaded = false
 		task.spawn(function()
 			-- قراءة مع إعادة محاولة تميّز الفشل عن العدم
 			local ok, v
 			for attempt = 1, 4 do
 				ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
 				if ok then break end
-				task.wait(0.5 * attempt)
+				if attempt < 4 then task.wait(0.5 * attempt) end
 			end
 			runState[player.UserId] = runState[player.UserId] or {}
 			if ok then
-				runState[player.UserId].bestLoaded = true
 				if type(v) == "number" then runState[player.UserId].best = v / 100 end
+				runState[player.UserId].bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
 			else
 				runState[player.UserId].bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
 			end
@@ -10047,7 +10053,7 @@ local function loadData(userId)
 			if type(data) == "table" then return true, data end
 			return true, nil  -- لاعب جديد فعلاً
 		end
-		task.wait(0.5 * attempt)
+		if attempt < 4 then task.wait(0.5 * attempt) end
 	end
 	return false, nil  -- فشل قراءة
 end
@@ -10356,7 +10362,19 @@ task.spawn(function()
 end)
 
 game:BindToClose(function()
-	for userId in pairs(sessions) do pcall(saveData, userId) end
+	-- حفظ متوازٍ يتفادى تجاوز مهلة الإغلاق (30s) عند وجود عدد كبير من اللاعبين
+	local pending = 0
+	for userId in pairs(sessions) do
+		pending += 1
+		task.spawn(function()
+			pcall(saveData, userId)
+			pending -= 1
+		end)
+	end
+	local t0 = os.clock()
+	while pending > 0 and (os.clock() - t0) < 25 do
+		task.wait(0.1)
+	end
 end)
 
 print("[MissionSystem] ready — daily/weekly missions, activity-based economy.")
