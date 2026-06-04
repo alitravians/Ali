@@ -65,11 +65,19 @@ for _, m in ipairs(WEEKLY_POOL) do WEEKLY_BY_KEY[m.key] = m end
 local store
 pcall(function() store = DataStoreService:GetDataStore("Missions_v1") end)
 
+-- قراءة مع إعادة محاولة تميّز «فشل القراءة» عن «لا توجد بيانات».
+-- تُرجع (ok, data): ok=false ⇒ فشلت كل المحاولات ⇒ لا تُعامل اللاعب كـ«أول مرة» ولا تحفظ فوقه.
 local function loadData(userId)
-	if not store then return nil end
-	local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
-	if ok and type(data) == "table" then return data end
-	return nil
+	if not store then return true, nil end  -- بلا متجر = بلا حفظ، عامله كجديد
+	for attempt = 1, 4 do
+		local ok, data = pcall(function() return store:GetAsync("m_" .. userId) end)
+		if ok then
+			if type(data) == "table" then return true, data end
+			return true, nil  -- لاعب جديد فعلاً
+		end
+		task.wait(0.5 * attempt)
+	end
+	return false, nil  -- فشل قراءة
 end
 
 local sessions = {}  -- [userId] = data table (انظر الأسفل) + { dSeen, wSeen, dirty }
@@ -78,6 +86,8 @@ local function saveData(userId)
 	if not store then return end
 	local s = sessions[userId]
 	if not s then return end
+	-- 🛡️ حارس: لا نكتب فوق تقدّم لم نقرأه بنجاح
+	if s.dataLoaded == false then return end
 	local payload = {
 		v = 1,
 		dDay = s.dDay, dList = s.dList, dProg = s.dProg, dDone = s.dDone, dBonus = s.dBonus,
@@ -293,16 +303,26 @@ end
 -- دورة الحياة
 ----------------------------------------------------------------------
 Players.PlayerAdded:Connect(function(player)
-	local data = loadData(player.UserId)
-	local firstTime = (data == nil)
+	local ok, data = loadData(player.UserId)
+	local firstTime = ok and (data == nil)
 	local s = {}
 	sessions[player.UserId] = s
-	if data and data.dList and data.dProg then
+	if not ok then
+		-- 🛡️ فشل قراءة: لا نعتبره «أول مرة» ولا نحفظ فوقه. نعرض مهام مؤقّتة محميّة بـ dataLoaded=false
+		s.dataLoaded = false
+		refreshDaily(s, player.UserId)
+		refreshWeekly(s, player.UserId)
+		if _G.NotifyPlayer then
+			task.spawn(function() _G.NotifyPlayer(player, "⚠️ تعذّر تحميل تقدّم مهامك بسبب ضغط الخادم. لن يُحفظ هذه الجلسة — أعد الدخول لاحقاً.") end)
+		end
+	elseif data and data.dList and data.dProg then
+		s.dataLoaded = true
 		s.dDay, s.dList, s.dProg = data.dDay, data.dList, data.dProg
 		s.dDone, s.dBonus, s.dSeen = data.dDone or {}, data.dBonus == true, data.dSeen or {}
 		s.wWeek, s.wKey, s.wProg = data.wWeek, data.wKey, data.wProg or 0
 		s.wDone, s.wSeen = data.wDone == true, data.wSeen or {}
 	else
+		s.dataLoaded = true
 		refreshDaily(s, player.UserId)
 		refreshWeekly(s, player.UserId)
 	end
