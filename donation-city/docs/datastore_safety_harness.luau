@@ -250,6 +250,33 @@ do
 	sessions[2] = { dataLoaded = true, granted = 0 }
 	local r2 = deliverOrQueue(2, { kind = "coins", amount = 600 })
 	check("Purchase T2: شراء أثناء جلسة سليمة يُسلَّم فوراً", r2 == "granted" and sessions[2].granted == 1)
+
+	-- نسخة حرفية من منطق drainPendingGrants بعد الإصلاح: لا يُفرّغ الطابور أثناء التدهور
+	local function drain(uid)
+		local s = sessions[uid]
+		if not s or s.dataLoaded == false then return false end  -- اترك الطابور سليماً
+		local q = pending[uid]
+		if not q or #q == 0 then return false end
+		local delivered = 0
+		for _ in ipairs(q) do
+			if sessions[uid] and sessions[uid].dataLoaded ~= false then grant(uid); delivered += 1 else break end
+		end
+		-- إزالة المُسلَّم فقط
+		local rest = {}
+		for i = delivered + 1, #q do rest[#rest + 1] = q[i] end
+		pending[uid] = rest
+		return delivered > 0
+	end
+	-- لاعب عاد بجلسة متدهورة (dataLoaded=false) وفي طابوره منتج: لا يُسلَّم ولا يُحذف
+	sessions[3] = { dataLoaded = false, granted = 0 }
+	pending[3] = { { kind = "coins", amount = 500 } }
+	local d1 = drain(3)
+	check("Drain T1a: لا تسليم أثناء التدهور", d1 == false and sessions[3].granted == 0)
+	check("Drain T1b: المنتج باقٍ في الطابور (لم يُفقد)", pending[3] and #pending[3] == 1)
+	-- نفس اللاعب عاد لاحقاً بجلسة سليمة: يُسلَّم ويُفرّغ الطابور
+	sessions[3].dataLoaded = true
+	local d2 = drain(3)
+	check("Drain T2: جلسة سليمة سلّمت المنتج المؤجّل وفرّغت الطابور", d2 == true and sessions[3].granted == 1 and #pending[3] == 0)
 end
 
 -- --- TICKETS -------------------------------------------------------------

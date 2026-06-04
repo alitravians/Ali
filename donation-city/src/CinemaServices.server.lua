@@ -2301,13 +2301,18 @@ end
 -- يُستدعى عند دخول اللاعب: يقرأ الطابور، يسلّم المنتجات، ثم يزيل المُسلَّم فقط ذرّياً.
 function drainPendingGrants(player: Player)
 	if not coinStore then return end
-	local items
-	local ok = pcall(function() items = coinStore:GetAsync(pendKey(player.UserId)) end)
+	-- 🛡️ لا نُفرّغ الطابور أثناء جلسة متدهورة: المنح في الذاكرة لن يُحفظ (حارس الحفظ)،
+	-- ولو أزلنا العناصر من الطابور لضاعت نهائياً. نتركها لتُسلَّم على جلسة سليمة لاحقاً.
+	local s0 = sessions[player.UserId]
+	if not s0 or s0.dataLoaded == false then return end
+	-- قراءة الطابور بإعادة محاولة (اتساقاً مع بقية القراءات) — تميّز الفشل عن العدم
+	local ok, items = getAsyncRetry(pendKey(player.UserId))
 	if not ok or type(items) ~= "table" or #items == 0 then return end
-	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أثناء التسليم)
+	-- نسلّم لقطة الطابور ونعدّ كم منتجاً سُلّم فعلاً (نتوقّف لو غادر اللاعب أو تدهورت جلسته أثناء التسليم)
 	local delivered = 0
 	for _, info in ipairs(items) do
-		if sessions[player.UserId] and player.Parent then
+		local s = sessions[player.UserId]
+		if s and s.dataLoaded ~= false and player.Parent then
 			grantProduct(player, info)
 			delivered += 1
 		else

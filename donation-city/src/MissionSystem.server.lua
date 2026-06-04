@@ -338,7 +338,8 @@ Players.PlayerAdded:Connect(function(player)
 	-- جدّد إن انقضت الفترة منذ آخر جلسة
 	if s.dDay ~= dayNumber() then refreshDaily(s, player.UserId) end
 	if s.wWeek ~= weekNumber() then refreshWeekly(s, player.UserId) end
-	-- احفظ فوراً للاعب الجديد كي لا يُعتبر «أول مرة» مجدداً
+	-- احفظ فوراً (يُفيد اللاعب الجديد كي لا يُعتبر «أول مرة» مجدداً، ولِيُثبّت أي تجديد
+	-- فترة/ترحيل للقدامى). محميّ بحارس saveData: لو dataLoaded=false لا يكتب شيئاً.
 	task.spawn(function() saveData(player.UserId) end)
 
 	-- ترحيب + دليل المبتدئين (مرة واحدة)
