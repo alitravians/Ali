@@ -92,9 +92,13 @@ local seatsModel = get("Seats")
 local function getSeats()
 	local list = {}
 	if seatsModel then
-		for _, chair in ipairs(seatsModel:GetChildren()) do
-			local seat = chair:FindFirstChildWhichIsA("Seat")
-			if seat then list[#list + 1] = seat end
+		for _, child in ipairs(seatsModel:GetChildren()) do
+			if child:IsA("Seat") then
+				list[#list + 1] = child
+			else
+				local seat = child:FindFirstChildWhichIsA("Seat")
+				if seat then list[#list + 1] = seat end
+			end
 		end
 	end
 	return list

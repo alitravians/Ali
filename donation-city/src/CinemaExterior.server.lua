@@ -3,16 +3,14 @@
 ║  الواجهة الخارجية — CINEMA EXTERIOR (Server)                          ║
 ║  المكان: ServerScriptService     ·     النوع: Script                   ║
 ║                                                                        ║
-║  • واجهة نيون مودرن + أبواب زجاجية أوتوماتيكية تنفتح عند الاقتراب        ║
-║  • بوسترات أفلام متبدّلة + شاشة LED خارجية بإعلانات متحركة               ║
-║  • موقف سيارات + مقاعد ونباتات + ركن تصوير + مارّة (NPCs) يتمشّون        ║
-║  • يُبنى فوق المبنى الموجود (Workspace.Cinema) دون تعديل الداخل          ║
+║  ⛔ معطّل: المبنى الجديد (موديل Cinema Modern 8841720651) يوفّر واجهته  ║
+║  الخارجية الخاصة (لافتة CINEMA + أبواب زجاجية + ماركي).                  ║
+║  النص أدناه يبقى للمرجع فقط.                                          ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
-local Workspace    = game:GetService("Workspace")
-local Players       = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
+-- المبنى الجديد يوفّر واجهته الخارجية — لا نبني شيئاً إضافياً
+return
 local RunService   = game:GetService("RunService")
 
 -- إحداثيات حقيقية مستخرجة من المبنى الموجود
