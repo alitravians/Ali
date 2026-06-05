@@ -333,13 +333,15 @@ screen_wall = make_part("ScreenWall", (-21, 8, -158.1), (40, 22, 0.3),
                         color=(35, 35, 38), transparency=0, material="Concrete")
 cinema.append(screen_wall)
 
-# Projector — at ceiling, behind seats, with ProximityPrompt
-# (inserted at front so FindFirstChild resolves to this functional Part first)
+# Projector — at ceiling, behind seats, with ProximityPrompt.
+# Step 2b already renamed the decorative model → "ProjectorDecor", so there is no
+# name collision; insert at index 1 (right after <Properties>) to keep the RBXLX
+# convention that <Properties> is the first child of the <Item> element.
 projector = make_part("Projector", (-21, 14, -120), (3, 3, 3),
                       color=(30, 30, 35), transparency=0, material="Metal")
 add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=14,
                      name="PlayPrompt")
-cinema.insert(0, projector)
+cinema.insert(1, projector)
 
 # GateBarrier — blocks entrance during movie
 gate = make_part("GateBarrier", (-2, 3, -104), (12, 5, 1),
