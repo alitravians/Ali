@@ -147,12 +147,16 @@ def make_model(name):
     return item
 
 
-def add_proximity_prompt(parent_item, action_text, obj_text, hold=0.4, dist=10):
+def add_proximity_prompt(parent_item, action_text, obj_text, hold=0.4, dist=10,
+                         name="ProximityPrompt"):
     """Add a ProximityPrompt child inside a Part Item."""
     pp = etree.SubElement(parent_item, "Item")
     pp.set("class", "ProximityPrompt")
     pp.set("referent", nref())
     props = etree.SubElement(pp, "Properties")
+    el = etree.SubElement(props, "string")
+    el.set("name", "Name")
+    el.text = name
     el = etree.SubElement(props, "string")
     el.set("name", "ActionText")
     el.text = action_text
@@ -174,12 +178,16 @@ def add_proximity_prompt(parent_item, action_text, obj_text, hold=0.4, dist=10):
     return pp
 
 
-def add_spotlight(parent_item, brightness=3, range_val=30, angle=60):
+def add_spotlight(parent_item, brightness=3, range_val=30, angle=60,
+                  name="SpotLight"):
     """Add a SpotLight child."""
     sl = etree.SubElement(parent_item, "Item")
     sl.set("class", "SpotLight")
     sl.set("referent", nref())
     props = etree.SubElement(sl, "Properties")
+    el = etree.SubElement(props, "string")
+    el.set("name", "Name")
+    el.text = name
     el = etree.SubElement(props, "float")
     el.set("name", "Brightness")
     el.text = str(brightness)
@@ -245,6 +253,18 @@ for child in model_cinema.findall("Item"):
     copied += 1
 print(f"Injected {copied} top-level items from new model (transformed)")
 
+# ─── Step 2b: Resolve name collisions with functional anchors ────────
+# The model ships a decorative Model named "Projector"; CinemaSystem expects a
+# BasePart named "Projector" (with a ProximityPrompt). Rename the decorative one
+# so FindFirstChild("Projector") resolves to our functional Part (added below).
+renamed = 0
+for c in cinema.findall("Item"):
+    if name_of(c) == "Projector":
+        set_name(c, "ProjectorDecor")
+        renamed += 1
+if renamed:
+    print(f"Renamed {renamed} decorative 'Projector' → 'ProjectorDecor'")
+
 # ─── Step 3: Organize Seats → "Seats" model ──────────────────────────
 seats_model = make_model("Seats")
 # Collect all Seat class items that are direct children of Cinema
@@ -287,10 +307,12 @@ screen_wall = make_part("ScreenWall", (-21, 8, -158.1), (40, 22, 0.3),
 cinema.append(screen_wall)
 
 # Projector — at ceiling, behind seats, with ProximityPrompt
+# (inserted at front so FindFirstChild resolves to this functional Part first)
 projector = make_part("Projector", (-21, 14, -120), (3, 3, 3),
                       color=(30, 30, 35), transparency=0, material="Metal")
-add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=14)
-cinema.append(projector)
+add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=14,
+                     name="PlayPrompt")
+cinema.insert(0, projector)
 
 # GateBarrier — blocks entrance during movie
 gate = make_part("GateBarrier", (-2, 3, -104), (12, 5, 1),
@@ -301,7 +323,8 @@ cinema.append(gate)
 # PopcornStand — with ProximityPrompt for popcorn
 popcorn = make_part("PopcornStand", (29, 1.5, -155), (3, 4, 3),
                     color=(180, 60, 30), transparency=0.95, material="SmoothPlastic")
-add_proximity_prompt(popcorn, "خذ فشار", "بسطة الفشار", hold=0.3, dist=8)
+add_proximity_prompt(popcorn, "خذ فشار", "بسطة الفشار", hold=0.3, dist=8,
+                     name="PopcornPrompt")
 cinema.append(popcorn)
 
 # Floor — reference for groundY calculation
@@ -322,12 +345,12 @@ cinema.append(info_board)
 # ScreenWash lights (left and right of screen, aimed at it)
 wash_l = make_part("ScreenWashL", (-33, 14, -155), (2, 0.3, 2),
                    color=(50, 50, 60), transparency=0, material="Metal")
-add_spotlight(wash_l, brightness=3, range_val=25, angle=50)
+add_spotlight(wash_l, brightness=3, range_val=25, angle=50, name="WashLight")
 cinema.append(wash_l)
 
 wash_r = make_part("ScreenWashR", (-9, 14, -155), (2, 0.3, 2),
                    color=(50, 50, 60), transparency=0, material="Metal")
-add_spotlight(wash_r, brightness=3, range_val=25, angle=50)
+add_spotlight(wash_r, brightness=3, range_val=25, angle=50, name="WashLight")
 cinema.append(wash_r)
 
 # AisleRunner — decorative floor strip for the aisle (visible indicator)
