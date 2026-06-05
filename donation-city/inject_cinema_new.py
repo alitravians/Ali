@@ -267,8 +267,19 @@ if renamed:
 
 # ─── Step 3: Organize Seats → "Seats" model ──────────────────────────
 seats_model = make_model("Seats")
-# Collect all Seat class items that are direct children of Cinema
+# Collect all Seat class items that are direct children of Cinema.
+# Safety: this model ships its 37 Seats as direct children of Cinema, so a
+# direct-child scan captures them all. Guard against a model whose Seats are
+# nested deeper (which a direct-child scan would silently drop) by comparing
+# against the count of Seat descendants in the whole Cinema subtree.
 seats_to_move = [c for c in cinema.findall("Item") if c.get("class") == "Seat"]
+total_seats = sum(1 for it in cinema.iter("Item") if it.get("class") == "Seat")
+if len(seats_to_move) != total_seats:
+    raise SystemExit(
+        f"ERROR: {total_seats - len(seats_to_move)} Seat(s) are nested inside "
+        f"sub-models, not direct children of Cinema. getSeats() would miss them. "
+        f"Update Step 3 to collect nested Seats before re-running."
+    )
 for i, s in enumerate(seats_to_move):
     cinema.remove(s)
     # Wrap in a container model for compatibility with getSeats() pattern
