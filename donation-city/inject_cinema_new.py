@@ -37,21 +37,33 @@ def set_name(it, n):
         el.text = n
 
 
+def _translate_xyz(cf):
+    """Translate the X/Y/Z children of a CFrame element in-place."""
+    if cf is None:
+        return
+    xel = cf.find("X")
+    yel = cf.find("Y")
+    zel = cf.find("Z")
+    if xel is not None and xel.text:
+        xel.text = str(float(xel.text) + DX)
+    if yel is not None and yel.text:
+        yel.text = str(float(yel.text) + DY)
+    if zel is not None and zel.text:
+        zel.text = str(float(zel.text) + DZ)
+
+
 def transform_cframes(item):
-    """Recursively translate all CFrame positions in item and descendants."""
+    """Recursively translate all CFrame positions in item and descendants.
+
+    Translates both the part CFrame and any Model WorldPivotData (an
+    OptionalCoordinateFrame holding a nested world-space CFrame), so sub-model
+    pivots stay consistent for Studio PivotTo / GetPivot.
+    """
     for it in item.iter("Item"):
-        cf = it.find("Properties/CoordinateFrame[@name='CFrame']")
-        if cf is None:
-            continue
-        xel = cf.find("X")
-        yel = cf.find("Y")
-        zel = cf.find("Z")
-        if xel is not None and xel.text:
-            xel.text = str(float(xel.text) + DX)
-        if yel is not None and yel.text:
-            yel.text = str(float(yel.text) + DY)
-        if zel is not None and zel.text:
-            zel.text = str(float(zel.text) + DZ)
+        _translate_xyz(it.find("Properties/CoordinateFrame[@name='CFrame']"))
+        _translate_xyz(
+            it.find("Properties/OptionalCoordinateFrame[@name='WorldPivotData']/CFrame")
+        )
 
 
 def anchor_all(item):
