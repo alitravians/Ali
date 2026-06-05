@@ -340,7 +340,7 @@ cinema.append(screen_wall)
 projector = make_part("Projector", (-21, 14, -120), (3, 3, 3),
                       color=(30, 30, 35), transparency=0, material="Metal")
 add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=14,
-                     name="PlayPrompt")
+                     name="PlayMoviePrompt")  # match WorldBuilder's prompt name
 cinema.insert(1, projector)
 
 # GateBarrier — blocks entrance during movie
