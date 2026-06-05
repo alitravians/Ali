@@ -1000,8 +1000,25 @@ else
 	warn("[CinemaSystem] Projector ProximityPrompt not found.")
 end
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+-- يمنع قصف السيرفر بآلاف النداءات/ثانية. سخيّ جداً مقارنة بالأزرار.
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+Players.PlayerRemoving:Connect(function(p) _rl[p.UserId] = nil end)
+
 -- استقبال اختيار اللاعب (front/back) من القائمة
 seatRemote.OnServerEvent:Connect(function(player, payload)
+	if not rlAllow(player.UserId) then return end
 	if type(payload) ~= "table" then return end
 
 	-- اختيار مقعد محدّد من الشبكة (حجز فعلي: من يجلس يأخذ المقعد ويمنع غيره)

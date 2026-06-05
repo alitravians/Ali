@@ -1209,8 +1209,24 @@ _G.ChatBroadcastAdmin = function(label, name, text)
 	end
 end
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط).
+-- طبقة حماية إضافية قبل حدّ سرعة الرسائل (MIN_INTERVAL) ضد قصف السيرفر.
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 Players.PlayerRemoving:Connect(function(plr)
 	lastSpoke[plr.UserId] = nil
+	_rl[plr.UserId] = nil
 	-- ملاحظة: لا نحذف mutedUntil هنا عمداً — حتى لا يتجاوز المكتوم كتمه بمجرد الخروج والدخول.
 	-- الكتم الزمني ينتهي تلقائياً بانقضاء وقته (os.time)، والدائم يبقى حتى يفكّه إداري.
 end)
@@ -1704,6 +1720,7 @@ end
 -- استقبال رسالة من لاعب، فلترتها، وبثّها للجميع
 ------------------------------------------------------------------------
 sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
+	if not rlAllow(sender.UserId) then return end
 	-- تحقّق صارم من المدخلات (لا نثق بالعميل أبداً)
 	if typeof(rawText) ~= "string" then return end
 
@@ -1800,6 +1817,7 @@ end)
 local lastWhisper: { [number]: number } = {}
 
 whisperRemote.OnServerEvent:Connect(function(sender: Player, targetUserId, rawText)
+	if not rlAllow(sender.UserId) then return end
 	-- تحقّق صارم من المدخلات (لا نثق بالعميل أبداً)
 	if typeof(rawText) ~= "string" then return end
 	local targetId = tonumber(targetUserId)
@@ -3004,8 +3022,25 @@ else
 	warn("[CinemaSystem] Projector ProximityPrompt not found.")
 end
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+-- يمنع قصف السيرفر بآلاف النداءات/ثانية. سخيّ جداً مقارنة بالأزرار.
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+Players.PlayerRemoving:Connect(function(p) _rl[p.UserId] = nil end)
+
 -- استقبال اختيار اللاعب (front/back) من القائمة
 seatRemote.OnServerEvent:Connect(function(player, payload)
+	if not rlAllow(player.UserId) then return end
 	if type(payload) ~= "table" then return end
 
 	-- اختيار مقعد محدّد من الشبكة (حجز فعلي: من يجلس يأخذ المقعد ويمنع غيره)
@@ -3825,6 +3860,21 @@ local ownerToBooth = {}            -- userId -> key
 local donorTotals  = {}            -- userId -> { name, robux }
 local infoCache    = {}            -- "kind:id" -> productInfo (server cache)
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط) يمنع
+-- قصف السيرفر بآلاف النداءات/ثانية (خصوصاً BoothInfo الذي يستدعي GetProductInfo).
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25  -- نداء/ثانية (تعبئة) + سعة قصوى للدفعات
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 ------------------------------------------------------------------------
 -- Helpers
 ------------------------------------------------------------------------
@@ -4634,6 +4684,7 @@ end)
 -- Remote handling
 ------------------------------------------------------------------------
 boothRemote.OnServerEvent:Connect(function(player, payload)
+	if not rlAllow(player.UserId) then return end
 	if type(payload) ~= "table" then return end
 	local action = payload.action
 	if action == "claim" then
@@ -4668,6 +4719,7 @@ end)
 
 -- Validate-and-fetch a pass before the owner commits to adding it (live preview)
 boothInfoFn.OnServerInvoke = function(player, input)
+	if not rlAllow(player.UserId) then return { ok = false, reason = "أبطئ قليلاً ثم حاول مرّة أخرى" } end
 	local id = parseId(tostring(input or ""))
 	if not id then return { ok = false, reason = "رقم/رابط غير صالح" } end
 	local info, kind = fetchInfo(id)
@@ -4691,6 +4743,7 @@ Players.PlayerRemoving:Connect(function(player)
 	local key = ownerToBooth[player.UserId]
 	if key then releaseBooth(key) end
 	lastRing[player.UserId] = nil  -- نظّف مؤقّت النداء فلا تتراكم مدخلات للاعبين الخارجين
+	_rl[player.UserId] = nil
 	-- نُبقي donorTotals طوال عمر السيرفر حتى لا يختفي المتبرّع من لوحة كبار المتبرّعين عند خروجه
 end)
 
@@ -5057,9 +5110,24 @@ Players.PlayerAdded:Connect(function(player)
 	applyDailyReward(player)
 end)
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	saveData(player.UserId)
 	sessions[player.UserId] = nil
+	_rl[player.UserId] = nil
 end)
 
 game:BindToClose(function()
@@ -5092,6 +5160,7 @@ end)
 -- claim handler (زر قديم — غير مستخدم حالياً، مُبقى للتوافق)
 ------------------------------------------------------------------------
 claimRemote.OnServerEvent:Connect(function(player)
+	if not rlAllow(player.UserId) then return end
 	local s = sessions[player.UserId]
 	if not s then return end
 	if s.tickets >= CONFIG.MaxTickets then
@@ -5228,6 +5297,21 @@ local canUseAnnouncer -- forward declaration: من يحق له الإعلان (�
 local sendPerks       -- forward declaration: إبلاغ العميل بالأزرار الخاصة (يُستدعى من منح VIP أيضاً)
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
+
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط) يمنع
+-- قصف السيرفر بآلاف النداءات/ثانية. سخيّ جداً مقارنة بالاستخدام الطبيعي (أزرار/شرائح).
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25  -- نداء/ثانية (تعبئة) + سعة قصوى للدفعات
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
 
 -- قراءة مع إعادة المحاولة (تباعد متزايد) — تميّز «فشل القراءة» عن «لا توجد بيانات».
 -- تُرجع (ok, value): ok=true ⇒ نجحت القراءة (value قد يكون nil = لاعب جديد)؛
@@ -5468,6 +5552,7 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	saveCoins(player.UserId)
 	sessions[player.UserId] = nil
+	_rl[player.UserId] = nil
 end)
 
 game:BindToClose(function()
@@ -6685,6 +6770,7 @@ local function broadcast(text: string, fromName: string?)
 end
 
 lobbyRemote.OnServerEvent:Connect(function(player, payload)
+	if not rlAllow(player.UserId) then return end
 	if type(payload) ~= "table" then return end
 	if payload.action == "buyTicket" then
 		local have = _G.GetTickets and _G.GetTickets(player) or 0
@@ -9276,7 +9362,22 @@ local function stopRun(player)
 	if updateFallWatcher then updateFallWatcher() end
 end
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 stopRemote.OnServerEvent:Connect(function(player)
+	if not rlAllow(player.UserId) then return end
 	stopRun(player)
 end)
 
@@ -9442,6 +9543,7 @@ Players.PlayerRemoving:Connect(function(player)
 	entryCooldown[player.UserId] = nil
 	killCooldown[player.UserId] = nil
 	finishCooldown[player.UserId] = nil
+	_rl[player.UserId] = nil
 	updateFallWatcher()
 end)
 
@@ -9870,40 +9972,93 @@ local function award(player, key)
 	if _G.AwardAchievement then _G.AwardAchievement(player, key) end
 end
 
+-- وقت آخر تقرير جري لكل لاعب (مكافحة الإغراق: نحتسب فقط الزمن الحقيقي المنقضي)
+local lastSprintAt = {}  -- [userId] = os.clock()
+
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط) يمنع قصف
+-- السيرفر بآلاف النداءات/ثانية. الحدود سخيّة جداً مقارنة بالاستخدام الطبيعي.
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25  -- نداء/ثانية (تعبئة) + سعة قصوى للدفعات
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
+-- 🦘 عدّ القفزات على السيرفر (لا نثق بعدّاد العميل): نلتقط حدث Humanoid.Jumping
+-- الفعلي عند صعود القفزة مع مانع ارتداد، فيستحيل تزوير القفزات بإرسال remote.
+local JUMP_DEBOUNCE = 0.25  -- ثانية بين قفزتين محتسبتين (قفزة واحدة لا تُعدّ مرّتين)
+local function countJump(player: Player)
+	local s = state[player.UserId]
+	if not s then return end
+	local now = os.clock()
+	if s.lastJumpAt and (now - s.lastJumpAt) < JUMP_DEBOUNCE then return end
+	s.lastJumpAt = now
+	s.jumps += 1
+	if not s.doneJump and s.jumps >= JUMP_COUNT then
+		s.doneJump = true
+		award(player, "jumper")
+	end
+end
+
+local function hookJumps(player: Player, char: Model)
+	local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+	if not hum then return end
+	hum.Jumping:Connect(function(active)
+		if active then countJump(player) end
+	end)
+end
+
 Players.PlayerAdded:Connect(function(player)
 	state[player.UserId] = {
 		visited = {}, visitCount = 0, activeSecs = 0,
-		sprintSecs = 0, jumps = 0, lastPos = nil,
+		sprintSecs = 0, jumps = 0, lastJumpAt = nil, lastPos = nil,
 		doneExplorer = false, doneMarathon = false, doneSprint = false, doneJump = false,
 	}
+	-- اربط عدّ القفزات على كل شخصية (تتجدّد عند كل ولادة)
+	if player.Character then hookJumps(player, player.Character) end
+	player.CharacterAdded:Connect(function(char) hookJumps(player, char) end)
 end)
 
 Players.PlayerRemoving:Connect(function(player)
 	state[player.UserId] = nil
+	lastSprintAt[player.UserId] = nil
+	_rl[player.UserId] = nil
 end)
 
 ----------------------------------------------------------------------
 -- تقارير العميل (جري/قفز) — مع حدّ لمنع الإساءة
 ----------------------------------------------------------------------
 reportRemote.OnServerEvent:Connect(function(player, kind, value)
+	if not rlAllow(player.UserId) then return end
 	local s = state[player.UserId]
 	if not s then return end
 	if kind == "sprint" then
-		-- value = ثوانٍ منذ آخر تقرير؛ نقصّها لحدّ معقول (≤ 2 ثانية/رسالة)
+		-- value = ثوانٍ منذ آخر تقرير. لا نثق بالقيمة وحدها: نحصرها بـ ٢ ثانية/رسالة
+		-- **و** بالزمن الحقيقي المنقضي منذ آخر تقرير. هكذا لو أرسل العميل آلاف الرسائل
+		-- في نفس اللحظة (إغراق/تزوير) فالزمن الحقيقي بينها ≈ ٠ فلا يُحتسب شيء يُذكر،
+		-- ويستحيل فتح إنجاز «عدّاء» أسرع من الجري الفعلي.
 		local secs = tonumber(value)
 		if not secs then return end
-		secs = math.clamp(secs, 0, 2)
-		s.sprintSecs += secs
+		local now = os.clock()
+		local last = lastSprintAt[player.UserId]
+		lastSprintAt[player.UserId] = now
+		local credit = math.clamp(secs, 0, 2)
+		if last then
+			credit = math.min(credit, math.max(0, now - last))
+		end
+		s.sprintSecs += credit
 		if not s.doneSprint and s.sprintSecs >= SPRINT_SECONDS then
 			s.doneSprint = true
 			award(player, "sprinter")
 		end
-	elseif kind == "jump" then
-		s.jumps += 1
-		if not s.doneJump and s.jumps >= JUMP_COUNT then
-			s.doneJump = true
-			award(player, "jumper")
-		end
+	-- ملاحظة: تقارير «القفز» من العميل لم تعد موثوقة وتُتجاهَل؛ القفز يُعدّ على
+	-- السيرفر عبر Humanoid.Jumping (انظر countJump أعلاه) فلا يمكن تزويره.
 	end
 end)
 
@@ -10335,13 +10490,29 @@ Players.PlayerAdded:Connect(function(player)
 	end)
 end)
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	saveData(player.UserId)
 	sessions[player.UserId] = nil
+	_rl[player.UserId] = nil
 end)
 
 -- طلب العميل تحديث الحالة (عند فتح اللوحة)
 requestRemote.OnServerEvent:Connect(function(player)
+	if not rlAllow(player.UserId) then return end
 	ensureFresh(player)
 	pushSync(player)
 end)
@@ -20262,8 +20433,9 @@ local function attachEffects(char)
 
 	hum.StateChanged:Connect(function(_, newState)
 		if newState == Enum.HumanoidStateType.Jumping then
+			-- مؤثّر بصري فقط؛ عدّ القفز صار على السيرفر عبر Humanoid.Jumping
+			-- (لم نعد نرسل تقرير «jump» للسيرفر لأنه يُتجاهَل — توفير لعرض النطاق ولرموز الحدّ)
 			puff:Emit(10)
-			if reportRemote then reportRemote:FireServer("jump") end
 		elseif newState == Enum.HumanoidStateType.Landed then
 			puff:Emit(16)
 		end

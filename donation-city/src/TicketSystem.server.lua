@@ -162,9 +162,24 @@ Players.PlayerAdded:Connect(function(player)
 	applyDailyReward(player)
 end)
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 Players.PlayerRemoving:Connect(function(player)
 	saveData(player.UserId)
 	sessions[player.UserId] = nil
+	_rl[player.UserId] = nil
 end)
 
 game:BindToClose(function()
@@ -197,6 +212,7 @@ end)
 -- claim handler (زر قديم — غير مستخدم حالياً، مُبقى للتوافق)
 ------------------------------------------------------------------------
 claimRemote.OnServerEvent:Connect(function(player)
+	if not rlAllow(player.UserId) then return end
 	local s = sessions[player.UserId]
 	if not s then return end
 	if s.tickets >= CONFIG.MaxTickets then

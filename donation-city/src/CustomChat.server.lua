@@ -187,8 +187,24 @@ _G.ChatBroadcastAdmin = function(label, name, text)
 	end
 end
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط).
+-- طبقة حماية إضافية قبل حدّ سرعة الرسائل (MIN_INTERVAL) ضد قصف السيرفر.
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 Players.PlayerRemoving:Connect(function(plr)
 	lastSpoke[plr.UserId] = nil
+	_rl[plr.UserId] = nil
 	-- ملاحظة: لا نحذف mutedUntil هنا عمداً — حتى لا يتجاوز المكتوم كتمه بمجرد الخروج والدخول.
 	-- الكتم الزمني ينتهي تلقائياً بانقضاء وقته (os.time)، والدائم يبقى حتى يفكّه إداري.
 end)
@@ -682,6 +698,7 @@ end
 -- استقبال رسالة من لاعب، فلترتها، وبثّها للجميع
 ------------------------------------------------------------------------
 sayRemote.OnServerEvent:Connect(function(sender: Player, rawText)
+	if not rlAllow(sender.UserId) then return end
 	-- تحقّق صارم من المدخلات (لا نثق بالعميل أبداً)
 	if typeof(rawText) ~= "string" then return end
 
@@ -778,6 +795,7 @@ end)
 local lastWhisper: { [number]: number } = {}
 
 whisperRemote.OnServerEvent:Connect(function(sender: Player, targetUserId, rawText)
+	if not rlAllow(sender.UserId) then return end
 	-- تحقّق صارم من المدخلات (لا نثق بالعميل أبداً)
 	if typeof(rawText) ~= "string" then return end
 	local targetId = tonumber(targetUserId)
