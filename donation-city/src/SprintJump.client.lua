@@ -169,8 +169,9 @@ local function attachEffects(char)
 
 	hum.StateChanged:Connect(function(_, newState)
 		if newState == Enum.HumanoidStateType.Jumping then
+			-- مؤثّر بصري فقط؛ عدّ القفز صار على السيرفر عبر Humanoid.Jumping
+			-- (لم نعد نرسل تقرير «jump» للسيرفر لأنه يُتجاهَل — توفير لعرض النطاق ولرموز الحدّ)
 			puff:Emit(10)
-			if reportRemote then reportRemote:FireServer("jump") end
 		elseif newState == Enum.HumanoidStateType.Landed then
 			puff:Emit(16)
 		end
