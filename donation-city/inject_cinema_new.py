@@ -243,6 +243,22 @@ for it in model_root.findall("Item"):
 if model_cinema is None:
     raise SystemExit("ERROR: Cinema model not found in .rbxmx")
 
+# Safety: transform_cframes() world-translates every CFrame. That is only valid
+# for world-space CFrames. Attachments/constraints store parent-LOCAL CFrames and
+# must NOT be translated. This model contains none, but a future revision might —
+# abort loudly instead of silently corrupting their offsets.
+LOCAL_CFRAME_CLASSES = frozenset([
+    "Attachment", "Bone", "Weld", "Motor6D", "WeldConstraint", "Constraint",
+])
+found_local = {it.get("class") for it in model_cinema.iter("Item")
+               if it.get("class") in LOCAL_CFRAME_CLASSES}
+if found_local:
+    raise SystemExit(
+        f"ERROR: model contains local-space CFrame class(es) {sorted(found_local)}; "
+        f"transform_cframes() would corrupt their offsets. Add a class filter to "
+        f"transform_cframes (skip these) before re-running."
+    )
+
 # Deep-copy children and transform
 copied = 0
 for child in model_cinema.findall("Item"):
