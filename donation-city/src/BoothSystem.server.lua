@@ -102,6 +102,21 @@ local ownerToBooth = {}            -- userId -> key
 local donorTotals  = {}            -- userId -> { name, robux }
 local infoCache    = {}            -- "kind:id" -> productInfo (server cache)
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط) يمنع
+-- قصف السيرفر بآلاف النداءات/ثانية (خصوصاً BoothInfo الذي يستدعي GetProductInfo).
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25  -- نداء/ثانية (تعبئة) + سعة قصوى للدفعات
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 ------------------------------------------------------------------------
 -- Helpers
 ------------------------------------------------------------------------
@@ -911,6 +926,7 @@ end)
 -- Remote handling
 ------------------------------------------------------------------------
 boothRemote.OnServerEvent:Connect(function(player, payload)
+	if not rlAllow(player.UserId) then return end
 	if type(payload) ~= "table" then return end
 	local action = payload.action
 	if action == "claim" then
@@ -945,6 +961,7 @@ end)
 
 -- Validate-and-fetch a pass before the owner commits to adding it (live preview)
 boothInfoFn.OnServerInvoke = function(player, input)
+	if not rlAllow(player.UserId) then return { ok = false, reason = "أبطئ قليلاً ثم حاول مرّة أخرى" } end
 	local id = parseId(tostring(input or ""))
 	if not id then return { ok = false, reason = "رقم/رابط غير صالح" } end
 	local info, kind = fetchInfo(id)
@@ -968,6 +985,7 @@ Players.PlayerRemoving:Connect(function(player)
 	local key = ownerToBooth[player.UserId]
 	if key then releaseBooth(key) end
 	lastRing[player.UserId] = nil  -- نظّف مؤقّت النداء فلا تتراكم مدخلات للاعبين الخارجين
+	_rl[player.UserId] = nil
 	-- نُبقي donorTotals طوال عمر السيرفر حتى لا يختفي المتبرّع من لوحة كبار المتبرّعين عند خروجه
 end)
 

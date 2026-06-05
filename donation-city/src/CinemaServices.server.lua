@@ -75,6 +75,21 @@ local sendPerks       -- forward declaration: إبلاغ العميل بالأز
 local drainPendingGrants -- forward declaration: تسليم مشتريات Robux المؤجّلة (لمن خرج أثناء المعالجة) عند عودته
 local sessions = {}  -- userId -> { coins = n, value = IntValue, vip = bool, passes = {} }
 
+-- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط) يمنع
+-- قصف السيرفر بآلاف النداءات/ثانية. سخيّ جداً مقارنة بالاستخدام الطبيعي (أزرار/شرائح).
+local _rl = {}
+local RL_REFILL, RL_BURST = 15, 25  -- نداء/ثانية (تعبئة) + سعة قصوى للدفعات
+local function rlAllow(userId: number): boolean
+	local now = os.clock()
+	local b = _rl[userId]
+	if not b then b = { t = RL_BURST, at = now }; _rl[userId] = b end
+	b.t = math.min(RL_BURST, b.t + (now - b.at) * RL_REFILL)
+	b.at = now
+	if b.t < 1 then return false end
+	b.t -= 1
+	return true
+end
+
 -- قراءة مع إعادة المحاولة (تباعد متزايد) — تميّز «فشل القراءة» عن «لا توجد بيانات».
 -- تُرجع (ok, value): ok=true ⇒ نجحت القراءة (value قد يكون nil = لاعب جديد)؛
 -- ok=false ⇒ فشلت كل المحاولات (خنق/انقطاع) ⇒ يجب عدم الكتابة فوق بيانات اللاعب.
@@ -314,6 +329,7 @@ end)
 Players.PlayerRemoving:Connect(function(player)
 	saveCoins(player.UserId)
 	sessions[player.UserId] = nil
+	_rl[player.UserId] = nil
 end)
 
 game:BindToClose(function()
@@ -1531,6 +1547,7 @@ local function broadcast(text: string, fromName: string?)
 end
 
 lobbyRemote.OnServerEvent:Connect(function(player, payload)
+	if not rlAllow(player.UserId) then return end
 	if type(payload) ~= "table" then return end
 	if payload.action == "buyTicket" then
 		local have = _G.GetTickets and _G.GetTickets(player) or 0
