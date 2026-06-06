@@ -495,10 +495,11 @@ marquee = make_part("Marquee", (0, 12.5, -96.5), (22, 3.2, 0.6),
                     color=(200, 40, 50), transparency=0, material="Neon")
 cinema.append(marquee)
 
-# InfoBoard — exterior information panel (left of entrance path, grounded)
+# InfoBoard — exterior information panel (left of entrance, grounded)
 # At Y=4 the board's bottom sits at ~Y0.5 (ground level), so it doesn't float.
-# Z=-92 places it in the approach plaza where players naturally see it.
-info_board = make_part("InfoBoard", (-14, 4, -92), (5, 7, 0.4),
+# Z=-97 places it just in front of the facade (facade ~Z-100.6) beside the
+# entrance, facing the plaza (+Z) where approaching players naturally see it.
+info_board = make_part("InfoBoard", (-14, 4, -97), (5, 7, 0.4),
                        color=(25, 25, 30), transparency=0, material="SmoothPlastic")
 cinema.append(info_board)
 
