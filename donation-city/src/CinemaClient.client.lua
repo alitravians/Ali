@@ -247,7 +247,8 @@ local playEventFx    -- forward declaration (مؤثرات الفعاليات)
 -- نافذة اختيار طريقة الدفع لحجز المقعد (كوينز أو تذكرة)
 ------------------------------------------------------------------------
 local function askSeatPayment(data, onPick)
-	local _, card = makeModal(UDim2.fromOffset(410, 360))
+	local adminOff = data.admin and 70 or 0  -- إزاحة رأسية لإفساح مكان بطاقة الإدارة
+	local _, card = makeModal(UDim2.fromOffset(410, 360 + adminOff))
 	new("TextLabel", {
 		BackgroundTransparency = 1, Text = "💳 اختر طريقة الدفع", Font = Enum.Font.GothamBlack,
 		TextSize = 26, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 44), Position = UDim2.fromOffset(14, 14),
@@ -262,11 +263,22 @@ local function askSeatPayment(data, onPick)
 		Text = "💰 رصيدك: " .. toAr(coins) .. " كوينز   ·   🎟️ تذاكرك: " .. toAr(tickets), Parent = card,
 	})
 
+	-- إدارة (مالك/أدمن): بطاقة بدء مجاني مضمونة دائماً (لا تتعطّل ولو بلا كوينز/تذاكر)
+	if data.admin then
+		local ab = styledButton(card, {
+			Name = "AdminFree", Text = "🎬 ابدأ العرض (إدارة — مجاناً)",
+			Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
+			BackgroundColor3 = Color3.fromRGB(58, 46, 24), Size = UDim2.new(1, -28, 0, 56), Position = UDim2.fromOffset(14, 92),
+			Parent = card,
+		}, true)
+		ab.MouseButton1Click:Connect(function() onPick("coins") end)
+	end
+
 	local canCoins = coins >= price
 	local cb = styledButton(card, {
 		Name = "PayCoins", Text = "💰 ادفع " .. toAr(price) .. " كوينز" .. (data.vip and " (نص السعر VIP)" or ""),
 		Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(40, 30, 70), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 96),
+		BackgroundColor3 = Color3.fromRGB(40, 30, 70), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 96 + adminOff),
 		Parent = card,
 	}, canCoins)
 	if canCoins then
@@ -278,7 +290,7 @@ local function askSeatPayment(data, onPick)
 		Name = "PayTicket",
 		Text = canTicket and ("🎟️ استخدم تذكرة (متبقّي: " .. toAr(tickets) .. ")") or "🎟️ لا توجد تذاكر",
 		Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(28, 54, 40), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 178),
+		BackgroundColor3 = Color3.fromRGB(28, 54, 40), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 178 + adminOff),
 		Parent = card,
 	}, canTicket)
 	if canTicket then

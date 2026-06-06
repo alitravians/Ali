@@ -3013,8 +3013,14 @@ local function seatPriceFor(player)
 	if _G.IsVIP and _G.IsVIP(player) then return math.floor(SEAT_PRICE / 2) end
 	return SEAT_PRICE
 end
+-- هل اللاعب من الإدارة (مالك/أدمن)؟ الإدارة تدخل العرض مجاناً دائماً
+-- لتشغيل/تجربة الفيلم بلا حاجة كوينز أو تذاكر.
+local function isCinemaAdmin(player)
+	return (_G.IsGameAdmin and _G.IsGameAdmin(player)) == true
+end
 -- يخصم وسيلة الدفع المختارة (يتحقق من الكفاية). يرجّع true إذا نجح.
 local function paySeat(player, method)
+	if isCinemaAdmin(player) then return true end  -- إدارة: دخول مجاني مضمون
 	if method == "ticket" then
 		return (_G.UseTicket and _G.UseTicket(player, 1)) == true
 	end
@@ -3022,6 +3028,10 @@ local function paySeat(player, method)
 end
 local function notifyPaid(player, method)
 	if not _G.NotifyPlayer then return end
+	if isCinemaAdmin(player) then
+		_G.NotifyPlayer(player, "🎬 إدارة — دخول مجاني، استمتع بالعرض!")
+		return
+	end
 	if method == "ticket" then
 		_G.NotifyPlayer(player, "🎟️ استخدمت تذكرة — استمتع بالعرض!")
 	else
@@ -3056,6 +3066,7 @@ local function openSeatMenu(player)
 		tickets = (_G.GetTickets and _G.GetTickets(player)) or 0,
 		price   = seatPriceFor(player),
 		vip     = (_G.IsVIP and _G.IsVIP(player)) == true,
+		admin   = isCinemaAdmin(player),  -- إدارة: تظهر لهم بطاقة بدء مجاني
 	})
 end
 
@@ -16309,7 +16320,8 @@ local playEventFx    -- forward declaration (مؤثرات الفعاليات)
 -- نافذة اختيار طريقة الدفع لحجز المقعد (كوينز أو تذكرة)
 ------------------------------------------------------------------------
 local function askSeatPayment(data, onPick)
-	local _, card = makeModal(UDim2.fromOffset(410, 360))
+	local adminOff = data.admin and 70 or 0  -- إزاحة رأسية لإفساح مكان بطاقة الإدارة
+	local _, card = makeModal(UDim2.fromOffset(410, 360 + adminOff))
 	new("TextLabel", {
 		BackgroundTransparency = 1, Text = "💳 اختر طريقة الدفع", Font = Enum.Font.GothamBlack,
 		TextSize = 26, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 44), Position = UDim2.fromOffset(14, 14),
@@ -16324,11 +16336,22 @@ local function askSeatPayment(data, onPick)
 		Text = "💰 رصيدك: " .. toAr(coins) .. " كوينز   ·   🎟️ تذاكرك: " .. toAr(tickets), Parent = card,
 	})
 
+	-- إدارة (مالك/أدمن): بطاقة بدء مجاني مضمونة دائماً (لا تتعطّل ولو بلا كوينز/تذاكر)
+	if data.admin then
+		local ab = styledButton(card, {
+			Name = "AdminFree", Text = "🎬 ابدأ العرض (إدارة — مجاناً)",
+			Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
+			BackgroundColor3 = Color3.fromRGB(58, 46, 24), Size = UDim2.new(1, -28, 0, 56), Position = UDim2.fromOffset(14, 92),
+			Parent = card,
+		}, true)
+		ab.MouseButton1Click:Connect(function() onPick("coins") end)
+	end
+
 	local canCoins = coins >= price
 	local cb = styledButton(card, {
 		Name = "PayCoins", Text = "💰 ادفع " .. toAr(price) .. " كوينز" .. (data.vip and " (نص السعر VIP)" or ""),
 		Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(40, 30, 70), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 96),
+		BackgroundColor3 = Color3.fromRGB(40, 30, 70), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 96 + adminOff),
 		Parent = card,
 	}, canCoins)
 	if canCoins then
@@ -16340,7 +16363,7 @@ local function askSeatPayment(data, onPick)
 		Name = "PayTicket",
 		Text = canTicket and ("🎟️ استخدم تذكرة (متبقّي: " .. toAr(tickets) .. ")") or "🎟️ لا توجد تذاكر",
 		Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(28, 54, 40), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 178),
+		BackgroundColor3 = Color3.fromRGB(28, 54, 40), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 178 + adminOff),
 		Parent = card,
 	}, canTicket)
 	if canTicket then

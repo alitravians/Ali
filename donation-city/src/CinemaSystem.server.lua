@@ -990,8 +990,14 @@ local function seatPriceFor(player)
 	if _G.IsVIP and _G.IsVIP(player) then return math.floor(SEAT_PRICE / 2) end
 	return SEAT_PRICE
 end
+-- هل اللاعب من الإدارة (مالك/أدمن)؟ الإدارة تدخل العرض مجاناً دائماً
+-- لتشغيل/تجربة الفيلم بلا حاجة كوينز أو تذاكر.
+local function isCinemaAdmin(player)
+	return (_G.IsGameAdmin and _G.IsGameAdmin(player)) == true
+end
 -- يخصم وسيلة الدفع المختارة (يتحقق من الكفاية). يرجّع true إذا نجح.
 local function paySeat(player, method)
+	if isCinemaAdmin(player) then return true end  -- إدارة: دخول مجاني مضمون
 	if method == "ticket" then
 		return (_G.UseTicket and _G.UseTicket(player, 1)) == true
 	end
@@ -999,6 +1005,10 @@ local function paySeat(player, method)
 end
 local function notifyPaid(player, method)
 	if not _G.NotifyPlayer then return end
+	if isCinemaAdmin(player) then
+		_G.NotifyPlayer(player, "🎬 إدارة — دخول مجاني، استمتع بالعرض!")
+		return
+	end
 	if method == "ticket" then
 		_G.NotifyPlayer(player, "🎟️ استخدمت تذكرة — استمتع بالعرض!")
 	else
@@ -1033,6 +1043,7 @@ local function openSeatMenu(player)
 		tickets = (_G.GetTickets and _G.GetTickets(player)) or 0,
 		price   = seatPriceFor(player),
 		vip     = (_G.IsVIP and _G.IsVIP(player)) == true,
+		admin   = isCinemaAdmin(player),  -- إدارة: تظهر لهم بطاقة بدء مجاني
 	})
 end
 
