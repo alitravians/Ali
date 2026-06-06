@@ -2569,7 +2569,6 @@ end
 -- (مستوحى من سينمات حقيقية: ألواح نيون حمراء/زرقاء + ممرات مضيئة)
 ------------------------------------------------------------------------
 local NEON_RED  = Color3.fromRGB(255, 64, 70)
-local NEON_BLUE = Color3.fromRGB(80, 175, 255)
 local AISLE_GLOW = Color3.fromRGB(255, 226, 170)
 
 local function buildHallAmbiance()
@@ -2599,15 +2598,16 @@ local function buildHallAmbiance()
 		return p
 	end
 
-	-- ألواح نيون على الجدران الجانبية (يسار أحمر، يمين أزرق) — صفّان: منتصف وأعلى
+	-- شريط نيون خافت أحمر على الجدارين الجانبيين فقط (لا أزرق/سماوي إطلاقاً) —
+	-- منخفض قرب مستوى المقاعد وبإضاءة خفيفة، فلا يتوهّج كشريط يغطّي الشاشة.
+	-- الإضاءة الأساسية للقاعة من أضواء السقف (أسفل) لا من هذه الألواح.
 	local stripLen = fs.Z - 14
-	neon(Vector3.new(0.5, 1.6, stripLen), Vector3.new(-wallX, topY + 8,  cz), NEON_RED,  1.4, 24)
-	neon(Vector3.new(0.5, 1.0, stripLen), Vector3.new(-wallX, topY + 16, cz), NEON_RED,  0.7, 18)
-	neon(Vector3.new(0.5, 1.6, stripLen), Vector3.new( wallX, topY + 8,  cz), NEON_BLUE, 1.4, 24)
-	neon(Vector3.new(0.5, 1.0, stripLen), Vector3.new( wallX, topY + 16, cz), NEON_BLUE, 0.7, 18)
+	neon(Vector3.new(0.4, 0.5, stripLen), Vector3.new(-wallX, topY + 3, cz), NEON_RED, 0.4, 10)
+	neon(Vector3.new(0.4, 0.5, stripLen), Vector3.new( wallX, topY + 3, cz), NEON_RED, 0.4, 10)
 
-	-- [REMOVED] شريط النيون الأفقي فوق الشاشة — حُذف بطلب صريح: توهّجه (Neon + Bloom)
-	-- كان يتمدّد ويغطّي اسم السينما على الشاشة ويشوّه المنظر. ألواح النيون الجانبية تكفي للأجواء.
+	-- [REMOVED] الشريط الأفقي فوق الشاشة + الألواح الزرقاء (NEON_BLUE) جانبياً —
+	-- كان توهّجها (Neon + Bloom الكبير) يتمدّد لشريط سماوي عريض يغطّي اسم السينما
+	-- على الشاشة. أُزيل كل النيون الأزرق نهائياً وخُفّف الـBloom (أدناه).
 
 	-- ممرات مضيئة على امتداد القاعة (إضاءة أمان تبقى خافتة حتى أثناء الفيلم)
 	for _, ax in ipairs({ -9, 9 }) do
@@ -2634,8 +2634,9 @@ end
 local function setupPostFX()
 	local Lighting = game:GetService("Lighting")
 	if not Lighting:FindFirstChild("CinemaBloom") then
+		-- Bloom خفيف جداً: حجم صغير + عتبة أعلى، فلا يتمدّد أي نيون لشريط عريض يغطّي الشاشة.
 		local bloom = Instance.new("BloomEffect")
-		bloom.Name = "CinemaBloom"; bloom.Intensity = 0.7; bloom.Size = 24; bloom.Threshold = 1.5
+		bloom.Name = "CinemaBloom"; bloom.Intensity = 0.32; bloom.Size = 6; bloom.Threshold = 2.0
 		bloom.Parent = Lighting
 	end
 	if not Lighting:FindFirstChild("CinemaColor") then
