@@ -1344,7 +1344,7 @@ local function giveTool(player, factory, toolName: string)
 	return true
 end
 
--- API: منح طلب الأكل (فشار + مشروب) — يستخدمه لاونج VIP وغيره
+-- API: منح طلب الأكل (فشار + مشروب) — يستخدمه الخادم والبسطة وباقة البوفيه
 _G.GiveCinemaFood = function(player): boolean
 	local g1 = giveTool(player, makePopcornTool, "فشار")
 	local g2 = giveTool(player, makeDrinkTool, "مشروب")

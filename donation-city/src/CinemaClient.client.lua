@@ -436,7 +436,7 @@ local GUIDE_STEPS = {
 	"🎟️ <b>التذاكر:</b> كل فيلم يحتاج تذكرة. افتح «شبّاك التذاكر» وخذ 🎁 تذكرة مجانية كل دقيقتين أو اشترِ تذكرة فورية بالكوينز.",
 	"💰 <b>الكوينز:</b> عملة اللعبة — تجمعها من اللعب والفعاليات، وتشتري بها حزم كوينز من المتجر.",
 	"🛒 <b>المتجر</b> (زر يسار الشاشة): كل المميزات بمكان واحد — VIP والباقات وحزم الكوينز والتذكرة الفورية بضغطة شراء.",
-	"⭐ <b>VIP:</b> تذاكر بنص السعر، دخل كوينز مضاعف، وجبة مجانية، وتاج ⭐ فوق راسك.",
+	"⭐ <b>VIP:</b> تذاكر بنص السعر، دخل كوينز مضاعف، وأولوية بالصف، وتاج ⭐ فوق راسك.",
 	"🎁 <b>الباقات الدائمة:</b> 🍿 بوفيه مفتوح · 🎬 مالك العرض · ✨ أثر نيون · 📢 مايك الإعلان — كلها في المتجر.",
 	"✨ <b>زر «المزيد»</b> (يمين الشاشة): إنجازاتك، تقييم الفيلم، صالة الأركيد، والصورة التذكارية 📸.",
 	"📜 <b>القوانين:</b> احترم الحضور، ابقَ بمقعدك وقت العرض، ولا تحجز مقاعد بدون استخدام. استمتع! 🎉",
@@ -699,14 +699,14 @@ local function showBoxOffice(data)
 		new("TextLabel", {
 			BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = GOLD,
 			Size = UDim2.new(1, -28, 0, 56), Position = UDim2.fromOffset(14, 366), TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-			Text = "⭐ أنت عضو VIP — تذاكر بنص السعر · دخل مضاعف · وجبة مجانية",
+			Text = "⭐ أنت عضو VIP — تذاكر بنص السعر · دخل مضاعف · أولوية بالصف",
 			TextWrapped = true,
 		})
 	else
 		new("TextLabel", {
 			BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = GOLD,
 			Size = UDim2.new(1, -28, 0, 24), Position = UDim2.fromOffset(14, 364), TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-			Text = "⭐ ترقية VIP: تذاكر بنص السعر · دخل مضاعف · وجبة مجانية",
+			Text = "⭐ ترقية VIP: تذاكر بنص السعر · دخل مضاعف · أولوية بالصف",
 		})
 		-- شراء بالـ Robux (إن فُعّل) + ترقية بالكوينز
 		local robux = styledButton(card, {

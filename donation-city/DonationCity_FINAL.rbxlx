@@ -216,7 +216,7 @@ local CONFIG = {
 		"• اهتزاز كاميرا خفيف + دعم فيديو متزامن.",
 		"",
 		"⭐ VIP والمقاعد:",
-		"• عضوية VIP (Robux أو كوينز): لاونج وتاج ودخل مضاعف.",
+		"• عضوية VIP (Robux أو كوينز): تذاكر بنص السعر وتاج ودخل مضاعف.",
 		"• حجز مقعد محدّد + صفّ انتظار بأولوية لـ VIP.",
 		"",
 		"🛒 المتجر و٤ باقات دائمة جديدة:",
@@ -3367,7 +3367,7 @@ local function giveTool(player, factory, toolName: string)
 	return true
 end
 
--- API: منح طلب الأكل (فشار + مشروب) — يستخدمه لاونج VIP وغيره
+-- API: منح طلب الأكل (فشار + مشروب) — يستخدمه الخادم والبسطة وباقة البوفيه
 _G.GiveCinemaFood = function(player): boolean
 	local g1 = giveTool(player, makePopcornTool, "فشار")
 	local g2 = giveTool(player, makeDrinkTool, "مشروب")
@@ -5558,7 +5558,7 @@ local function grantVip(player: Player, announce: boolean?): boolean
 	if sendPerks then sendPerks(player) end  -- 📢 يظهر زر الإعلان فوراً لعضو VIP الجديد
 	pcall(function() saveCoins(player.UserId) end)
 	if announce ~= false and _G.NotifyPlayer then
-		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — تذاكر بنص السعر، دخل مضاعف، وجبة مجانية، وتاج ذهبي.")
+		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — تذاكر بنص السعر، دخل مضاعف، أولوية بالصف، وتاج ذهبي.")
 	end
 	return true
 end
@@ -7728,7 +7728,7 @@ end
 -- featured: العنصر المميّز الذي يظهر في بانر العرض الكبير (Hero) بأعلى المتجر
 local STORE_ITEMS = {
 	{ kind = "gamepass", id = CONFIG.SpeedGamePassId,      name = "⚡ سرعة البرق",     price = 60,  emoji = "⚡", cat = "speed",  featured = true, desc = "تحكّم بسرعة مشيك وزِدها عبر شريط تمرير خاص داخل المتجر — مشتراة مرة وتبقى لك للأبد" },
-	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
+	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "تذاكر بنص السعر · دخل مضاعف · أولوية بالصف · تاج ذهبي" },
 	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
 	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", cat = "packs", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
 	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", cat = "packs", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
@@ -16361,7 +16361,7 @@ local GUIDE_STEPS = {
 	"🎟️ <b>التذاكر:</b> كل فيلم يحتاج تذكرة. افتح «شبّاك التذاكر» وخذ 🎁 تذكرة مجانية كل دقيقتين أو اشترِ تذكرة فورية بالكوينز.",
 	"💰 <b>الكوينز:</b> عملة اللعبة — تجمعها من اللعب والفعاليات، وتشتري بها حزم كوينز من المتجر.",
 	"🛒 <b>المتجر</b> (زر يسار الشاشة): كل المميزات بمكان واحد — VIP والباقات وحزم الكوينز والتذكرة الفورية بضغطة شراء.",
-	"⭐ <b>VIP:</b> تذاكر بنص السعر، دخل كوينز مضاعف، وجبة مجانية، وتاج ⭐ فوق راسك.",
+	"⭐ <b>VIP:</b> تذاكر بنص السعر، دخل كوينز مضاعف، وأولوية بالصف، وتاج ⭐ فوق راسك.",
 	"🎁 <b>الباقات الدائمة:</b> 🍿 بوفيه مفتوح · 🎬 مالك العرض · ✨ أثر نيون · 📢 مايك الإعلان — كلها في المتجر.",
 	"✨ <b>زر «المزيد»</b> (يمين الشاشة): إنجازاتك، تقييم الفيلم، صالة الأركيد، والصورة التذكارية 📸.",
 	"📜 <b>القوانين:</b> احترم الحضور، ابقَ بمقعدك وقت العرض، ولا تحجز مقاعد بدون استخدام. استمتع! 🎉",
@@ -16624,14 +16624,14 @@ local function showBoxOffice(data)
 		new("TextLabel", {
 			BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = GOLD,
 			Size = UDim2.new(1, -28, 0, 56), Position = UDim2.fromOffset(14, 366), TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-			Text = "⭐ أنت عضو VIP — تذاكر بنص السعر · دخل مضاعف · وجبة مجانية",
+			Text = "⭐ أنت عضو VIP — تذاكر بنص السعر · دخل مضاعف · أولوية بالصف",
 			TextWrapped = true,
 		})
 	else
 		new("TextLabel", {
 			BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = GOLD,
 			Size = UDim2.new(1, -28, 0, 24), Position = UDim2.fromOffset(14, 364), TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-			Text = "⭐ ترقية VIP: تذاكر بنص السعر · دخل مضاعف · وجبة مجانية",
+			Text = "⭐ ترقية VIP: تذاكر بنص السعر · دخل مضاعف · أولوية بالصف",
 		})
 		-- شراء بالـ Robux (إن فُعّل) + ترقية بالكوينز
 		local robux = styledButton(card, {
