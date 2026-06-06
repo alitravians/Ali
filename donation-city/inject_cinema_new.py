@@ -78,7 +78,8 @@ def _rotate_translate_cf(cf):
 
 
 def _rotate_translate_pivot(cf):
-    """Same position transform for WorldPivotData (no rotation matrix inside)."""
+    """Same transform for WorldPivotData: rotates the position, and also the
+    rotation matrix when one is present (identical to _rotate_translate_cf)."""
     if cf is None:
         return
     xel = cf.find("X"); yel = cf.find("Y"); zel = cf.find("Z")
