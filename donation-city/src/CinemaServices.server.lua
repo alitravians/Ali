@@ -241,7 +241,7 @@ local function grantVip(player: Player, announce: boolean?): boolean
 	if sendPerks then sendPerks(player) end  -- 📢 يظهر زر الإعلان فوراً لعضو VIP الجديد
 	pcall(function() saveCoins(player.UserId) end)
 	if announce ~= false and _G.NotifyPlayer then
-		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — لاونج خاص، تذاكر بنص السعر، دخل مضاعف، وتاج ذهبي.")
+		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — تذاكر بنص السعر، دخل مضاعف، وجبة مجانية، وتاج ذهبي.")
 	end
 	return true
 end
@@ -2411,7 +2411,7 @@ end
 -- featured: العنصر المميّز الذي يظهر في بانر العرض الكبير (Hero) بأعلى المتجر
 local STORE_ITEMS = {
 	{ kind = "gamepass", id = CONFIG.SpeedGamePassId,      name = "⚡ سرعة البرق",     price = 60,  emoji = "⚡", cat = "speed",  featured = true, desc = "تحكّم بسرعة مشيك وزِدها عبر شريط تمرير خاص داخل المتجر — مشتراة مرة وتبقى لك للأبد" },
-	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
+	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
 	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
 	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", cat = "packs", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
 	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", cat = "packs", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
