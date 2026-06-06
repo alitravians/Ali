@@ -2802,7 +2802,7 @@ local function buildCashierModel(opts)
 	local head = topPart or biggest
 	if head then
 		makeCinemaNameTag(head, {
-			tag = opts.tag or "🎟️ موظف التذاكر", subtitle = opts.subtitle or "حجز ودخول",
+			tag = opts.tag or "موظف التذاكر", subtitle = opts.subtitle or "حجز ودخول",
 			tagColor = opts.tagColor or Color3.fromRGB(255, 205, 90),
 			studsY = head.Size.Y / 2 + 0.9,
 		})
@@ -2839,7 +2839,7 @@ task.spawn(function()
 
 	-- نضع الموظف الجاهز (الجالس على كرسيّه) داخل الكشك ونربط زر الشراء به
 	local cashier = buildCashierModel({
-		name = "TicketCashier", tag = "🎟️ موظف التذاكر", subtitle = "حجز ودخول",
+		name = "TicketCashier", tag = "موظف التذاكر", subtitle = "حجز ودخول",
 		tagColor = Color3.fromRGB(255, 205, 90),
 		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه الحاجز الداخلي/اللاعبين (+X)
 		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",

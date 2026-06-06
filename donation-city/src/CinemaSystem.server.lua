@@ -1616,7 +1616,7 @@ pcall(function()
 		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 40)
 	)
 	local guideOpts = {
-		name = "CinemaGuide", tag = "👋 مرشد السينما", subtitle = "استقبال وإرشاد",
+		name = "CinemaGuide", tag = "مرشد السينما", subtitle = "استقبال وإرشاد",
 		tagColor = Color3.fromRGB(120, 220, 255),
 		footCFrame = guideFoot, groundY = groundY,
 		promptText = "تحدّث", promptObj = "مرشد السينما", onTrigger = guideTalk,
@@ -1639,7 +1639,7 @@ pcall(function()
 	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
 	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
 	local waiterOpts = {
-		name = "CinemaWaiter", tag = "🍿 خادم السينما", subtitle = "فشار ومشروبات",
+		name = "CinemaWaiter", tag = "خادم السينما", subtitle = "فشار ومشروبات",
 		tagColor = Color3.fromRGB(255, 170, 90),
 		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
 		useGroundY = true,  -- أرضية السينما مستوية: استعمل groundY مباشرة (لا شعاع يصطدم بالسقف)
@@ -1647,7 +1647,7 @@ pcall(function()
 	}
 	if not buildCharacterModel(waiterOpts) then
 		buildNPC({
-			name = "CinemaWaiter", tag = "🍿 خادم السينما", subtitle = "فشار ومشروبات",
+			name = "CinemaWaiter", tag = "خادم السينما", subtitle = "فشار ومشروبات",
 			tagColor = Color3.fromRGB(255, 170, 90), uniform = Color3.fromRGB(150, 30, 40),
 			footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
 			tray = true, onTrigger = waiterServe,
