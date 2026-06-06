@@ -941,13 +941,16 @@ local function resetCinemaIdle()
 end
 
 -- مُشغّل آمن: يضمن أن أعلام البدء/التشغيل (starting/playing) لا تبقى عالقة أبداً حتى لو فشل playMovie.
--- طبقات الحماية: (1) pcall يلتقط أي خطأ ويصفّر القاعة. (2) حارس مهلة قصوى
--- يصفّر القاعة قسريّاً لو بقي العرض «شغّالاً» أطول من المدة القصوى + هامش
--- (يحمي حتى من التعليق الصامت داخل أي yield بلا خطأ).
+-- طبقات الحماية: (1) pcall يلتقط أي خطأ ويصفّر القاعة. (2) حارس مهلة ذكي
+-- يصفّر القاعة قسريّاً فقط لو علّق العرض فعلاً — يحترم مدة الفيلم الحقيقية (قد
+-- تكون دقائق) فلا يقطع فيلماً طويلاً، ويحمي أيضاً من التعليق الصامت في التحميل/العدّ.
+local WATCHDOG_MARGIN = 45        -- هامش بعد نهاية العرض المتوقّعة قبل التصفير القسري
+local LOAD_SAFETY = CONFIG.MovieMaxSeconds + 120  -- مهلة أمان لو لم تُحدَّد مدة العرض أصلاً (عالق بالتحميل)
 local function launchMovie(presser)
 	starting = true
 	movieRunId += 1
 	local myRun = movieRunId
+	movieEndsAt = 0  -- صفّرها كي لا يقرأ الحارس مدة عرضٍ سابق (تمنع تصفيراً مبكراً خاطئاً)
 	task.spawn(function()
 		local ok, err = pcall(playMovie, presser)
 		if not ok then
@@ -955,11 +958,24 @@ local function launchMovie(presser)
 			resetCinemaIdle()
 		end
 	end)
-	-- حارس المهلة القصوى: لو علّق العرض ولم ينتهِ، صفّر القاعة قسريّاً
-	task.delay(CONFIG.MovieMaxSeconds + 45, function()
-		if myRun == movieRunId and (playing or starting) then
-			warn("[CinemaSystem] watchdog: movie exceeded max duration — forcing cinema reset")
-			resetCinemaIdle()
+	-- حارس المهلة الذكي: يفحص دورياً، ويصفّر فقط إذا تجاوز العرض نهايته المعروفة
+	-- بهامش (movieEndsAt يُضبط داخل playMovie بعد معرفة مدة الفيديو/الصوت)، أو
+	-- إذا علّق التحميل ولم تُحدَّد المدة خلال مهلة الأمان.
+	task.spawn(function()
+		local startedAt = os.clock()
+		while myRun == movieRunId do
+			task.wait(5)
+			if myRun ~= movieRunId then return end
+			if not (playing or starting) then return end  -- انتهى العرض طبيعياً
+			if movieEndsAt > 0 then
+				if os.clock() > movieEndsAt + WATCHDOG_MARGIN then
+					warn("[CinemaSystem] watchdog: movie exceeded its expected end — forcing cinema reset")
+					resetCinemaIdle(); return
+				end
+			elseif os.clock() - startedAt > LOAD_SAFETY then
+				warn("[CinemaSystem] watchdog: movie never started within safety window — forcing cinema reset")
+				resetCinemaIdle(); return
+			end
 		end
 	end)
 end
