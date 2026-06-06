@@ -583,23 +583,8 @@ local function buildHallAmbiance()
 	neon(Vector3.new(0.5, 1.6, stripLen), Vector3.new( wallX, topY + 8,  cz), NEON_BLUE, 1.4, 24)
 	neon(Vector3.new(0.5, 1.0, stripLen), Vector3.new( wallX, topY + 16, cz), NEON_BLUE, 0.7, 18)
 
-	-- شريط نيون أفقي فوق الشاشة لإطار مضيء — يتبع اتجاه الشاشة مهما دارت
-	-- (نشتق المحاور من CFrame الشاشة بدل افتراض محاذاة العالم، فلا ينحرف بعد الدوران)
-	if screen then
-		local rv = screen.CFrame.RightVector        -- محور عرض الشاشة (Size.X)
-		local uv = screen.CFrame.UpVector           -- أعلى الشاشة
-		local lv = screen.CFrame.LookVector         -- اتجاه وجه الشاشة (نحو الجمهور)
-		local pos = screen.Position + uv * (screen.Size.Y / 2 + 1.5) - lv * 0.3
-		local p = Instance.new("Part")
-		p.Anchored = true; p.CanCollide = false; p.CastShadow = false
-		p.Material = Enum.Material.Neon; p.Color = NEON_BLUE
-		p.Size = Vector3.new(screen.Size.X + 4, 0.6, 0.6)
-		p.CFrame = CFrame.fromMatrix(pos, rv, uv)
-		p.Parent = amb
-		local pl = Instance.new("PointLight")
-		pl.Color = NEON_BLUE; pl.Brightness = 0.6; pl.Range = 14
-		pl.Parent = p
-	end
+	-- [REMOVED] شريط النيون الأفقي فوق الشاشة — حُذف بطلب صريح: توهّجه (Neon + Bloom)
+	-- كان يتمدّد ويغطّي اسم السينما على الشاشة ويشوّه المنظر. ألواح النيون الجانبية تكفي للأجواء.
 
 	-- ممرات مضيئة على امتداد القاعة (إضاءة أمان تبقى خافتة حتى أثناء الفيلم)
 	for _, ax in ipairs({ -9, 9 }) do
