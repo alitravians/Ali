@@ -3487,6 +3487,11 @@ local function buildCharacterModel(opts)
 		rp.FilterDescendantsInstances = ignore
 		local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
 		feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
+		-- حارس وقائي: إن عُرفت الأرضية ووقع الشعاع على سقف/كاونتر داخلي
+		-- أعلى منها بأكثر من 3 ستد، نتجاهله ونرجع لمستوى الأرض المعروف.
+		if opts.groundY and feetY > opts.groundY + 3 then
+			feetY = opts.groundY
+		end
 	end
 	local bcf, bsize = model:GetBoundingBox()
 	local lift = feetY - (bcf.Position.Y - bsize.Y / 2)
