@@ -263,7 +263,7 @@ def add_spotlight(parent_item, brightness=3, range_val=30, angle=60,
     el.text = "true"
     el = etree.SubElement(props, "token")
     el.set("name", "Face")
-    el.text = "5"  # Bottom face
+    el.text = "5"  # Front face (NormalId.Front, -Z direction)
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -528,7 +528,8 @@ if tb is not None:
 
 # ─── Step 5d: Add SurfaceGui with cinema name on Marquee ─────────────
 # The red Marquee part above the entrance displays "سينما مدينة التبرعات".
-# CinemaSystem adds its own SurfaceGui on Screen; this is a static label.
+# CinemaSystem also adds a dynamic SurfaceGui on Marquee (Back/+Z face) at runtime;
+# this static label uses Front/-Z so both sides of the marquee are readable.
 sg = etree.SubElement(marquee, "Item")
 sg.set("class", "SurfaceGui")
 sg.set("referent", nref())
