@@ -2634,9 +2634,10 @@ end
 local function setupPostFX()
 	local Lighting = game:GetService("Lighting")
 	if not Lighting:FindFirstChild("CinemaBloom") then
-		-- Bloom خفيف جداً: حجم صغير + عتبة أعلى، فلا يتمدّد أي نيون لشريط عريض يغطّي الشاشة.
+		-- Bloom عام للعالم: خفّضناه قليلاً فقط (Size 24→18) لتقليل التمدّد دون تغيير
+		-- مظهر بقية المدينة. الحلّ الجذري للشريط السماوي هو حذف ألواح النيون الزرقاء أعلاه.
 		local bloom = Instance.new("BloomEffect")
-		bloom.Name = "CinemaBloom"; bloom.Intensity = 0.32; bloom.Size = 6; bloom.Threshold = 2.0
+		bloom.Name = "CinemaBloom"; bloom.Intensity = 0.6; bloom.Size = 18; bloom.Threshold = 1.6
 		bloom.Parent = Lighting
 	end
 	if not Lighting:FindFirstChild("CinemaColor") then
