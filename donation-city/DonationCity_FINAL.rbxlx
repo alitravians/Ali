@@ -2760,6 +2760,7 @@ local function playMovie(presser)
 	playing = true
 	starting = false  -- العرض بدأ فعلياً: ارفع قفل البدء (يمنع سباق التشغيل المزدوج)
 	stopRequested = false
+	local myRun = movieRunId  -- معرّف هذا العرض: لو بدأ عرضٌ أحدث، تتوقّف هذه الحلقة ولا تلمس الحالة المشتركة
 	print("[Cinema] ▶ playMovie started" .. (presser and (" by " .. presser.Name) or " (admin)"))
 	-- ملاحظة: لا نُعطّل زر البروجكتر أثناء العرض. مع قائمة اختيار المقعد
 	-- (SeatSelection) القائمة نفسها تتعامل مع حالة «العرض جارٍ» (تجلس المتفرّج
@@ -2893,7 +2894,7 @@ local function playMovie(presser)
 	local elapsed = 0
 	local sceneIndex = 0
 	while elapsed < duration do
-		if stopRequested then break end
+		if stopRequested or movieRunId ~= myRun then break end
 		sceneIndex += 1
 		if hasSlides then
 			local id = slides[((sceneIndex - 1) % #slides) + 1]
@@ -2908,13 +2909,17 @@ local function playMovie(presser)
 		end
 		local sceneEnd = math.min(elapsed + segSeconds, duration)
 		while elapsed < sceneEnd do
-			if stopRequested then break end
+			if stopRequested or movieRunId ~= myRun then break end
 			task.wait(0.25)
 			elapsed += 0.25
 			if screenProgress then screenProgress.Size = UDim2.fromScale(math.clamp(elapsed / duration, 0, 1), 1) end
 			if screenTimer then screenTimer.Text = fmt(duration - elapsed) end
 		end
 	end
+
+	-- لو بدأ عرضٌ أحدث (أو صُفّرت القاعة بحارس المهلة) فلا نلمس الحالة المشتركة
+	-- (أضواء/بوابة/شاشة/أقفال) كي لا نُفسد العرض الجديد — نخرج بصمت.
+	if movieRunId ~= myRun then return end
 
 	-- شارة "عاشق السينما" + تقدّم مهمة «شاهد فيلماً كاملاً» لكل من شاهد حتى النهاية
 	for _, seat in ipairs(getSeats()) do
@@ -2952,7 +2957,10 @@ end
 local function resetCinemaIdle()
 	starting = false
 	playing = false
-	stopRequested = false
+	-- نطلب إيقاف أي حلقة playMovie قديمة لا تزال حيّة (داخل task.wait) كي لا
+	-- تعمل حلقتان معاً وتتعارضان على الأضواء/البوابة/الشاشة. العرض الجديد يصفّر
+	-- هذا العلَم عند بدايته (stopRequested = false في playMovie) فلا يتأثّر.
+	stopRequested = true
 	pcall(unlockAll)
 	pcall(function() if movieSound then movieSound:Stop() end end)
 	pcall(function() setGate(false) end)
