@@ -2665,6 +2665,59 @@ end
 -- ونضعه خلف كاونتر الشباك مواجهاً اللاعبين عبر النافذة، كقطعة ديكور ثابتة. لا منطق
 -- داخل الموديل — زر الشراء + لوحة الاسم يُربطان هنا في سكربتنا. التموضع يُحسب وقت التشغيل.
 local CASHIER_SCALE = 0.5    -- تصغير الموديل (أصله ~12 ستد) لحجم معتدل يناسب خلف الكاونتر
+
+-- 🎟️ لوحة اسم بطابع «تذكرة سينما» (نفس تنسيق CinemaSystem): جسم داكن + إطار بلون
+-- الدور + شريط علوي للاسم + سطر وصف + لمبات ماركي — تنسيق موحّد لكل شخصيات السينما.
+local function makeCinemaNameTag(head, opts)
+	local accent = opts.tagColor or Color3.fromRGB(255, 205, 90)
+	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	bb.Name = "NameTag"; bb.Adornee = head
+	bb.Size = UDim2.fromOffset(220, 86)
+	bb.StudsOffset = Vector3.new(0, opts.studsY or 2.9, 0)
+	bb.AlwaysOnTop = true; bb.Parent = head
+
+	local card = Instance.new("Frame")
+	card.Name = "Card"; card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = Color3.fromRGB(22, 24, 32); card.BackgroundTransparency = 0.06
+	card.BorderSizePixel = 0; card.Parent = bb
+	local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 10); cc.Parent = card
+	local cs = Instance.new("UIStroke"); cs.Color = accent; cs.Thickness = 2; cs.Parent = card
+
+	local strip = Instance.new("Frame")
+	strip.Name = "Strip"; strip.Size = UDim2.new(1, -12, 0, 34); strip.Position = UDim2.new(0, 6, 0, 6)
+	strip.BackgroundColor3 = accent; strip.BorderSizePixel = 0; strip.Parent = card
+	local sc = Instance.new("UICorner"); sc.CornerRadius = UDim.new(0, 7); sc.Parent = strip
+	local spad = Instance.new("UIPadding"); spad.PaddingLeft = UDim.new(0, 6); spad.PaddingRight = UDim.new(0, 6); spad.Parent = strip
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.BackgroundTransparency = 1; titleLbl.Size = UDim2.fromScale(1, 1)
+	titleLbl.Font = Enum.Font.GothamBlack; titleLbl.TextScaled = true; titleLbl.Text = opts.tag or ""
+	titleLbl.TextColor3 = Color3.fromRGB(20, 18, 24); titleLbl.Parent = strip
+	local tcc = Instance.new("UITextSizeConstraint"); tcc.MaxTextSize = 20; tcc.Parent = titleLbl
+
+	local subLbl = Instance.new("TextLabel")
+	subLbl.Name = "Subtitle"; subLbl.BackgroundTransparency = 1
+	subLbl.Position = UDim2.new(0, 6, 0, 43); subLbl.Size = UDim2.new(1, -12, 0, 25)
+	subLbl.Font = Enum.Font.GothamMedium; subLbl.TextScaled = true; subLbl.Text = opts.subtitle or ""
+	subLbl.TextColor3 = Color3.fromRGB(228, 231, 240); subLbl.Parent = card
+	local scc = Instance.new("UITextSizeConstraint"); scc.MaxTextSize = 15; scc.Parent = subLbl
+
+	local bulbs = Instance.new("Frame")
+	bulbs.Name = "Bulbs"; bulbs.BackgroundTransparency = 1
+	bulbs.Size = UDim2.new(1, -16, 0, 6); bulbs.Position = UDim2.new(0, 8, 1, -11); bulbs.Parent = card
+	local bl = Instance.new("UIListLayout")
+	bl.FillDirection = Enum.FillDirection.Horizontal
+	bl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	bl.VerticalAlignment = Enum.VerticalAlignment.Center
+	bl.Padding = UDim.new(0, 6); bl.Parent = bulbs
+	for _ = 1, 11 do
+		local b = Instance.new("Frame")
+		b.Size = UDim2.fromOffset(4, 4); b.BackgroundColor3 = accent; b.BorderSizePixel = 0; b.Parent = bulbs
+		local bcr = Instance.new("UICorner"); bcr.CornerRadius = UDim.new(1, 0); bcr.Parent = b
+	end
+	return bb
+end
+
 local function buildCashierModel(opts)
 	-- ننتظر القالب والشباك حتى لو تأخّر تحميلهما (حماية من سباق التهيئة) بمهلة قصيرة
 	local template = ServerScriptService:WaitForChild("CashierModel", 10)
@@ -2720,21 +2773,15 @@ local function buildCashierModel(opts)
 
 	model.Parent = booth
 
-	-- لوحة الاسم فوق الرأس (أعلى قطعة)
+	-- لوحة الاسم فوق الرأس (أعلى قطعة) — تنسيق «تذكرة سينما»
+	-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
 	local head = topPart or biggest
 	if head then
-		local bb = Instance.new("BillboardGui")
-		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
-		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)
-		bb.AlwaysOnTop = true; bb.Parent = head
-		local tagLbl = Instance.new("TextLabel")
-		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
-		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true
-		tagLbl.Text = opts.tag or "🎟️ موظف التذاكر"
-		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
-		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+		makeCinemaNameTag(head, {
+			tag = opts.tag or "🎟️ موظف التذاكر", subtitle = opts.subtitle or "حجز ودخول",
+			tagColor = opts.tagColor or Color3.fromRGB(255, 205, 90),
+			studsY = head.Size.Y / 2 + 0.9,
+		})
 	end
 
 	-- زر التفاعل: التحدث مع الكاشير يفتح شباك التذاكر (يُربط بأكبر قطعة في الموديل)
@@ -2766,7 +2813,7 @@ task.spawn(function()
 
 	-- نضع الموظف الجاهز (الجالس على كرسيّه) خلف الكاونتر ونربط زر الشراء به (الأكثر واقعية)
 	local cashier = buildCashierModel({
-		name = "TicketCashier", tag = "🎟️ موظف التذاكر",
+		name = "TicketCashier", tag = "🎟️ موظف التذاكر", subtitle = "حجز ودخول",
 		tagColor = Color3.fromRGB(255, 205, 90),
 		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه نافذة الشباك/اللاعبين (+X)
 		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
