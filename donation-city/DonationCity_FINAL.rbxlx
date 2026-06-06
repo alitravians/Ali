@@ -2776,21 +2776,23 @@ local function playMovie(presser)
 	setProjector(true)
 	if marqueeLabel then marqueeLabel.Text = "🔴 العرض جارٍ الآن" end
 
-	-- preloadSafe: يحمّل Asset مع مهلة زمنية قصوى حتى لا يعلّق العرض إذا
-	-- كان الأصل غير متاح (بلا إذن / معلّق على المراجعة / سيرفر بطيء).
-	local PRELOAD_TIMEOUT = 5 -- ثوانٍ
-	local function preloadSafe(assets)
+	-- withTimeout: يشغّل دالة (مثل تحميل الأصول) في خيط منفصل مع مهلة زمنية
+	-- قصوى موحّدة حتى لا يتجمّد العرض إذا كان الأصل غير متاح (بلا إذن /
+	-- معلّق على المراجعة / سيرفر بطيء). نمرّر «ميزانية» المهلة الكلية فلا
+	-- تتراكم المهل عند تحميل عدّة أصول بالتتابع.
+	local PRELOAD_TIMEOUT = 6 -- ثوانٍ كحدّ أقصى لكامل مرحلة تجهيز الأصول
+	local function withTimeout(timeout, fn)
 		local done = false
 		task.spawn(function()
-			pcall(function() ContentProvider:PreloadAsync(assets) end)
+			pcall(fn)
 			done = true
 		end)
 		local t0 = os.clock()
-		while not done and (os.clock() - t0) < PRELOAD_TIMEOUT do
+		while not done and (os.clock() - t0) < timeout do
 			task.wait(0.1)
 		end
 		if not done then
-			warn("[Cinema] preload timed out after " .. PRELOAD_TIMEOUT .. "s — continuing without asset")
+			warn("[Cinema] preload timed out after " .. timeout .. "s — continuing without asset")
 		end
 	end
 
@@ -2798,7 +2800,7 @@ local function playMovie(presser)
 	local hasVideo = (CONFIG.VideoId ~= 0) and (screenVideo ~= nil)
 	if hasVideo then
 		screenVideo.Video = "rbxassetid://" .. tostring(CONFIG.VideoId)
-		preloadSafe({ screenVideo })
+		withTimeout(PRELOAD_TIMEOUT, function() ContentProvider:PreloadAsync({ screenVideo }) end)
 	end
 
 	-- جهّز السلايد-شو (لقطات حقيقية كـ Decals) إن وُجدت ولم يكن هناك فيديو
@@ -2811,11 +2813,12 @@ local function playMovie(presser)
 	end
 	local hasSlides = (not hasVideo) and (#slides > 0) and (#screenSlides >= 2)
 	if hasSlides then
-		pcall(function()
+		-- مهلة واحدة لكامل دفعة اللقطات (لا تتراكم 5ث لكل لقطة)
+		withTimeout(PRELOAD_TIMEOUT, function()
 			local probe = screenSlides[1]
 			for _, id in ipairs(slides) do
 				probe.Image = "rbxassetid://" .. tostring(id)
-				preloadSafe({ probe })
+				ContentProvider:PreloadAsync({ probe })
 			end
 			probe.Image = ""
 			probe.ImageTransparency = 1
@@ -2829,7 +2832,7 @@ local function playMovie(presser)
 	-- video the audience would hear nothing. So gate the mute on a real load.
 	local movieSoundOk = false
 	if movieSound then
-		preloadSafe({ movieSound })
+		withTimeout(PRELOAD_TIMEOUT, function() ContentProvider:PreloadAsync({ movieSound }) end)
 		movieSoundOk = movieSound.IsLoaded
 		if not movieSoundOk then
 			warn(("[Cinema] movie audio rbxassetid://%s failed to load — continuing without custom sound. "
