@@ -9,8 +9,8 @@ Steps:
 4. Add functional anchor Parts (Screen, Projector, GateBarrier, etc.)
    that CinemaSystem.server.lua references by name.
 
-Transform: ΔX=+199.6, ΔY=-9.9, ΔZ=-47 (no rotation — both aligned on Z axis)
-Result: new building centered at X≈0, entrance at Z≈-103, screen wall at Z≈-158
+Transform: Rotate -90° about Y (glass entrance faces +Z toward plaza), then
+translate. Result: entrance at Z≈-100, screen at Z≈-166, width X≈[-28,+27]
 """
 import copy
 from lxml import etree
@@ -18,8 +18,10 @@ from lxml import etree
 GAME = "DonationCity_FINAL.rbxlx"
 MODEL = "cinema_modern.rbxmx"
 
-# Translation to map model coords → game world coords
-DX, DY, DZ = 199.6, -9.9, -47.0
+# Model center (rotation pivot) in model-space coords
+CX, CZ = -199.6, -83.8
+# Translation applied AFTER rotation
+DY = -9.9
 
 BP_CLASSES = frozenset([
     "Part", "MeshPart", "WedgePart", "CornerWedgePart", "TrussPart",
@@ -37,31 +39,78 @@ def set_name(it, n):
         el.text = n
 
 
-def _translate_xyz(cf):
-    """Translate the X/Y/Z children of a CFrame element in-place."""
+def _rotate_translate_cf(cf):
+    """Rotate -90° about Y around model center, then translate.
+
+    Position transform (model→world):
+        finalX = -(Z - CZ) + CX + 199.6 = -Z - 83.8   (simplifies: DX cancels CX)
+        finalY = Y + DY
+        finalZ = (X - CX) + CZ + (-47) = X + 68.8
+    Rotation matrix: R_y(-90°) * oldR
+        new_R00=-old_R20, new_R01=-old_R21, new_R02=-old_R22
+        new_R10= old_R10, new_R11= old_R11, new_R12= old_R12
+        new_R20= old_R00, new_R21= old_R01, new_R22= old_R02
+    """
     if cf is None:
         return
-    xel = cf.find("X")
-    yel = cf.find("Y")
-    zel = cf.find("Z")
-    if xel is not None and xel.text:
-        xel.text = str(float(xel.text) + DX)
-    if yel is not None and yel.text:
-        yel.text = str(float(yel.text) + DY)
-    if zel is not None and zel.text:
-        zel.text = str(float(zel.text) + DZ)
+    xel = cf.find("X"); yel = cf.find("Y"); zel = cf.find("Z")
+    if xel is None or yel is None or zel is None:
+        return
+    ox = float(xel.text); oy = float(yel.text); oz = float(zel.text)
+    # Position
+    xel.text = str(-oz - 83.8)
+    yel.text = str(oy + DY)
+    zel.text = str(ox + 68.8)
+    # Rotation matrix (if present)
+    r00 = cf.find("R00"); r01 = cf.find("R01"); r02 = cf.find("R02")
+    r10 = cf.find("R10"); r11 = cf.find("R11"); r12 = cf.find("R12")
+    r20 = cf.find("R20"); r21 = cf.find("R21"); r22 = cf.find("R22")
+    if r00 is None:  # no rotation components (e.g. WorldPivotData position-only)
+        return
+    # Read old values
+    o00=float(r00.text); o01=float(r01.text); o02=float(r02.text)
+    o10=float(r10.text); o11=float(r11.text); o12=float(r12.text)
+    o20=float(r20.text); o21=float(r21.text); o22=float(r22.text)
+    # Apply R_y(-90°) * old
+    r00.text=str(-o20); r01.text=str(-o21); r02.text=str(-o22)
+    r10.text=str(o10);  r11.text=str(o11);  r12.text=str(o12)
+    r20.text=str(o00);  r21.text=str(o01);  r22.text=str(o02)
+
+
+def _rotate_translate_pivot(cf):
+    """Same position transform for WorldPivotData (no rotation matrix inside)."""
+    if cf is None:
+        return
+    xel = cf.find("X"); yel = cf.find("Y"); zel = cf.find("Z")
+    if xel is None or yel is None or zel is None:
+        return
+    ox = float(xel.text); oy = float(yel.text); oz = float(zel.text)
+    xel.text = str(-oz - 83.8)
+    yel.text = str(oy + DY)
+    zel.text = str(ox + 68.8)
+    # Rotation matrix in WorldPivotData CFrame (if present)
+    r00 = cf.find("R00")
+    if r00 is None:
+        return
+    r01=cf.find("R01");r02=cf.find("R02")
+    r10=cf.find("R10");r11=cf.find("R11");r12=cf.find("R12")
+    r20=cf.find("R20");r21=cf.find("R21");r22=cf.find("R22")
+    o00=float(r00.text);o01=float(r01.text);o02=float(r02.text)
+    o10=float(r10.text);o11=float(r11.text);o12=float(r12.text)
+    o20=float(r20.text);o21=float(r21.text);o22=float(r22.text)
+    r00.text=str(-o20);r01.text=str(-o21);r02.text=str(-o22)
+    r10.text=str(o10); r11.text=str(o11); r12.text=str(o12)
+    r20.text=str(o00); r21.text=str(o01); r22.text=str(o02)
 
 
 def transform_cframes(item):
-    """Recursively translate all CFrame positions in item and descendants.
+    """Rotate -90° about Y + translate all CFrame positions in item tree.
 
-    Translates both the part CFrame and any Model WorldPivotData (an
-    OptionalCoordinateFrame holding a nested world-space CFrame), so sub-model
-    pivots stay consistent for Studio PivotTo / GetPivot.
+    Handles both part CFrames and Model WorldPivotData.
     """
     for it in item.iter("Item"):
-        _translate_xyz(it.find("Properties/CoordinateFrame[@name='CFrame']"))
-        _translate_xyz(
+        _rotate_translate_cf(it.find("Properties/CoordinateFrame[@name='CFrame']"))
+        _rotate_translate_pivot(
             it.find("Properties/OptionalCoordinateFrame[@name='WorldPivotData']/CFrame")
         )
 
@@ -327,80 +376,186 @@ for lt in lights_to_move:
 cinema.append(ceiling_lights)
 print(f"Organized {len(lights_to_move)} light models into 'CeilingLights'")
 
+# ─── Step 4b: Make entrance door parts passable ───────────────────────
+# The model's door parts block player entry. Players must be able to walk through
+# the front entrance. Coords are already world-space (transform ran in Step 2), so
+# the entrance face is at Z≈-100. Make passable only:
+#   (a) parts inside the door sub-models (Door / DoubleDoors / FrontDoors), and
+#   (b) transparent glass on the FRONT entrance face (Z >= -108),
+# so interior/back/side glass walls stay solid (no clipping into the building).
+# The GateBarrier (added below) handles blocking during movies.
+def _cframe_z(el):
+    cf = el.find("Properties/CoordinateFrame[@name='CFrame']")
+    if cf is None:
+        return None
+    z = cf.find("Z")
+    return float(z.text) if z is not None and z.text else None
+
+passable = 0
+for it in cinema.iter("Item"):
+    if it.get("class") not in BP_CLASSES:
+        continue
+    props = it.find("Properties")
+    if props is None:
+        continue
+    in_door = False
+    p = it.getparent()
+    while p is not None and p.tag == "Item":
+        if name_of(p) in ("Door", "DoubleDoors", "FrontDoors"):
+            in_door = True
+            break
+        p = p.getparent()
+    trans = props.findtext("float[@name='Transparency']")
+    try:
+        tr = float(trans) if trans else 0
+    except ValueError:
+        tr = 0
+    z = _cframe_z(it)
+    front_glass = (tr > 0.2 and z is not None and z >= -108)
+    if in_door or front_glass:
+        cc = props.find("bool[@name='CanCollide']")
+        if cc is None:
+            cc = etree.SubElement(props, "bool")
+            cc.set("name", "CanCollide")
+        cc.text = "false"
+        passable += 1
+print(f"Set CanCollide=false on {passable} door/front-glass parts (entrance passable)")
+
 # ─── Step 5: Add functional anchor Parts ──────────────────────────────
+# Positions are for the ROTATED building: entrance at Z≈-100 facing +Z,
+# screen at Z≈-166, width X≈[-28,+27].
 print("Adding functional anchor Parts...")
 
 # Screen — projection surface (SurfaceGui added at runtime by CinemaSystem)
-screen = make_part("Screen", (-21, 8, -157.5), (32, 16, 0.5),
+screen = make_part("Screen", (0, 8, -165), (32, 16, 0.5),
                    color=(10, 10, 12), transparency=0, material="SmoothPlastic")
 cinema.append(screen)
 
 # ScreenFrame — decorative frame around screen
-screen_frame = make_part("ScreenFrame", (-21, 8, -157.8), (36, 20, 0.4),
+screen_frame = make_part("ScreenFrame", (0, 8, -165.3), (36, 20, 0.4),
                          color=(20, 20, 22), transparency=0, material="Metal")
 cinema.append(screen_frame)
 
 # ScreenWall — wall behind screen
-screen_wall = make_part("ScreenWall", (-21, 8, -158.1), (40, 22, 0.3),
+screen_wall = make_part("ScreenWall", (0, 8, -165.6), (40, 22, 0.3),
                         color=(35, 35, 38), transparency=0, material="Concrete")
 cinema.append(screen_wall)
 
-# Projector — at ceiling, behind seats, with ProximityPrompt.
+# Projector — at ceiling between entrance and seats, with ProximityPrompt.
 # Step 2b already renamed the decorative model → "ProjectorDecor", so there is no
 # name collision; insert at index 1 (right after <Properties>) to keep the RBXLX
 # convention that <Properties> is the first child of the <Item> element.
-projector = make_part("Projector", (-21, 14, -120), (3, 3, 3),
+projector = make_part("Projector", (0, 14, -130), (3, 3, 3),
                       color=(30, 30, 35), transparency=0, material="Metal")
 add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=14,
                      name="PlayMoviePrompt")  # match WorldBuilder's prompt name
 cinema.insert(1, projector)
 
-# GateBarrier — blocks entrance during movie
-gate = make_part("GateBarrier", (-2, 3, -104), (12, 5, 1),
+# GateBarrier — blocks entrance during movie (at glass-door opening, Z≈-100)
+gate = make_part("GateBarrier", (0, 3, -100), (20, 6, 1),
                  color=(40, 40, 45), transparency=0.95, material="Glass",
                  can_collide=False)
 cinema.append(gate)
 
-# PopcornStand — with ProximityPrompt for popcorn
-popcorn = make_part("PopcornStand", (29, 1.5, -155), (3, 4, 3),
+# PopcornStand — lobby area with ProximityPrompt for popcorn
+popcorn = make_part("PopcornStand", (15, 1.5, -108), (3, 4, 3),
                     color=(180, 60, 30), transparency=0.95, material="SmoothPlastic")
 add_proximity_prompt(popcorn, "خذ فشار", "بسطة الفشار", hold=0.3, dist=8,
                      name="PopcornPrompt")
 cinema.append(popcorn)
 
 # Floor — reference for groundY calculation
-floor = make_part("Floor", (-5, 0.45, -131), (70, 0.1, 55),
+floor = make_part("Floor", (0, 0.45, -133), (55, 0.1, 66),
                   color=(50, 50, 55), transparency=1, can_collide=False)
 cinema.append(floor)
 
-# Marquee — exterior sign
-marquee = make_part("Marquee", (-2, 20, -102), (22, 3, 1),
+# Marquee — exterior sign above entrance (red neon)
+marquee = make_part("Marquee", (0, 20, -97), (30, 3, 1),
                     color=(200, 40, 50), transparency=0, material="Neon")
 cinema.append(marquee)
 
-# InfoBoard — exterior information panel
-info_board = make_part("InfoBoard", (15, 8, -102.5), (5, 7, 0.4),
+# InfoBoard — exterior information panel (right of entrance)
+info_board = make_part("InfoBoard", (22, 8, -97), (5, 7, 0.4),
                        color=(25, 25, 30), transparency=0, material="SmoothPlastic")
 cinema.append(info_board)
 
 # ScreenWash lights (left and right of screen, aimed at it)
-wash_l = make_part("ScreenWashL", (-33, 14, -155), (2, 0.3, 2),
+wash_l = make_part("ScreenWashL", (-15, 14, -163), (2, 0.3, 2),
                    color=(50, 50, 60), transparency=0, material="Metal")
 add_spotlight(wash_l, brightness=3, range_val=25, angle=50, name="WashLight")
 cinema.append(wash_l)
 
-wash_r = make_part("ScreenWashR", (-9, 14, -155), (2, 0.3, 2),
+wash_r = make_part("ScreenWashR", (15, 14, -163), (2, 0.3, 2),
                    color=(50, 50, 60), transparency=0, material="Metal")
 add_spotlight(wash_r, brightness=3, range_val=25, angle=50, name="WashLight")
 cinema.append(wash_r)
 
 # AisleRunner — decorative floor strip for the aisle (visible indicator)
-aisle = make_part("AisleRunner", (-21, 0.52, -130), (2, 0.05, 30),
+aisle = make_part("AisleRunner", (0, 0.52, -133), (2, 0.05, 60),
                   color=(180, 50, 50), transparency=0, material="Neon",
                   can_collide=False)
 cinema.append(aisle)
 
 print("All functional anchors added.")
+
+# ─── Step 5c: Remove TICKETS neon sign from TicketBooth ───────────────
+# The TicketBooth model has bright yellow (255,255,0) Neon letters spelling
+# "TICKETS" above it. The user wants them removed.
+tb = None
+for c in ws.findall("Item"):
+    if c.get("class") == "Model" and name_of(c) == "TicketBooth":
+        tb = c
+        break
+if tb is not None:
+    removed_letters = 0
+    for c in list(tb.iter("Item")):
+        if c.get("class") not in BP_CLASSES:
+            continue
+        props = c.find("Properties")
+        if props is None:
+            continue
+        col = props.find("Color3uint8[@name='Color3uint8']")
+        mat = props.findtext("token[@name='Material']")
+        if col is not None and col.text and mat == "288":
+            v = int(col.text)
+            r, g, b = (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF
+            if r > 200 and g > 200 and b < 50:  # bright yellow neon
+                parent = c.getparent()
+                if parent is not None:
+                    parent.remove(c)
+                    removed_letters += 1
+    print(f"Removed {removed_letters} TICKETS neon letter(s) from TicketBooth")
+
+# ─── Step 5d: Add SurfaceGui with cinema name on Marquee ─────────────
+# The red Marquee part above the entrance displays "سينما مدينة التبرعات".
+# CinemaSystem adds its own SurfaceGui on Screen; this is a static label.
+sg = etree.SubElement(marquee, "Item")
+sg.set("class", "SurfaceGui")
+sg.set("referent", nref())
+sg_props = etree.SubElement(sg, "Properties")
+el = etree.SubElement(sg_props, "string"); el.set("name", "Name"); el.text = "MarqueeGui"
+el = etree.SubElement(sg_props, "token"); el.set("name", "Face"); el.text = "5"  # Front
+el = etree.SubElement(sg_props, "bool"); el.set("name", "AutoLocalize"); el.text = "false"
+el = etree.SubElement(sg_props, "Vector2"); el.set("name", "CanvasSize")
+etree.SubElement(el, "X").text = "600"; etree.SubElement(el, "Y").text = "60"
+# TextLabel child
+tl = etree.SubElement(sg, "Item")
+tl.set("class", "TextLabel")
+tl.set("referent", nref())
+tl_props = etree.SubElement(tl, "Properties")
+el = etree.SubElement(tl_props, "string"); el.set("name", "Name"); el.text = "Title"
+el = etree.SubElement(tl_props, "string"); el.set("name", "Text"); el.text = "سينما مدينة التبرعات"
+el = etree.SubElement(tl_props, "UDim2"); el.set("name", "Size")
+xs = etree.SubElement(el, "XS"); xs.text = "1"; xo = etree.SubElement(el, "XO"); xo.text = "0"
+ys = etree.SubElement(el, "YS"); ys.text = "1"; yo = etree.SubElement(el, "YO"); yo.text = "0"
+el = etree.SubElement(tl_props, "float"); el.set("name", "BackgroundTransparency"); el.text = "1"
+el = etree.SubElement(tl_props, "Color3"); el.set("name", "TextColor3")
+etree.SubElement(el, "R").text = "1"; etree.SubElement(el, "G").text = "1"; etree.SubElement(el, "B").text = "1"
+el = etree.SubElement(tl_props, "bool"); el.set("name", "TextScaled"); el.text = "true"
+el = etree.SubElement(tl_props, "token"); el.set("name", "Font"); el.text = "12"  # GothamBold
+el = etree.SubElement(tl_props, "token"); el.set("name", "TextXAlignment"); el.text = "2"  # Center
+el = etree.SubElement(tl_props, "token"); el.set("name", "TextYAlignment"); el.text = "1"  # Center
+print("Added SurfaceGui 'سينما مدينة التبرعات' on Marquee")
 
 # ─── Step 5b: Merge missing SharedString definitions ──────────────────
 # Injected parts (MeshParts/Unions) reference SharedStrings (PhysicalConfigData,
