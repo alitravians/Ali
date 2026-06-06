@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
-"""Fix cinema geometry: screen/projector → +X wall (where seats face),
-remove TicketBooth visual clutter, reposition washlights."""
+"""[LEGACY / SUPERSEDED] Fix cinema geometry: screen/projector → +X wall (where
+seats face), remove TicketBooth visual clutter, reposition washlights.
+
+NOTE: All changes this script makes are now baked directly into
+`inject_cinema_new.py` (the canonical one-time builder): the Screen/ScreenFrame/
+ScreenWall on the +X wall with ROT_Y_NEG90, the Projector at (-18,10,-152) with
+MaxActivationDistance=20, the repositioned ScreenWash lights, and the fully
+emptied TicketBooth (Step 5c). Re-running `inject_cinema_new.py` alone now
+reproduces the shipped layout, so this patch is retained only for history and
+should NOT be needed in the normal build pipeline (`build_all.py` refreshes
+script sources only). It remains idempotent if run after inject."""
 from lxml import etree
 import sys, copy
 

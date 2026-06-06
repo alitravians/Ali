@@ -518,33 +518,29 @@ cinema.append(aisle)
 
 print("All functional anchors added.")
 
-# ─── Step 5c: Remove TICKETS neon sign from TicketBooth ───────────────
-# The TicketBooth model has bright yellow (255,255,0) Neon letters spelling
-# "TICKETS" above it. The user wants them removed.
+# ─── Step 5c: Empty the standalone TicketBooth model entirely ─────────
+# The Cinema building already ships a built-in ticket-booth alcove on the
+# front-left (left wall X≈-23, interior counter rail X≈-14, front glass window).
+# The cashier NPC is seated INSIDE that alcove by CinemaServices.server.lua
+# (target (-18.5, GY, -108), facing +X toward the rail/players). The separate
+# "TicketBooth" model — including its bright-yellow "TICKETS" neon letters and
+# any counter geometry — overlapped the entrance and looked cluttered, so we
+# strip it to an empty container. (This folds in what fix_cinema_layout.py did,
+# making this script the single canonical builder — re-running it reproduces the
+# shipped state without needing the legacy patch.)
 tb = None
 for c in ws.findall("Item"):
     if c.get("class") == "Model" and name_of(c) == "TicketBooth":
         tb = c
         break
 if tb is not None:
-    removed_letters = 0
-    for c in list(tb.iter("Item")):
-        if c.get("class") not in BP_CLASSES:
-            continue
-        props = c.find("Properties")
-        if props is None:
-            continue
-        col = props.find("Color3uint8[@name='Color3uint8']")
-        mat = props.findtext("token[@name='Material']")
-        if col is not None and col.text and mat == "288":
-            v = int(col.text)
-            r, g, b = (v >> 16) & 0xFF, (v >> 8) & 0xFF, v & 0xFF
-            if r > 200 and g > 200 and b < 50:  # bright yellow neon
-                parent = c.getparent()
-                if parent is not None:
-                    parent.remove(c)
-                    removed_letters += 1
-    print(f"Removed {removed_letters} TICKETS neon letter(s) from TicketBooth")
+    children_to_remove = list(tb.findall("Item"))
+    for c in children_to_remove:
+        tb.remove(c)
+    print(f"TicketBooth: stripped {len(children_to_remove)} visual child item(s) "
+          f"— using building's built-in alcove for the booth")
+else:
+    print("WARNING: TicketBooth model not found in Workspace")
 
 # ─── Step 5d: Add SurfaceGui with cinema name on Marquee ─────────────
 # The red Marquee part above the entrance displays "سينما مدينة التبرعات".
