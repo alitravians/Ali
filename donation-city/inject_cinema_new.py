@@ -621,6 +621,7 @@ if orphans:
 print("SharedString integrity OK — 0 orphan references")
 
 # ─── Step 6: Write ────────────────────────────────────────────────────
-game_tree.write(GAME, encoding="utf-8", xml_declaration=False)
+# نكتب إعلان XML للحفاظ على نفس رأس الملف الأصلي (build_all.py يحافظ عليه نصياً)
+game_tree.write(GAME, encoding="UTF-8", xml_declaration=True)
 print(f"Done! Wrote {GAME}")
 print("Next: update CinemaExterior.server.lua + CinemaSystem.server.lua, then run build_all.py")
