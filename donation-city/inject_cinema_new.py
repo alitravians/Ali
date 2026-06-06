@@ -402,6 +402,52 @@ cinema.append(aisle)
 
 print("All functional anchors added.")
 
+# ─── Step 5b: Merge missing SharedString definitions ──────────────────
+# Injected parts (MeshParts/Unions) reference SharedStrings (PhysicalConfigData,
+# mesh/physics blobs) by md5. The definitions live in the model file's
+# <SharedStrings> block — they MUST be copied into the game file too, otherwise
+# Studio refuses to open with "Unknown referenced shared string md5 ...".
+model_ss = model_root.find("SharedStrings")
+model_defs = {}
+if model_ss is not None:
+    for s in model_ss.findall("SharedString"):
+        model_defs[s.get("md5")] = s
+
+game_ss = game_root.find("SharedStrings")
+if game_ss is None:
+    game_ss = etree.SubElement(game_root, "SharedStrings")
+game_def_md5 = {s.get("md5") for s in game_ss.findall("SharedString")}
+
+# Collect md5 refs used inside the injected Cinema subtree
+needed = set()
+for s in cinema.iter("SharedString"):
+    if s.get("md5") is None and s.text:  # a reference (has name=, not md5=)
+        needed.add(s.text.strip())
+
+added_ss = 0
+for md5 in sorted(needed):
+    if md5 in game_def_md5:
+        continue
+    src = model_defs.get(md5)
+    if src is None:
+        raise SystemExit(
+            f"ERROR: SharedString md5 {md5} is referenced by an injected part but "
+            f"has no definition in {MODEL}; cannot resolve orphan reference."
+        )
+    game_ss.append(copy.deepcopy(src))
+    game_def_md5.add(md5)
+    added_ss += 1
+print(f"Merged {added_ss} missing SharedString definition(s) into game file")
+
+# Verify no orphan references remain anywhere in the game file
+all_defs = {s.get("md5") for s in game_ss.findall("SharedString")}
+orphans = {s.text.strip() for s in game_root.iter("SharedString")
+           if s.get("md5") is None and s.text and s.text.strip() not in all_defs}
+if orphans:
+    raise SystemExit(f"ERROR: {len(orphans)} orphan SharedString ref(s) remain: "
+                     f"{sorted(orphans)[:5]}")
+print("SharedString integrity OK — 0 orphan references")
+
 # ─── Step 6: Write ────────────────────────────────────────────────────
 game_tree.write(GAME, encoding="utf-8", xml_declaration=False)
 print(f"Done! Wrote {GAME}")
