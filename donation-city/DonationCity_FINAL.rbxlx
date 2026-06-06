@@ -8026,46 +8026,50 @@ end
 -- داخل الموديل — زر الشراء + لوحة الاسم يُربطان هنا في سكربتنا. التموضع يُحسب وقت التشغيل.
 local CASHIER_SCALE = 0.5    -- تصغير الموديل (أصله ~12 ستد) لحجم معتدل يناسب خلف الكاونتر
 
--- 🎟️ لوحة اسم بطابع «تذكرة سينما» — نسخة مطابقة تماماً للموجودة في CinemaSystem
--- (هالة + بطاقة داكنة + إطار خفيف + شريط اسم علوي + وصف + خط أكسنت رفيع بديل النقاط)
+-- 🎟️ لوحة اسم بطابع «تذكرة سينما» احترافية — نسخة مطابقة تماماً للموجودة في CinemaSystem
+-- (هالة + جسم داكن متدرّج + كعب اسم علوي + خط تمزيق منقّط بنقرتين جانبيتين + وصف + لمبات ماركي)
 -- حتى يطلع تنسيق الكاشير موحّداً واحترافياً مع المرشد والخادم بلا اختلاف.
 local function makeCinemaNameTag(head, opts)
 	local accent = opts.tagColor or Color3.fromRGB(255, 205, 90)
 	local title  = opts.tag or ""
 	local sub    = opts.subtitle or ""
+	local DARK   = Color3.fromRGB(15, 17, 25)
+	local DARK2  = Color3.fromRGB(30, 34, 48)
 
 	local bb = Instance.new("BillboardGui")
 	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	bb.Name = "NameTag"; bb.Adornee = head
-	bb.Size = UDim2.fromOffset(240, 78)
+	bb.Size = UDim2.fromOffset(252, 94)
 	bb.StudsOffset = Vector3.new(0, opts.studsY or 2.9, 0)
 	bb.AlwaysOnTop = true; bb.Parent = head
 
-	-- هالة خفيفة خلف البطاقة (ظل بلون الدور)
+	-- هالة ناعمة خلف التذكرة (ظل بلون الدور)
 	local glow = Instance.new("Frame")
-	glow.Name = "Glow"; glow.Size = UDim2.new(1, 8, 1, 8)
-	glow.Position = UDim2.new(0, -4, 0, -4)
-	glow.BackgroundColor3 = accent; glow.BackgroundTransparency = 0.82
+	glow.Name = "Glow"; glow.Size = UDim2.new(1, 10, 1, 10)
+	glow.Position = UDim2.new(0, -5, 0, -5)
+	glow.BackgroundColor3 = accent; glow.BackgroundTransparency = 0.8
 	glow.BorderSizePixel = 0; glow.ZIndex = 0; glow.Parent = bb
-	Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 14)
+	Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
 
-	-- البطاقة الرئيسية (داكنة + حواف مدوّرة + إطار خفيف)
+	-- جسم التذكرة (تدرّج داكن + حواف مدوّرة + إطار بلون الدور)
 	local card = Instance.new("Frame")
 	card.Name = "Card"; card.Size = UDim2.fromScale(1, 1)
-	card.BackgroundColor3 = Color3.fromRGB(16, 18, 26); card.BackgroundTransparency = 0.03
+	card.BackgroundColor3 = DARK; card.BackgroundTransparency = 0.02
 	card.BorderSizePixel = 0; card.ZIndex = 1; card.Parent = bb
-	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new(DARK2, DARK); grad.Rotation = 90; grad.Parent = card
 	local cs = Instance.new("UIStroke")
-	cs.Color = accent; cs.Thickness = 1.5; cs.Transparency = 0.25; cs.Parent = card
+	cs.Color = accent; cs.Thickness = 1.5; cs.Transparency = 0.2; cs.Parent = card
 
-	-- شريط الاسم العلوي (بعرض البطاقة، مدوّر الأعلى فقط)
+	-- كعب التذكرة العلوي (شريط بلون الدور) يحمل الاسم
 	local strip = Instance.new("Frame")
-	strip.Name = "Strip"; strip.Size = UDim2.new(1, 0, 0, 32)
+	strip.Name = "Strip"; strip.Size = UDim2.new(1, 0, 0, 34)
 	strip.BackgroundColor3 = accent; strip.BorderSizePixel = 0; strip.ZIndex = 2; strip.Parent = card
-	Instance.new("UICorner", strip).CornerRadius = UDim.new(0, 10)
+	Instance.new("UICorner", strip).CornerRadius = UDim.new(0, 12)
 	-- كتلة سفلية مربّعة تغطي استدارة أسفل الشريط
 	local stripBot = Instance.new("Frame")
-	stripBot.Size = UDim2.new(1, 0, 0, 12); stripBot.Position = UDim2.new(0, 0, 1, -12)
+	stripBot.Size = UDim2.new(1, 0, 0, 14); stripBot.Position = UDim2.new(0, 0, 1, -14)
 	stripBot.BackgroundColor3 = accent; stripBot.BorderSizePixel = 0; stripBot.ZIndex = 2; stripBot.Parent = strip
 
 	-- نص الاسم (داكن على خلفية الشريط الملوّنة)
@@ -8074,24 +8078,62 @@ local function makeCinemaNameTag(head, opts)
 	titleLbl.Position = UDim2.new(0, 8, 0, 0)
 	titleLbl.Font = Enum.Font.GothamBlack; titleLbl.TextScaled = true; titleLbl.Text = title
 	titleLbl.TextColor3 = Color3.fromRGB(14, 12, 18); titleLbl.ZIndex = 3; titleLbl.Parent = strip
-	Instance.new("UITextSizeConstraint", titleLbl).MaxTextSize = 18
+	Instance.new("UITextSizeConstraint", titleLbl).MaxTextSize = 19
 
-	-- الوصف (أفتح، تحت الشريط)
+	-- خط تمزيق التذكرة (صف نقاط) أسفل كعب الاسم مباشرة
+	local perf = Instance.new("Frame")
+	perf.Name = "Perforation"; perf.BackgroundTransparency = 1
+	perf.Position = UDim2.new(0, 12, 0, 37); perf.Size = UDim2.new(1, -24, 0, 8)
+	perf.ZIndex = 3; perf.Parent = card
+	local pl = Instance.new("UIListLayout")
+	pl.FillDirection = Enum.FillDirection.Horizontal
+	pl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	pl.VerticalAlignment = Enum.VerticalAlignment.Center
+	pl.Padding = UDim.new(0, 4); pl.Parent = perf
+	for _ = 1, 14 do
+		local dot = Instance.new("Frame")
+		dot.Size = UDim2.fromOffset(4, 4); dot.BackgroundColor3 = Color3.fromRGB(74, 78, 96)
+		dot.BorderSizePixel = 0; dot.ZIndex = 3; dot.Parent = perf
+		Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+	end
+
+	-- نقرتا التذكرة (دائرتان داكنتان بإطار بلون الدور) على طرفي خط التمزيق
+	for _, sx in ipairs({ 0, 1 }) do
+		local notch = Instance.new("Frame")
+		notch.Size = UDim2.fromOffset(12, 12)
+		notch.AnchorPoint = Vector2.new(0.5, 0.5)
+		notch.Position = UDim2.new(sx, 0, 0, 41)
+		notch.BackgroundColor3 = DARK; notch.BorderSizePixel = 0; notch.ZIndex = 2; notch.Parent = card
+		Instance.new("UICorner", notch).CornerRadius = UDim.new(1, 0)
+		local ns = Instance.new("UIStroke")
+		ns.Color = accent; ns.Thickness = 1; ns.Transparency = 0.45; ns.Parent = notch
+	end
+
+	-- وصف الدور (أفتح، أسفل خط التمزيق)
 	local subLbl = Instance.new("TextLabel")
 	subLbl.Name = "Subtitle"; subLbl.BackgroundTransparency = 1
-	subLbl.Position = UDim2.new(0, 10, 0, 36); subLbl.Size = UDim2.new(1, -20, 0, 26)
+	subLbl.Position = UDim2.new(0, 10, 0, 47); subLbl.Size = UDim2.new(1, -20, 0, 28)
 	subLbl.Font = Enum.Font.GothamMedium; subLbl.TextScaled = true; subLbl.Text = sub
-	subLbl.TextColor3 = Color3.fromRGB(210, 215, 230); subLbl.TextTransparency = 0.05
+	subLbl.TextColor3 = Color3.fromRGB(214, 219, 234); subLbl.TextTransparency = 0.03
 	subLbl.ZIndex = 2; subLbl.Parent = card
-	Instance.new("UITextSizeConstraint", subLbl).MaxTextSize = 14
+	Instance.new("UITextSizeConstraint", subLbl).MaxTextSize = 15
 
-	-- خط أنيق رفيع بلون الدور أسفل البطاقة (بديل أنظف للنقاط)
-	local bar = Instance.new("Frame")
-	bar.Name = "AccentBar"; bar.Size = UDim2.new(0.5, 0, 0, 2)
-	bar.Position = UDim2.new(0.25, 0, 1, -7); bar.AnchorPoint = Vector2.new(0, 0)
-	bar.BackgroundColor3 = accent; bar.BackgroundTransparency = 0.35
-	bar.BorderSizePixel = 0; bar.ZIndex = 2; bar.Parent = card
-	Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+	-- صف لمبات الماركي السفلي بلون الدور (إيحاء سينمائي خفيف)
+	local bulbs = Instance.new("Frame")
+	bulbs.Name = "Bulbs"; bulbs.BackgroundTransparency = 1
+	bulbs.Position = UDim2.new(0, 12, 1, -9); bulbs.Size = UDim2.new(1, -24, 0, 5)
+	bulbs.ZIndex = 2; bulbs.Parent = card
+	local bl = Instance.new("UIListLayout")
+	bl.FillDirection = Enum.FillDirection.Horizontal
+	bl.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	bl.VerticalAlignment = Enum.VerticalAlignment.Center
+	bl.Padding = UDim.new(0, 7); bl.Parent = bulbs
+	for _ = 1, 9 do
+		local b = Instance.new("Frame")
+		b.Size = UDim2.fromOffset(3, 3); b.BackgroundColor3 = accent
+		b.BackgroundTransparency = 0.12; b.BorderSizePixel = 0; b.ZIndex = 2; b.Parent = bulbs
+		Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+	end
 
 	return bb
 end
