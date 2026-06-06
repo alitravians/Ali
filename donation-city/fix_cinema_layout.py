@@ -13,6 +13,15 @@ script sources only). It remains idempotent if run after inject."""
 from lxml import etree
 import sys, copy
 
+# حارس تنفيذ: هذا السكربت متجاوَز (superseded) ومدموج في inject_cinema_new.py.
+# تشغيله بالخطأ بعد البناء القانوني قد يعيد إقحام إعلان XML وغيره. لذا لا يعمل
+# إلا بتمرير العلم الصريح --force-legacy للتأكيد أنك تقصد تشغيله للتاريخ فقط.
+if "--force-legacy" not in sys.argv:
+    sys.exit(
+        "fix_cinema_layout.py متجاوَز — كل تغييراته مدموجة في inject_cinema_new.py.\n"
+        "إن كنت متأكداً وتريد تشغيله لأغراض تاريخية فقط، أعد التشغيل مع: --force-legacy"
+    )
+
 FILE = "DonationCity_FINAL.rbxlx"
 P = etree.XMLParser(strip_cdata=False, huge_tree=True)
 tree = etree.parse(FILE, P)
