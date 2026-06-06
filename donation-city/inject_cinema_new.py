@@ -443,8 +443,13 @@ print("Adding functional anchor Parts...")
 FUNCTIONAL_ANCHOR_NAMES = frozenset([
     "Screen", "ScreenFrame", "ScreenWall", "Projector", "GateBarrier",
     "PopcornStand", "Floor", "Marquee", "InfoBoard", "ScreenWashL",
-    "ScreenWashR", "AisleRunner", "Seats", "CeilingLights",
+    "ScreenWashR", "AisleRunner",
 ])
+# NOTE: "Seats" and "CeilingLights" are intentionally NOT listed — Steps 3-4
+# already created organizing models with those exact names (descendants of
+# cinema at this point). Including them would rename our own models to
+# "SeatsDecor"/"CeilingLightsDecor" and break CinemaSystem's
+# get("Seats")/get("CeilingLights") lookups on re-run.
 _collisions = 0
 for c in list(cinema.iter("Item")):
     if c is cinema:
