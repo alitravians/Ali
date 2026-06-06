@@ -116,8 +116,6 @@ def draw_text_center(box, lines, fill, bg=None):
     pos,R,size=box
     pj,_=proj(pos)
     if pj is None: return
-    # estimate on-screen width from size and depth
-    _,depth=proj(pos)
     try:
         from PIL import ImageFont
         font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 26)
