@@ -2680,7 +2680,7 @@ end
 local adminTabBtn = new("TextButton", {
 	Name = "AdminTab", Text = "👑 إدارة", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = Color3.fromRGB(20, 16, 8),
 	BackgroundColor3 = GOLD, AutoButtonColor = false,
-	LayoutOrder = 3, Size = UDim2.fromOffset(132, 40),
+	LayoutOrder = 3, Size = UDim2.fromOffset(132, 46),
 	Visible = ADMIN_IDS[LocalPlayer.UserId] == true,  -- المالك يراه فوراً
 	Parent = leftDock,
 }, {
@@ -3016,7 +3016,7 @@ applyPerks = function(data)
 		local b = new("TextButton", {
 			Name = "ShowrunnerTab", Text = "🎬 ابدأ العرض", Font = Enum.Font.GothamBlack, TextSize = 15,
 			TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD, AutoButtonColor = false,
-			LayoutOrder = 7, Size = UDim2.fromOffset(132, 44),
+			LayoutOrder = 7, Size = UDim2.fromOffset(132, 46),
 			Parent = leftDock,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
@@ -3036,7 +3036,7 @@ applyPerks = function(data)
 		local b = new("TextButton", {
 			Name = "AnnouncerTab", Text = "📢 إعلان", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-			LayoutOrder = 8, Size = UDim2.fromOffset(132, 44),
+			LayoutOrder = 8, Size = UDim2.fromOffset(132, 46),
 			Parent = leftDock,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
