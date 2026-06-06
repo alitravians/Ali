@@ -8070,7 +8070,13 @@ local function buildCashierModel(opts)
 	local from = Vector3.new(target.X, target.Y + 8, target.Z)
 	local hit = Workspace:Raycast(from, Vector3.new(0, -30, 0), rp)
 	local bcf, bsize = model:GetBoundingBox()
-	local floorY = hit and hit.Position.Y or target.Y
+	-- نقبل ارتفاع الإصابة فقط إذا كان قريباً من مستوى الأرض (±3 ستد) حتى لا يستقر
+	-- الكاشير فوق سقف/كاونتر داخلي لو اعترض الشعاعَ أي مجسّم علوي. خلاف ذلك نرجع
+	-- لمستوى الأرض GROUND_Y — ضمان جذري بعدم الطيران فوق أي هندسة داخلية.
+	local floorY = target.Y
+	if hit and math.abs(hit.Position.Y - GROUND_Y) <= 3 then
+		floorY = hit.Position.Y
+	end
 	local lift = floorY - (bcf.Position.Y - bsize.Y / 2)
 	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
 
