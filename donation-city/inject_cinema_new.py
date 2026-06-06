@@ -141,8 +141,15 @@ def nref():
 
 
 def make_part(name, pos, size, color=None, transparency=0, material="SmoothPlastic",
-              can_collide=True, anchored=True):
-    """Create a Part Item element with Properties."""
+              can_collide=True, anchored=True, rot=None):
+    """Create a Part Item element with Properties.
+
+    rot: optional 9-tuple (R00..R22) rotation matrix; defaults to identity.
+    Use rot=ROT_Y_NEG90 for parts whose Back (+Z) face must point world -X
+    (e.g. the cinema Screen mounted on the +X wall, facing the audience).
+    """
+    if rot is None:
+        rot = (1, 0, 0, 0, 1, 0, 0, 0, 1)
     item = etree.Element("Item")
     item.set("class", "Part")
     item.set("referent", nref())
@@ -155,9 +162,9 @@ def make_part(name, pos, size, color=None, transparency=0, material="SmoothPlast
     cf = etree.SubElement(props, "CoordinateFrame")
     cf.set("name", "CFrame")
     for tag, val in [("X", pos[0]), ("Y", pos[1]), ("Z", pos[2]),
-                     ("R00", 1), ("R01", 0), ("R02", 0),
-                     ("R10", 0), ("R11", 1), ("R12", 0),
-                     ("R20", 0), ("R21", 0), ("R22", 1)]:
+                     ("R00", rot[0]), ("R01", rot[1]), ("R02", rot[2]),
+                     ("R10", rot[3]), ("R11", rot[4]), ("R12", rot[5]),
+                     ("R20", rot[6]), ("R21", rot[7]), ("R22", rot[8])]:
         e = etree.SubElement(cf, tag)
         e.text = str(val)
     # size
@@ -426,28 +433,39 @@ print(f"Set CanCollide=false on {passable} door/front-glass parts (entrance pass
 # screen at Z≈-166, width X≈[-28,+27].
 print("Adding functional anchor Parts...")
 
-# Screen — projection surface (SurfaceGui added at runtime by CinemaSystem)
-screen = make_part("Screen", (0, 8, -165), (32, 16, 0.5),
-                   color=(10, 10, 12), transparency=0, material="SmoothPlastic")
+# Rotation so a part's Back (+Z) face points world -X (toward the audience).
+# The model's 37 seats face +X (LookVector≈+X) toward the +X wall (X≈27.5),
+# so the Screen/Projector live on the X axis — NOT the -Z wall.
+ROT_Y_NEG90 = (0, 0, -1, 0, 1, 0, 1, 0, 0)
+SEAT_CENTER_Z = -151.8
+
+# Screen — projection surface (SurfaceGui added at runtime by CinemaSystem).
+# Mounted flush on the +X wall, display facing -X toward the seated audience.
+screen = make_part("Screen", (27.0, 8, SEAT_CENTER_Z), (24, 14, 0.5),
+                   color=(10, 10, 12), transparency=0, material="SmoothPlastic",
+                   rot=ROT_Y_NEG90)
 cinema.append(screen)
 
 # ScreenFrame — decorative frame around screen
-screen_frame = make_part("ScreenFrame", (0, 8, -165.3), (36, 20, 0.4),
-                         color=(20, 20, 22), transparency=0, material="Metal")
+screen_frame = make_part("ScreenFrame", (27.3, 8, SEAT_CENTER_Z), (28, 18, 0.4),
+                         color=(20, 20, 22), transparency=0, material="Metal",
+                         rot=ROT_Y_NEG90)
 cinema.append(screen_frame)
 
 # ScreenWall — wall behind screen
-screen_wall = make_part("ScreenWall", (0, 8, -165.6), (40, 22, 0.3),
-                        color=(35, 35, 38), transparency=0, material="Concrete")
+screen_wall = make_part("ScreenWall", (27.6, 8, SEAT_CENTER_Z), (32, 20, 0.3),
+                        color=(35, 35, 38), transparency=0, material="Concrete",
+                        rot=ROT_Y_NEG90)
 cinema.append(screen_wall)
 
-# Projector — at ceiling between entrance and seats, with ProximityPrompt.
-# Step 2b already renamed the decorative model → "ProjectorDecor", so there is no
-# name collision; insert at index 1 (right after <Properties>) to keep the RBXLX
-# convention that <Properties> is the first child of the <Item> element.
-projector = make_part("Projector", (0, 14, -130), (3, 3, 3),
-                      color=(30, 30, 35), transparency=0, material="Metal")
-add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=14,
+# Projector — behind the back row on the -X wall, aimed +X at the screen, with
+# its ProximityPrompt co-located with the model's decorative projector so the
+# "E" prompt appears on the visible projector. Step 2b renamed the decorative
+# model → "ProjectorDecor", so there is no name collision.
+projector = make_part("Projector", (-18, 10, -152), (3, 3, 3),
+                      color=(30, 30, 35), transparency=0, material="Metal",
+                      rot=ROT_Y_NEG90)
+add_proximity_prompt(projector, "شغّل العرض", "البروجكتر", hold=0.6, dist=20,
                      name="PlayMoviePrompt")  # match WorldBuilder's prompt name
 cinema.insert(1, projector)
 
@@ -479,14 +497,16 @@ info_board = make_part("InfoBoard", (22, 8, -97), (5, 7, 0.4),
                        color=(25, 25, 30), transparency=0, material="SmoothPlastic")
 cinema.append(info_board)
 
-# ScreenWash lights (left and right of screen, aimed at it)
-wash_l = make_part("ScreenWashL", (-15, 14, -163), (2, 0.3, 2),
-                   color=(50, 50, 60), transparency=0, material="Metal")
+# ScreenWash lights (above each side of the +X screen, spotlights aimed +X)
+wash_l = make_part("ScreenWashL", (20, 14, -145), (2, 0.3, 2),
+                   color=(50, 50, 60), transparency=0, material="Metal",
+                   rot=ROT_Y_NEG90)
 add_spotlight(wash_l, brightness=3, range_val=25, angle=50, name="WashLight")
 cinema.append(wash_l)
 
-wash_r = make_part("ScreenWashR", (15, 14, -163), (2, 0.3, 2),
-                   color=(50, 50, 60), transparency=0, material="Metal")
+wash_r = make_part("ScreenWashR", (20, 14, -158), (2, 0.3, 2),
+                   color=(50, 50, 60), transparency=0, material="Metal",
+                   rot=ROT_Y_NEG90)
 add_spotlight(wash_r, brightness=3, range_val=25, angle=50, name="WashLight")
 cinema.append(wash_r)
 
