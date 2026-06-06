@@ -364,17 +364,31 @@ end
 ------------------------------------------------------------------------
 local marqueeLabel
 if marquee then
-	local sg = makeSurface(marquee, 20)
+	local sg = makeSurface(marquee, 24)
+	-- إطار داكن بخلفية شبه شفافة لتبرز النص (مثبّت على واجهة المبنى)
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Color3.fromRGB(20, 5, 5)
+	bg.BackgroundTransparency = 0.3
+	bg.BorderSizePixel = 0
+	bg.Parent = sg
+	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 6); corner.Parent = bg
+	-- هوامش داخلية: النص لا يلمس الأطراف
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0.04, 0); pad.PaddingRight = UDim.new(0.04, 0)
+	pad.PaddingTop = UDim.new(0.1, 0); pad.PaddingBottom = UDim.new(0.1, 0)
+	pad.Parent = bg
 	marqueeLabel = Instance.new("TextLabel")
 	marqueeLabel.BackgroundTransparency = 1
 	marqueeLabel.Size = UDim2.fromScale(1, 1)
 	marqueeLabel.Font = Enum.Font.GothamBlack
 	marqueeLabel.TextScaled = true
+	marqueeLabel.TextWrapped = false
 	marqueeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	marqueeLabel.TextStrokeColor3 = Color3.fromRGB(40, 0, 0)
-	marqueeLabel.TextStrokeTransparency = 0.3
+	marqueeLabel.TextStrokeTransparency = 0.2
 	marqueeLabel.Text = "سينما مدينة التبرعات"
-	marqueeLabel.Parent = sg
+	marqueeLabel.Parent = bg
 end
 
 ------------------------------------------------------------------------

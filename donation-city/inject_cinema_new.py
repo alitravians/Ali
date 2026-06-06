@@ -488,19 +488,18 @@ floor = make_part("Floor", (0, 0.45, -133), (55, 0.1, 66),
                   color=(50, 50, 55), transparency=1, can_collide=False)
 cinema.append(floor)
 
-# Marquee — exterior sign above entrance (red neon), below the FINEST letters
-# Placed at Y=12.5 (above doors, below the model's vertical sign letters at Y15+)
-# Z=-96.5 sits in front of facade so text is visible from the plaza.
-marquee = make_part("Marquee", (0, 12.5, -96.5), (22, 3.2, 0.6),
-                    color=(200, 40, 50), transparency=0, material="Neon")
+# Marquee — flush-mounted cinema name sign on facade center
+# Nearly transparent carrier (Tr=0.85): only the runtime SurfaceGui text shows.
+# Positioned at Y=10.5 (between dark windows and gold panels), flush Z=-100.5.
+marquee = make_part("Marquee", (0, 10.5, -100.5), (14, 2, 0.3),
+                    color=(200, 40, 50), transparency=0.85, material="Neon")
 cinema.append(marquee)
 
-# InfoBoard — exterior information panel (left of entrance, grounded)
-# At Y=4 the board's bottom sits at ~Y0.5 (ground level), so it doesn't float.
-# Z=-97 places it just in front of the facade (facade ~Z-100.6) beside the
-# entrance, facing the plaza (+Z) where approaching players naturally see it.
-info_board = make_part("InfoBoard", (-14, 4, -97), (5, 7, 0.4),
-                       color=(25, 25, 30), transparency=0, material="SmoothPlastic")
+# InfoBoard — wall-mounted info panel flush on left facade
+# Mostly transparent carrier (Tr=0.8): SurfaceGui renders the content.
+# Positioned at eye level (Y=5.5), flush on facade wall (Z=-100.5).
+info_board = make_part("InfoBoard", (-15, 5.5, -100.5), (3.5, 5, 0.2),
+                       color=(25, 25, 30), transparency=0.8, material="SmoothPlastic")
 cinema.append(info_board)
 
 # ScreenWash lights (above each side of the +X screen, spotlights aimed +X)
