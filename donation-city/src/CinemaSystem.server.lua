@@ -736,6 +736,7 @@ local function playMovie(presser)
 	playing = true
 	starting = false  -- العرض بدأ فعلياً: ارفع قفل البدء (يمنع سباق التشغيل المزدوج)
 	stopRequested = false
+	print("[Cinema] ▶ playMovie started" .. (presser and (" by " .. presser.Name) or " (admin)"))
 	if playPrompt then playPrompt.Enabled = false end
 	-- اجلس اللاعب الذي ضغط البروجكتر ثم اقفل كل الجالسين
 	if presser then seatPlayer(presser) end
@@ -752,11 +753,29 @@ local function playMovie(presser)
 	setProjector(true)
 	if marqueeLabel then marqueeLabel.Text = "🔴 العرض جارٍ الآن" end
 
+	-- preloadSafe: يحمّل Asset مع مهلة زمنية قصوى حتى لا يعلّق العرض إذا
+	-- كان الأصل غير متاح (بلا إذن / معلّق على المراجعة / سيرفر بطيء).
+	local PRELOAD_TIMEOUT = 5 -- ثوانٍ
+	local function preloadSafe(assets)
+		local done = false
+		task.spawn(function()
+			pcall(function() ContentProvider:PreloadAsync(assets) end)
+			done = true
+		end)
+		local t0 = os.clock()
+		while not done and (os.clock() - t0) < PRELOAD_TIMEOUT do
+			task.wait(0.1)
+		end
+		if not done then
+			warn("[Cinema] preload timed out after " .. PRELOAD_TIMEOUT .. "s — continuing without asset")
+		end
+	end
+
 	-- جهّز الفيديو الحقيقي إن وُجد
 	local hasVideo = (CONFIG.VideoId ~= 0) and (screenVideo ~= nil)
 	if hasVideo then
 		screenVideo.Video = "rbxassetid://" .. tostring(CONFIG.VideoId)
-		pcall(function() ContentProvider:PreloadAsync({ screenVideo }) end)
+		preloadSafe({ screenVideo })
 	end
 
 	-- جهّز السلايد-شو (لقطات حقيقية كـ Decals) إن وُجدت ولم يكن هناك فيديو
@@ -773,7 +792,7 @@ local function playMovie(presser)
 			local probe = screenSlides[1]
 			for _, id in ipairs(slides) do
 				probe.Image = "rbxassetid://" .. tostring(id)
-				ContentProvider:PreloadAsync({ probe })
+				preloadSafe({ probe })
 			end
 			probe.Image = ""
 			probe.ImageTransparency = 1
@@ -787,11 +806,11 @@ local function playMovie(presser)
 	-- video the audience would hear nothing. So gate the mute on a real load.
 	local movieSoundOk = false
 	if movieSound then
-		pcall(function() ContentProvider:PreloadAsync({ movieSound }) end)
+		preloadSafe({ movieSound })
 		movieSoundOk = movieSound.IsLoaded
 		if not movieSoundOk then
-			warn(("[Cinema] movie audio rbxassetid://%s failed to load — falling back to the video's own audio. "
-				.. "To use this custom sound, grant THIS experience permission to the audio on its Roblox asset page "
+			warn(("[Cinema] movie audio rbxassetid://%s failed to load — continuing without custom sound. "
+				.. "To use this sound: grant THIS experience permission on the audio's Roblox asset page "
 				.. "(Configure -> Permissions) and make sure its moderation status is Approved."):format(tostring(CONFIG.MovieSoundId)))
 		end
 	end
