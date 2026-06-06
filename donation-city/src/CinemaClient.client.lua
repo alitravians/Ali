@@ -150,9 +150,7 @@ local function makeDock(side: number)
 	return dock
 end
 local leftDock  = makeDock(-1)
-local rightDock = makeDock(1)
--- «المزيد» وأزرار اليمين أعلى على الشاشة (لا وسط)
-dockCenterY[rightDock] = 0.34
+-- كل أزرار الواجهة في الرصيف الأيسر (leftDock) بمكان واحد — لا رصيف يمين.
 
 local activeRoot: Instance? = nil
 
@@ -438,7 +436,7 @@ local GUIDE_STEPS = {
 	"🛒 <b>المتجر</b> (زر يسار الشاشة): كل المميزات بمكان واحد — VIP والباقات وحزم الكوينز والتذكرة الفورية بضغطة شراء.",
 	"⭐ <b>VIP:</b> تذاكر بنص السعر، دخل كوينز مضاعف، وأولوية بالصف، وتاج ⭐ فوق راسك.",
 	"🎁 <b>الباقات الدائمة:</b> 🍿 بوفيه مفتوح · 🎬 مالك العرض · ✨ أثر نيون · 📢 مايك الإعلان — كلها في المتجر.",
-	"✨ <b>زر «المزيد»</b> (يمين الشاشة): إنجازاتك، تقييم الفيلم، صالة الأركيد، والصورة التذكارية 📸.",
+	"✨ <b>زر «المزيد»</b> (يسار الشاشة): إنجازاتك، تقييم الفيلم، صالة الأركيد، والصورة التذكارية 📸.",
 	"📜 <b>القوانين:</b> احترم الحضور، ابقَ بمقعدك وقت العرض، ولا تحجز مقاعد بدون استخدام. استمتع! 🎉",
 	"💡 <b>نصيحة أخيرة:</b> جدّد تذاكرك باستمرار، جرّب الباقات، وادعُ أصحابك. نشوفك بالقاعة! 👋",
 }
@@ -3018,8 +3016,8 @@ applyPerks = function(data)
 		local b = new("TextButton", {
 			Name = "ShowrunnerTab", Text = "🎬 ابدأ العرض", Font = Enum.Font.GothamBlack, TextSize = 15,
 			TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD, AutoButtonColor = false,
-			LayoutOrder = 2, Size = UDim2.fromOffset(132, 40),
-			Parent = rightDock,
+			LayoutOrder = 6, Size = UDim2.fromOffset(132, 44),
+			Parent = leftDock,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 			new("UIStroke", { Color = CARD, Thickness = 1.5, Transparency = 0.2 }),
@@ -3038,8 +3036,8 @@ applyPerks = function(data)
 		local b = new("TextButton", {
 			Name = "AnnouncerTab", Text = "📢 إعلان", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-			LayoutOrder = 3, Size = UDim2.fromOffset(132, 40),
-			Parent = rightDock,
+			LayoutOrder = 7, Size = UDim2.fromOffset(132, 44),
+			Parent = leftDock,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 			new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.2 }),
@@ -3054,13 +3052,13 @@ applyPerks = function(data)
 	end
 end
 
--- زر «المزيد» (يمين الشاشة) يفتح مركز الإضافات
+-- زر «المزيد» (يسار الشاشة) يفتح مركز الإضافات
 do
 	local moreTab = new("TextButton", {
 		Name = "MoreTab", Text = "✨ المزيد", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT,
 		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-		LayoutOrder = 1, Size = UDim2.fromOffset(126, 44),
-		Parent = rightDock,
+		LayoutOrder = 5, Size = UDim2.fromOffset(132, 46),
+		Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 		new("UIStroke", { Color = PINK, Thickness = 1.5, Transparency = 0.2 }),
