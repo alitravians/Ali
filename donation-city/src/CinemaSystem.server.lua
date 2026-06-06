@@ -662,6 +662,7 @@ local playing = false
 local starting = false
 local stopRequested = false
 local movieEndsAt = 0
+local movieRunId = 0   -- معرّف تشغيل تصاعدي — يستخدمه حارس المهلة للتأكد أنه يصفّر نفس العرض
 local playPrompt = projector and projector:FindFirstChildWhichIsA("ProximityPrompt", true)
 
 local movieSound
@@ -737,7 +738,11 @@ local function playMovie(presser)
 	starting = false  -- العرض بدأ فعلياً: ارفع قفل البدء (يمنع سباق التشغيل المزدوج)
 	stopRequested = false
 	print("[Cinema] ▶ playMovie started" .. (presser and (" by " .. presser.Name) or " (admin)"))
-	if playPrompt then playPrompt.Enabled = false end
+	-- ملاحظة: لا نُعطّل زر البروجكتر أثناء العرض. مع قائمة اختيار المقعد
+	-- (SeatSelection) القائمة نفسها تتعامل مع حالة «العرض جارٍ» (تجلس المتفرّج
+	-- المتأخّر بدل إعادة التشغيل)، وإبقاء الزر مفعّلاً يمنع تعطّل البروجكتر
+	-- نهائياً لو علّق أي شيء داخل هذه الدالة.
+	if playPrompt then playPrompt.Enabled = true end
 	-- اجلس اللاعب الذي ضغط البروجكتر ثم اقفل كل الجالسين
 	if presser then seatPlayer(presser) end
 	task.wait(0.15)
@@ -919,25 +924,42 @@ local function playMovie(presser)
 	playing = false
 end
 
+-- إعادة القاعة لوضع الخمول الطبيعي مهما كان مكان التوقّف (خطأ أو تعليق).
+-- نقطة تنظيف واحدة (finally) تضمن أن البروجكتر والأعلام لا تبقى عالقة أبداً.
+local function resetCinemaIdle()
+	starting = false
+	playing = false
+	stopRequested = false
+	pcall(unlockAll)
+	pcall(function() if movieSound then movieSound:Stop() end end)
+	pcall(function() setGate(false) end)
+	pcall(function() setLights(true) end)
+	pcall(function() setProjector(false) end)
+	pcall(setScreenIdle)
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
+	if playPrompt then playPrompt.Enabled = true end
+end
+
 -- مُشغّل آمن: يضمن أن أعلام البدء/التشغيل (starting/playing) لا تبقى عالقة أبداً حتى لو فشل playMovie.
--- لو حصل خطأ في أي مرحلة، نصفّر العلَمين ونُعيد القاعة لحالتها الطبيعية فلا تتعطّل العروض القادمة.
+-- طبقات الحماية: (1) pcall يلتقط أي خطأ ويصفّر القاعة. (2) حارس مهلة قصوى
+-- يصفّر القاعة قسريّاً لو بقي العرض «شغّالاً» أطول من المدة القصوى + هامش
+-- (يحمي حتى من التعليق الصامت داخل أي yield بلا خطأ).
 local function launchMovie(presser)
 	starting = true
+	movieRunId += 1
+	local myRun = movieRunId
 	task.spawn(function()
 		local ok, err = pcall(playMovie, presser)
 		if not ok then
 			warn("[CinemaSystem] playMovie error: " .. tostring(err))
-			-- تنظيف شامل (finally): صفّر الأعلام وأرجع القاعة لوضع الخمول مهما كان مكان الفشل
-			starting = false
-			playing = false
-			stopRequested = false
-			pcall(unlockAll)
-			pcall(function() setGate(false) end)
-			pcall(function() setLights(true) end)
-			pcall(function() setProjector(false) end)
-			pcall(setScreenIdle)
-			if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
-			if playPrompt then playPrompt.Enabled = true end
+			resetCinemaIdle()
+		end
+	end)
+	-- حارس المهلة القصوى: لو علّق العرض ولم ينتهِ، صفّر القاعة قسريّاً
+	task.delay(CONFIG.MovieMaxSeconds + 45, function()
+		if myRun == movieRunId and (playing or starting) then
+			warn("[CinemaSystem] watchdog: movie exceeded max duration — forcing cinema reset")
+			resetCinemaIdle()
 		end
 	end)
 end
