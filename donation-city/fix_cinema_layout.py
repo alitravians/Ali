@@ -146,17 +146,13 @@ def make_part(name, pos, size, color, material="SmoothPlastic", transparency=0,
         el = etree.SubElement(props, "token"); el.set("name", surf); el.text = "0"
     return item
 
-if tb is not None:
-    # counter base (front of cashier, +Z side at Z=-101.5)
-    tb.append(make_part("CounterBase", (-8, 1.6, -101.5), (11, 3.2, 1.8),
-                        (34, 36, 48), material="SmoothPlastic"))
-    # counter top (overhang, lighter accent)
-    tb.append(make_part("CounterTop", (-8, 3.35, -101.5), (12, 0.3, 2.4),
-                        (120, 90, 60), material="Wood"))
-    # warm accent light strip along the counter front
-    tb.append(make_part("CounterStrip", (-8, 2.3, -100.55), (11, 0.25, 0.1),
-                        (255, 205, 90), material="Neon"))
-    print("TicketBooth: added clean modern counter (base+top+strip)")
+# NOTE: we intentionally do NOT add our own counter parts here. The Cinema
+# building already ships a built-in ticket-booth alcove on the front-left
+# (left wall X≈-23, interior counter rail X≈-14, front glass ticket window).
+# The cashier NPC is seated INSIDE that alcove by CinemaServices.server.lua
+# (target (-18.5, GY, -108), facing +X toward the rail/players), so adding a
+# second counter would clutter the entrance. Keeping TicketBooth empty avoids
+# the overlap the user reported. (make_part is kept above for reference/reuse.)
+_ = make_part  # silence "unused" without changing behavior
 
-tree.write(FILE, xml_declaration=True, encoding="utf-8")
-print("Re-written with counter.")
+print("TicketBooth: left empty — using building's built-in alcove for the booth")

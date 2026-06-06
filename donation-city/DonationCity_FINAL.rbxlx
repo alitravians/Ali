@@ -8091,16 +8091,18 @@ end
 -- نُشغّله في خيط منفصل (task.spawn) حتى لا تُعطّل مهلة WaitForChild — في الحالة
 -- النادرة لغياب الشباك — تهيئة بقية عناصر السينما (لوحة العروض/الطابور/كبار الزوار).
 task.spawn(function()
-	-- موضع الموظف عند كاونتر لوبي السينما (يسار المدخل)،
-	-- مواجهاً اللاعبين القادمين من المدخل (+Z). مبتعد عن بسطة الفشار/الخادم.
-	local bx, bz = -8, -104
+	-- موضع الموظف داخل كشك التذاكر المدمج بالمبنى (الركن الأمامي الأيسر):
+	-- المبنى نفسه فيه كشك جاهز (جدار أيسر X≈-23 + حاجز كاونتر داخلي X≈-14 +
+	-- شبّاك زجاجي أمامي) — فنُجلس الكاشير بداخله مواجهاً الحاجز/اللاعبين (+X)
+	-- بدل إضافة كاونتر يسدّ المدخل. بسطة الفشار على اليمين (X≈15) فلا تداخل.
+	local bx, bz = -18.5, -108
 	local target = Vector3.new(bx, GROUND_Y, bz)
 
-	-- نضع الموظف الجاهز (الجالس على كرسيّه) عند كاونتر اللوبي ونربط زر الشراء به
+	-- نضع الموظف الجاهز (الجالس على كرسيّه) داخل الكشك ونربط زر الشراء به
 	local cashier = buildCashierModel({
 		name = "TicketCashier", tag = "🎟️ موظف التذاكر", subtitle = "حجز ودخول",
 		tagColor = Color3.fromRGB(255, 205, 90),
-		target = target, faceDir = Vector3.new(0, 0, 1),   -- يواجه اللاعبين القادمين من المدخل (+Z)
+		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه الحاجز الداخلي/اللاعبين (+X)
 		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
 		maxDist = 16, onTrigger = openBoxOffice,
 	})
@@ -250689,7 +250691,7 @@ end)
         </CFrame>
       </OptionalCoordinateFrame>
     </Properties>
-    <Item class="Part" referent="RBX21001"><Properties><string name="Name">CounterBase</string><CoordinateFrame name="CFrame"><X>-8</X><Y>1.6</Y><Z>-101.5</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>11</X><Y>3.2</Y><Z>1.8</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">true</bool><float name="Transparency">0</float><Color3uint8 name="Color3uint8">2237488</Color3uint8><token name="Material">256</token><token name="TopSurface">0</token><token name="BottomSurface">0</token></Properties></Item><Item class="Part" referent="RBX21002"><Properties><string name="Name">CounterTop</string><CoordinateFrame name="CFrame"><X>-8</X><Y>3.35</Y><Z>-101.5</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>12</X><Y>0.3</Y><Z>2.4</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">true</bool><float name="Transparency">0</float><Color3uint8 name="Color3uint8">7887420</Color3uint8><token name="Material">512</token><token name="TopSurface">0</token><token name="BottomSurface">0</token></Properties></Item><Item class="Part" referent="RBX21003"><Properties><string name="Name">CounterStrip</string><CoordinateFrame name="CFrame"><X>-8</X><Y>2.3</Y><Z>-100.55</Z><R00>1</R00><R01>0</R01><R02>0</R02><R10>0</R10><R11>1</R11><R12>0</R12><R20>0</R20><R21>0</R21><R22>1</R22></CoordinateFrame><Vector3 name="size"><X>11</X><Y>0.25</Y><Z>0.1</Z></Vector3><bool name="Anchored">true</bool><bool name="CanCollide">true</bool><float name="Transparency">0</float><Color3uint8 name="Color3uint8">16764250</Color3uint8><token name="Material">288</token><token name="TopSurface">0</token><token name="BottomSurface">0</token></Properties></Item></Item>
+    </Item>
   </Item>
 <SharedStrings>
 <SharedString md5="AwYXlQLJfvmfsOtxuDDkjg==">Q1NHUEhTCAAAAAIAKLUv/WBMLx0aAWoJinsxEBBqSwdtA+iMy83rqeyfcrlLm2OKh8ATMDaW
