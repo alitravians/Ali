@@ -434,6 +434,28 @@ print(f"Set CanCollide=false on {passable} door/front-glass parts (entrance pass
 # screen at Z≈-166, width X≈[-28,+27].
 print("Adding functional anchor Parts...")
 
+# Guard against name collisions: CinemaSystem.server.lua locates these by
+# cinema:FindFirstChild(<name>), which returns the FIRST child in document
+# order. If the imported model ships any child with one of these names, the
+# runtime would attach SurfaceGui/ProximityPrompt to the wrong part and the
+# screen/projector would silently break. Rename any such imported part to
+# "<name>Decor" so our functional anchor (appended below) is the only match.
+FUNCTIONAL_ANCHOR_NAMES = frozenset([
+    "Screen", "ScreenFrame", "ScreenWall", "Projector", "GateBarrier",
+    "PopcornStand", "Floor", "Marquee", "InfoBoard", "ScreenWashL",
+    "ScreenWashR", "AisleRunner", "Seats", "CeilingLights",
+])
+_collisions = 0
+for c in list(cinema.iter("Item")):
+    if c is cinema:
+        continue
+    nm = name_of(c)
+    if nm in FUNCTIONAL_ANCHOR_NAMES:
+        set_name(c, nm + "Decor")
+        _collisions += 1
+if _collisions:
+    print(f"  Renamed {_collisions} imported part(s) colliding with functional anchor names → '*Decor'")
+
 # Rotation so a part's Back (+Z) face points world -X (toward the audience).
 # The model's 37 seats face +X (LookVector≈+X) toward the +X wall (X≈27.5),
 # so the Screen/Projector live on the X axis — NOT the -Z wall.

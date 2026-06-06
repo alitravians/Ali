@@ -2783,10 +2783,10 @@ local function playMovie(presser)
 	if marqueeLabel then marqueeLabel.Text = "🔴 العرض جارٍ الآن" end
 
 	-- withTimeout: يشغّل دالة (مثل تحميل الأصول) في خيط منفصل مع مهلة زمنية
-	-- قصوى موحّدة حتى لا يتجمّد العرض إذا كان الأصل غير متاح (بلا إذن /
-	-- معلّق على المراجعة / سيرفر بطيء). نمرّر «ميزانية» المهلة الكلية فلا
-	-- تتراكم المهل عند تحميل عدّة أصول بالتتابع.
-	local PRELOAD_TIMEOUT = 6 -- ثوانٍ كحدّ أقصى لكامل مرحلة تجهيز الأصول
+	-- قصوى حتى لا يتجمّد العرض إذا كان الأصل غير متاح (بلا إذن / معلّق على
+	-- المراجعة / سيرفر بطيء). كل مرحلة (فيديو/سلايد + صوت) تأخذ هذه المهلة
+	-- مستقلّةً؛ والفيديو والسلايد متنافيان فأقصى انتظار عملي ≈ مرحلتين.
+	local PRELOAD_TIMEOUT = 6 -- ثوانٍ كحدّ أقصى لكل مرحلة تجهيز أصول
 	local function withTimeout(timeout, fn)
 		local done = false
 		task.spawn(function()
@@ -2961,6 +2961,9 @@ local function resetCinemaIdle()
 	-- تعمل حلقتان معاً وتتعارضان على الأضواء/البوابة/الشاشة. العرض الجديد يصفّر
 	-- هذا العلَم عند بدايته (stopRequested = false في playMovie) فلا يتأثّر.
 	stopRequested = true
+	-- نُقدّم معرّف العرض كي تخرج أي حلقة playMovie قديمة مبكراً (movieRunId ~= myRun)
+	-- فلا تُكرّر التنظيف بعد أن صفّرنا القاعة هنا.
+	movieRunId += 1
 	pcall(unlockAll)
 	pcall(function() if movieSound then movieSound:Stop() end end)
 	pcall(function() setGate(false) end)
