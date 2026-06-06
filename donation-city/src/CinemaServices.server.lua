@@ -215,16 +215,26 @@ local function applyVipTag(player: Player)
 		if not head or head:FindFirstChild("VipTag") then return end
 		local bb = Instance.new("BillboardGui")
 		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(120, 34)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true
+		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
+		-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
+		local pill = Instance.new("Frame")
+		pill.Size = UDim2.fromScale(1, 1)
+		pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
+		pill.Parent = bb
+		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+		local st = Instance.new("UIStroke")
+		st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
+		local ipad = Instance.new("UIPadding")
+		ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
+		ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
 		local lbl = Instance.new("TextLabel")
 		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(255, 205, 90)
-		lbl.TextStrokeTransparency = 0.3
+		lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
 		lbl.Text = "⭐ VIP"
-		lbl.Parent = bb
+		lbl.Parent = pill
 	end
 	if player.Character then task.spawn(tag, player.Character) end
 	player.CharacterAdded:Connect(function(char) task.spawn(tag, char) end)
@@ -587,16 +597,27 @@ local function refreshBadge(player: Player)
 	if not bb then
 		bb = Instance.new("BillboardGui")
 		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "PassBadge"; bb.Adornee = head; bb.Size = UDim2.fromOffset(150, 30)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0); bb.AlwaysOnTop = true
+		bb.Name = "PassBadge"; bb.Adornee = head; bb.Size = UDim2.fromOffset(170, 36)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
+		-- بطاقة داكنة أنيقة بدل الرموز الطايرة (تنسيق متناسق مع اللعبة)
+		local pill = Instance.new("Frame")
+		pill.Name = "Pill"; pill.Size = UDim2.fromScale(1, 1)
+		pill.BackgroundColor3 = Color3.fromRGB(18, 16, 26); pill.BackgroundTransparency = 0.1
+		pill.Parent = bb
+		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+		local st = Instance.new("UIStroke")
+		st.Color = Color3.fromRGB(255, 205, 90); st.Thickness = 2; st.Transparency = 0.15; st.Parent = pill
+		local ipad = Instance.new("UIPadding")
+		ipad.PaddingLeft = UDim.new(0, 10); ipad.PaddingRight = UDim.new(0, 10)
+		ipad.PaddingTop = UDim.new(0, 4); ipad.PaddingBottom = UDim.new(0, 4); ipad.Parent = pill
 		local lbl = Instance.new("TextLabel")
 		lbl.Name = "L"; lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(255, 205, 90); lbl.TextStrokeTransparency = 0.3
-		lbl.Parent = bb
+		lbl.TextColor3 = Color3.fromRGB(255, 230, 170); lbl.TextStrokeTransparency = 0.4
+		lbl.Parent = pill
 	end
-	local L = bb:FindFirstChild("L")
+	local L = bb:FindFirstChild("L", true)
 	if L then L.Text = table.concat(emojis, " ") end
 end
 

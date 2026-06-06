@@ -364,7 +364,7 @@ end
 ------------------------------------------------------------------------
 local marqueeLabel
 if marquee then
-	local sg = makeSurface(marquee, 24)
+	local sg = makeSurface(marquee, 60)
 	-- إطار داكن بخلفية شبه شفافة لتبرز النص (مثبّت على واجهة المبنى)
 	local bg = Instance.new("Frame")
 	bg.Size = UDim2.fromScale(1, 1)
@@ -395,7 +395,7 @@ end
 -- INFO BOARD (rules + how-to, Arabic RTL)
 ------------------------------------------------------------------------
 if infoBoard then
-	local sg = makeSurface(infoBoard, 22)
+	local sg = makeSurface(infoBoard, 110)
 
 	-- خلفية متدرّجة داكنة + إطار ذهبي مدوّر
 	local pad = Instance.new("Frame")
