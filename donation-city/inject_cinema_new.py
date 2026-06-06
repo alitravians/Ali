@@ -488,13 +488,17 @@ floor = make_part("Floor", (0, 0.45, -133), (55, 0.1, 66),
                   color=(50, 50, 55), transparency=1, can_collide=False)
 cinema.append(floor)
 
-# Marquee — exterior sign above entrance (red neon)
-marquee = make_part("Marquee", (0, 20, -97), (30, 3, 1),
+# Marquee — exterior sign above entrance (red neon), below the FINEST letters
+# Placed at Y=12.5 (above doors, below the model's vertical sign letters at Y15+)
+# Z=-96.5 sits in front of facade so text is visible from the plaza.
+marquee = make_part("Marquee", (0, 12.5, -96.5), (22, 3.2, 0.6),
                     color=(200, 40, 50), transparency=0, material="Neon")
 cinema.append(marquee)
 
-# InfoBoard — exterior information panel (right of entrance)
-info_board = make_part("InfoBoard", (22, 8, -97), (5, 7, 0.4),
+# InfoBoard — exterior information panel (left of entrance path, grounded)
+# At Y=4 the board's bottom sits at ~Y0.5 (ground level), so it doesn't float.
+# Z=-92 places it in the approach plaza where players naturally see it.
+info_board = make_part("InfoBoard", (-14, 4, -92), (5, 7, 0.4),
                        color=(25, 25, 30), transparency=0, material="SmoothPlastic")
 cinema.append(info_board)
 
@@ -546,13 +550,13 @@ else:
 # ─── Step 5d: Add SurfaceGui with cinema name on Marquee ─────────────
 # The red Marquee part above the entrance displays "سينما مدينة التبرعات".
 # CinemaSystem also adds a dynamic SurfaceGui on Marquee (Back/+Z face) at runtime;
-# this static label uses Front/-Z so both sides of the marquee are readable.
+# this static label uses Back/+Z (plaza-facing) too — guarantees text even without runtime.
 sg = etree.SubElement(marquee, "Item")
 sg.set("class", "SurfaceGui")
 sg.set("referent", nref())
 sg_props = etree.SubElement(sg, "Properties")
 el = etree.SubElement(sg_props, "string"); el.set("name", "Name"); el.text = "MarqueeGui"
-el = etree.SubElement(sg_props, "token"); el.set("name", "Face"); el.text = "5"  # Front
+el = etree.SubElement(sg_props, "token"); el.set("name", "Face"); el.text = "2"  # Back (+Z = plaza)
 el = etree.SubElement(sg_props, "bool"); el.set("name", "AutoLocalize"); el.text = "false"
 el = etree.SubElement(sg_props, "Vector2"); el.set("name", "CanvasSize")
 etree.SubElement(el, "X").text = "600"; etree.SubElement(el, "Y").text = "60"

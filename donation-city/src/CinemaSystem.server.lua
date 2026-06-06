@@ -370,8 +370,10 @@ if marquee then
 	marqueeLabel.Size = UDim2.fromScale(1, 1)
 	marqueeLabel.Font = Enum.Font.GothamBlack
 	marqueeLabel.TextScaled = true
-	marqueeLabel.TextColor3 = Color3.fromRGB(40, 20, 0)
-	marqueeLabel.Text = "🎬 سينما مدينة التبرعات"
+	marqueeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	marqueeLabel.TextStrokeColor3 = Color3.fromRGB(40, 0, 0)
+	marqueeLabel.TextStrokeTransparency = 0.3
+	marqueeLabel.Text = "سينما مدينة التبرعات"
 	marqueeLabel.Parent = sg
 end
 
@@ -877,7 +879,7 @@ local function playMovie(presser)
 	setProjector(false)
 	unlockAll()
 	setGate(false)
-	if marqueeLabel then marqueeLabel.Text = "🎬 سينما مدينة التبرعات" end
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
 	setScreenIdle()
 	if playPrompt then playPrompt.Enabled = true end
 	playing = false
@@ -900,7 +902,7 @@ local function launchMovie(presser)
 			pcall(function() setLights(true) end)
 			pcall(function() setProjector(false) end)
 			pcall(setScreenIdle)
-			if marqueeLabel then marqueeLabel.Text = "🎬 سينما مدينة التبرعات" end
+			if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
 			if playPrompt then playPrompt.Enabled = true end
 		end
 	end)
@@ -1763,7 +1765,7 @@ _G.AdminGetMusic = function()
 	local m = ensureLobbyMusic()
 	return { on = m.IsPlaying, volume = m.Volume, hasId = m.SoundId ~= "" }
 end
-local MARQUEE_DEFAULT = "🎬 سينما مدينة التبرعات"
+local MARQUEE_DEFAULT = "سينما مدينة التبرعات"
 local marqueeToken = 0
 _G.AdminSetMarquee = function(text: string)
 	if not (marqueeLabel and type(text) == "string" and #text > 0) then return end
