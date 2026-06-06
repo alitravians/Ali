@@ -547,37 +547,15 @@ if tb is not None:
 else:
     print("WARNING: TicketBooth model not found in Workspace")
 
-# ─── Step 5d: Add SurfaceGui with cinema name on Marquee ─────────────
-# The red Marquee part above the entrance displays "سينما مدينة التبرعات".
-# CinemaSystem also adds a dynamic SurfaceGui on Marquee (Back/+Z face) at runtime;
-# this static label uses Back/+Z (plaza-facing) too — guarantees text even without runtime.
-sg = etree.SubElement(marquee, "Item")
-sg.set("class", "SurfaceGui")
-sg.set("referent", nref())
-sg_props = etree.SubElement(sg, "Properties")
-el = etree.SubElement(sg_props, "string"); el.set("name", "Name"); el.text = "MarqueeGui"
-el = etree.SubElement(sg_props, "token"); el.set("name", "Face"); el.text = "2"  # Back (+Z = plaza)
-el = etree.SubElement(sg_props, "bool"); el.set("name", "AutoLocalize"); el.text = "false"
-el = etree.SubElement(sg_props, "Vector2"); el.set("name", "CanvasSize")
-etree.SubElement(el, "X").text = "600"; etree.SubElement(el, "Y").text = "60"
-# TextLabel child
-tl = etree.SubElement(sg, "Item")
-tl.set("class", "TextLabel")
-tl.set("referent", nref())
-tl_props = etree.SubElement(tl, "Properties")
-el = etree.SubElement(tl_props, "string"); el.set("name", "Name"); el.text = "Title"
-el = etree.SubElement(tl_props, "string"); el.set("name", "Text"); el.text = "سينما مدينة التبرعات"
-el = etree.SubElement(tl_props, "UDim2"); el.set("name", "Size")
-xs = etree.SubElement(el, "XS"); xs.text = "1"; xo = etree.SubElement(el, "XO"); xo.text = "0"
-ys = etree.SubElement(el, "YS"); ys.text = "1"; yo = etree.SubElement(el, "YO"); yo.text = "0"
-el = etree.SubElement(tl_props, "float"); el.set("name", "BackgroundTransparency"); el.text = "1"
-el = etree.SubElement(tl_props, "Color3"); el.set("name", "TextColor3")
-etree.SubElement(el, "R").text = "1"; etree.SubElement(el, "G").text = "1"; etree.SubElement(el, "B").text = "1"
-el = etree.SubElement(tl_props, "bool"); el.set("name", "TextScaled"); el.text = "true"
-el = etree.SubElement(tl_props, "token"); el.set("name", "Font"); el.text = "12"  # GothamBold
-el = etree.SubElement(tl_props, "token"); el.set("name", "TextXAlignment"); el.text = "2"  # Center
-el = etree.SubElement(tl_props, "token"); el.set("name", "TextYAlignment"); el.text = "1"  # Center
-print("Added SurfaceGui 'سينما مدينة التبرعات' on Marquee")
+# ─── Step 5d: (intentionally no static Marquee SurfaceGui) ────────────
+# The red Marquee text "سينما مدينة التبرعات" is created at RUNTIME by
+# CinemaSystem.server.lua (makeSurface → SurfaceGui "Display" on the Back/+Z
+# face, white TextLabel). We deliberately do NOT bake a second static
+# SurfaceGui here: two transparent labels on the same face overlap, and during
+# movie playback the runtime label switches to "العرض جارٍ الآن" while a static
+# label would keep showing the cinema name — rendering both texts on top of each
+# other (unreadable). The runtime script is the single source of the marquee text.
+print("Marquee text is handled at runtime by CinemaSystem (no static SurfaceGui baked)")
 
 # ─── Step 5b: Merge missing SharedString definitions ──────────────────
 # Injected parts (MeshParts/Unions) reference SharedStrings (PhysicalConfigData,
