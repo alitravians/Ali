@@ -3042,8 +3042,12 @@ local function seatPriceFor(player)
 end
 -- هل اللاعب من الإدارة (مالك/أدمن)؟ الإدارة تدخل العرض مجاناً دائماً
 -- لتشغيل/تجربة الفيلم بلا حاجة كوينز أو تذاكر.
+-- يشمل: المالك (CONFIG.AdminIds عبر _G.IsGameAdmin) + من رتبته «أدمن» في نظام الرتب
+-- (عبر _G.GetChatRank). المشرف/الطاقم (mod/staff) لا يدخلون مجاناً.
 local function isCinemaAdmin(player)
-	return (_G.IsGameAdmin and _G.IsGameAdmin(player)) == true
+	if (_G.IsGameAdmin and _G.IsGameAdmin(player)) == true then return true end
+	local rank = _G.GetChatRank and _G.GetChatRank(player)
+	return rank == "owner" or rank == "admin"
 end
 -- يخصم وسيلة الدفع المختارة (يتحقق من الكفاية). يرجّع true إذا نجح.
 local function paySeat(player, method)
