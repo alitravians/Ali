@@ -215,16 +215,26 @@ local function applyVipTag(player: Player)
 		if not head or head:FindFirstChild("VipTag") then return end
 		local bb = Instance.new("BillboardGui")
 		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(120, 34)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true
+		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
+		-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
+		local pill = Instance.new("Frame")
+		pill.Size = UDim2.fromScale(1, 1)
+		pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
+		pill.Parent = bb
+		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+		local st = Instance.new("UIStroke")
+		st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
+		local ipad = Instance.new("UIPadding")
+		ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
+		ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
 		local lbl = Instance.new("TextLabel")
 		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(255, 205, 90)
-		lbl.TextStrokeTransparency = 0.3
+		lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
 		lbl.Text = "⭐ VIP"
-		lbl.Parent = bb
+		lbl.Parent = pill
 	end
 	if player.Character then task.spawn(tag, player.Character) end
 	player.CharacterAdded:Connect(function(char) task.spawn(tag, char) end)
@@ -241,7 +251,7 @@ local function grantVip(player: Player, announce: boolean?): boolean
 	if sendPerks then sendPerks(player) end  -- 📢 يظهر زر الإعلان فوراً لعضو VIP الجديد
 	pcall(function() saveCoins(player.UserId) end)
 	if announce ~= false and _G.NotifyPlayer then
-		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — لاونج خاص، تذاكر بنص السعر، دخل مضاعف، وتاج ذهبي.")
+		_G.NotifyPlayer(player, "⭐ مبروك! صرت عضو VIP — تذاكر بنص السعر، دخل مضاعف، أولوية بالصف، وتاج ذهبي.")
 	end
 	return true
 end
@@ -587,16 +597,27 @@ local function refreshBadge(player: Player)
 	if not bb then
 		bb = Instance.new("BillboardGui")
 		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "PassBadge"; bb.Adornee = head; bb.Size = UDim2.fromOffset(150, 30)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.4, 0); bb.AlwaysOnTop = true
+		bb.Name = "PassBadge"; bb.Adornee = head; bb.Size = UDim2.fromOffset(170, 36)
+		bb.StudsOffsetWorldSpace = Vector3.new(0, 3.6, 0); bb.AlwaysOnTop = true
 		bb.Parent = head
+		-- بطاقة داكنة أنيقة بدل الرموز الطايرة (تنسيق متناسق مع اللعبة)
+		local pill = Instance.new("Frame")
+		pill.Name = "Pill"; pill.Size = UDim2.fromScale(1, 1)
+		pill.BackgroundColor3 = Color3.fromRGB(18, 16, 26); pill.BackgroundTransparency = 0.1
+		pill.Parent = bb
+		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+		local st = Instance.new("UIStroke")
+		st.Color = Color3.fromRGB(255, 205, 90); st.Thickness = 2; st.Transparency = 0.15; st.Parent = pill
+		local ipad = Instance.new("UIPadding")
+		ipad.PaddingLeft = UDim.new(0, 10); ipad.PaddingRight = UDim.new(0, 10)
+		ipad.PaddingTop = UDim.new(0, 4); ipad.PaddingBottom = UDim.new(0, 4); ipad.Parent = pill
 		local lbl = Instance.new("TextLabel")
 		lbl.Name = "L"; lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(255, 205, 90); lbl.TextStrokeTransparency = 0.3
-		lbl.Parent = bb
+		lbl.TextColor3 = Color3.fromRGB(255, 230, 170); lbl.TextStrokeTransparency = 0.4
+		lbl.Parent = pill
 	end
-	local L = bb:FindFirstChild("L")
+	local L = bb:FindFirstChild("L", true)
 	if L then L.Text = table.concat(emojis, " ") end
 end
 
@@ -2411,8 +2432,8 @@ end
 -- featured: العنصر المميّز الذي يظهر في بانر العرض الكبير (Hero) بأعلى المتجر
 local STORE_ITEMS = {
 	{ kind = "gamepass", id = CONFIG.SpeedGamePassId,      name = "⚡ سرعة البرق",     price = 60,  emoji = "⚡", cat = "speed",  featured = true, desc = "تحكّم بسرعة مشيك وزِدها عبر شريط تمرير خاص داخل المتجر — مشتراة مرة وتبقى لك للأبد" },
-	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "لاونج خاص · تذاكر بنص السعر · دخل مضاعف · تاج ذهبي · وجبة مجانية" },
-	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + أصناف حصرية" },
+	{ kind = "gamepass", id = CONFIG.VipGamePassId,    name = "⭐ عضوية VIP",        price = 149, emoji = "⭐", cat = "packs", desc = "تذاكر بنص السعر · دخل مضاعف · أولوية بالصف · تاج ذهبي" },
+	{ kind = "gamepass", id = CONFIG.BuffetGamePassId,     name = "🍿 بوفيه مفتوح",   price = 99,  emoji = "🍿", cat = "packs", desc = "أكل ومشروب مجاني بلا حدود + شارة «بوفيه مفتوح» مميزة" },
 	{ kind = "gamepass", id = CONFIG.ShowrunnerGamePassId, name = "🎬 مالك العرض",    price = 199, emoji = "🎬", cat = "packs", desc = "ابدأ أي فيلم بأي وقت + زر تحكّم خاص" },
 	{ kind = "gamepass", id = CONFIG.NeonTrailGamePassId,  name = "✨ أثر نيون",       price = 79,  emoji = "✨", cat = "packs", desc = "توهّج نيون حصري سماوي↔وردي يتبع شخصيتك" },
 	{ kind = "gamepass", id = CONFIG.AnnouncerGamePassId,  name = "📢 مايك الإعلان",   price = 89,  emoji = "📢", cat = "packs", desc = "بثّ رسائل إعلان تظهر لكل اللاعبين" },
@@ -2665,6 +2686,74 @@ end
 -- ونضعه خلف كاونتر الشباك مواجهاً اللاعبين عبر النافذة، كقطعة ديكور ثابتة. لا منطق
 -- داخل الموديل — زر الشراء + لوحة الاسم يُربطان هنا في سكربتنا. التموضع يُحسب وقت التشغيل.
 local CASHIER_SCALE = 0.5    -- تصغير الموديل (أصله ~12 ستد) لحجم معتدل يناسب خلف الكاونتر
+
+-- 🎟️ لوحة اسم مدمجة وأنيقة — نفس تصميم CinemaSystem ليطلع الكاشير موحّداً مع المرشد والخادم.
+local function makeCinemaNameTag(head, opts)
+	-- 🎟️ لوحة اسم مدمجة وأنيقة فوق رأس شخصيات السينما: بطاقة زجاجية داكنة صغيرة
+	-- بحواف دائرية + شريط لون الدور على الطرف (RTL) + اسم الدور + وصف صغير.
+	-- صُمّمت لتكون متناسقة وغير مزدحمة وتختفي من بعيد (MaxDistance) فلا تشوّش المشهد.
+	local accent = opts.tagColor or Color3.fromRGB(255, 205, 90)
+	local title  = opts.tag or ""
+	local sub    = opts.subtitle or ""
+	local DARK   = Color3.fromRGB(18, 20, 28)
+	local DARK2  = Color3.fromRGB(34, 38, 52)
+
+	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	bb.Name = "NameTag"; bb.Adornee = head
+	bb.Size = UDim2.fromOffset(170, 50)         -- أصغر بكثير من السابق (كان 252×94)
+	bb.StudsOffset = Vector3.new(0, opts.studsY or 2.6, 0)
+	bb.MaxDistance = 60                          -- تختفي من بعيد فلا تزحم الكاميرا
+	bb.AlwaysOnTop = true; bb.Parent = head
+
+	-- هالة ناعمة خفيفة خلف البطاقة (لمسة بلون الدور)
+	local glow = Instance.new("Frame")
+	glow.Name = "Glow"; glow.Size = UDim2.new(1, 8, 1, 8)
+	glow.Position = UDim2.new(0, -4, 0, -4)
+	glow.BackgroundColor3 = accent; glow.BackgroundTransparency = 0.86
+	glow.BorderSizePixel = 0; glow.ZIndex = 0; glow.Parent = bb
+	Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
+
+	-- جسم البطاقة الزجاجي (تدرّج داكن + حواف دائرية + إطار رفيع بلون الدور)
+	local card = Instance.new("Frame")
+	card.Name = "Card"; card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = DARK; card.BackgroundTransparency = 0.08
+	card.BorderSizePixel = 0; card.ZIndex = 1; card.Parent = bb
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new(DARK2, DARK); grad.Rotation = 90; grad.Parent = card
+	local cs = Instance.new("UIStroke")
+	cs.Color = accent; cs.Thickness = 1.25; cs.Transparency = 0.25; cs.Parent = card
+
+	-- شريط لون الدور العمودي على الطرف الأيمن (RTL) — هوية أنيقة بسيطة
+	local bar = Instance.new("Frame")
+	bar.Name = "AccentBar"; bar.AnchorPoint = Vector2.new(1, 0.5)
+	bar.Position = UDim2.new(1, -7, 0.5, 0); bar.Size = UDim2.new(0, 4, 1, -16)
+	bar.BackgroundColor3 = accent; bar.BorderSizePixel = 0; bar.ZIndex = 3; bar.Parent = card
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+	-- اسم الدور (سطر واحد، بلون الدور، محاذاة لليمين RTL)
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.Name = "Title"; titleLbl.BackgroundTransparency = 1
+	titleLbl.Position = UDim2.new(0, 10, 0, 7); titleLbl.Size = UDim2.new(1, -28, 0, 20)
+	titleLbl.Font = Enum.Font.GothamBold; titleLbl.Text = title
+	titleLbl.TextColor3 = accent; titleLbl.TextXAlignment = Enum.TextXAlignment.Right
+	titleLbl.TextScaled = true; titleLbl.ZIndex = 2; titleLbl.Parent = card
+	Instance.new("UITextSizeConstraint", titleLbl).MaxTextSize = 16
+
+	-- وصف الدور (سطر صغير أسفل الاسم، فاتح خافت)
+	local subLbl = Instance.new("TextLabel")
+	subLbl.Name = "Subtitle"; subLbl.BackgroundTransparency = 1
+	subLbl.Position = UDim2.new(0, 10, 0, 28); subLbl.Size = UDim2.new(1, -28, 0, 15)
+	subLbl.Font = Enum.Font.Gotham; subLbl.Text = sub
+	subLbl.TextColor3 = Color3.fromRGB(205, 210, 225); subLbl.TextTransparency = 0.1
+	subLbl.TextXAlignment = Enum.TextXAlignment.Right
+	subLbl.TextScaled = true; subLbl.ZIndex = 2; subLbl.Parent = card
+	Instance.new("UITextSizeConstraint", subLbl).MaxTextSize = 12
+
+	return bb
+end
+
 local function buildCashierModel(opts)
 	-- ننتظر القالب والشباك حتى لو تأخّر تحميلهما (حماية من سباق التهيئة) بمهلة قصيرة
 	local template = ServerScriptService:WaitForChild("CashierModel", 10)
@@ -2714,27 +2803,27 @@ local function buildCashierModel(opts)
 	local from = Vector3.new(target.X, target.Y + 8, target.Z)
 	local hit = Workspace:Raycast(from, Vector3.new(0, -30, 0), rp)
 	local bcf, bsize = model:GetBoundingBox()
-	local floorY = hit and hit.Position.Y or target.Y
+	-- نقبل ارتفاع الإصابة فقط إذا كان قريباً من مستوى الأرض (±3 ستد) حتى لا يستقر
+	-- الكاشير فوق سقف/كاونتر داخلي لو اعترض الشعاعَ أي مجسّم علوي. خلاف ذلك نرجع
+	-- لمستوى الأرض GROUND_Y — ضمان جذري بعدم الطيران فوق أي هندسة داخلية.
+	local floorY = target.Y
+	if hit and math.abs(hit.Position.Y - GROUND_Y) <= 3 then
+		floorY = hit.Position.Y
+	end
 	local lift = floorY - (bcf.Position.Y - bsize.Y / 2)
 	model:PivotTo(CFrame.new(0, lift, 0) * model:GetPivot())
 
 	model.Parent = booth
 
-	-- لوحة الاسم فوق الرأس (أعلى قطعة)
+	-- لوحة الاسم فوق الرأس (أعلى قطعة) — تنسيق «تذكرة سينما»
+	-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
 	local head = topPart or biggest
 	if head then
-		local bb = Instance.new("BillboardGui")
-		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-		-- ارتفاع اللوحة محسوب من حجم الرأس الفعلي (بعد ScaleTo) فلا تطفو عالياً عند التصغير
-		bb.StudsOffset = Vector3.new(0, head.Size.Y / 2 + 0.6, 0)
-		bb.AlwaysOnTop = true; bb.Parent = head
-		local tagLbl = Instance.new("TextLabel")
-		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
-		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true
-		tagLbl.Text = opts.tag or "🎟️ موظف التذاكر"
-		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
-		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+		makeCinemaNameTag(head, {
+			tag = opts.tag or "موظف التذاكر", subtitle = opts.subtitle or "حجز ودخول",
+			tagColor = opts.tagColor or Color3.fromRGB(255, 205, 90),
+			studsY = head.Size.Y / 2 + 0.9,
+		})
 	end
 
 	-- زر التفاعل: التحدث مع الكاشير يفتح شباك التذاكر (يُربط بأكبر قطعة في الموديل)
@@ -2759,16 +2848,18 @@ end
 -- نُشغّله في خيط منفصل (task.spawn) حتى لا تُعطّل مهلة WaitForChild — في الحالة
 -- النادرة لغياب الشباك — تهيئة بقية عناصر السينما (لوحة العروض/الطابور/كبار الزوار).
 task.spawn(function()
-	-- موضع الموظف خلف الكاونتر (نافذة الشباك على المحور +X عند x≈-8.6)، في منتصف
-	-- الشباك تقريباً، مواجهاً اللاعبين الواقفين أمام النافذة (+X).
-	local bx, bz = -12.5, -99.7
+	-- موضع الموظف داخل كشك التذاكر المدمج بالمبنى (الركن الأمامي الأيسر):
+	-- المبنى نفسه فيه كشك جاهز (جدار أيسر X≈-23 + حاجز كاونتر داخلي X≈-14 +
+	-- شبّاك زجاجي أمامي) — فنُجلس الكاشير بداخله مواجهاً الحاجز/اللاعبين (+X)
+	-- بدل إضافة كاونتر يسدّ المدخل. بسطة الفشار على اليمين (X≈15) فلا تداخل.
+	local bx, bz = -18.5, -108
 	local target = Vector3.new(bx, GROUND_Y, bz)
 
-	-- نضع الموظف الجاهز (الجالس على كرسيّه) خلف الكاونتر ونربط زر الشراء به (الأكثر واقعية)
+	-- نضع الموظف الجاهز (الجالس على كرسيّه) داخل الكشك ونربط زر الشراء به
 	local cashier = buildCashierModel({
-		name = "TicketCashier", tag = "🎟️ موظف التذاكر",
+		name = "TicketCashier", tag = "موظف التذاكر", subtitle = "حجز ودخول",
 		tagColor = Color3.fromRGB(255, 205, 90),
-		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه نافذة الشباك/اللاعبين (+X)
+		target = target, faceDir = Vector3.new(1, 0, 0),   -- يواجه الحاجز الداخلي/اللاعبين (+X)
 		promptText = "شبّاك التذاكر", promptObj = "اشترِ تذكرة",
 		maxDist = 16, onTrigger = openBoxOffice,
 	})
@@ -2935,69 +3026,7 @@ do
 	prompt.Triggered:Connect(joinQueue)
 end
 
-------------------------------------------------------------------------
--- لاونج VIP — مقاعد ذهبية فاخرة + وجبة VIP مجانية (لأعضاء VIP فقط)
-------------------------------------------------------------------------
-do
-	local lx, lz = -42, -100
-	local floor = part("VipLoungeFloor", Vector3.new(16, 1, 12), Vector3.new(lx, GROUND_Y + 0.5, lz), Color3.fromRGB(28, 20, 8), Enum.Material.WoodPlanks)
-	local rug = part("VipLoungeRug", Vector3.new(14, 0.12, 10), Vector3.new(lx, GROUND_Y + 1.06, lz), GOLD, Enum.Material.Neon)
-	rug.CanCollide = false
-	for _, ox in ipairs({ -7, 7 }) do
-		for _, oz in ipairs({ -5.5, 5.5 }) do
-			part("VipPost", Vector3.new(0.6, 4, 0.6), Vector3.new(lx + ox, GROUND_Y + 3, lz + oz), GOLD, Enum.Material.Neon)
-		end
-	end
-	local sign = part("VipSign", Vector3.new(10, 2.4, 0.4), Vector3.new(lx, GROUND_Y + 7, lz - 5.9), PANEL)
-	part("VipSignTrim", Vector3.new(10.4, 0.3, 0.55), Vector3.new(lx, GROUND_Y + 8.4, lz - 5.9), GOLD, Enum.Material.Neon)
-	local sg = surface(sign, Enum.NormalId.Front)
-	local l = Instance.new("TextLabel")
-	l.BackgroundTransparency = 1; l.Size = UDim2.fromScale(1, 1); l.Font = Enum.Font.GothamBlack
-	l.TextScaled = true; l.RichText = true; l.TextColor3 = GOLD; l.Text = "⭐ لاونج VIP"; l.Parent = sg
-
-	local function vipSeat(px, pz)
-		local seat = Instance.new("Seat")
-		seat.Name = "VipSeat"; seat.Anchored = true; seat.CanCollide = true
-		seat.Size = Vector3.new(3, 1.4, 3); seat.Color = GOLD; seat.Material = Enum.Material.Neon
-		seat.CFrame = CFrame.new(px, GROUND_Y + 2.1, pz)
-		seat.TopSurface = Enum.SurfaceType.Smooth
-		seat.Parent = floor.Parent
-		local back = Instance.new("Part")
-		back.Anchored = true; back.CanCollide = false; back.Size = Vector3.new(3, 2.6, 0.5)
-		back.Color = Color3.fromRGB(120, 86, 20); back.Material = Enum.Material.SmoothPlastic
-		back.CFrame = CFrame.new(px, GROUND_Y + 3.2, pz + 1.25); back.Parent = services
-		seat:GetPropertyChangedSignal("Occupant"):Connect(function()
-			local occ = seat.Occupant
-			if not occ then return end
-			local pl = Players:GetPlayerFromCharacter(occ.Parent)
-			if pl and not _G.IsVIP(pl) then
-				occ.Sit = false
-				notify(pl, "⭐ لاونج VIP لأعضاء VIP فقط — ترقَّ من شبّاك التذاكر.")
-			end
-		end)
-		return seat
-	end
-	vipSeat(lx - 4.5, lz + 1); vipSeat(lx, lz + 1); vipSeat(lx + 4.5, lz + 1)
-
-	-- موزّع الوجبة الخاصة (فشار + مشروب مجاناً لأعضاء VIP)
-	local snack = part("VipSnackBar", Vector3.new(5, 3, 2), Vector3.new(lx, GROUND_Y + 2, lz - 4.5), Color3.fromRGB(60, 44, 14), Enum.Material.Metal)
-	local sp = Instance.new("ProximityPrompt")
-	sp.ActionText = "وجبة VIP"; sp.ObjectText = "احصل على الوجبة الخاصة"
-	sp.KeyboardKeyCode = Enum.KeyCode.E; sp.HoldDuration = 0
-	sp.MaxActivationDistance = 10; sp.RequiresLineOfSight = false; sp.Parent = snack
-	sp.Triggered:Connect(function(player)
-		local hasBuffet = _G.OwnsCinemaPass and _G.OwnsCinemaPass(player, "buffet")
-		if not (_G.IsVIP(player) or hasBuffet) then
-			notify(player, "⭐ الوجبة الخاصة لأعضاء VIP أو حاملي باقة «بوفيه مفتوح» — ترقَّ من الشبّاك أو المتجر.")
-			return
-		end
-		if _G.GiveCinemaFood and _G.GiveCinemaFood(player) then
-			notify(player, hasBuffet and "🍿 بوفيه مفتوح: فشار ومشروب مجاناً — بالهنا والشفا!" or "⭐ وجبة VIP الخاصة: فشار ومشروب — بالهنا والشفا!")
-		else
-			notify(player, "🙂 معك الوجبة بالفعل، استمتع!")
-		end
-	end)
-end
+-- [REMOVED] لاونج VIP — حُذف بطلب صريح: إضاءته القوية كانت تخرّب المكان.
 
 -- تحديث لوحة العروض حسب حالة السينما + كشف انتهاء العرض لاستدعاء الصف
 local function fmt(sec: number): string

@@ -45,7 +45,7 @@ local CONFIG = {
 	-- صوت الفيلم: مفعّل بصوت افتراضي. للأفضل والضمان ارفع صوتك من
 	-- create.roblox.com → Audio وضع رقمه هنا (الأصوات المرفوعة من حسابك مضمونة).
 	-- عند استخدام VideoId: لو MovieSoundId=0 يُشغّل صوت الفيديو نفسه، وإلا يُشغّل هذا الصوت متزامناً.
-	MovieSoundId  = 103107585005213,  -- صوت الفيلم الذي اختاره المستخدم (0 = مغلق) — لازم منح التجربة إذن الصوت
+	MovieSoundId  = 93848551702851,  -- صوت العرض الذي اختاره المستخدم (0 = مغلق) — لازم منح التجربة إذن الصوت
 	PopcornSoundId = 0,          -- صوت قرمشة الفشار (0 = مغلق) ضع رقم asset لتفعيله
 	PopcornBites   = 8,          -- عدد القضمات في علبة الفشار الواحدة
 	LobbyMusicId   = 0,          -- موسيقى اللوبي (ضع رقم Audio asset مرفوع من حسابك، 0 = بدون)
@@ -92,9 +92,13 @@ local seatsModel = get("Seats")
 local function getSeats()
 	local list = {}
 	if seatsModel then
-		for _, chair in ipairs(seatsModel:GetChildren()) do
-			local seat = chair:FindFirstChildWhichIsA("Seat")
-			if seat then list[#list + 1] = seat end
+		for _, child in ipairs(seatsModel:GetChildren()) do
+			if child:IsA("Seat") then
+				list[#list + 1] = child
+			else
+				local seat = child:FindFirstChildWhichIsA("Seat")
+				if seat then list[#list + 1] = seat end
+			end
 		end
 	end
 	return list
@@ -360,22 +364,38 @@ end
 ------------------------------------------------------------------------
 local marqueeLabel
 if marquee then
-	local sg = makeSurface(marquee, 20)
+	local sg = makeSurface(marquee, 60)
+	-- إطار داكن بخلفية شبه شفافة لتبرز النص (مثبّت على واجهة المبنى)
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.fromScale(1, 1)
+	bg.BackgroundColor3 = Color3.fromRGB(20, 5, 5)
+	bg.BackgroundTransparency = 0.3
+	bg.BorderSizePixel = 0
+	bg.Parent = sg
+	local corner = Instance.new("UICorner"); corner.CornerRadius = UDim.new(0, 6); corner.Parent = bg
+	-- هوامش داخلية: النص لا يلمس الأطراف
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0.04, 0); pad.PaddingRight = UDim.new(0.04, 0)
+	pad.PaddingTop = UDim.new(0.1, 0); pad.PaddingBottom = UDim.new(0.1, 0)
+	pad.Parent = bg
 	marqueeLabel = Instance.new("TextLabel")
 	marqueeLabel.BackgroundTransparency = 1
 	marqueeLabel.Size = UDim2.fromScale(1, 1)
 	marqueeLabel.Font = Enum.Font.GothamBlack
 	marqueeLabel.TextScaled = true
-	marqueeLabel.TextColor3 = Color3.fromRGB(40, 20, 0)
-	marqueeLabel.Text = "🎬 سينما مدينة التبرعات"
-	marqueeLabel.Parent = sg
+	marqueeLabel.TextWrapped = false
+	marqueeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	marqueeLabel.TextStrokeColor3 = Color3.fromRGB(40, 0, 0)
+	marqueeLabel.TextStrokeTransparency = 0.2
+	marqueeLabel.Text = "سينما مدينة التبرعات"
+	marqueeLabel.Parent = bg
 end
 
 ------------------------------------------------------------------------
 -- INFO BOARD (rules + how-to, Arabic RTL)
 ------------------------------------------------------------------------
 if infoBoard then
-	local sg = makeSurface(infoBoard, 22)
+	local sg = makeSurface(infoBoard, 110)
 
 	-- خلفية متدرّجة داكنة + إطار ذهبي مدوّر
 	local pad = Instance.new("Frame")
@@ -523,10 +543,9 @@ end
 
 ------------------------------------------------------------------------
 -- HALL AMBIANCE — إضاءة كاملة وقت الخمول + نيون جدران/ممرات
--- (مستوحى من سينمات حقيقية: ألواح نيون حمراء/زرقاء + ممرات مضيئة)
+-- (مستوحى من سينمات حقيقية: ألواح نيون حمراء خافتة + ممرات مضيئة — بلا أزرق/سماوي)
 ------------------------------------------------------------------------
 local NEON_RED  = Color3.fromRGB(255, 64, 70)
-local NEON_BLUE = Color3.fromRGB(80, 175, 255)
 local AISLE_GLOW = Color3.fromRGB(255, 226, 170)
 
 local function buildHallAmbiance()
@@ -556,19 +575,16 @@ local function buildHallAmbiance()
 		return p
 	end
 
-	-- ألواح نيون على الجدران الجانبية (يسار أحمر، يمين أزرق) — صفّان: منتصف وأعلى
+	-- شريط نيون خافت أحمر على الجدارين الجانبيين فقط (لا أزرق/سماوي إطلاقاً) —
+	-- منخفض قرب مستوى المقاعد وبإضاءة خفيفة، فلا يتوهّج كشريط يغطّي الشاشة.
+	-- الإضاءة الأساسية للقاعة من أضواء السقف (أسفل) لا من هذه الألواح.
 	local stripLen = fs.Z - 14
-	neon(Vector3.new(0.5, 1.6, stripLen), Vector3.new(-wallX, topY + 8,  cz), NEON_RED,  1.4, 24)
-	neon(Vector3.new(0.5, 1.0, stripLen), Vector3.new(-wallX, topY + 16, cz), NEON_RED,  0.7, 18)
-	neon(Vector3.new(0.5, 1.6, stripLen), Vector3.new( wallX, topY + 8,  cz), NEON_BLUE, 1.4, 24)
-	neon(Vector3.new(0.5, 1.0, stripLen), Vector3.new( wallX, topY + 16, cz), NEON_BLUE, 0.7, 18)
+	neon(Vector3.new(0.4, 0.5, stripLen), Vector3.new(-wallX, topY + 3, cz), NEON_RED, 0.4, 10)
+	neon(Vector3.new(0.4, 0.5, stripLen), Vector3.new( wallX, topY + 3, cz), NEON_RED, 0.4, 10)
 
-	-- شريط نيون أفقي خلف الشاشة لإطار مضيء
-	if screen then
-		neon(Vector3.new(screen.Size.X + 4, 0.6, 0.6),
-			screen.Position + Vector3.new(0, screen.Size.Y / 2 + 1.5, 1),
-			NEON_BLUE, 0.6, 14)
-	end
+	-- [REMOVED] الشريط الأفقي فوق الشاشة + الألواح الزرقاء (NEON_BLUE) جانبياً —
+	-- كان توهّجها (Neon + Bloom الكبير) يتمدّد لشريط سماوي عريض يغطّي اسم السينما
+	-- على الشاشة. أُزيل كل النيون الأزرق نهائياً وخُفّف الـBloom (أدناه).
 
 	-- ممرات مضيئة على امتداد القاعة (إضاءة أمان تبقى خافتة حتى أثناء الفيلم)
 	for _, ax in ipairs({ -9, 9 }) do
@@ -595,8 +611,10 @@ end
 local function setupPostFX()
 	local Lighting = game:GetService("Lighting")
 	if not Lighting:FindFirstChild("CinemaBloom") then
+		-- Bloom عام للعالم: خفّضناه قليلاً فقط (Size 24→18) لتقليل التمدّد دون تغيير
+		-- مظهر بقية المدينة. الحلّ الجذري للشريط السماوي هو حذف ألواح النيون الزرقاء أعلاه.
 		local bloom = Instance.new("BloomEffect")
-		bloom.Name = "CinemaBloom"; bloom.Intensity = 0.7; bloom.Size = 24; bloom.Threshold = 1.5
+		bloom.Name = "CinemaBloom"; bloom.Intensity = 0.6; bloom.Size = 18; bloom.Threshold = 1.6
 		bloom.Parent = Lighting
 	end
 	if not Lighting:FindFirstChild("CinemaColor") then
@@ -644,6 +662,7 @@ local playing = false
 local starting = false
 local stopRequested = false
 local movieEndsAt = 0
+local movieRunId = 0   -- معرّف تشغيل تصاعدي — يستخدمه حارس المهلة للتأكد أنه يصفّر نفس العرض
 local playPrompt = projector and projector:FindFirstChildWhichIsA("ProximityPrompt", true)
 
 local movieSound
@@ -718,7 +737,13 @@ local function playMovie(presser)
 	playing = true
 	starting = false  -- العرض بدأ فعلياً: ارفع قفل البدء (يمنع سباق التشغيل المزدوج)
 	stopRequested = false
-	if playPrompt then playPrompt.Enabled = false end
+	local myRun = movieRunId  -- معرّف هذا العرض: لو بدأ عرضٌ أحدث، تتوقّف هذه الحلقة ولا تلمس الحالة المشتركة
+	print("[Cinema] ▶ playMovie started" .. (presser and (" by " .. presser.Name) or " (admin)"))
+	-- ملاحظة: لا نُعطّل زر البروجكتر أثناء العرض. مع قائمة اختيار المقعد
+	-- (SeatSelection) القائمة نفسها تتعامل مع حالة «العرض جارٍ» (تجلس المتفرّج
+	-- المتأخّر بدل إعادة التشغيل)، وإبقاء الزر مفعّلاً يمنع تعطّل البروجكتر
+	-- نهائياً لو علّق أي شيء داخل هذه الدالة.
+	if playPrompt then playPrompt.Enabled = true end
 	-- اجلس اللاعب الذي ضغط البروجكتر ثم اقفل كل الجالسين
 	if presser then seatPlayer(presser) end
 	task.wait(0.15)
@@ -734,11 +759,31 @@ local function playMovie(presser)
 	setProjector(true)
 	if marqueeLabel then marqueeLabel.Text = "🔴 العرض جارٍ الآن" end
 
+	-- withTimeout: يشغّل دالة (مثل تحميل الأصول) في خيط منفصل مع مهلة زمنية
+	-- قصوى حتى لا يتجمّد العرض إذا كان الأصل غير متاح (بلا إذن / معلّق على
+	-- المراجعة / سيرفر بطيء). كل مرحلة (فيديو/سلايد + صوت) تأخذ هذه المهلة
+	-- مستقلّةً؛ والفيديو والسلايد متنافيان فأقصى انتظار عملي ≈ مرحلتين.
+	local PRELOAD_TIMEOUT = 6 -- ثوانٍ كحدّ أقصى لكل مرحلة تجهيز أصول
+	local function withTimeout(timeout, fn)
+		local done = false
+		task.spawn(function()
+			pcall(fn)
+			done = true
+		end)
+		local t0 = os.clock()
+		while not done and (os.clock() - t0) < timeout do
+			task.wait(0.1)
+		end
+		if not done then
+			warn("[Cinema] preload timed out after " .. timeout .. "s — continuing without asset")
+		end
+	end
+
 	-- جهّز الفيديو الحقيقي إن وُجد
 	local hasVideo = (CONFIG.VideoId ~= 0) and (screenVideo ~= nil)
 	if hasVideo then
 		screenVideo.Video = "rbxassetid://" .. tostring(CONFIG.VideoId)
-		pcall(function() ContentProvider:PreloadAsync({ screenVideo }) end)
+		withTimeout(PRELOAD_TIMEOUT, function() ContentProvider:PreloadAsync({ screenVideo }) end)
 	end
 
 	-- جهّز السلايد-شو (لقطات حقيقية كـ Decals) إن وُجدت ولم يكن هناك فيديو
@@ -751,7 +796,8 @@ local function playMovie(presser)
 	end
 	local hasSlides = (not hasVideo) and (#slides > 0) and (#screenSlides >= 2)
 	if hasSlides then
-		pcall(function()
+		-- مهلة واحدة لكامل دفعة اللقطات (لا تتراكم 5ث لكل لقطة)
+		withTimeout(PRELOAD_TIMEOUT, function()
 			local probe = screenSlides[1]
 			for _, id in ipairs(slides) do
 				probe.Image = "rbxassetid://" .. tostring(id)
@@ -769,11 +815,11 @@ local function playMovie(presser)
 	-- video the audience would hear nothing. So gate the mute on a real load.
 	local movieSoundOk = false
 	if movieSound then
-		pcall(function() ContentProvider:PreloadAsync({ movieSound }) end)
+		withTimeout(PRELOAD_TIMEOUT, function() ContentProvider:PreloadAsync({ movieSound }) end)
 		movieSoundOk = movieSound.IsLoaded
 		if not movieSoundOk then
-			warn(("[Cinema] movie audio rbxassetid://%s failed to load — falling back to the video's own audio. "
-				.. "To use this custom sound, grant THIS experience permission to the audio on its Roblox asset page "
+			warn(("[Cinema] movie audio rbxassetid://%s failed to load — continuing without custom sound. "
+				.. "To use this sound: grant THIS experience permission on the audio's Roblox asset page "
 				.. "(Configure -> Permissions) and make sure its moderation status is Approved."):format(tostring(CONFIG.MovieSoundId)))
 		end
 	end
@@ -825,7 +871,7 @@ local function playMovie(presser)
 	local elapsed = 0
 	local sceneIndex = 0
 	while elapsed < duration do
-		if stopRequested then break end
+		if stopRequested or movieRunId ~= myRun then break end
 		sceneIndex += 1
 		if hasSlides then
 			local id = slides[((sceneIndex - 1) % #slides) + 1]
@@ -840,13 +886,17 @@ local function playMovie(presser)
 		end
 		local sceneEnd = math.min(elapsed + segSeconds, duration)
 		while elapsed < sceneEnd do
-			if stopRequested then break end
+			if stopRequested or movieRunId ~= myRun then break end
 			task.wait(0.25)
 			elapsed += 0.25
 			if screenProgress then screenProgress.Size = UDim2.fromScale(math.clamp(elapsed / duration, 0, 1), 1) end
 			if screenTimer then screenTimer.Text = fmt(duration - elapsed) end
 		end
 	end
+
+	-- لو بدأ عرضٌ أحدث (أو صُفّرت القاعة بحارس المهلة) فلا نلمس الحالة المشتركة
+	-- (أضواء/بوابة/شاشة/أقفال) كي لا نُفسد العرض الجديد — نخرج بصمت.
+	if movieRunId ~= myRun then return end
 
 	-- شارة "عاشق السينما" + تقدّم مهمة «شاهد فيلماً كاملاً» لكل من شاهد حتى النهاية
 	for _, seat in ipairs(getSeats()) do
@@ -873,31 +923,70 @@ local function playMovie(presser)
 	setProjector(false)
 	unlockAll()
 	setGate(false)
-	if marqueeLabel then marqueeLabel.Text = "🎬 سينما مدينة التبرعات" end
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
 	setScreenIdle()
 	if playPrompt then playPrompt.Enabled = true end
 	playing = false
 end
 
+-- إعادة القاعة لوضع الخمول الطبيعي مهما كان مكان التوقّف (خطأ أو تعليق).
+-- نقطة تنظيف واحدة (finally) تضمن أن البروجكتر والأعلام لا تبقى عالقة أبداً.
+local function resetCinemaIdle()
+	starting = false
+	playing = false
+	-- نطلب إيقاف أي حلقة playMovie قديمة لا تزال حيّة (داخل task.wait) كي لا
+	-- تعمل حلقتان معاً وتتعارضان على الأضواء/البوابة/الشاشة. العرض الجديد يصفّر
+	-- هذا العلَم عند بدايته (stopRequested = false في playMovie) فلا يتأثّر.
+	stopRequested = true
+	-- نُقدّم معرّف العرض كي تخرج أي حلقة playMovie قديمة مبكراً (movieRunId ~= myRun)
+	-- فلا تُكرّر التنظيف بعد أن صفّرنا القاعة هنا.
+	movieRunId += 1
+	pcall(unlockAll)
+	pcall(function() if movieSound then movieSound:Stop() end end)
+	pcall(function() setGate(false) end)
+	pcall(function() setLights(true) end)
+	pcall(function() setProjector(false) end)
+	pcall(setScreenIdle)
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
+	if playPrompt then playPrompt.Enabled = true end
+end
+
 -- مُشغّل آمن: يضمن أن أعلام البدء/التشغيل (starting/playing) لا تبقى عالقة أبداً حتى لو فشل playMovie.
--- لو حصل خطأ في أي مرحلة، نصفّر العلَمين ونُعيد القاعة لحالتها الطبيعية فلا تتعطّل العروض القادمة.
+-- طبقات الحماية: (1) pcall يلتقط أي خطأ ويصفّر القاعة. (2) حارس مهلة ذكي
+-- يصفّر القاعة قسريّاً فقط لو علّق العرض فعلاً — يحترم مدة الفيلم الحقيقية (قد
+-- تكون دقائق) فلا يقطع فيلماً طويلاً، ويحمي أيضاً من التعليق الصامت في التحميل/العدّ.
+local WATCHDOG_MARGIN = 45        -- هامش بعد نهاية العرض المتوقّعة قبل التصفير القسري
+local LOAD_SAFETY = CONFIG.MovieMaxSeconds + 120  -- مهلة أمان لو لم تُحدَّد مدة العرض أصلاً (عالق بالتحميل)
 local function launchMovie(presser)
 	starting = true
+	movieRunId += 1
+	local myRun = movieRunId
+	movieEndsAt = 0  -- صفّرها كي لا يقرأ الحارس مدة عرضٍ سابق (تمنع تصفيراً مبكراً خاطئاً)
 	task.spawn(function()
 		local ok, err = pcall(playMovie, presser)
 		if not ok then
 			warn("[CinemaSystem] playMovie error: " .. tostring(err))
-			-- تنظيف شامل (finally): صفّر الأعلام وأرجع القاعة لوضع الخمول مهما كان مكان الفشل
-			starting = false
-			playing = false
-			stopRequested = false
-			pcall(unlockAll)
-			pcall(function() setGate(false) end)
-			pcall(function() setLights(true) end)
-			pcall(function() setProjector(false) end)
-			pcall(setScreenIdle)
-			if marqueeLabel then marqueeLabel.Text = "🎬 سينما مدينة التبرعات" end
-			if playPrompt then playPrompt.Enabled = true end
+			resetCinemaIdle()
+		end
+	end)
+	-- حارس المهلة الذكي: يفحص دورياً، ويصفّر فقط إذا تجاوز العرض نهايته المعروفة
+	-- بهامش (movieEndsAt يُضبط داخل playMovie بعد معرفة مدة الفيديو/الصوت)، أو
+	-- إذا علّق التحميل ولم تُحدَّد المدة خلال مهلة الأمان.
+	task.spawn(function()
+		local startedAt = os.clock()
+		while myRun == movieRunId do
+			task.wait(5)
+			if myRun ~= movieRunId then return end
+			if not (playing or starting) then return end  -- انتهى العرض طبيعياً
+			if movieEndsAt > 0 then
+				if os.clock() > movieEndsAt + WATCHDOG_MARGIN then
+					warn("[CinemaSystem] watchdog: movie exceeded its expected end — forcing cinema reset")
+					resetCinemaIdle(); return
+				end
+			elseif os.clock() - startedAt > LOAD_SAFETY then
+				warn("[CinemaSystem] watchdog: movie never started within safety window — forcing cinema reset")
+				resetCinemaIdle(); return
+			end
 		end
 	end)
 end
@@ -928,8 +1017,18 @@ local function seatPriceFor(player)
 	if _G.IsVIP and _G.IsVIP(player) then return math.floor(SEAT_PRICE / 2) end
 	return SEAT_PRICE
 end
+-- هل اللاعب من الإدارة (مالك/أدمن)؟ الإدارة تدخل العرض مجاناً دائماً
+-- لتشغيل/تجربة الفيلم بلا حاجة كوينز أو تذاكر.
+-- يشمل: المالك (CONFIG.AdminIds عبر _G.IsGameAdmin) + من رتبته «أدمن» في نظام الرتب
+-- (عبر _G.GetChatRank). المشرف/الطاقم (mod/staff) لا يدخلون مجاناً.
+local function isCinemaAdmin(player)
+	if (_G.IsGameAdmin and _G.IsGameAdmin(player)) == true then return true end
+	local rank = _G.GetChatRank and _G.GetChatRank(player)
+	return rank == "owner" or rank == "admin"
+end
 -- يخصم وسيلة الدفع المختارة (يتحقق من الكفاية). يرجّع true إذا نجح.
 local function paySeat(player, method)
+	if isCinemaAdmin(player) then return true end  -- إدارة: دخول مجاني مضمون
 	if method == "ticket" then
 		return (_G.UseTicket and _G.UseTicket(player, 1)) == true
 	end
@@ -937,6 +1036,10 @@ local function paySeat(player, method)
 end
 local function notifyPaid(player, method)
 	if not _G.NotifyPlayer then return end
+	if isCinemaAdmin(player) then
+		_G.NotifyPlayer(player, "🎬 إدارة — دخول مجاني، استمتع بالعرض!")
+		return
+	end
 	if method == "ticket" then
 		_G.NotifyPlayer(player, "🎟️ استخدمت تذكرة — استمتع بالعرض!")
 	else
@@ -971,6 +1074,7 @@ local function openSeatMenu(player)
 		tickets = (_G.GetTickets and _G.GetTickets(player)) or 0,
 		price   = seatPriceFor(player),
 		vip     = (_G.IsVIP and _G.IsVIP(player)) == true,
+		admin   = isCinemaAdmin(player),  -- إدارة: تظهر لهم بطاقة بدء مجاني
 	})
 end
 
@@ -1313,7 +1417,7 @@ local function giveTool(player, factory, toolName: string)
 	return true
 end
 
--- API: منح طلب الأكل (فشار + مشروب) — يستخدمه لاونج VIP وغيره
+-- API: منح طلب الأكل (فشار + مشروب) — يستخدمه الخادم والبسطة وباقة البوفيه
 _G.GiveCinemaFood = function(player): boolean
 	local g1 = giveTool(player, makePopcornTool, "فشار")
 	local g2 = giveTool(player, makeDrinkTool, "مشروب")
@@ -1334,6 +1438,73 @@ end
 ------------------------------------------------------------------------
 local floorPart = get("Floor")
 local groundY = floorPart and (floorPart.Position.Y + floorPart.Size.Y / 2) or 0
+
+-- 🎟️ لوحة اسم مدمجة وأنيقة فوق شخصيات السينما (المرشد/الكاشير/الخادم) — تنسيق موحّد.
+local function makeCinemaNameTag(head, opts)
+	-- 🎟️ لوحة اسم مدمجة وأنيقة فوق رأس شخصيات السينما: بطاقة زجاجية داكنة صغيرة
+	-- بحواف دائرية + شريط لون الدور على الطرف (RTL) + اسم الدور + وصف صغير.
+	-- صُمّمت لتكون متناسقة وغير مزدحمة وتختفي من بعيد (MaxDistance) فلا تشوّش المشهد.
+	local accent = opts.tagColor or Color3.fromRGB(255, 205, 90)
+	local title  = opts.tag or ""
+	local sub    = opts.subtitle or ""
+	local DARK   = Color3.fromRGB(18, 20, 28)
+	local DARK2  = Color3.fromRGB(34, 38, 52)
+
+	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	bb.Name = "NameTag"; bb.Adornee = head
+	bb.Size = UDim2.fromOffset(170, 50)         -- أصغر بكثير من السابق (كان 252×94)
+	bb.StudsOffset = Vector3.new(0, opts.studsY or 2.6, 0)
+	bb.MaxDistance = 60                          -- تختفي من بعيد فلا تزحم الكاميرا
+	bb.AlwaysOnTop = true; bb.Parent = head
+
+	-- هالة ناعمة خفيفة خلف البطاقة (لمسة بلون الدور)
+	local glow = Instance.new("Frame")
+	glow.Name = "Glow"; glow.Size = UDim2.new(1, 8, 1, 8)
+	glow.Position = UDim2.new(0, -4, 0, -4)
+	glow.BackgroundColor3 = accent; glow.BackgroundTransparency = 0.86
+	glow.BorderSizePixel = 0; glow.ZIndex = 0; glow.Parent = bb
+	Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
+
+	-- جسم البطاقة الزجاجي (تدرّج داكن + حواف دائرية + إطار رفيع بلون الدور)
+	local card = Instance.new("Frame")
+	card.Name = "Card"; card.Size = UDim2.fromScale(1, 1)
+	card.BackgroundColor3 = DARK; card.BackgroundTransparency = 0.08
+	card.BorderSizePixel = 0; card.ZIndex = 1; card.Parent = bb
+	Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new(DARK2, DARK); grad.Rotation = 90; grad.Parent = card
+	local cs = Instance.new("UIStroke")
+	cs.Color = accent; cs.Thickness = 1.25; cs.Transparency = 0.25; cs.Parent = card
+
+	-- شريط لون الدور العمودي على الطرف الأيمن (RTL) — هوية أنيقة بسيطة
+	local bar = Instance.new("Frame")
+	bar.Name = "AccentBar"; bar.AnchorPoint = Vector2.new(1, 0.5)
+	bar.Position = UDim2.new(1, -7, 0.5, 0); bar.Size = UDim2.new(0, 4, 1, -16)
+	bar.BackgroundColor3 = accent; bar.BorderSizePixel = 0; bar.ZIndex = 3; bar.Parent = card
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+	-- اسم الدور (سطر واحد، بلون الدور، محاذاة لليمين RTL)
+	local titleLbl = Instance.new("TextLabel")
+	titleLbl.Name = "Title"; titleLbl.BackgroundTransparency = 1
+	titleLbl.Position = UDim2.new(0, 10, 0, 7); titleLbl.Size = UDim2.new(1, -28, 0, 20)
+	titleLbl.Font = Enum.Font.GothamBold; titleLbl.Text = title
+	titleLbl.TextColor3 = accent; titleLbl.TextXAlignment = Enum.TextXAlignment.Right
+	titleLbl.TextScaled = true; titleLbl.ZIndex = 2; titleLbl.Parent = card
+	Instance.new("UITextSizeConstraint", titleLbl).MaxTextSize = 16
+
+	-- وصف الدور (سطر صغير أسفل الاسم، فاتح خافت)
+	local subLbl = Instance.new("TextLabel")
+	subLbl.Name = "Subtitle"; subLbl.BackgroundTransparency = 1
+	subLbl.Position = UDim2.new(0, 10, 0, 28); subLbl.Size = UDim2.new(1, -28, 0, 15)
+	subLbl.Font = Enum.Font.Gotham; subLbl.Text = sub
+	subLbl.TextColor3 = Color3.fromRGB(205, 210, 225); subLbl.TextTransparency = 0.1
+	subLbl.TextXAlignment = Enum.TextXAlignment.Right
+	subLbl.TextScaled = true; subLbl.ZIndex = 2; subLbl.Parent = card
+	Instance.new("UITextSizeConstraint", subLbl).MaxTextSize = 12
+
+	return bb
+end
 
 -- شخصيات السينما الجاهزة (المرشد + الخادم): نستنسخ موديل شخصية جاهز من قالب
 -- مخفي في ServerScriptService، ونضيف سلوكنا الخاص (وسم + زر تفاعل + حركة وقوف)
@@ -1390,6 +1561,11 @@ local function buildCharacterModel(opts)
 		rp.FilterDescendantsInstances = ignore
 		local hit = Workspace:Raycast(fp + Vector3.new(0, 60, 0), Vector3.new(0, -300, 0), rp)
 		feetY = hit and hit.Position.Y or (opts.groundY or fp.Y)
+		-- حارس وقائي: إن عُرفت الأرضية ووقع الشعاع على سقف/كاونتر داخلي
+		-- أعلى منها بأكثر من 3 ستد، نتجاهله ونرجع لمستوى الأرض المعروف.
+		if opts.groundY and feetY > opts.groundY + 3 then
+			feetY = opts.groundY
+		end
 	end
 	local bcf, bsize = model:GetBoundingBox()
 	local lift = feetY - (bcf.Position.Y - bsize.Y / 2)
@@ -1398,18 +1574,10 @@ local function buildCharacterModel(opts)
 
 	model.Parent = cinema
 
-	-- لوحة الاسم فوق الرأس
+	-- لوحة الاسم فوق الرأس (تنسيق «تذكرة سينما»)
 	local head = model:FindFirstChild("Head") or refPart
 	if head then
-		local bb = Instance.new("BillboardGui")
-		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-		bb.StudsOffset = Vector3.new(0, 2.6, 0); bb.AlwaysOnTop = true; bb.Parent = head
-		local tagLbl = Instance.new("TextLabel")
-		tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
-		tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true; tagLbl.Text = opts.tag
-		tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
-		tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+		makeCinemaNameTag(head, { tag = opts.tag, tagColor = opts.tagColor, subtitle = opts.subtitle, studsY = 2.9 })
 	end
 
 	-- زر التفاعل (نفس سلوك المرشد السابق)
@@ -1478,16 +1646,8 @@ local function buildNPC(opts)
 	face.Name = "face"; face.Texture = "rbxasset://textures/face.png"; face.Face = Enum.NormalId.Front; face.Parent = head
 	model.PrimaryPart = hrp
 
-	-- لوحة الاسم فوق الرأس
-	local bb = Instance.new("BillboardGui")
-	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-	bb.Name = "NameTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(230, 52)
-	bb.StudsOffset = Vector3.new(0, 2.3 * s, 0); bb.AlwaysOnTop = true; bb.Parent = head
-	local tagLbl = Instance.new("TextLabel")
-	tagLbl.BackgroundTransparency = 1; tagLbl.Size = UDim2.fromScale(1, 1)
-	tagLbl.Font = Enum.Font.GothamBlack; tagLbl.TextScaled = true; tagLbl.Text = opts.tag
-	tagLbl.TextColor3 = opts.tagColor or Color3.fromRGB(255, 205, 90)
-	tagLbl.TextStrokeTransparency = 0.4; tagLbl.Parent = bb
+	-- لوحة الاسم فوق الرأس (تنسيق «تذكرة سينما»)
+	makeCinemaNameTag(head, { tag = opts.tag, tagColor = opts.tagColor, subtitle = opts.subtitle, studsY = 2.6 * s })
 
 	-- صينية طعام (للخدّام فقط)
 	if opts.tray then
@@ -1558,7 +1718,8 @@ pcall(function()
 		Vector3.new(gatePos.X + 13, groundY, gatePos.Z + 40)
 	)
 	local guideOpts = {
-		name = "CinemaGuide", tag = "👋 مرشد السينما", tagColor = Color3.fromRGB(120, 220, 255),
+		name = "CinemaGuide", tag = "مرشد السينما", subtitle = "استقبال وإرشاد",
+		tagColor = Color3.fromRGB(120, 220, 255),
 		footCFrame = guideFoot, groundY = groundY,
 		promptText = "تحدّث", promptObj = "مرشد السينما", onTrigger = guideTalk,
 	}
@@ -1580,14 +1741,16 @@ pcall(function()
 	-- الخادم الجديد من الموديل الجاهز (Staff Worker)؛ نفس منطق التقديم (الوسم + زر
 	-- الطلب + waiterServe) يبقى خارج الموديل. إن غاب القالب نرجع للخادم المبني برمجياً.
 	local waiterOpts = {
-		name = "CinemaWaiter", tag = "🍿 خادم السينما", tagColor = Color3.fromRGB(255, 205, 90),
+		name = "CinemaWaiter", tag = "خادم السينما", subtitle = "فشار ومشروبات",
+		tagColor = Color3.fromRGB(255, 170, 90),
 		footCFrame = waiterFoot, groundY = groundY, template = "CinemaServerModel",
 		useGroundY = true,  -- أرضية السينما مستوية: استعمل groundY مباشرة (لا شعاع يصطدم بالسقف)
 		promptText = "اطلب طلبك", promptObj = "خادم السينما", onTrigger = waiterServe,
 	}
 	if not buildCharacterModel(waiterOpts) then
 		buildNPC({
-			name = "CinemaWaiter", tag = "🍿 خادم السينما", uniform = Color3.fromRGB(150, 30, 40),
+			name = "CinemaWaiter", tag = "خادم السينما", subtitle = "فشار ومشروبات",
+			tagColor = Color3.fromRGB(255, 170, 90), uniform = Color3.fromRGB(150, 30, 40),
 			footCFrame = waiterFoot, promptText = "اطلب طلبك", promptObj = "خادم السينما",
 			tray = true, onTrigger = waiterServe,
 		})
@@ -1697,7 +1860,7 @@ _G.AdminGetMusic = function()
 	local m = ensureLobbyMusic()
 	return { on = m.IsPlaying, volume = m.Volume, hasId = m.SoundId ~= "" }
 end
-local MARQUEE_DEFAULT = "🎬 سينما مدينة التبرعات"
+local MARQUEE_DEFAULT = "سينما مدينة التبرعات"
 local marqueeToken = 0
 _G.AdminSetMarquee = function(text: string)
 	if not (marqueeLabel and type(text) == "string" and #text > 0) then return end

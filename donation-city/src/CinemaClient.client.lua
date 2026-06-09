@@ -150,9 +150,7 @@ local function makeDock(side: number)
 	return dock
 end
 local leftDock  = makeDock(-1)
-local rightDock = makeDock(1)
--- «المزيد» وأزرار اليمين أعلى على الشاشة (لا وسط)
-dockCenterY[rightDock] = 0.34
+-- كل أزرار الواجهة في الرصيف الأيسر (leftDock) بمكان واحد — لا رصيف يمين.
 
 local activeRoot: Instance? = nil
 
@@ -249,7 +247,8 @@ local playEventFx    -- forward declaration (مؤثرات الفعاليات)
 -- نافذة اختيار طريقة الدفع لحجز المقعد (كوينز أو تذكرة)
 ------------------------------------------------------------------------
 local function askSeatPayment(data, onPick)
-	local _, card = makeModal(UDim2.fromOffset(410, 360))
+	local adminOff = data.admin and 70 or 0  -- إزاحة رأسية لإفساح مكان بطاقة الإدارة
+	local _, card = makeModal(UDim2.fromOffset(410, 360 + adminOff))
 	new("TextLabel", {
 		BackgroundTransparency = 1, Text = "💳 اختر طريقة الدفع", Font = Enum.Font.GothamBlack,
 		TextSize = 26, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 44), Position = UDim2.fromOffset(14, 14),
@@ -264,11 +263,22 @@ local function askSeatPayment(data, onPick)
 		Text = "💰 رصيدك: " .. toAr(coins) .. " كوينز   ·   🎟️ تذاكرك: " .. toAr(tickets), Parent = card,
 	})
 
+	-- إدارة (مالك/أدمن): بطاقة بدء مجاني مضمونة دائماً (لا تتعطّل ولو بلا كوينز/تذاكر)
+	if data.admin then
+		local ab = styledButton(card, {
+			Name = "AdminFree", Text = "🎬 ابدأ العرض (إدارة — مجاناً)",
+			Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
+			BackgroundColor3 = Color3.fromRGB(58, 46, 24), Size = UDim2.new(1, -28, 0, 56), Position = UDim2.fromOffset(14, 92),
+			Parent = card,
+		}, true)
+		ab.MouseButton1Click:Connect(function() onPick("coins") end)
+	end
+
 	local canCoins = coins >= price
 	local cb = styledButton(card, {
 		Name = "PayCoins", Text = "💰 ادفع " .. toAr(price) .. " كوينز" .. (data.vip and " (نص السعر VIP)" or ""),
 		Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(40, 30, 70), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 96),
+		BackgroundColor3 = Color3.fromRGB(40, 30, 70), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 96 + adminOff),
 		Parent = card,
 	}, canCoins)
 	if canCoins then
@@ -280,7 +290,7 @@ local function askSeatPayment(data, onPick)
 		Name = "PayTicket",
 		Text = canTicket and ("🎟️ استخدم تذكرة (متبقّي: " .. toAr(tickets) .. ")") or "🎟️ لا توجد تذاكر",
 		Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(28, 54, 40), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 178),
+		BackgroundColor3 = Color3.fromRGB(28, 54, 40), Size = UDim2.new(1, -28, 0, 72), Position = UDim2.fromOffset(14, 178 + adminOff),
 		Parent = card,
 	}, canTicket)
 	if canTicket then
@@ -436,9 +446,9 @@ local GUIDE_STEPS = {
 	"🎟️ <b>التذاكر:</b> كل فيلم يحتاج تذكرة. افتح «شبّاك التذاكر» وخذ 🎁 تذكرة مجانية كل دقيقتين أو اشترِ تذكرة فورية بالكوينز.",
 	"💰 <b>الكوينز:</b> عملة اللعبة — تجمعها من اللعب والفعاليات، وتشتري بها حزم كوينز من المتجر.",
 	"🛒 <b>المتجر</b> (زر يسار الشاشة): كل المميزات بمكان واحد — VIP والباقات وحزم الكوينز والتذكرة الفورية بضغطة شراء.",
-	"⭐ <b>VIP:</b> لاونج خاص بمقاعد ذهبية، تذاكر بنص السعر، دخل كوينز مضاعف، وتاج ⭐ فوق راسك.",
+	"⭐ <b>VIP:</b> تذاكر بنص السعر، دخل كوينز مضاعف، وأولوية بالصف، وتاج ⭐ فوق راسك.",
 	"🎁 <b>الباقات الدائمة:</b> 🍿 بوفيه مفتوح · 🎬 مالك العرض · ✨ أثر نيون · 📢 مايك الإعلان — كلها في المتجر.",
-	"✨ <b>زر «المزيد»</b> (يمين الشاشة): إنجازاتك، تقييم الفيلم، صالة الأركيد، والصورة التذكارية 📸.",
+	"✨ <b>زر «المزيد»</b> (يسار الشاشة): إنجازاتك، تقييم الفيلم، صالة الأركيد، والصورة التذكارية 📸.",
 	"📜 <b>القوانين:</b> احترم الحضور، ابقَ بمقعدك وقت العرض، ولا تحجز مقاعد بدون استخدام. استمتع! 🎉",
 	"💡 <b>نصيحة أخيرة:</b> جدّد تذاكرك باستمرار، جرّب الباقات، وادعُ أصحابك. نشوفك بالقاعة! 👋",
 }
@@ -699,14 +709,14 @@ local function showBoxOffice(data)
 		new("TextLabel", {
 			BackgroundTransparency = 1, Font = Enum.Font.GothamBlack, TextSize = 19, TextColor3 = GOLD,
 			Size = UDim2.new(1, -28, 0, 56), Position = UDim2.fromOffset(14, 366), TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-			Text = "⭐ أنت عضو VIP — تذاكر بنص السعر · دخل مضاعف · لاونج خاص",
+			Text = "⭐ أنت عضو VIP — تذاكر بنص السعر · دخل مضاعف · أولوية بالصف",
 			TextWrapped = true,
 		})
 	else
 		new("TextLabel", {
 			BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 16, TextColor3 = GOLD,
 			Size = UDim2.new(1, -28, 0, 24), Position = UDim2.fromOffset(14, 364), TextXAlignment = Enum.TextXAlignment.Right, Parent = card,
-			Text = "⭐ ترقية VIP: لاونج خاص · تذاكر بنص السعر · دخل مضاعف",
+			Text = "⭐ ترقية VIP: تذاكر بنص السعر · دخل مضاعف · أولوية بالصف",
 		})
 		-- شراء بالـ Robux (إن فُعّل) + ترقية بالكوينز
 		local robux = styledButton(card, {
@@ -1414,7 +1424,7 @@ do
 	local tab = new("TextButton", {
 		Name = "StoreTab", Text = "🛒 المتجر", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT,
 		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-		LayoutOrder = 1, Size = UDim2.fromOffset(132, 46), Parent = leftDock,
+		LayoutOrder = 2, Size = UDim2.fromOffset(132, 46), Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 		new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.2 }),
@@ -2682,7 +2692,7 @@ end
 local adminTabBtn = new("TextButton", {
 	Name = "AdminTab", Text = "👑 إدارة", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = Color3.fromRGB(20, 16, 8),
 	BackgroundColor3 = GOLD, AutoButtonColor = false,
-	LayoutOrder = 2, Size = UDim2.fromOffset(132, 40),
+	LayoutOrder = 3, Size = UDim2.fromOffset(132, 46),
 	Visible = ADMIN_IDS[LocalPlayer.UserId] == true,  -- المالك يراه فوراً
 	Parent = leftDock,
 }, {
@@ -3018,8 +3028,8 @@ applyPerks = function(data)
 		local b = new("TextButton", {
 			Name = "ShowrunnerTab", Text = "🎬 ابدأ العرض", Font = Enum.Font.GothamBlack, TextSize = 15,
 			TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD, AutoButtonColor = false,
-			LayoutOrder = 2, Size = UDim2.fromOffset(132, 40),
-			Parent = rightDock,
+			LayoutOrder = 7, Size = UDim2.fromOffset(132, 46),
+			Parent = leftDock,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 			new("UIStroke", { Color = CARD, Thickness = 1.5, Transparency = 0.2 }),
@@ -3038,8 +3048,8 @@ applyPerks = function(data)
 		local b = new("TextButton", {
 			Name = "AnnouncerTab", Text = "📢 إعلان", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = TEXT,
 			BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-			LayoutOrder = 3, Size = UDim2.fromOffset(132, 40),
-			Parent = rightDock,
+			LayoutOrder = 8, Size = UDim2.fromOffset(132, 46),
+			Parent = leftDock,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 			new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.2 }),
@@ -3054,13 +3064,13 @@ applyPerks = function(data)
 	end
 end
 
--- زر «المزيد» (يمين الشاشة) يفتح مركز الإضافات
+-- زر «المزيد» (يسار الشاشة) يفتح مركز الإضافات
 do
 	local moreTab = new("TextButton", {
 		Name = "MoreTab", Text = "✨ المزيد", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT,
 		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false,
-		LayoutOrder = 1, Size = UDim2.fromOffset(126, 44),
-		Parent = rightDock,
+		LayoutOrder = 6, Size = UDim2.fromOffset(132, 46),
+		Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
 		new("UIStroke", { Color = PINK, Thickness = 1.5, Transparency = 0.2 }),
@@ -3595,7 +3605,7 @@ do
 	--------------------------------------------------------------------
 	local boothBtn = new("TextButton", {
 		Name = "BoothTab", Text = "🏪 بوثي", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false, LayoutOrder = 3,
+		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false, LayoutOrder = 4,
 		Size = UDim2.fromOffset(132, 46), Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
@@ -3611,7 +3621,7 @@ do
 
 	local lbBtn = new("TextButton", {
 		Name = "LeaderTab", Text = "🏆 المتصدّرون", Font = Enum.Font.GothamBlack, TextSize = 15, TextColor3 = TEXT,
-		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false, LayoutOrder = 4,
+		BackgroundColor3 = Color3.fromRGB(36, 30, 64), AutoButtonColor = false, LayoutOrder = 5,
 		Size = UDim2.fromOffset(132, 46), Parent = leftDock,
 	}, {
 		new("UICorner", { CornerRadius = UDim.new(0, 14) }),
