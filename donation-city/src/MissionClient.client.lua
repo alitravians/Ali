@@ -60,8 +60,8 @@ local gui = new("ScreenGui", {
 
 local openBtn = new("TextButton", {
 	Name = "OpenBtn", Parent = gui,
-	-- أعلى اليسار تحت الشريط العلوي لروبلوكس (لا يتداخل مع أزرار روبلوكس ولا الوسط)
-	AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, 16, 0, 62),
+	-- أعلى اليمين تحت عداد الكوينز مباشرة (مكان مخصّص واضح على اليمين بطلب اللاعب)
+	AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 66),
 	Size = UDim2.new(0, 116, 0, 44),
 	BackgroundColor3 = PURPLE, Text = "📋 المهام",
 	Font = Enum.Font.GothamBold, TextSize = 18, TextColor3 = WHITE,
@@ -70,7 +70,8 @@ local openBtn = new("TextButton", {
 -- شارة عدّاد المهام المكتملة
 local badge = new("TextLabel", {
 	Name = "Badge", Parent = openBtn,
-	AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 4, 0, -6),
+	-- على الزاوية اليسرى العليا للزر (الزر صار على حافة اليمين) فلا تنقص الشارة خارج الشاشة
+	AnchorPoint = Vector2.new(0, 0), Position = UDim2.new(0, -4, 0, -6),
 	Size = UDim2.new(0, 30, 0, 20), BackgroundColor3 = GREEN,
 	Text = "0/0", Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = DARK,
 }, { corner(8) })

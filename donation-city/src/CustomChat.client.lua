@@ -137,13 +137,14 @@ local gui = new("ScreenGui", {
 	Parent = playerGui,
 })
 
--- 💬 زر مُصغّر (فقاعة) أعلى يسار الشاشة بجانب زر شات روبلوكس الأصلي — يفتح/يخفي لوحة الدردشة.
--- launcher button: TOP-LEFT, beside the native Roblox chat icon (pixel offset approximate; easy to nudge)
+-- 💬 زر مُصغّر (فقاعة) أسفل الشريط العلوي لروبلوكس على اليسار — يفتح/يخفي لوحة الدردشة.
+-- كان سابقاً في صف أيقونات روبلوكس (x=160,y=4) فصار متلاصقاً ومحجوباً؛ نُقل لمكان واضح
+-- تحت الشريط العلوي (y=62) بعيداً عن أيقونات روبلوكس فيبين واضحاً ومنفصلاً.
 local launcher = new("TextButton", {
 	Name = "ChatLauncher",
 	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.new(0, 160, 0, 4),
-	Size = UDim2.new(0, 38, 0, 38),
+	Position = UDim2.new(0, 16, 0, 62),
+	Size = UDim2.new(0, 42, 0, 42),
 	BackgroundColor3 = PURPLE,
 	BackgroundTransparency = 0.05,
 	Font = Enum.Font.GothamBold,
@@ -177,7 +178,7 @@ new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
 local root = new("Frame", {
 	Name = "ChatRoot",
 	AnchorPoint = Vector2.new(0, 0),
-	Position = UDim2.new(0, 12, 0, 90),
+	Position = UDim2.new(0, 12, 0, 112),   -- أسفل فقاعة الشات (التي نُقلت إلى y=62)
 	Size = UDim2.new(0, 380, 0, 300),
 	BackgroundColor3 = CARD,
 	BackgroundTransparency = 0.12,
