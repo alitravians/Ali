@@ -400,7 +400,7 @@ finishRun = function(player)
 			fmtTime(elapsed), isRecord and " (رقم قياسي جديد!)" or "", REWARD))
 	end
 
-	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = 4 })
+	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = 4, best = st.best, record = isRecord })
 	task.delay(2, function()
 		teleportTo(player, CFrame.new(EXIT_POS))
 		finishCooldown[player.UserId] = nil

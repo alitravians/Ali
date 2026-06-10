@@ -100,7 +100,7 @@ ReplicatedFirst:RemoveDefaultLoadingScreen()
 ------------------------------------------------------------------------
 local CONFIG = {
 	GameName = "مدينة التبرعات",
-	Tagline  = "تبرّع • اكسب • استمتع",
+	Tagline  = "مهام • تحديات • باركور • مكافآت",
 
 	Theme = "DarkNeon", -- "DarkNeon" | "WhiteCyan"
 
@@ -133,19 +133,19 @@ local CONFIG = {
 	},
 
 	Tips = {
-		"نصيحة: اقترب من البوث واضغط E للتبرع.",
-		"نصيحة: زُر قاعة السينما واستمتع بفيلم مع الأصدقاء!",
-		"نصيحة: المتبرعون الأوائل يظهرون على لوحة الصدارة.",
-		"نصيحة: اشكر من تبرّع لك — اللطف لا يُنسى.",
+		"نصيحة: افتح لوحة «📋 المهام» وأكمل مهامك اليومية لتكسب الكوينز.",
+		"نصيحة: جرّب تحدّي الباركور وحطّم رقمك القياسي في الوقت.",
+		"نصيحة: أكمل الأنشطة المتنوّعة في المدينة لفتح المكافآت.",
 		"نصيحة: ادخل يومياً لتحصل على مكافآت إضافية.",
-		"نصيحة: ادعُ أصدقاءك لترتقي بسرعة أكبر.",
+		"نصيحة: المتصدّرون في الأنشطة يظهرون على لوحة الصدارة.",
+		"نصيحة: زُر قاعة السينما للاستراحة بين التحديات.",
 	},
 
 	------------------------------------------------------------------
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٢٨",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٢٩",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -158,12 +158,12 @@ local CONFIG = {
 
 	RulesTitle = "قوانين و هدف اللعبة",
 	RulesLines = {
-		"🎯 الهدف: تبرّع للاعبين الآخرين، اكسب السمعة، واستمتع بتجربة اجتماعية ممتعة.",
+		"🎯 الهدف: أكمل المهام والتحديات، تسلّق الباركور، واجمع الكوينز والشارات بنشاطك.",
 		"",
-		"• احجز بوثاً فارغاً (اضغط E) واعرض Gamepasses الخاصة فيك للبيع.",
-		"• ادعم بوثات اللاعبين بالشراء — يرفعك في لوحة «الأكثر دعماً».",
-		"• زُر قاعة السينما واحجز مقعدك لمشاهدة العرض مع الأصدقاء.",
-		"• اجمع التذاكر واستبدلها، واحصل على شارات تلقائية بتقدّمك.",
+		"• افتح لوحة «📋 المهام» وأكمل المهام اليومية والأسبوعية لتكسب الكوينز.",
+		"• خُض تحدّي الباركور وحاول تحطيم رقمك القياسي في الوقت.",
+		"• أكمل الأنشطة المتنوّعة في المدينة واحصل على شارات تلقائية بتقدّمك.",
+		"• استثمر الكوينز في بوثك الخاص، وزُر السينما للاستراحة بين التحديات.",
 		"",
 		"📜 القوانين:",
 		"• احترم جميع اللاعبين — ممنوع الإساءة أو الإزعاج.",
@@ -173,6 +173,11 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLines = {
+		"🎯 تحديث ٢.٩.٢٩ — تركيز على المهام والتحديات:",
+		"• الواجهة صارت تبرز «📋 المهام» والباركور كنشاط رئيسي.",
+		"• نافذة إكمال الباركور تعرض «أفضل وقت» وشارة الرقم القياسي 🏆.",
+		"• رسائل الترحيب والدليل تركّز على المهام والتحديات والأنشطة.",
+		"",
 		"🎉 تحديث ٢.٧.٩ — دردشة: وسم 👑 للمالك و⭐ لـ VIP + كتم من الإدارة",
 		"",
 		"👑 لوحة الإدارة الجديدة (٤ تبويبات):",
@@ -9403,7 +9408,7 @@ finishRun = function(player)
 			fmtTime(elapsed), isRecord and " (رقم قياسي جديد!)" or "", REWARD))
 	end
 
-	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = 4 })
+	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = 4, best = st.best, record = isRecord })
 	task.delay(2, function()
 		teleportTo(player, CFrame.new(EXIT_POS))
 		finishCooldown[player.UserId] = nil
@@ -19795,7 +19800,7 @@ end)
 ----------------------------------------------------------------------
 -- نافذة الإكمال
 ----------------------------------------------------------------------
-local function showFinish(timeStr, reward)
+local function showFinish(timeStr, reward, bestStr, isRecord)
 	local pop = Instance.new("Frame")
 	pop.AnchorPoint = Vector2.new(0.5, 0.5); pop.Position = UDim2.new(0.5, 0, 0.42, 0)
 	pop.Size = UDim2.fromOffset(420, 200); pop.BackgroundColor3 = Color3.fromRGB(24, 26, 44); pop.Parent = gui
@@ -19803,11 +19808,14 @@ local function showFinish(timeStr, reward)
 	local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(190, 120, 255); s.Thickness = 3; s.Parent = pop
 	local h = Instance.new("TextLabel"); h.BackgroundTransparency = 1; h.Position = UDim2.new(0, 0, 0, 16)
 	h.Size = UDim2.new(1, 0, 0, 60); h.Font = Enum.Font.GothamBlack; h.TextScaled = true
-	h.TextColor3 = Color3.fromRGB(255, 215, 90); h.Text = "🏁 أكملت الباركور!"; h.Parent = pop
+	h.TextColor3 = Color3.fromRGB(255, 215, 90)
+	h.Text = isRecord and "🏆 رقم قياسي جديد!" or "🏁 أكملت الباركور!"
+	h.Parent = pop
 	local d = Instance.new("TextLabel"); d.BackgroundTransparency = 1; d.Position = UDim2.new(0, 20, 0, 86)
 	d.Size = UDim2.new(1, -40, 0, 90); d.Font = Enum.Font.GothamMedium; d.TextScaled = true
 	d.TextColor3 = Color3.fromRGB(235, 235, 245)
-	d.Text = string.format("الوقت: %s\nالمكافأة: %d كوينز + لقب «بطل الباركور» 🏆", timeStr, reward)
+	local bestLine = bestStr and ("\nأفضل وقت: " .. bestStr .. " 🏅") or ""
+	d.Text = string.format("الوقت: %s%s\nالمكافأة: %d كوينز + لقب «بطل الباركور» 🏆", timeStr, bestLine, reward)
 	d.Parent = pop
 	task.delay(6, function() if pop then pop:Destroy() end end)
 end
@@ -19837,7 +19845,7 @@ progressRemote.OnClientEvent:Connect(function(data)
 	if data.state == "finish" then
 		active = false; bar.Visible = false; stopBtn.Visible = false
 		player:SetAttribute("InParkour", false)   -- يسمح بالجري ثانية خارج المسار
-		showFinish(fmtTime(data.time or 0), data.reward or 0)
+		showFinish(fmtTime(data.time or 0), data.reward or 0, data.best and fmtTime(data.best) or nil, data.record)
 		return
 	end
 	if data.state == "idle" then
@@ -19882,6 +19890,7 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local StarterGui        = game:GetService("StarterGui")
+local TweenService      = game:GetService("TweenService")
 
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -20104,8 +20113,17 @@ end)
 ----------------------------------------------------------------------
 -- فتح/إغلاق
 ----------------------------------------------------------------------
+-- نبضة جذب خفيفة على زر المهام لإبرازه كنشاط رئيسي (حتى أول فتح)
+local pulseTween = TweenService:Create(
+	openBtn,
+	TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{ Size = UDim2.new(0, 124, 0, 47) }
+)
+pulseTween:Play()
+
 local function openPanel()
 	panel.Visible = true
+	if pulseTween then pulseTween:Cancel(); pulseTween = nil; openBtn.Size = UDim2.new(0, 116, 0, 44) end
 	if requestRemote then requestRemote:FireServer() end
 end
 local function closePanel() panel.Visible = false end
@@ -20149,12 +20167,12 @@ local function showBeginnerGuide()
 		Font = Enum.Font.GothamSemibold, TextSize = 17, TextColor3 = WHITE,
 		TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
 		Text = table.concat({
-			"💰 <b>لا توجد كوينز مجانية!</b> اجمعها بالنشاط والمهام.",
+			"🎯 <b>هدفك:</b> أكمل المهام والتحديات لتكسب الكوينز والشارات.",
 			"",
-			"١- اختر بوثاً خاصاً بك.",
-			"٢- شاهد فيلماً داخل السينما.",
-			"٣- جرّب الباركور.",
-			"٤- أكمل المهام اليومية لتحصل على الكوينز.",
+			"١- افتح لوحة «📋 المهام» وأكمل مهامك اليومية.",
+			"٢- خُض تحدّي الباركور وحطّم رقمك القياسي.",
+			"٣- أكمل الأنشطة المتنوّعة وافتح المكافآت.",
+			"٤- استثمر كوينزك في بوثك، وزُر السينما للاستراحة.",
 		}, "\n"),
 	})
 	new("TextButton", {
@@ -20169,10 +20187,10 @@ end
 
 if welcomeRemote then
 	welcomeRemote.OnClientEvent:Connect(function(data)
-		chat("🎬 أهلاً بك في السيرفر! استكشف السينما والبوثات والشاطئ والأنشطة المختلفة.")
-		chat("💰 لا توجد كوينز مجانية! أكمل المهام اليومية والأنشطة للحصول على العملات والجوائز. نتمنى لك وقتاً ممتعاً.")
+		chat("🎯 أهلاً بك! هذي مدينة مهام وتحديات — ابدأ بالمهام والباركور والأنشطة.")
+		chat("💰 لا توجد كوينز مجانية! أكمل المهام اليومية والتحديات للحصول على العملات والجوائز. بالتوفيق!")
 		if data and data.firstTime then
-			chat("🌟 أهلاً بك لأول مرة! ابدأ بزيارة لوحة المهام اليومية 📋 لمعرفة كيفية جمع الكوينز وفتح المكافآت.")
+			chat("🌟 أول مرة هنا؟ ابدأ بفتح لوحة «📋 المهام» لمعرفة تحدياتك وكيفية جمع الكوينز.")
 			task.wait(1)
 			showBeginnerGuide()
 		end
