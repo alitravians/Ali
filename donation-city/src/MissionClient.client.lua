@@ -14,6 +14,7 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local StarterGui        = game:GetService("StarterGui")
+local TweenService      = game:GetService("TweenService")
 
 local player    = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
@@ -236,8 +237,17 @@ end)
 ----------------------------------------------------------------------
 -- فتح/إغلاق
 ----------------------------------------------------------------------
+-- نبضة جذب خفيفة على زر المهام لإبرازه كنشاط رئيسي (حتى أول فتح)
+local pulseTween = TweenService:Create(
+	openBtn,
+	TweenInfo.new(0.85, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{ Size = UDim2.new(0, 124, 0, 47) }
+)
+pulseTween:Play()
+
 local function openPanel()
 	panel.Visible = true
+	if pulseTween then pulseTween:Cancel(); pulseTween = nil; openBtn.Size = UDim2.new(0, 116, 0, 44) end
 	if requestRemote then requestRemote:FireServer() end
 end
 local function closePanel() panel.Visible = false end
@@ -281,12 +291,12 @@ local function showBeginnerGuide()
 		Font = Enum.Font.GothamSemibold, TextSize = 17, TextColor3 = WHITE,
 		TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
 		Text = table.concat({
-			"💰 <b>لا توجد كوينز مجانية!</b> اجمعها بالنشاط والمهام.",
+			"🎯 <b>هدفك:</b> أكمل المهام والتحديات لتكسب الكوينز والشارات.",
 			"",
-			"١- اختر بوثاً خاصاً بك.",
-			"٢- شاهد فيلماً داخل السينما.",
-			"٣- جرّب الباركور.",
-			"٤- أكمل المهام اليومية لتحصل على الكوينز.",
+			"١- افتح لوحة «📋 المهام» وأكمل مهامك اليومية.",
+			"٢- خُض تحدّي الباركور وحطّم رقمك القياسي.",
+			"٣- أكمل الأنشطة المتنوّعة وافتح المكافآت.",
+			"٤- استثمر كوينزك في بوثك، وزُر السينما للاستراحة.",
 		}, "\n"),
 	})
 	new("TextButton", {
@@ -301,10 +311,10 @@ end
 
 if welcomeRemote then
 	welcomeRemote.OnClientEvent:Connect(function(data)
-		chat("🎬 أهلاً بك في السيرفر! استكشف السينما والبوثات والشاطئ والأنشطة المختلفة.")
-		chat("💰 لا توجد كوينز مجانية! أكمل المهام اليومية والأنشطة للحصول على العملات والجوائز. نتمنى لك وقتاً ممتعاً.")
+		chat("🎯 أهلاً بك! هذي مدينة مهام وتحديات — ابدأ بالمهام والباركور والأنشطة.")
+		chat("💰 لا توجد كوينز مجانية! أكمل المهام اليومية والتحديات للحصول على العملات والجوائز. بالتوفيق!")
 		if data and data.firstTime then
-			chat("🌟 أهلاً بك لأول مرة! ابدأ بزيارة لوحة المهام اليومية 📋 لمعرفة كيفية جمع الكوينز وفتح المكافآت.")
+			chat("🌟 أول مرة هنا؟ ابدأ بفتح لوحة «📋 المهام» لمعرفة تحدياتك وكيفية جمع الكوينز.")
 			task.wait(1)
 			showBeginnerGuide()
 		end

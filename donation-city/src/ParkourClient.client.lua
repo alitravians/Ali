@@ -79,7 +79,7 @@ end)
 ----------------------------------------------------------------------
 -- نافذة الإكمال
 ----------------------------------------------------------------------
-local function showFinish(timeStr, reward)
+local function showFinish(timeStr, reward, bestStr, isRecord)
 	local pop = Instance.new("Frame")
 	pop.AnchorPoint = Vector2.new(0.5, 0.5); pop.Position = UDim2.new(0.5, 0, 0.42, 0)
 	pop.Size = UDim2.fromOffset(420, 200); pop.BackgroundColor3 = Color3.fromRGB(24, 26, 44); pop.Parent = gui
@@ -87,11 +87,15 @@ local function showFinish(timeStr, reward)
 	local s = Instance.new("UIStroke"); s.Color = Color3.fromRGB(190, 120, 255); s.Thickness = 3; s.Parent = pop
 	local h = Instance.new("TextLabel"); h.BackgroundTransparency = 1; h.Position = UDim2.new(0, 0, 0, 16)
 	h.Size = UDim2.new(1, 0, 0, 60); h.Font = Enum.Font.GothamBlack; h.TextScaled = true
-	h.TextColor3 = Color3.fromRGB(255, 215, 90); h.Text = "🏁 أكملت الباركور!"; h.Parent = pop
+	h.TextColor3 = Color3.fromRGB(255, 215, 90)
+	h.Text = isRecord and "🏆 رقم قياسي جديد!" or "🏁 أكملت الباركور!"
+	h.Parent = pop
 	local d = Instance.new("TextLabel"); d.BackgroundTransparency = 1; d.Position = UDim2.new(0, 20, 0, 86)
 	d.Size = UDim2.new(1, -40, 0, 90); d.Font = Enum.Font.GothamMedium; d.TextScaled = true
 	d.TextColor3 = Color3.fromRGB(235, 235, 245)
-	d.Text = string.format("الوقت: %s\nالمكافأة: %d كوينز + لقب «بطل الباركور» 🏆", timeStr, reward)
+	-- لا نكرّر السطر عند الرقم القياسي (الوقت الحالي = أفضل وقت، والعنوان يوضّحه)
+	local bestLine = (bestStr and not isRecord) and ("\nأفضل وقت: " .. bestStr .. " 🏅") or ""
+	d.Text = string.format("الوقت: %s%s\nالمكافأة: %d كوينز + لقب «بطل الباركور» 🏆", timeStr, bestLine, reward)
 	d.Parent = pop
 	task.delay(6, function() if pop then pop:Destroy() end end)
 end
@@ -121,7 +125,7 @@ progressRemote.OnClientEvent:Connect(function(data)
 	if data.state == "finish" then
 		active = false; bar.Visible = false; stopBtn.Visible = false
 		player:SetAttribute("InParkour", false)   -- يسمح بالجري ثانية خارج المسار
-		showFinish(fmtTime(data.time or 0), data.reward or 0)
+		showFinish(fmtTime(data.time or 0), data.reward or 0, data.best and fmtTime(data.best) or nil, data.record)
 		return
 	end
 	if data.state == "idle" then
