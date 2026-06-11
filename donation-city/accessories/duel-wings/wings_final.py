@@ -1,7 +1,7 @@
 """Final UGC wing accessory: single mesh <=4000 tris, single palette texture, FBX export."""
 import bpy, bmesh, math, random, os
 
-OUT = os.path.expanduser("~/models/wings_out")
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wings_out")
 os.makedirs(OUT, exist_ok=True)
 
 # ---------- clean scene ----------
@@ -61,11 +61,6 @@ def finish(o, cell):
         l.uv = (u, v)
     ALL.append(o)
     return o
-
-def cube(name, loc, scale, rot, cell):
-    bpy.ops.mesh.primitive_cube_add(location=loc, rotation=rot)
-    o = bpy.context.object; o.name = name; o.scale = scale
-    return o, cell
 
 def cylinder(name, loc, radius, depth, rot, cell, verts=6):
     bpy.ops.mesh.primitive_cylinder_add(location=loc, rotation=rot, radius=radius, depth=depth, vertices=verts)
@@ -186,7 +181,7 @@ for (t0, fr, cell, r) in [(0.20, 0.75, "bolt", 0.09), (0.40, 0.85, "boltcore", 0
                           (0.58, 0.85, "bolt", 0.09), (0.76, 0.85, "boltcore", 0.06),
                           (0.32, 0.6, "boltcore", 0.05)]:
     ax, az = arc(t0, -1)
-    th = -math.radians(8 + 62 * (t0 ** 1.1))
+    th = dir_th(t0, -1)
     drop = flen(t0) * fr
     bolt_path((ax, -0.55, az - 0.4), (ax + math.sin(th) * drop, -0.55, az - math.cos(th) * drop), 6, cell, r)
 
@@ -207,6 +202,7 @@ bpy.ops.mesh.quads_convert_to_tris()
 bpy.ops.object.mode_set(mode='OBJECT')
 tris = len(wings.data.polygons)
 print(f"TRIANGLES: {tris}")
+assert tris <= 4000, f"tri budget exceeded: {tris} > 4000"
 
 # ---------- scale to Back accessory budget (10 x 7 x 4.5 studs) ----------
 from mathutils import Vector
@@ -225,9 +221,11 @@ cz = (max(v.z for v in bb) + min(v.z for v in bb)) / 2
 wings.location = (-cx, -cy, -cz)
 bpy.ops.object.transform_apply(location=True)
 bb = [Vector(c) for c in wings.bound_box]
-print("SIZE studs:", max(v.x for v in bb)-min(v.x for v in bb),
-      max(v.y for v in bb)-min(v.y for v in bb),
-      max(v.z for v in bb)-min(v.z for v in bb))
+sw = max(v.x for v in bb) - min(v.x for v in bb)
+sd = max(v.y for v in bb) - min(v.y for v in bb)
+sh = max(v.z for v in bb) - min(v.z for v in bb)
+print("SIZE studs:", sw, sd, sh)
+assert sw <= 10.0 and sh <= 7.0 and sd <= 4.5, f"Back accessory size exceeded: {sw}x{sh}x{sd}"
 
 # ---------- save blend + export FBX ----------
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "DuelWings.blend"))
