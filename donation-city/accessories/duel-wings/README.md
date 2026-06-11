@@ -9,6 +9,7 @@
 |---|---|
 | `DuelWings.fbx` | نسخة الكتالوج: ميش واحد مدموج (التكستشر مدمج) |
 | `DuelWings_Game.fbx` | نسخة اللعبة: ميشان منفصلان (الجناحان + البرق) — اجعل البرق Neon داخل التجربة |
+| `DuelWings_Fitted.rbxm` | الاكسسوار جاهزاً ومضبوطاً على الظهر (Accessory كامل بإزاحة مثبتة) — أدرجه في Studio مباشرة |
 | `DuelWings.blend` | ملف Blender المصدر (4.2) |
 | `WingsPalette.png` | خريطة الألوان الواحدة (256×256) |
 | `wings_final.py` | سكربت البناء الكامل (Blender headless) |
@@ -26,6 +27,7 @@
 ## الاستيراد في Studio
 1. Avatar → 3D Importer → اختر `DuelWings.fbx`
 2. حوّله لاكسسوار: Accessory Fitting Tool → النوع Back → التثبيت BodyBackAttachment
+   - أو استخدم `DuelWings_Fitted.rbxm` مباشرة (Insert from File): اكسسوار جاهز بإزاحة BodyBackAttachment ‏= `CFrame.new(0, -1.0, -0.4)` (مضبوطة عملياً ليجلس الجناح بين الكتفين)
 3. لإبراز توهج البرق داخل تجربة: اجعل خامة القطع البنفسجية Neon (داخل اللعبة فقط — الكتالوج يتطلب Plastic)
 
 ## إعادة البناء
