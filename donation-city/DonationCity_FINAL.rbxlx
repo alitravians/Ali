@@ -321432,7 +321432,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"/>
 					</Properties>
-			</Item>
+			<Item class="ProximityPrompt" referent="RBX0DC075F0F0FBC3718E69619C6C63C487"><Properties><string name="Name">BoothPrompt</string></Properties></Item></Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000006">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -323457,7 +323457,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"/>
 					</Properties>
-			</Item>
+			<Item class="ProximityPrompt" referent="RBX4F17D346D088B1030BF3614A7764EF6E"><Properties><string name="Name">BoothPrompt</string></Properties></Item></Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000022">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -325482,7 +325482,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"/>
 					</Properties>
-			</Item>
+			<Item class="ProximityPrompt" referent="RBX0E810DE770B9682E778984FFBB1E69ED"><Properties><string name="Name">BoothPrompt</string></Properties></Item></Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000038">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -327777,7 +327777,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"/>
 					</Properties>
-			</Item>
+			<Item class="ProximityPrompt" referent="RBXEC7958346064A7E68FA4F2CAF85D406A"><Properties><string name="Name">BoothPrompt</string></Properties></Item></Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000056">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -330072,7 +330072,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"/>
 					</Properties>
-			</Item>
+			<Item class="ProximityPrompt" referent="RBX327092CF1E400565E4C6B858FDB2D075"><Properties><string name="Name">BoothPrompt</string></Properties></Item></Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000074">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -332502,7 +332502,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<int64 name="SourceAssetId">-1</int64>
 					<BinaryString name="Tags"/>
 					</Properties>
-			</Item>
+			<Item class="ProximityPrompt" referent="RBXDDEFC9B60A922F5A8336B9A165B2CB22"><Properties><string name="Name">BoothPrompt</string></Properties></Item></Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000093">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -349294,9 +349294,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
-						<Y>11.684000103499995</Y>
-						<Z>-79.3</Z>
+						<X>5.85</X>
+						<Y>17.0</Y>
+						<Z>-89.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -349366,9 +349366,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>55.199999999999996</X>
-						<Y>23.000002299999995</Y>
-						<Z>23.0</Z>
+						<X>75.5</X>
+						<Y>14.0</Y>
+						<Z>3.4</Z>
 					</Vector3>
 					<BinaryString name="AttributesSerialize"/>
 					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -349429,9 +349429,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
-						<Y>7.544010683499995</Y>
-						<Z>-64.35</Z>
+						<X>0.0</X>
+						<Y>11.5</Y>
+						<Z>-87.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -349501,9 +349501,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>27.599999999999998</X>
-						<Y>14.720000229999998</Y>
-						<Z>6.900000551999999</Z>
+						<X>30.0</X>
+						<Y>6.5</Y>
+						<Z>6.0</Z>
 					</Vector3>
 					<BinaryString name="AttributesSerialize"/>
 					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -349564,9 +349564,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
+						<X>0.04999999999999982</X>
 						<Y>16.0540035535</Y>
-						<Z>-61.81999908</Z>
+						<Z>-86.71999908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -349636,7 +349636,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>24.840000459999995</X>
+						<X>33.97500062916666</X>
 						<Y>4.6</Y>
 						<Z>5.060000114999999</Z>
 					</Vector3>
@@ -349699,9 +349699,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
+						<X>0.04999999999999982</X>
 						<Y>18.584000103499996</Y>
-						<Z>-61.81999908</Z>
+						<Z>-86.71999908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -349771,7 +349771,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>25.75999954</X>
+						<X>35.23333270416666</X>
 						<Y>0.5519994733</Y>
 						<Z>5.52000023</Z>
 					</Vector3>
@@ -349834,9 +349834,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
+						<X>0.04999999999999982</X>
 						<Y>13.524007233500006</Y>
-						<Z>-61.81999908</Z>
+						<Z>-86.71999908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -349906,7 +349906,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>25.75999954</X>
+						<X>35.23333270416666</X>
 						<Y>0.5519994733</Y>
 						<Z>5.52000023</Z>
 					</Vector3>
@@ -349969,9 +349969,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>7.820000227857958</X>
+						<X>10.745833644986877</X>
 						<Y>16.0540035535</Y>
-						<Z>-59.10599839</Z>
+						<Z>-84.00599839</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350104,9 +350104,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>4.714999882857958</X>
+						<X>6.498958173111881</X>
 						<Y>16.0540035535</Y>
-						<Z>-59.10599839</Z>
+						<Z>-84.00599839</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350239,9 +350239,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>1.610000108257958</X>
+						<X>2.252083481403548</X>
 						<Y>16.0540035535</Y>
-						<Z>-59.10599839</Z>
+						<Z>-84.00599839</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350374,9 +350374,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-1.4949999469420419</X>
+						<X>-1.9947915940964522</X>
 						<Y>16.0540035535</Y>
-						<Z>-59.10599839</Z>
+						<Z>-84.00599839</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350509,9 +350509,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-4.600000002142042</X>
+						<X>-6.241666669596452</X>
 						<Y>16.0540035535</Y>
-						<Z>-59.10599839</Z>
+						<Z>-84.00599839</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350644,9 +350644,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-7.704999772142041</X>
+						<X>-10.488541355013119</X>
 						<Y>16.0540035535</Y>
-						<Z>-59.10599839</Z>
+						<Z>-84.00599839</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350779,9 +350779,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>11.040000434857959</X>
+						<X>15.150000594778547</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -350914,9 +350914,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.279999767857957</X>
+						<X>11.374999682486877</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351049,9 +351049,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>5.520000227857958</X>
+						<X>7.600000311653546</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351184,9 +351184,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>2.760000112857958</X>
+						<X>3.82500015436188</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351319,9 +351319,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
+						<X>0.04999999999999982</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351454,9 +351454,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-2.760000117142042</X>
+						<X>-3.7250001602214526</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351589,9 +351589,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-5.520000232142042</X>
+						<X>-7.500000317513119</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351724,9 +351724,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-8.279999772142041</X>
+						<X>-11.274999688346451</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351859,9 +351859,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-11.040000439142043</X>
+						<X>-15.050000600638121</X>
 						<Y>12.949007233500007</Y>
-						<Z>-58.94499908</Z>
+						<Z>-83.84499908000001</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -351994,9 +351994,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>19.549999997857956</X>
-						<Y>16.284000103499995</Y>
-						<Z>-67.33999839</Z>
+						<X>26.0</X>
+						<Y>16.3</Y>
+						<Z>-90.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352129,9 +352129,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>11.959999560857955</X>
-						<Y>7.084000103499996</Y>
-						<Z>-61.81999908</Z>
+						<X>13.5</X>
+						<Y>7.1</Y>
+						<Z>-88.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352264,9 +352264,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>11.959999560857955</X>
-						<Y>0.7590001034999964</Y>
-						<Z>-61.81999908</Z>
+						<X>13.5</X>
+						<Y>0.8</Y>
+						<Z>-88.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352399,9 +352399,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>11.959999560857955</X>
-						<Y>13.63899665349999</Y>
-						<Z>-61.81999908</Z>
+						<X>13.5</X>
+						<Y>13.6</Y>
+						<Z>-88.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352534,9 +352534,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-11.95999956514204</X>
-						<Y>7.084000103499996</Y>
-						<Z>-61.81999908</Z>
+						<X>-13.5</X>
+						<Y>7.1</Y>
+						<Z>-88.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352669,9 +352669,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-11.95999956514204</X>
-						<Y>0.7590001034999964</Y>
-						<Z>-61.81999908</Z>
+						<X>-13.5</X>
+						<Y>0.8</Y>
+						<Z>-88.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352804,9 +352804,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-11.95999956514204</X>
-						<Y>13.63899665349999</Y>
-						<Z>-61.81999908</Z>
+						<X>-13.5</X>
+						<Y>13.6</Y>
+						<Z>-88.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -352888,816 +352888,6 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<BinaryString name="Tags"/>
 					</Properties>
 			</Item>
-			<Item class="MeshPart" referent="RBX3DUPG00000257">
-				<Properties>
-					<bool name="DoubleSided">false</bool>
-					<bool name="HasJointOffset">false</bool>
-					<bool name="HasSkinnedMesh">false</bool>
-					<Vector3 name="InitialSize">
-						<X>1.5999999</X>
-						<Y>3</Y>
-						<Z>0.120000124</Z>
-					</Vector3>
-					<Vector3 name="JointOffset">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Content name="MeshId"><url>rbxassetid://134016094419787</url></Content>
-					<BinaryString name="PhysicsData"/>
-					<token name="RenderFidelity">0</token>
-					<Content name="TextureID"><null/></Content>
-					<int name="VertexCount">0</int>
-					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<token name="FluidFidelityInternal">0</token>
-					<bool name="InertiaMigrated">false</bool>
-					<SharedString name="PhysicalConfigData">KgafG+zxa7t1BhJ14FroDQ==</SharedString>
-					<Vector3 name="UnscaledCofm">
-						<X>-2.98023224e-08</X>
-						<Y>1.8874816e-07</Y>
-						<Z>-1.49011598e-07</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaDiags">
-						<X>0.432691038</X>
-						<Y>0.123571143</Y>
-						<Z>0.554879785</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaOffDiags">
-						<X>1.85037263e-18</X>
-						<Y>-5.78241189e-20</Y>
-						<Z>-2.57491966e-08</Z>
-					</Vector3>
-					<float name="UnscaledVolume">0.575999737</float>
-					<bool name="Anchored">true</bool>
-					<bool name="AudioCanCollide">true</bool>
-					<float name="BackParamA">-0.5</float>
-					<float name="BackParamB">0.5</float>
-					<token name="BackSurface">0</token>
-					<token name="BackSurfaceInput">0</token>
-					<float name="BottomParamA">-0.5</float>
-					<float name="BottomParamB">0.5</float>
-					<token name="BottomSurface">0</token>
-					<token name="BottomSurfaceInput">0</token>
-					<CoordinateFrame name="CFrame">
-						<X>4.139999882857958</X>
-						<Y>3.634000103499996</Y>
-						<Z>-60.78499747</Z>
-						<R00>1.0</R00>
-						<R01>0.0</R01>
-						<R02>0.0</R02>
-						<R10>0.0</R10>
-						<R11>1.0</R11>
-						<R12>0.0</R12>
-						<R20>-0.0</R20>
-						<R21>0.0</R21>
-						<R22>1.0</R22>
-					</CoordinateFrame>
-					<bool name="CanCollide">false</bool>
-					<bool name="CanQuery">true</bool>
-					<bool name="CanTouch">true</bool>
-					<bool name="CastShadow">true</bool>
-					<string name="CollisionGroup">Default</string>
-					<int name="CollisionGroupId">0</int>
-					<Color3uint8 name="Color3uint8">4288269541</Color3uint8>
-					<PhysicalProperties name="CustomPhysicalProperties">
-						<CustomPhysics>false</CustomPhysics>
-					</PhysicalProperties>
-					<bool name="EnableFluidForces">true</bool>
-					<float name="FrontParamA">-0.5</float>
-					<float name="FrontParamB">0.5</float>
-					<token name="FrontSurface">0</token>
-					<token name="FrontSurfaceInput">0</token>
-					<float name="LeftParamA">-0.5</float>
-					<float name="LeftParamB">0.5</float>
-					<token name="LeftSurface">0</token>
-					<token name="LeftSurfaceInput">0</token>
-					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
-					<token name="Material">1568</token>
-					<string name="MaterialVariantSerialized"/>
-					<CoordinateFrame name="PivotOffset">
-						<X>-1.79999995</X>
-						<Y>-1.5</Y>
-						<Z>-2.05000019</Z>
-						<R00>1</R00>
-						<R01>-5.35310282e-24</R01>
-						<R02>-2.44929371e-16</R02>
-						<R10>-2.44929371e-16</R10>
-						<R11>-4.37113918e-08</R11>
-						<R12>-1</R12>
-						<R20>-5.35310124e-24</R20>
-						<R21>1</R21>
-						<R22>-4.37113918e-08</R22>
-					</CoordinateFrame>
-					<float name="Reflectance">0</float>
-					<float name="RightParamA">-0.5</float>
-					<float name="RightParamB">0.5</float>
-					<token name="RightSurface">0</token>
-					<token name="RightSurfaceInput">0</token>
-					<int name="RootPriority">0</int>
-					<Vector3 name="RotVelocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<float name="TopParamA">-0.5</float>
-					<float name="TopParamB">0.5</float>
-					<token name="TopSurface">0</token>
-					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0.5</float>
-					<Vector3 name="Velocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Vector3 name="size">
-						<X>3.67999977</X>
-						<Y>6.8999999999999995</Y>
-						<Z>0.2760002852</Z>
-					</Vector3>
-					<BinaryString name="AttributesSerialize"/>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">Door0</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"/>
-					</Properties>
-			</Item>
-			<Item class="MeshPart" referent="RBX3DUPG00000258">
-				<Properties>
-					<bool name="DoubleSided">false</bool>
-					<bool name="HasJointOffset">false</bool>
-					<bool name="HasSkinnedMesh">false</bool>
-					<Vector3 name="InitialSize">
-						<X>1.75999987</X>
-						<Y>3.16000009</Y>
-						<Z>0.100000143</Z>
-					</Vector3>
-					<Vector3 name="JointOffset">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Content name="MeshId"><url>rbxassetid://137579919955553</url></Content>
-					<BinaryString name="PhysicsData"/>
-					<token name="RenderFidelity">0</token>
-					<Content name="TextureID"><null/></Content>
-					<int name="VertexCount">0</int>
-					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<token name="FluidFidelityInternal">0</token>
-					<bool name="InertiaMigrated">false</bool>
-					<SharedString name="PhysicalConfigData">cxow9uMW7QeZ2nIa3xy33g==</SharedString>
-					<Vector3 name="UnscaledCofm">
-						<X>-5.96046448e-08</X>
-						<Y>3.13917923e-07</Y>
-						<Z>8.94069814e-08</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaDiags">
-						<X>0.463262588</X>
-						<Y>0.144026816</Y>
-						<Z>0.606362462</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaOffDiags">
-						<X>1.85037098e-18</X>
-						<Y>-5.78241189e-20</Y>
-						<Z>-2.61882676e-08</Z>
-					</Vector3>
-					<float name="UnscaledVolume">0.556159794</float>
-					<bool name="Anchored">true</bool>
-					<bool name="AudioCanCollide">true</bool>
-					<float name="BackParamA">-0.5</float>
-					<float name="BackParamB">0.5</float>
-					<token name="BackSurface">0</token>
-					<token name="BackSurfaceInput">0</token>
-					<float name="BottomParamA">-0.5</float>
-					<float name="BottomParamB">0.5</float>
-					<token name="BottomSurface">0</token>
-					<token name="BottomSurfaceInput">0</token>
-					<CoordinateFrame name="CFrame">
-						<X>4.139999882857958</X>
-						<Y>3.634000103499996</Y>
-						<Z>-60.85399908</Z>
-						<R00>1.0</R00>
-						<R01>0.0</R01>
-						<R02>0.0</R02>
-						<R10>0.0</R10>
-						<R11>1.0</R11>
-						<R12>0.0</R12>
-						<R20>-0.0</R20>
-						<R21>0.0</R21>
-						<R22>1.0</R22>
-					</CoordinateFrame>
-					<bool name="CanCollide">false</bool>
-					<bool name="CanQuery">true</bool>
-					<bool name="CanTouch">true</bool>
-					<bool name="CastShadow">true</bool>
-					<string name="CollisionGroup">Default</string>
-					<int name="CollisionGroupId">0</int>
-					<Color3uint8 name="Color3uint8">4294952499</Color3uint8>
-					<PhysicalProperties name="CustomPhysicalProperties">
-						<CustomPhysics>false</CustomPhysics>
-					</PhysicalProperties>
-					<bool name="EnableFluidForces">true</bool>
-					<float name="FrontParamA">-0.5</float>
-					<float name="FrontParamB">0.5</float>
-					<token name="FrontSurface">0</token>
-					<token name="FrontSurfaceInput">0</token>
-					<float name="LeftParamA">-0.5</float>
-					<float name="LeftParamB">0.5</float>
-					<token name="LeftSurface">0</token>
-					<token name="LeftSurfaceInput">0</token>
-					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
-					<token name="Material">1088</token>
-					<string name="MaterialVariantSerialized"/>
-					<CoordinateFrame name="PivotOffset">
-						<X>-1.79999995</X>
-						<Y>-1.49999988</Y>
-						<Z>-2.01999998</Z>
-						<R00>1</R00>
-						<R01>-5.35310282e-24</R01>
-						<R02>-2.44929371e-16</R02>
-						<R10>-2.44929371e-16</R10>
-						<R11>-4.37113918e-08</R11>
-						<R12>-1</R12>
-						<R20>-5.35310124e-24</R20>
-						<R21>1</R21>
-						<R22>-4.37113918e-08</R22>
-					</CoordinateFrame>
-					<float name="Reflectance">0</float>
-					<float name="RightParamA">-0.5</float>
-					<float name="RightParamB">0.5</float>
-					<token name="RightSurface">0</token>
-					<token name="RightSurfaceInput">0</token>
-					<int name="RootPriority">0</int>
-					<Vector3 name="RotVelocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<float name="TopParamA">-0.5</float>
-					<float name="TopParamB">0.5</float>
-					<token name="TopSurface">0</token>
-					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0.0</float>
-					<Vector3 name="Velocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Vector3 name="size">
-						<X>4.047999700999999</X>
-						<Y>7.268000206999999</Y>
-						<Z>0.2300003289</Z>
-					</Vector3>
-					<BinaryString name="AttributesSerialize"/>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">DoorFrame0</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"/>
-					</Properties>
-			</Item>
-			<Item class="MeshPart" referent="RBX3DUPG00000259">
-				<Properties>
-					<bool name="DoubleSided">false</bool>
-					<bool name="HasJointOffset">false</bool>
-					<bool name="HasSkinnedMesh">false</bool>
-					<Vector3 name="InitialSize">
-						<X>1.60000002</X>
-						<Y>3</Y>
-						<Z>0.120000124</Z>
-					</Vector3>
-					<Vector3 name="JointOffset">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Content name="MeshId"><url>rbxassetid://140622301701549</url></Content>
-					<BinaryString name="PhysicsData"/>
-					<token name="RenderFidelity">0</token>
-					<Content name="TextureID"><null/></Content>
-					<int name="VertexCount">0</int>
-					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<token name="FluidFidelityInternal">0</token>
-					<bool name="InertiaMigrated">false</bool>
-					<SharedString name="PhysicalConfigData">HC10j0Y4QTcR5thenBrM6g==</SharedString>
-					<Vector3 name="UnscaledCofm">
-						<X>1.6062261e-17</X>
-						<Y>1.8874816e-07</Y>
-						<Z>-1.49011598e-07</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaDiags">
-						<X>0.432691067</X>
-						<Y>0.12357115</Y>
-						<Z>0.554879844</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaOffDiags">
-						<X>1.85037367e-18</X>
-						<Y>1.15648238e-19</Y>
-						<Z>-2.57491966e-08</Z>
-					</Vector3>
-					<float name="UnscaledVolume">0.575999796</float>
-					<bool name="Anchored">true</bool>
-					<bool name="AudioCanCollide">true</bool>
-					<float name="BackParamA">-0.5</float>
-					<float name="BackParamB">0.5</float>
-					<token name="BackSurface">0</token>
-					<token name="BackSurfaceInput">0</token>
-					<float name="BottomParamA">-0.5</float>
-					<float name="BottomParamB">0.5</float>
-					<token name="BottomSurface">0</token>
-					<token name="BottomSurfaceInput">0</token>
-					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
-						<Y>3.634000103499996</Y>
-						<Z>-60.78499747</Z>
-						<R00>1.0</R00>
-						<R01>0.0</R01>
-						<R02>0.0</R02>
-						<R10>0.0</R10>
-						<R11>1.0</R11>
-						<R12>0.0</R12>
-						<R20>-0.0</R20>
-						<R21>0.0</R21>
-						<R22>1.0</R22>
-					</CoordinateFrame>
-					<bool name="CanCollide">false</bool>
-					<bool name="CanQuery">true</bool>
-					<bool name="CanTouch">true</bool>
-					<bool name="CastShadow">true</bool>
-					<string name="CollisionGroup">Default</string>
-					<int name="CollisionGroupId">0</int>
-					<Color3uint8 name="Color3uint8">4288269541</Color3uint8>
-					<PhysicalProperties name="CustomPhysicalProperties">
-						<CustomPhysics>false</CustomPhysics>
-					</PhysicalProperties>
-					<bool name="EnableFluidForces">true</bool>
-					<float name="FrontParamA">-0.5</float>
-					<float name="FrontParamB">0.5</float>
-					<token name="FrontSurface">0</token>
-					<token name="FrontSurfaceInput">0</token>
-					<float name="LeftParamA">-0.5</float>
-					<float name="LeftParamB">0.5</float>
-					<token name="LeftSurface">0</token>
-					<token name="LeftSurfaceInput">0</token>
-					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
-					<token name="Material">1568</token>
-					<string name="MaterialVariantSerialized"/>
-					<CoordinateFrame name="PivotOffset">
-						<X>0</X>
-						<Y>-1.5</Y>
-						<Z>-2.05000019</Z>
-						<R00>1</R00>
-						<R01>-5.35310282e-24</R01>
-						<R02>-2.44929371e-16</R02>
-						<R10>-2.44929371e-16</R10>
-						<R11>-4.37113918e-08</R11>
-						<R12>-1</R12>
-						<R20>-5.35310124e-24</R20>
-						<R21>1</R21>
-						<R22>-4.37113918e-08</R22>
-					</CoordinateFrame>
-					<float name="Reflectance">0</float>
-					<float name="RightParamA">-0.5</float>
-					<float name="RightParamB">0.5</float>
-					<token name="RightSurface">0</token>
-					<token name="RightSurfaceInput">0</token>
-					<int name="RootPriority">0</int>
-					<Vector3 name="RotVelocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<float name="TopParamA">-0.5</float>
-					<float name="TopParamB">0.5</float>
-					<token name="TopSurface">0</token>
-					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0.5</float>
-					<Vector3 name="Velocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Vector3 name="size">
-						<X>3.6800000459999995</X>
-						<Y>6.8999999999999995</Y>
-						<Z>0.2760002852</Z>
-					</Vector3>
-					<BinaryString name="AttributesSerialize"/>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">Door1</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"/>
-					</Properties>
-			</Item>
-			<Item class="MeshPart" referent="RBX3DUPG00000260">
-				<Properties>
-					<bool name="DoubleSided">false</bool>
-					<bool name="HasJointOffset">false</bool>
-					<bool name="HasSkinnedMesh">false</bool>
-					<Vector3 name="InitialSize">
-						<X>1.75999999</X>
-						<Y>3.16000009</Y>
-						<Z>0.100000143</Z>
-					</Vector3>
-					<Vector3 name="JointOffset">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Content name="MeshId"><url>rbxassetid://89454013938660</url></Content>
-					<BinaryString name="PhysicsData"/>
-					<token name="RenderFidelity">0</token>
-					<Content name="TextureID"><null/></Content>
-					<int name="VertexCount">0</int>
-					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<token name="FluidFidelityInternal">0</token>
-					<bool name="InertiaMigrated">false</bool>
-					<SharedString name="PhysicalConfigData">EBq+L+vA+ECwBVPH1KoaEA==</SharedString>
-					<Vector3 name="UnscaledCofm">
-						<X>-1.24764388e-17</X>
-						<Y>3.13917923e-07</Y>
-						<Z>8.94069814e-08</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaDiags">
-						<X>0.463262618</X>
-						<Y>0.144026846</Y>
-						<Z>0.606362522</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaOffDiags">
-						<X>-1.85037346e-18</X>
-						<Y>1.15648238e-19</Y>
-						<Z>-2.61882693e-08</Z>
-					</Vector3>
-					<float name="UnscaledVolume">0.556159794</float>
-					<bool name="Anchored">true</bool>
-					<bool name="AudioCanCollide">true</bool>
-					<float name="BackParamA">-0.5</float>
-					<float name="BackParamB">0.5</float>
-					<token name="BackSurface">0</token>
-					<token name="BackSurfaceInput">0</token>
-					<float name="BottomParamA">-0.5</float>
-					<float name="BottomParamB">0.5</float>
-					<token name="BottomSurface">0</token>
-					<token name="BottomSurfaceInput">0</token>
-					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
-						<Y>3.634000103499996</Y>
-						<Z>-60.85399908</Z>
-						<R00>1.0</R00>
-						<R01>0.0</R01>
-						<R02>0.0</R02>
-						<R10>0.0</R10>
-						<R11>1.0</R11>
-						<R12>0.0</R12>
-						<R20>-0.0</R20>
-						<R21>0.0</R21>
-						<R22>1.0</R22>
-					</CoordinateFrame>
-					<bool name="CanCollide">false</bool>
-					<bool name="CanQuery">true</bool>
-					<bool name="CanTouch">true</bool>
-					<bool name="CastShadow">true</bool>
-					<string name="CollisionGroup">Default</string>
-					<int name="CollisionGroupId">0</int>
-					<Color3uint8 name="Color3uint8">4294952499</Color3uint8>
-					<PhysicalProperties name="CustomPhysicalProperties">
-						<CustomPhysics>false</CustomPhysics>
-					</PhysicalProperties>
-					<bool name="EnableFluidForces">true</bool>
-					<float name="FrontParamA">-0.5</float>
-					<float name="FrontParamB">0.5</float>
-					<token name="FrontSurface">0</token>
-					<token name="FrontSurfaceInput">0</token>
-					<float name="LeftParamA">-0.5</float>
-					<float name="LeftParamB">0.5</float>
-					<token name="LeftSurface">0</token>
-					<token name="LeftSurfaceInput">0</token>
-					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
-					<token name="Material">1088</token>
-					<string name="MaterialVariantSerialized"/>
-					<CoordinateFrame name="PivotOffset">
-						<X>0</X>
-						<Y>-1.49999988</Y>
-						<Z>-2.01999998</Z>
-						<R00>1</R00>
-						<R01>-5.35310282e-24</R01>
-						<R02>-2.44929371e-16</R02>
-						<R10>-2.44929371e-16</R10>
-						<R11>-4.37113918e-08</R11>
-						<R12>-1</R12>
-						<R20>-5.35310124e-24</R20>
-						<R21>1</R21>
-						<R22>-4.37113918e-08</R22>
-					</CoordinateFrame>
-					<float name="Reflectance">0</float>
-					<float name="RightParamA">-0.5</float>
-					<float name="RightParamB">0.5</float>
-					<token name="RightSurface">0</token>
-					<token name="RightSurfaceInput">0</token>
-					<int name="RootPriority">0</int>
-					<Vector3 name="RotVelocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<float name="TopParamA">-0.5</float>
-					<float name="TopParamB">0.5</float>
-					<token name="TopSurface">0</token>
-					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0.0</float>
-					<Vector3 name="Velocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Vector3 name="size">
-						<X>4.047999977</X>
-						<Y>7.268000206999999</Y>
-						<Z>0.2300003289</Z>
-					</Vector3>
-					<BinaryString name="AttributesSerialize"/>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">DoorFrame1</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"/>
-					</Properties>
-			</Item>
-			<Item class="MeshPart" referent="RBX3DUPG00000261">
-				<Properties>
-					<bool name="DoubleSided">false</bool>
-					<bool name="HasJointOffset">false</bool>
-					<bool name="HasSkinnedMesh">false</bool>
-					<Vector3 name="InitialSize">
-						<X>1.5999999</X>
-						<Y>3</Y>
-						<Z>0.120000124</Z>
-					</Vector3>
-					<Vector3 name="JointOffset">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Content name="MeshId"><url>rbxassetid://133886975998878</url></Content>
-					<BinaryString name="PhysicsData"/>
-					<token name="RenderFidelity">0</token>
-					<Content name="TextureID"><null/></Content>
-					<int name="VertexCount">0</int>
-					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<token name="FluidFidelityInternal">0</token>
-					<bool name="InertiaMigrated">false</bool>
-					<SharedString name="PhysicalConfigData">QAOldlcCwwZLZtwc1bYccA==</SharedString>
-					<Vector3 name="UnscaledCofm">
-						<X>2.98023224e-08</X>
-						<Y>1.8874816e-07</Y>
-						<Z>-1.49011598e-07</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaDiags">
-						<X>0.432691038</X>
-						<Y>0.123571143</Y>
-						<Z>0.554879785</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaOffDiags">
-						<X>1.85037263e-18</X>
-						<Y>-5.78241189e-20</Y>
-						<Z>-2.57491966e-08</Z>
-					</Vector3>
-					<float name="UnscaledVolume">0.575999737</float>
-					<bool name="Anchored">true</bool>
-					<bool name="AudioCanCollide">true</bool>
-					<float name="BackParamA">-0.5</float>
-					<float name="BackParamB">0.5</float>
-					<token name="BackSurface">0</token>
-					<token name="BackSurfaceInput">0</token>
-					<float name="BottomParamA">-0.5</float>
-					<float name="BottomParamB">0.5</float>
-					<token name="BottomSurface">0</token>
-					<token name="BottomSurfaceInput">0</token>
-					<CoordinateFrame name="CFrame">
-						<X>-4.139999887142041</X>
-						<Y>3.634000103499996</Y>
-						<Z>-60.78499747</Z>
-						<R00>1.0</R00>
-						<R01>0.0</R01>
-						<R02>0.0</R02>
-						<R10>0.0</R10>
-						<R11>1.0</R11>
-						<R12>0.0</R12>
-						<R20>-0.0</R20>
-						<R21>0.0</R21>
-						<R22>1.0</R22>
-					</CoordinateFrame>
-					<bool name="CanCollide">false</bool>
-					<bool name="CanQuery">true</bool>
-					<bool name="CanTouch">true</bool>
-					<bool name="CastShadow">true</bool>
-					<string name="CollisionGroup">Default</string>
-					<int name="CollisionGroupId">0</int>
-					<Color3uint8 name="Color3uint8">4288269541</Color3uint8>
-					<PhysicalProperties name="CustomPhysicalProperties">
-						<CustomPhysics>false</CustomPhysics>
-					</PhysicalProperties>
-					<bool name="EnableFluidForces">true</bool>
-					<float name="FrontParamA">-0.5</float>
-					<float name="FrontParamB">0.5</float>
-					<token name="FrontSurface">0</token>
-					<token name="FrontSurfaceInput">0</token>
-					<float name="LeftParamA">-0.5</float>
-					<float name="LeftParamB">0.5</float>
-					<token name="LeftSurface">0</token>
-					<token name="LeftSurfaceInput">0</token>
-					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
-					<token name="Material">1568</token>
-					<string name="MaterialVariantSerialized"/>
-					<CoordinateFrame name="PivotOffset">
-						<X>1.79999995</X>
-						<Y>-1.5</Y>
-						<Z>-2.05000019</Z>
-						<R00>1</R00>
-						<R01>-5.35310282e-24</R01>
-						<R02>-2.44929371e-16</R02>
-						<R10>-2.44929371e-16</R10>
-						<R11>-4.37113918e-08</R11>
-						<R12>-1</R12>
-						<R20>-5.35310124e-24</R20>
-						<R21>1</R21>
-						<R22>-4.37113918e-08</R22>
-					</CoordinateFrame>
-					<float name="Reflectance">0</float>
-					<float name="RightParamA">-0.5</float>
-					<float name="RightParamB">0.5</float>
-					<token name="RightSurface">0</token>
-					<token name="RightSurfaceInput">0</token>
-					<int name="RootPriority">0</int>
-					<Vector3 name="RotVelocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<float name="TopParamA">-0.5</float>
-					<float name="TopParamB">0.5</float>
-					<token name="TopSurface">0</token>
-					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0.5</float>
-					<Vector3 name="Velocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Vector3 name="size">
-						<X>3.67999977</X>
-						<Y>6.8999999999999995</Y>
-						<Z>0.2760002852</Z>
-					</Vector3>
-					<BinaryString name="AttributesSerialize"/>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">Door2</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"/>
-					</Properties>
-			</Item>
-			<Item class="MeshPart" referent="RBX3DUPG00000262">
-				<Properties>
-					<bool name="DoubleSided">false</bool>
-					<bool name="HasJointOffset">false</bool>
-					<bool name="HasSkinnedMesh">false</bool>
-					<Vector3 name="InitialSize">
-						<X>1.75999987</X>
-						<Y>3.16000009</Y>
-						<Z>0.100000143</Z>
-					</Vector3>
-					<Vector3 name="JointOffset">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Content name="MeshId"><url>rbxassetid://118656899070241</url></Content>
-					<BinaryString name="PhysicsData"/>
-					<token name="RenderFidelity">0</token>
-					<Content name="TextureID"><null/></Content>
-					<int name="VertexCount">0</int>
-					<SharedString name="AeroMeshData">yuZpQdnvvUBOTYh1jqZ2cA==</SharedString>
-					<token name="FluidFidelityInternal">0</token>
-					<bool name="InertiaMigrated">false</bool>
-					<SharedString name="PhysicalConfigData">L24oz33KrssWMSeg5aM2gg==</SharedString>
-					<Vector3 name="UnscaledCofm">
-						<X>5.96046448e-08</X>
-						<Y>3.13917923e-07</Y>
-						<Z>8.94069814e-08</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaDiags">
-						<X>0.463262588</X>
-						<Y>0.144026816</Y>
-						<Z>0.606362462</Z>
-					</Vector3>
-					<Vector3 name="UnscaledVolInertiaOffDiags">
-						<X>1.85037098e-18</X>
-						<Y>-5.78241189e-20</Y>
-						<Z>-2.61882676e-08</Z>
-					</Vector3>
-					<float name="UnscaledVolume">0.556159794</float>
-					<bool name="Anchored">true</bool>
-					<bool name="AudioCanCollide">true</bool>
-					<float name="BackParamA">-0.5</float>
-					<float name="BackParamB">0.5</float>
-					<token name="BackSurface">0</token>
-					<token name="BackSurfaceInput">0</token>
-					<float name="BottomParamA">-0.5</float>
-					<float name="BottomParamB">0.5</float>
-					<token name="BottomSurface">0</token>
-					<token name="BottomSurfaceInput">0</token>
-					<CoordinateFrame name="CFrame">
-						<X>-4.139999887142041</X>
-						<Y>3.634000103499996</Y>
-						<Z>-60.85399908</Z>
-						<R00>1.0</R00>
-						<R01>0.0</R01>
-						<R02>0.0</R02>
-						<R10>0.0</R10>
-						<R11>1.0</R11>
-						<R12>0.0</R12>
-						<R20>-0.0</R20>
-						<R21>0.0</R21>
-						<R22>1.0</R22>
-					</CoordinateFrame>
-					<bool name="CanCollide">false</bool>
-					<bool name="CanQuery">true</bool>
-					<bool name="CanTouch">true</bool>
-					<bool name="CastShadow">true</bool>
-					<string name="CollisionGroup">Default</string>
-					<int name="CollisionGroupId">0</int>
-					<Color3uint8 name="Color3uint8">4294952499</Color3uint8>
-					<PhysicalProperties name="CustomPhysicalProperties">
-						<CustomPhysics>false</CustomPhysics>
-					</PhysicalProperties>
-					<bool name="EnableFluidForces">true</bool>
-					<float name="FrontParamA">-0.5</float>
-					<float name="FrontParamB">0.5</float>
-					<token name="FrontSurface">0</token>
-					<token name="FrontSurfaceInput">0</token>
-					<float name="LeftParamA">-0.5</float>
-					<float name="LeftParamB">0.5</float>
-					<token name="LeftSurface">0</token>
-					<token name="LeftSurfaceInput">0</token>
-					<bool name="Locked">false</bool>
-					<bool name="Massless">false</bool>
-					<token name="Material">1088</token>
-					<string name="MaterialVariantSerialized"/>
-					<CoordinateFrame name="PivotOffset">
-						<X>1.79999995</X>
-						<Y>-1.49999988</Y>
-						<Z>-2.01999998</Z>
-						<R00>1</R00>
-						<R01>-5.35310282e-24</R01>
-						<R02>-2.44929371e-16</R02>
-						<R10>-2.44929371e-16</R10>
-						<R11>-4.37113918e-08</R11>
-						<R12>-1</R12>
-						<R20>-5.35310124e-24</R20>
-						<R21>1</R21>
-						<R22>-4.37113918e-08</R22>
-					</CoordinateFrame>
-					<float name="Reflectance">0</float>
-					<float name="RightParamA">-0.5</float>
-					<float name="RightParamB">0.5</float>
-					<token name="RightSurface">0</token>
-					<token name="RightSurfaceInput">0</token>
-					<int name="RootPriority">0</int>
-					<Vector3 name="RotVelocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<float name="TopParamA">-0.5</float>
-					<float name="TopParamB">0.5</float>
-					<token name="TopSurface">0</token>
-					<token name="TopSurfaceInput">0</token>
-					<float name="Transparency">0.0</float>
-					<Vector3 name="Velocity">
-						<X>0</X>
-						<Y>0</Y>
-						<Z>0</Z>
-					</Vector3>
-					<Vector3 name="size">
-						<X>4.047999700999999</X>
-						<Y>7.268000206999999</Y>
-						<Z>0.2300003289</Z>
-					</Vector3>
-					<BinaryString name="AttributesSerialize"/>
-					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
-					<bool name="DefinesCapabilities">false</bool>
-					<string name="Name">DoorFrame2</string>
-					<int64 name="SourceAssetId">-1</int64>
-					<BinaryString name="Tags"/>
-					</Properties>
-			</Item>
 			<Item class="MeshPart" referent="RBX3DUPG00000263">
 				<Properties>
 					<bool name="DoubleSided">false</bool>
@@ -353749,9 +352939,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>21.849999997857957</X>
-						<Y>8.0040035535</Y>
-						<Z>-67.68499747</Z>
+						<X>20.0</X>
+						<Y>8.0</Y>
+						<Z>-90.3</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -353884,9 +353074,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>21.849999997857957</X>
-						<Y>8.0040035535</Y>
-						<Z>-67.8</Z>
+						<X>20.0</X>
+						<Y>8.0</Y>
+						<Z>-90.4</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354019,9 +353209,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-21.85000000214204</X>
-						<Y>8.0040035535</Y>
-						<Z>-67.68499747</Z>
+						<X>-20.0</X>
+						<Y>8.0</Y>
+						<Z>-90.3</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354154,9 +353344,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-21.85000000214204</X>
-						<Y>8.0040035535</Y>
-						<Z>-67.8</Z>
+						<X>-20.0</X>
+						<Y>8.0</Y>
+						<Z>-90.4</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354289,9 +353479,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-16.10000000214204</X>
-						<Y>4.784000103499996</Y>
-						<Z>-61.01499839</Z>
+						<X>-19.5</X>
+						<Y>4.8</Y>
+						<Z>-89.8</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354361,7 +353551,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>6.8999999999999995</X>
+						<X>9.437499999999998</X>
 						<Y>5.52000023</Y>
 						<Z>0.6900007129999999</Z>
 					</Vector3>
@@ -354424,9 +353614,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-16.10000000214204</X>
-						<Y>5.2440106834999956</Y>
-						<Z>-60.669999080000004</Z>
+						<X>-19.5</X>
+						<Y>5.2</Y>
+						<Z>-89.5</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354496,7 +353686,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>5.060000667</X>
+						<X>6.920834245625</X>
 						<Y>3.2200004829999997</Y>
 						<Z>0.2300003289</Z>
 					</Vector3>
@@ -354559,9 +353749,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>8.843995079374032e-19</X>
-						<Y>0.29900723350000785</Y>
-						<Z>-57.45</Z>
+						<X>0.0</X>
+						<Y>0.3</Y>
+						<Z>-72.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354631,9 +353821,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 						<Z>0</Z>
 					</Vector3>
 					<Vector3 name="size">
-						<X>10.120000229999999</X>
+						<X>13.8</X>
 						<Y>0.18400090412999998</Y>
-						<Z>6.899999999999999</Z>
+						<Z>36.0</Z>
 					</Vector3>
 					<BinaryString name="AttributesSerialize"/>
 					<SecurityCapabilities name="Capabilities">0</SecurityCapabilities>
@@ -354694,9 +353884,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>6.439999882857958</X>
-						<Y>1.7940106834999958</Y>
-						<Z>-57.45</Z>
+						<X>8.5</X>
+						<Y>1.8</Y>
+						<Z>-58.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354829,9 +354019,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>6.439999882857958</X>
-						<Y>3.5190106834999955</Y>
-						<Z>-57.45</Z>
+						<X>8.5</X>
+						<Y>3.5</Y>
+						<Z>-58.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -354964,9 +354154,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-6.439999887142042</X>
-						<Y>1.7940106834999958</Y>
-						<Z>-57.45</Z>
+						<X>-8.5</X>
+						<Y>1.8</Y>
+						<Z>-58.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355099,9 +354289,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-6.439999887142042</X>
-						<Y>3.5190106834999955</Y>
-						<Z>-57.45</Z>
+						<X>-8.5</X>
+						<Y>3.5</Y>
+						<Z>-58.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355234,9 +354424,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>6.439999882857958</X>
-						<Y>1.7940106834999958</Y>
-						<Z>-51.930000920000005</Z>
+						<X>8.5</X>
+						<Y>1.8</Y>
+						<Z>-69.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355369,9 +354559,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>6.439999882857958</X>
-						<Y>3.5190106834999955</Y>
-						<Z>-51.930000920000005</Z>
+						<X>8.5</X>
+						<Y>3.5</Y>
+						<Z>-69.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355504,9 +354694,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-6.439999887142042</X>
-						<Y>1.7940106834999958</Y>
-						<Z>-51.930000920000005</Z>
+						<X>-8.5</X>
+						<Y>1.8</Y>
+						<Z>-69.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355639,9 +354829,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-6.439999887142042</X>
-						<Y>3.5190106834999955</Y>
-						<Z>-51.930000920000005</Z>
+						<X>-8.5</X>
+						<Y>3.5</Y>
+						<Z>-69.0</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355774,9 +354964,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>14.530083569857958</X>
-						<Y>20.734090933499992</Y>
-						<Z>-57.79364806</Z>
+						<X>38.0</X>
+						<Y>32.0</Y>
+						<Z>-87.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -355909,9 +355099,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>16.099999997857957</X>
-						<Y>1.3340001034999964</Y>
-						<Z>-56.3</Z>
+						<X>38.0</X>
+						<Y>1.3</Y>
+						<Z>-86.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -356044,9 +355234,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-14.53008357414204</X>
-						<Y>20.734090933499992</Y>
-						<Z>-57.79364806</Z>
+						<X>-27.0</X>
+						<Y>32.0</Y>
+						<Z>-87.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -356179,9 +355369,9 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>-16.10000000214204</X>
-						<Y>1.3340001034999964</Y>
-						<Z>-56.3</Z>
+						<X>-27.0</X>
+						<Y>1.3</Y>
+						<Z>-86.7</Z>
 						<R00>1.0</R00>
 						<R01>0.0</R01>
 						<R02>0.0</R02>
@@ -434479,7 +433669,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>0.9200001506499887</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -434614,7 +433804,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>2.7600072806499836</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -434749,7 +433939,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>2.7600072806499836</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -434884,7 +434074,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>6.440021310649987</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435019,7 +434209,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>6.440021310649987</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435154,7 +434344,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>10.120000150649988</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435289,7 +434479,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>10.120000150649988</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435424,7 +434614,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>13.800014180649992</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435559,7 +434749,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>13.800014180649992</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435694,7 +434884,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>17.480028210649962</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435829,7 +435019,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>17.480028210649962</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -435964,7 +435154,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>21.16000728064998</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436099,7 +435289,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>21.16000728064998</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436234,7 +435424,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>24.38002821064996</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436369,7 +435559,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>170.63500066125</X>
+						<X>208.63500066125</X>
 						<Y>25.990021310649986</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436504,7 +435694,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>152.92499999425002</X>
+						<X>190.92499999425002</X>
 						<Y>25.990021310649986</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436639,7 +435829,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>149.24500022425</X>
+						<X>187.24500022425</X>
 						<Y>24.38002821064996</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436774,7 +435964,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>179.83500066125</X>
+						<X>217.83500066125</X>
 						<Y>19.780028210649963</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -436909,7 +436099,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>179.83500066125</X>
+						<X>217.83500066125</X>
 						<Y>12.420000150649988</Y>
 						<Z>103.0</Z>
 						<R00>-1.0</R00>
@@ -437044,7 +436234,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>58.23999988714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437179,7 +436369,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>58.23999988714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437314,7 +436504,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>63.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437449,7 +436639,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>63.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437584,7 +436774,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>6.8999999999999995</Y>
 						<Z>61.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437719,7 +436909,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>8.27997884</Y>
 						<Z>61.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437854,7 +437044,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>58.23999988714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -437989,7 +437179,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>58.23999988714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438124,7 +437314,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>63.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438259,7 +437449,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>63.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438394,7 +437584,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>13.799999999999999</Y>
 						<Z>61.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438529,7 +437719,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>15.180014030000002</Y>
 						<Z>61.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438664,7 +437854,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>58.23999988714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438799,7 +437989,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>58.23999988714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -438934,7 +438124,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>63.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439069,7 +438259,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>63.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439204,7 +438394,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>20.7</Y>
 						<Z>61.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439339,7 +438529,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>22.08001403</Y>
 						<Z>61.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439474,7 +438664,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>94.23999988714205</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439609,7 +438799,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>94.23999988714205</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439744,7 +438934,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>99.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -439879,7 +439069,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>99.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440014,7 +439204,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>6.8999999999999995</Y>
 						<Z>97.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440149,7 +439339,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>8.27997884</Y>
 						<Z>97.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440284,7 +439474,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>94.23999988714205</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440419,7 +439609,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>94.23999988714205</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440554,7 +439744,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>99.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440689,7 +439879,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>99.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440824,7 +440014,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>13.799999999999999</Y>
 						<Z>97.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -440959,7 +440149,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>15.180014030000002</Y>
 						<Z>97.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441094,7 +440284,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>94.23999988714205</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441229,7 +440419,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>94.23999988714205</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441364,7 +440554,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>99.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441499,7 +440689,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>99.76000011714204</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441634,7 +440824,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>20.7</Y>
 						<Z>97.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441769,7 +440959,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>22.08001403</Y>
 						<Z>97.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -441904,7 +441094,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.99999999868291</X>
+						<X>96.99999999868291</X>
 						<Y>2.599994047999985</Y>
 						<Z>84.99999999868291</Z>
 						<R00>-0.7071067811865475</R00>
@@ -442039,7 +441229,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.99999999868291</X>
+						<X>96.99999999868291</X>
 						<Y>4.999987847999989</Y>
 						<Z>84.99999999868291</Z>
 						<R00>-0.7071067811865475</R00>
@@ -442174,7 +441364,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.99999999868291</X>
+						<X>96.99999999868291</X>
 						<Y>0.7000000479999926</Y>
 						<Z>84.99999999868291</Z>
 						<R00>-0.7071067811865475</R00>
@@ -442309,7 +441499,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.78786685124375</X>
+						<X>96.78786685124375</X>
 						<Y>0.599994047999985</Y>
 						<Z>83.23223419537504</Z>
 						<R00>-0.7071067811865475</R00>
@@ -442444,7 +441634,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>117.76776580462496</X>
+						<X>98.76776580462496</X>
 						<Y>0.599994047999985</Y>
 						<Z>85.21213314875625</Z>
 						<R00>-0.7071067811865475</R00>
@@ -442579,7 +441769,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>120.0</X>
+						<X>97.0</X>
 						<Y>1.7500001249999997</Y>
 						<Z>71.0</Z>
 						<R00>1.0</R00>
@@ -442714,7 +441904,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0000010967</X>
+						<X>91.0000010967</X>
 						<Y>2.64000011</Y>
 						<Z>79.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -442849,7 +442039,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0000010967</X>
+						<X>91.0000010967</X>
 						<Y>5.719978329999993</Y>
 						<Z>79.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -442984,7 +442174,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>98.9889988967</X>
+						<X>90.9889988967</X>
 						<Y>5.719978329999993</Y>
 						<Z>79.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443119,7 +442309,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>1.4000007879999998</Y>
 						<Z>57.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443254,7 +442444,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>55.200000049862645</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443389,7 +442579,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>57.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443524,7 +442714,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>58.799999953862645</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443659,7 +442849,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>54.799999961862646</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443794,7 +442984,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>59.200000041862644</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -443929,7 +443119,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>1.4000007879999998</Y>
 						<Z>79.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444064,7 +443254,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>77.20000004986265</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444199,7 +443389,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>79.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444334,7 +443524,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>80.79999995386264</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444469,7 +443659,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>76.79999996186264</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444604,7 +443794,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>81.20000004186265</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444739,7 +443929,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>1.4000007879999998</Y>
 						<Z>101.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -444874,7 +444064,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>99.20000004986265</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -445009,7 +444199,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>101.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -445144,7 +444334,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>102.79999995386264</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -445279,7 +444469,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>98.79999996186264</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -445414,7 +444604,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>103.20000004186265</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -445549,7 +444739,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>67.0</Z>
 						<R00>1.0</R00>
@@ -445684,7 +444874,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>67.0</Z>
 						<R00>1.0</R00>
@@ -445819,7 +445009,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>67.0</Z>
 						<R00>1.0</R00>
@@ -445954,7 +445144,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>91.0</Z>
 						<R00>1.0</R00>
@@ -446089,7 +445279,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>91.0</Z>
 						<R00>1.0</R00>
@@ -446224,7 +445414,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>91.0</Z>
 						<R00>1.0</R00>
@@ -446359,7 +445549,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>49.0</Z>
 						<R00>1.0</R00>
@@ -446494,7 +445684,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>49.0</Z>
 						<R00>1.0</R00>
@@ -446629,7 +445819,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>49.0</Z>
 						<R00>1.0</R00>
@@ -446764,7 +445954,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>109.0</Z>
 						<R00>1.0</R00>
@@ -446899,7 +446089,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>109.0</Z>
 						<R00>1.0</R00>
@@ -447034,7 +446224,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>109.0</Z>
 						<R00>1.0</R00>
@@ -447169,7 +446359,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>0.9200001506499887</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -447304,7 +446494,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>2.7600072806499836</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -447439,7 +446629,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>2.7600072806499836</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -447574,7 +446764,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>6.440021310649987</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -447709,7 +446899,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>6.440021310649987</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -447844,7 +447034,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>10.120000150649988</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -447979,7 +447169,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>10.120000150649988</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448114,7 +447304,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>13.800014180649992</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448249,7 +447439,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>13.800014180649992</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448384,7 +447574,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>17.480028210649962</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448519,7 +447709,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>17.480028210649962</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448654,7 +447844,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>21.16000728064998</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448789,7 +447979,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>21.16000728064998</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -448924,7 +448114,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>160.28500065910796</X>
+						<X>198.28500065910796</X>
 						<Y>24.38002821064996</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -449059,7 +448249,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>170.63500066125</X>
+						<X>208.63500066125</X>
 						<Y>25.990021310649986</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -449194,7 +448384,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>152.92499999425002</X>
+						<X>190.92499999425002</X>
 						<Y>25.990021310649986</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -449329,7 +448519,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>149.24500022425</X>
+						<X>187.24500022425</X>
 						<Y>24.38002821064996</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -449464,7 +448654,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>179.83500066125</X>
+						<X>217.83500066125</X>
 						<Y>19.780028210649963</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -449599,7 +448789,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>179.83500066125</X>
+						<X>217.83500066125</X>
 						<Y>12.420000150649988</Y>
 						<Z>-87.0</Z>
 						<R00>-1.0</R00>
@@ -449734,7 +448924,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-131.76000011285797</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -449869,7 +449059,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-131.76000011285797</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450004,7 +449194,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-126.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450139,7 +449329,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-126.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450274,7 +449464,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>6.8999999999999995</Y>
 						<Z>-129.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450409,7 +449599,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>8.27997884</Y>
 						<Z>-129.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450544,7 +449734,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>-131.76000011285797</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450679,7 +449869,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>-131.76000011285797</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450814,7 +450004,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>-126.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -450949,7 +450139,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>-126.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451084,7 +450274,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>13.799999999999999</Y>
 						<Z>-129.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451219,7 +450409,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>15.180014030000002</Y>
 						<Z>-129.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451354,7 +450544,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>-131.76000011285797</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451489,7 +450679,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>-131.76000011285797</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451624,7 +450814,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>-126.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451759,7 +450949,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>-126.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -451894,7 +451084,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>20.7</Y>
 						<Z>-129.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452029,7 +451219,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>22.08001403</Y>
 						<Z>-129.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452164,7 +451354,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-95.76000011285795</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452299,7 +451489,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-95.76000011285795</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452434,7 +451624,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-90.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452569,7 +451759,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>3.4499999999999997</Y>
 						<Z>-90.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452704,7 +451894,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>6.8999999999999995</Y>
 						<Z>-93.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452839,7 +452029,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>8.27997884</Y>
 						<Z>-93.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -452974,7 +452164,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>-95.76000011285795</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453109,7 +452299,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>-95.76000011285795</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453244,7 +452434,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>10.35</Y>
 						<Z>-90.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453379,7 +452569,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>10.35</Y>
 						<Z>-90.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453514,7 +452704,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>13.799999999999999</Y>
 						<Z>-93.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453649,7 +452839,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>15.180014030000002</Y>
 						<Z>-93.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453784,7 +452974,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>-95.76000011285795</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -453919,7 +453109,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>-95.76000011285795</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -454054,7 +453244,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>17.25</Y>
 						<Z>-90.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -454189,7 +453379,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>113.83999816</X>
+						<X>99.93999815999999</X>
 						<Y>17.25</Y>
 						<Z>-90.23999988285796</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -454324,7 +453514,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>112.0</X>
+						<X>98.1</X>
 						<Y>20.7</Y>
 						<Z>-93.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -454459,7 +453649,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>110.16000161</X>
+						<X>96.26000160999999</X>
 						<Y>22.08001403</Y>
 						<Z>-93.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -454594,7 +453784,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.99999999868291</X>
+						<X>96.99999999868291</X>
 						<Y>2.599994047999985</Y>
 						<Z>-105.00000000131709</Z>
 						<R00>-0.7071067811865475</R00>
@@ -454729,7 +453919,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.99999999868291</X>
+						<X>96.99999999868291</X>
 						<Y>4.999987847999989</Y>
 						<Z>-105.00000000131709</Z>
 						<R00>-0.7071067811865475</R00>
@@ -454864,7 +454054,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.99999999868291</X>
+						<X>96.99999999868291</X>
 						<Y>0.7000000479999926</Y>
 						<Z>-105.00000000131709</Z>
 						<R00>-0.7071067811865475</R00>
@@ -454999,7 +454189,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>115.78786685124375</X>
+						<X>96.78786685124375</X>
 						<Y>0.599994047999985</Y>
 						<Z>-106.76776580462496</Z>
 						<R00>-0.7071067811865475</R00>
@@ -455134,7 +454324,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>117.76776580462496</X>
+						<X>98.76776580462496</X>
 						<Y>0.599994047999985</Y>
 						<Z>-104.78786685124375</Z>
 						<R00>-0.7071067811865475</R00>
@@ -455269,7 +454459,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>120.0</X>
+						<X>97.0</X>
 						<Y>1.7500001249999997</Y>
 						<Z>-119.0</Z>
 						<R00>1.0</R00>
@@ -455404,7 +454594,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0000010967</X>
+						<X>91.0000010967</X>
 						<Y>2.64000011</Y>
 						<Z>-111.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -455539,7 +454729,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0000010967</X>
+						<X>91.0000010967</X>
 						<Y>5.719978329999993</Y>
 						<Z>-111.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -455674,7 +454864,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>98.9889988967</X>
+						<X>90.9889988967</X>
 						<Y>5.719978329999993</Y>
 						<Z>-111.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -455809,7 +454999,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-133.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -455944,7 +455134,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-134.79999995013736</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456079,7 +455269,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-133.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456214,7 +455404,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-131.20000004613735</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456349,7 +455539,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>-135.20000003813735</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456484,7 +455674,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>-130.79999995813736</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456619,7 +455809,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-111.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456754,7 +455944,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-112.79999995013735</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -456889,7 +456079,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-111.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457024,7 +456214,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-109.20000004613736</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457159,7 +456349,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>-113.20000003813736</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457294,7 +456484,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>-108.79999995813735</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457429,7 +456619,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-89.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457564,7 +456754,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-90.79999995013735</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457699,7 +456889,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-89.0</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457834,7 +457024,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>97.0</X>
+						<X>89.0</X>
 						<Y>1.4000007879999998</Y>
 						<Z>-87.20000004613736</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -457969,7 +457159,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>-91.20000003813736</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -458104,7 +457294,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>96.9900018</X>
+						<X>88.9900018</X>
 						<Y>0.6999999880000018</Y>
 						<Z>-86.79999995813735</Z>
 						<R00>6.123233995736766e-17</R00>
@@ -458239,7 +457429,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>-123.0</Z>
 						<R00>1.0</R00>
@@ -458374,7 +457564,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>-123.0</Z>
 						<R00>1.0</R00>
@@ -458509,7 +457699,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>-123.0</Z>
 						<R00>1.0</R00>
@@ -458644,7 +457834,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>-99.0</Z>
 						<R00>1.0</R00>
@@ -458779,7 +457969,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>-99.0</Z>
 						<R00>1.0</R00>
@@ -458914,7 +458104,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>93.0</X>
+						<X>85.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>-99.0</Z>
 						<R00>1.0</R00>
@@ -459049,7 +458239,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>-141.0</Z>
 						<R00>1.0</R00>
@@ -459184,7 +458374,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>-141.0</Z>
 						<R00>1.0</R00>
@@ -459319,7 +458509,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>-141.0</Z>
 						<R00>1.0</R00>
@@ -459454,7 +458644,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0000012349999992</Y>
 						<Z>-81.0</Z>
 						<R00>1.0</R00>
@@ -459589,7 +458779,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>1.0999996350000032</Y>
 						<Z>-81.0</Z>
 						<R00>1.0</R00>
@@ -459724,7 +458914,7 @@ gcLgc4RKxr21zq2UlJSM]]></BinaryString>
 					<token name="BottomSurface">0</token>
 					<token name="BottomSurfaceInput">0</token>
 					<CoordinateFrame name="CFrame">
-						<X>99.0</X>
+						<X>91.0</X>
 						<Y>0.12000003499999679</Y>
 						<Z>-81.0</Z>
 						<R00>1.0</R00>

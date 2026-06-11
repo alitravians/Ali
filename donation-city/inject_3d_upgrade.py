@@ -278,6 +278,16 @@ for tier, z in zip(TIERS, BOOTH_Z):
     make_model(tmpl[f"booth_{tier.lower()}"], f"DonationBooth_{tier}",
                (-52.4, 0.0, float(z)), 2.3, 90, booth_style(tier.lower()),
                renames={"Back_Wall": "Body", "Sign_Board": "Sign", "Counter_Top": "Counter"})
+# BoothSystem repurposes an existing ProximityPrompt (FindFirstChildWhichIsA),
+# so each booth must ship with one (hosted on the Counter part).
+for it in ws.findall("./Item"):
+    if pname(it).startswith("DonationBooth_"):
+        host = next(c for c in it.findall("./Item") if pname(c) == "Counter")
+        pp = etree.SubElement(host, "Item")
+        pp.set("class", "ProximityPrompt")
+        pp.set("referent", newref())
+        ppr = etree.SubElement(pp, "Properties")
+        fset(ppr, "string", "Name", "BoothPrompt")
 print("booths placed")
 
 # ----------------------------------------------------------------- 2) trees
@@ -367,16 +377,19 @@ def constr_zone(folder_name, z0):
     f = etree.SubElement(ws, "Item")
     f.set("class", "Folder"); f.set("referent", newref())
     fset(etree.SubElement(f, "Properties"), "string", "Name", folder_name)
-    make_model(tmpl["crane"], "Crane", (165.0, 0.0, z0 + 24), 2.3, 180, CONSTR_STYLE["crane"], parent=f)
-    make_model(tmpl["scaffold"], "Scaffold1", (112.0, 0.0, z0 - 18), 2.3, 90, CONSTR_STYLE["scaffold"], parent=f)
-    make_model(tmpl["scaffold"], "Scaffold2", (112.0, 0.0, z0 + 18), 2.3, 90, CONSTR_STYLE["scaffold"], parent=f)
-    make_model(tmpl["mixer"], "Mixer", (116.0, 0.0, z0 + 6), 2.0, 135, CONSTR_STYLE["mixer"], parent=f)
-    make_model(tmpl["dirtpile"], "DirtPile", (120.0, 0.0, z0 - 8), 2.5, 0, CONSTR_STYLE["dirtpile"], parent=f)
-    make_model(tmpl["sign"], "ConstructionSign", (99.0, 0.0, z0), 2.2, -90, CONSTR_STYLE["sign"], parent=f)
+    # the unfinished building skeleton occupies x 101.6..178.4 — every prop
+    # must stay OUTSIDE it: crane east of the building, the rest on the street
+    # strip west of it (scaffolds flush against the facade).
+    make_model(tmpl["crane"], "Crane", (203.0, 0.0, z0 + 24), 2.3, 180, CONSTR_STYLE["crane"], parent=f)
+    make_model(tmpl["scaffold"], "Scaffold1", (98.1, 0.0, z0 - 18), 2.3, 90, CONSTR_STYLE["scaffold"], parent=f)
+    make_model(tmpl["scaffold"], "Scaffold2", (98.1, 0.0, z0 + 18), 2.3, 90, CONSTR_STYLE["scaffold"], parent=f)
+    make_model(tmpl["mixer"], "Mixer", (97.0, 0.0, z0 + 6), 2.0, 135, CONSTR_STYLE["mixer"], parent=f)
+    make_model(tmpl["dirtpile"], "DirtPile", (97.0, 0.0, z0 - 8), 2.5, 0, CONSTR_STYLE["dirtpile"], parent=f)
+    make_model(tmpl["sign"], "ConstructionSign", (91.0, 0.0, z0), 2.2, -90, CONSTR_STYLE["sign"], parent=f)
     for j, dz in enumerate((-22, 0, 22)):
-        make_model(tmpl["barrier"], f"Barrier{j}", (97.0, 0.0, z0 + dz), 2.0, 90, CONSTR_STYLE["barrier"], parent=f)
+        make_model(tmpl["barrier"], f"Barrier{j}", (89.0, 0.0, z0 + dz), 2.0, 90, CONSTR_STYLE["barrier"], parent=f)
     for j, (dx, dz) in enumerate(((-4, -12), (-4, 12), (2, -30), (2, 30))):
-        make_model(tmpl["cone"], f"Cone{j}", (97.0 + dx, 0.0, z0 + dz), 2.0, 0, CONSTR_STYLE["cone"], parent=f)
+        make_model(tmpl["cone"], f"Cone{j}", (89.0 + dx, 0.0, z0 + dz), 2.0, 0, CONSTR_STYLE["cone"], parent=f)
 
 constr_zone("BeachConstructionProps3D", 79.0)
 constr_zone("GamehallConstructionProps3D", -111.0)
