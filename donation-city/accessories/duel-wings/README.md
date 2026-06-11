@@ -12,8 +12,10 @@
 | `DuelWings.blend` | ملف Blender المصدر (4.2) |
 | `WingsPalette.png` | خريطة الألوان الواحدة (256×256) |
 | `wings_final.py` | سكربت البناء الكامل (Blender headless) |
-| `render_wings.png` | الصورة المرجعية المعتمدة |
-| `final_check.png` | رندر التحقق من الميش النهائي |
+| `render_wings.png` | الصورة المرجعية المعتمدة (من خطوة الموك-أب، لا يولّدها السكربت) |
+| `final_check.png` | رندر التحقق من الميش النهائي (يولَّد بخطوة رندر منفصلة، لا يولّدها السكربت) |
+
+> ملاحظة: `wings_final.py` يكتب مخرجاته في مجلد فرعي `wings_out/` بجانب السكربت. الملفات الموجودة هنا نسخ من تلك المخرجات للتسليم.
 
 ## المواصفات (مطابقة لمتطلبات Marketplace للاكسسوار الصلب)
 - ميش واحد: **2128 مثلث** (الحد 4000)
@@ -29,4 +31,5 @@
 ## إعادة البناء
 ```bash
 blender -b -P wings_final.py
+# المخرجات: wings_out/{DuelWings.fbx, DuelWings_Game.fbx, DuelWings.blend, WingsPalette.png}
 ```

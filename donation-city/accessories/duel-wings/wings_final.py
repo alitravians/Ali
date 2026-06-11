@@ -16,7 +16,6 @@ CELLS = {
     "dpurple": (0.20, 0.08, 0.36),
     "bolt":    (0.78, 0.45, 1.00),
     "boltcore":(1.00, 0.96, 1.00),
-    "shadow":  (0.30, 0.03, 0.04),
 }
 names = list(CELLS)
 SZ = 256
@@ -162,7 +161,9 @@ build_wing(-1, "charcoal", "dpurple", "charcoal", sharp=True)
 
 # lightning strands (left wing)
 random.seed(11)
+BOLT_N = 0
 def bolt_path(start, end, segs, cell, r):
+    global BOLT_N
     pts = [start]
     for i in range(1, segs):
         t = i / segs
@@ -175,7 +176,8 @@ def bolt_path(start, end, segs, cell, r):
         dx, dz = b[0] - a[0], b[2] - a[2]
         L = math.hypot(dx, dz)
         ry = math.atan2(dx, dz)
-        cylinder("bolt", (mx, a[1], mz), r, L * 1.08, (0, ry, 0), cell, verts=5)
+        cylinder(f"bolt{BOLT_N}", (mx, a[1], mz), r, L * 1.08, (0, ry, 0), cell, verts=5)
+        BOLT_N += 1
 
 for (t0, fr, cell, r) in [(0.20, 0.75, "bolt", 0.09), (0.40, 0.85, "boltcore", 0.07),
                           (0.58, 0.85, "bolt", 0.09), (0.76, 0.85, "boltcore", 0.06),
@@ -239,7 +241,9 @@ for o in (body, bolts):
 mn, mx = bounds([body, bolts])
 dim = mx - mn
 print("SIZE studs:", dim.x, dim.y, dim.z)
-assert dim.x <= 10.0 and dim.z <= 7.0 and dim.y <= 4.5, f"Back accessory size exceeded: {dim}"
+assert dim.x <= 10.0 and dim.z <= 7.0 and dim.y <= 4.5, (
+    f"Back accessory size exceeded: width={dim.x:.2f} (max 10), "
+    f"height={dim.z:.2f} (max 7), depth={dim.y:.2f} (max 4.5)")
 
 # ---------- save blend + export FBX ----------
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "DuelWings.blend"))
