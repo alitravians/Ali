@@ -133,8 +133,9 @@ STEEL_C, STEELD_C = C(0.95, 0.65, 0.1), C(0.85, 0.55, 0.05)
 WARN_C, WARND_C = C(0.95, 0.8, 0.1), C(0.15, 0.15, 0.15)
 CONC_C, GREY_C = C(0.8, 0.8, 0.78), C(0.6, 0.6, 0.62)
 CONSTR_STYLE = {
-    "crane": [("Crane_Base", (CONC_C, CONCRETE, 0, True)), ("Crane_Cab", (WARN_C, METAL, 0, True)),
-              ("Crane_Counterweight", (CONC_C, CONCRETE, 0, True)), ("Crane_Cable", (WARND_C, METAL, 0, False)),
+    "crane": [("Crane_Base", (CONC_C, CONCRETE, 0, True)), ("Crane_Cable", (WARND_C, METAL, 0, False)),
+              ("Crane_Cab", (WARN_C, METAL, 0, True)),
+              ("Crane_Counterweight", (CONC_C, CONCRETE, 0, True)),
               ("Crane_Load", (CONC_C, CONCRETE, 0, True)), ("Crane_Brace", (STEELD_C, METAL, 0, False)),
               ("Crane_", (STEEL_C, METAL, 0, True))],
     "scaffold": [("Pole", (STEEL_C, METAL, 0, True)), ("Plank", (C(0.6, 0.42, 0.25), WOODP, 0, True)),
