@@ -14,8 +14,8 @@ CELLS = {
     "gold":    (0.88, 0.64, 0.16),
     "charcoal":(0.07, 0.06, 0.10),
     "dpurple": (0.20, 0.08, 0.36),
-    "bolt":    (0.62, 0.30, 1.00),
-    "boltcore":(0.93, 0.82, 1.00),
+    "bolt":    (0.78, 0.45, 1.00),
+    "boltcore":(1.00, 0.96, 1.00),
     "shadow":  (0.30, 0.03, 0.04),
 }
 names = list(CELLS)
@@ -185,47 +185,61 @@ for (t0, fr, cell, r) in [(0.20, 0.75, "bolt", 0.09), (0.40, 0.85, "boltcore", 0
     drop = flen(t0) * fr
     bolt_path((ax, -0.55, az - 0.4), (ax + math.sin(th) * drop, -0.55, az - math.cos(th) * drop), 6, cell, r)
 
-# ---------- join into single mesh ----------
-bpy.ops.object.select_all(action='DESELECT')
-for o in ALL:
-    o.select_set(True)
-bpy.context.view_layer.objects.active = ALL[0]
-bpy.ops.object.join()
-wings = bpy.context.object
-wings.name = "DuelWings"
-bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+# ---------- join into two groups: wings body + lightning bolts ----------
+from mathutils import Vector
 
-# triangulate + count
-bpy.ops.object.mode_set(mode='EDIT')
-bpy.ops.mesh.select_all(action='SELECT')
-bpy.ops.mesh.quads_convert_to_tris()
-bpy.ops.object.mode_set(mode='OBJECT')
-tris = len(wings.data.polygons)
+def join_group(objs, name):
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.join()
+    j = bpy.context.object
+    j.name = name
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    bpy.ops.object.mode_set(mode='EDIT')
+    bpy.ops.mesh.select_all(action='SELECT')
+    bpy.ops.mesh.quads_convert_to_tris()
+    bpy.ops.object.mode_set(mode='OBJECT')
+    return j
+
+bolt_objs = [o for o in ALL if o.name.startswith("bolt")]
+body_objs = [o for o in ALL if not o.name.startswith("bolt")]
+body = join_group(body_objs, "DuelWings_Wings")
+bolts = join_group(bolt_objs, "DuelWings_Bolts")
+
+tris = len(body.data.polygons) + len(bolts.data.polygons)
 print(f"TRIANGLES: {tris}")
 assert tris <= 4000, f"tri budget exceeded: {tris} > 4000"
 
-# ---------- scale to Back accessory budget (10 x 7 x 4.5 studs) ----------
-from mathutils import Vector
-bb = [wings.matrix_world @ Vector(c) for c in wings.bound_box]
-w = max(v.x for v in bb) - min(v.x for v in bb)
-h = max(v.z for v in bb) - min(v.z for v in bb)
-d = max(v.y for v in bb) - min(v.y for v in bb)
-s = min(10.0 / w, 7.0 / h, 4.5 / d) * 0.98
-wings.scale = (s, s, s)
-bpy.ops.object.transform_apply(scale=True)
-# center mesh on origin (attachment point = center)
-bb = [Vector(c) for c in wings.bound_box]
-cx = (max(v.x for v in bb) + min(v.x for v in bb)) / 2
-cy = (max(v.y for v in bb) + min(v.y for v in bb)) / 2
-cz = (max(v.z for v in bb) + min(v.z for v in bb)) / 2
-wings.location = (-cx, -cy, -cz)
-bpy.ops.object.transform_apply(location=True)
-bb = [Vector(c) for c in wings.bound_box]
-sw = max(v.x for v in bb) - min(v.x for v in bb)
-sd = max(v.y for v in bb) - min(v.y for v in bb)
-sh = max(v.z for v in bb) - min(v.z for v in bb)
-print("SIZE studs:", sw, sd, sh)
-assert sw <= 10.0 and sh <= 7.0 and sd <= 4.5, f"Back accessory size exceeded: {sw}x{sh}x{sd}"
+# ---------- shared scale/center to Back accessory budget (10 x 7 x 4.5 studs) ----------
+def bounds(objs):
+    pts = [o.matrix_world @ Vector(c) for o in objs for c in o.bound_box]
+    mn = Vector((min(p.x for p in pts), min(p.y for p in pts), min(p.z for p in pts)))
+    mx = Vector((max(p.x for p in pts), max(p.y for p in pts), max(p.z for p in pts)))
+    return mn, mx
+
+mn, mx = bounds([body, bolts])
+dim = mx - mn
+s = min(10.0 / dim.x, 7.0 / dim.z, 4.5 / dim.y) * 0.98
+for o in (body, bolts):
+    o.scale = (s, s, s)
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.transform_apply(scale=True)
+mn, mx = bounds([body, bolts])
+ctr = (mn + mx) / 2
+for o in (body, bolts):
+    o.location = -ctr
+    bpy.ops.object.select_all(action='DESELECT')
+    o.select_set(True)
+    bpy.context.view_layer.objects.active = o
+    bpy.ops.object.transform_apply(location=True)
+mn, mx = bounds([body, bolts])
+dim = mx - mn
+print("SIZE studs:", dim.x, dim.y, dim.z)
+assert dim.x <= 10.0 and dim.z <= 7.0 and dim.y <= 4.5, f"Back accessory size exceeded: {dim}"
 
 # ---------- save blend + export FBX ----------
 bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "DuelWings.blend"))
@@ -234,15 +248,30 @@ bpy.ops.wm.save_as_mainfile(filepath=os.path.join(OUT, "DuelWings.blend"))
 sc = bpy.context.scene
 sc.unit_settings.system = 'METRIC'
 sc.unit_settings.scale_length = 0.01
+
+def export(objs, path):
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in objs:
+        o.select_set(True)
+    bpy.ops.export_scene.fbx(
+        filepath=path,
+        use_selection=True,
+        path_mode='COPY',
+        embed_textures=True,
+        apply_scale_options='FBX_SCALE_UNITS',
+        add_leaf_bones=False,
+        bake_anim=False,
+    )
+    print("EXPORTED", path)
+
+# game version: two meshes so the bolts can be set to Neon + lights in-experience
+export([body, bolts], os.path.join(OUT, "DuelWings_Game.fbx"))
+
+# catalog version: single merged mesh (Marketplace rigid accessory requirement)
 bpy.ops.object.select_all(action='DESELECT')
-wings.select_set(True)
-bpy.ops.export_scene.fbx(
-    filepath=os.path.join(OUT, "DuelWings.fbx"),
-    use_selection=True,
-    path_mode='COPY',
-    embed_textures=True,
-    apply_scale_options='FBX_SCALE_UNITS',
-    add_leaf_bones=False,
-    bake_anim=False,
-)
-print("EXPORTED", os.path.join(OUT, "DuelWings.fbx"))
+body.select_set(True); bolts.select_set(True)
+bpy.context.view_layer.objects.active = body
+bpy.ops.object.join()
+catalog = bpy.context.object
+catalog.name = "DuelWings"
+export([catalog], os.path.join(OUT, "DuelWings.fbx"))

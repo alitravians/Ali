@@ -7,7 +7,8 @@
 ## الملفات
 | ملف | الوصف |
 |---|---|
-| `DuelWings.fbx` | جاهز للاستيراد في Roblox Studio (التكستشر مدمج) |
+| `DuelWings.fbx` | نسخة الكتالوج: ميش واحد مدموج (التكستشر مدمج) |
+| `DuelWings_Game.fbx` | نسخة اللعبة: ميشان منفصلان (الجناحان + البرق) — اجعل البرق Neon داخل التجربة |
 | `DuelWings.blend` | ملف Blender المصدر (4.2) |
 | `WingsPalette.png` | خريطة الألوان الواحدة (256×256) |
 | `wings_final.py` | سكربت البناء الكامل (Blender headless) |
