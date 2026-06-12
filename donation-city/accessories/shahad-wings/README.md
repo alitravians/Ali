@@ -11,9 +11,9 @@
 
 ## المواصفات (ضمن حدود Marketplace)
 - المثلثات: **3088** (الحد 4000)
-- المقاس: 9.8 × 5.82 × 0.93 ستد (حد Back: ‏10 × 7 × 4.5)
+- المقاس: 8.33 × 4.95 × 0.79 ستد (حد Back: ‏10 × 7 × 4.5 — يُقاس من نقطة التثبيت، لذلك المقاس أصغر من الحد الأقصى ليستوعب الإزاحة)
 - ميش واحد، خامة Plastic، Transparency 0، بدون سكربتات
-- نقطة التثبيت: BodyBackAttachment بإزاحة `CFrame.new(0, -1.0, -0.85)`
+- نقطة التثبيت: BodyBackAttachment بإزاحة `CFrame.new(0, -0.85, -0.75)`
 
 ## الرفع للكتالوج
 Avatar → 3D Importer → اختر FBX → Setup كـ Rigid → Back Accessory → Platform Avatar → Publish.
