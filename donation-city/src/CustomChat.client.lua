@@ -894,9 +894,13 @@ local function layoutPanel()
 	if compact then
 		list.Position = UDim2.new(0, 8, 0, 40)
 		list.Size = UDim2.new(1, -16, 1, -88)
+		picker.Position = UDim2.new(0, 8, 0, 40)
+		picker.Size = UDim2.new(1, -16, 1, -88)
 	else
 		list.Position = UDim2.new(0, 8, 0, 76)
 		list.Size = UDim2.new(1, -16, 1, -124)
+		picker.Position = UDim2.new(0, 8, 0, 76)
+		picker.Size = UDim2.new(1, -16, 1, -124)
 	end
 	local y
 	if vp.Y >= 520 and not UserInputService.OnScreenKeyboardVisible then
