@@ -14939,7 +14939,8 @@ local root = new("Frame", {
 })
 new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = root })
 new("UIStroke", { Color = PURPLE, Thickness = 1.5, Transparency = 0.35, Parent = root })
-new("UISizeConstraint", { MinSize = Vector2.new(260, 180), MaxSize = Vector2.new(520, 460), Parent = root })
+-- حد أدنى صغير بما يكفي لأصغر شاشات الجوال (الأفقية) — التخطيط المتجاوب أدناه هو من يحسب المقاس الفعلي
+new("UISizeConstraint", { MinSize = Vector2.new(220, 120), MaxSize = Vector2.new(520, 460), Parent = root })
 
 -- شريط العنوان
 local header = new("Frame", {
@@ -15622,19 +15623,61 @@ end)
 local isOpen = false
 local unread = 0
 
+-- 📱 تخطيط متجاوب: مقاس وموضع اللوحة يُحسبان من حجم الشاشة الفعلي (وكيبورد الجوال)
+-- عند كل فتح/تدوير/تغيّر — فلا تخرج اللوحة (وصفّ الكتابة بقاعها) عن حدود الشاشة على أي جهاز.
+local PANEL_TOP   = 56    -- أسفل شريط روبلوكس العلوي
+local PANEL_MARGIN = 10
+local openTween: Tween? = nil   -- توين الفتح الجاري — يُلغى عند أي إعادة تخطيط كي لا يطغى على المقاس الجديد
+local function layoutPanel()
+	if openTween then openTween:Cancel(); openTween = nil end
+	local vp = gui.AbsoluteSize
+	local w = math.clamp(vp.X - 24, 220, 380)
+	local bottomLimit = vp.Y - PANEL_MARGIN
+	if UserInputService.OnScreenKeyboardVisible then
+		-- لا يغطّي كيبورد الجوال صفّ الكتابة: القاع يبقى فوق أعلى الكيبورد
+		bottomLimit = math.min(bottomLimit, UserInputService.OnScreenKeyboardPosition.Y - 6)
+	end
+	local h = math.clamp(bottomLimit - PANEL_TOP, 120, 300)
+	local y
+	if vp.Y >= 520 and not UserInputService.OnScreenKeyboardVisible then
+		y = 112                                -- الشاشات الطويلة (كمبيوتر): الموضع المعتاد تحت الفقاعة
+	else
+		y = math.max(PANEL_TOP, bottomLimit - h) -- الجوال: التصق بالمساحة المتاحة كاملة
+	end
+	root.Position = UDim2.new(0, 12, 0, y)
+	root.Size = UDim2.new(0, w, 0, h)
+end
+
+gui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	if root.Visible then layoutPanel() end
+end)
+UserInputService:GetPropertyChangedSignal("OnScreenKeyboardVisible"):Connect(function()
+	if root.Visible then layoutPanel() end
+end)
+UserInputService:GetPropertyChangedSignal("OnScreenKeyboardPosition"):Connect(function()
+	if root.Visible then layoutPanel() end
+end)
+
 local function openChat()
 	isOpen = true
 	unread = 0
 	badge.Visible = false
 	launcher.Visible = false
 	root.Visible = true
-	root.Size = UDim2.new(0, 380, 0, 0)
-	TweenService:Create(root, TweenInfo.new(0.18, Enum.EasingStyle.Quad),
-		{ Size = UDim2.new(0, 380, 0, 300) }):Play()
+	layoutPanel()
+	local target = root.Size
+	root.Size = UDim2.new(0, target.X.Offset, 0, 0)
+	local tw = TweenService:Create(root, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Size = target })
+	openTween = tw
+	tw.Completed:Connect(function()
+		if openTween == tw then openTween = nil end
+	end)
+	tw:Play()
 end
 
 local function closeChat()
 	isOpen = false
+	if openTween then openTween:Cancel(); openTween = nil end
 	root.Visible = false
 	launcher.Visible = true
 	emojiPanel.Visible = false
