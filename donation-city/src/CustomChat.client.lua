@@ -926,6 +926,7 @@ end
 
 local function closeChat()
 	isOpen = false
+	if openTween then openTween:Cancel(); openTween = nil end
 	root.Visible = false
 	launcher.Visible = true
 	emojiPanel.Visible = false
