@@ -887,6 +887,21 @@ local function layoutPanel()
 		bottomLimit = math.min(bottomLimit, UserInputService.OnScreenKeyboardPosition.Y - 6)
 	end
 	local h = math.clamp(bottomLimit - PANEL_TOP, 120, 300)
+	-- وضع مضغوط للارتفاعات الصغيرة جداً (كيبورد على شاشة صغيرة): يُخفى صفّ الوضع
+	-- وترتفع قائمة الرسائل مكانه كي تبقى مرئية (بدل ارتفاع سالب/صفري)
+	local compact = h < 170
+	modeRow.Visible = not compact
+	if compact then
+		list.Position = UDim2.new(0, 8, 0, 40)
+		list.Size = UDim2.new(1, -16, 1, -88)
+		picker.Position = UDim2.new(0, 8, 0, 40)
+		picker.Size = UDim2.new(1, -16, 1, -88)
+	else
+		list.Position = UDim2.new(0, 8, 0, 76)
+		list.Size = UDim2.new(1, -16, 1, -124)
+		picker.Position = UDim2.new(0, 8, 0, 76)
+		picker.Size = UDim2.new(1, -16, 1, -124)
+	end
 	local y
 	if vp.Y >= 520 and not UserInputService.OnScreenKeyboardVisible then
 		y = 112                                -- الشاشات الطويلة (كمبيوتر): الموضع المعتاد تحت الفقاعة
