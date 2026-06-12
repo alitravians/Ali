@@ -7,7 +7,7 @@
 - `ShahadWings.blend` — ملف المصدر Blender 4.2
 - `ShahadPalette.png` — خريطة الألوان (256×256)
 - `ShahadWings_Fitted.rbxm` — الاكسسوار النهائي المضبوط على الظهر (جاهز: Insert from File)
-- `shahad_final.py` — سكربت البناء الكامل (blender -b -P shahad_final.py)
+- `shahad_final.py` — سكربت البناء الكامل (blender -b -P shahad_final.py) — عند تشغيله يكتب المخرجات في مجلد فرعي `shahad_out/`، ويتطلب خط Great Vibes في `~/fonts/GreatVibes.ttf` (تحميل مجاني من Google Fonts، رخصة OFL)
 
 ## المواصفات (ضمن حدود Marketplace)
 - المثلثات: **3088** (الحد 4000)
