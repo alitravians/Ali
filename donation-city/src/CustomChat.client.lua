@@ -876,7 +876,9 @@ local unread = 0
 -- عند كل فتح/تدوير/تغيّر — فلا تخرج اللوحة (وصفّ الكتابة بقاعها) عن حدود الشاشة على أي جهاز.
 local PANEL_TOP   = 56    -- أسفل شريط روبلوكس العلوي
 local PANEL_MARGIN = 10
+local openTween: Tween? = nil   -- توين الفتح الجاري — يُلغى عند أي إعادة تخطيط كي لا يطغى على المقاس الجديد
 local function layoutPanel()
+	if openTween then openTween:Cancel(); openTween = nil end
 	local vp = gui.AbsoluteSize
 	local w = math.clamp(vp.X - 24, 220, 380)
 	local bottomLimit = vp.Y - PANEL_MARGIN
@@ -888,7 +890,6 @@ local function layoutPanel()
 	local y
 	if vp.Y >= 520 and not UserInputService.OnScreenKeyboardVisible then
 		y = 112                                -- الشاشات الطويلة (كمبيوتر): الموضع المعتاد تحت الفقاعة
-		h = math.min(h, bottomLimit - y)
 	else
 		y = math.max(PANEL_TOP, bottomLimit - h) -- الجوال: التصق بالمساحة المتاحة كاملة
 	end
@@ -915,8 +916,12 @@ local function openChat()
 	layoutPanel()
 	local target = root.Size
 	root.Size = UDim2.new(0, target.X.Offset, 0, 0)
-	TweenService:Create(root, TweenInfo.new(0.18, Enum.EasingStyle.Quad),
-		{ Size = target }):Play()
+	local tw = TweenService:Create(root, TweenInfo.new(0.18, Enum.EasingStyle.Quad), { Size = target })
+	openTween = tw
+	tw.Completed:Connect(function()
+		if openTween == tw then openTween = nil end
+	end)
+	tw:Play()
 end
 
 local function closeChat()
