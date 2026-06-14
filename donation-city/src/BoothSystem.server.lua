@@ -973,7 +973,7 @@ boothInfoFn.OnServerInvoke = function(player, input)
 	end
 	return {
 		ok = allowed,
-		reason = allowed and nil or "تقدر تعرض فقط ما أنت منشئه أو تملكه",
+		reason = if allowed then nil else "تقدر تعرض فقط ما أنت منشئه أو تملكه",
 		id = id, name = info.Name, price = info.PriceInRobux or 0, icon = icon, kind = kind,
 	}
 end
