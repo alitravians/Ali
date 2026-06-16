@@ -24,3 +24,6 @@ e2.txt
 luau
 luau-analyze
 luau-ast
+selene
+# مكتبة Roblox القياسية التي يولّدها selene تلقائياً (لا تُرفع — تُجلب عند الحاجة)
+roblox.yml

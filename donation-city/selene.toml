@@ -1,0 +1,13 @@
+# selene config for the Donation City Roblox (Luau) sources.
+# std = "roblox" makes selene aware of the Roblox API (game, workspace,
+# Instance, Enum, ...) so it no longer reports them as "unknown global".
+# selene fetches/caches the roblox std automatically on first run.
+std = "roblox"
+
+[lints]
+# الكود يستخدم عمداً عدة تعليمات في سطر واحد بفاصلة منقوطة (أسلوب المشروع).
+multiple_statements = "allow"
+# واجهة عبر السيرفر مقصودة عبر _G (مثل _G.NotifyPlayer) — ليست خطأ.
+global_usage = "allow"
+# اقتراح أسلوبي لتبسيط UDim2.new — ليس خطأ منطقياً.
+roblox_manual_fromscale_or_fromoffset = "allow"
