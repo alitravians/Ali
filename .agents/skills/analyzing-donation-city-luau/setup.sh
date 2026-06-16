@@ -39,8 +39,9 @@ fi
 
 # luau-analyze — المحلّل الرسمي من luau-lang (للينتات المنطقية مثل MisleadingAndOr)
 # لا يملك --version فنتتبّع النسخة عبر ملف العلامة.
-if ! command -v luau-analyze >/dev/null 2>&1 || [ "$(marker_get luau)" != "$LUAU_VERSION" ]; then
-  echo "==> تنزيل luau ${LUAU_VERSION} (يحوي luau-analyze؛ المسجّل: $(marker_get luau || echo 'لا شيء'))"
+luau_cur="$(marker_get luau)"
+if ! command -v luau-analyze >/dev/null 2>&1 || [ "$luau_cur" != "$LUAU_VERSION" ]; then
+  echo "==> تنزيل luau ${LUAU_VERSION} (يحوي luau-analyze؛ المسجّل: ${luau_cur:-لا شيء})"
   curl -fsSL -o "$tmp/luau.zip" \
     "https://github.com/luau-lang/luau/releases/download/${LUAU_VERSION}/luau-ubuntu.zip"
   unzip -oq "$tmp/luau.zip" -d "$BIN_DIR"
