@@ -60,6 +60,13 @@ local function elevate()
 end
 elevate()
 
+--==[ تتبّع الاتصالات لإلغائها عند الإغلاق ]==--
+local CONNS = {}
+local function track(conn)
+    table.insert(CONNS, conn)
+    return conn
+end
+
 local function notify(title, text, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -159,10 +166,10 @@ local function getChar()
     return char, hum, root
 end
 
-LocalPlayer.CharacterAdded:Connect(function()
+track(LocalPlayer.CharacterAdded:Connect(function()
     task.wait(0.4)
     Camera = workspace.CurrentCamera
-end)
+end))
 
 --==[ مصنع عناصر الواجهة ]==--
 local function new(class, props, children)
@@ -708,17 +715,17 @@ local function makeSlider(parent, title, key, minV, maxV, suffix, order, onChang
             setFromX(i.Position.X)
         end
     end)
-    UserInputService.InputChanged:Connect(function(i)
+    track(UserInputService.InputChanged:Connect(function(i)
         if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             setFromX(i.Position.X)
         end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
+    end))
+    track(UserInputService.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
             if dragging then saveConfig() end
             dragging = false
         end
-    end)
+    end))
 
     render()
     return { Set = function(v) State[key] = v render() end, Render = render }
@@ -913,8 +920,8 @@ local function refreshPlayerList()
         end
     end
 end
-Players.PlayerAdded:Connect(function() task.wait(0.3) refreshPlayerList() end)
-Players.PlayerRemoving:Connect(function() task.wait(0.3) refreshPlayerList() end)
+track(Players.PlayerAdded:Connect(function() task.wait(0.3) refreshPlayerList() end))
+track(Players.PlayerRemoving:Connect(function() task.wait(0.3) refreshPlayerList() end))
 task.defer(refreshPlayerList)
 
 ------------------------------------------------------------
@@ -1039,7 +1046,7 @@ do
             startPos = window.Position
         end
     end)
-    UserInputService.InputChanged:Connect(function(i)
+    track(UserInputService.InputChanged:Connect(function(i)
         if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
             local delta = i.Position - dragStart
             window.Position = UDim2.new(
@@ -1047,12 +1054,12 @@ do
                 startPos.Y.Scale, startPos.Y.Offset + delta.Y
             )
         end
-    end)
-    UserInputService.InputEnded:Connect(function(i)
+    end))
+    track(UserInputService.InputEnded:Connect(function(i)
         if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
             dragging = false
         end
-    end)
+    end))
 end
 
 --==[ تصغير / إغلاق / مفتاح ]==--
@@ -1072,12 +1079,12 @@ local function setGuiVisible(v)
 end
 closeBtn.MouseButton1Click:Connect(function() setGuiVisible(false) end)
 
-UserInputService.InputBegan:Connect(function(input, gpe)
+track(UserInputService.InputBegan:Connect(function(input, gpe)
     if gpe then return end
     if input.KeyCode == State.ToggleKey then
         setGuiVisible(not guiVisible)
     end
-end)
+end))
 
 ------------------------------------------------------------
 -- تنفيذ الميزات
@@ -1110,7 +1117,7 @@ local function startFly()
     flyBV.Parent = root
 end
 
-UserInputService.InputBegan:Connect(function(i, gpe)
+track(UserInputService.InputBegan:Connect(function(i, gpe)
     if gpe or not State.FlyEnabled then return end
     local k = i.KeyCode
     if k == Enum.KeyCode.W then flyControls.F = 1
@@ -1119,8 +1126,8 @@ UserInputService.InputBegan:Connect(function(i, gpe)
     elseif k == Enum.KeyCode.D then flyControls.R = 1
     elseif k == Enum.KeyCode.Space then flyControls.U = 1
     elseif k == Enum.KeyCode.LeftShift then flyControls.D = 1 end
-end)
-UserInputService.InputEnded:Connect(function(i)
+end))
+track(UserInputService.InputEnded:Connect(function(i)
     local k = i.KeyCode
     if k == Enum.KeyCode.W then flyControls.F = 0
     elseif k == Enum.KeyCode.S then flyControls.B = 0
@@ -1128,7 +1135,7 @@ UserInputService.InputEnded:Connect(function(i)
     elseif k == Enum.KeyCode.D then flyControls.R = 0
     elseif k == Enum.KeyCode.Space then flyControls.U = 0
     elseif k == Enum.KeyCode.LeftShift then flyControls.D = 0 end
-end)
+end))
 
 --==[ ESP ]==--
 local espObjects = {}  -- player -> { highlight, billboard }
@@ -1187,21 +1194,47 @@ local function refreshEsp()
 end
 
 for _, plr in ipairs(Players:GetPlayers()) do
-    plr.CharacterAdded:Connect(function()
+    track(plr.CharacterAdded:Connect(function()
         task.wait(0.6)
         if State.EspEnabled then pcall(addEsp, plr) end
-    end)
+    end))
 end
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function()
+track(Players.PlayerAdded:Connect(function(plr)
+    track(plr.CharacterAdded:Connect(function()
         task.wait(0.6)
         if State.EspEnabled then pcall(addEsp, plr) end
-    end)
-end)
-Players.PlayerRemoving:Connect(function(plr) removeEsp(plr) end)
+    end))
+end))
+track(Players.PlayerRemoving:Connect(function(plr) removeEsp(plr) end))
 
 --==[ الإضاءة الكاملة وإزالة الضباب ]==--
 local savedLighting
+local savedFog
+
+local function restoreFullbright()
+    if not savedLighting then return end
+    pcall(function()
+        Lighting.Brightness = savedLighting.Brightness
+        Lighting.ClockTime = savedLighting.ClockTime
+        Lighting.Ambient = savedLighting.Ambient
+        Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
+        Lighting.GlobalShadows = savedLighting.GlobalShadows
+    end)
+    savedLighting = nil
+end
+
+local function restoreFog()
+    if not savedFog then return end
+    pcall(function()
+        Lighting.FogEnd = savedFog.FogEnd
+        Lighting.FogStart = savedFog.FogStart
+        for atmos, density in pairs(savedFog.atmos) do
+            if atmos and atmos.Parent then atmos.Density = density end
+        end
+    end)
+    savedFog = nil
+end
+
 local function applyLighting()
     if State.Fullbright then
         if not savedLighting then
@@ -1210,7 +1243,6 @@ local function applyLighting()
                 ClockTime = Lighting.ClockTime,
                 Ambient = Lighting.Ambient,
                 OutdoorAmbient = Lighting.OutdoorAmbient,
-                FogEnd = Lighting.FogEnd,
                 GlobalShadows = Lighting.GlobalShadows,
             }
         end
@@ -1219,22 +1251,24 @@ local function applyLighting()
         Lighting.Ambient = Color3.fromRGB(178, 178, 178)
         Lighting.OutdoorAmbient = Color3.fromRGB(178, 178, 178)
         Lighting.GlobalShadows = false
-    elseif savedLighting then
-        pcall(function()
-            Lighting.Brightness = savedLighting.Brightness
-            Lighting.ClockTime = savedLighting.ClockTime
-            Lighting.Ambient = savedLighting.Ambient
-            Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
-            Lighting.GlobalShadows = savedLighting.GlobalShadows
-        end)
-        savedLighting = nil
+    else
+        restoreFullbright()
     end
+
     if State.NoFog then
+        if not savedFog then
+            savedFog = { FogEnd = Lighting.FogEnd, FogStart = Lighting.FogStart, atmos = {} }
+            for _, v in ipairs(Lighting:GetChildren()) do
+                if v:IsA("Atmosphere") then savedFog.atmos[v] = v.Density end
+            end
+        end
         Lighting.FogEnd = 1e9
         Lighting.FogStart = 1e9
         for _, v in ipairs(Lighting:GetChildren()) do
             if v:IsA("Atmosphere") then v.Density = 0 end
         end
+    else
+        restoreFog()
     end
 end
 
@@ -1260,25 +1294,25 @@ local function stopFreecam()
 end
 
 --==[ منع الطرد بالخمول ]==--
-LocalPlayer.Idled:Connect(function()
+track(LocalPlayer.Idled:Connect(function()
     if State.AntiAfk then
         pcall(function()
             VirtualUser:CaptureController()
             VirtualUser:ClickButton2(Vector2.new())
         end)
     end
-end)
+end))
 
 --==[ قفز لا نهائي ]==--
-UserInputService.JumpRequest:Connect(function()
+track(UserInputService.JumpRequest:Connect(function()
     if State.InfJumpEnabled then
         local _, hum = getChar()
         if hum then pcall(function() hum:ChangeState(Enum.HumanoidStateType.Jumping) end) end
     end
-end)
+end))
 
 --==[ الحلقة الرئيسية ]==--
-RunService.RenderStepped:Connect(function(dt)
+track(RunService.RenderStepped:Connect(function(dt)
     local char, hum, root = getChar()
 
     -- FOV
@@ -1357,12 +1391,12 @@ RunService.RenderStepped:Connect(function(dt)
 
     -- تحديث عدّاد اللاعبين
     onlineLabel.Text = "متصل: " .. tostring(#Players:GetPlayers())
-end)
+end))
 
 -- مراقبة الإضاءة باستمرار (بعض الألعاب تعيد ضبطها)
-RunService.Heartbeat:Connect(function()
+track(RunService.Heartbeat:Connect(function()
     if State.Fullbright or State.NoFog then applyLighting() end
-end)
+end))
 
 ------------------------------------------------------------
 -- ربط الـ onChange بالميزات + المزامنة بين التبويبات
@@ -1377,7 +1411,7 @@ end
 do
     local last = { SpeedEnabled = State.SpeedEnabled, FlyEnabled = State.FlyEnabled, EspEnabled = State.EspEnabled,
                    Fullbright = State.Fullbright, NoFog = State.NoFog, FreecamEnabled = State.FreecamEnabled }
-    RunService.Heartbeat:Connect(function()
+    track(RunService.Heartbeat:Connect(function()
         if last.SpeedEnabled ~= State.SpeedEnabled then last.SpeedEnabled = State.SpeedEnabled syncToggles()
             if not State.SpeedEnabled then local _, hum = getChar() if hum then hum.WalkSpeed = 16 end end
         end
@@ -1388,25 +1422,20 @@ do
         if last.FreecamEnabled ~= State.FreecamEnabled then last.FreecamEnabled = State.FreecamEnabled
             if not State.FreecamEnabled then stopFreecam() freecamPos = nil end
         end
-    end)
+    end))
 end
 
 ------------------------------------------------------------
 -- إلغاء التحميل (Unload)
 ------------------------------------------------------------
 _G.__OG_SCHOOL_HUB_UNLOAD = function()
+    for _, c in ipairs(CONNS) do pcall(function() c:Disconnect() end) end
+    table.clear(CONNS)
     pcall(stopFly)
     pcall(stopFreecam)
     for plr in pairs(espObjects) do removeEsp(plr) end
-    if savedLighting then
-        pcall(function()
-            Lighting.Brightness = savedLighting.Brightness
-            Lighting.ClockTime = savedLighting.ClockTime
-            Lighting.Ambient = savedLighting.Ambient
-            Lighting.OutdoorAmbient = savedLighting.OutdoorAmbient
-            Lighting.GlobalShadows = savedLighting.GlobalShadows
-        end)
-    end
+    restoreFullbright()
+    restoreFog()
     pcall(function() Camera.FieldOfView = 70 end)
     local _, hum = getChar()
     if hum then pcall(function() hum.WalkSpeed = 16 end) end
