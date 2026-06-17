@@ -20,6 +20,16 @@ RBXLX = os.path.join(HERE, "DonationCity_FINAL.rbxlx")
 GUARD = os.path.join(HERE, "assets", "guard.rbxmx")
 GSRC  = os.path.join(HERE, "src", "GuardSystem.server.lua")
 
+# Every model whose parts were injected into the place. UnionOperation/MeshPart
+# parts store their mesh/CSG blobs in a top-level <SharedStrings> block; their
+# data must live in the place file or Studio fails to open it ("Unknown
+# referenced shared string md5 ..."). We pull missing blobs from these sources.
+SHARED_SOURCES = [
+    GUARD,
+    os.path.join(HERE, "assets", "palace1.rbxmx"),
+    os.path.join(HERE, "assets", "fingerprint.rbxmx"),
+]
+
 PART_CLASSES = {
     'Part', 'UnionOperation', 'WedgePart', 'MeshPart', 'TrussPart',
     'CornerWedgePart', 'NegateOperation',
@@ -189,6 +199,52 @@ def inject_cap(root):
     ss.append(build_cap(root))
 
 
+def merge_shared_strings(root):
+    # Repair EVERY dangling SharedString reference in the place (not just the
+    # cap's). UnionOperation/MeshPart parts reference mesh/CSG blobs by md5; the
+    # backing <SharedString md5="..."> data must be present or Studio refuses to
+    # open the file. Pull any missing blob from the source asset models.
+    parser = ET.XMLParser(strip_cdata=False, huge_tree=True)
+    src_map = {}
+    for path in SHARED_SOURCES:
+        if not os.path.exists(path):
+            continue
+        g = ET.parse(path, parser).getroot()
+        blk = g.find('SharedStrings')
+        if blk is None:
+            continue
+        for s in blk.findall('SharedString'):
+            md5 = s.get('md5')
+            if md5 and md5 not in src_map:
+                src_map[md5] = s
+
+    # all md5s referenced anywhere in the place
+    needed = set()
+    for sref in root.iter('SharedString'):
+        if sref.get('name') is not None and sref.text:
+            needed.add(sref.text.strip())
+
+    dst = root.find('SharedStrings')
+    if dst is None:
+        dst = ET.SubElement(root, 'SharedStrings')
+        print("created SharedStrings block in target")
+    existing = {s.get('md5') for s in dst.findall('SharedString')}
+
+    added, missing = 0, []
+    for md5 in needed:
+        if md5 in existing:
+            continue
+        if md5 in src_map:
+            dst.append(_clone(src_map[md5]))
+            existing.add(md5)
+            added += 1
+        else:
+            missing.append(md5)
+    print(f"SharedStrings: {len(needed)} referenced, {added} repaired from asset models")
+    if missing:
+        sys.exit(f"ERROR: {len(missing)} referenced SharedStrings not found in any asset: {missing}")
+
+
 def make_script_item(cls, name, referent, source):
     if "]]>" in source:
         sys.exit(f"ERROR: {name} source contains ]]> which breaks CDATA")
@@ -218,6 +274,7 @@ def main():
     tree = ET.parse(RBXLX, parser)
     root = tree.getroot()
     inject_cap(root)
+    merge_shared_strings(root)
     inject_script(root)
     tmp = RBXLX + ".tmp"
     tree.write(tmp, xml_declaration=True, encoding='utf-8')
