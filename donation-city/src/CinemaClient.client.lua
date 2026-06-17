@@ -129,6 +129,14 @@ local function fitCard(card: GuiObject, baseW: number, baseH: number)
 		table.insert(conns, cam:GetPropertyChangedSignal("ViewportSize"):Connect(apply))
 	end
 	table.insert(conns, uiScale:GetPropertyChangedSignal("Scale"):Connect(apply))
+	-- إعادة الربط عند تبديل الكاميرا (مثل المقياس العام) فيبقى fitCard مكتفياً بذاته
+	table.insert(conns, workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		local newCam = workspace.CurrentCamera
+		if newCam then
+			table.insert(conns, newCam:GetPropertyChangedSignal("ViewportSize"):Connect(apply))
+		end
+		apply()
+	end))
 	card.AncestryChanged:Connect(function(_, parent)
 		if not parent then
 			for _, c in ipairs(conns) do c:Disconnect() end
