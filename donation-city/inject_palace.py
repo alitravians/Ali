@@ -26,6 +26,14 @@ PART_CLASSES = {
     'CornerWedgePart','SpawnLocation','Seat','VehicleSeat','NegateOperation',
 }
 
+# ── interior cavity to carve out of the model (world coords, AFTER transform) ──
+# Keeps the grand exterior, wings and upper floors; clears only the central
+# ground-floor clutter where the custom furnished rooms (PalaceSystem) are built,
+# plus a west entrance corridor. Must stay in sync with PalaceSystem.server.lua
+# (FX0/FX1=96/240, FZ0/FZ1=-36/72, FLOOR_Y=0.6, CEIL_Y=11.6, entrance on -X).
+CARVE_INTERIOR = dict(x=(95.0, 241.0), z=(-37.0, 73.0), ytop=12.5, ybot=-2.0)
+CARVE_CORRIDOR = dict(x=(60.0, 96.0), z=(8.0, 28.0),  ytop=12.5, ybot=-2.0)
+
 def name_of(item):
     props = item.find('Properties')
     if props is None:
@@ -76,6 +84,57 @@ def transform_palace(model):
                     scale_vec3(p)
             nmesh += 1
     return nparts, nmesh
+
+def _overlap(a0, a1, b0, b1):
+    return a0 < b1 and b0 < a1
+
+def _part_box(props):
+    cx = cy = cz = 0.0
+    sx = sy = sz = 1.0
+    for p in props:
+        if p.tag == 'CoordinateFrame' and p.get('name') == 'CFrame':
+            for ax, set_c in (('X', 'cx'), ('Y', 'cy'), ('Z', 'cz')):
+                e = p.find(ax)
+                if e is not None and e.text is not None:
+                    v = float(e.text)
+                    if set_c == 'cx': cx = v
+                    elif set_c == 'cy': cy = v
+                    else: cz = v
+        elif p.tag == 'Vector3' and p.get('name') in ('size', 'Size'):
+            for ax in ('X', 'Y', 'Z'):
+                e = p.find(ax)
+                if e is not None and e.text is not None:
+                    v = float(e.text)
+                    if ax == 'X': sx = v
+                    elif ax == 'Y': sy = v
+                    else: sz = v
+    return (cx - sx/2, cx + sx/2, cy - sy/2, cy + sy/2, cz - sz/2, cz + sz/2)
+
+def carve_interior(model):
+    """Remove model BaseParts whose bounding box intrudes into the interior
+    cavity (or the west entrance corridor) so the custom furnished rooms sit in
+    clean, unobstructed space. The exterior shell, wings and upper floors stay."""
+    removed = 0
+    for item in list(model.iter('Item')):
+        if item.get('class') not in PART_CLASSES:
+            continue
+        props = item.find('Properties')
+        if props is None:
+            continue
+        x0, x1, y0, y1, z0, z1 = _part_box(props)
+        hit = False
+        for reg in (CARVE_INTERIOR, CARVE_CORRIDOR):
+            if (_overlap(x0, x1, reg['x'][0], reg['x'][1])
+                    and _overlap(z0, z1, reg['z'][0], reg['z'][1])
+                    and y0 < reg['ytop'] and y1 > reg['ybot']):
+                hit = True
+                break
+        if hit:
+            parent = item.getparent()
+            if parent is not None:
+                parent.remove(item)
+                removed += 1
+    return removed
 
 def main():
     if not os.path.exists(PALACE):
@@ -135,6 +194,9 @@ def main():
 
     nparts, nmesh = transform_palace(model)
     print(f"transformed palace: {nparts} parts, {nmesh} meshes (scale={S}, center=({CX},{CY},{CZ}))")
+
+    carved = carve_interior(model)
+    print(f"carved interior cavity + entrance corridor: removed {carved} model parts")
 
     ws.append(copy.deepcopy(model))
 
