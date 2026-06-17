@@ -19339,8 +19339,9 @@ do
 	-- backdrop + centered card; returns (root, card, body) where body is a holder
 	local function makeModal(titleText: string, w: number, h: number)
 		closeBoothModal()
-		local root = new("Frame", {
-			Name = "BoothModal", BackgroundColor3 = Color3.new(0, 0, 0),
+		local root = new("TextButton", {
+			Name = "BoothModal", Text = "", AutoButtonColor = false, Modal = true,
+			BackgroundColor3 = Color3.new(0, 0, 0),
 			BackgroundTransparency = 0.45, BorderSizePixel = 0,
 			Size = UDim2.fromScale(1, 1), Parent = gui, ZIndex = 50,
 		})
@@ -19355,16 +19356,12 @@ do
 			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
 		fitCard(card, w, h)
-		-- النقر خارج البطاقة يُغلق النافذة (مع إبقاء زر X)
-		root.InputBegan:Connect(function(io)
-			if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
-				local p = io.Position
-				local cp, cs = card.AbsolutePosition, card.AbsoluteSize
-				if p.X < cp.X or p.X > cp.X + cs.X or p.Y < cp.Y or p.Y > cp.Y + cs.Y then
-					playSound(SOUNDS.Click, SOUND_VOLUME)
-					closeBoothModal()
-				end
-			end
+		-- النقر على الخلفية (خارج البطاقة) يُغلق النافذة، مع إبقاء زر X.
+		-- خلفية كزر كامل الشاشة (مثل makeModal الرئيسية): النقر على المناطق غير
+		-- التفاعلية داخل البطاقة يمرّ للخلفية، وهو مستقل تماماً عن مقياس fitCard.
+		root.MouseButton1Click:Connect(function()
+			playSound(SOUNDS.Click, SOUND_VOLUME)
+			closeBoothModal()
 		end)
 		local header = new("TextLabel", {
 			Name = "Header", BackgroundTransparency = 1, Text = titleText,
