@@ -27,3 +27,7 @@ luau-ast
 selene
 # مكتبة Roblox القياسية التي يولّدها selene تلقائياً (لا تُرفع — تُجلب عند الحاجة)
 roblox.yml
+
+# Python cache
+__pycache__/
+*.pyc

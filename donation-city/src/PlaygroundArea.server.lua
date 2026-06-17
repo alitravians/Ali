@@ -14,13 +14,6 @@ local Workspace = game:GetService("Workspace")
 -- مواقع المنطقتين (الجهة المقابلة للمدينة من كل مبنى)
 local SIGNS = {
 	{
-		name  = "BeachZoneSign",
-		pos   = Vector3.new(96, 0, 80),
-		title = "🏖️ منطقة الشاطئ",
-		sub   = "قيد الإنشاء",
-		color = Color3.fromRGB(45, 150, 220),
-	},
-	{
 		name  = "GameHallZoneSign",
 		pos   = Vector3.new(96, 0, -110),
 		title = "🎮 صالة الألعاب",
@@ -110,10 +103,6 @@ end
 local TALK_SOUND = "rbxassetid://131238032"
 
 local GUARDS = {
-	{
-		model = "PoliceGuard_Beach",
-		accent = Color3.fromRGB(45, 150, 220),
-	},
 	{
 		model = "PoliceGuard_GameHall",
 		accent = Color3.fromRGB(165, 95, 215),
