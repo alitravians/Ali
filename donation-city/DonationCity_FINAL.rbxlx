@@ -16181,6 +16181,49 @@ do
 	end)
 end
 
+-- يضمن ألا تتجاوز أي نافذة (بطاقة) حدود الشاشة على أصغر الهواتف.
+-- يضيف UIScale خاصاً بالبطاقة يصغّرها بشكل متناسب فقط عند اللزوم (بلا قصّ ولا
+-- تمرير ولا فقدان محتوى)، ويعيد الحساب عند تدوير/تغيّر الشاشة. baseW/baseH هما
+-- المقاس البكسلي المقصود للبطاقة.
+local MODAL_MARGIN = 16
+local function fitCard(card: GuiObject, baseW: number, baseH: number)
+	if baseW <= 0 or baseH <= 0 then return end
+	local fitScale = Instance.new("UIScale")
+	fitScale.Name = "FitScale"
+	fitScale.Parent = card
+	local function apply()
+		local cam = workspace.CurrentCamera
+		if not cam then return end
+		local g = uiScale.Scale
+		if g <= 0 then g = 1 end
+		-- المساحة المتاحة في إحداثيات الواجهة (قبل المقياس العام)
+		local availW = cam.ViewportSize.X / g - MODAL_MARGIN
+		local availH = cam.ViewportSize.Y / g - MODAL_MARGIN
+		local s = math.min(availW / baseW, availH / baseH, 1)
+		fitScale.Scale = math.clamp(s, 0.2, 1)
+	end
+	apply()
+	local conns = {}
+	local cam = workspace.CurrentCamera
+	if cam then
+		table.insert(conns, cam:GetPropertyChangedSignal("ViewportSize"):Connect(apply))
+	end
+	table.insert(conns, uiScale:GetPropertyChangedSignal("Scale"):Connect(apply))
+	-- إعادة الربط عند تبديل الكاميرا (مثل المقياس العام) فيبقى fitCard مكتفياً بذاته
+	table.insert(conns, workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		local newCam = workspace.CurrentCamera
+		if newCam then
+			table.insert(conns, newCam:GetPropertyChangedSignal("ViewportSize"):Connect(apply))
+		end
+		apply()
+	end))
+	card.AncestryChanged:Connect(function(_, parent)
+		if not parent then
+			for _, c in ipairs(conns) do c:Disconnect() end
+		end
+	end)
+end
+
 ------------------------------------------------------------------------
 -- أرصفة الأزرار الجانبية (Docks): ترتّب الأزرار الثابتة عمودياً تلقائياً
 -- بدون أي تداخل مهما كان عددها أو حجم الشاشة (يسار + يمين).
@@ -16272,6 +16315,7 @@ local function makeModal(cardSize: UDim2)
 	card.Size = UDim2.fromScale(cardSize.X.Scale * 0.9, cardSize.Y.Scale * 0.9)
 	TweenService:Create(card, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{ Size = cardSize }):Play()
+	fitCard(card, cardSize.X.Offset, cardSize.Y.Offset)
 
 	activeRoot = backdrop
 	backdrop.MouseButton1Click:Connect(closeActive)
@@ -17586,6 +17630,7 @@ showWarn = function(data)
 		new("UIStroke", { Color = Color3.fromRGB(255, 190, 60), Thickness = 3, Transparency = 0.05 }),
 		new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 	})
+	fitCard(cardW, 420, 250)
 	new("TextLabel", {
 		BackgroundTransparency = 1, Text = "⚠️ تحذير إداري", Font = Enum.Font.GothamBlack, TextSize = 28,
 		TextColor3 = Color3.fromRGB(255, 200, 70), Size = UDim2.new(1, -36, 0, 48), Position = UDim2.fromOffset(18, 22),
@@ -17696,6 +17741,7 @@ showMaintenance = function(data)
 		new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.15 }),
 		new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 	})
+	fitCard(cardM, 460, 280)
 	new("TextLabel", {
 		BackgroundTransparency = 1, Text = "🛠️ تحت الصيانة", Font = Enum.Font.GothamBlack, TextSize = 30, TextColor3 = GOLD,
 		Size = UDim2.new(1, -36, 0, 50), Position = UDim2.fromOffset(18, 26), ZIndex = 202,
@@ -19293,17 +19339,13 @@ do
 	-- backdrop + centered card; returns (root, card, body) where body is a holder
 	local function makeModal(titleText: string, w: number, h: number)
 		closeBoothModal()
-		local root = new("Frame", {
-			Name = "BoothModal", BackgroundColor3 = Color3.new(0, 0, 0),
+		local root = new("TextButton", {
+			Name = "BoothModal", Text = "", AutoButtonColor = false, Modal = true,
+			BackgroundColor3 = Color3.new(0, 0, 0),
 			BackgroundTransparency = 0.45, BorderSizePixel = 0,
 			Size = UDim2.fromScale(1, 1), Parent = gui, ZIndex = 50,
 		})
 		overlay = root
-		root.InputBegan:Connect(function(io)
-			if io.UserInputType == Enum.UserInputType.MouseButton1 or io.UserInputType == Enum.UserInputType.Touch then
-				-- click outside the card closes
-			end
-		end)
 		local card = new("Frame", {
 			Name = "Card", BackgroundColor3 = CARD, BorderSizePixel = 0,
 			AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
@@ -19313,6 +19355,14 @@ do
 			new("UIStroke", { Color = PURPLE, Thickness = 2, Transparency = 0.15 }),
 			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
+		fitCard(card, w, h)
+		-- النقر على الخلفية (خارج البطاقة) يُغلق النافذة، مع إبقاء زر X.
+		-- خلفية كزر كامل الشاشة (مثل makeModal الرئيسية): النقر على المناطق غير
+		-- التفاعلية داخل البطاقة يمرّ للخلفية، وهو مستقل تماماً عن مقياس fitCard.
+		root.MouseButton1Click:Connect(function()
+			playSound(SOUNDS.Click, SOUND_VOLUME)
+			closeBoothModal()
+		end)
 		local header = new("TextLabel", {
 			Name = "Header", BackgroundTransparency = 1, Text = titleText,
 			Font = Enum.Font.GothamBlack, TextSize = 22, TextColor3 = GOLD,
