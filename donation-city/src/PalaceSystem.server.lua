@@ -58,7 +58,6 @@ local MARBLE   = Color3.fromRGB(206, 200, 188)
 local WALL_C   = Color3.fromRGB(228, 224, 214)
 local TRIM_GOLD= Color3.fromRGB(214, 175, 92)
 local CEIL_C   = Color3.fromRGB(234, 230, 222)
-local STONE    = Color3.fromRGB(176, 170, 158)   -- بلاط حجري للساحة الخارجية
 local WOOD     = Color3.fromRGB(86, 56, 34)
 local WOOD_D   = Color3.fromRGB(64, 40, 24)
 
@@ -67,10 +66,19 @@ local WOOD_D   = Color3.fromRGB(64, 40, 24)
 ----------------------------------------------------------------------
 local old = Workspace:FindFirstChild("PalaceInterior")
 if old then old:Destroy() end
+local oldExt = Workspace:FindFirstChild("PalaceExterior")
+if oldExt then oldExt:Destroy() end
 
 local ROOT = Instance.new("Model")
 ROOT.Name = "PalaceInterior"
 ROOT.Parent = Workspace
+
+-- القشرة الخارجية الفخمة (قبّة + أعمدة + واجهة طابقين + أعلام) — تُبنى بأشكال
+-- روبلوكس الأصلية فقط (Part/Cylinder/Ball/Wedge) بلا أي Union/Mesh، فمستحيل
+-- أن تظهر «مكعّبات» أو تشوّه. نموذج منفصل ليُنظَّف ويُعاد بناؤه مع كل تشغيل.
+local EXT = Instance.new("Model")
+EXT.Name = "PalaceExterior"
+EXT.Parent = Workspace
 
 local function part(name: string, cf: CFrame, size: Vector3, color: Color3, mat: Enum.Material?, parent: Instance?): Part
 	local p = Instance.new("Part")
@@ -94,14 +102,17 @@ local function box(name, x0, x1, y0, y1, z0, z1, color, mat, parent): Part
 	return part(name, cf, Vector3.new(sx, sy, sz), color, mat, parent)
 end
 
--- مقعد قابل للجلوس فعلاً (Seat) — يجلس عليه اللاعب عند لمسه
+-- مقعد قابل للجلوس فعلاً (Seat) — يجلس عليه اللاعب عند لمسه.
+-- مهم: اللاعب الجالس يواجه اتجاه LookVector للمقعد (محور -Z المحلي). كل قطع
+-- الأثاث هنا تضع ظهر الكرسي عند -Z المحلي وتتوقّع أن يواجه اللاعب +Z (للأمام)،
+-- لذا نلفّ المقعد 180° حتى يواجه اللاعب بعيداً عن الظهر (لا يجلس مقلوباً).
 local function seatPart(name: string, cf: CFrame, size: Vector3, color: Color3, mat: Enum.Material?): Seat
 	local s = Instance.new("Seat")
 	s.Name = name
 	s.Anchored = true
 	s.CanCollide = true
 	s.Size = size
-	s.CFrame = cf
+	s.CFrame = cf * CFrame.Angles(0, math.rad(180), 0)
 	s.Color = color
 	s.Material = mat or Enum.Material.Fabric
 	s.TopSurface = Enum.SurfaceType.Smooth
@@ -134,25 +145,13 @@ box("Floor", 95, 241, 0, FLOOR_Y, -37, 73, MARBLE, Enum.Material.Marble)
 -- سقف
 box("Ceiling", FX0, FX1, CEIL_Y, CEIL_Y + 0.7, FZ0, FZ1, CEIL_C, Enum.Material.SmoothPlastic)
 
--- ساحة/ممرّ المدخل الحجري أمام الباب (يقفل الحفرة التي خلّفها نحت الممر الغربي
--- ويعطي انتقالاً نظيفاً من العشب إلى القصر — بدل سقوط اللاعب في فجوة).
-box("EntryPlaza", 78, FX0, 0, FLOOR_Y, 2, 34, STONE, Enum.Material.Concrete)
--- درجتان منخفضتان عند مقدّمة الساحة
-box("EntryStep1", 74, 78, 0, FLOOR_Y - 0.2, 4, 32, STONE, Enum.Material.Concrete)
-box("EntryStep2", 71, 74, 0, FLOOR_Y - 0.4, 6, 30, STONE, Enum.Material.Concrete)
+-- الجدران الخارجية المحيطة (القشرة الكاملة بطابقين + القاعدة + الساحة + الدرج)
+-- تُبنى الآن في قسم «القشرة الخارجية» أدناه بأشكال أصلية، فأُزيلت الجدران
+-- المفردة الطابق الواحد والساحة القديمة من هنا لتفادي ازدواج الأسطح (z-fighting).
 
 local function wall(x0, x1, z0, z1)
 	box("Wall", x0, x1, FLOOR_Y, CEIL_Y, z0, z1, WALL_C, Enum.Material.SmoothPlastic)
 end
-
--- جدار -X (مدخل المدينة) بفتحة المدخل
-wall(ENT_X - WT, ENT_X, FZ0, ENT_Z0)
-wall(ENT_X - WT, ENT_X, ENT_Z1, FZ1)
--- جدار +X (الخلفي)
-wall(FX1, FX1 + WT, FZ0, FZ1)
--- جدار -Z و +Z
-wall(FX0, FX1, FZ0 - WT, FZ0)
-wall(FX0, FX1, FZ1, FZ1 + WT)
 
 -- جدران داخلية + فتحات الأبواب
 local DOOR_W0, DOOR_W1 = 126, 142        -- فتحة باب البهو↔القاعات
@@ -178,6 +177,234 @@ lintel(176, 176 + WT, ENT_Z0, ENT_Z1)
 goldStrip(FX0, FX1, CEIL_Y - 0.6, FZ0 - WT, FZ0)
 goldStrip(FX0, FX1, CEIL_Y - 0.6, FZ1, FZ1 + WT)
 goldStrip(FX1, FX1 + WT, CEIL_Y - 0.6, FZ0, FZ1)
+
+----------------------------------------------------------------------
+-- 🏰 القشرة الخارجية الفخمة — أشكال روبلوكس أصلية فقط (صفر Union/Mesh)
+--    قبّة ذهبية + بورتيكو بأعمدة + واجهة طابقين + كورنيش + نوافذ + علمَا قطر
+----------------------------------------------------------------------
+do
+	-- خامات/ألوان الخارج
+	local STONE_E = Color3.fromRGB(222, 214, 191)
+	local COL_C   = Color3.fromRGB(236, 230, 212)
+	local BASE_C  = Color3.fromRGB(138, 132, 122)
+	local GOLD_E  = Color3.fromRGB(212, 168, 78)
+	local DOME_C  = Color3.fromRGB(206, 160, 76)
+	local ROOF_C  = Color3.fromRGB(190, 185, 174)
+	local GLASS_C = Color3.fromRGB(44, 64, 88)
+	local POLE_C  = Color3.fromRGB(206, 206, 212)
+	local MAROON  = Color3.fromRGB(140, 26, 58)   -- عنّابي قطر
+	local FLAG_W  = Color3.fromRGB(245, 244, 240)
+	local RED_C   = Color3.fromRGB(140, 26, 31)
+
+	-- أبعاد (تطابق تصميم البلندر المعتمد؛ Y هو الارتفاع، سطح الأرض عند 0)
+	local GY = FLOOR_Y                 -- 0.6
+	local F1, F2 = 12, 23              -- خط الطابقين + قمّة الجدران
+	local OX0, OX1 = 94, 242           -- حدود الجدران الخارجية على X
+	local OZ0, OZ1 = -38, 74           -- حدود الجدران الخارجية على Z
+	local CXp, CZp = 168, 18           -- مركز القصر
+
+	-- مساعدو الأشكال (كلها Anchored وبلا تصادم مزعج)
+	local function ebox(name, x0, x1, y0, y1, z0, z1, color, mat)
+		return box(name, x0, x1, y0, y1, z0, z1, color, mat, EXT)
+	end
+	local function cylV(name, x, z, y0, y1, r, color, mat)
+		local p = Instance.new("Part")
+		p.Name = name; p.Anchored = true; p.CanCollide = true
+		p.Shape = Enum.PartType.Cylinder
+		-- محور الأسطوانة الأصلي على X؛ نلفّها لتقف عمودية (طولها على محور Y)
+		p.Size = Vector3.new(math.abs(y1 - y0), 2 * r, 2 * r)
+		p.CFrame = CFrame.new(x, (y0 + y1) / 2, z) * CFrame.Angles(0, 0, math.rad(90))
+		p.Color = color; p.Material = mat or Enum.Material.Marble
+		p.TopSurface = Enum.SurfaceType.Smooth; p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = EXT
+		return p
+	end
+	local function ballP(name, x, y, z, r, color, mat)
+		local p = Instance.new("Part")
+		p.Name = name; p.Anchored = true; p.CanCollide = true
+		p.Shape = Enum.PartType.Ball
+		p.Size = Vector3.new(2 * r, 2 * r, 2 * r)
+		p.CFrame = CFrame.new(x, y, z)
+		p.Color = color; p.Material = mat or Enum.Material.Metal
+		p.Parent = EXT
+		return p
+	end
+	-- إطار محيطي (شريط أفقي حول الجدران الخارجية فقط) — يتفادى شريحة صلبة تملأ
+	-- كامل المسقط الأفقي (كانت تظهر كسطح ذهبي يعبر المبنى). أربع شرائح بلا تداخل.
+	local function frameRing(prefix, y0, y1, pj, color, mat)
+		ebox(prefix .. "F", OX0 - pj, OX0 + 2, y0, y1, OZ0 - pj, OZ1 + pj, color, mat).CanCollide = false
+		ebox(prefix .. "B", OX1 - 2, OX1 + pj, y0, y1, OZ0 - pj, OZ1 + pj, color, mat).CanCollide = false
+		ebox(prefix .. "A", OX0 + 2, OX1 - 2, y0, y1, OZ0 - pj, OZ0 + 2, color, mat).CanCollide = false
+		ebox(prefix .. "C", OX0 + 2, OX1 - 2, y0, y1, OZ1 - 2, OZ1 + pj, color, mat).CanCollide = false
+	end
+	-- جبهة مثلّثة (pediment): نصفان من WedgePart يلتقيان في القمّة عند z = zc
+	local function gable(name, x0, x1, ybot, ytop, z0, z1, zc, color, mat)
+		local sx, sy = math.abs(x1 - x0), math.abs(ytop - ybot)
+		local cx, cy = (x0 + x1) / 2, (ybot + ytop) / 2
+		local wr = Instance.new("WedgePart")
+		wr.Name = name; wr.Anchored = true; wr.CanCollide = true
+		wr.Size = Vector3.new(sx, sy, math.abs(z1 - zc))
+		wr.CFrame = CFrame.new(cx, cy, (zc + z1) / 2)
+		wr.Color = color; wr.Material = mat or Enum.Material.Marble; wr.Parent = EXT
+		local wl = Instance.new("WedgePart")
+		wl.Name = name; wl.Anchored = true; wl.CanCollide = true
+		wl.Size = Vector3.new(sx, sy, math.abs(zc - z0))
+		wl.CFrame = CFrame.new(cx, cy, (z0 + zc) / 2) * CFrame.Angles(0, math.rad(180), 0)
+		wl.Color = color; wl.Material = mat or Enum.Material.Marble; wl.Parent = EXT
+	end
+
+	------------------------------------------------------------------
+	-- 1) القاعدة (تجلس تماماً على العشب عند Y=0) + أبرون حجري حول الأرضية
+	------------------------------------------------------------------
+	ebox("Foundation", 70, 246, -1.6, 0.0, -42, 78, BASE_C, Enum.Material.Slate)
+	ebox("ApronFront", 70, 95, 0, GY, -41, 77, STONE_E, Enum.Material.Concrete)
+	ebox("ApronBack",  241, 245, 0, GY, -41, 77, STONE_E, Enum.Material.Concrete)
+	ebox("ApronZ0",    95, 241, 0, GY, -41, -37, STONE_E, Enum.Material.Concrete)
+	ebox("ApronZ1",    95, 241, 0, GY, 73, 77, STONE_E, Enum.Material.Concrete)
+	-- درج المدخل أمام البورتيكو (من العشب صعوداً إلى المنصّة)
+	for i = 0, 2 do
+		ebox("PorticoStep" .. i, 67.5 - i * 2.5, 70 - i * 2.5, 0, GY - i * 0.2, 4, 32, STONE_E, Enum.Material.Concrete)
+	end
+
+	------------------------------------------------------------------
+	-- 2) الجدران الخارجية (طابقان) بفتحة المدخل على -X
+	------------------------------------------------------------------
+	ebox("WallBack",       OX1 - 2, OX1, GY, F2, OZ0, OZ1, STONE_E, Enum.Material.Marble)
+	ebox("WallSideA",      OX0, OX1, GY, F2, OZ0, OZ0 + 2, STONE_E, Enum.Material.Marble)
+	ebox("WallSideB",      OX0, OX1, GY, F2, OZ1 - 2, OZ1, STONE_E, Enum.Material.Marble)
+	ebox("WallFrontA",     OX0, OX0 + 2, GY, F2, OZ0, ENT_Z0, STONE_E, Enum.Material.Marble)
+	ebox("WallFrontB",     OX0, OX0 + 2, GY, F2, ENT_Z1, OZ1, STONE_E, Enum.Material.Marble)
+	ebox("WallFrontLintel", OX0, OX0 + 2, 9.4, F2, ENT_Z0, ENT_Z1, STONE_E, Enum.Material.Marble)
+	-- خط ذهبي فاصل بين الطابقين (شريط محيطي على الجدران فقط)
+	frameRing("Belt", F1 - 0.3, F1 + 0.3, 0.5, GOLD_E, Enum.Material.Metal)
+
+	-- أعمدة زاويّة (تمتدّ فوق السور) + قمم ذهبية
+	for _, c in ipairs({ {OX0, OZ0, -1, -1}, {OX0, OZ1, -1, 1}, {OX1, OZ0, 1, -1}, {OX1, OZ1, 1, 1} }) do
+		local px, pz, ox, oz = c[1], c[2], c[3], c[4]
+		ebox("Quoin", px + ox * 1.2, px - ox * 2.6, GY, F2 + 3.4, pz + oz * 1.2, pz - oz * 2.6, COL_C, Enum.Material.Marble)
+		ebox("QuoinCap", px + ox * 1.5, px - ox * 2.9, F2 + 3.4, F2 + 4.2, pz + oz * 1.5, pz - oz * 2.9, GOLD_E, Enum.Material.Metal)
+	end
+
+	------------------------------------------------------------------
+	-- 3) الكورنيش + السور (parapet) + السقف
+	------------------------------------------------------------------
+	frameRing("Cornice", F2, F2 + 1, 1.2, GOLD_E, Enum.Material.Metal)
+	ebox("ParB", OX1 - 1, OX1 + 1, F2 + 1, F2 + 3, OZ0 - 1, OZ1 + 1, STONE_E, Enum.Material.Marble)
+	ebox("ParF", OX0 - 1, OX0 + 1, F2 + 1, F2 + 3, OZ0 - 1, OZ1 + 1, STONE_E, Enum.Material.Marble)
+	ebox("ParA", OX0 - 1, OX1 + 1, F2 + 1, F2 + 3, OZ0 - 1, OZ0 + 1, STONE_E, Enum.Material.Marble)
+	ebox("ParC", OX0 - 1, OX1 + 1, F2 + 1, F2 + 3, OZ1 - 1, OZ1 + 1, STONE_E, Enum.Material.Marble)
+	ebox("Roof", OX0, OX1, F2, F2 + 0.5, OZ0, OZ1, ROOF_C, Enum.Material.Concrete)
+
+	------------------------------------------------------------------
+	-- 4) البورتيكو الكبير (٦ أعمدة عملاقة + إفريز + جبهة مثلّثة) على -X
+	------------------------------------------------------------------
+	local PORT_X = OX0 - 10            -- 84
+	local COL_R, COL_TOP = 1.9, F2 - 1 -- 22
+	for i, cz in ipairs({ CZp - 26, CZp - 17.3, CZp - 8.6, CZp + 8.6, CZp + 17.3, CZp + 26 }) do
+		cylV("Column" .. i, PORT_X, cz, GY, COL_TOP, COL_R, COL_C, Enum.Material.Marble)
+		ebox("ColBase" .. i, PORT_X - COL_R - 0.6, PORT_X + COL_R + 0.6, GY, GY + 0.9, cz - COL_R - 0.6, cz + COL_R + 0.6, STONE_E, Enum.Material.Marble)
+		ebox("ColCap" .. i, PORT_X - COL_R - 0.7, PORT_X + COL_R + 0.7, COL_TOP - 0.9, COL_TOP, cz - COL_R - 0.7, cz + COL_R + 0.7, STONE_E, Enum.Material.Marble)
+	end
+	ebox("Entablature", PORT_X - COL_R - 1.2, OX0, COL_TOP, COL_TOP + 2.2, CZp - 28, CZp + 28, STONE_E, Enum.Material.Marble)
+	ebox("EntGold", PORT_X - COL_R - 1.2, OX0, COL_TOP, COL_TOP + 0.6, CZp - 28, CZp + 28, GOLD_E, Enum.Material.Metal).CanCollide = false
+	gable("Pediment", PORT_X - COL_R - 1.2, OX0, COL_TOP + 2.2, COL_TOP + 9, CZp - 28, CZp + 28, CZp, STONE_E, Enum.Material.Marble)
+	-- سجادة حمراء من الدرج إلى داخل البهو
+	ebox("RedCarpet", 67, 130, GY, GY + 0.08, ENT_Z0 + 2, ENT_Z1 - 2, RED_C, Enum.Material.Fabric).CanCollide = false
+
+	------------------------------------------------------------------
+	-- 5) القبّة الذهبية على طارة بأعمدة + قمرية + رمح ذهبي
+	------------------------------------------------------------------
+	local DRUM_R = 14.5                       -- = نصف قطر القبّة (يُخفي نصفها السفلي)
+	local DRUM_Y0, DRUM_Y1 = F2 + 0.5, F2 + 9 -- 23.5 .. 32
+	cylV("DomeDrum", CXp, CZp, DRUM_Y0, DRUM_Y1, DRUM_R, STONE_E, Enum.Material.Marble)
+	for k = 0, 19 do
+		local a = (k / 20) * 2 * math.pi
+		cylV("DrumCol" .. k, CXp + math.cos(a) * (DRUM_R + 0.5), CZp + math.sin(a) * (DRUM_R + 0.5), DRUM_Y0 + 0.5, DRUM_Y1 - 0.5, 0.45, COL_C, Enum.Material.Marble)
+	end
+	cylV("DrumRing", CXp, CZp, DRUM_Y1 - 0.6, DRUM_Y1, DRUM_R + 0.8, GOLD_E, Enum.Material.Metal)
+	local DOME_R = 14.5
+	ballP("Dome", CXp, DRUM_Y1, CZp, DOME_R, DOME_C, Enum.Material.Metal)
+	local DTOP = DRUM_Y1 + DOME_R             -- 46.5
+	cylV("Cupola", CXp, CZp, DTOP - 0.3, DTOP + 3, 2.4, STONE_E, Enum.Material.Marble)
+	ballP("CupolaCap", CXp, DTOP + 3, CZp, 2.6, DOME_C, Enum.Material.Metal)
+	cylV("FinialRod", CXp, CZp, DTOP + 5.6, DTOP + 8.2, 0.28, GOLD_E, Enum.Material.Metal)
+	ballP("FinialBall", CXp, DTOP + 8.6, CZp, 0.8, GOLD_E, Enum.Material.Metal)
+
+	------------------------------------------------------------------
+	-- 6) النوافذ (طابقان) — على الواجهة + الجانبين، بإطار ذهبي وزجاج داكن
+	------------------------------------------------------------------
+	local function winFront(zc, y0, y1)
+		ebox("WinFrame", 93.5, 94.6, y0, y1, zc - 2.6, zc + 2.6, GOLD_E, Enum.Material.Metal)
+		ebox("WinGlass", 93.3, 94.4, y0 + 0.6, y1 - 0.6, zc - 2.0, zc + 2.0, GLASS_C, Enum.Material.Glass).CanCollide = false
+	end
+	local function winSide(xc, zc, y0, y1)
+		ebox("WinFrame", xc - 2.6, xc + 2.6, y0, y1, zc - 0.55, zc + 0.55, GOLD_E, Enum.Material.Metal)
+		ebox("WinGlass", xc - 2.0, xc + 2.0, y0 + 0.6, y1 - 0.6, zc - 0.7, zc + 0.7, GLASS_C, Enum.Material.Glass).CanCollide = false
+	end
+	for _, zc in ipairs({ -27, -14, 50, 63 }) do
+		winFront(zc, GY + 2.5, F1 - 1.5)
+		winFront(zc, F1 + 1.5, F2 - 2)
+	end
+	for xc = 116, 220, 24 do
+		winSide(xc, OZ0 + 1, GY + 2.5, F1 - 1.5); winSide(xc, OZ0 + 1, F1 + 1.5, F2 - 2)
+		winSide(xc, OZ1 - 1, GY + 2.5, F1 - 1.5); winSide(xc, OZ1 - 1, F1 + 1.5, F2 - 2)
+	end
+
+	------------------------------------------------------------------
+	-- 7) علمَا قطر على ساريتين تحفّان المدخل (عنّابي + حافة بيضاء عند السارية)
+	------------------------------------------------------------------
+	for _, fz in ipairs({ CZp - 40, CZp + 40 }) do
+		cylV("FlagPole", PORT_X - 6, fz, GY, GY + 28, 0.32, POLE_C, Enum.Material.Metal)
+		ballP("PoleTop", PORT_X - 6, GY + 28.4, fz, 0.55, GOLD_E, Enum.Material.Metal)
+		ebox("FlagMaroon", PORT_X - 6.1, PORT_X - 5.8, GY + 22.3, GY + 27, fz, fz + 12, MAROON, Enum.Material.Fabric).CanCollide = false
+		ebox("FlagWhite", PORT_X - 6.15, PORT_X - 5.75, GY + 22.3, GY + 27, fz, fz + 3.4, FLAG_W, Enum.Material.Fabric).CanCollide = false
+	end
+
+	------------------------------------------------------------------
+	-- 8) لافتة الواجهة «مكتب القصر الجمهوري لشهد» على الإفريز فوق المدخل
+	------------------------------------------------------------------
+	local SGN_HW = 10.5
+	local sbk = ebox("FacadeSignBack", PORT_X - COL_R - 1.7, PORT_X - COL_R - 1.3, COL_TOP + 0.3, COL_TOP + 4.6, CZp - SGN_HW, CZp + SGN_HW, Color3.fromRGB(24, 21, 17), Enum.Material.SmoothPlastic)
+	ebox("FacadeSignFrameT", PORT_X - COL_R - 1.8, PORT_X - COL_R - 1.25, COL_TOP + 4.4, COL_TOP + 4.8, CZp - SGN_HW - 0.4, CZp + SGN_HW + 0.4, GOLD_E, Enum.Material.Neon).CanCollide = false
+	ebox("FacadeSignFrameB", PORT_X - COL_R - 1.8, PORT_X - COL_R - 1.25, COL_TOP + 0.1, COL_TOP + 0.5, CZp - SGN_HW - 0.4, CZp + SGN_HW + 0.4, GOLD_E, Enum.Material.Neon).CanCollide = false
+	local fGlow = pointLight(sbk, Color3.fromRGB(255, 205, 110), 1.5, 16)
+	local fg = Instance.new("SurfaceGui")
+	fg.Name = "FacadeSignGui"; fg.AutoLocalize = false
+	fg.Face = Enum.NormalId.Left
+	fg.CanvasSize = Vector2.new(1400, 300)
+	fg.LightInfluence = 0
+	fg.Adornee = sbk; fg.Parent = sbk
+	local fl = Instance.new("TextLabel")
+	fl.BackgroundTransparency = 1
+	fl.Size = UDim2.new(1, -40, 1, -24)
+	fl.Position = UDim2.new(0, 20, 0, 12)
+	fl.Font = Enum.Font.GothamBlack
+	fl.Text = "مكتب القصر الجمهوري لشهد"
+	fl.RichText = true
+	fl.TextScaled = true
+	fl.TextColor3 = Color3.fromRGB(255, 224, 150)
+	local fgrad = Instance.new("UIGradient")
+	fgrad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 190)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(247, 200, 110)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(214, 160, 70)),
+	})
+	fgrad.Rotation = 90
+	fgrad.Parent = fl
+	local fstr = Instance.new("UIStroke")
+	fstr.Color = Color3.fromRGB(120, 80, 20)
+	fstr.Thickness = 3
+	fstr.Parent = fl
+	fl.Parent = fg
+	task.spawn(function()
+		while sbk.Parent do
+			TweenService:Create(fGlow, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Brightness = 3.0 }):Play()
+			task.wait(1.8)
+			TweenService:Create(fGlow, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Brightness = 1.5 }):Play()
+			task.wait(1.8)
+		end
+	end)
+end
 
 ----------------------------------------------------------------------
 -- 🪑 مكتبة الأثاث (دوال قابلة لإعادة الاستخدام)
@@ -497,18 +724,32 @@ local evScanResult = Instance.new("RemoteEvent"); evScanResult.Name = "ScanResul
 local evLogReq = Instance.new("RemoteEvent"); evLogReq.Name = "LogRequest"; evLogReq.Parent = net
 local evLogData = Instance.new("RemoteEvent"); evLogData.Name = "LogData"; evLogData.Parent = net
 
--- لوحة البصمة على الجدار يمين الباب
-local panelFrame = box("ScannerFrame", ENT_X - 0.9, ENT_X - 0.1, 3.2, 7.0, 27, 30.2, Color3.fromRGB(18, 18, 22), Enum.Material.Metal)
-box("ScannerEdge", ENT_X - 1.0, ENT_X - 0.05, 3.0, 7.2, 26.8, 30.4, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
-local pad = box("ScannerPad", ENT_X - 1.0, ENT_X - 0.6, 4.0, 6.2, 27.6, 29.6, Color3.fromRGB(20, 60, 90), Enum.Material.Neon)
+-- جهاز بصمة احترافي قائم بذاته (كونسول) يمين المدخل على الساحة — يواجه المدينة (-X)
+-- مطابق للصورة المرجعية المعتمدة: قاعدة رخامية + جسم ذهبي + شاشة سماوية متوهّجة + لوح مسح زجاجي.
+local CX_S, CZ_S = 89, 30          -- مركز الجهاز (يمين الباب: جهة +Z)
+local SY = FLOOR_Y
+-- قاعدة رخامية
+box("ScanBase", CX_S - 2.2, CX_S + 2.2, SY, SY + 0.5, CZ_S - 2.4, CZ_S + 2.4, MARBLE, Enum.Material.Marble)
+box("ScanPlinth", CX_S - 1.7, CX_S + 1.7, SY + 0.5, SY + 3.2, CZ_S - 1.9, CZ_S + 1.9, MARBLE, Enum.Material.Marble)
+-- جسم الكونسول الذهبي (يحمل الشاشة) — هذا panelFrame (الـProximityPrompt يلتصق به)
+local panelFrame = box("ScannerFrame", CX_S - 1.9, CX_S + 1.9, SY + 3.2, SY + 6.7, CZ_S - 2.1, CZ_S + 2.1, Color3.fromRGB(196, 156, 74), Enum.Material.Metal)
+box("ScannerTrim", CX_S - 2.0, CX_S + 2.0, SY + 6.7, SY + 7.0, CZ_S - 2.2, CZ_S + 2.2, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+-- إطار الشاشة (ذهبي متوهّج) على الوجه -X
+box("ScannerEdge", CX_S - 2.0, CX_S - 1.85, SY + 3.9, SY + 6.4, CZ_S - 1.7, CZ_S + 1.7, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+-- الشاشة السماوية المتوهّجة (pad) — يتغيّر لونها مع نتيجة المسح
+local pad = box("ScannerPad", CX_S - 2.05, CX_S - 1.92, SY + 4.1, SY + 6.2, CZ_S - 1.5, CZ_S + 1.5, Color3.fromRGB(20, 60, 90), Enum.Material.Neon)
 pad.CanCollide = false
-local padLight = pointLight(pad, Color3.fromRGB(80, 170, 230), 0.8, 6)
+local padLight = pointLight(pad, Color3.fromRGB(80, 170, 230), 1.0, 8)
+-- لوح المسح الزجاجي (تضع فيه إصبعك) بارز أمام الجسم
+local glassPad = box("ScanGlass", CX_S - 2.0, CX_S - 1.4, SY + 3.25, SY + 3.45, CZ_S - 1.2, CZ_S + 1.2, Color3.fromRGB(120, 210, 245), Enum.Material.Glass)
+glassPad.CanCollide = false
+pointLight(glassPad, Color3.fromRGB(110, 200, 240), 0.7, 5)
 
--- أيقونة بصمة على اللوحة
+-- أيقونة بصمة على الشاشة
 local padGui = Instance.new("SurfaceGui")
 padGui.Name = "PadGui"; padGui.AutoLocalize = false
 padGui.Face = Enum.NormalId.Left
-padGui.CanvasSize = Vector2.new(220, 300)
+padGui.CanvasSize = Vector2.new(300, 360)
 padGui.LightInfluence = 0
 padGui.Adornee = pad
 padGui.Parent = pad
