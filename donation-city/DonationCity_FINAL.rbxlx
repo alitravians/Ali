@@ -15266,40 +15266,63 @@ local function rug(x0, x1, z0, z1, color)
 end
 
 local function chandelier(x, z, color)
-	local chain = part("Chain", CFrame.new(x, CEIL_Y - 1.0, z), Vector3.new(0.2, 2, 0.2), Color3.fromRGB(60,60,60), Enum.Material.Metal)
+	local rose = part("ChandRose", CFrame.new(x, CEIL_Y - 0.3, z) * CFrame.Angles(0, 0, math.rad(90)), Vector3.new(0.5, 2.6, 2.6), TRIM_GOLD, Enum.Material.Metal)
+	rose.Shape = Enum.PartType.Cylinder
+	rose.CanCollide = false
+	local chain = part("Chain", CFrame.new(x, CEIL_Y - 1.4, z), Vector3.new(0.18, 2.2, 0.18), Color3.fromRGB(70, 60, 40), Enum.Material.Metal)
 	chain.CanCollide = false
-	local orb = part("Chandelier", CFrame.new(x, CEIL_Y - 2.4, z), Vector3.new(2.6, 1.6, 2.6), Color3.fromRGB(255, 240, 200), Enum.Material.Neon)
+	local orb = part("Chandelier", CFrame.new(x, CEIL_Y - 2.9, z), Vector3.new(1.7, 1.4, 1.7), Color3.fromRGB(255, 244, 214), Enum.Material.Neon)
 	orb.Shape = Enum.PartType.Ball
 	orb.CanCollide = false
-	pointLight(orb, color, 1.0, 20)
-	for i = 0, 5 do
-		local a = math.rad(i * 60)
-		local arm = part("Crystal", CFrame.new(x + math.cos(a) * 1.6, CEIL_Y - 2.6, z + math.sin(a) * 1.6), Vector3.new(0.3, 1.2, 0.3), Color3.fromRGB(255, 250, 220), Enum.Material.Neon)
+	pointLight(orb, color, 1.6, 26)
+	for i = 0, 7 do
+		local a = math.rad(i * 45)
+		local ax, az = x + math.cos(a) * 1.9, z + math.sin(a) * 1.9
+		local arm = part("ChandArm", CFrame.new((x + ax) / 2, CEIL_Y - 2.6, (z + az) / 2) * CFrame.Angles(0, -a, 0), Vector3.new(2.0, 0.16, 0.16), TRIM_GOLD, Enum.Material.Metal)
 		arm.CanCollide = false
+		local bead = part("Crystal", CFrame.new(ax, CEIL_Y - 3.0, az), Vector3.new(0.5, 0.9, 0.5), Color3.fromRGB(255, 250, 226), Enum.Material.Neon)
+		bead.Shape = Enum.PartType.Ball
+		bead.CanCollide = false
 	end
 end
 
--- كنبة (قاعدة + ظهر + مسندان)
+-- كنبة (قاعدة خشبية + وسائد + ظهر + مسندان + أرجل ذهبية)
 local function sofa(cx, cz, rotY, color)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
+	local cushC = color:Lerp(Color3.new(1, 1, 1), 0.16)
 	local function place(name, off, size, c, mat)
-		local p = part(name, cf * CFrame.new(off), size, c, mat)
-		return p
+		return part(name, cf * CFrame.new(off), size, c, mat)
 	end
-	place("SofaBase", Vector3.new(0, 0.9, 0), Vector3.new(7, 1.4, 3), color, Enum.Material.Fabric)
-	seatPart("SofaSeat", cf * CFrame.new(0, 1.7, 0.2), Vector3.new(7, 0.5, 2.6), color, Enum.Material.Fabric)
-	place("SofaBack", Vector3.new(0, 2.4, -1.2), Vector3.new(7, 2.4, 0.6), color, Enum.Material.Fabric)
-	place("SofaArmL", Vector3.new(-3.2, 1.9, 0), Vector3.new(0.6, 2, 3), color, Enum.Material.Fabric)
-	place("SofaArmR", Vector3.new(3.2, 1.9, 0), Vector3.new(0.6, 2, 3), color, Enum.Material.Fabric)
+	place("SofaBase", Vector3.new(0, 0.95, 0), Vector3.new(7, 1.1, 3), WOOD_D, Enum.Material.Wood)
+	seatPart("SofaSeat", cf * CFrame.new(0, 1.65, 0.2), Vector3.new(7, 0.6, 2.6), color, Enum.Material.Fabric)
+	place("SofaBack", Vector3.new(0, 2.7, -1.2), Vector3.new(7, 3.0, 0.6), color, Enum.Material.Fabric)
+	place("SofaArmL", Vector3.new(-3.2, 1.9, 0), Vector3.new(0.6, 2.1, 3), color, Enum.Material.Fabric)
+	place("SofaArmR", Vector3.new(3.2, 1.9, 0), Vector3.new(0.6, 2.1, 3), color, Enum.Material.Fabric)
+	for _, dx in ipairs({ -2.1, 0, 2.1 }) do
+		place("SofaCush", Vector3.new(dx, 2.15, 0.3), Vector3.new(1.9, 0.5, 2.2), cushC, Enum.Material.Fabric).CanCollide = false
+		place("SofaPillow", Vector3.new(dx, 3.0, -0.9), Vector3.new(1.4, 1.2, 0.4), cushC, Enum.Material.Fabric).CanCollide = false
+	end
+	for _, dx in ipairs({ -3, 3 }) do
+		for _, dz in ipairs({ -1.2, 1.2 }) do
+			place("SofaFoot", Vector3.new(dx, 0.3, dz), Vector3.new(0.4, 0.6, 0.4), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+		end
+	end
 end
 
 local function armchair(cx, cz, rotY, color)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
-	part("ChairBase", cf * CFrame.new(0, 0.9, 0), Vector3.new(3, 1.4, 3), color, Enum.Material.Fabric)
-	seatPart("ChairSeat", cf * CFrame.new(0, 1.7, 0.2), Vector3.new(3, 0.5, 2.6), color, Enum.Material.Fabric)
-	part("ChairBack", cf * CFrame.new(0, 2.4, -1.2), Vector3.new(3, 2.4, 0.6), color, Enum.Material.Fabric)
-	part("ChairArmL", cf * CFrame.new(-1.3, 1.9, 0), Vector3.new(0.5, 2, 3), color, Enum.Material.Fabric)
-	part("ChairArmR", cf * CFrame.new(1.3, 1.9, 0), Vector3.new(0.5, 2, 3), color, Enum.Material.Fabric)
+	local cushC = color:Lerp(Color3.new(1, 1, 1), 0.16)
+	part("ChairBase", cf * CFrame.new(0, 0.95, 0), Vector3.new(3, 1.1, 3), WOOD_D, Enum.Material.Wood)
+	seatPart("ChairSeat", cf * CFrame.new(0, 1.65, 0.2), Vector3.new(3, 0.6, 2.6), color, Enum.Material.Fabric)
+	part("ChairCush", cf * CFrame.new(0, 2.1, 0.3), Vector3.new(2.6, 0.5, 2.2), cushC, Enum.Material.Fabric).CanCollide = false
+	part("ChairBack", cf * CFrame.new(0, 2.7, -1.2), Vector3.new(3, 3.0, 0.6), color, Enum.Material.Fabric)
+	part("ChairArmL", cf * CFrame.new(-1.3, 1.9, 0), Vector3.new(0.5, 2.1, 3), color, Enum.Material.Fabric)
+	part("ChairArmR", cf * CFrame.new(1.3, 1.9, 0), Vector3.new(0.5, 2.1, 3), color, Enum.Material.Fabric)
+	for _, dx in ipairs({ -1.2, 1.2 }) do
+		for _, dz in ipairs({ -1.2, 1.2 }) do
+			part("ChairFoot", cf * CFrame.new(dx, 0.3, dz), Vector3.new(0.35, 0.6, 0.35), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+		end
+	end
 end
 
 -- كرسي زائر بسيط (للحضور أمام المكتب)
@@ -15317,29 +15340,45 @@ end
 
 local function coffeeTable(cx, cz, color)
 	local top = part("TableTop", CFrame.new(cx, FLOOR_Y + 1.6, cz), Vector3.new(5, 0.3, 3), color, Enum.Material.Wood)
-	top.Reflectance = 0.05
+	top.Reflectance = 0.08
+	part("TableTrim", CFrame.new(cx, FLOOR_Y + 1.44, cz), Vector3.new(5.1, 0.12, 3.1), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
 	for _, dx in ipairs({-2.1, 2.1}) do
 		for _, dz in ipairs({-1.1, 1.1}) do
 			part("TableLeg", CFrame.new(cx + dx, FLOOR_Y + 0.8, cz + dz), Vector3.new(0.4, 1.6, 0.4), WOOD_D, Enum.Material.Wood)
 		end
 	end
+	part("Vase", CFrame.new(cx, FLOOR_Y + 2.2, cz), Vector3.new(0.9, 1.2, 0.9), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	local bloom = part("Bloom", CFrame.new(cx, FLOOR_Y + 3.1, cz), Vector3.new(1.4, 1.0, 1.4), Color3.fromRGB(200, 90, 110), Enum.Material.Grass)
+	bloom.Shape = Enum.PartType.Ball
+	bloom.CanCollide = false
 end
 
+-- مكتب تنفيذي فخم (واجهة حجب + شريط ذهبي + أدراج بمقابض ذهبية)
 local function bigDesk(cx, cz, rotY)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
-	part("DeskTop", cf * CFrame.new(0, 2.4, 0), Vector3.new(8, 0.4, 4), WOOD, Enum.Material.Wood)
-	part("DeskFront", cf * CFrame.new(0, 1.2, 1.8), Vector3.new(8, 2.4, 0.4), WOOD_D, Enum.Material.Wood)
-	part("DeskSideL", cf * CFrame.new(-3.8, 1.2, 0), Vector3.new(0.4, 2.4, 4), WOOD_D, Enum.Material.Wood)
-	part("DeskSideR", cf * CFrame.new(3.8, 1.2, 0), Vector3.new(0.4, 2.4, 4), WOOD_D, Enum.Material.Wood)
-	-- لمسة: مجسم صغير ذهبي على المكتب
-	part("DeskOrnament", cf * CFrame.new(2.4, 2.9, 0), Vector3.new(0.8, 0.8, 0.8), TRIM_GOLD, Enum.Material.Metal)
+	part("DeskTop", cf * CFrame.new(0, 2.9, 0), Vector3.new(9, 0.5, 4.4), WOOD, Enum.Material.Wood)
+	part("DeskTrim", cf * CFrame.new(0, 2.62, 0), Vector3.new(9.1, 0.14, 4.5), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	part("DeskFront", cf * CFrame.new(0, 1.3, 1.95), Vector3.new(8.6, 2.6, 0.4), WOOD_D, Enum.Material.Wood)
+	part("DeskSideL", cf * CFrame.new(-4.2, 1.3, 0), Vector3.new(0.5, 2.6, 4.2), WOOD_D, Enum.Material.Wood)
+	part("DeskSideR", cf * CFrame.new(4.2, 1.3, 0), Vector3.new(0.5, 2.6, 4.2), WOOD_D, Enum.Material.Wood)
+	for _, i in ipairs({ 0, 1, 2 }) do
+		part("DeskKnob", cf * CFrame.new(3.4, 1.0 + i * 0.7, 1.97), Vector3.new(0.5, 0.18, 0.18), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	end
 end
 
+-- كرسي مدير جلدي بظهر عالٍ + قاعدة خماسية
 local function deskChair(cx, cz, rotY, color)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
-	seatPart("DChairSeat", cf * CFrame.new(0, 1.7, 0), Vector3.new(2.6, 0.5, 2.6), color, Enum.Material.Fabric)
-	part("DChairBack", cf * CFrame.new(0, 3.2, -1.1), Vector3.new(2.6, 3, 0.5), color, Enum.Material.Fabric)
-	part("DChairPole", cf * CFrame.new(0, 0.8, 0), Vector3.new(0.4, 1.6, 0.4), Color3.fromRGB(40,40,40), Enum.Material.Metal)
+	seatPart("DChairSeat", cf * CFrame.new(0, 2.4, 0), Vector3.new(3.0, 0.6, 3.0), color, Enum.Material.Fabric)
+	part("DChairBack", cf * CFrame.new(0, 4.2, -1.3), Vector3.new(3.0, 3.6, 0.5), color, Enum.Material.Fabric)
+	part("DChairHead", cf * CFrame.new(0, 6.0, -1.25), Vector3.new(2.6, 0.9, 0.5), color, Enum.Material.Fabric)
+	part("DChairArmL", cf * CFrame.new(-1.6, 3.0, 0.1), Vector3.new(0.4, 0.4, 2.2), WOOD_D, Enum.Material.Wood)
+	part("DChairArmR", cf * CFrame.new(1.6, 3.0, 0.1), Vector3.new(0.4, 0.4, 2.2), WOOD_D, Enum.Material.Wood)
+	part("DChairPole", cf * CFrame.new(0, 1.3, 0), Vector3.new(0.5, 1.8, 0.5), Color3.fromRGB(40, 40, 40), Enum.Material.Metal)
+	for i = 0, 4 do
+		local a = math.rad(i * 72)
+		part("DChairFoot", cf * CFrame.new(math.cos(a) * 1.4, 0.5, math.sin(a) * 1.4) * CFrame.Angles(0, -a, 0), Vector3.new(1.4, 0.4, 0.3), Color3.fromRGB(40, 40, 40), Enum.Material.Metal).CanCollide = false
+	end
 end
 
 local function bookshelf(cx, cz, rotY)
@@ -15358,9 +15397,13 @@ end
 
 local function plant(cx, cz)
 	part("Pot", CFrame.new(cx, FLOOR_Y + 1, cz), Vector3.new(1.8, 2, 1.8), Color3.fromRGB(60, 45, 35), Enum.Material.Slate)
-	local foliage = part("Foliage", CFrame.new(cx, FLOOR_Y + 3.4, cz), Vector3.new(3.4, 4, 3.4), Color3.fromRGB(48, 120, 60), Enum.Material.Grass)
+	part("PotRim", CFrame.new(cx, FLOOR_Y + 1.95, cz), Vector3.new(2.0, 0.3, 2.0), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	local foliage = part("Foliage", CFrame.new(cx, FLOOR_Y + 3.6, cz), Vector3.new(3.4, 4, 3.4), Color3.fromRGB(48, 120, 60), Enum.Material.Grass)
 	foliage.Shape = Enum.PartType.Ball
 	foliage.CanCollide = false
+	local f2 = part("Foliage2", CFrame.new(cx - 0.8, FLOOR_Y + 2.9, cz + 0.5), Vector3.new(2.2, 2.6, 2.2), Color3.fromRGB(56, 132, 68), Enum.Material.Grass)
+	f2.Shape = Enum.PartType.Ball
+	f2.CanCollide = false
 end
 
 -- لوحة جدارية مؤطّرة
@@ -15385,28 +15428,188 @@ local function flag(cx, cz, accent)
 	part("FlagTop", CFrame.new(cx, FLOOR_Y + 9.1, cz), Vector3.new(0.5, 0.5, 0.5), TRIM_GOLD, Enum.Material.Metal)
 end
 
+-- شمعدان جداري (سكونس) — توهّج دافئ على الجدران
+local function sconce(x, z, faceDir, color)
+	part("Sconce", CFrame.new(x, FLOOR_Y + 6.4, z), Vector3.new(0.6, 1.4, 0.6), TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	local bulb = part("SconceBulb", CFrame.new(x + faceDir.X * 0.7, FLOOR_Y + 6.6, z + faceDir.Z * 0.7), Vector3.new(0.7, 0.9, 0.7), Color3.fromRGB(255, 240, 210), Enum.Material.Neon)
+	bulb.Shape = Enum.PartType.Ball
+	bulb.CanCollide = false
+	pointLight(bulb, color, 0.8, 12)
+end
+
+-- ستارة فخمة (قماش + قضيب ذهبي) على جدار خلفي
+local function drapes(axis, wallPos, c0, c1, color)
+	local y0, y1 = FLOOR_Y + 2.0, CEIL_Y - 0.8
+	if axis == "X" then
+		box("DrapeRod", c0 - 0.4, c1 + 0.4, y1, y1 + 0.4, wallPos - 0.35, wallPos + 0.35, TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+		box("Drape", c0, c1, y0, y1, wallPos - 0.3, wallPos, color, Enum.Material.Fabric).CanCollide = false
+	else
+		box("DrapeRod", wallPos - 0.35, wallPos + 0.35, y1, y1 + 0.4, c0 - 0.4, c1 + 0.4, TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+		box("Drape", wallPos, wallPos + 0.3, y0, y1, c0, c1, color, Enum.Material.Fabric).CanCollide = false
+	end
+end
+
+-- عمود مسطّح داخلي بتاج وقاعدة ذهبيين
+local function pilasterIn(x, z)
+	box("Pil", x - 0.7, x + 0.7, FLOOR_Y, CEIL_Y - 0.8, z - 0.5, z + 0.5, MARBLE, Enum.Material.Marble).CanCollide = false
+	box("PilCap", x - 1.0, x + 1.0, CEIL_Y - 1.8, CEIL_Y - 1.2, z - 0.8, z + 0.8, TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	box("PilBase", x - 1.0, x + 1.0, FLOOR_Y, FLOOR_Y + 0.7, z - 0.8, z + 0.8, TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+end
+
+-- شريط إضاءة سقفي محيطي (كوة) — توهّج ناعم
+local function coveLight(x0, x1, z0, z1, color)
+	local function strip(a0, a1, b0, b1)
+		box("Cove", a0, a1, CEIL_Y - 0.55, CEIL_Y - 0.35, b0, b1, Color3.fromRGB(255, 244, 224), Enum.Material.Neon).CanCollide = false
+	end
+	strip(x0, x1, z0, z0 + 0.4)
+	strip(x0, x1, z1 - 0.4, z1)
+	strip(x0, x0 + 0.4, z0, z1)
+	strip(x1 - 0.4, x1, z0, z1)
+	local core = box("CoveCore", (x0 + x1) / 2 - 0.3, (x0 + x1) / 2 + 0.3, CEIL_Y - 0.5, CEIL_Y - 0.4, (z0 + z1) / 2 - 0.3, (z0 + z1) / 2 + 0.3, Color3.fromRGB(255, 244, 224), Enum.Material.Neon)
+	core.CanCollide = false; core.Transparency = 1
+	local l = Instance.new("PointLight")
+	l.Color = color; l.Brightness = 0.4; l.Range = 34; l.Parent = core
+end
+
+-- لابتوب واقعي على المكتب (الشاشة تواجه الكرسي الرئاسي عند +X)
+local function laptop(cx, cz, topY)
+	local body = Color3.fromRGB(176, 180, 188)
+	local deckC = Color3.fromRGB(26, 28, 33)
+	local keysC = Color3.fromRGB(12, 12, 15)
+	local scrnC = Color3.fromRGB(70, 135, 210)
+	box("LapBase", cx - 1.1, cx + 1.0, topY, topY + 0.16, cz - 1.15, cz + 1.15, body, Enum.Material.Metal)
+	box("LapDeck", cx - 0.95, cx + 0.9, topY + 0.16, topY + 0.2, cz - 1.0, cz + 1.0, deckC, Enum.Material.SmoothPlastic).CanCollide = false
+	for r = 0, 3 do
+		local xx = cx - 0.75 + r * 0.42
+		box("LapKeys", xx, xx + 0.3, topY + 0.2, topY + 0.24, cz - 0.85, cz + 0.85, keysC, Enum.Material.SmoothPlastic).CanCollide = false
+	end
+	box("LapPad", cx + 0.45, cx + 0.85, topY + 0.2, topY + 0.23, cz - 0.4, cz + 0.4, Color3.fromRGB(40, 42, 48), Enum.Material.SmoothPlastic).CanCollide = false
+	local lidH = 2.4
+	local lidCF = CFrame.new(cx - 1.0, topY, cz) * CFrame.Angles(0, 0, math.rad(14)) * CFrame.new(0, lidH / 2, 0)
+	part("LapLid", lidCF, Vector3.new(0.1, lidH, 2.3), body, Enum.Material.Metal)
+	local scr = part("LapScreen", lidCF * CFrame.new(0.08, 0, 0), Vector3.new(0.04, lidH - 0.4, 2.0), scrnC, Enum.Material.Neon)
+	scr.CanCollide = false
+	pointLight(scr, Color3.fromRGB(120, 170, 235), 0.6, 6)
+	local emb = part("LapLogo", lidCF * CFrame.new(-0.07, 0, 0), Vector3.new(0.04, 0.5, 0.5), TRIM_GOLD, Enum.Material.Metal)
+	emb.CanCollide = false
+end
+
+-- لافتة باسم الغرفة (نص حاد متوهّج بلا أي رموز) فوق الباب
+local function roomSign(text, bx0, bx1, by0, by1, bz0, bz1, face)
+	local back = box("RoomSignBack", bx0, bx1, by0, by1, bz0, bz1, Color3.fromRGB(24, 21, 17), Enum.Material.SmoothPlastic)
+	back.CanCollide = false
+	box("RoomSignFrameT", bx0 - 0.1, bx1 + 0.1, by1, by1 + 0.3, bz0 - 0.1, bz1 + 0.1, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+	box("RoomSignFrameB", bx0 - 0.1, bx1 + 0.1, by0 - 0.3, by0, bz0 - 0.1, bz1 + 0.1, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+	pointLight(back, Color3.fromRGB(255, 210, 130), 1.4, 12)
+	local g = Instance.new("SurfaceGui")
+	g.Name = "RoomSignGui"; g.AutoLocalize = false
+	g.Face = face; g.LightInfluence = 0
+	g.CanvasSize = Vector2.new(900, 230)
+	g.Adornee = back; g.Parent = back
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1, -28, 1, -20)
+	lbl.Position = UDim2.new(0, 14, 0, 10)
+	lbl.Font = Enum.Font.GothamBlack
+	lbl.Text = text
+	lbl.TextScaled = true
+	lbl.TextColor3 = Color3.fromRGB(255, 224, 150)
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 190)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(247, 200, 110)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(214, 160, 70)),
+	})
+	grad.Rotation = 90; grad.Parent = lbl
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(120, 80, 20); stroke.Thickness = 3; stroke.Parent = lbl
+	lbl.Parent = g
+end
+
+-- باب غرفة بمصراعين خشبيين + مقابض ذهبية؛ يعيد دوال الفتح/الإغلاق
+local RDOOR_H = 8.6
+local RDOOR_Y = FLOOR_Y + RDOOR_H / 2
+local RDOOR_C = Color3.fromRGB(74, 50, 30)
+local function makeDoubleDoor(prefix, axis, wallPos, a, b, leftDeg, rightDeg)
+	local mid = (a + b) / 2
+	local leafW = (mid - a) - 0.15
+	local leaves = {}
+	local function leaf(name, hingePos, ext, angDeg)
+		local hinge, closedOff, size, handleSide
+		if axis == "X" then
+			hinge = CFrame.new(hingePos, RDOOR_Y, wallPos)
+			closedOff = CFrame.new(ext * leafW / 2, 0, 0)
+			size = Vector3.new(leafW, RDOOR_H, 0.6)
+			handleSide = "X"
+		else
+			hinge = CFrame.new(wallPos, RDOOR_Y, hingePos)
+			closedOff = CFrame.new(0, 0, ext * leafW / 2)
+			size = Vector3.new(0.6, RDOOR_H, leafW)
+			handleSide = "Z"
+		end
+		local closed = hinge * closedOff
+		local open = hinge * CFrame.Angles(0, math.rad(angDeg), 0) * closedOff
+		local p = Instance.new("Part")
+		p.Name = name; p.Anchored = true; p.CanCollide = true
+		p.Size = size; p.CFrame = closed
+		p.Color = RDOOR_C; p.Material = Enum.Material.Wood
+		p.TopSurface = Enum.SurfaceType.Smooth; p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = ROOT
+		for _, hd in ipairs({ -0.42, 0.42 }) do
+			local hoff
+			if handleSide == "X" then
+				hoff = CFrame.new(-ext * (leafW / 2 - 0.55), 0, hd)
+			else
+				hoff = CFrame.new(hd, 0, -ext * (leafW / 2 - 0.55))
+			end
+			local handle = part(name .. "Handle", closed * hoff, Vector3.new(0.4, 1.2, 0.4), TRIM_GOLD, Enum.Material.Metal)
+			handle.CanCollide = false
+			local w = Instance.new("WeldConstraint"); w.Part0 = p; w.Part1 = handle; w.Parent = p; handle.Anchored = false
+		end
+		table.insert(leaves, { part = p, closed = closed, open = open })
+	end
+	leaf(prefix .. "L", a, 1, leftDeg)
+	leaf(prefix .. "R", b, -1, rightDeg)
+	local function setState(toOpen, dur)
+		local info = TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		for _, lf in ipairs(leaves) do
+			TweenService:Create(lf.part, info, { CFrame = if toOpen then lf.open else lf.closed }):Play()
+		end
+	end
+	return setState
+end
+
 ----------------------------------------------------------------------
 -- 🎨 تأثيث الغرف الأربع — كل غرفة بنمط ولون مميّز
 ----------------------------------------------------------------------
 -- 1) البهو الكبير (lobby) — رخامي ذهبي/كحلي
 do
 	local NAVY = Color3.fromRGB(28, 42, 78)
-	rug(112, 160, 8, 30, NAVY)
-	chandelier(136, 18, Color3.fromRGB(255, 236, 200))
-	-- مكتب استقبال
-	part("ReceptionDesk", CFrame.new(150, FLOOR_Y + 1.8, 18), Vector3.new(2.5, 3.6, 12), Color3.fromRGB(70, 78, 110), Enum.Material.Marble)
-	goldStrip(149, 151.5, FLOOR_Y + 3.5, 12, 24)
-	plant(104, 10); plant(104, 28)
-	flag(170, 8, NAVY); flag(170, 28, NAVY)
+	local NAVY2 = Color3.fromRGB(70, 78, 110)
+	local warm = Color3.fromRGB(255, 224, 175)
+	coveLight(99, 173, 5, 31, warm)
+	rug(110, 162, 6, 30, NAVY)
+	chandelier(124, 18, Color3.fromRGB(255, 236, 200))
+	chandelier(150, 18, Color3.fromRGB(255, 236, 200))
+	-- كاونتر استقبال رخامي يواجه المدخل
+	part("ReceptionDesk", CFrame.new(150, FLOOR_Y + 1.8, 18), Vector3.new(2.6, 3.6, 12), NAVY2, Enum.Material.Marble)
+	part("ReceptionTop", CFrame.new(149.6, FLOOR_Y + 3.75, 18), Vector3.new(3.6, 0.4, 13), MARBLE, Enum.Material.Marble).CanCollide = false
+	goldStrip(148.7, 151.3, FLOOR_Y + 3.45, 11.5, 24.5)
+	plant(104, 7); plant(104, 29)
+	flag(168, 6, NAVY); flag(168, 30, NAVY)
+	pilasterIn(100, 8); pilasterIn(100, 28); pilasterIn(172, 8); pilasterIn(172, 28)
+	sconce(174, 6, Vector3.new(-1, 0, 0), warm); sconce(174, 30, Vector3.new(-1, 0, 0), warm)
 end
 
 -- 2) قاعة الاستقبال (reception) — بنفسجي/أرجواني
 do
 	local PURPLE = Color3.fromRGB(120, 55, 150)
-	local SOFA_C = Color3.fromRGB(95, 45, 120)
-	rug(108, 164, 42, 66, Color3.fromRGB(70, 35, 90))
-	chandelier(120, 54, Color3.fromRGB(225, 190, 255))
-	chandelier(154, 54, Color3.fromRGB(225, 190, 255))
+	local SOFA_C = Color3.fromRGB(102, 46, 133)
+	local warm = Color3.fromRGB(235, 200, 255)
+	coveLight(99, 173, 37, 69, warm)
+	rug(108, 164, 42, 66, Color3.fromRGB(66, 31, 82))
+	chandelier(120, 54, warm)
+	chandelier(154, 54, warm)
 	sofa(120, 64, 180, SOFA_C)
 	sofa(150, 64, 180, SOFA_C)
 	sofa(108, 50, 90, SOFA_C)
@@ -15415,49 +15618,127 @@ do
 	coffeeTable(135, 54, WOOD)
 	plant(104, 68); plant(170, 68)
 	flag(112, 70, PURPLE); flag(160, 70, PURPLE)
-	painting(CFrame.new(FX0 + 0.4, 6, 54) , 6, 4, nil)
+	painting(CFrame.new(FX0 + 0.4, 6, 48), 6, 4, nil)
+	painting(CFrame.new(FX0 + 0.4, 6, 60), 6, 4, nil)
+	drapes("X", 71.4, 116, 158, PURPLE)
+	sconce(98.8, 40, Vector3.new(1, 0, 0), warm); sconce(98.8, 66, Vector3.new(1, 0, 0), warm)
+	pilasterIn(174, 44); pilasterIn(174, 62)
 end
 
 -- 3) غرفة الضيوف (guest) — أخضر مخضرّ هادئ
 do
-	local SEAT = Color3.fromRGB(55, 145, 130)
-	rug(108, 164, -30, -4, Color3.fromRGB(30, 90, 84))
-	chandelier(136, -16, Color3.fromRGB(200, 245, 235))
+	local SEAT = Color3.fromRGB(51, 140, 128)
+	local warm = Color3.fromRGB(205, 245, 235)
+	coveLight(99, 173, -35, -3, warm)
+	rug(108, 164, -30, -4, Color3.fromRGB(26, 77, 71))
+	chandelier(120, -16, warm)
+	chandelier(152, -16, warm)
 	armchair(116, -10, 180, SEAT)
 	armchair(132, -10, 180, SEAT)
 	armchair(150, -10, 180, SEAT)
 	sofa(140, -30, 0, SEAT)
 	coffeeTable(132, -18, WOOD)
 	plant(104, -32); plant(168, -32); plant(168, -8)
-	painting(CFrame.new(FX0 + 0.4, 6, -18), 5, 3.5, nil)
-	painting(CFrame.new(176 - 0.4, 6, -24), 5, 3.5, nil)
+	painting(CFrame.new(FX0 + 0.4, 6, -22), 5, 3.5, nil)
+	painting(CFrame.new(FX0 + 0.4, 6, -12), 5, 3.5, nil)
+	drapes("X", -35.4, 116, 158, SEAT)
+	sconce(98.8, -28, Vector3.new(1, 0, 0), warm); sconce(98.8, -6, Vector3.new(1, 0, 0), warm)
+	pilasterIn(174, -28); pilasterIn(174, -10)
 end
 
 -- 4) المكتب الرئاسي (office) — ذهبي/بُنّي فخم + صفّ كراسي للزوّار
 do
-	local GOLDC = Color3.fromRGB(150, 120, 50)
-	rug(186, 232, 4, 40, Color3.fromRGB(90, 70, 30))
-	chandelier(208, 22, Color3.fromRGB(255, 226, 170))
-	-- المكتب الرئاسي في الصدارة (يواجه الباب -X)
-	bigDesk(224, 22, 90)
-	deskChair(230, 22, 270, Color3.fromRGB(60, 40, 25))
-	-- شعار/ختم على الجدار الخلفي
-	local emblem = part("Emblem", CFrame.new(FX1 - 0.5, 6.5, 22), Vector3.new(0.4, 5, 5), TRIM_GOLD, Enum.Material.Metal)
+	local GOLDC = Color3.fromRGB(158, 117, 41)
+	local warm = Color3.fromRGB(255, 226, 170)
+	local LEATHER = Color3.fromRGB(51, 33, 18)
+	coveLight(179, 237, 4, 40, warm)
+	rug(190, 236, 6, 38, Color3.fromRGB(82, 61, 26))
+	chandelier(206, 14, warm); chandelier(206, 30, warm)
+	chandelier(206, -8, warm); chandelier(206, 58, warm)
+	-- المكتب التنفيذي في الصدارة (يواجه الباب -X) + لابتوب يواجه الكرسي الرئاسي
+	bigDesk(226, 22, 90)
+	deskChair(231, 22, 270, LEATHER)
+	laptop(225, 22, 3.75)
+	local globe = part("DeskGlobe", CFrame.new(227.4, 4.1, 24.6), Vector3.new(1.2, 1.2, 1.2), TRIM_GOLD, Enum.Material.Metal)
+	globe.Shape = Enum.PartType.Ball
+	globe.CanCollide = false
+	-- شعار رئاسي على الجدار الخلفي (أقراص متراكبة تواجه الغرفة -X)
+	local emblem = part("Emblem", CFrame.new(FX1 - 0.4, 6.8, 22), Vector3.new(0.4, 5, 5), TRIM_GOLD, Enum.Material.Metal)
 	emblem.Shape = Enum.PartType.Cylinder
-	emblem.CFrame = CFrame.new(FX1 - 0.5, 6.5, 22) * CFrame.Angles(0, 0, math.rad(90))
 	emblem.CanCollide = false
-	pointLight(emblem, Color3.fromRGB(255, 220, 150), 1.0, 12)
-	bookshelf(190, 64, 0)
-	bookshelf(198, 64, 0)
-	flag(214, 6, GOLDC); flag(214, 38, GOLDC)
-	-- 🪑 صفّ كراسي الزوّار والحضور أمام المكتب (طلب المالك)
-	for i = 0, 3 do
-		visitorChair(206, 10 + i * 7, 90, Color3.fromRGB(80, 55, 35))
+	local emblemI = part("EmblemI", CFrame.new(FX1 - 0.55, 6.8, 22), Vector3.new(0.3, 3.4, 3.4), Color3.fromRGB(120, 26, 58), Enum.Material.SmoothPlastic)
+	emblemI.Shape = Enum.PartType.Cylinder
+	emblemI.CanCollide = false
+	local emblemC = part("EmblemC", CFrame.new(FX1 - 0.68, 6.8, 22), Vector3.new(0.3, 1.6, 1.6), TRIM_GOLD, Enum.Material.Metal)
+	emblemC.Shape = Enum.PartType.Cylinder
+	emblemC.CanCollide = false
+	pointLight(emblem, warm, 1.2, 14)
+	bookshelf(237, 10, 270); bookshelf(237, 34, 270)
+	flag(214, 12, GOLDC); flag(214, 32, GOLDC)
+	-- صفّ كراسي الزوّار يواجه المكتب (طلب المالك)
+	for i = 0, 2 do
+		visitorChair(204, 12 + i * 7, 90, Color3.fromRGB(86, 60, 38))
 	end
-	for i = 0, 3 do
-		visitorChair(200, 10 + i * 7, 90, Color3.fromRGB(80, 55, 35))
+	-- ركن جلوس جانبي شمالي
+	armchair(192, 58, 90, Color3.fromRGB(96, 66, 40))
+	armchair(192, 66, 90, Color3.fromRGB(96, 66, 40))
+	coffeeTable(200, 62, WOOD)
+	-- ركن جلوس جانبي جنوبي
+	armchair(192, -6, 90, Color3.fromRGB(96, 66, 40))
+	armchair(192, 2, 90, Color3.fromRGB(96, 66, 40))
+	coffeeTable(200, -2, WOOD)
+	plant(184, 8); plant(184, 38); plant(236, -12); plant(236, 52)
+	sconce(178.2, 6, Vector3.new(1, 0, 0), warm); sconce(178.2, 30, Vector3.new(1, 0, 0), warm)
+end
+
+----------------------------------------------------------------------
+-- 🚪 أبواب الغرف (تفتح/تغلق بالضغط على E) + لافتات بأسماء الغرف فوق كل باب
+----------------------------------------------------------------------
+do
+	local function attachPrompt(setState, anchorCF, label)
+		local anchor = part("DoorPrompt", anchorCF, Vector3.new(0.6, 0.6, 0.6), Color3.fromRGB(0, 0, 0), Enum.Material.SmoothPlastic)
+		anchor.Transparency = 1
+		anchor.CanCollide = false
+		local isOpen = false
+		local pr = Instance.new("ProximityPrompt")
+		pr.ActionText = "فتح / إغلاق الباب"
+		pr.ObjectText = label
+		pr.KeyboardKeyCode = Enum.KeyCode.E
+		pr.HoldDuration = 0
+		pr.RequiresLineOfSight = false
+		pr.MaxActivationDistance = 11
+		pr.Parent = anchor
+		pr.Triggered:Connect(function()
+			isOpen = not isOpen
+			setState(isOpen, 1.0)
+			if isOpen then
+				task.delay(8, function()
+					if isOpen then
+						isOpen = false
+						setState(false, 1.0)
+					end
+				end)
+			end
+		end)
 	end
-	plant(186, 68); plant(232, 68)
+
+	-- قاعة الاستقبال (شمال البهو، جدار z=34) — تفتح نحو القاعة (+z)
+	local recDoor = makeDoubleDoor("RecepDoor", "X", 34.5, DOOR_W0, DOOR_W1, -90, 90)
+	attachPrompt(recDoor, CFrame.new((DOOR_W0 + DOOR_W1) / 2, FLOOR_Y + 5, 34.5), "قاعة الاستقبال")
+	roomSign("قاعة الاستقبال", DOOR_W0 + 2, DOOR_W1 - 2, 9.6, 11.1, 33.5, 33.8, Enum.NormalId.Front)
+
+	-- غرفة الضيوف (جنوب البهو، جدار z=2) — تفتح نحو الغرفة (-z)
+	local gstDoor = makeDoubleDoor("GuestDoor", "X", 1.5, DOOR_W0, DOOR_W1, 90, -90)
+	attachPrompt(gstDoor, CFrame.new((DOOR_W0 + DOOR_W1) / 2, FLOOR_Y + 5, 1.5), "غرفة الضيوف")
+	roomSign("غرفة الضيوف", DOOR_W0 + 2, DOOR_W1 - 2, 9.6, 11.1, 2.2, 2.5, Enum.NormalId.Back)
+
+	-- المكتب الرئاسي (شرق البهو، جدار x=176) — تفتح نحو المكتب (+x)
+	local offDoor = makeDoubleDoor("OfficeDoor", "Z", 176.5, ENT_Z0, ENT_Z1, 90, -90)
+	attachPrompt(offDoor, CFrame.new(176.5, FLOOR_Y + 5, (ENT_Z0 + ENT_Z1) / 2), "المكتب الرئاسي")
+	roomSign("المكتب الرئاسي", 175.5, 175.8, 9.6, 11.1, ENT_Z0 + 2, ENT_Z1 - 2, Enum.NormalId.Left)
+
+	-- لافتة البهو فوق المدخل الرئيسي تواجه داخل البهو (+x)
+	roomSign("البهو", 96.2, 96.5, 9.6, 11.1, ENT_Z0 + 3, ENT_Z1 - 3, Enum.NormalId.Right)
 end
 
 ----------------------------------------------------------------------
