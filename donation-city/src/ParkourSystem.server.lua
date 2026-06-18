@@ -4,8 +4,8 @@
 ║  المكان: ServerScriptService     ·     النوع: Script                   ║
 ║                                                                        ║
 ║  نظام باركور جديد كامل، مبني بالكامل بقطع روبلوكس أصلية (Part/Cylinder) ║
-║  داخل هذا السكربت — صفر Union/Mesh = صفر مكعّبات. سهل/عائلي، طابع جزر    ║
-║  طائرة ملوّنة، مسار خطّي صاعد بهدوء يفهمه أي لاعب فوراً:                  ║
+║  داخل هذا السكربت — صفر Union/Mesh = صفر مكعّبات. سهل/عائلي، طابع أسطح   ║
+║  المدينة، مسار خطّي صاعد بهدوء يفهمه أي لاعب فوراً:                       ║
 ║   ─ ١٤ منصّة واسعة ومسافات قريبة على ٤ مناطق ملوّنة بالتدرّج:            ║
 ║       أخضر (تعليمي بلا خطر) ← فيروزي ← برتقالي ← أحمر (القمة).           ║
 ║   ─ نقاط حفظ مرقّمة (١·٢·٣·٤) عند بداية كل منطقة: تلمسها = تُحفظ نقطتك.   ║
@@ -73,13 +73,20 @@ local TEAL   = C3(58, 200, 192)
 local ORANGE = C3(245, 158, 66)
 local RED    = C3(226, 88, 88)
 local GOLD   = C3(214, 175, 92)
-local ROCK   = C3(96, 68, 46)
-local STEM   = C3(74, 52, 36)
 local HAZARD = C3(222, 36, 36)
 local BOUNCE = C3(64, 240, 208)
 local CPGLOW = C3(120, 240, 150)
 local SIGNBG = C3(22, 28, 44)
 local POSTC  = C3(64, 64, 74)
+-- ألوان نمط «أسطح المدينة»
+local CONCRETE  = C3(166, 166, 172)   -- سطح المبنى (السطح الذي يُمشى عليه)
+local BLDG      = C3(78, 82, 96)        -- جسم المبنى تحت السطح
+local WINDOW    = C3(255, 209, 120)     -- نوافذ مضيئة
+local METAL     = C3(182, 186, 192)     -- خزّانات/مكيّفات
+local DARKMETAL = C3(82, 86, 92)        -- أرجل/مراوح/هوائيات
+local NEONSIGN  = C3(255, 92, 132)      -- لمبة الهوائي
+local SILH      = C3(60, 56, 82)        -- ظلال ناطحات سحاب بعيدة (أفق المدينة)
+local SILWIN    = C3(255, 196, 120)     -- نوافذ النواطح البعيدة (خافتة)
 
 local function zoneColor(i)
 	if i <= 3 then return GREEN
@@ -222,23 +229,121 @@ local function buildCheckpoint(i, top, cx, cz, numeral)
 	signGui(sign, numeral, CPGLOW)
 end
 
--- بناء المنصّات وكل ما عليها
+-- كرة صغيرة (للمبة الهوائي)
+local function mkBall(name, dia, x, y, z, color, material, parent)
+	local p = mk(name, V(dia, dia, dia), V(x, y, z), color, material, parent, false)
+	p.Shape = Enum.PartType.Ball
+	p.CanTouch = false
+	return p
+end
+
+-- خرائط زينة الأسطح (مكيّفات/خزّانات ماء/هوائيات)
+local AC_AT     = { [1] = true, [4] = true, [9] = true, [11] = true }
+local TANK_AT   = { [2] = true, [7] = true }
+local ANT_AT    = { [3] = true, [10] = true }
+
+-- منصّة على شكل سطح مبنى: سطح خرساني يُمشى عليه + حافة سور ملوّنة بلون المنطقة
+-- + جسم مبنى تحته بصفوف نوافذ مضيئة على الواجهات الأربع.
+local function buildRooftop(i, c, top)
+	local cx, cz = c.X, c.Z
+	-- السطح الخرساني (السطح الذي يقف عليه اللاعب)
+	mk("Plat" .. i, V(PW, PT, PD), c, CONCRETE, Enum.Material.Concrete, fPlat, true)
+	-- حافة سور رفيعة ملوّنة بلون المنطقة حول حواف السطح (زينة فقط، لا تعيق القفز)
+	local zc = zoneColor(i)
+	local lh = 0.8                       -- ارتفاع الحافة
+	local ly = top + lh / 2              -- مركزها فوق السطح مباشرة
+	for _, sz in ipairs({ -1, 1 }) do    -- حافتا الأمام/الخلف (على محور X)
+		local edge = mk("Ledge" .. i, V(PW + 0.6, lh, 0.6),
+			V(cx, ly, cz + sz * (PD / 2)), zc, Enum.Material.SmoothPlastic, fDecor, false)
+		edge.CanTouch = false
+	end
+	for _, sx in ipairs({ -1, 1 }) do    -- حافتا اليمين/اليسار (على محور Z)
+		local edge = mk("Ledge" .. i, V(0.6, lh, PD + 0.6),
+			V(cx + sx * (PW / 2), ly, cz), zc, Enum.Material.SmoothPlastic, fDecor, false)
+		edge.CanTouch = false
+	end
+	-- جسم المبنى تحت السطح
+	local bh, iw, idp = 9, PW - 0.8, PD - 0.8
+	mk("Bldg" .. i, V(iw, bh, idp), V(cx, top - PT - bh / 2, cz), BLDG, Enum.Material.Concrete, fDecor, false)
+	-- صفوف النوافذ المضيئة (٣ صفوف × ٤ واجهات)
+	for r = 0, 2 do
+		local yy = top - PT - 1.5 - r * 2.6
+		for _, sz in ipairs({ -1, 1 }) do
+			local win = mk("Win" .. i, V(iw * 0.66, 0.85, 0.15),
+				V(cx, yy, cz + sz * (idp / 2 + 0.05)), WINDOW, Enum.Material.Neon, fDecor, false)
+			win.CanTouch = false
+		end
+		for _, sx in ipairs({ -1, 1 }) do
+			local win = mk("Win" .. i, V(0.15, 0.85, idp * 0.66),
+				V(cx + sx * (iw / 2 + 0.05), yy, cz), WINDOW, Enum.Material.Neon, fDecor, false)
+			win.CanTouch = false
+		end
+	end
+end
+
+-- زينة فوق السطح: مكيّف هواء، خزّان ماء على أرجل، أو هوائي (لا تعيق اللعب)
+local function buildRoofDecor(i, top, cx, cz)
+	if AC_AT[i] then
+		local ax, az = cx - PW * 0.26, cz - PD * 0.24
+		mk("AC", V(2.4, 1.4, 1.8), V(ax, top + 0.7, az), METAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkCyl("Fan", 0.2, 1.0, top + 1.5, ax, az, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+	end
+	if TANK_AT[i] then
+		local tx, tz = cx + PW * 0.22, cz + PD * 0.2
+		for _, sx in ipairs({ -1, 1 }) do
+			for _, sz in ipairs({ -1, 1 }) do
+				mk("Leg", V(0.3, 2.4, 0.3), V(tx + sx * 0.8, top + 1.2, tz + sz * 0.8),
+					DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+			end
+		end
+		mkCyl("Tank", 3.0, 2.6, top + 3.6, tx, tz, METAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkCyl("TankLid", 0.4, 2.8, top + 5.2, tx, tz, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+	end
+	if ANT_AT[i] then
+		local mx = cx + PW * 0.28
+		mkCyl("Mast", 6.0, 0.22, top + 3.0, mx, cz, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkBall("AntBulb", 0.7, mx, top + 6.1, cz, NEONSIGN, Enum.Material.Neon, fDecor)
+	end
+end
+
+-- بناء المنصّات (أسطح مدينة) وكل ما عليها
 for i = 0, COUNT - 1 do
 	local c = platCenter(i)
 	local top = platTop(i)
-	local mat = (i <= 3) and Enum.Material.Grass or Enum.Material.SmoothPlastic
-	mk("Plat" .. i, V(PW, PT, PD), c, zoneColor(i), mat, fPlat, true)
-	-- إطار ذهبي رفيع تحت السطح
-	mk("Rim" .. i, V(PW + 0.8, 0.4, PD + 0.8), V(c.X, top - PT - 0.2, c.Z), GOLD, Enum.Material.Metal, fDecor, false)
-	-- جسم الجزيرة (صخرة) + ساق سفلية لإحساس الجزر الطائرة
-	mk("Rock" .. i, V(PW - 1.5, 3, PD - 1.5), V(c.X, top - PT - 1.7, c.Z), ROCK, Enum.Material.Slate, fDecor, false)
-	mkCyl("Stem" .. i, 6, 4, top - PT - 5.5, c.X, c.Z, STEM, Enum.Material.Slate, fDecor, false)
+	buildRooftop(i, c, top)
+	buildRoofDecor(i, top, c.X, c.Z)
 
 	if CP_AT[i] then buildCheckpoint(i, top, c.X, c.Z, CP_AT[i]) end
 	if STRIP_AT[i] then buildStrip(i, top, c.X, c.Z) end
 	if SPIN_AT[i] then buildSpinner(top, c.X, c.Z, SPIN_AT[i]) end
 	if BOUNCE_AT[i] then buildBounce(top, c.X, c.Z) end
 end
+
+-- أفق المدينة: ناطحات سحاب بعيدة تحيط بالمسار وتعطي إحساس الارتفاع (زينة فقط)
+local function buildSkyline()
+	for k = 0, 6 do
+		local t = k / 6
+		local baseX = ORIGIN_X - 12 + t * (STEP_X * (COUNT - 1) + 24)
+		local baseZ = ORIGIN_Z + t * (STEP_Z * (COUNT - 1))
+		for _, side in ipairs({ -1, 1 }) do
+			local off = RIGHTV * (70 * side)
+			local bw = 9 + (k % 3) * 3
+			local bht = 60 + ((k * 17 + (side + 1) * 23) % 55)
+			local bx, bz = baseX + off.X, baseZ + off.Z
+			local roofY = 55 + ((k * 13 + (side + 1) * 11) % 50)
+			mk("Sil", V(bw, bht, bw), V(bx, roofY - bht / 2, bz), SILH, Enum.Material.Concrete, fDecor, false).CanTouch = false
+			-- شريطا نوافذ خافتان على واجهة المبنى
+			for r = 0, 1 do
+				local wy = roofY - 8 - r * 14
+				local face = mk("SilWin", V(bw * 0.7, 1.2, 0.2),
+					V(bx, wy, bz - side * (bw / 2 + 0.1)), SILWIN, Enum.Material.Neon, fDecor, false)
+				face.CanTouch = false
+				face.Transparency = 0.15
+			end
+		end
+	end
+end
+buildSkyline()
 
 -- أسهم ذهبية فوق كل فجوة تأشّر للمنصّة التالية
 for i = 0, COUNT - 2 do
