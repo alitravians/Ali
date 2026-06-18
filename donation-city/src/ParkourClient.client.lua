@@ -26,7 +26,7 @@ local stopRemote = remotes:WaitForChild("Stop", 30)
 -- بناء الواجهة
 ----------------------------------------------------------------------
 local gui = Instance.new("ScreenGui")
-gui.AutoLocalize = false  -- 🌐 النص العربي يظهر للجميع (إيقاف الترجمة التلقائية)
+gui.AutoLocalize = false  -- النص العربي يظهر للجميع (إيقاف الترجمة التلقائية)
 gui.Name = "ParkourHUD"; gui.ResetOnSpawn = false; gui.IgnoreGuiInset = true
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 
@@ -45,7 +45,7 @@ local barStroke = Instance.new("UIStroke"); barStroke.Color = Color3.fromRGB(255
 local title = Instance.new("TextLabel")
 title.BackgroundTransparency = 1; title.Position = UDim2.new(0, 8, 0, 4); title.Size = UDim2.new(1, -16, 0, 17)
 title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.TextXAlignment = Enum.TextXAlignment.Center
-title.TextColor3 = Color3.fromRGB(255, 215, 90); title.Text = "🧗 الباركور"; title.Parent = bar
+title.TextColor3 = Color3.fromRGB(255, 215, 90); title.Text = "الباركور"; title.Parent = bar
 
 local info = Instance.new("TextLabel")
 info.BackgroundTransparency = 1; info.Position = UDim2.new(0, 8, 0, 22); info.Size = UDim2.new(1, -16, 0, 18)
@@ -67,7 +67,7 @@ stopBtn.BackgroundColor3 = Color3.fromRGB(200, 70, 70)
 stopBtn.BackgroundTransparency = 0.05
 stopBtn.Font = Enum.Font.GothamBold; stopBtn.TextSize = 15
 stopBtn.TextColor3 = Color3.new(1, 1, 1)
-stopBtn.Text = "❌ إيقاف الباركور"
+stopBtn.Text = "إيقاف الباركور"
 stopBtn.AutoButtonColor = true
 stopBtn.Visible = false
 stopBtn.Parent = gui
@@ -88,14 +88,14 @@ local function showFinish(timeStr, reward, bestStr, isRecord)
 	local h = Instance.new("TextLabel"); h.BackgroundTransparency = 1; h.Position = UDim2.new(0, 0, 0, 16)
 	h.Size = UDim2.new(1, 0, 0, 60); h.Font = Enum.Font.GothamBlack; h.TextScaled = true
 	h.TextColor3 = Color3.fromRGB(255, 215, 90)
-	h.Text = isRecord and "🏆 رقم قياسي جديد!" or "🏁 أكملت الباركور!"
+	h.Text = isRecord and "رقم قياسي جديد!" or "أكملت الباركور!"
 	h.Parent = pop
 	local d = Instance.new("TextLabel"); d.BackgroundTransparency = 1; d.Position = UDim2.new(0, 20, 0, 86)
 	d.Size = UDim2.new(1, -40, 0, 90); d.Font = Enum.Font.GothamMedium; d.TextScaled = true
 	d.TextColor3 = Color3.fromRGB(235, 235, 245)
 	-- لا نكرّر السطر عند الرقم القياسي (الوقت الحالي = أفضل وقت، والعنوان يوضّحه)
-	local bestLine = (bestStr and not isRecord) and ("\nأفضل وقت: " .. bestStr .. " 🏅") or ""
-	d.Text = string.format("الوقت: %s%s\nالمكافأة: %d كوينز + لقب «بطل الباركور» 🏆", timeStr, bestLine, reward)
+	local bestLine = (bestStr and not isRecord) and ("\nأفضل وقت: " .. bestStr) or ""
+	d.Text = string.format("الوقت: %s%s\nالمكافأة: %d كوينز + لقب «بطل الباركور»", timeStr, bestLine, reward)
 	d.Parent = pop
 	task.delay(6, function() if pop then pop:Destroy() end end)
 end
@@ -144,7 +144,7 @@ end)
 RunService.RenderStepped:Connect(function()
 	if not active then return end
 	local t = baseTime + (os.clock() - baseClock)
-	info.Text = string.format("المرحلة %s · نقطة %d/%d · %d%% · ⏱️ %s",
+	info.Text = string.format("المرحلة %s · نقطة %d/%d · %d%% · %s",
 		STAGE_NAMES[curStage] or curStage, curCp, curTotal, curPct, fmtTime(t))
 	pct.Size = UDim2.new(curPct / 100, 0, 0, 5)
 end)

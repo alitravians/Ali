@@ -3,25 +3,22 @@
 ║  نظام الباركور — PARKOUR SYSTEM (Server)                              ║
 ║  المكان: ServerScriptService     ·     النوع: Script                   ║
 ║                                                                        ║
-║  الباركور القديم (البرج المُولّد برمجياً) أُلغي بالكامل بناءً على طلبك،   ║
-║  واستُبدل بموديل «Obby» احترافي من متجر روبلوكس (٣٠ مرحلة، ارتفاع        ║
-║  ~٣٧٠ ستد) مُركّب كهندسة ثابتة باسم "ParkourCourse" في Workspace:        ║
-║  ─ كل سكربتات الـ kit الأصلية (٤٢ سكربت + موديولات مُقنّعة باك-دور)      ║
-║    أُسقطت نهائياً، وكل قطعة Anchored=true (صفر فيزياء = صفر لاق).         ║
-║  ─ SpawnLocation الموديل مُبقاة لكن Enabled=false (لا تخطف نقطة ظهور      ║
-║    اللاعبين)؛ نقرأ موقعها فقط كبداية المسار.                            ║
-║  ─ هذا السكربت لا يبني أي هندسة؛ يقرأ القاعدة/القمة/المنصّات من الموديل   ║
-║    المُركّب مباشرةً، فالمنطق يعمل مع أي تخطيط Obby.                       ║
+║  نظام باركور جديد كامل، مبني بالكامل بقطع روبلوكس أصلية (Part/Cylinder) ║
+║  داخل هذا السكربت — صفر Union/Mesh = صفر مكعّبات. سهل/عائلي، طابع جزر    ║
+║  طائرة ملوّنة، مسار خطّي صاعد بهدوء يفهمه أي لاعب فوراً:                  ║
+║   ─ ١٤ منصّة واسعة ومسافات قريبة على ٤ مناطق ملوّنة بالتدرّج:            ║
+║       أخضر (تعليمي بلا خطر) ← فيروزي ← برتقالي ← أحمر (القمة).           ║
+║   ─ نقاط حفظ مرقّمة (١·٢·٣·٤) عند بداية كل منطقة: تلمسها = تُحفظ نقطتك.   ║
+║   ─ حواجز/بلاطات حمراء قاتلة: لمسها = ترجع فوراً لآخر نقطة حفظ (إعادة    ║
+║     المرحلة). عوائق حمراء دوّارة في الزون البرتقالي/الأحمر. منصّة قفز      ║
+║     فيروزية نطّاطة كلمسة متعة.                                          ║
+║   ─ أسهم ذهبية فوق كل فجوة تأشّر للمنصّة التالية. بداية «ابدأ هنا»         ║
+║     واضحة + قوس نهاية «النهاية».                                        ║
+║   ─ تسقط تحت المسار → ترجع لآخر نقطة حفظ. تصل القمة → كوينز + إنجاز.     ║
 ║                                                                        ║
-║  • منصّة دخول في المدينة تنقل اللاعب لقاعدة المسار وتبدأ الجولة.         ║
-║  • نقاط حفظ تلقائية حسب الارتفاع (تلمس منصّة أعلى = تتحدّث نقطتك).        ║
-║  • تسقط أسفل القاعدة → ترجع لآخر نقطة حفظ (وليس طرد لكل اللاعبين).        ║
-║  • تصل القمة → كوينز + إنجاز + احتساب مهمة + تهنئة + خروج آمن.            ║
-║  • زر «إيقاف» يرجّعك للمدينة. أفضل وقت شخصي محفوظ (DataStore).           ║
-║                                                                        ║
-║  ⚙️ الأداء: لا أجزاء متحركة ولا أي حلقة دائمة على السيرفر؛ كل شيء مبني   ║
-║     على أحداث Touched فقط، وحلقتا التقدّم/السقوط تعملان فقط أثناء جولة    ║
-║     لاعب نشِطة وتتوقّفان تلقائياً → صفر استهلاك أثناء الخمول (لا لاق).    ║
+║  الأداء: كل القطع Anchored (صفر فيزياء). المنطق على أحداث Touched،      ║
+║  وحلقة واحدة (تقدّم/سقوط + تدوير العوائق) تعمل فقط أثناء جولة نشِطة       ║
+║  وتتوقّف تماماً عند الخمول → صفر استهلاك أثناء الخمول (لا لاق).          ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -32,9 +29,10 @@ local RunService        = game:GetService("RunService")
 local DataStoreService  = game:GetService("DataStoreService")
 
 local V = Vector3.new
+local C3 = Color3.fromRGB
 
 ----------------------------------------------------------------------
--- RemoteEvents (نفس عقد الواجهة القديمة: Progress / Stop)
+-- RemoteEvents (نفس عقد الواجهة: Progress / Stop)
 ----------------------------------------------------------------------
 local remotes = ReplicatedStorage:FindFirstChild("ParkourRemotes")
 if not remotes then
@@ -56,98 +54,243 @@ local bestStore
 pcall(function() bestStore = DataStoreService:GetDataStore("ParkourBest_v2") end)
 
 ----------------------------------------------------------------------
--- قراءة هندسة المسار من الموديل المُركّب "ParkourCourse"
--- (لا نبني أي شيء هنا؛ كل القطع جاهزة وثابتة داخل الموديل)
+-- ثوابت الهندسة والألوان
 ----------------------------------------------------------------------
-local course = Workspace:WaitForChild("ParkourCourse", 30)
+local ORIGIN_X, ORIGIN_Z = -175, 20    -- بداية المسار (سماء الركن الشمالي الغربي، فوق المباني)
+local TOP0   = 90                      -- ارتفاع سطح أول منصّة
+local RISE   = 3.6                     -- صعود لطيف بين كل منصّة (قفزة سهلة)
+local STEP_X = 14                       -- تباعد المنصّات على X
+local STEP_Z = 4                        -- انزياح بسيط على Z (مسار يقرأ بوضوح)
+local PW, PD, PT = 11, 11, 1.2          -- عرض/عمق/سمك المنصّة
+local COUNT = 14                        -- عدد المنصّات (0..13)
 
--- بداية المسار: SpawnLocation الموديل (مُعطّلة) أو أي قطعة باسم Spawn.
-local function findSpawnPart(model)
-	local sl = model:FindFirstChildWhichIsA("SpawnLocation", true)
-	if sl then return sl end
-	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("BasePart") and d.Name == "Spawn" then return d end
-	end
-	return nil
+local FWD   = V(STEP_X, 0, STEP_Z).Unit        -- اتجاه التقدّم الأفقي
+local RIGHTV = V(FWD.Z, 0, -FWD.X)             -- عمودي أفقي (لتوزيع الحواجز)
+
+-- ألوان المناطق + اللمسات
+local GREEN  = C3(126, 211, 110)
+local TEAL   = C3(58, 200, 192)
+local ORANGE = C3(245, 158, 66)
+local RED    = C3(226, 88, 88)
+local GOLD   = C3(214, 175, 92)
+local ROCK   = C3(96, 68, 46)
+local STEM   = C3(74, 52, 36)
+local HAZARD = C3(222, 36, 36)
+local BOUNCE = C3(64, 240, 208)
+local CPGLOW = C3(120, 240, 150)
+local SIGNBG = C3(22, 28, 44)
+local POSTC  = C3(64, 64, 74)
+
+local function zoneColor(i)
+	if i <= 3 then return GREEN
+	elseif i <= 6 then return TEAL
+	elseif i <= 9 then return ORANGE
+	else return RED end
 end
 
-local steps      = {}      -- منصّات أفقية يمكن الوقوف عليها (لنقاط الحفظ بالارتفاع)
-local cpPads     = {}      -- أقراص نقاط الحفظ الرسمية بالموديل (مجلد CheckPoints)
-local killParts  = {}      -- هذا الموديل بلا مناطق موت؛ نعتمد السقوط فقط
-local finishPart           -- مُحفِّز الفوز (نُنشئه عند القمة)
-local SPAWN_POS, SPAWN_CF, BASE_Y, FINISH_Y, FALL_Y
-local EXIT_POS  = V(0, 5, 45)        -- خروج آمن قرب الانطلاق الرئيسي
-local ENTRY_POS = V(-95, 0.3, 70)    -- منصّة دخول أرضية في المدينة (أرض المدينة Y=0)
+-- خرائط العناصر (حسب رقم المنصّة)
+local CP_AT     = { [0] = "١", [4] = "٢", [7] = "٣", [10] = "٤" }   -- نقاط حفظ مرقّمة
+local STRIP_AT  = { [5] = true, [9] = true, [11] = true }            -- بلاطات حمراء قاتلة
+local SPIN_AT   = { [8] = 1.1, [12] = 1.5 }                          -- عوائق دوّارة (سرعة rad/s)
+local BOUNCE_AT = { [6] = true }                                     -- منصّة قفز نطّاطة
 
-if course then
-	local spawnPart = findSpawnPart(course)
-	if spawnPart then
-		SPAWN_POS = spawnPart.Position
-		BASE_Y    = SPAWN_POS.Y
-	else
-		SPAWN_POS = V(-140, 1.5, 37)   -- احتياطي
-		BASE_Y    = 1.5
-	end
-	SPAWN_CF = CFrame.new(SPAWN_POS + V(0, 5, 0))
-
-	-- منصّة أفقية يمكن الوقوف عليها فعلاً (نتفادى الجدران/الأعمدة/السلالم)
-	local function isWalkable(p)
-		if not p.CanCollide then return false end
-		if p:IsA("TrussPart") then return false end
-		if p.Size.Y > 6 then return false end
-		if (p.Size.X * p.Size.Z) < 16 then return false end
-		if p.CFrame.UpVector.Y < 0.9 then return false end
-		return true
-	end
-
-	-- القمة = أعلى منصّة يمكن الوقوف عليها فعلاً (نتجاهل العناصر الزخرفية العالية
-	-- كالأعلام/الهوائيات حتى لا يرتفع مُحفِّز الفوز فوق متناول اللاعب). نجمع كذلك
-	-- المنصّات وأقراص نقاط الحفظ في نفس المرور.
-	local topWalkableY = -math.huge
-	local maxAnyY = -math.huge
-	for _, d in ipairs(course:GetDescendants()) do
-		if d:IsA("BasePart") then
-			local topY = d.Position.Y + d.Size.Y / 2
-			if topY > maxAnyY then maxAnyY = topY end
-			if d ~= spawnPart and isWalkable(d) then
-				table.insert(steps, d)
-				if topY > topWalkableY then topWalkableY = topY end
-			end
-			local par = d.Parent
-			if par and par.Name == "CheckPoints" then
-				table.insert(cpPads, d)
-			end
-		end
-	end
-	-- لو لم نجد أي منصّة (موديل غير متوقّع) نرجع لأعلى نقطة عامة كاحتياط.
-	local summitY = (topWalkableY > -math.huge) and topWalkableY or maxAnyY
-	FINISH_Y = summitY
-	FALL_Y   = BASE_Y - 14
-
-	-- مركز القمة الأفقي: متوسط المنصّات القريبة من القمة (لا أي قطعة)
-	local sumX, sumZ, nTop = 0, 0, 0
-	for _, d in ipairs(steps) do
-		local topY = d.Position.Y + d.Size.Y / 2
-		if topY >= summitY - 8 then
-			sumX += d.Position.X; sumZ += d.Position.Z; nTop += 1
-		end
-	end
-	local fx = nTop > 0 and (sumX / nTop) or SPAWN_POS.X
-	local fz = nTop > 0 and (sumZ / nTop) or SPAWN_POS.Z
-
-	-- مُحفِّز الفوز: صندوق شفاف غير صلب فوق أعلى منصّة (يلمسه اللاعب عند الوصول)
-	finishPart = Instance.new("Part")
-	finishPart.Name = "ParkourFinish"; finishPart.Anchored = true; finishPart.CanCollide = false
-	finishPart.CanTouch = true; finishPart.Transparency = 1
-	finishPart.Size = V(34, 12, 34)
-	finishPart.CFrame = CFrame.new(fx, summitY + 3, fz)
-	finishPart.Parent = course
-else
-	warn("[ParkourSystem] لم يُعثر على موديل ParkourCourse — تأكد من حقن الموديل في Workspace.")
-	SPAWN_POS = V(-140, 1.5, 37); BASE_Y = 1.5
-	SPAWN_CF  = CFrame.new(SPAWN_POS + V(0, 5, 0))
-	FINISH_Y  = BASE_Y + 360; FALL_Y = BASE_Y - 14
+----------------------------------------------------------------------
+-- أدوات بناء قطع أصلية
+----------------------------------------------------------------------
+local function mk(name, size, posOrCF, color, material, parent, canCollide)
+	local p = Instance.new("Part")
+	p.Name = name; p.Anchored = true
+	p.CanCollide = (canCollide ~= false)
+	p.Size = size
+	if typeof(posOrCF) == "CFrame" then p.CFrame = posOrCF else p.Position = posOrCF end
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Parent = parent
+	return p
 end
+
+-- أسطوانة عمودية (الطول على المحور العمودي بعد تدوير 90° حول Z)
+local function mkCyl(name, height, dia, centerY, x, z, color, material, parent, canCollide)
+	local p = Instance.new("Part")
+	p.Name = name; p.Anchored = true
+	p.CanCollide = (canCollide ~= false)
+	p.Shape = Enum.PartType.Cylinder
+	p.Size = V(height, dia, dia)
+	p.CFrame = CFrame.new(x, centerY, z) * CFrame.Angles(0, 0, math.rad(90))
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.Parent = parent
+	return p
+end
+
+-- عمود/عارضة تصل بين نقطتين (للأسهم والقوس)
+local function beam(p1, p2, th, color, material, parent)
+	local d = (p2 - p1).Magnitude
+	if d < 0.05 then return nil end
+	local part = mk("Beam", V(th, th, d), CFrame.lookAt((p1 + p2) / 2, p2), color, material, parent, false)
+	part.CanTouch = false
+	return part
+end
+
+-- لافتة نص مزدوجة الوجه (تُقرأ من الجهتين، بلا أي إيموجي)
+local function signGui(part, text, color, size)
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.AutoLocalize = false
+		sg.CanvasSize = Vector2.new(size or 480, size or 480)
+		sg.LightInfluence = 0
+		sg.Parent = part
+		local lbl = Instance.new("TextLabel")
+		lbl.BackgroundTransparency = 1
+		lbl.Size = UDim2.fromScale(1, 1)
+		lbl.Font = Enum.Font.GothamBlack
+		lbl.TextScaled = true
+		lbl.Text = text
+		lbl.TextColor3 = color or GOLD
+		lbl.Parent = sg
+	end
+end
+
+----------------------------------------------------------------------
+-- بناء المسار داخل موديل ParkourCourse
+----------------------------------------------------------------------
+local old = Workspace:FindFirstChild("ParkourCourse")
+if old then old:Destroy() end
+
+local course = Instance.new("Model")
+course.Name = "ParkourCourse"
+course.Parent = Workspace
+
+local fPlat  = Instance.new("Folder"); fPlat.Name  = "Platforms";   fPlat.Parent  = course
+local fCP    = Instance.new("Folder"); fCP.Name    = "CheckPoints"; fCP.Parent    = course
+local fHaz   = Instance.new("Folder"); fHaz.Name   = "Hazards";     fHaz.Parent   = course
+local fDecor = Instance.new("Folder"); fDecor.Name = "Decor";       fDecor.Parent = course
+
+local cpPads     = {}   -- أقراص نقاط الحفظ
+local killParts  = {}   -- بلاطات/أشرطة قاتلة + أعمدة دوّارة
+local bouncePads = {}   -- منصّات القفز
+local spinners   = {}   -- {bar, center, angle, speed}
+local finishPart
+
+local function platTop(i) return TOP0 + i * RISE end
+local function platCenter(i)
+	return V(ORIGIN_X + i * STEP_X, platTop(i) - PT / 2, ORIGIN_Z + i * STEP_Z)
+end
+
+-- بلاطة قاتلة على سطح المنصّة (لمسها = رجوع)؛ مزاحة لجهة لتترك ممرّاً آمناً
+local function buildStrip(i, top, cx, cz)
+	local side = (i % 2 == 0) and 1 or -1
+	local off = RIGHTV * (2.2 * side)
+	local strip = mk("KillStrip", V(7.0, 0.4, 3.4),
+		CFrame.lookAt(V(cx + off.X, top + 0.25, cz + off.Z), V(cx, top + 0.25, cz) + FWD),
+		HAZARD, Enum.Material.Neon, fHaz, false)
+	strip.CanTouch = true
+	table.insert(killParts, strip)
+end
+
+-- عائق دوّار: عمود صلب + شريط أحمر يلفّ أفقياً (لمسه = رجوع)
+local function buildSpinner(top, cx, cz, speed)
+	mk("SpinPost", V(0.9, 4.6, 0.9), V(cx, top + 2.3, cz), POSTC, Enum.Material.Metal, fHaz, true)
+	mkCyl("SpinHub", 0.6, 1.5, top + 1.7, cx, cz, GOLD, Enum.Material.Neon, fHaz, false)
+	local center = V(cx, top + 1.7, cz)
+	local bar = mk("SpinBar", V(0.7, 0.7, 9.0), CFrame.new(center), HAZARD, Enum.Material.Neon, fHaz, false)
+	bar.CanTouch = true
+	table.insert(killParts, bar)
+	table.insert(spinners, { bar = bar, center = center, angle = 0, speed = speed })
+end
+
+-- منصّة قفز نطّاطة (لمسها = نطّة لأعلى)
+local function buildBounce(top, cx, cz)
+	local pad = mk("BouncePad", V(5, 0.6, 5), V(cx, top + 0.3, cz), BOUNCE, Enum.Material.Neon, fHaz, true)
+	pad.CanTouch = true
+	mkCyl("BounceRing", 0.4, 6, top + 0.55, cx, cz, BOUNCE, Enum.Material.Neon, fHaz, false)
+	table.insert(bouncePads, pad)
+end
+
+-- نقطة حفظ مرقّمة: قرص أخضر متوهّج + لافتة بالرقم
+local function buildCheckpoint(i, top, cx, cz, numeral)
+	local disc = mkCyl("CPDisc", 0.3, 9.5, top + 0.16, cx, cz, CPGLOW, Enum.Material.Neon, fCP, false)
+	disc.CanTouch = true
+	disc.Transparency = 0.25
+	table.insert(cpPads, disc)
+	local back = platCenter(i) - FWD * 3.5
+	local signCF = CFrame.lookAt(V(back.X, top + 3.2, back.Z), V(back.X, top + 3.2, back.Z) - FWD)
+	local sign = mk("CPNum", V(2.6, 2.6, 0.3), signCF, SIGNBG, Enum.Material.SmoothPlastic, fCP, false)
+	signGui(sign, numeral, CPGLOW)
+end
+
+-- بناء المنصّات وكل ما عليها
+for i = 0, COUNT - 1 do
+	local c = platCenter(i)
+	local top = platTop(i)
+	local mat = (i <= 3) and Enum.Material.Grass or Enum.Material.SmoothPlastic
+	mk("Plat" .. i, V(PW, PT, PD), c, zoneColor(i), mat, fPlat, true)
+	-- إطار ذهبي رفيع تحت السطح
+	mk("Rim" .. i, V(PW + 0.8, 0.4, PD + 0.8), V(c.X, top - PT - 0.2, c.Z), GOLD, Enum.Material.Metal, fDecor, false)
+	-- جسم الجزيرة (صخرة) + ساق سفلية لإحساس الجزر الطائرة
+	mk("Rock" .. i, V(PW - 1.5, 3, PD - 1.5), V(c.X, top - PT - 1.7, c.Z), ROCK, Enum.Material.Slate, fDecor, false)
+	mkCyl("Stem" .. i, 6, 4, top - PT - 5.5, c.X, c.Z, STEM, Enum.Material.Slate, fDecor, false)
+
+	if CP_AT[i] then buildCheckpoint(i, top, c.X, c.Z, CP_AT[i]) end
+	if STRIP_AT[i] then buildStrip(i, top, c.X, c.Z) end
+	if SPIN_AT[i] then buildSpinner(top, c.X, c.Z, SPIN_AT[i]) end
+	if BOUNCE_AT[i] then buildBounce(top, c.X, c.Z) end
+end
+
+-- أسهم ذهبية فوق كل فجوة تأشّر للمنصّة التالية
+for i = 0, COUNT - 2 do
+	local a, b = platCenter(i), platCenter(i + 1)
+	local mid = (a + b) / 2 + V(0, 3.0 + (platTop(i + 1) - platTop(i)) / 2, 0)
+	local vertex = mid + FWD * 1.6
+	beam(vertex, mid - FWD * 0.2 + RIGHTV * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
+	beam(vertex, mid - FWD * 0.2 - RIGHTV * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
+end
+
+-- لافتة البداية «ابدأ هنا» على المنصّة الأولى
+do
+	local c = platCenter(0)
+	local top = platTop(0)
+	local bp = c + FWD * 4.0
+	local lpos = bp + RIGHTV * 3.2
+	local rpos = bp - RIGHTV * 3.2
+	beam(V(lpos.X, top, lpos.Z), V(lpos.X, top + 7, lpos.Z), 0.6, GOLD, Enum.Material.Metal, fDecor)
+	beam(V(rpos.X, top, rpos.Z), V(rpos.X, top + 7, rpos.Z), 0.6, GOLD, Enum.Material.Metal, fDecor)
+	local bannerCF = CFrame.lookAt(V(bp.X, top + 6.4, bp.Z), V(bp.X, top + 6.4, bp.Z) - FWD)
+	local banner = mk("StartBanner", V(7.2, 2.2, 0.3), bannerCF, GREEN, Enum.Material.SmoothPlastic, fDecor, false)
+	signGui(banner, "ابدأ هنا", C3(255, 255, 255), 720)
+end
+
+-- قوس النهاية «النهاية» على آخر منصّة + مُحفِّز الفوز
+do
+	local c = platCenter(COUNT - 1)
+	local top = platTop(COUNT - 1)
+	local lpos = c + RIGHTV * 5.0
+	local rpos = c - RIGHTV * 5.0
+	beam(V(lpos.X, top, lpos.Z), V(lpos.X, top + 10, lpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
+	beam(V(rpos.X, top, rpos.Z), V(rpos.X, top + 10, rpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
+	beam(V(lpos.X, top + 10, lpos.Z), V(rpos.X, top + 10, rpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
+	local bannerCF = CFrame.lookAt(V(c.X, top + 8.4, c.Z), V(c.X, top + 8.4, c.Z) - FWD)
+	local banner = mk("FinishBanner", V(8.0, 2.4, 0.3), bannerCF, GOLD, Enum.Material.Neon, fDecor, false)
+	signGui(banner, "النهاية", SIGNBG, 720)
+
+	finishPart = mk("ParkourFinish", V(PW, 12, PD), V(c.X, top + 6, c.Z), GOLD, Enum.Material.SmoothPlastic, course, false)
+	finishPart.Transparency = 1
+	finishPart.CanTouch = true
+end
+
+----------------------------------------------------------------------
+-- إحداثيات النظام
+----------------------------------------------------------------------
+local SPAWN_POS = V(ORIGIN_X, platTop(0) + 3.5, ORIGIN_Z)
+local SPAWN_CF  = CFrame.new(SPAWN_POS)
+local BASE_Y    = platTop(0) + 3.5
+local FINISH_Y  = platTop(COUNT - 1) + 3.5
+local FALL_Y    = platTop(0) - 12
+local EXIT_POS  = V(6, 5, 60)          -- خروج آمن قرب نقطة الانطلاق الرئيسية (0,_,60)
+local ENTRY_POS = V(-20, 1.3, 60)      -- منصّة دخول أرضية بجانب الانطلاق الرئيسي (مرئية وسهلة الوصول)
 
 ----------------------------------------------------------------------
 -- منصّة الدخول في المدينة + لافتة
@@ -155,7 +298,7 @@ end
 local entryPad = Instance.new("Part")
 entryPad.Name = "ParkourEntry"; entryPad.Anchored = true; entryPad.CanCollide = true
 entryPad.Size = V(10, 0.6, 10); entryPad.Position = ENTRY_POS
-entryPad.Color = Color3.fromRGB(255, 205, 70); entryPad.Material = Enum.Material.Neon
+entryPad.Color = C3(255, 205, 70); entryPad.Material = Enum.Material.Neon
 entryPad.Transparency = 0.15; entryPad.TopSurface = Enum.SurfaceType.Smooth
 entryPad.Parent = Workspace
 
@@ -163,15 +306,15 @@ do
 	local sign = Instance.new("Part")
 	sign.Name = "ParkourEntrySign"; sign.Anchored = true; sign.CanCollide = false
 	sign.Size = V(8, 3.4, 0.4); sign.Position = ENTRY_POS + V(0, 4, 0)
-	sign.Color = Color3.fromRGB(24, 30, 46); sign.Material = Enum.Material.SmoothPlastic
+	sign.Color = SIGNBG; sign.Material = Enum.Material.SmoothPlastic
 	sign.Parent = Workspace
 	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
-	sg.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	sg.AutoLocalize = false  -- إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
 	sg.CanvasSize = Vector2.new(720, 300); sg.LightInfluence = 0; sg.Parent = sign
 	local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
 	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-	lbl.TextColor3 = Color3.fromRGB(255, 205, 70)
-	lbl.Text = "🧗 برج الباركور\n<font size=\"30\">قف هنا للانتقال للبداية</font>"
+	lbl.TextColor3 = C3(255, 205, 70)
+	lbl.Text = "برج الباركور\n<font size=\"30\">قف هنا للانتقال للبداية</font>"
 	lbl.Parent = sg
 end
 
@@ -202,7 +345,7 @@ end
 -- حالة الجولة لكل لاعب
 ----------------------------------------------------------------------
 local runState = {}   -- [userId] = { inRun, startT, cpCF, cpY, best, loop }
-local updateFallWatcher   -- forward declaration (يُعرّف لاحقاً)
+local updateActiveLoop    -- forward declaration
 local finishRun           -- forward declaration
 
 local function progressPercent(player)
@@ -229,7 +372,6 @@ end
 
 local function stopProgressLoop(st)
 	if st and st.loop then
-		-- pcall: قد تكون الحلقة قد انتهت بنفسها (خرجت بـ return) فلا تُلغى مرتين
 		pcall(task.cancel, st.loop)
 		st.loop = nil
 	end
@@ -241,37 +383,27 @@ local function startRun(player)
 	st = { inRun = true, startT = os.clock(), cpCF = SPAWN_CF, cpY = BASE_Y, best = st and st.best, bestLoaded = st and st.bestLoaded }
 	runState[player.UserId] = st
 	teleportTo(player, SPAWN_CF)
-	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🧗 بدأ الباركور! اطلع لأعلى ووصل للقمة.") end
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "بدأ الباركور! اطلع لأعلى ووصل للقمة.") end
 	sendProgress(player, "run")
-	-- حلقة تقدّم تعمل فقط أثناء جولة هذا اللاعب وتنتهي تلقائياً
 	st.loop = task.spawn(function()
 		while runState[player.UserId] == st and st.inRun do
 			sendProgress(player, "run")
-			-- احتياطي للفوز: لو وصل القمة دون لمس المُحفِّز. ننفّذه في خيط مستقل
-			-- ونخرج من الحلقة بـ return (بدل استدعاء finishRun هنا الذي يُلغي هذا
-			-- الخيط نفسه أثناء تنفيذه — نمط هشّ).
-			local char = player.Character
-			local hrp = char and char:FindFirstChild("HumanoidRootPart")
-			if hrp and hrp.Position.Y >= FINISH_Y - 4 then
-				if finishRun then task.spawn(finishRun, player) end
-				return
-			end
 			task.wait(0.6)
 		end
 	end)
-	if updateFallWatcher then updateFallWatcher() end
+	if updateActiveLoop then updateActiveLoop() end
 end
 
 local function stopRun(player)
 	local st = runState[player.UserId]
 	if st then st.inRun = false; stopProgressLoop(st) end
 	teleportTo(player, CFrame.new(EXIT_POS))
-	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🛑 أوقفت الباركور وخرجت من المسار.") end
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "أوقفت الباركور وخرجت من المسار.") end
 	progressRemote:FireClient(player, { state = "idle" })
-	if updateFallWatcher then updateFallWatcher() end
+	if updateActiveLoop then updateActiveLoop() end
 end
 
--- 🛡️ مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
+-- مكافحة إغراق الـRemotes: حدّ نداءات لكل لاعب (token-bucket بسيط)
 local _rl = {}
 local RL_REFILL, RL_BURST = 15, 25
 local function rlAllow(userId: number): boolean
@@ -304,25 +436,10 @@ entryPad.Touched:Connect(function(hit)
 end)
 
 ----------------------------------------------------------------------
--- نقاط الحفظ التلقائية: تلمس منصّة أعلى من نقطتك الحالية = تتحدّث
+-- نقاط الحفظ المرقّمة: تثبّت نقطة الرجوع + تحتسب مهمة parkour_cp
 ----------------------------------------------------------------------
-for _, step in ipairs(steps) do
-	local topY = step.Position.Y + step.Size.Y / 2
-	step.Touched:Connect(function(hit)
-		local player = playerFromHit(hit)
-		if not player then return end
-		local st = runState[player.UserId]
-		if not st or not st.inRun then return end
-		if topY > st.cpY + 1.5 then
-			st.cpY = topY
-			st.cpCF = CFrame.new(step.Position.X, topY + 3.5, step.Position.Z)
-		end
-	end)
-end
-
--- نقاط الحفظ الرسمية بالموديل (CheckPoints): تثبّت نقطة الرجوع + تحتسب مهمة parkour_cp
 for _, pad in ipairs(cpPads) do
-	local topY = pad.Position.Y + pad.Size.Y / 2
+	local topY = pad.Position.Y
 	pad.Touched:Connect(function(hit)
 		local player = playerFromHit(hit)
 		if not player then return end
@@ -341,7 +458,7 @@ for _, pad in ipairs(cpPads) do
 end
 
 ----------------------------------------------------------------------
--- مناطق الموت (إن وُجدت): ترجع لآخر نقطة حفظ
+-- الحواجز القاتلة (بلاطات + أعمدة دوّارة): ترجع لآخر نقطة حفظ
 ----------------------------------------------------------------------
 local killCooldown = {}
 local function respawnAtCheckpoint(player)
@@ -350,7 +467,7 @@ local function respawnAtCheckpoint(player)
 	if killCooldown[player.UserId] then return end
 	killCooldown[player.UserId] = true
 	teleportTo(player, st.cpCF or SPAWN_CF)
-	if _G.NotifyPlayer then _G.NotifyPlayer(player, "↩️ رجعناك لآخر نقطة حفظ.") end
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "رجعناك لآخر نقطة حفظ.") end
 	task.delay(0.6, function() killCooldown[player.UserId] = nil end)
 end
 
@@ -358,6 +475,29 @@ for _, kp in ipairs(killParts) do
 	kp.Touched:Connect(function(hit)
 		local player = playerFromHit(hit)
 		if player then respawnAtCheckpoint(player) end
+	end)
+end
+
+----------------------------------------------------------------------
+-- منصّات القفز النطّاطة: دفعة لأعلى (متعة، غير قاتلة)
+----------------------------------------------------------------------
+local BOUNCE_V = 62
+local bounceCooldown = {}
+for _, pad in ipairs(bouncePads) do
+	pad.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		local st = runState[player.UserId]
+		if not st or not st.inRun then return end
+		if bounceCooldown[player.UserId] then return end
+		bounceCooldown[player.UserId] = true
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local v = hrp.AssemblyLinearVelocity
+			hrp.AssemblyLinearVelocity = Vector3.new(v.X, BOUNCE_V, v.Z)
+		end
+		task.delay(0.4, function() bounceCooldown[player.UserId] = nil end)
 	end)
 end
 
@@ -374,14 +514,14 @@ finishRun = function(player)
 
 	st.inRun = false
 	stopProgressLoop(st)
-	if updateFallWatcher then updateFallWatcher() end
+	if updateActiveLoop then updateActiveLoop() end
 	local elapsed = os.clock() - st.startT
 
 	-- أفضل وقت شخصي
 	local isRecord = false
 	if not st.best or elapsed < st.best then
 		st.best = elapsed; isRecord = true
-		-- 🛡️ لا نكتب رقماً قياسياً فوق المخزّن إن فشلت قراءته (قد يكون الحقيقي أسرع)
+		-- لا نكتب رقماً قياسياً فوق المخزّن إن فشلت قراءته (قد يكون الحقيقي أسرع)
 		if bestStore and st.bestLoaded ~= false then
 			pcall(function() bestStore:SetAsync(tostring(player.UserId), math.floor(elapsed * 100)) end)
 		end
@@ -396,7 +536,7 @@ finishRun = function(player)
 	if _G.ReportMission then _G.ReportMission(player, "parkour_done", 1) end
 	if _G.NotifyPlayer then
 		_G.NotifyPlayer(player, string.format(
-			"🏁 أكملت الباركور! الوقت %s%s — مكافأة %d كوينز + لقب «بطل الباركور» 🏆",
+			"أكملت الباركور! الوقت %s%s — مكافأة %d كوينز + لقب «بطل الباركور»",
 			fmtTime(elapsed), isRecord and " (رقم قياسي جديد!)" or "", REWARD))
 	end
 
@@ -415,17 +555,23 @@ if finishPart then
 end
 
 ----------------------------------------------------------------------
--- مراقبة السقوط أسفل القاعدة (للاعبين النشطين فقط) عبر Heartbeat واحد
--- يعمل فقط عند وجود لاعب نشِط واحد على الأقل، ويتوقّف تماماً عند الخمول.
+-- حلقة واحدة (تعمل أثناء جولة نشِطة فقط): سقوط + تدوير العوائق
+-- تتوقّف تماماً عند الخمول → صفر استهلاك.
 ----------------------------------------------------------------------
-local fallConn
-updateFallWatcher = function()
+local activeConn
+updateActiveLoop = function()
 	local anyActive = false
 	for _, st in pairs(runState) do
 		if st.inRun then anyActive = true; break end
 	end
-	if anyActive and not fallConn then
-		fallConn = RunService.Heartbeat:Connect(function()
+	if anyActive and not activeConn then
+		activeConn = RunService.Heartbeat:Connect(function(dt)
+			-- تدوير العوائق
+			for _, sp in ipairs(spinners) do
+				sp.angle = (sp.angle + sp.speed * dt) % (math.pi * 2)
+				sp.bar.CFrame = CFrame.new(sp.center) * CFrame.Angles(0, sp.angle, 0)
+			end
+			-- مراقبة السقوط أسفل المسار
 			for _, player in ipairs(Players:GetPlayers()) do
 				local st = runState[player.UserId]
 				if st and st.inRun then
@@ -437,13 +583,13 @@ updateFallWatcher = function()
 				end
 			end
 		end)
-	elseif not anyActive and fallConn then
-		fallConn:Disconnect(); fallConn = nil
+	elseif not anyActive and activeConn then
+		activeConn:Disconnect(); activeConn = nil
 	end
 end
 
 ----------------------------------------------------------------------
--- تنظيف عند خروج اللاعب + إعادة فحص المراقب
+-- تنظيف عند خروج اللاعب + إعادة فحص الحلقة
 ----------------------------------------------------------------------
 Players.PlayerRemoving:Connect(function(player)
 	local st = runState[player.UserId]
@@ -451,48 +597,43 @@ Players.PlayerRemoving:Connect(function(player)
 	runState[player.UserId] = nil
 	entryCooldown[player.UserId] = nil
 	killCooldown[player.UserId] = nil
+	bounceCooldown[player.UserId] = nil
 	finishCooldown[player.UserId] = nil
 	_rl[player.UserId] = nil
-	updateFallWatcher()
+	updateActiveLoop()
 end)
 
--- إيقاف الجولة عند الموت/إعادة الإحياء (لا تبقى الحالة عالقة)
 Players.PlayerAdded:Connect(function(player)
 	-- استرجاع أفضل وقت محفوظ (اختياري)
 	if bestStore then
-		-- ابدأ بـ bestLoaded=false (قبل اكتمال القراءة) كي لا يُكتب رقم فوق المخزّن أثناء نافذة التحميل
 		runState[player.UserId] = runState[player.UserId] or {}
 		runState[player.UserId].bestLoaded = false
 		task.spawn(function()
-			-- قراءة مع إعادة محاولة تميّز الفشل عن العدم
 			local ok, v
 			for attempt = 1, 4 do
 				ok, v = pcall(function() return bestStore:GetAsync(tostring(player.UserId)) end)
 				if ok then break end
 				if attempt < 4 then task.wait(0.5 * attempt) end
 			end
-			-- لا نُعيد إنشاء الإدخال لو غادر اللاعب أثناء القراءة (PlayerRemoving مسحه) — تفادي تسريب يتيم
 			local rs = runState[player.UserId]
 			if not rs then return end
 			if ok then
 				if type(v) == "number" then rs.best = v / 100 end
-				rs.bestLoaded = true  -- صار آمناً الكتابة بعد قراءة ناجحة
+				rs.bestLoaded = true
 			else
-				rs.bestLoaded = false  -- فشل قراءة: احمِ المخزّن من الكتابة
+				rs.bestLoaded = false
 			end
 		end)
 	end
-	-- الموديل الأصلي فيه ٤١ «بلوك موت» (Touched -> Humanoid.Health = 0). نُبقي
-	-- هذي السكربتات كما هي (نظيفة)، لكن بدل ما يرجع اللاعب لمركز المدينة عند الموت،
-	-- نرجّعه لآخر نقطة حفظ ونُكمّل الجولة — فالموت داخل المسار = استئناف من الشيك بوينت.
+	-- الموت داخل المسار = استئناف من آخر نقطة حفظ (لا طرد للمدينة)
 	player.CharacterAdded:Connect(function(char)
 		local st = runState[player.UserId]
 		if not st or not st.inRun then return end
 		local hrp = char:WaitForChild("HumanoidRootPart", 5)
 		if hrp then
-			task.wait()  -- إطار واحد حتى يستقرّ التحكّم قبل النقل
+			task.wait()
 			hrp.CFrame = st.cpCF or SPAWN_CF
-			if _G.NotifyPlayer then _G.NotifyPlayer(player, "↩️ رجعناك لآخر نقطة حفظ.") end
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "رجعناك لآخر نقطة حفظ.") end
 		end
 	end)
 end)
