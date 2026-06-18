@@ -46,11 +46,11 @@ local ENTRY_MAX    = Vector3.new(176, 16, 36)
 local GREET_RADIUS   = 18
 local GREET_COOLDOWN = 12
 local PHRASES = {
-	"أهلاً بك في القصر الجمهوري 👑",
+	"أهلاً بك في القصر الجمهوري",
 	"نوّرت القصر، تفضّل",
 	"مرحباً بك، أهلاً وسهلاً",
 	"حيّاك الله في مكتب القصر الجمهوري",
-	"تشرّفنا بحضورك 🌟",
+	"تشرّفنا بحضورك",
 }
 
 -- ── فقاعة كلام أنيقة تتلاشى بنعومة ─────────────────────────────────────────
@@ -355,7 +355,7 @@ task.spawn(function()
 		if target and active ~= target then
 			active = target
 			if leadGuard then
-				speak(leadGuard.char, "تفضّل من هنا، سأرافقك 🫡")
+				speak(leadGuard.char, "تفضّل من هنا، سأرافقك")
 				task.spawn(function() walkTo(leadGuard, LOBBY_TARGET) end)
 			end
 		elseif not target and active then
