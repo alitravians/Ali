@@ -184,7 +184,7 @@ goldStrip(FX1, FX1 + WT, CEIL_Y - 0.6, FZ0, FZ1)
 ----------------------------------------------------------------------
 do
 	-- خامات/ألوان الخارج
-	local STONE_E = Color3.fromRGB(222, 214, 191)
+	local STONE_E = Color3.fromRGB(220, 201, 160)   -- صباغة حجر رملي عاجي دافئ (بدل الأبيض الساطع)
 	local COL_C   = Color3.fromRGB(236, 230, 212)
 	local BASE_C  = Color3.fromRGB(138, 132, 122)
 	local GOLD_E  = Color3.fromRGB(212, 168, 78)
@@ -195,6 +195,7 @@ do
 	local MAROON  = Color3.fromRGB(140, 26, 58)   -- عنّابي قطر
 	local FLAG_W  = Color3.fromRGB(245, 244, 240)
 	local RED_C   = Color3.fromRGB(140, 26, 31)
+	local STAR_GOLD = Color3.fromRGB(236, 206, 128) -- ذهبي فاتح لنقوش النجوم/المشربيات
 
 	-- أبعاد (تطابق تصميم البلندر المعتمد؛ Y هو الارتفاع، سطح الأرض عند 0)
 	local GY = FLOOR_Y                 -- 0.6
@@ -251,6 +252,94 @@ do
 		wl.Size = Vector3.new(sx, sy, math.abs(zc - z0))
 		wl.CFrame = CFrame.new(cx, cy, (z0 + zc) / 2) * CFrame.Angles(0, math.rad(180), 0)
 		wl.Color = color; wl.Material = mat or Enum.Material.Marble; wl.Parent = EXT
+	end
+
+	------------------------------------------------------------------
+	-- 🎨 مساعدو الصباغة والنقوش (كلها أشكال/واجهات أصلية بلا ميش/إيموجي)
+	------------------------------------------------------------------
+	-- نجمة ثمانية = مربّعان متقاطعان (عناصر UI أصلية)
+	local function star8(parent: Instance, cxPx: number, sz: number)
+		for _, rot in ipairs({ 0, 45 }) do
+			local sq = Instance.new("Frame")
+			sq.AnchorPoint = Vector2.new(0.5, 0.5)
+			sq.Position = UDim2.new(0, cxPx, 0.5, 0)
+			sq.Size = UDim2.new(0, sz, 0, sz)
+			sq.Rotation = rot
+			sq.BackgroundColor3 = STAR_GOLD
+			sq.BorderSizePixel = 0
+			sq.Parent = parent
+		end
+	end
+	-- شريط زخرفي عنّابي على وجه القطعة: نجوم ثمانية أو أسنان ذهبية
+	local function motifBand(name, x0, x1, y0, y1, z0, z1, face, lengthStuds, kind)
+		local p = ebox(name, x0, x1, y0, y1, z0, z1, MAROON, Enum.Material.SmoothPlastic)
+		p.CanCollide = false
+		local g = Instance.new("SurfaceGui")
+		g.Name = "MotifGui"; g.AutoLocalize = false
+		g.Face = face
+		g.SizingMode = Enum.SurfaceGuiSizingMode.FixedSize
+		g.LightInfluence = 0
+		local pps = 12
+		local hPx = math.max(8, math.floor(math.abs(y1 - y0) * pps + 0.5))
+		g.CanvasSize = Vector2.new(math.floor(lengthStuds * pps), hPx)
+		g.Adornee = p; g.Parent = p
+		if kind == "stars" then
+			local n = math.max(4, math.floor(lengthStuds / 3.2))
+			local sz = math.floor(hPx * 0.78)
+			for i = 0, n - 1 do
+				star8(g, math.floor((i + 0.5) / n * g.CanvasSize.X), sz)
+			end
+		else
+			local n = math.max(8, math.floor(lengthStuds / 1.5))
+			local w = math.max(2, math.floor(hPx * 0.42))
+			for i = 0, n - 1 do
+				local dteeth = Instance.new("Frame")
+				dteeth.AnchorPoint = Vector2.new(0.5, 1)
+				dteeth.Position = UDim2.new(0, math.floor((i + 0.5) / n * g.CanvasSize.X), 1, -2)
+				dteeth.Size = UDim2.new(0, w, 0, math.floor(hPx * 0.62))
+				dteeth.BackgroundColor3 = STAR_GOLD
+				dteeth.BorderSizePixel = 0
+				dteeth.Parent = g
+			end
+		end
+		return p
+	end
+	-- مشربية: شبكة ذهبية رفيعة على زجاج النافذة (إحساس خليجي)
+	local function latticeGui(glass: BasePart, face)
+		local g = Instance.new("SurfaceGui")
+		g.Name = "Mashrabiya"; g.AutoLocalize = false
+		g.Face = face; g.LightInfluence = 0
+		g.CanvasSize = Vector2.new(120, 150)
+		g.Adornee = glass; g.Parent = glass
+		for k = 1, 4 do
+			local v = Instance.new("Frame")
+			v.BackgroundColor3 = STAR_GOLD; v.BorderSizePixel = 0
+			v.Size = UDim2.new(0, 2, 1, 0)
+			v.Position = UDim2.new(k / 5, -1, 0, 0)
+			v.Parent = g
+		end
+		for k = 1, 5 do
+			local h = Instance.new("Frame")
+			h.BackgroundColor3 = STAR_GOLD; h.BorderSizePixel = 0
+			h.Size = UDim2.new(1, 0, 0, 2)
+			h.Position = UDim2.new(0, 0, k / 6, -1)
+			h.Parent = g
+		end
+	end
+	-- عمود مسطّح أمامي (يبرز عن واجهة -X) بتاج وحزام ذهبيين
+	local function pilasterFront(zc)
+		ebox("Pilaster", 92.6, 94, GY, F2 - 2, zc - 0.9, zc + 0.9, COL_C, Enum.Material.Marble).CanCollide = false
+		ebox("PilCap", 92.4, 94, F2 - 2.7, F2 - 2, zc - 1.1, zc + 1.1, GOLD_E, Enum.Material.Metal).CanCollide = false
+		ebox("PilBelt", 92.5, 94, F1 - 0.4, F1 + 0.4, zc - 1.1, zc + 1.1, GOLD_E, Enum.Material.Metal).CanCollide = false
+		ebox("PilFoot", 92.5, 94, GY, GY + 0.7, zc - 1.1, zc + 1.1, COL_C, Enum.Material.Marble).CanCollide = false
+	end
+	-- عمود مسطّح جانبي (outward = -1 لجهة OZ0، +1 لجهة OZ1)
+	local function pilasterSide(xc, zEdge, outward)
+		local z0 = math.min(zEdge, zEdge + outward * 1.4)
+		local z1 = math.max(zEdge, zEdge + outward * 1.4)
+		ebox("Pilaster", xc - 0.9, xc + 0.9, GY, F2 - 2, z0, z1, COL_C, Enum.Material.Marble).CanCollide = false
+		ebox("PilCap", xc - 1.1, xc + 1.1, F2 - 2.7, F2 - 2, z0, z1, GOLD_E, Enum.Material.Metal).CanCollide = false
+		ebox("PilBelt", xc - 1.1, xc + 1.1, F1 - 0.4, F1 + 0.4, z0, z1, GOLD_E, Enum.Material.Metal).CanCollide = false
 	end
 
 	------------------------------------------------------------------
@@ -333,21 +422,26 @@ do
 	------------------------------------------------------------------
 	-- 6) النوافذ (طابقان) — على الواجهة + الجانبين، بإطار ذهبي وزجاج داكن
 	------------------------------------------------------------------
-	local function winFront(zc, y0, y1)
+	local function winFront(zc, y0, y1): BasePart
 		ebox("WinFrame", 93.5, 94.6, y0, y1, zc - 2.6, zc + 2.6, GOLD_E, Enum.Material.Metal)
-		ebox("WinGlass", 93.3, 94.4, y0 + 0.6, y1 - 0.6, zc - 2.0, zc + 2.0, GLASS_C, Enum.Material.Glass).CanCollide = false
+		local gl = ebox("WinGlass", 93.3, 94.4, y0 + 0.6, y1 - 0.6, zc - 2.0, zc + 2.0, GLASS_C, Enum.Material.Glass)
+		gl.CanCollide = false
+		return gl
 	end
-	local function winSide(xc, zc, y0, y1)
+	local function winSide(xc, zc, y0, y1): BasePart
 		ebox("WinFrame", xc - 2.6, xc + 2.6, y0, y1, zc - 0.55, zc + 0.55, GOLD_E, Enum.Material.Metal)
-		ebox("WinGlass", xc - 2.0, xc + 2.0, y0 + 0.6, y1 - 0.6, zc - 0.7, zc + 0.7, GLASS_C, Enum.Material.Glass).CanCollide = false
+		local gl = ebox("WinGlass", xc - 2.0, xc + 2.0, y0 + 0.6, y1 - 0.6, zc - 0.7, zc + 0.7, GLASS_C, Enum.Material.Glass)
+		gl.CanCollide = false
+		return gl
 	end
+	-- الطابق الأرضي يأخذ مشربية شبكية (نقش)، العلوي بدونها
 	for _, zc in ipairs({ -27, -14, 50, 63 }) do
-		winFront(zc, GY + 2.5, F1 - 1.5)
+		latticeGui(winFront(zc, GY + 2.5, F1 - 1.5), Enum.NormalId.Left)
 		winFront(zc, F1 + 1.5, F2 - 2)
 	end
 	for xc = 116, 220, 24 do
-		winSide(xc, OZ0 + 1, GY + 2.5, F1 - 1.5); winSide(xc, OZ0 + 1, F1 + 1.5, F2 - 2)
-		winSide(xc, OZ1 - 1, GY + 2.5, F1 - 1.5); winSide(xc, OZ1 - 1, F1 + 1.5, F2 - 2)
+		latticeGui(winSide(xc, OZ0 + 1, GY + 2.5, F1 - 1.5), Enum.NormalId.Front); winSide(xc, OZ0 + 1, F1 + 1.5, F2 - 2)
+		latticeGui(winSide(xc, OZ1 - 1, GY + 2.5, F1 - 1.5), Enum.NormalId.Back); winSide(xc, OZ1 - 1, F1 + 1.5, F2 - 2)
 	end
 
 	------------------------------------------------------------------
@@ -359,6 +453,49 @@ do
 		ebox("FlagMaroon", PORT_X - 6.1, PORT_X - 5.8, GY + 22.3, GY + 27, fz, fz + 12, MAROON, Enum.Material.Fabric).CanCollide = false
 		ebox("FlagWhite", PORT_X - 6.15, PORT_X - 5.75, GY + 22.3, GY + 27, fz, fz + 3.4, FLAG_W, Enum.Material.Fabric).CanCollide = false
 	end
+
+	------------------------------------------------------------------
+	-- 7.5) الصباغة والنقوش: أعمدة مسطّحة + إفريز نجوم + أسنان + إطار مدخل + ميدالية
+	------------------------------------------------------------------
+	for _, zc in ipairs({ -34, -20.5, -7, 33, 56.5, 69 }) do pilasterFront(zc) end
+	for xc = 104, 224, 24 do
+		pilasterSide(xc, OZ0, -1)
+		pilasterSide(xc, OZ1, 1)
+	end
+
+	local frzY0, frzY1 = F2 - 2.0, F2 - 0.5
+	local dntY0, dntY1 = 10.6, 11.5
+	motifBand("FriezeFL", 93.4, 94, frzY0, frzY1, OZ0, -11, Enum.NormalId.Left, math.abs(-11 - OZ0), "stars")
+	motifBand("FriezeFR", 93.4, 94, frzY0, frzY1, 47, OZ1, Enum.NormalId.Left, math.abs(OZ1 - 47), "stars")
+	motifBand("DentilFL", 93.6, 94, dntY0, dntY1, OZ0, -11, Enum.NormalId.Left, math.abs(-11 - OZ0), "dentils")
+	motifBand("DentilFR", 93.6, 94, dntY0, dntY1, 47, OZ1, Enum.NormalId.Left, math.abs(OZ1 - 47), "dentils")
+	motifBand("FriezeSA", OX0, OX1, frzY0, frzY1, OZ0, OZ0 + 0.6, Enum.NormalId.Front, math.abs(OX1 - OX0), "stars")
+	motifBand("FriezeSB", OX0, OX1, frzY0, frzY1, OZ1 - 0.6, OZ1, Enum.NormalId.Back, math.abs(OX1 - OX0), "stars")
+	motifBand("DentilSA", OX0, OX1, dntY0, dntY1, OZ0, OZ0 + 0.4, Enum.NormalId.Front, math.abs(OX1 - OX0), "dentils")
+	motifBand("DentilSB", OX0, OX1, dntY0, dntY1, OZ1 - 0.4, OZ1, Enum.NormalId.Back, math.abs(OX1 - OX0), "dentils")
+	motifBand("FriezeBk", OX1 - 0.6, OX1, frzY0, frzY1, OZ0, OZ1, Enum.NormalId.Right, math.abs(OZ1 - OZ0), "stars")
+
+	-- إطار المدخل (قائمان عنّابيان + عتبة ذهبية)
+	ebox("DoorJambL", 93.5, 94, GY, 9.6, ENT_Z0 - 1.1, ENT_Z0, MAROON, Enum.Material.SmoothPlastic).CanCollide = false
+	ebox("DoorJambR", 93.5, 94, GY, 9.6, ENT_Z1, ENT_Z1 + 1.1, MAROON, Enum.Material.SmoothPlastic).CanCollide = false
+	ebox("DoorLintel", 93.4, 94, 9.4, 10.4, ENT_Z0 - 1.1, ENT_Z1 + 1.1, GOLD_E, Enum.Material.Metal).CanCollide = false
+
+	-- ميدالية شمس ذهبية في الجبهة المثلّثة (أقراص مركزية أصلية)
+	local medX = PORT_X - COL_R - 1.5
+	local function disc(name, dia, color, mat, dx)
+		local p = Instance.new("Part")
+		p.Name = name; p.Anchored = true; p.CanCollide = false
+		p.Shape = Enum.PartType.Cylinder
+		p.Size = Vector3.new(0.3, dia, dia)
+		p.CFrame = CFrame.new(medX - dx, COL_TOP + 5, CZp)
+		p.Color = color; p.Material = mat
+		p.TopSurface = Enum.SurfaceType.Smooth; p.BottomSurface = Enum.SurfaceType.Smooth
+		p.Parent = EXT
+		return p
+	end
+	disc("SunDisc", 4.4, GOLD_E, Enum.Material.Metal, 0)
+	disc("SunRing", 3.2, MAROON, Enum.Material.SmoothPlastic, 0.06)
+	disc("SunCore", 1.6, GOLD_E, Enum.Material.Metal, 0.12)
 
 	------------------------------------------------------------------
 	-- 8) لافتة الواجهة «مكتب القصر الجمهوري لشهد» على الإفريز فوق المدخل
