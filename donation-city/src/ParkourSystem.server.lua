@@ -586,30 +586,115 @@ local EXIT_POS  = V(6, 5, 60)          -- خروج آمن قرب نقطة الا
 local ENTRY_POS = V(-20, 1.3, 60)      -- منصّة دخول أرضية بجانب الانطلاق الرئيسي (مرئية وسهلة الوصول)
 
 ----------------------------------------------------------------------
--- منصّة الدخول في المدينة + لافتة
+-- بوّابة دخول الباركور 3D (قطع أصلية): قاعدة إطلاق دائرية + حلقة ضوء
+-- خضراء دوّارة + قوس بعمودين ولافتة «برج الباركور» + عمود ضوء يطلع
+-- للسماء + فقاعة «اضغط E للبدء». البدء بالضغط (ProximityPrompt) مع عدّ
+-- تنازلي ٣·٢·١ بدل البدء التلقائي باللمس (يمنع الانطلاق بالغلط). كل
+-- القطع Anchored؛ الحلقة تدور فقط عند اقتراب لاعب → صفر استهلاك عند الخمول.
 ----------------------------------------------------------------------
+local GREENZ = C3(60, 190, 110)         -- أخضر منطقة البداية
+local CONCR  = C3(120, 126, 138)        -- خرسانة القوس
+
+local gate = Instance.new("Model"); gate.Name = "ParkourGate"; gate.Parent = Workspace
+
+-- قاعدة الإطلاق الدائرية (يقف عليها اللاعب)
 local entryPad = Instance.new("Part")
 entryPad.Name = "ParkourEntry"; entryPad.Anchored = true; entryPad.CanCollide = true
-entryPad.Size = V(10, 0.6, 10); entryPad.Position = ENTRY_POS
-entryPad.Color = C3(255, 205, 70); entryPad.Material = Enum.Material.Neon
-entryPad.Transparency = 0.15; entryPad.TopSurface = Enum.SurfaceType.Smooth
-entryPad.Parent = Workspace
+entryPad.Shape = Enum.PartType.Cylinder
+entryPad.Size = V(0.8, 10, 10)
+entryPad.CFrame = CFrame.new(ENTRY_POS) * CFrame.Angles(0, 0, math.rad(90))
+entryPad.Color = C3(46, 54, 70); entryPad.Material = Enum.Material.Metal
+entryPad.TopSurface = Enum.SurfaceType.Smooth; entryPad.Parent = gate
 
-do
-	local sign = Instance.new("Part")
-	sign.Name = "ParkourEntrySign"; sign.Anchored = true; sign.CanCollide = false
-	sign.Size = V(8, 3.4, 0.4); sign.Position = ENTRY_POS + V(0, 4, 0)
-	sign.Color = SIGNBG; sign.Material = Enum.Material.SmoothPlastic
-	sign.Parent = Workspace
-	local sg = Instance.new("SurfaceGui"); sg.Face = Enum.NormalId.Front
-	sg.AutoLocalize = false  -- إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-	sg.CanvasSize = Vector2.new(720, 300); sg.LightInfluence = 0; sg.Parent = sign
-	local lbl = Instance.new("TextLabel"); lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-	lbl.TextColor3 = C3(255, 205, 70)
-	lbl.Text = "برج الباركور\n<font size=\"30\">قف هنا للانتقال للبداية</font>"
-	lbl.Parent = sg
+local padTopY = ENTRY_POS.Y + 0.4
+
+-- حلقة ضوء خضراء (قرص نيون فوق القاعدة) + قرص داخلي غامق
+local ring = mkCyl("GateRing", 0.25, 9.0, padTopY + 0.18, ENTRY_POS.X, ENTRY_POS.Z, CPGLOW, Enum.Material.Neon, gate, false)
+ring.Transparency = 0.45; ring.CanTouch = false
+local ringIn = mkCyl("GateRingInner", 0.3, 6.0, padTopY + 0.16, ENTRY_POS.X, ENTRY_POS.Z, C3(20, 30, 40), Enum.Material.SmoothPlastic, gate, false)
+ringIn.Transparency = 0.2; ringIn.CanTouch = false
+
+-- أذرع ضوء دوّارة (٣ أذرع تلتفّ حول المركز)
+local gateBars = {}
+for i = 1, 3 do
+	local bar = mk("GateSweep", V(8.6, 0.22, 0.7), CFrame.new(ENTRY_POS + V(0, 0.6, 0)), CPGLOW, Enum.Material.Neon, gate, false)
+	bar.CanTouch = false; bar.Transparency = 0.1
+	gateBars[i] = bar
 end
+
+-- قوس بعمودين + عارضة علوية
+for _, sz in ipairs({ -1, 1 }) do
+	mk("GatePillar", V(1.2, 9.0, 1.2), CFrame.new(ENTRY_POS + V(0, 4.5, sz * 4.2)), CONCR, Enum.Material.Concrete, gate, true)
+	mk("GatePillarBase", V(1.8, 0.7, 1.8), CFrame.new(ENTRY_POS + V(0, 0.65, sz * 4.2)), GREENZ, Enum.Material.Neon, gate, false)
+end
+mk("GateBeamTop", V(1.2, 1.2, 10.0), CFrame.new(ENTRY_POS + V(0, 9.2, 0)), CONCR, Enum.Material.Concrete, gate, false)
+
+-- لافتة «برج الباركور» على العارضة (تواجه ±X، تُقرأ من الجهتين)
+do
+	local sign = mk("GateSign", V(8.6, 2.6, 0.3), CFrame.new(ENTRY_POS + V(0, 9.2, 0)) * CFrame.Angles(0, math.rad(90), 0), SIGNBG, Enum.Material.SmoothPlastic, gate, false)
+	sign.CanTouch = false
+	signGui(sign, "برج الباركور\nاضغط E للبدء", GOLD, 720)
+end
+
+-- عمود ضوء يطلع للسماء (قلب البوّابة) + هالة
+do
+	local beamCore = mkCyl("GateSkyBeam", 44, 1.6, padTopY + 22, ENTRY_POS.X, ENTRY_POS.Z, CPGLOW, Enum.Material.Neon, gate, false)
+	beamCore.Transparency = 0.55; beamCore.CanTouch = false
+	local beamHalo = mkCyl("GateSkyHalo", 40, 3.4, padTopY + 20, ENTRY_POS.X, ENTRY_POS.Z, CPGLOW, Enum.Material.Neon, gate, false)
+	beamHalo.Transparency = 0.85; beamHalo.CanTouch = false
+end
+
+-- فقاعة العدّ التنازلي فوق القوس (تظهر فقط أثناء العدّ)
+local gateCountLbl, gateCountBB
+do
+	local anchor = mk("GateCountAnchor", V(0.4, 0.4, 0.4), CFrame.new(ENTRY_POS + V(0, 12.4, 0)), CPGLOW, Enum.Material.SmoothPlastic, gate, false)
+	anchor.Transparency = 1; anchor.CanTouch = false
+	gateCountBB = Instance.new("BillboardGui")
+	gateCountBB.Name = "GateCountdown"; gateCountBB.Adornee = anchor
+	gateCountBB.Size = UDim2.new(0, 200, 0, 200)
+	gateCountBB.AlwaysOnTop = true; gateCountBB.MaxDistance = 140
+	gateCountBB.Enabled = false; gateCountBB.Parent = anchor
+	gateCountLbl = Instance.new("TextLabel")
+	gateCountLbl.BackgroundTransparency = 1; gateCountLbl.Size = UDim2.fromScale(1, 1)
+	gateCountLbl.Font = Enum.Font.GothamBlack; gateCountLbl.TextScaled = true
+	gateCountLbl.TextColor3 = GOLD; gateCountLbl.TextStrokeTransparency = 0.3
+	gateCountLbl.Text = ""; gateCountLbl.Parent = gateCountBB
+end
+
+-- فقاعة «اضغط E للبدء» على القاعدة (ProximityPrompt)
+local promptPart = mk("GatePromptPart", V(0.6, 0.6, 0.6), CFrame.new(ENTRY_POS + V(0, 1.8, 0)), CPGLOW, Enum.Material.SmoothPlastic, gate, false)
+promptPart.Transparency = 1; promptPart.CanTouch = false
+local gatePrompt = Instance.new("ProximityPrompt")
+gatePrompt.Name = "StartParkour"
+gatePrompt.ActionText = "ابدأ"
+gatePrompt.ObjectText = "برج الباركور"
+gatePrompt.KeyboardKeyCode = Enum.KeyCode.E
+gatePrompt.GamepadKeyCode = Enum.KeyCode.ButtonX
+gatePrompt.HoldDuration = 0
+gatePrompt.RequiresLineOfSight = false
+gatePrompt.MaxActivationDistance = 14
+gatePrompt.Parent = promptPart
+
+-- دوران الأذرع: فقط عند اقتراب لاعب (صفر استهلاك عند الخمول)
+task.spawn(function()
+	local theta = 0
+	while true do
+		local near = false
+		for _, pl in ipairs(Players:GetPlayers()) do
+			local hrp = pl.Character and pl.Character:FindFirstChild("HumanoidRootPart")
+			if hrp and (hrp.Position - ENTRY_POS).Magnitude < 80 then near = true; break end
+		end
+		if near then
+			local dt = RunService.Heartbeat:Wait()
+			theta = (theta + 1.7 * dt) % (math.pi * 2)
+			for i, bar in ipairs(gateBars) do
+				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.6, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
+			end
+		else
+			task.wait(0.5)
+		end
+	end
+end)
 
 ----------------------------------------------------------------------
 -- أدوات
@@ -716,16 +801,47 @@ stopRemote.OnServerEvent:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- منصّة الدخول: تبدأ الجولة وتنقل للقاعدة
+-- بوّابة الدخول: الضغط E → عدّ تنازلي ٣·٢·١ → بدء الجولة والنقل للقاعدة
+-- (بدل البدء التلقائي باللمس؛ يمنع الانطلاق بالغلط عند المرور فوق القاعدة)
 ----------------------------------------------------------------------
-local entryCooldown = {}
-entryPad.Touched:Connect(function(hit)
-	local player = playerFromHit(hit)
-	if not player then return end
-	if entryCooldown[player.UserId] then return end
-	entryCooldown[player.UserId] = true
-	startRun(player)
-	task.delay(2, function() entryCooldown[player.UserId] = nil end)
+local gateCountingDown = false
+local function setGateNumber(txt, col)
+	if gateCountLbl then
+		gateCountLbl.Text = txt or ""
+		gateCountLbl.TextColor3 = col or GOLD
+	end
+	if gateCountBB then gateCountBB.Enabled = (txt ~= nil and txt ~= "") end
+end
+
+gatePrompt.Triggered:Connect(function(player)
+	if not player or not rlAllow(player.UserId) then return end
+	local st = runState[player.UserId]
+	if st and st.inRun then
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "أنت داخل المسار بالفعل.") end
+		return
+	end
+	if gateCountingDown then
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "في انطلاقة جارية… انتظر لحظة.") end
+		return
+	end
+	gateCountingDown = true
+	gatePrompt.Enabled = false
+	task.spawn(function()
+		for _, n in ipairs({ "٣", "٢", "١" }) do
+			setGateNumber(n, GOLD)
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "الانطلاق بعد " .. n .. "…") end
+			task.wait(1)
+		end
+		setGateNumber("انطلق!", CPGLOW)
+		local cur = runState[player.UserId]
+		if player.Parent and not (cur and cur.inRun) then
+			startRun(player)
+		end
+		task.wait(0.7)
+		setGateNumber("", nil)
+		gatePrompt.Enabled = true
+		gateCountingDown = false
+	end)
 end)
 
 ----------------------------------------------------------------------
@@ -888,7 +1004,6 @@ Players.PlayerRemoving:Connect(function(player)
 	local st = runState[player.UserId]
 	stopProgressLoop(st)
 	runState[player.UserId] = nil
-	entryCooldown[player.UserId] = nil
 	killCooldown[player.UserId] = nil
 	bounceCooldown[player.UserId] = nil
 	finishCooldown[player.UserId] = nil
