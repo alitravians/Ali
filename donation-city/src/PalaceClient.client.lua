@@ -96,14 +96,30 @@ glow.Size = UDim2.new(1.4, 0, 1.4, 0)
 glow.Position = UDim2.new(-0.2, 0, -0.2, 0)
 glow.Parent = scanBox
 
-local fingerprint = Instance.new("TextLabel")
-fingerprint.BackgroundTransparency = 1
-fingerprint.Size = UDim2.new(1, 0, 1, 0)
-fingerprint.Font = Enum.Font.GothamBlack
-fingerprint.Text = "🖐️"
-fingerprint.TextScaled = true
-fingerprint.TextColor3 = Color3.fromRGB(150, 215, 255)
-fingerprint.Parent = scanBox
+-- بصمة مرسومة بعناصر أصلية (حلقات متّحدة المركز) بدل إيموجي — الإيموجي قد لا
+-- يدعمه خطّ روبلوكس فيظهر «مربّعاً فارغاً». الحلقات تُرسم دائماً بلا أي اعتماد
+-- على خطّ أو صورة خارجية، فمستحيل تظهر مربّعات.
+local printRidges = {}
+for i = 0, 5 do
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
+	local s = 0.92 - i * 0.15
+	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
+	ring.BackgroundTransparency = 1
+	ring.ZIndex = 2
+	ring.Parent = scanBox
+	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
+	local st = Instance.new("UIStroke")
+	st.Thickness = 3
+	st.Color = Color3.fromRGB(150, 215, 255)
+	st.Transparency = 0.08
+	st.Parent = ring
+	table.insert(printRidges, st)
+end
+local function tintPrint(c: Color3)
+	for _, st in ipairs(printRidges) do st.Color = c end
+end
 
 -- خط المسح المتحرّك
 local scanline = Instance.new("Frame")
@@ -156,7 +172,7 @@ evStartScan.OnClientEvent:Connect(function()
 	card.Size = UDim2.new(0, 360, 0, 460)
 	scanBox.Visible = true
 	scanline.Visible = true
-	fingerprint.TextColor3 = Color3.fromRGB(150, 215, 255)
+	tintPrint(Color3.fromRGB(150, 215, 255))
 	sbStroke.Color = Color3.fromRGB(60, 150, 210)
 	glow.ImageColor3 = Color3.fromRGB(70, 170, 240)
 	status.Text = "جاري قراءة البصمة…"
@@ -168,19 +184,17 @@ evScanResult.OnClientEvent:Connect(function(granted)
 	scanning = false
 	scanline.Visible = false
 	if granted then
-		fingerprint.Text = "✓"
-		fingerprint.TextColor3 = Color3.fromRGB(70, 235, 130)
+		tintPrint(Color3.fromRGB(70, 235, 130))
 		sbStroke.Color = Color3.fromRGB(70, 235, 130)
 		glow.ImageColor3 = Color3.fromRGB(70, 235, 130)
-		status.Text = "✓ تم التحقق — تفضّل بالدخول"
+		status.Text = "تم التحقق — تفضّل بالدخول"
 		status.TextColor3 = Color3.fromRGB(120, 245, 160)
 		sndSuccess:Play()
 	else
-		fingerprint.Text = "✕"
-		fingerprint.TextColor3 = Color3.fromRGB(245, 90, 90)
+		tintPrint(Color3.fromRGB(245, 90, 90))
 		sbStroke.Color = Color3.fromRGB(245, 90, 90)
 		glow.ImageColor3 = Color3.fromRGB(245, 90, 90)
-		status.Text = "🚫 للأدمن فقط"
+		status.Text = "الدخول مرفوض — للأدمن فقط"
 		status.TextColor3 = Color3.fromRGB(255, 120, 120)
 		sndDenied:Play()
 		-- اهتزاز بسيط
@@ -224,7 +238,7 @@ lTitle.BackgroundTransparency = 1
 lTitle.Size = UDim2.new(1, -20, 0, 52)
 lTitle.Position = UDim2.new(0, 10, 0, 12)
 lTitle.Font = Enum.Font.GothamBlack
-lTitle.Text = "🗒️ سجلّ دخول القصر"
+lTitle.Text = "سجلّ دخول القصر"
 lTitle.TextScaled = true
 lTitle.TextColor3 = GOLD
 lTitle.Parent = lCard
@@ -234,7 +248,7 @@ closeBtn.Size = UDim2.new(0, 36, 0, 36)
 closeBtn.Position = UDim2.new(1, -44, 0, 12)
 closeBtn.BackgroundColor3 = Color3.fromRGB(180, 60, 60)
 closeBtn.Font = Enum.Font.GothamBold
-closeBtn.Text = "✕"
+closeBtn.Text = "X"
 closeBtn.TextScaled = true
 closeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeBtn.Parent = lCard
@@ -273,7 +287,7 @@ local function addRow(i, name, t)
 	nm.Position = UDim2.new(0, 12, 0, 0)
 	nm.Font = Enum.Font.GothamBold
 	nm.TextXAlignment = Enum.TextXAlignment.Left
-	nm.Text = "👤 " .. tostring(name)
+	nm.Text = tostring(name)
 	nm.TextScaled = true
 	nm.TextColor3 = Color3.fromRGB(235, 240, 250)
 	nm.Parent = row

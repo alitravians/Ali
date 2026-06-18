@@ -753,15 +753,26 @@ padGui.CanvasSize = Vector2.new(300, 360)
 padGui.LightInfluence = 0
 padGui.Adornee = pad
 padGui.Parent = pad
-local padIcon = Instance.new("TextLabel")
-padIcon.BackgroundTransparency = 1
-padIcon.Size = UDim2.new(1, 0, 0.7, 0)
-padIcon.Position = UDim2.new(0, 0, 0.02, 0)
-padIcon.Font = Enum.Font.GothamBlack
-padIcon.Text = "🖐️"
-padIcon.TextScaled = true
-padIcon.TextColor3 = Color3.fromRGB(180, 230, 255)
-padIcon.Parent = padGui
+-- بصمة مرسومة بحلقات أصلية بدل إيموجي (الإيموجي قد يظهر «مربّعاً»)
+local padIconHolder = Instance.new("Frame")
+padIconHolder.BackgroundTransparency = 1
+padIconHolder.Size = UDim2.new(1, 0, 0.7, 0)
+padIconHolder.Position = UDim2.new(0, 0, 0.02, 0)
+padIconHolder.Parent = padGui
+for i = 0, 5 do
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
+	local s = 0.9 - i * 0.15
+	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
+	ring.BackgroundTransparency = 1
+	ring.Parent = padIconHolder
+	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
+	local st = Instance.new("UIStroke")
+	st.Thickness = 3
+	st.Color = Color3.fromRGB(180, 230, 255)
+	st.Parent = ring
+end
 local padText = Instance.new("TextLabel")
 padText.BackgroundTransparency = 1
 padText.Size = UDim2.new(1, 0, 0.28, 0)
@@ -775,7 +786,7 @@ padText.Parent = padGui
 -- ProximityPrompt للتفاعل
 local prompt = Instance.new("ProximityPrompt")
 prompt.ActionText = "ضع بصمتك"
-prompt.ObjectText = "🔐 قفل القصر الرئاسي"
+prompt.ObjectText = "قفل القصر الرئاسي"
 prompt.HoldDuration = 0
 prompt.KeyboardKeyCode = Enum.KeyCode.E
 prompt.RequiresLineOfSight = false
@@ -856,7 +867,7 @@ do
 	box("LogScreen", 99.6, 100, FLOOR_Y + 2.2, FLOOR_Y + 4.8, 6.3, 9.7, Color3.fromRGB(20, 90, 130), Enum.Material.Neon).CanCollide = false
 	local lp = Instance.new("ProximityPrompt")
 	lp.ActionText = "عرض السجلّ"
-	lp.ObjectText = "🗒️ سجلّ دخول القصر (للأدمن)"
+	lp.ObjectText = "سجلّ دخول القصر (للأدمن)"
 	lp.HoldDuration = 0
 	lp.KeyboardKeyCode = Enum.KeyCode.E
 	lp.RequiresLineOfSight = false
@@ -874,7 +885,7 @@ do
 	sgg.Adornee = kiosk; sgg.Parent = kiosk
 	local t = Instance.new("TextLabel")
 	t.BackgroundTransparency = 1; t.Size = UDim2.new(1,0,1,0)
-	t.Font = Enum.Font.GothamBold; t.Text = "🗒️\nسجلّ\nالدخول"; t.TextScaled = true
+	t.Font = Enum.Font.GothamBold; t.Text = "سجلّ\nالدخول"; t.TextScaled = true
 	t.TextColor3 = Color3.fromRGB(150, 220, 255); t.Parent = sgg
 end
 
