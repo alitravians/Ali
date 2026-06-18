@@ -15,7 +15,6 @@
    ════════════════════════════════════════════════════════════════════════ ]]
 
 local Players            = game:GetService("Players")
-local ServerStorage      = game:GetService("ServerStorage")
 local TweenService       = game:GetService("TweenService")
 local PathfindingService = game:GetService("PathfindingService")
 local Workspace          = game:GetService("Workspace")
@@ -23,7 +22,6 @@ local Workspace          = game:GetService("Workspace")
 -- ── زيّ الحرس (من الموديل المفحوص 6875688893 — نظيف) ───────────────────────
 local SHIRT_ID = 1588379400
 local PANTS_ID = 1588492725
-local FACE_ID  = 1876253379
 
 -- ── إحداثيات (تطابق غرف PalaceSystem: المدخل عند x=96 يواجه الغرب −X) ──────
 local FLOOR_Y = 0.6
@@ -54,8 +52,6 @@ local PHRASES = {
 	"حيّاك الله في مكتب القصر الجمهوري",
 	"تشرّفنا بحضورك 🌟",
 }
-
-local capTemplate = ServerStorage:FindFirstChild("GuardCap")
 
 -- ── فقاعة كلام أنيقة تتلاشى بنعومة ─────────────────────────────────────────
 local function speak(char, text)
@@ -118,32 +114,69 @@ local function faceTo(char, targetPos)
 		{ CFrame = goal }):Play()
 end
 
--- ── لحم قبّعة الفرو على الرأس (القطع مخزّنة بإحداثيات نسبية للرأس) ──────────
+-- ── قبّعة الفرو (Bearskin) — أسطوانة سوداء عالية + قمّة مقبّبة ──────────────
+-- بسيطة ومتينة (قطعتان فقط) بدل الـ١٥ قطعة التي كانت تتناثر.
+local CAP_BLACK = Color3.fromRGB(20, 20, 22)
 local function attachCap(char)
 	local head = char:FindFirstChild("Head")
-	if not capTemplate or not head then return end
-	local cap = capTemplate:Clone()
-	cap.Name = "Bearskin"
-	for _, p in ipairs(cap:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.CFrame = head.CFrame * p.CFrame
-			p.Anchored = false
-			p.CanCollide = false
-			p.Massless = true
-			local w = Instance.new("WeldConstraint")
-			w.Part0 = head; w.Part1 = p; w.Parent = p
-		end
+	if not head then return end
+
+	-- بدن القبّعة: أسطوانة عمودية (PartType.Cylinder محورها X → نُدوّرها لتقف عموديّاً)
+	local body = Instance.new("Part")
+	body.Name = "BearskinBody"
+	body.Shape = Enum.PartType.Cylinder
+	body.Size = Vector3.new(2.1, 1.55, 1.55)   -- X=الارتفاع، Y/Z=القطر
+	body.Color = CAP_BLACK
+	body.Material = Enum.Material.Sand
+	body.Anchored = false; body.CanCollide = false; body.Massless = true
+	body.CFrame = head.CFrame * CFrame.new(0, 1.45, 0) * CFrame.Angles(0, 0, math.rad(90))
+	local wb = Instance.new("WeldConstraint"); wb.Part0 = head; wb.Part1 = body; wb.Parent = body
+	body.Parent = char
+
+	-- قمّة مقبّبة
+	local top = Instance.new("Part")
+	top.Name = "BearskinTop"
+	top.Shape = Enum.PartType.Ball
+	top.Size = Vector3.new(1.55, 0.95, 1.55)
+	top.Color = CAP_BLACK
+	top.Material = Enum.Material.Sand
+	top.Anchored = false; top.CanCollide = false; top.Massless = true
+	top.CFrame = head.CFrame * CFrame.new(0, 2.55, 0)
+	local wt = Instance.new("WeldConstraint"); wt.Part0 = head; wt.Part1 = top; wt.Parent = top
+	top.Parent = char
+end
+
+-- ── تلبيس الحارس بزيّ الحرس الملكي (تونيك أحمر + بنطلون أسود) ───────────────
+-- ملاحظة: أرقام الموديل هي ShirtTemplate/PantsTemplate (صور) — تُستخدم عبر إنشاء
+-- Shirt/Pants مباشرة، لا عبر HumanoidDescription.Shirt (التي تتوقّع رقم كتالوج).
+local function dressGuard(char)
+	for _, c in ipairs(char:GetChildren()) do
+		if c:IsA("Shirt") or c:IsA("Pants") or c:IsA("ShirtGraphic") then c:Destroy() end
 	end
-	cap.Parent = char
+	local shirt = Instance.new("Shirt")
+	shirt.Name = "GuardShirt"
+	shirt.ShirtTemplate = "rbxassetid://" .. SHIRT_ID
+	shirt.Parent = char
+	local pants = Instance.new("Pants")
+	pants.Name = "GuardPants"
+	pants.PantsTemplate = "rbxassetid://" .. PANTS_ID
+	pants.Parent = char
+
+	-- لون احتياطي: لو تأخّر تحميل القميص يبقى الجسم أحمر بدل البيج الافتراضي
+	local bc = char:FindFirstChildOfClass("BodyColors") or Instance.new("BodyColors")
+	bc.TorsoColor    = BrickColor.new("Bright red")
+	bc.LeftArmColor  = BrickColor.new("Bright red")
+	bc.RightArmColor = BrickColor.new("Bright red")
+	bc.LeftLegColor  = BrickColor.new("Really black")
+	bc.RightLegColor = BrickColor.new("Really black")
+	bc.HeadColor     = BrickColor.new("Pastel brown")
+	bc.Parent = char
 end
 
 -- ── بناء حارس واحد ─────────────────────────────────────────────────────────
+-- وصف R6 قياسي (رِيﭺ كامل + مفاصل Motor6D)؛ الزيّ يُطبّق بعده عبر dressGuard.
 local function buildDescription()
-	local d = Instance.new("HumanoidDescription")
-	d.Shirt = SHIRT_ID
-	d.Pants = PANTS_ID
-	d.Face  = FACE_ID
-	return d
+	return Instance.new("HumanoidDescription")
 end
 
 -- أنميشن R6 الافتراضي من روبلوكس (وقوف/مشي). لازم نشغّلها يدوياً لأن سكربت
@@ -209,6 +242,7 @@ local function spawnGuard(post)
 	if hrp then char.PrimaryPart = hrp end
 	char.Parent = Workspace
 	char:PivotTo(CFrame.lookAt(post.pos, post.pos + post.face))
+	dressGuard(char)
 	attachCap(char)
 	if hum then setupAnimation(char, hum) end
 

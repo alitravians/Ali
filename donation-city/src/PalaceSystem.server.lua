@@ -21,7 +21,6 @@
 local Workspace          = game:GetService("Workspace")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local TweenService       = game:GetService("TweenService")
-local Players            = game:GetService("Players")
 local DataStoreService   = game:GetService("DataStoreService")
 
 ----------------------------------------------------------------------
@@ -54,11 +53,12 @@ local WT       = 1          -- سُمك الجدار
 local ENT_Z0, ENT_Z1 = 11, 25     -- عرض المدخل (١٤)
 local ENT_X = FX0                  -- x = 96
 
--- ألوان/خامات
-local MARBLE   = Color3.fromRGB(238, 236, 228)
-local WALL_C   = Color3.fromRGB(245, 244, 240)
+-- ألوان/خامات (نُعومة هادئة — لا أبيض ثلجي فاقع)
+local MARBLE   = Color3.fromRGB(206, 200, 188)
+local WALL_C   = Color3.fromRGB(228, 224, 214)
 local TRIM_GOLD= Color3.fromRGB(214, 175, 92)
-local CEIL_C   = Color3.fromRGB(250, 249, 246)
+local CEIL_C   = Color3.fromRGB(234, 230, 222)
+local STONE    = Color3.fromRGB(176, 170, 158)   -- بلاط حجري للساحة الخارجية
 local WOOD     = Color3.fromRGB(86, 56, 34)
 local WOOD_D   = Color3.fromRGB(64, 40, 24)
 
@@ -94,6 +94,22 @@ local function box(name, x0, x1, y0, y1, z0, z1, color, mat, parent): Part
 	return part(name, cf, Vector3.new(sx, sy, sz), color, mat, parent)
 end
 
+-- مقعد قابل للجلوس فعلاً (Seat) — يجلس عليه اللاعب عند لمسه
+local function seatPart(name: string, cf: CFrame, size: Vector3, color: Color3, mat: Enum.Material?): Seat
+	local s = Instance.new("Seat")
+	s.Name = name
+	s.Anchored = true
+	s.CanCollide = true
+	s.Size = size
+	s.CFrame = cf
+	s.Color = color
+	s.Material = mat or Enum.Material.Fabric
+	s.TopSurface = Enum.SurfaceType.Smooth
+	s.BottomSurface = Enum.SurfaceType.Smooth
+	s.Parent = ROOT
+	return s
+end
+
 local function pointLight(parent: BasePart, color: Color3, bright: number, range: number)
 	local l = Instance.new("PointLight")
 	l.Color = color
@@ -113,10 +129,17 @@ end
 ----------------------------------------------------------------------
 -- 🏛️ القشرة: أرضية + سقف + جدران خارجية (بفتحة مدخل) + جدران داخلية
 ----------------------------------------------------------------------
--- أرضية رخامية + إفريز محيطي
-box("Floor", FX0, FX1, 0, FLOOR_Y, FZ0, FZ1, MARBLE, Enum.Material.Marble)
+-- أرضية رخامية (تغطّي كامل منطقة النحت لإغلاق أي فجوة يظهر منها العشب)
+box("Floor", 95, 241, 0, FLOOR_Y, -37, 73, MARBLE, Enum.Material.Marble)
 -- سقف
 box("Ceiling", FX0, FX1, CEIL_Y, CEIL_Y + 0.7, FZ0, FZ1, CEIL_C, Enum.Material.SmoothPlastic)
+
+-- ساحة/ممرّ المدخل الحجري أمام الباب (يقفل الحفرة التي خلّفها نحت الممر الغربي
+-- ويعطي انتقالاً نظيفاً من العشب إلى القصر — بدل سقوط اللاعب في فجوة).
+box("EntryPlaza", 78, FX0, 0, FLOOR_Y, 2, 34, STONE, Enum.Material.Concrete)
+-- درجتان منخفضتان عند مقدّمة الساحة
+box("EntryStep1", 74, 78, 0, FLOOR_Y - 0.2, 4, 32, STONE, Enum.Material.Concrete)
+box("EntryStep2", 71, 74, 0, FLOOR_Y - 0.4, 6, 30, STONE, Enum.Material.Concrete)
 
 local function wall(x0, x1, z0, z1)
 	box("Wall", x0, x1, FLOOR_Y, CEIL_Y, z0, z1, WALL_C, Enum.Material.SmoothPlastic)
@@ -172,7 +195,7 @@ local function chandelier(x, z, color)
 	local orb = part("Chandelier", CFrame.new(x, CEIL_Y - 2.4, z), Vector3.new(2.6, 1.6, 2.6), Color3.fromRGB(255, 240, 200), Enum.Material.Neon)
 	orb.Shape = Enum.PartType.Ball
 	orb.CanCollide = false
-	pointLight(orb, color, 1.6, 26)
+	pointLight(orb, color, 1.0, 20)
 	for i = 0, 5 do
 		local a = math.rad(i * 60)
 		local arm = part("Crystal", CFrame.new(x + math.cos(a) * 1.6, CEIL_Y - 2.6, z + math.sin(a) * 1.6), Vector3.new(0.3, 1.2, 0.3), Color3.fromRGB(255, 250, 220), Enum.Material.Neon)
@@ -188,7 +211,7 @@ local function sofa(cx, cz, rotY, color)
 		return p
 	end
 	place("SofaBase", Vector3.new(0, 0.9, 0), Vector3.new(7, 1.4, 3), color, Enum.Material.Fabric)
-	place("SofaSeat", Vector3.new(0, 1.7, 0.2), Vector3.new(7, 0.5, 2.6), color, Enum.Material.Fabric)
+	seatPart("SofaSeat", cf * CFrame.new(0, 1.7, 0.2), Vector3.new(7, 0.5, 2.6), color, Enum.Material.Fabric)
 	place("SofaBack", Vector3.new(0, 2.4, -1.2), Vector3.new(7, 2.4, 0.6), color, Enum.Material.Fabric)
 	place("SofaArmL", Vector3.new(-3.2, 1.9, 0), Vector3.new(0.6, 2, 3), color, Enum.Material.Fabric)
 	place("SofaArmR", Vector3.new(3.2, 1.9, 0), Vector3.new(0.6, 2, 3), color, Enum.Material.Fabric)
@@ -197,7 +220,7 @@ end
 local function armchair(cx, cz, rotY, color)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
 	part("ChairBase", cf * CFrame.new(0, 0.9, 0), Vector3.new(3, 1.4, 3), color, Enum.Material.Fabric)
-	part("ChairSeat", cf * CFrame.new(0, 1.7, 0.2), Vector3.new(3, 0.5, 2.6), color, Enum.Material.Fabric)
+	seatPart("ChairSeat", cf * CFrame.new(0, 1.7, 0.2), Vector3.new(3, 0.5, 2.6), color, Enum.Material.Fabric)
 	part("ChairBack", cf * CFrame.new(0, 2.4, -1.2), Vector3.new(3, 2.4, 0.6), color, Enum.Material.Fabric)
 	part("ChairArmL", cf * CFrame.new(-1.3, 1.9, 0), Vector3.new(0.5, 2, 3), color, Enum.Material.Fabric)
 	part("ChairArmR", cf * CFrame.new(1.3, 1.9, 0), Vector3.new(0.5, 2, 3), color, Enum.Material.Fabric)
@@ -206,7 +229,7 @@ end
 -- كرسي زائر بسيط (للحضور أمام المكتب)
 local function visitorChair(cx, cz, rotY, color)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
-	part("VChairSeat", cf * CFrame.new(0, 1.5, 0), Vector3.new(2.2, 0.4, 2.2), color, Enum.Material.Fabric)
+	seatPart("VChairSeat", cf * CFrame.new(0, 1.5, 0), Vector3.new(2.2, 0.4, 2.2), color, Enum.Material.Fabric)
 	part("VChairBack", cf * CFrame.new(0, 2.6, -0.9), Vector3.new(2.2, 2.2, 0.4), color, Enum.Material.Fabric)
 	for _, dx in ipairs({-0.9, 0.9}) do
 		for _, dz in ipairs({-0.9, 0.9}) do
@@ -238,7 +261,7 @@ end
 
 local function deskChair(cx, cz, rotY, color)
 	local cf = CFrame.new(cx, FLOOR_Y, cz) * CFrame.Angles(0, math.rad(rotY), 0)
-	part("DChairSeat", cf * CFrame.new(0, 1.7, 0), Vector3.new(2.6, 0.5, 2.6), color, Enum.Material.Fabric)
+	seatPart("DChairSeat", cf * CFrame.new(0, 1.7, 0), Vector3.new(2.6, 0.5, 2.6), color, Enum.Material.Fabric)
 	part("DChairBack", cf * CFrame.new(0, 3.2, -1.1), Vector3.new(2.6, 3, 0.5), color, Enum.Material.Fabric)
 	part("DChairPole", cf * CFrame.new(0, 0.8, 0), Vector3.new(0.4, 1.6, 0.4), Color3.fromRGB(40,40,40), Enum.Material.Metal)
 end
@@ -369,7 +392,7 @@ do
 	-- إطار نيون ذهبي
 	box("SignFrameT", ENT_X - 1.0, ENT_X - 0.2, 13.0, 13.4, 3.6, 32.4, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
 	box("SignFrameB", ENT_X - 1.0, ENT_X - 0.2, 9.2, 9.6, 3.6, 32.4, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
-	local glow = pointLight(backing, Color3.fromRGB(255, 205, 110), 2.2, 24)
+	local glow = pointLight(backing, Color3.fromRGB(255, 205, 110), 1.5, 18)
 
 	local sg = Instance.new("SurfaceGui")
 	sg.Name = "PalaceSignGui"
@@ -479,7 +502,7 @@ local panelFrame = box("ScannerFrame", ENT_X - 0.9, ENT_X - 0.1, 3.2, 7.0, 27, 3
 box("ScannerEdge", ENT_X - 1.0, ENT_X - 0.05, 3.0, 7.2, 26.8, 30.4, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
 local pad = box("ScannerPad", ENT_X - 1.0, ENT_X - 0.6, 4.0, 6.2, 27.6, 29.6, Color3.fromRGB(20, 60, 90), Enum.Material.Neon)
 pad.CanCollide = false
-local padLight = pointLight(pad, Color3.fromRGB(80, 170, 230), 1.2, 8)
+local padLight = pointLight(pad, Color3.fromRGB(80, 170, 230), 0.8, 6)
 
 -- أيقونة بصمة على اللوحة
 local padGui = Instance.new("SurfaceGui")
@@ -615,107 +638,10 @@ do
 end
 
 ----------------------------------------------------------------------
--- 💂 الحرّاس المرحّبون (NPC مبرمجون — يُستبدلون بموديلات المتجر لاحقاً)
+-- 💂 الحرّاس
 ----------------------------------------------------------------------
-local GUARD_LINES = {
-	"أهلاً وسهلاً بك في القصر الجمهوري 👋",
-	"مرحباً بك، شرّفتنا بزيارتك 🌟",
-	"حيّاك الله في مكتب القصر الجمهوري لشهد 🇸🇦",
-	"تفضّل، نوّرت القصر ✨",
-}
-local UNIFORM = Color3.fromRGB(26, 38, 70)
-local SKIN = Color3.fromRGB(225, 190, 160)
+-- الحرّاس المرحّبون/المرافقون يُبنون الآن في GuardSystem.server.lua كشخصيات
+-- R6 حقيقية تمشي بزيّ الحرس الملكي. أُزيلت نسخة البلوكات القديمة من هنا لأنها
+-- كانت تتداخل مع حرّاس GuardSystem ومع جهاز البصمة فتظهر «أشكالاً مقطوعة».
 
-local function buildGuard(name, x, z, faceY)
-	local model = Instance.new("Model")
-	model.Name = name
-	local cf = CFrame.new(x, FLOOR_Y + 3, z) * CFrame.Angles(0, math.rad(faceY), 0)
-
-	local hrp = part("HumanoidRootPart", cf, Vector3.new(2, 2, 1), UNIFORM, Enum.Material.SmoothPlastic, model)
-	hrp.Transparency = 1; hrp.CanCollide = false
-	part("Torso", cf, Vector3.new(2, 2, 1), UNIFORM, Enum.Material.Fabric, model)
-	local head = part("Head", cf * CFrame.new(0, 1.5, 0), Vector3.new(1.2, 1.2, 1.2), SKIN, Enum.Material.SmoothPlastic, model)
-	head.Shape = Enum.PartType.Ball
-	-- قبّعة حارس
-	part("Cap", cf * CFrame.new(0, 2.2, 0), Vector3.new(1.3, 0.5, 1.3), UNIFORM, Enum.Material.Fabric, model).CanCollide = false
-	part("CapBadge", cf * CFrame.new(0, 2.2, -0.7), Vector3.new(0.5, 0.3, 0.1), TRIM_GOLD, Enum.Material.Metal, model).CanCollide = false
-	-- أذرع وأرجل
-	part("ArmL", cf * CFrame.new(-1.5, 0, 0), Vector3.new(1, 2, 1), UNIFORM, Enum.Material.Fabric, model).CanCollide = false
-	part("ArmR", cf * CFrame.new(1.5, 0, 0), Vector3.new(1, 2, 1), UNIFORM, Enum.Material.Fabric, model).CanCollide = false
-	part("LegL", cf * CFrame.new(-0.5, -2, 0), Vector3.new(1, 2, 1), Color3.fromRGB(20,20,26), Enum.Material.Fabric, model).CanCollide = false
-	part("LegR", cf * CFrame.new(0.5, -2, 0), Vector3.new(1, 2, 1), Color3.fromRGB(20,20,26), Enum.Material.Fabric, model).CanCollide = false
-	-- وشاح ذهبي
-	part("Sash", cf * CFrame.new(0, 0, -0.55), Vector3.new(2.05, 0.5, 0.1), TRIM_GOLD, Enum.Material.Fabric, model).CanCollide = false
-
-	-- فقاعة ترحيب
-	local bb = Instance.new("BillboardGui")
-	bb.Name = "Greet"
-	bb.Size = UDim2.new(0, 240, 0, 70)
-	bb.StudsOffset = Vector3.new(0, 3.6, 0)
-	bb.AlwaysOnTop = true
-	bb.Enabled = false
-	bb.Adornee = head
-	bb.Parent = head
-	local bg = Instance.new("Frame")
-	bg.Size = UDim2.new(1,0,1,0); bg.BackgroundColor3 = Color3.fromRGB(20,28,52)
-	bg.BackgroundTransparency = 0.1; bg.Parent = bb
-	local cc = Instance.new("UICorner"); cc.CornerRadius = UDim.new(0, 12); cc.Parent = bg
-	local st = Instance.new("UIStroke"); st.Color = TRIM_GOLD; st.Thickness = 2; st.Parent = bg
-	local gt = Instance.new("TextLabel")
-	gt.BackgroundTransparency = 1; gt.Size = UDim2.new(1,-10,1,-10); gt.Position = UDim2.new(0,5,0,5)
-	gt.Font = Enum.Font.GothamBold; gt.TextScaled = true; gt.TextColor3 = Color3.fromRGB(255,235,190)
-	gt.Text = GUARD_LINES[1]; gt.Parent = bg
-
-	model.PrimaryPart = hrp
-	model.Parent = ROOT
-	return model, hrp, bb, gt
-end
-
-type Guard = { model: Model, hrp: BasePart, bb: BillboardGui, label: TextLabel, lastGreet: number }
-local guards: { Guard } = {}
-local function addGuard(name, x, z, faceY)
-	local m, hrp, bb, gt = buildGuard(name, x, z, faceY)
-	table.insert(guards, { model = m, hrp = hrp, bb = bb, label = gt, lastGreet = 0 })
-end
-
--- حارسان عند المدخل + حارسان داخل البهو
-addGuard("PalaceGuard_EntranceL", 92, 13, 90)
-addGuard("PalaceGuard_EntranceR", 92, 23, 90)
-addGuard("PalaceGuard_LobbyL", 116, 6, 0)
-addGuard("PalaceGuard_LobbyR", 116, 30, 0)
-
--- حلقة الترحيب: عند اقتراب لاعب → التفات + فقاعة ترحيب (مع تهدئة)
-local GREET_DIST = 16
-local GREET_COOLDOWN = 14
-task.spawn(function()
-	while true do
-		local now = os.clock()
-		for _, g in ipairs(guards) do
-			if g.hrp.Parent then
-				local nearest, nd = nil, GREET_DIST
-				for _, pl in ipairs(Players:GetPlayers()) do
-					local ch = pl.Character
-					local root = ch and ch:FindFirstChild("HumanoidRootPart")
-					if root then
-						local d = (root.Position - g.hrp.Position).Magnitude
-						if d < nd then nd = d; nearest = root end
-					end
-				end
-				if nearest then
-					-- التفات نحو الزائر (مع تثبيت الميل)
-					local look = Vector3.new(nearest.Position.X, g.hrp.Position.Y, nearest.Position.Z)
-					g.hrp.CFrame = CFrame.lookAt(g.hrp.Position, look)
-					if now - g.lastGreet > GREET_COOLDOWN then
-						g.lastGreet = now
-						g.label.Text = GUARD_LINES[math.random(1, #GUARD_LINES)]
-						g.bb.Enabled = true
-						task.delay(4.5, function() g.bb.Enabled = false end)
-					end
-				end
-			end
-		end
-		task.wait(0.4)
-	end
-end)
-
-print("[Palace] القصر الجمهوري جاهز: غرف مؤثّثة + لافتة + قفل بصمة + سجلّ دخول + حرّاس ✓")
+print("[Palace] القصر الجمهوري جاهز: غرف مؤثّثة + لافتة + قفل بصمة + سجلّ دخول ✓")
