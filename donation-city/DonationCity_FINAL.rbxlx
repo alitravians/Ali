@@ -10088,7 +10088,7 @@ local function runEntryScan(player)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	local wasAnchored = hrp and hrp.Anchored or false
+	local wasAnchored = if hrp then hrp.Anchored else false
 	local rig
 	-- يُغلّف الجسم كاملاً (التثبيت + بناء المؤثّر + العرض) بـpcall، فيُضمن
 	-- التنظيف أدناه دائماً حتى لو أخفقت أي خطوة → اللاعب لا يبقى مثبّتاً أبداً
