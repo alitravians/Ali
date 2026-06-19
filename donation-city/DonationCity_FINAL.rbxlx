@@ -9142,6 +9142,7 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local DataStoreService  = game:GetService("DataStoreService")
+local Debris            = game:GetService("Debris")
 
 local V = Vector3.new
 local C3 = Color3.fromRGB
@@ -10091,6 +10092,7 @@ local function runEntryScan(player)
 	local wasAnchored = if hrp then hrp.Anchored else false
 	local wasPlatformStand = if hum then hum.PlatformStand else false
 	local rig
+	local snd
 	-- يُغلّف الجسم كاملاً (التثبيت + بناء المؤثّر + العرض) بـpcall، فيُضمن
 	-- التنظيف أدناه دائماً حتى لو أخفقت أي خطوة → اللاعب لا يبقى مثبّتاً أبداً
 	pcall(function()
@@ -10108,9 +10110,10 @@ local function runEntryScan(player)
 		local rim = mkCyl("ScanRim", 0.5, 9.9, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANRIM, Enum.Material.Neon, rig, false)
 		rim.Transparency = 0.1; rim.CanTouch = false
 
-		-- صوت المسح الضوئي: مُلحَق بقرص المسح (صوت ثلاثي الأبعاد يصدر من القرص
-		-- وينزل معه) فيسمعه كل اللاعبين القريبين، ويتوقّف تلقائياً عند هدم المؤثّر
-		local snd = Instance.new("Sound")
+		-- صوت المسح الضوئي: صوت ثلاثي الأبعاد يصدر من قرص المسح وينزل معه فيسمعه
+		-- كل القريبين. عند انتهاء المسح يُسلَّم لمصدر ثابت (أدناه) كي يُكمل تشغيله
+		-- دون قطع مفاجئ مهما طال، ثم يُنظَّف ذاتياً
+		snd = Instance.new("Sound")
 		snd.Name = "ScanSound"
 		snd.SoundId = "rbxassetid://76270469261531"
 		snd.Volume = 1
@@ -10131,6 +10134,17 @@ local function runEntryScan(player)
 			RunService.Heartbeat:Wait()
 		end
 	end)
+	-- يُنقَل الصوت لمصدر ثابت عند البوّابة قبل هدم المؤثّر كي يُكمِل تشغيله بلا
+	-- قطع مفاجئ (مهم لو كان أطول من زمن المسح)، ويُنظَّف عند الانتهاء أو بحدّ أقصى
+	if snd then
+		if snd.Parent and snd.IsPlaying then
+			snd.Parent = promptPart
+			snd.Ended:Once(function() snd:Destroy() end)
+			Debris:AddItem(snd, 8)
+		else
+			snd:Destroy()
+		end
+	end
 	if rig then rig:Destroy() end
 	if hrp and hrp.Parent then hrp.Anchored = wasAnchored end
 	if hum and hum.Parent then hum.PlatformStand = wasPlatformStand end
