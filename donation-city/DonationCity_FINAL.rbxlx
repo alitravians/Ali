@@ -9144,6 +9144,7 @@ local RunService        = game:GetService("RunService")
 local DataStoreService  = game:GetService("DataStoreService")
 local Debris            = game:GetService("Debris")
 local ContentProvider   = game:GetService("ContentProvider")
+local SoundService      = game:GetService("SoundService")
 
 -- معرّف صوت المسح الضوئي «scanner-sound-effect» (Audio، مملوك لحساب اللعبة، معتمَد رقابياً)
 local SCAN_SOUND_ID = "rbxassetid://76270469261531"
@@ -9153,6 +9154,7 @@ local SCAN_SOUND_ID = "rbxassetid://76270469261531"
 task.spawn(function()
 	local pre = Instance.new("Sound")
 	pre.SoundId = SCAN_SOUND_ID
+	pre.Parent = SoundService -- مولد فعلي لضمان تخزين موثوق أثناء التحميل المسبق
 	pcall(function() ContentProvider:PreloadAsync({ pre }) end)
 	pre:Destroy()
 end)
