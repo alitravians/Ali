@@ -34,7 +34,7 @@ gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
 local bar = Instance.new("Frame")
 bar.AnchorPoint = Vector2.new(0.5, 0)
 bar.Position = UDim2.new(0.5, 0, 0, 10)
-bar.Size = UDim2.fromOffset(248, 46)
+bar.Size = UDim2.fromOffset(300, 46)
 bar.BackgroundColor3 = Color3.fromRGB(18, 20, 34)
 bar.BackgroundTransparency = 0.1
 bar.Visible = false
