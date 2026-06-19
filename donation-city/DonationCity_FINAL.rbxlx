@@ -10108,6 +10108,17 @@ local function runEntryScan(player)
 		local rim = mkCyl("ScanRim", 0.5, 9.9, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANRIM, Enum.Material.Neon, rig, false)
 		rim.Transparency = 0.1; rim.CanTouch = false
 
+		-- صوت المسح الضوئي: مُلحَق بقرص المسح (صوت ثلاثي الأبعاد يصدر من القرص
+		-- وينزل معه) فيسمعه كل اللاعبين القريبين، ويتوقّف تلقائياً عند هدم المؤثّر
+		local snd = Instance.new("Sound")
+		snd.Name = "ScanSound"
+		snd.SoundId = "rbxassetid://76270469261531"
+		snd.Volume = 1
+		snd.RollOffMode = Enum.RollOffMode.InverseTapered
+		snd.RollOffMaxDistance = 80
+		snd.Parent = disc
+		snd:Play()
+
 		local T = 1.25
 		local t0 = os.clock()
 		while true do
