@@ -9142,6 +9142,22 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local DataStoreService  = game:GetService("DataStoreService")
+local Debris            = game:GetService("Debris")
+local ContentProvider   = game:GetService("ContentProvider")
+local SoundService      = game:GetService("SoundService")
+
+-- معرّف صوت المسح الضوئي «scanner-sound-effect» (Audio، مملوك لحساب اللعبة، معتمَد رقابياً)
+local SCAN_SOUND_ID = "rbxassetid://76270469261531"
+
+-- تحميل مسبق للصوت عند بدء السيرفر كي يكون طوله (TimeLength) معروفاً فور أول دخول،
+-- فتُزامَن حركة المسح معه بدقّة دون أي انتظار محسوس
+task.spawn(function()
+	local pre = Instance.new("Sound")
+	pre.SoundId = SCAN_SOUND_ID
+	pre.Parent = SoundService -- مولد فعلي لضمان تخزين موثوق أثناء التحميل المسبق
+	pcall(function() ContentProvider:PreloadAsync({ pre }) end)
+	pre:Destroy()
+end)
 
 local V = Vector3.new
 local C3 = Color3.fromRGB
@@ -10091,6 +10107,7 @@ local function runEntryScan(player)
 	local wasAnchored = if hrp then hrp.Anchored else false
 	local wasPlatformStand = if hum then hum.PlatformStand else false
 	local rig
+	local snd
 	-- يُغلّف الجسم كاملاً (التثبيت + بناء المؤثّر + العرض) بـpcall، فيُضمن
 	-- التنظيف أدناه دائماً حتى لو أخفقت أي خطوة → اللاعب لا يبقى مثبّتاً أبداً
 	pcall(function()
@@ -10108,7 +10125,27 @@ local function runEntryScan(player)
 		local rim = mkCyl("ScanRim", 0.5, 9.9, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANRIM, Enum.Material.Neon, rig, false)
 		rim.Transparency = 0.1; rim.CanTouch = false
 
-		local T = 1.25
+		-- صوت المسح الضوئي «scanner-sound-effect» (assetId 76270469261531، نوع Audio،
+		-- مملوك لحساب اللعبة ومعتمَد رقابياً). صوت ثلاثي الأبعاد يصدر من قرص المسح وينزل
+		-- معه فيسمعه كل القريبين. عند انتهاء المسح يُسلَّم لمصدر ثابت (أدناه) كي يُكمل
+		-- تشغيله دون قطع مفاجئ مهما طال، ثم يُنظَّف ذاتياً. لو تعذّر تحميله (حذف/خصوصية/
+		-- رقابة) يتعطّل الصوت بهدوء دون كسر التسلسل لأن التنظيف لا يعتمد على نجاح التحميل
+		snd = Instance.new("Sound")
+		snd.Name = "ScanSound"
+		snd.SoundId = SCAN_SOUND_ID
+		snd.Volume = 1
+		snd.RollOffMode = Enum.RollOffMode.InverseTapered
+		snd.RollOffMaxDistance = 80
+		snd.Parent = disc
+
+		-- زامن مدة نزول القرص مع طول الصوت: انتظر معرفة طوله (محمّل مسبقاً فيكون فورياً،
+		-- وبحدّ أقصى قصير احتياطاً)، ثم يبدأ الصوت والحركة وينتهيان معاً تماماً
+		local loadEnd = os.clock() + 0.75
+		while snd.TimeLength <= 0 and os.clock() < loadEnd do
+			RunService.Heartbeat:Wait()
+		end
+		local T = if snd.TimeLength > 0 then math.clamp(snd.TimeLength, 0.8, 3.5) else 1.25
+		snd:Play()
 		local t0 = os.clock()
 		while true do
 			local a = (os.clock() - t0) / T
@@ -10120,6 +10157,17 @@ local function runEntryScan(player)
 			RunService.Heartbeat:Wait()
 		end
 	end)
+	-- يُنقَل الصوت لمصدر ثابت عند البوّابة قبل هدم المؤثّر كي يُكمِل تشغيله بلا
+	-- قطع مفاجئ (مهم لو كان أطول من زمن المسح)، ويُنظَّف عند الانتهاء أو بحدّ أقصى
+	if snd then
+		if snd.Parent and snd.IsPlaying then
+			snd.Parent = promptPart
+			snd.Ended:Once(function() snd:Destroy() end)
+			Debris:AddItem(snd, 8)
+		else
+			snd:Destroy()
+		end
+	end
 	if rig then rig:Destroy() end
 	if hrp and hrp.Parent then hrp.Anchored = wasAnchored end
 	if hum and hum.Parent then hum.PlatformStand = wasPlatformStand end
