@@ -10096,27 +10096,30 @@ local function runEntryScan(player)
 	if hum then hum.PlatformStand = true end
 
 	local rig = Instance.new("Model"); rig.Name = "GateScanFX"; rig.Parent = gate
-	local topY = ENTRY_POS.Y + 9.2
-	local botY = padTopY + 0.4
-	local disc = mkCyl("ScanDisc", 0.3, 9.2, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANC, Enum.Material.Neon, rig, false)
-	disc.Transparency = 0.3; disc.CanTouch = false
-	local rim = mkCyl("ScanRim", 0.5, 9.9, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANRIM, Enum.Material.Neon, rig, false)
-	rim.Transparency = 0.1; rim.CanTouch = false
+	-- يُغلّف العرض بـpcall لضمان فكّ تثبيت اللاعب وهدم المؤثّر حتى لو حصل خطأ
+	pcall(function()
+		local topY = ENTRY_POS.Y + 9.2
+		local botY = padTopY + 0.4
+		local disc = mkCyl("ScanDisc", 0.3, 9.2, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANC, Enum.Material.Neon, rig, false)
+		disc.Transparency = 0.3; disc.CanTouch = false
+		local rim = mkCyl("ScanRim", 0.5, 9.9, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANRIM, Enum.Material.Neon, rig, false)
+		rim.Transparency = 0.1; rim.CanTouch = false
 
-	local T = 1.25
-	local t0 = os.clock()
-	while true do
-		local a = (os.clock() - t0) / T
-		if a >= 1 then break end
-		local y = topY + (botY - topY) * a
-		local cf = CFrame.new(ENTRY_POS.X, y, ENTRY_POS.Z) * CFrame.Angles(0, 0, math.rad(90))
-		disc.CFrame = cf; rim.CFrame = cf
-		if not (player.Parent and player.Character == char and hrp and hrp.Parent) then break end
-		RunService.Heartbeat:Wait()
-	end
+		local T = 1.25
+		local t0 = os.clock()
+		while true do
+			local a = (os.clock() - t0) / T
+			if a >= 1 then break end
+			local y = topY + (botY - topY) * a
+			local cf = CFrame.new(ENTRY_POS.X, y, ENTRY_POS.Z) * CFrame.Angles(0, 0, math.rad(90))
+			disc.CFrame = cf; rim.CFrame = cf
+			if not (player.Parent and player.Character == char and hrp and hrp.Parent) then break end
+			RunService.Heartbeat:Wait()
+		end
+	end)
 	rig:Destroy()
 	if hrp and hrp.Parent then hrp.Anchored = wasAnchored end
-	if hum then hum.PlatformStand = false end
+	if hum and hum.Parent then hum.PlatformStand = false end
 end
 
 -- دوران الأذرع: فقط عند اقتراب لاعب (صفر استهلاك عند الخمول)
@@ -10282,17 +10285,23 @@ gatePrompt.Triggered:Connect(function(player)
 	gateCountingDown = true
 	gatePrompt.Enabled = false
 	task.spawn(function()
-		setGateNumber("استعد", GOLD)
-		if _G.NotifyPlayer then _G.NotifyPlayer(player, "ثبّت مكانك… جارٍ المسح الضوئي.") end
-		task.wait(0.5)
-		setGateNumber("مسح ضوئي…", SCANC)
-		runEntryScan(player)
-		setGateNumber("انطلق!", CPGLOW)
-		local cur = runState[player.UserId]
-		if player.Parent and not (cur and cur.inRun) then
-			startRun(player)
+		-- pcall يضمن أن البوّابة تُفتح دائماً حتى لو أخفق المسح/البدء (يمنع قفلاً دائماً)
+		local ok, err = pcall(function()
+			setGateNumber("استعد", GOLD)
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "ثبّت مكانك… جارٍ المسح الضوئي.") end
+			task.wait(0.5)
+			setGateNumber("مسح ضوئي…", SCANC)
+			runEntryScan(player)
+			setGateNumber("انطلق!", CPGLOW)
+			local cur = runState[player.UserId]
+			if player.Parent and not (cur and cur.inRun) then
+				startRun(player)
+			end
+			task.wait(0.6)
+		end)
+		if not ok then
+			warn("[ParkourGate] خطأ في تسلسل الدخول: " .. tostring(err))
 		end
-		task.wait(0.6)
 		setGateNumber("", nil)
 		gatePrompt.Enabled = true
 		gateCountingDown = false
