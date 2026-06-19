@@ -56,16 +56,17 @@ pcall(function() bestStore = DataStoreService:GetDataStore("ParkourBest_v2") end
 ----------------------------------------------------------------------
 -- ثوابت الهندسة والألوان
 ----------------------------------------------------------------------
-local ORIGIN_X, ORIGIN_Z = -175, 20    -- بداية المسار (سماء الركن الشمالي الغربي، فوق المباني)
-local TOP0   = 90                      -- ارتفاع سطح أول منصّة
-local RISE   = 3.6                     -- صعود لطيف بين كل منصّة (قفزة سهلة)
-local STEP_X = 14                       -- تباعد المنصّات على X
-local STEP_Z = 4                        -- انزياح بسيط على Z (مسار يقرأ بوضوح)
-local PW, PD, PT = 11, 11, 1.2          -- عرض/عمق/سمك المنصّة
-local COUNT = 14                        -- عدد المنصّات (0..13)
-
-local FWD   = V(STEP_X, 0, STEP_Z).Unit        -- اتجاه التقدّم الأفقي
-local RIGHTV = V(FWD.Z, 0, -FWD.X)             -- عمودي أفقي (لتوزيع الحواجز)
+-- ساحة باركور معزولة في ركن فاضٍ بعيد عن وسط الماب (المسار لولب مدمج حول برج مركزي)
+local CX, CZ = -150, -150              -- مركز الساحة المعزولة (الركن الجنوبي الغربي الفاضي)
+local TOP0   = 86                      -- ارتفاع سطح أول منصّة (عالياً في السماء)
+local RISE   = 3.3                     -- صعود لطيف ثابت بين كل منصّة (قفزة سهلة)
+local PW, PD, PT = 11, 11, 1.2          -- عرض/عمق/سمك المنصّة الاعتيادية
+local NARROW_W   = 3.8                  -- عرض الجسر الرفيع (مرحلة الدقّة)
+local COUNT  = 28                       -- عدد المنصّات (0..27) موزّعة على ٥ مراحل
+local SPIRAL_R = 24                     -- نصف قطر اللولب (بصمة مدمجة ~٦٤ وحدة)
+local ANG0     = 0                      -- زاوية بداية اللولب
+local ANG_STEP = math.rad(33)           -- زاوية بين كل منصّتين (وتر ~١٣.٦ وحدة، قفزة عادلة)
+local COIN_VALUE = 20                   -- قيمة العملة الواحدة
 
 -- ألوان المناطق + اللمسات
 local GREEN  = C3(126, 211, 110)
@@ -78,28 +79,42 @@ local BOUNCE = C3(64, 240, 208)
 local CPGLOW = C3(120, 240, 150)
 local SIGNBG = C3(22, 28, 44)
 local POSTC  = C3(64, 64, 74)
--- ألوان نمط «أسطح المدينة»
-local CONCRETE  = C3(166, 166, 172)   -- سطح المبنى (السطح الذي يُمشى عليه)
-local BLDG      = C3(78, 82, 96)        -- جسم المبنى تحت السطح
-local WINDOW    = C3(255, 209, 120)     -- نوافذ مضيئة
-local METAL     = C3(182, 186, 192)     -- خزّانات/مكيّفات
-local DARKMETAL = C3(82, 86, 92)        -- أرجل/مراوح/هوائيات
-local NEONSIGN  = C3(255, 92, 132)      -- لمبة الهوائي
-local SILH      = C3(60, 56, 82)        -- ظلال ناطحات سحاب بعيدة (أفق المدينة)
-local SILWIN    = C3(255, 196, 120)     -- نوافذ النواطح البعيدة (خافتة)
+local LASER  = C3(255, 70, 96)          -- بوّابة ليزر كانسة (قاتلة)
+local COINC  = C3(255, 206, 84)         -- عملة ذهبية
+-- ألوان نمط «أسطح المدينة» + الساحة
+local CONCRETE  = C3(166, 166, 172)
+local BLDG      = C3(78, 82, 96)
+local WINDOW    = C3(255, 209, 120)
+local METAL     = C3(182, 186, 192)
+local DARKMETAL = C3(82, 86, 92)
+local NEONSIGN  = C3(255, 92, 132)
+local COREC     = C3(60, 66, 88)        -- جسم برج اللولب المركزي
+local BASEC     = C3(46, 50, 68)        -- قاعدة الساحة المعزولة
 
-local function zoneColor(i)
-	if i <= 3 then return GREEN
-	elseif i <= 6 then return TEAL
-	elseif i <= 9 then return ORANGE
-	else return RED end
+-- ٥ مراحل صعوبة متدرّجة: ١ إحماء · ٢ توقيت · ٣ مراوغة · ٤ دقّة · ٥ القمّة (لكلٍّ لونها)
+local STAGE_COLOR = { GREEN, TEAL, ORANGE, RED, GOLD }
+local function stageIndex(i)
+	if i <= 5 then return 1
+	elseif i <= 11 then return 2
+	elseif i <= 17 then return 3
+	elseif i <= 23 then return 4
+	else return 5 end
 end
+local STAGE_OF = {}
+for i = 0, COUNT - 1 do STAGE_OF[i] = stageIndex(i) end
+local function zoneColor(i) return STAGE_COLOR[STAGE_OF[i]] end
 
--- خرائط العناصر (حسب رقم المنصّة)
-local CP_AT     = { [0] = "١", [4] = "٢", [7] = "٣", [10] = "٤" }   -- نقاط حفظ مرقّمة
-local STRIP_AT  = { [5] = true, [9] = true, [11] = true }            -- بلاطات حمراء قاتلة
-local SPIN_AT   = { [8] = 1.1, [12] = 1.5 }                          -- عوائق دوّارة (سرعة rad/s)
-local BOUNCE_AT = { [6] = true }                                     -- منصّة قفز نطّاطة
+-- خرائط العناصر (حسب رقم المنصّة) — منحنى صعوبة متوسّط عادل
+local CP_AT      = { [0] = "١", [6] = "٢", [12] = "٣", [15] = "٤", [18] = "٥", [21] = "٦", [24] = "٧" }  -- نقاط حفظ
+local STRIP_AT   = { [4] = true, [26] = true }                   -- بلاطات حمراء قاتلة
+local BOUNCE_AT  = { [5] = true }                                -- منصّات قفز نطّاطة
+local FADE_AT    = { [7] = true, [8] = true, [9] = true }        -- بلاطات تتلاشى تحت القدم
+local SWEEP_AT   = { [10] = true, [22] = true }                  -- بوّابات ليزر كانسة (قاتلة)
+local SPIN_AT    = { [13] = 1.2, [16] = 1.4, [25] = 1.6 }        -- عوائق دوّارة (rad/s)
+local PEND_AT    = { [14] = true, [17] = true, [26] = true }     -- كرات بندوليّة متأرجحة (تدفع)
+local NARROW_AT  = { [19] = true, [20] = true }                  -- جسور رفيعة
+local TILEROW_AT = { [23] = true }                               -- بلاطات قاتلة على الجانبين
+local COIN_AT    = { [2] = true, [5] = true, [8] = true, [11] = true, [14] = true, [17] = true, [20] = true, [23] = true, [26] = true }
 
 ----------------------------------------------------------------------
 -- أدوات بناء قطع أصلية
@@ -177,22 +192,43 @@ local fHaz   = Instance.new("Folder"); fHaz.Name   = "Hazards";     fHaz.Parent 
 local fDecor = Instance.new("Folder"); fDecor.Name = "Decor";       fDecor.Parent = course
 
 local cpPads     = {}   -- أقراص نقاط الحفظ
-local killParts  = {}   -- بلاطات/أشرطة قاتلة + أعمدة دوّارة
+local killParts  = {}   -- بلاطات/أشرطة قاتلة + أعمدة دوّارة + ليزر كانس
 local bouncePads = {}   -- منصّات القفز
 local spinners   = {}   -- {bar, center, angle, speed}
+local sweepers   = {}   -- {bar, base, axis, amp, speed, phase} — بوّابات ليزر كانسة
+local pendulums  = {}   -- {ball, rope, pivot, len, axis, amp, speed, phase}
+local fadeTiles  = {}   -- بلاطات تتلاشى تحت القدم
+local coins      = {}   -- {part, center, spin, value}
 local finishPart
 
 local function platTop(i) return TOP0 + i * RISE end
 local function platCenter(i)
-	return V(ORIGIN_X + i * STEP_X, platTop(i) - PT / 2, ORIGIN_Z + i * STEP_Z)
+	local ang = ANG0 + i * ANG_STEP
+	return V(CX + math.cos(ang) * SPIRAL_R, platTop(i) - PT / 2, CZ + math.sin(ang) * SPIRAL_R)
+end
+-- اتجاه التقدّم الأفقي عند المنصّة i (مماس اللولب نحو المنصّة التالية)
+local function fwdAt(i)
+	local a = platCenter(i)
+	local b = platCenter(math.min(i + 1, COUNT - 1))
+	local d = V(b.X - a.X, 0, b.Z - a.Z)
+	if d.Magnitude < 0.05 then
+		local a2 = platCenter(math.max(i - 1, 0))
+		d = V(a.X - a2.X, 0, a.Z - a2.Z)
+	end
+	if d.Magnitude < 0.05 then return V(0, 0, 1) end
+	return d.Unit
+end
+local function rightAt(i)
+	local f = fwdAt(i)
+	return V(f.Z, 0, -f.X)
 end
 
 -- بلاطة قاتلة على سطح المنصّة (لمسها = رجوع)؛ مزاحة لجهة لتترك ممرّاً آمناً
-local function buildStrip(i, top, cx, cz)
+local function buildStrip(i, cx, cz, top, fwd, rgt)
 	local side = (i % 2 == 0) and 1 or -1
-	local off = RIGHTV * (2.2 * side)
+	local ox, oz = cx + rgt.X * (2.2 * side), cz + rgt.Z * (2.2 * side)
 	local strip = mk("KillStrip", V(7.0, 0.4, 3.4),
-		CFrame.lookAt(V(cx + off.X, top + 0.25, cz + off.Z), V(cx, top + 0.25, cz) + FWD),
+		CFrame.lookAt(V(ox, top + 0.25, oz), V(ox + fwd.X, top + 0.25, oz + fwd.Z)),
 		HAZARD, Enum.Material.Neon, fHaz, false)
 	strip.CanTouch = true
 	table.insert(killParts, strip)
@@ -218,13 +254,13 @@ local function buildBounce(top, cx, cz)
 end
 
 -- نقطة حفظ مرقّمة: قرص أخضر متوهّج + لافتة بالرقم
-local function buildCheckpoint(i, top, cx, cz, numeral)
+local function buildCheckpoint(_i, cx, cz, top, numeral, fwd)
 	local disc = mkCyl("CPDisc", 0.3, 9.5, top + 0.16, cx, cz, CPGLOW, Enum.Material.Neon, fCP, false)
 	disc.CanTouch = true
 	disc.Transparency = 0.25
 	table.insert(cpPads, disc)
-	local back = platCenter(i) - FWD * 3.5
-	local signCF = CFrame.lookAt(V(back.X, top + 3.2, back.Z), V(back.X, top + 3.2, back.Z) - FWD)
+	local bx, bz = cx - fwd.X * 3.5, cz - fwd.Z * 3.5
+	local signCF = CFrame.lookAt(V(bx, top + 3.2, bz), V(bx - fwd.X, top + 3.2, bz - fwd.Z))
 	local sign = mk("CPNum", V(2.6, 2.6, 0.3), signCF, SIGNBG, Enum.Material.SmoothPlastic, fCP, false)
 	signGui(sign, numeral, CPGLOW)
 end
@@ -237,133 +273,234 @@ local function mkBall(name, dia, x, y, z, color, material, parent)
 	return p
 end
 
--- خرائط زينة الأسطح (مكيّفات/خزّانات ماء/هوائيات)
-local AC_AT     = { [1] = true, [4] = true, [9] = true, [11] = true }
-local TANK_AT   = { [2] = true, [7] = true }
-local ANT_AT    = { [3] = true, [10] = true }
+-- خرائط زينة الأسطح (مكيّفات/خزّانات ماء/هوائيات) — على منصّات نظيفة فقط
+local AC_AT   = { [1] = true }
+local TANK_AT = { [3] = true }
+local ANT_AT  = { [11] = true }
 
--- منصّة على شكل سطح مبنى: سطح خرساني يُمشى عليه + حافة سور ملوّنة بلون المنطقة
--- + جسم مبنى تحته بصفوف نوافذ مضيئة على الواجهات الأربع.
-local function buildRooftop(i, c, top)
-	local cx, cz = c.X, c.Z
-	-- السطح الخرساني (السطح الذي يقف عليه اللاعب)
-	mk("Plat" .. i, V(PW, PT, PD), c, CONCRETE, Enum.Material.Concrete, fPlat, true)
-	-- حافة سور رفيعة ملوّنة بلون المنطقة حول حواف السطح (زينة فقط، لا تعيق القفز)
+-- منصّة على شكل سطح مبنى (مبنية في الإطار المحلّي للمماس): سطح يُمشى عليه + حافة
+-- ملوّنة بلون المرحلة + (اختيارياً) جسم مبنى بنوافذ مضيئة تحته.
+local function buildRooftop(i, cf, _top, width, depth, withBody)
+	mk("Plat" .. i, V(width, PT, depth), cf, CONCRETE, Enum.Material.Concrete, fPlat, true)
 	local zc = zoneColor(i)
-	local lh = 0.8                       -- ارتفاع الحافة
-	local ly = top + lh / 2              -- مركزها فوق السطح مباشرة
-	for _, sz in ipairs({ -1, 1 }) do    -- حافتا الأمام/الخلف (على محور X)
-		local edge = mk("Ledge" .. i, V(PW + 0.6, lh, 0.6),
-			V(cx, ly, cz + sz * (PD / 2)), zc, Enum.Material.SmoothPlastic, fDecor, false)
-		edge.CanTouch = false
+	local lh = 0.8
+	for _, sz in ipairs({ -1, 1 }) do
+		local e = mk("Ledge" .. i, V(width + 0.6, lh, 0.6),
+			cf * CFrame.new(0, PT / 2 + lh / 2, sz * (depth / 2)), zc, Enum.Material.SmoothPlastic, fDecor, false)
+		e.CanTouch = false
 	end
-	for _, sx in ipairs({ -1, 1 }) do    -- حافتا اليمين/اليسار (على محور Z)
-		local edge = mk("Ledge" .. i, V(0.6, lh, PD + 0.6),
-			V(cx + sx * (PW / 2), ly, cz), zc, Enum.Material.SmoothPlastic, fDecor, false)
-		edge.CanTouch = false
+	for _, sx in ipairs({ -1, 1 }) do
+		local e = mk("Ledge" .. i, V(0.6, lh, depth + 0.6),
+			cf * CFrame.new(sx * (width / 2), PT / 2 + lh / 2, 0), zc, Enum.Material.SmoothPlastic, fDecor, false)
+		e.CanTouch = false
 	end
-	-- جسم المبنى تحت السطح
-	local bh, iw, idp = 9, PW - 0.8, PD - 0.8
-	mk("Bldg" .. i, V(iw, bh, idp), V(cx, top - PT - bh / 2, cz), BLDG, Enum.Material.Concrete, fDecor, false)
-	-- صفوف النوافذ المضيئة (٣ صفوف × ٤ واجهات)
-	for r = 0, 2 do
-		local yy = top - PT - 1.5 - r * 2.6
-		for _, sz in ipairs({ -1, 1 }) do
-			local win = mk("Win" .. i, V(iw * 0.66, 0.85, 0.15),
-				V(cx, yy, cz + sz * (idp / 2 + 0.05)), WINDOW, Enum.Material.Neon, fDecor, false)
-			win.CanTouch = false
-		end
-		for _, sx in ipairs({ -1, 1 }) do
-			local win = mk("Win" .. i, V(0.15, 0.85, idp * 0.66),
-				V(cx + sx * (iw / 2 + 0.05), yy, cz), WINDOW, Enum.Material.Neon, fDecor, false)
-			win.CanTouch = false
+	if withBody then
+		local bh, iw, idp = 9, width - 0.8, depth - 0.8
+		mk("Bldg" .. i, V(iw, bh, idp), cf * CFrame.new(0, -PT / 2 - bh / 2, 0), BLDG, Enum.Material.Concrete, fDecor, false)
+		for r = 0, 2 do
+			local yy = -PT / 2 - 1.5 - r * 2.6
+			for _, sz in ipairs({ -1, 1 }) do
+				mk("Win" .. i, V(iw * 0.66, 0.85, 0.15),
+					cf * CFrame.new(0, yy, sz * (idp / 2 + 0.05)), WINDOW, Enum.Material.Neon, fDecor, false).CanTouch = false
+			end
+			for _, sx in ipairs({ -1, 1 }) do
+				mk("Win" .. i, V(0.15, 0.85, idp * 0.66),
+					cf * CFrame.new(sx * (iw / 2 + 0.05), yy, 0), WINDOW, Enum.Material.Neon, fDecor, false).CanTouch = false
+			end
 		end
 	end
 end
 
 -- زينة فوق السطح: مكيّف هواء، خزّان ماء على أرجل، أو هوائي (لا تعيق اللعب)
-local function buildRoofDecor(i, top, cx, cz)
+local function buildRoofDecor(i, cf, top)
 	if AC_AT[i] then
-		local ax, az = cx - PW * 0.26, cz - PD * 0.24
-		mk("AC", V(2.4, 1.4, 1.8), V(ax, top + 0.7, az), METAL, Enum.Material.Metal, fDecor, false).CanTouch = false
-		mkCyl("Fan", 0.2, 1.0, top + 1.5, ax, az, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		local p = cf * CFrame.new(-PW * 0.26, PT / 2 + 0.7, -PD * 0.24)
+		mk("AC", V(2.4, 1.4, 1.8), p, METAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkCyl("Fan", 0.2, 1.0, p.Y + 0.8, p.X, p.Z, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
 	end
 	if TANK_AT[i] then
-		local tx, tz = cx + PW * 0.22, cz + PD * 0.2
+		local b = cf * CFrame.new(PW * 0.22, 0, PD * 0.2)
 		for _, sx in ipairs({ -1, 1 }) do
 			for _, sz in ipairs({ -1, 1 }) do
-				mk("Leg", V(0.3, 2.4, 0.3), V(tx + sx * 0.8, top + 1.2, tz + sz * 0.8),
+				mk("Leg", V(0.3, 2.4, 0.3), V(b.X + sx * 0.8, top + 1.2, b.Z + sz * 0.8),
 					DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
 			end
 		end
-		mkCyl("Tank", 3.0, 2.6, top + 3.6, tx, tz, METAL, Enum.Material.Metal, fDecor, false).CanTouch = false
-		mkCyl("TankLid", 0.4, 2.8, top + 5.2, tx, tz, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkCyl("Tank", 3.0, 2.6, top + 3.6, b.X, b.Z, METAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkCyl("TankLid", 0.4, 2.8, top + 5.2, b.X, b.Z, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
 	end
 	if ANT_AT[i] then
-		local mx = cx + PW * 0.28
-		mkCyl("Mast", 6.0, 0.22, top + 3.0, mx, cz, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
-		mkBall("AntBulb", 0.7, mx, top + 6.1, cz, NEONSIGN, Enum.Material.Neon, fDecor)
+		local m = cf * CFrame.new(PW * 0.28, 0, 0)
+		mkCyl("Mast", 6.0, 0.22, top + 3.0, m.X, m.Z, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
+		mkBall("AntBulb", 0.7, m.X, top + 6.1, m.Z, NEONSIGN, Enum.Material.Neon, fDecor)
 	end
 end
 
--- بناء المنصّات (أسطح مدينة) وكل ما عليها
-for i = 0, COUNT - 1 do
-	local c = platCenter(i)
-	local top = platTop(i)
-	buildRooftop(i, c, top)
-	buildRoofDecor(i, top, c.X, c.Z)
-
-	if CP_AT[i] then buildCheckpoint(i, top, c.X, c.Z, CP_AT[i]) end
-	if STRIP_AT[i] then buildStrip(i, top, c.X, c.Z) end
-	if SPIN_AT[i] then buildSpinner(top, c.X, c.Z, SPIN_AT[i]) end
-	if BOUNCE_AT[i] then buildBounce(top, c.X, c.Z) end
+-- أسطوانة بمحور عمودي (قرص/تاج)
+local function vDisc(name, dia, thick, x, y, z, color, material, parent)
+	local p = Instance.new("Part")
+	p.Name = name; p.Anchored = true; p.CanCollide = false; p.CanTouch = false
+	p.Shape = Enum.PartType.Cylinder
+	p.Size = V(thick, dia, dia)
+	p.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, 0, math.rad(90))
+	p.Color = color; p.Material = material or Enum.Material.SmoothPlastic
+	p.Parent = parent
+	return p
 end
 
--- أفق المدينة: ناطحات سحاب بعيدة تحيط بالمسار وتعطي إحساس الارتفاع (زينة فقط)
-local function buildSkyline()
-	for k = 0, 6 do
-		local t = k / 6
-		local baseX = ORIGIN_X - 12 + t * (STEP_X * (COUNT - 1) + 24)
-		local baseZ = ORIGIN_Z + t * (STEP_Z * (COUNT - 1))
-		for _, side in ipairs({ -1, 1 }) do
-			local off = RIGHTV * (70 * side)
-			local bw = 9 + (k % 3) * 3
-			local bht = 60 + ((k * 17 + (side + 1) * 23) % 55)
-			local bx, bz = baseX + off.X, baseZ + off.Z
-			local roofY = 55 + ((k * 13 + (side + 1) * 11) % 50)
-			mk("Sil", V(bw, bht, bw), V(bx, roofY - bht / 2, bz), SILH, Enum.Material.Concrete, fDecor, false).CanTouch = false
-			-- شريطا نوافذ خافتان على واجهة المبنى
-			for r = 0, 1 do
-				local wy = roofY - 8 - r * 14
-				local face = mk("SilWin", V(bw * 0.7, 1.2, 0.2),
-					V(bx, wy, bz - side * (bw / 2 + 0.1)), SILWIN, Enum.Material.Neon, fDecor, false)
-				face.CanTouch = false
-				face.Transparency = 0.15
-			end
+-- عملة ذهبية دوّارة فوق المنصّة (تُجمع باللمس)
+local function buildCoin(cx, cz, top)
+	local coin = Instance.new("Part")
+	coin.Name = "Coin"; coin.Anchored = true; coin.CanCollide = false
+	coin.Shape = Enum.PartType.Cylinder
+	coin.Size = V(0.35, 2.6, 2.6)
+	local center = V(cx, top + 3.4, cz)
+	coin.CFrame = CFrame.new(center)
+	coin.Color = COINC; coin.Material = Enum.Material.Neon
+	coin.CanTouch = true
+	coin.Parent = fDecor
+	table.insert(coins, { part = coin, center = center, spin = 0, value = COIN_VALUE })
+end
+
+-- بلاطة تتلاشى: يقف عليها اللاعب ثم تختفي بعد لحظة ثم تعود (مرحلة التوقيت)
+local function buildFadeTile(i, cf, _top)
+	local tile = mk("FadeTile" .. i, V(PW * 0.86, PT, PD * 0.86), cf, TEAL, Enum.Material.Neon, fPlat, true)
+	tile.Transparency = 0.05
+	local ring = mk("FadeRing" .. i, V(PW * 0.98, 0.3, PD * 0.98),
+		cf * CFrame.new(0, -PT, 0), zoneColor(i), Enum.Material.Neon, fDecor, false)
+	ring.CanTouch = false; ring.Transparency = 0.45
+	table.insert(fadeTiles, tile)
+end
+
+-- بوّابة ليزر كانسة: قضيب أحمر يتحرّك جانبياً عبر المنصّة (لمسه = رجوع)
+local function buildSweep(i, cx, cz, top, _fwd, rgt)
+	for _, s in ipairs({ -1, 1 }) do
+		local px, pz = cx + rgt.X * (PW / 2 + 0.4) * s, cz + rgt.Z * (PW / 2 + 0.4) * s
+		mk("LaserPost", V(0.6, 5.6, 0.6), V(px, top + 2.9, pz), POSTC, Enum.Material.Metal, fHaz, false).CanTouch = false
+	end
+	local base = V(cx, top + 2.9, cz)
+	local bar = mk("LaserBar", V(0.5, 5.0, 0.5), CFrame.new(base), LASER, Enum.Material.Neon, fHaz, false)
+	bar.CanTouch = true
+	table.insert(killParts, bar)
+	table.insert(sweepers, { bar = bar, base = base, axis = rgt, amp = PW / 2 - 0.4, speed = 1.9 + (i % 3) * 0.3, phase = (i % 2) * math.pi })
+end
+
+-- كرة بندوليّة متأرجحة: تتأرجح في مستوى التقدّم وتدفع اللاعب (غير قاتلة)
+local function buildPendulum(i, cx, cz, top, fwd, rgt)
+	local pivotY = top + 9.5
+	local pivot = V(cx, pivotY, cz)
+	mk("PendBeam", V(0.6, 0.6, 8.4),
+		CFrame.lookAt(V(cx, pivotY + 0.3, cz), V(cx + rgt.X, pivotY + 0.3, cz + rgt.Z)),
+		POSTC, Enum.Material.Metal, fDecor, false).CanTouch = false
+	for _, s in ipairs({ -1, 1 }) do
+		local px, pz = cx + rgt.X * (3.8 * s), cz + rgt.Z * (3.8 * s)
+		beam(V(px, top, pz), V(px, pivotY + 0.3, pz), 0.5, POSTC, Enum.Material.Metal, fDecor)
+	end
+	local len = 6.0
+	local ballPos = V(cx, pivotY - len, cz)
+	local rope = mk("PendRope", V(0.22, 0.22, len), CFrame.lookAt((pivot + ballPos) / 2, ballPos),
+		DARKMETAL, Enum.Material.Metal, fDecor, false)
+	rope.CanTouch = false
+	local ball = mk("PendBall", V(2.6, 2.6, 2.6), ballPos, ORANGE, Enum.Material.Neon, fHaz, false)
+	ball.Shape = Enum.PartType.Ball
+	ball.CanTouch = true
+	table.insert(pendulums, { ball = ball, rope = rope, pivot = pivot, len = len,
+		axis = fwd, amp = math.rad(48), speed = 1.5 + (i % 2) * 0.35, phase = (i % 2) * 1.2 })
+end
+
+-- بلاطات قاتلة على جانبي المنصّة (ممرّ أوسط آمن) — دقّة الخطو
+local function buildTileRow(_i, cf, _top)
+	for _, a in ipairs({ -1, 1 }) do
+		for b = -1, 1 do
+			local t = mk("KillTile", V(2.6, 0.5, 2.6),
+				cf * CFrame.new(a * 3.0, PT / 2 + 0.25, b * 3.0), HAZARD, Enum.Material.Neon, fHaz, false)
+			t.CanTouch = true
+			table.insert(killParts, t)
 		end
 	end
 end
-buildSkyline()
+
+-- ساحة الباركور المعزولة: قاعدة عريضة + برج لولب مركزي مضيء + أعمدة إنارة
+local function buildArena()
+	local baseY = platTop(0) - 6
+	local topY  = platTop(COUNT - 1) + 4
+	vDisc("ArenaBase", (SPIRAL_R + 16) * 2, 3.0, CX, baseY, CZ, BASEC, Enum.Material.Slate, fDecor)
+	vDisc("ArenaRim", (SPIRAL_R + 17) * 2, 0.6, CX, baseY + 1.7, CZ, GOLD, Enum.Material.Neon, fDecor)
+	local coreH = topY - baseY
+	local core = Instance.new("Part")
+	core.Name = "ArenaCore"; core.Anchored = true; core.CanCollide = false; core.CanTouch = false
+	core.Shape = Enum.PartType.Cylinder
+	core.Size = V(coreH, 9, 9)
+	core.CFrame = CFrame.new(CX, baseY + coreH / 2, CZ) * CFrame.Angles(0, 0, math.rad(90))
+	core.Color = COREC; core.Material = Enum.Material.Concrete; core.Parent = fDecor
+	local stageStart = { 0, 6, 12, 18, 24 }
+	for s = 1, 5 do
+		vDisc("CoreRing" .. s, 10.4, 0.6, CX, platTop(stageStart[s]) - 1, CZ, STAGE_COLOR[s], Enum.Material.Neon, fDecor)
+	end
+	vDisc("CoreCrown", 7.5, 4.0, CX, topY + 2, CZ, GOLD, Enum.Material.Neon, fDecor)
+	local beamUp = mk("ArenaBeam", V(1.3, 44, 1.3), V(CX, topY + 24, CZ), GOLD, Enum.Material.Neon, fDecor, false)
+	beamUp.CanTouch = false; beamUp.Transparency = 0.4
+	for k = 0, 5 do
+		local a = math.rad(k * 60)
+		local lx, lz = CX + math.cos(a) * (SPIRAL_R + 13), CZ + math.sin(a) * (SPIRAL_R + 13)
+		beam(V(lx, baseY + 1.7, lz), V(lx, baseY + 11, lz), 0.5, POSTC, Enum.Material.Metal, fDecor)
+		mkBall("LampBulb", 1.3, lx, baseY + 11.6, lz, STAGE_COLOR[(k % 5) + 1], Enum.Material.Neon, fDecor)
+	end
+end
+
+-- بناء المنصّات (أسطح مدينة) وكل ما عليها على طول اللولب
+for i = 0, COUNT - 1 do
+	local c = platCenter(i)
+	local top = platTop(i)
+	local fwd = fwdAt(i)
+	local rgt = rightAt(i)
+	local cf = CFrame.lookAt(c, c + fwd)
+
+	if FADE_AT[i] then
+		buildFadeTile(i, cf, top)
+	else
+		local width = NARROW_AT[i] and NARROW_W or PW
+		local depth = NARROW_AT[i] and (PD + 3) or PD
+		buildRooftop(i, cf, top, width, depth, not NARROW_AT[i])
+		if not NARROW_AT[i] then buildRoofDecor(i, cf, top) end
+	end
+
+	if CP_AT[i] then buildCheckpoint(i, c.X, c.Z, top, CP_AT[i], fwd) end
+	if STRIP_AT[i] then buildStrip(i, c.X, c.Z, top, fwd, rgt) end
+	if SPIN_AT[i] then buildSpinner(top, c.X, c.Z, SPIN_AT[i]) end
+	if BOUNCE_AT[i] then buildBounce(top, c.X, c.Z) end
+	if SWEEP_AT[i] then buildSweep(i, c.X, c.Z, top, fwd, rgt) end
+	if PEND_AT[i] then buildPendulum(i, c.X, c.Z, top, fwd, rgt) end
+	if TILEROW_AT[i] then buildTileRow(i, cf, top) end
+	if COIN_AT[i] then buildCoin(c.X, c.Z, top) end
+end
+
+-- ساحة الباركور المعزولة (بديلة عن ناطحات السحاب المبعثرة التي كانت تزحم وسط الماب)
+buildArena()
 
 -- أسهم ذهبية فوق كل فجوة تأشّر للمنصّة التالية
 for i = 0, COUNT - 2 do
 	local a, b = platCenter(i), platCenter(i + 1)
+	local fwd = fwdAt(i)
+	local rgt = rightAt(i)
 	local mid = (a + b) / 2 + V(0, 3.0 + (platTop(i + 1) - platTop(i)) / 2, 0)
-	local vertex = mid + FWD * 1.6
-	beam(vertex, mid - FWD * 0.2 + RIGHTV * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
-	beam(vertex, mid - FWD * 0.2 - RIGHTV * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
+	local vertex = mid + fwd * 1.6
+	beam(vertex, mid - fwd * 0.2 + rgt * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
+	beam(vertex, mid - fwd * 0.2 - rgt * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
 end
 
 -- لافتة البداية «ابدأ هنا» على المنصّة الأولى
 do
 	local c = platCenter(0)
 	local top = platTop(0)
-	local bp = c + FWD * 4.0
-	local lpos = bp + RIGHTV * 3.2
-	local rpos = bp - RIGHTV * 3.2
+	local fwd = fwdAt(0)
+	local rgt = rightAt(0)
+	local bp = c + fwd * 4.0
+	local lpos = bp + rgt * 3.2
+	local rpos = bp - rgt * 3.2
 	beam(V(lpos.X, top, lpos.Z), V(lpos.X, top + 7, lpos.Z), 0.6, GOLD, Enum.Material.Metal, fDecor)
 	beam(V(rpos.X, top, rpos.Z), V(rpos.X, top + 7, rpos.Z), 0.6, GOLD, Enum.Material.Metal, fDecor)
-	local bannerCF = CFrame.lookAt(V(bp.X, top + 6.4, bp.Z), V(bp.X, top + 6.4, bp.Z) - FWD)
+	local bannerCF = CFrame.lookAt(V(bp.X, top + 6.4, bp.Z), V(bp.X - fwd.X, top + 6.4, bp.Z - fwd.Z))
 	local banner = mk("StartBanner", V(7.2, 2.2, 0.3), bannerCF, GREEN, Enum.Material.SmoothPlastic, fDecor, false)
 	signGui(banner, "ابدأ هنا", C3(255, 255, 255), 720)
 end
@@ -399,9 +536,10 @@ do
 	-- موضع الضابط: على منصّة البداية، جانب نقطة الانطلاق، يواجه اللاعب
 	local top0 = platTop(0)
 	local c0 = platCenter(0)
-	local footPos = V(c0.X, top0, c0.Z) + RIGHTV * 4.2
-	-- base.LookVector = RIGHTV ⇒ «أمام» الضابط = -RIGHTV (نحو نقطة الانطلاق)
-	local base = CFrame.lookAt(footPos, footPos + RIGHTV)
+	local rgt0 = rightAt(0)
+	local footPos = V(c0.X, top0, c0.Z) + rgt0 * 4.2
+	-- base.LookVector = rgt0 ⇒ «أمام» الضابط = -rgt0 (نحو نقطة الانطلاق)
+	local base = CFrame.lookAt(footPos, footPos + rgt0)
 
 	local officer = Instance.new("Model")
 	officer.Name = "PoliceOfficer"
@@ -631,12 +769,14 @@ end
 do
 	local c = platCenter(COUNT - 1)
 	local top = platTop(COUNT - 1)
-	local lpos = c + RIGHTV * 5.0
-	local rpos = c - RIGHTV * 5.0
+	local fwdF = fwdAt(COUNT - 1)
+	local rgtF = rightAt(COUNT - 1)
+	local lpos = c + rgtF * 5.0
+	local rpos = c - rgtF * 5.0
 	beam(V(lpos.X, top, lpos.Z), V(lpos.X, top + 10, lpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
 	beam(V(rpos.X, top, rpos.Z), V(rpos.X, top + 10, rpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
 	beam(V(lpos.X, top + 10, lpos.Z), V(rpos.X, top + 10, rpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
-	local bannerCF = CFrame.lookAt(V(c.X, top + 8.4, c.Z), V(c.X, top + 8.4, c.Z) - FWD)
+	local bannerCF = CFrame.lookAt(V(c.X, top + 8.4, c.Z), V(c.X - fwdF.X, top + 8.4, c.Z - fwdF.Z))
 	local banner = mk("FinishBanner", V(8.0, 2.4, 0.3), bannerCF, GOLD, Enum.Material.Neon, fDecor, false)
 	signGui(banner, "النهاية", SIGNBG, 720)
 
@@ -648,7 +788,8 @@ end
 ----------------------------------------------------------------------
 -- إحداثيات النظام
 ----------------------------------------------------------------------
-local SPAWN_POS = V(ORIGIN_X, platTop(0) + 3.5, ORIGIN_Z)
+local P0        = platCenter(0)
+local SPAWN_POS = V(P0.X, platTop(0) + 3.5, P0.Z)
 local SPAWN_CF  = CFrame.new(SPAWN_POS)
 local BASE_Y    = platTop(0) + 3.5
 local FINISH_Y  = platTop(COUNT - 1) + 3.5
@@ -805,17 +946,28 @@ local function progressPercent(player)
 	return math.clamp(math.floor(pct), 0, 100)
 end
 
+-- المرحلة الحالية (١..٥) من ارتفاع اللاعب ← رقم المنصّة ← STAGE_OF
+local function currentStage(player)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return 1 end
+	local idx = math.clamp(math.floor((hrp.Position.Y - TOP0) / RISE + 0.5), 0, COUNT - 1)
+	return STAGE_OF[idx]
+end
+
 local function sendProgress(player, state)
 	local st = runState[player.UserId]
 	local elapsed = (st and st.inRun) and (os.clock() - st.startT) or 0
 	local pct = (st and st.inRun) and progressPercent(player) or 0
+	local stg = (st and st.inRun) and currentStage(player) or 1
 	progressRemote:FireClient(player, {
 		state   = state or ((st and st.inRun) and "run" or "idle"),
-		stage   = math.clamp(math.floor(pct / 25) + 1, 1, 4),
-		cp      = math.clamp(math.floor(pct / 25) + 1, 1, 4),
-		total   = 4,
+		stage   = stg,
+		cp      = stg,
+		total   = #STAGE_COLOR,
 		percent = pct,
 		time    = elapsed,
+		coins   = (st and st.coinTotal) or 0,
 	})
 end
 
@@ -982,6 +1134,76 @@ for _, pad in ipairs(bouncePads) do
 end
 
 ----------------------------------------------------------------------
+-- العملات الذهبية: جمعها يمنح كوينز (مرّة لكل جولة) ثم تعود بعد لحظات
+----------------------------------------------------------------------
+local COIN_RESPAWN = 6
+for _, ci in ipairs(coins) do
+	local coin = ci.part
+	coin.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		local st = runState[player.UserId]
+		if not st or not st.inRun then return end
+		st.coinHit = st.coinHit or {}
+		if st.coinHit[coin] then return end
+		st.coinHit[coin] = true
+		st.coinTotal = (st.coinTotal or 0) + ci.value
+		if _G.AddCoins then _G.AddCoins(player, ci.value) end
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "+" .. ci.value .. " كوينز") end
+		coin.Transparency = 1; coin.CanTouch = false
+		task.delay(COIN_RESPAWN, function()
+			if coin.Parent then coin.Transparency = 0; coin.CanTouch = true end
+		end)
+	end)
+end
+
+----------------------------------------------------------------------
+-- بلاطات تتلاشى: بعد لمسها بلحظة تختفي (تسقط منها) ثم تعود — مرحلة التوقيت
+----------------------------------------------------------------------
+local FADE_WARN, FADE_GONE = 0.9, 1.8
+for _, tile in ipairs(fadeTiles) do
+	local busy = false
+	tile.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		local st = runState[player.UserId]
+		if not st or not st.inRun or busy then return end
+		busy = true
+		task.delay(FADE_WARN, function()
+			tile.CanCollide = false; tile.Transparency = 0.85
+			task.delay(FADE_GONE, function()
+				tile.CanCollide = true; tile.Transparency = 0.05
+				busy = false
+			end)
+		end)
+	end)
+end
+
+----------------------------------------------------------------------
+-- الكرات البندوليّة: تدفع اللاعب بعيداً (غير قاتلة) — مرحلة المراوغة
+----------------------------------------------------------------------
+local pendCooldown = {}
+for _, pd in ipairs(pendulums) do
+	pd.ball.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		local st = runState[player.UserId]
+		if not st or not st.inRun then return end
+		if pendCooldown[player.UserId] then return end
+		pendCooldown[player.UserId] = true
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local d = hrp.Position - pd.ball.Position
+			local push = V(d.X, 0, d.Z)
+			if push.Magnitude < 0.1 then push = pd.axis end
+			hrp.AssemblyLinearVelocity = push.Unit * 55 + V(0, 20, 0)
+		end
+		task.delay(0.5, function() pendCooldown[player.UserId] = nil end)
+	end)
+end
+
+----------------------------------------------------------------------
 -- الفوز: كوينز + إنجاز + مهمة + تهنئة + أفضل وقت + خروج
 ----------------------------------------------------------------------
 local REWARD = 250
@@ -1020,7 +1242,7 @@ finishRun = function(player)
 			fmtTime(elapsed), isRecord and " (رقم قياسي جديد!)" or "", REWARD))
 	end
 
-	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = 4, best = st.best, record = isRecord })
+	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = #STAGE_COLOR, best = st.best, record = isRecord, coins = st.coinTotal or 0 })
 	task.delay(2, function()
 		teleportTo(player, CFrame.new(EXIT_POS))
 		finishCooldown[player.UserId] = nil
@@ -1051,6 +1273,27 @@ updateActiveLoop = function()
 				sp.angle = (sp.angle + sp.speed * dt) % (math.pi * 2)
 				sp.bar.CFrame = CFrame.new(sp.center) * CFrame.Angles(0, sp.angle, 0)
 			end
+			local now = os.clock()
+			-- بوّابات الليزر الكانسة (حركة جانبية ذهاباً وإياباً)
+			for _, sw in ipairs(sweepers) do
+				local off = math.sin(now * sw.speed + sw.phase) * sw.amp
+				sw.bar.CFrame = CFrame.new(sw.base + sw.axis * off)
+			end
+			-- الكرات البندوليّة المتأرجحة
+			for _, pd in ipairs(pendulums) do
+				local ang = math.sin(now * pd.speed + pd.phase) * pd.amp
+				local dir = CFrame.fromAxisAngle(pd.axis, ang) * V(0, -1, 0)
+				local ballPos = pd.pivot + dir * pd.len
+				pd.ball.Position = ballPos
+				pd.rope.CFrame = CFrame.lookAt((pd.pivot + ballPos) / 2, ballPos)
+			end
+			-- دوران العملات (زينة)
+			for _, ci in ipairs(coins) do
+				if ci.part.Parent and ci.part.Transparency < 1 then
+					ci.spin = (ci.spin + 2.4 * dt) % (math.pi * 2)
+					ci.part.CFrame = CFrame.new(ci.center) * CFrame.Angles(0, ci.spin, 0)
+				end
+			end
 			-- مراقبة السقوط أسفل المسار
 			for _, player in ipairs(Players:GetPlayers()) do
 				local st = runState[player.UserId]
@@ -1077,6 +1320,7 @@ Players.PlayerRemoving:Connect(function(player)
 	runState[player.UserId] = nil
 	killCooldown[player.UserId] = nil
 	bounceCooldown[player.UserId] = nil
+	pendCooldown[player.UserId] = nil
 	finishCooldown[player.UserId] = nil
 	_rl[player.UserId] = nil
 	updateActiveLoop()

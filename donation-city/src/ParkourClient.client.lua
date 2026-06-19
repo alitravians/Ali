@@ -112,13 +112,14 @@ end
 local active = false
 local baseTime = 0          -- آخر وقت من السيرفر
 local baseClock = 0         -- لحظة استلامه محلياً
-local curStage, curCp, curTotal, curPct = 1, 1, 1, 0
+local curStage, curTotal, curPct, curCoins = 1, 1, 0, 0
 
 local STAGE_COLORS = {
 	[1] = Color3.fromRGB(90, 200, 120), [2] = Color3.fromRGB(95, 170, 255),
-	[3] = Color3.fromRGB(255, 150, 70), [4] = Color3.fromRGB(200, 110, 255),
+	[3] = Color3.fromRGB(255, 150, 70), [4] = Color3.fromRGB(220, 70, 70),
+	[5] = Color3.fromRGB(212, 175, 92),
 }
-local STAGE_NAMES = { [1] = "سهلة", [2] = "متوسطة", [3] = "صعبة", [4] = "أسطورية" }
+local STAGE_NAMES = { [1] = "إحماء", [2] = "توقيت", [3] = "مراوغة", [4] = "دقّة", [5] = "القمّة" }
 
 progressRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
@@ -137,14 +138,14 @@ progressRemote.OnClientEvent:Connect(function(data)
 	active = true; bar.Visible = true; stopBtn.Visible = true
 	player:SetAttribute("InParkour", true)   -- يوقف الجري داخل المسار (سرعة ثابتة للتحكّم)
 	baseTime = data.time or 0; baseClock = os.clock()
-	curStage = data.stage or 1; curCp = data.cp or 1; curTotal = data.total or 1; curPct = data.percent or 0
+	curStage = data.stage or 1; curTotal = data.total or 1; curPct = data.percent or 0; curCoins = data.coins or 0
 	pct.BackgroundColor3 = STAGE_COLORS[curStage] or STAGE_COLORS[1]
 end)
 
 RunService.RenderStepped:Connect(function()
 	if not active then return end
 	local t = baseTime + (os.clock() - baseClock)
-	info.Text = string.format("المرحلة %s · نقطة %d/%d · %d%% · %s",
-		STAGE_NAMES[curStage] or curStage, curCp, curTotal, curPct, fmtTime(t))
+	info.Text = string.format("المرحلة %d/%d · %s · عملات %d · %d%% · %s",
+		curStage, curTotal, STAGE_NAMES[curStage] or curStage, curCoins, curPct, fmtTime(t))
 	pct.Size = UDim2.new(curPct / 100, 0, 0, 5)
 end)
