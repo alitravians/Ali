@@ -500,14 +500,24 @@ do
 	goldBar("FacadeSignFrameL", SGN_CY - SGN_HW, SGN_CY + SGN_HW, CZp - SGN_HW - 0.45, CZp - SGN_HW)
 	goldBar("FacadeSignFrameR", SGN_CY - SGN_HW, SGN_CY + SGN_HW, CZp + SGN_HW, CZp + SGN_HW + 0.45)
 	local fGlow = pointLight(sbk, Color3.fromRGB(255, 205, 110), 1.5, 16)
-	-- الشعار يُركّب كـDecal على وجه اللوحة: نسخة Decal تعرض معرّف الأصل المرفوع
-	-- (نوعه Decal) مباشرةً، بخلاف ImageLabel.Image الذي لا يقبل معرّف Decal وقت
-	-- التشغيل فيظهر فارغاً. الوجه Left هو الواجهة الأمامية المواجهة للساحة.
-	local logo = Instance.new("Decal")
+	-- الشعار: الأصل مرفوع كنوع Decal، ومعرّف الـDecal لا يُحمَّل مباشرةً في
+	-- ImageLabel.Image ولا Decal.Texture على السيرفرات الحيّة (تحويله لمعرّف صورة
+	-- يحدث داخل الاستوديو فقط). لذا نستعمل بروتوكول rbxthumb الذي يقبل معرّف الأصل
+	-- مباشرةً ويعرض صورته بثبات داخل اللعبة مع الحفاظ على الشفافية (أكبر مقاس
+	-- مربّع مدعوم للأصل هو 420×420).
+	local fg = Instance.new("SurfaceGui")
+	fg.Name = "FacadeSignGui"; fg.AutoLocalize = false
+	fg.Face = Enum.NormalId.Left
+	fg.CanvasSize = Vector2.new(1024, 1024)
+	fg.LightInfluence = 0
+	fg.Adornee = sbk; fg.Parent = sbk
+	local logo = Instance.new("ImageLabel")
 	logo.Name = "FacadeSignLogo"
-	logo.Texture = "rbxassetid://87423442650122"
-	logo.Face = Enum.NormalId.Left
-	logo.Parent = sbk
+	logo.BackgroundTransparency = 1
+	logo.Size = UDim2.fromScale(1, 1)
+	logo.ScaleType = Enum.ScaleType.Fit
+	logo.Image = "rbxthumb://type=Asset&id=87423442650122&w=420&h=420"
+	logo.Parent = fg
 	task.spawn(function()
 		while sbk.Parent do
 			TweenService:Create(fGlow, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Brightness = 3.0 }):Play()
