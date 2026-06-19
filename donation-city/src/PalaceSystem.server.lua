@@ -480,59 +480,44 @@ do
 	ebox("DoorJambR", 93.5, 94, GY, 9.6, ENT_Z1, ENT_Z1 + 1.1, MAROON, Enum.Material.SmoothPlastic).CanCollide = false
 	ebox("DoorLintel", 93.4, 94, 9.4, 10.4, ENT_Z0 - 1.1, ENT_Z1 + 1.1, GOLD_E, Enum.Material.Metal).CanCollide = false
 
-	-- ميدالية شمس ذهبية في الجبهة المثلّثة (أقراص مركزية أصلية)
-	local medX = PORT_X - COL_R - 1.5
-	local function disc(name, dia, color, mat, dx)
-		local p = Instance.new("Part")
-		p.Name = name; p.Anchored = true; p.CanCollide = false
-		p.Shape = Enum.PartType.Cylinder
-		p.Size = Vector3.new(0.3, dia, dia)
-		p.CFrame = CFrame.new(medX - dx, COL_TOP + 5, CZp)
-		p.Color = color; p.Material = mat
-		p.TopSurface = Enum.SurfaceType.Smooth; p.BottomSurface = Enum.SurfaceType.Smooth
-		p.Parent = EXT
-		return p
-	end
-	disc("SunDisc", 4.4, GOLD_E, Enum.Material.Metal, 0)
-	disc("SunRing", 3.2, MAROON, Enum.Material.SmoothPlastic, 0.06)
-	disc("SunCore", 1.6, GOLD_E, Enum.Material.Metal, 0.12)
+	-- (مركز الجبهة المثلّثة صار يحمل شعار «مكتب القصر الجمهوري» كلوحة مؤطّرة أدناه)
 
 	------------------------------------------------------------------
-	-- 8) لافتة الواجهة «مكتب القصر الجمهوري لشهد» على الإفريز فوق المدخل
+	-- 8) شعار الواجهة «مكتب القصر الجمهوري لشهد» — لوحة مؤطّرة في الجبهة
 	------------------------------------------------------------------
-	local SGN_HW = 10.5
-	local sbk = ebox("FacadeSignBack", PORT_X - COL_R - 1.7, PORT_X - COL_R - 1.3, COL_TOP + 0.3, COL_TOP + 4.6, CZp - SGN_HW, CZp + SGN_HW, Color3.fromRGB(24, 21, 17), Enum.Material.SmoothPlastic)
-	ebox("FacadeSignFrameT", PORT_X - COL_R - 1.8, PORT_X - COL_R - 1.25, COL_TOP + 4.4, COL_TOP + 4.8, CZp - SGN_HW - 0.4, CZp + SGN_HW + 0.4, GOLD_E, Enum.Material.Neon).CanCollide = false
-	ebox("FacadeSignFrameB", PORT_X - COL_R - 1.8, PORT_X - COL_R - 1.25, COL_TOP + 0.1, COL_TOP + 0.5, CZp - SGN_HW - 0.4, CZp + SGN_HW + 0.4, GOLD_E, Enum.Material.Neon).CanCollide = false
+	-- لوحة شعار مربّعة بإطار ذهبي في مركز الجبهة فوق المدخل تحمل شعار
+	-- «مكتب القصر الجمهوري لشهد» (Decal مرفوع على روبلوكس) بدل النص القديم
+	local SGN_HW = 3.8                              -- نصف ضلع اللوحة المربّعة
+	local SGN_CY = COL_TOP + 3.9                    -- مركز اللوحة رأسياً (داخل الجبهة)
+	local SGN_XF = PORT_X - COL_R - 2.0             -- الوجه الأمامي (-X)
+	local SGN_XB = PORT_X - COL_R - 1.55            -- ظهر اللوحة
+	local sbk = ebox("FacadeSignBack", SGN_XF, SGN_XB, SGN_CY - SGN_HW, SGN_CY + SGN_HW, CZp - SGN_HW, CZp + SGN_HW, Color3.fromRGB(20, 17, 13), Enum.Material.SmoothPlastic)
+	local function goldBar(nm, y0, y1, z0, z1)
+		ebox(nm, SGN_XF - 0.12, SGN_XB + 0.05, y0, y1, z0, z1, GOLD_E, Enum.Material.Neon).CanCollide = false
+	end
+	goldBar("FacadeSignFrameT", SGN_CY + SGN_HW, SGN_CY + SGN_HW + 0.45, CZp - SGN_HW - 0.45, CZp + SGN_HW + 0.45)
+	goldBar("FacadeSignFrameB", SGN_CY - SGN_HW - 0.45, SGN_CY - SGN_HW, CZp - SGN_HW - 0.45, CZp + SGN_HW + 0.45)
+	goldBar("FacadeSignFrameL", SGN_CY - SGN_HW, SGN_CY + SGN_HW, CZp - SGN_HW - 0.45, CZp - SGN_HW)
+	goldBar("FacadeSignFrameR", SGN_CY - SGN_HW, SGN_CY + SGN_HW, CZp + SGN_HW, CZp + SGN_HW + 0.45)
 	local fGlow = pointLight(sbk, Color3.fromRGB(255, 205, 110), 1.5, 16)
+	-- الشعار: الأصل مرفوع كنوع Decal، ومعرّف الـDecal لا يُحمَّل مباشرةً في
+	-- ImageLabel.Image ولا Decal.Texture على السيرفرات الحيّة (تحويله لمعرّف صورة
+	-- يحدث داخل الاستوديو فقط). لذا نستعمل بروتوكول rbxthumb الذي يقبل معرّف الأصل
+	-- مباشرةً ويعرض صورته بثبات داخل اللعبة مع الحفاظ على الشفافية (أكبر مقاس
+	-- مربّع مدعوم للأصل هو 420×420).
 	local fg = Instance.new("SurfaceGui")
 	fg.Name = "FacadeSignGui"; fg.AutoLocalize = false
 	fg.Face = Enum.NormalId.Left
-	fg.CanvasSize = Vector2.new(1400, 300)
+	fg.CanvasSize = Vector2.new(1024, 1024)
 	fg.LightInfluence = 0
 	fg.Adornee = sbk; fg.Parent = sbk
-	local fl = Instance.new("TextLabel")
-	fl.BackgroundTransparency = 1
-	fl.Size = UDim2.new(1, -40, 1, -24)
-	fl.Position = UDim2.new(0, 20, 0, 12)
-	fl.Font = Enum.Font.GothamBlack
-	fl.Text = "مكتب القصر الجمهوري لشهد"
-	fl.RichText = true
-	fl.TextScaled = true
-	fl.TextColor3 = Color3.fromRGB(255, 224, 150)
-	local fgrad = Instance.new("UIGradient")
-	fgrad.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 240, 190)),
-		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(247, 200, 110)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(214, 160, 70)),
-	})
-	fgrad.Rotation = 90
-	fgrad.Parent = fl
-	local fstr = Instance.new("UIStroke")
-	fstr.Color = Color3.fromRGB(120, 80, 20)
-	fstr.Thickness = 3
-	fstr.Parent = fl
-	fl.Parent = fg
+	local logo = Instance.new("ImageLabel")
+	logo.Name = "FacadeSignLogo"
+	logo.BackgroundTransparency = 1
+	logo.Size = UDim2.fromScale(1, 1)
+	logo.ScaleType = Enum.ScaleType.Fit
+	logo.Image = "rbxthumb://type=Asset&id=87423442650122&w=420&h=420"
+	logo.Parent = fg
 	task.spawn(function()
 		while sbk.Parent do
 			TweenService:Create(fGlow, TweenInfo.new(1.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), { Brightness = 3.0 }):Play()

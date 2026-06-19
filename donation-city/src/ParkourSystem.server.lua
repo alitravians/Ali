@@ -798,68 +798,148 @@ local EXIT_POS  = V(6, 5, 60)          -- خروج آمن قرب نقطة الا
 local ENTRY_POS = V(-20, 1.3, 60)      -- منصّة دخول أرضية بجانب الانطلاق الرئيسي (مرئية وسهلة الوصول)
 
 ----------------------------------------------------------------------
--- بوّابة دخول الباركور 3D (قطع أصلية): قاعدة إطلاق دائرية + حلقة ضوء
--- خضراء دوّارة + قوس بعمودين ولافتة «برج الباركور» + عمود ضوء يطلع
--- للسماء + فقاعة «اضغط E للبدء». البدء بالضغط (ProximityPrompt) مع عدّ
--- تنازلي ٣·٢·١ بدل البدء التلقائي باللمس (يمنع الانطلاق بالغلط). كل
--- القطع Anchored؛ الحلقة تدور فقط عند اقتراب لاعب → صفر استهلاك عند الخمول.
+-- بوّابة دخول الباركور — نصب رخامي ذهبي احترافي (قطع أصلية فقط):
+--   • منصّة إطلاق دائرية مدرّجة (رخام) بحافة ذهبية + قرص «ابدأ» أخضر
+--     + شيفرونات ذهبية تشير للمركز + أذرع ضوء ذهبية تدور عند الاقتراب.
+--   • قوس بعمودين رخاميين بقواعد وتيجان ذهبية ونقش مضيء + عارضة علوية
+--     تحمل لوحة «برج الباركور» بإطار ذهبي + شريط بألوان المراحل الخمس.
+--   • منارتان جانبيتان بخمس حلقات ملوّنة (تلميح للمراحل) + لوحة «أفضل وقت».
+--   • منارة محتواة تنطلق من أعلى القوس للأعلى فقط (لا تخترق البوّابة).
+--   • أنيميشن دخول: عند الضغط E يتثبّت اللاعب ويمسحه قرص ضوء ينزل من
+--     أعلى القوس للقاعدة، ثم يُنقل لقمة البرج. كله Anchored؛ الدوران/المسح
+--     يعملان فقط عند الحاجة → صفر استهلاك عند الخمول.
 ----------------------------------------------------------------------
-local GREENZ = C3(60, 190, 110)         -- أخضر منطقة البداية
-local CONCR  = C3(120, 126, 138)        -- خرسانة القوس
+local MARBLE  = C3(228, 220, 206)       -- رخام فاتح
+local MARBL2  = C3(196, 186, 170)       -- رخام أغمق (الدرجات/القواعد)
+local GOLDLIT = C3(255, 214, 130)       -- ذهبي متوهّج (Neon)
+local GREENZ  = C3(64, 200, 120)        -- أخضر «ابدأ»
+local DARKBG  = C3(24, 30, 46)          -- خلفية اللوحة
+local SCANC   = C3(120, 225, 245)       -- قرص المسح الضوئي
+local SCANRIM = C3(160, 242, 255)       -- حافة المسح
 
 local gate = Instance.new("Model"); gate.Name = "ParkourGate"; gate.Parent = Workspace
 
--- قاعدة الإطلاق الدائرية (يقف عليها اللاعب)
+local padTopY = ENTRY_POS.Y + 0.4
+
+-- منصّة إطلاق مدرّجة (قرصان رخاميان متناقصان تحت سطح الوقوف)
+mkCyl("PadStep1", 0.8, 16.5, ENTRY_POS.Y - 0.5, ENTRY_POS.X, ENTRY_POS.Z, MARBL2, Enum.Material.Marble, gate, true).CanTouch = false
+mkCyl("PadStep2", 0.8, 13.0, ENTRY_POS.Y - 0.1, ENTRY_POS.X, ENTRY_POS.Z, MARBLE, Enum.Material.Marble, gate, true).CanTouch = false
+
+-- القرص العلوي (سطح الوقوف)
 local entryPad = Instance.new("Part")
 entryPad.Name = "ParkourEntry"; entryPad.Anchored = true; entryPad.CanCollide = true
 entryPad.Shape = Enum.PartType.Cylinder
 entryPad.Size = V(0.8, 10, 10)
 entryPad.CFrame = CFrame.new(ENTRY_POS) * CFrame.Angles(0, 0, math.rad(90))
-entryPad.Color = C3(46, 54, 70); entryPad.Material = Enum.Material.Metal
+entryPad.Color = MARBLE; entryPad.Material = Enum.Material.Marble
 entryPad.TopSurface = Enum.SurfaceType.Smooth; entryPad.Parent = gate
 
-local padTopY = ENTRY_POS.Y + 0.4
+-- حافة ذهبية متوهّجة حول القرص العلوي (قرص نيون أكبر بقليل يطلّ كحلقة)
+local padRim = mkCyl("PadRim", 0.3, 11.0, padTopY - 0.12, ENTRY_POS.X, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate, false)
+padRim.CanTouch = false
 
--- حلقة ضوء خضراء (قرص نيون فوق القاعدة) + قرص داخلي غامق
-local ring = mkCyl("GateRing", 0.25, 9.0, padTopY + 0.18, ENTRY_POS.X, ENTRY_POS.Z, CPGLOW, Enum.Material.Neon, gate, false)
-ring.Transparency = 0.45; ring.CanTouch = false
-local ringIn = mkCyl("GateRingInner", 0.3, 6.0, padTopY + 0.16, ENTRY_POS.X, ENTRY_POS.Z, C3(20, 30, 40), Enum.Material.SmoothPlastic, gate, false)
-ringIn.Transparency = 0.2; ringIn.CanTouch = false
+-- قرص «ابدأ» أخضر بالمركز + نص على الوجه العلوي
+local goDisc = mkCyl("GoDisc", 0.22, 4.8, padTopY + 0.07, ENTRY_POS.X, ENTRY_POS.Z, GREENZ, Enum.Material.Neon, gate, false)
+goDisc.CanTouch = false; goDisc.Transparency = 0.1
+do
+	local goText = mk("GoText", V(4.2, 0.12, 4.2), CFrame.new(ENTRY_POS.X, padTopY + 0.2, ENTRY_POS.Z), GREENZ, Enum.Material.Neon, gate, false)
+	goText.Transparency = 1; goText.CanTouch = false
+	local sg = Instance.new("SurfaceGui")
+	sg.Face = Enum.NormalId.Top; sg.AutoLocalize = false
+	sg.CanvasSize = Vector2.new(400, 400); sg.LightInfluence = 0; sg.Parent = goText
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true
+	lbl.Text = "ابدأ"; lbl.TextColor3 = C3(12, 40, 22); lbl.Parent = sg
+end
 
--- أذرع ضوء دوّارة (٣ أذرع تلتفّ حول المركز)
+-- شيفرونات ذهبية (٨) تشير نحو المركز
+for k = 0, 7 do
+	local a = math.rad(k * 45)
+	local r = 3.7
+	local px, pz = ENTRY_POS.X + math.cos(a) * r, ENTRY_POS.Z + math.sin(a) * r
+	local chev = mk("PadChevron", V(1.5, 0.16, 0.45),
+		CFrame.new(V(px, padTopY + 0.12, pz), V(ENTRY_POS.X, padTopY + 0.12, ENTRY_POS.Z)),
+		GOLDLIT, Enum.Material.Neon, gate, false)
+	chev.CanTouch = false
+end
+
+-- أذرع ضوء ذهبية دوّارة (٣) فوق القرص — تدور عند الاقتراب فقط
 local gateBars = {}
 for i = 1, 3 do
-	local bar = mk("GateSweep", V(8.6, 0.22, 0.7), CFrame.new(ENTRY_POS + V(0, 0.6, 0)), CPGLOW, Enum.Material.Neon, gate, false)
+	local bar = mk("GateSweep", V(9.0, 0.18, 0.5), CFrame.new(ENTRY_POS + V(0, 0.55, 0)), GOLDLIT, Enum.Material.Neon, gate, false)
 	bar.CanTouch = false; bar.Transparency = 0.1
 	gateBars[i] = bar
 end
 
--- قوس بعمودين + عارضة علوية
+-- قوس بعمودين رخاميين بقواعد وتيجان ذهبية ونقش مضيء
+local PZ = 4.7                                   -- إزاحة العمود على المحور Z
 for _, sz in ipairs({ -1, 1 }) do
-	mk("GatePillar", V(1.2, 9.0, 1.2), CFrame.new(ENTRY_POS + V(0, 4.5, sz * 4.2)), CONCR, Enum.Material.Concrete, gate, true)
-	mk("GatePillarBase", V(1.8, 0.7, 1.8), CFrame.new(ENTRY_POS + V(0, 0.65, sz * 4.2)), GREENZ, Enum.Material.Neon, gate, false)
+	local cz = ENTRY_POS.Z + sz * PZ
+	mk("GatePillar", V(1.5, 9.4, 1.5), CFrame.new(ENTRY_POS.X, ENTRY_POS.Y + 4.7, cz), MARBLE, Enum.Material.Marble, gate, true)
+	mk("GatePillarBase", V(2.3, 0.9, 2.3), CFrame.new(ENTRY_POS.X, ENTRY_POS.Y + 0.45, cz), MARBL2, Enum.Material.Marble, gate, true).CanTouch = false
+	mk("GatePillarBaseCap", V(2.0, 0.5, 2.0), CFrame.new(ENTRY_POS.X, ENTRY_POS.Y + 1.05, cz), GOLD, Enum.Material.Metal, gate, true).CanTouch = false
+	mk("GatePillarCap", V(2.2, 0.9, 2.2), CFrame.new(ENTRY_POS.X, ENTRY_POS.Y + 9.7, cz), GOLD, Enum.Material.Metal, gate, false).CanTouch = false
+	local fl = mk("GateFlute", V(0.2, 7.0, 0.4), CFrame.new(ENTRY_POS.X + 0.78, ENTRY_POS.Y + 4.9, cz), GOLDLIT, Enum.Material.Neon, gate, false)
+	fl.CanTouch = false
 end
-mk("GateBeamTop", V(1.2, 1.2, 10.0), CFrame.new(ENTRY_POS + V(0, 9.2, 0)), CONCR, Enum.Material.Concrete, gate, false)
 
--- لافتة «برج الباركور» على العارضة (تواجه ±X، تُقرأ من الجهتين)
+-- العارضة العلوية (رخام) + شريط ذهبي سفلي
+mk("GateBeamTop", V(1.8, 1.4, 11.2), CFrame.new(ENTRY_POS.X, ENTRY_POS.Y + 10.0, ENTRY_POS.Z), MARBLE, Enum.Material.Marble, gate, false).CanTouch = false
+mk("GateBeamTrim", V(0.5, 0.4, 11.2), CFrame.new(ENTRY_POS.X + 0.75, ENTRY_POS.Y + 9.35, ENTRY_POS.Z), GOLDLIT, Enum.Material.Neon, gate, false).CanTouch = false
+
+-- لافتة «برج الباركور» بإطار ذهبي (تواجه ±X، تُقرأ من الجهتين)
 do
-	local sign = mk("GateSign", V(8.6, 2.6, 0.3), CFrame.new(ENTRY_POS + V(0, 9.2, 0)) * CFrame.Angles(0, math.rad(90), 0), SIGNBG, Enum.Material.SmoothPlastic, gate, false)
+	local frameCF = CFrame.new(ENTRY_POS.X + 0.2, ENTRY_POS.Y + 9.6, ENTRY_POS.Z) * CFrame.Angles(0, math.rad(90), 0)
+	mk("GateSignFrame", V(9.4, 3.4, 0.22), frameCF, GOLD, Enum.Material.Metal, gate, false).CanTouch = false
+	local sign = mk("GateSign", V(8.6, 2.6, 0.32), CFrame.new(ENTRY_POS.X + 0.35, ENTRY_POS.Y + 9.6, ENTRY_POS.Z) * CFrame.Angles(0, math.rad(90), 0), DARKBG, Enum.Material.SmoothPlastic, gate, false)
 	sign.CanTouch = false
-	signGui(sign, "برج الباركور\nاضغط E للبدء", GOLD, 720)
+	signGui(sign, "برج الباركور", GOLD, 720)
 end
 
--- عمود ضوء يطلع للسماء (قلب البوّابة) + هالة
+-- شريط ألوان المراحل الخمس تحت اللافتة (تلميح للتحدّي)
+for k = 0, 4 do
+	local seg = mk("GateStageSeg", V(0.3, 0.5, 1.5),
+		CFrame.new(ENTRY_POS.X + 0.55, ENTRY_POS.Y + 7.9, ENTRY_POS.Z + (k - 2) * 1.7),
+		STAGE_COLOR[k + 1], Enum.Material.Neon, gate, false)
+	seg.CanTouch = false
+end
+
+-- منارتان جانبيتان بخمس حلقات ملوّنة + كرة ذهبية بالقمة
+for _, sz in ipairs({ -1, 1 }) do
+	local bx, bz = ENTRY_POS.X, ENTRY_POS.Z + sz * 9.2
+	mkCyl("BeaconPost", 7.0, 1.5, ENTRY_POS.Y + 3.2, bx, bz, MARBL2, Enum.Material.Marble, gate, true).CanTouch = false
+	for k = 0, 4 do
+		local band = mkCyl("BeaconBand", 0.7, 2.1, ENTRY_POS.Y + 1.6 + k * 1.25, bx, bz, STAGE_COLOR[k + 1], Enum.Material.Neon, gate, false)
+		band.CanTouch = false
+	end
+	mkBall("BeaconTop", 1.7, bx, ENTRY_POS.Y + 7.5, bz, GOLDLIT, Enum.Material.Neon, gate)
+end
+
+-- لوحة «أفضل وقت» هولوغرام بجانب البوّابة (تحفيز التنافس)
 do
-	local beamCore = mkCyl("GateSkyBeam", 44, 1.6, padTopY + 22, ENTRY_POS.X, ENTRY_POS.Z, CPGLOW, Enum.Material.Neon, gate, false)
-	beamCore.Transparency = 0.55; beamCore.CanTouch = false
-	local beamHalo = mkCyl("GateSkyHalo", 40, 3.4, padTopY + 20, ENTRY_POS.X, ENTRY_POS.Z, CPGLOW, Enum.Material.Neon, gate, false)
-	beamHalo.Transparency = 0.85; beamHalo.CanTouch = false
+	local hx, hz = ENTRY_POS.X + 6.5, ENTRY_POS.Z + 7.5
+	mkCyl("HoloPost", 3.6, 0.7, ENTRY_POS.Y + 1.3, hx, hz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
+	local boardCF = CFrame.new(hx, ENTRY_POS.Y + 3.4, hz) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(-12), 0, 0)
+	local board = mk("HoloBoard", V(3.6, 2.2, 0.18), boardCF, SCANC, Enum.Material.Neon, gate, false)
+	board.CanTouch = false; board.Transparency = 0.25
+	signGui(board, "أفضل وقت\nتحدَّ نفسك", DARKBG, 480)
 end
 
--- فقاعة العدّ التنازلي فوق القوس (تظهر فقط أثناء العدّ)
+-- منارة محتواة تنطلق من أعلى القوس للأعلى فقط (لا تخترق البوّابة) + كرة تتويج
+do
+	local baseY = ENTRY_POS.Y + 10.7
+	local beaconCore = mkCyl("GateBeacon", 13, 0.9, baseY + 6.5, ENTRY_POS.X, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate, false)
+	beaconCore.Transparency = 0.5; beaconCore.CanTouch = false
+	local beaconHalo = mkCyl("GateBeaconHalo", 12, 2.2, baseY + 6.0, ENTRY_POS.X, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate, false)
+	beaconHalo.Transparency = 0.85; beaconHalo.CanTouch = false
+	mkBall("GateBeaconCap", 2.0, ENTRY_POS.X, baseY + 13.2, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate)
+end
+
+-- فقاعة العدّ/الحالة فوق القوس (تظهر فقط أثناء الدخول)
 local gateCountLbl, gateCountBB
 do
-	local anchor = mk("GateCountAnchor", V(0.4, 0.4, 0.4), CFrame.new(ENTRY_POS + V(0, 12.4, 0)), CPGLOW, Enum.Material.SmoothPlastic, gate, false)
+	local anchor = mk("GateCountAnchor", V(0.4, 0.4, 0.4), CFrame.new(ENTRY_POS + V(0, 13.0, 0)), GOLDLIT, Enum.Material.SmoothPlastic, gate, false)
 	anchor.Transparency = 1; anchor.CanTouch = false
 	gateCountBB = Instance.new("BillboardGui")
 	gateCountBB.Name = "GateCountdown"; gateCountBB.Adornee = anchor
@@ -873,8 +953,8 @@ do
 	gateCountLbl.Text = ""; gateCountLbl.Parent = gateCountBB
 end
 
--- فقاعة «اضغط E للبدء» على القاعدة (ProximityPrompt)
-local promptPart = mk("GatePromptPart", V(0.6, 0.6, 0.6), CFrame.new(ENTRY_POS + V(0, 1.8, 0)), CPGLOW, Enum.Material.SmoothPlastic, gate, false)
+-- فقاعة «ابدأ» على القاعدة (ProximityPrompt)
+local promptPart = mk("GatePromptPart", V(0.6, 0.6, 0.6), CFrame.new(ENTRY_POS + V(0, 1.8, 0)), GOLDLIT, Enum.Material.SmoothPlastic, gate, false)
 promptPart.Transparency = 1; promptPart.CanTouch = false
 local gatePrompt = Instance.new("ProximityPrompt")
 gatePrompt.Name = "StartParkour"
@@ -886,6 +966,49 @@ gatePrompt.HoldDuration = 0
 gatePrompt.RequiresLineOfSight = false
 gatePrompt.MaxActivationDistance = 14
 gatePrompt.Parent = promptPart
+
+-- أنيميشن المسح الضوئي عند الدخول: يثبّت اللاعب ويمسحه قرص ينزل من أعلى
+-- القوس للقاعدة، ثم يُنقل لقمة البرج (يُبنى عند الحاجة ويُهدَم بعدها → صفر خمول)
+local function runEntryScan(player)
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local wasAnchored = if hrp then hrp.Anchored else false
+	local wasPlatformStand = if hum then hum.PlatformStand else false
+	local rig
+	-- يُغلّف الجسم كاملاً (التثبيت + بناء المؤثّر + العرض) بـpcall، فيُضمن
+	-- التنظيف أدناه دائماً حتى لو أخفقت أي خطوة → اللاعب لا يبقى مثبّتاً أبداً
+	pcall(function()
+		if hrp then
+			hrp.CFrame = CFrame.new(ENTRY_POS.X, padTopY + 3.0, ENTRY_POS.Z)
+			hrp.Anchored = true
+		end
+		if hum then hum.PlatformStand = true end
+
+		rig = Instance.new("Model"); rig.Name = "GateScanFX"; rig.Parent = gate
+		local topY = ENTRY_POS.Y + 9.2
+		local botY = padTopY + 0.4
+		local disc = mkCyl("ScanDisc", 0.3, 9.2, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANC, Enum.Material.Neon, rig, false)
+		disc.Transparency = 0.3; disc.CanTouch = false
+		local rim = mkCyl("ScanRim", 0.5, 9.9, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANRIM, Enum.Material.Neon, rig, false)
+		rim.Transparency = 0.1; rim.CanTouch = false
+
+		local T = 1.25
+		local t0 = os.clock()
+		while true do
+			local a = (os.clock() - t0) / T
+			if a >= 1 then break end
+			local y = topY + (botY - topY) * a
+			local cf = CFrame.new(ENTRY_POS.X, y, ENTRY_POS.Z) * CFrame.Angles(0, 0, math.rad(90))
+			disc.CFrame = cf; rim.CFrame = cf
+			if not (player.Parent and player.Character == char and hrp and hrp.Parent) then break end
+			RunService.Heartbeat:Wait()
+		end
+	end)
+	if rig then rig:Destroy() end
+	if hrp and hrp.Parent then hrp.Anchored = wasAnchored end
+	if hum and hum.Parent then hum.PlatformStand = wasPlatformStand end
+end
 
 -- دوران الأذرع: فقط عند اقتراب لاعب (صفر استهلاك عند الخمول)
 task.spawn(function()
@@ -900,7 +1023,7 @@ task.spawn(function()
 			local dt = RunService.Heartbeat:Wait()
 			theta = (theta + 1.7 * dt) % (math.pi * 2)
 			for i, bar in ipairs(gateBars) do
-				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.6, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
+				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.55, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
 			end
 		else
 			task.wait(0.5)
@@ -1024,8 +1147,8 @@ stopRemote.OnServerEvent:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- بوّابة الدخول: الضغط E → عدّ تنازلي ٣·٢·١ → بدء الجولة والنقل للقاعدة
--- (بدل البدء التلقائي باللمس؛ يمنع الانطلاق بالغلط عند المرور فوق القاعدة)
+-- بوّابة الدخول: الضغط E → تثبيت اللاعب + مسح ضوئي ينزل من القوس → النقل
+-- لقمة البرج (بدل البدء التلقائي باللمس؛ يمنع الانطلاق بالغلط عند المرور)
 ----------------------------------------------------------------------
 local gateCountingDown = false
 local function setGateNumber(txt, col)
@@ -1050,17 +1173,23 @@ gatePrompt.Triggered:Connect(function(player)
 	gateCountingDown = true
 	gatePrompt.Enabled = false
 	task.spawn(function()
-		for _, n in ipairs({ "٣", "٢", "١" }) do
-			setGateNumber(n, GOLD)
-			if _G.NotifyPlayer then _G.NotifyPlayer(player, "الانطلاق بعد " .. n .. "…") end
-			task.wait(1)
+		-- pcall يضمن أن البوّابة تُفتح دائماً حتى لو أخفق المسح/البدء (يمنع قفلاً دائماً)
+		local ok, err = pcall(function()
+			setGateNumber("استعد", GOLD)
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "ثبّت مكانك… جارٍ المسح الضوئي.") end
+			task.wait(0.5)
+			setGateNumber("مسح ضوئي…", SCANC)
+			runEntryScan(player)
+			setGateNumber("انطلق!", CPGLOW)
+			local cur = runState[player.UserId]
+			if player.Parent and not (cur and cur.inRun) then
+				startRun(player)
+			end
+			task.wait(0.6)
+		end)
+		if not ok then
+			warn("[ParkourGate] خطأ في تسلسل الدخول: " .. tostring(err))
 		end
-		setGateNumber("انطلق!", CPGLOW)
-		local cur = runState[player.UserId]
-		if player.Parent and not (cur and cur.inRun) then
-			startRun(player)
-		end
-		task.wait(0.7)
 		setGateNumber("", nil)
 		gatePrompt.Enabled = true
 		gateCountingDown = false
