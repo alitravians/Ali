@@ -258,7 +258,7 @@ local function buildCheckpoint(_i, cx, cz, top, numeral, fwd)
 	local disc = mkCyl("CPDisc", 0.3, 9.5, top + 0.16, cx, cz, CPGLOW, Enum.Material.Neon, fCP, false)
 	disc.CanTouch = true
 	disc.Transparency = 0.25
-	table.insert(cpPads, disc)
+	table.insert(cpPads, { part = disc, fwd = fwd })
 	local bx, bz = cx - fwd.X * 3.5, cz - fwd.Z * 3.5
 	local signCF = CFrame.lookAt(V(bx, top + 3.2, bz), V(bx - fwd.X, top + 3.2, bz - fwd.Z))
 	local sign = mk("CPNum", V(2.6, 2.6, 0.3), signCF, SIGNBG, Enum.Material.SmoothPlastic, fCP, false)
@@ -790,7 +790,7 @@ end
 ----------------------------------------------------------------------
 local P0        = platCenter(0)
 local SPAWN_POS = V(P0.X, platTop(0) + 3.5, P0.Z)
-local SPAWN_CF  = CFrame.new(SPAWN_POS)
+local SPAWN_CF  = CFrame.lookAt(SPAWN_POS, SPAWN_POS + fwdAt(0))   -- يواجه أوّل قفزة
 local BASE_Y    = platTop(0) + 3.5
 local FINISH_Y  = platTop(COUNT - 1) + 3.5
 local FALL_Y    = platTop(0) - 12
@@ -1070,7 +1070,8 @@ end)
 ----------------------------------------------------------------------
 -- نقاط الحفظ المرقّمة: تثبّت نقطة الرجوع + تحتسب مهمة parkour_cp
 ----------------------------------------------------------------------
-for _, pad in ipairs(cpPads) do
+for _, cp in ipairs(cpPads) do
+	local pad, cpFwd = cp.part, cp.fwd
 	local topY = pad.Position.Y
 	pad.Touched:Connect(function(hit)
 		local player = playerFromHit(hit)
@@ -1084,7 +1085,8 @@ for _, pad in ipairs(cpPads) do
 		end
 		if topY > st.cpY + 1.5 then
 			st.cpY = topY
-			st.cpCF = CFrame.new(pad.Position.X, topY + 3.5, pad.Position.Z)
+			local cpPos = V(pad.Position.X, topY + 3.5, pad.Position.Z)
+			st.cpCF = CFrame.lookAt(cpPos, cpPos + cpFwd)   -- يواجه اتجاه التقدّم
 		end
 	end)
 end
