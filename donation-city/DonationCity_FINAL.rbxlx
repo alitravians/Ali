@@ -9143,6 +9143,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local DataStoreService  = game:GetService("DataStoreService")
 local Debris            = game:GetService("Debris")
+local ContentProvider   = game:GetService("ContentProvider")
+
+-- معرّف صوت المسح الضوئي «scanner-sound-effect» (Audio، مملوك لحساب اللعبة، معتمَد رقابياً)
+local SCAN_SOUND_ID = "rbxassetid://76270469261531"
+
+-- تحميل مسبق للصوت عند بدء السيرفر كي يكون طوله (TimeLength) معروفاً فور أول دخول،
+-- فتُزامَن حركة المسح معه بدقّة دون أي انتظار محسوس
+task.spawn(function()
+	local pre = Instance.new("Sound")
+	pre.SoundId = SCAN_SOUND_ID
+	pcall(function() ContentProvider:PreloadAsync({ pre }) end)
+	pre:Destroy()
+end)
 
 local V = Vector3.new
 local C3 = Color3.fromRGB
@@ -10117,14 +10130,20 @@ local function runEntryScan(player)
 		-- رقابة) يتعطّل الصوت بهدوء دون كسر التسلسل لأن التنظيف لا يعتمد على نجاح التحميل
 		snd = Instance.new("Sound")
 		snd.Name = "ScanSound"
-		snd.SoundId = "rbxassetid://76270469261531"
+		snd.SoundId = SCAN_SOUND_ID
 		snd.Volume = 1
 		snd.RollOffMode = Enum.RollOffMode.InverseTapered
 		snd.RollOffMaxDistance = 80
 		snd.Parent = disc
-		snd:Play()
 
-		local T = 1.25
+		-- زامن مدة نزول القرص مع طول الصوت: انتظر معرفة طوله (محمّل مسبقاً فيكون فورياً،
+		-- وبحدّ أقصى قصير احتياطاً)، ثم يبدأ الصوت والحركة وينتهيان معاً تماماً
+		local loadEnd = os.clock() + 0.75
+		while snd.TimeLength <= 0 and os.clock() < loadEnd do
+			RunService.Heartbeat:Wait()
+		end
+		local T = if snd.TimeLength > 0 then math.clamp(snd.TimeLength, 0.8, 3.5) else 1.25
+		snd:Play()
 		local t0 = os.clock()
 		while true do
 			local a = (os.clock() - t0) / T
