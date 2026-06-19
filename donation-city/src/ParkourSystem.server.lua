@@ -437,19 +437,6 @@ do
 		return p
 	end
 
-	-- كرة/قبّة (Ball) بإطار الضابط؛ أبعاد غير منتظمة = شكل بيضاوي (للبريه)
-	local function oball(bx, by, bz, sx, sy, sz, color, material, rcf)
-		local p = Instance.new("Part")
-		p.Name = "OBall"; p.Anchored = true; p.CanCollide = false; p.CanTouch = false
-		p.Shape = Enum.PartType.Ball
-		p.Size = lsz(sx, sy, sz)
-		p.Color = color
-		p.Material = material or Enum.Material.SmoothPlastic
-		p.CFrame = base * CFrame.new(lp(bx, by, bz)) * (rcf or CFrame.new())
-		p.Parent = officer
-		return p
-	end
-
 	-- إطار وضع العناصر على وجه أمامي/جانبي (FRONT/LEFT/RIGHT) للشارات والرقع
 	local function faceFrame(face, cx, cy, cz)
 		local function P(u, v, d)
@@ -580,7 +567,7 @@ do
 		ocyl(sx * 0.31, -0.67, 5.47, 0.085, 0.05, oIRIS, Enum.Material.SmoothPlastic, "Y")  -- قزحية
 		ocyl(sx * 0.31, -0.70, 5.47, 0.035, 0.05, oEYE, Enum.Material.SmoothPlastic, "Y")   -- بؤبؤ
 		obox(sx * 0.31, -0.65, 5.585, 0.34, 0.12, 0.07, oSKIN)                              -- جفن
-		obox(sx * 0.32, -0.70, 5.64, 0.36, 0.06, 0.085, oBROW, nil, CFrame.Angles(0, math.rad(sx * 9), 0)) -- حاجب
+		obox(sx * 0.32, -0.70, 5.64, 0.36, 0.06, 0.085, oBROW, nil, CFrame.Angles(0, 0, math.rad(sx * 9))) -- حاجب
 	end
 	obox(0, -0.78, 5.42, 0.18, 0.18, 0.44, oSKIN)                  -- جسر الأنف
 	obox(0, -0.85, 5.18, 0.26, 0.22, 0.20, oSKIN)                  -- طرف الأنف
@@ -591,14 +578,16 @@ do
 	obox(0, -0.65, 4.945, 0.30, 0.09, 0.055, oLIP)                 -- شفة سفلى
 	obox(0, -0.69, 4.98, 0.30, 0.04, 0.015, oEYE)                  -- خطّ الفم
 
-	-- ═══ البريه الكحلي المائل (رباط + قبّة + طيّة + زرّ) + شارة شعار أمامية ═══
-	ocyl(0.05, 0.05, 5.93, 0.74, 0.26, oBLACK, Enum.Material.Fabric, "Z")            -- رباط الرأس
-	oball(0.14, 0.06, 6.12, 1.696, 1.632, 0.832, oNAVY, Enum.Material.Fabric,
-		CFrame.Angles(0, math.rad(14), 0) * CFrame.Angles(math.rad(8), 0, 0))        -- قبّة البريه
-	oball(-0.56, 0.08, 5.98, 1.05, 1.0, 0.46, oNAVY, Enum.Material.Fabric,
-		CFrame.Angles(0, math.rad(-8), 0) * CFrame.Angles(math.rad(10), 0, 0))       -- طيّة مائلة
-	oball(0.14, 0.06, 6.42, 0.14, 0.14, 0.14, oNAVY, Enum.Material.Fabric)           -- زرّ علوي
-	ocrest(-0.34, -0.66, 5.99, 0.5, "FRONT")                                         -- شارة الكاب
+	-- ═══ البريه الكحلي المائل (رباط + قبّة قرصية مائلة + طيّة منسدلة + زرّ) + شارة شعار أمامية ═══
+	-- قطع روبلوكس الكرة (Ball) تُرسَم دائماً ككرة منتظمة بأصغر بُعد؛ فالقبّة مبنية من أقراص
+	-- أسطوانية مائلة (caxis="Z") لإنتاج شكل البريه المنسدل الصحيح بصرياً.
+	local beretTilt = CFrame.Angles(0, 0, math.rad(14)) * CFrame.Angles(math.rad(8), 0, 0)
+	local beretFlop = CFrame.Angles(0, 0, math.rad(24)) * CFrame.Angles(math.rad(12), 0, 0)
+	ocyl(0.05, 0.05, 5.93, 0.74, 0.26, oBLACK, Enum.Material.Fabric, "Z")              -- رباط الرأس
+	ocyl(0.16, 0.06, 6.06, 0.98, 0.34, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- قبّة البريه (قرص عريض مائل)
+	ocyl(0.64, 0.08, 6.02, 0.56, 0.20, oNAVY, Enum.Material.Fabric, "Z", beretFlop)   -- طيّة منسدلة جانبية
+	ocyl(0.16, 0.06, 6.30, 0.13, 0.12, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- زرّ علوي
+	ocrest(-0.34, -0.66, 5.99, 0.5, "FRONT")                                          -- شارة الكاب
 
 	-- ═══ السترة التكتيكية (Plate Carrier) + جِعَب MOLLE + شارات أمامية واضحة ═══
 	obox(0, -0.02, 3.55, 2.26, 1.28, 1.92, oBLACK2, Enum.Material.Fabric)            -- جسم السترة
