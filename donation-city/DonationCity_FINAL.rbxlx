@@ -9593,11 +9593,11 @@ do
 	-- قطع روبلوكس الكرة (Ball) تُرسَم دائماً ككرة منتظمة بأصغر بُعد؛ فالقبّة مبنية من أقراص
 	-- أسطوانية مائلة (caxis="Z") لإنتاج شكل البريه المنسدل الصحيح بصرياً.
 	local beretTilt = CFrame.Angles(0, 0, math.rad(14)) * CFrame.Angles(math.rad(8), 0, 0)
-	local beretFlop = CFrame.Angles(0, 0, math.rad(24)) * CFrame.Angles(math.rad(12), 0, 0)
-	ocyl(0.05, 0.05, 5.93, 0.74, 0.26, oBLACK, Enum.Material.Fabric, "Z")              -- رباط الرأس
-	ocyl(0.16, 0.06, 6.06, 0.98, 0.34, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- قبّة البريه (قرص عريض مائل)
-	ocyl(0.64, 0.08, 6.02, 0.56, 0.20, oNAVY, Enum.Material.Fabric, "Z", beretFlop)   -- طيّة منسدلة جانبية
-	ocyl(0.16, 0.06, 6.30, 0.13, 0.12, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- زرّ علوي
+	ocyl(0.05, 0.05, 5.90, 0.74, 0.24, oBLACK, Enum.Material.Fabric, "Z")              -- رباط الرأس
+	ocyl(0.18, 0.05, 6.04, 1.04, 0.20, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- طيّة عريضة منسدلة (overhang)
+	ocyl(0.16, 0.06, 6.16, 0.82, 0.22, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- قبّة وسطى مدوّرة
+	ocyl(0.14, 0.07, 6.28, 0.48, 0.18, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- قمّة القبّة
+	ocyl(0.13, 0.07, 6.38, 0.14, 0.12, oNAVY, Enum.Material.Fabric, "Z", beretTilt)   -- زرّ علوي
 	ocrest(-0.34, -0.66, 5.99, 0.5, "FRONT")                                          -- شارة الكاب
 
 	-- ═══ السترة التكتيكية (Plate Carrier) + جِعَب MOLLE + شارات أمامية واضحة ═══
