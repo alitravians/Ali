@@ -10088,16 +10088,18 @@ local function runEntryScan(player)
 	local char = player.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
-	if hrp then
-		hrp.CFrame = CFrame.new(ENTRY_POS.X, padTopY + 3.0, ENTRY_POS.Z)
-	end
-	local wasAnchored = false
-	if hrp then wasAnchored = hrp.Anchored; hrp.Anchored = true end
-	if hum then hum.PlatformStand = true end
-
-	local rig = Instance.new("Model"); rig.Name = "GateScanFX"; rig.Parent = gate
-	-- يُغلّف العرض بـpcall لضمان فكّ تثبيت اللاعب وهدم المؤثّر حتى لو حصل خطأ
+	local wasAnchored = hrp and hrp.Anchored or false
+	local rig
+	-- يُغلّف الجسم كاملاً (التثبيت + بناء المؤثّر + العرض) بـpcall، فيُضمن
+	-- التنظيف أدناه دائماً حتى لو أخفقت أي خطوة → اللاعب لا يبقى مثبّتاً أبداً
 	pcall(function()
+		if hrp then
+			hrp.CFrame = CFrame.new(ENTRY_POS.X, padTopY + 3.0, ENTRY_POS.Z)
+			hrp.Anchored = true
+		end
+		if hum then hum.PlatformStand = true end
+
+		rig = Instance.new("Model"); rig.Name = "GateScanFX"; rig.Parent = gate
 		local topY = ENTRY_POS.Y + 9.2
 		local botY = padTopY + 0.4
 		local disc = mkCyl("ScanDisc", 0.3, 9.2, topY, ENTRY_POS.X, ENTRY_POS.Z, SCANC, Enum.Material.Neon, rig, false)
@@ -10117,7 +10119,7 @@ local function runEntryScan(player)
 			RunService.Heartbeat:Wait()
 		end
 	end)
-	rig:Destroy()
+	if rig then rig:Destroy() end
 	if hrp and hrp.Parent then hrp.Anchored = wasAnchored end
 	if hum and hum.Parent then hum.PlatformStand = false end
 end
