@@ -974,6 +974,7 @@ local function runEntryScan(player)
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local wasAnchored = if hrp then hrp.Anchored else false
+	local wasPlatformStand = if hum then hum.PlatformStand else false
 	local rig
 	-- يُغلّف الجسم كاملاً (التثبيت + بناء المؤثّر + العرض) بـpcall، فيُضمن
 	-- التنظيف أدناه دائماً حتى لو أخفقت أي خطوة → اللاعب لا يبقى مثبّتاً أبداً
@@ -1006,7 +1007,7 @@ local function runEntryScan(player)
 	end)
 	if rig then rig:Destroy() end
 	if hrp and hrp.Parent then hrp.Anchored = wasAnchored end
-	if hum and hum.Parent then hum.PlatformStand = false end
+	if hum and hum.Parent then hum.PlatformStand = wasPlatformStand end
 end
 
 -- دوران الأذرع: فقط عند اقتراب لاعب (صفر استهلاك عند الخمول)
