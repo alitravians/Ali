@@ -9380,29 +9380,32 @@ do
 end
 
 ----------------------------------------------------------------------
--- ضابط شرطة بحريني عند بداية المسار (قطع أصلية، ثابت، يستقبل اللاعبين)
--- بدلة كحلية حديثة + بريه عنّابي + شارة كاب ذهبية + نجوم رتبة + علم البحرين،
--- وجه بملامح (عيون/حواجب/أنف/فم/أذنان/شعر). مبني بالكامل من Part/Cylinder
--- (صفر Union/Mesh). كل القطع Anchored وبلا تصادم/لمس → صفر فيزياء وصفر
--- استهلاك. يقف جانب نقطة الانطلاق على منصّة البداية ويواجه اللاعب القادم.
--- مرجع الهندسة: /home/ubuntu/police/officer.py (المعتمد من المستخدم).
+-- ضابط شرطة البحرين عند بداية المسار (قطع أصلية، ثابت، يستقبل اللاعبين)
+-- الزيّ التكتيكي المعتمد: قميص كحلي #0D1B33 + سترة واقية (Plate Carrier) بجِعَب
+-- MOLLE + جراب إداري، شعار شرطة البحرين الدائري كبيراً على السترة وكلا الكُمّين
+-- وشارة البريه، رقعة «شرطة البحرين / POLICE»، ٣ نجوم رتبة فضّية لامعة على مقدّمة
+-- كل عضد، لانيارد أبيض، بريه كحلي مائل، حزام مهام + جراب + جِعَب، بنطلون كارجو
+-- + بوت عسكري. مبني بالكامل من Part/Cylinder/Ball (صفر Union/Mesh). كل القطع
+-- Anchored وبلا تصادم/لمس → صفر فيزياء وصفر استهلاك. يواجه اللاعب القادم.
+-- مرجع الهندسة: /home/ubuntu/tools/officer_render.py (نسخة tac المعتمدة ١:١).
 ----------------------------------------------------------------------
 do
-	-- ألوان البدلة (مطابقة لقيم المرجع المعتمد، محوّلة 0..1 → 0..255)
-	local oNAVY   = C3(26, 33, 69)     -- كحلي البدلة
-	local oNAVY2  = C3(33, 43, 84)     -- كحلي أفتح (تفاصيل/كتافيات/جيوب)
-	local oMAROON = C3(107, 20, 36)    -- عنّابي البريه
-	local oBLACK  = C3(13, 13, 15)     -- بوت/أربطة/منخار
-	local oSKIN   = C3(219, 168, 128)  -- بشرة
-	local oGOLD   = C3(219, 176, 84)   -- أزرار/شارات/نجوم
-	local oSILVER = C3(204, 209, 217)  -- لوحة الاسم/مشبك الحزام
-	local oWHITE  = C3(237, 237, 242)  -- أبيض العلم/بياض العين
-	local oRED    = C3(199, 26, 36)    -- أحمر العلم
-	local oEYE    = C3(26, 26, 36)     -- بؤبؤ/خط الفم
-	local oBROW   = C3(41, 26, 15)     -- حاجب
-	local oHAIR   = C3(18, 13, 13)     -- شعر
-	local oLIP    = C3(148, 102, 97)   -- شفة
-	local oIRIS   = C3(66, 41, 23)     -- قزحية
+	-- ألوان زيّ شرطة البحرين (من الصورة المرجعية المعتمدة، sRGB 0..255)
+	local oNAVY   = C3(13, 27, 51)     -- كحلي الزيّ #0D1B33
+	local oNAVY2  = C3(28, 35, 64)     -- كحلي أفتح #1C2340 (تفاصيل/كتافيات/جيوب)
+	local oBLACK  = C3(16, 16, 19)     -- بوت/حزام/جِعَب/جراب
+	local oBLACK2 = C3(28, 28, 33)     -- سترة تكتيكية/أربطة/أحزمة نسيجية
+	local oSKIN   = C3(214, 164, 124)  -- بشرة
+	local oGOLD   = C3(212, 168, 78)   -- أزرار/حلقة الشعار/التاج/الإطارات
+	local oSILVER = C3(176, 183, 195)  -- مشبك الحزام
+	local oSTAR   = C3(222, 228, 238)  -- نجوم الرتبة الفضّية اللامعة
+	local oWHITE  = C3(230, 230, 230)  -- قمة الشعار/الرقعة/اللانيارد/بياض العين
+	local oRED    = C3(200, 16, 46)    -- درع الشعار #C8102E
+	local oEYE    = C3(24, 24, 32)     -- بؤبؤ/خط الفم
+	local oBROW   = C3(46, 30, 18)     -- حاجب
+	local oHAIR   = C3(22, 16, 14)     -- شعر
+	local oLIP    = C3(150, 104, 99)   -- شفة
+	local oIRIS   = C3(70, 44, 24)     -- قزحية
 
 	-- موضع الضابط: على منصّة البداية، جانب نقطة الانطلاق، يواجه اللاعب
 	local top0 = platTop(0)
@@ -9445,105 +9448,184 @@ do
 		return p
 	end
 
-	-- نجمة/شارة ذهبية مسطّحة تواجه الأمام: قرص (+ شعاعان متقاطعان للنجوم البارزة)
-	local function ostar(bx, by, bz, r, prominent)
-		ocyl(bx, by, bz, r * 0.55, 0.06, oGOLD, Enum.Material.Metal, "Y")
-		if prominent then
-			obox(bx, by, bz, r * 2.0, 0.05, r * 0.34, oGOLD, Enum.Material.Metal)
-			obox(bx, by, bz, r * 0.34, 0.05, r * 2.0, oGOLD, Enum.Material.Metal)
+	-- كرة/قبّة (Ball) بإطار الضابط؛ أبعاد غير منتظمة = شكل بيضاوي (للبريه)
+	local function oball(bx, by, bz, sx, sy, sz, color, material, rcf)
+		local p = Instance.new("Part")
+		p.Name = "OBall"; p.Anchored = true; p.CanCollide = false; p.CanTouch = false
+		p.Shape = Enum.PartType.Ball
+		p.Size = lsz(sx, sy, sz)
+		p.Color = color
+		p.Material = material or Enum.Material.SmoothPlastic
+		p.CFrame = base * CFrame.new(lp(bx, by, bz)) * (rcf or CFrame.new())
+		p.Parent = officer
+		return p
+	end
+
+	-- إطار وضع العناصر على وجه أمامي/جانبي (FRONT/LEFT/RIGHT) للشارات والرقع
+	local function faceFrame(face, cx, cy, cz)
+		local function P(u, v, d)
+			if face == "FRONT" then return cx + u, cy - d, cz + v
+			elseif face == "LEFT" then return cx - d, cy + u, cz + v
+			else return cx + d, cy + u, cz + v end
+		end
+		local function Dm(du, dv, dthin)
+			if face == "FRONT" then return du, dthin, dv else return dthin, du, dv end
+		end
+		local axis = (face == "FRONT") and "Y" or "X"
+		return P, Dm, axis
+	end
+
+	-- شعار شرطة البحرين الدائري: حلقة ذهبية + درع أحمر متوّج + قمة بيضاء مسنّنة + إكليل
+	local function ocrest(cx, cy, cz, sc, face)
+		local P, Dm, axis = faceFrame(face, cx, cy, cz)
+		local x, y, z, a, b, c
+		x, y, z = P(0, 0, 0.0);           ocyl(x, y, z, 0.33 * sc, 0.05, oGOLD, Enum.Material.Metal, axis)
+		x, y, z = P(0, 0, 0.03);          ocyl(x, y, z, 0.27 * sc, 0.07, oWHITE, Enum.Material.SmoothPlastic, axis)
+		x, y, z = P(0, -0.02 * sc, 0.06); a, b, c = Dm(0.30 * sc, 0.40 * sc, 0.08); obox(x, y, z, a, b, c, oRED)
+		x, y, z = P(0, 0.15 * sc, 0.065); a, b, c = Dm(0.30 * sc, 0.10 * sc, 0.09); obox(x, y, z, a, b, c, oWHITE)
+		for n = 0, 3 do
+			x, y, z = P(-0.105 * sc + n * 0.07 * sc, 0.15 * sc, 0.06); a, b, c = Dm(0.05 * sc, 0.07 * sc, 0.10)
+			obox(x, y, z, a, b, c, oRED)
+		end
+		x, y, z = P(0, 0.30 * sc, 0.05);  a, b, c = Dm(0.24 * sc, 0.10 * sc, 0.07); obox(x, y, z, a, b, c, oGOLD, Enum.Material.Metal)
+		for _, s2 in ipairs({ -1, 1 }) do
+			x, y, z = P(s2 * 0.26 * sc, -0.01 * sc, 0.04); a, b, c = Dm(0.06 * sc, 0.30 * sc, 0.06)
+			obox(x, y, z, a, b, c, oGOLD, Enum.Material.Metal, CFrame.Angles(0, math.rad(s2 * 10), 0))
 		end
 	end
 
-	-- الأرجل: بنطلون كحلي + بوت أسود + ثنية أمامية
-	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.46, 0, 1.35, 0.78, 0.92, 2.3, oNAVY)
-		obox(sx * 0.46, -0.04, 0.28, 0.84, 1.04, 0.56, oBLACK)
-		obox(sx * 0.46, 0.34, 1.0, 0.8, 0.18, 0.06, oNAVY2)
+	-- رقعة «شرطة البحرين / POLICE»: خلفية داكنة + سطرا نص فاتح
+	local function opatch(cx, cy, cz, face)
+		local P, Dm = faceFrame(face, cx, cy, cz)
+		local x, y, z, a, b, c
+		x, y, z = P(0, 0, 0.0);      a, b, c = Dm(0.70, 0.32, 0.05); obox(x, y, z, a, b, c, oBLACK2)
+		x, y, z = P(0, 0.075, 0.02); a, b, c = Dm(0.54, 0.05, 0.06); obox(x, y, z, a, b, c, oWHITE)
+		x, y, z = P(0, -0.06, 0.02); a, b, c = Dm(0.46, 0.06, 0.06); obox(x, y, z, a, b, c, oWHITE)
 	end
 
-	-- الجذع (سترة كحلية) + باكِت الأزرار + جيوب + لوحة اسم + نجمة صدر + ياقة
-	obox(0, 0, 3.5, 2.05, 1.06, 2.05, oNAVY)
-	obox(0, -0.55, 3.5, 0.16, 0.04, 1.9, oNAVY2)
+	-- نجمة رتبة فضّية لامعة تواجه الأمام (قرص + شعاعان + معيّن)
+	local function orankStar(bx, by, bz, r)
+		ocyl(bx, by, bz, r * 0.62, 0.07, oSTAR, Enum.Material.SmoothPlastic, "Y")
+		obox(bx, by, bz, r * 2.0, 0.07, r * 0.34, oSTAR)
+		obox(bx, by, bz, r * 0.34, 0.07, r * 2.0, oSTAR)
+		obox(bx, by, bz, r * 1.4, 0.07, r * 1.4, oSTAR, nil, CFrame.Angles(0, 0, math.rad(-45)))
+	end
+
+	-- ═══ الأرجل: بنطلون كارجو كحلي بجيوب جانبية + بوت عسكري أسود برباط ═══
+	for _, sx in ipairs({ -1, 1 }) do
+		local x = sx * 0.46
+		obox(x, 0, 1.72, 0.88, 1.02, 1.55, oNAVY)                    -- فخذ
+		obox(x, 0.04, 0.92, 0.82, 0.98, 1.45, oNAVY)                 -- ساق
+		obox(x, -0.50, 1.30, 0.84, 0.10, 0.30, oNAVY2)               -- ركبة
+		obox(x + sx * 0.46, -0.02, 1.55, 0.12, 0.46, 0.62, oNAVY2)   -- جيب كارجو جانبي
+		obox(x, 0.0, 0.58, 0.86, 0.92, 0.96, oBLACK)                 -- ساق البوت
+		obox(x, -0.22, 0.22, 0.86, 1.30, 0.44, oBLACK)               -- مقدّمة البوت
+		for k = 0, 3 do
+			obox(x, -0.45, 0.36 + k * 0.18, 0.52, 0.05, 0.05, oBLACK2) -- رباط
+		end
+	end
+	obox(0, 0, 2.56, 1.74, 1.02, 0.72, oNAVY)                        -- الحوض
+
+	-- ═══ الجذع (قميص كحلي) + باكِت أزرار + جيوب صدر + ياقة ═══
+	obox(0, 0, 3.55, 2.06, 1.08, 2.06, oNAVY)
+	obox(0, -0.55, 3.55, 0.16, 0.06, 1.92, oNAVY2)                   -- باكِت أمامي
 	for k = 0, 3 do
-		ocyl(0, -0.58, 4.15 - k * 0.5, 0.07, 0.05, oGOLD, Enum.Material.Metal, "Y")
+		ocyl(0, -0.59, 4.15 - k * 0.5, 0.065, 0.05, oGOLD, Enum.Material.Metal, "Y") -- أزرار
 	end
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.55, -0.55, 3.05, 0.62, 0.05, 0.5, oNAVY2)
-		obox(sx * 0.55, -0.56, 3.32, 0.4, 0.05, 0.06, oGOLD, Enum.Material.Metal)
+		obox(sx * 0.52, -0.55, 3.50, 0.62, 0.06, 0.46, oNAVY2)       -- جيب صدر
+		obox(sx * 0.52, -0.57, 3.74, 0.66, 0.06, 0.16, oNAVY2)       -- غطاء الجيب
+		ocyl(sx * 0.52, -0.6, 3.66, 0.04, 0.05, oGOLD, Enum.Material.Metal, "Y") -- زر الجيب
+		obox(sx * 0.34, -0.40, 4.50, 0.55, 0.30, 0.18, oNAVY2, nil, CFrame.Angles(0, math.rad(sx * 18), 0)) -- ياقة
 	end
-	obox(0.55, -0.57, 3.78, 0.6, 0.04, 0.16, oSILVER, Enum.Material.Metal)
-	ostar(-0.55, -0.58, 3.8, 0.2, true)
+
+	-- ═══ الأذرع (أكمام طويلة) + شعار البحرين الدائري على كلا الكُمّين ═══
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.4, -0.5, 4.42, 0.5, 0.16, 0.16, oNAVY2)
+		local x = sx * 1.5
+		obox(x, 0.0, 4.0, 0.76, 0.92, 1.25, oNAVY)                   -- عضد
+		obox(x, 0.06, 2.92, 0.72, 0.88, 1.15, oNAVY)                 -- ساعد
+		obox(x, 0.06, 2.40, 0.78, 0.92, 0.18, oNAVY2)                -- سوار
+		obox(x, 0.08, 2.08, 0.68, 0.84, 0.5, oSKIN)                  -- يد
 	end
+	ocrest(-1.90, -0.05, 4.08, 0.74, "LEFT")
+	ocrest(1.90, -0.05, 4.08, 0.74, "RIGHT")
 
-	-- الأذرع: كُمّ + يد + أساور + كتافية بنجمتي رتبة
+	-- ═══ الكتفان: كتافيتان + ٣ نجوم رتبة على مقدّمة كل عضد + لانيارد أبيض ═══
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 1.5, 0, 3.55, 0.74, 0.9, 1.95, oNAVY)
-		obox(sx * 1.5, 0, 2.45, 0.7, 0.86, 0.42, oSKIN)
-		obox(sx * 1.5, 0, 3.05, 0.76, 0.92, 0.12, oBLACK)
-		obox(sx * 1.5, 0, 4.5, 0.78, 0.66, 0.12, oNAVY2)
-		ostar(sx * 1.5, -0.18, 4.56, 0.12, false)
-		ostar(sx * 1.5, 0.18, 4.56, 0.12, false)
+		obox(sx * 0.62, -0.04, 4.55, 0.62, 0.86, 0.07, oGOLD, Enum.Material.Metal) -- إطار الكتافية
+		obox(sx * 0.62, -0.04, 4.60, 0.50, 0.74, 0.12, oNAVY2)                     -- الكتافية
 	end
-
-	-- علم البحرين على الكُمّ الأيمن (يُقرأ من الأمام): أحمر + أبيض + ٥ أسنان
-	obox(1.5, -0.45, 3.98, 0.46, 0.05, 0.30, oRED)
-	obox(1.34, -0.46, 3.98, 0.16, 0.05, 0.30, oWHITE)
-	for n = 0, 4 do
-		obox(1.45, -0.47, 3.85 + n * 0.072, 0.06, 0.05, 0.06, oWHITE, nil, CFrame.Angles(0, 0, math.rad(-45)))
-	end
-
-	-- الحزام + المشبك
-	obox(0, 0, 2.5, 2.1, 1.1, 0.26, oBLACK)
-	obox(0, -0.56, 2.5, 0.32, 0.06, 0.22, oSILVER, Enum.Material.Metal)
-
-	-- الرقبة
-	obox(0, 0.02, 4.55, 0.64, 0.62, 0.5, oSKIN)
-
-	-- الرأس (جمجمة + فكّ/ذقن + أذنان)
-	local cranium = obox(0, 0.02, 5.48, 1.40, 1.34, 1.04, oSKIN)
-	obox(0, -0.03, 4.96, 1.16, 1.24, 0.70, oSKIN)
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.72, 0.04, 5.36, 0.12, 0.34, 0.46, oSKIN)
+		obox(sx * 1.5, -0.47, 4.18, 0.42, 0.06, 1.00, oNAVY2)                      -- لوح الرتبة
+		obox(sx * 1.5, -0.46, 3.66, 0.50, 0.05, 0.07, oGOLD, Enum.Material.Metal)  -- شريط ذهبي
+		for n = 0, 2 do
+			orankStar(sx * 1.5, -0.53, 3.92 + n * 0.30, 0.135)
+		end
 	end
+	obox(0.92, -0.50, 4.05, 0.10, 0.10, 0.95, oWHITE, nil, CFrame.Angles(0, math.rad(8), 0) * CFrame.Angles(math.rad(20), 0, 0)) -- لانيارد
+	obox(0.78, -0.55, 3.62, 0.10, 0.55, 0.10, oWHITE)
+	ocyl(0.62, -0.6, 3.66, 0.07, 0.18, oWHITE, Enum.Material.SmoothPlastic, "Y")
 
-	-- الشعر (قصّة قصيرة تبيّن تحت البريه) + سوالف
-	obox(0, 0.07, 5.66, 1.46, 1.40, 0.62, oHAIR)
-	obox(0, -0.58, 5.90, 1.12, 0.16, 0.13, oHAIR)
+	-- ═══ الحزام + المشبك + الجراب + الجِعَب ═══
+	obox(0, 0, 2.58, 2.14, 1.14, 0.3, oBLACK)
+	obox(0, -0.6, 2.58, 0.34, 0.07, 0.24, oSILVER, Enum.Material.Metal)
+	obox(1.02, -0.18, 2.18, 0.34, 0.46, 0.78, oBLACK)                -- جراب المسدّس
+	obox(1.02, -0.30, 2.70, 0.18, 0.22, 0.34, oBLACK2, nil, CFrame.Angles(math.rad(12), 0, 0)) -- مقبض
+	obox(-0.95, -0.30, 2.40, 0.30, 0.34, 0.42, oBLACK)              -- جِعبة
+	obox(-1.02, 0.20, 2.42, 0.30, 0.34, 0.40, oBLACK)              -- جِعبة خلفية
+
+	-- ═══ الرقبة + الرأس + الوجه ═══
+	obox(0, 0.02, 4.95, 0.64, 0.62, 0.5, oSKIN)                     -- رقبة
+	local cranium = obox(0, 0.02, 5.48, 1.40, 1.34, 1.04, oSKIN)    -- جمجمة
+	obox(0, -0.03, 4.96, 1.16, 1.24, 0.70, oSKIN)                  -- فكّ/ذقن
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.71, -0.26, 5.18, 0.10, 0.34, 0.52, oHAIR)
+		obox(sx * 0.72, 0.04, 5.36, 0.12, 0.34, 0.46, oSKIN)        -- أذن
 	end
-
-	-- العيون (بياض + قزحية + بؤبؤ + جفن + حاجب بزاوية جدّية)
+	obox(0, 0.07, 5.74, 1.46, 1.40, 0.6, oHAIR)                    -- شعر علوي
+	obox(0, 0.62, 5.40, 1.30, 0.30, 0.9, oHAIR)                    -- شعر خلفي
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.31, -0.62, 5.47, 0.30, 0.08, 0.18, oWHITE)
-		ocyl(sx * 0.31, -0.67, 5.47, 0.085, 0.05, oIRIS, Enum.Material.SmoothPlastic, "Y")
-		ocyl(sx * 0.31, -0.70, 5.47, 0.035, 0.05, oEYE, Enum.Material.SmoothPlastic, "Y")
-		obox(sx * 0.31, -0.65, 5.585, 0.34, 0.12, 0.07, oSKIN)
-		obox(sx * 0.32, -0.70, 5.63, 0.36, 0.05, 0.085, oBROW, nil, CFrame.Angles(0, 0, math.rad(sx * 9)))
+		obox(sx * 0.71, -0.20, 5.18, 0.10, 0.34, 0.5, oHAIR)        -- سالف
 	end
-
-	-- الأنف (جسر + طرف + منخاران)
-	obox(0, -0.78, 5.42, 0.18, 0.18, 0.44, oSKIN)
-	obox(0, -0.85, 5.18, 0.26, 0.22, 0.20, oSKIN)
 	for _, sx in ipairs({ -1, 1 }) do
-		obox(sx * 0.11, -0.82, 5.09, 0.05, 0.10, 0.06, oBROW)
+		obox(sx * 0.31, -0.62, 5.47, 0.30, 0.08, 0.18, oWHITE)                              -- بياض العين
+		ocyl(sx * 0.31, -0.67, 5.47, 0.085, 0.05, oIRIS, Enum.Material.SmoothPlastic, "Y")  -- قزحية
+		ocyl(sx * 0.31, -0.70, 5.47, 0.035, 0.05, oEYE, Enum.Material.SmoothPlastic, "Y")   -- بؤبؤ
+		obox(sx * 0.31, -0.65, 5.585, 0.34, 0.12, 0.07, oSKIN)                              -- جفن
+		obox(sx * 0.32, -0.70, 5.64, 0.36, 0.06, 0.085, oBROW, nil, CFrame.Angles(0, math.rad(sx * 9), 0)) -- حاجب
 	end
+	obox(0, -0.78, 5.42, 0.18, 0.18, 0.44, oSKIN)                  -- جسر الأنف
+	obox(0, -0.85, 5.18, 0.26, 0.22, 0.20, oSKIN)                  -- طرف الأنف
+	for _, sx in ipairs({ -1, 1 }) do
+		obox(sx * 0.11, -0.82, 5.09, 0.05, 0.10, 0.06, oBROW)       -- منخار
+	end
+	obox(0, -0.65, 5.01, 0.32, 0.09, 0.045, oLIP)                  -- شفة عليا
+	obox(0, -0.65, 4.945, 0.30, 0.09, 0.055, oLIP)                 -- شفة سفلى
+	obox(0, -0.69, 4.98, 0.30, 0.04, 0.015, oEYE)                  -- خطّ الفم
 
-	-- الفم (شفتان رفيعتان + خطّ محايد)
-	obox(0, -0.65, 5.01, 0.32, 0.09, 0.045, oLIP)
-	obox(0, -0.65, 4.945, 0.30, 0.09, 0.055, oLIP)
-	obox(0, -0.69, 4.98, 0.30, 0.04, 0.015, oEYE)
+	-- ═══ البريه الكحلي المائل (رباط + قبّة + طيّة + زرّ) + شارة شعار أمامية ═══
+	ocyl(0.05, 0.05, 5.93, 0.74, 0.26, oBLACK, Enum.Material.Fabric, "Z")            -- رباط الرأس
+	oball(0.14, 0.06, 6.12, 1.696, 1.632, 0.832, oNAVY, Enum.Material.Fabric,
+		CFrame.Angles(0, math.rad(14), 0) * CFrame.Angles(math.rad(8), 0, 0))        -- قبّة البريه
+	oball(-0.56, 0.08, 5.98, 1.05, 1.0, 0.46, oNAVY, Enum.Material.Fabric,
+		CFrame.Angles(0, math.rad(-8), 0) * CFrame.Angles(math.rad(10), 0, 0))       -- طيّة مائلة
+	oball(0.14, 0.06, 6.42, 0.14, 0.14, 0.14, oNAVY, Enum.Material.Fabric)           -- زرّ علوي
+	ocrest(-0.34, -0.66, 5.99, 0.5, "FRONT")                                         -- شارة الكاب
 
-	-- البريه العنّابي (مائل) + رباط جلدي + شارة كاب ذهبية
-	obox(0.05, 0.04, 5.88, 1.30, 1.26, 0.18, oBLACK)
-	local beretTilt = CFrame.Angles(0, 0, math.rad(15)) * CFrame.Angles(math.rad(9), 0, 0)
-	local flopTilt  = CFrame.Angles(0, 0, math.rad(24)) * CFrame.Angles(math.rad(12), 0, 0)
-	ocyl(0.16, 0.10, 6.02, 0.99, 0.30, oMAROON, Enum.Material.Fabric, "Z", beretTilt)
-	ocyl(0.66, 0.12, 6.12, 0.60, 0.16, oMAROON, Enum.Material.Fabric, "Z", flopTilt)
-	ocyl(-0.46, -0.66, 6.02, 0.15, 0.06, oGOLD, Enum.Material.Metal, "Y")
-	ostar(-0.46, -0.71, 6.02, 0.10, true)
+	-- ═══ السترة التكتيكية (Plate Carrier) + جِعَب MOLLE + شارات أمامية واضحة ═══
+	obox(0, -0.02, 3.55, 2.26, 1.28, 1.92, oBLACK2, Enum.Material.Fabric)            -- جسم السترة
+	for _, sx in ipairs({ -1, 1 }) do
+		obox(sx * 0.5, -0.18, 4.5, 0.46, 0.66, 0.14, oBLACK)        -- حمّالة كتف
+		obox(sx * 1.06, 0.05, 3.2, 0.16, 1.1, 0.7, oBLACK)          -- حزام جانبي (cummerbund)
+	end
+	for k = 0, 2 do
+		obox(-0.5 + k * 0.5, -0.66, 3.55, 0.40, 0.18, 0.62, oBLACK) -- جِعبة ذخيرة
+		for r = 0, 1 do
+			obox(-0.5 + k * 0.5, -0.74, 3.45 + r * 0.3, 0.42, 0.05, 0.05, oBLACK2) -- شريط
+		end
+	end
+	obox(0.45, -0.7, 4.12, 0.72, 0.16, 0.5, oBLACK)                 -- جراب إداري علوي
+	opatch(-0.42, -0.70, 4.18, "FRONT")                             -- رقعة شرطة البحرين / POLICE
+	ocrest(0.52, -0.70, 4.12, 0.58, "FRONT")                        -- شعار البحرين الكبير على السترة
 
 	-- لافتة تعريف فوق الرأس (نص عربي، بلا إيموجي)
 	local tag = Instance.new("BillboardGui")
