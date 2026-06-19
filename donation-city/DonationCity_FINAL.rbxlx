@@ -9229,7 +9229,7 @@ local SPIN_AT    = { [13] = 1.2, [16] = 1.4, [25] = 1.6 }        -- عوائق �
 local PEND_AT    = { [14] = true, [17] = true, [26] = true }     -- كرات بندوليّة متأرجحة (تدفع)
 local NARROW_AT  = { [19] = true, [20] = true }                  -- جسور رفيعة
 local TILEROW_AT = { [23] = true }                               -- بلاطات قاتلة على الجانبين
-local COIN_AT    = { [2] = true, [5] = true, [8] = true, [11] = true, [14] = true, [17] = true, [20] = true, [23] = true, [26] = true }
+local COIN_AT    = { [2] = true, [5] = true, [8] = true, [11] = true, [14] = true, [17] = true, [20] = true, [23] = true, [24] = true }
 
 ----------------------------------------------------------------------
 -- أدوات بناء قطع أصلية
@@ -9500,7 +9500,7 @@ local function buildSweep(i, cx, cz, top, _fwd, rgt)
 	table.insert(sweepers, { bar = bar, base = base, axis = rgt, amp = PW / 2 - 0.4, speed = 1.9 + (i % 3) * 0.3, phase = (i % 2) * math.pi })
 end
 
--- كرة بندوليّة متأرجحة: تتأرجح في مستوى التقدّم وتدفع اللاعب (غير قاتلة)
+-- كرة بندوليّة متأرجحة: تتأرجح عرضيّاً عبر عرض الممرّ (يميناً/يساراً) وتدفع اللاعب (غير قاتلة)
 local function buildPendulum(i, cx, cz, top, fwd, rgt)
 	local pivotY = top + 9.5
 	local pivot = V(cx, pivotY, cz)
