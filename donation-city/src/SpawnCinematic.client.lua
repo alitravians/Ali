@@ -480,6 +480,7 @@ end
 -- التسلسل الكامل للريسبون
 ----------------------------------------------------------------------
 local started = false
+local activeInputConn: RBXScriptConnection? = nil -- يُنظَّف في معالج الخطأ لو تعطّل run()
 
 local function run()
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -639,6 +640,7 @@ local function run()
 		if gpe then return end
 		if input.KeyCode == Enum.KeyCode.E then deployed = true end
 	end)
+	activeInputConn = inputConn
 
 	local function updateDescentVisuals(altitude, speed)
 		hud.alt.Text = string.format("الارتفاع: %d م", math.max(0, math.floor(altitude)))
@@ -761,6 +763,7 @@ local function run()
 
 	-- استعادة الكاميرا والتحكّم + قيم الحركة (لا نعتمد على شاشة التحميل)
 	if inputConn then inputConn:Disconnect() end
+	activeInputConn = nil
 	rootPart.Anchored = false
 	humanoid.WalkSpeed = restWalk
 	humanoid.JumpPower = restJumpP
@@ -821,6 +824,7 @@ local function trigger()
 	if not ok then
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))
 		-- استعادة آمنة حتى لا يعلق اللاعب (تشمل دوران الشخصية وحالة الموت والكاميرا)
+		if activeInputConn then activeInputConn:Disconnect(); activeInputConn = nil end
 		setControls(true)
 		local cam = Workspace.CurrentCamera
 		if cam then cam.CameraType = Enum.CameraType.Custom end
