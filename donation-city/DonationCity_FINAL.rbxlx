@@ -889,9 +889,11 @@ local function showMainMenu()
 		if menuClosing then return end
 		menuClosing = true
 		playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Start, (CONFIG.MenuSoundVolume or 0.5) + 0.2)
-		-- إشارة للريسبون الملكي (SpawnCinematic) — يُشغَّل مرّة واحدة عند الدخول فقط
+		-- إشارة للريسبون الملكي (SpawnCinematic) — يُشغَّل مرّة واحدة عند الدخول فقط.
+		-- نرجّع سرعة المشي/القفز لكن نُبقي التحكّم معطّلاً: الريسبون يملك حالة التحكّم
+		-- (يعطّله عند البداية ويعيده عند الهبوط) فلا توجد لحظة يتحرّك فيها اللاعب قبل
+		-- أن يسيطر المشهد عليه ويرفعه للطائرة.
 		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
-		setControls(true)
 		if CONFIG.FreezeOnMenu then freezeChar(nil, false) end
 		if charConn then charConn:Disconnect() end
 		local shatter = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -17542,7 +17544,7 @@ task.spawn(function()
 		task.wait(1.0)
 	end
 end)
-]]></string></Properties></Item><Item class="Script" referent="SpawnCinematicServerRef"><Properties><string name="Name">SpawnCinematic</string><string name="Source"><![CDATA[--[[
+]]></string></Properties></Item><Item class="Script" referent="SpawnCinematicServerRef"><Properties><string name="Name">SpawnCinematic</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
 	╔══════════════════════════════════════════════════════════════════════╗
 	║  SPAWN CINEMATIC (Server)                                              ║
 	║  المكان: ServerScriptService   ·   النوع: Script                       ║
@@ -17651,7 +17653,14 @@ end
 local function groundYAt(x: number, z: number): number
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { Players }
+	-- استبعاد شخصيات اللاعبين (تعيش داخل Workspace لا داخل خدمة Players) + منصّة الهبوط نفسها
+	local exclude = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr.Character then exclude[#exclude + 1] = plr.Character end
+	end
+	local existingPad = Workspace:FindFirstChild("RoyalLandingPad")
+	if existingPad then exclude[#exclude + 1] = existingPad end
+	params.FilterDescendantsInstances = exclude
 	local origin = Vector3.new(x, 400, z)
 	local result = Workspace:Raycast(origin, Vector3.new(0, -800, 0), params)
 	if result then return result.Position.Y end
@@ -17697,10 +17706,17 @@ end
 ------------------------------------------------------------------------
 -- شارة «أول هبوط» عند أول هبوط ناجح
 ------------------------------------------------------------------------
+-- علم لكل لاعب يمنع تكرار النداء لو أرسل العميل الحدث أكثر من مرّة (حماية من السبام).
+local awarded: { [Player]: boolean } = {}
 landedRemote.OnServerEvent:Connect(function(player: Player)
+	if awarded[player] then return end
+	awarded[player] = true
 	if typeof(_G.AwardBadge) == "function" then
 		_G.AwardBadge(player, "FIRST_LANDING")
 	end
+end)
+Players.PlayerRemoving:Connect(function(player: Player)
+	awarded[player] = nil
 end)
 
 ------------------------------------------------------------------------
@@ -23879,7 +23895,7 @@ evLogData.OnClientEvent:Connect(function(data)
 	listFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 8)
 	logGui.Enabled = true
 end)
-]]></string></Properties></Item><Item class="LocalScript" referent="SpawnCinematicClientRef"><Properties><string name="Name">SpawnCinematic</string><string name="Source"><![CDATA[--[[
+]]></string></Properties></Item><Item class="LocalScript" referent="SpawnCinematicClientRef"><Properties><string name="Name">SpawnCinematic</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
 	╔══════════════════════════════════════════════════════════════════════╗
 	║  SPAWN CINEMATIC (Client)                                              ║
 	║  المكان: StarterPlayer ▸ StarterPlayerScripts   ·   النوع: LocalScript ║
@@ -24008,8 +24024,14 @@ end
 ----------------------------------------------------------------------
 -- يرتّب محاور الجسم: الأكبر = طول (أمام)، الأصغر = ارتفاع، الأوسط = عرض.
 local function axisOrder(size: Vector3): (string, string, string)
+	-- ترتيب ثابت: الأكبر أولاً، ومع تساوي الأبعاد نرجّح بأولوية محور ثابتة
+	-- (X ثم Z ثم Y) حتى لا يطلع الترتيب عشوائياً ويميل الجسم خطأً.
+	local prio = { X = 3, Z = 2, Y = 1 }
 	local arr = { { "X", size.X }, { "Y", size.Y }, { "Z", size.Z } }
-	table.sort(arr, function(a, b) return a[2] > b[2] end)
+	table.sort(arr, function(a, b)
+		if a[2] ~= b[2] then return a[2] > b[2] end
+		return prio[a[1]] > prio[b[1]]
+	end)
 	return arr[1][1], arr[3][1], arr[2][1] -- forward(max), up(min), lateral(mid)
 end
 
@@ -24360,12 +24382,13 @@ local function run()
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 8)
 	local hrp = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 8)
-	if not hum or not hrp then return end
+	-- شاشة التحميل تترك التحكّم معطّلاً؛ فلو تعذّر إكمال الإعداد نعيده هنا حتى لا يعلق اللاعب
+	if not hum or not hrp then setControls(true) return end
 	local humanoid = hum :: Humanoid
 	local rootPart = hrp :: BasePart
 
 	local cam = Workspace.CurrentCamera
-	if not cam then return end
+	if not cam then setControls(true) return end
 
 	-- نقاط المسار
 	local groundY = padTopY(char)
@@ -24653,13 +24676,19 @@ local function trigger()
 	local ok, err = pcall(run)
 	if not ok then
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))
-		-- استعادة آمنة حتى لا يعلق اللاعب
+		-- استعادة آمنة حتى لا يعلق اللاعب (تشمل دوران الشخصية وحالة الموت والكاميرا)
 		setControls(true)
 		local cam = Workspace.CurrentCamera
 		if cam then cam.CameraType = Enum.CameraType.Custom end
 		local char = LocalPlayer.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		if hrp and hrp:IsA("BasePart") then hrp.Anchored = false end
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.AutoRotate = true
+			pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
+			if cam then cam.CameraSubject = hum end
+		end
 	end
 end
 

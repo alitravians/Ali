@@ -47,6 +47,9 @@ def make_script_item(cls, name, referent, source):
     item = ET.Element('Item'); item.set('class', cls); item.set('referent', referent)
     props = ET.SubElement(item, 'Properties')
     nm = ET.SubElement(props, 'string'); nm.set('name', 'Name'); nm.text = name
+    # RunContext=0 (Legacy) هو الافتراضي، لكن نكتبه صراحةً ليطابق بقية السكربتات في الملف
+    # (Script في السيرفر، LocalScript في العميل) ويتجنّب لبس أدوات الـdiff/التحويل لاحقاً.
+    rc = ET.SubElement(props, 'token'); rc.set('name', 'RunContext'); rc.text = '0'
     src = ET.SubElement(props, 'string'); src.set('name', 'Source')
     src.text = ET.CDATA(source)
     return item

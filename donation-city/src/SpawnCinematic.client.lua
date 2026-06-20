@@ -127,8 +127,14 @@ end
 ----------------------------------------------------------------------
 -- يرتّب محاور الجسم: الأكبر = طول (أمام)، الأصغر = ارتفاع، الأوسط = عرض.
 local function axisOrder(size: Vector3): (string, string, string)
+	-- ترتيب ثابت: الأكبر أولاً، ومع تساوي الأبعاد نرجّح بأولوية محور ثابتة
+	-- (X ثم Z ثم Y) حتى لا يطلع الترتيب عشوائياً ويميل الجسم خطأً.
+	local prio = { X = 3, Z = 2, Y = 1 }
 	local arr = { { "X", size.X }, { "Y", size.Y }, { "Z", size.Z } }
-	table.sort(arr, function(a, b) return a[2] > b[2] end)
+	table.sort(arr, function(a, b)
+		if a[2] ~= b[2] then return a[2] > b[2] end
+		return prio[a[1]] > prio[b[1]]
+	end)
 	return arr[1][1], arr[3][1], arr[2][1] -- forward(max), up(min), lateral(mid)
 end
 
@@ -479,12 +485,13 @@ local function run()
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 	local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 8)
 	local hrp = char:FindFirstChild("HumanoidRootPart") or char:WaitForChild("HumanoidRootPart", 8)
-	if not hum or not hrp then return end
+	-- شاشة التحميل تترك التحكّم معطّلاً؛ فلو تعذّر إكمال الإعداد نعيده هنا حتى لا يعلق اللاعب
+	if not hum or not hrp then setControls(true) return end
 	local humanoid = hum :: Humanoid
 	local rootPart = hrp :: BasePart
 
 	local cam = Workspace.CurrentCamera
-	if not cam then return end
+	if not cam then setControls(true) return end
 
 	-- نقاط المسار
 	local groundY = padTopY(char)
@@ -772,13 +779,19 @@ local function trigger()
 	local ok, err = pcall(run)
 	if not ok then
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))
-		-- استعادة آمنة حتى لا يعلق اللاعب
+		-- استعادة آمنة حتى لا يعلق اللاعب (تشمل دوران الشخصية وحالة الموت والكاميرا)
 		setControls(true)
 		local cam = Workspace.CurrentCamera
 		if cam then cam.CameraType = Enum.CameraType.Custom end
 		local char = LocalPlayer.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
 		if hrp and hrp:IsA("BasePart") then hrp.Anchored = false end
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.AutoRotate = true
+			pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
+			if cam then cam.CameraSubject = hum end
+		end
 	end
 end
 

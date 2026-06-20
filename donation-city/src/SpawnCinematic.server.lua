@@ -107,7 +107,14 @@ end
 local function groundYAt(x: number, z: number): number
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
-	params.FilterDescendantsInstances = { Players }
+	-- استبعاد شخصيات اللاعبين (تعيش داخل Workspace لا داخل خدمة Players) + منصّة الهبوط نفسها
+	local exclude = {}
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr.Character then exclude[#exclude + 1] = plr.Character end
+	end
+	local existingPad = Workspace:FindFirstChild("RoyalLandingPad")
+	if existingPad then exclude[#exclude + 1] = existingPad end
+	params.FilterDescendantsInstances = exclude
 	local origin = Vector3.new(x, 400, z)
 	local result = Workspace:Raycast(origin, Vector3.new(0, -800, 0), params)
 	if result then return result.Position.Y end
@@ -153,10 +160,17 @@ end
 ------------------------------------------------------------------------
 -- شارة «أول هبوط» عند أول هبوط ناجح
 ------------------------------------------------------------------------
+-- علم لكل لاعب يمنع تكرار النداء لو أرسل العميل الحدث أكثر من مرّة (حماية من السبام).
+local awarded: { [Player]: boolean } = {}
 landedRemote.OnServerEvent:Connect(function(player: Player)
+	if awarded[player] then return end
+	awarded[player] = true
 	if typeof(_G.AwardBadge) == "function" then
 		_G.AwardBadge(player, "FIRST_LANDING")
 	end
+end)
+Players.PlayerRemoving:Connect(function(player: Player)
+	awarded[player] = nil
 end)
 
 ------------------------------------------------------------------------

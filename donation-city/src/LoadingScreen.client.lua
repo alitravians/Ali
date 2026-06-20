@@ -819,9 +819,11 @@ local function showMainMenu()
 		if menuClosing then return end
 		menuClosing = true
 		playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Start, (CONFIG.MenuSoundVolume or 0.5) + 0.2)
-		-- إشارة للريسبون الملكي (SpawnCinematic) — يُشغَّل مرّة واحدة عند الدخول فقط
+		-- إشارة للريسبون الملكي (SpawnCinematic) — يُشغَّل مرّة واحدة عند الدخول فقط.
+		-- نرجّع سرعة المشي/القفز لكن نُبقي التحكّم معطّلاً: الريسبون يملك حالة التحكّم
+		-- (يعطّله عند البداية ويعيده عند الهبوط) فلا توجد لحظة يتحرّك فيها اللاعب قبل
+		-- أن يسيطر المشهد عليه ويرفعه للطائرة.
 		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
-		setControls(true)
 		if CONFIG.FreezeOnMenu then freezeChar(nil, false) end
 		if charConn then charConn:Disconnect() end
 		local shatter = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
