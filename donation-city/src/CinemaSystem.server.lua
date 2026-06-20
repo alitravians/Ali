@@ -1368,9 +1368,9 @@ local function makeDrinkTool()
 	liquid.Transparency = 0.15
 	liquid.CanCollide = false
 	liquid.Massless = true
+	liquid.CFrame = handle.CFrame * CFrame.new(0, 0, 0)
 	liquid.Parent = tool
-	-- لا نستخدم WeldConstraint للسائل — CFrame يُحدَّث يدوياً عند كل رشفة لتقليص المستوى
-	-- (WeldConstraint يقفل الموضع ويمنع تغيير CFrame لاحقاً)
+	local w3 = Instance.new("WeldConstraint"); w3.Part0 = handle; w3.Part1 = liquid; w3.Parent = handle
 
 	-- رشّة فقاعات عند الرشف
 	local att = Instance.new("Attachment")
@@ -1402,7 +1402,6 @@ local function makeDrinkTool()
 		local frac = math.clamp(sips.Value / CONFIG.PopcornBites, 0, 1)
 		local newY = math.max(0.1, fullY * frac)
 		liquid.Size = Vector3.new(liquid.Size.X, newY, liquid.Size.Z)
-		liquid.CFrame = handle.CFrame * CFrame.new(0, -(fullY - newY) / 2, 0)
 		emit:Emit(10)
 		playCrunch(handle, 1.4)
 
