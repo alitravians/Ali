@@ -97,6 +97,18 @@ local function playSound3D(parent: Instance, id: number, vol: number, looped: bo
 	return s
 end
 
+-- استعادة قيم الحركة بعد المشهد (استقلال عن شاشة التحميل). لا نلتقط WalkSpeed
+-- الحالية لأن الشخصية مجمّدة (=0) عند البدء؛ نستعيد من سِمة BaseWalkSpeed (سرعة
+-- باقة «البرق» إن مُلكت، وإلا 16) كما تفعل بقية الأنظمة (CinemaClient/CustomChat)
+-- حتى لا تضيع السرعة المخصّصة. مُعرّفة على مستوى الوحدة ليستعملها مسار النجاح
+-- ومعالج الخطأ معاً.
+local function restoreMovement(humanoid: Humanoid)
+	local base = LocalPlayer:GetAttribute("BaseWalkSpeed")
+	humanoid.WalkSpeed = (typeof(base) == "number" and base > 0) and base or 16
+	humanoid.JumpPower = 50
+	humanoid.JumpHeight = 7.2
+end
+
 -- تمكين/تعطيل تحكّم اللاعب الافتراضي عبر وحدة اللاعب
 local function setControls(enabled: boolean)
 	pcall(function()
@@ -513,17 +525,6 @@ local function run()
 	local startPos = jumpPoint - travelDir * CONFIG.FLIGHT_DIST
 	local fallDir = Vector3.new(travelDir.X, 0, travelDir.Z).Unit
 
-	-- نعيد قيم الحركة بأنفسنا عند الهبوط (استقلال عن شاشة التحميل). لا نلتقط
-	-- WalkSpeed الحالية لأن الشخصية مجمّدة (=0) عند البدء؛ نستعيد من سِمة
-	-- BaseWalkSpeed (سرعة باقة «البرق» إن مُلكت، وإلا 16) كما تفعل بقية الأنظمة
-	-- (CinemaClient/CustomChat) حتى لا تضيع السرعة المخصّصة.
-	local function restoreMovement()
-		local base = LocalPlayer:GetAttribute("BaseWalkSpeed")
-		humanoid.WalkSpeed = (typeof(base) == "number" and base > 0) and base or 16
-		humanoid.JumpPower = 50
-		humanoid.JumpHeight = 7.2
-	end
-
 	-- إعداد: تعطيل التحكّم + تثبيت الشخصية + كاميرا سينمائية
 	setControls(false)
 	humanoid.AutoRotate = false
@@ -784,7 +785,7 @@ local function run()
 	if inputConn then inputConn:Disconnect() end
 	activeInputConn = nil
 	rootPart.Anchored = false
-	restoreMovement()
+	restoreMovement(humanoid)
 	humanoid.AutoRotate = true
 	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
 	cam.CameraType = Enum.CameraType.Custom
@@ -851,6 +852,7 @@ local function trigger()
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hum then
 			hum.AutoRotate = true
+			restoreMovement(hum :: Humanoid)
 			pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
 			if cam then cam.CameraSubject = hum end
 		end
