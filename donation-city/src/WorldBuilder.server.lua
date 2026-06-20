@@ -816,4 +816,4 @@ if not ready then
 end
 ready.Value = true
 
-print("[WorldBuilder] تم بناء مدينة التبرّعات بنجاح.")
+print("[WorldBuilder] تم بناء مدينة شهد بنجاح.")

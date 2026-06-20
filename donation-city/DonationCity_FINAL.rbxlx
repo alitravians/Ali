@@ -2083,7 +2083,18 @@ local CONFIG = {
 	-- الأولوية: فيديو حقيقي (VideoId) ← ثم السلايد-شو (SlideImages) ← ثم المشاهد النصية.
 	-- ١٢ لقطة بالترتيب — استبدل الأصفار بأرقام الـ Decals بعد رفعها (راجع تعليمات التسليم).
 	SlideImages = {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		78349829242176,   -- 01 مدينة شهد — تقدّم لكم
+		99416213260185,   -- 02 رحلة الكرم
+		92375326022698,   -- 03 كل تبرّع يصنع فرقاً
+		84685138373651,   -- 04 في مدينة شهد… للعطاء مكان
+		118000115343319,  -- 05 اجمع الأصدقاء
+		124481529239529,  -- 06 والعطاء يعود أضعافاً
+		71622683452790,   -- 07 سينما مدينة شهد
+		71611234930640,   -- 08 باركور التحدّي
+		118376370392199,  -- 09 القصر الملكي
+		127606134461569,  -- 10 حكاية بطل
+		87629214761151,   -- 11 شكراً لكم جميعاً
+		108257465297968,  -- 12 النهاية — مدينة شهد
 	},
 	SlideFadeTime = 0.6,    -- مدة التلاشي بين اللقطات (ثوانٍ)
 
@@ -2388,7 +2399,7 @@ local function showSlide(assetId: number)
 	local incoming = screenSlides[slideActive == 1 and 2 or 1]
 	local outgoing = screenSlides[slideActive]
 
-	incoming.Image = "rbxassetid://" .. tostring(assetId)
+	incoming.Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=768&h=432"
 	incoming.ImageTransparency = 1
 	incoming.Visible = true
 
@@ -2848,7 +2859,7 @@ local function playMovie(presser)
 		withTimeout(PRELOAD_TIMEOUT, function()
 			local probe = screenSlides[1]
 			for _, id in ipairs(slides) do
-				probe.Image = "rbxassetid://" .. tostring(id)
+				probe.Image = "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=768&h=432"
 				ContentProvider:PreloadAsync({ probe })
 			end
 			probe.Image = ""
@@ -3403,7 +3414,8 @@ local function makeDrinkTool()
 	liquid.CanCollide = false
 	liquid.Massless = true
 	liquid.Parent = tool
-	local w3 = Instance.new("WeldConstraint"); w3.Part0 = handle; w3.Part1 = liquid; w3.Parent = handle
+	-- لا نستخدم WeldConstraint للسائل — CFrame يُحدَّث يدوياً عند كل رشفة لتقليص المستوى
+	-- (WeldConstraint يقفل الموضع ويمنع تغيير CFrame لاحقاً)
 
 	-- رشّة فقاعات عند الرشف
 	local att = Instance.new("Attachment")
