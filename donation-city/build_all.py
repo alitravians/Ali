@@ -40,6 +40,8 @@ UPDATES = [
     ("src/PalaceSystem.server.lua",  "PALACE SYSTEM (Server)"),
     ("src/PalaceClient.client.lua",  "PALACE CLIENT (Client)"),
     ("src/GuardSystem.server.lua",   "GUARD SYSTEM (Server)"),
+    ("src/SpawnCinematic.server.lua", "SPAWN CINEMATIC (Server)"),
+    ("src/SpawnCinematic.client.lua", "SPAWN CINEMATIC (Client)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:

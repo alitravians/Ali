@@ -819,7 +819,19 @@ local function showMainMenu()
 		if menuClosing then return end
 		menuClosing = true
 		playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Start, (CONFIG.MenuSoundVolume or 0.5) + 0.2)
-		setControls(true)
+		-- إشارة للريسبون الملكي (SpawnCinematic) — يُشغَّل مرّة واحدة عند الدخول فقط.
+		-- نرجّع سرعة المشي/القفز لكن نُبقي التحكّم معطّلاً: الريسبون يملك حالة التحكّم
+		-- (يعطّله عند البداية ويعيده عند الهبوط) فلا توجد لحظة يتحرّك فيها اللاعب قبل
+		-- أن يسيطر المشهد عليه ويرفعه للطائرة.
+		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
+		-- شبكة أمان: لو لم يتولَّ SpawnCinematic السيطرة خلال مهلة (سكربت مفقود
+		-- من البناء أو خطأ في تعريفاته قبل تسجيل المستمع) نُعيد التحكّم حتى لا
+		-- يعلق اللاعب بلا حركة. المشهد يضبط RoyalSpawnActive=true عند توليه فعلاً.
+		if CONFIG.FreezeOnMenu then
+			task.delay(8, function()
+				if not LocalPlayer:GetAttribute("RoyalSpawnActive") then setControls(true) end
+			end)
+		end
 		if CONFIG.FreezeOnMenu then freezeChar(nil, false) end
 		if charConn then charConn:Disconnect() end
 		local shatter = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -927,6 +939,9 @@ local function finish()
 	end
 	if CONFIG.MenuEnabled then
 		showMainMenu()
+	else
+		-- لا توجد قائمة: شغّل الريسبون الملكي مباشرةً عند انتهاء التحميل
+		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
 	end
 	task.delay(CONFIG.FadeOutTime + 0.05, function() if screenGui then screenGui:Destroy() end end)
 end
