@@ -24563,10 +24563,10 @@ local function run()
 	if trail then trail.Enabled = false end
 	playSound3D(rootPart, CONFIG.SND_CHUTE, 0.7, false)
 
-	local canopy, canopyAnchor = buildCanopy()
+	local canopy = buildCanopy()
 	canopy.Parent = Workspace
 	canopy:ScaleTo(0.2)
-	TweenService:Create(canopyAnchor, TweenInfo.new(0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {}):Play()
+	-- فتحة المظلّة: تكبير تدريجي سريع (تأثير الانبثاق)
 	task.spawn(function()
 		for i = 1, 10 do canopy:ScaleTo(0.2 + 0.08 * i); task.wait(0.02) end
 	end)
