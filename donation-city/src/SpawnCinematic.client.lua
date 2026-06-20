@@ -513,14 +513,16 @@ local function run()
 	local startPos = jumpPoint - travelDir * CONFIG.FLIGHT_DIST
 	local fallDir = Vector3.new(travelDir.X, 0, travelDir.Z).Unit
 
-	-- نلتقط قيم الحركة لنعيدها بأنفسنا عند الهبوط (استقلال عن شاشة التحميل):
-	-- لو كانت صفراً (الشخصية مجمّدة من القائمة) نرجع للقيم الافتراضية.
-	local function moveVal(v: number, default: number): number
-		return (v and v > 0) and v or default
+	-- نعيد قيم الحركة بأنفسنا عند الهبوط (استقلال عن شاشة التحميل). لا نلتقط
+	-- WalkSpeed الحالية لأن الشخصية مجمّدة (=0) عند البدء؛ نستعيد من سِمة
+	-- BaseWalkSpeed (سرعة باقة «البرق» إن مُلكت، وإلا 16) كما تفعل بقية الأنظمة
+	-- (CinemaClient/CustomChat) حتى لا تضيع السرعة المخصّصة.
+	local function restoreMovement()
+		local base = LocalPlayer:GetAttribute("BaseWalkSpeed")
+		humanoid.WalkSpeed = (typeof(base) == "number" and base > 0) and base or 16
+		humanoid.JumpPower = 50
+		humanoid.JumpHeight = 7.2
 	end
-	local restWalk  = moveVal(humanoid.WalkSpeed, 16)
-	local restJumpP = moveVal(humanoid.JumpPower, 50)
-	local restJumpH = moveVal(humanoid.JumpHeight, 7.2)
 
 	-- إعداد: تعطيل التحكّم + تثبيت الشخصية + كاميرا سينمائية
 	setControls(false)
@@ -775,9 +777,7 @@ local function run()
 	if inputConn then inputConn:Disconnect() end
 	activeInputConn = nil
 	rootPart.Anchored = false
-	humanoid.WalkSpeed = restWalk
-	humanoid.JumpPower = restJumpP
-	humanoid.JumpHeight = restJumpH
+	restoreMovement()
 	humanoid.AutoRotate = true
 	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
 	cam.CameraType = Enum.CameraType.Custom
