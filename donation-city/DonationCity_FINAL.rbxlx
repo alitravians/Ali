@@ -24519,6 +24519,8 @@ local function run()
 		local flyT = os.clock()
 		while plane.model.Parent and os.clock() - flyT < 3 do
 			local dt = RunService.Heartbeat:Wait()
+			-- قد تُنظَّف الطائرة أثناء الانتظار (عند فشل التسلسل)؛ نتأكّد قبل أي عملية
+			if not plane.model.Parent then break end
 			plane.model:PivotTo(plane.model:GetPivot() + travelDir * (90 * dt))
 			stepLEDs(plane, os.clock())
 		end
