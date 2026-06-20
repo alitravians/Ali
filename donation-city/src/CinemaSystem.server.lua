@@ -354,7 +354,7 @@ local function showSlide(assetId: number)
 	local incoming = screenSlides[slideActive == 1 and 2 or 1]
 	local outgoing = screenSlides[slideActive]
 
-	incoming.Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=768&h=432"
+	incoming.Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=420&h=420"
 	incoming.ImageTransparency = 1
 	incoming.Visible = true
 
