@@ -70,7 +70,7 @@
         <string name="Name">LoadingScreen</string>
         <string name="Source"><![CDATA[--[[
 	╔══════════════════════════════════════════════════════════════════════╗
-	║  مدينة التبرعات — شاشة تحميل احترافية (Premium Loading Screen)         ║
+	║  مدينة شهد — شاشة تحميل احترافية (Premium Loading Screen)         ║
 	║  Theme: Dark Neon (deep black + purple/cyan glow) · واجهة عربية RTL    ║
 	║                                                                        ║
 	║  المكان:  ReplicatedFirst                                              ║
@@ -99,7 +99,7 @@ ReplicatedFirst:RemoveDefaultLoadingScreen()
 -- CONFIG  (عدّل بحرية)
 ------------------------------------------------------------------------
 local CONFIG = {
-	GameName = "مدينة التبرعات",
+	GameName = "مدينة شهد",
 	Tagline  = "مهام • تحديات • باركور • مكافآت",
 
 	Theme = "DarkNeon", -- "DarkNeon" | "WhiteCyan"
@@ -1919,7 +1919,7 @@ print("[CustomChat] السيرفر جاهز — دردشة مخصّصة مع ف�
 	║  نظام الشارات — BADGE AWARDS (Server)                                  ║
 	║  المكان: ServerScriptService   ·   النوع: Script                       ║
 	║                                                                        ║
-	║  يمنح شارات مدينة التبرعات تلقائياً:                                    ║
+	║  يمنح شارات مدينة شهد تلقائياً:                                    ║
 	║    • أول زيارة   — بمجرد دخول اللاعب.                                   ║
 	║    • صديق المدينة — عند عودة اللاعب للعب مرة ثانية (يُحفظ في DataStore). ║
 	║    • متبرّع كريم  — عند أول تبرع (يناديها سكربت البوثات).               ║
@@ -2105,14 +2105,14 @@ local CONFIG = {
 
 -- مشاهد "الفيلم" (عناوين متحركة احترافية — استبدلها بفيديو ID لاحقاً إن رغبت)
 local SCENES = {
-	{ bg = Color3.fromRGB(8, 8, 16),    title = "🎬 مدينة التبرعات",        sub = "تقدّم لكم" },
+	{ bg = Color3.fromRGB(8, 8, 16),    title = "🎬 مدينة شهد",        sub = "تقدّم لكم" },
 	{ bg = Color3.fromRGB(16, 10, 30),  title = "رحلة الكرم",                sub = "فيلم قصير" },
 	{ bg = Color3.fromRGB(10, 22, 30),  title = "في مدينةٍ تنبض بالعطاء...", sub = "بدأت الحكاية" },
 	{ bg = Color3.fromRGB(28, 16, 10),  title = "كل تبرّع يصنع فرقاً",        sub = "مهما كان صغيراً" },
 	{ bg = Color3.fromRGB(10, 18, 28),  title = "اجتمع الأصدقاء",            sub = "ليصنعوا الأمل" },
 	{ bg = Color3.fromRGB(24, 10, 28),  title = "والعطاء يعود إليك",         sub = "أضعافاً مضاعفة" },
 	{ bg = Color3.fromRGB(10, 26, 18),  title = "شكراً لكونك هنا ❤️",        sub = "أنت بطل القصة" },
-	{ bg = Color3.fromRGB(6, 6, 12),    title = "— النهاية —",               sub = "مدينة التبرعات" },
+	{ bg = Color3.fromRGB(6, 6, 12),    title = "— النهاية —",               sub = "مدينة شهد" },
 }
 
 ------------------------------------------------------------------------
@@ -2364,7 +2364,7 @@ local function setScreenIdle()
 	screenBg.BackgroundColor3 = Color3.fromRGB(6, 6, 12)
 	screenTitle.Visible = true
 	screenSub.Visible = true
-	screenTitle.Text = "📽️ سينما مدينة التبرعات"
+	screenTitle.Text = "📽️ سينما مدينة شهد"
 	screenSub.Text = "اضغط E على البروجكتر لبدء العرض"
 	screenTimer.Text = ""
 	screenProgress.Size = UDim2.fromScale(0, 1)
@@ -2432,7 +2432,7 @@ if marquee then
 	marqueeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	marqueeLabel.TextStrokeColor3 = Color3.fromRGB(40, 0, 0)
 	marqueeLabel.TextStrokeTransparency = 0.2
-	marqueeLabel.Text = "سينما مدينة التبرعات"
+	marqueeLabel.Text = "سينما مدينة شهد"
 	marqueeLabel.Parent = bg
 end
 
@@ -2543,7 +2543,7 @@ if infoBoard then
 	footer.Font = Enum.Font.GothamBlack
 	footer.TextScaled = true
 	footer.TextColor3 = Color3.fromRGB(255, 220, 140)
-	footer.Text = "🍿 استمتع بوقتك في مدينة التبرعات!"
+	footer.Text = "🍿 استمتع بوقتك في مدينة شهد!"
 	footer.Parent = list
 	local fCorner = Instance.new("UICorner"); fCorner.CornerRadius = UDim.new(0, 10); fCorner.Parent = footer
 	local fPad = Instance.new("UIPadding")
@@ -2971,7 +2971,7 @@ local function playMovie(presser)
 	setProjector(false)
 	unlockAll()
 	setGate(false)
-	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة شهد" end
 	setScreenIdle()
 	if playPrompt then playPrompt.Enabled = true end
 	playing = false
@@ -2995,7 +2995,7 @@ local function resetCinemaIdle()
 	pcall(function() setLights(true) end)
 	pcall(function() setProjector(false) end)
 	pcall(setScreenIdle)
-	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة شهد" end
 	if playPrompt then playPrompt.Enabled = true end
 end
 
@@ -3301,11 +3301,11 @@ local function makePopcornTool()
 	kernels.Massless = true
 	kernels.Parent = tool
 
+	kernels.CFrame = handle.CFrame * CFrame.new(0, 1.1, 0)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = handle
 	weld.Part1 = kernels
 	weld.Parent = handle
-	kernels.CFrame = handle.CFrame * CFrame.new(0, 1.1, 0)
 
 	-- رشّة "قضم" بصرية عند الأكل
 	local att = Instance.new("Attachment")
@@ -3379,8 +3379,8 @@ local function makeDrinkTool()
 	lid.CanCollide = false
 	lid.Massless = true
 	lid.Parent = tool
-	local w1 = Instance.new("WeldConstraint"); w1.Part0 = handle; w1.Part1 = lid; w1.Parent = handle
 	lid.CFrame = handle.CFrame * CFrame.new(0, 1.15, 0)
+	local w1 = Instance.new("WeldConstraint"); w1.Part0 = handle; w1.Part1 = lid; w1.Parent = handle
 
 	local straw = Instance.new("Part")
 	straw.Name = "Straw"
@@ -3390,8 +3390,8 @@ local function makeDrinkTool()
 	straw.CanCollide = false
 	straw.Massless = true
 	straw.Parent = tool
-	local w2 = Instance.new("WeldConstraint"); w2.Part0 = handle; w2.Part1 = straw; w2.Parent = handle
 	straw.CFrame = handle.CFrame * CFrame.new(0.3, 1.95, 0)
+	local w2 = Instance.new("WeldConstraint"); w2.Part0 = handle; w2.Part1 = straw; w2.Parent = handle
 
 	-- سائل المشروب داخل الكوب (ينقص مع كل رشفة)
 	local liquid = Instance.new("Part")
@@ -3908,7 +3908,7 @@ _G.AdminGetMusic = function()
 	local m = ensureLobbyMusic()
 	return { on = m.IsPlaying, volume = m.Volume, hasId = m.SoundId ~= "" }
 end
-local MARQUEE_DEFAULT = "سينما مدينة التبرعات"
+local MARQUEE_DEFAULT = "سينما مدينة شهد"
 local marqueeToken = 0
 _G.AdminSetMarquee = function(text: string)
 	if not (marqueeLabel and type(text) == "string" and #text > 0) then return end
@@ -5569,7 +5569,7 @@ local CONFIG = {
 local FILMS = {
 	{
 		id = "donation_city",
-		title = "مدينة التبرعات",
+		title = "مدينة شهد",
 		genre = "دراما · عائلي",
 		duration = "دقيقة — دقيقتان",
 		rating = "للعائلة",
@@ -6323,9 +6323,9 @@ local function giftNoticeText(keys: { string }): string
 	for _, k in ipairs(keys) do names[#names + 1] = "«" .. passNameByKey(k) .. "»" end
 	if #names == 0 then return "" end
 	if #names == 1 then
-		return "🎁 أهدتك إدارة مدينة التبرعات باقة " .. names[1] .. " مجاناً — مزاياها مفعّلة الآن، استمتع بها!"
+		return "🎁 أهدتك إدارة مدينة شهد باقة " .. names[1] .. " مجاناً — مزاياها مفعّلة الآن، استمتع بها!"
 	end
-	return "🎁 أهدتك إدارة مدينة التبرعات الباقات التالية مجاناً: " .. table.concat(names, "، ") .. " — مفعّلة الآن!"
+	return "🎁 أهدتك إدارة مدينة شهد الباقات التالية مجاناً: " .. table.concat(names, "، ") .. " — مفعّلة الآن!"
 end
 
 -- إرسال إشعار الإهداء للاعب حاضر (شريط إعلان علوي احترافي)
@@ -6687,7 +6687,7 @@ local function banRemainingText(b): string
 end
 
 local function banKickMsg(b): string
-	local msg = "🔨 أنت محظور من «مدينة التبرعات» " .. banRemainingText(b) .. "."
+	local msg = "🔨 أنت محظور من «مدينة شهد» " .. banRemainingText(b) .. "."
 	if b.reason and #b.reason > 0 then msg = msg .. "\nالسبب: " .. b.reason end
 	return msg
 end
@@ -6769,7 +6769,7 @@ pcall(function() teamStore = DataStoreService:GetDataStore("CinemaTeam_v1") end)
 -- الإعداد بالذاكرة (احتياطي لو DataStore متعطّل)
 local teamCfg = {
 	enabled = true,
-	title   = "فريق عمل سينما مدينة التبرعات",
+	title   = "فريق عمل سينما مدينة شهد",
 	hidden  = {},   -- [tostring(uid)] = true  (عضو مخفي من الصفحة)
 	order   = {},   -- [tostring(uid)] = number (ترتيب مخصّص؛ الأصغر أعلى)
 	names   = {},   -- [tostring(uid)] = "الاسم" (احتياطي للأعضاء غير المتصلين)
@@ -19514,7 +19514,7 @@ end
 -- نافذة حوار المرشد (محتوى عربي احترافي — تنقّل محلي)
 ------------------------------------------------------------------------
 local GUIDE_STEPS = {
-	"أهلاً وسهلاً في 🎬 <b>سينما مدينة التبرعات</b>! أنا مرشدك، خلّني أشرح لك كل شي بسرعة 👇",
+	"أهلاً وسهلاً في 🎬 <b>سينما مدينة شهد</b>! أنا مرشدك، خلّني أشرح لك كل شي بسرعة 👇",
 	"🎬 <b>السينما:</b> قاعة بشاشة عملاقة و٣٠ مقعداً وأجواء حقيقية — وقت العرض تنخفض الإضاءة وتُقفل البوابة.",
 	"🪑 <b>كيف تشاهد فيلم؟</b> اقترب من البروجكتر واضغط E، تختار مقعدك، ويبدأ العرض تلقائياً.",
 	"🎯 <b>حجز مقعد محدّد:</b> من البروجكتر تقدر تختار مقعدك بالضبط من الشبكة (🟢 متاح · 🔴 محجوز).",
@@ -20377,7 +20377,7 @@ do
 
 		-- الرأس: العنوان + الرصيد + زر الإغلاق
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = "🛒 متجر مدينة التبرعات", Font = Enum.Font.GothamBlack,
+			BackgroundTransparency = 1, Text = "🛒 متجر مدينة شهد", Font = Enum.Font.GothamBlack,
 			TextSize = 24, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Right,
 			Size = UDim2.new(1, -130, 0, 32), Position = UDim2.fromOffset(64, 14), Parent = panel,
 		})
@@ -21818,7 +21818,7 @@ showProfile = function(data)
 	-- قسم تقييم الفيلم
 	new("TextLabel", {
 		BackgroundTransparency = 1,
-		Text = "⭐ تقييم «مدينة التبرعات»: " .. string.format("%.1f", data.ratingAvg or 0)
+		Text = "⭐ تقييم «مدينة شهد»: " .. string.format("%.1f", data.ratingAvg or 0)
 			.. " (" .. toAr(data.ratingCount or 0) .. " صوت)",
 		Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = CYAN,
 		Size = UDim2.new(1, -28, 0, 26), Position = UDim2.fromOffset(14, 56),
@@ -21987,7 +21987,7 @@ local function showPhotoBooth()
 	})
 
 	new("TextLabel", {
-		BackgroundTransparency = 1, Text = "🎬 سينما مدينة التبرعات · " .. LocalPlayer.DisplayName,
+		BackgroundTransparency = 1, Text = "🎬 سينما مدينة شهد · " .. LocalPlayer.DisplayName,
 		Font = Enum.Font.GothamBold, TextSize = 16, TextScaled = false, TextWrapped = true,
 		TextColor3 = Color3.fromRGB(40, 30, 60), Size = UDim2.fromOffset(272, 56), Position = UDim2.fromOffset(14, 270),
 		Parent = polaroid,

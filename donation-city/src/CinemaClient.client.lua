@@ -481,7 +481,7 @@ end
 -- نافذة حوار المرشد (محتوى عربي احترافي — تنقّل محلي)
 ------------------------------------------------------------------------
 local GUIDE_STEPS = {
-	"أهلاً وسهلاً في 🎬 <b>سينما مدينة التبرعات</b>! أنا مرشدك، خلّني أشرح لك كل شي بسرعة 👇",
+	"أهلاً وسهلاً في 🎬 <b>سينما مدينة شهد</b>! أنا مرشدك، خلّني أشرح لك كل شي بسرعة 👇",
 	"🎬 <b>السينما:</b> قاعة بشاشة عملاقة و٣٠ مقعداً وأجواء حقيقية — وقت العرض تنخفض الإضاءة وتُقفل البوابة.",
 	"🪑 <b>كيف تشاهد فيلم؟</b> اقترب من البروجكتر واضغط E، تختار مقعدك، ويبدأ العرض تلقائياً.",
 	"🎯 <b>حجز مقعد محدّد:</b> من البروجكتر تقدر تختار مقعدك بالضبط من الشبكة (🟢 متاح · 🔴 محجوز).",
@@ -1344,7 +1344,7 @@ do
 
 		-- الرأس: العنوان + الرصيد + زر الإغلاق
 		new("TextLabel", {
-			BackgroundTransparency = 1, Text = "🛒 متجر مدينة التبرعات", Font = Enum.Font.GothamBlack,
+			BackgroundTransparency = 1, Text = "🛒 متجر مدينة شهد", Font = Enum.Font.GothamBlack,
 			TextSize = 24, TextColor3 = GOLD, TextXAlignment = Enum.TextXAlignment.Right,
 			Size = UDim2.new(1, -130, 0, 32), Position = UDim2.fromOffset(64, 14), Parent = panel,
 		})
@@ -2785,7 +2785,7 @@ showProfile = function(data)
 	-- قسم تقييم الفيلم
 	new("TextLabel", {
 		BackgroundTransparency = 1,
-		Text = "⭐ تقييم «مدينة التبرعات»: " .. string.format("%.1f", data.ratingAvg or 0)
+		Text = "⭐ تقييم «مدينة شهد»: " .. string.format("%.1f", data.ratingAvg or 0)
 			.. " (" .. toAr(data.ratingCount or 0) .. " صوت)",
 		Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = CYAN,
 		Size = UDim2.new(1, -28, 0, 26), Position = UDim2.fromOffset(14, 56),
@@ -2954,7 +2954,7 @@ local function showPhotoBooth()
 	})
 
 	new("TextLabel", {
-		BackgroundTransparency = 1, Text = "🎬 سينما مدينة التبرعات · " .. LocalPlayer.DisplayName,
+		BackgroundTransparency = 1, Text = "🎬 سينما مدينة شهد · " .. LocalPlayer.DisplayName,
 		Font = Enum.Font.GothamBold, TextSize = 16, TextScaled = false, TextWrapped = true,
 		TextColor3 = Color3.fromRGB(40, 30, 60), Size = UDim2.fromOffset(272, 56), Position = UDim2.fromOffset(14, 270),
 		Parent = polaroid,

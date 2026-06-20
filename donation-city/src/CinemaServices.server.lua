@@ -53,7 +53,7 @@ local CONFIG = {
 local FILMS = {
 	{
 		id = "donation_city",
-		title = "مدينة التبرعات",
+		title = "مدينة شهد",
 		genre = "دراما · عائلي",
 		duration = "دقيقة — دقيقتان",
 		rating = "للعائلة",
@@ -807,9 +807,9 @@ local function giftNoticeText(keys: { string }): string
 	for _, k in ipairs(keys) do names[#names + 1] = "«" .. passNameByKey(k) .. "»" end
 	if #names == 0 then return "" end
 	if #names == 1 then
-		return "🎁 أهدتك إدارة مدينة التبرعات باقة " .. names[1] .. " مجاناً — مزاياها مفعّلة الآن، استمتع بها!"
+		return "🎁 أهدتك إدارة مدينة شهد باقة " .. names[1] .. " مجاناً — مزاياها مفعّلة الآن، استمتع بها!"
 	end
-	return "🎁 أهدتك إدارة مدينة التبرعات الباقات التالية مجاناً: " .. table.concat(names, "، ") .. " — مفعّلة الآن!"
+	return "🎁 أهدتك إدارة مدينة شهد الباقات التالية مجاناً: " .. table.concat(names, "، ") .. " — مفعّلة الآن!"
 end
 
 -- إرسال إشعار الإهداء للاعب حاضر (شريط إعلان علوي احترافي)
@@ -1171,7 +1171,7 @@ local function banRemainingText(b): string
 end
 
 local function banKickMsg(b): string
-	local msg = "🔨 أنت محظور من «مدينة التبرعات» " .. banRemainingText(b) .. "."
+	local msg = "🔨 أنت محظور من «مدينة شهد» " .. banRemainingText(b) .. "."
 	if b.reason and #b.reason > 0 then msg = msg .. "\nالسبب: " .. b.reason end
 	return msg
 end
@@ -1253,7 +1253,7 @@ pcall(function() teamStore = DataStoreService:GetDataStore("CinemaTeam_v1") end)
 -- الإعداد بالذاكرة (احتياطي لو DataStore متعطّل)
 local teamCfg = {
 	enabled = true,
-	title   = "فريق عمل سينما مدينة التبرعات",
+	title   = "فريق عمل سينما مدينة شهد",
 	hidden  = {},   -- [tostring(uid)] = true  (عضو مخفي من الصفحة)
 	order   = {},   -- [tostring(uid)] = number (ترتيب مخصّص؛ الأصغر أعلى)
 	names   = {},   -- [tostring(uid)] = "الاسم" (احتياطي للأعضاء غير المتصلين)

@@ -1,6 +1,6 @@
 --[[
 	╔══════════════════════════════════════════════════════════════════════╗
-	║  مدينة التبرعات — شاشة تحميل احترافية (Premium Loading Screen)         ║
+	║  مدينة شهد — شاشة تحميل احترافية (Premium Loading Screen)         ║
 	║  Theme: Dark Neon (deep black + purple/cyan glow) · واجهة عربية RTL    ║
 	║                                                                        ║
 	║  المكان:  ReplicatedFirst                                              ║
@@ -29,7 +29,7 @@ ReplicatedFirst:RemoveDefaultLoadingScreen()
 -- CONFIG  (عدّل بحرية)
 ------------------------------------------------------------------------
 local CONFIG = {
-	GameName = "مدينة التبرعات",
+	GameName = "مدينة شهد",
 	Tagline  = "مهام • تحديات • باركور • مكافآت",
 
 	Theme = "DarkNeon", -- "DarkNeon" | "WhiteCyan"
