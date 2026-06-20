@@ -24668,6 +24668,33 @@ local function run()
 end
 
 ----------------------------------------------------------------------
+-- تنظيف العناصر المرئية بالاسم (يُستدعى عند الخطأ حتى لا تبقى أزرار HUD
+-- أو طائرة/علامات معلّقة تعترض النقر). آمن لو لم يُنشأ أيٌّ منها بعد.
+----------------------------------------------------------------------
+local function cleanupArtifacts()
+	pcall(function()
+		local pg = LocalPlayer:FindFirstChild("PlayerGui")
+		local gui = pg and pg:FindFirstChild("RoyalSpawnHUD")
+		if gui then gui:Destroy() end
+	end)
+	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "LandMarker", "LandBeam", "ImpactRing", "Dust" }) do
+		local inst = Workspace:FindFirstChild(name)
+		if inst then inst:Destroy() end
+	end
+	local char = LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		for _, name in ipairs({ "TrailTop", "TrailBot" }) do
+			local att = hrp:FindFirstChild(name)
+			if att then att:Destroy() end
+		end
+		for _, d in ipairs(hrp:GetChildren()) do
+			if d:IsA("Trail") then d:Destroy() end
+		end
+	end
+end
+
+----------------------------------------------------------------------
 -- التشغيل: مرّة واحدة عند الدخول (إشارة من شاشة التحميل)
 ----------------------------------------------------------------------
 local function trigger()
@@ -24689,6 +24716,8 @@ local function trigger()
 			pcall(function() hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
 			if cam then cam.CameraSubject = hum end
 		end
+		-- إزالة أي عناصر مرئية معلّقة (HUD/طائرة/علامات/أثر) حتى لا تعترض اللعب
+		cleanupArtifacts()
 	end
 end
 
