@@ -819,6 +819,8 @@ local function showMainMenu()
 		if menuClosing then return end
 		menuClosing = true
 		playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Start, (CONFIG.MenuSoundVolume or 0.5) + 0.2)
+		-- إشارة للريسبون الملكي (SpawnCinematic) — يُشغَّل مرّة واحدة عند الدخول فقط
+		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
 		setControls(true)
 		if CONFIG.FreezeOnMenu then freezeChar(nil, false) end
 		if charConn then charConn:Disconnect() end
@@ -927,6 +929,9 @@ local function finish()
 	end
 	if CONFIG.MenuEnabled then
 		showMainMenu()
+	else
+		-- لا توجد قائمة: شغّل الريسبون الملكي مباشرةً عند انتهاء التحميل
+		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
 	end
 	task.delay(CONFIG.FadeOutTime + 0.05, function() if screenGui then screenGui:Destroy() end end)
 end
