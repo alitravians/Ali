@@ -109,8 +109,18 @@ local function setControls(enabled: boolean)
 	end)
 end
 
--- ارتفاع سطح الأرض/المنصّة عند نقطة الهبوط (Raycast لأسفل)
+-- ارتفاع سطح الأرض/المنصّة عند نقطة الهبوط.
+-- نعتمد أولاً الصفة الموثوقة من السيرفر (RoyalPadTopY) فلا يتأثّر بالـStreaming؛
+-- وإلا نطلب تحميل المنطقة ثم نعمل Raycast محلي كاحتياط.
 local function padTopY(char: Model?): number
+	local known = ReplicatedStorage:GetAttribute("RoyalPadTopY")
+	if typeof(known) == "number" then return known end
+
+	-- نضمن تحميل منطقة المنصّة قبل الـRaycast (مهم عند تفعيل Streaming)
+	pcall(function()
+		LocalPlayer:RequestStreamAroundAsync(Vector3.new(CONFIG.LANDING_XZ.X, 50, CONFIG.LANDING_XZ.Y))
+	end)
+
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Exclude
 	local exclude = {}

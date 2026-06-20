@@ -153,6 +153,12 @@ local function buildLandingPad()
 
 	model.PrimaryPart = base
 	model.Parent = Workspace
+
+	-- ننشر ارتفاع سطح المنصّة كصفة موثوقة على ReplicatedStorage (لا يطاله الـStreaming)
+	-- ليقرأها العميل مباشرةً بدل الاعتماد على Raycast قد يفشل لو لم تُحمَّل المنصّة بعد.
+	-- سطح القاعدة = مركزها + نصف سماكتها (1.2/2).
+	ReplicatedStorage:SetAttribute("RoyalPadTopY", center.Y + 0.6)
+
 	print(string.format("[SpawnCinematic] منصّة الهبوط الملكية جاهزة عند (%.0f, %.1f, %.0f).",
 		center.X, center.Y, center.Z))
 end
