@@ -23978,7 +23978,7 @@ groundRayParams.FilterType = Enum.RaycastFilterType.Exclude
 
 local function groundYAt(x: number, z: number, fromY: number, exclude: { Instance }): number
 	groundRayParams.FilterDescendantsInstances = exclude
-	local result = Workspace:Raycast(Vector3.new(x, fromY, z), Vector3.new(0, -(fromY + 1200), 0), groundRayParams)
+	local result = Workspace:Raycast(Vector3.new(x, fromY, z), Vector3.new(0, -(math.abs(fromY) + 1200), 0), groundRayParams)
 	if result then return result.Position.Y end
 	return 0
 end
