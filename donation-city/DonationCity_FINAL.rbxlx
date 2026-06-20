@@ -24605,8 +24605,13 @@ local function run()
 	canopy.Parent = Workspace
 	canopy:ScaleTo(0.2)
 	-- فتحة المظلّة: تكبير تدريجي سريع (تأثير الانبثاق)
+	-- نتحقّق من بقاء القبّة كل خطوة حتى لا نُحدث خطأ في الكونسول لو نُظّفت أثناء الفشل.
 	task.spawn(function()
-		for i = 1, 10 do canopy:ScaleTo(0.2 + 0.08 * i); task.wait(0.02) end
+		for i = 1, 10 do
+			if not canopy.Parent then return end
+			canopy:ScaleTo(0.2 + 0.08 * i)
+			task.wait(0.02)
+		end
 	end)
 
 	while (y - groundY) > CONFIG.LAND_ALT do
