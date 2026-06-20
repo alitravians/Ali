@@ -502,6 +502,15 @@ local function run()
 	local startPos = jumpPoint - travelDir * CONFIG.FLIGHT_DIST
 	local fallDir = Vector3.new(travelDir.X, 0, travelDir.Z).Unit
 
+	-- نلتقط قيم الحركة لنعيدها بأنفسنا عند الهبوط (استقلال عن شاشة التحميل):
+	-- لو كانت صفراً (الشخصية مجمّدة من القائمة) نرجع للقيم الافتراضية.
+	local function moveVal(v: number, default: number): number
+		return (v and v > 0) and v or default
+	end
+	local restWalk  = moveVal(humanoid.WalkSpeed, 16)
+	local restJumpP = moveVal(humanoid.JumpPower, 50)
+	local restJumpH = moveVal(humanoid.JumpHeight, 7.2)
+
 	-- إعداد: تعطيل التحكّم + تثبيت الشخصية + كاميرا سينمائية
 	setControls(false)
 	humanoid.AutoRotate = false
@@ -750,9 +759,12 @@ local function run()
 		if landed and landed:IsA("RemoteEvent") then landed:FireServer() end
 	end)
 
-	-- استعادة الكاميرا والتحكّم
+	-- استعادة الكاميرا والتحكّم + قيم الحركة (لا نعتمد على شاشة التحميل)
 	if inputConn then inputConn:Disconnect() end
 	rootPart.Anchored = false
+	humanoid.WalkSpeed = restWalk
+	humanoid.JumpPower = restJumpP
+	humanoid.JumpHeight = restJumpH
 	humanoid.AutoRotate = true
 	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
 	cam.CameraType = Enum.CameraType.Custom
