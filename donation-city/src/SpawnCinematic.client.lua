@@ -803,6 +803,8 @@ end
 local function trigger()
 	if started then return end
 	started = true
+	-- إشارة لشاشة التحميل أن المشهد سيطر فعلاً (تُلغي شبكة أمان استعادة التحكّم)
+	LocalPlayer:SetAttribute("RoyalSpawnActive", true)
 	local ok, err = pcall(run)
 	if not ok then
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))

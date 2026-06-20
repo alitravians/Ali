@@ -894,6 +894,14 @@ local function showMainMenu()
 		-- (يعطّله عند البداية ويعيده عند الهبوط) فلا توجد لحظة يتحرّك فيها اللاعب قبل
 		-- أن يسيطر المشهد عليه ويرفعه للطائرة.
 		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
+		-- شبكة أمان: لو لم يتولَّ SpawnCinematic السيطرة خلال مهلة (سكربت مفقود
+		-- من البناء أو خطأ في تعريفاته قبل تسجيل المستمع) نُعيد التحكّم حتى لا
+		-- يعلق اللاعب بلا حركة. المشهد يضبط RoyalSpawnActive=true عند توليه فعلاً.
+		if CONFIG.FreezeOnMenu then
+			task.delay(8, function()
+				if not LocalPlayer:GetAttribute("RoyalSpawnActive") then setControls(true) end
+			end)
+		end
 		if CONFIG.FreezeOnMenu then freezeChar(nil, false) end
 		if charConn then charConn:Disconnect() end
 		local shatter = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
@@ -1920,10 +1928,11 @@ print("[CustomChat] السيرفر جاهز — دردشة مخصّصة مع ف�
 	║    • بطل الباركور — عند إكمال مسار الباركور (يناديها نظام الباركور).     ║
 	║    • مستكشف المدينة — عند زيارة كل المناطق (يناديها نظام النشاط).        ║
 	║    • طاقم المدينة — تكريمية لأعضاء الإدارة/الإشراف (تلقائياً بالدخول).   ║
+	║    • أول هبوط — عند أول هبوط بالريسبون الملكي (يناديها SpawnCinematic). ║
 	║                                                                        ║
 	║  API لباقي السكربتات:  _G.AwardBadge(player, "DONOR")                  ║
 	║  المفاتيح: FIRST_VISIT · DONOR · CINEMA · TICKETS · LOYAL              ║
-	║           · PARKOUR · EXPLORER · STAFF                                 ║
+	║           · PARKOUR · EXPLORER · STAFF · FIRST_LANDING                 ║
 	╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -2026,7 +2035,7 @@ Players.PlayerAdded:Connect(function(player)
 	end
 end)
 
-print("[BadgeAwards] جاهز — 8 شارات مفعّلة.")
+print("[BadgeAwards] جاهز — 8 شارات مفعّلة + شارة قيد الإعداد (أول هبوط).")
 ]]></string>
       </Properties>
     </Item>
@@ -24700,6 +24709,8 @@ end
 local function trigger()
 	if started then return end
 	started = true
+	-- إشارة لشاشة التحميل أن المشهد سيطر فعلاً (تُلغي شبكة أمان استعادة التحكّم)
+	LocalPlayer:SetAttribute("RoyalSpawnActive", true)
 	local ok, err = pcall(run)
 	if not ok then
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))

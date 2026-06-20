@@ -824,6 +824,14 @@ local function showMainMenu()
 		-- (يعطّله عند البداية ويعيده عند الهبوط) فلا توجد لحظة يتحرّك فيها اللاعب قبل
 		-- أن يسيطر المشهد عليه ويرفعه للطائرة.
 		LocalPlayer:SetAttribute("RoyalSpawnStart", true)
+		-- شبكة أمان: لو لم يتولَّ SpawnCinematic السيطرة خلال مهلة (سكربت مفقود
+		-- من البناء أو خطأ في تعريفاته قبل تسجيل المستمع) نُعيد التحكّم حتى لا
+		-- يعلق اللاعب بلا حركة. المشهد يضبط RoyalSpawnActive=true عند توليه فعلاً.
+		if CONFIG.FreezeOnMenu then
+			task.delay(8, function()
+				if not LocalPlayer:GetAttribute("RoyalSpawnActive") then setControls(true) end
+			end)
+		end
 		if CONFIG.FreezeOnMenu then freezeChar(nil, false) end
 		if charConn then charConn:Disconnect() end
 		local shatter = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In)

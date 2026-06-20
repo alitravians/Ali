@@ -12,10 +12,11 @@
 	║    • بطل الباركور — عند إكمال مسار الباركور (يناديها نظام الباركور).     ║
 	║    • مستكشف المدينة — عند زيارة كل المناطق (يناديها نظام النشاط).        ║
 	║    • طاقم المدينة — تكريمية لأعضاء الإدارة/الإشراف (تلقائياً بالدخول).   ║
+	║    • أول هبوط — عند أول هبوط بالريسبون الملكي (يناديها SpawnCinematic). ║
 	║                                                                        ║
 	║  API لباقي السكربتات:  _G.AwardBadge(player, "DONOR")                  ║
 	║  المفاتيح: FIRST_VISIT · DONOR · CINEMA · TICKETS · LOYAL              ║
-	║           · PARKOUR · EXPLORER · STAFF                                 ║
+	║           · PARKOUR · EXPLORER · STAFF · FIRST_LANDING                 ║
 	╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -118,4 +119,4 @@ Players.PlayerAdded:Connect(function(player)
 	end
 end)
 
-print("[BadgeAwards] جاهز — 8 شارات مفعّلة.")
+print("[BadgeAwards] جاهز — 8 شارات مفعّلة + شارة قيد الإعداد (أول هبوط).")
