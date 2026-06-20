@@ -6,7 +6,7 @@
 	║  الريسبون الملكي على طريقة ببجي (دعم السيرفر):                          ║
 	║    • يحمّل جسم الطائرة (MeshPart) المرفوع على حساب المالك مرّة واحدة     ║
 	║      ويضعه قالباً في ReplicatedStorage ليستنسخه كل لاعب محلياً.         ║
-	║    • يبني منصّة هبوط ملكية ثابتة على حدود الماب (Raycast لأرض آمنة).     ║
+	║    • النزول حرّ: اللاعب يتحكّم وينزل وين ما يبي (لا منصّة هبوط ثابتة).    ║
 	║    • يمنح شارة «أول هبوط» عند أول هبوط ناجح (آمن لو الشارة غير منشأة).   ║
 	║                                                                        ║
 	║  المشهد نفسه (كاميرا/فيزياء/HUD) يُدار على العميل لكل لاعب على حدة      ║
@@ -17,13 +17,9 @@
 local Players          = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local InsertService    = game:GetService("InsertService")
-local Workspace        = game:GetService("Workspace")
 
 -- معرّف موديل الطائرة الملكية (مرفوع عبر Open Cloud على حساب المالك، معتمَد).
 local PLANE_ASSET_ID = 130978289788461
-
--- نقطة الهبوط الثابتة على حدود الماب (الأرض 400×400، حوافها عند ±200).
-local LANDING_XZ = Vector2.new(150, -150)
 
 ------------------------------------------------------------------------
 -- قنوات الاتصال (RemoteEvents)
@@ -102,68 +98,6 @@ local function publishPlaneTemplate()
 end
 
 ------------------------------------------------------------------------
--- منصّة الهبوط الملكية على حدود الماب
-------------------------------------------------------------------------
-local function groundYAt(x: number, z: number): number
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	-- استبعاد شخصيات اللاعبين (تعيش داخل Workspace لا داخل خدمة Players) + منصّة الهبوط نفسها
-	local exclude = {}
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr.Character then exclude[#exclude + 1] = plr.Character end
-	end
-	local existingPad = Workspace:FindFirstChild("RoyalLandingPad")
-	if existingPad then exclude[#exclude + 1] = existingPad end
-	params.FilterDescendantsInstances = exclude
-	local origin = Vector3.new(x, 400, z)
-	local result = Workspace:Raycast(origin, Vector3.new(0, -800, 0), params)
-	if result then return result.Position.Y end
-	return 0
-end
-
-local function buildLandingPad()
-	if Workspace:FindFirstChild("RoyalLandingPad") then return end
-	local gy = groundYAt(LANDING_XZ.X, LANDING_XZ.Y)
-	local center = Vector3.new(LANDING_XZ.X, gy + 0.6, LANDING_XZ.Y)
-
-	local model = Instance.new("Model")
-	model.Name = "RoyalLandingPad"
-
-	local function disc(name, dia, height, color, material, transparency)
-		local p = Instance.new("Part")
-		p.Name = name
-		p.Shape = Enum.PartType.Cylinder
-		p.Size = Vector3.new(height, dia, dia)
-		p.CFrame = CFrame.new(center) * CFrame.Angles(0, 0, math.rad(90))
-		p.Anchored = true
-		p.Color = color
-		p.Material = material
-		p.Transparency = transparency or 0
-		p.TopSurface = Enum.SurfaceType.Smooth
-		p.BottomSurface = Enum.SurfaceType.Smooth
-		p.Parent = model
-		return p
-	end
-
-	local base = disc("Base", 34, 1.2, Color3.fromRGB(236, 232, 224), Enum.Material.Marble, 0)
-	base.CanCollide = true
-	disc("RingGold", 36, 1.0, Color3.fromRGB(214, 175, 92), Enum.Material.Metal, 0).CanCollide = false
-	local glow = disc("Glow", 24, 1.3, Color3.fromRGB(120, 220, 170), Enum.Material.Neon, 0.45)
-	glow.CanCollide = false
-
-	model.PrimaryPart = base
-	model.Parent = Workspace
-
-	-- ننشر ارتفاع سطح المنصّة كصفة موثوقة على ReplicatedStorage (لا يطاله الـStreaming)
-	-- ليقرأها العميل مباشرةً بدل الاعتماد على Raycast قد يفشل لو لم تُحمَّل المنصّة بعد.
-	-- سطح القاعدة = مركزها + نصف سماكتها (1.2/2).
-	ReplicatedStorage:SetAttribute("RoyalPadTopY", center.Y + 0.6)
-
-	print(string.format("[SpawnCinematic] منصّة الهبوط الملكية جاهزة عند (%.0f, %.1f, %.0f).",
-		center.X, center.Y, center.Z))
-end
-
-------------------------------------------------------------------------
 -- شارة «أول هبوط» عند أول هبوط ناجح
 ------------------------------------------------------------------------
 -- علم لكل لاعب يمنع تكرار النداء لو أرسل العميل الحدث أكثر من مرّة (حماية من السبام).
@@ -183,6 +117,5 @@ end)
 -- إقلاع
 ------------------------------------------------------------------------
 task.spawn(publishPlaneTemplate)
-task.spawn(buildLandingPad)
 
 print("[SpawnCinematic] جاهز — الريسبون الملكي مدعوم من السيرفر.")

@@ -6,9 +6,9 @@
 	║  الريسبون الملكي على طريقة ببجي — مشهد فردي لكل لاعب، جوال-أولاً:        ║
 	║    ١) وضع المشاهدة داخل «طائرة شهد للنزول الملكي» (إضاءة LED احترافية،   ║
 	║       لقطة بانورامية على المدينة، عدّاد ٣-٢-١، زر Skip كبير).            ║
-	║    ٢) القفز → سقوط حرّ + HUD (ارتفاع/سرعة) + أثر ملوّن + دائرة هبوط تكبر. ║
-	║    ٣) فتح المظلّة بحرف E أو زر لمس كبير → نزول مستقيم سلس + تمايل.        ║
-	║    ٤) هبوط ثابت على منصّة حدود الماب → غبار/صدمة + استعادة الكاميرا.      ║
+	║    ٢) القفز → سقوط حرّ موجَّه (WASD/عصا + كاميرا حرّة) + HUD ارتفاع/سرعة.  ║
+	║    ٣) فتح المظلّة بحرف E أو زر لمس كبير → نزول موجَّه سلس + تمايل.         ║
+	║    ٤) هبوط حرّ وين ما ينزل اللاعب على الماب → غبار/صدمة + استعادة الكاميرا.║
 	║                                                                        ║
 	║  يُشغَّل مرّة واحدة عند الدخول فقط (إشارة من شاشة التحميل عند «بدء       ║
 	║  اللعبة») — لا يتكرّر عند الموت داخل اللعبة.                             ║
@@ -33,10 +33,11 @@ local LocalPlayer = Players.LocalPlayer
 ----------------------------------------------------------------------
 local CONFIG = {
 	-- جغرافيا المشهد
-	LANDING_XZ      = Vector2.new(150, -150), -- منصّة الهبوط على حدود الماب (مطابقة للسيرفر)
+	JUMP_XZ         = Vector2.new(0, 0),      -- يقفز فوق وسط المدينة ثم نزول حرّ موجَّه
 	ALTITUDE        = 720,                    -- ارتفاع الطائرة عند الإقلاع
 	FLIGHT_DIST     = 460,                    -- طول مسار الطائرة فوق المدينة قبل القفز
 	PLANE_LENGTH    = 120,                    -- طول جسم الطائرة بعد التحجيم
+	MAP_HALF        = 195,                    -- نصف حدود الماب (الأرض 400×400) — نمنع الخروج للفراغ
 
 	-- التوقيت
 	SPECTATOR_TIME  = 9.0,                    -- مدّة المشاهدة قبل القفز التلقائي
@@ -48,7 +49,9 @@ local CONFIG = {
 	FREEFALL_ACC    = 90,                     -- تسارع السقوط
 	AUTO_DEPLOY_ALT = 230,                    -- فتح المظلّة تلقائياً عند هذا الارتفاع (أمان)
 	CANOPY_SPEED    = 26,                     -- سرعة النزول تحت المظلّة
-	LAND_ALT        = 5.5,                    -- ارتفاع لحظة الهبوط فوق المنصّة
+	LAND_ALT        = 5.5,                    -- ارتفاع لحظة الهبوط فوق الأرض
+	DRIFT_FREEFALL  = 62,                     -- سرعة التوجيه الأفقي أثناء السقوط الحر (WASD/عصا)
+	DRIFT_CANOPY    = 42,                     -- سرعة التوجيه الأفقي تحت المظلّة
 
 	-- أضواء/ألوان
 	SWAP_NAV_COLORS = false,                  -- اقلبها لو الأحمر/الأخضر بالعكس على الأجنحة
@@ -121,27 +124,57 @@ local function setControls(enabled: boolean)
 	end)
 end
 
--- ارتفاع سطح الأرض/المنصّة عند نقطة الهبوط.
--- نعتمد أولاً الصفة الموثوقة من السيرفر (RoyalPadTopY) فلا يتأثّر بالـStreaming؛
--- وإلا نطلب تحميل المنطقة ثم نعمل Raycast محلي كاحتياط.
-local function padTopY(char: Model?): number
-	local known = ReplicatedStorage:GetAttribute("RoyalPadTopY")
-	if typeof(known) == "number" then return known end
+-- ارتفاع سطح الأرض أسفل أي نقطة (x,z) — للنزول الحرّ (الهبوط وين ما ينزل اللاعب).
+-- نبدأ الشعاع من أسفل اللاعب مباشرةً (fromY) حتى لا نصطدم بالطائرة/المظلّة فوقه،
+-- ونستبعد ما يُمرَّر (الشخصية والمظلّة). لو لم تُحمَّل الأرض بعد (Streaming) نرجع 0
+-- (سطح الأرضية الأساسية) ويُصحَّح تلقائياً كل ما اقترب اللاعب وحُمِّلت المنطقة.
+local groundRayParams = RaycastParams.new()
+groundRayParams.FilterType = Enum.RaycastFilterType.Exclude
 
-	-- نضمن تحميل منطقة المنصّة قبل الـRaycast (مهم عند تفعيل Streaming)
-	pcall(function()
-		LocalPlayer:RequestStreamAroundAsync(Vector3.new(CONFIG.LANDING_XZ.X, 50, CONFIG.LANDING_XZ.Y))
-	end)
-
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Exclude
-	local exclude = {}
-	if char then exclude[#exclude + 1] = char end
-	params.FilterDescendantsInstances = exclude
-	local origin = Vector3.new(CONFIG.LANDING_XZ.X, 400, CONFIG.LANDING_XZ.Y)
-	local result = Workspace:Raycast(origin, Vector3.new(0, -800, 0), params)
+local function groundYAt(x: number, z: number, fromY: number, exclude: { Instance }): number
+	groundRayParams.FilterDescendantsInstances = exclude
+	local result = Workspace:Raycast(Vector3.new(x, fromY, z), Vector3.new(0, -(fromY + 1200), 0), groundRayParams)
 	if result then return result.Position.Y end
-	return 1
+	return 0
+end
+
+-- وحدة التحكّم الافتراضية (لقراءة متجه الإدخال: WASD/الأسهم أو عصا الجوال)
+local controlModule: any = nil
+local function getControlModule(): any
+	if controlModule then return controlModule end
+	pcall(function()
+		local ps = LocalPlayer:FindFirstChild("PlayerScripts")
+		local pm = ps and ps:FindFirstChild("PlayerModule")
+		if pm then controlModule = require(pm):GetControls() end
+	end)
+	return controlModule
+end
+
+-- متجه التوجيه الأفقي نسبةً للكاميرا من إدخال اللاعب (يعمل على الكمبيوتر والجوال).
+-- يرجع متجهاً أفقياً موحّداً أو صفراً لو ما في إدخال.
+local function steerWorldDir(cam: Camera): Vector3
+	local mv = Vector3.zero
+	local cm = getControlModule()
+	if cm then
+		local ok, v = pcall(function() return cm:GetMoveVector() end)
+		if ok and typeof(v) == "Vector3" then mv = v end
+	end
+	if mv.Magnitude < 0.05 then
+		local f, r = 0, 0
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up) then f += 1 end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down) then f -= 1 end
+		if UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right) then r += 1 end
+		if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then r -= 1 end
+		mv = Vector3.new(r, 0, -f)
+	end
+	if mv.Magnitude < 0.05 then return Vector3.zero end
+	local cf = cam.CFrame
+	local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	look = look.Magnitude > 0.01 and look.Unit or Vector3.new(0, 0, -1)
+	local right = Vector3.new(cf.RightVector.X, 0, cf.RightVector.Z)
+	right = right.Magnitude > 0.01 and right.Unit or Vector3.new(1, 0, 0)
+	local world = right * mv.X + look * (-mv.Z)
+	return world.Magnitude > 0.01 and world.Unit or Vector3.zero
 end
 
 ----------------------------------------------------------------------
@@ -267,7 +300,7 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	for _, side in ipairs({ -1, 1 }) do
 		local win = neonBulb("CabinWindows", Vector3.new(hf * 0.95, hu * 0.16, 0.18), WARM, model)
 		win.CFrame = CFrame.fromMatrix(at(0.05, side * 1.0, 0.45), fwd, up, lat * side)
-		local pl = mk("PointLight", { Color = WARM, Brightness = 1.4, Range = 16, Parent = win }) :: PointLight
+		local pl = mk("PointLight", { Color = WARM, Brightness = 0.8, Range = 10, Parent = win }) :: PointLight
 		pl.Shadows = false
 	end
 
@@ -277,40 +310,40 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	local navColorL = if CONFIG.SWAP_NAV_COLORS then Color3.fromRGB(60, 255, 90) else Color3.fromRGB(255, 50, 50)
 	local navColorR = if CONFIG.SWAP_NAV_COLORS then Color3.fromRGB(255, 50, 50) else Color3.fromRGB(60, 255, 90)
 
-	-- أضواء ملاحة جناحية (أحمر يسار / أخضر يمين)
-	local navL = neonBulb("NavPort", Vector3.new(1.1, 1.1, 1.1), navColorL, model)
+	-- أضواء ملاحة جناحية (أحمر يسار / أخضر يمين) — نِقاط صغيرة أنيقة، خافتة نهاراً
+	local navL = neonBulb("NavPort", Vector3.new(0.6, 0.6, 0.6), navColorL, model)
 	navL.Shape = Enum.PartType.Ball
 	navL.CFrame = CFrame.new(at(-0.05, -1.0, 0.05))
-	local navLLight = mk("PointLight", { Color = navColorL, Brightness = 4, Range = 26, Parent = navL }) :: PointLight
+	local navLLight = mk("PointLight", { Color = navColorL, Brightness = 1.6, Range = 13, Parent = navL }) :: PointLight
 
-	local navR = neonBulb("NavStarboard", Vector3.new(1.1, 1.1, 1.1), navColorR, model)
+	local navR = neonBulb("NavStarboard", Vector3.new(0.6, 0.6, 0.6), navColorR, model)
 	navR.Shape = Enum.PartType.Ball
 	navR.CFrame = CFrame.new(at(-0.05, 1.0, 0.05))
-	local navRLight = mk("PointLight", { Color = navColorR, Brightness = 4, Range = 26, Parent = navR }) :: PointLight
+	local navRLight = mk("PointLight", { Color = navColorR, Brightness = 1.6, Range = 13, Parent = navR }) :: PointLight
 
 	-- منارة الذيل البيضاء (نبض)
-	local beacon = neonBulb("TailBeacon", Vector3.new(1.0, 1.0, 1.0), WHITE, model)
+	local beacon = neonBulb("TailBeacon", Vector3.new(0.55, 0.55, 0.55), WHITE, model)
 	beacon.Shape = Enum.PartType.Ball
 	beacon.CFrame = CFrame.new(at(-0.95, 0, 0.85))
-	local beaconLight = mk("PointLight", { Color = WHITE, Brightness = 5, Range = 30, Parent = beacon }) :: PointLight
+	local beaconLight = mk("PointLight", { Color = WHITE, Brightness = 1.6, Range = 13, Parent = beacon }) :: PointLight
 
 	-- سترّوب أحمر تحت البطن (ومضتان سريعتان متكررتان)
-	local strobe = neonBulb("BellyStrobe", Vector3.new(1.4, 0.5, 1.4), Color3.fromRGB(255, 40, 40), model)
+	local strobe = neonBulb("BellyStrobe", Vector3.new(0.7, 0.4, 0.7), Color3.fromRGB(255, 40, 40), model)
 	strobe.Shape = Enum.PartType.Ball
 	strobe.CFrame = CFrame.new(at(0, 0, -1.0))
-	local strobeLight = mk("PointLight", { Color = Color3.fromRGB(255, 40, 40), Brightness = 6, Range = 34, Parent = strobe }) :: PointLight
+	local strobeLight = mk("PointLight", { Color = Color3.fromRGB(255, 40, 40), Brightness = 2, Range = 15, Parent = strobe }) :: PointLight
 
 	-- أضواء هبوط بيضاء بالأنف (ثابتة)
-	local landBulb = neonBulb("LandingLight", Vector3.new(1.6, 0.6, 0.6), WHITE, model)
+	local landBulb = neonBulb("LandingLight", Vector3.new(1.2, 0.5, 0.5), WHITE, model)
 	landBulb.CFrame = CFrame.new(at(0.88, 0, -0.25))
-	local landLight = mk("PointLight", { Color = WHITE, Brightness = 4, Range = 40, Parent = landBulb }) :: PointLight
+	local landLight = mk("PointLight", { Color = WHITE, Brightness = 1.5, Range = 20, Parent = landBulb }) :: PointLight
 	landLight.Shadows = false
 
-	-- توهّج بطني ذهبي ناعم (ثابت)
-	local underBulb = neonBulb("Underglow", Vector3.new(hf * 1.1, 0.25, hl * 1.0), GOLD, model)
-	underBulb.Transparency = 0.25
-	underBulb.CFrame = CFrame.new(at(0, 0, -0.95))
-	mk("PointLight", { Color = GOLD, Brightness = 1.2, Range = 22, Parent = underBulb, Shadows = false })
+	-- شريط بطني ذهبي رفيع (موجَّه مع الجسم، خافت — لا يطغى على الطائرة)
+	local underBulb = neonBulb("Underglow", Vector3.new(hf * 1.2, 0.12, hl * 0.5), GOLD, model)
+	underBulb.Transparency = 0.5
+	underBulb.CFrame = CFrame.fromMatrix(at(0, 0, -0.72), fwd, up, lat)
+	mk("PointLight", { Color = GOLD, Brightness = 0.5, Range = 10, Parent = underBulb, Shadows = false })
 
 	-- باب القفز (فتحة داكنة على جانب الجسم)
 	local door = neonBulb("JumpDoor", Vector3.new(hf * 0.22, hu * 0.55, 0.1), Color3.fromRGB(20, 22, 30), model)
@@ -335,17 +368,17 @@ local function stepLEDs(plane, t: number)
 	local navOn = (t % 1.5) > 0.18
 	for _, pair in ipairs(plane.nav) do
 		local light = pair[2] :: PointLight
-		light.Brightness = navOn and 4 or 0.4
+		light.Brightness = navOn and 1.6 or 0.2
 		;(pair[1] :: BasePart).Transparency = navOn and 0 or 0.55
 	end
 	-- نبض منارة الذيل
 	local pulse = 0.5 + 0.5 * math.sin(t * 6)
-	;(plane.beacon[2] :: PointLight).Brightness = 1.5 + pulse * 5
+	;(plane.beacon[2] :: PointLight).Brightness = 0.6 + pulse * 1.5
 	;(plane.beacon[1] :: BasePart).Transparency = 0.15 + (1 - pulse) * 0.5
 	-- سترّوب: ومضتان سريعتان كل ١.٢ث
 	local ph = t % 1.2
 	local flash = (ph < 0.06) or (ph >= 0.16 and ph < 0.22)
-	;(plane.strobe[2] :: PointLight).Brightness = flash and 8 or 0
+	;(plane.strobe[2] :: PointLight).Brightness = flash and 2.5 or 0
 	;(plane.strobe[1] :: BasePart).Transparency = flash and 0 or 0.7
 end
 
@@ -420,7 +453,7 @@ local function buildHUD()
 		Name = "Banner", AnchorPoint = Vector2.new(0.5, 0),
 		Position = UDim2.fromScale(0.5, 0.04), Size = UDim2.fromOffset(520, 56),
 		BackgroundColor3 = Color3.fromRGB(15, 18, 30), BackgroundTransparency = 0.25,
-		Text = "وضع المشاهدة ✈️", Font = Enum.Font.GothamBlack, TextScaled = true,
+		Text = "وضع المشاهدة", Font = Enum.Font.GothamBlack, TextScaled = true,
 		TextColor3 = GOLD, Parent = root,
 	}) :: TextLabel
 	mk("UICorner", { CornerRadius = UDim.new(0, 14), Parent = banner })
@@ -464,29 +497,29 @@ local function buildHUD()
 		PaddingTop = UDim.new(0, 6), PaddingBottom = UDim.new(0, 6), Parent = stats,
 	})
 
-	-- زر Skip كبير (أسفل الوسط)
+	-- زر Skip كبير (أسفل الوسط — في منطقة آمنة لا تُقصّ على الجوال)
 	local skipBtn = mk("TextButton", {
-		Name = "Skip", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.93),
+		Name = "Skip", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.84),
 		Size = UDim2.fromOffset(260, 84), BackgroundColor3 = Color3.fromRGB(214, 175, 92),
-		Text = "تخطّي ⏭", Font = Enum.Font.GothamBlack, TextScaled = true,
+		Text = "تخطّي", Font = Enum.Font.GothamBlack, TextScaled = true,
 		TextColor3 = Color3.fromRGB(20, 22, 34), AutoButtonColor = true, Visible = false,
 		Parent = root,
 	}) :: TextButton
 	mk("UICorner", { CornerRadius = UDim.new(0, 18), Parent = skipBtn })
 	mk("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.4, Parent = skipBtn })
 
-	-- زر فتح المظلّة كبير (أسفل الوسط) + تلميح E للكمبيوتر
+	-- زر فتح المظلّة كبير (أسفل الوسط، منطقة آمنة) + تلميح E للكمبيوتر
 	local chuteBtn = mk("TextButton", {
-		Name = "Chute", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.93),
+		Name = "Chute", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.84),
 		Size = UDim2.fromOffset(300, 96), BackgroundColor3 = Color3.fromRGB(60, 170, 240),
-		Text = "افتح المظلّة 🪂", Font = Enum.Font.GothamBlack, TextScaled = true,
+		Text = "افتح المظلّة", Font = Enum.Font.GothamBlack, TextScaled = true,
 		TextColor3 = WHITE, AutoButtonColor = true, Visible = false, Parent = root,
 	}) :: TextButton
 	mk("UICorner", { CornerRadius = UDim.new(0, 20), Parent = chuteBtn })
 	mk("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.3, Parent = chuteBtn })
 
 	local eHint = mk("TextLabel", {
-		Name = "EHint", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.81),
+		Name = "EHint", AnchorPoint = Vector2.new(0.5, 1), Position = UDim2.fromScale(0.5, 0.72),
 		Size = UDim2.fromOffset(280, 40), BackgroundTransparency = 1,
 		Text = "اضغط E لفتح المظلّة", Font = Enum.Font.GothamBold, TextScaled = true,
 		TextColor3 = WARM, Visible = false, Parent = root,
@@ -516,14 +549,12 @@ local function run()
 	local cam = Workspace.CurrentCamera
 	if not cam then setControls(true) return end
 
-	-- نقاط المسار
-	local groundY = padTopY(char)
-	local landXZ = CONFIG.LANDING_XZ
-	local jumpPoint = Vector3.new(landXZ.X, CONFIG.ALTITUDE, landXZ.Y)
-	local cityDir = (Vector3.new(landXZ.X, 0, landXZ.Y) - Vector3.new(0, 0, 0))
-	local travelDir = cityDir.Magnitude > 0.1 and cityDir.Unit or Vector3.new(0, 0, -1)
+	-- مسار الطائرة: تعبر المدينة وتُسقط اللاعب فوق وسط الماب، ثم نزول حرّ موجَّه.
+	local jumpXZ = CONFIG.JUMP_XZ
+	local travelDir = (Vector3.new(1, 0, 0) * CONFIG.FORWARD_SIGN).Unit
+	local jumpPoint = Vector3.new(jumpXZ.X, CONFIG.ALTITUDE, jumpXZ.Y)
 	local startPos = jumpPoint - travelDir * CONFIG.FLIGHT_DIST
-	local fallDir = Vector3.new(travelDir.X, 0, travelDir.Z).Unit
+	local fallDir = travelDir
 
 	-- إعداد: تعطيل التحكّم + تثبيت الشخصية + كاميرا سينمائية
 	setControls(false)
@@ -597,11 +628,20 @@ local function run()
 	------------------------------------------------------------------
 	hud.skip.Visible = false
 	hud.countdown.Visible = false
-	hud.banner.Text = "سقوط حرّ 🪂"
+	hud.banner.Text = "سقوط حرّ"
 	hud.stats.Visible = true
 	hud.chute.Visible = true
 	if not UserInputService.TouchEnabled then hud.eHint.Visible = true end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
+
+	-- تفعيل تحكّم اللاعب + كاميرا حرّة: WASD/الأسهم (كمبيوتر) أو عصا الجوال للتوجيه،
+	-- والماوس/سحب الإصبع لتدوير الكاميرا — نزول حرّ على طريقة ببجي.
+	cam.CameraType = Enum.CameraType.Custom
+	cam.CameraSubject = humanoid
+	setControls(true)
+
+	local canopy: Model? = nil
+	local descentExclude: { Instance } = { char }
 
 	-- الطائرة تكمل طيرانها وتختفي
 	task.spawn(function()
@@ -634,21 +674,6 @@ local function run()
 		Parent = rootPart,
 	}) :: Trail
 
-	-- دائرة هبوط متوهّجة تكبر على المنصّة
-	local marker = mk("Part", {
-		Name = "LandMarker", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 6, 6),
-		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		CastShadow = false, Material = Enum.Material.Neon, Color = Color3.fromRGB(120, 230, 170),
-		Transparency = 0.35, CFrame = CFrame.new(landXZ.X, groundY + 0.4, landXZ.Y) * CFrame.Angles(0, 0, math.rad(90)),
-		Parent = Workspace,
-	}) :: Part
-	local beam = mk("Part", {
-		Name = "LandBeam", Size = Vector3.new(10, 600, 10), Anchored = true, CanCollide = false,
-		CanQuery = false, CanTouch = false, CastShadow = false, Material = Enum.Material.Neon,
-		Color = Color3.fromRGB(120, 230, 170), Transparency = 0.9,
-		CFrame = CFrame.new(landXZ.X, groundY + 300, landXZ.Y), Parent = Workspace,
-	}) :: Part
-
 	-- E / زر اللمس لفتح المظلّة
 	hud.chute.Activated:Connect(function() deployed = true end)
 	local inputConn = UserInputService.InputBegan:Connect(function(input, gpe)
@@ -660,24 +685,26 @@ local function run()
 	local function updateDescentVisuals(altitude, speed)
 		hud.alt.Text = string.format("الارتفاع: %d م", math.max(0, math.floor(altitude)))
 		hud.spd.Text = string.format("السرعة: %d", math.floor(speed * 3.6))
-		local total = CONFIG.ALTITUDE - groundY
-		local grow = 1 - math.clamp(altitude / total, 0, 1)
-		local d = 6 + grow * 34
-		marker.Size = Vector3.new(0.4, d, d)
-		marker.Transparency = 0.5 - grow * 0.3
 	end
 
 	local vSpeed = CONFIG.FREEFALL_MIN
 	local y = CONFIG.ALTITUDE
+	local px, pz = jumpXZ.X, jumpXZ.Y
+	local faceDir = fallDir
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
 		y -= vSpeed * dt
+		local dir = steerWorldDir(cam)
+		if dir.Magnitude > 0.01 then
+			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
+			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
+			faceDir = dir
+		end
+		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
-		rootPart.CFrame = CFrame.lookAt(Vector3.new(landXZ.X, y, landXZ.Y), Vector3.new(landXZ.X, y, landXZ.Y) + fallDir)
-			* CFrame.Angles(math.rad(-72), 0, 0)
-		local camPos = Vector3.new(landXZ.X, y + 14, landXZ.Y) - fallDir * 24
-		cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(camPos, Vector3.new(landXZ.X, y - 26, landXZ.Y)), 0.18)
+		local pos = Vector3.new(px, y, pz)
+		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, 0)
 		updateDescentVisuals(altitude, vSpeed)
 		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then break end
 	end
@@ -688,49 +715,58 @@ local function run()
 	deployed = true
 	hud.chute.Visible = false
 	hud.eHint.Visible = false
-	hud.banner.Text = "النزول بالمظلّة 🪂"
+	hud.banner.Text = "النزول بالمظلّة"
 	if trail then trail.Enabled = false end
 	playSound3D(rootPart, CONFIG.SND_CHUTE, 0.7, false)
 
-	local canopy = buildCanopy()
+	canopy = buildCanopy()
 	canopy.Parent = Workspace
 	canopy:ScaleTo(0.2)
+	descentExclude[#descentExclude + 1] = canopy
 	-- فتحة المظلّة: تكبير تدريجي سريع (تأثير الانبثاق)
 	-- نتحقّق من بقاء القبّة كل خطوة حتى لا نُحدث خطأ في الكونسول لو نُظّفت أثناء الفشل.
 	task.spawn(function()
 		for i = 1, 10 do
-			if not canopy.Parent then return end
+			if not canopy or not canopy.Parent then return end
 			canopy:ScaleTo(0.2 + 0.08 * i)
 			task.wait(0.02)
 		end
 	end)
 
-	while (y - groundY) > CONFIG.LAND_ALT do
+	while true do
 		local dt = RunService.Heartbeat:Wait()
 		y -= CONFIG.CANOPY_SPEED * dt
+		local dir = steerWorldDir(cam)
+		if dir.Magnitude > 0.01 then
+			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
+			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
+			faceDir = dir
+		end
+		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
 		local tt = os.clock()
-		local swayYaw = math.sin(tt * 1.1) * 0.12
-		local swayRoll = math.sin(tt * 0.9) * 0.10
-		local base = CFrame.lookAt(Vector3.new(landXZ.X, y, landXZ.Y), Vector3.new(landXZ.X, y, landXZ.Y) + fallDir)
-		rootPart.CFrame = base * CFrame.Angles(math.rad(-8), swayYaw, swayRoll)
-		canopy:PivotTo(CFrame.new(rootPart.Position) * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
-		local camPos = Vector3.new(landXZ.X, y + 9, landXZ.Y) - fallDir * 30
-		cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(camPos, Vector3.new(landXZ.X, y + 6, landXZ.Y)), 0.16)
+		local swayYaw = math.sin(tt * 1.1) * 0.10
+		local swayRoll = math.sin(tt * 0.9) * 0.08
+		local pos = Vector3.new(px, y, pz)
+		local base = CFrame.lookAt(pos, pos + faceDir)
+		rootPart.CFrame = base * CFrame.Angles(math.rad(-6), swayYaw, swayRoll)
+		canopy:PivotTo(CFrame.new(pos) * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
 		updateDescentVisuals(altitude, CONFIG.CANOPY_SPEED)
+		if altitude <= CONFIG.LAND_ALT then break end
 	end
 
 	------------------------------------------------------------------
 	-- الطور ٤: الهبوط (غبار/صدمة + استعادة الكاميرا والتحكّم)
 	------------------------------------------------------------------
-	rootPart.CFrame = CFrame.new(landXZ.X, groundY + 3, landXZ.Y)
+	local landY = groundYAt(px, pz, y + 50, descentExclude)
+	rootPart.CFrame = CFrame.new(px, landY + 3, pz)
 	playSound3D(rootPart, CONFIG.SND_LAND, 0.8, false)
 
 	-- موجة غبار
 	local dustPart = mk("Part", {
 		Name = "Dust", Size = Vector3.new(1, 1, 1), Transparency = 1, Anchored = true,
 		CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
-		CFrame = CFrame.new(landXZ.X, groundY + 1, landXZ.Y), Parent = Workspace,
+		CFrame = CFrame.new(px, landY + 1, pz), Parent = Workspace,
 	}) :: Part
 	local dustAtt = mk("Attachment", { Parent = dustPart }) :: Attachment
 	local dust = mk("ParticleEmitter", {
@@ -748,7 +784,7 @@ local function run()
 		Name = "ImpactRing", Shape = Enum.PartType.Cylinder, Size = Vector3.new(0.4, 4, 4),
 		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
 		Material = Enum.Material.Neon, Color = GOLD, Transparency = 0.2,
-		CFrame = CFrame.new(landXZ.X, groundY + 0.4, landXZ.Y) * CFrame.Angles(0, 0, math.rad(90)),
+		CFrame = CFrame.new(px, landY + 0.4, pz) * CFrame.Angles(0, 0, math.rad(90)),
 		Parent = Workspace,
 	}) :: Part
 	TweenService:Create(ring, TweenInfo.new(0.7, Enum.EasingStyle.Quad), {
@@ -762,11 +798,7 @@ local function run()
 		end
 		task.delay(0.6, function() if canopy then canopy:Destroy() end end)
 	end
-	TweenService:Create(marker, TweenInfo.new(0.5), { Transparency = 1 }):Play()
-	TweenService:Create(beam, TweenInfo.new(0.5), { Transparency = 1 }):Play()
 	task.delay(0.6, function()
-		if marker then marker:Destroy() end
-		if beam then beam:Destroy() end
 		if ring then ring:Destroy() end
 		if dustPart then dustPart:Destroy() end
 		if a0 then a0:Destroy() end
@@ -813,7 +845,7 @@ local function cleanupArtifacts()
 		local gui = pg and pg:FindFirstChild("RoyalSpawnHUD")
 		if gui then gui:Destroy() end
 	end)
-	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "LandMarker", "LandBeam", "ImpactRing", "Dust" }) do
+	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "ImpactRing", "Dust" }) do
 		local inst = Workspace:FindFirstChild(name)
 		if inst then inst:Destroy() end
 	end
