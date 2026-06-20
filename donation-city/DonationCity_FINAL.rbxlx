@@ -2859,7 +2859,7 @@ local function playMovie(presser)
 		withTimeout(PRELOAD_TIMEOUT, function()
 			local probe = screenSlides[1]
 			for _, id in ipairs(slides) do
-				probe.Image = "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=768&h=432"
+				probe.Image = "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=420&h=420"
 				ContentProvider:PreloadAsync({ probe })
 			end
 			probe.Image = ""
