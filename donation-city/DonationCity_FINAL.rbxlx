@@ -9414,7 +9414,7 @@ end
 
 -- نقطة حفظ مرقّمة: قرص أخضر متوهّج + لافتة بالرقم
 local function buildCheckpoint(_i, cx, cz, top, numeral, fwd)
-	local disc = mkCyl("CPDisc", 0.3, 9.5, top + 0.16, cx, cz, CPGLOW, Enum.Material.Neon, fCP, false)
+	local disc = mkCyl("CPDisc", 0.3, 6.5, top + 0.16, cx, cz, CPGLOW, Enum.Material.Neon, fCP, false)
 	disc.CanTouch = true
 	disc.Transparency = 0.25
 	table.insert(cpPads, { part = disc, fwd = fwd })
@@ -9491,7 +9491,8 @@ local function buildRoofDecor(i, cf, top)
 	if ANT_AT[i] then
 		local m = cf * CFrame.new(PW * 0.28, 0, 0)
 		mkCyl("Mast", 6.0, 0.22, top + 3.0, m.X, m.Z, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
-		mkBall("AntBulb", 0.7, m.X, top + 6.1, m.Z, NEONSIGN, Enum.Material.Neon, fDecor)
+		local ab = mkBall("AntBulb", 0.45, m.X, top + 6.1, m.Z, NEONSIGN, Enum.Material.Neon, fDecor)
+	ab.Transparency = 0.2
 	end
 end
 
@@ -9560,7 +9561,7 @@ local function buildPendulum(i, cx, cz, top, fwd, rgt)
 	local rope = mk("PendRope", V(0.22, 0.22, len), CFrame.lookAt((pivot + ballPos) / 2, ballPos),
 		DARKMETAL, Enum.Material.Metal, fDecor, false)
 	rope.CanTouch = false
-	local ball = mk("PendBall", V(2.6, 2.6, 2.6), ballPos, ORANGE, Enum.Material.Neon, fHaz, false)
+	local ball = mk("PendBall", V(2.6, 2.6, 2.6), ballPos, ORANGE, Enum.Material.Neon, fHaz, true)
 	ball.Shape = Enum.PartType.Ball
 	ball.CanTouch = true
 	table.insert(pendulums, { ball = ball, rope = rope, pivot = pivot, len = len,
@@ -9596,14 +9597,15 @@ local function buildArena()
 	for s = 1, 5 do
 		vDisc("CoreRing" .. s, 10.4, 0.6, CX, platTop(stageStart[s]) - 1, CZ, STAGE_COLOR[s], Enum.Material.Neon, fDecor)
 	end
-	vDisc("CoreCrown", 7.5, 4.0, CX, topY + 2, CZ, GOLD, Enum.Material.Neon, fDecor)
-	local beamUp = mk("ArenaBeam", V(1.3, 44, 1.3), V(CX, topY + 24, CZ), GOLD, Enum.Material.Neon, fDecor, false)
-	beamUp.CanTouch = false; beamUp.Transparency = 0.4
+	vDisc("CoreCrown", 7.5, 4.0, CX, topY + 2, CZ, GOLD, Enum.Material.Metal, fDecor)
+	local beamUp = mk("ArenaBeam", V(1.0, 44, 1.0), V(CX, topY + 24, CZ), GOLD, Enum.Material.Neon, fDecor, false)
+	beamUp.CanTouch = false; beamUp.Transparency = 0.55
 	for k = 0, 5 do
 		local a = math.rad(k * 60)
 		local lx, lz = CX + math.cos(a) * (SPIRAL_R + 13), CZ + math.sin(a) * (SPIRAL_R + 13)
 		beam(V(lx, baseY + 1.7, lz), V(lx, baseY + 11, lz), 0.5, POSTC, Enum.Material.Metal, fDecor)
-		mkBall("LampBulb", 1.3, lx, baseY + 11.6, lz, STAGE_COLOR[(k % 5) + 1], Enum.Material.Neon, fDecor)
+		local lb = mkBall("LampBulb", 0.7, lx, baseY + 11.4, lz, STAGE_COLOR[(k % 5) + 1], Enum.Material.Neon, fDecor)
+		lb.Transparency = 0.3
 	end
 end
 
@@ -9644,8 +9646,8 @@ for i = 0, COUNT - 2 do
 	local rgt = rightAt(i)
 	local mid = (a + b) / 2 + V(0, 3.0 + (platTop(i + 1) - platTop(i)) / 2, 0)
 	local vertex = mid + fwd * 1.6
-	beam(vertex, mid - fwd * 0.2 + rgt * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
-	beam(vertex, mid - fwd * 0.2 - rgt * 1.3, 0.55, GOLD, Enum.Material.Neon, fDecor)
+	beam(vertex, mid - fwd * 0.2 + rgt * 1.3, 0.45, GOLD, Enum.Material.Metal, fDecor)
+	beam(vertex, mid - fwd * 0.2 - rgt * 1.3, 0.45, GOLD, Enum.Material.Metal, fDecor)
 end
 
 -- لافتة البداية «ابدأ هنا» على المنصّة الأولى
@@ -9936,7 +9938,7 @@ do
 	beam(V(rpos.X, top, rpos.Z), V(rpos.X, top + 10, rpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
 	beam(V(lpos.X, top + 10, lpos.Z), V(rpos.X, top + 10, rpos.Z), 0.8, GOLD, Enum.Material.Metal, fDecor)
 	local bannerCF = CFrame.lookAt(V(c.X, top + 8.4, c.Z), V(c.X - fwdF.X, top + 8.4, c.Z - fwdF.Z))
-	local banner = mk("FinishBanner", V(8.0, 2.4, 0.3), bannerCF, GOLD, Enum.Material.Neon, fDecor, false)
+	local banner = mk("FinishBanner", V(8.0, 2.4, 0.3), bannerCF, GOLD, Enum.Material.Metal, fDecor, false)
 	signGui(banner, "النهاية", SIGNBG, 720)
 
 	finishPart = mk("ParkourFinish", V(PW, 12, PD), V(c.X, top + 6, c.Z), GOLD, Enum.Material.SmoothPlastic, course, false)
@@ -10072,7 +10074,8 @@ for _, sz in ipairs({ -1, 1 }) do
 		local band = mkCyl("BeaconBand", 0.7, 2.1, ENTRY_POS.Y + 1.6 + k * 1.25, bx, bz, STAGE_COLOR[k + 1], Enum.Material.Neon, gate, false)
 		band.CanTouch = false
 	end
-	mkBall("BeaconTop", 1.7, bx, ENTRY_POS.Y + 7.5, bz, GOLDLIT, Enum.Material.Neon, gate)
+	local bt = mkBall("BeaconTop", 1.0, bx, ENTRY_POS.Y + 7.5, bz, GOLDLIT, Enum.Material.Neon, gate)
+	bt.Transparency = 0.25
 end
 
 -- لوحة «أفضل وقت» هولوغرام بجانب البوّابة (تحفيز التنافس)
@@ -10092,7 +10095,8 @@ do
 	beaconCore.Transparency = 0.5; beaconCore.CanTouch = false
 	local beaconHalo = mkCyl("GateBeaconHalo", 12, 2.2, baseY + 6.0, ENTRY_POS.X, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate, false)
 	beaconHalo.Transparency = 0.85; beaconHalo.CanTouch = false
-	mkBall("GateBeaconCap", 2.0, ENTRY_POS.X, baseY + 13.2, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate)
+	local gbc = mkBall("GateBeaconCap", 1.2, ENTRY_POS.X, baseY + 13.2, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate)
+	gbc.Transparency = 0.3
 end
 
 -- فقاعة العدّ/الحالة فوق القوس (تظهر فقط أثناء الدخول)
@@ -10601,13 +10605,28 @@ updateActiveLoop = function()
 				local off = math.sin(now * sw.speed + sw.phase) * sw.amp
 				sw.bar.CFrame = CFrame.new(sw.base + sw.axis * off)
 			end
-			-- الكرات البندوليّة المتأرجحة
+			-- الكرات البندوليّة المتأرجحة (+ كشف تصادم بالمسافة لأن Touched غير موثوق مع Position teleporting)
 			for _, pd in ipairs(pendulums) do
 				local ang = math.sin(now * pd.speed + pd.phase) * pd.amp
 				local dir = CFrame.fromAxisAngle(pd.axis, ang) * V(0, -1, 0)
 				local ballPos = pd.pivot + dir * pd.len
-				pd.ball.Position = ballPos
+				pd.ball.CFrame = CFrame.new(ballPos)
 				pd.rope.CFrame = CFrame.lookAt((pd.pivot + ballPos) / 2, ballPos)
+				for _, player in ipairs(Players:GetPlayers()) do
+					local st = runState[player.UserId]
+					if st and st.inRun and not pendCooldown[player.UserId] then
+						local char = player.Character
+						local hrp = char and char:FindFirstChild("HumanoidRootPart")
+						if hrp and (hrp.Position - ballPos).Magnitude < 3.6 then
+							pendCooldown[player.UserId] = true
+							local d = hrp.Position - ballPos
+							local push = V(d.X, 0, d.Z)
+							if push.Magnitude < 0.1 then push = pd.axis end
+							hrp.AssemblyLinearVelocity = push.Unit * 55 + V(0, 20, 0)
+							task.delay(0.5, function() pendCooldown[player.UserId] = nil end)
+						end
+					end
+				end
 			end
 			-- دوران العملات (زينة)
 			for _, ci in ipairs(coins) do
