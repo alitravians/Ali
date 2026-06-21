@@ -38,7 +38,18 @@ local CONFIG = {
 	-- الأولوية: فيديو حقيقي (VideoId) ← ثم السلايد-شو (SlideImages) ← ثم المشاهد النصية.
 	-- ١٢ لقطة بالترتيب — استبدل الأصفار بأرقام الـ Decals بعد رفعها (راجع تعليمات التسليم).
 	SlideImages = {
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		78349829242176,   -- 01 مدينة شهد — تقدّم لكم
+		99416213260185,   -- 02 رحلة الكرم
+		92375326022698,   -- 03 كل تبرّع يصنع فرقاً
+		84685138373651,   -- 04 في مدينة شهد… للعطاء مكان
+		118000115343319,  -- 05 اجمع الأصدقاء
+		124481529239529,  -- 06 والعطاء يعود أضعافاً
+		71622683452790,   -- 07 سينما مدينة شهد
+		71611234930640,   -- 08 باركور التحدّي
+		118376370392199,  -- 09 القصر الملكي
+		127606134461569,  -- 10 حكاية بطل
+		87629214761151,   -- 11 شكراً لكم جميعاً
+		108257465297968,  -- 12 النهاية — مدينة شهد
 	},
 	SlideFadeTime = 0.6,    -- مدة التلاشي بين اللقطات (ثوانٍ)
 
@@ -60,14 +71,14 @@ local CONFIG = {
 
 -- مشاهد "الفيلم" (عناوين متحركة احترافية — استبدلها بفيديو ID لاحقاً إن رغبت)
 local SCENES = {
-	{ bg = Color3.fromRGB(8, 8, 16),    title = "🎬 مدينة التبرعات",        sub = "تقدّم لكم" },
+	{ bg = Color3.fromRGB(8, 8, 16),    title = "🎬 مدينة شهد",        sub = "تقدّم لكم" },
 	{ bg = Color3.fromRGB(16, 10, 30),  title = "رحلة الكرم",                sub = "فيلم قصير" },
 	{ bg = Color3.fromRGB(10, 22, 30),  title = "في مدينةٍ تنبض بالعطاء...", sub = "بدأت الحكاية" },
 	{ bg = Color3.fromRGB(28, 16, 10),  title = "كل تبرّع يصنع فرقاً",        sub = "مهما كان صغيراً" },
 	{ bg = Color3.fromRGB(10, 18, 28),  title = "اجتمع الأصدقاء",            sub = "ليصنعوا الأمل" },
 	{ bg = Color3.fromRGB(24, 10, 28),  title = "والعطاء يعود إليك",         sub = "أضعافاً مضاعفة" },
 	{ bg = Color3.fromRGB(10, 26, 18),  title = "شكراً لكونك هنا ❤️",        sub = "أنت بطل القصة" },
-	{ bg = Color3.fromRGB(6, 6, 12),    title = "— النهاية —",               sub = "مدينة التبرعات" },
+	{ bg = Color3.fromRGB(6, 6, 12),    title = "— النهاية —",               sub = "مدينة شهد" },
 }
 
 ------------------------------------------------------------------------
@@ -319,7 +330,7 @@ local function setScreenIdle()
 	screenBg.BackgroundColor3 = Color3.fromRGB(6, 6, 12)
 	screenTitle.Visible = true
 	screenSub.Visible = true
-	screenTitle.Text = "📽️ سينما مدينة التبرعات"
+	screenTitle.Text = "📽️ سينما مدينة شهد"
 	screenSub.Text = "اضغط E على البروجكتر لبدء العرض"
 	screenTimer.Text = ""
 	screenProgress.Size = UDim2.fromScale(0, 1)
@@ -343,7 +354,7 @@ local function showSlide(assetId: number)
 	local incoming = screenSlides[slideActive == 1 and 2 or 1]
 	local outgoing = screenSlides[slideActive]
 
-	incoming.Image = "rbxassetid://" .. tostring(assetId)
+	incoming.Image = "rbxthumb://type=Asset&id=" .. tostring(assetId) .. "&w=420&h=420"
 	incoming.ImageTransparency = 1
 	incoming.Visible = true
 
@@ -387,7 +398,7 @@ if marquee then
 	marqueeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
 	marqueeLabel.TextStrokeColor3 = Color3.fromRGB(40, 0, 0)
 	marqueeLabel.TextStrokeTransparency = 0.2
-	marqueeLabel.Text = "سينما مدينة التبرعات"
+	marqueeLabel.Text = "سينما مدينة شهد"
 	marqueeLabel.Parent = bg
 end
 
@@ -498,7 +509,7 @@ if infoBoard then
 	footer.Font = Enum.Font.GothamBlack
 	footer.TextScaled = true
 	footer.TextColor3 = Color3.fromRGB(255, 220, 140)
-	footer.Text = "🍿 استمتع بوقتك في مدينة التبرعات!"
+	footer.Text = "🍿 استمتع بوقتك في مدينة شهد!"
 	footer.Parent = list
 	local fCorner = Instance.new("UICorner"); fCorner.CornerRadius = UDim.new(0, 10); fCorner.Parent = footer
 	local fPad = Instance.new("UIPadding")
@@ -803,7 +814,7 @@ local function playMovie(presser)
 		withTimeout(PRELOAD_TIMEOUT, function()
 			local probe = screenSlides[1]
 			for _, id in ipairs(slides) do
-				probe.Image = "rbxassetid://" .. tostring(id)
+				probe.Image = "rbxthumb://type=Asset&id=" .. tostring(id) .. "&w=420&h=420"
 				ContentProvider:PreloadAsync({ probe })
 			end
 			probe.Image = ""
@@ -926,7 +937,7 @@ local function playMovie(presser)
 	setProjector(false)
 	unlockAll()
 	setGate(false)
-	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة شهد" end
 	setScreenIdle()
 	if playPrompt then playPrompt.Enabled = true end
 	playing = false
@@ -950,7 +961,7 @@ local function resetCinemaIdle()
 	pcall(function() setLights(true) end)
 	pcall(function() setProjector(false) end)
 	pcall(setScreenIdle)
-	if marqueeLabel then marqueeLabel.Text = "سينما مدينة التبرعات" end
+	if marqueeLabel then marqueeLabel.Text = "سينما مدينة شهد" end
 	if playPrompt then playPrompt.Enabled = true end
 end
 
@@ -1256,11 +1267,11 @@ local function makePopcornTool()
 	kernels.Massless = true
 	kernels.Parent = tool
 
+	kernels.CFrame = handle.CFrame * CFrame.new(0, 1.1, 0)
 	local weld = Instance.new("WeldConstraint")
 	weld.Part0 = handle
 	weld.Part1 = kernels
 	weld.Parent = handle
-	kernels.CFrame = handle.CFrame * CFrame.new(0, 1.1, 0)
 
 	-- رشّة "قضم" بصرية عند الأكل
 	local att = Instance.new("Attachment")
@@ -1334,8 +1345,8 @@ local function makeDrinkTool()
 	lid.CanCollide = false
 	lid.Massless = true
 	lid.Parent = tool
-	local w1 = Instance.new("WeldConstraint"); w1.Part0 = handle; w1.Part1 = lid; w1.Parent = handle
 	lid.CFrame = handle.CFrame * CFrame.new(0, 1.15, 0)
+	local w1 = Instance.new("WeldConstraint"); w1.Part0 = handle; w1.Part1 = lid; w1.Parent = handle
 
 	local straw = Instance.new("Part")
 	straw.Name = "Straw"
@@ -1345,8 +1356,8 @@ local function makeDrinkTool()
 	straw.CanCollide = false
 	straw.Massless = true
 	straw.Parent = tool
-	local w2 = Instance.new("WeldConstraint"); w2.Part0 = handle; w2.Part1 = straw; w2.Parent = handle
 	straw.CFrame = handle.CFrame * CFrame.new(0.3, 1.95, 0)
+	local w2 = Instance.new("WeldConstraint"); w2.Part0 = handle; w2.Part1 = straw; w2.Parent = handle
 
 	-- سائل المشروب داخل الكوب (ينقص مع كل رشفة)
 	local liquid = Instance.new("Part")
@@ -1357,6 +1368,7 @@ local function makeDrinkTool()
 	liquid.Transparency = 0.15
 	liquid.CanCollide = false
 	liquid.Massless = true
+	liquid.CFrame = handle.CFrame * CFrame.new(0, 0, 0)
 	liquid.Parent = tool
 	local w3 = Instance.new("WeldConstraint"); w3.Part0 = handle; w3.Part1 = liquid; w3.Parent = handle
 
@@ -1390,7 +1402,6 @@ local function makeDrinkTool()
 		local frac = math.clamp(sips.Value / CONFIG.PopcornBites, 0, 1)
 		local newY = math.max(0.1, fullY * frac)
 		liquid.Size = Vector3.new(liquid.Size.X, newY, liquid.Size.Z)
-		liquid.CFrame = handle.CFrame * CFrame.new(0, -(fullY - newY) / 2, 0)
 		emit:Emit(10)
 		playCrunch(handle, 1.4)
 
@@ -1863,7 +1874,7 @@ _G.AdminGetMusic = function()
 	local m = ensureLobbyMusic()
 	return { on = m.IsPlaying, volume = m.Volume, hasId = m.SoundId ~= "" }
 end
-local MARQUEE_DEFAULT = "سينما مدينة التبرعات"
+local MARQUEE_DEFAULT = "سينما مدينة شهد"
 local marqueeToken = 0
 _G.AdminSetMarquee = function(text: string)
 	if not (marqueeLabel and type(text) == "string" and #text > 0) then return end

@@ -1,5 +1,5 @@
 --[[
-	مدينة التبرعات — باني العالم (WorldBuilder)
+	مدينة شهد — باني العالم (WorldBuilder)
 	يوضع في: ServerScriptService
 	النوع: Script (Server)
 	يبني كل مجسّمات الماب برمجياً: الأرض، النافورة، بوثات التبرّع،
@@ -546,19 +546,7 @@ local marquee = newPart({
 	Material = Enum.Material.SmoothPlastic,
 	Parent = cinema,
 })
-local marqueeGui = Instance.new("SurfaceGui")
-marqueeGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-marqueeGui.Face = Enum.NormalId.Front
-marqueeGui.CanvasSize = Vector2.new(800, 200)
-marqueeGui.Parent = marquee
-local marqueeLabel = Instance.new("TextLabel")
-marqueeLabel.Size = UDim2.fromScale(1, 1)
-marqueeLabel.BackgroundTransparency = 1
-marqueeLabel.Font = Enum.Font.GothamBlack
-marqueeLabel.Text = "🎬 سينما المدينة"
-marqueeLabel.TextScaled = true
-marqueeLabel.TextColor3 = Color3.fromRGB(255, 205, 70)
-marqueeLabel.Parent = marqueeGui
+-- [أُزيلت] SurfaceGui للافتة كانت على Face=Front (داخل السينما) — CinemaSystem يبنيها على Face=Back (للزوار).
 
 -- شاشة العرض الكبيرة (على الجدار الخلفي)
 local screen = newPart({
@@ -569,55 +557,8 @@ local screen = newPart({
 	Material = Enum.Material.SmoothPlastic,
 	Parent = cinema,
 })
--- SurfaceGui للشاشة (تعرض النصوص/الصور/الفيديو)
-local screenGui = Instance.new("SurfaceGui")
-screenGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-screenGui.Name = "ScreenDisplay"
-screenGui.Face = Enum.NormalId.Front
-screenGui.CanvasSize = Vector2.new(1280, 640)
-screenGui.LightInfluence = 0
-screenGui.Parent = screen
-
--- إطار الصورة (سلايد-شو Decals)
-local screenImage = Instance.new("ImageLabel")
-screenImage.Name = "Image"
-screenImage.Size = UDim2.fromScale(1, 1)
-screenImage.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-screenImage.BackgroundTransparency = 0
-screenImage.ImageTransparency = 1
-screenImage.ScaleType = Enum.ScaleType.Fit
-screenImage.Parent = screenGui
-
--- إطار الفيديو (لو رفع المستخدم فيديو لاحقاً)
-local screenVideo = Instance.new("VideoFrame")
-screenVideo.Name = "Video"
-screenVideo.Size = UDim2.fromScale(1, 1)
-screenVideo.BackgroundTransparency = 1
-screenVideo.Video = ""
-screenVideo.Visible = false
-screenVideo.Volume = 1
-screenVideo.Parent = screenGui
-
--- نص العرض (المشاهد الافتراضية + العنوان)
-local screenText = Instance.new("TextLabel")
-screenText.Name = "Text"
-screenText.Size = UDim2.fromScale(1, 1)
-screenText.BackgroundTransparency = 1
-screenText.Font = Enum.Font.GothamBlack
-screenText.Text = "🎬 سينما المدينة\nاضغط البروجكتر لبدء الفيلم"
-screenText.TextScaled = false
-screenText.TextSize = 64
-screenText.TextWrapped = true
-screenText.TextColor3 = Color3.fromRGB(255, 255, 255)
-screenText.Parent = screenGui
-
--- توهّج خفيف للشاشة
-local screenLight = Instance.new("SurfaceLight")
-screenLight.Face = Enum.NormalId.Front
-screenLight.Range = 30
-screenLight.Brightness = 0
-screenLight.Angle = 90
-screenLight.Parent = screen
+-- [أُزيلت] SurfaceGui + ImageLabel + VideoFrame + TextLabel + SurfaceLight كانت على Face=Front
+-- (تواجه الجدار لا الجمهور) — CinemaSystem يبني واجهته الخاصة على Face=Back (الصحيحة).
 
 -- البروجكتر (في منتصف القاعة) فيه زر E
 local projector = newPart({
@@ -685,51 +626,14 @@ end
 
 -- لوحة التعليمات العربية (جنب البوابة)
 local board = newPart({
-	Name = "InstructionBoard",
+	Name = "InfoBoard",
 	Size = Vector3.new(14, 10, 0.5),
 	Position = CIN + Vector3.new(-20, 7, HALL_D / 2 + 6),
 	Color = Color3.fromRGB(20, 14, 40),
 	Material = Enum.Material.SmoothPlastic,
 	Parent = cinema,
 })
-local boardGui = Instance.new("SurfaceGui")
-boardGui.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-boardGui.Face = Enum.NormalId.Front
-boardGui.CanvasSize = Vector2.new(560, 400)
-boardGui.Parent = board
-local boardBG = Instance.new("Frame")
-boardBG.Size = UDim2.fromScale(1, 1)
-boardBG.BackgroundColor3 = Color3.fromRGB(20, 14, 40)
-boardBG.BorderSizePixel = 0
-boardBG.Parent = boardGui
-local boardTitle = Instance.new("TextLabel")
-boardTitle.Size = UDim2.new(1, 0, 0, 70)
-boardTitle.BackgroundTransparency = 1
-boardTitle.Font = Enum.Font.GothamBlack
-boardTitle.Text = "📜 تعليمات السينما"
-boardTitle.TextScaled = true
-boardTitle.TextColor3 = Color3.fromRGB(255, 205, 70)
-boardTitle.Parent = boardBG
-local boardBody = Instance.new("TextLabel")
-boardBody.Position = UDim2.new(0, 20, 0, 80)
-boardBody.Size = UDim2.new(1, -40, 1, -90)
-boardBody.BackgroundTransparency = 1
-boardBody.Font = Enum.Font.GothamMedium
-boardBody.TextXAlignment = Enum.TextXAlignment.Right
-boardBody.TextYAlignment = Enum.TextYAlignment.Top
-boardBody.TextWrapped = true
-boardBody.Text = table.concat({
-	"• اجلس على أي كرسي فاضي داخل القاعة.",
-	"• اضغط E على البروجكتر لبدء الفيلم (تُخصم تذكرة واحدة).",
-	"• أثناء العرض تنخفض الإضاءة وتُغلق البوابة.",
-	"• لا يمكنك القيام من الكرسي حتى ينتهي الفيلم.",
-	"• كل لاعب لديه ٣ تذاكر — استخدم الزر الجانبي لأخذ تذكرة كل دقيقتين.",
-	"• خذ علبة فشار من البسطة (E) واضغط زر الماوس للأكل.",
-	"• استمتع بالعرض! 🍿",
-}, "\n\n")
-boardBody.TextSize = 22
-boardBody.TextColor3 = Color3.fromRGB(235, 230, 255)
-boardBody.Parent = boardBG
+-- [أُزيلت] SurfaceGui للوحة التعليمات كانت على Face=Front — CinemaSystem يبني لوحة RTL احترافية على Face=Back.
 
 -- بسطة الفشار (E تعطيك علبة)
 local popStand = newPart({
@@ -877,6 +781,11 @@ Lighting.Ambient = Color3.fromRGB(70, 70, 80)
 Lighting.FogEnd = 100000
 
 -- إضاءة داخلية موزّعة في سقف السينما (شبكة منتظمة)
+-- تُوضع داخل مجلّد "CeilingLights" ليجدها CinemaSystem ويخفّفها أثناء العرض
+local ceilingLightsFolder = Instance.new("Folder")
+ceilingLightsFolder.Name = "CeilingLights"
+ceilingLightsFolder.Parent = cinema
+
 for gx = -2, 2 do
 	for gz = -2, 2 do
 		local lampPart = newPart({
@@ -885,7 +794,7 @@ for gx = -2, 2 do
 			Position = CIN + Vector3.new(gx * 12, HALL_H - 0.8, gz * 12),
 			Color = Color3.fromRGB(255, 250, 230),
 			Material = Enum.Material.Neon,
-			Parent = cinema,
+			Parent = ceilingLightsFolder,
 		})
 		local lampLight = Instance.new("PointLight")
 		lampLight.Name = "Lamp"
@@ -907,4 +816,4 @@ if not ready then
 end
 ready.Value = true
 
-print("[WorldBuilder] تم بناء مدينة التبرّعات بنجاح.")
+print("[WorldBuilder] تم بناء مدينة شهد بنجاح.")
