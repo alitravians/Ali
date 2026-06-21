@@ -9492,7 +9492,7 @@ local function buildRoofDecor(i, cf, top)
 		local m = cf * CFrame.new(PW * 0.28, 0, 0)
 		mkCyl("Mast", 6.0, 0.22, top + 3.0, m.X, m.Z, DARKMETAL, Enum.Material.Metal, fDecor, false).CanTouch = false
 		local ab = mkBall("AntBulb", 0.45, m.X, top + 6.1, m.Z, NEONSIGN, Enum.Material.Neon, fDecor)
-	ab.Transparency = 0.2
+		ab.Transparency = 0.2
 	end
 end
 
