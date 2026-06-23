@@ -157,20 +157,16 @@ local function showChecklist(data)
 
 	markDone = function(key)
 		done[key] = true
-		if statusRefs[key] then statusRefs[key].Text = "✅"; statusRefs[key].TextColor3 = GREEN_COL end
+		if statusRefs[key] then
+			statusRefs[key].BackgroundColor3 = GREEN_COL
+			local st = statusRefs[key]:FindFirstChildWhichIsA("UIStroke")
+			if st then st.Color = GREEN_COL end
+			local chk = statusRefs[key]:FindFirstChild("Chk")
+			if chk then chk.Visible = true end
+		end
 		if btnRefs[key] then btnRefs[key].Text = "تم"; btnRefs[key].BackgroundColor3 = Color3.fromRGB(40, 100, 60); btnRefs[key].AutoButtonColor = false end
 		refreshClaimBtn()
 	end
-
-	-- تحقق من الإشعارات (إن كان اللاعب مشتركاً بالفعل، CanPromptOptIn يرجع false)
-	task.spawn(function()
-		local ok, svc = pcall(function() return game:GetService("ExperienceNotificationService") end)
-		if ok and svc then
-			local canPrompt = true
-			pcall(function() canPrompt = svc:CanPromptOptInAsync() end)
-			if not canPrompt then markDone("notify") end
-		end
-	end)
 
 	-- تحقق حالة القروب بعد بناء الواجهة
 	if data.inGroup then markDone("group") end
@@ -183,12 +179,26 @@ local function showChecklist(data)
 		row.BackgroundColor3 = ROW_COL; row.BorderSizePixel = 0; row.Parent = panel
 		corner(row, 10)
 
-		local st = Instance.new("TextLabel")
-		st.Size = UDim2.fromOffset(34, 34); st.Position = UDim2.new(0, 8, 0.5, -17)
-		st.BackgroundTransparency = 1; st.Font = Enum.Font.GothamBold; st.TextScaled = true
-		st.Text = done[t.key] and "✅" or "⬜"
-		st.TextColor3 = done[t.key] and GREEN_COL or DIM_COL; st.Parent = row
-		statusRefs[t.key] = st
+		-- مؤشر الحالة: مربّع ملوّن بدل إيموجي (يعمل على كل الأجهزة)
+		local stFrame = Instance.new("Frame")
+		stFrame.Size = UDim2.fromOffset(28, 28)
+		stFrame.Position = UDim2.new(0, 11, 0.5, -14)
+		stFrame.BackgroundColor3 = done[t.key] and GREEN_COL or Color3.fromRGB(55, 40, 75)
+		stFrame.BorderSizePixel = 0; stFrame.Parent = row
+		corner(stFrame, 6)
+		stroke(stFrame, done[t.key] and GREEN_COL or DIM_COL, 1.5)
+
+		local chk = Instance.new("TextLabel")
+		chk.Name = "Chk"
+		chk.Size = UDim2.new(1, 0, 1, 0)
+		chk.BackgroundTransparency = 1
+		chk.Text = "✓"
+		chk.TextColor3 = Color3.new(1, 1, 1)
+		chk.Font = Enum.Font.GothamBlack; chk.TextScaled = true
+		chk.Visible = done[t.key] == true
+		chk.Parent = stFrame
+
+		statusRefs[t.key] = stFrame
 
 		local txt = Instance.new("TextLabel")
 		txt.Size = UDim2.new(0.48, 0, 1, 0); txt.Position = UDim2.new(0, 46, 0, 0)
@@ -208,34 +218,70 @@ local function showChecklist(data)
 		btnRefs[t.key] = btn
 
 		if not done[t.key] then
-			if t.key == "like" or t.key == "fav" then
+			if t.key == "like" then
+				-- اللايك: لا يوجد API للتحقق — نعرض رسالة ونطلب من اللاعب التأكيد
 				btn.MouseButton1Click:Connect(function()
 					if done[t.key] then return end
 					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
-					task.wait(2)
+					showNotify("اضغط لايك للعبة من صفحتها")
+					task.wait(5)
+					markDone(t.key)
+				end)
+
+			elseif t.key == "fav" then
+				-- الفيفورت: لا يوجد API للتحقق — نعرض رسالة ونطلب من اللاعب التأكيد
+				btn.MouseButton1Click:Connect(function()
+					if done[t.key] then return end
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
+					showNotify("فضّل اللعبة من صفحتها")
+					task.wait(5)
 					markDone(t.key)
 				end)
 
 			elseif t.key == "notify" then
+				-- الإشعارات: نستخدم PromptOptIn ونتحقق فعلياً بعد الإغلاق
 				btn.MouseButton1Click:Connect(function()
 					if done[t.key] then return end
-					btn.Text = "جارٍ..."
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
 					local okS, svc = pcall(function() return game:GetService("ExperienceNotificationService") end)
 					if okS and svc then
-						local canP = false
+						local canP = true
 						pcall(function() canP = svc:CanPromptOptInAsync() end)
 						if canP then
+							-- اللاعب ما فعّل الإشعارات بعد — نعرض الطلب
 							pcall(function() svc:PromptOptIn() end)
-							task.wait(3)
+							task.wait(4)
+							-- نتحقق هل فعّلها فعلاً بعد إغلاق المربع
+							local stillCanPrompt = true
+							pcall(function() stillCanPrompt = svc:CanPromptOptInAsync() end)
+							if not stillCanPrompt then
+								-- اللاعب فعّل الإشعارات فعلاً
+								markDone("notify")
+							else
+								-- اللاعب سكّر المربع بدون تفعيل
+								btn.Text = "لم يتم"
+								btn.BackgroundColor3 = RED_COL
+								task.wait(2)
+								if not done.notify then
+									btn.Text = "تنفيذ"
+									btn.BackgroundColor3 = PURPLE_COL
+									btn.AutoButtonColor = true
+								end
+							end
+						else
+							-- CanPromptOptIn = false → اللاعب مفعّل الإشعارات من قبل
+							markDone("notify")
 						end
+					else
+						-- الخدمة مو متاحة (ستوديو أو جهاز ما يدعمها)
+						markDone("notify")
 					end
-					markDone("notify")
 				end)
 
 			elseif t.key == "group" then
 				btn.MouseButton1Click:Connect(function()
 					if done[t.key] then return end
-					btn.Text = "جارٍ..."
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
 					local inGroup = false
 					if checkGroupFunc then
 						pcall(function() inGroup = checkGroupFunc:InvokeServer() end)
@@ -249,6 +295,7 @@ local function showChecklist(data)
 						if not done.group then
 							btn.Text = "تحقّق"
 							btn.BackgroundColor3 = PURPLE_COL
+							btn.AutoButtonColor = true
 						end
 					end
 				end)
@@ -273,7 +320,7 @@ local function showChecklist(data)
 	claimBtn.Position = UDim2.new(0.5, 0, 0, 366)
 	claimBtn.Size = UDim2.fromOffset(260, 42)
 	claimBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 80)
-	claimBtn.Text = "🎁 استلم المكافأة"
+	claimBtn.Text = "استلم المكافأة"
 	claimBtn.TextColor3 = DIM_COL; claimBtn.Font = Enum.Font.GothamBlack; claimBtn.TextSize = 18
 	claimBtn.AutoButtonColor = false; claimBtn.Parent = panel
 	corner(claimBtn, 10); stroke(claimBtn, GOLD_COL, 1.5)
@@ -351,10 +398,10 @@ local function showThankYou()
 	msg.Size = UDim2.new(0.85, 0, 0, 160); msg.Position = UDim2.new(0.075, 0, 0, 130)
 	msg.BackgroundTransparency = 1
 	msg.Text = "شكراً لدعمك مدينة شهد!\n\n"
-		.. "✅ سوّيت لايك\n"
-		.. "✅ فضّلت اللعبة\n"
-		.. "✅ فعّلت الإشعارات\n"
-		.. "✅ انضممت للقروب"
+		.. "✓ سوّيت لايك\n"
+		.. "✓ فضّلت اللعبة\n"
+		.. "✓ فعّلت الإشعارات\n"
+		.. "✓ انضممت للقروب"
 	msg.TextColor3 = TEXT_COL; msg.Font = Enum.Font.GothamMedium; msg.TextScaled = true
 	msg.TextYAlignment = Enum.TextYAlignment.Top; msg.Parent = card
 
@@ -388,7 +435,7 @@ resultRemote.OnClientEvent:Connect(function(status)
 		if activeGui then activeGui:Destroy(); activeGui = nil end
 	elseif status == "need_group" then
 		showNotify("يجب الانضمام لقروب Shahad-Jori أولاً")
-		if claimBtnRef then claimBtnRef.Text = "🎁 استلم المكافأة" end
+		if claimBtnRef then claimBtnRef.Text = "استلم المكافأة" end
 	end
 end)
 
