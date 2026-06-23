@@ -17765,14 +17765,6 @@ local function hasClaimed(userId: number): boolean
 	return false
 end
 
-local function markClaimed(userId: number)
-	claimedCache[userId] = true
-	if not claimStore then return end
-	for _ = 1, 3 do
-		if pcall(function() claimStore:SetAsync("rb_" .. userId, true) end) then return end
-		task.wait(1)
-	end
-end
 
 ------------------------------------------------------------------------
 -- RemoteEvents / RemoteFunction
@@ -18052,8 +18044,10 @@ claimRemote.OnServerEvent:Connect(function(player: Player)
 		return
 	end
 
-	-- منح المكافأة
-	markClaimed(uid)
+	-- حماية من الاستلام المزدوج (فورية بدون yield)
+	claimedCache[uid] = true
+
+	-- منح المكافأة أولاً قبل الحفظ في DataStore
 	if _G.AddCoins then _G.AddCoins(player, REWARD_COINS) end
 	if _G.AwardAchievement then _G.AwardAchievement(player, "supporter") end
 	if _G.AwardBadge then _G.AwardBadge(player, "SUPPORTER") end
@@ -18064,6 +18058,15 @@ claimRemote.OnServerEvent:Connect(function(player: Player)
 
 	resultRemote:FireClient(player, "success")
 	effectRemote:FireAllClients(player.Name)
+
+	-- حفظ في DataStore بالخلفية (لا يؤخّر اللاعب)
+	task.spawn(function()
+		if not claimStore then return end
+		for _ = 1, 3 do
+			if pcall(function() claimStore:SetAsync("rb_" .. uid, true) end) then return end
+			task.wait(1)
+		end
+	end)
 end)
 
 ------------------------------------------------------------------------
