@@ -16,7 +16,7 @@
 	║                                                                        ║
 	║  API لباقي السكربتات:  _G.AwardBadge(player, "DONOR")                  ║
 	║  المفاتيح: FIRST_VISIT · DONOR · CINEMA · TICKETS · LOYAL              ║
-	║           · PARKOUR · EXPLORER · STAFF · FIRST_LANDING                 ║
+	║           · PARKOUR · EXPLORER · STAFF · FIRST_LANDING · SUPPORTER     ║
 	╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -37,6 +37,7 @@ local BADGE_IDS = {
 	EXPLORER    = 2250297071909187,  -- مستكشف المدينة
 	STAFF       = 1801654870065253,  -- طاقم المدينة
 	FIRST_LANDING = 949955161632602, -- أول هبوط الملكي (الريسبون على طريقة ببجي)
+	SUPPORTER     = 0,               -- داعم مدينة شهد (أنشئ الشارة من لوحة تحكم التجربة وضع رقمها هنا)
 }
 
 ------------------------------------------------------------------------

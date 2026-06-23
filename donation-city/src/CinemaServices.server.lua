@@ -2531,8 +2531,9 @@ local ACH = {
 	jumper        = { emoji = "🦘", name = "قفّاز",       desc = "قفزت 100 قفزة" },
 	daily_master  = { emoji = "🎯", name = "منجِز اليوم",  desc = "أكملت كل المهام اليومية" },
 	weekly_hero   = { emoji = "🏅", name = "بطل الأسبوع",  desc = "أكملت المهمة الأسبوعية الكبرى" },
+	supporter     = { emoji = "🎁", name = "داعم مدينة شهد", desc = "أكملت مهام صندوق المكافآت" },
 }
-local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
+local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero", "supporter" }
 
 _G.AwardAchievement = function(player: Player, key: string)
 	local s = sessions[player.UserId]
