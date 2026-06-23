@@ -99,18 +99,8 @@ local function showChecklist(data)
 	done = {}
 	claimBtnRef = nil
 
-	-- تحديث حالة القروب من السيرفر
-	if data.inGroup then done.group = true end
-
-	-- تحقق من الإشعارات (إن كان اللاعب مشتركاً بالفعل، CanPromptOptIn يرجع false)
-	task.spawn(function()
-		local ok, svc = pcall(function() return game:GetService("ExperienceNotificationService") end)
-		if ok and svc then
-			local canPrompt = true
-			pcall(function() canPrompt = svc:CanPromptOptInAsync() end)
-			if not canPrompt then done.notify = true end
-		end
-	end)
+	-- forward-declare markDone so the async check below can call it
+	local markDone
 
 	local gui = Instance.new("ScreenGui")
 	gui.Name = "RewardBoxUI"; gui.ResetOnSpawn = false
@@ -165,12 +155,25 @@ local function showChecklist(data)
 		end
 	end
 
-	local function markDone(key)
+	markDone = function(key)
 		done[key] = true
 		if statusRefs[key] then statusRefs[key].Text = "✅"; statusRefs[key].TextColor3 = GREEN_COL end
 		if btnRefs[key] then btnRefs[key].Text = "تم"; btnRefs[key].BackgroundColor3 = Color3.fromRGB(40, 100, 60); btnRefs[key].AutoButtonColor = false end
 		refreshClaimBtn()
 	end
+
+	-- تحقق من الإشعارات (إن كان اللاعب مشتركاً بالفعل، CanPromptOptIn يرجع false)
+	task.spawn(function()
+		local ok, svc = pcall(function() return game:GetService("ExperienceNotificationService") end)
+		if ok and svc then
+			local canPrompt = true
+			pcall(function() canPrompt = svc:CanPromptOptInAsync() end)
+			if not canPrompt then markDone("notify") end
+		end
+	end)
+
+	-- تحقق حالة القروب بعد بناء الواجهة
+	if data.inGroup then markDone("group") end
 
 	-- صفوف المهام
 	for i, t in ipairs(TASKS) do
