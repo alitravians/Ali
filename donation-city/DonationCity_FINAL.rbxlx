@@ -1932,7 +1932,7 @@ print("[CustomChat] السيرفر جاهز — دردشة مخصّصة مع ف�
 	║                                                                        ║
 	║  API لباقي السكربتات:  _G.AwardBadge(player, "DONOR")                  ║
 	║  المفاتيح: FIRST_VISIT · DONOR · CINEMA · TICKETS · LOYAL              ║
-	║           · PARKOUR · EXPLORER · STAFF · FIRST_LANDING                 ║
+	║           · PARKOUR · EXPLORER · STAFF · FIRST_LANDING · SUPPORTER     ║
 	╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -1953,6 +1953,7 @@ local BADGE_IDS = {
 	EXPLORER    = 2250297071909187,  -- مستكشف المدينة
 	STAFF       = 1801654870065253,  -- طاقم المدينة
 	FIRST_LANDING = 949955161632602, -- أول هبوط الملكي (الريسبون على طريقة ببجي)
+	SUPPORTER     = 0,               -- داعم مدينة شهد (أنشئ الشارة من لوحة تحكم التجربة وضع رقمها هنا)
 }
 
 ------------------------------------------------------------------------
@@ -8058,8 +8059,9 @@ local ACH = {
 	jumper        = { emoji = "🦘", name = "قفّاز",       desc = "قفزت 100 قفزة" },
 	daily_master  = { emoji = "🎯", name = "منجِز اليوم",  desc = "أكملت كل المهام اليومية" },
 	weekly_hero   = { emoji = "🏅", name = "بطل الأسبوع",  desc = "أكملت المهمة الأسبوعية الكبرى" },
+	supporter     = { emoji = "🎁", name = "داعم مدينة شهد", desc = "أكملت مهام صندوق المكافآت" },
 }
-local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero" }
+local ACH_ORDER = { "first_ticket", "first_movie", "vip", "rich", "buyer", "rater", "arcade", "parkour_first", "parkour_done", "explorer", "marathon", "sprinter", "jumper", "daily_master", "weekly_hero", "supporter" }
 
 _G.AwardAchievement = function(player: Player, key: string)
 	local s = sessions[player.UserId]
@@ -17704,6 +17706,394 @@ end)
 task.spawn(publishPlaneTemplate)
 
 print("[SpawnCinematic] جاهز — الريسبون الملكي مدعوم من السيرفر.")
+]]></string></Properties></Item><Item class="Script" referent="RewardBoxSystemRef"><Properties><string name="Name">RewardBoxSystem</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
+╔══════════════════════════════════════════════════════════════════════╗
+║  نظام صندوق المكافآت — REWARD BOX SYSTEM (Server)                     ║
+║  المكان: ServerScriptService   ·   النوع: Script                       ║
+║                                                                        ║
+║  صندوق مكافآت "مدينة شهد" — يمنح اللاعب 1000 كوينز + إنجاز            ║
+║  "داعم مدينة شهد" عند إكمال 4 مهام تفاعلية:                             ║
+║    1. لايك للعبة                                                       ║
+║    2. تفضيل (Favorite) للعبة                                           ║
+║    3. تفعيل الإشعارات (Notifications)                                    ║
+║    4. الانضمام لقروب Shahad-Jori                                       ║
+║                                                                        ║
+║  المكافأة لمرة واحدة فقط (DataStore). الصندوق يُبنى برمجياً            ║
+║  بقطع روبلوكس أصلية بستايل ملكي بنفسجي/ذهبي متناسق مع الماب.          ║
+╚══════════════════════════════════════════════════════════════════════╝
+]]
+
+local Workspace        = game:GetService("Workspace")
+local Players          = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local DataStoreService = game:GetService("DataStoreService")
+
+------------------------------------------------------------------------
+-- ثوابت
+------------------------------------------------------------------------
+local GROUP_ID     = 134977710                -- قروب Shahad-Jori
+local REWARD_COINS = 1000                     -- المكافأة بالكوينز
+local LOGO_DECAL   = 87423442650122           -- ديكال شعار مدينة شهد
+
+-- موقع الصندوق (قرب الريسبون، على الساحة المرصوفة)
+local CX, CZ = 20, 30
+local BASE_Y = 0.5
+
+-- ألوان الستايل الملكي
+local PURPLE      = Color3.fromRGB(75, 13, 140)
+local DEEP_PURPLE = Color3.fromRGB(50, 8, 100)
+local GOLD        = Color3.fromRGB(242, 190, 40)
+local MARBLE_COL  = Color3.fromRGB(224, 216, 205)
+local GLOW_PURPLE = Color3.fromRGB(168, 85, 247)
+
+------------------------------------------------------------------------
+-- DataStore (محمي بـ pcall — يعمل بأمان حتى لو تعطّل المتجر)
+------------------------------------------------------------------------
+local claimStore
+pcall(function() claimStore = DataStoreService:GetDataStore("RewardBox_v1") end)
+
+local claimedCache = {}  -- [userId] = true (ذاكرة مؤقتة)
+
+local function hasClaimed(userId: number): boolean
+	if claimedCache[userId] then return true end
+	if not claimStore then return false end
+	local ok, data = pcall(function() return claimStore:GetAsync("rb_" .. userId) end)
+	if ok and data then
+		claimedCache[userId] = true
+		return true
+	end
+	return false
+end
+
+
+------------------------------------------------------------------------
+-- RemoteEvents / RemoteFunction
+------------------------------------------------------------------------
+local remotes = Instance.new("Folder")
+remotes.Name = "RewardRemotes"
+remotes.Parent = ReplicatedStorage
+
+local showUIRemote   = Instance.new("RemoteEvent");    showUIRemote.Name   = "ShowUI";     showUIRemote.Parent   = remotes
+local checkGroupFunc = Instance.new("RemoteFunction"); checkGroupFunc.Name = "CheckGroup"; checkGroupFunc.Parent = remotes
+local claimRemote    = Instance.new("RemoteEvent");    claimRemote.Name    = "Claim";      claimRemote.Parent    = remotes
+local resultRemote   = Instance.new("RemoteEvent");    resultRemote.Name   = "Result";     resultRemote.Parent   = remotes
+local effectRemote   = Instance.new("RemoteEvent");    effectRemote.Name   = "Effect";     effectRemote.Parent   = remotes
+
+------------------------------------------------------------------------
+-- أدوات بناء
+------------------------------------------------------------------------
+local function np(props)
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = false
+	p.Material = Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for k, v in pairs(props) do (p :: any)[k] = v end
+	return p
+end
+
+------------------------------------------------------------------------
+-- بناء الصندوق ثلاثي الأبعاد
+------------------------------------------------------------------------
+local function buildBox()
+	local city = Workspace:WaitForChild("City", 30) or Workspace
+	local model = Instance.new("Model")
+	model.Name = "RewardBox"
+
+	-- === القاعدة الرخامية (3 طبقات دائرية) ===
+	for _, d in ipairs({
+		{ h = 1.2, dia = 14, cy = BASE_Y + 0.6 },
+		{ h = 0.8, dia = 11, cy = BASE_Y + 1.6 },
+		{ h = 0.6, dia = 8,  cy = BASE_Y + 2.3 },
+	}) do
+		np({
+			Name = "Tier", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(d.h, d.dia, d.dia),
+			CFrame = CFrame.new(CX, d.cy, CZ) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = MARBLE_COL, Material = Enum.Material.Marble,
+			CanCollide = true, Parent = model,
+		})
+	end
+
+	-- حلقة ذهبية بين الطبقات
+	np({
+		Name = "GoldRing", Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.15, 11.5, 11.5),
+		CFrame = CFrame.new(CX, BASE_Y + 1.15, CZ) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = GOLD, Material = Enum.Material.Metal, Parent = model,
+	})
+
+	-- حلقة نيون بنفسجية متوهّجة
+	np({
+		Name = "NeonRing", Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.12, 12.2, 12.2),
+		CFrame = CFrame.new(CX, BASE_Y + 2.0, CZ) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = GLOW_PURPLE, Material = Enum.Material.Neon, Parent = model,
+	})
+
+	-- === جسم الصندوق (مكعّب بنفسجي) ===
+	local BW, BH, BD = 5.5, 4.0, 4.5
+	local boxBot = BASE_Y + 2.6
+	local boxMid = boxBot + BH / 2
+	local boxTop = boxBot + BH
+
+	local body = np({
+		Name = "BoxBody",
+		Size = Vector3.new(BW, BH, BD),
+		Position = Vector3.new(CX, boxMid, CZ),
+		Color = PURPLE, CanCollide = true, Parent = model,
+	})
+
+	-- === حواف ذهبية عمودية (4 أعمدة على الزوايا) ===
+	local e = 0.18
+	for _, dx in ipairs({ -BW / 2, BW / 2 }) do
+		for _, dz in ipairs({ -BD / 2, BD / 2 }) do
+			np({
+				Name = "VEdge", Size = Vector3.new(e, BH + 0.1, e),
+				Position = Vector3.new(CX + dx, boxMid, CZ + dz),
+				Color = GOLD, Material = Enum.Material.Metal, Parent = model,
+			})
+		end
+	end
+
+	-- حواف ذهبية أفقية (أعلى وأسفل الصندوق — 4 شرائط لكل طبقة)
+	for _, yOff in ipairs({ boxBot + 0.05, boxTop - 0.05 }) do
+		np({ Name = "HE", Size = Vector3.new(BW + 0.1, e, e),    Position = Vector3.new(CX, yOff, CZ - BD / 2), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+		np({ Name = "HE", Size = Vector3.new(BW + 0.1, e, e),    Position = Vector3.new(CX, yOff, CZ + BD / 2), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+		np({ Name = "HE", Size = Vector3.new(e, e, BD + 0.1),    Position = Vector3.new(CX - BW / 2, yOff, CZ), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+		np({ Name = "HE", Size = Vector3.new(e, e, BD + 0.1),    Position = Vector3.new(CX + BW / 2, yOff, CZ), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+	end
+
+	-- === لوحة الشعار (الوجه +Z يواجه الريسبون) ===
+	local panelW = BW * 0.72
+	local panelH = BH * 0.68
+	local panelZ = CZ + BD / 2 + 0.04
+
+	local panel = np({
+		Name = "LogoPanel",
+		Size = Vector3.new(panelW, panelH, 0.06),
+		Position = Vector3.new(CX, boxMid, panelZ),
+		Color = DEEP_PURPLE, Parent = model,
+	})
+
+	-- إطار ذهبي حول اللوحة
+	local fw = 0.12
+	np({ Name = "FT", Size = Vector3.new(panelW + fw * 2, fw, 0.1), Position = Vector3.new(CX, boxMid + panelH / 2, panelZ),            Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+	np({ Name = "FB", Size = Vector3.new(panelW + fw * 2, fw, 0.1), Position = Vector3.new(CX, boxMid - panelH / 2, panelZ),            Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+	np({ Name = "FL", Size = Vector3.new(fw, panelH, 0.1),          Position = Vector3.new(CX - panelW / 2, boxMid, panelZ), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+	np({ Name = "FR", Size = Vector3.new(fw, panelH, 0.1),          Position = Vector3.new(CX + panelW / 2, boxMid, panelZ), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+
+	-- SurfaceGui للشعار (Face = Back = وجه +Z الذي يواجه الريسبون)
+	local logoGui = Instance.new("SurfaceGui")
+	logoGui.Name = "LogoGui"
+	logoGui.Face = Enum.NormalId.Back
+	logoGui.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+	logoGui.PixelsPerStud = 80
+	logoGui.Parent = panel
+
+	local logoImg = Instance.new("ImageLabel")
+	logoImg.Name = "Logo"
+	logoImg.Size = UDim2.new(1, 0, 1, 0)
+	logoImg.BackgroundTransparency = 1
+	logoImg.Image = "rbxthumb://type=Asset&id=" .. LOGO_DECAL .. "&w=420&h=420"
+	logoImg.ScaleType = Enum.ScaleType.Fit
+	logoImg.Parent = logoGui
+
+	-- === الفيونكة (ربطة بنفسجية + عقدة ذهبية) ===
+	np({ Name = "Ribbon", Size = Vector3.new(BW * 0.8, 0.3, 0.6),  Position = Vector3.new(CX, boxTop + 0.15, CZ),             Color = DEEP_PURPLE, Parent = model })
+	np({ Name = "LoopL",  Size = Vector3.new(1.2, 0.8, 0.5),       CFrame = CFrame.new(CX - 1.0, boxTop + 0.6, CZ) * CFrame.Angles(0, 0, math.rad(15)),  Color = DEEP_PURPLE, Parent = model })
+	np({ Name = "LoopR",  Size = Vector3.new(1.2, 0.8, 0.5),       CFrame = CFrame.new(CX + 1.0, boxTop + 0.6, CZ) * CFrame.Angles(0, 0, math.rad(-15)), Color = DEEP_PURPLE, Parent = model })
+	np({ Name = "Knot",   Shape = Enum.PartType.Ball, Size = Vector3.new(0.6, 0.6, 0.6), Position = Vector3.new(CX, boxTop + 0.4, CZ), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+
+	-- === التاج الذهبي العائم ===
+	local crownY = boxTop + 2.5
+	np({
+		Name = "CrownBase", Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(0.4, 2.5, 2.5),
+		CFrame = CFrame.new(CX, crownY, CZ) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = GOLD, Material = Enum.Material.Metal, Parent = model,
+	})
+	for i = 0, 4 do
+		local a = math.rad(i * 72)
+		local px = CX + math.sin(a) * 1.0
+		local pz = CZ + math.cos(a) * 1.0
+		np({ Name = "CPoint",    Size = Vector3.new(0.25, 0.7, 0.25),       Position = Vector3.new(px, crownY + 0.55, pz),  Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+		np({ Name = "CPointTip", Shape = Enum.PartType.Ball, Size = Vector3.new(0.3, 0.3, 0.3), Position = Vector3.new(px, crownY + 1.0, pz), Color = GOLD, Material = Enum.Material.Metal, Parent = model })
+	end
+
+	-- شعاع سحري بنفسجي بين الفيونكة والتاج
+	np({
+		Name = "Beam", Shape = Enum.PartType.Cylinder,
+		Size = Vector3.new(2.5, 0.3, 0.3),
+		CFrame = CFrame.new(CX, (boxTop + crownY) / 2, CZ) * CFrame.Angles(0, 0, math.rad(90)),
+		Color = GLOW_PURPLE, Material = Enum.Material.Neon, Transparency = 0.4,
+		Parent = model,
+	})
+
+	-- === 4 أعمدة ركنية رخامية ===
+	local pillarR = 5.5
+	for i = 0, 3 do
+		local a = math.rad(i * 90 + 45)
+		local px = CX + math.sin(a) * pillarR
+		local pz = CZ + math.cos(a) * pillarR
+		local pillar = np({
+			Name = "Pillar", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(4.5, 0.5, 0.5),
+			CFrame = CFrame.new(px, BASE_Y + 4.85, pz) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = MARBLE_COL, Material = Enum.Material.Marble, Parent = model,
+		})
+		np({
+			Name = "PCap", Shape = Enum.PartType.Ball,
+			Size = Vector3.new(0.7, 0.7, 0.7),
+			Position = Vector3.new(px, BASE_Y + 7.3, pz),
+			Color = GOLD, Material = Enum.Material.Metal, Parent = model,
+		})
+		local pl = Instance.new("PointLight")
+		pl.Color = Color3.fromRGB(255, 215, 90)
+		pl.Range = 6; pl.Brightness = 0.4; pl.Parent = pillar
+	end
+
+	-- === تأثيرات بصرية ===
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Name = "Sparkle"
+	sparkle.Color = ColorSequence.new(Color3.fromRGB(255, 215, 90))
+	sparkle.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.2),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	sparkle.Lifetime = NumberRange.new(1, 2)
+	sparkle.Rate = 12
+	sparkle.Speed = NumberRange.new(0.5, 1.5)
+	sparkle.SpreadAngle = Vector2.new(180, 180)
+	sparkle.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(0.8, 0),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	sparkle.LightEmission = 1
+	sparkle.Parent = body
+
+	local mainLight = Instance.new("PointLight")
+	mainLight.Color = Color3.fromRGB(255, 215, 90)
+	mainLight.Range = 20; mainLight.Brightness = 1.2
+	mainLight.Parent = body
+
+	-- === ProximityPrompt ===
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "RewardPrompt"
+	prompt.ActionText = "افتح"
+	prompt.ObjectText = "صندوق المكافآت"
+	prompt.MaxActivationDistance = 12
+	prompt.HoldDuration = 0
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = body
+
+	-- === اسم الصندوق (BillboardGui) ===
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "BoxLabel"; bb.Size = UDim2.fromOffset(300, 50)
+	bb.StudsOffset = Vector3.new(0, 6, 0)
+	bb.AlwaysOnTop = true; bb.MaxDistance = 50; bb.Parent = body
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size = UDim2.new(1, 0, 1, 0); lbl.BackgroundTransparency = 1
+	lbl.Text = "صندوق مكافآت مدينة شهد"
+	lbl.TextColor3 = Color3.fromRGB(255, 215, 90)
+	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.Parent = bb
+
+	local lblStroke = Instance.new("UIStroke")
+	lblStroke.Color = Color3.fromRGB(50, 10, 80)
+	lblStroke.Thickness = 2; lblStroke.Parent = lbl
+
+	model.PrimaryPart = body
+	model.Parent = city
+	return prompt
+end
+
+------------------------------------------------------------------------
+-- التحقق من القروب (Server-side — موثوق)
+------------------------------------------------------------------------
+checkGroupFunc.OnServerInvoke = function(player: Player)
+	local ok, inGroup = pcall(function() return player:IsInGroup(GROUP_ID) end)
+	return ok and inGroup or false
+end
+
+------------------------------------------------------------------------
+-- استلام المكافأة
+------------------------------------------------------------------------
+local cooldowns = {}
+
+claimRemote.OnServerEvent:Connect(function(player: Player)
+	local uid = player.UserId
+
+	-- كولداون (مرة كل 5 ثوانٍ)
+	if cooldowns[uid] and os.clock() - cooldowns[uid] < 5 then return end
+	cooldowns[uid] = os.clock()
+
+	-- هل استلمها قبل؟
+	if hasClaimed(uid) then
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "سبق لك استلام مكافأة الصندوق.") end
+		resultRemote:FireClient(player, "already")
+		return
+	end
+
+	-- تحقق من القروب (الشرط الوحيد القابل للتحقق من السيرفر)
+	local ok, inGroup = pcall(function() return player:IsInGroup(GROUP_ID) end)
+	if not (ok and inGroup) then
+		resultRemote:FireClient(player, "need_group")
+		return
+	end
+
+	-- حماية من الاستلام المزدوج (فورية بدون yield)
+	claimedCache[uid] = true
+
+	-- منح المكافأة أولاً قبل الحفظ في DataStore
+	if _G.AddCoins then _G.AddCoins(player, REWARD_COINS) end
+	if _G.AwardAchievement then _G.AwardAchievement(player, "supporter") end
+	if _G.AwardBadge then _G.AwardBadge(player, "SUPPORTER") end
+	if _G.ReportMission then _G.ReportMission(player, "reward_box", 1) end
+	if _G.NotifyPlayer then
+		_G.NotifyPlayer(player, "مبروك! حصلت على " .. REWARD_COINS .. " كوينز + إنجاز «داعم مدينة شهد»!")
+	end
+
+	resultRemote:FireClient(player, "success")
+	effectRemote:FireAllClients(player.Name)
+
+	-- حفظ في DataStore بالخلفية (لا يؤخّر اللاعب)
+	task.spawn(function()
+		if not claimStore then return end
+		for _ = 1, 3 do
+			if pcall(function() claimStore:SetAsync("rb_" .. uid, true) end) then return end
+			task.wait(1)
+		end
+	end)
+end)
+
+------------------------------------------------------------------------
+-- البدء
+------------------------------------------------------------------------
+local prompt = buildBox()
+
+prompt.Triggered:Connect(function(player)
+	if hasClaimed(player.UserId) then
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "سبق لك استلام مكافأة الصندوق.") end
+		return
+	end
+	local ok, inGroup = pcall(function() return player:IsInGroup(GROUP_ID) end)
+	showUIRemote:FireClient(player, { inGroup = ok and inGroup or false })
+end)
+
+-- تحميل مسبق لحالة الاستلام عند دخول اللاعب
+Players.PlayerAdded:Connect(function(player)
+	task.spawn(function() hasClaimed(player.UserId) end)
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	claimedCache[player.UserId] = nil
+	cooldowns[player.UserId] = nil
+end)
+
+print("[RewardBoxSystem] جاهز — صندوق المكافآت مفعّل (1000 كوينز + إنجاز «داعم مدينة شهد»).")
 ]]></string></Properties></Item></Item>
   <Item class="SoundService" referent="12">
     <Properties>
@@ -24775,6 +25165,472 @@ else
 		if LocalPlayer:GetAttribute("RoyalSpawnStart") then trigger() end
 	end)
 end
+]]></string></Properties></Item><Item class="LocalScript" referent="RewardBoxClientRef"><Properties><string name="Name">RewardBoxClient</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
+╔══════════════════════════════════════════════════════════════════════╗
+║  واجهة صندوق المكافآت — REWARD BOX CLIENT (Client)                    ║
+║  المكان: StarterPlayerScripts    ·     النوع: LocalScript              ║
+║                                                                        ║
+║  • واجهة قائمة المهام (لايك / فيفورت / إشعارات / قروب)                 ║
+║  • فقاعة شكر احترافية بعد استلام المكافأة مع أنيميشن                   ║
+║  • تتواصل مع RewardBoxSystem عبر RewardRemotes                       ║
+╚══════════════════════════════════════════════════════════════════════╝
+]]
+
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService      = game:GetService("TweenService")
+local Workspace         = game:GetService("Workspace")
+
+local player = Players.LocalPlayer
+local pg     = player:WaitForChild("PlayerGui")
+
+local remotes = ReplicatedStorage:WaitForChild("RewardRemotes", 30)
+if not remotes then return end
+
+local showUIRemote   = remotes:WaitForChild("ShowUI", 10)
+local checkGroupFunc = remotes:WaitForChild("CheckGroup", 10)
+local claimRemote    = remotes:WaitForChild("Claim", 10)
+local resultRemote   = remotes:WaitForChild("Result", 10)
+local effectRemote   = remotes:WaitForChild("Effect", 10)
+if not showUIRemote or not resultRemote then return end
+
+------------------------------------------------------------------------
+-- ألوان
+------------------------------------------------------------------------
+local BG_COL     = Color3.fromRGB(18, 12, 35)
+local PANEL_COL  = Color3.fromRGB(30, 18, 55)
+local ROW_COL    = Color3.fromRGB(22, 14, 42)
+local GOLD_COL   = Color3.fromRGB(255, 215, 90)
+local PURPLE_COL = Color3.fromRGB(168, 85, 247)
+local GREEN_COL  = Color3.fromRGB(90, 220, 120)
+local RED_COL    = Color3.fromRGB(220, 70, 70)
+local TEXT_COL   = Color3.fromRGB(240, 240, 250)
+local DIM_COL    = Color3.fromRGB(140, 140, 160)
+
+------------------------------------------------------------------------
+-- أدوات UI
+------------------------------------------------------------------------
+local function corner(parent, r)
+	local c = Instance.new("UICorner"); c.CornerRadius = UDim.new(0, r or 12); c.Parent = parent; return c
+end
+
+local function stroke(parent, col, th)
+	local s = Instance.new("UIStroke"); s.Color = col or GOLD_COL; s.Thickness = th or 2; s.Parent = parent; return s
+end
+
+local function tweenTo(obj, props, dur)
+	TweenService:Create(obj, TweenInfo.new(dur or 0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), props):Play()
+end
+
+------------------------------------------------------------------------
+-- إشعار محلي بسيط (لا يعتمد على _G)
+------------------------------------------------------------------------
+local function showNotify(text)
+	local g = Instance.new("ScreenGui")
+	g.Name = "RBNotify"; g.ResetOnSpawn = false; g.IgnoreGuiInset = true; g.DisplayOrder = 120; g.Parent = pg
+
+	local lbl = Instance.new("TextLabel")
+	lbl.AnchorPoint = Vector2.new(0.5, 0)
+	lbl.Position = UDim2.new(0.5, 0, 0, 60)
+	lbl.Size = UDim2.fromOffset(420, 42)
+	lbl.BackgroundColor3 = PANEL_COL; lbl.BackgroundTransparency = 0.1
+	lbl.Text = text; lbl.TextColor3 = GOLD_COL
+	lbl.Font = Enum.Font.GothamBold; lbl.TextScaled = true; lbl.Parent = g
+	corner(lbl, 10); stroke(lbl, GOLD_COL, 1)
+
+	task.delay(3, function()
+		tweenTo(lbl, { BackgroundTransparency = 1, TextTransparency = 1 }, 0.5)
+		task.wait(0.6); g:Destroy()
+	end)
+end
+
+------------------------------------------------------------------------
+-- حالة
+------------------------------------------------------------------------
+local TASKS = {
+	{ key = "like",   icon = "👍", label = "لايك للعبة" },
+	{ key = "fav",    icon = "⭐", label = "تفضيل اللعبة" },
+	{ key = "notify", icon = "🔔", label = "تفعيل الإشعارات" },
+	{ key = "group",  icon = "👥", label = "الانضمام للقروب" },
+}
+
+local done = {}        -- [key] = true
+local activeGui = nil
+local claimBtnRef = nil
+
+------------------------------------------------------------------------
+-- بناء واجهة قائمة المهام
+------------------------------------------------------------------------
+local function showChecklist(data)
+	if activeGui then activeGui:Destroy() end
+	done = {}
+	claimBtnRef = nil
+
+	-- forward-declare markDone so the async check below can call it
+	local markDone
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "RewardBoxUI"; gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true; gui.DisplayOrder = 100
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
+	activeGui = gui
+
+	-- خلفية شبه شفافة
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(1, 0, 1, 0); bg.BackgroundColor3 = Color3.new(0, 0, 0)
+	bg.BackgroundTransparency = 0.5; bg.BorderSizePixel = 0; bg.Parent = gui
+
+	-- اللوحة المركزية
+	local panel = Instance.new("Frame")
+	panel.AnchorPoint = Vector2.new(0.5, 0.5)
+	panel.Position = UDim2.new(0.5, 0, 0.5, 0)
+	panel.Size = UDim2.fromOffset(420, 440)
+	panel.BackgroundColor3 = PANEL_COL; panel.Parent = gui
+	corner(panel, 16); stroke(panel, GOLD_COL, 2.5)
+
+	-- أنيميشن دخول
+	panel.Size = UDim2.fromOffset(0, 0)
+	tweenTo(panel, { Size = UDim2.fromOffset(420, 440) }, 0.4)
+
+	-- العنوان
+	local title = Instance.new("TextLabel")
+	title.Size = UDim2.new(1, -40, 0, 38); title.Position = UDim2.new(0, 10, 0, 12)
+	title.BackgroundTransparency = 1; title.Text = "صندوق مكافآت مدينة شهد"
+	title.TextColor3 = GOLD_COL; title.Font = Enum.Font.GothamBlack; title.TextScaled = true; title.Parent = panel
+
+	-- العنوان الفرعي
+	local sub = Instance.new("TextLabel")
+	sub.Size = UDim2.new(1, -20, 0, 20); sub.Position = UDim2.new(0, 10, 0, 52)
+	sub.BackgroundTransparency = 1; sub.Text = "أكمل المهام الأربع لاستلام المكافأة"
+	sub.TextColor3 = DIM_COL; sub.Font = Enum.Font.GothamMedium; sub.TextScaled = true; sub.Parent = panel
+
+	-- فاصل
+	local sep = Instance.new("Frame")
+	sep.Size = UDim2.new(0.9, 0, 0, 1); sep.Position = UDim2.new(0.05, 0, 0, 78)
+	sep.BackgroundColor3 = GOLD_COL; sep.BackgroundTransparency = 0.5; sep.BorderSizePixel = 0; sep.Parent = panel
+
+	-- مراجع لتحديث الحالة لاحقاً
+	local statusRefs = {}
+	local btnRefs = {}
+
+	local function refreshClaimBtn()
+		local allDone = done.like and done.fav and done.notify and done.group
+		if claimBtnRef then
+			claimBtnRef.BackgroundColor3 = allDone and GOLD_COL or Color3.fromRGB(60, 40, 80)
+			claimBtnRef.TextColor3 = allDone and BG_COL or DIM_COL
+			claimBtnRef.AutoButtonColor = allDone == true
+		end
+	end
+
+	markDone = function(key)
+		done[key] = true
+		if statusRefs[key] then
+			statusRefs[key].BackgroundColor3 = GREEN_COL
+			local st = statusRefs[key]:FindFirstChildWhichIsA("UIStroke")
+			if st then st.Color = GREEN_COL end
+			local chk = statusRefs[key]:FindFirstChild("Chk")
+			if chk then chk.Visible = true end
+		end
+		if btnRefs[key] then btnRefs[key].Text = "تم"; btnRefs[key].BackgroundColor3 = Color3.fromRGB(40, 100, 60); btnRefs[key].AutoButtonColor = false end
+		refreshClaimBtn()
+	end
+
+	-- تحقق حالة القروب بعد بناء الواجهة
+	if data.inGroup then markDone("group") end
+
+	-- صفوف المهام
+	for i, t in ipairs(TASKS) do
+		local row = Instance.new("Frame")
+		row.Size = UDim2.new(0.9, 0, 0, 50)
+		row.Position = UDim2.new(0.05, 0, 0, 86 + (i - 1) * 58)
+		row.BackgroundColor3 = ROW_COL; row.BorderSizePixel = 0; row.Parent = panel
+		corner(row, 10)
+
+		-- مؤشر الحالة: مربّع ملوّن بدل إيموجي (يعمل على كل الأجهزة)
+		local stFrame = Instance.new("Frame")
+		stFrame.Size = UDim2.fromOffset(28, 28)
+		stFrame.Position = UDim2.new(0, 11, 0.5, -14)
+		stFrame.BackgroundColor3 = done[t.key] and GREEN_COL or Color3.fromRGB(55, 40, 75)
+		stFrame.BorderSizePixel = 0; stFrame.Parent = row
+		corner(stFrame, 6)
+		stroke(stFrame, done[t.key] and GREEN_COL or DIM_COL, 1.5)
+
+		local chk = Instance.new("TextLabel")
+		chk.Name = "Chk"
+		chk.Size = UDim2.new(1, 0, 1, 0)
+		chk.BackgroundTransparency = 1
+		chk.Text = "✓"
+		chk.TextColor3 = Color3.new(1, 1, 1)
+		chk.Font = Enum.Font.GothamBlack; chk.TextScaled = true
+		chk.Visible = done[t.key] == true
+		chk.Parent = stFrame
+
+		statusRefs[t.key] = stFrame
+
+		local txt = Instance.new("TextLabel")
+		txt.Size = UDim2.new(0.48, 0, 1, 0); txt.Position = UDim2.new(0, 46, 0, 0)
+		txt.BackgroundTransparency = 1; txt.Text = t.icon .. " " .. t.label
+		txt.TextColor3 = TEXT_COL; txt.Font = Enum.Font.GothamMedium; txt.TextScaled = true
+		txt.TextXAlignment = Enum.TextXAlignment.Right; txt.Parent = row
+
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.fromOffset(80, 32); btn.AnchorPoint = Vector2.new(1, 0.5)
+		btn.Position = UDim2.new(1, -8, 0.5, 0)
+		btn.BackgroundColor3 = done[t.key] and Color3.fromRGB(40, 100, 60) or PURPLE_COL
+		btn.Text = done[t.key] and "تم" or (t.key == "group" and "تحقّق" or "تنفيذ")
+		btn.TextColor3 = Color3.new(1, 1, 1)
+		btn.Font = Enum.Font.GothamBold; btn.TextSize = 14
+		btn.AutoButtonColor = not done[t.key]; btn.Parent = row
+		corner(btn, 8)
+		btnRefs[t.key] = btn
+
+		if not done[t.key] then
+			if t.key == "like" then
+				-- اللايك: لا يوجد API للتحقق — نعرض رسالة ونطلب من اللاعب التأكيد
+				btn.MouseButton1Click:Connect(function()
+					if done[t.key] then return end
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
+					showNotify("اضغط لايك للعبة من صفحتها")
+					task.wait(5)
+					markDone(t.key)
+				end)
+
+			elseif t.key == "fav" then
+				-- الفيفورت: لا يوجد API للتحقق — نعرض رسالة ونطلب من اللاعب التأكيد
+				btn.MouseButton1Click:Connect(function()
+					if done[t.key] then return end
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
+					showNotify("فضّل اللعبة من صفحتها")
+					task.wait(5)
+					markDone(t.key)
+				end)
+
+			elseif t.key == "notify" then
+				-- الإشعارات: نستخدم PromptOptIn ونتحقق فعلياً بعد الإغلاق
+				btn.MouseButton1Click:Connect(function()
+					if done[t.key] then return end
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
+					local okS, svc = pcall(function() return game:GetService("ExperienceNotificationService") end)
+					if okS and svc then
+						local canP = true
+						pcall(function() canP = svc:CanPromptOptInAsync() end)
+						if canP then
+							-- اللاعب ما فعّل الإشعارات بعد — نعرض الطلب
+							pcall(function() svc:PromptOptIn() end)
+							task.wait(4)
+							-- نتحقق هل فعّلها فعلاً بعد إغلاق المربع
+							local stillCanPrompt = true
+							pcall(function() stillCanPrompt = svc:CanPromptOptInAsync() end)
+							if not stillCanPrompt then
+								-- اللاعب فعّل الإشعارات فعلاً
+								markDone("notify")
+							else
+								-- اللاعب سكّر المربع بدون تفعيل
+								btn.Text = "لم يتم"
+								btn.BackgroundColor3 = RED_COL
+								task.wait(2)
+								if not done.notify then
+									btn.Text = "تنفيذ"
+									btn.BackgroundColor3 = PURPLE_COL
+									btn.AutoButtonColor = true
+								end
+							end
+						else
+							-- CanPromptOptIn = false → اللاعب مفعّل الإشعارات من قبل
+							markDone("notify")
+						end
+					else
+						-- الخدمة مو متاحة (ستوديو أو جهاز ما يدعمها)
+						markDone("notify")
+					end
+				end)
+
+			elseif t.key == "group" then
+				btn.MouseButton1Click:Connect(function()
+					if done[t.key] then return end
+					btn.Text = "جارٍ..."; btn.AutoButtonColor = false
+					local inGroup = false
+					if checkGroupFunc then
+						pcall(function() inGroup = checkGroupFunc:InvokeServer() end)
+					end
+					if inGroup then
+						markDone("group")
+					else
+						btn.Text = "انضم أولاً"
+						btn.BackgroundColor3 = RED_COL
+						task.wait(2)
+						if not done.group then
+							btn.Text = "تحقّق"
+							btn.BackgroundColor3 = PURPLE_COL
+							btn.AutoButtonColor = true
+						end
+					end
+				end)
+			end
+		end
+	end
+
+	-- فاصل سفلي
+	local sep2 = Instance.new("Frame")
+	sep2.Size = UDim2.new(0.9, 0, 0, 1); sep2.Position = UDim2.new(0.05, 0, 0, 326)
+	sep2.BackgroundColor3 = GOLD_COL; sep2.BackgroundTransparency = 0.5; sep2.BorderSizePixel = 0; sep2.Parent = panel
+
+	-- نص المكافأة
+	local rwdLbl = Instance.new("TextLabel")
+	rwdLbl.Size = UDim2.new(0.9, 0, 0, 22); rwdLbl.Position = UDim2.new(0.05, 0, 0, 334)
+	rwdLbl.BackgroundTransparency = 1; rwdLbl.Text = "المكافأة: 1000 كوينز + إنجاز «داعم مدينة شهد»"
+	rwdLbl.TextColor3 = GOLD_COL; rwdLbl.Font = Enum.Font.GothamMedium; rwdLbl.TextScaled = true; rwdLbl.Parent = panel
+
+	-- زر الاستلام
+	local claimBtn = Instance.new("TextButton")
+	claimBtn.AnchorPoint = Vector2.new(0.5, 0)
+	claimBtn.Position = UDim2.new(0.5, 0, 0, 366)
+	claimBtn.Size = UDim2.fromOffset(260, 42)
+	claimBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 80)
+	claimBtn.Text = "استلم المكافأة"
+	claimBtn.TextColor3 = DIM_COL; claimBtn.Font = Enum.Font.GothamBlack; claimBtn.TextSize = 18
+	claimBtn.AutoButtonColor = false; claimBtn.Parent = panel
+	corner(claimBtn, 10); stroke(claimBtn, GOLD_COL, 1.5)
+	claimBtnRef = claimBtn
+
+	claimBtn.MouseButton1Click:Connect(function()
+		if not (done.like and done.fav and done.notify and done.group) then return end
+		claimBtn.Text = "جارٍ الاستلام..."; claimBtn.AutoButtonColor = false
+		if claimRemote then claimRemote:FireServer() end
+	end)
+
+	refreshClaimBtn()
+
+	-- زر الإغلاق
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.AnchorPoint = Vector2.new(1, 0)
+	closeBtn.Position = UDim2.new(1, -8, 0, 8)
+	closeBtn.Size = UDim2.fromOffset(32, 32)
+	closeBtn.BackgroundColor3 = RED_COL; closeBtn.Text = "✕"
+	closeBtn.TextColor3 = Color3.new(1, 1, 1); closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.TextSize = 16; closeBtn.Parent = panel
+	corner(closeBtn, 8)
+
+	closeBtn.MouseButton1Click:Connect(function()
+		if activeGui then activeGui:Destroy(); activeGui = nil end
+	end)
+end
+
+------------------------------------------------------------------------
+-- فقاعة الشكر الاحترافية
+------------------------------------------------------------------------
+local function showThankYou()
+	if activeGui then activeGui:Destroy(); activeGui = nil end
+
+	local gui = Instance.new("ScreenGui")
+	gui.Name = "RewardThankYou"; gui.ResetOnSpawn = false
+	gui.IgnoreGuiInset = true; gui.DisplayOrder = 110
+	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling; gui.Parent = pg
+
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(1, 0, 1, 0); bg.BackgroundColor3 = Color3.new(0, 0, 0)
+	bg.BackgroundTransparency = 0.4; bg.BorderSizePixel = 0; bg.Parent = gui
+
+	local card = Instance.new("Frame")
+	card.AnchorPoint = Vector2.new(0.5, 0.5)
+	card.Position = UDim2.new(0.5, 0, 0.5, 0)
+	card.Size = UDim2.fromOffset(460, 360)
+	card.BackgroundColor3 = PANEL_COL; card.Parent = gui
+	corner(card, 20); stroke(card, GOLD_COL, 3)
+
+	-- أنيميشن دخول
+	card.BackgroundTransparency = 1; card.Size = UDim2.fromOffset(0, 0)
+	tweenTo(card, { Size = UDim2.fromOffset(460, 360), BackgroundTransparency = 0 }, 0.5)
+
+	-- عنوان "مبروك!"
+	local h = Instance.new("TextLabel")
+	h.Size = UDim2.new(1, 0, 0, 60); h.Position = UDim2.new(0, 0, 0, 16)
+	h.BackgroundTransparency = 1; h.Text = "مبروك!"
+	h.TextColor3 = GOLD_COL; h.Font = Enum.Font.GothamBlack; h.TextScaled = true; h.Parent = card
+
+	-- المكافأة
+	local rwd = Instance.new("TextLabel")
+	rwd.Size = UDim2.new(0.9, 0, 0, 30); rwd.Position = UDim2.new(0.05, 0, 0, 80)
+	rwd.BackgroundTransparency = 1
+	rwd.Text = "حصلت على 1000 كوينز + إنجاز «داعم مدينة شهد»"
+	rwd.TextColor3 = GOLD_COL; rwd.Font = Enum.Font.GothamBold; rwd.TextScaled = true; rwd.Parent = card
+
+	-- فاصل
+	local sep = Instance.new("Frame")
+	sep.Size = UDim2.new(0.8, 0, 0, 1); sep.Position = UDim2.new(0.1, 0, 0, 118)
+	sep.BackgroundColor3 = GOLD_COL; sep.BackgroundTransparency = 0.5; sep.BorderSizePixel = 0; sep.Parent = card
+
+	-- رسالة الشكر مع تفاصيل المهام
+	local msg = Instance.new("TextLabel")
+	msg.Size = UDim2.new(0.85, 0, 0, 160); msg.Position = UDim2.new(0.075, 0, 0, 130)
+	msg.BackgroundTransparency = 1
+	msg.Text = "شكراً لدعمك مدينة شهد!\n\n"
+		.. "✓ سوّيت لايك\n"
+		.. "✓ فضّلت اللعبة\n"
+		.. "✓ فعّلت الإشعارات\n"
+		.. "✓ انضممت للقروب"
+	msg.TextColor3 = TEXT_COL; msg.Font = Enum.Font.GothamMedium; msg.TextScaled = true
+	msg.TextYAlignment = Enum.TextYAlignment.Top; msg.Parent = card
+
+	-- توقيع
+	local sig = Instance.new("TextLabel")
+	sig.Size = UDim2.new(0.9, 0, 0, 20); sig.Position = UDim2.new(0.05, 0, 1, -30)
+	sig.BackgroundTransparency = 1; sig.Text = "— مدينة شهد —"
+	sig.TextColor3 = PURPLE_COL; sig.Font = Enum.Font.GothamBold; sig.TextScaled = true; sig.Parent = card
+
+	-- إغلاق تلقائي بعد 6 ثوانٍ
+	task.delay(6, function()
+		if not gui.Parent then return end
+		tweenTo(card, { BackgroundTransparency = 1, Size = UDim2.fromOffset(0, 0) }, 0.4)
+		tweenTo(bg, { BackgroundTransparency = 1 }, 0.4)
+		task.wait(0.5)
+		if gui.Parent then gui:Destroy() end
+	end)
+end
+
+------------------------------------------------------------------------
+-- المعالجات
+------------------------------------------------------------------------
+showUIRemote.OnClientEvent:Connect(function(data)
+	showChecklist(data)
+end)
+
+resultRemote.OnClientEvent:Connect(function(status)
+	if status == "success" then
+		showThankYou()
+	elseif status == "already" then
+		if activeGui then activeGui:Destroy(); activeGui = nil end
+	elseif status == "need_group" then
+		showNotify("يجب الانضمام لقروب Shahad-Jori أولاً")
+		if claimBtnRef then claimBtnRef.Text = "استلم المكافأة" end
+	end
+end)
+
+-- تأثيرات بصرية عند استلام أي لاعب (يراها الكل)
+if effectRemote then
+	effectRemote.OnClientEvent:Connect(function()
+		local city = Workspace:FindFirstChild("City")
+		local box = city and city:FindFirstChild("RewardBox")
+		local body = box and box:FindFirstChild("BoxBody")
+		if not body then return end
+
+		local burst = Instance.new("ParticleEmitter")
+		burst.Color = ColorSequence.new(GOLD_COL)
+		burst.Size = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.5),
+			NumberSequenceKeypoint.new(1, 0),
+		})
+		burst.Lifetime = NumberRange.new(0.8, 1.5)
+		burst.Speed = NumberRange.new(8, 15)
+		burst.SpreadAngle = Vector2.new(180, 180)
+		burst.LightEmission = 1
+		burst.Parent = body
+		burst:Emit(40)
+		task.delay(2, function() burst:Destroy() end)
+	end)
+end
+
+print("[RewardBoxClient] جاهز.")
 ]]></string></Properties></Item></Item>
   </Item>
   <Item class="Workspace" referent="17">
