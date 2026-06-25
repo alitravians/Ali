@@ -17367,29 +17367,45 @@ exitPrompt.RequiresLineOfSight = false
 exitPrompt.MaxActivationDistance = 9
 exitPrompt.Parent = exitFrame
 
+-- 🔒 قفل أنيميشن واحد للجهاز كلّه: عناصر الواجهة (الخط/الحلقات/النص) مشتركة،
+--     فلو شغّلها لاعبان معاً تتشوّه. مالك الأنيميشن فقط يحرّكها؛ البقية يخرجون فوراً بدون تضارب.
+local exitAnimating = false
+
 -- منطق الخروج: حركة مسح واقعية (~4.5ث) → فتح الباب (بدون خصم، للجميع)
 exitPrompt.Triggered:Connect(function(player)
 	-- منع إعادة التشغيل لنفس اللاعب أثناء مسحه فقط (لا يعطّل بقية اللاعبين)
 	if scanningExit[player.UserId] then return end
 	scanningExit[player.UserId] = true
+	local owns = false   -- هل يملك هذا اللاعب أنيميشن الجهاز هذه المرّة؟
 	local ok, err = pcall(function()
 		evStartScan:FireClient(player)
-		runScanAnimation(exitScan, EXIT_SCAN_TIME)
+		if not exitAnimating then
+			-- هذا اللاعب يملك الجهاز: يشغّل المسح الكامل على الواجهة المشتركة
+			exitAnimating = true
+			owns = true
+			runScanAnimation(exitScan, EXIT_SCAN_TIME)
+			exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
+			pad2.Color = Color3.fromRGB(60, 245, 150)
+			pad2Light.Color = Color3.fromRGB(80, 255, 170)
+		else
+			-- الجهاز يعرض مسح لاعب آخر — نفتح الباب لهذا اللاعب فوراً دون تشغيل أنيميشن متضارب
+			task.wait(0.8)
+		end
 		evScanResult:FireClient(player, true)
-		exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
-		pad2.Color = Color3.fromRGB(60, 245, 150)
-		pad2Light.Color = Color3.fromRGB(80, 255, 170)
 		openDoorsSequence()
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
 	end)
-	-- يُحرّر القفل فوراً (حتى لو حصل خطأ) عشان اللاعب يقدر يعيد المحاولة بدون انتظار — مطابق لجهاز الدخول
+	-- يُحرّر الأقفال دائماً (حتى لو حصل خطأ) عشان اللاعب يقدر يعيد المحاولة بدون انتظار — مطابق لجهاز الدخول
+	if owns then exitAnimating = false end
 	if not ok then warn("[Palace] Exit scan error: " .. tostring(err)) end
 	scanningExit[player.UserId] = nil
-	task.delay(2.2, function()
-		pad2.Color = PAD2_IDLE
-		pad2Light.Color = PAD2_IDLE_LIGHT
-		exitScan.status.Text = "ضع إصبعك للخروج"
-	end)
+	if owns then
+		task.delay(2.2, function()
+			pad2.Color = PAD2_IDLE
+			pad2Light.Color = PAD2_IDLE_LIGHT
+			exitScan.status.Text = "ضع إصبعك للخروج"
+		end)
+	end
 end)
 
 -- طلب عرض السجلّ (للأدمن فقط)
