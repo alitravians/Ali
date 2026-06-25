@@ -35,13 +35,8 @@ local CONFIG = {
 	-- جغرافيا المشهد
 	JUMP_XZ         = Vector2.new(0, 0),      -- يقفز فوق وسط المدينة ثم نزول حرّ موجَّه
 	ALTITUDE        = 720,                    -- ارتفاع الطائرة عند الإقلاع
-	FLIGHT_DIST     = 460,                    -- طول مسار الطائرة فوق المدينة قبل القفز
 	PLANE_LENGTH    = 120,                    -- طول جسم الطائرة بعد التحجيم
 	MAP_HALF        = 195,                    -- نصف حدود الماب (الأرض 400×400) — نمنع الخروج للفراغ
-
-	-- التوقيت
-	SPECTATOR_TIME  = 9.0,                    -- مدّة المشاهدة قبل القفز التلقائي
-	COUNTDOWN_FROM  = 3,                      -- عدّاد ٣-٢-١
 
 	-- فيزياء السقوط
 	FREEFALL_MIN    = 70,                     -- سرعة بداية السقوط الحر
@@ -722,7 +717,7 @@ local function run()
 		RunService.Heartbeat:Wait()
 		stepLEDs(plane, os.clock())
 		-- شبكة أمان: لو سقط اللاعب خارج المقصورة لأي سبب أعِده للأرضية
-		if rootPart.Position.Y < jumpPoint.Y - plane.half.u * 2 then
+		if rootPart.Position.Y < jumpPoint.Y - plane.half.u * 0.9 then
 			rootPart.CFrame = plane.cabin.spawnCF
 			rootPart.AssemblyLinearVelocity = Vector3.zero
 		end
@@ -737,6 +732,12 @@ local function run()
 	-- فتح باب الطائرة (حركة انزلاق) ثم القفز
 	------------------------------------------------------------------
 	do
+		-- ثبّت اللاعب عند الباب فوراً (قبل فتح الباب) كي لا تجرّه سرعته خارج المقصورة
+		humanoid.AutoRotate = false
+		rootPart.AssemblyLinearVelocity = Vector3.zero
+		rootPart.CFrame = plane.cabin.jumpCF
+		rootPart.Anchored = true
+
 		local jumpDoor = plane.cabin.door
 		jumpDoor.CanCollide = false
 		local openCF = plane.cabin.doorClosedCF * CFrame.new(jumpDoor.Size.X * 0.9, 0, 0)
@@ -744,13 +745,8 @@ local function run()
 			CFrame = openCF, Transparency = 1,
 		}):Play()
 		playSound3D(plane.body, CONFIG.SND_JUMP, 0.5, false)
-		rootPart.CFrame = plane.cabin.jumpCF
 		task.wait(0.7)
 	end
-
-	-- تثبيت الشخصية لبدء التسلسل المكتوب للسقوط الحرّ
-	humanoid.AutoRotate = false
-	rootPart.Anchored = true
 
 	------------------------------------------------------------------
 	-- الطور ٢: القفز + السقوط الحر
