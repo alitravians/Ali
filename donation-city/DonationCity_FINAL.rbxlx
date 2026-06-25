@@ -17382,13 +17382,13 @@ exitPrompt.Triggered:Connect(function(player)
 		openDoorsSequence()
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
 	end)
-	-- يُحرّر القفل دائماً (حتى لو حصل خطأ أثناء المسح) عشان اللاعب يقدر يعيد المحاولة
+	-- يُحرّر القفل فوراً (حتى لو حصل خطأ) عشان اللاعب يقدر يعيد المحاولة بدون انتظار — مطابق لجهاز الدخول
 	if not ok then warn("[Palace] Exit scan error: " .. tostring(err)) end
+	scanningExit[player.UserId] = nil
 	task.delay(2.2, function()
 		pad2.Color = PAD2_IDLE
 		pad2Light.Color = PAD2_IDLE_LIGHT
 		exitScan.status.Text = "ضع إصبعك للخروج"
-		scanningExit[player.UserId] = nil
 	end)
 end)
 
