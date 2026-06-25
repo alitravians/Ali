@@ -17008,20 +17008,22 @@ end
 local leafL, closedL, openL = makeLeaf("DoorLeafL", ENT_Z0, 1)
 local leafR, closedR, openR = makeLeaf("DoorLeafR", ENT_Z1, -1)
 
-local doorOpen = false
+local doorCycle = 0          -- رمز الدورة الأحدث (يُلغي مؤقّت الإغلاق السابق عند كل تشغيل)
 local function setDoors(targetL, targetR, dur)
 	local info = TweenInfo.new(dur, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(leafL, info, {CFrame = targetL}):Play()
 	TweenService:Create(leafR, info, {CFrame = targetR}):Play()
 end
 
+-- يفتح البابين دائماً ويُمدّد فترة البقاء مفتوحاً عند كل تشغيل (حتى لو كان بمنتصف الإغلاق).
+-- كل تشغيل يحمل رمز دورة خاص؛ مؤقّت الإغلاق لا ينفّذ إلا إن كان رمزه هو الأحدث.
 local function openDoorsSequence()
-	if doorOpen then return end
-	doorOpen = true
+	doorCycle += 1
+	local myCycle = doorCycle
 	setDoors(openL, openR, DOOR_OPEN_T)
 	task.delay(DOOR_OPEN_T + DOOR_HOLD, function()
+		if doorCycle ~= myCycle then return end   -- تشغيل أحدث مدّد البقاء مفتوحاً
 		setDoors(closedL, closedR, DOOR_OPEN_T)
-		task.delay(DOOR_OPEN_T, function() doorOpen = false end)
 	end)
 end
 
