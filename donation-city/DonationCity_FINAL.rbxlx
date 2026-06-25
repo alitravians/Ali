@@ -17355,14 +17355,18 @@ exitPrompt.Parent = exitFrame
 exitPrompt.Triggered:Connect(function(player)
 	-- منع إعادة التشغيل أثناء المسح (يُعطّل الزر ثم يُعاد تفعيله)
 	exitPrompt.Enabled = false
-	evStartScan:FireClient(player)
-	runScanAnimation(exitScan, EXIT_SCAN_TIME)
-	evScanResult:FireClient(player, true)
-	exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
-	pad2.Color = Color3.fromRGB(60, 245, 150)
-	pad2Light.Color = Color3.fromRGB(80, 255, 170)
-	openDoorsSequence()
-	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
+	local ok, err = pcall(function()
+		evStartScan:FireClient(player)
+		runScanAnimation(exitScan, EXIT_SCAN_TIME)
+		evScanResult:FireClient(player, true)
+		exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
+		pad2.Color = Color3.fromRGB(60, 245, 150)
+		pad2Light.Color = Color3.fromRGB(80, 255, 170)
+		openDoorsSequence()
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
+	end)
+	-- إعادة الضبط دائماً (حتى لو حصل خطأ أثناء المسح) عشان الزر ما يتعطّل نهائياً
+	if not ok then warn("[Palace] Exit scan error: " .. tostring(err)) end
 	task.delay(2.2, function()
 		pad2.Color = PAD2_IDLE
 		pad2Light.Color = PAD2_IDLE_LIGHT
