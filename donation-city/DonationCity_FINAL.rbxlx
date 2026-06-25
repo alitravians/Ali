@@ -17225,8 +17225,13 @@ end
 --      في نفس الجلسة (يُمسح تلقائياً عند خروجه من السيرفر)
 ----------------------------------------------------------------------
 local paidEntry: { [number]: boolean } = {}
+-- 🚧 قفل لكل لاعب على حدة (يمنع تكرار الضغط لنفس اللاعب دون تعطيل بقية اللاعبين)
+local scanningEntry: { [number]: boolean } = {}
+local scanningExit: { [number]: boolean } = {}
 Players.PlayerRemoving:Connect(function(player)
 	paidEntry[player.UserId] = nil
+	scanningEntry[player.UserId] = nil
+	scanningExit[player.UserId] = nil
 end)
 
 local PAD_IDLE = Color3.fromRGB(20, 60, 90)
@@ -17248,9 +17253,9 @@ end
 --      • غير ذلك: يُخصم ENTRY_FEE إن كان رصيده كافياً، وإلا رفض
 ----------------------------------------------------------------------
 prompt.Triggered:Connect(function(player)
-	-- ابدأ شاشة المسح عند اللاعب فوراً (إحساس واقعي)
-	evStartScan:FireClient(player)
-	task.wait(SCAN_TIME)
+	-- منع تكرار الضغط لنفس اللاعب أثناء المسح (لكل لاعب على حدة — لا يعطّل غيره)
+	if scanningEntry[player.UserId] then return end
+	scanningEntry[player.UserId] = true
 
 	local function admit()
 		evScanResult:FireClient(player, true)
@@ -17260,32 +17265,41 @@ prompt.Triggered:Connect(function(player)
 		resetPadSoon()
 	end
 
-	if isAdmin(player) then
-		admit()
-		if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
-		return
-	end
+	local ok, err = pcall(function()
+		-- ابدأ شاشة المسح عند اللاعب فوراً (إحساس واقعي)
+		evStartScan:FireClient(player)
+		task.wait(SCAN_TIME)
 
-	if paidEntry[player.UserId] then
-		admit()
-		if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ أهلاً بعودتك — تذكرتك سارية لهذه الجلسة.") end
-		return
-	end
-
-	local coins = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or 0
-	if coins >= ENTRY_FEE and type(_G.SpendCoins) == "function" and _G.SpendCoins(player, ENTRY_FEE) then
-		paidEntry[player.UserId] = true
-		admit()
-		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم خصم " .. ENTRY_FEE .. " كوينز — أهلاً بك في قصر شهد 👑") end
-	else
-		-- رصيد غير كافٍ → رفض الدخول
-		evScanResult:FireClient(player, false)
-		setPad(Color3.fromRGB(210, 50, 50), Color3.fromRGB(230, 60, 60))
-		resetPadSoon()
-		if _G.NotifyPlayer then
-			_G.NotifyPlayer(player, "❌ رصيدك غير كافٍ — تحتاج " .. ENTRY_FEE .. " كوينز لدخول القصر (رصيدك: " .. coins .. ").")
+		if isAdmin(player) then
+			admit()
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
+			return
 		end
-	end
+
+		if paidEntry[player.UserId] then
+			admit()
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ أهلاً بعودتك — تذكرتك سارية لهذه الجلسة.") end
+			return
+		end
+
+		local coins = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or 0
+		if coins >= ENTRY_FEE and type(_G.SpendCoins) == "function" and _G.SpendCoins(player, ENTRY_FEE) then
+			paidEntry[player.UserId] = true
+			admit()
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم خصم " .. ENTRY_FEE .. " كوينز — أهلاً بك في قصر شهد 👑") end
+		else
+			-- رصيد غير كافٍ → رفض الدخول
+			evScanResult:FireClient(player, false)
+			setPad(Color3.fromRGB(210, 50, 50), Color3.fromRGB(230, 60, 60))
+			resetPadSoon()
+			if _G.NotifyPlayer then
+				_G.NotifyPlayer(player, "❌ رصيدك غير كافٍ — تحتاج " .. ENTRY_FEE .. " كوينز لدخول القصر (رصيدك: " .. coins .. ").")
+			end
+		end
+	end)
+	-- يُحرّر القفل دائماً (حتى لو حصل خطأ) عشان اللاعب يقدر يعيد المحاولة
+	if not ok then warn("[Palace] Entry scan error: " .. tostring(err)) end
+	scanningEntry[player.UserId] = nil
 end)
 
 ----------------------------------------------------------------------
@@ -17353,8 +17367,9 @@ exitPrompt.Parent = exitFrame
 
 -- منطق الخروج: حركة مسح واقعية (~4.5ث) → فتح الباب (بدون خصم، للجميع)
 exitPrompt.Triggered:Connect(function(player)
-	-- منع إعادة التشغيل أثناء المسح (يُعطّل الزر ثم يُعاد تفعيله)
-	exitPrompt.Enabled = false
+	-- منع إعادة التشغيل لنفس اللاعب أثناء مسحه فقط (لا يعطّل بقية اللاعبين)
+	if scanningExit[player.UserId] then return end
+	scanningExit[player.UserId] = true
 	local ok, err = pcall(function()
 		evStartScan:FireClient(player)
 		runScanAnimation(exitScan, EXIT_SCAN_TIME)
@@ -17365,13 +17380,13 @@ exitPrompt.Triggered:Connect(function(player)
 		openDoorsSequence()
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
 	end)
-	-- إعادة الضبط دائماً (حتى لو حصل خطأ أثناء المسح) عشان الزر ما يتعطّل نهائياً
+	-- يُحرّر القفل دائماً (حتى لو حصل خطأ أثناء المسح) عشان اللاعب يقدر يعيد المحاولة
 	if not ok then warn("[Palace] Exit scan error: " .. tostring(err)) end
 	task.delay(2.2, function()
 		pad2.Color = PAD2_IDLE
 		pad2Light.Color = PAD2_IDLE_LIGHT
 		exitScan.status.Text = "ضع إصبعك للخروج"
-		exitPrompt.Enabled = true
+		scanningExit[player.UserId] = nil
 	end)
 end)
 
