@@ -22,6 +22,7 @@ local Workspace          = game:GetService("Workspace")
 local ReplicatedStorage  = game:GetService("ReplicatedStorage")
 local TweenService       = game:GetService("TweenService")
 local DataStoreService   = game:GetService("DataStoreService")
+local Players            = game:GetService("Players")
 
 ----------------------------------------------------------------------
 -- ⚙️ إعدادات عامة + تحقّق الصلاحية (للأدمن فقط)
@@ -29,6 +30,7 @@ local DataStoreService   = game:GetService("DataStoreService")
 local SCAN_TIME   = 2.3    -- مدة «المسح» قبل ظهور النتيجة (إحساس واقعي)
 local DOOR_OPEN_T = 2.6    -- مدة فتح الباب تدريجياً
 local DOOR_HOLD   = 5.0    -- يبقى الباب مفتوحاً قبل أن يقفل تلقائياً
+local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم مرّة واحدة لكل جلسة من الجهاز الخارجي فقط
 
 local function isAdmin(player: Player): boolean
 	if type(_G.GetChatRank) == "function" then
@@ -1188,8 +1190,8 @@ padText.Parent = padGui
 
 -- ProximityPrompt للتفاعل
 local prompt = Instance.new("ProximityPrompt")
-prompt.ActionText = "ضع بصمتك"
-prompt.ObjectText = "قفل القصر الرئاسي"
+prompt.ActionText = "ادفع وادخل (" .. ENTRY_FEE .. " كوينز)"
+prompt.ObjectText = "بوابة قصر شهد — تذكرة دخول"
 prompt.HoldDuration = 0
 prompt.KeyboardKeyCode = Enum.KeyCode.E
 prompt.RequiresLineOfSight = false
@@ -1227,32 +1229,224 @@ local function recordEntry(player: Player)
 end
 
 ----------------------------------------------------------------------
--- 🔁 منطق البصمة (السيرفر مرجع التحقق)
+-- 🎟️ تتبّع الدفع لكل جلسة — اللاعب اللي دفع ودخل ما يُخصم منه مرّة ثانية
+--      في نفس الجلسة (يُمسح تلقائياً عند خروجه من السيرفر)
+----------------------------------------------------------------------
+local paidEntry: { [number]: boolean } = {}
+Players.PlayerRemoving:Connect(function(player)
+	paidEntry[player.UserId] = nil
+end)
+
+local PAD_IDLE = Color3.fromRGB(20, 60, 90)
+local PAD_IDLE_LIGHT = Color3.fromRGB(80, 170, 230)
+
+local function setPad(c: Color3, l: Color3)
+	pad.Color = c
+	padLight.Color = l
+end
+
+local function resetPadSoon()
+	task.delay(2, function() setPad(PAD_IDLE, PAD_IDLE_LIGHT) end)
+end
+
+----------------------------------------------------------------------
+-- 🔁 منطق البصمة الخارجية = تذكرة دخول (الدفع يتم من هنا فقط)
+--      • الأدمن يدخل مجاناً
+--      • اللاعب اللي دفع هذه الجلسة يدخل مجاناً
+--      • غير ذلك: يُخصم ENTRY_FEE إن كان رصيده كافياً، وإلا رفض
 ----------------------------------------------------------------------
 prompt.Triggered:Connect(function(player)
 	-- ابدأ شاشة المسح عند اللاعب فوراً (إحساس واقعي)
 	evStartScan:FireClient(player)
 	task.wait(SCAN_TIME)
-	if isAdmin(player) then
+
+	local function admit()
 		evScanResult:FireClient(player, true)
-		-- تغذية بصرية على اللوحة (أخضر)
-		pad.Color = Color3.fromRGB(40, 200, 110)
-		padLight.Color = Color3.fromRGB(60, 230, 120)
+		setPad(Color3.fromRGB(40, 200, 110), Color3.fromRGB(60, 230, 120))
 		recordEntry(player)
 		openDoorsSequence()
-		task.delay(2, function()
-			pad.Color = Color3.fromRGB(20, 60, 90)
-			padLight.Color = Color3.fromRGB(80, 170, 230)
-		end)
-	else
-		evScanResult:FireClient(player, false)
-		pad.Color = Color3.fromRGB(210, 50, 50)
-		padLight.Color = Color3.fromRGB(230, 60, 60)
-		task.delay(2, function()
-			pad.Color = Color3.fromRGB(20, 60, 90)
-			padLight.Color = Color3.fromRGB(80, 170, 230)
-		end)
+		resetPadSoon()
 	end
+
+	if isAdmin(player) then
+		admit()
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
+		return
+	end
+
+	if paidEntry[player.UserId] then
+		admit()
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ أهلاً بعودتك — تذكرتك سارية لهذه الجلسة.") end
+		return
+	end
+
+	local coins = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or 0
+	if coins >= ENTRY_FEE and type(_G.SpendCoins) == "function" and _G.SpendCoins(player, ENTRY_FEE) then
+		paidEntry[player.UserId] = true
+		admit()
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم خصم " .. ENTRY_FEE .. " كوينز — أهلاً بك في قصر شهد 👑") end
+	else
+		-- رصيد غير كافٍ → رفض الدخول
+		evScanResult:FireClient(player, false)
+		setPad(Color3.fromRGB(210, 50, 50), Color3.fromRGB(230, 60, 60))
+		resetPadSoon()
+		if _G.NotifyPlayer then
+			_G.NotifyPlayer(player, "❌ رصيدك غير كافٍ — تحتاج " .. ENTRY_FEE .. " كوينز لدخول القصر (رصيدك: " .. coins .. ").")
+		end
+	end
+end)
+
+----------------------------------------------------------------------
+-- 🟢 جهاز بصمة الخروج الداخلي — تصميم أرقى ومختلف عن الخارجي
+--      أوبسيديان داكن + زجاج + شاشة زمردية متوهّجة + قرص هولوغرافي عائم
+--      وظيفته: فتح الباب للخروج فقط (بدون أي خصم، للجميع)
+----------------------------------------------------------------------
+local OBSIDIAN     = Color3.fromRGB(18, 22, 28)
+local DARK_GLASS   = Color3.fromRGB(28, 34, 42)
+local EMERALD      = Color3.fromRGB(40, 220, 140)
+local EMERALD_DEEP = Color3.fromRGB(14, 70, 52)
+
+-- يُوضع داخل البهو بمحاذاة المدخل (المدخل عند x=96, z=[11..25]) على جهة +Z
+local EX_X, EX_Z = 101, 29
+local EY = FLOOR_Y
+
+local function cyl(name, cf, size, color, mat, parent): Part
+	local p = part(name, cf, size, color, mat, parent)
+	p.Shape = Enum.PartType.Cylinder
+	return p
+end
+
+-- قاعدة أوبسيديان مزدوجة الطبقة + حلقة نيون زمردية
+box("ExitBase", EX_X - 2.6, EX_X + 2.6, EY, EY + 0.45, EX_Z - 2.8, EX_Z + 2.8, OBSIDIAN, Enum.Material.Slate)
+box("ExitBaseRing", EX_X - 2.7, EX_X + 2.7, EY + 0.45, EY + 0.6, EX_Z - 2.9, EX_Z + 2.9, EMERALD, Enum.Material.Neon).CanCollide = false
+box("ExitPlinth", EX_X - 2.0, EX_X + 2.0, EY + 0.6, EY + 1.4, EX_Z - 2.2, EX_Z + 2.2, OBSIDIAN, Enum.Material.Slate)
+
+-- جسم العمود الزجاجي الداكن (يحمل الشاشة) — الـProximityPrompt يلتصق به
+local exitFrame = box("ExitFrame", EX_X - 1.9, EX_X + 1.9, EY + 1.4, EY + 7.6, EX_Z - 2.0, EX_Z + 2.0, DARK_GLASS, Enum.Material.Glass)
+exitFrame.Reflectance = 0.15
+-- شرائط ذهبية على الحواف (تباين أنيق مع الزجاج الداكن)
+box("ExitTrimTop", EX_X - 2.0, EX_X + 2.0, EY + 7.6, EY + 7.95, EX_Z - 2.1, EX_Z + 2.1, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+box("ExitTrimMid", EX_X - 2.0, EX_X + 2.0, EY + 1.4, EY + 1.7, EX_Z - 2.1, EX_Z + 2.1, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+
+-- إطار الشاشة الزمردي المتوهّج على الوجه +X (المواجه للبهو)
+box("ExitScreenEdge", EX_X + 1.85, EX_X + 2.0, EY + 2.4, EY + 6.9, EX_Z - 1.6, EX_Z + 1.6, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
+-- الشاشة الزمردية المتوهّجة (تتغيّر مع نتيجة المسح)
+local pad2 = box("ExitPad", EX_X + 1.92, EX_X + 2.05, EY + 2.6, EY + 6.7, EX_Z - 1.4, EX_Z + 1.4, EMERALD_DEEP, Enum.Material.Neon)
+pad2.CanCollide = false
+local pad2Light = pointLight(pad2, EMERALD, 1.2, 9)
+-- لوح المسح الزجاجي البارز (تضع فيه إصبعك)
+local glassPad2 = box("ExitGlass", EX_X + 1.4, EX_X + 2.0, EY + 1.75, EY + 1.95, EX_Z - 1.1, EX_Z + 1.1, Color3.fromRGB(120, 245, 190), Enum.Material.Glass)
+glassPad2.CanCollide = false
+pointLight(glassPad2, EMERALD, 0.8, 5)
+
+-- قرص هولوغرافي عائم فوق العمود (يدور) — يميّز الجهاز عن الخارجي
+local projector = box("ExitProjector", EX_X - 0.5, EX_X + 0.5, EY + 7.95, EY + 8.35, EX_Z - 0.5, EX_Z + 0.5, TRIM_GOLD, Enum.Material.Metal)
+projector.CanCollide = false
+local holoCF = CFrame.new(EX_X, EY + 9.6, EX_Z) * CFrame.Angles(0, 0, math.rad(90))
+local holo = cyl("ExitHolo", holoCF, Vector3.new(0.12, 3.0, 3.0), EMERALD, Enum.Material.ForceField)
+holo.CanCollide = false
+holo.Transparency = 0.35
+pointLight(holo, EMERALD, 1.4, 10)
+-- دوران ناعم للقرص الهولوغرافي
+task.spawn(function()
+	while holo and holo.Parent do
+		holo.CFrame = holo.CFrame * CFrame.Angles(math.rad(2), 0, 0)
+		task.wait(0.03)
+	end
+end)
+
+-- شاشة الخروج: بصمة بحلقات زمردية + كلمة «اخرج / EXIT»
+local pad2Gui = Instance.new("SurfaceGui")
+pad2Gui.Name = "ExitPadGui"; pad2Gui.AutoLocalize = false
+pad2Gui.Face = Enum.NormalId.Right
+pad2Gui.CanvasSize = Vector2.new(300, 420)
+pad2Gui.LightInfluence = 0
+pad2Gui.Adornee = pad2
+pad2Gui.Parent = pad2
+local pad2Holder = Instance.new("Frame")
+pad2Holder.BackgroundTransparency = 1
+pad2Holder.Size = UDim2.new(1, 0, 0.62, 0)
+pad2Holder.Position = UDim2.new(0, 0, 0.04, 0)
+pad2Holder.Parent = pad2Gui
+for i = 0, 5 do
+	local ring = Instance.new("Frame")
+	ring.AnchorPoint = Vector2.new(0.5, 0.5)
+	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
+	local s = 0.9 - i * 0.15
+	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
+	ring.BackgroundTransparency = 1
+	ring.Parent = pad2Holder
+	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
+	local st = Instance.new("UIStroke")
+	st.Thickness = 3
+	st.Color = Color3.fromRGB(170, 255, 215)
+	st.Parent = ring
+end
+local pad2Text = Instance.new("TextLabel")
+pad2Text.BackgroundTransparency = 1
+pad2Text.Size = UDim2.new(1, 0, 0.18, 0)
+pad2Text.Position = UDim2.new(0, 0, 0.66, 0)
+pad2Text.Font = Enum.Font.GothamBold
+pad2Text.Text = "اخرج"
+pad2Text.TextScaled = true
+pad2Text.TextColor3 = Color3.fromRGB(190, 255, 220)
+pad2Text.Parent = pad2Gui
+local pad2Sub = Instance.new("TextLabel")
+pad2Sub.BackgroundTransparency = 1
+pad2Sub.Size = UDim2.new(1, 0, 0.12, 0)
+pad2Sub.Position = UDim2.new(0, 0, 0.85, 0)
+pad2Sub.Font = Enum.Font.Gotham
+pad2Sub.Text = "EXIT · بوابة الخروج"
+pad2Sub.TextScaled = true
+pad2Sub.TextColor3 = Color3.fromRGB(120, 210, 175)
+pad2Sub.Parent = pad2Gui
+
+-- لافتة «خروج» ذهبية فوق العمود
+local exitSign = box("ExitSign", EX_X - 1.7, EX_X + 1.7, EY + 8.0, EY + 8.9, EX_Z - 0.12, EX_Z + 0.12, OBSIDIAN, Enum.Material.Metal)
+exitSign.CanCollide = false
+for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
+	local sg = Instance.new("SurfaceGui")
+	sg.AutoLocalize = false
+	sg.Face = face
+	sg.CanvasSize = Vector2.new(340, 90)
+	sg.LightInfluence = 0
+	sg.Adornee = exitSign
+	sg.Parent = exitSign
+	local t = Instance.new("TextLabel")
+	t.BackgroundTransparency = 1
+	t.Size = UDim2.new(1, 0, 1, 0)
+	t.Font = Enum.Font.GothamBold
+	t.Text = "خـروج"
+	t.TextScaled = true
+	t.TextColor3 = TRIM_GOLD
+	t.Parent = sg
+end
+
+local PAD2_IDLE = EMERALD_DEEP
+local PAD2_IDLE_LIGHT = EMERALD
+
+local exitPrompt = Instance.new("ProximityPrompt")
+exitPrompt.ActionText = "افتح الباب واخرج"
+exitPrompt.ObjectText = "بوابة الخروج"
+exitPrompt.HoldDuration = 0
+exitPrompt.KeyboardKeyCode = Enum.KeyCode.E
+exitPrompt.RequiresLineOfSight = false
+exitPrompt.MaxActivationDistance = 9
+exitPrompt.Parent = exitFrame
+
+-- منطق الخروج: مسح → فتح الباب (بدون خصم، للجميع)
+exitPrompt.Triggered:Connect(function(player)
+	evStartScan:FireClient(player)
+	task.wait(SCAN_TIME)
+	evScanResult:FireClient(player, true)
+	pad2.Color = Color3.fromRGB(60, 245, 150)
+	pad2Light.Color = Color3.fromRGB(80, 255, 170)
+	openDoorsSequence()
+	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
+	task.delay(2, function()
+		pad2.Color = PAD2_IDLE
+		pad2Light.Color = PAD2_IDLE_LIGHT
+	end)
 end)
 
 -- طلب عرض السجلّ (للأدمن فقط)
