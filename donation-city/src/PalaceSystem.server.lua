@@ -1129,64 +1129,149 @@ local evScanResult = Instance.new("RemoteEvent"); evScanResult.Name = "ScanResul
 local evLogReq = Instance.new("RemoteEvent"); evLogReq.Name = "LogRequest"; evLogReq.Parent = net
 local evLogData = Instance.new("RemoteEvent"); evLogData.Name = "LogData"; evLogData.Parent = net
 
--- جهاز بصمة احترافي قائم بذاته (كونسول) يمين المدخل على الساحة — يواجه المدينة (-X)
--- مطابق للصورة المرجعية المعتمدة: قاعدة رخامية + جسم ذهبي + شاشة سماوية متوهّجة + لوح مسح زجاجي.
-local CX_S, CZ_S = 89, 30          -- مركز الجهاز (يمين الباب: جهة +Z)
-local SY = FLOOR_Y
--- قاعدة رخامية
-box("ScanBase", CX_S - 2.2, CX_S + 2.2, SY, SY + 0.5, CZ_S - 2.4, CZ_S + 2.4, MARBLE, Enum.Material.Marble)
-box("ScanPlinth", CX_S - 1.7, CX_S + 1.7, SY + 0.5, SY + 3.2, CZ_S - 1.9, CZ_S + 1.9, MARBLE, Enum.Material.Marble)
--- جسم الكونسول الذهبي (يحمل الشاشة) — هذا panelFrame (الـProximityPrompt يلتصق به)
-local panelFrame = box("ScannerFrame", CX_S - 1.9, CX_S + 1.9, SY + 3.2, SY + 6.7, CZ_S - 2.1, CZ_S + 2.1, Color3.fromRGB(196, 156, 74), Enum.Material.Metal)
-box("ScannerTrim", CX_S - 2.0, CX_S + 2.0, SY + 6.7, SY + 7.0, CZ_S - 2.2, CZ_S + 2.2, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
--- إطار الشاشة (ذهبي متوهّج) على الوجه -X
-box("ScannerEdge", CX_S - 2.0, CX_S - 1.85, SY + 3.9, SY + 6.4, CZ_S - 1.7, CZ_S + 1.7, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
--- الشاشة السماوية المتوهّجة (pad) — يتغيّر لونها مع نتيجة المسح
-local pad = box("ScannerPad", CX_S - 2.05, CX_S - 1.92, SY + 4.1, SY + 6.2, CZ_S - 1.5, CZ_S + 1.5, Color3.fromRGB(20, 60, 90), Enum.Material.Neon)
-pad.CanCollide = false
-local padLight = pointLight(pad, Color3.fromRGB(80, 170, 230), 1.0, 8)
--- لوح المسح الزجاجي (تضع فيه إصبعك) بارز أمام الجسم
-local glassPad = box("ScanGlass", CX_S - 2.0, CX_S - 1.4, SY + 3.25, SY + 3.45, CZ_S - 1.2, CZ_S + 1.2, Color3.fromRGB(120, 210, 245), Enum.Material.Glass)
-glassPad.CanCollide = false
-pointLight(glassPad, Color3.fromRGB(110, 200, 240), 0.7, 5)
+----------------------------------------------------------------------
+-- 🖐️ باني جهاز بصمة مدمج وأنيق (بستايل ZKTeco) — قابل لإعادة الاستخدام
+--      جهاز نحيف صغير: قاعدة صغيرة + عنق رفيع + رأس مدمج بشاشة بصمة
+--      + لوح مسح زجاجي بارز تضع فيه إصبعك. لا أعمدة ضخمة ولا أقراص عائمة.
+----------------------------------------------------------------------
+type ScannerRefs = {
+	frame: BasePart,
+	pad: BasePart,
+	padLight: PointLight,
+	glass: BasePart,
+	status: TextLabel,
+	scanLine: Frame,
+	rings: { UIStroke },
+}
 
--- أيقونة بصمة على الشاشة
-local padGui = Instance.new("SurfaceGui")
-padGui.Name = "PadGui"; padGui.AutoLocalize = false
-padGui.Face = Enum.NormalId.Left
-padGui.CanvasSize = Vector2.new(300, 360)
-padGui.LightInfluence = 0
-padGui.Adornee = pad
-padGui.Parent = pad
--- بصمة مرسومة بحلقات أصلية بدل إيموجي (الإيموجي قد يظهر «مربّعاً»)
-local padIconHolder = Instance.new("Frame")
-padIconHolder.BackgroundTransparency = 1
-padIconHolder.Size = UDim2.new(1, 0, 0.7, 0)
-padIconHolder.Position = UDim2.new(0, 0, 0.02, 0)
-padIconHolder.Parent = padGui
-for i = 0, 5 do
-	local ring = Instance.new("Frame")
-	ring.AnchorPoint = Vector2.new(0.5, 0.5)
-	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
-	local s = 0.9 - i * 0.15
-	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
-	ring.BackgroundTransparency = 1
-	ring.Parent = padIconHolder
-	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
-	local st = Instance.new("UIStroke")
-	st.Thickness = 3
-	st.Color = Color3.fromRGB(180, 230, 255)
-	st.Parent = ring
+local function buildScanner(o): ScannerRefs
+	local cx, cz, fy, sgn = o.cx, o.cz, o.fy, o.sgn
+	local body, bodyMat = o.body, o.bodyMat
+	local accent, screenIdle = o.accent, o.screenIdle
+	local glassColor, ringColor, textColor = o.glassColor, o.ringColor, o.textColor
+	local name = o.name
+
+	local fx = cx + sgn * 0.28          -- الوجه الأمامي للرأس (تتجه له الشاشة)
+	local headY0, headY1 = fy + 2.6, fy + 4.55
+
+	-- قاعدة صغيرة (بصمة قدم صغيرة) + شريط نيون رفيع
+	box(name .. "Base", cx - 0.62, cx + 0.62, fy, fy + 0.28, cz - 0.78, cz + 0.78, body, bodyMat)
+	box(name .. "BaseRing", cx - 0.66, cx + 0.66, fy + 0.26, fy + 0.36, cz - 0.82, cz + 0.82, accent, Enum.Material.Neon).CanCollide = false
+
+	-- عنق رفيع يحمل الرأس
+	box(name .. "Neck", cx - sgn * 0.12 - 0.26, cx - sgn * 0.12 + 0.26, fy + 0.28, fy + 2.62, cz - 0.32, cz + 0.32, body, bodyMat)
+
+	-- رأس الجهاز المدمج (يحمل الشاشة) — الـProximityPrompt يلتصق به
+	local frame = box(name .. "Head", cx - 0.28, cx + 0.28, headY0, headY1, cz - 0.85, cz + 0.85, body, bodyMat)
+	-- إطار نيون رفيع حول الوجه الأمامي (تباين أنيق)
+	box(name .. "Bezel", fx, fx + sgn * 0.05, headY0 + 0.08, headY1 - 0.08, cz - 0.82, cz + 0.82, accent, Enum.Material.Neon).CanCollide = false
+
+	-- الشاشة المتوهّجة (الجزء العلوي) — يتغيّر لونها مع المسح
+	local sy0, sy1 = fy + 3.18, fy + 4.42
+	local pad = box(name .. "Pad", fx + sgn * 0.02, fx + sgn * 0.09, sy0, sy1, cz - 0.72, cz + 0.72, screenIdle, Enum.Material.Neon)
+	pad.CanCollide = false
+	local padLight = pointLight(pad, accent, 1.0, 7)
+
+	-- لوح المسح الزجاجي البارز (الجزء السفلي) — تضع فيه إصبعك
+	local glass = box(name .. "Glass", fx, fx + sgn * 0.18, fy + 2.78, fy + 3.06, cz - 0.46, cz + 0.46, glassColor, Enum.Material.Glass)
+	glass.CanCollide = false
+	glass.Reflectance = 0.2
+	pointLight(glass, accent, 0.7, 4)
+
+	-- واجهة الشاشة: عنوان + بصمة بحلقات + خط مسح متحرّك + سطر حالة
+	local face = (sgn >= 0) and Enum.NormalId.Right or Enum.NormalId.Left
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = name .. "Gui"; gui.AutoLocalize = false
+	gui.Face = face
+	gui.CanvasSize = Vector2.new(300, 420)
+	gui.LightInfluence = 0
+	gui.Adornee = pad
+	gui.Parent = pad
+
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, 0, 0.14, 0)
+	title.Position = UDim2.new(0, 0, 0.015, 0)
+	title.Font = Enum.Font.GothamBold
+	title.Text = o.title
+	title.TextScaled = true
+	title.TextColor3 = textColor
+	title.Parent = gui
+
+	-- حلقات البصمة
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.Size = UDim2.new(1, 0, 0.5, 0)
+	holder.Position = UDim2.new(0, 0, 0.17, 0)
+	holder.ClipsDescendants = true
+	holder.Parent = gui
+	local rings: { UIStroke } = {}
+	for i = 0, 4 do
+		local ring = Instance.new("Frame")
+		ring.AnchorPoint = Vector2.new(0.5, 0.5)
+		ring.Position = UDim2.new(0.5, 0, 0.5, 0)
+		local s = 0.86 - i * 0.16
+		ring.Size = UDim2.new(s, 0, s * 1.12, 0)
+		ring.BackgroundTransparency = 1
+		ring.Parent = holder
+		Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
+		local st = Instance.new("UIStroke")
+		st.Thickness = 3
+		st.Color = ringColor
+		st.Parent = ring
+		table.insert(rings, st)
+	end
+	-- خط المسح المتحرّك (يمر فوق البصمة)
+	local scanLine = Instance.new("Frame")
+	scanLine.AnchorPoint = Vector2.new(0.5, 0.5)
+	scanLine.Position = UDim2.new(0.5, 0, 1.1, 0)   -- يبدأ خارج الإطار (مخفي)
+	scanLine.Size = UDim2.new(0.92, 0, 0.05, 0)
+	scanLine.BackgroundColor3 = accent
+	scanLine.BackgroundTransparency = 0.15
+	scanLine.BorderSizePixel = 0
+	scanLine.Parent = holder
+	local lineGlow = Instance.new("UIStroke")
+	lineGlow.Thickness = 2
+	lineGlow.Color = ringColor
+	lineGlow.Parent = scanLine
+
+	local status = Instance.new("TextLabel")
+	status.BackgroundTransparency = 1
+	status.Size = UDim2.new(1, 0, 0.16, 0)
+	status.Position = UDim2.new(0, 0, 0.7, 0)
+	status.Font = Enum.Font.GothamBold
+	status.Text = o.sub
+	status.TextScaled = true
+	status.TextColor3 = textColor
+	status.Parent = gui
+
+	local hint = Instance.new("TextLabel")
+	hint.BackgroundTransparency = 1
+	hint.Size = UDim2.new(1, 0, 0.1, 0)
+	hint.Position = UDim2.new(0, 0, 0.88, 0)
+	hint.Font = Enum.Font.Gotham
+	hint.Text = o.hint
+	hint.TextScaled = true
+	hint.TextColor3 = ringColor
+	hint.Parent = gui
+
+	return { frame = frame, pad = pad, padLight = padLight, glass = glass, status = status, scanLine = scanLine, rings = rings }
 end
-local padText = Instance.new("TextLabel")
-padText.BackgroundTransparency = 1
-padText.Size = UDim2.new(1, 0, 0.28, 0)
-padText.Position = UDim2.new(0, 0, 0.72, 0)
-padText.Font = Enum.Font.GothamBold
-padText.Text = "ضع بصمتك"
-padText.TextScaled = true
-padText.TextColor3 = Color3.fromRGB(210, 240, 255)
-padText.Parent = padGui
+
+-- جهاز بصمة الدخول الخارجي (تذكرة دخول) — مدمج، يواجه المدينة (-X)
+local CX_S, CZ_S = 89, 30
+local SY = FLOOR_Y
+local extScan = buildScanner({
+	name = "Scanner", cx = CX_S, cz = CZ_S, fy = SY, sgn = -1,
+	body = Color3.fromRGB(196, 156, 74), bodyMat = Enum.Material.Metal,
+	accent = TRIM_GOLD, screenIdle = Color3.fromRGB(20, 60, 90),
+	glassColor = Color3.fromRGB(120, 210, 245), ringColor = Color3.fromRGB(180, 230, 255),
+	textColor = Color3.fromRGB(210, 240, 255),
+	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز",
+})
+local panelFrame = extScan.frame
+local pad = extScan.pad
+local padLight = extScan.padLight
 
 -- ProximityPrompt للتفاعل
 local prompt = Instance.new("ProximityPrompt")
@@ -1297,12 +1382,10 @@ prompt.Triggered:Connect(function(player)
 end)
 
 ----------------------------------------------------------------------
--- 🟢 جهاز بصمة الخروج الداخلي — تصميم أرقى ومختلف عن الخارجي
---      أوبسيديان داكن + زجاج + شاشة زمردية متوهّجة + قرص هولوغرافي عائم
---      وظيفته: فتح الباب للخروج فقط (بدون أي خصم، للجميع)
+-- 🟢 جهاز بصمة الخروج الداخلي — مدمج وأنيق (بستايل ZKTeco)، أوبسيديان زمردي
+--      وظيفته: فتح الباب للخروج فقط (بدون أي خصم، للجميع) مع حركة مسح واقعية
 ----------------------------------------------------------------------
 local OBSIDIAN     = Color3.fromRGB(18, 22, 28)
-local DARK_GLASS   = Color3.fromRGB(28, 34, 42)
 local EMERALD      = Color3.fromRGB(40, 220, 140)
 local EMERALD_DEEP = Color3.fromRGB(14, 70, 52)
 
@@ -1310,120 +1393,47 @@ local EMERALD_DEEP = Color3.fromRGB(14, 70, 52)
 local EX_X, EX_Z = 101, 29
 local EY = FLOOR_Y
 
-local function cyl(name, cf, size, color, mat, parent): Part
-	local p = part(name, cf, size, color, mat, parent)
-	p.Shape = Enum.PartType.Cylinder
-	return p
-end
-
--- قاعدة أوبسيديان مزدوجة الطبقة + حلقة نيون زمردية
-box("ExitBase", EX_X - 2.6, EX_X + 2.6, EY, EY + 0.45, EX_Z - 2.8, EX_Z + 2.8, OBSIDIAN, Enum.Material.Slate)
-box("ExitBaseRing", EX_X - 2.7, EX_X + 2.7, EY + 0.45, EY + 0.6, EX_Z - 2.9, EX_Z + 2.9, EMERALD, Enum.Material.Neon).CanCollide = false
-box("ExitPlinth", EX_X - 2.0, EX_X + 2.0, EY + 0.6, EY + 1.4, EX_Z - 2.2, EX_Z + 2.2, OBSIDIAN, Enum.Material.Slate)
-
--- جسم العمود الزجاجي الداكن (يحمل الشاشة) — الـProximityPrompt يلتصق به
-local exitFrame = box("ExitFrame", EX_X - 1.9, EX_X + 1.9, EY + 1.4, EY + 7.6, EX_Z - 2.0, EX_Z + 2.0, DARK_GLASS, Enum.Material.Glass)
-exitFrame.Reflectance = 0.15
--- شرائط ذهبية على الحواف (تباين أنيق مع الزجاج الداكن)
-box("ExitTrimTop", EX_X - 2.0, EX_X + 2.0, EY + 7.6, EY + 7.95, EX_Z - 2.1, EX_Z + 2.1, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
-box("ExitTrimMid", EX_X - 2.0, EX_X + 2.0, EY + 1.4, EY + 1.7, EX_Z - 2.1, EX_Z + 2.1, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
-
--- إطار الشاشة الزمردي المتوهّج على الوجه +X (المواجه للبهو)
-box("ExitScreenEdge", EX_X + 1.85, EX_X + 2.0, EY + 2.4, EY + 6.9, EX_Z - 1.6, EX_Z + 1.6, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
--- الشاشة الزمردية المتوهّجة (تتغيّر مع نتيجة المسح)
-local pad2 = box("ExitPad", EX_X + 1.92, EX_X + 2.05, EY + 2.6, EY + 6.7, EX_Z - 1.4, EX_Z + 1.4, EMERALD_DEEP, Enum.Material.Neon)
-pad2.CanCollide = false
-local pad2Light = pointLight(pad2, EMERALD, 1.2, 9)
--- لوح المسح الزجاجي البارز (تضع فيه إصبعك)
-local glassPad2 = box("ExitGlass", EX_X + 1.4, EX_X + 2.0, EY + 1.75, EY + 1.95, EX_Z - 1.1, EX_Z + 1.1, Color3.fromRGB(120, 245, 190), Enum.Material.Glass)
-glassPad2.CanCollide = false
-pointLight(glassPad2, EMERALD, 0.8, 5)
-
--- قرص هولوغرافي عائم فوق العمود (يدور) — يميّز الجهاز عن الخارجي
-local projector = box("ExitProjector", EX_X - 0.5, EX_X + 0.5, EY + 7.95, EY + 8.35, EX_Z - 0.5, EX_Z + 0.5, TRIM_GOLD, Enum.Material.Metal)
-projector.CanCollide = false
-local holoCF = CFrame.new(EX_X, EY + 9.6, EX_Z) * CFrame.Angles(0, 0, math.rad(90))
-local holo = cyl("ExitHolo", holoCF, Vector3.new(0.12, 3.0, 3.0), EMERALD, Enum.Material.ForceField)
-holo.CanCollide = false
-holo.Transparency = 0.35
-pointLight(holo, EMERALD, 1.4, 10)
--- دوران ناعم للقرص الهولوغرافي
-task.spawn(function()
-	while holo and holo.Parent do
-		holo.CFrame = holo.CFrame * CFrame.Angles(math.rad(2), 0, 0)
-		task.wait(0.03)
-	end
-end)
-
--- شاشة الخروج: بصمة بحلقات زمردية + كلمة «اخرج / EXIT»
-local pad2Gui = Instance.new("SurfaceGui")
-pad2Gui.Name = "ExitPadGui"; pad2Gui.AutoLocalize = false
-pad2Gui.Face = Enum.NormalId.Right
-pad2Gui.CanvasSize = Vector2.new(300, 420)
-pad2Gui.LightInfluence = 0
-pad2Gui.Adornee = pad2
-pad2Gui.Parent = pad2
-local pad2Holder = Instance.new("Frame")
-pad2Holder.BackgroundTransparency = 1
-pad2Holder.Size = UDim2.new(1, 0, 0.62, 0)
-pad2Holder.Position = UDim2.new(0, 0, 0.04, 0)
-pad2Holder.Parent = pad2Gui
-for i = 0, 5 do
-	local ring = Instance.new("Frame")
-	ring.AnchorPoint = Vector2.new(0.5, 0.5)
-	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
-	local s = 0.9 - i * 0.15
-	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
-	ring.BackgroundTransparency = 1
-	ring.Parent = pad2Holder
-	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
-	local st = Instance.new("UIStroke")
-	st.Thickness = 3
-	st.Color = Color3.fromRGB(170, 255, 215)
-	st.Parent = ring
-end
-local pad2Text = Instance.new("TextLabel")
-pad2Text.BackgroundTransparency = 1
-pad2Text.Size = UDim2.new(1, 0, 0.18, 0)
-pad2Text.Position = UDim2.new(0, 0, 0.66, 0)
-pad2Text.Font = Enum.Font.GothamBold
-pad2Text.Text = "اخرج"
-pad2Text.TextScaled = true
-pad2Text.TextColor3 = Color3.fromRGB(190, 255, 220)
-pad2Text.Parent = pad2Gui
-local pad2Sub = Instance.new("TextLabel")
-pad2Sub.BackgroundTransparency = 1
-pad2Sub.Size = UDim2.new(1, 0, 0.12, 0)
-pad2Sub.Position = UDim2.new(0, 0, 0.85, 0)
-pad2Sub.Font = Enum.Font.Gotham
-pad2Sub.Text = "EXIT · بوابة الخروج"
-pad2Sub.TextScaled = true
-pad2Sub.TextColor3 = Color3.fromRGB(120, 210, 175)
-pad2Sub.Parent = pad2Gui
-
--- لافتة «خروج» ذهبية فوق العمود
-local exitSign = box("ExitSign", EX_X - 1.7, EX_X + 1.7, EY + 8.0, EY + 8.9, EX_Z - 0.12, EX_Z + 0.12, OBSIDIAN, Enum.Material.Metal)
-exitSign.CanCollide = false
-for _, face in { Enum.NormalId.Front, Enum.NormalId.Back } do
-	local sg = Instance.new("SurfaceGui")
-	sg.AutoLocalize = false
-	sg.Face = face
-	sg.CanvasSize = Vector2.new(340, 90)
-	sg.LightInfluence = 0
-	sg.Adornee = exitSign
-	sg.Parent = exitSign
-	local t = Instance.new("TextLabel")
-	t.BackgroundTransparency = 1
-	t.Size = UDim2.new(1, 0, 1, 0)
-	t.Font = Enum.Font.GothamBold
-	t.Text = "خـروج"
-	t.TextScaled = true
-	t.TextColor3 = TRIM_GOLD
-	t.Parent = sg
-end
+local exitScan = buildScanner({
+	name = "Exit", cx = EX_X, cz = EX_Z, fy = EY, sgn = 1,
+	body = OBSIDIAN, bodyMat = Enum.Material.Slate,
+	accent = EMERALD, screenIdle = EMERALD_DEEP,
+	glassColor = Color3.fromRGB(120, 245, 190), ringColor = Color3.fromRGB(170, 255, 215),
+	textColor = Color3.fromRGB(190, 255, 220),
+	title = "بوابة الخروج", sub = "ضع إصبعك للخروج", hint = "EXIT · اضغط E",
+})
+local exitFrame = exitScan.frame
+local pad2 = exitScan.pad
+local pad2Light = exitScan.padLight
 
 local PAD2_IDLE = EMERALD_DEEP
 local PAD2_IDLE_LIGHT = EMERALD
+local EXIT_SCAN_TIME = 4.5            -- ⏱ مدة حركة المسح الواقعية (ثواني)
+
+----------------------------------------------------------------------
+-- 🖐️ حركة مسح واقعية على الشاشة (السيرفر يحرّك العناصر فتتزامن لكل اللاعبين)
+--      خط مسح يمرّ فوق البصمة + نبض الحلقات + نسبة تقدّم 0→100٪
+----------------------------------------------------------------------
+local function runScanAnimation(refs, duration: number)
+	local status, scanLine, rings = refs.status, refs.scanLine, refs.rings
+	refs.pad.Color = Color3.fromRGB(24, 120, 90)
+	refs.padLight.Color = EMERALD
+	local steps = math.max(6, math.floor(duration / 0.06))
+	for s = 0, steps do
+		local t = s / steps
+		-- خط المسح يتحرّك من الأسفل للأعلى ويتكرّر مرّتين
+		local sweep = (t * 2) % 1
+		scanLine.Position = UDim2.new(0.5, 0, 1 - sweep, 0)
+		-- نبض الحلقات (إضاءة متتابعة)
+		for i, st in rings do
+			local on = (math.floor(t * 10) % #rings) == (i - 1)
+			st.Thickness = on and 5 or 3
+		end
+		status.Text = "جارٍ المسح… " .. math.floor(t * 100) .. "٪"
+		task.wait(duration / steps)
+	end
+	scanLine.Position = UDim2.new(0.5, 0, 1.1, 0)   -- إخفاء الخط بعد الانتهاء
+	for _, st in rings do st.Thickness = 3 end
+end
 
 local exitPrompt = Instance.new("ProximityPrompt")
 exitPrompt.ActionText = "افتح الباب واخرج"
@@ -1434,18 +1444,23 @@ exitPrompt.RequiresLineOfSight = false
 exitPrompt.MaxActivationDistance = 9
 exitPrompt.Parent = exitFrame
 
--- منطق الخروج: مسح → فتح الباب (بدون خصم، للجميع)
+-- منطق الخروج: حركة مسح واقعية (~4.5ث) → فتح الباب (بدون خصم، للجميع)
 exitPrompt.Triggered:Connect(function(player)
+	-- منع إعادة التشغيل أثناء المسح (يُعطّل الزر ثم يُعاد تفعيله)
+	exitPrompt.Enabled = false
 	evStartScan:FireClient(player)
-	task.wait(SCAN_TIME)
+	runScanAnimation(exitScan, EXIT_SCAN_TIME)
 	evScanResult:FireClient(player, true)
+	exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
 	pad2.Color = Color3.fromRGB(60, 245, 150)
 	pad2Light.Color = Color3.fromRGB(80, 255, 170)
 	openDoorsSequence()
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
-	task.delay(2, function()
+	task.delay(2.2, function()
 		pad2.Color = PAD2_IDLE
 		pad2Light.Color = PAD2_IDLE_LIGHT
+		exitScan.status.Text = "ضع إصبعك للخروج"
+		exitPrompt.Enabled = true
 	end)
 end)
 
