@@ -1337,8 +1337,16 @@ local function setPad(c: Color3, l: Color3)
 	padLight.Color = l
 end
 
+-- 🔢 توكِن إعادة ضبط اللوحة: كل نتيجة مسح جديدة تُلغي إعادة الضبط المؤجّلة السابقة
+--     حتى لا يطفئ ريسِت قديم لون لوحة مسحٍ جديد بدأ خلال فترة التأخير.
+local padCycle = 0
+
 local function resetPadSoon()
-	task.delay(2, function() setPad(PAD_IDLE, PAD_IDLE_LIGHT) end)
+	padCycle += 1
+	local my = padCycle
+	task.delay(2, function()
+		if my == padCycle then setPad(PAD_IDLE, PAD_IDLE_LIGHT) end
+	end)
 end
 
 ----------------------------------------------------------------------
@@ -1463,6 +1471,7 @@ exitPrompt.Parent = exitFrame
 -- 🔒 قفل أنيميشن واحد للجهاز كلّه: عناصر الواجهة (الخط/الحلقات/النص) مشتركة،
 --     فلو شغّلها لاعبان معاً تتشوّه. مالك الأنيميشن فقط يحرّكها؛ البقية يخرجون فوراً بدون تضارب.
 local exitAnimating = false
+local exitResetCycle = 0   -- يُلغي إعادة الضبط المؤجّلة عند بدء مسحٍ جديد
 
 -- منطق الخروج: حركة مسح واقعية (~4.5ث) → فتح الباب (بدون خصم، للجميع)
 exitPrompt.Triggered:Connect(function(player)
@@ -1493,7 +1502,11 @@ exitPrompt.Triggered:Connect(function(player)
 	if not ok then warn("[Palace] Exit scan error: " .. tostring(err)) end
 	scanningExit[player.UserId] = nil
 	if owns then
+		exitResetCycle += 1
+		local myReset = exitResetCycle
 		task.delay(2.2, function()
+			-- تجاهل إعادة الضبط لو بدأ مسحٌ جديد خلال فترة التأخير (يمنع تشويه لون لوحة المسح الجديد)
+			if myReset ~= exitResetCycle or exitAnimating then return end
 			pad2.Color = PAD2_IDLE
 			pad2Light.Color = PAD2_IDLE_LIGHT
 			exitScan.status.Text = "ضع إصبعك للخروج"
