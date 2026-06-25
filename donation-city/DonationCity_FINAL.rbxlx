@@ -17876,8 +17876,8 @@ end)
 	║  المكان: ServerScriptService   ·   النوع: Script                       ║
 	║                                                                        ║
 	║  الريسبون الملكي على طريقة ببجي (دعم السيرفر):                          ║
-	║    • يحمّل جسم الطائرة (MeshPart) المرفوع على حساب المالك مرّة واحدة     ║
-	║      ويضعه قالباً في ReplicatedStorage ليستنسخه كل لاعب محلياً.         ║
+	║    • الطائرة الملكية تُبنى من قطع روبلوكس أصلية على العميل             ║
+	║      (لا اعتماد على موديل مرفوع — اتجاه ثابت معتدل دائماً).            ║
 	║    • النزول حرّ: اللاعب يتحكّم وينزل وين ما يبي (لا منصّة هبوط ثابتة).    ║
 	║    • يمنح شارة «أول هبوط» عند أول هبوط ناجح (آمن لو الشارة غير منشأة).   ║
 	║                                                                        ║
@@ -17888,10 +17888,6 @@ end)
 
 local Players          = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local InsertService    = game:GetService("InsertService")
-
--- معرّف موديل الطائرة الملكية (مرفوع عبر Open Cloud على حساب المالك، معتمَد).
-local PLANE_ASSET_ID = 130978289788461
 
 ------------------------------------------------------------------------
 -- قنوات الاتصال (RemoteEvents)
@@ -17911,65 +17907,6 @@ if not landedRemote then
 end
 
 ------------------------------------------------------------------------
--- تحميل جسم الطائرة (MeshPart) وعرضه قالباً في ReplicatedStorage
-------------------------------------------------------------------------
--- نختار أكبر MeshPart داخل الموديل المُحمَّل (جسم الطائرة المُدمج).
-local function largestMeshPart(root: Instance): MeshPart?
-	local best: MeshPart? = nil
-	local bestVol = -1
-	for _, d in ipairs(root:GetDescendants()) do
-		if d:IsA("MeshPart") then
-			local s = d.Size
-			local vol = s.X * s.Y * s.Z
-			if vol > bestVol then
-				bestVol = vol
-				best = d
-			end
-		end
-	end
-	return best
-end
-
-local function publishPlaneTemplate()
-	if ReplicatedStorage:FindFirstChild("RoyalPlaneMesh") then return end
-
-	local okLoad, loaded = pcall(function()
-		return InsertService:LoadAsset(PLANE_ASSET_ID)
-	end)
-	if not okLoad or not loaded then
-		warn("[SpawnCinematic] تعذّر تحميل موديل الطائرة (" .. tostring(loaded) .. ") — العميل سيستعمل طائرة احتياطية بالقطع.")
-		return
-	end
-
-	local mesh = largestMeshPart(loaded)
-	if not mesh then
-		warn("[SpawnCinematic] لم يُعثر على MeshPart داخل الموديل المُحمَّل — طائرة احتياطية.")
-		loaded:Destroy()
-		return
-	end
-
-	-- قالب نظيف خفيف: أبيض ناعم، ثابت، بلا اصطدام، يُستنسخ على العميل.
-	local template = mesh:Clone()
-	template.Name = "RoyalPlaneMesh"
-	template.Anchored = true
-	template.CanCollide = false
-	template.CanQuery = false
-	template.CanTouch = false
-	template.CastShadow = false
-	template.Color = Color3.fromRGB(244, 244, 248)
-	template.Material = Enum.Material.SmoothPlastic
-	for _, ch in ipairs(template:GetChildren()) do
-		if ch:IsA("LuaSourceContainer") or ch:IsA("Decal") or ch:IsA("Texture") then
-			ch:Destroy()
-		end
-	end
-	template.Parent = ReplicatedStorage
-	loaded:Destroy()
-	print(string.format("[SpawnCinematic] جسم الطائرة جاهز كقالب (الحجم الأصلي %.1f×%.1f×%.1f).",
-		template.Size.X, template.Size.Y, template.Size.Z))
-end
-
-------------------------------------------------------------------------
 -- شارة «أول هبوط» عند أول هبوط ناجح
 ------------------------------------------------------------------------
 -- علم لكل لاعب يمنع تكرار النداء لو أرسل العميل الحدث أكثر من مرّة (حماية من السبام).
@@ -17984,11 +17921,6 @@ end)
 Players.PlayerRemoving:Connect(function(player: Player)
 	awarded[player] = nil
 end)
-
-------------------------------------------------------------------------
--- إقلاع
-------------------------------------------------------------------------
-task.spawn(publishPlaneTemplate)
 
 print("[SpawnCinematic] جاهز — الريسبون الملكي مدعوم من السيرفر.")
 ]]></string></Properties></Item><Item class="Script" referent="RewardBoxSystemRef"><Properties><string name="Name">RewardBoxSystem</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
@@ -24585,13 +24517,8 @@ local CONFIG = {
 	-- جغرافيا المشهد
 	JUMP_XZ         = Vector2.new(0, 0),      -- يقفز فوق وسط المدينة ثم نزول حرّ موجَّه
 	ALTITUDE        = 720,                    -- ارتفاع الطائرة عند الإقلاع
-	FLIGHT_DIST     = 460,                    -- طول مسار الطائرة فوق المدينة قبل القفز
 	PLANE_LENGTH    = 120,                    -- طول جسم الطائرة بعد التحجيم
 	MAP_HALF        = 195,                    -- نصف حدود الماب (الأرض 400×400) — نمنع الخروج للفراغ
-
-	-- التوقيت
-	SPECTATOR_TIME  = 9.0,                    -- مدّة المشاهدة قبل القفز التلقائي
-	COUNTDOWN_FROM  = 3,                      -- عدّاد ٣-٢-١
 
 	-- فيزياء السقوط
 	FREEFALL_MIN    = 70,                     -- سرعة بداية السقوط الحر
@@ -24730,73 +24657,97 @@ end
 ----------------------------------------------------------------------
 -- بناء الطائرة الملكية (جسم Mesh مرفوع + إكسسوارات ذهبية + إضاءة LED)
 ----------------------------------------------------------------------
--- يرتّب محاور الجسم: الأكبر = طول (أمام)، الأصغر = ارتفاع، الأوسط = عرض.
-local function axisOrder(size: Vector3): (string, string, string)
-	-- ترتيب ثابت: الأكبر أولاً، ومع تساوي الأبعاد نرجّح بأولوية محور ثابتة
-	-- (X ثم Z ثم Y) حتى لا يطلع الترتيب عشوائياً ويميل الجسم خطأً.
-	local prio = { X = 3, Z = 2, Y = 1 }
-	local arr = { { "X", size.X }, { "Y", size.Y }, { "Z", size.Z } }
-	table.sort(arr, function(a, b)
-		if a[2] ~= b[2] then return a[2] > b[2] end
-		return prio[a[1]] > prio[b[1]]
-	end)
-	return arr[1][1], arr[3][1], arr[2][1] -- forward(max), up(min), lateral(mid)
-end
-
--- يبني CFrame يوجّه أطول محور للجسم نحو travelDir وأقصر محور للأعلى.
-local function orientCFrame(pos: Vector3, travelDir: Vector3, size: Vector3): (CFrame, Vector3, Vector3, Vector3)
-	local fAxis, uAxis, lAxis = axisOrder(size)
-	local up = Vector3.new(0, 1, 0)
-	local fwd = travelDir.Unit * CONFIG.FORWARD_SIGN
-	local lat = fwd:Cross(up).Unit
-	local dir: { [string]: Vector3 } = {}
-	dir[fAxis] = fwd; dir[uAxis] = up; dir[lAxis] = lat
-	local cf = CFrame.fromMatrix(pos, dir.X, dir.Y, dir.Z)
-	if dir.X:Cross(dir.Y):Dot(dir.Z) < 0 then
-		dir[lAxis] = -lat
-		cf = CFrame.fromMatrix(pos, dir.X, dir.Y, dir.Z)
-	end
-	return cf, fwd, up, dir[lAxis]
-end
-
-local function getBodyTemplate(): (Instance, Vector3)
-	local tmpl = ReplicatedStorage:FindFirstChild("RoyalPlaneMesh")
-	if tmpl and tmpl:IsA("MeshPart") then
-		return tmpl:Clone(), tmpl.Size
-	end
-	-- طائرة احتياطية بالقطع لو تعذّر تحميل الـMesh من السيرفر
-	local fb = mk("Part", {
-		Name = "RoyalPlaneMesh", Shape = Enum.PartType.Block,
-		Size = Vector3.new(44, 10, 14), Material = Enum.Material.SmoothPlastic,
-		Color = WHITE, Anchored = true, CanCollide = false, CastShadow = false,
-	})
-	return fb, fb.Size
-end
-
+-- يبني الطائرة بالكامل من قطع روبلوكس أصلية بمحاور ثابتة ومضبوطة دائماً
+-- (لا اعتماد على اتجاه الموديل المرفوع — يضمن طائرة معتدلة غير مقلوبة أبداً).
 local function buildPlane(startPos: Vector3, travelDir: Vector3)
-	local body, rawSize = getBodyTemplate()
-	local bodyPart = body :: BasePart
-	local scale = CONFIG.PLANE_LENGTH / math.max(rawSize.X, rawSize.Y, rawSize.Z)
-	bodyPart.Size = rawSize * scale
-	bodyPart.Anchored = true; bodyPart.CanCollide = false
-	bodyPart.CanQuery = false; bodyPart.CanTouch = false; bodyPart.CastShadow = false
-	bodyPart.Color = WHITE; bodyPart.Material = Enum.Material.SmoothPlastic
+	-- إطار اتجاه ثابت: أمام أفقي، أعلى دائماً (0,1,0)، جانب عمودي عليهما
+	local fwd = Vector3.new(travelDir.X, 0, travelDir.Z)
+	if fwd.Magnitude < 1e-3 then fwd = Vector3.new(0, 0, 1) end
+	fwd = fwd.Unit * CONFIG.FORWARD_SIGN
+	local up = Vector3.new(0, 1, 0)
+	local lat = fwd:Cross(up).Unit
 
-	local cf, fwd, up, lat = orientCFrame(startPos, travelDir, bodyPart.Size)
-	bodyPart.CFrame = cf
-	local s = bodyPart.Size
-	local hf = math.max(s.X, s.Y, s.Z) / 2          -- نصف الطول
-	local hu = math.min(s.X, s.Y, s.Z) / 2          -- نصف الارتفاع
-	local hl = (s.X + s.Y + s.Z - 2 * hf - 2 * hu) / 2 -- نصف العرض
+	local L = CONFIG.PLANE_LENGTH                 -- طول الجسم
+	local R = L * 0.075                           -- نصف قطر جسم الطائرة
+	local hf, hu, hl = L / 2, R, R                -- أنصاف الأبعاد (طول/ارتفاع/عرض)
 
 	local model = mk("Model", { Name = "RoyalPlane" })
-	bodyPart.Parent = model
-	model.PrimaryPart = bodyPart
 	local P = startPos
 
-	-- نقطة عالم نسبية للجسم
+	-- نقطة عالم نسبية لجسم الطائرة
 	local function at(f, l, u)
 		return P + fwd * (hf * f) + lat * (hl * l) + up * (hu * u)
+	end
+	-- إطار صندوق: المحور المحلي X=جانب، Y=أعلى، Z=أمام (Size = عرض×ارتفاع×طول)
+	local function boxCF(f, l, u)
+		return CFrame.fromMatrix(at(f, l, u), lat, up)
+	end
+	-- إطار أسطوانة: طولها على محور المحلي X — نوجّهه للأمام
+	local function cylCF(f, l, u)
+		return CFrame.fromMatrix(at(f, l, u), fwd, up)
+	end
+	local function solid(name, shape, size, color, material): Part
+		return mk("Part", {
+			Name = name, Shape = shape, Size = size, Color = color,
+			Material = material or Enum.Material.SmoothPlastic,
+			Anchored = true, CanCollide = false, CanQuery = false,
+			CanTouch = false, CastShadow = false, Parent = model,
+		}) :: Part
+	end
+
+	------------------------------------------------------------------
+	-- جسم الطائرة (أسطوانة ناعمة + أنف ومؤخّرة مدوّرتان)
+	------------------------------------------------------------------
+	local bodyPart = solid("Fuselage", Enum.PartType.Cylinder,
+		Vector3.new(L, R * 2, R * 2), WHITE)
+	bodyPart.CFrame = cylCF(0, 0, 0)
+	model.PrimaryPart = bodyPart
+
+	local noseBall = solid("NoseCone", Enum.PartType.Ball,
+		Vector3.new(R * 2, R * 2, R * 2), WHITE)
+	noseBall.CFrame = CFrame.new(at(0.95, 0, 0))
+	local tailBall = solid("TailCone", Enum.PartType.Ball,
+		Vector3.new(R * 1.7, R * 1.7, R * 1.7), WHITE)
+	tailBall.CFrame = CFrame.new(at(-0.95, 0, 0))
+
+	-- زجاج قمرة القيادة الداكن (إحساس واقعي)
+	local glass = solid("Cockpit", Enum.PartType.Block,
+		Vector3.new(R * 1.5, R * 0.75, L * 0.11), Color3.fromRGB(22, 28, 46),
+		Enum.Material.Glass)
+	glass.Transparency = 0.25; glass.Reflectance = 0.18
+	glass.CFrame = boxCF(0.68, 0, 0.62)
+
+	------------------------------------------------------------------
+	-- الأجنحة الرئيسية (مائلة للخلف قليلاً)
+	------------------------------------------------------------------
+	for _, side in ipairs({ -1, 1 }) do
+		local wing = solid("Wing", Enum.PartType.Block,
+			Vector3.new(L * 0.42, R * 0.16, L * 0.20), WHITE)
+		wing.CFrame = boxCF(-0.06, side * 3.4, -0.12)
+			* CFrame.Angles(0, -side * math.rad(15), 0)
+		-- محرّك أسفل كل جناح
+		local nac = solid("Engine", Enum.PartType.Cylinder,
+			Vector3.new(L * 0.16, R * 0.9, R * 0.9), NAVY, Enum.Material.Metal)
+		nac.CFrame = cylCF(-0.06, side * 2.0, -0.55)
+		local intake = solid("EngineIntake", Enum.PartType.Cylinder,
+			Vector3.new(L * 0.03, R * 0.95, R * 0.95), GOLD, Enum.Material.Metal)
+		intake.CFrame = cylCF(0.07, side * 2.0, -0.55)
+	end
+
+	------------------------------------------------------------------
+	-- الذيل: زعنفة عمودية + مثبّتان أفقيان
+	------------------------------------------------------------------
+	local fin = solid("TailFin", Enum.PartType.Block,
+		Vector3.new(R * 0.32, R * 2.6, L * 0.16), WHITE)
+	fin.CFrame = boxCF(-0.82, 0, 1.55)
+	local finTrim = solid("FinTrim", Enum.PartType.Block,
+		Vector3.new(R * 0.36, R * 2.4, L * 0.05), GOLD, Enum.Material.Metal)
+	finTrim.CFrame = boxCF(-0.9, 0, 1.55)
+	for _, side in ipairs({ -1, 1 }) do
+		local stab = solid("Stabilizer", Enum.PartType.Block,
+			Vector3.new(L * 0.17, R * 0.14, L * 0.12), WHITE)
+		stab.CFrame = boxCF(-0.86, side * 1.6, 0.4)
+			* CFrame.Angles(0, -side * math.rad(12), 0)
 	end
 
 	------------------------------------------------------------------
@@ -24895,12 +24846,106 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	underBulb.CFrame = CFrame.fromMatrix(at(0, 0, -0.72), fwd, up, lat)
 	mk("PointLight", { Color = GOLD, Brightness = 0.5, Range = 10, Parent = underBulb, Shadows = false })
 
-	-- باب القفز (فتحة داكنة على جانب الجسم)
-	local door = neonBulb("JumpDoor", Vector3.new(hf * 0.22, hu * 0.55, 0.1), Color3.fromRGB(20, 22, 30), model)
-	door.Material = Enum.Material.SmoothPlastic
-	door.CFrame = CFrame.fromMatrix(at(-0.1, -1.02, 0.0), fwd, up, -lat)
+	------------------------------------------------------------------
+	-- المقصورة الداخلية القابلة للمشي (أرضية + جدران صلبة + باب يفتح)
+	-- اللاعب يقف ويتحرّك فوق الأرضية فعلياً (فيزياء حقيقية، غير مثبّت).
+	------------------------------------------------------------------
+	-- أبعاد المقصورة بالنسبة لأنصاف الجسم
+	local CABIN_HALF_F = hf * 0.62                 -- نصف طول المقصورة
+	local CABIN_HALF_L = hl * 0.72                 -- نصف عرض الممشى
+	local FLOOR_U      = -0.42                      -- ارتفاع الأرضية نسبةً للمركز (أسفل قليلاً)
+	local CEIL_U       = 0.92                        -- ارتفاع السقف
 
-	local rotOnly = orientCFrame(Vector3.new(0, 0, 0), travelDir, bodyPart.Size)
+	local function collidableBox(name, size, cf, color, transparency): Part
+		local p = mk("Part", {
+			Name = name, Size = size, CFrame = cf, Color = color or NAVY,
+			Material = Enum.Material.SmoothPlastic, Anchored = true,
+			CanCollide = true, CanQuery = false, CanTouch = false, CastShadow = false,
+			Transparency = transparency or 0, Parent = model,
+		}) :: Part
+		return p
+	end
+
+	-- أرضية المقصورة (مرئية — خشب/سجادة ملكية)
+	local floorLen = CABIN_HALF_F * 2
+	local floorWid = CABIN_HALF_L * 2
+	local floor = collidableBox("CabinFloor",
+		Vector3.new(floorWid, 1, floorLen),
+		boxCF(0, 0, FLOOR_U), Color3.fromRGB(48, 36, 30))
+	floor.Material = Enum.Material.WoodPlanks
+	-- ممشى سجادة ذهبي في المنتصف (تجميلي فقط)
+	local runner = neonBulb("CabinRunner", Vector3.new(floorWid * 0.34, 0.12, floorLen * 0.96), GOLD, model)
+	runner.Material = Enum.Material.Fabric
+	runner.Transparency = 0.15
+	runner.CFrame = boxCF(0, 0, FLOOR_U) * CFrame.new(0, 0.55, 0)
+
+	-- جدران جانبية حاجزة (شفّافة — تمنع السقوط أثناء المشي)
+	local wallH = (CEIL_U - FLOOR_U) * hu
+	local wallCU = (CEIL_U + FLOOR_U) / 2
+	for _, side in ipairs({ -1, 1 }) do
+		collidableBox("CabinWall",
+			Vector3.new(floorLen, wallH, 0.6),
+			CFrame.fromMatrix(at(0, side * 0.95, wallCU), fwd, up, lat * side),
+			NAVY, 1)
+	end
+	-- حاجز المقدّمة (قمرة القيادة) والمؤخّرة
+	for _, fSign in ipairs({ -1, 1 }) do
+		collidableBox("CabinEnd",
+			Vector3.new(floorWid + 1.2, wallH, 0.6),
+			boxCF(fSign * 0.62, 0, wallCU),
+			NAVY, 1)
+	end
+	-- سقف حاجز (يمنع القفز للخارج من الأعلى)
+	collidableBox("CabinCeil",
+		Vector3.new(floorWid + 1.2, 0.6, floorLen),
+		boxCF(0, 0, CEIL_U), NAVY, 1)
+
+	-- مقاعد ملكية على الجانبين (تجميلية، غير صلبة لتبقى الحركة سلسة)
+	for _, side in ipairs({ -1, 1 }) do
+		for i = -1, 1 do
+			local seat = solid("CabinSeat", Enum.PartType.Block,
+				Vector3.new(L * 0.07, R * 0.5, R * 0.5), Color3.fromRGB(70, 22, 32))
+			seat.Material = Enum.Material.Fabric
+			seat.CFrame = boxCF(i * 0.32, side * 0.62, FLOOR_U + 0.28)
+			local cushion = solid("SeatBack", Enum.PartType.Block,
+				Vector3.new(L * 0.07, R * 0.6, R * 0.12), GOLD)
+			cushion.Material = Enum.Material.Fabric
+			cushion.CFrame = boxCF(i * 0.32, side * 0.82, FLOOR_U + 0.5)
+		end
+	end
+
+	-- إضاءة داخلية دافئة للمقصورة
+	for i = -1, 1 do
+		local glow = neonBulb("CabinLight", Vector3.new(R * 0.5, 0.18, R * 0.5), WARM, model)
+		glow.CFrame = boxCF(i * 0.45, 0, CEIL_U - 0.06)
+		mk("PointLight", { Color = WARM, Brightness = 1.4, Range = 22, Parent = glow, Shadows = false })
+	end
+
+	-- باب القفز القابل للفتح (لوح صلب على الجانب الأيسر؛ يُفتح بالـE)
+	local doorClosedCF = CFrame.fromMatrix(at(-0.18, -0.96, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
+	local door = mk("Part", {
+		Name = "JumpDoor",
+		Size = Vector3.new(hf * 0.34, wallH * 0.92, 0.5),
+		CFrame = doorClosedCF, Color = Color3.fromRGB(225, 225, 232),
+		Material = Enum.Material.SmoothPlastic, Anchored = true,
+		CanCollide = true, CanQuery = false, CanTouch = false, CastShadow = false,
+		Parent = model,
+	}) :: Part
+	-- إطار ذهبي حول الباب
+	local doorTrim = neonBulb("DoorTrim", Vector3.new(hf * 0.38, wallH * 0.98, 0.18), GOLD, model)
+	doorTrim.Material = Enum.Material.Metal
+	doorTrim.CFrame = CFrame.fromMatrix(at(-0.18, -1.0, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
+	-- إطار الفتحة الداكن خلف الباب (يبان لما يفتح)
+	local doorHole = neonBulb("DoorHole", Vector3.new(hf * 0.34, wallH * 0.9, 0.1), Color3.fromRGB(12, 14, 22), model)
+	doorHole.Material = Enum.Material.SmoothPlastic
+	doorHole.CFrame = CFrame.fromMatrix(at(-0.2, -1.04, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
+
+	-- نقطة الوقوف داخل المقصورة (وسط الأرضية، يقدر يمشي منها بحرية)
+	local spawnOnFloorCF = boxCF(0, 0, FLOOR_U) * CFrame.new(0, 4, 0)
+	-- نقطة باب القفز (تجاه الخارج عبر الباب الأيسر)
+	local jumpStandCF = boxCF(-0.42, -0.6, FLOOR_U) * CFrame.new(0, 3, 0)
+
+	local rotOnly = CFrame.fromMatrix(Vector3.new(0, 0, 0), fwd, up)
 
 	return {
 		model = model, body = bodyPart,
@@ -24909,6 +24954,10 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		nav = { { navL, navLLight }, { navR, navRLight } },
 		beacon = { beacon, beaconLight },
 		strobe = { strobe, strobeLight },
+		cabin = {
+			floor = floor, door = door, doorClosedCF = doorClosedCF,
+			spawnCF = spawnOnFloorCF, jumpCF = jumpStandCF,
+		},
 	}
 end
 
@@ -25103,74 +25152,82 @@ local function run()
 	local jumpXZ = CONFIG.JUMP_XZ
 	local travelDir = (Vector3.new(1, 0, 0) * CONFIG.FORWARD_SIGN).Unit
 	local jumpPoint = Vector3.new(jumpXZ.X, CONFIG.ALTITUDE, jumpXZ.Y)
-	local startPos = jumpPoint - travelDir * CONFIG.FLIGHT_DIST
 	local fallDir = travelDir
 
-	-- إعداد: تعطيل التحكّم + تثبيت الشخصية + كاميرا سينمائية
-	setControls(false)
-	humanoid.AutoRotate = false
-	rootPart.Anchored = true
-	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false) end)
-	cam.CameraType = Enum.CameraType.Scriptable
-
+	-- إعداد الواجهة + بناء الطائرة عند نقطة القفز (تحوم ثابتة لتمشي داخلها)
 	local hud = buildHUD()
-
-	-- بناء الطائرة + إضاءة LED + هدير المحرّك
-	local plane = buildPlane(startPos, travelDir)
+	local plane = buildPlane(jumpPoint, travelDir)
 	plane.model.Parent = Workspace
 	local engineSnd = playSound3D(plane.body, CONFIG.SND_ENGINE, 0.6, true)
 
-	local skipped = false
 	local deployed = false
-	hud.skip.Visible = true
-	hud.skip.Activated:Connect(function() skipped = true end)
+	local jumpRequested = false
 
 	------------------------------------------------------------------
-	-- الطور ١: المشاهدة (طيران بانورامي + عدّاد + Skip)
+	-- الطور ١: المقصورة القابلة للمشي — تتحرّك داخل الطائرة بحرّية،
+	-- ثم تضغط E (أو زر «اقفز» على الجوال) لفتح الباب والقفز.
 	------------------------------------------------------------------
-	local t0 = os.clock()
-	local camAngle = 0
-	local lastCount = -1
-	while true do
-		local dt = RunService.Heartbeat:Wait()
-		local elapsed = os.clock() - t0
-		local prog = math.clamp(elapsed / CONFIG.SPECTATOR_TIME, 0, 1)
+	-- ضع اللاعب فوق أرضية المقصورة وفعّل حركته الطبيعية (غير مثبّت)
+	rootPart.Anchored = false
+	humanoid.AutoRotate = true
+	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, false) end)
+	restoreMovement(humanoid)
+	rootPart.CFrame = plane.cabin.spawnCF
+	rootPart.AssemblyLinearVelocity = Vector3.zero
+	cam.CameraType = Enum.CameraType.Custom
+	cam.CameraSubject = humanoid
+	setControls(true)
 
-		-- حركة الطائرة على المسار
-		local planePos = startPos:Lerp(jumpPoint, prog)
-		plane.model:PivotTo(plane.rot + planePos)
+	hud.banner.Text = "امشِ داخل الطائرة — اضغط E للقفز"
+	if UserInputService.TouchEnabled then
+		hud.skip.Text = "اقفز"
+		hud.skip.Visible = true
+		hud.skip.Activated:Connect(function() jumpRequested = true end)
+	else
+		hud.eHint.Text = "اضغط E للقفز من الطائرة"
+		hud.eHint.Visible = true
+	end
+
+	local cabinInput = UserInputService.InputBegan:Connect(function(input, gpe)
+		if gpe then return end
+		if input.KeyCode == Enum.KeyCode.E then jumpRequested = true end
+	end)
+	activeInputConn = cabinInput
+
+	-- حلقة المقصورة: الطائرة ثابتة، نحدّث إضاءة LED وننتظر القفز
+	while not jumpRequested do
+		RunService.Heartbeat:Wait()
 		stepLEDs(plane, os.clock())
-
-		-- اللاعب عند باب القفز
-		rootPart.CFrame = CFrame.lookAt(
-			planePos + plane.lat * (-plane.half.l * 1.05) + plane.up * (-plane.half.u * 0.2),
-			planePos + plane.lat * (-plane.half.l * 2)
-		)
-
-		-- كاميرا بانورامية تدور حول الطائرة وتُظهر المدينة
-		camAngle += dt * 0.35
-		local radius = 150
-		local camPos = planePos + Vector3.new(math.sin(camAngle) * radius, 55, math.cos(camAngle) * radius)
-		local target = CFrame.lookAt(camPos, planePos)
-		cam.CFrame = cam.CFrame:Lerp(target, 0.12)
-
-		-- عدّاد ٣-٢-١ في آخر ثوانٍ
-		local remain = CONFIG.SPECTATOR_TIME - elapsed
-		if remain <= CONFIG.COUNTDOWN_FROM then
-			local n = math.ceil(remain)
-			hud.countdown.Visible = true
-			if n ~= lastCount and n > 0 then
-				lastCount = n
-				hud.countdown.Text = tostring(n)
-				hud.countdown.TextSize = 0
-				hud.countdown.TextScaled = true
-				local pop = mk("UIScale", { Scale = 1.6, Parent = hud.countdown }) :: UIScale
-				TweenService:Create(pop, TweenInfo.new(0.5, Enum.EasingStyle.Quad), { Scale = 1 }):Play()
-				task.delay(0.55, function() pop:Destroy() end)
-			end
+		-- شبكة أمان: لو سقط اللاعب خارج المقصورة لأي سبب أعِده للأرضية
+		if rootPart.Position.Y < jumpPoint.Y - plane.half.u * 0.9 then
+			rootPart.CFrame = plane.cabin.spawnCF
+			rootPart.AssemblyLinearVelocity = Vector3.zero
 		end
+	end
 
-		if skipped or prog >= 1 then break end
+	if cabinInput then cabinInput:Disconnect() end
+	activeInputConn = nil
+	hud.skip.Visible = false
+	hud.eHint.Visible = false
+
+	------------------------------------------------------------------
+	-- فتح باب الطائرة (حركة انزلاق) ثم القفز
+	------------------------------------------------------------------
+	do
+		-- ثبّت اللاعب عند الباب فوراً (قبل فتح الباب) كي لا تجرّه سرعته خارج المقصورة
+		humanoid.AutoRotate = false
+		rootPart.AssemblyLinearVelocity = Vector3.zero
+		rootPart.CFrame = plane.cabin.jumpCF
+		rootPart.Anchored = true
+
+		local jumpDoor = plane.cabin.door
+		jumpDoor.CanCollide = false
+		local openCF = plane.cabin.doorClosedCF * CFrame.new(jumpDoor.Size.X * 0.9, 0, 0)
+		TweenService:Create(jumpDoor, TweenInfo.new(0.6, Enum.EasingStyle.Quad), {
+			CFrame = openCF, Transparency = 1,
+		}):Play()
+		playSound3D(plane.body, CONFIG.SND_JUMP, 0.5, false)
+		task.wait(0.7)
 	end
 
 	------------------------------------------------------------------
@@ -25181,6 +25238,7 @@ local function run()
 	hud.banner.Text = "سقوط حرّ"
 	hud.stats.Visible = true
 	hud.chute.Visible = true
+	hud.eHint.Text = "اضغط E لفتح المظلّة"
 	if not UserInputService.TouchEnabled then hud.eHint.Visible = true end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 
