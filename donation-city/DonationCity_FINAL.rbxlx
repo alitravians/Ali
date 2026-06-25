@@ -24866,18 +24866,20 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		return p
 	end
 
-	-- أرضية المقصورة (مرئية — خشب/سجادة ملكية)
+	-- أرضية المقصورة (مرئية — سجادة طيران كحلية فاخرة)
 	local floorLen = CABIN_HALF_F * 2
 	local floorWid = CABIN_HALF_L * 2
 	local floor = collidableBox("CabinFloor",
 		Vector3.new(floorWid, 1, floorLen),
-		boxCF(0, 0, FLOOR_U), Color3.fromRGB(48, 36, 30))
-	floor.Material = Enum.Material.WoodPlanks
-	-- ممشى سجادة ذهبي في المنتصف (تجميلي فقط)
-	local runner = neonBulb("CabinRunner", Vector3.new(floorWid * 0.34, 0.12, floorLen * 0.96), GOLD, model)
-	runner.Material = Enum.Material.Fabric
-	runner.Transparency = 0.15
-	runner.CFrame = boxCF(0, 0, FLOOR_U) * CFrame.new(0, 0.55, 0)
+		boxCF(0, 0, FLOOR_U), Color3.fromRGB(26, 28, 44))
+	floor.Material = Enum.Material.Carpet
+	-- ممشى سجادة ذهبي في المنتصف (الممرّ بين الصفوف)
+	mk("Part", {
+		Name = "CabinRunner", Size = Vector3.new(floorWid * 0.30, 0.12, floorLen * 0.98),
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		CastShadow = false, Material = Enum.Material.Carpet, Color = Color3.fromRGB(120, 92, 38),
+		CFrame = boxCF(0, 0, FLOOR_U) * CFrame.new(0, 0.56, 0), Parent = model,
+	})
 
 	-- جدران جانبية حاجزة (شفّافة — تمنع السقوط أثناء المشي)
 	local wallH = (CEIL_U - FLOOR_U) * hu
@@ -24900,26 +24902,85 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		Vector3.new(floorWid + 1.2, 0.6, floorLen),
 		boxCF(0, 0, CEIL_U), NAVY, 1)
 
-	-- مقاعد ملكية على الجانبين (تجميلية، غير صلبة لتبقى الحركة سلسة)
+	------------------------------------------------------------------
+	-- تأثيث المقصورة الواقعي: بانلات كريمية معتمة + نوافذ + خزائن علوية +
+	-- سقف بإضاءة كوّة مخفية + صفوف كراسي جلدية تواجه الأمام + فاصل قمرة قيادة
+	------------------------------------------------------------------
+	local CREAMC = Color3.fromRGB(236, 230, 216)   -- بطانة/سقف المقصورة
+	local PANELC = Color3.fromRGB(224, 218, 206)   -- بانل الجدار الجانبي
+	local SKYC   = Color3.fromRGB(150, 205, 240)   -- زجاج النافذة (سماء)
+	local SEATC  = Color3.fromRGB(46, 56, 104)     -- جلد كحلي
+	local SEATAC = Color3.fromRGB(120, 40, 52)     -- جلد عنّابي (صف وسط)
+	local HEADC  = Color3.fromRGB(236, 230, 218)   -- غطاء مسند الرأس
+	local ARMC   = Color3.fromRGB(40, 46, 60)      -- مسند الذراع
+
+	-- بانلات جانبية كريمية معتمة (تغطّي الجدار الشفّاف فيختفي ما خلفه برّا)
 	for _, side in ipairs({ -1, 1 }) do
-		for i = -1, 1 do
-			local seat = solid("CabinSeat", Enum.PartType.Block,
-				Vector3.new(L * 0.07, R * 0.5, R * 0.5), Color3.fromRGB(70, 22, 32))
-			seat.Material = Enum.Material.Fabric
-			seat.CFrame = boxCF(i * 0.32, side * 0.62, FLOOR_U + 0.28)
-			local cushion = solid("SeatBack", Enum.PartType.Block,
-				Vector3.new(L * 0.07, R * 0.6, R * 0.12), GOLD)
-			cushion.Material = Enum.Material.Fabric
-			cushion.CFrame = boxCF(i * 0.32, side * 0.82, FLOOR_U + 0.5)
+		local liner = solid("CabinLiner", Enum.PartType.Block,
+			Vector3.new(floorLen, wallH, 0.4), PANELC)
+		liner.CFrame = CFrame.fromMatrix(at(0, side * 0.9, wallCU), fwd, up, lat * side)
+	end
+
+	-- سقف كريمي + كوّة إضاءة مخفية دافئة في منتصف السقف
+	local ceilPanel = solid("CabinCeilPanel", Enum.PartType.Block,
+		Vector3.new(floorWid, 0.4, floorLen), CREAMC)
+	ceilPanel.CFrame = boxCF(0, 0, CEIL_U - 0.02)
+	local cove = neonBulb("CabinCove", Vector3.new(0.6, 0.12, floorLen * 0.96), WARM, model)
+	cove.CFrame = boxCF(0, 0, CEIL_U - 0.16)
+	mk("PointLight", { Color = WARM, Brightness = 1.7, Range = 28, Parent = cove, Shadows = false })
+
+	-- نوافذ مضيئة على الجهتين + خزائن علوية مائلة
+	local nWin = 5
+	for _, side in ipairs({ -1, 1 }) do
+		local bin = solid("OverheadBin", Enum.PartType.Block,
+			Vector3.new(floorLen * 0.96, hu * 0.5, hl * 0.6), CREAMC)
+		bin.CFrame = CFrame.fromMatrix(at(0, side * 0.74, CEIL_U - 0.22), fwd, up, lat * side)
+			* CFrame.Angles(math.rad(14), 0, 0)
+		for i = 1, nWin do
+			local f = -0.46 + (i - 0.5) * (0.92 / nWin)
+			local trim = solid("WindowTrim", Enum.PartType.Block,
+				Vector3.new(hf * 0.13, hu * 0.32, 0.16), CREAMC)
+			trim.CFrame = CFrame.fromMatrix(at(f, side * 0.885, 0.16), fwd, up, lat * side)
+			local win = neonBulb("CabinWindow", Vector3.new(hf * 0.095, hu * 0.24, 0.10), SKYC, model)
+			win.CFrame = CFrame.fromMatrix(at(f, side * 0.875, 0.16), fwd, up, lat * side)
+			mk("PointLight", { Color = SKYC, Brightness = 0.45, Range = 9, Parent = win, Shadows = false })
 		end
 	end
 
-	-- إضاءة داخلية دافئة للمقصورة
-	for i = -1, 1 do
-		local glow = neonBulb("CabinLight", Vector3.new(R * 0.5, 0.18, R * 0.5), WARM, model)
-		glow.CFrame = boxCF(i * 0.45, 0, CEIL_U - 0.06)
-		mk("PointLight", { Color = WARM, Brightness = 1.4, Range = 22, Parent = glow, Shadows = false })
+	-- كرسي ركّاب وثير يواجه الأمام (قاعدة + ظهر مائل + مسند رأس + مسندا ذراع)
+	local function buildSeat(f, side, accent)
+		local hue = if accent then SEATAC else SEATC
+		local base = solid("SeatBase", Enum.PartType.Block,
+			Vector3.new(hl * 0.42, hu * 0.18, hf * 0.05), hue)
+		base.Material = Enum.Material.Fabric
+		base.CFrame = boxCF(f, side * 0.5, FLOOR_U + 0.22)
+		local backrest = solid("SeatBack", Enum.PartType.Block,
+			Vector3.new(hl * 0.42, hu * 0.50, hf * 0.020), hue)
+		backrest.Material = Enum.Material.Fabric
+		backrest.CFrame = boxCF(f - 0.024, side * 0.5, FLOOR_U + 0.52)
+			* CFrame.Angles(math.rad(8), 0, 0)
+		local head = solid("SeatHead", Enum.PartType.Block,
+			Vector3.new(hl * 0.30, hu * 0.16, hf * 0.020), HEADC)
+		head.Material = Enum.Material.Fabric
+		head.CFrame = boxCF(f - 0.030, side * 0.5, FLOOR_U + 0.76)
+		for _, ay in ipairs({ -0.20, 0.20 }) do
+			local arm = solid("SeatArm", Enum.PartType.Block,
+				Vector3.new(hl * 0.06, hu * 0.10, hf * 0.045), ARMC)
+			arm.CFrame = boxCF(f, side * 0.5 + ay, FLOOR_U + 0.34)
+		end
 	end
+	for ri = -1, 1 do
+		for _, side in ipairs({ -1, 1 }) do
+			buildSeat(ri * 0.18, side, ri == 0)
+		end
+	end
+
+	-- فاصل قمرة القيادة بباب مضيء أمام المقصورة (يخفي الحاجز الأمامي)
+	local divider = solid("CockpitDivider", Enum.PartType.Block,
+		Vector3.new(floorWid + 0.6, wallH, 0.5), PANELC)
+	divider.CFrame = boxCF(0.6, 0, wallCU)
+	local divDoor = neonBulb("CockpitDoorGlow", Vector3.new(hl * 0.55, wallH * 0.66, 0.10), WARM, model)
+	divDoor.CFrame = boxCF(0.585, 0, wallCU - 0.12)
 
 	-- باب القفز القابل للفتح (لوح صلب على الجانب الأيسر؛ يُفتح بالـE)
 	local doorClosedCF = CFrame.fromMatrix(at(-0.18, -0.96, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
@@ -25160,6 +25221,39 @@ local function run()
 	plane.model.Parent = Workspace
 	local engineSnd = playSound3D(plane.body, CONFIG.SND_ENGINE, 0.6, true)
 
+	------------------------------------------------------------------
+	-- غيوم تمرّ بسرعة من النوافذ → إحساس طيران حقيقي (الطائرة «تتحرّك»)
+	------------------------------------------------------------------
+	local cloudFolder = Instance.new("Folder")
+	cloudFolder.Name = "SpawnFlightClouds"
+	cloudFolder.Parent = Workspace
+	local clouds: { BasePart } = {}
+	local CLOUD_SPAN = 800                          -- مدى الغيوم أمام/خلف الطائرة
+	local function placeCloud(c: BasePart, ahead: number)
+		local sideOff = (math.random() * 2 - 1) * 150
+		local vertOff = (math.random() * 2 - 1) * 110
+		c.Position = jumpPoint + travelDir * ahead + plane.lat * sideOff + Vector3.new(0, vertOff, 0)
+	end
+	for i = 1, 16 do
+		local sc = 45 + math.random() * 70
+		local c = mk("Part", {
+			Name = "FlightCloud", Shape = Enum.PartType.Ball, Anchored = true,
+			CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(248, 248, 255),
+			Transparency = 0.28, Size = Vector3.new(sc, sc * 0.5, sc), Parent = cloudFolder,
+		}) :: BasePart
+		clouds[i] = c
+		placeCloud(c, (math.random() - 0.5) * CLOUD_SPAN)
+	end
+	local function stepClouds(dt: number)
+		for _, c in ipairs(clouds) do
+			c.Position = c.Position - travelDir * (170 * dt)
+			if (c.Position - jumpPoint):Dot(travelDir) < -CLOUD_SPAN * 0.5 then
+				placeCloud(c, CLOUD_SPAN * 0.5)
+			end
+		end
+	end
+
 	local deployed = false
 	local jumpRequested = false
 
@@ -25194,10 +25288,12 @@ local function run()
 	end)
 	activeInputConn = cabinInput
 
-	-- حلقة المقصورة: الطائرة ثابتة، نحدّث إضاءة LED وننتظر القفز
+	-- حلقة المقصورة: الغيوم تمرّ من النوافذ + تمايل طيران خفيف، وننتظر القفز
 	while not jumpRequested do
-		RunService.Heartbeat:Wait()
-		stepLEDs(plane, os.clock())
+		local dt = RunService.Heartbeat:Wait()
+		local t = os.clock()
+		stepLEDs(plane, t)
+		stepClouds(dt)
 		-- شبكة أمان: لو سقط اللاعب خارج المقصورة لأي سبب أعِده للأرضية
 		if rootPart.Position.Y < jumpPoint.Y - plane.half.u * 0.9 then
 			rootPart.CFrame = plane.cabin.spawnCF
@@ -25259,10 +25355,12 @@ local function run()
 			-- قد تُنظَّف الطائرة أثناء الانتظار (عند فشل التسلسل)؛ نتأكّد قبل أي عملية
 			if not plane.model.Parent then break end
 			plane.model:PivotTo(plane.model:GetPivot() + travelDir * (90 * dt))
+			stepClouds(dt)
 			stepLEDs(plane, os.clock())
 		end
 		if engineSnd then engineSnd:Stop() end
 		if plane.model then plane.model:Destroy() end
+		if cloudFolder then cloudFolder:Destroy() end
 	end)
 
 	-- أثر ملوّن خلف اللاعب
