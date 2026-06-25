@@ -397,7 +397,7 @@ end
 -- 🎯 مصدران منفصلان للصورة (مفصولان عمداً):
 --   • القائمة الرئيسية (شاشة اللودينغ) → خلفية «الشفق القطبي» الجديدة.
 --   • شاشة النافورة (CustomImageScreen) → تبقى صورة البنت الأصلية بدون تغيير.
-local MENU_BG_DECAL_ID     = 80412693584456 -- خلفية القائمة الرئيسية (شفق قطبي، Decal جديد)
+local MENU_BG_DECAL_ID     = 74406236742129 -- خلفية شاشة اللودينغ/القائمة — بوابة القصر 3D (رندر بلندر)
 local FOUNTAIN_BG_DECAL_ID = 93628047304202 -- صورة النافورة الأصلية (تبقى كما هي)
 local bgValue = ReplicatedStorage:FindFirstChild("LoadingBgImage")
 if not bgValue then

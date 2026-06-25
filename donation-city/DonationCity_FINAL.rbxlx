@@ -105,8 +105,8 @@ local CONFIG = {
 
 	-- 🖼️ خلفية مخصّصة لشاشة التحميل (صورة مرفوعة على روبلوكس).
 	-- ضع رقم الـ Asset ID هنا (0 = بدون خلفية، تظهر الخلفية النيون الافتراضية).
-	BackgroundImageId      = 80412693584456, -- خلفية القائمة الرئيسية (شفق قطبي، Decal جديد) — النافورة تبقى بصورتها الأصلية
-	BackgroundImageDim     = 0.5, -- درجة تعتيم الصورة (0 = واضحة، 1 = سوداء) لإبقاء النص مقروءاً
+	BackgroundImageId      = 74406236742129, -- خلفية بوابة القصر 3D (رندر بلندر) — النافورة تبقى بصورتها الأصلية
+	BackgroundImageDim     = 0.42, -- درجة تعتيم الصورة (0 = واضحة، 1 = سوداء) لإبقاء النص مقروءاً
 
 	MinDisplayTime = 4.5,
 	MaxDisplayTime = 15.0,
@@ -301,8 +301,20 @@ local function addCustomBackground(parent, palette)
 	local bgImg = new("ImageLabel", {
 		Name = "CustomBackground", BackgroundTransparency = 1,
 		Image = pickImage(),
-		ScaleType = Enum.ScaleType.Crop, Size = UDim2.fromScale(1, 1), Parent = parent,
+		ScaleType = Enum.ScaleType.Crop,
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5),
+		Size = UDim2.fromScale(1.12, 1.12), -- تجاوز بسيط للإطار لإخفاء الحواف أثناء التحريك
+		Parent = parent,
 	})
+	-- 🎬 حركة سينمائية بطيئة (Ken Burns): زوم + بان ناعم ذهاباً وإياباً
+	task.spawn(function()
+		local kb = TweenInfo.new(14, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+		tween(bgImg, kb, {
+			Size = UDim2.fromScale(1.26, 1.26),
+			Position = UDim2.fromScale(0.5, 0.44),
+		})
+	end)
 	local dim = new("Frame", {
 		Name = "BgDim", BackgroundColor3 = palette.BgBottom,
 		BackgroundTransparency = 1 - math.clamp(CONFIG.BackgroundImageDim or 0.5, 0, 1),
@@ -358,6 +370,21 @@ new("UIGradient", { Rotation = 90, Color = ColorSequence.new(PAL.BgTop, PAL.BgBo
 
 -- 🖼️ خلفية الصورة المخصّصة (تظهر فقط إذا حُدّد BackgroundImageId)
 addCustomBackground(root, PAL)
+
+-- 🔥 توهّج دافئ نابض يحاكي الضوء المتسرّب من باب البوابة (يعطي إحساس حياة وعمق)
+if CONFIG.BackgroundImageId and CONFIG.BackgroundImageId > 0 then
+	local doorGlow = new("ImageLabel", {
+		Name = "DoorGlow", BackgroundTransparency = 1, Image = "rbxassetid://5028857084",
+		ImageColor3 = Color3.fromRGB(255, 196, 110), ImageTransparency = 0.55,
+		Size = UDim2.fromScale(0.95, 1.05), Position = UDim2.fromScale(0.5, 0.52),
+		AnchorPoint = Vector2.new(0.5, 0.5), Parent = root,
+	})
+	task.spawn(function()
+		tween(doorGlow, TweenInfo.new(2.6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true), {
+			ImageTransparency = 0.32, Size = UDim2.fromScale(1.05, 1.18),
+		})
+	end)
+end
 
 -- Animated radial accent glow
 local accentGlow = new("ImageLabel", {
@@ -5924,7 +5951,7 @@ end
 -- 🎯 مصدران منفصلان للصورة (مفصولان عمداً):
 --   • القائمة الرئيسية (شاشة اللودينغ) → خلفية «الشفق القطبي» الجديدة.
 --   • شاشة النافورة (CustomImageScreen) → تبقى صورة البنت الأصلية بدون تغيير.
-local MENU_BG_DECAL_ID     = 80412693584456 -- خلفية القائمة الرئيسية (شفق قطبي، Decal جديد)
+local MENU_BG_DECAL_ID     = 74406236742129 -- خلفية شاشة اللودينغ/القائمة — بوابة القصر 3D (رندر بلندر)
 local FOUNTAIN_BG_DECAL_ID = 93628047304202 -- صورة النافورة الأصلية (تبقى كما هي)
 local bgValue = ReplicatedStorage:FindFirstChild("LoadingBgImage")
 if not bgValue then
