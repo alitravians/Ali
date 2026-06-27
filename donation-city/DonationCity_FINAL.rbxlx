@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٢٩",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٣٠",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -171,79 +171,32 @@ local CONFIG = {
 	},
 
 	UpdatesTitle = "تحديثات اللعبة",
-	UpdatesLines = {
-		"🎯 تحديث ٢.٩.٢٩ — تركيز على المهام والتحديات:",
-		"• الواجهة صارت تبرز «📋 المهام» والباركور كنشاط رئيسي.",
-		"• نافذة إكمال الباركور تعرض «أفضل وقت» وشارة الرقم القياسي 🏆.",
-		"• رسائل الترحيب والدليل تركّز على المهام والتحديات والأنشطة.",
-		"",
-		"🎉 تحديث ٢.٧.٩ — دردشة: وسم 👑 للمالك و⭐ لـ VIP + كتم من الإدارة",
-		"",
-		"👑 لوحة الإدارة الجديدة (٤ تبويبات):",
-		"• 📊 إحصائيات حية: لاعبون · بوثات محجوزة · إجمالي الدعم · أكثر بوث.",
-		"• 🎬 العرض: تشغيل/تخطّي/إعادة · سلايدر إضاءة + لون أجواء · موسيقى وصوت.",
-		"• 👥 اللاعبون: بحث · تحذير · طرد (بتأكيد وسبب) · VIP · منع حجز · انتقال.",
-		"• ⚙️ الإعدادات: قوالب إعلانات · إدارة وتحرير البوثات · وضع الصيانة.",
-		"• 📜 سجل أوامر الإدارة (شفافية) + إشعارات فورية بكل أمر.",
-		"• 🛠️ وضع صيانة برسالة مخصّصة — مع بقاء دخول الإدارة متاحاً دائماً.",
-		"",
-		"🎉 تحديث ٢.٦ — جلوس البوث والتفاعل",
-		"",
-		"🪑 جلوس داخل البوث (جديد):",
-		"• احجز بوثك واجلس على الكرسي لاستقبال الزوار.",
-		"• الكرسي لصاحب البوث فقط — يظهر «🟢 صاحب البوث موجود».",
-		"• بريق وإضاءة على البوث المحجوز + عدّاد الدعم على اللوحة.",
-		"• زر «🔔 نادِ صاحب البوث» للزائر + شارة «🏆 الأكثر مبيعاً».",
-		"",
-		"🏪 بوثات يملكها اللاعبون:",
-		"• احجز بوثاً فارغاً واضغط E — يظهر اسمك وصورتك.",
-		"• اعرض Gamepasses الخاصة فيك (رابط أو رقم) للبيع.",
-		"• إدارة كاملة: إضافة/حذف منتجات · لون · نص ترحيبي.",
-		"• الزوار يشترون منك مع 🎉 احتفال ورسالة شكر.",
-		"• لوحتا «الأكثر دعماً» و«أكثر البوثات» مباشرة.",
-		"• يُصفّر البوث تلقائياً عند خروجك (حماية كاملة).",
-		"",
-		"🖥️ تحسين الواجهة:",
-		"• أزرار الشاشة (المتجر/الإدارة/المزيد) انرتّبت بأرصفة بلا تداخل.",
-		"• صورة مخصّصة كخلفية لشاشة التحميل.",
-		"",
-		"💡 الإضاءة والأجواء:",
-		"• قاعة مضيئة بالكامل تخفت وقت العرض + نيون جدران.",
-		"• مؤثرات Bloom وتصحيح ألوان بإحساس Cyber-Neon.",
-		"",
-		"💰 الاقتصاد واللوبي:",
-		"• عملة «كوينز» مع حفظ + دخل تلقائي + HUD.",
-		"• شبّاك تذاكر + قائمة أفلام + لوحة عروض حيّة.",
-		"",
-		"🎬 تجربة العرض:",
-		"• عدّاد تنازلي + انتقال سينمائي + شريط ليتربوكس.",
-		"• اهتزاز كاميرا خفيف + دعم فيديو متزامن.",
-		"",
-		"⭐ VIP والمقاعد:",
-		"• عضوية VIP (Robux أو كوينز): تذاكر بنص السعر وتاج ودخل مضاعف.",
-		"• حجز مقعد محدّد + صفّ انتظار بأولوية لـ VIP.",
-		"",
-		"🛒 المتجر و٤ باقات دائمة جديدة:",
-		"• متجر يسار الشاشة يجمع كل المميزات بأزرار شراء.",
-		"• 🍿 بوفيه مفتوح · 🎬 مالك العرض · ✨ أثر نيون · 📢 مايك الإعلان.",
-		"• حزم كوينز + تذكرة فورية (Developer Products).",
-		"",
-		"👑 الإدارة والواجهة والإضافات:",
-		"• لوحة إدارة محمية (تشغيل/إيقاف/إضاءة/إعلان/طرد).",
-		"• واجهة خارجية: أبواب أوتوماتيك · بوسترات · شاشة LED · موقف · مارّة.",
-		"• إنجازات · تقييم أفلام · أركيد · ركن تصوير · فعاليات دورية.",
-		"",
-		"🌊 ديكور جديد:",
-		"• نافورة واقعية بماء متساقط ورذاذ وإضاءة.",
-		"• حوض سمك زجاجي بأسماك تسبح + ركن سلفي للتصوير.",
-		"",
-		"🛠️ إصلاحات هذا التحديث:",
-		"• شبّاك التذاكر صار بمكان مرتّب بلا تداخل مع المقعد، ولافتته تُقرأ من جهة اللاعبين.",
-		"• الدخول للوحة الإدارة بالرتبة فقط (مشرف فأعلى) — بلا كود.",
-		"• اللوحة المضيئة ترجع لاسم السينما تلقائياً بعد الإعلان.",
-		"",
-		"🔜 قادم قريباً:",
-		"• مظاهر وإكسسوارات جديدة + لوحة صدارة موسمية.",
+	UpdatesLog = {
+		{
+			version = "٢.٩.٣٠", date = "١٨ يونيو",
+			items = {
+				{ "new", "قائمة رئيسية ملكية جديدة: بطاقات فاخرة + شعار تاج + أيقونات." },
+				{ "new", "نظام تعاقب الليل والنهار (٥ مراحل) بتوقيت البحرين الحقيقي." },
+				{ "new", "ساعة السيرفر أعلى الشاشة تتحدّث لحظياً لكل اللاعبين." },
+				{ "improve", "سجلّ التحديثات صار احترافياً بخطّ زمني ووسوم تصنيف ملوّنة." },
+			},
+		},
+		{
+			version = "٢.٩.٢٩", date = "١٧ يونيو",
+			items = {
+				{ "improve", "جهاز بصمة القصر: لوحة جدارية بيومترية + شاشة مسح واقعية." },
+				{ "fix", "يُخصم ٢٥٠ كوينز عند كل محاولة دخول + منع الدخول المجاني خلف الدافع." },
+				{ "fix", "جهاز الخروج الداخلي ما ينضغط من خارج القصر." },
+			},
+		},
+		{
+			version = "٢.٩.٢٨", date = "١٥ يونيو",
+			items = {
+				{ "new", "ريسبون ملكي على طريقة ببجي: طائرة شهد + قفز ومظلّة واقعية." },
+				{ "improve", "وضعية الهبوط بالمظلّة صارت واقعية ومركّبة صح على اللاعب." },
+				{ "new", "صندوق المكافآت: ٤ مهام تفاعلية + ١٠٠٠ كوينز + إنجاز داعم." },
+			},
+		},
 	},
 }
 
@@ -763,19 +716,57 @@ local function showMainMenu()
 		Position = UDim2.fromScale(0.5, 0.55), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
 	})
 
+	-- لوحة ألوان ملكية ذهبية خاصة بالقائمة (بدل النيون البنفسجي)
+	local ROYAL = {
+		Gold     = Color3.fromRGB(214, 175, 92),
+		GoldHi   = Color3.fromRGB(245, 220, 150),
+		GoldDeep = Color3.fromRGB(150, 116, 52),
+		CardBg   = Color3.fromRGB(24, 30, 46),
+		CardStrk = Color3.fromRGB(74, 88, 116),
+		Text     = Color3.fromRGB(238, 242, 250),
+		Sub      = Color3.fromRGB(168, 182, 205),
+		Dark     = Color3.fromRGB(26, 22, 14),
+	}
+
+	-- شعار التاج الذهبي فوق العنوان (مبني من قطع — لا صورة خارجية)
+	local crown = new("Frame", {
+		Name = "Crown", BackgroundTransparency = 1, Size = UDim2.fromOffset(96, 56),
+		Position = UDim2.fromScale(0.5, 0.085), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
+	})
+	local crownParts = {}
+	do
+		local base = new("Frame", {
+			BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(64, 16),
+			Position = UDim2.new(0.5, 0, 1, -4), Parent = crown,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = base })
+		crownParts[#crownParts + 1] = base
+		-- ثلاث قمم على شكل معيّن (مربّعات مدوّرة)
+		for _, dx in ipairs({ -26, 0, 26 }) do
+			local peak = new("Frame", {
+				BackgroundColor3 = ROYAL.GoldHi, BorderSizePixel = 0, BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(22, 22), Rotation = 45,
+				Position = UDim2.new(0.5, dx, 1, (dx == 0) and -22 or -16), Parent = crown,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 5), Parent = peak })
+			crownParts[#crownParts + 1] = peak
+		end
+	end
+
 	local title = new("TextLabel", {
 		Name = "Title", BackgroundTransparency = 1, Text = CONFIG.GameName, RichText = true,
-		Font = Enum.Font.GothamBlack, TextSize = 64, TextColor3 = PAL.Text, TextTransparency = 1,
-		Size = UDim2.new(1, -80, 0, 88), Position = UDim2.fromScale(0.5, 0.17),
+		Font = Enum.Font.GothamBlack, TextSize = 64, TextColor3 = ROYAL.GoldHi, TextTransparency = 1,
+		Size = UDim2.new(1, -80, 0, 88), Position = UDim2.fromScale(0.5, 0.18),
 		AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
 	})
-	new("UIGradient", { Color = ColorSequence.new(PAL.AccentAlt, PAL.Accent), Rotation = 12, Parent = title })
-	local titleStroke = new("UIStroke", { Color = PAL.Accent, Thickness = 2, Transparency = 1, Parent = title })
+	new("UIGradient", { Color = ColorSequence.new(ROYAL.GoldHi, ROYAL.Gold), Rotation = 12, Parent = title })
+	local titleStroke = new("UIStroke", { Color = ROYAL.GoldDeep, Thickness = 2, Transparency = 1, Parent = title })
 
 	local sub = new("TextLabel", {
-		BackgroundTransparency = 1, Text = CONFIG.Tagline, Font = Enum.Font.GothamMedium,
-		TextSize = 20, TextColor3 = PAL.SubText, TextTransparency = 1,
-		Size = UDim2.new(1, -80, 0, 26), Position = UDim2.fromScale(0.5, 0.27), AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1, Text = "بوّابة المدينة الملكية", Font = Enum.Font.GothamMedium,
+		TextSize = 20, TextColor3 = ROYAL.Sub, TextTransparency = 1,
+		Size = UDim2.new(1, -80, 0, 26), Position = UDim2.fromScale(0.5, 0.275), AnchorPoint = Vector2.new(0.5, 0.5),
 		Parent = mRoot,
 	})
 
@@ -786,116 +777,304 @@ local function showMainMenu()
 		Parent = mRoot,
 	})
 
+	local CARD_W, CARD_H = 468, 104
+
 	local btnHolder = new("Frame", {
-		Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.fromOffset(360, 220),
-		Position = UDim2.fromScale(0.5, 0.58), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
+		Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.fromOffset(CARD_W + 20, 360),
+		Position = UDim2.fromScale(0.5, 0.62), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
 	})
 	new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Vertical, HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 16),
+		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 22),
 		SortOrder = Enum.SortOrder.LayoutOrder, Parent = btnHolder,
 	})
 
 	local menuClosing = false
 	local charConn
 
+	-- شريط مدوّر الأطراف (لِبِناء الأيقونات من قطع فقط — لا رموز نصّية)
+	local function bar(parent, color, w, h, ox, oy, rot, shownBT)
+		local b = new("Frame", {
+			BackgroundColor3 = color, BorderSizePixel = 0, BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(w, h),
+			Position = UDim2.new(0.5, ox, 0.5, oy), Rotation = rot, ZIndex = 6, Parent = parent,
+		})
+		b:SetAttribute("ShownBT", shownBT or 0)
+		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
+		return b
+	end
+
+	-- يرسم أيقونة الخيار داخل وسام دائري
+	local function makeIcon(badge, kind, color)
+		if kind == "play" then            -- شيفرون يمين «ادخل»
+			bar(badge, color, 7, 22, -2, -10, 48)
+			bar(badge, color, 7, 22, -2, 10, -48)
+		elseif kind == "scroll" then      -- وثيقة قوانين
+			local doc = new("Frame", {
+				BackgroundTransparency = 1, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(30, 36), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 6, Parent = badge,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 5), Parent = doc })
+			local ds = new("UIStroke", { Color = color, Thickness = 2.5, Transparency = 1, Parent = doc })
+			ds:SetAttribute("ShownT", 0)
+			for _, yy in ipairs({ -8, 0, 8 }) do bar(doc, color, 16, 3, 0, yy, 0) end
+		elseif kind == "spark" then       -- نجمة تحديثات
+			bar(badge, color, 6, 34, 0, 0, 0)
+			bar(badge, color, 34, 6, 0, 0, 0)
+			bar(badge, color, 6, 20, 0, 0, 45)
+			bar(badge, color, 6, 20, 0, 0, 135)
+		end
+	end
+
+	local META = {
+		[1] = { kind = "play",   sub = "ادخل المدينة الآن" },
+		[2] = { kind = "scroll", sub = "تعرّف على الهدف والقوانين" },
+		[3] = { kind = "spark",  sub = "آخر ما أضفناه للّعبة" },
+	}
+
 	local function makeButton(text: string, primary: boolean, order: number)
+		local meta = META[order]
 		local btn = new("TextButton", {
 			Name = "Btn_" .. order, Text = "", AutoButtonColor = false,
-			BackgroundColor3 = primary and PAL.Accent or PAL.Card, BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(360, 58), LayoutOrder = order, Parent = btnHolder,
+			BackgroundColor3 = primary and ROYAL.Gold or ROYAL.CardBg, BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(CARD_W, CARD_H), LayoutOrder = order, Parent = btnHolder,
 		})
-		new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = btn })
-		local stroke = new("UIStroke", { Color = primary and PAL.AccentAlt or PAL.CardStroke, Thickness = 1.5, Transparency = 1, Parent = btn })
+		new("UICorner", { CornerRadius = UDim.new(0, 24), Parent = btn })
+		local stroke = new("UIStroke", {
+			Color = primary and ROYAL.GoldHi or ROYAL.CardStrk, Thickness = primary and 2 or 1.5, Transparency = 1, Parent = btn,
+		})
+		stroke:SetAttribute("ShownT", primary and 0 or 0.35)
 		if primary then
-			new("UIGradient", { Color = ColorSequence.new(PAL.Accent, PAL.AccentAlt), Rotation = 25, Parent = btn })
+			new("UIGradient", { Color = ColorSequence.new(ROYAL.Gold, ROYAL.GoldHi), Rotation = 18, Parent = btn })
 		end
+
+		local accent = primary and ROYAL.Dark or ROYAL.Gold
+		local tcol = primary and ROYAL.Dark or ROYAL.Text
+		local scol = primary and Color3.fromRGB(78, 62, 30) or ROYAL.Sub
+
+		-- وسام دائري للأيقونة (يمين البطاقة — RTL)
+		local badge = new("Frame", {
+			Name = "Badge", BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(66, 66),
+			Position = UDim2.new(1, -52, 0.5, 0), ZIndex = 6, Parent = btn,
+		})
+		badge:SetAttribute("ShownBT", primary and 0.78 or 0.62)
+		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
+		local bStroke = new("UIStroke", { Color = accent, Thickness = 2, Transparency = 1, Parent = badge })
+		bStroke:SetAttribute("ShownT", 0.1)
+		makeIcon(badge, meta.kind, accent)
+
+		-- العنوان + السطر الوصفي (محاذاة يمين، يسار الوسام)
 		new("TextLabel", {
 			Name = "Label", BackgroundTransparency = 1, Text = text, Font = Enum.Font.GothamBold,
-			TextSize = 22, TextColor3 = primary and Color3.fromRGB(20, 12, 36) or PAL.Text, TextTransparency = 1,
-			Size = UDim2.fromScale(1, 1), Parent = btn,
+			TextSize = 27, TextColor3 = tcol, TextTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -200, 0, 32), Position = UDim2.new(0, 110, 0, 26), ZIndex = 6, Parent = btn,
 		})
+		new("TextLabel", {
+			Name = "Sub", BackgroundTransparency = 1, Text = meta.sub, Font = Enum.Font.GothamMedium,
+			TextSize = 16, TextColor3 = scol, TextTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -130, 0, 22), Position = UDim2.new(0, 40, 0, 58), ZIndex = 6, Parent = btn,
+		})
+
+		-- شيفرون «<» يسار البطاقات الفرعية فقط
+		if not primary then
+			local chev = new("Frame", {
+				Name = "Chev", BackgroundTransparency = 1, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(20, 24), Position = UDim2.new(0, 40, 0.5, 0), ZIndex = 6, Parent = btn,
+			})
+			bar(chev, ROYAL.Gold, 4, 14, 3, -6, 45)
+			bar(chev, ROYAL.Gold, 4, 14, 3, 6, -45)
+		end
+
 		btn.MouseEnter:Connect(function()
 			if menuClosing then return end
 			playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Hover)
-			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(376, 60) })
+			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(CARD_W + 14, CARD_H + 4) })
 			tween(stroke, TweenInfo.new(0.15), { Transparency = 0 })
 		end)
 		btn.MouseLeave:Connect(function()
 			if menuClosing then return end
-			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(360, 58) })
-			tween(stroke, TweenInfo.new(0.15), { Transparency = 0.2 })
+			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(CARD_W, CARD_H) })
+			tween(stroke, TweenInfo.new(0.15), { Transparency = stroke:GetAttribute("ShownT") or 0.35 })
 		end)
 		return btn
 	end
 
-	local function makePanel(titleText: string, lines: { string })
+	-- يجمع كل العناصر المرئية داخل حاوية ويُخفيها مبدئياً (ليُكشف عنها تدريجياً)
+	local function collectReveal(container)
+		local reveal = {}
+		for _, d in ipairs(container:GetDescendants()) do
+			if d:IsA("TextLabel") or d:IsA("TextButton") then
+				reveal[#reveal + 1] = { inst = d, key = "TextTransparency", shown = d.TextTransparency }
+				d.TextTransparency = 1
+			elseif d:IsA("UIStroke") then
+				reveal[#reveal + 1] = { inst = d, key = "Transparency", shown = d.Transparency }
+				d.Transparency = 1
+			elseif (d:IsA("Frame") or d:IsA("TextButton")) and d.BackgroundTransparency < 1 then
+				reveal[#reveal + 1] = { inst = d, key = "BackgroundTransparency", shown = d.BackgroundTransparency }
+				d.BackgroundTransparency = 1
+			end
+		end
+		return reveal
+	end
+
+	-- هيكل البانل المشترك: إطار + عنوان (+ سطر وصفي اختياري) + زر رجوع. يرجّع الحاوية القابلة للتمرير.
+	local function panelShell(titleText: string, subText: string?)
 		local panel = new("Frame", {
 			Name = "Panel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(640, 460), BackgroundColor3 = PAL.Card, BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(660, 520), BackgroundColor3 = ROYAL.CardBg, BackgroundTransparency = 1,
 			Visible = false, ZIndex = 5, Parent = mRoot,
 		})
-		new("UICorner", { CornerRadius = UDim.new(0, 22), Parent = panel })
-		local pStroke = new("UIStroke", { Color = PAL.CardStroke, Thickness = 1.5, Transparency = 1, Parent = panel })
+		new("UICorner", { CornerRadius = UDim.new(0, 24), Parent = panel })
+		new("UIStroke", { Color = ROYAL.CardStrk, Thickness = 1.5, Transparency = 0.25, Parent = panel })
 		local pTitle = new("TextLabel", {
 			BackgroundTransparency = 1, Text = titleText, Font = Enum.Font.GothamBlack,
-			TextSize = 28, TextColor3 = PAL.Text, TextTransparency = 1,
-			Size = UDim2.new(1, -48, 0, 50), Position = UDim2.new(0.5, 0, 0, 22), AnchorPoint = Vector2.new(0.5, 0),
+			TextSize = 32, TextColor3 = ROYAL.GoldHi, TextTransparency = 0,
+			Size = UDim2.new(1, -48, 0, 44), Position = UDim2.new(0.5, 0, 0, 26), AnchorPoint = Vector2.new(0.5, 0),
 			ZIndex = 6, Parent = panel,
 		})
-		new("UIGradient", { Color = ColorSequence.new(PAL.AccentAlt, PAL.Accent), Parent = pTitle })
-		local scroll = new("ScrollingFrame", {
-			BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -48, 1, -150),
-			Position = UDim2.new(0.5, 0, 0, 84), AnchorPoint = Vector2.new(0.5, 0),
-			CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
-			ScrollBarThickness = 5, ScrollBarImageColor3 = PAL.Accent, ZIndex = 6, Parent = panel,
+		new("UIGradient", { Color = ColorSequence.new(ROYAL.GoldHi, ROYAL.Gold), Rotation = 8, Parent = pTitle })
+		local headBottom = 80
+		if subText then
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = subText, Font = Enum.Font.GothamMedium,
+				TextSize = 18, TextColor3 = ROYAL.Sub, TextTransparency = 0,
+				Size = UDim2.new(1, -48, 0, 24), Position = UDim2.new(0.5, 0, 0, 70), AnchorPoint = Vector2.new(0.5, 0),
+				ZIndex = 6, Parent = panel,
+			})
+			headBottom = 104
+		end
+		-- خط ذهبي تحت الرأس
+		new("Frame", {
+			BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0),
+			Size = UDim2.fromOffset(120, 4), Position = UDim2.new(0.5, 0, 0, headBottom - 6), ZIndex = 6, Parent = panel,
 		})
+		local scroll = new("ScrollingFrame", {
+			Name = "Content", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -44, 1, -(headBottom + 80)),
+			Position = UDim2.new(0.5, 0, 0, headBottom + 4), AnchorPoint = Vector2.new(0.5, 0),
+			CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 5, ScrollBarImageColor3 = ROYAL.Gold, ZIndex = 6, Parent = panel,
+		})
+		local back = new("TextButton", {
+			Text = "رجوع", Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = ROYAL.Dark, TextTransparency = 0,
+			AutoButtonColor = false, BackgroundColor3 = ROYAL.Gold, BackgroundTransparency = 0,
+			Size = UDim2.fromOffset(200, 48), Position = UDim2.new(0.5, 0, 1, -24), AnchorPoint = Vector2.new(0.5, 1),
+			ZIndex = 6, Parent = panel,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = back })
+		new("UIGradient", { Color = ColorSequence.new(ROYAL.Gold, ROYAL.GoldHi), Rotation = 18, Parent = back })
+		local backStroke = new("UIStroke", { Color = ROYAL.GoldHi, Thickness = 1.5, Transparency = 0.3, Parent = back })
+		back.MouseEnter:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Hover); tween(backStroke, TweenInfo.new(0.15), { Transparency = 0 }) end)
+		back.MouseLeave:Connect(function() tween(backStroke, TweenInfo.new(0.15), { Transparency = 0.3 }) end)
+		return panel, scroll, back
+	end
+
+	-- بانل القوانين: قائمة أسطر نصّية
+	local function makePanel(titleText: string, lines: { string })
+		local panel, scroll, back = panelShell(titleText)
 		new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
-		new("UIPadding", { PaddingRight = UDim.new(0, 10), PaddingLeft = UDim.new(0, 10), Parent = scroll })
-		local lineLabels = {}
+		new("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingLeft = UDim.new(0, 12), Parent = scroll })
 		for i, ln in ipairs(lines) do
-			lineLabels[#lineLabels + 1] = new("TextLabel", {
+			new("TextLabel", {
 				BackgroundTransparency = 1, Text = ln, Font = Enum.Font.GothamMedium,
-				TextSize = 18, TextColor3 = PAL.Text, TextTransparency = 1, TextWrapped = true,
+				TextSize = 18, TextColor3 = ROYAL.Text, TextWrapped = true,
 				TextXAlignment = Enum.TextXAlignment.Right, AutomaticSize = Enum.AutomaticSize.Y,
 				Size = UDim2.new(1, 0, 0, 0), LayoutOrder = i, ZIndex = 6, Parent = scroll,
 			})
 		end
-		local back = new("TextButton", {
-			Text = "", AutoButtonColor = false, BackgroundColor3 = PAL.Accent, BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(200, 48), Position = UDim2.new(0.5, 0, 1, -22), AnchorPoint = Vector2.new(0.5, 1),
-			ZIndex = 6, Parent = panel,
-		})
-		new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = back })
-		new("UIGradient", { Color = ColorSequence.new(PAL.Accent, PAL.AccentAlt), Parent = back })
-		local backStroke = new("UIStroke", { Color = PAL.AccentAlt, Thickness = 1.5, Transparency = 1, Parent = back })
-		local backLbl = new("TextLabel", {
-			BackgroundTransparency = 1, Text = "رجوع", Font = Enum.Font.GothamBold, TextSize = 20,
-			TextColor3 = Color3.fromRGB(20, 12, 36), TextTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = back,
-		})
-		back.MouseEnter:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Hover); tween(backStroke, TweenInfo.new(0.15), { Transparency = 0 }) end)
-		back.MouseLeave:Connect(function() tween(backStroke, TweenInfo.new(0.15), { Transparency = 0.2 }) end)
-		return { frame = panel, stroke = pStroke, title = pTitle, lines = lineLabels, back = back, backLbl = backLbl, backStroke = backStroke }
+		return { frame = panel, back = back, reveal = collectReveal(panel) }
+	end
+
+	-- ألوان وأسماء وسوم التصنيف في سجلّ التحديثات
+	local TAGS = {
+		new     = { col = Color3.fromRGB(56, 196, 130), label = "جديد" },
+		improve = { col = Color3.fromRGB(86, 162, 240), label = "تحسين" },
+		fix     = { col = Color3.fromRGB(232, 176, 86), label = "إصلاح" },
+	}
+
+	-- بانل التحديثات: سجلّ احترافي (خطّ زمني + شرائح إصدار + وسوم تصنيف)
+	local function makeUpdatesPanel(titleText: string, log)
+		local panel, scroll, back = panelShell(titleText, "آخر ما طوّرناه في مدينة شهد")
+		new("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
+		new("UIPadding", { PaddingRight = UDim.new(0, 14), PaddingLeft = UDim.new(0, 8), PaddingTop = UDim.new(0, 4), Parent = scroll })
+
+		for vi, entry in ipairs(log) do
+			local block = new("Frame", {
+				Name = "Ver_" .. vi, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = vi, ZIndex = 6, Parent = scroll,
+			})
+			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = block })
+
+			-- صفّ رأس الإصدار: نقطة + شريحة إصدار + تاريخ (RTL → يمين)
+			local header = new("Frame", {
+				Name = "Head", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40), LayoutOrder = 1, ZIndex = 6, Parent = block,
+			})
+			local dot = new("Frame", {
+				BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+				Size = UDim2.fromOffset(16, 16), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 7, Parent = header,
+			})
+			new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = dot })
+			new("UIStroke", { Color = ROYAL.GoldHi, Thickness = 2, Parent = dot })
+			local pill = new("TextLabel", {
+				Name = "Pill", BackgroundColor3 = Color3.fromRGB(58, 46, 20), BackgroundTransparency = 0,
+				Text = "الإصدار " .. entry.version, Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = ROYAL.GoldHi,
+				TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(1, 0.5),
+				Size = UDim2.fromOffset(166, 36), Position = UDim2.new(1, -32, 0.5, 0), ZIndex = 7, Parent = header,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 18), Parent = pill })
+			new("UIStroke", { Color = ROYAL.Gold, Thickness = 1, Parent = pill })
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = entry.date, Font = Enum.Font.GothamMedium, TextSize = 16, TextColor3 = ROYAL.Sub,
+				TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5),
+				Size = UDim2.fromOffset(120, 24), Position = UDim2.new(1, -210, 0.5, 0), ZIndex = 7, Parent = header,
+			})
+
+			-- بطاقة بنود الإصدار
+			local vcard = new("Frame", {
+				Name = "Card", BackgroundColor3 = Color3.fromRGB(30, 37, 55), BackgroundTransparency = 0, BorderSizePixel = 0,
+				Size = UDim2.new(1, -32, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, ZIndex = 6, Parent = block,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 16), Parent = vcard })
+			new("UIStroke", { Color = Color3.fromRGB(64, 76, 102), Thickness = 1, Parent = vcard })
+			new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = vcard })
+			new("UIPadding", {
+				PaddingRight = UDim.new(0, 14), PaddingLeft = UDim.new(0, 14),
+				PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12), Parent = vcard,
+			})
+
+			for ii, item in ipairs(entry.items) do
+				local tag = TAGS[item[1]] or TAGS.new
+				local row = new("Frame", {
+					BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+					LayoutOrder = ii, ZIndex = 6, Parent = vcard,
+				})
+				local chip = new("TextLabel", {
+					BackgroundColor3 = tag.col, BackgroundTransparency = 0.82, Text = tag.label, Font = Enum.Font.GothamBold,
+					TextSize = 14, TextColor3 = tag.col, TextXAlignment = Enum.TextXAlignment.Center,
+					AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(62, 26), Position = UDim2.new(1, 0, 0, 1), ZIndex = 7, Parent = row,
+				})
+				new("UICorner", { CornerRadius = UDim.new(0, 13), Parent = chip })
+				new("UIStroke", { Color = tag.col, Thickness = 1, Parent = chip })
+				new("TextLabel", {
+					BackgroundTransparency = 1, Text = item[2], Font = Enum.Font.GothamMedium, TextSize = 17, TextColor3 = ROYAL.Text,
+					TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+					AutomaticSize = Enum.AutomaticSize.Y, AnchorPoint = Vector2.new(1, 0),
+					Size = UDim2.new(1, -78, 0, 0), Position = UDim2.new(1, -76, 0, 2), ZIndex = 6, Parent = row,
+				})
+			end
+		end
+
+		return { frame = panel, back = back, reveal = collectReveal(panel) }
 	end
 
 	local function setPanelVisible(p, visible: boolean)
-		if visible then
-			p.frame.Visible = true
-			tween(p.frame, TweenInfo.new(0.3), { BackgroundTransparency = 0.05 })
-			tween(p.stroke, TweenInfo.new(0.3), { Transparency = 0.25 })
-			tween(p.title, TweenInfo.new(0.3), { TextTransparency = 0 })
-			for _, l in ipairs(p.lines) do tween(l, TweenInfo.new(0.3), { TextTransparency = 0.05 }) end
-			tween(p.back, TweenInfo.new(0.3), { BackgroundTransparency = 0 })
-			tween(p.backStroke, TweenInfo.new(0.3), { Transparency = 0.2 })
-			tween(p.backLbl, TweenInfo.new(0.3), { TextTransparency = 0 })
-		else
-			tween(p.frame, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
-			tween(p.stroke, TweenInfo.new(0.25), { Transparency = 1 })
-			tween(p.title, TweenInfo.new(0.25), { TextTransparency = 1 })
-			for _, l in ipairs(p.lines) do tween(l, TweenInfo.new(0.25), { TextTransparency = 1 }) end
-			tween(p.back, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
-			tween(p.backStroke, TweenInfo.new(0.25), { Transparency = 1 })
-			tween(p.backLbl, TweenInfo.new(0.25), { TextTransparency = 1 })
+		local t = visible and 0.3 or 0.25
+		if visible then p.frame.Visible = true end
+		tween(p.frame, TweenInfo.new(t), { BackgroundTransparency = visible and 0.02 or 1 })
+		for _, r in ipairs(p.reveal) do
+			tween(r.inst, TweenInfo.new(t), { [r.key] = visible and r.shown or 1 })
+		end
+		if not visible then
 			task.delay(0.26, function() if p.frame then p.frame.Visible = false end end)
 		end
 	end
@@ -905,7 +1084,7 @@ local function showMainMenu()
 	local updatesBtn = makeButton(CONFIG.UpdatesTitle, false, 3)
 
 	local rulesPanel = makePanel(CONFIG.RulesTitle, CONFIG.RulesLines)
-	local updatesPanel = makePanel(CONFIG.UpdatesTitle, CONFIG.UpdatesLines)
+	local updatesPanel = makeUpdatesPanel(CONFIG.UpdatesTitle, CONFIG.UpdatesLog)
 	rulesPanel.back.MouseButton1Click:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(rulesPanel, false) end)
 	updatesPanel.back.MouseButton1Click:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(updatesPanel, false) end)
 	rulesBtn.MouseButton1Click:Connect(function() if menuClosing then return end playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(rulesPanel, true) end)
@@ -935,6 +1114,7 @@ local function showMainMenu()
 		tween(titleStroke, shatter, { Transparency = 1 })
 		tween(sub, shatter, { TextTransparency = 1 })
 		tween(ver, shatter, { TextTransparency = 1 })
+		for _, cp in ipairs(crownParts) do tween(cp, shatter, { BackgroundTransparency = 1 }) end
 		tween(glowA, shatter, { ImageTransparency = 1 })
 		tween(glowB, shatter, { ImageTransparency = 1 })
 		for _, child in ipairs(btnHolder:GetChildren()) do
@@ -942,7 +1122,9 @@ local function showMainMenu()
 				tween(child, shatter, { BackgroundTransparency = 1, Rotation = math.random(-12, 12) })
 				for _, d in ipairs(child:GetDescendants()) do
 					if d:IsA("TextLabel") then tween(d, shatter, { TextTransparency = 1 })
-					elseif d:IsA("UIStroke") then tween(d, shatter, { Transparency = 1 }) end
+					elseif d:IsA("UIStroke") then tween(d, shatter, { Transparency = 1 })
+					elseif d:IsA("Frame") then tween(d, shatter, { BackgroundTransparency = 1 })
+					elseif d:IsA("ImageLabel") then tween(d, shatter, { ImageTransparency = 1 }) end
 				end
 			end
 		end
@@ -991,15 +1173,18 @@ local function showMainMenu()
 	tween(glowB, fin, { ImageTransparency = 0.75 })
 	tween(title, fin, { TextTransparency = 0 })
 	tween(titleStroke, fin, { Transparency = 0.4 })
+	for _, cp in ipairs(crownParts) do tween(cp, fin, { BackgroundTransparency = 0 }) end
 	tween(sub, fin, { TextTransparency = 0 })
 	tween(ver, fin, { TextTransparency = 0.3 })
 	task.delay(0.15, function()
 		for _, child in ipairs(btnHolder:GetChildren()) do
 			if child:IsA("TextButton") then
-				tween(child, TweenInfo.new(0.4), { BackgroundTransparency = (child.Name == "Btn_1") and 0 or 0.15 })
+				tween(child, TweenInfo.new(0.4), { BackgroundTransparency = (child.Name == "Btn_1") and 0 or 0.04 })
 				for _, d in ipairs(child:GetDescendants()) do
-					if d:IsA("TextLabel") then tween(d, TweenInfo.new(0.4), { TextTransparency = 0 })
-					elseif d:IsA("UIStroke") then tween(d, TweenInfo.new(0.4), { Transparency = 0.2 }) end
+					if d:IsA("TextLabel") then tween(d, TweenInfo.new(0.4), { TextTransparency = d:GetAttribute("ShownTT") or 0 })
+					elseif d:IsA("UIStroke") then tween(d, TweenInfo.new(0.4), { Transparency = d:GetAttribute("ShownT") or 0.2 })
+					elseif d:IsA("Frame") then tween(d, TweenInfo.new(0.4), { BackgroundTransparency = d:GetAttribute("ShownBT") or 0 })
+					elseif d:IsA("ImageLabel") then tween(d, TweenInfo.new(0.4), { ImageTransparency = d:GetAttribute("ShownIT") or 0 }) end
 				end
 			end
 		end
