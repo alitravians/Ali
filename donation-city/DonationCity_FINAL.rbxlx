@@ -17304,7 +17304,8 @@ local function runScan3D(r: ScannerRefs, duration: number)
 	local steps = math.max(10, math.floor(duration / 0.05))
 	for s = 0, steps do
 		local t = s / steps
-		local sweep = (t * 2) % 1                 -- تمريرتان صعوداً/نزولاً
+		local raw = (t * 2) % 2                   -- موجة مثلثية: صعود ثم نزول دون قفز
+		local sweep = if raw < 1 then raw else 2 - raw
 		r.beam.CFrame = CFrame.new(r.beamLow:Lerp(r.beamHigh, sweep))
 		r.scanLine.Position = UDim2.new(0.5, 0, 1 - sweep, 0)
 		for i, st in r.rings do
