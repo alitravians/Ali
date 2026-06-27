@@ -355,9 +355,14 @@ local function buildDiagnostics()
     table.insert(lines, ("ProximityPrompts: total=%d  match-MAKE=%d  enabled=%d"):format(pTotal, pMake, pEnabled))
 
     if firstMake and fireProximityPrompt then
+        -- Mirror the real farm path: enable a disabled prompt before firing, then restore.
+        local wasEnabled = firstMake.Enabled
+        if not wasEnabled then pcall(function() firstMake.Enabled = true end) end
         local ok, err = pcall(fireProximityPrompt, firstMake)
-        table.insert(lines, ("test-fire '%s' @ %s -> ok=%s err=%s"):format(
-            firstMake.ActionText or "", firstMake:GetFullName(), tostring(ok), tostring(err)))
+        if not wasEnabled then pcall(function() firstMake.Enabled = wasEnabled end) end
+        table.insert(lines, ("test-fire '%s' (was enabled=%s) @ %s -> ok=%s err=%s"):format(
+            firstMake.ActionText or "", tostring(wasEnabled), firstMake:GetFullName(),
+            tostring(ok), tostring(err)))
     end
 
     local cTotal, cSpawn = 0, 0
