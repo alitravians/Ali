@@ -43,15 +43,21 @@ local sndSuccess = mkSound("rbxassetid://9118823105", 0.6, 1)
 local sndDenied  = mkSound("rbxassetid://9112627118", 0.5, 0.5)
 
 ----------------------------------------------------------------------
--- 🖐️ شاشة المسح البيومتري — نمط هولوغرام احترافي
---      بصمة هولوغرامية متوهّجة فوق منصّة ضوئية + شعاع مسح + حلقة تقدّم
---      بنسبة + تدرّج لوني للحالة: أزرق(جاهز) → ذهبي(يمسح) → أخضر/أحمر.
+-- 🖐️ شاشة المسح البيومتري — لوحة جهاز بيومتري واقعية
+--      إطار معدني + زجاج غاطس + بصمة واقعية (Asset) تتكشّف تدريجياً
+--      + دليل يد + حلقة تقدّم/نسبة + شعاع مسح + شريحة تكلفة/رصيد + شريط LED.
+--      تدرّج لوني للحالة: أزرق(جاهز) → ذهبي(يمسح) → أخضر/أحمر(نتيجة).
 ----------------------------------------------------------------------
-local CYAN   = Color3.fromRGB(95, 210, 255)
-local CYAN_D = Color3.fromRGB(45, 120, 165)
-local GREEN  = Color3.fromRGB(90, 240, 150)
-local RED    = Color3.fromRGB(245, 100, 100)
-local CW, CH = 380, 520   -- أبعاد البطاقة
+-- 🎨 ألوان الحالة + معرّفات الـAssets (بصمة واقعية + دليل اليد عبر rbxthumb)
+local CYAN     = Color3.fromRGB(95, 210, 255)
+local CYAN_D   = Color3.fromRGB(40, 105, 150)
+local GREEN    = Color3.fromRGB(80, 240, 150)
+local RED       = Color3.fromRGB(245, 95, 95)
+local GOLD_SCAN = Color3.fromRGB(255, 205, 110)
+local FP_TEX   = "rbxthumb://type=Asset&id=75452689012143&w=420&h=420"
+local HAND_TEX = "rbxthumb://type=Asset&id=86422106031253&w=420&h=420"
+local GLOW_TEX = "rbxassetid://5028857084"
+local CW, CH   = 360, 580   -- أبعاد لوحة الجهاز
 
 local gui = Instance.new("ScreenGui")
 gui.Name = "PalaceScanGui"
@@ -63,88 +69,171 @@ gui.Parent = pg
 
 local dim = Instance.new("Frame")
 dim.Size = UDim2.new(1, 0, 1, 0)
-dim.BackgroundColor3 = Color3.fromRGB(2, 4, 9)
-dim.BackgroundTransparency = 0.32
+dim.BackgroundColor3 = Color3.fromRGB(1, 3, 7)
+dim.BackgroundTransparency = 0.3
 dim.Parent = gui
 
-local card = Instance.new("Frame")
-card.AnchorPoint = Vector2.new(0.5, 0.5)
-card.Size = UDim2.new(0, CW, 0, CH)
-card.Position = UDim2.new(0.5, 0, 0.5, 0)
-card.BackgroundColor3 = Color3.fromRGB(13, 20, 33)
-card.Parent = gui
-Instance.new("UICorner", card).CornerRadius = UDim.new(0, 26)
-local cardGrad = Instance.new("UIGradient")
-cardGrad.Color = ColorSequence.new(Color3.fromRGB(17, 26, 42), Color3.fromRGB(9, 14, 24))
-cardGrad.Rotation = 90
-cardGrad.Parent = card
-local cardStroke = Instance.new("UIStroke"); cardStroke.Color = CYAN_D; cardStroke.Thickness = 2; cardStroke.Parent = card
--- إطار ذهبي داخلي رفيع
-local inner = Instance.new("Frame")
-inner.BackgroundTransparency = 1
-inner.Size = UDim2.new(1, -12, 1, -12)
-inner.Position = UDim2.new(0, 6, 0, 6)
-inner.Parent = card
-Instance.new("UICorner", inner).CornerRadius = UDim.new(0, 21)
-local innerStroke = Instance.new("UIStroke"); innerStroke.Color = Color3.fromRGB(120, 95, 45); innerStroke.Thickness = 1; innerStroke.Transparency = 0.3; innerStroke.Parent = inner
+-- ═══ توهّج خارجي خلف الجهاز (يتلوّن مع الحالة) ═══
+local auraGlow = Instance.new("ImageLabel")
+auraGlow.BackgroundTransparency = 1
+auraGlow.Image = GLOW_TEX
+auraGlow.ImageColor3 = CYAN
+auraGlow.ImageTransparency = 0.55
+auraGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+auraGlow.Size = UDim2.new(0, CW + 220, 0, CH + 220)
+auraGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+auraGlow.Parent = gui
+
+-- ═══ جسم الجهاز: لوحة بيومترية معدنية (إطار + حافة مصقولة) ═══
+local device = Instance.new("Frame")
+device.AnchorPoint = Vector2.new(0.5, 0.5)
+device.Size = UDim2.new(0, CW, 0, CH)
+device.Position = UDim2.new(0.5, 0, 0.5, 0)
+device.BackgroundColor3 = Color3.fromRGB(26, 30, 38)
+device.Parent = gui
+Instance.new("UICorner", device).CornerRadius = UDim.new(0, 30)
+local devGrad = Instance.new("UIGradient")
+devGrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(46, 52, 64)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(26, 30, 38)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(16, 19, 26)),
+})
+devGrad.Rotation = 90
+devGrad.Parent = device
+local bezelStroke = Instance.new("UIStroke")
+bezelStroke.Color = GOLD; bezelStroke.Thickness = 2.5; bezelStroke.Transparency = 0.15
+bezelStroke.Parent = device
+
+-- إطار داخلي رفيع يعطي إحساس البزل المعدني
+local bezelInner = Instance.new("Frame")
+bezelInner.BackgroundTransparency = 1
+bezelInner.Size = UDim2.new(1, -14, 1, -14)
+bezelInner.Position = UDim2.new(0, 7, 0, 7)
+bezelInner.Parent = device
+Instance.new("UICorner", bezelInner).CornerRadius = UDim.new(0, 24)
+local biStroke = Instance.new("UIStroke")
+biStroke.Color = Color3.fromRGB(64, 70, 84); biStroke.Thickness = 1; biStroke.Transparency = 0.2
+biStroke.Parent = bezelInner
+
+-- ═══ رأس الجهاز: شعار + نوع التحقّق + ليد حالة ═══
+local statusDot = Instance.new("Frame")
+statusDot.AnchorPoint = Vector2.new(0, 0.5)
+statusDot.Size = UDim2.new(0, 12, 0, 12)
+statusDot.Position = UDim2.new(0, 26, 0, 44)
+statusDot.BackgroundColor3 = CYAN
+statusDot.Parent = device
+Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+local dotStroke = Instance.new("UIStroke"); dotStroke.Color = CYAN; dotStroke.Thickness = 1; dotStroke.Transparency = 0.4; dotStroke.Parent = statusDot
 
 local title = Instance.new("TextLabel")
 title.BackgroundTransparency = 1
-title.Size = UDim2.new(1, -30, 0, 42)
-title.Position = UDim2.new(0, 15, 0, 18)
+title.Size = UDim2.new(1, -54, 0, 34)
+title.Position = UDim2.new(0, 27, 0, 24)
 title.Font = Enum.Font.GothamBlack
 title.Text = "قصر شهد"
 title.TextScaled = true
+title.TextXAlignment = Enum.TextXAlignment.Right
 title.TextColor3 = GOLD
-title.Parent = card
+title.Parent = device
 local subtitle = Instance.new("TextLabel")
 subtitle.BackgroundTransparency = 1
-subtitle.Size = UDim2.new(1, -30, 0, 22)
-subtitle.Position = UDim2.new(0, 15, 0, 62)
+subtitle.Size = UDim2.new(1, -54, 0, 18)
+subtitle.Position = UDim2.new(0, 27, 0, 60)
 subtitle.Font = Enum.Font.Gotham
-subtitle.Text = "تحقّق بيومتري"
+subtitle.Text = "بوابة التحقّق البيومتري"
 subtitle.TextScaled = true
-subtitle.TextColor3 = CYAN
-subtitle.Parent = card
+subtitle.TextXAlignment = Enum.TextXAlignment.Right
+subtitle.TextColor3 = Color3.fromRGB(150, 170, 195)
+subtitle.Parent = device
 
--- منطقة الهولوغرام
-local scanBox = Instance.new("Frame")
-scanBox.AnchorPoint = Vector2.new(0.5, 0)
-scanBox.Size = UDim2.new(0, 280, 0, 300)
-scanBox.Position = UDim2.new(0.5, 0, 0, 96)
-scanBox.BackgroundTransparency = 1
-scanBox.ClipsDescendants = true
-scanBox.Parent = card
+-- ═══ شاشة زجاجية غاطسة (الماسح) ═══
+local glass = Instance.new("Frame")
+glass.AnchorPoint = Vector2.new(0.5, 0)
+glass.Size = UDim2.new(0, 300, 0, 300)
+glass.Position = UDim2.new(0.5, 0, 0, 96)
+glass.BackgroundColor3 = Color3.fromRGB(8, 12, 20)
+glass.ClipsDescendants = true
+glass.Parent = device
+Instance.new("UICorner", glass).CornerRadius = UDim.new(0, 22)
+local glassGrad = Instance.new("UIGradient")
+glassGrad.Color = ColorSequence.new(Color3.fromRGB(16, 24, 38), Color3.fromRGB(5, 8, 14))
+glassGrad.Rotation = 90
+glassGrad.Parent = glass
+local glassStroke = Instance.new("UIStroke")
+glassStroke.Color = CYAN_D; glassStroke.Thickness = 1.5; glassStroke.Transparency = 0.25
+glassStroke.Parent = glass
+-- انعكاس زجاجي علوي خفيف
+local sheen = Instance.new("Frame")
+sheen.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sheen.BackgroundTransparency = 0.9
+sheen.Size = UDim2.new(1, 0, 0.32, 0)
+sheen.BorderSizePixel = 0
+sheen.ZIndex = 8
+sheen.Parent = glass
+local sheenGrad = Instance.new("UIGradient")
+sheenGrad.Rotation = 90
+sheenGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.78),
+	NumberSequenceKeypoint.new(1, 1),
+})
+sheenGrad.Parent = sheen
 
--- توهّج خلفي للبصمة
+-- توهّج خلف البصمة داخل الزجاج
 local glow = Instance.new("ImageLabel")
 glow.BackgroundTransparency = 1
-glow.Image = "rbxassetid://5028857084"
+glow.Image = GLOW_TEX
 glow.ImageColor3 = CYAN
-glow.ImageTransparency = 0.25
+glow.ImageTransparency = 0.4
 glow.AnchorPoint = Vector2.new(0.5, 0.5)
-glow.Size = UDim2.new(1.5, 0, 1.5, 0)
-glow.Position = UDim2.new(0.5, 0, 0.42, 0)
-glow.Parent = scanBox
+glow.Size = UDim2.new(1.25, 0, 1.25, 0)
+glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+glow.ZIndex = 1
+glow.Parent = glass
 
--- حلقة التقدّم الخارجية (زخرفية) + علامات
+-- حلقة التقدّم حول البصمة
 local progRing = Instance.new("Frame")
 progRing.AnchorPoint = Vector2.new(0.5, 0.5)
 progRing.Size = UDim2.new(0, 250, 0, 250)
-progRing.Position = UDim2.new(0.5, 0, 0.42, 0)
+progRing.Position = UDim2.new(0.5, 0, 0.5, 0)
 progRing.BackgroundTransparency = 1
-progRing.Parent = scanBox
+progRing.ZIndex = 2
+progRing.Parent = glass
 Instance.new("UICorner", progRing).CornerRadius = UDim.new(1, 0)
-local progStroke = Instance.new("UIStroke"); progStroke.Color = CYAN_D; progStroke.Thickness = 2; progStroke.Transparency = 0.2; progStroke.Parent = progRing
+local progStroke = Instance.new("UIStroke"); progStroke.Color = CYAN_D; progStroke.Thickness = 2; progStroke.Transparency = 0.25; progStroke.Parent = progRing
 
--- خطّ مسح دوّار (يدور حول البصمة أثناء المسح)
+-- البصمة الواقعية (صورة Asset) — تتكشّف تدريجياً مع المسح
+local fpImage = Instance.new("ImageLabel")
+fpImage.BackgroundTransparency = 1
+fpImage.Image = FP_TEX
+fpImage.ImageColor3 = Color3.fromRGB(170, 225, 255)
+fpImage.ImageTransparency = 0.78
+fpImage.AnchorPoint = Vector2.new(0.5, 0.5)
+fpImage.Size = UDim2.new(0, 210, 0, 210)
+fpImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+fpImage.ZIndex = 3
+fpImage.Parent = glass
+
+-- دليل مكان اليد (يظهر بحالة الراحة فقط)
+local handGuide = Instance.new("ImageLabel")
+handGuide.BackgroundTransparency = 1
+handGuide.Image = HAND_TEX
+handGuide.ImageColor3 = Color3.fromRGB(150, 200, 240)
+handGuide.ImageTransparency = 0.45
+handGuide.AnchorPoint = Vector2.new(0.5, 0.5)
+handGuide.Size = UDim2.new(0, 250, 0, 250)
+handGuide.Position = UDim2.new(0.5, 0, 0.5, 0)
+handGuide.ZIndex = 4
+handGuide.Visible = false
+handGuide.Parent = glass
+
+-- خطّ مسح دوّار حول البصمة
 local sweep = Instance.new("Frame")
 sweep.AnchorPoint = Vector2.new(0.5, 1)
-sweep.Size = UDim2.new(0, 3, 0, 125)
+sweep.Size = UDim2.new(0, 3, 0, 122)
 sweep.Position = UDim2.new(0.5, 0, 0.5, 0)
 sweep.BackgroundColor3 = CYAN
 sweep.BorderSizePixel = 0
-sweep.ZIndex = 4
+sweep.ZIndex = 5
 sweep.Parent = progRing
 local swGrad = Instance.new("UIGradient")
 swGrad.Transparency = NumberSequence.new({
@@ -154,50 +243,16 @@ swGrad.Transparency = NumberSequence.new({
 swGrad.Rotation = 90
 swGrad.Parent = sweep
 
--- بصمة هولوغرامية: حلقات متّحدة المركز بإزاحة بسيطة (إحساس لولبي)
-local printRidges = {}
-for i = 0, 6 do
-	local ring = Instance.new("Frame")
-	ring.AnchorPoint = Vector2.new(0.5, 0.5)
-	local ox = math.sin(i * 0.9) * 0.04
-	ring.Position = UDim2.new(0.5 + ox, 0, 0.42, 0)
-	local s = 0.86 - i * 0.115
-	ring.Size = UDim2.new(s, 0, s * 1.16, 0)
-	ring.BackgroundTransparency = 1
-	ring.ZIndex = 2
-	ring.Parent = scanBox
-	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
-	local st = Instance.new("UIStroke")
-	st.Thickness = 2.5
-	st.Color = Color3.fromRGB(170, 230, 255)
-	st.Transparency = 0.05
-	st.Parent = ring
-	table.insert(printRidges, st)
-end
-local function tintPrint(c: Color3)
-	for _, st in ipairs(printRidges) do st.Color = c end
-end
-
--- منصّة ضوئية أسفل البصمة
-local platform = Instance.new("Frame")
-platform.AnchorPoint = Vector2.new(0.5, 0.5)
-platform.Size = UDim2.new(0, 200, 0, 26)
-platform.Position = UDim2.new(0.5, 0, 0.93, 0)
-platform.BackgroundTransparency = 1
-platform.ZIndex = 3
-platform.Parent = scanBox
-Instance.new("UICorner", platform).CornerRadius = UDim.new(1, 0)
-local platStroke = Instance.new("UIStroke"); platStroke.Color = CYAN; platStroke.Thickness = 2; platStroke.Transparency = 0.1; platStroke.Parent = platform
-
--- شعاع المسح الأفقي
+-- شعاع المسح الأفقي على الزجاج
 local scanline = Instance.new("Frame")
 scanline.AnchorPoint = Vector2.new(0.5, 0.5)
-scanline.Size = UDim2.new(0.78, 0, 0, 3)
-scanline.Position = UDim2.new(0.5, 0, 0.1, 0)
-scanline.BackgroundColor3 = Color3.fromRGB(170, 245, 255)
+scanline.Size = UDim2.new(0.82, 0, 0, 3)
+scanline.Position = UDim2.new(0.5, 0, 0.08, 0)
+scanline.BackgroundColor3 = Color3.fromRGB(180, 245, 255)
 scanline.BorderSizePixel = 0
-scanline.ZIndex = 5
-scanline.Parent = scanBox
+scanline.ZIndex = 7
+scanline.Visible = false
+scanline.Parent = glass
 local slGrad = Instance.new("UIGradient")
 slGrad.Transparency = NumberSequence.new({
 	NumberSequenceKeypoint.new(0, 1),
@@ -206,41 +261,105 @@ slGrad.Transparency = NumberSequence.new({
 })
 slGrad.Parent = scanline
 
--- النسبة المئوية
+-- النسبة المئوية (تظهر أثناء المسح)
 local pctLabel = Instance.new("TextLabel")
 pctLabel.BackgroundTransparency = 1
-pctLabel.Size = UDim2.new(0, 120, 0, 36)
-pctLabel.AnchorPoint = Vector2.new(0.5, 0.5)
-pctLabel.Position = UDim2.new(0.5, 0, 0.42, 0)
+pctLabel.Size = UDim2.new(0, 110, 0, 30)
+pctLabel.AnchorPoint = Vector2.new(0.5, 1)
+pctLabel.Position = UDim2.new(0.5, 0, 1, -14)
 pctLabel.Font = Enum.Font.GothamBlack
-pctLabel.Text = "0%"
+pctLabel.Text = ""
 pctLabel.TextScaled = true
-pctLabel.ZIndex = 6
-pctLabel.TextColor3 = GOLD
-pctLabel.TextTransparency = 0.15
-pctLabel.Parent = scanBox
+pctLabel.ZIndex = 7
+pctLabel.TextColor3 = GOLD_SCAN
+pctLabel.TextTransparency = 0.1
+pctLabel.Parent = glass
 
+-- أيقونة النتيجة (✔ / ✘) تظهر فوق البصمة عند القبول/الرفض
+local resultIcon = Instance.new("TextLabel")
+resultIcon.BackgroundTransparency = 1
+resultIcon.Size = UDim2.new(0, 120, 0, 120)
+resultIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+resultIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+resultIcon.Font = Enum.Font.GothamBlack
+resultIcon.Text = ""
+resultIcon.TextScaled = true
+resultIcon.ZIndex = 9
+resultIcon.TextColor3 = GREEN
+resultIcon.Parent = glass
+
+-- ═══ نص الحالة ═══
 local status = Instance.new("TextLabel")
 status.BackgroundTransparency = 1
-status.Size = UDim2.new(1, -24, 0, 54)
-status.Position = UDim2.new(0, 12, 1, -72)
+status.Size = UDim2.new(1, -40, 0, 38)
+status.Position = UDim2.new(0, 20, 0, 408)
 status.Font = Enum.Font.GothamBold
-status.Text = "جاري قراءة البصمة…"
+status.Text = "ضع يدك على الماسح"
 status.TextScaled = true
-status.TextColor3 = Color3.fromRGB(200, 230, 255)
-status.Parent = card
+status.TextColor3 = Color3.fromRGB(205, 230, 255)
+status.Parent = device
+
+-- ═══ شريحة المعلومات (التكلفة / الرصيد) ═══
+local chip = Instance.new("Frame")
+chip.AnchorPoint = Vector2.new(0.5, 0)
+chip.Size = UDim2.new(0, 230, 0, 38)
+chip.Position = UDim2.new(0.5, 0, 0, 452)
+chip.BackgroundColor3 = Color3.fromRGB(16, 22, 34)
+chip.Parent = device
+Instance.new("UICorner", chip).CornerRadius = UDim.new(1, 0)
+local chipStroke = Instance.new("UIStroke"); chipStroke.Color = CYAN_D; chipStroke.Thickness = 1.3; chipStroke.Transparency = 0.1; chipStroke.Parent = chip
+local chipLabel = Instance.new("TextLabel")
+chipLabel.BackgroundTransparency = 1
+chipLabel.Size = UDim2.new(1, -22, 1, -10)
+chipLabel.Position = UDim2.new(0, 11, 0, 5)
+chipLabel.Font = Enum.Font.GothamMedium
+chipLabel.Text = "الدخول: 250 كوينز"
+chipLabel.TextScaled = true
+chipLabel.TextColor3 = Color3.fromRGB(220, 235, 255)
+chipLabel.Parent = chip
+
+-- ═══ شريط LED أرضي أسفل الجهاز (يتلوّن مع الحالة) ═══
+local led = Instance.new("Frame")
+led.AnchorPoint = Vector2.new(0.5, 1)
+led.Size = UDim2.new(0, 250, 0, 6)
+led.Position = UDim2.new(0.5, 0, 1, -22)
+led.BackgroundColor3 = CYAN
+led.BorderSizePixel = 0
+led.Parent = device
+Instance.new("UICorner", led).CornerRadius = UDim.new(1, 0)
+local ledGrad = Instance.new("UIGradient")
+ledGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.5, 0),
+	NumberSequenceKeypoint.new(1, 1),
+})
+ledGrad.Parent = led
 
 local scanning = false
+local lastInfo = nil
+
+local function setAccent(c: Color3)
+	progStroke.Color = c
+	sweep.BackgroundColor3 = c
+	glow.ImageColor3 = c
+	auraGlow.ImageColor3 = c
+	pctLabel.TextColor3 = c
+	statusDot.BackgroundColor3 = c
+	dotStroke.Color = c
+	chipStroke.Color = c
+	led.BackgroundColor3 = c
+	bezelStroke.Color = c
+end
 
 local function runScanFx()
-	-- شعاع أفقي يصعد وينزل على البصمة
+	-- شعاع أفقي يصعد وينزل على البصمة (موجة ناعمة)
 	task.spawn(function()
 		while scanning do
-			scanline.Position = UDim2.new(0.5, 0, 0.05, 0)
-			local up = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.8, 0)})
+			scanline.Position = UDim2.new(0.5, 0, 0.06, 0)
+			local up = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.92, 0)})
 			up:Play(); up.Completed:Wait()
 			if not scanning then break end
-			local dn = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.05, 0)})
+			local dn = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.06, 0)})
 			dn:Play(); dn.Completed:Wait()
 		end
 	end)
@@ -252,14 +371,15 @@ local function runScanFx()
 			rot:Play(); rot.Completed:Wait()
 		end
 	end)
-	-- النسبة تتقدّم 0→~92٪ تدريجياً حتى تصل النتيجة
+	-- النسبة 0→~94٪ + كشف البصمة تدريجياً (تتجمّع خطوطها)
 	task.spawn(function()
 		local p = 0
-		while scanning and p < 92 do
-			p += math.random(2, 5)
-			if p > 92 then p = 92 end
+		while scanning and p < 94 do
+			p += math.random(3, 6)
+			if p > 94 then p = 94 end
 			pctLabel.Text = p .. "%"
-			task.wait(0.16)
+			fpImage.ImageTransparency = 0.78 - (p / 94) * 0.7   -- من باهت → واضح
+			task.wait(0.13)
 		end
 	end)
 	-- نبضة صوت خفيفة
@@ -271,57 +391,104 @@ local function runScanFx()
 	end)
 end
 
-local function setAccent(c: Color3)
-	tintPrint(c)
-	progStroke.Color = c
-	platStroke.Color = c
-	sweep.BackgroundColor3 = c
-	glow.ImageColor3 = c
-	pctLabel.TextColor3 = c
-end
-
-evStartScan.OnClientEvent:Connect(function()
+-- بدء المسح: لحظة «جاهز» (دليل اليد + التكلفة) ثم طور المسح الذهبي
+evStartScan.OnClientEvent:Connect(function(info)
+	lastInfo = info
 	scanning = true
 	gui.Enabled = true
-	card.Size = UDim2.new(0, CW, 0, CH)
-	scanline.Visible = true
+	device.Position = UDim2.new(0.5, 0, 0.5, 0)
+	resultIcon.Text = ""
+	pctLabel.Text = ""
+	scanline.Visible = false
 	sweep.Visible = true
-	pctLabel.Text = "0%"
+	fpImage.ImageTransparency = 0.78
+	fpImage.ImageColor3 = Color3.fromRGB(170, 225, 255)
 	setAccent(CYAN)
-	-- لون البصمة أفتح من اللكنة لإحساس الهولوغرام
-	tintPrint(Color3.fromRGB(170, 230, 255))
-	status.Text = "جاري قراءة البصمة…"
-	status.TextColor3 = Color3.fromRGB(200, 230, 255)
-	-- تحوّل للذهبي (طور المسح) بعد لحظة
-	task.delay(0.35, function()
-		if scanning then setAccent(GOLD); tintPrint(Color3.fromRGB(245, 220, 150)) end
+
+	local kind = (type(info) == "table" and info.kind) or "entry"
+	local cost = (type(info) == "table" and info.cost) or nil
+	if kind == "exit" then
+		chip.Visible = false
+		status.Text = "ضع إصبعك للخروج"
+	else
+		chip.Visible = true
+		chipLabel.Text = cost and ("الدخول: " .. cost .. " كوينز") or "تحقّق بيومتري"
+		chipLabel.TextColor3 = Color3.fromRGB(220, 235, 255)
+		status.Text = "ضع يدك على الماسح"
+	end
+	status.TextColor3 = Color3.fromRGB(205, 230, 255)
+
+	-- لحظة الراحة: دليل اليد ظاهر، البصمة باهتة
+	handGuide.Visible = true
+	task.delay(0.45, function()
+		if not scanning then return end
+		handGuide.Visible = false
+		scanline.Visible = true
+		setAccent(GOLD_SCAN)
+		fpImage.ImageColor3 = Color3.fromRGB(255, 220, 150)
+		status.Text = "جارٍ قراءة البصمة…"
+		status.TextColor3 = Color3.fromRGB(255, 225, 160)
+		runScanFx()
 	end)
-	runScanFx()
 end)
 
-evScanResult.OnClientEvent:Connect(function(granted)
+evScanResult.OnClientEvent:Connect(function(granted, info)
 	scanning = false
+	info = info or lastInfo
+	handGuide.Visible = false
 	scanline.Visible = false
 	sweep.Visible = false
+	local kind = (type(info) == "table" and info.kind) or "entry"
 	if granted then
 		setAccent(GREEN)
+		fpImage.ImageTransparency = 0.05
+		fpImage.ImageColor3 = Color3.fromRGB(150, 255, 190)
 		pctLabel.Text = "100%"
-		status.Text = "تم التحقق — تفضّل بالدخول"
-		status.TextColor3 = Color3.fromRGB(120, 245, 160)
+		resultIcon.Text = "✓"
+		resultIcon.TextColor3 = GREEN
+		if kind == "exit" then
+			status.Text = "تم التحقّق — تفضّل بالخروج"
+			chip.Visible = false
+		else
+			status.Text = "تم التحقّق — تفضّل بالدخول"
+			local bal = (type(info) == "table" and info.bal) or nil
+			local cost = (type(info) == "table" and info.cost) or nil
+			if kind == "admin" then
+				chip.Visible = true
+				chipLabel.Text = "دخول الإدارة · مجاني"
+			elseif cost then
+				chip.Visible = true
+				chipLabel.Text = bal and ("خُصم " .. cost .. " · رصيدك " .. bal) or ("خُصم " .. cost .. " كوينز")
+			end
+			chipLabel.TextColor3 = Color3.fromRGB(200, 255, 215)
+		end
+		status.TextColor3 = Color3.fromRGB(150, 255, 190)
 		sndSuccess:Play()
 	else
 		setAccent(RED)
+		fpImage.ImageTransparency = 0.15
+		fpImage.ImageColor3 = Color3.fromRGB(255, 150, 150)
+		pctLabel.Text = ""
+		resultIcon.Text = "✕"
+		resultIcon.TextColor3 = RED
 		status.Text = "رصيدك غير كافٍ"
-		status.TextColor3 = Color3.fromRGB(255, 120, 120)
-		sndDenied:Play()
-		-- اهتزاز بسيط
-		for _ = 1, 4 do
-			card.Position = UDim2.new(0.5, 8, 0.5, 0); task.wait(0.04)
-			card.Position = UDim2.new(0.5, -8, 0.5, 0); task.wait(0.04)
+		status.TextColor3 = Color3.fromRGB(255, 140, 140)
+		local bal = (type(info) == "table" and info.bal) or nil
+		local cost = (type(info) == "table" and info.cost) or nil
+		if cost then
+			chip.Visible = true
+			chipLabel.Text = bal and ("معك " .. bal .. " · تحتاج " .. cost) or ("تحتاج " .. cost .. " كوينز")
+			chipLabel.TextColor3 = Color3.fromRGB(255, 190, 190)
 		end
-		card.Position = UDim2.new(0.5, 0, 0.5, 0)
+		sndDenied:Play()
+		-- اهتزاز بسيط للجهاز
+		for _ = 1, 4 do
+			device.Position = UDim2.new(0.5, 8, 0.5, 0); task.wait(0.04)
+			device.Position = UDim2.new(0.5, -8, 0.5, 0); task.wait(0.04)
+		end
+		device.Position = UDim2.new(0.5, 0, 0.5, 0)
 	end
-	task.delay(2.0, function()
+	task.delay(2.2, function()
 		if not scanning then gui.Enabled = false end
 	end)
 end)

@@ -1533,8 +1533,8 @@ prompt.Triggered:Connect(function(player)
 	scanningEntry[player.UserId] = true
 	local owns = false   -- هل يملك هذا اللاعب أنيميشن اللوحة هذه المرّة؟
 
-	local function admit()
-		evScanResult:FireClient(player, true)
+	local function admit(info)
+		evScanResult:FireClient(player, true, info)
 		if owns then setScanner(extScan, "ok"); playWave(extScan) end
 		recordEntry(player)
 		grantGatePass(player, GATE_PASS_TIME)   -- 🎫 يعبر الحاجز هو فقط لثوانٍ
@@ -1543,7 +1543,7 @@ prompt.Triggered:Connect(function(player)
 
 	local ok, err = pcall(function()
 		-- ابدأ شاشة المسح عند اللاعب فوراً + شعاع المسح ثلاثي الأبعاد على اللوحة
-		evStartScan:FireClient(player)
+		evStartScan:FireClient(player, { kind = "entry", cost = ENTRY_FEE })
 		if not entryAnimating then
 			entryAnimating = true
 			owns = true
@@ -1553,7 +1553,7 @@ prompt.Triggered:Connect(function(player)
 		end
 
 		if isAdmin(player) then
-			admit()
+			admit({ kind = "admin" })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
 			return
 		end
@@ -1561,11 +1561,12 @@ prompt.Triggered:Connect(function(player)
 		-- 💳 يُخصم رسم الدخول في كل محاولة دخول (لا تذكرة جلسة مجانية)
 		local coins = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or 0
 		if coins >= ENTRY_FEE and type(_G.SpendCoins) == "function" and _G.SpendCoins(player, ENTRY_FEE) then
-			admit()
+			local newBal = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or (coins - ENTRY_FEE)
+			admit({ kind = "entry", cost = ENTRY_FEE, bal = newBal })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم خصم " .. ENTRY_FEE .. " كوينز — أهلاً بك في قصر شهد 👑") end
 		else
 			-- رصيد غير كافٍ → رفض الدخول
-			evScanResult:FireClient(player, false)
+			evScanResult:FireClient(player, false, { kind = "entry", cost = ENTRY_FEE, bal = coins })
 			if owns then setScanner(extScan, "bad") end
 			if _G.NotifyPlayer then
 				_G.NotifyPlayer(player, "❌ رصيدك غير كافٍ — تحتاج " .. ENTRY_FEE .. " كوينز لدخول القصر (رصيدك: " .. coins .. ").")
@@ -1636,7 +1637,7 @@ exitPrompt.Triggered:Connect(function(player)
 	scanningExit[player.UserId] = true
 	local owns = false   -- هل يملك هذا اللاعب أنيميشن الجهاز هذه المرّة؟
 	local ok, err = pcall(function()
-		evStartScan:FireClient(player)
+		evStartScan:FireClient(player, { kind = "exit" })
 		if not exitAnimating then
 			-- هذا اللاعب يملك اللوحة: يشغّل المسح الكامل (شعاع ثلاثي الأبعاد) على الواجهة المشتركة
 			exitAnimating = true
@@ -1649,7 +1650,7 @@ exitPrompt.Triggered:Connect(function(player)
 			-- اللوحة تعرض مسح لاعب آخر — نفتح الباب لهذا اللاعب فوراً دون تشغيل أنيميشن متضارب
 			task.wait(0.8)
 		end
-		evScanResult:FireClient(player, true)
+		evScanResult:FireClient(player, true, { kind = "exit" })
 		grantGatePass(player, GATE_PASS_TIME)   -- 🎫 الخروج مجاني — يعبر الحاجز هو فقط لثوانٍ
 		openDoorsSequence()
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
