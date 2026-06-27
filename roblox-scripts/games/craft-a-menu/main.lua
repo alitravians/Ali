@@ -171,7 +171,7 @@ local function fireClicksMatching(words)
     local count = 0
     for _, cd in ipairs(Workspace:GetDescendants()) do
         if cd:IsA("ClickDetector") then
-            local label = cd.Name .. " " .. (cd.Parent and cd.Parent.Name or "")
+            local label = ancestryLabel(cd, 3)
             if (#words == 0 or matchesAny(label, words)) and withinRadius(cd) then
                 local ok = pcall(fireClickDetector, cd)
                 if ok then
@@ -259,6 +259,7 @@ end
 ----------------------------------------------------------------------
 local function fireGuiButton(btn)
     local fired = false
+    -- Stop at the first signal that fires so a single button isn't clicked 3x.
     for _, sigName in ipairs({ "MouseButton1Click", "Activated", "MouseButton1Down" }) do
         local ok, sig = pcall(function() return btn[sigName] end)
         if ok and sig then
@@ -273,25 +274,33 @@ local function fireGuiButton(btn)
                 if pcall(firesignal_, sig) then fired = true end
             end
         end
+        if fired then break end
     end
     return fired
 end
 
--- Click the on-screen collect buttons. We match the money-amount text ("+$18k")
--- or collect/income names, and explicitly skip Robux / gamepass purchases so we
--- never trigger a real-money prompt.
+-- Click the on-screen *collect* button. From the dump the real collector is
+-- `ScreenGui.IncomeButton`; the tiered "+$" buttons are `BuyIncomeGui.IncomeButton1..3`
+-- which are PURCHASES (they spend your cash / prompt Robux), so we must skip those.
+-- We click only collect/claim-style buttons and hard-exclude any purchase/shop ones.
 local function clickCollectButtons()
     local pg = LocalPlayer:FindFirstChild("PlayerGui")
     if not pg then return 0 end
     local count = 0
     for _, b in ipairs(pg:GetDescendants()) do
         if (b:IsA("TextButton") or b:IsA("ImageButton")) then
-            local txt = (b:IsA("TextButton") and (b.Text or "")) or ""
-            local low = string.lower(txt .. " " .. b.Name)
-            local moneyText = txt:match("^%s*%+?%$%s*%d") ~= nil   -- "+$18k", "$1m"
-            local moneyName = matchesAny(b.Name, { "collect", "income", "claim" })
-            local isRobux = low:find("robux") ~= nil or low:find("2x") ~= nil or low:find("gamepass") ~= nil
-            if (moneyText or moneyName) and not isRobux then
+            local full = b:GetFullName()
+            local low  = string.lower(full)
+            -- Anything that buys/multiplies/opens a shop spends money -> never click.
+            local isPurchase = full:find("BuyIncome") ~= nil
+                or low:find("buy") ~= nil or low:find("mult") ~= nil
+                or low:find("plus") ~= nil or low:find("shop") ~= nil
+                or low:find("robux") ~= nil or low:find("gamepass") ~= nil
+                or low:find("currency") ~= nil or low:find("2x") ~= nil
+            -- Collect targets: the standalone IncomeButton, or any collect/claim button.
+            local isCollect = b.Name == "IncomeButton"
+                or matchesAny(b.Name, { "collect", "claim" })
+            if isCollect and not isPurchase then
                 if fireGuiButton(b) then
                     count += 1
                     task.wait(State.actionDelay)
