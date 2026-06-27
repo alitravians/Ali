@@ -1440,19 +1440,67 @@ local function recordEntry(player: Player)
 	task.spawn(saveLog)
 end
 
-----------------------------------------------------------------------
--- 🎟️ تتبّع الدفع لكل جلسة — اللاعب اللي دفع ودخل ما يُخصم منه مرّة ثانية
---      في نفس الجلسة (يُمسح تلقائياً عند خروجه من السيرفر)
-----------------------------------------------------------------------
-local paidEntry: { [number]: boolean } = {}
 -- 🚧 قفل لكل لاعب على حدة (يمنع تكرار الضغط لنفس اللاعب دون تعطيل بقية اللاعبين)
 local scanningEntry: { [number]: boolean } = {}
 local scanningExit: { [number]: boolean } = {}
 Players.PlayerRemoving:Connect(function(player)
-	paidEntry[player.UserId] = nil
 	scanningEntry[player.UserId] = nil
 	scanningExit[player.UserId] = nil
 end)
+
+----------------------------------------------------------------------
+-- 🛡️ حاجز بوابة غير مرئي + مجموعات تصادم:
+--      حاجز ثابت يملأ فتحة الباب فيمنع أي لاعب من العبور مجاناً خلف لاعب دفع.
+--      عند الدفع الناجح (أو الخروج المجاني) نمنح اللاعب «تصريح عبور» مؤقّت
+--      (مجموعة تصادم لا تصطدم بالحاجز) لثوانٍ تكفي لدخوله، ثم يعود طبيعياً.
+----------------------------------------------------------------------
+local PhysicsService = game:GetService("PhysicsService")
+local GRP_BARRIER = "PalaceGateBarrier"
+local GRP_PASS    = "PalaceGatePass"
+pcall(function() PhysicsService:RegisterCollisionGroup(GRP_BARRIER) end)
+pcall(function() PhysicsService:RegisterCollisionGroup(GRP_PASS) end)
+-- صاحب التصريح (GRP_PASS) لا يصطدم بالحاجز؛ البقية (Default) يُحجبون.
+pcall(function() PhysicsService:CollisionGroupSetCollidable(GRP_PASS, GRP_BARRIER, false) end)
+
+-- حاجز شفّاف يملأ فتحة المدخل (x=ENT_X, z=[ENT_Z0..ENT_Z1], من الأرضية للأعلى)
+do
+	local barrier = Instance.new("Part")
+	barrier.Name = "PalaceGateBarrier"
+	barrier.Anchored = true
+	barrier.CanCollide = true
+	barrier.CanQuery = false
+	barrier.CastShadow = false
+	barrier.Transparency = 1
+	barrier.Size = Vector3.new(1.6, DOOR_H + 1, ENT_Z1 - ENT_Z0)
+	barrier.CFrame = CFrame.new(ENT_X - 0.3, FLOOR_Y + (DOOR_H + 1) / 2, (ENT_Z0 + ENT_Z1) / 2)
+	barrier.CollisionGroup = GRP_BARRIER
+	barrier.Parent = ROOT
+end
+
+-- 🎫 توكِن تصريح لكل لاعب: يضمن أن انتهاء تصريح قديم لا يلغي تصريحاً جديداً
+local gatePassCycle: { [number]: number } = {}
+
+-- يمنح اللاعب عبوراً مؤقّتاً عبر الحاجز ثم يعيد أجزاءه لمجموعة الافتراضي
+local function grantGatePass(player: Player, duration: number)
+	local char = player.Character
+	if not char then return end
+	gatePassCycle[player.UserId] = (gatePassCycle[player.UserId] or 0) + 1
+	local my = gatePassCycle[player.UserId]
+	for _, d in char:GetDescendants() do
+		if d:IsA("BasePart") then d.CollisionGroup = GRP_PASS end
+	end
+	task.delay(duration, function()
+		-- لا تُلغِ تصريحاً أحدث (لو ضغط/دفع مجدداً خلال المهلة)
+		if gatePassCycle[player.UserId] ~= my then return end
+		local c = player.Character
+		if not c then return end
+		for _, d in c:GetDescendants() do
+			if d:IsA("BasePart") then d.CollisionGroup = "Default" end
+		end
+	end)
+end
+
+local GATE_PASS_TIME = 6   -- ⏱ مهلة عبور اللاعب الدافع/الخارج (ثواني)
 
 -- 🔒 قفل أنيميشن واحد للوحة الدخول: عناصر اللوحة (الشعاع/الخط/الحلقات) مشتركة،
 --     فلو شغّلها لاعبان معاً تتشوّه. المالك فقط يشغّل المسح؛ البقية ينتظرون بدون تضارب.
@@ -1485,6 +1533,7 @@ prompt.Triggered:Connect(function(player)
 		evScanResult:FireClient(player, true)
 		if owns then setScanner(extScan, "ok"); playWave(extScan) end
 		recordEntry(player)
+		grantGatePass(player, GATE_PASS_TIME)   -- 🎫 يعبر الحاجز هو فقط لثوانٍ
 		openDoorsSequence()
 	end
 
@@ -1505,15 +1554,9 @@ prompt.Triggered:Connect(function(player)
 			return
 		end
 
-		if paidEntry[player.UserId] then
-			admit()
-			if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ أهلاً بعودتك — تذكرتك سارية لهذه الجلسة.") end
-			return
-		end
-
+		-- 💳 يُخصم رسم الدخول في كل محاولة دخول (لا تذكرة جلسة مجانية)
 		local coins = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or 0
 		if coins >= ENTRY_FEE and type(_G.SpendCoins) == "function" and _G.SpendCoins(player, ENTRY_FEE) then
-			paidEntry[player.UserId] = true
 			admit()
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم خصم " .. ENTRY_FEE .. " كوينز — أهلاً بك في قصر شهد 👑") end
 		else
@@ -1589,6 +1632,7 @@ exitPrompt.Triggered:Connect(function(player)
 			task.wait(0.8)
 		end
 		evScanResult:FireClient(player, true)
+		grantGatePass(player, GATE_PASS_TIME)   -- 🎫 الخروج مجاني — يعبر الحاجز هو فقط لثوانٍ
 		openDoorsSequence()
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
 	end)
