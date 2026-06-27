@@ -25,6 +25,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace         = game:GetService("Workspace")
 local StarterGui        = game:GetService("StarterGui")
 local VirtualUser       = game:GetService("VirtualUser")
+local LogService        = game:GetService("LogService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -63,7 +64,17 @@ local newcclosure_        = safe("newcclosure") or function(f) return f end
 local decompile_          = safe("decompile")
 local makefolder_         = safe("makefolder")
 local isfolder_           = safe("isfolder")
+local identifyexecutor_   = safe("identifyexecutor") or safe("getexecutorname")
 local GENV                = getgenv_()
+
+-- Best-effort executor name/version string for the report header.
+local function executorName()
+    if identifyexecutor_ then
+        local ok, a, b = pcall(identifyexecutor_)
+        if ok and a then return tostring(a) .. (b and (" " .. tostring(b)) or "") end
+    end
+    return "unknown"
+end
 
 -- Clean restart if the script is executed again. We bump a generation token:
 -- every loop captures its generation and exits the moment a newer load bumps it,
@@ -426,8 +437,15 @@ local function startLoops()
         local plot = getMyPlot()
         local sb = plot and plot:FindFirstChild("SpawnButton")
         local btn = sb and sb:FindFirstChild("Button")
-        if btn then fireRemoteByName("ClickSpawnButton", btn) end
-        fireClicksMatching(KW_SPAWN)   -- also poke the workspace SpawnButtons
+        if btn then
+            fireRemoteByName("ClickSpawnButton", btn)
+            -- Fire the SpawnButton's own ClickDetector directly (exact instance, not
+            -- a keyword scan -- "spawnbutton" substring would also hit "RespawnButton").
+            if fireClickDetector then
+                local cd = btn:FindFirstChildWhichIsA("ClickDetector")
+                if cd then pcall(fireClickDetector, cd) end
+            end
+        end
     end)
 
     startLoop("autoCollect", function()
@@ -675,6 +693,174 @@ local function installRemoteSpy()
 end
 
 ----------------------------------------------------------------------
+-- FULL REPORT: a single professional health report. It captures the executor
+-- capabilities, live console errors/warnings (via LogService), the geometry that
+-- decides whether server-side proximity checks pass, and a per-feature live test
+-- (fire each action once, record ok/err + any error it printed). Everything goes
+-- into ONE file (CraftAMenu_report.txt) so the whole picture is studyable.
+----------------------------------------------------------------------
+local REPORT_TYPE = {
+    [Enum.MessageType.MessageOutput]  = "PRINT",
+    [Enum.MessageType.MessageInfo]    = "INFO",
+    [Enum.MessageType.MessageWarning] = "WARN",
+    [Enum.MessageType.MessageError]   = "ERROR",
+}
+
+-- Position/proximity facts for one of the plot's money buttons.
+local function describeMoneyButton(plot, modelName)
+    local model = plot and plot:FindFirstChild(modelName)
+    local button = model and model:FindFirstChild("Button")
+    if not button then return ("  %s: <missing>"):format(modelName) end
+    local prompt = button:FindFirstChildWhichIsA("ProximityPrompt")
+    local part = (button:IsA("BasePart") and button) or button:FindFirstChildWhichIsA("BasePart", true)
+    local root = getRoot()
+    local dist = (part and root) and math.floor((part.Position - root.Position).Magnitude + 0.5) or -1
+    if not prompt then
+        return ("  %s: part=%s dist=%s studs  prompt=<none>"):format(
+            modelName, tostring(part ~= nil), tostring(dist))
+    end
+    return ("  %s: dist=%s studs  prompt.Enabled=%s  MaxActivationDistance=%s  HoldDuration=%s  Action='%s'"):format(
+        modelName, tostring(dist), tostring(prompt.Enabled),
+        tostring(prompt.MaxActivationDistance), tostring(prompt.HoldDuration),
+        tostring(prompt.ActionText or ""))
+end
+
+local function runFullReport()
+    local L = {}
+    local function add(s) table.insert(L, s) end
+
+    -- 1) live console capture --------------------------------------------------
+    local logs = {}
+    local logConn = LogService.MessageOut:Connect(function(msg, mtype)
+        table.insert(logs, { t = REPORT_TYPE[mtype] or "?", m = msg, clock = os.clock() })
+    end)
+    local function logsSince(c0)
+        local out = {}
+        for _, e in ipairs(logs) do
+            if e.clock >= c0 and (e.t == "ERROR" or e.t == "WARN") then
+                table.insert(out, ("      [%s] %s"):format(e.t, e.m))
+            end
+        end
+        return out
+    end
+
+    add("================= Craft a Menu — FULL REPORT =================")
+    add("generated: " .. os.date("%Y-%m-%d %H:%M:%S"))
+    add(("PlaceId=%s  GameId=%s  JobId=%s"):format(
+        tostring(game.PlaceId), tostring(game.GameId), tostring(game.JobId)))
+    add("executor: " .. executorName())
+    add("")
+
+    -- 2) executor capability matrix -------------------------------------------
+    add("---- Executor capabilities ----")
+    local caps = {
+        { "fireproximityprompt", fireProximityPrompt }, { "fireclickdetector", fireClickDetector },
+        { "getconnections", getconnections_ }, { "firesignal", firesignal_ },
+        { "hookmetamethod", hookmetamethod_ }, { "getnamecallmethod", getnamecallmethod_ },
+        { "decompile", decompile_ }, { "writefile", writefile_ }, { "setclipboard", setclipboard_ },
+        { "makefolder", makefolder_ }, { "getgenv", getgenv_ },
+    }
+    for _, c in ipairs(caps) do
+        add(("  %-22s %s"):format(c[1], c[2] and "OK" or "MISSING"))
+    end
+    add("")
+
+    -- 3) player / plot geometry (why collect is accepted or rejected) ----------
+    add("---- Player & plot geometry ----")
+    local root = getRoot()
+    add("  character present: " .. tostring(root ~= nil))
+    if root then add("  character position: " .. tostring(root.Position)) end
+    local plot = getMyPlot()
+    add("  my plot (OwnerUserId==me): " .. (plot and plot:GetFullName() or "<NOT FOUND>"))
+    if plot then
+        add(describeMoneyButton(plot, "MoneyButton"))
+        add(describeMoneyButton(plot, "MoneyButtonBig"))
+        local sb = plot:FindFirstChild("SpawnButton")
+        local sbBtn = sb and sb:FindFirstChild("Button")
+        add("  SpawnButton.Button: " .. (sbBtn and "present" or "<missing>"))
+    end
+    add("")
+
+    -- 4) world inventory -------------------------------------------------------
+    local pTotal, pMake, pEnabled, pCollect = 0, 0, 0, 0
+    for _, p in ipairs(Workspace:GetDescendants()) do
+        if p:IsA("ProximityPrompt") then
+            pTotal += 1
+            if p.Enabled then pEnabled += 1 end
+            local label = (p.ActionText or "") .. " " .. (p.Name or "") .. " " .. (p.Parent and p.Parent.Name or "")
+            if matchesAny(label, KW_MAKE) then pMake += 1 end
+            if matchesAny(label, KW_COLLECT) then pCollect += 1 end
+        end
+    end
+    add("---- World inventory ----")
+    add(("  ProximityPrompts: total=%d enabled=%d match-MAKE=%d match-COLLECT=%d"):format(
+        pTotal, pEnabled, pMake, pCollect))
+    add("")
+
+    -- 5) per-feature live test -------------------------------------------------
+    add("---- Live feature tests (fired once each) ----")
+
+    -- Make Food
+    do
+        local c0 = os.clock()
+        local fired = firePromptsMatching(KW_MAKE)
+        task.wait(0.5)
+        add(("  [Make Food]  prompts fired this pass = %d"):format(fired))
+        for _, l in ipairs(logsSince(c0)) do add(l) end
+    end
+
+    -- Spawn
+    do
+        local c0 = os.clock()
+        local sb = plot and plot:FindFirstChild("SpawnButton")
+        local btn = sb and sb:FindFirstChild("Button")
+        local ok, err = false, "no SpawnButton.Button"
+        if btn then ok, err = pcall(function() return fireRemoteByName("ClickSpawnButton", btn) end) end
+        task.wait(0.5)
+        add(("  [Spawn]  ClickSpawnButton(SpawnButton.Button) -> ok=%s err=%s"):format(
+            tostring(ok), tostring(err)))
+        for _, l in ipairs(logsSince(c0)) do add(l) end
+    end
+
+    -- Collect (teleport-onto-button path)
+    do
+        local c0 = os.clock()
+        local before = root and root.Position
+        local ok = false
+        if plot then ok = firePlotMoneyPrompt(plot, "MoneyButton") end
+        task.wait(0.6)
+        add(("  [Collect]  firePlotMoneyPrompt(MoneyButton) -> ok=%s"):format(tostring(ok)))
+        if before and getRoot() then
+            local moved = math.floor((getRoot().Position - before).Magnitude + 0.5)
+            add(("      character moved %d studs net after collect (should be ~0)"):format(moved))
+        end
+        for _, l in ipairs(logsSince(c0)) do add(l) end
+    end
+    add("")
+
+    -- 6) all remotes -----------------------------------------------------------
+    add("---- RemoteEvents / RemoteFunctions ----")
+    for _, r in ipairs(collectRemotes()) do
+        add(("  [%s] %s"):format(r.ClassName, r:GetFullName()))
+    end
+    add("")
+
+    -- 7) all captured errors/warnings -----------------------------------------
+    add("---- All console ERRORS/WARNINGS during report ----")
+    local anyErr = false
+    for _, e in ipairs(logs) do
+        if e.t == "ERROR" or e.t == "WARN" then
+            anyErr = true
+            add(("  [%s] %s"):format(e.t, e.m))
+        end
+    end
+    if not anyErr then add("  (none captured)") end
+
+    logConn:Disconnect()
+    return table.concat(L, "\n")
+end
+
+----------------------------------------------------------------------
 -- GUI (Rayfield)
 ----------------------------------------------------------------------
 local Rayfield
@@ -820,6 +1006,24 @@ Calib:CreateParagraph({
     Title = "How to use",
     Content = "If a feature misses something, press Dump to export the game's "
         .. "remotes/prompts. Share the file so the keyword lists can be tuned.",
+})
+
+Calib:CreateButton({
+    Name = "★ Generate FULL Report (errors + tests -> file)",
+    Callback = function()
+        notify("Craft a Menu", "Generating full report (~3s)... stay in-game.", 6)
+        task.spawn(function()
+            local ok, report = pcall(runFullReport)
+            if not ok then
+                notify("Craft a Menu", "Report failed: " .. tostring(report), 8)
+                return
+            end
+            if writefile_ then pcall(writefile_, "CraftAMenu_report.txt", report) end
+            if setclipboard_ then pcall(setclipboard_, report) end
+            print(report)
+            notify("Craft a Menu", "Report -> CraftAMenu_report.txt + clipboard. Send it to me.", 10)
+        end)
+    end,
 })
 
 Calib:CreateButton({
