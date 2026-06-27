@@ -16151,7 +16151,7 @@ local Players            = game:GetService("Players")
 local SCAN_TIME   = 2.3    -- مدة «المسح» قبل ظهور النتيجة (إحساس واقعي)
 local DOOR_OPEN_T = 2.6    -- مدة فتح الباب تدريجياً
 local DOOR_HOLD   = 5.0    -- يبقى الباب مفتوحاً قبل أن يقفل تلقائياً
-local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم مرّة واحدة لكل جلسة من الجهاز الخارجي فقط
+local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم في كل محاولة دخول من الجهاز الخارجي (لا تذكرة جلسة مجانية)
 
 local function isAdmin(player: Player): boolean
 	if type(_G.GetChatRank) == "function" then
@@ -17664,7 +17664,7 @@ prompt.Triggered:Connect(function(player)
 
 	local ok, err = pcall(function()
 		-- ابدأ شاشة المسح عند اللاعب فوراً + شعاع المسح ثلاثي الأبعاد على اللوحة
-		evStartScan:FireClient(player, { kind = "entry", cost = ENTRY_FEE })
+		evStartScan:FireClient(player, { kind = "entry", cost = ENTRY_FEE, dur = SCAN_TIME })
 		if not entryAnimating then
 			entryAnimating = true
 			owns = true
@@ -17758,7 +17758,7 @@ exitPrompt.Triggered:Connect(function(player)
 	scanningExit[player.UserId] = true
 	local owns = false   -- هل يملك هذا اللاعب أنيميشن الجهاز هذه المرّة؟
 	local ok, err = pcall(function()
-		evStartScan:FireClient(player, { kind = "exit" })
+		evStartScan:FireClient(player, { kind = "exit", dur = EXIT_SCAN_TIME })
 		if not exitAnimating then
 			-- هذا اللاعب يملك اللوحة: يشغّل المسح الكامل (شعاع ثلاثي الأبعاد) على الواجهة المشتركة
 			exitAnimating = true
@@ -25021,15 +25021,18 @@ local function runScanFx()
 			rot:Play(); rot.Completed:Wait()
 		end
 	end)
-	-- النسبة 0→~94٪ + كشف البصمة تدريجياً (تتجمّع خطوطها)
+	-- النسبة 0→~94٪ + كشف البصمة تدريجياً (تتجمّع خطوطها) — موزّعة على مدّة المسح الفعلية
 	task.spawn(function()
+		local dur = (type(lastInfo) == "table" and tonumber(lastInfo.dur)) or 2.3
+		local anim = math.max(0.6, dur - 0.45)   -- زمن المسح بعد لحظة «جاهز»
+		local step = 0.13
+		local inc = 94 / math.max(1, anim / step)   -- زيادة لكل خطوة لتصل ~94٪ مع نهاية المسح
 		local p = 0
 		while scanning and p < 94 do
-			p += math.random(3, 6)
-			if p > 94 then p = 94 end
-			pctLabel.Text = p .. "%"
+			p = math.min(94, p + inc)
+			pctLabel.Text = math.floor(p + 0.5) .. "%"
 			fpImage.ImageTransparency = 0.78 - (p / 94) * 0.7   -- من باهت → واضح
-			task.wait(0.13)
+			task.wait(step)
 		end
 	end)
 	-- نبضة صوت خفيفة

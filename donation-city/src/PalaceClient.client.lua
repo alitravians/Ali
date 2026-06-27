@@ -403,15 +403,18 @@ local function runScanFx()
 			rot:Play(); rot.Completed:Wait()
 		end
 	end)
-	-- النسبة 0→~94٪ + كشف البصمة تدريجياً (تتجمّع خطوطها)
+	-- النسبة 0→~94٪ + كشف البصمة تدريجياً (تتجمّع خطوطها) — موزّعة على مدّة المسح الفعلية
 	task.spawn(function()
+		local dur = (type(lastInfo) == "table" and tonumber(lastInfo.dur)) or 2.3
+		local anim = math.max(0.6, dur - 0.45)   -- زمن المسح بعد لحظة «جاهز»
+		local step = 0.13
+		local inc = 94 / math.max(1, anim / step)   -- زيادة لكل خطوة لتصل ~94٪ مع نهاية المسح
 		local p = 0
 		while scanning and p < 94 do
-			p += math.random(3, 6)
-			if p > 94 then p = 94 end
-			pctLabel.Text = p .. "%"
+			p = math.min(94, p + inc)
+			pctLabel.Text = math.floor(p + 0.5) .. "%"
 			fpImage.ImageTransparency = 0.78 - (p / 94) * 0.7   -- من باهت → واضح
-			task.wait(0.13)
+			task.wait(step)
 		end
 	end)
 	-- نبضة صوت خفيفة

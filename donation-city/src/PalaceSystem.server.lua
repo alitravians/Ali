@@ -30,7 +30,7 @@ local Players            = game:GetService("Players")
 local SCAN_TIME   = 2.3    -- مدة «المسح» قبل ظهور النتيجة (إحساس واقعي)
 local DOOR_OPEN_T = 2.6    -- مدة فتح الباب تدريجياً
 local DOOR_HOLD   = 5.0    -- يبقى الباب مفتوحاً قبل أن يقفل تلقائياً
-local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم مرّة واحدة لكل جلسة من الجهاز الخارجي فقط
+local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم في كل محاولة دخول من الجهاز الخارجي (لا تذكرة جلسة مجانية)
 
 local function isAdmin(player: Player): boolean
 	if type(_G.GetChatRank) == "function" then
@@ -1543,7 +1543,7 @@ prompt.Triggered:Connect(function(player)
 
 	local ok, err = pcall(function()
 		-- ابدأ شاشة المسح عند اللاعب فوراً + شعاع المسح ثلاثي الأبعاد على اللوحة
-		evStartScan:FireClient(player, { kind = "entry", cost = ENTRY_FEE })
+		evStartScan:FireClient(player, { kind = "entry", cost = ENTRY_FEE, dur = SCAN_TIME })
 		if not entryAnimating then
 			entryAnimating = true
 			owns = true
@@ -1637,7 +1637,7 @@ exitPrompt.Triggered:Connect(function(player)
 	scanningExit[player.UserId] = true
 	local owns = false   -- هل يملك هذا اللاعب أنيميشن الجهاز هذه المرّة؟
 	local ok, err = pcall(function()
-		evStartScan:FireClient(player, { kind = "exit" })
+		evStartScan:FireClient(player, { kind = "exit", dur = EXIT_SCAN_TIME })
 		if not exitAnimating then
 			-- هذا اللاعب يملك اللوحة: يشغّل المسح الكامل (شعاع ثلاثي الأبعاد) على الواجهة المشتركة
 			exitAnimating = true
