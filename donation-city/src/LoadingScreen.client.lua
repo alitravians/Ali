@@ -838,10 +838,12 @@ local function showMainMenu()
 			if d:IsA("TextLabel") or d:IsA("TextButton") then
 				reveal[#reveal + 1] = { inst = d, key = "TextTransparency", shown = d.TextTransparency }
 				d.TextTransparency = 1
-			elseif d:IsA("UIStroke") then
+			end
+			if d:IsA("UIStroke") then
 				reveal[#reveal + 1] = { inst = d, key = "Transparency", shown = d.Transparency }
 				d.Transparency = 1
-			elseif (d:IsA("Frame") or d:IsA("TextButton")) and d.BackgroundTransparency < 1 then
+			end
+			if (d:IsA("Frame") or d:IsA("TextButton") or d:IsA("TextLabel")) and d.BackgroundTransparency < 1 then
 				reveal[#reveal + 1] = { inst = d, key = "BackgroundTransparency", shown = d.BackgroundTransparency }
 				d.BackgroundTransparency = 1
 			end
