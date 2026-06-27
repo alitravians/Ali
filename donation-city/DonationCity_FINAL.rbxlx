@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٢٩",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٣٠",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -171,79 +171,32 @@ local CONFIG = {
 	},
 
 	UpdatesTitle = "تحديثات اللعبة",
-	UpdatesLines = {
-		"🎯 تحديث ٢.٩.٢٩ — تركيز على المهام والتحديات:",
-		"• الواجهة صارت تبرز «📋 المهام» والباركور كنشاط رئيسي.",
-		"• نافذة إكمال الباركور تعرض «أفضل وقت» وشارة الرقم القياسي 🏆.",
-		"• رسائل الترحيب والدليل تركّز على المهام والتحديات والأنشطة.",
-		"",
-		"🎉 تحديث ٢.٧.٩ — دردشة: وسم 👑 للمالك و⭐ لـ VIP + كتم من الإدارة",
-		"",
-		"👑 لوحة الإدارة الجديدة (٤ تبويبات):",
-		"• 📊 إحصائيات حية: لاعبون · بوثات محجوزة · إجمالي الدعم · أكثر بوث.",
-		"• 🎬 العرض: تشغيل/تخطّي/إعادة · سلايدر إضاءة + لون أجواء · موسيقى وصوت.",
-		"• 👥 اللاعبون: بحث · تحذير · طرد (بتأكيد وسبب) · VIP · منع حجز · انتقال.",
-		"• ⚙️ الإعدادات: قوالب إعلانات · إدارة وتحرير البوثات · وضع الصيانة.",
-		"• 📜 سجل أوامر الإدارة (شفافية) + إشعارات فورية بكل أمر.",
-		"• 🛠️ وضع صيانة برسالة مخصّصة — مع بقاء دخول الإدارة متاحاً دائماً.",
-		"",
-		"🎉 تحديث ٢.٦ — جلوس البوث والتفاعل",
-		"",
-		"🪑 جلوس داخل البوث (جديد):",
-		"• احجز بوثك واجلس على الكرسي لاستقبال الزوار.",
-		"• الكرسي لصاحب البوث فقط — يظهر «🟢 صاحب البوث موجود».",
-		"• بريق وإضاءة على البوث المحجوز + عدّاد الدعم على اللوحة.",
-		"• زر «🔔 نادِ صاحب البوث» للزائر + شارة «🏆 الأكثر مبيعاً».",
-		"",
-		"🏪 بوثات يملكها اللاعبون:",
-		"• احجز بوثاً فارغاً واضغط E — يظهر اسمك وصورتك.",
-		"• اعرض Gamepasses الخاصة فيك (رابط أو رقم) للبيع.",
-		"• إدارة كاملة: إضافة/حذف منتجات · لون · نص ترحيبي.",
-		"• الزوار يشترون منك مع 🎉 احتفال ورسالة شكر.",
-		"• لوحتا «الأكثر دعماً» و«أكثر البوثات» مباشرة.",
-		"• يُصفّر البوث تلقائياً عند خروجك (حماية كاملة).",
-		"",
-		"🖥️ تحسين الواجهة:",
-		"• أزرار الشاشة (المتجر/الإدارة/المزيد) انرتّبت بأرصفة بلا تداخل.",
-		"• صورة مخصّصة كخلفية لشاشة التحميل.",
-		"",
-		"💡 الإضاءة والأجواء:",
-		"• قاعة مضيئة بالكامل تخفت وقت العرض + نيون جدران.",
-		"• مؤثرات Bloom وتصحيح ألوان بإحساس Cyber-Neon.",
-		"",
-		"💰 الاقتصاد واللوبي:",
-		"• عملة «كوينز» مع حفظ + دخل تلقائي + HUD.",
-		"• شبّاك تذاكر + قائمة أفلام + لوحة عروض حيّة.",
-		"",
-		"🎬 تجربة العرض:",
-		"• عدّاد تنازلي + انتقال سينمائي + شريط ليتربوكس.",
-		"• اهتزاز كاميرا خفيف + دعم فيديو متزامن.",
-		"",
-		"⭐ VIP والمقاعد:",
-		"• عضوية VIP (Robux أو كوينز): تذاكر بنص السعر وتاج ودخل مضاعف.",
-		"• حجز مقعد محدّد + صفّ انتظار بأولوية لـ VIP.",
-		"",
-		"🛒 المتجر و٤ باقات دائمة جديدة:",
-		"• متجر يسار الشاشة يجمع كل المميزات بأزرار شراء.",
-		"• 🍿 بوفيه مفتوح · 🎬 مالك العرض · ✨ أثر نيون · 📢 مايك الإعلان.",
-		"• حزم كوينز + تذكرة فورية (Developer Products).",
-		"",
-		"👑 الإدارة والواجهة والإضافات:",
-		"• لوحة إدارة محمية (تشغيل/إيقاف/إضاءة/إعلان/طرد).",
-		"• واجهة خارجية: أبواب أوتوماتيك · بوسترات · شاشة LED · موقف · مارّة.",
-		"• إنجازات · تقييم أفلام · أركيد · ركن تصوير · فعاليات دورية.",
-		"",
-		"🌊 ديكور جديد:",
-		"• نافورة واقعية بماء متساقط ورذاذ وإضاءة.",
-		"• حوض سمك زجاجي بأسماك تسبح + ركن سلفي للتصوير.",
-		"",
-		"🛠️ إصلاحات هذا التحديث:",
-		"• شبّاك التذاكر صار بمكان مرتّب بلا تداخل مع المقعد، ولافتته تُقرأ من جهة اللاعبين.",
-		"• الدخول للوحة الإدارة بالرتبة فقط (مشرف فأعلى) — بلا كود.",
-		"• اللوحة المضيئة ترجع لاسم السينما تلقائياً بعد الإعلان.",
-		"",
-		"🔜 قادم قريباً:",
-		"• مظاهر وإكسسوارات جديدة + لوحة صدارة موسمية.",
+	UpdatesLog = {
+		{
+			version = "٢.٩.٣٠", date = "٢٧ يونيو",
+			items = {
+				{ "new", "قائمة رئيسية ملكية جديدة: بطاقات فاخرة + شعار تاج + أيقونات." },
+				{ "new", "نظام تعاقب الليل والنهار (٥ مراحل) بتوقيت البحرين الحقيقي." },
+				{ "new", "ساعة السيرفر أعلى الشاشة تتحدّث لحظياً لكل اللاعبين." },
+				{ "improve", "سجلّ التحديثات صار احترافياً بخطّ زمني ووسوم تصنيف ملوّنة." },
+			},
+		},
+		{
+			version = "٢.٩.٢٩", date = "٢٦ يونيو",
+			items = {
+				{ "improve", "جهاز بصمة القصر: لوحة جدارية بيومترية + شاشة مسح واقعية." },
+				{ "fix", "يُخصم ٢٥٠ كوينز عند كل محاولة دخول + منع الدخول المجاني خلف الدافع." },
+				{ "fix", "جهاز الخروج الداخلي ما ينضغط من خارج القصر." },
+			},
+		},
+		{
+			version = "٢.٩.٢٨", date = "٢٤ يونيو",
+			items = {
+				{ "new", "ريسبون ملكي على طريقة ببجي: طائرة شهد + قفز ومظلّة واقعية." },
+				{ "improve", "وضعية الهبوط بالمظلّة صارت واقعية ومركّبة صح على اللاعب." },
+				{ "new", "صندوق المكافآت: ٤ مهام تفاعلية + ١٠٠٠ كوينز + إنجاز داعم." },
+			},
+		},
 	},
 }
 
@@ -763,19 +716,57 @@ local function showMainMenu()
 		Position = UDim2.fromScale(0.5, 0.55), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
 	})
 
+	-- لوحة ألوان ملكية ذهبية خاصة بالقائمة (بدل النيون البنفسجي)
+	local ROYAL = {
+		Gold     = Color3.fromRGB(214, 175, 92),
+		GoldHi   = Color3.fromRGB(245, 220, 150),
+		GoldDeep = Color3.fromRGB(150, 116, 52),
+		CardBg   = Color3.fromRGB(24, 30, 46),
+		CardStrk = Color3.fromRGB(74, 88, 116),
+		Text     = Color3.fromRGB(238, 242, 250),
+		Sub      = Color3.fromRGB(168, 182, 205),
+		Dark     = Color3.fromRGB(26, 22, 14),
+	}
+
+	-- شعار التاج الذهبي فوق العنوان (مبني من قطع — لا صورة خارجية)
+	local crown = new("Frame", {
+		Name = "Crown", BackgroundTransparency = 1, Size = UDim2.fromOffset(96, 56),
+		Position = UDim2.fromScale(0.5, 0.085), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
+	})
+	local crownParts = {}
+	do
+		local base = new("Frame", {
+			BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0.5, 1), Size = UDim2.fromOffset(64, 16),
+			Position = UDim2.new(0.5, 0, 1, -4), Parent = crown,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0, 4), Parent = base })
+		crownParts[#crownParts + 1] = base
+		-- ثلاث قمم على شكل معيّن (مربّعات مدوّرة)
+		for _, dx in ipairs({ -26, 0, 26 }) do
+			local peak = new("Frame", {
+				BackgroundColor3 = ROYAL.GoldHi, BorderSizePixel = 0, BackgroundTransparency = 1,
+				AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(22, 22), Rotation = 45,
+				Position = UDim2.new(0.5, dx, 1, (dx == 0) and -22 or -16), Parent = crown,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 5), Parent = peak })
+			crownParts[#crownParts + 1] = peak
+		end
+	end
+
 	local title = new("TextLabel", {
 		Name = "Title", BackgroundTransparency = 1, Text = CONFIG.GameName, RichText = true,
-		Font = Enum.Font.GothamBlack, TextSize = 64, TextColor3 = PAL.Text, TextTransparency = 1,
-		Size = UDim2.new(1, -80, 0, 88), Position = UDim2.fromScale(0.5, 0.17),
+		Font = Enum.Font.GothamBlack, TextSize = 64, TextColor3 = ROYAL.GoldHi, TextTransparency = 1,
+		Size = UDim2.new(1, -80, 0, 88), Position = UDim2.fromScale(0.5, 0.18),
 		AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
 	})
-	new("UIGradient", { Color = ColorSequence.new(PAL.AccentAlt, PAL.Accent), Rotation = 12, Parent = title })
-	local titleStroke = new("UIStroke", { Color = PAL.Accent, Thickness = 2, Transparency = 1, Parent = title })
+	new("UIGradient", { Color = ColorSequence.new(ROYAL.GoldHi, ROYAL.Gold), Rotation = 12, Parent = title })
+	local titleStroke = new("UIStroke", { Color = ROYAL.GoldDeep, Thickness = 2, Transparency = 1, Parent = title })
 
 	local sub = new("TextLabel", {
-		BackgroundTransparency = 1, Text = CONFIG.Tagline, Font = Enum.Font.GothamMedium,
-		TextSize = 20, TextColor3 = PAL.SubText, TextTransparency = 1,
-		Size = UDim2.new(1, -80, 0, 26), Position = UDim2.fromScale(0.5, 0.27), AnchorPoint = Vector2.new(0.5, 0.5),
+		BackgroundTransparency = 1, Text = "بوّابة المدينة الملكية", Font = Enum.Font.GothamMedium,
+		TextSize = 20, TextColor3 = ROYAL.Sub, TextTransparency = 1,
+		Size = UDim2.new(1, -80, 0, 26), Position = UDim2.fromScale(0.5, 0.275), AnchorPoint = Vector2.new(0.5, 0.5),
 		Parent = mRoot,
 	})
 
@@ -786,116 +777,306 @@ local function showMainMenu()
 		Parent = mRoot,
 	})
 
+	local CARD_W, CARD_H = 468, 104
+
 	local btnHolder = new("Frame", {
-		Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.fromOffset(360, 220),
-		Position = UDim2.fromScale(0.5, 0.58), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
+		Name = "Buttons", BackgroundTransparency = 1, Size = UDim2.fromOffset(CARD_W + 20, 360),
+		Position = UDim2.fromScale(0.5, 0.62), AnchorPoint = Vector2.new(0.5, 0.5), Parent = mRoot,
 	})
 	new("UIListLayout", {
 		FillDirection = Enum.FillDirection.Vertical, HorizontalAlignment = Enum.HorizontalAlignment.Center,
-		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 16),
+		VerticalAlignment = Enum.VerticalAlignment.Center, Padding = UDim.new(0, 22),
 		SortOrder = Enum.SortOrder.LayoutOrder, Parent = btnHolder,
 	})
 
 	local menuClosing = false
 	local charConn
 
+	-- شريط مدوّر الأطراف (لِبِناء الأيقونات من قطع فقط — لا رموز نصّية)
+	local function bar(parent, color, w, h, ox, oy, rot, shownBT)
+		local b = new("Frame", {
+			BackgroundColor3 = color, BorderSizePixel = 0, BackgroundTransparency = 1,
+			AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(w, h),
+			Position = UDim2.new(0.5, ox, 0.5, oy), Rotation = rot, ZIndex = 6, Parent = parent,
+		})
+		b:SetAttribute("ShownBT", shownBT or 0)
+		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
+		return b
+	end
+
+	-- يرسم أيقونة الخيار داخل وسام دائري
+	local function makeIcon(badge, kind, color)
+		if kind == "play" then            -- شيفرون يمين «ادخل»
+			bar(badge, color, 7, 22, -2, -10, 48)
+			bar(badge, color, 7, 22, -2, 10, -48)
+		elseif kind == "scroll" then      -- وثيقة قوانين
+			local doc = new("Frame", {
+				BackgroundTransparency = 1, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(30, 36), Position = UDim2.fromScale(0.5, 0.5), ZIndex = 6, Parent = badge,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 5), Parent = doc })
+			local ds = new("UIStroke", { Color = color, Thickness = 2.5, Transparency = 1, Parent = doc })
+			ds:SetAttribute("ShownT", 0)
+			for _, yy in ipairs({ -8, 0, 8 }) do bar(doc, color, 16, 3, 0, yy, 0) end
+		elseif kind == "spark" then       -- نجمة تحديثات
+			bar(badge, color, 6, 34, 0, 0, 0)
+			bar(badge, color, 34, 6, 0, 0, 0)
+			bar(badge, color, 6, 20, 0, 0, 45)
+			bar(badge, color, 6, 20, 0, 0, 135)
+		end
+	end
+
+	local META = {
+		[1] = { kind = "play",   sub = "ادخل المدينة الآن" },
+		[2] = { kind = "scroll", sub = "تعرّف على الهدف والقوانين" },
+		[3] = { kind = "spark",  sub = "آخر ما أضفناه للّعبة" },
+	}
+
 	local function makeButton(text: string, primary: boolean, order: number)
+		local meta = META[order]
 		local btn = new("TextButton", {
 			Name = "Btn_" .. order, Text = "", AutoButtonColor = false,
-			BackgroundColor3 = primary and PAL.Accent or PAL.Card, BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(360, 58), LayoutOrder = order, Parent = btnHolder,
+			BackgroundColor3 = primary and ROYAL.Gold or ROYAL.CardBg, BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(CARD_W, CARD_H), LayoutOrder = order, Parent = btnHolder,
 		})
-		new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = btn })
-		local stroke = new("UIStroke", { Color = primary and PAL.AccentAlt or PAL.CardStroke, Thickness = 1.5, Transparency = 1, Parent = btn })
+		new("UICorner", { CornerRadius = UDim.new(0, 24), Parent = btn })
+		local stroke = new("UIStroke", {
+			Color = primary and ROYAL.GoldHi or ROYAL.CardStrk, Thickness = primary and 2 or 1.5, Transparency = 1, Parent = btn,
+		})
+		stroke:SetAttribute("ShownT", primary and 0 or 0.35)
 		if primary then
-			new("UIGradient", { Color = ColorSequence.new(PAL.Accent, PAL.AccentAlt), Rotation = 25, Parent = btn })
+			new("UIGradient", { Color = ColorSequence.new(ROYAL.Gold, ROYAL.GoldHi), Rotation = 18, Parent = btn })
 		end
+
+		local accent = primary and ROYAL.Dark or ROYAL.Gold
+		local tcol = primary and ROYAL.Dark or ROYAL.Text
+		local scol = primary and Color3.fromRGB(78, 62, 30) or ROYAL.Sub
+
+		-- وسام دائري للأيقونة (يمين البطاقة — RTL)
+		local badge = new("Frame", {
+			Name = "Badge", BackgroundColor3 = Color3.fromRGB(0, 0, 0), BackgroundTransparency = 1, BorderSizePixel = 0,
+			AnchorPoint = Vector2.new(0.5, 0.5), Size = UDim2.fromOffset(66, 66),
+			Position = UDim2.new(1, -52, 0.5, 0), ZIndex = 6, Parent = btn,
+		})
+		badge:SetAttribute("ShownBT", primary and 0.78 or 0.62)
+		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
+		local bStroke = new("UIStroke", { Color = accent, Thickness = 2, Transparency = 1, Parent = badge })
+		bStroke:SetAttribute("ShownT", 0.1)
+		makeIcon(badge, meta.kind, accent)
+
+		-- العنوان + السطر الوصفي (محاذاة يمين، يسار الوسام)
 		new("TextLabel", {
 			Name = "Label", BackgroundTransparency = 1, Text = text, Font = Enum.Font.GothamBold,
-			TextSize = 22, TextColor3 = primary and Color3.fromRGB(20, 12, 36) or PAL.Text, TextTransparency = 1,
-			Size = UDim2.fromScale(1, 1), Parent = btn,
+			TextSize = 27, TextColor3 = tcol, TextTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -200, 0, 32), Position = UDim2.new(0, 110, 0, 26), ZIndex = 6, Parent = btn,
 		})
+		new("TextLabel", {
+			Name = "Sub", BackgroundTransparency = 1, Text = meta.sub, Font = Enum.Font.GothamMedium,
+			TextSize = 16, TextColor3 = scol, TextTransparency = 1, TextXAlignment = Enum.TextXAlignment.Right,
+			Size = UDim2.new(1, -130, 0, 22), Position = UDim2.new(0, 40, 0, 58), ZIndex = 6, Parent = btn,
+		})
+
+		-- شيفرون «<» يسار البطاقات الفرعية فقط
+		if not primary then
+			local chev = new("Frame", {
+				Name = "Chev", BackgroundTransparency = 1, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0.5),
+				Size = UDim2.fromOffset(20, 24), Position = UDim2.new(0, 40, 0.5, 0), ZIndex = 6, Parent = btn,
+			})
+			bar(chev, ROYAL.Gold, 4, 14, 3, -6, 45)
+			bar(chev, ROYAL.Gold, 4, 14, 3, 6, -45)
+		end
+
 		btn.MouseEnter:Connect(function()
 			if menuClosing then return end
 			playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Hover)
-			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(376, 60) })
+			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(CARD_W + 14, CARD_H + 4) })
 			tween(stroke, TweenInfo.new(0.15), { Transparency = 0 })
 		end)
 		btn.MouseLeave:Connect(function()
 			if menuClosing then return end
-			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(360, 58) })
-			tween(stroke, TweenInfo.new(0.15), { Transparency = 0.2 })
+			tween(btn, TweenInfo.new(0.15), { Size = UDim2.fromOffset(CARD_W, CARD_H) })
+			tween(stroke, TweenInfo.new(0.15), { Transparency = stroke:GetAttribute("ShownT") or 0.35 })
 		end)
 		return btn
 	end
 
-	local function makePanel(titleText: string, lines: { string })
+	-- يجمع كل العناصر المرئية داخل حاوية ويُخفيها مبدئياً (ليُكشف عنها تدريجياً)
+	local function collectReveal(container)
+		local reveal = {}
+		for _, d in ipairs(container:GetDescendants()) do
+			if d:IsA("TextLabel") or d:IsA("TextButton") then
+				reveal[#reveal + 1] = { inst = d, key = "TextTransparency", shown = d.TextTransparency }
+				d.TextTransparency = 1
+			end
+			if d:IsA("UIStroke") then
+				reveal[#reveal + 1] = { inst = d, key = "Transparency", shown = d.Transparency }
+				d.Transparency = 1
+			end
+			if (d:IsA("Frame") or d:IsA("TextButton") or d:IsA("TextLabel")) and d.BackgroundTransparency < 1 then
+				reveal[#reveal + 1] = { inst = d, key = "BackgroundTransparency", shown = d.BackgroundTransparency }
+				d.BackgroundTransparency = 1
+			end
+		end
+		return reveal
+	end
+
+	-- هيكل البانل المشترك: إطار + عنوان (+ سطر وصفي اختياري) + زر رجوع. يرجّع الحاوية القابلة للتمرير.
+	local function panelShell(titleText: string, subText: string?)
 		local panel = new("Frame", {
 			Name = "Panel", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-			Size = UDim2.fromOffset(640, 460), BackgroundColor3 = PAL.Card, BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(660, 520), BackgroundColor3 = ROYAL.CardBg, BackgroundTransparency = 1,
 			Visible = false, ZIndex = 5, Parent = mRoot,
 		})
-		new("UICorner", { CornerRadius = UDim.new(0, 22), Parent = panel })
-		local pStroke = new("UIStroke", { Color = PAL.CardStroke, Thickness = 1.5, Transparency = 1, Parent = panel })
+		new("UICorner", { CornerRadius = UDim.new(0, 24), Parent = panel })
+		new("UIStroke", { Color = ROYAL.CardStrk, Thickness = 1.5, Transparency = 0.25, Parent = panel })
 		local pTitle = new("TextLabel", {
 			BackgroundTransparency = 1, Text = titleText, Font = Enum.Font.GothamBlack,
-			TextSize = 28, TextColor3 = PAL.Text, TextTransparency = 1,
-			Size = UDim2.new(1, -48, 0, 50), Position = UDim2.new(0.5, 0, 0, 22), AnchorPoint = Vector2.new(0.5, 0),
+			TextSize = 32, TextColor3 = ROYAL.GoldHi, TextTransparency = 0,
+			Size = UDim2.new(1, -48, 0, 44), Position = UDim2.new(0.5, 0, 0, 26), AnchorPoint = Vector2.new(0.5, 0),
 			ZIndex = 6, Parent = panel,
 		})
-		new("UIGradient", { Color = ColorSequence.new(PAL.AccentAlt, PAL.Accent), Parent = pTitle })
-		local scroll = new("ScrollingFrame", {
-			BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -48, 1, -150),
-			Position = UDim2.new(0.5, 0, 0, 84), AnchorPoint = Vector2.new(0.5, 0),
-			CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
-			ScrollBarThickness = 5, ScrollBarImageColor3 = PAL.Accent, ZIndex = 6, Parent = panel,
+		new("UIGradient", { Color = ColorSequence.new(ROYAL.GoldHi, ROYAL.Gold), Rotation = 8, Parent = pTitle })
+		local headBottom = 80
+		if subText then
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = subText, Font = Enum.Font.GothamMedium,
+				TextSize = 18, TextColor3 = ROYAL.Sub, TextTransparency = 0,
+				Size = UDim2.new(1, -48, 0, 24), Position = UDim2.new(0.5, 0, 0, 70), AnchorPoint = Vector2.new(0.5, 0),
+				ZIndex = 6, Parent = panel,
+			})
+			headBottom = 104
+		end
+		-- خط ذهبي تحت الرأس
+		new("Frame", {
+			BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, AnchorPoint = Vector2.new(0.5, 0),
+			Size = UDim2.fromOffset(120, 4), Position = UDim2.new(0.5, 0, 0, headBottom - 6), ZIndex = 6, Parent = panel,
 		})
+		local scroll = new("ScrollingFrame", {
+			Name = "Content", BackgroundTransparency = 1, BorderSizePixel = 0, Size = UDim2.new(1, -44, 1, -(headBottom + 80)),
+			Position = UDim2.new(0.5, 0, 0, headBottom + 4), AnchorPoint = Vector2.new(0.5, 0),
+			CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+			ScrollBarThickness = 5, ScrollBarImageColor3 = ROYAL.Gold, ZIndex = 6, Parent = panel,
+		})
+		local back = new("TextButton", {
+			Text = "رجوع", Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = ROYAL.Dark, TextTransparency = 0,
+			AutoButtonColor = false, BackgroundColor3 = ROYAL.Gold, BackgroundTransparency = 0,
+			Size = UDim2.fromOffset(200, 48), Position = UDim2.new(0.5, 0, 1, -24), AnchorPoint = Vector2.new(0.5, 1),
+			ZIndex = 6, Parent = panel,
+		})
+		new("UICorner", { CornerRadius = UDim.new(0, 14), Parent = back })
+		new("UIGradient", { Color = ColorSequence.new(ROYAL.Gold, ROYAL.GoldHi), Rotation = 18, Parent = back })
+		local backStroke = new("UIStroke", { Color = ROYAL.GoldHi, Thickness = 1.5, Transparency = 0.3, Parent = back })
+		back.MouseEnter:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Hover); tween(backStroke, TweenInfo.new(0.15), { Transparency = 0 }) end)
+		back.MouseLeave:Connect(function() tween(backStroke, TweenInfo.new(0.15), { Transparency = 0.3 }) end)
+		return panel, scroll, back
+	end
+
+	-- بانل القوانين: قائمة أسطر نصّية
+	local function makePanel(titleText: string, lines: { string })
+		local panel, scroll, back = panelShell(titleText)
 		new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
-		new("UIPadding", { PaddingRight = UDim.new(0, 10), PaddingLeft = UDim.new(0, 10), Parent = scroll })
-		local lineLabels = {}
+		new("UIPadding", { PaddingRight = UDim.new(0, 12), PaddingLeft = UDim.new(0, 12), Parent = scroll })
 		for i, ln in ipairs(lines) do
-			lineLabels[#lineLabels + 1] = new("TextLabel", {
+			new("TextLabel", {
 				BackgroundTransparency = 1, Text = ln, Font = Enum.Font.GothamMedium,
-				TextSize = 18, TextColor3 = PAL.Text, TextTransparency = 1, TextWrapped = true,
+				TextSize = 18, TextColor3 = ROYAL.Text, TextWrapped = true,
 				TextXAlignment = Enum.TextXAlignment.Right, AutomaticSize = Enum.AutomaticSize.Y,
 				Size = UDim2.new(1, 0, 0, 0), LayoutOrder = i, ZIndex = 6, Parent = scroll,
 			})
 		end
-		local back = new("TextButton", {
-			Text = "", AutoButtonColor = false, BackgroundColor3 = PAL.Accent, BackgroundTransparency = 1,
-			Size = UDim2.fromOffset(200, 48), Position = UDim2.new(0.5, 0, 1, -22), AnchorPoint = Vector2.new(0.5, 1),
-			ZIndex = 6, Parent = panel,
-		})
-		new("UICorner", { CornerRadius = UDim.new(0, 12), Parent = back })
-		new("UIGradient", { Color = ColorSequence.new(PAL.Accent, PAL.AccentAlt), Parent = back })
-		local backStroke = new("UIStroke", { Color = PAL.AccentAlt, Thickness = 1.5, Transparency = 1, Parent = back })
-		local backLbl = new("TextLabel", {
-			BackgroundTransparency = 1, Text = "رجوع", Font = Enum.Font.GothamBold, TextSize = 20,
-			TextColor3 = Color3.fromRGB(20, 12, 36), TextTransparency = 1, Size = UDim2.fromScale(1, 1), ZIndex = 7, Parent = back,
-		})
-		back.MouseEnter:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Hover); tween(backStroke, TweenInfo.new(0.15), { Transparency = 0 }) end)
-		back.MouseLeave:Connect(function() tween(backStroke, TweenInfo.new(0.15), { Transparency = 0.2 }) end)
-		return { frame = panel, stroke = pStroke, title = pTitle, lines = lineLabels, back = back, backLbl = backLbl, backStroke = backStroke }
+		return { frame = panel, back = back, reveal = collectReveal(panel) }
+	end
+
+	-- ألوان وأسماء وسوم التصنيف في سجلّ التحديثات
+	local TAGS = {
+		new     = { col = Color3.fromRGB(56, 196, 130), label = "جديد" },
+		improve = { col = Color3.fromRGB(86, 162, 240), label = "تحسين" },
+		fix     = { col = Color3.fromRGB(232, 176, 86), label = "إصلاح" },
+	}
+
+	-- بانل التحديثات: سجلّ احترافي (خطّ زمني + شرائح إصدار + وسوم تصنيف)
+	local function makeUpdatesPanel(titleText: string, log)
+		local panel, scroll, back = panelShell(titleText, "آخر ما طوّرناه في مدينة شهد")
+		new("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
+		new("UIPadding", { PaddingRight = UDim.new(0, 14), PaddingLeft = UDim.new(0, 8), PaddingTop = UDim.new(0, 4), Parent = scroll })
+
+		for vi, entry in ipairs(log) do
+			local block = new("Frame", {
+				Name = "Ver_" .. vi, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = vi, ZIndex = 6, Parent = scroll,
+			})
+			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = block })
+
+			-- صفّ رأس الإصدار: نقطة + شريحة إصدار + تاريخ (RTL → يمين)
+			local header = new("Frame", {
+				Name = "Head", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40), LayoutOrder = 1, ZIndex = 6, Parent = block,
+			})
+			local dot = new("Frame", {
+				BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+				Size = UDim2.fromOffset(16, 16), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 7, Parent = header,
+			})
+			new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = dot })
+			new("UIStroke", { Color = ROYAL.GoldHi, Thickness = 2, Parent = dot })
+			local pill = new("TextLabel", {
+				Name = "Pill", BackgroundColor3 = Color3.fromRGB(58, 46, 20), BackgroundTransparency = 0,
+				Text = "الإصدار " .. entry.version, Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = ROYAL.GoldHi,
+				TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(1, 0.5),
+				Size = UDim2.fromOffset(166, 36), Position = UDim2.new(1, -32, 0.5, 0), ZIndex = 7, Parent = header,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 18), Parent = pill })
+			new("UIStroke", { Color = ROYAL.Gold, Thickness = 1, Parent = pill })
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = entry.date, Font = Enum.Font.GothamMedium, TextSize = 16, TextColor3 = ROYAL.Sub,
+				TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5),
+				Size = UDim2.fromOffset(120, 24), Position = UDim2.new(1, -210, 0.5, 0), ZIndex = 7, Parent = header,
+			})
+
+			-- بطاقة بنود الإصدار
+			local vcard = new("Frame", {
+				Name = "Card", BackgroundColor3 = Color3.fromRGB(30, 37, 55), BackgroundTransparency = 0, BorderSizePixel = 0,
+				Size = UDim2.new(1, -32, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, ZIndex = 6, Parent = block,
+			})
+			new("UICorner", { CornerRadius = UDim.new(0, 16), Parent = vcard })
+			new("UIStroke", { Color = Color3.fromRGB(64, 76, 102), Thickness = 1, Parent = vcard })
+			new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = vcard })
+			new("UIPadding", {
+				PaddingRight = UDim.new(0, 14), PaddingLeft = UDim.new(0, 14),
+				PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12), Parent = vcard,
+			})
+
+			for ii, item in ipairs(entry.items) do
+				local tag = TAGS[item[1]] or TAGS.new
+				local row = new("Frame", {
+					BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+					LayoutOrder = ii, ZIndex = 6, Parent = vcard,
+				})
+				local chip = new("TextLabel", {
+					BackgroundColor3 = tag.col, BackgroundTransparency = 0.82, Text = tag.label, Font = Enum.Font.GothamBold,
+					TextSize = 14, TextColor3 = tag.col, TextXAlignment = Enum.TextXAlignment.Center,
+					AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(62, 26), Position = UDim2.new(1, 0, 0, 1), ZIndex = 7, Parent = row,
+				})
+				new("UICorner", { CornerRadius = UDim.new(0, 13), Parent = chip })
+				new("UIStroke", { Color = tag.col, Thickness = 1, Parent = chip })
+				new("TextLabel", {
+					BackgroundTransparency = 1, Text = item[2], Font = Enum.Font.GothamMedium, TextSize = 17, TextColor3 = ROYAL.Text,
+					TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+					AutomaticSize = Enum.AutomaticSize.Y, AnchorPoint = Vector2.new(1, 0),
+					Size = UDim2.new(1, -78, 0, 0), Position = UDim2.new(1, -76, 0, 2), ZIndex = 6, Parent = row,
+				})
+			end
+		end
+
+		return { frame = panel, back = back, reveal = collectReveal(panel) }
 	end
 
 	local function setPanelVisible(p, visible: boolean)
-		if visible then
-			p.frame.Visible = true
-			tween(p.frame, TweenInfo.new(0.3), { BackgroundTransparency = 0.05 })
-			tween(p.stroke, TweenInfo.new(0.3), { Transparency = 0.25 })
-			tween(p.title, TweenInfo.new(0.3), { TextTransparency = 0 })
-			for _, l in ipairs(p.lines) do tween(l, TweenInfo.new(0.3), { TextTransparency = 0.05 }) end
-			tween(p.back, TweenInfo.new(0.3), { BackgroundTransparency = 0 })
-			tween(p.backStroke, TweenInfo.new(0.3), { Transparency = 0.2 })
-			tween(p.backLbl, TweenInfo.new(0.3), { TextTransparency = 0 })
-		else
-			tween(p.frame, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
-			tween(p.stroke, TweenInfo.new(0.25), { Transparency = 1 })
-			tween(p.title, TweenInfo.new(0.25), { TextTransparency = 1 })
-			for _, l in ipairs(p.lines) do tween(l, TweenInfo.new(0.25), { TextTransparency = 1 }) end
-			tween(p.back, TweenInfo.new(0.25), { BackgroundTransparency = 1 })
-			tween(p.backStroke, TweenInfo.new(0.25), { Transparency = 1 })
-			tween(p.backLbl, TweenInfo.new(0.25), { TextTransparency = 1 })
+		local t = visible and 0.3 or 0.25
+		if visible then p.frame.Visible = true end
+		tween(p.frame, TweenInfo.new(t), { BackgroundTransparency = visible and 0.02 or 1 })
+		for _, r in ipairs(p.reveal) do
+			tween(r.inst, TweenInfo.new(t), { [r.key] = visible and r.shown or 1 })
+		end
+		if not visible then
 			task.delay(0.26, function() if p.frame then p.frame.Visible = false end end)
 		end
 	end
@@ -905,7 +1086,7 @@ local function showMainMenu()
 	local updatesBtn = makeButton(CONFIG.UpdatesTitle, false, 3)
 
 	local rulesPanel = makePanel(CONFIG.RulesTitle, CONFIG.RulesLines)
-	local updatesPanel = makePanel(CONFIG.UpdatesTitle, CONFIG.UpdatesLines)
+	local updatesPanel = makeUpdatesPanel(CONFIG.UpdatesTitle, CONFIG.UpdatesLog)
 	rulesPanel.back.MouseButton1Click:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(rulesPanel, false) end)
 	updatesPanel.back.MouseButton1Click:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(updatesPanel, false) end)
 	rulesBtn.MouseButton1Click:Connect(function() if menuClosing then return end playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(rulesPanel, true) end)
@@ -935,6 +1116,7 @@ local function showMainMenu()
 		tween(titleStroke, shatter, { Transparency = 1 })
 		tween(sub, shatter, { TextTransparency = 1 })
 		tween(ver, shatter, { TextTransparency = 1 })
+		for _, cp in ipairs(crownParts) do tween(cp, shatter, { BackgroundTransparency = 1 }) end
 		tween(glowA, shatter, { ImageTransparency = 1 })
 		tween(glowB, shatter, { ImageTransparency = 1 })
 		for _, child in ipairs(btnHolder:GetChildren()) do
@@ -942,7 +1124,9 @@ local function showMainMenu()
 				tween(child, shatter, { BackgroundTransparency = 1, Rotation = math.random(-12, 12) })
 				for _, d in ipairs(child:GetDescendants()) do
 					if d:IsA("TextLabel") then tween(d, shatter, { TextTransparency = 1 })
-					elseif d:IsA("UIStroke") then tween(d, shatter, { Transparency = 1 }) end
+					elseif d:IsA("UIStroke") then tween(d, shatter, { Transparency = 1 })
+					elseif d:IsA("Frame") then tween(d, shatter, { BackgroundTransparency = 1 })
+					elseif d:IsA("ImageLabel") then tween(d, shatter, { ImageTransparency = 1 }) end
 				end
 			end
 		end
@@ -991,15 +1175,18 @@ local function showMainMenu()
 	tween(glowB, fin, { ImageTransparency = 0.75 })
 	tween(title, fin, { TextTransparency = 0 })
 	tween(titleStroke, fin, { Transparency = 0.4 })
+	for _, cp in ipairs(crownParts) do tween(cp, fin, { BackgroundTransparency = 0 }) end
 	tween(sub, fin, { TextTransparency = 0 })
 	tween(ver, fin, { TextTransparency = 0.3 })
 	task.delay(0.15, function()
 		for _, child in ipairs(btnHolder:GetChildren()) do
 			if child:IsA("TextButton") then
-				tween(child, TweenInfo.new(0.4), { BackgroundTransparency = (child.Name == "Btn_1") and 0 or 0.15 })
+				tween(child, TweenInfo.new(0.4), { BackgroundTransparency = (child.Name == "Btn_1") and 0 or 0.04 })
 				for _, d in ipairs(child:GetDescendants()) do
-					if d:IsA("TextLabel") then tween(d, TweenInfo.new(0.4), { TextTransparency = 0 })
-					elseif d:IsA("UIStroke") then tween(d, TweenInfo.new(0.4), { Transparency = 0.2 }) end
+					if d:IsA("TextLabel") then tween(d, TweenInfo.new(0.4), { TextTransparency = d:GetAttribute("ShownTT") or 0 })
+					elseif d:IsA("UIStroke") then tween(d, TweenInfo.new(0.4), { Transparency = d:GetAttribute("ShownT") or 0.2 })
+					elseif d:IsA("Frame") then tween(d, TweenInfo.new(0.4), { BackgroundTransparency = d:GetAttribute("ShownBT") or 0 })
+					elseif d:IsA("ImageLabel") then tween(d, TweenInfo.new(0.4), { ImageTransparency = d:GetAttribute("ShownIT") or 0 }) end
 				end
 			end
 		end
@@ -15964,7 +16151,7 @@ local Players            = game:GetService("Players")
 local SCAN_TIME   = 2.3    -- مدة «المسح» قبل ظهور النتيجة (إحساس واقعي)
 local DOOR_OPEN_T = 2.6    -- مدة فتح الباب تدريجياً
 local DOOR_HOLD   = 5.0    -- يبقى الباب مفتوحاً قبل أن يقفل تلقائياً
-local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم مرّة واحدة لكل جلسة من الجهاز الخارجي فقط
+local ENTRY_FEE   = 250    -- 🎟️ رسوم دخول القصر (كوينز) — تُخصم في كل محاولة دخول من الجهاز الخارجي (لا تذكرة جلسة مجانية)
 
 local function isAdmin(player: Player): boolean
 	if type(_G.GetChatRank) == "function" then
@@ -17066,20 +17253,33 @@ local evLogReq = Instance.new("RemoteEvent"); evLogReq.Name = "LogRequest"; evLo
 local evLogData = Instance.new("RemoteEvent"); evLogData.Name = "LogData"; evLogData.Parent = net
 
 ----------------------------------------------------------------------
--- 🖐️ باني جهاز بصمة مدمج وأنيق (بستايل ZKTeco) — قابل لإعادة الاستخدام
---      جهاز نحيف صغير: قاعدة صغيرة + عنق رفيع + رأس مدمج بشاشة بصمة
---      + لوح مسح زجاجي بارز تضع فيه إصبعك. لا أعمدة ضخمة ولا أقراص عائمة.
-----------------------------------------------------------------------
 type ScannerRefs = {
 	frame: BasePart,
 	pad: BasePart,
 	padLight: PointLight,
 	glass: BasePart,
+	beam: BasePart,
+	floorLED: BasePart,
+	ledLight: PointLight,
 	status: TextLabel,
 	scanLine: Frame,
 	rings: { UIStroke },
+	wave: Frame,
+	waveStroke: UIStroke,
+	beamLow: Vector3,
+	beamHigh: Vector3,
+	idleScreen: Color3,
+	idleAccent: Color3,
+	idleGlass: Color3,
+	idleSub: string,
 }
 
+----------------------------------------------------------------------
+-- 🧱 باني «لوحة بصمة جدارية فاخرة» مدمجة وأنيقة (بدل العمود الواقف):
+--      مونوليث أوبسيديان رفيع + إطار ذهبي مصقول + زجاج غاطس متوهّج
+--      + شعاع مسح ثلاثي الأبعاد يجتاز الزجاج عمودياً + شريط LED أرضي
+--      يقود للباب. قابل لإعادة الاستخدام (دخول/خروج)، يواجه ±X حسب sgn.
+----------------------------------------------------------------------
 local function buildScanner(o): ScannerRefs
 	local cx, cz, fy, sgn = o.cx, o.cz, o.fy, o.sgn
 	local body, bodyMat = o.body, o.bodyMat
@@ -17087,47 +17287,63 @@ local function buildScanner(o): ScannerRefs
 	local glassColor, ringColor, textColor = o.glassColor, o.ringColor, o.textColor
 	local name = o.name
 
-	local fx = cx + sgn * 0.28          -- الوجه الأمامي للرأس (تتجه له الشاشة)
-	local headY0, headY1 = fy + 2.6, fy + 4.55
+	local fx = cx + sgn * 0.22                   -- مستوى الوجه الأمامي للوحة
+	local panelTop = fy + 4.9
+	local panelBottom = fy + 0.9
+	local padBottom, padTop = fy + 2.05, fy + 4.5
+	local halfW = 1.0
 
-	-- قاعدة صغيرة (بصمة قدم صغيرة) + شريط نيون رفيع
-	box(name .. "Base", cx - 0.62, cx + 0.62, fy, fy + 0.28, cz - 0.78, cz + 0.78, body, bodyMat)
-	box(name .. "BaseRing", cx - 0.66, cx + 0.66, fy + 0.26, fy + 0.36, cz - 0.82, cz + 0.82, accent, Enum.Material.Neon).CanCollide = false
+	-- قاعدة نحيفة أنيقة (اللوحة قائمة بذاتها، مدمجة وغير ضخمة)
+	box(name .. "Base", cx - 0.34, cx + 0.34, fy, fy + 0.16, cz - halfW - 0.06, cz + halfW + 0.06, body, bodyMat)
+	box(name .. "BaseGlow", cx - 0.30, cx + 0.30, fy + 0.14, fy + 0.20, cz - halfW, cz + halfW, accent, Enum.Material.Neon).CanCollide = false
 
-	-- عنق رفيع يحمل الرأس
-	box(name .. "Neck", cx - sgn * 0.12 - 0.26, cx - sgn * 0.12 + 0.26, fy + 0.28, fy + 2.62, cz - 0.32, cz + 0.32, body, bodyMat)
+	-- المونوليث الأوبسيديان الرفيع — الـProximityPrompt يلتصق به
+	local frame = box(name .. "Slab", cx - 0.22, cx + 0.22, fy + 0.16, panelTop, cz - halfW, cz + halfW, body, bodyMat)
 
-	-- رأس الجهاز المدمج (يحمل الشاشة) — الـProximityPrompt يلتصق به
-	local frame = box(name .. "Head", cx - 0.28, cx + 0.28, headY0, headY1, cz - 0.85, cz + 0.85, body, bodyMat)
-	-- إطار نيون رفيع حول الوجه الأمامي (تباين أنيق)
-	box(name .. "Bezel", fx, fx + sgn * 0.05, headY0 + 0.08, headY1 - 0.08, cz - 0.82, cz + 0.82, accent, Enum.Material.Neon).CanCollide = false
+	-- إطار ذهبي مصقول على الوجه (يحيط الزجاج فيبدو غاطساً وفخماً)
+	box(name .. "Frame", fx, fx + sgn * 0.06, panelBottom, panelTop - 0.12, cz - halfW + 0.05, cz + halfW - 0.05, TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	-- شريط شعار مضيء أعلى اللوحة (Backlit)
+	box(name .. "Logo", fx + sgn * 0.06, fx + sgn * 0.11, panelTop - 0.62, panelTop - 0.26, cz - 0.62, cz + 0.62, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
 
-	-- الشاشة المتوهّجة (الجزء العلوي) — يتغيّر لونها مع المسح
-	local sy0, sy1 = fy + 3.18, fy + 4.42
-	local pad = box(name .. "Pad", fx + sgn * 0.02, fx + sgn * 0.09, sy0, sy1, cz - 0.72, cz + 0.72, screenIdle, Enum.Material.Neon)
+	-- الشاشة المتوهّجة (تتغيّر مع حالة المسح) — تحمل واجهة البصمة
+	local pad = box(name .. "Pad", fx + sgn * 0.06, fx + sgn * 0.10, padBottom, padTop, cz - 0.74, cz + 0.74, screenIdle, Enum.Material.Neon)
 	pad.CanCollide = false
-	local padLight = pointLight(pad, accent, 1.0, 7)
+	local padLight = pointLight(pad, accent, 1.2, 9)
 
-	-- لوح المسح الزجاجي البارز (الجزء السفلي) — تضع فيه إصبعك
-	local glass = box(name .. "Glass", fx, fx + sgn * 0.18, fy + 2.78, fy + 3.06, cz - 0.46, cz + 0.46, glassColor, Enum.Material.Glass)
+	-- زجاج شفّاف بارز فوق الشاشة (سطح اللمس)
+	local glass = box(name .. "Glass", fx + sgn * 0.10, fx + sgn * 0.15, padBottom - 0.04, padTop + 0.04, cz - 0.78, cz + 0.78, glassColor, Enum.Material.Glass)
 	glass.CanCollide = false
-	glass.Reflectance = 0.2
-	pointLight(glass, accent, 0.7, 4)
+	glass.Reflectance = 0.25
+	pointLight(glass, accent, 0.6, 5)
 
-	-- واجهة الشاشة: عنوان + بصمة بحلقات + خط مسح متحرّك + سطر حالة
+	-- 🔦 شعاع المسح ثلاثي الأبعاد — شريط نيون يجتاز الزجاج عمودياً أثناء المسح
+	local beamX = fx + sgn * 0.16
+	local beam = box(name .. "Beam", beamX - 0.025, beamX + 0.025, padBottom + 0.04, padBottom + 0.12, cz - 0.74, cz + 0.74, accent, Enum.Material.Neon)
+	beam.CanCollide = false
+	beam.Transparency = 1
+	local beamLow = Vector3.new(beamX, padBottom + 0.12, cz)
+	local beamHigh = Vector3.new(beamX, padTop - 0.12, cz)
+
+	-- 💡 شريط LED أرضي أمام اللوحة — يضيء عند القبول ويقود اللاعب للباب
+	local ledA, ledB = cx + sgn * 0.55, cx + sgn * 3.1
+	local led = box(name .. "FloorLED", math.min(ledA, ledB), math.max(ledA, ledB), fy + 0.005, fy + 0.07, cz - 0.46, cz + 0.46, accent, Enum.Material.Neon)
+	led.CanCollide = false
+	local ledLight = pointLight(led, accent, 0.6, 8)
+
+	-- واجهة الشاشة: عنوان + بصمة بحلقات + خط مسح + موجة نجاح + سطر حالة
 	local face = (sgn >= 0) and Enum.NormalId.Right or Enum.NormalId.Left
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = name .. "Gui"; gui.AutoLocalize = false
 	gui.Face = face
-	gui.CanvasSize = Vector2.new(300, 420)
+	gui.CanvasSize = Vector2.new(300, 480)
 	gui.LightInfluence = 0
 	gui.Adornee = pad
 	gui.Parent = pad
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 0.14, 0)
-	title.Position = UDim2.new(0, 0, 0.015, 0)
+	title.Size = UDim2.new(1, 0, 0.12, 0)
+	title.Position = UDim2.new(0, 0, 0.02, 0)
 	title.Font = Enum.Font.GothamBold
 	title.Text = o.title
 	title.TextScaled = true
@@ -17137,8 +17353,8 @@ local function buildScanner(o): ScannerRefs
 	-- حلقات البصمة
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, 0, 0.5, 0)
-	holder.Position = UDim2.new(0, 0, 0.17, 0)
+	holder.Size = UDim2.new(1, 0, 0.52, 0)
+	holder.Position = UDim2.new(0, 0, 0.16, 0)
 	holder.ClipsDescendants = true
 	holder.Parent = gui
 	local rings: { UIStroke } = {}
@@ -17157,6 +17373,19 @@ local function buildScanner(o): ScannerRefs
 		st.Parent = ring
 		table.insert(rings, st)
 	end
+	-- موجة النجاح (حلقة تتمدّد وتتلاشى عند قبول الدخول)
+	local wave = Instance.new("Frame")
+	wave.AnchorPoint = Vector2.new(0.5, 0.5)
+	wave.Position = UDim2.new(0.5, 0, 0.5, 0)
+	wave.Size = UDim2.new(0.2, 0, 0.22, 0)
+	wave.BackgroundTransparency = 1
+	wave.Visible = false
+	wave.Parent = holder
+	Instance.new("UICorner", wave).CornerRadius = UDim.new(1, 0)
+	local waveStroke = Instance.new("UIStroke")
+	waveStroke.Thickness = 5
+	waveStroke.Color = Color3.fromRGB(120, 255, 170)
+	waveStroke.Parent = wave
 	-- خط المسح المتحرّك (يمر فوق البصمة)
 	local scanLine = Instance.new("Frame")
 	scanLine.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -17173,8 +17402,8 @@ local function buildScanner(o): ScannerRefs
 
 	local status = Instance.new("TextLabel")
 	status.BackgroundTransparency = 1
-	status.Size = UDim2.new(1, 0, 0.16, 0)
-	status.Position = UDim2.new(0, 0, 0.7, 0)
+	status.Size = UDim2.new(1, 0, 0.14, 0)
+	status.Position = UDim2.new(0, 0, 0.72, 0)
 	status.Font = Enum.Font.GothamBold
 	status.Text = o.sub
 	status.TextScaled = true
@@ -17183,31 +17412,115 @@ local function buildScanner(o): ScannerRefs
 
 	local hint = Instance.new("TextLabel")
 	hint.BackgroundTransparency = 1
-	hint.Size = UDim2.new(1, 0, 0.1, 0)
-	hint.Position = UDim2.new(0, 0, 0.88, 0)
+	hint.Size = UDim2.new(1, 0, 0.09, 0)
+	hint.Position = UDim2.new(0, 0, 0.89, 0)
 	hint.Font = Enum.Font.Gotham
 	hint.Text = o.hint
 	hint.TextScaled = true
 	hint.TextColor3 = ringColor
 	hint.Parent = gui
 
-	return { frame = frame, pad = pad, padLight = padLight, glass = glass, status = status, scanLine = scanLine, rings = rings }
+	return {
+		frame = frame, pad = pad, padLight = padLight, glass = glass,
+		beam = beam, floorLED = led, ledLight = ledLight,
+		status = status, scanLine = scanLine, rings = rings,
+		wave = wave, waveStroke = waveStroke, beamLow = beamLow, beamHigh = beamHigh,
+		idleScreen = screenIdle, idleAccent = accent, idleGlass = glassColor, idleSub = o.sub,
+	}
 end
 
--- جهاز بصمة الدخول الخارجي (تذكرة دخول) — مدمج، يواجه المدينة (-X)
+----------------------------------------------------------------------
+-- 🎛️ حالات اللوحة (مفهوم المسح الجديد): أزرق/زمردي (جاهز) → ذهبي (يمسح)
+--      → أخضر (نجاح) / أحمر (رفض). تتحكّم بكل عناصر اللوحة ثلاثية الأبعاد.
+----------------------------------------------------------------------
+local SCAN_GOLD   = Color3.fromRGB(235, 188, 80)
+local SCAN_GOLD_L = Color3.fromRGB(255, 206, 96)
+local OK_GREEN    = Color3.fromRGB(45, 210, 120)
+local OK_GREEN_L  = Color3.fromRGB(75, 240, 150)
+local BAD_RED     = Color3.fromRGB(210, 55, 50)
+local BAD_RED_L   = Color3.fromRGB(238, 78, 66)
+
+local function setScanner(r: ScannerRefs, state: string)
+	if state == "scan" then
+		r.pad.Color = SCAN_GOLD; r.padLight.Color = SCAN_GOLD_L
+		r.glass.Color = SCAN_GOLD_L
+		r.beam.Color = SCAN_GOLD_L
+		r.floorLED.Color = SCAN_GOLD; r.ledLight.Color = SCAN_GOLD_L; r.ledLight.Brightness = 0.9
+	elseif state == "ok" then
+		r.pad.Color = OK_GREEN; r.padLight.Color = OK_GREEN_L
+		r.glass.Color = OK_GREEN_L; r.beam.Transparency = 1
+		r.floorLED.Color = OK_GREEN_L; r.ledLight.Color = OK_GREEN_L; r.ledLight.Brightness = 2.4
+	elseif state == "bad" then
+		r.pad.Color = BAD_RED; r.padLight.Color = BAD_RED_L
+		r.glass.Color = BAD_RED_L; r.beam.Transparency = 1
+		r.floorLED.Color = BAD_RED; r.ledLight.Color = BAD_RED_L; r.ledLight.Brightness = 1.4
+	else -- idle
+		r.pad.Color = r.idleScreen; r.padLight.Color = r.idleAccent
+		r.glass.Color = r.idleGlass; r.beam.Transparency = 1
+		r.floorLED.Color = r.idleAccent; r.ledLight.Color = r.idleAccent; r.ledLight.Brightness = 0.6
+		r.status.Text = r.idleSub
+		for _, st in r.rings do st.Thickness = 3 end
+	end
+end
+
+-- موجة نجاح على الواجهة (حلقة تتمدّد وتتلاشى)
+local function playWave(r: ScannerRefs)
+	task.spawn(function()
+		r.waveStroke.Transparency = 0
+		r.wave.Visible = true
+		for s = 0, 12 do
+			local t = s / 12
+			local sz = 0.2 + t * 0.95
+			r.wave.Size = UDim2.new(sz, 0, sz * 1.1, 0)
+			r.waveStroke.Transparency = t
+			task.wait(0.03)
+		end
+		r.wave.Visible = false
+		r.waveStroke.Transparency = 0
+	end)
+end
+
+----------------------------------------------------------------------
+-- 🖐️ مفهوم المسح الجديد (ثلاثي الأبعاد، يتزامن لكل اللاعبين عبر السيرفر):
+--      الشعاع الضوئي يجتاز الزجاج عمودياً ذهاباً وإياباً + نبض الحلقات
+--      + خط الواجهة + نسبة تقدّم 0→100٪. يبقى ظاهراً للجميع.
+----------------------------------------------------------------------
+local function runScan3D(r: ScannerRefs, duration: number)
+	setScanner(r, "scan")
+	r.beam.Transparency = 0.12
+	local steps = math.max(10, math.floor(duration / 0.05))
+	for s = 0, steps do
+		local t = s / steps
+		local raw = (t * 2) % 2                   -- موجة مثلثية: صعود ثم نزول دون قفز
+		local sweep = if raw < 1 then raw else 2 - raw
+		r.beam.CFrame = CFrame.new(r.beamLow:Lerp(r.beamHigh, sweep))
+		r.scanLine.Position = UDim2.new(0.5, 0, 1 - sweep, 0)
+		for i, st in r.rings do
+			local on = (math.floor(t * 10) % #r.rings) == (i - 1)
+			st.Thickness = on and 5 or 3
+		end
+		r.status.Text = "جارٍ المسح… " .. math.floor(t * 100) .. "٪"
+		task.wait(duration / steps)
+	end
+	r.scanLine.Position = UDim2.new(0.5, 0, 1.1, 0)
+	for _, st in r.rings do st.Thickness = 3 end
+	r.beam.Transparency = 1
+end
+
+-- لوحة بصمة الدخول الخارجية (تذكرة دخول) — لوحة جدارية فاخرة، تواجه المدينة (-X)
+-- أوبسيديان داكن + إطار ذهبي + زجاج أزرق متوهّج (مفهوم Wall Panel المعتمد)
 local CX_S, CZ_S = 89, 30
 local SY = FLOOR_Y
+local OBSIDIAN_E   = Color3.fromRGB(16, 20, 27)
 local extScan = buildScanner({
 	name = "Scanner", cx = CX_S, cz = CZ_S, fy = SY, sgn = -1,
-	body = Color3.fromRGB(196, 156, 74), bodyMat = Enum.Material.Metal,
-	accent = TRIM_GOLD, screenIdle = Color3.fromRGB(20, 60, 90),
-	glassColor = Color3.fromRGB(120, 210, 245), ringColor = Color3.fromRGB(180, 230, 255),
-	textColor = Color3.fromRGB(210, 240, 255),
+	body = OBSIDIAN_E, bodyMat = Enum.Material.Slate,
+	accent = Color3.fromRGB(60, 150, 235), screenIdle = Color3.fromRGB(16, 42, 72),
+	glassColor = Color3.fromRGB(120, 200, 250), ringColor = Color3.fromRGB(180, 225, 255),
+	textColor = Color3.fromRGB(210, 235, 255),
 	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز",
 })
 local panelFrame = extScan.frame
-local pad = extScan.pad
-local padLight = extScan.padLight
 
 -- ProximityPrompt للتفاعل
 local prompt = Instance.new("ProximityPrompt")
@@ -17249,37 +17562,83 @@ local function recordEntry(player: Player)
 	task.spawn(saveLog)
 end
 
-----------------------------------------------------------------------
--- 🎟️ تتبّع الدفع لكل جلسة — اللاعب اللي دفع ودخل ما يُخصم منه مرّة ثانية
---      في نفس الجلسة (يُمسح تلقائياً عند خروجه من السيرفر)
-----------------------------------------------------------------------
-local paidEntry: { [number]: boolean } = {}
 -- 🚧 قفل لكل لاعب على حدة (يمنع تكرار الضغط لنفس اللاعب دون تعطيل بقية اللاعبين)
 local scanningEntry: { [number]: boolean } = {}
 local scanningExit: { [number]: boolean } = {}
 Players.PlayerRemoving:Connect(function(player)
-	paidEntry[player.UserId] = nil
 	scanningEntry[player.UserId] = nil
 	scanningExit[player.UserId] = nil
 end)
 
-local PAD_IDLE = Color3.fromRGB(20, 60, 90)
-local PAD_IDLE_LIGHT = Color3.fromRGB(80, 170, 230)
+----------------------------------------------------------------------
+-- 🛡️ حاجز بوابة غير مرئي + مجموعات تصادم:
+--      حاجز ثابت يملأ فتحة الباب فيمنع أي لاعب من العبور مجاناً خلف لاعب دفع.
+--      عند الدفع الناجح (أو الخروج المجاني) نمنح اللاعب «تصريح عبور» مؤقّت
+--      (مجموعة تصادم لا تصطدم بالحاجز) لثوانٍ تكفي لدخوله، ثم يعود طبيعياً.
+----------------------------------------------------------------------
+local PhysicsService = game:GetService("PhysicsService")
+local GRP_BARRIER = "PalaceGateBarrier"
+local GRP_PASS    = "PalaceGatePass"
+pcall(function() PhysicsService:RegisterCollisionGroup(GRP_BARRIER) end)
+pcall(function() PhysicsService:RegisterCollisionGroup(GRP_PASS) end)
+-- صاحب التصريح (GRP_PASS) لا يصطدم بالحاجز؛ البقية (Default) يُحجبون.
+pcall(function() PhysicsService:CollisionGroupSetCollidable(GRP_PASS, GRP_BARRIER, false) end)
 
-local function setPad(c: Color3, l: Color3)
-	pad.Color = c
-	padLight.Color = l
+-- حاجز شفّاف يملأ فتحة المدخل (x=ENT_X, z=[ENT_Z0..ENT_Z1], من الأرضية للأعلى)
+do
+	local barrier = Instance.new("Part")
+	barrier.Name = "PalaceGateBarrier"
+	barrier.Anchored = true
+	barrier.CanCollide = true
+	barrier.CanQuery = false
+	barrier.CastShadow = false
+	barrier.Transparency = 1
+	barrier.Size = Vector3.new(1.6, DOOR_H + 1, ENT_Z1 - ENT_Z0)
+	barrier.CFrame = CFrame.new(ENT_X - 0.3, FLOOR_Y + (DOOR_H + 1) / 2, (ENT_Z0 + ENT_Z1) / 2)
+	barrier.CollisionGroup = GRP_BARRIER
+	barrier.Parent = ROOT
 end
 
--- 🔢 توكِن إعادة ضبط اللوحة: كل نتيجة مسح جديدة تُلغي إعادة الضبط المؤجّلة السابقة
---     حتى لا يطفئ ريسِت قديم لون لوحة مسحٍ جديد بدأ خلال فترة التأخير.
-local padCycle = 0
+-- 🎫 توكِن تصريح لكل لاعب: يضمن أن انتهاء تصريح قديم لا يلغي تصريحاً جديداً
+local gatePassCycle: { [number]: number } = {}
+Players.PlayerRemoving:Connect(function(player)
+	gatePassCycle[player.UserId] = nil
+end)
 
-local function resetPadSoon()
-	padCycle += 1
-	local my = padCycle
-	task.delay(2, function()
-		if my == padCycle then setPad(PAD_IDLE, PAD_IDLE_LIGHT) end
+-- يمنح اللاعب عبوراً مؤقّتاً عبر الحاجز ثم يعيد أجزاءه لمجموعة الافتراضي
+local function grantGatePass(player: Player, duration: number)
+	local char = player.Character
+	if not char then return end
+	gatePassCycle[player.UserId] = (gatePassCycle[player.UserId] or 0) + 1
+	local my = gatePassCycle[player.UserId]
+	for _, d in char:GetDescendants() do
+		if d:IsA("BasePart") then d.CollisionGroup = GRP_PASS end
+	end
+	task.delay(duration, function()
+		-- لا تُلغِ تصريحاً أحدث (لو ضغط/دفع مجدداً خلال المهلة)
+		if gatePassCycle[player.UserId] ~= my then return end
+		local c = player.Character
+		if not c then return end
+		for _, d in c:GetDescendants() do
+			if d:IsA("BasePart") then d.CollisionGroup = "Default" end
+		end
+	end)
+end
+
+local GATE_PASS_TIME = 6   -- ⏱ مهلة عبور اللاعب الدافع/الخارج (ثواني)
+
+-- 🔒 قفل أنيميشن واحد للوحة الدخول: عناصر اللوحة (الشعاع/الخط/الحلقات) مشتركة،
+--     فلو شغّلها لاعبان معاً تتشوّه. المالك فقط يشغّل المسح؛ البقية ينتظرون بدون تضارب.
+local entryAnimating = false
+-- 🔢 توكِن إعادة ضبط اللوحة: كل نتيجة مسح جديدة تُلغي إعادة الضبط المؤجّلة السابقة
+--     حتى لا يطفئ ريسِت قديم لوحة مسحٍ جديد بدأ خلال فترة التأخير.
+local entryReset = 0
+
+local function resetEntrySoon()
+	entryReset += 1
+	local my = entryReset
+	task.delay(2.4, function()
+		if my == entryReset and not entryAnimating then setScanner(extScan, "idle") end
 	end)
 end
 
@@ -17293,55 +17652,57 @@ prompt.Triggered:Connect(function(player)
 	-- منع تكرار الضغط لنفس اللاعب أثناء المسح (لكل لاعب على حدة — لا يعطّل غيره)
 	if scanningEntry[player.UserId] then return end
 	scanningEntry[player.UserId] = true
+	local owns = false   -- هل يملك هذا اللاعب أنيميشن اللوحة هذه المرّة؟
 
-	local function admit()
-		evScanResult:FireClient(player, true)
-		setPad(Color3.fromRGB(40, 200, 110), Color3.fromRGB(60, 230, 120))
+	local function admit(info)
+		evScanResult:FireClient(player, true, info)
+		if owns then setScanner(extScan, "ok"); playWave(extScan) end
 		recordEntry(player)
+		grantGatePass(player, GATE_PASS_TIME)   -- 🎫 يعبر الحاجز هو فقط لثوانٍ
 		openDoorsSequence()
-		resetPadSoon()
 	end
 
 	local ok, err = pcall(function()
-		-- ابدأ شاشة المسح عند اللاعب فوراً (إحساس واقعي)
-		evStartScan:FireClient(player)
-		task.wait(SCAN_TIME)
+		-- ابدأ شاشة المسح عند اللاعب فوراً + شعاع المسح ثلاثي الأبعاد على اللوحة
+		evStartScan:FireClient(player, { kind = "entry", cost = ENTRY_FEE, dur = SCAN_TIME })
+		if not entryAnimating then
+			entryAnimating = true
+			owns = true
+			runScan3D(extScan, SCAN_TIME)   -- شعاع يجتاز الزجاج + تدرّج ذهبي
+		else
+			task.wait(SCAN_TIME)            -- لوحة مشغولة بمسح لاعب آخر — ننتظر دون تضارب
+		end
 
 		if isAdmin(player) then
-			admit()
+			admit({ kind = "admin" })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
 			return
 		end
 
-		if paidEntry[player.UserId] then
-			admit()
-			if _G.NotifyPlayer then _G.NotifyPlayer(player, "✅ أهلاً بعودتك — تذكرتك سارية لهذه الجلسة.") end
-			return
-		end
-
+		-- 💳 يُخصم رسم الدخول في كل محاولة دخول (لا تذكرة جلسة مجانية)
 		local coins = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or 0
 		if coins >= ENTRY_FEE and type(_G.SpendCoins) == "function" and _G.SpendCoins(player, ENTRY_FEE) then
-			paidEntry[player.UserId] = true
-			admit()
+			local newBal = (type(_G.GetCoins) == "function") and _G.GetCoins(player) or (coins - ENTRY_FEE)
+			admit({ kind = "entry", cost = ENTRY_FEE, bal = newBal })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "🎟️ تم خصم " .. ENTRY_FEE .. " كوينز — أهلاً بك في قصر شهد 👑") end
 		else
 			-- رصيد غير كافٍ → رفض الدخول
-			evScanResult:FireClient(player, false)
-			setPad(Color3.fromRGB(210, 50, 50), Color3.fromRGB(230, 60, 60))
-			resetPadSoon()
+			evScanResult:FireClient(player, false, { kind = "entry", cost = ENTRY_FEE, bal = coins })
+			if owns then setScanner(extScan, "bad") end
 			if _G.NotifyPlayer then
 				_G.NotifyPlayer(player, "❌ رصيدك غير كافٍ — تحتاج " .. ENTRY_FEE .. " كوينز لدخول القصر (رصيدك: " .. coins .. ").")
 			end
 		end
 	end)
 	-- يُحرّر القفل دائماً (حتى لو حصل خطأ) عشان اللاعب يقدر يعيد المحاولة
+	if owns then entryAnimating = false; resetEntrySoon() end
 	if not ok then warn("[Palace] Entry scan error: " .. tostring(err)) end
 	scanningEntry[player.UserId] = nil
 end)
 
 ----------------------------------------------------------------------
--- 🟢 جهاز بصمة الخروج الداخلي — مدمج وأنيق (بستايل ZKTeco)، أوبسيديان زمردي
---      وظيفته: فتح الباب للخروج فقط (بدون أي خصم، للجميع) مع حركة مسح واقعية
+-- 🟢 لوحة بصمة الخروج الداخلية — لوحة جدارية فاخرة، أوبسيديان + زمردي + إطار ذهبي
+--      وظيفتها: فتح الباب للخروج فقط (بدون أي خصم، للجميع) مع مفهوم المسح ثلاثي الأبعاد
 ----------------------------------------------------------------------
 local OBSIDIAN     = Color3.fromRGB(18, 22, 28)
 local EMERALD      = Color3.fromRGB(40, 220, 140)
@@ -17360,47 +17721,28 @@ local exitScan = buildScanner({
 	title = "بوابة الخروج", sub = "ضع إصبعك للخروج", hint = "EXIT · اضغط E",
 })
 local exitFrame = exitScan.frame
-local pad2 = exitScan.pad
-local pad2Light = exitScan.padLight
-
-local PAD2_IDLE = EMERALD_DEEP
-local PAD2_IDLE_LIGHT = EMERALD
 local EXIT_SCAN_TIME = 4.5            -- ⏱ مدة حركة المسح الواقعية (ثواني)
-
-----------------------------------------------------------------------
--- 🖐️ حركة مسح واقعية على الشاشة (السيرفر يحرّك العناصر فتتزامن لكل اللاعبين)
---      خط مسح يمرّ فوق البصمة + نبض الحلقات + نسبة تقدّم 0→100٪
-----------------------------------------------------------------------
-local function runScanAnimation(refs, duration: number)
-	local status, scanLine, rings = refs.status, refs.scanLine, refs.rings
-	refs.pad.Color = Color3.fromRGB(24, 120, 90)
-	refs.padLight.Color = EMERALD
-	local steps = math.max(6, math.floor(duration / 0.06))
-	for s = 0, steps do
-		local t = s / steps
-		-- خط المسح يتحرّك من الأسفل للأعلى ويتكرّر مرّتين
-		local sweep = (t * 2) % 1
-		scanLine.Position = UDim2.new(0.5, 0, 1 - sweep, 0)
-		-- نبض الحلقات (إضاءة متتابعة)
-		for i, st in rings do
-			local on = (math.floor(t * 10) % #rings) == (i - 1)
-			st.Thickness = on and 5 or 3
-		end
-		status.Text = "جارٍ المسح… " .. math.floor(t * 100) .. "٪"
-		task.wait(duration / steps)
-	end
-	scanLine.Position = UDim2.new(0.5, 0, 1.1, 0)   -- إخفاء الخط بعد الانتهاء
-	for _, st in rings do st.Thickness = 3 end
-end
 
 local exitPrompt = Instance.new("ProximityPrompt")
 exitPrompt.ActionText = "افتح الباب واخرج"
 exitPrompt.ObjectText = "بوابة الخروج"
 exitPrompt.HoldDuration = 0
 exitPrompt.KeyboardKeyCode = Enum.KeyCode.E
-exitPrompt.RequiresLineOfSight = false
-exitPrompt.MaxActivationDistance = 9
+exitPrompt.RequiresLineOfSight = true   -- 🧱 الجدار يحجب الضغط من الخارج (لا فتح من برّا)
+exitPrompt.MaxActivationDistance = 7
 exitPrompt.Parent = exitFrame
+
+-- 🚪 جهاز الخروج للداخل فقط: نتحقّق أن اللاعب فعلاً داخل القصر قبل فتح الباب،
+--     فلا يقدر أحد يفتح القصر وهو واقف بالخارج بمحاذاة الجدار (الإصلاح الجذري للـ bug).
+local function isInsidePalace(player: Player): boolean
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+	local p = (hrp :: BasePart).Position
+	return p.X >= FX0 + 2 and p.X <= FX1 - 1
+		and p.Z >= FZ0 + 1 and p.Z <= FZ1 - 1
+		and p.Y >= FLOOR_Y - 2 and p.Y <= CEIL_Y + 1
+end
 
 -- 🔒 قفل أنيميشن واحد للجهاز كلّه: عناصر الواجهة (الخط/الحلقات/النص) مشتركة،
 --     فلو شغّلها لاعبان معاً تتشوّه. مالك الأنيميشن فقط يحرّكها؛ البقية يخرجون فوراً بدون تضارب.
@@ -17409,25 +17751,28 @@ local exitResetCycle = 0   -- يُلغي إعادة الضبط المؤجّلة 
 
 -- منطق الخروج: حركة مسح واقعية (~4.5ث) → فتح الباب (بدون خصم، للجميع)
 exitPrompt.Triggered:Connect(function(player)
+	-- 🧱 حماية إضافية: تجاهل الضغط لو اللاعب مش فعلاً داخل القصر (منع الفتح من الخارج)
+	if not isInsidePalace(player) then return end
 	-- منع إعادة التشغيل لنفس اللاعب أثناء مسحه فقط (لا يعطّل بقية اللاعبين)
 	if scanningExit[player.UserId] then return end
 	scanningExit[player.UserId] = true
 	local owns = false   -- هل يملك هذا اللاعب أنيميشن الجهاز هذه المرّة؟
 	local ok, err = pcall(function()
-		evStartScan:FireClient(player)
+		evStartScan:FireClient(player, { kind = "exit", dur = EXIT_SCAN_TIME })
 		if not exitAnimating then
-			-- هذا اللاعب يملك الجهاز: يشغّل المسح الكامل على الواجهة المشتركة
+			-- هذا اللاعب يملك اللوحة: يشغّل المسح الكامل (شعاع ثلاثي الأبعاد) على الواجهة المشتركة
 			exitAnimating = true
 			owns = true
-			runScanAnimation(exitScan, EXIT_SCAN_TIME)
+			runScan3D(exitScan, EXIT_SCAN_TIME)
+			setScanner(exitScan, "ok")
+			playWave(exitScan)
 			exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
-			pad2.Color = Color3.fromRGB(60, 245, 150)
-			pad2Light.Color = Color3.fromRGB(80, 255, 170)
 		else
-			-- الجهاز يعرض مسح لاعب آخر — نفتح الباب لهذا اللاعب فوراً دون تشغيل أنيميشن متضارب
+			-- اللوحة تعرض مسح لاعب آخر — نفتح الباب لهذا اللاعب فوراً دون تشغيل أنيميشن متضارب
 			task.wait(0.8)
 		end
-		evScanResult:FireClient(player, true)
+		evScanResult:FireClient(player, true, { kind = "exit" })
+		grantGatePass(player, GATE_PASS_TIME)   -- 🎫 الخروج مجاني — يعبر الحاجز هو فقط لثوانٍ
 		openDoorsSequence()
 		if _G.NotifyPlayer then _G.NotifyPlayer(player, "🚪 تم فتح الباب — مع السلامة 👋") end
 	end)
@@ -17438,12 +17783,10 @@ exitPrompt.Triggered:Connect(function(player)
 	if owns then
 		exitResetCycle += 1
 		local myReset = exitResetCycle
-		task.delay(2.2, function()
-			-- تجاهل إعادة الضبط لو بدأ مسحٌ جديد خلال فترة التأخير (يمنع تشويه لون لوحة المسح الجديد)
+		task.delay(2.4, function()
+			-- تجاهل إعادة الضبط لو بدأ مسحٌ جديد خلال فترة التأخير (يمنع تشويه لوحة المسح الجديد)
 			if myReset ~= exitResetCycle or exitAnimating then return end
-			pad2.Color = PAD2_IDLE
-			pad2Light.Color = PAD2_IDLE_LIGHT
-			exitScan.status.Text = "ضع إصبعك للخروج"
+			setScanner(exitScan, "idle")
 		end)
 	end
 end)
@@ -18311,6 +18654,127 @@ Players.PlayerRemoving:Connect(function(player)
 end)
 
 print("[RewardBoxSystem] جاهز — صندوق المكافآت مفعّل (1000 كوينز + إنجاز «داعم مدينة شهد»).")
+]]></string></Properties></Item><Item class="Script" referent="DayNightCycleServerRef"><Properties><string name="Name">DayNightCycle</string><token name="RunContext">0</token><string name="Source"><![CDATA[--!nonstrict
+----------------------------------------------------------------------
+-- DAY NIGHT CYCLE (Server)
+--   نظام تعاقب الليل والنهار — يعتمد على وقت السيرفر الحقيقي بتوقيت
+--   البحرين (UTC+3). يحرّك Lighting.ClockTime لتتبع الوقت الفعلي، ويضبط
+--   السطوع/الإضاءة المحيطة/الضباب تدريجياً عبر ٥ مراحل:
+--       الفجر → الصباح → الظهر → العصر → المساء.
+--   كما يبثّ وقت السيرفر للعملاء عبر RemoteEvent ليعرضوه في ساعة HUD.
+----------------------------------------------------------------------
+local Lighting        = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players         = game:GetService("Players")
+
+local BAHRAIN_OFFSET = 3 * 3600   -- UTC+3 (التوقيت الرسمي للبحرين، لا صيفي)
+
+----------------------------------------------------------------------
+-- قناة بثّ وقت السيرفر للعملاء (ساعة الـHUD)
+----------------------------------------------------------------------
+local clockEvent = ReplicatedStorage:FindFirstChild("ServerClockSync")
+if not clockEvent then
+	clockEvent = Instance.new("RemoteEvent")
+	clockEvent.Name = "ServerClockSync"
+	clockEvent.Parent = ReplicatedStorage
+end
+
+-- ثانية البحرين الحالية (Epoch + إزاحة المنطقة)
+local function bahrainEpoch(): number
+	return os.time() + BAHRAIN_OFFSET
+end
+
+-- ساعة اليوم ككسر [0,24) من ثانية البحرين
+local function clockHour(): number
+	return (bahrainEpoch() % 86400) / 3600
+end
+
+----------------------------------------------------------------------
+-- منحنى الإضاءة: عامل نهار [0,1] حسب ارتفاع الشمس التقريبي
+--   0 عند 6ص و6م (الأفق)، 1 عند الظهر، 0 ليلاً.
+----------------------------------------------------------------------
+local function daylightFactor(h: number): number
+	return math.clamp(math.sin((h - 6) / 12 * math.pi), 0, 1)
+end
+
+-- مزج لونين
+local function lerpColor(a: Color3, b: Color3, t: number): Color3
+	return a:Lerp(b, t)
+end
+
+-- إعدادات النهار/الليل المرجعية (تُمزج حسب عامل النهار)
+local DAY = {
+	Brightness     = 2.6,
+	OutdoorAmbient = Color3.fromRGB(150, 150, 158),
+	Ambient        = Color3.fromRGB(80, 80, 90),
+	FogColor       = Color3.fromRGB(190, 210, 235),
+}
+local NIGHT = {
+	Brightness     = 0.9,
+	OutdoorAmbient = Color3.fromRGB(48, 56, 86),
+	Ambient        = Color3.fromRGB(30, 34, 52),
+	FogColor       = Color3.fromRGB(20, 26, 46),
+}
+
+-- لمسة دفء عند الفجر/الغروب (الشمس منخفضة لكن النهار موجود)
+local WARM = Color3.fromRGB(255, 150, 90)
+
+local function applyLighting(h: number)
+	local f = daylightFactor(h)
+	-- قرب الأفق (شروق/غروب): عامل دفء يبلغ ذروته حين تكون الشمس منخفضة
+	local horizon = math.clamp(1 - math.abs(f - 0.18) / 0.18, 0, 1)
+	if f <= 0 then horizon = 0 end
+
+	Lighting.Brightness     = NIGHT.Brightness + (DAY.Brightness - NIGHT.Brightness) * f
+	local outdoor = lerpColor(NIGHT.OutdoorAmbient, DAY.OutdoorAmbient, f)
+	local fog     = lerpColor(NIGHT.FogColor, DAY.FogColor, f)
+	-- صبغة دفء عند الأفق
+	outdoor = lerpColor(outdoor, WARM, horizon * 0.35)
+	fog     = lerpColor(fog, WARM, horizon * 0.30)
+	Lighting.OutdoorAmbient = outdoor
+	Lighting.Ambient        = lerpColor(NIGHT.Ambient, DAY.Ambient, f)
+	Lighting.FogColor       = fog
+end
+
+----------------------------------------------------------------------
+-- تطبيق فوري + إعادة بثّ عند انضمام لاعب
+----------------------------------------------------------------------
+local function pushClock(plr: Player?)
+	local epoch = bahrainEpoch()
+	if plr then
+		clockEvent:FireClient(plr, epoch)
+	else
+		clockEvent:FireAllClients(epoch)
+	end
+end
+
+Players.PlayerAdded:Connect(function(plr)
+	task.delay(1, function() pushClock(plr) end)
+end)
+
+-- ضبط الإضاءة فوراً عند الإقلاع
+Lighting.ClockTime = clockHour()
+applyLighting(Lighting.ClockTime)
+pushClock()
+
+----------------------------------------------------------------------
+-- حلقة التحديث: كل ثانية نحرّك الساعة والإضاءة بسلاسة،
+-- وكل ~15 ثانية نزامن وقت العملاء.
+----------------------------------------------------------------------
+task.spawn(function()
+	local syncAccum = 0
+	while true do
+		local h = clockHour()
+		Lighting.ClockTime = h
+		applyLighting(h)
+		syncAccum += 1
+		if syncAccum >= 15 then
+			syncAccum = 0
+			pushClock()
+		end
+		task.wait(1)
+	end
+end)
 ]]></string></Properties></Item></Item>
   <Item class="SoundService" referent="12">
     <Properties>
@@ -24197,8 +24661,22 @@ local sndSuccess = mkSound("rbxassetid://9118823105", 0.6, 1)
 local sndDenied  = mkSound("rbxassetid://9112627118", 0.5, 0.5)
 
 ----------------------------------------------------------------------
--- 🖐️ شاشة المسح
+-- 🖐️ شاشة المسح البيومتري — لوحة جهاز بيومتري واقعية
+--      إطار معدني + زجاج غاطس + بصمة واقعية (Asset) تتكشّف تدريجياً
+--      + دليل يد + حلقة تقدّم/نسبة + شعاع مسح + شريحة تكلفة/رصيد + شريط LED.
+--      تدرّج لوني للحالة: أزرق(جاهز) → ذهبي(يمسح) → أخضر/أحمر(نتيجة).
 ----------------------------------------------------------------------
+-- 🎨 ألوان الحالة + معرّفات الـAssets (بصمة واقعية + دليل اليد عبر rbxthumb)
+local CYAN     = Color3.fromRGB(95, 210, 255)
+local CYAN_D   = Color3.fromRGB(40, 105, 150)
+local GREEN    = Color3.fromRGB(80, 240, 150)
+local RED       = Color3.fromRGB(245, 95, 95)
+local GOLD_SCAN = Color3.fromRGB(255, 205, 110)
+local FP_TEX   = "rbxthumb://type=Asset&id=75452689012143&w=420&h=420"
+local HAND_TEX = "rbxthumb://type=Asset&id=86422106031253&w=420&h=420"
+local GLOW_TEX = "rbxassetid://5028857084"
+local CW, CH   = 360, 580   -- أبعاد لوحة الجهاز
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "PalaceScanGui"
 gui.ResetOnSpawn = false
@@ -24209,78 +24687,190 @@ gui.Parent = pg
 
 local dim = Instance.new("Frame")
 dim.Size = UDim2.new(1, 0, 1, 0)
-dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-dim.BackgroundTransparency = 0.4
+dim.BackgroundColor3 = Color3.fromRGB(1, 3, 7)
+dim.BackgroundTransparency = 0.3
 dim.Parent = gui
 
-local card = Instance.new("Frame")
-card.Size = UDim2.new(0, 360, 0, 460)
-card.Position = UDim2.new(0.5, -180, 0.5, -230)
-card.BackgroundColor3 = Color3.fromRGB(16, 20, 32)
-card.Parent = gui
-local cardCorner = Instance.new("UICorner"); cardCorner.CornerRadius = UDim.new(0, 22); cardCorner.Parent = card
-local cardStroke = Instance.new("UIStroke"); cardStroke.Color = GOLD; cardStroke.Thickness = 2.5; cardStroke.Parent = card
+-- ═══ توهّج خارجي خلف الجهاز (يتلوّن مع الحالة) ═══
+local auraGlow = Instance.new("ImageLabel")
+auraGlow.BackgroundTransparency = 1
+auraGlow.Image = GLOW_TEX
+auraGlow.ImageColor3 = CYAN
+auraGlow.ImageTransparency = 0.55
+auraGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+auraGlow.Size = UDim2.new(0, CW + 220, 0, CH + 220)
+auraGlow.Position = UDim2.new(0.5, 0, 0.5, 0)
+auraGlow.Parent = gui
+
+-- ═══ جسم الجهاز: لوحة بيومترية معدنية (إطار + حافة مصقولة) ═══
+local device = Instance.new("Frame")
+device.AnchorPoint = Vector2.new(0.5, 0.5)
+device.Size = UDim2.new(0, CW, 0, CH)
+device.Position = UDim2.new(0.5, 0, 0.5, 0)
+device.BackgroundColor3 = Color3.fromRGB(26, 30, 38)
+device.Parent = gui
+Instance.new("UICorner", device).CornerRadius = UDim.new(0, 30)
+local devGrad = Instance.new("UIGradient")
+devGrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(46, 52, 64)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(26, 30, 38)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(16, 19, 26)),
+})
+devGrad.Rotation = 90
+devGrad.Parent = device
+local bezelStroke = Instance.new("UIStroke")
+bezelStroke.Color = GOLD; bezelStroke.Thickness = 2.5; bezelStroke.Transparency = 0.15
+bezelStroke.Parent = device
+
+-- إطار داخلي رفيع يعطي إحساس البزل المعدني
+local bezelInner = Instance.new("Frame")
+bezelInner.BackgroundTransparency = 1
+bezelInner.Size = UDim2.new(1, -14, 1, -14)
+bezelInner.Position = UDim2.new(0, 7, 0, 7)
+bezelInner.Parent = device
+Instance.new("UICorner", bezelInner).CornerRadius = UDim.new(0, 24)
+local biStroke = Instance.new("UIStroke")
+biStroke.Color = Color3.fromRGB(64, 70, 84); biStroke.Thickness = 1; biStroke.Transparency = 0.2
+biStroke.Parent = bezelInner
+
+-- ═══ رأس الجهاز: شعار + نوع التحقّق + ليد حالة ═══
+local statusDot = Instance.new("Frame")
+statusDot.AnchorPoint = Vector2.new(0, 0.5)
+statusDot.Size = UDim2.new(0, 12, 0, 12)
+statusDot.Position = UDim2.new(0, 26, 0, 44)
+statusDot.BackgroundColor3 = CYAN
+statusDot.Parent = device
+Instance.new("UICorner", statusDot).CornerRadius = UDim.new(1, 0)
+local dotStroke = Instance.new("UIStroke"); dotStroke.Color = CYAN; dotStroke.Thickness = 1; dotStroke.Transparency = 0.4; dotStroke.Parent = statusDot
 
 local title = Instance.new("TextLabel")
 title.BackgroundTransparency = 1
-title.Size = UDim2.new(1, -20, 0, 50)
-title.Position = UDim2.new(0, 10, 0, 14)
+title.Size = UDim2.new(1, -54, 0, 34)
+title.Position = UDim2.new(0, 27, 0, 24)
 title.Font = Enum.Font.GothamBlack
-title.Text = "قفل القصر الرئاسي"
+title.Text = "قصر شهد"
 title.TextScaled = true
+title.TextXAlignment = Enum.TextXAlignment.Right
 title.TextColor3 = GOLD
-title.Parent = card
+title.Parent = device
+local subtitle = Instance.new("TextLabel")
+subtitle.BackgroundTransparency = 1
+subtitle.Size = UDim2.new(1, -54, 0, 18)
+subtitle.Position = UDim2.new(0, 27, 0, 60)
+subtitle.Font = Enum.Font.Gotham
+subtitle.Text = "بوابة التحقّق البيومتري"
+subtitle.TextScaled = true
+subtitle.TextXAlignment = Enum.TextXAlignment.Right
+subtitle.TextColor3 = Color3.fromRGB(150, 170, 195)
+subtitle.Parent = device
 
--- منطقة البصمة
-local scanBox = Instance.new("Frame")
-scanBox.Size = UDim2.new(0, 220, 0, 250)
-scanBox.Position = UDim2.new(0.5, -110, 0, 78)
-scanBox.BackgroundColor3 = Color3.fromRGB(10, 26, 40)
-scanBox.ClipsDescendants = true
-scanBox.Parent = card
-local sbCorner = Instance.new("UICorner"); sbCorner.CornerRadius = UDim.new(0, 16); sbCorner.Parent = scanBox
-local sbStroke = Instance.new("UIStroke"); sbStroke.Color = Color3.fromRGB(60, 150, 210); sbStroke.Thickness = 2; sbStroke.Parent = scanBox
+-- ═══ شاشة زجاجية غاطسة (الماسح) ═══
+local glass = Instance.new("Frame")
+glass.AnchorPoint = Vector2.new(0.5, 0)
+glass.Size = UDim2.new(0, 300, 0, 300)
+glass.Position = UDim2.new(0.5, 0, 0, 96)
+glass.BackgroundColor3 = Color3.fromRGB(8, 12, 20)
+glass.ClipsDescendants = true
+glass.Parent = device
+Instance.new("UICorner", glass).CornerRadius = UDim.new(0, 22)
+local glassGrad = Instance.new("UIGradient")
+glassGrad.Color = ColorSequence.new(Color3.fromRGB(16, 24, 38), Color3.fromRGB(5, 8, 14))
+glassGrad.Rotation = 90
+glassGrad.Parent = glass
+local glassStroke = Instance.new("UIStroke")
+glassStroke.Color = CYAN_D; glassStroke.Thickness = 1.5; glassStroke.Transparency = 0.25
+glassStroke.Parent = glass
+-- انعكاس زجاجي علوي خفيف
+local sheen = Instance.new("Frame")
+sheen.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sheen.BackgroundTransparency = 0.9
+sheen.Size = UDim2.new(1, 0, 0.32, 0)
+sheen.BorderSizePixel = 0
+sheen.ZIndex = 8
+sheen.Parent = glass
+local sheenGrad = Instance.new("UIGradient")
+sheenGrad.Rotation = 90
+sheenGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.78),
+	NumberSequenceKeypoint.new(1, 1),
+})
+sheenGrad.Parent = sheen
 
+-- توهّج خلف البصمة داخل الزجاج
 local glow = Instance.new("ImageLabel")
 glow.BackgroundTransparency = 1
-glow.Image = "rbxassetid://5028857084"
-glow.ImageColor3 = Color3.fromRGB(70, 170, 240)
-glow.ImageTransparency = 0.2
-glow.Size = UDim2.new(1.4, 0, 1.4, 0)
-glow.Position = UDim2.new(-0.2, 0, -0.2, 0)
-glow.Parent = scanBox
+glow.Image = GLOW_TEX
+glow.ImageColor3 = CYAN
+glow.ImageTransparency = 0.4
+glow.AnchorPoint = Vector2.new(0.5, 0.5)
+glow.Size = UDim2.new(1.25, 0, 1.25, 0)
+glow.Position = UDim2.new(0.5, 0, 0.5, 0)
+glow.ZIndex = 1
+glow.Parent = glass
 
--- بصمة مرسومة بعناصر أصلية (حلقات متّحدة المركز) بدل إيموجي — الإيموجي قد لا
--- يدعمه خطّ روبلوكس فيظهر «مربّعاً فارغاً». الحلقات تُرسم دائماً بلا أي اعتماد
--- على خطّ أو صورة خارجية، فمستحيل تظهر مربّعات.
-local printRidges = {}
-for i = 0, 5 do
-	local ring = Instance.new("Frame")
-	ring.AnchorPoint = Vector2.new(0.5, 0.5)
-	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
-	local s = 0.92 - i * 0.15
-	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
-	ring.BackgroundTransparency = 1
-	ring.ZIndex = 2
-	ring.Parent = scanBox
-	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
-	local st = Instance.new("UIStroke")
-	st.Thickness = 3
-	st.Color = Color3.fromRGB(150, 215, 255)
-	st.Transparency = 0.08
-	st.Parent = ring
-	table.insert(printRidges, st)
-end
-local function tintPrint(c: Color3)
-	for _, st in ipairs(printRidges) do st.Color = c end
-end
+-- حلقة التقدّم حول البصمة
+local progRing = Instance.new("Frame")
+progRing.AnchorPoint = Vector2.new(0.5, 0.5)
+progRing.Size = UDim2.new(0, 250, 0, 250)
+progRing.Position = UDim2.new(0.5, 0, 0.5, 0)
+progRing.BackgroundTransparency = 1
+progRing.ZIndex = 2
+progRing.Parent = glass
+Instance.new("UICorner", progRing).CornerRadius = UDim.new(1, 0)
+local progStroke = Instance.new("UIStroke"); progStroke.Color = CYAN_D; progStroke.Thickness = 2; progStroke.Transparency = 0.25; progStroke.Parent = progRing
 
--- خط المسح المتحرّك
+-- البصمة الواقعية (صورة Asset) — تتكشّف تدريجياً مع المسح
+local fpImage = Instance.new("ImageLabel")
+fpImage.BackgroundTransparency = 1
+fpImage.Image = FP_TEX
+fpImage.ImageColor3 = Color3.fromRGB(170, 225, 255)
+fpImage.ImageTransparency = 0.78
+fpImage.AnchorPoint = Vector2.new(0.5, 0.5)
+fpImage.Size = UDim2.new(0, 210, 0, 210)
+fpImage.Position = UDim2.new(0.5, 0, 0.5, 0)
+fpImage.ZIndex = 3
+fpImage.Parent = glass
+
+-- دليل مكان اليد (يظهر بحالة الراحة فقط)
+local handGuide = Instance.new("ImageLabel")
+handGuide.BackgroundTransparency = 1
+handGuide.Image = HAND_TEX
+handGuide.ImageColor3 = Color3.fromRGB(150, 200, 240)
+handGuide.ImageTransparency = 0.45
+handGuide.AnchorPoint = Vector2.new(0.5, 0.5)
+handGuide.Size = UDim2.new(0, 250, 0, 250)
+handGuide.Position = UDim2.new(0.5, 0, 0.5, 0)
+handGuide.ZIndex = 4
+handGuide.Visible = false
+handGuide.Parent = glass
+
+-- خطّ مسح دوّار حول البصمة
+local sweep = Instance.new("Frame")
+sweep.AnchorPoint = Vector2.new(0.5, 1)
+sweep.Size = UDim2.new(0, 3, 0, 122)
+sweep.Position = UDim2.new(0.5, 0, 0.5, 0)
+sweep.BackgroundColor3 = CYAN
+sweep.BorderSizePixel = 0
+sweep.ZIndex = 5
+sweep.Parent = progRing
+local swGrad = Instance.new("UIGradient")
+swGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(1, 0.05),
+})
+swGrad.Rotation = 90
+swGrad.Parent = sweep
+
+-- شعاع المسح الأفقي على الزجاج
 local scanline = Instance.new("Frame")
-scanline.Size = UDim2.new(1, 0, 0, 4)
-scanline.Position = UDim2.new(0, 0, 0, 0)
-scanline.BackgroundColor3 = Color3.fromRGB(120, 230, 255)
-scanline.Parent = scanBox
+scanline.AnchorPoint = Vector2.new(0.5, 0.5)
+scanline.Size = UDim2.new(0.82, 0, 0, 3)
+scanline.Position = UDim2.new(0.5, 0, 0.08, 0)
+scanline.BackgroundColor3 = Color3.fromRGB(180, 245, 255)
+scanline.BorderSizePixel = 0
+scanline.ZIndex = 7
+scanline.Visible = false
+scanline.Parent = glass
 local slGrad = Instance.new("UIGradient")
 slGrad.Transparency = NumberSequence.new({
 	NumberSequenceKeypoint.new(0, 1),
@@ -24289,29 +24879,163 @@ slGrad.Transparency = NumberSequence.new({
 })
 slGrad.Parent = scanline
 
+-- النسبة المئوية (تظهر أثناء المسح)
+local pctLabel = Instance.new("TextLabel")
+pctLabel.BackgroundTransparency = 1
+pctLabel.Size = UDim2.new(0, 110, 0, 30)
+pctLabel.AnchorPoint = Vector2.new(0.5, 1)
+pctLabel.Position = UDim2.new(0.5, 0, 1, -14)
+pctLabel.Font = Enum.Font.GothamBlack
+pctLabel.Text = ""
+pctLabel.TextScaled = true
+pctLabel.ZIndex = 7
+pctLabel.TextColor3 = GOLD_SCAN
+pctLabel.TextTransparency = 0.1
+pctLabel.Parent = glass
+
+-- أيقونة النتيجة (✓ / ✕) مرسومة بقطع (Frames) لتُعرض دائماً بأي خط
+local resultIcon = Instance.new("Frame")
+resultIcon.BackgroundTransparency = 1
+resultIcon.Size = UDim2.new(0, 120, 0, 120)
+resultIcon.AnchorPoint = Vector2.new(0.5, 0.5)
+resultIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
+resultIcon.ZIndex = 9
+resultIcon.Visible = false
+resultIcon.Parent = glass
+
+local function mkBar()
+	local b = Instance.new("Frame")
+	b.AnchorPoint = Vector2.new(0.5, 0.5)
+	b.BorderSizePixel = 0
+	b.ZIndex = 10
+	b.Parent = resultIcon
+	Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+	return b
+end
+local barA = mkBar()
+local barB = mkBar()
+
+-- ✓ : ضلعان (قصير هابط + طويل صاعد)
+local function showCheck(c: Color3)
+	resultIcon.Visible = true
+	barA.BackgroundColor3 = c; barB.BackgroundColor3 = c
+	barA.Size = UDim2.new(0, 16, 0, 44)
+	barA.Position = UDim2.new(0.5, -22, 0.5, 14)
+	barA.Rotation = -45
+	barB.Size = UDim2.new(0, 16, 0, 78)
+	barB.Position = UDim2.new(0.5, 14, 0.5, -2)
+	barB.Rotation = 40
+end
+-- ✕ : ضلعان متقاطعان
+local function showCross(c: Color3)
+	resultIcon.Visible = true
+	barA.BackgroundColor3 = c; barB.BackgroundColor3 = c
+	barA.Size = UDim2.new(0, 16, 0, 92)
+	barA.Position = UDim2.new(0.5, 0, 0.5, 0)
+	barA.Rotation = 45
+	barB.Size = UDim2.new(0, 16, 0, 92)
+	barB.Position = UDim2.new(0.5, 0, 0.5, 0)
+	barB.Rotation = -45
+end
+
+-- ═══ نص الحالة ═══
 local status = Instance.new("TextLabel")
 status.BackgroundTransparency = 1
-status.Size = UDim2.new(1, -20, 0, 70)
-status.Position = UDim2.new(0, 10, 1, -86)
+status.Size = UDim2.new(1, -40, 0, 38)
+status.Position = UDim2.new(0, 20, 0, 408)
 status.Font = Enum.Font.GothamBold
-status.Text = "جاري قراءة البصمة…"
+status.Text = "ضع يدك على الماسح"
 status.TextScaled = true
-status.TextColor3 = Color3.fromRGB(200, 230, 255)
-status.Parent = card
+status.TextColor3 = Color3.fromRGB(205, 230, 255)
+status.Parent = device
+
+-- ═══ شريحة المعلومات (التكلفة / الرصيد) ═══
+local chip = Instance.new("Frame")
+chip.AnchorPoint = Vector2.new(0.5, 0)
+chip.Size = UDim2.new(0, 230, 0, 38)
+chip.Position = UDim2.new(0.5, 0, 0, 452)
+chip.BackgroundColor3 = Color3.fromRGB(16, 22, 34)
+chip.Parent = device
+Instance.new("UICorner", chip).CornerRadius = UDim.new(1, 0)
+local chipStroke = Instance.new("UIStroke"); chipStroke.Color = CYAN_D; chipStroke.Thickness = 1.3; chipStroke.Transparency = 0.1; chipStroke.Parent = chip
+local chipLabel = Instance.new("TextLabel")
+chipLabel.BackgroundTransparency = 1
+chipLabel.Size = UDim2.new(1, -22, 1, -10)
+chipLabel.Position = UDim2.new(0, 11, 0, 5)
+chipLabel.Font = Enum.Font.GothamMedium
+chipLabel.Text = "الدخول: 250 كوينز"
+chipLabel.TextScaled = true
+chipLabel.TextColor3 = Color3.fromRGB(220, 235, 255)
+chipLabel.Parent = chip
+
+-- ═══ شريط LED أرضي أسفل الجهاز (يتلوّن مع الحالة) ═══
+local led = Instance.new("Frame")
+led.AnchorPoint = Vector2.new(0.5, 1)
+led.Size = UDim2.new(0, 250, 0, 6)
+led.Position = UDim2.new(0.5, 0, 1, -22)
+led.BackgroundColor3 = CYAN
+led.BorderSizePixel = 0
+led.Parent = device
+Instance.new("UICorner", led).CornerRadius = UDim.new(1, 0)
+local ledGrad = Instance.new("UIGradient")
+ledGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(0.5, 0),
+	NumberSequenceKeypoint.new(1, 1),
+})
+ledGrad.Parent = led
 
 local scanning = false
+local lastInfo = nil
 
-local function runScanline()
+local function setAccent(c: Color3)
+	progStroke.Color = c
+	sweep.BackgroundColor3 = c
+	glow.ImageColor3 = c
+	auraGlow.ImageColor3 = c
+	pctLabel.TextColor3 = c
+	statusDot.BackgroundColor3 = c
+	dotStroke.Color = c
+	chipStroke.Color = c
+	led.BackgroundColor3 = c
+	bezelStroke.Color = c
+end
+
+local function runScanFx()
+	-- شعاع أفقي يصعد وينزل على البصمة (موجة ناعمة)
 	task.spawn(function()
 		while scanning do
-			scanline.Position = UDim2.new(0, 0, 0, 0)
-			local up = TweenService:Create(scanline, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 1, -4)})
+			scanline.Position = UDim2.new(0.5, 0, 0.06, 0)
+			local up = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.92, 0)})
 			up:Play(); up.Completed:Wait()
 			if not scanning then break end
-			local dn = TweenService:Create(scanline, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 0, 0)})
+			local dn = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.06, 0)})
 			dn:Play(); dn.Completed:Wait()
 		end
 	end)
+	-- خطّ دوّار حول البصمة
+	task.spawn(function()
+		while scanning do
+			sweep.Rotation = 0
+			local rot = TweenService:Create(sweep, TweenInfo.new(1.1, Enum.EasingStyle.Linear), {Rotation = 360})
+			rot:Play(); rot.Completed:Wait()
+		end
+	end)
+	-- النسبة 0→~94٪ + كشف البصمة تدريجياً (تتجمّع خطوطها) — موزّعة على مدّة المسح الفعلية
+	task.spawn(function()
+		local dur = (type(lastInfo) == "table" and tonumber(lastInfo.dur)) or 2.3
+		local anim = math.max(0.6, dur - 0.45)   -- زمن المسح بعد لحظة «جاهز»
+		local step = 0.13
+		local inc = 94 / math.max(1, anim / step)   -- زيادة لكل خطوة لتصل ~94٪ مع نهاية المسح
+		local p = 0
+		while scanning and p < 94 do
+			p = math.min(94, p + inc)
+			pctLabel.Text = math.floor(p + 0.5) .. "%"
+			fpImage.ImageTransparency = 0.78 - (p / 94) * 0.7   -- من باهت → واضح
+			task.wait(step)
+		end
+	end)
+	-- نبضة صوت خفيفة
 	task.spawn(function()
 		while scanning do
 			sndBeep:Play()
@@ -24320,45 +25044,102 @@ local function runScanline()
 	end)
 end
 
-evStartScan.OnClientEvent:Connect(function()
+-- بدء المسح: لحظة «جاهز» (دليل اليد + التكلفة) ثم طور المسح الذهبي
+evStartScan.OnClientEvent:Connect(function(info)
+	lastInfo = info
 	scanning = true
 	gui.Enabled = true
-	card.Size = UDim2.new(0, 360, 0, 460)
-	scanBox.Visible = true
-	scanline.Visible = true
-	tintPrint(Color3.fromRGB(150, 215, 255))
-	sbStroke.Color = Color3.fromRGB(60, 150, 210)
-	glow.ImageColor3 = Color3.fromRGB(70, 170, 240)
-	status.Text = "جاري قراءة البصمة…"
-	status.TextColor3 = Color3.fromRGB(200, 230, 255)
-	runScanline()
+	device.Position = UDim2.new(0.5, 0, 0.5, 0)
+	resultIcon.Visible = false
+	pctLabel.Text = ""
+	scanline.Visible = false
+	sweep.Visible = true
+	fpImage.ImageTransparency = 0.78
+	fpImage.ImageColor3 = Color3.fromRGB(170, 225, 255)
+	setAccent(CYAN)
+
+	local kind = (type(info) == "table" and info.kind) or "entry"
+	local cost = (type(info) == "table" and info.cost) or nil
+	if kind == "exit" then
+		chip.Visible = false
+		status.Text = "ضع إصبعك للخروج"
+	else
+		chip.Visible = true
+		chipLabel.Text = cost and ("الدخول: " .. cost .. " كوينز") or "تحقّق بيومتري"
+		chipLabel.TextColor3 = Color3.fromRGB(220, 235, 255)
+		status.Text = "ضع يدك على الماسح"
+	end
+	status.TextColor3 = Color3.fromRGB(205, 230, 255)
+
+	-- لحظة الراحة: دليل اليد ظاهر، البصمة باهتة
+	handGuide.Visible = true
+	task.delay(0.45, function()
+		if not scanning then return end
+		handGuide.Visible = false
+		scanline.Visible = true
+		setAccent(GOLD_SCAN)
+		fpImage.ImageColor3 = Color3.fromRGB(255, 220, 150)
+		status.Text = "جارٍ قراءة البصمة…"
+		status.TextColor3 = Color3.fromRGB(255, 225, 160)
+		runScanFx()
+	end)
 end)
 
-evScanResult.OnClientEvent:Connect(function(granted)
+evScanResult.OnClientEvent:Connect(function(granted, info)
 	scanning = false
+	info = info or lastInfo
+	handGuide.Visible = false
 	scanline.Visible = false
+	sweep.Visible = false
+	local kind = (type(info) == "table" and info.kind) or "entry"
 	if granted then
-		tintPrint(Color3.fromRGB(70, 235, 130))
-		sbStroke.Color = Color3.fromRGB(70, 235, 130)
-		glow.ImageColor3 = Color3.fromRGB(70, 235, 130)
-		status.Text = "تم التحقق — تفضّل بالدخول"
-		status.TextColor3 = Color3.fromRGB(120, 245, 160)
+		setAccent(GREEN)
+		fpImage.ImageTransparency = 0.05
+		fpImage.ImageColor3 = Color3.fromRGB(150, 255, 190)
+		pctLabel.Text = "100%"
+		showCheck(GREEN)
+		if kind == "exit" then
+			status.Text = "تم التحقّق — تفضّل بالخروج"
+			chip.Visible = false
+		else
+			status.Text = "تم التحقّق — تفضّل بالدخول"
+			local bal = (type(info) == "table" and info.bal) or nil
+			local cost = (type(info) == "table" and info.cost) or nil
+			if kind == "admin" then
+				chip.Visible = true
+				chipLabel.Text = "دخول الإدارة · مجاني"
+			elseif cost then
+				chip.Visible = true
+				chipLabel.Text = bal and ("خُصم " .. cost .. " · رصيدك " .. bal) or ("خُصم " .. cost .. " كوينز")
+			end
+			chipLabel.TextColor3 = Color3.fromRGB(200, 255, 215)
+		end
+		status.TextColor3 = Color3.fromRGB(150, 255, 190)
 		sndSuccess:Play()
 	else
-		tintPrint(Color3.fromRGB(245, 90, 90))
-		sbStroke.Color = Color3.fromRGB(245, 90, 90)
-		glow.ImageColor3 = Color3.fromRGB(245, 90, 90)
-		status.Text = "الدخول مرفوض — للأدمن فقط"
-		status.TextColor3 = Color3.fromRGB(255, 120, 120)
-		sndDenied:Play()
-		-- اهتزاز بسيط
-		for _ = 1, 4 do
-			card.Position = UDim2.new(0.5, -180 + 8, 0.5, -230); task.wait(0.04)
-			card.Position = UDim2.new(0.5, -180 - 8, 0.5, -230); task.wait(0.04)
+		setAccent(RED)
+		fpImage.ImageTransparency = 0.15
+		fpImage.ImageColor3 = Color3.fromRGB(255, 150, 150)
+		pctLabel.Text = ""
+		showCross(RED)
+		status.Text = "رصيدك غير كافٍ"
+		status.TextColor3 = Color3.fromRGB(255, 140, 140)
+		local bal = (type(info) == "table" and info.bal) or nil
+		local cost = (type(info) == "table" and info.cost) or nil
+		if cost then
+			chip.Visible = true
+			chipLabel.Text = bal and ("معك " .. bal .. " · تحتاج " .. cost) or ("تحتاج " .. cost .. " كوينز")
+			chipLabel.TextColor3 = Color3.fromRGB(255, 190, 190)
 		end
-		card.Position = UDim2.new(0.5, -180, 0.5, -230)
+		sndDenied:Play()
+		-- اهتزاز بسيط للجهاز
+		for _ = 1, 4 do
+			device.Position = UDim2.new(0.5, 8, 0.5, 0); task.wait(0.04)
+			device.Position = UDim2.new(0.5, -8, 0.5, 0); task.wait(0.04)
+		end
+		device.Position = UDim2.new(0.5, 0, 0.5, 0)
 	end
-	task.delay(1.9, function()
+	task.delay(2.2, function()
 		if not scanning then gui.Enabled = false end
 	end)
 end)
@@ -25054,32 +25835,73 @@ local function buildCanopy(): (Model, BasePart)
 	}) :: Part
 	model.PrimaryPart = anchor
 
-	local R = 16
-	local dome = mk("Part", {
-		Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 2, R, R * 2),
+	-- مظلّة ملكية واقعية: قبّة قماش معتمة بحوافّ مفصّصة منتفخة + خياطات قطاعات
+	-- (كحلي/ذهبي متناوب) + فتحة تهوية ذهبية بالقمّة + حبال تعليق تتجمّع للـharness.
+	local R = 17
+	local DY = 18                       -- ارتفاع مركز القبّة فوق نقطة التعليق (اللاعب)
+	local HALF_H = R * 0.6              -- نصف ارتفاع القبّة (ضحلة = شكل مظلّة)
+	local GORES = 16
+	local CREAM = Color3.fromRGB(244, 241, 230)
+	local SEAM_NAVY = Color3.fromRGB(33, 44, 78)
+	local LINE_C = Color3.fromRGB(38, 38, 44)
+	local domeCF = anchor.CFrame * CFrame.new(0, DY, 0)
+	local harness = anchor.CFrame * CFrame.new(0, 2.5, 0)   -- تتجمّع الحبال عند ظهر اللاعب
+
+	-- القبّة: كرة مفلطحة معتمة بمادة قماش
+	mk("Part", {
+		Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 2, HALF_H * 2, R * 2),
 		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		CastShadow = false, Material = Enum.Material.SmoothPlastic, Color = WHITE,
-		CFrame = anchor.CFrame * CFrame.new(0, 16, 0), Parent = model,
-	}) :: Part
-	-- قطاعات ذهبية على القبّة
-	for i = 0, 5 do
-		local a = math.rad(i * 60)
-		local strip = neonBulb("Panel", Vector3.new(0.4, 0.6, R * 1.9), GOLD, model)
-		strip.CFrame = dome.CFrame * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.5, 0, 0)
-	end
-	-- حبال التعليق
-	for i = 0, 5 do
-		local a = math.rad(i * 60)
-		local rim = dome.CFrame * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.95, -R * 0.35, 0)
-		local line = mk("Part", {
-			Name = "Line", Size = Vector3.new(0.12, 0.12, 1), Anchored = true,
-			CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(40, 40, 46),
-			Parent = model,
+		CastShadow = false, Material = Enum.Material.Fabric, Color = CREAM,
+		CFrame = domeCF, Parent = model,
+	})
+
+	-- خياطات القطاعات: من القمّة إلى الحافة (كحلي/ذهبي متناوب)
+	local apex = domeCF * CFrame.new(0, HALF_H * 0.94, 0)
+	for i = 0, GORES - 1 do
+		local a = math.rad(i * (360 / GORES))
+		local rimP = (domeCF * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.99, HALF_H * 0.04, 0)).Position
+		local seam = mk("Part", {
+			Name = "Seam", Anchored = true, CanCollide = false, CanQuery = false,
+			CanTouch = false, CastShadow = false, Material = Enum.Material.SmoothPlastic,
+			Color = if i % 2 == 0 then SEAM_NAVY else GOLD, Parent = model,
 		}) :: Part
-		local target = anchor.CFrame * CFrame.new(0, 2, 0)
-		line.CFrame = CFrame.lookAt(rim.Position, target.Position) * CFrame.new(0, 0, -(rim.Position - target.Position).Magnitude / 2)
-		line.Size = Vector3.new(0.12, 0.12, (rim.Position - target.Position).Magnitude)
+		local len = (apex.Position - rimP).Magnitude
+		seam.CFrame = CFrame.lookAt(apex.Position, rimP) * CFrame.new(0, 0, -len / 2)
+		seam.Size = Vector3.new(0.16, 0.16, len)
+	end
+
+	-- حافّة مفصّصة منتفخة (حلقة كرات قماش صغيرة) — شكل المظلّة الحقيقي
+	for i = 0, GORES * 2 - 1 do
+		local a = math.rad(i * (360 / (GORES * 2)))
+		local p = (domeCF * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.99, HALF_H * 0.02, 0)).Position
+		mk("Part", {
+			Name = "Lobe", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 0.3, R * 0.2, R * 0.3),
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			CastShadow = false, Material = Enum.Material.Fabric, Color = CREAM,
+			CFrame = CFrame.new(p), Parent = model,
+		})
+	end
+
+	-- فتحة تهوية ذهبية بالقمّة (لمسة ملكية)
+	mk("Part", {
+		Name = "ApexVent", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 0.34, R * 0.18, R * 0.34),
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		CastShadow = false, Material = Enum.Material.Neon, Color = GOLD,
+		CFrame = domeCF * CFrame.new(0, HALF_H * 0.96, 0), Parent = model,
+	})
+
+	-- حبال التعليق: من الحافّة تتجمّع كلّها عند harness على ظهر اللاعب
+	for i = 0, GORES - 1 do
+		local a = math.rad(i * (360 / GORES))
+		local rimP = (domeCF * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.96, HALF_H * 0.02, 0)).Position
+		local line = mk("Part", {
+			Name = "Line", Anchored = true, CanCollide = false, CanQuery = false,
+			CanTouch = false, CastShadow = false, Material = Enum.Material.SmoothPlastic,
+			Color = LINE_C, Parent = model,
+		}) :: Part
+		local len = (rimP - harness.Position).Magnitude
+		line.CFrame = CFrame.lookAt(rimP, harness.Position) * CFrame.new(0, 0, -len / 2)
+		line.Size = Vector3.new(0.08, 0.08, len)
 	end
 	return model, anchor
 end
@@ -25454,9 +26276,14 @@ local function run()
 		local swayYaw = math.sin(tt * 1.1) * 0.10
 		local swayRoll = math.sin(tt * 0.9) * 0.08
 		local pos = Vector3.new(px, y, pz)
-		local base = CFrame.lookAt(pos, pos + faceDir)
-		rootPart.CFrame = base * CFrame.Angles(math.rad(-6), swayYaw, swayRoll)
-		canopy:PivotTo(CFrame.new(pos) * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
+		-- الاتجاه: اللاعب يواجه اتجاه الكاميرا الأفقي، بجلسة مظلّي واقعية (مثل ببجي):
+		--          الجسم شبه أفقي — الرأس مائل للأمام/تحت والرِّجل لفوق — والمظلّة تبقى مستوية فوقه.
+		local camFwd = cam.CFrame.LookVector
+		local orientFwd = Vector3.new(camFwd.X, 0, camFwd.Z)
+		orientFwd = if orientFwd.Magnitude > 0.05 then orientFwd.Unit else faceDir
+		local base = CFrame.lookAt(pos, pos + orientFwd)
+		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
+		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
 		updateDescentVisuals(altitude, CONFIG.CANOPY_SPEED)
 		if altitude <= CONFIG.LAND_ALT then break end
 	end
@@ -26072,6 +26899,153 @@ if effectRemote then
 end
 
 print("[RewardBoxClient] جاهز.")
+]]></string></Properties></Item><Item class="LocalScript" referent="DayNightClientRef"><Properties><string name="Name">DayNightClient</string><token name="RunContext">0</token><string name="Source"><![CDATA[--!nonstrict
+----------------------------------------------------------------------
+-- DAY NIGHT CLIENT (Client)
+--   ساعة السيرفر (HUD) أعلى الشاشة — شريحة زجاج داكن بإطار ذهبي تعرض
+--   وقت السيرفر بتوقيت البحرين + أيقونة شمس/قمر تتغيّر مع المرحلة
+--   (الفجر/الصباح/الظهر/العصر/المساء). تتحدّث كل ثانية محلياً وتُزامَن
+--   من السيرفر دورياً عبر RemoteEvent "ServerClockSync".
+----------------------------------------------------------------------
+local Players           = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService        = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local pg     = player:WaitForChild("PlayerGui")
+local clockEvent = ReplicatedStorage:WaitForChild("ServerClockSync")
+
+local GOLD     = Color3.fromRGB(214, 175, 92)
+local GLOW_TEX = "rbxassetid://5028857084"
+
+----------------------------------------------------------------------
+-- بناء الـHUD
+----------------------------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "ServerClockGui"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 30
+gui.Parent = pg
+
+local pill = Instance.new("Frame")
+pill.AnchorPoint = Vector2.new(0.5, 0)
+pill.Position = UDim2.new(0.5, 0, 0, 12)
+pill.Size = UDim2.new(0, 224, 0, 60)
+pill.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
+pill.BackgroundTransparency = 0.06
+pill.Parent = gui
+Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 18)
+local pgrad = Instance.new("UIGradient")
+pgrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 36, 50)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 17, 26)),
+})
+pgrad.Rotation = 90
+pgrad.Parent = pill
+local pstroke = Instance.new("UIStroke")
+pstroke.Color = GOLD
+pstroke.Thickness = 1.6
+pstroke.Transparency = 0.2
+pstroke.Parent = pill
+
+-- توهّج خلف الأيقونة
+local iconGlow = Instance.new("ImageLabel")
+iconGlow.BackgroundTransparency = 1
+iconGlow.Image = GLOW_TEX
+iconGlow.ImageColor3 = Color3.fromRGB(255, 210, 120)
+iconGlow.ImageTransparency = 0.25
+iconGlow.AnchorPoint = Vector2.new(0.5, 0.5)
+iconGlow.Size = UDim2.new(0, 54, 0, 54)
+iconGlow.Position = UDim2.new(0, 38, 0.5, 0)
+iconGlow.Parent = pill
+
+-- قرص الشمس/القمر
+local disc = Instance.new("Frame")
+disc.AnchorPoint = Vector2.new(0.5, 0.5)
+disc.Size = UDim2.new(0, 26, 0, 26)
+disc.Position = UDim2.new(0, 38, 0.5, 0)
+disc.BackgroundColor3 = Color3.fromRGB(255, 215, 130)
+disc.Parent = pill
+Instance.new("UICorner", disc).CornerRadius = UDim.new(1, 0)
+
+-- وقت
+local timeLabel = Instance.new("TextLabel")
+timeLabel.BackgroundTransparency = 1
+timeLabel.AnchorPoint = Vector2.new(1, 0)
+timeLabel.Position = UDim2.new(1, -16, 0, 8)
+timeLabel.Size = UDim2.new(0, 150, 0, 30)
+timeLabel.Font = Enum.Font.GothamBold
+timeLabel.Text = "--:--"
+timeLabel.TextScaled = true
+timeLabel.TextXAlignment = Enum.TextXAlignment.Right
+timeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timeLabel.Parent = pill
+
+-- سطر التوقيت
+local subLabel = Instance.new("TextLabel")
+subLabel.BackgroundTransparency = 1
+subLabel.AnchorPoint = Vector2.new(1, 1)
+subLabel.Position = UDim2.new(1, -16, 1, -8)
+subLabel.Size = UDim2.new(0, 150, 0, 16)
+subLabel.Font = Enum.Font.GothamMedium
+subLabel.Text = "توقيت السيرفر · البحرين"
+subLabel.TextScaled = true
+subLabel.TextXAlignment = Enum.TextXAlignment.Right
+subLabel.TextColor3 = Color3.fromRGB(165, 185, 210)
+subLabel.Parent = pill
+
+----------------------------------------------------------------------
+-- مزامنة الوقت: نحفظ الأساس ونعدّ محلياً بين المزامنات
+----------------------------------------------------------------------
+local baseEpoch: number? = nil
+local baseClock = os.clock()
+
+clockEvent.OnClientEvent:Connect(function(epoch: number)
+	baseEpoch = epoch
+	baseClock = os.clock()
+end)
+
+-- مرحلة اليوم حسب الساعة → لون القرص/التوهّج
+local function styleForHour(h: number): (Color3, Color3)
+	if h >= 5 and h < 6.5 then            -- الفجر
+		return Color3.fromRGB(255, 180, 120), Color3.fromRGB(255, 170, 110)
+	elseif h >= 6.5 and h < 11.5 then     -- الصباح
+		return Color3.fromRGB(255, 230, 160), Color3.fromRGB(255, 225, 150)
+	elseif h >= 11.5 and h < 15 then      -- الظهر
+		return Color3.fromRGB(255, 245, 205), Color3.fromRGB(255, 240, 190)
+	elseif h >= 15 and h < 17.5 then      -- العصر
+		return Color3.fromRGB(255, 210, 150), Color3.fromRGB(255, 200, 140)
+	elseif h >= 17.5 and h < 19 then      -- الغروب/المساء المبكر
+		return Color3.fromRGB(255, 150, 100), Color3.fromRGB(255, 140, 95)
+	else                                   -- الليل → قمر
+		return Color3.fromRGB(205, 220, 255), Color3.fromRGB(170, 195, 255)
+	end
+end
+
+local function fmt(h: number, m: number): string
+	local suffix = if h < 12 then "ص" else "م"
+	local h12 = h % 12
+	if h12 == 0 then h12 = 12 end
+	return string.format("%d:%02d %s", h12, m, suffix)
+end
+
+local accum = 0
+RunService.Heartbeat:Connect(function(dt)
+	accum += dt
+	if accum < 0.5 then return end
+	accum = 0
+	if not baseEpoch then return end
+	local now = baseEpoch + (os.clock() - baseClock)
+	local secs = now % 86400
+	local h = math.floor(secs / 3600)
+	local m = math.floor((secs % 3600) / 60)
+	timeLabel.Text = fmt(h, m)
+	local hf = secs / 3600
+	local discC, glowC = styleForHour(hf)
+	disc.BackgroundColor3 = discC
+	iconGlow.ImageColor3 = glowC
+end)
 ]]></string></Properties></Item></Item>
   </Item>
   <Item class="Workspace" referent="17">

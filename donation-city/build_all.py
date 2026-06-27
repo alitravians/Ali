@@ -44,6 +44,8 @@ UPDATES = [
     ("src/SpawnCinematic.client.lua", "SPAWN CINEMATIC (Client)"),
     ("src/RewardBoxSystem.server.lua", "REWARD BOX SYSTEM (Server)"),
     ("src/RewardBoxClient.client.lua", "REWARD BOX CLIENT (Client)"),
+    ("src/DayNightCycle.server.lua",  "DAY NIGHT CYCLE (Server)"),
+    ("src/DayNightClient.client.lua", "DAY NIGHT CLIENT (Client)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:
