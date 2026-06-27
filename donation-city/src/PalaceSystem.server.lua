@@ -1132,20 +1132,33 @@ local evLogReq = Instance.new("RemoteEvent"); evLogReq.Name = "LogRequest"; evLo
 local evLogData = Instance.new("RemoteEvent"); evLogData.Name = "LogData"; evLogData.Parent = net
 
 ----------------------------------------------------------------------
--- 🖐️ باني جهاز بصمة مدمج وأنيق (بستايل ZKTeco) — قابل لإعادة الاستخدام
---      جهاز نحيف صغير: قاعدة صغيرة + عنق رفيع + رأس مدمج بشاشة بصمة
---      + لوح مسح زجاجي بارز تضع فيه إصبعك. لا أعمدة ضخمة ولا أقراص عائمة.
-----------------------------------------------------------------------
 type ScannerRefs = {
 	frame: BasePart,
 	pad: BasePart,
 	padLight: PointLight,
 	glass: BasePart,
+	beam: BasePart,
+	floorLED: BasePart,
+	ledLight: PointLight,
 	status: TextLabel,
 	scanLine: Frame,
 	rings: { UIStroke },
+	wave: Frame,
+	waveStroke: UIStroke,
+	beamLow: Vector3,
+	beamHigh: Vector3,
+	idleScreen: Color3,
+	idleAccent: Color3,
+	idleGlass: Color3,
+	idleSub: string,
 }
 
+----------------------------------------------------------------------
+-- 🧱 باني «لوحة بصمة جدارية فاخرة» مدمجة وأنيقة (بدل العمود الواقف):
+--      مونوليث أوبسيديان رفيع + إطار ذهبي مصقول + زجاج غاطس متوهّج
+--      + شعاع مسح ثلاثي الأبعاد يجتاز الزجاج عمودياً + شريط LED أرضي
+--      يقود للباب. قابل لإعادة الاستخدام (دخول/خروج)، يواجه ±X حسب sgn.
+----------------------------------------------------------------------
 local function buildScanner(o): ScannerRefs
 	local cx, cz, fy, sgn = o.cx, o.cz, o.fy, o.sgn
 	local body, bodyMat = o.body, o.bodyMat
@@ -1153,47 +1166,63 @@ local function buildScanner(o): ScannerRefs
 	local glassColor, ringColor, textColor = o.glassColor, o.ringColor, o.textColor
 	local name = o.name
 
-	local fx = cx + sgn * 0.28          -- الوجه الأمامي للرأس (تتجه له الشاشة)
-	local headY0, headY1 = fy + 2.6, fy + 4.55
+	local fx = cx + sgn * 0.22                   -- مستوى الوجه الأمامي للوحة
+	local panelTop = fy + 4.9
+	local panelBottom = fy + 0.9
+	local padBottom, padTop = fy + 2.05, fy + 4.5
+	local halfW = 1.0
 
-	-- قاعدة صغيرة (بصمة قدم صغيرة) + شريط نيون رفيع
-	box(name .. "Base", cx - 0.62, cx + 0.62, fy, fy + 0.28, cz - 0.78, cz + 0.78, body, bodyMat)
-	box(name .. "BaseRing", cx - 0.66, cx + 0.66, fy + 0.26, fy + 0.36, cz - 0.82, cz + 0.82, accent, Enum.Material.Neon).CanCollide = false
+	-- قاعدة نحيفة أنيقة (اللوحة قائمة بذاتها، مدمجة وغير ضخمة)
+	box(name .. "Base", cx - 0.34, cx + 0.34, fy, fy + 0.16, cz - halfW - 0.06, cz + halfW + 0.06, body, bodyMat)
+	box(name .. "BaseGlow", cx - 0.30, cx + 0.30, fy + 0.14, fy + 0.20, cz - halfW, cz + halfW, accent, Enum.Material.Neon).CanCollide = false
 
-	-- عنق رفيع يحمل الرأس
-	box(name .. "Neck", cx - sgn * 0.12 - 0.26, cx - sgn * 0.12 + 0.26, fy + 0.28, fy + 2.62, cz - 0.32, cz + 0.32, body, bodyMat)
+	-- المونوليث الأوبسيديان الرفيع — الـProximityPrompt يلتصق به
+	local frame = box(name .. "Slab", cx - 0.22, cx + 0.22, fy + 0.16, panelTop, cz - halfW, cz + halfW, body, bodyMat)
 
-	-- رأس الجهاز المدمج (يحمل الشاشة) — الـProximityPrompt يلتصق به
-	local frame = box(name .. "Head", cx - 0.28, cx + 0.28, headY0, headY1, cz - 0.85, cz + 0.85, body, bodyMat)
-	-- إطار نيون رفيع حول الوجه الأمامي (تباين أنيق)
-	box(name .. "Bezel", fx, fx + sgn * 0.05, headY0 + 0.08, headY1 - 0.08, cz - 0.82, cz + 0.82, accent, Enum.Material.Neon).CanCollide = false
+	-- إطار ذهبي مصقول على الوجه (يحيط الزجاج فيبدو غاطساً وفخماً)
+	box(name .. "Frame", fx, fx + sgn * 0.06, panelBottom, panelTop - 0.12, cz - halfW + 0.05, cz + halfW - 0.05, TRIM_GOLD, Enum.Material.Metal).CanCollide = false
+	-- شريط شعار مضيء أعلى اللوحة (Backlit)
+	box(name .. "Logo", fx + sgn * 0.06, fx + sgn * 0.11, panelTop - 0.62, panelTop - 0.26, cz - 0.62, cz + 0.62, TRIM_GOLD, Enum.Material.Neon).CanCollide = false
 
-	-- الشاشة المتوهّجة (الجزء العلوي) — يتغيّر لونها مع المسح
-	local sy0, sy1 = fy + 3.18, fy + 4.42
-	local pad = box(name .. "Pad", fx + sgn * 0.02, fx + sgn * 0.09, sy0, sy1, cz - 0.72, cz + 0.72, screenIdle, Enum.Material.Neon)
+	-- الشاشة المتوهّجة (تتغيّر مع حالة المسح) — تحمل واجهة البصمة
+	local pad = box(name .. "Pad", fx + sgn * 0.06, fx + sgn * 0.10, padBottom, padTop, cz - 0.74, cz + 0.74, screenIdle, Enum.Material.Neon)
 	pad.CanCollide = false
-	local padLight = pointLight(pad, accent, 1.0, 7)
+	local padLight = pointLight(pad, accent, 1.2, 9)
 
-	-- لوح المسح الزجاجي البارز (الجزء السفلي) — تضع فيه إصبعك
-	local glass = box(name .. "Glass", fx, fx + sgn * 0.18, fy + 2.78, fy + 3.06, cz - 0.46, cz + 0.46, glassColor, Enum.Material.Glass)
+	-- زجاج شفّاف بارز فوق الشاشة (سطح اللمس)
+	local glass = box(name .. "Glass", fx + sgn * 0.10, fx + sgn * 0.15, padBottom - 0.04, padTop + 0.04, cz - 0.78, cz + 0.78, glassColor, Enum.Material.Glass)
 	glass.CanCollide = false
-	glass.Reflectance = 0.2
-	pointLight(glass, accent, 0.7, 4)
+	glass.Reflectance = 0.25
+	pointLight(glass, accent, 0.6, 5)
 
-	-- واجهة الشاشة: عنوان + بصمة بحلقات + خط مسح متحرّك + سطر حالة
+	-- 🔦 شعاع المسح ثلاثي الأبعاد — شريط نيون يجتاز الزجاج عمودياً أثناء المسح
+	local beamX = fx + sgn * 0.16
+	local beam = box(name .. "Beam", beamX - 0.025, beamX + 0.025, padBottom + 0.04, padBottom + 0.12, cz - 0.74, cz + 0.74, accent, Enum.Material.Neon)
+	beam.CanCollide = false
+	beam.Transparency = 1
+	local beamLow = Vector3.new(beamX, padBottom + 0.12, cz)
+	local beamHigh = Vector3.new(beamX, padTop - 0.12, cz)
+
+	-- 💡 شريط LED أرضي أمام اللوحة — يضيء عند القبول ويقود اللاعب للباب
+	local ledA, ledB = cx + sgn * 0.55, cx + sgn * 3.1
+	local led = box(name .. "FloorLED", math.min(ledA, ledB), math.max(ledA, ledB), fy + 0.005, fy + 0.07, cz - 0.46, cz + 0.46, accent, Enum.Material.Neon)
+	led.CanCollide = false
+	local ledLight = pointLight(led, accent, 0.6, 8)
+
+	-- واجهة الشاشة: عنوان + بصمة بحلقات + خط مسح + موجة نجاح + سطر حالة
 	local face = (sgn >= 0) and Enum.NormalId.Right or Enum.NormalId.Left
 	local gui = Instance.new("SurfaceGui")
 	gui.Name = name .. "Gui"; gui.AutoLocalize = false
 	gui.Face = face
-	gui.CanvasSize = Vector2.new(300, 420)
+	gui.CanvasSize = Vector2.new(300, 480)
 	gui.LightInfluence = 0
 	gui.Adornee = pad
 	gui.Parent = pad
 
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, 0, 0.14, 0)
-	title.Position = UDim2.new(0, 0, 0.015, 0)
+	title.Size = UDim2.new(1, 0, 0.12, 0)
+	title.Position = UDim2.new(0, 0, 0.02, 0)
 	title.Font = Enum.Font.GothamBold
 	title.Text = o.title
 	title.TextScaled = true
@@ -1203,8 +1232,8 @@ local function buildScanner(o): ScannerRefs
 	-- حلقات البصمة
 	local holder = Instance.new("Frame")
 	holder.BackgroundTransparency = 1
-	holder.Size = UDim2.new(1, 0, 0.5, 0)
-	holder.Position = UDim2.new(0, 0, 0.17, 0)
+	holder.Size = UDim2.new(1, 0, 0.52, 0)
+	holder.Position = UDim2.new(0, 0, 0.16, 0)
 	holder.ClipsDescendants = true
 	holder.Parent = gui
 	local rings: { UIStroke } = {}
@@ -1223,6 +1252,19 @@ local function buildScanner(o): ScannerRefs
 		st.Parent = ring
 		table.insert(rings, st)
 	end
+	-- موجة النجاح (حلقة تتمدّد وتتلاشى عند قبول الدخول)
+	local wave = Instance.new("Frame")
+	wave.AnchorPoint = Vector2.new(0.5, 0.5)
+	wave.Position = UDim2.new(0.5, 0, 0.5, 0)
+	wave.Size = UDim2.new(0.2, 0, 0.22, 0)
+	wave.BackgroundTransparency = 1
+	wave.Visible = false
+	wave.Parent = holder
+	Instance.new("UICorner", wave).CornerRadius = UDim.new(1, 0)
+	local waveStroke = Instance.new("UIStroke")
+	waveStroke.Thickness = 5
+	waveStroke.Color = Color3.fromRGB(120, 255, 170)
+	waveStroke.Parent = wave
 	-- خط المسح المتحرّك (يمر فوق البصمة)
 	local scanLine = Instance.new("Frame")
 	scanLine.AnchorPoint = Vector2.new(0.5, 0.5)
@@ -1239,8 +1281,8 @@ local function buildScanner(o): ScannerRefs
 
 	local status = Instance.new("TextLabel")
 	status.BackgroundTransparency = 1
-	status.Size = UDim2.new(1, 0, 0.16, 0)
-	status.Position = UDim2.new(0, 0, 0.7, 0)
+	status.Size = UDim2.new(1, 0, 0.14, 0)
+	status.Position = UDim2.new(0, 0, 0.72, 0)
 	status.Font = Enum.Font.GothamBold
 	status.Text = o.sub
 	status.TextScaled = true
@@ -1249,31 +1291,114 @@ local function buildScanner(o): ScannerRefs
 
 	local hint = Instance.new("TextLabel")
 	hint.BackgroundTransparency = 1
-	hint.Size = UDim2.new(1, 0, 0.1, 0)
-	hint.Position = UDim2.new(0, 0, 0.88, 0)
+	hint.Size = UDim2.new(1, 0, 0.09, 0)
+	hint.Position = UDim2.new(0, 0, 0.89, 0)
 	hint.Font = Enum.Font.Gotham
 	hint.Text = o.hint
 	hint.TextScaled = true
 	hint.TextColor3 = ringColor
 	hint.Parent = gui
 
-	return { frame = frame, pad = pad, padLight = padLight, glass = glass, status = status, scanLine = scanLine, rings = rings }
+	return {
+		frame = frame, pad = pad, padLight = padLight, glass = glass,
+		beam = beam, floorLED = led, ledLight = ledLight,
+		status = status, scanLine = scanLine, rings = rings,
+		wave = wave, waveStroke = waveStroke, beamLow = beamLow, beamHigh = beamHigh,
+		idleScreen = screenIdle, idleAccent = accent, idleGlass = glassColor, idleSub = o.sub,
+	}
 end
 
--- جهاز بصمة الدخول الخارجي (تذكرة دخول) — مدمج، يواجه المدينة (-X)
+----------------------------------------------------------------------
+-- 🎛️ حالات اللوحة (مفهوم المسح الجديد): أزرق/زمردي (جاهز) → ذهبي (يمسح)
+--      → أخضر (نجاح) / أحمر (رفض). تتحكّم بكل عناصر اللوحة ثلاثية الأبعاد.
+----------------------------------------------------------------------
+local SCAN_GOLD   = Color3.fromRGB(235, 188, 80)
+local SCAN_GOLD_L = Color3.fromRGB(255, 206, 96)
+local OK_GREEN    = Color3.fromRGB(45, 210, 120)
+local OK_GREEN_L  = Color3.fromRGB(75, 240, 150)
+local BAD_RED     = Color3.fromRGB(210, 55, 50)
+local BAD_RED_L   = Color3.fromRGB(238, 78, 66)
+
+local function setScanner(r: ScannerRefs, state: string)
+	if state == "scan" then
+		r.pad.Color = SCAN_GOLD; r.padLight.Color = SCAN_GOLD_L
+		r.glass.Color = SCAN_GOLD_L
+		r.beam.Color = SCAN_GOLD_L
+		r.floorLED.Color = SCAN_GOLD; r.ledLight.Color = SCAN_GOLD_L; r.ledLight.Brightness = 0.9
+	elseif state == "ok" then
+		r.pad.Color = OK_GREEN; r.padLight.Color = OK_GREEN_L
+		r.glass.Color = OK_GREEN_L; r.beam.Transparency = 1
+		r.floorLED.Color = OK_GREEN_L; r.ledLight.Color = OK_GREEN_L; r.ledLight.Brightness = 2.4
+	elseif state == "bad" then
+		r.pad.Color = BAD_RED; r.padLight.Color = BAD_RED_L
+		r.glass.Color = BAD_RED_L; r.beam.Transparency = 1
+		r.floorLED.Color = BAD_RED; r.ledLight.Color = BAD_RED_L; r.ledLight.Brightness = 1.4
+	else -- idle
+		r.pad.Color = r.idleScreen; r.padLight.Color = r.idleAccent
+		r.glass.Color = r.idleGlass; r.beam.Transparency = 1
+		r.floorLED.Color = r.idleAccent; r.ledLight.Color = r.idleAccent; r.ledLight.Brightness = 0.6
+		r.status.Text = r.idleSub
+		for _, st in r.rings do st.Thickness = 3 end
+	end
+end
+
+-- موجة نجاح على الواجهة (حلقة تتمدّد وتتلاشى)
+local function playWave(r: ScannerRefs)
+	task.spawn(function()
+		r.waveStroke.Transparency = 0
+		r.wave.Visible = true
+		for s = 0, 12 do
+			local t = s / 12
+			local sz = 0.2 + t * 0.95
+			r.wave.Size = UDim2.new(sz, 0, sz * 1.1, 0)
+			r.waveStroke.Transparency = t
+			task.wait(0.03)
+		end
+		r.wave.Visible = false
+		r.waveStroke.Transparency = 0
+	end)
+end
+
+----------------------------------------------------------------------
+-- 🖐️ مفهوم المسح الجديد (ثلاثي الأبعاد، يتزامن لكل اللاعبين عبر السيرفر):
+--      الشعاع الضوئي يجتاز الزجاج عمودياً ذهاباً وإياباً + نبض الحلقات
+--      + خط الواجهة + نسبة تقدّم 0→100٪. يبقى ظاهراً للجميع.
+----------------------------------------------------------------------
+local function runScan3D(r: ScannerRefs, duration: number)
+	setScanner(r, "scan")
+	r.beam.Transparency = 0.12
+	local steps = math.max(10, math.floor(duration / 0.05))
+	for s = 0, steps do
+		local t = s / steps
+		local sweep = (t * 2) % 1                 -- تمريرتان صعوداً/نزولاً
+		r.beam.CFrame = CFrame.new(r.beamLow:Lerp(r.beamHigh, sweep))
+		r.scanLine.Position = UDim2.new(0.5, 0, 1 - sweep, 0)
+		for i, st in r.rings do
+			local on = (math.floor(t * 10) % #r.rings) == (i - 1)
+			st.Thickness = on and 5 or 3
+		end
+		r.status.Text = "جارٍ المسح… " .. math.floor(t * 100) .. "٪"
+		task.wait(duration / steps)
+	end
+	r.scanLine.Position = UDim2.new(0.5, 0, 1.1, 0)
+	for _, st in r.rings do st.Thickness = 3 end
+	r.beam.Transparency = 1
+end
+
+-- لوحة بصمة الدخول الخارجية (تذكرة دخول) — لوحة جدارية فاخرة، تواجه المدينة (-X)
+-- أوبسيديان داكن + إطار ذهبي + زجاج أزرق متوهّج (مفهوم Wall Panel المعتمد)
 local CX_S, CZ_S = 89, 30
 local SY = FLOOR_Y
+local OBSIDIAN_E   = Color3.fromRGB(16, 20, 27)
 local extScan = buildScanner({
 	name = "Scanner", cx = CX_S, cz = CZ_S, fy = SY, sgn = -1,
-	body = Color3.fromRGB(196, 156, 74), bodyMat = Enum.Material.Metal,
-	accent = TRIM_GOLD, screenIdle = Color3.fromRGB(20, 60, 90),
-	glassColor = Color3.fromRGB(120, 210, 245), ringColor = Color3.fromRGB(180, 230, 255),
-	textColor = Color3.fromRGB(210, 240, 255),
+	body = OBSIDIAN_E, bodyMat = Enum.Material.Slate,
+	accent = Color3.fromRGB(60, 150, 235), screenIdle = Color3.fromRGB(16, 42, 72),
+	glassColor = Color3.fromRGB(120, 200, 250), ringColor = Color3.fromRGB(180, 225, 255),
+	textColor = Color3.fromRGB(210, 235, 255),
 	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز",
 })
 local panelFrame = extScan.frame
-local pad = extScan.pad
-local padLight = extScan.padLight
 
 -- ProximityPrompt للتفاعل
 local prompt = Instance.new("ProximityPrompt")
@@ -1329,23 +1454,18 @@ Players.PlayerRemoving:Connect(function(player)
 	scanningExit[player.UserId] = nil
 end)
 
-local PAD_IDLE = Color3.fromRGB(20, 60, 90)
-local PAD_IDLE_LIGHT = Color3.fromRGB(80, 170, 230)
-
-local function setPad(c: Color3, l: Color3)
-	pad.Color = c
-	padLight.Color = l
-end
-
+-- 🔒 قفل أنيميشن واحد للوحة الدخول: عناصر اللوحة (الشعاع/الخط/الحلقات) مشتركة،
+--     فلو شغّلها لاعبان معاً تتشوّه. المالك فقط يشغّل المسح؛ البقية ينتظرون بدون تضارب.
+local entryAnimating = false
 -- 🔢 توكِن إعادة ضبط اللوحة: كل نتيجة مسح جديدة تُلغي إعادة الضبط المؤجّلة السابقة
---     حتى لا يطفئ ريسِت قديم لون لوحة مسحٍ جديد بدأ خلال فترة التأخير.
-local padCycle = 0
+--     حتى لا يطفئ ريسِت قديم لوحة مسحٍ جديد بدأ خلال فترة التأخير.
+local entryReset = 0
 
-local function resetPadSoon()
-	padCycle += 1
-	local my = padCycle
-	task.delay(2, function()
-		if my == padCycle then setPad(PAD_IDLE, PAD_IDLE_LIGHT) end
+local function resetEntrySoon()
+	entryReset += 1
+	local my = entryReset
+	task.delay(2.4, function()
+		if my == entryReset and not entryAnimating then setScanner(extScan, "idle") end
 	end)
 end
 
@@ -1359,19 +1479,25 @@ prompt.Triggered:Connect(function(player)
 	-- منع تكرار الضغط لنفس اللاعب أثناء المسح (لكل لاعب على حدة — لا يعطّل غيره)
 	if scanningEntry[player.UserId] then return end
 	scanningEntry[player.UserId] = true
+	local owns = false   -- هل يملك هذا اللاعب أنيميشن اللوحة هذه المرّة؟
 
 	local function admit()
 		evScanResult:FireClient(player, true)
-		setPad(Color3.fromRGB(40, 200, 110), Color3.fromRGB(60, 230, 120))
+		if owns then setScanner(extScan, "ok"); playWave(extScan) end
 		recordEntry(player)
 		openDoorsSequence()
-		resetPadSoon()
 	end
 
 	local ok, err = pcall(function()
-		-- ابدأ شاشة المسح عند اللاعب فوراً (إحساس واقعي)
+		-- ابدأ شاشة المسح عند اللاعب فوراً + شعاع المسح ثلاثي الأبعاد على اللوحة
 		evStartScan:FireClient(player)
-		task.wait(SCAN_TIME)
+		if not entryAnimating then
+			entryAnimating = true
+			owns = true
+			runScan3D(extScan, SCAN_TIME)   -- شعاع يجتاز الزجاج + تدرّج ذهبي
+		else
+			task.wait(SCAN_TIME)            -- لوحة مشغولة بمسح لاعب آخر — ننتظر دون تضارب
+		end
 
 		if isAdmin(player) then
 			admit()
@@ -1393,21 +1519,21 @@ prompt.Triggered:Connect(function(player)
 		else
 			-- رصيد غير كافٍ → رفض الدخول
 			evScanResult:FireClient(player, false)
-			setPad(Color3.fromRGB(210, 50, 50), Color3.fromRGB(230, 60, 60))
-			resetPadSoon()
+			if owns then setScanner(extScan, "bad") end
 			if _G.NotifyPlayer then
 				_G.NotifyPlayer(player, "❌ رصيدك غير كافٍ — تحتاج " .. ENTRY_FEE .. " كوينز لدخول القصر (رصيدك: " .. coins .. ").")
 			end
 		end
 	end)
 	-- يُحرّر القفل دائماً (حتى لو حصل خطأ) عشان اللاعب يقدر يعيد المحاولة
+	if owns then entryAnimating = false; resetEntrySoon() end
 	if not ok then warn("[Palace] Entry scan error: " .. tostring(err)) end
 	scanningEntry[player.UserId] = nil
 end)
 
 ----------------------------------------------------------------------
--- 🟢 جهاز بصمة الخروج الداخلي — مدمج وأنيق (بستايل ZKTeco)، أوبسيديان زمردي
---      وظيفته: فتح الباب للخروج فقط (بدون أي خصم، للجميع) مع حركة مسح واقعية
+-- 🟢 لوحة بصمة الخروج الداخلية — لوحة جدارية فاخرة، أوبسيديان + زمردي + إطار ذهبي
+--      وظيفتها: فتح الباب للخروج فقط (بدون أي خصم، للجميع) مع مفهوم المسح ثلاثي الأبعاد
 ----------------------------------------------------------------------
 local OBSIDIAN     = Color3.fromRGB(18, 22, 28)
 local EMERALD      = Color3.fromRGB(40, 220, 140)
@@ -1426,38 +1552,7 @@ local exitScan = buildScanner({
 	title = "بوابة الخروج", sub = "ضع إصبعك للخروج", hint = "EXIT · اضغط E",
 })
 local exitFrame = exitScan.frame
-local pad2 = exitScan.pad
-local pad2Light = exitScan.padLight
-
-local PAD2_IDLE = EMERALD_DEEP
-local PAD2_IDLE_LIGHT = EMERALD
 local EXIT_SCAN_TIME = 4.5            -- ⏱ مدة حركة المسح الواقعية (ثواني)
-
-----------------------------------------------------------------------
--- 🖐️ حركة مسح واقعية على الشاشة (السيرفر يحرّك العناصر فتتزامن لكل اللاعبين)
---      خط مسح يمرّ فوق البصمة + نبض الحلقات + نسبة تقدّم 0→100٪
-----------------------------------------------------------------------
-local function runScanAnimation(refs, duration: number)
-	local status, scanLine, rings = refs.status, refs.scanLine, refs.rings
-	refs.pad.Color = Color3.fromRGB(24, 120, 90)
-	refs.padLight.Color = EMERALD
-	local steps = math.max(6, math.floor(duration / 0.06))
-	for s = 0, steps do
-		local t = s / steps
-		-- خط المسح يتحرّك من الأسفل للأعلى ويتكرّر مرّتين
-		local sweep = (t * 2) % 1
-		scanLine.Position = UDim2.new(0.5, 0, 1 - sweep, 0)
-		-- نبض الحلقات (إضاءة متتابعة)
-		for i, st in rings do
-			local on = (math.floor(t * 10) % #rings) == (i - 1)
-			st.Thickness = on and 5 or 3
-		end
-		status.Text = "جارٍ المسح… " .. math.floor(t * 100) .. "٪"
-		task.wait(duration / steps)
-	end
-	scanLine.Position = UDim2.new(0.5, 0, 1.1, 0)   -- إخفاء الخط بعد الانتهاء
-	for _, st in rings do st.Thickness = 3 end
-end
 
 local exitPrompt = Instance.new("ProximityPrompt")
 exitPrompt.ActionText = "افتح الباب واخرج"
@@ -1482,15 +1577,15 @@ exitPrompt.Triggered:Connect(function(player)
 	local ok, err = pcall(function()
 		evStartScan:FireClient(player)
 		if not exitAnimating then
-			-- هذا اللاعب يملك الجهاز: يشغّل المسح الكامل على الواجهة المشتركة
+			-- هذا اللاعب يملك اللوحة: يشغّل المسح الكامل (شعاع ثلاثي الأبعاد) على الواجهة المشتركة
 			exitAnimating = true
 			owns = true
-			runScanAnimation(exitScan, EXIT_SCAN_TIME)
+			runScan3D(exitScan, EXIT_SCAN_TIME)
+			setScanner(exitScan, "ok")
+			playWave(exitScan)
 			exitScan.status.Text = "تم ✓ — تفضّل بالخروج"
-			pad2.Color = Color3.fromRGB(60, 245, 150)
-			pad2Light.Color = Color3.fromRGB(80, 255, 170)
 		else
-			-- الجهاز يعرض مسح لاعب آخر — نفتح الباب لهذا اللاعب فوراً دون تشغيل أنيميشن متضارب
+			-- اللوحة تعرض مسح لاعب آخر — نفتح الباب لهذا اللاعب فوراً دون تشغيل أنيميشن متضارب
 			task.wait(0.8)
 		end
 		evScanResult:FireClient(player, true)
@@ -1504,12 +1599,10 @@ exitPrompt.Triggered:Connect(function(player)
 	if owns then
 		exitResetCycle += 1
 		local myReset = exitResetCycle
-		task.delay(2.2, function()
-			-- تجاهل إعادة الضبط لو بدأ مسحٌ جديد خلال فترة التأخير (يمنع تشويه لون لوحة المسح الجديد)
+		task.delay(2.4, function()
+			-- تجاهل إعادة الضبط لو بدأ مسحٌ جديد خلال فترة التأخير (يمنع تشويه لوحة المسح الجديد)
 			if myReset ~= exitResetCycle or exitAnimating then return end
-			pad2.Color = PAD2_IDLE
-			pad2Light.Color = PAD2_IDLE_LIGHT
-			exitScan.status.Text = "ضع إصبعك للخروج"
+			setScanner(exitScan, "idle")
 		end)
 	end
 end)
