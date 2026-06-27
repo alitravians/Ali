@@ -43,8 +43,16 @@ local sndSuccess = mkSound("rbxassetid://9118823105", 0.6, 1)
 local sndDenied  = mkSound("rbxassetid://9112627118", 0.5, 0.5)
 
 ----------------------------------------------------------------------
--- 🖐️ شاشة المسح
+-- 🖐️ شاشة المسح البيومتري — نمط هولوغرام احترافي
+--      بصمة هولوغرامية متوهّجة فوق منصّة ضوئية + شعاع مسح + حلقة تقدّم
+--      بنسبة + تدرّج لوني للحالة: أزرق(جاهز) → ذهبي(يمسح) → أخضر/أحمر.
 ----------------------------------------------------------------------
+local CYAN   = Color3.fromRGB(95, 210, 255)
+local CYAN_D = Color3.fromRGB(45, 120, 165)
+local GREEN  = Color3.fromRGB(90, 240, 150)
+local RED    = Color3.fromRGB(245, 100, 100)
+local CW, CH = 380, 520   -- أبعاد البطاقة
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "PalaceScanGui"
 gui.ResetOnSpawn = false
@@ -55,65 +63,114 @@ gui.Parent = pg
 
 local dim = Instance.new("Frame")
 dim.Size = UDim2.new(1, 0, 1, 0)
-dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-dim.BackgroundTransparency = 0.4
+dim.BackgroundColor3 = Color3.fromRGB(2, 4, 9)
+dim.BackgroundTransparency = 0.32
 dim.Parent = gui
 
 local card = Instance.new("Frame")
-card.Size = UDim2.new(0, 360, 0, 460)
-card.Position = UDim2.new(0.5, -180, 0.5, -230)
-card.BackgroundColor3 = Color3.fromRGB(16, 20, 32)
+card.AnchorPoint = Vector2.new(0.5, 0.5)
+card.Size = UDim2.new(0, CW, 0, CH)
+card.Position = UDim2.new(0.5, 0, 0.5, 0)
+card.BackgroundColor3 = Color3.fromRGB(13, 20, 33)
 card.Parent = gui
-local cardCorner = Instance.new("UICorner"); cardCorner.CornerRadius = UDim.new(0, 22); cardCorner.Parent = card
-local cardStroke = Instance.new("UIStroke"); cardStroke.Color = GOLD; cardStroke.Thickness = 2.5; cardStroke.Parent = card
+Instance.new("UICorner", card).CornerRadius = UDim.new(0, 26)
+local cardGrad = Instance.new("UIGradient")
+cardGrad.Color = ColorSequence.new(Color3.fromRGB(17, 26, 42), Color3.fromRGB(9, 14, 24))
+cardGrad.Rotation = 90
+cardGrad.Parent = card
+local cardStroke = Instance.new("UIStroke"); cardStroke.Color = CYAN_D; cardStroke.Thickness = 2; cardStroke.Parent = card
+-- إطار ذهبي داخلي رفيع
+local inner = Instance.new("Frame")
+inner.BackgroundTransparency = 1
+inner.Size = UDim2.new(1, -12, 1, -12)
+inner.Position = UDim2.new(0, 6, 0, 6)
+inner.Parent = card
+Instance.new("UICorner", inner).CornerRadius = UDim.new(0, 21)
+local innerStroke = Instance.new("UIStroke"); innerStroke.Color = Color3.fromRGB(120, 95, 45); innerStroke.Thickness = 1; innerStroke.Transparency = 0.3; innerStroke.Parent = inner
 
 local title = Instance.new("TextLabel")
 title.BackgroundTransparency = 1
-title.Size = UDim2.new(1, -20, 0, 50)
-title.Position = UDim2.new(0, 10, 0, 14)
+title.Size = UDim2.new(1, -30, 0, 42)
+title.Position = UDim2.new(0, 15, 0, 18)
 title.Font = Enum.Font.GothamBlack
-title.Text = "قفل القصر الرئاسي"
+title.Text = "قصر شهد"
 title.TextScaled = true
 title.TextColor3 = GOLD
 title.Parent = card
+local subtitle = Instance.new("TextLabel")
+subtitle.BackgroundTransparency = 1
+subtitle.Size = UDim2.new(1, -30, 0, 22)
+subtitle.Position = UDim2.new(0, 15, 0, 62)
+subtitle.Font = Enum.Font.Gotham
+subtitle.Text = "تحقّق بيومتري"
+subtitle.TextScaled = true
+subtitle.TextColor3 = CYAN
+subtitle.Parent = card
 
--- منطقة البصمة
+-- منطقة الهولوغرام
 local scanBox = Instance.new("Frame")
-scanBox.Size = UDim2.new(0, 220, 0, 250)
-scanBox.Position = UDim2.new(0.5, -110, 0, 78)
-scanBox.BackgroundColor3 = Color3.fromRGB(10, 26, 40)
+scanBox.AnchorPoint = Vector2.new(0.5, 0)
+scanBox.Size = UDim2.new(0, 280, 0, 300)
+scanBox.Position = UDim2.new(0.5, 0, 0, 96)
+scanBox.BackgroundTransparency = 1
 scanBox.ClipsDescendants = true
 scanBox.Parent = card
-local sbCorner = Instance.new("UICorner"); sbCorner.CornerRadius = UDim.new(0, 16); sbCorner.Parent = scanBox
-local sbStroke = Instance.new("UIStroke"); sbStroke.Color = Color3.fromRGB(60, 150, 210); sbStroke.Thickness = 2; sbStroke.Parent = scanBox
 
+-- توهّج خلفي للبصمة
 local glow = Instance.new("ImageLabel")
 glow.BackgroundTransparency = 1
 glow.Image = "rbxassetid://5028857084"
-glow.ImageColor3 = Color3.fromRGB(70, 170, 240)
-glow.ImageTransparency = 0.2
-glow.Size = UDim2.new(1.4, 0, 1.4, 0)
-glow.Position = UDim2.new(-0.2, 0, -0.2, 0)
+glow.ImageColor3 = CYAN
+glow.ImageTransparency = 0.25
+glow.AnchorPoint = Vector2.new(0.5, 0.5)
+glow.Size = UDim2.new(1.5, 0, 1.5, 0)
+glow.Position = UDim2.new(0.5, 0, 0.42, 0)
 glow.Parent = scanBox
 
--- بصمة مرسومة بعناصر أصلية (حلقات متّحدة المركز) بدل إيموجي — الإيموجي قد لا
--- يدعمه خطّ روبلوكس فيظهر «مربّعاً فارغاً». الحلقات تُرسم دائماً بلا أي اعتماد
--- على خطّ أو صورة خارجية، فمستحيل تظهر مربّعات.
+-- حلقة التقدّم الخارجية (زخرفية) + علامات
+local progRing = Instance.new("Frame")
+progRing.AnchorPoint = Vector2.new(0.5, 0.5)
+progRing.Size = UDim2.new(0, 250, 0, 250)
+progRing.Position = UDim2.new(0.5, 0, 0.42, 0)
+progRing.BackgroundTransparency = 1
+progRing.Parent = scanBox
+Instance.new("UICorner", progRing).CornerRadius = UDim.new(1, 0)
+local progStroke = Instance.new("UIStroke"); progStroke.Color = CYAN_D; progStroke.Thickness = 2; progStroke.Transparency = 0.2; progStroke.Parent = progRing
+
+-- خطّ مسح دوّار (يدور حول البصمة أثناء المسح)
+local sweep = Instance.new("Frame")
+sweep.AnchorPoint = Vector2.new(0.5, 1)
+sweep.Size = UDim2.new(0, 3, 0, 125)
+sweep.Position = UDim2.new(0.5, 0, 0.5, 0)
+sweep.BackgroundColor3 = CYAN
+sweep.BorderSizePixel = 0
+sweep.ZIndex = 4
+sweep.Parent = progRing
+local swGrad = Instance.new("UIGradient")
+swGrad.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 1),
+	NumberSequenceKeypoint.new(1, 0.05),
+})
+swGrad.Rotation = 90
+swGrad.Parent = sweep
+
+-- بصمة هولوغرامية: حلقات متّحدة المركز بإزاحة بسيطة (إحساس لولبي)
 local printRidges = {}
-for i = 0, 5 do
+for i = 0, 6 do
 	local ring = Instance.new("Frame")
 	ring.AnchorPoint = Vector2.new(0.5, 0.5)
-	ring.Position = UDim2.new(0.5, 0, 0.5, 0)
-	local s = 0.92 - i * 0.15
-	ring.Size = UDim2.new(s, 0, s * 1.15, 0)
+	local ox = math.sin(i * 0.9) * 0.04
+	ring.Position = UDim2.new(0.5 + ox, 0, 0.42, 0)
+	local s = 0.86 - i * 0.115
+	ring.Size = UDim2.new(s, 0, s * 1.16, 0)
 	ring.BackgroundTransparency = 1
 	ring.ZIndex = 2
 	ring.Parent = scanBox
 	Instance.new("UICorner", ring).CornerRadius = UDim.new(1, 0)
 	local st = Instance.new("UIStroke")
-	st.Thickness = 3
-	st.Color = Color3.fromRGB(150, 215, 255)
-	st.Transparency = 0.08
+	st.Thickness = 2.5
+	st.Color = Color3.fromRGB(170, 230, 255)
+	st.Transparency = 0.05
 	st.Parent = ring
 	table.insert(printRidges, st)
 end
@@ -121,11 +178,25 @@ local function tintPrint(c: Color3)
 	for _, st in ipairs(printRidges) do st.Color = c end
 end
 
--- خط المسح المتحرّك
+-- منصّة ضوئية أسفل البصمة
+local platform = Instance.new("Frame")
+platform.AnchorPoint = Vector2.new(0.5, 0.5)
+platform.Size = UDim2.new(0, 200, 0, 26)
+platform.Position = UDim2.new(0.5, 0, 0.93, 0)
+platform.BackgroundTransparency = 1
+platform.ZIndex = 3
+platform.Parent = scanBox
+Instance.new("UICorner", platform).CornerRadius = UDim.new(1, 0)
+local platStroke = Instance.new("UIStroke"); platStroke.Color = CYAN; platStroke.Thickness = 2; platStroke.Transparency = 0.1; platStroke.Parent = platform
+
+-- شعاع المسح الأفقي
 local scanline = Instance.new("Frame")
-scanline.Size = UDim2.new(1, 0, 0, 4)
-scanline.Position = UDim2.new(0, 0, 0, 0)
-scanline.BackgroundColor3 = Color3.fromRGB(120, 230, 255)
+scanline.AnchorPoint = Vector2.new(0.5, 0.5)
+scanline.Size = UDim2.new(0.78, 0, 0, 3)
+scanline.Position = UDim2.new(0.5, 0, 0.1, 0)
+scanline.BackgroundColor3 = Color3.fromRGB(170, 245, 255)
+scanline.BorderSizePixel = 0
+scanline.ZIndex = 5
 scanline.Parent = scanBox
 local slGrad = Instance.new("UIGradient")
 slGrad.Transparency = NumberSequence.new({
@@ -135,10 +206,24 @@ slGrad.Transparency = NumberSequence.new({
 })
 slGrad.Parent = scanline
 
+-- النسبة المئوية
+local pctLabel = Instance.new("TextLabel")
+pctLabel.BackgroundTransparency = 1
+pctLabel.Size = UDim2.new(0, 120, 0, 36)
+pctLabel.AnchorPoint = Vector2.new(0.5, 0.5)
+pctLabel.Position = UDim2.new(0.5, 0, 0.42, 0)
+pctLabel.Font = Enum.Font.GothamBlack
+pctLabel.Text = "0%"
+pctLabel.TextScaled = true
+pctLabel.ZIndex = 6
+pctLabel.TextColor3 = GOLD
+pctLabel.TextTransparency = 0.15
+pctLabel.Parent = scanBox
+
 local status = Instance.new("TextLabel")
 status.BackgroundTransparency = 1
-status.Size = UDim2.new(1, -20, 0, 70)
-status.Position = UDim2.new(0, 10, 1, -86)
+status.Size = UDim2.new(1, -24, 0, 54)
+status.Position = UDim2.new(0, 12, 1, -72)
 status.Font = Enum.Font.GothamBold
 status.Text = "جاري قراءة البصمة…"
 status.TextScaled = true
@@ -147,17 +232,37 @@ status.Parent = card
 
 local scanning = false
 
-local function runScanline()
+local function runScanFx()
+	-- شعاع أفقي يصعد وينزل على البصمة
 	task.spawn(function()
 		while scanning do
-			scanline.Position = UDim2.new(0, 0, 0, 0)
-			local up = TweenService:Create(scanline, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 1, -4)})
+			scanline.Position = UDim2.new(0.5, 0, 0.05, 0)
+			local up = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.8, 0)})
 			up:Play(); up.Completed:Wait()
 			if not scanning then break end
-			local dn = TweenService:Create(scanline, TweenInfo.new(0.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 0, 0)})
+			local dn = TweenService:Create(scanline, TweenInfo.new(0.95, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {Position = UDim2.new(0.5, 0, 0.05, 0)})
 			dn:Play(); dn.Completed:Wait()
 		end
 	end)
+	-- خطّ دوّار حول البصمة
+	task.spawn(function()
+		while scanning do
+			sweep.Rotation = 0
+			local rot = TweenService:Create(sweep, TweenInfo.new(1.1, Enum.EasingStyle.Linear), {Rotation = 360})
+			rot:Play(); rot.Completed:Wait()
+		end
+	end)
+	-- النسبة تتقدّم 0→~92٪ تدريجياً حتى تصل النتيجة
+	task.spawn(function()
+		local p = 0
+		while scanning and p < 92 do
+			p += math.random(2, 5)
+			if p > 92 then p = 92 end
+			pctLabel.Text = p .. "%"
+			task.wait(0.16)
+		end
+	end)
+	-- نبضة صوت خفيفة
 	task.spawn(function()
 		while scanning do
 			sndBeep:Play()
@@ -166,45 +271,57 @@ local function runScanline()
 	end)
 end
 
+local function setAccent(c: Color3)
+	tintPrint(c)
+	progStroke.Color = c
+	platStroke.Color = c
+	sweep.BackgroundColor3 = c
+	glow.ImageColor3 = c
+	pctLabel.TextColor3 = c
+end
+
 evStartScan.OnClientEvent:Connect(function()
 	scanning = true
 	gui.Enabled = true
-	card.Size = UDim2.new(0, 360, 0, 460)
-	scanBox.Visible = true
+	card.Size = UDim2.new(0, CW, 0, CH)
 	scanline.Visible = true
-	tintPrint(Color3.fromRGB(150, 215, 255))
-	sbStroke.Color = Color3.fromRGB(60, 150, 210)
-	glow.ImageColor3 = Color3.fromRGB(70, 170, 240)
+	sweep.Visible = true
+	pctLabel.Text = "0%"
+	setAccent(CYAN)
+	-- لون البصمة أفتح من اللكنة لإحساس الهولوغرام
+	tintPrint(Color3.fromRGB(170, 230, 255))
 	status.Text = "جاري قراءة البصمة…"
 	status.TextColor3 = Color3.fromRGB(200, 230, 255)
-	runScanline()
+	-- تحوّل للذهبي (طور المسح) بعد لحظة
+	task.delay(0.35, function()
+		if scanning then setAccent(GOLD); tintPrint(Color3.fromRGB(245, 220, 150)) end
+	end)
+	runScanFx()
 end)
 
 evScanResult.OnClientEvent:Connect(function(granted)
 	scanning = false
 	scanline.Visible = false
+	sweep.Visible = false
 	if granted then
-		tintPrint(Color3.fromRGB(70, 235, 130))
-		sbStroke.Color = Color3.fromRGB(70, 235, 130)
-		glow.ImageColor3 = Color3.fromRGB(70, 235, 130)
+		setAccent(GREEN)
+		pctLabel.Text = "100%"
 		status.Text = "تم التحقق — تفضّل بالدخول"
 		status.TextColor3 = Color3.fromRGB(120, 245, 160)
 		sndSuccess:Play()
 	else
-		tintPrint(Color3.fromRGB(245, 90, 90))
-		sbStroke.Color = Color3.fromRGB(245, 90, 90)
-		glow.ImageColor3 = Color3.fromRGB(245, 90, 90)
-		status.Text = "الدخول مرفوض — للأدمن فقط"
+		setAccent(RED)
+		status.Text = "رصيدك غير كافٍ — تحتاج 250 كوينز"
 		status.TextColor3 = Color3.fromRGB(255, 120, 120)
 		sndDenied:Play()
 		-- اهتزاز بسيط
 		for _ = 1, 4 do
-			card.Position = UDim2.new(0.5, -180 + 8, 0.5, -230); task.wait(0.04)
-			card.Position = UDim2.new(0.5, -180 - 8, 0.5, -230); task.wait(0.04)
+			card.Position = UDim2.new(0.5, 8, 0.5, 0); task.wait(0.04)
+			card.Position = UDim2.new(0.5, -8, 0.5, 0); task.wait(0.04)
 		end
-		card.Position = UDim2.new(0.5, -180, 0.5, -230)
+		card.Position = UDim2.new(0.5, 0, 0.5, 0)
 	end
-	task.delay(1.9, function()
+	task.delay(2.0, function()
 		if not scanning then gui.Enabled = false end
 	end)
 end)
