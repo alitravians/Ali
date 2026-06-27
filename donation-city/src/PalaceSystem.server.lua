@@ -1479,6 +1479,9 @@ end
 
 -- 🎫 توكِن تصريح لكل لاعب: يضمن أن انتهاء تصريح قديم لا يلغي تصريحاً جديداً
 local gatePassCycle: { [number]: number } = {}
+Players.PlayerRemoving:Connect(function(player)
+	gatePassCycle[player.UserId] = nil
+end)
 
 -- يمنح اللاعب عبوراً مؤقّتاً عبر الحاجز ثم يعيد أجزاءه لمجموعة الافتراضي
 local function grantGatePass(player: Player, duration: number)
@@ -1602,9 +1605,21 @@ exitPrompt.ActionText = "افتح الباب واخرج"
 exitPrompt.ObjectText = "بوابة الخروج"
 exitPrompt.HoldDuration = 0
 exitPrompt.KeyboardKeyCode = Enum.KeyCode.E
-exitPrompt.RequiresLineOfSight = false
-exitPrompt.MaxActivationDistance = 9
+exitPrompt.RequiresLineOfSight = true   -- 🧱 الجدار يحجب الضغط من الخارج (لا فتح من برّا)
+exitPrompt.MaxActivationDistance = 7
 exitPrompt.Parent = exitFrame
+
+-- 🚪 جهاز الخروج للداخل فقط: نتحقّق أن اللاعب فعلاً داخل القصر قبل فتح الباب،
+--     فلا يقدر أحد يفتح القصر وهو واقف بالخارج بمحاذاة الجدار (الإصلاح الجذري للـ bug).
+local function isInsidePalace(player: Player): boolean
+	local char = player.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+	local p = (hrp :: BasePart).Position
+	return p.X >= FX0 + 2 and p.X <= FX1 - 1
+		and p.Z >= FZ0 + 1 and p.Z <= FZ1 - 1
+		and p.Y >= FLOOR_Y - 2 and p.Y <= CEIL_Y + 1
+end
 
 -- 🔒 قفل أنيميشن واحد للجهاز كلّه: عناصر الواجهة (الخط/الحلقات/النص) مشتركة،
 --     فلو شغّلها لاعبان معاً تتشوّه. مالك الأنيميشن فقط يحرّكها؛ البقية يخرجون فوراً بدون تضارب.
@@ -1613,6 +1628,8 @@ local exitResetCycle = 0   -- يُلغي إعادة الضبط المؤجّلة 
 
 -- منطق الخروج: حركة مسح واقعية (~4.5ث) → فتح الباب (بدون خصم، للجميع)
 exitPrompt.Triggered:Connect(function(player)
+	-- 🧱 حماية إضافية: تجاهل الضغط لو اللاعب مش فعلاً داخل القصر (منع الفتح من الخارج)
+	if not isInsidePalace(player) then return end
 	-- منع إعادة التشغيل لنفس اللاعب أثناء مسحه فقط (لا يعطّل بقية اللاعبين)
 	if scanningExit[player.UserId] then return end
 	scanningExit[player.UserId] = true
