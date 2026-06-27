@@ -311,7 +311,7 @@ evScanResult.OnClientEvent:Connect(function(granted)
 		sndSuccess:Play()
 	else
 		setAccent(RED)
-		status.Text = "رصيدك غير كافٍ — تحتاج 250 كوينز"
+		status.Text = "رصيدك غير كافٍ"
 		status.TextColor3 = Color3.fromRGB(255, 120, 120)
 		sndDenied:Play()
 		-- اهتزاز بسيط
