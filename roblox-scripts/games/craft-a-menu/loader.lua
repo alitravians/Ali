@@ -1,10 +1,10 @@
 -- Craft a Menu | Auto-Farm loader
 -- PlaceId 119569506060933 (Goofy Recipes)
--- Always fetches the latest main.lua from the `main` branch.
+-- Always fetches the latest main.lua from the default (`arabic-localization`) branch.
 -- Usage (paste in your executor):
---   loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/main/roblox-scripts/games/craft-a-menu/loader.lua"))()
+--   loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/arabic-localization/roblox-scripts/games/craft-a-menu/loader.lua"))()
 
-local RAW = "https://raw.githubusercontent.com/alitravians/Ali/main/roblox-scripts/games/craft-a-menu/main.lua"
+local RAW = "https://raw.githubusercontent.com/alitravians/Ali/arabic-localization/roblox-scripts/games/craft-a-menu/main.lua"
 
 local ok, err = pcall(function()
     loadstring(game:HttpGet(RAW))()

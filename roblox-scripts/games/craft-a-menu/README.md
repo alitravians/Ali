@@ -7,7 +7,7 @@ that supports `game:HttpGet` + Rayfield (Synapse Z, Delta, Krnl, Wave, etc.).
 ## Loadstring
 
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/main/roblox-scripts/games/craft-a-menu/loader.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/arabic-localization/roblox-scripts/games/craft-a-menu/loader.lua"))()
 ```
 
 ## Features
