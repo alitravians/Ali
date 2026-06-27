@@ -55,6 +55,8 @@ local fireClickDetector   = safe("fireclickdetector")
 local writefile_          = safe("writefile")
 local setclipboard_       = safe("setclipboard")
 local getgenv_            = safe("getgenv") or function() return _G end
+local getconnections_     = safe("getconnections")
+local firesignal_         = safe("firesignal")
 local GENV                = getgenv_()
 
 -- Clean restart if the script is executed again. We bump a generation token:
@@ -119,6 +121,19 @@ local function matchesAny(text, words)
         if string.find(text, w, 1, true) then return true end
     end
     return false
+end
+
+-- Build a label from an instance plus a few ancestors, so matching survives the
+-- common pattern where the meaningful name is on a parent (e.g. the ClickDetector
+-- is `SpawnButton.Button.ClickDetector` -> the keyword lives two levels up).
+local function ancestryLabel(inst, levels)
+    local parts, node = {}, inst
+    for _ = 0, (levels or 3) do
+        if not node then break end
+        table.insert(parts, node.Name)
+        node = node.Parent
+    end
+    return table.concat(parts, " ")
 end
 
 -- Fire every ProximityPrompt whose name/object/ancestry matches `words`.
@@ -212,7 +227,10 @@ end
 --   Make Food  -> ProximityPrompt ActionText "Make Food" on Plots.*.CraftTables.*
 --   Spawn      -> SpawnButton ClickDetectors + ClickSpawnButton RemoteEvent
 local KW_MAKE    = { "make food", "make", "cook", "craft" }
-local KW_SPAWN   = { "spawn" }
+-- Narrow on purpose: bare "spawn" also matches "Respawn*" remotes, which would
+-- keep killing/resetting the character. These two cover SpawnButton (ClickDetector,
+-- matched via ancestry) and the ClickSpawnButton RemoteEvent.
+local KW_SPAWN   = { "spawnbutton", "clickspawn" }
 local KW_COLLECT = { "collect", "cash", "money", "coin", "reward", "income" }
 local KW_SELL    = { "sell", "serve", "customer", "deliver", "order" }
 
@@ -232,6 +250,56 @@ do
             end)
         end
     end
+end
+
+----------------------------------------------------------------------
+-- GUI buttons (money is collected by on-screen "+$" buttons, not by any
+-- workspace prompt/click). Fire their click signals directly so Auto Collect
+-- actually banks the accumulated income.
+----------------------------------------------------------------------
+local function fireGuiButton(btn)
+    local fired = false
+    for _, sigName in ipairs({ "MouseButton1Click", "Activated", "MouseButton1Down" }) do
+        local ok, sig = pcall(function() return btn[sigName] end)
+        if ok and sig then
+            if getconnections_ then
+                pcall(function()
+                    for _, c in ipairs(getconnections_(sig)) do
+                        if type(c.Fire) == "function" then pcall(function() c:Fire() end); fired = true end
+                    end
+                end)
+            end
+            if (not fired) and firesignal_ then
+                if pcall(firesignal_, sig) then fired = true end
+            end
+        end
+    end
+    return fired
+end
+
+-- Click the on-screen collect buttons. We match the money-amount text ("+$18k")
+-- or collect/income names, and explicitly skip Robux / gamepass purchases so we
+-- never trigger a real-money prompt.
+local function clickCollectButtons()
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    if not pg then return 0 end
+    local count = 0
+    for _, b in ipairs(pg:GetDescendants()) do
+        if (b:IsA("TextButton") or b:IsA("ImageButton")) then
+            local txt = (b:IsA("TextButton") and (b.Text or "")) or ""
+            local low = string.lower(txt .. " " .. b.Name)
+            local moneyText = txt:match("^%s*%+?%$%s*%d") ~= nil   -- "+$18k", "$1m"
+            local moneyName = matchesAny(b.Name, { "collect", "income", "claim" })
+            local isRobux = low:find("robux") ~= nil or low:find("2x") ~= nil or low:find("gamepass") ~= nil
+            if (moneyText or moneyName) and not isRobux then
+                if fireGuiButton(b) then
+                    count += 1
+                    task.wait(State.actionDelay)
+                end
+            end
+        end
+    end
+    return count
 end
 
 ----------------------------------------------------------------------
@@ -269,6 +337,7 @@ local function startLoops()
     end)
 
     startLoop("autoCollect", function()
+        clickCollectButtons()   -- the on-screen "+$" buttons (main income sink)
         firePromptsMatching(KW_COLLECT)
         fireClicksMatching(KW_COLLECT)
         fireRemotesMatching(KW_COLLECT)
@@ -327,6 +396,19 @@ local function buildDump()
         end
     end
 
+    table.insert(lines, "")
+    table.insert(lines, "-- GUI buttons (PlayerGui) --")
+    local pg = LocalPlayer:FindFirstChild("PlayerGui")
+    if pg then
+        for _, b in ipairs(pg:GetDescendants()) do
+            if b:IsA("TextButton") or b:IsA("ImageButton") then
+                local txt = b:IsA("TextButton") and (b.Text or "") or ""
+                table.insert(lines, ("[%s] visible=%s text='%s' @ %s"):format(
+                    b.ClassName, tostring(b.Visible), txt, b:GetFullName()))
+            end
+        end
+    end
+
     return table.concat(lines, "\n")
 end
 
@@ -369,7 +451,7 @@ local function buildDiagnostics()
     for _, c in ipairs(Workspace:GetDescendants()) do
         if c:IsA("ClickDetector") then
             cTotal += 1
-            if matchesAny(c.Name .. " " .. (c.Parent and c.Parent.Name or ""), KW_SPAWN) then cSpawn += 1 end
+            if matchesAny(ancestryLabel(c, 3), KW_SPAWN) then cSpawn += 1 end
         end
     end
     table.insert(lines, ("ClickDetectors:   total=%d  match-SPAWN=%d"):format(cTotal, cSpawn))
