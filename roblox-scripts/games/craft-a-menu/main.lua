@@ -347,8 +347,10 @@ local function fireCollectOnPlot(plot)
             if hit and hit:IsA("BasePart") then
                 pcall(function() root.CFrame = hit.CFrame + Vector3.new(0, 3, 0) end)
                 task.wait()
-                pcall(firetouchinterest, hit, root, 0)
-                pcall(firetouchinterest, hit, root, 1)
+                -- UNC: firetouchinterest(playerPart, targetPart, toggle) -> fires
+                -- target.Touched(playerPart), which is what the game's collect handler listens for.
+                pcall(firetouchinterest, root, hit, 0)
+                pcall(firetouchinterest, root, hit, 1)
                 fired += 1
                 task.wait(State.actionDelay)
             end
