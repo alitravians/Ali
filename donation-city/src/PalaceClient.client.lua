@@ -275,18 +275,50 @@ pctLabel.TextColor3 = GOLD_SCAN
 pctLabel.TextTransparency = 0.1
 pctLabel.Parent = glass
 
--- أيقونة النتيجة (✔ / ✘) تظهر فوق البصمة عند القبول/الرفض
-local resultIcon = Instance.new("TextLabel")
+-- أيقونة النتيجة (✓ / ✕) مرسومة بقطع (Frames) لتُعرض دائماً بأي خط
+local resultIcon = Instance.new("Frame")
 resultIcon.BackgroundTransparency = 1
 resultIcon.Size = UDim2.new(0, 120, 0, 120)
 resultIcon.AnchorPoint = Vector2.new(0.5, 0.5)
 resultIcon.Position = UDim2.new(0.5, 0, 0.5, 0)
-resultIcon.Font = Enum.Font.GothamBlack
-resultIcon.Text = ""
-resultIcon.TextScaled = true
 resultIcon.ZIndex = 9
-resultIcon.TextColor3 = GREEN
+resultIcon.Visible = false
 resultIcon.Parent = glass
+
+local function mkBar()
+	local b = Instance.new("Frame")
+	b.AnchorPoint = Vector2.new(0.5, 0.5)
+	b.BorderSizePixel = 0
+	b.ZIndex = 10
+	b.Parent = resultIcon
+	Instance.new("UICorner", b).CornerRadius = UDim.new(1, 0)
+	return b
+end
+local barA = mkBar()
+local barB = mkBar()
+
+-- ✓ : ضلعان (قصير هابط + طويل صاعد)
+local function showCheck(c: Color3)
+	resultIcon.Visible = true
+	barA.BackgroundColor3 = c; barB.BackgroundColor3 = c
+	barA.Size = UDim2.new(0, 16, 0, 44)
+	barA.Position = UDim2.new(0.5, -22, 0.5, 14)
+	barA.Rotation = -45
+	barB.Size = UDim2.new(0, 16, 0, 78)
+	barB.Position = UDim2.new(0.5, 14, 0.5, -2)
+	barB.Rotation = 40
+end
+-- ✕ : ضلعان متقاطعان
+local function showCross(c: Color3)
+	resultIcon.Visible = true
+	barA.BackgroundColor3 = c; barB.BackgroundColor3 = c
+	barA.Size = UDim2.new(0, 16, 0, 92)
+	barA.Position = UDim2.new(0.5, 0, 0.5, 0)
+	barA.Rotation = 45
+	barB.Size = UDim2.new(0, 16, 0, 92)
+	barB.Position = UDim2.new(0.5, 0, 0.5, 0)
+	barB.Rotation = -45
+end
 
 -- ═══ نص الحالة ═══
 local status = Instance.new("TextLabel")
@@ -397,7 +429,7 @@ evStartScan.OnClientEvent:Connect(function(info)
 	scanning = true
 	gui.Enabled = true
 	device.Position = UDim2.new(0.5, 0, 0.5, 0)
-	resultIcon.Text = ""
+	resultIcon.Visible = false
 	pctLabel.Text = ""
 	scanline.Visible = false
 	sweep.Visible = true
@@ -444,8 +476,7 @@ evScanResult.OnClientEvent:Connect(function(granted, info)
 		fpImage.ImageTransparency = 0.05
 		fpImage.ImageColor3 = Color3.fromRGB(150, 255, 190)
 		pctLabel.Text = "100%"
-		resultIcon.Text = "✓"
-		resultIcon.TextColor3 = GREEN
+		showCheck(GREEN)
 		if kind == "exit" then
 			status.Text = "تم التحقّق — تفضّل بالخروج"
 			chip.Visible = false
@@ -469,8 +500,7 @@ evScanResult.OnClientEvent:Connect(function(granted, info)
 		fpImage.ImageTransparency = 0.15
 		fpImage.ImageColor3 = Color3.fromRGB(255, 150, 150)
 		pctLabel.Text = ""
-		resultIcon.Text = "✕"
-		resultIcon.TextColor3 = RED
+		showCross(RED)
 		status.Text = "رصيدك غير كافٍ"
 		status.TextColor3 = Color3.fromRGB(255, 140, 140)
 		local bal = (type(info) == "table" and info.bal) or nil
