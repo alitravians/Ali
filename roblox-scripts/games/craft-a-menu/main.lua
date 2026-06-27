@@ -302,6 +302,53 @@ local function fireCollectOnPlot(plot)
     return fired
 end
 
+-- Cooking is NOT just the "Make Food" prompt -- it is the craft flow shown in the
+-- decompiled CraftUIScript. To turn your ingredients into a meal the game does:
+--   1) ReplicatedStorage.CraftRequestAdd:FireServer(ingredientId)   -- "move to oven"
+--   2) ReplicatedStorage.RemoteEvents.startCraft:FireServer(LocalPlayer)  -- cook
+--   3) ReplicatedStorage.RemoteEvents.clearCraft:FireServer()       -- reset slots
+-- Single-ingredient recipes exist (Potato/Egg/Flour/Milk/Meat/Vegetable/Sugar from
+-- CardLibrary), so adding one owned ingredient is always a valid recipe. We read the
+-- live ingredient inventory from the game's own InventoryModuleLocal so we know
+-- exactly what we own. Returns the number of cook requests sent.
+local cachedInvMod
+local function getInventoryModule()
+    if cachedInvMod ~= nil then return cachedInvMod or nil end
+    local mod = ReplicatedStorage:FindFirstChild("InventoryModuleLocal")
+    if not mod then cachedInvMod = false; return nil end
+    local ok, res = pcall(require, mod)
+    cachedInvMod = (ok and type(res) == "table") and res or false
+    return cachedInvMod or nil
+end
+
+local function autoCook()
+    local craftAdd   = ReplicatedStorage:FindFirstChild("CraftRequestAdd")
+    local re         = ReplicatedStorage:FindFirstChild("RemoteEvents")
+    local startCraft = re and re:FindFirstChild("startCraft")
+    local clearCraft = re and re:FindFirstChild("clearCraft")
+    if not (craftAdd and startCraft) then return 0 end
+
+    local invMod = getInventoryModule()
+    local ingredients = invMod and invMod.ingredients
+    if type(ingredients) ~= "table" then return 0 end
+
+    local cooked = 0
+    for _, ing in ipairs(ingredients) do
+        local id  = ing and ing.Id
+        local amt = (ing and ing.Amount) or 0
+        if type(id) == "string" and id ~= "" and amt > 0 then
+            if clearCraft then pcall(function() clearCraft:FireServer() end) end
+            pcall(function() craftAdd:FireServer(id) end)   -- move ingredient to oven
+            task.wait(State.actionDelay)
+            pcall(function() startCraft:FireServer(LocalPlayer) end)  -- cook it
+            cooked += 1
+            task.wait(State.actionDelay)
+        end
+    end
+    if clearCraft then pcall(function() clearCraft:FireServer() end) end
+    return cooked
+end
+
 -- Fire remotes whose leaf name matches `words` (no args; safe best-effort).
 -- Skips `*Local` remotes: those are server->client UI events, so firing them
 -- from the client does nothing useful (and just spams the local UI).
@@ -439,10 +486,15 @@ local function startLoops()
     loopsStarted = true
 
     startLoop("autoMakeFood", function()
-        -- Core farm: trigger the "Make Food" prompts on your craft tables.
+        -- Real cooking = the craft flow (move ingredients to oven -> startCraft),
+        -- driven from the game's own remotes/inventory. This is what actually
+        -- turns ingredients into meals; firing the "Make Food" prompt alone never
+        -- moved the items to the oven.
+        local cooked = autoCook()
+        -- Also poke the on-table "Make Food" prompts (serve/cook at the station).
         local fired = firePromptsMatching(KW_MAKE)
-        if fired == 0 then
-            pressE()  -- fallback to the in-game E keybind if no prompt matched
+        if cooked == 0 and fired == 0 then
+            pressE()  -- last-resort fallback to the in-game E keybind
         end
     end)
 
