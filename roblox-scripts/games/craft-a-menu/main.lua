@@ -240,17 +240,37 @@ local function getMyPlot()
 end
 
 -- Fire the "Collect ALL Money" ProximityPrompt on a plot's money button model
--- (MoneyButton = Collect ALL, MoneyButtonBig = Collect ALL 10X). The prompt may
--- be disabled until you're close, so enable -> fire -> restore.
+-- (MoneyButton = Collect ALL, MoneyButtonBig = Collect ALL 10X).
+-- The server validates proximity (MaxActivationDistance ~12 studs), so unlike the
+-- Make-Food tables (which you stand next to) the money button is usually out of
+-- range. We briefly teleport the character onto the button, fire the prompt, then
+-- restore the original position so banking is accepted server-side.
 local function firePlotMoneyPrompt(plot, modelName)
     if not (plot and fireProximityPrompt) then return false end
     local model = plot:FindFirstChild(modelName)
     local button = model and model:FindFirstChild("Button")
     local prompt = button and button:FindFirstChildWhichIsA("ProximityPrompt")
     if not prompt then return false end
+
     local wasEnabled = prompt.Enabled
     if not wasEnabled then pcall(function() prompt.Enabled = true end) end
+
+    local root = getRoot()
+    local anchor = (button:IsA("BasePart") and button)
+        or button:FindFirstChildWhichIsA("BasePart", true)
+    local saved
+    if root and anchor then
+        saved = root.CFrame
+        pcall(function() root.CFrame = anchor.CFrame + Vector3.new(0, 3, 0) end)
+        task.wait()  -- let the new position replicate before triggering
+    end
+
     local ok = pcall(fireProximityPrompt, prompt)
+
+    if saved then
+        task.wait()
+        pcall(function() root.CFrame = saved end)
+    end
     if not wasEnabled then pcall(function() prompt.Enabled = wasEnabled end) end
     return ok
 end
