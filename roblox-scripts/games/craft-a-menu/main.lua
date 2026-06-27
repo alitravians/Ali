@@ -420,6 +420,7 @@ local function startLoops()
             firePlotMoneyPrompt(plot, "MoneyButtonBig")
         end
         firePromptsMatching(KW_COLLECT)   -- fallback: any other collect prompts
+        clickCollectButtons()             -- also click on-screen collect GUI buttons
     end)
 
     startLoop("autoSell", function()
