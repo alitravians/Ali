@@ -60,6 +60,9 @@ local firesignal_         = safe("firesignal")
 local hookmetamethod_     = safe("hookmetamethod")
 local getnamecallmethod_  = safe("getnamecallmethod")
 local newcclosure_        = safe("newcclosure") or function(f) return f end
+local decompile_          = safe("decompile")
+local makefolder_         = safe("makefolder")
+local isfolder_           = safe("isfolder")
 local GENV                = getgenv_()
 
 -- Clean restart if the script is executed again. We bump a generation token:
@@ -447,6 +450,87 @@ local function buildDump()
     return table.concat(lines, "\n")
 end
 
+----------------------------------------------------------------------
+-- Deep dump: export the full game tree (every instance + class name) for the
+-- key services, plus decompile every LocalScript/ModuleScript when the executor
+-- supports `decompile`. This is the "understand the whole game" exporter.
+----------------------------------------------------------------------
+local function buildTreeDump(root, maxNodes)
+    local lines, n = {}, 0
+    local function walk(inst, depth)
+        for _, child in ipairs(inst:GetChildren()) do
+            if n >= maxNodes then return end
+            n += 1
+            local extra = ""
+            if child:IsA("ProximityPrompt") then
+                extra = (" [Action='%s' Object='%s']"):format(child.ActionText or "", child.ObjectText or "")
+            elseif child:IsA("TextButton") then
+                extra = (" [text='%s']"):format(child.Text or "")
+            elseif child:IsA("ValueBase") then
+                extra = (" [=%s]"):format(tostring((child :: any).Value))
+            end
+            table.insert(lines, ("%s[%s] %s%s"):format(string.rep("  ", depth), child.ClassName, child.Name, extra))
+            walk(child, depth + 1)
+        end
+    end
+    walk(root, 0)
+    if n >= maxNodes then table.insert(lines, ("... (truncated at %d nodes)"):format(maxNodes)) end
+    return table.concat(lines, "\n"), n
+end
+
+local function buildFullDump()
+    local lines = { "== Craft a Menu FULL dump ==", "PlaceId: " .. tostring(game.PlaceId),
+        "decompile available: " .. tostring(decompile_ ~= nil), "" }
+    local services = {
+        { "ReplicatedStorage", ReplicatedStorage },
+        { "Workspace", Workspace },
+        { "PlayerGui", LocalPlayer:FindFirstChild("PlayerGui") },
+        { "ReplicatedFirst", game:FindFirstChild("ReplicatedFirst") },
+        { "Lighting", game:FindFirstChild("Lighting") },
+    }
+    for _, sv in ipairs(services) do
+        local name, root = sv[1], sv[2]
+        if root then
+            table.insert(lines, ("######## %s ########"):format(name))
+            local tree = buildTreeDump(root, 4000)
+            table.insert(lines, tree)
+            table.insert(lines, "")
+        end
+    end
+    return table.concat(lines, "\n")
+end
+
+-- Decompile every script under the given roots into a folder (one file each).
+local function dumpScripts()
+    if not (decompile_ and writefile_) then
+        return false, "executor lacks decompile/writefile"
+    end
+    local folder = "CraftAMenu_scripts"
+    if makefolder_ and not (isfolder_ and isfolder_(folder)) then pcall(makefolder_, folder) end
+    local roots = { ReplicatedStorage, LocalPlayer:FindFirstChild("PlayerGui"),
+        game:FindFirstChild("ReplicatedFirst"), Workspace }
+    local count, index = 0, {}
+    for _, root in ipairs(roots) do
+        if root then
+            for _, s in ipairs(root:GetDescendants()) do
+                if s:IsA("LocalScript") or s:IsA("ModuleScript") or s:IsA("Script") then
+                    local ok, src = pcall(decompile_, s)
+                    if ok and type(src) == "string" and #src > 0 then
+                        local safeName = s:GetFullName():gsub("[^%w]+", "_")
+                        local path = folder .. "/" .. safeName .. ".lua"
+                        if pcall(writefile_, path, src) then
+                            count += 1
+                            table.insert(index, path .. "  <-  " .. s:GetFullName())
+                        end
+                    end
+                end
+            end
+        end
+    end
+    pcall(writefile_, folder .. "/_INDEX.txt", table.concat(index, "\n"))
+    return true, ("decompiled %d scripts into %s/"):format(count, folder)
+end
+
 -- Quick health check: what's available + what would actually fire.
 local function buildDiagnostics()
     local lines = { "== Craft a Menu diagnostics ==", "PlaceId: " .. tostring(game.PlaceId), "" }
@@ -683,6 +767,24 @@ Calib:CreateButton({
         if writefile_ then pcall(writefile_, "CraftAMenu_dump.txt", dump) end
         if setclipboard_ then pcall(setclipboard_, dump) end
         notify("Craft a Menu", "Dumped to CraftAMenu_dump.txt + clipboard.", 6)
+    end,
+})
+
+Calib:CreateButton({
+    Name = "FULL game dump (whole tree -> file)",
+    Callback = function()
+        local dump = buildFullDump()
+        if writefile_ then pcall(writefile_, "CraftAMenu_fulldump.txt", dump) end
+        if setclipboard_ then pcall(setclipboard_, dump) end
+        notify("Craft a Menu", "Full tree -> CraftAMenu_fulldump.txt + clipboard.", 8)
+    end,
+})
+
+Calib:CreateButton({
+    Name = "Decompile ALL scripts (-> CraftAMenu_scripts/)",
+    Callback = function()
+        local ok, msg = dumpScripts()
+        notify("Craft a Menu", msg, 10)
     end,
 })
 
