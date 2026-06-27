@@ -57,6 +57,9 @@ local setclipboard_       = safe("setclipboard")
 local getgenv_            = safe("getgenv") or function() return _G end
 local getconnections_     = safe("getconnections")
 local firesignal_         = safe("firesignal")
+local hookmetamethod_     = safe("hookmetamethod")
+local getnamecallmethod_  = safe("getnamecallmethod")
+local newcclosure_        = safe("newcclosure") or function(f) return f end
 local GENV                = getgenv_()
 
 -- Clean restart if the script is executed again. We bump a generation token:
@@ -468,6 +471,41 @@ local function buildDiagnostics()
 end
 
 ----------------------------------------------------------------------
+-- Remote spy: capture the EXACT remote + args the game fires when YOU do an
+-- action manually (e.g. collect money). Installed once via __namecall hook;
+-- it only records while GENV.__CraftAMenuSpyOn is true, so it is dormant
+-- otherwise. This is how we learn the real "collect" call without guessing.
+----------------------------------------------------------------------
+local function describeArg(v)
+    local t = typeof(v)
+    if t == "Instance" then return "Instance:" .. v:GetFullName() end
+    if t == "table" then return "table" end
+    return t .. ":" .. tostring(v)
+end
+
+local function installRemoteSpy()
+    if GENV.__CraftAMenuSpyHooked then return true end
+    if not (hookmetamethod_ and getnamecallmethod_) then return false end
+    GENV.__CraftAMenuSpyLog = GENV.__CraftAMenuSpyLog or {}
+    local oldNamecall
+    oldNamecall = hookmetamethod_(game, "__namecall", newcclosure_(function(self, ...)
+        if GENV.__CraftAMenuSpyOn then
+            local ok, method = pcall(getnamecallmethod_)
+            if ok and (method == "FireServer" or method == "InvokeServer") then
+                local args, parts = { ... }, {}
+                for i = 1, select("#", ...) do parts[i] = describeArg(args[i]) end
+                local ok2, full = pcall(function() return self:GetFullName() end)
+                table.insert(GENV.__CraftAMenuSpyLog, ("%s | %s(%s)"):format(
+                    ok2 and full or tostring(self), method, table.concat(parts, ", ")))
+            end
+        end
+        return oldNamecall(self, ...)
+    end))
+    GENV.__CraftAMenuSpyHooked = true
+    return true
+end
+
+----------------------------------------------------------------------
 -- GUI (Rayfield)
 ----------------------------------------------------------------------
 local Rayfield
@@ -633,6 +671,31 @@ Calib:CreateButton({
         if setclipboard_ then pcall(setclipboard_, diag) end
         print(diag)
         notify("Craft a Menu", "Diagnostics copied to clipboard + console (F9).", 6)
+    end,
+})
+
+Calib:CreateButton({
+    Name = "Spy remotes 12s (collect money manually now!)",
+    Callback = function()
+        if not installRemoteSpy() then
+            notify("Craft a Menu", "Executor lacks hookmetamethod/getnamecallmethod.", 6)
+            return
+        end
+        GENV.__CraftAMenuSpyLog = {}
+        GENV.__CraftAMenuSpyOn = true
+        notify("Craft a Menu", "Spying 12s -> COLLECT YOUR MONEY MANUALLY NOW.", 6)
+        task.spawn(function()
+            task.wait(12)
+            GENV.__CraftAMenuSpyOn = false
+            local log = GENV.__CraftAMenuSpyLog or {}
+            local out = (#log > 0) and table.concat(log, "\n")
+                or "(no FireServer/InvokeServer captured in 12s)"
+            out = "== Craft a Menu remote spy ==\n" .. out
+            if writefile_ then pcall(writefile_, "CraftAMenu_spy.txt", out) end
+            if setclipboard_ then pcall(setclipboard_, out) end
+            print(out)
+            notify("Craft a Menu", ("Spy done: %d calls -> clipboard + CraftAMenu_spy.txt"):format(#log), 8)
+        end)
     end,
 })
 
