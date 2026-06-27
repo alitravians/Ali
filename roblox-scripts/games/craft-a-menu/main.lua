@@ -224,6 +224,19 @@ local function fireRemoteByName(name, ...)
     return true
 end
 
+-- Fire a BindableEvent by exact name (the game's own internal collect signals,
+-- e.g. ReplicatedStorage.BindableEvents.CollectAllMoney / CollectMoney).
+local function fireBindableByName(name, ...)
+    local args = table.pack(...)
+    local fired = false
+    for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
+        if v.Name == name and v:IsA("BindableEvent") then
+            if pcall(function() v:Fire(table.unpack(args, 1, args.n)) end) then fired = true end
+        end
+    end
+    return fired
+end
+
 -- Fire remotes whose leaf name matches `words` (no args; safe best-effort).
 -- Skips `*Local` remotes: those are server->client UI events, so firing them
 -- from the client does nothing useful (and just spams the local UI).
@@ -326,9 +339,9 @@ local function clickCollectButtons()
                 or low:find("plus") ~= nil or low:find("shop") ~= nil
                 or low:find("robux") ~= nil or low:find("gamepass") ~= nil
                 or low:find("currency") ~= nil or low:find("2x") ~= nil
-            -- Collect targets: the standalone IncomeButton, or any collect/claim button.
+            -- Collect targets: IncomeButton / MoneyButton / any collect/claim button.
             local isCollect = b.Name == "IncomeButton"
-                or matchesAny(b.Name, { "collect", "claim" })
+                or matchesAny(b.Name, { "collect", "claim", "moneybutton" })
             if isCollect and not isPurchase then
                 if fireGuiButton(b) then
                     count += 1
@@ -375,10 +388,16 @@ local function startLoops()
     end)
 
     startLoop("autoCollect", function()
-        -- Bank income. Spy-confirmed: InstantIncome:FireServer() (no args).
-        -- Fire a few times per pass to match the rapid manual-collect pattern.
-        for _ = 1, 3 do fireRemoteByName("InstantIncome") end
-        clickCollectButtons()   -- fallback: the on-screen IncomeButton
+        -- Bank income via every confirmed collect path (full-dump + spy):
+        --  1) the per-plot "Collect ALL Money" ProximityPrompts (Plot_N.MoneyButton)
+        --  2) the game's internal CollectAllMoney/CollectMoney BindableEvents
+        --  3) the InstantIncome RemoteEvent (spy-confirmed FireServer, no args)
+        --  4) the on-screen MoneyButton/IncomeButton GUI buttons
+        firePromptsMatching(KW_COLLECT)
+        fireBindableByName("CollectAllMoney")
+        fireBindableByName("CollectMoney")
+        fireRemoteByName("InstantIncome")
+        clickCollectButtons()
     end)
 
     startLoop("autoSell", function()
