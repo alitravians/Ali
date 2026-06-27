@@ -126,12 +126,16 @@ local function firePromptsMatching(words)
     if not fireProximityPrompt then return 0 end
     local count = 0
     for _, prompt in ipairs(Workspace:GetDescendants()) do
-        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+        if prompt:IsA("ProximityPrompt") then
             local label = (prompt.ActionText or "") .. " " .. (prompt.ObjectText or "")
                 .. " " .. prompt.Name .. " " .. (prompt.Parent and prompt.Parent.Name or "")
             if (#words == 0 or matchesAny(label, words)) and withinRadius(prompt) then
-                -- Single arg: passing a 2nd count of 0 is a no-op on many executors.
+                -- Some games disable prompts until you're close; temporarily enable so
+                -- the fire registers. Single arg only (a 2nd count of 0 is a no-op).
+                local wasEnabled = prompt.Enabled
+                if not wasEnabled then pcall(function() prompt.Enabled = true end) end
                 local ok = pcall(fireProximityPrompt, prompt)
+                if not wasEnabled then pcall(function() prompt.Enabled = wasEnabled end) end
                 if ok then
                     count += 1
                     task.wait(State.actionDelay)
@@ -172,7 +176,7 @@ local function collectRemotes()
     return list
 end
 
--- Fire remotes whose full name matches `words` (no args; safe best-effort).
+-- Fire remotes whose leaf name matches `words` (no args; safe best-effort).
 -- Skips `*Local` remotes: those are server->client UI events, so firing them
 -- from the client does nothing useful (and just spams the local UI).
 local function fireRemotesMatching(words)
@@ -322,6 +326,46 @@ local function buildDump()
     return table.concat(lines, "\n")
 end
 
+-- Quick health check: what's available + what would actually fire.
+local function buildDiagnostics()
+    local lines = { "== Craft a Menu diagnostics ==", "PlaceId: " .. tostring(game.PlaceId), "" }
+    table.insert(lines, "executor fireproximityprompt: " .. tostring(fireProximityPrompt ~= nil))
+    table.insert(lines, "executor fireclickdetector:   " .. tostring(fireClickDetector ~= nil))
+    table.insert(lines, "character present:            " .. tostring(getRoot() ~= nil))
+    table.insert(lines, "")
+
+    local pTotal, pMake, pEnabled = 0, 0, 0
+    local firstMake
+    for _, p in ipairs(Workspace:GetDescendants()) do
+        if p:IsA("ProximityPrompt") then
+            pTotal += 1
+            if p.Enabled then pEnabled += 1 end
+            local label = (p.ActionText or "") .. " " .. p.Name .. " " .. (p.Parent and p.Parent.Name or "")
+            if matchesAny(label, KW_MAKE) then
+                pMake += 1
+                firstMake = firstMake or p
+            end
+        end
+    end
+    table.insert(lines, ("ProximityPrompts: total=%d  match-MAKE=%d  enabled=%d"):format(pTotal, pMake, pEnabled))
+
+    if firstMake and fireProximityPrompt then
+        local ok, err = pcall(fireProximityPrompt, firstMake)
+        table.insert(lines, ("test-fire '%s' @ %s -> ok=%s err=%s"):format(
+            firstMake.ActionText or "", firstMake:GetFullName(), tostring(ok), tostring(err)))
+    end
+
+    local cTotal, cSpawn = 0, 0
+    for _, c in ipairs(Workspace:GetDescendants()) do
+        if c:IsA("ClickDetector") then
+            cTotal += 1
+            if matchesAny(c.Name .. " " .. (c.Parent and c.Parent.Name or ""), KW_SPAWN) then cSpawn += 1 end
+        end
+    end
+    table.insert(lines, ("ClickDetectors:   total=%d  match-SPAWN=%d"):format(cTotal, cSpawn))
+    return table.concat(lines, "\n")
+end
+
 ----------------------------------------------------------------------
 -- GUI (Rayfield)
 ----------------------------------------------------------------------
@@ -348,6 +392,7 @@ if not Rayfield then
     -- No GUI library; still run with safe defaults so the script isn't useless.
     State.autoMakeFood = true
     State.autoSpawn = true
+    State.autoCollect = true
     setAntiAfk(true)
     startLoops()
     notify("Craft a Menu", "Rayfield UI failed to load; running with defaults.", 8)
@@ -476,6 +521,17 @@ Calib:CreateButton({
         if writefile_ then pcall(writefile_, "CraftAMenu_dump.txt", dump) end
         if setclipboard_ then pcall(setclipboard_, dump) end
         notify("Craft a Menu", "Dumped to CraftAMenu_dump.txt + clipboard.", 6)
+    end,
+})
+
+Calib:CreateButton({
+    Name = "Diagnose (test-fire + counts -> clipboard)",
+    Callback = function()
+        local diag = buildDiagnostics()
+        if writefile_ then pcall(writefile_, "CraftAMenu_diag.txt", diag) end
+        if setclipboard_ then pcall(setclipboard_, diag) end
+        print(diag)
+        notify("Craft a Menu", "Diagnostics copied to clipboard + console (F9).", 6)
     end,
 })
 
