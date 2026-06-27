@@ -213,11 +213,11 @@ local function fireRemoteByName(name, ...)
         end
     end
     if not r then return false end
+    local args = table.pack(...)
     if r:IsA("RemoteEvent") then
-        return pcall(function() r:FireServer(...) end)
+        return pcall(function() r:FireServer(table.unpack(args, 1, args.n)) end)
     end
-    local args = { ... }
-    task.spawn(function() pcall(function() r:InvokeServer(table.unpack(args)) end) end)
+    task.spawn(function() pcall(function() r:InvokeServer(table.unpack(args, 1, args.n)) end) end)
     return true
 end
 
