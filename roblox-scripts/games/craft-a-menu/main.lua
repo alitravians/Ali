@@ -129,7 +129,11 @@ local function firePromptsMatching(words)
         if prompt:IsA("ProximityPrompt") then
             local label = (prompt.ActionText or "") .. " " .. (prompt.ObjectText or "")
                 .. " " .. prompt.Name .. " " .. (prompt.Parent and prompt.Parent.Name or "")
-            if (#words == 0 or matchesAny(label, words)) and withinRadius(prompt) then
+            -- Only a targeted (non-empty) keyword set may fire disabled prompts; the
+            -- empty-set "Run ALL" pass stays conservative and skips disabled ones.
+            local targeted = #words > 0
+            local eligible = prompt.Enabled or targeted
+            if eligible and (#words == 0 or matchesAny(label, words)) and withinRadius(prompt) then
                 -- Some games disable prompts until you're close; temporarily enable so
                 -- the fire registers. Single arg only (a 2nd count of 0 is a no-op).
                 local wasEnabled = prompt.Enabled
@@ -340,7 +344,8 @@ local function buildDiagnostics()
         if p:IsA("ProximityPrompt") then
             pTotal += 1
             if p.Enabled then pEnabled += 1 end
-            local label = (p.ActionText or "") .. " " .. p.Name .. " " .. (p.Parent and p.Parent.Name or "")
+            local label = (p.ActionText or "") .. " " .. (p.ObjectText or "")
+                .. " " .. p.Name .. " " .. (p.Parent and p.Parent.Name or "")
             if matchesAny(label, KW_MAKE) then
                 pMake += 1
                 firstMake = firstMake or p
