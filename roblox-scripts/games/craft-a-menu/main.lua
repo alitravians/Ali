@@ -57,10 +57,22 @@ local setclipboard_       = safe("setclipboard")
 local getgenv_            = safe("getgenv") or function() return _G end
 local GENV                = getgenv_()
 
--- Prevent duplicate loops if the script is executed twice.
+-- Clean restart if the script is executed again: stop old loops, tear down the
+-- old UI/connection, then start fresh so we never leak duplicate work or windows.
 if GENV.__CraftAMenuLoaded then
-    GENV.__CraftAMenuStop = false
+    GENV.__CraftAMenuStop = true                 -- signal old loops to exit
+    if GENV.__CraftAMenuAntiAfk then
+        pcall(function() GENV.__CraftAMenuAntiAfk:Disconnect() end)
+        GENV.__CraftAMenuAntiAfk = nil
+    end
+    if GENV.__CraftAMenuRayfield then
+        pcall(function() GENV.__CraftAMenuRayfield:Destroy() end)
+        GENV.__CraftAMenuRayfield = nil
+    end
+    task.wait(0.3)                                -- give old loops a tick to exit
 end
+GENV.__CraftAMenuStop = false
+GENV.__CraftAMenuLoopsStarted = false
 GENV.__CraftAMenuLoaded = true
 
 ----------------------------------------------------------------------
@@ -164,13 +176,15 @@ local function fireRemotesMatching(words)
     local count = 0
     for _, r in ipairs(collectRemotes()) do
         if matchesAny(r:GetFullName(), words) then
-            local ok = pcall(function()
-                if r:IsA("RemoteEvent") then
-                    r:FireServer()
-                else
-                    r:InvokeServer()
-                end
-            end)
+            local ok
+            if r:IsA("RemoteEvent") then
+                ok = pcall(function() r:FireServer() end)
+            else
+                -- InvokeServer blocks until the server replies; run it in its own
+                -- thread so a slow/hanging handler can't stall the farm loop.
+                ok = true
+                task.spawn(function() pcall(function() r:InvokeServer() end) end)
+            end
             if ok then
                 count += 1
                 task.wait(State.actionDelay)
@@ -254,19 +268,18 @@ end
 ----------------------------------------------------------------------
 -- Anti-AFK
 ----------------------------------------------------------------------
-local antiAfkConn
 local function setAntiAfk(on)
     State.antiAfk = on
-    if on and not antiAfkConn then
-        antiAfkConn = LocalPlayer.Idled:Connect(function()
+    if on and not GENV.__CraftAMenuAntiAfk then
+        GENV.__CraftAMenuAntiAfk = LocalPlayer.Idled:Connect(function()
             pcall(function()
                 VirtualUser:CaptureController()
                 VirtualUser:ClickButton2(Vector2.new())
             end)
         end)
-    elseif (not on) and antiAfkConn then
-        antiAfkConn:Disconnect()
-        antiAfkConn = nil
+    elseif (not on) and GENV.__CraftAMenuAntiAfk then
+        GENV.__CraftAMenuAntiAfk:Disconnect()
+        GENV.__CraftAMenuAntiAfk = nil
     end
 end
 
@@ -311,6 +324,7 @@ do
     end)
     if ok then Rayfield = lib end
 end
+GENV.__CraftAMenuRayfield = Rayfield
 
 local function notify(title, text, dur)
     if Rayfield then
