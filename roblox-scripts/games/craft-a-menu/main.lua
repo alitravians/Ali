@@ -79,12 +79,12 @@ GENV.__CraftAMenuLoaded = true
 -- State
 ----------------------------------------------------------------------
 local State = GENV.__CraftAMenuState or {
-    autoOpenCrates = false,
     autoMakeFood   = false,
+    autoSpawn      = false,
     autoCollect    = false,
     autoSell       = false,
     antiAfk        = false,
-    promptRadius   = 60,     -- studs; 0 = whole map
+    promptRadius   = 0,      -- studs; 0 = whole map (default: fire all your tables)
     actionDelay    = 0.15,   -- seconds between fired actions (rate limit)
     loopDelay      = 0.5,    -- seconds between farm passes
 }
@@ -130,7 +130,8 @@ local function firePromptsMatching(words)
             local label = (prompt.ActionText or "") .. " " .. (prompt.ObjectText or "")
                 .. " " .. prompt.Name .. " " .. (prompt.Parent and prompt.Parent.Name or "")
             if (#words == 0 or matchesAny(label, words)) and withinRadius(prompt) then
-                local ok = pcall(fireProximityPrompt, prompt, 0)
+                -- Single arg: passing a 2nd count of 0 is a no-op on many executors.
+                local ok = pcall(fireProximityPrompt, prompt)
                 if ok then
                     count += 1
                     task.wait(State.actionDelay)
@@ -149,7 +150,7 @@ local function fireClicksMatching(words)
         if cd:IsA("ClickDetector") then
             local label = cd.Name .. " " .. (cd.Parent and cd.Parent.Name or "")
             if (#words == 0 or matchesAny(label, words)) and withinRadius(cd) then
-                local ok = pcall(fireClickDetector, cd, 1)
+                local ok = pcall(fireClickDetector, cd)
                 if ok then
                     count += 1
                     task.wait(State.actionDelay)
@@ -172,10 +173,12 @@ local function collectRemotes()
 end
 
 -- Fire remotes whose full name matches `words` (no args; safe best-effort).
+-- Skips `*Local` remotes: those are server->client UI events, so firing them
+-- from the client does nothing useful (and just spams the local UI).
 local function fireRemotesMatching(words)
     local count = 0
     for _, r in ipairs(collectRemotes()) do
-        if matchesAny(r:GetFullName(), words) then
+        if not r.Name:match("Local$") and matchesAny(r.Name, words) then
             local ok
             if r:IsA("RemoteEvent") then
                 ok = pcall(function() r:FireServer() end)
@@ -197,9 +200,12 @@ end
 ----------------------------------------------------------------------
 -- Keyword sets (the game uses E = "Make Food"; crates open via prompt/click)
 ----------------------------------------------------------------------
-local KW_OPEN    = { "open", "crate", "box", "unbox" }
-local KW_MAKE    = { "make", "cook", "craft", "oven", "bake", "food", "combine", "mix" }
-local KW_COLLECT = { "collect", "cash", "money", "coin", "claim", "pickup", "reward" }
+-- Tuned to the real game tree (see Calibrate dump):
+--   Make Food  -> ProximityPrompt ActionText "Make Food" on Plots.*.CraftTables.*
+--   Spawn      -> SpawnButton ClickDetectors + ClickSpawnButton RemoteEvent
+local KW_MAKE    = { "make food", "make", "cook", "craft" }
+local KW_SPAWN   = { "spawn" }
+local KW_COLLECT = { "collect", "cash", "money", "coin", "reward", "income" }
 local KW_SELL    = { "sell", "serve", "customer", "deliver", "order" }
 
 ----------------------------------------------------------------------
@@ -240,18 +246,18 @@ local function startLoops()
     if loopsStarted then return end
     loopsStarted = true
 
-    startLoop("autoOpenCrates", function()
-        firePromptsMatching(KW_OPEN)
-        fireClicksMatching(KW_OPEN)
+    startLoop("autoMakeFood", function()
+        -- Core farm: trigger the "Make Food" prompts on your craft tables.
+        local fired = firePromptsMatching(KW_MAKE)
+        if fired == 0 then
+            pressE()  -- fallback to the in-game E keybind if no prompt matched
+        end
     end)
 
-    startLoop("autoMakeFood", function()
-        local fired = firePromptsMatching(KW_MAKE)
-        fired += fireClicksMatching(KW_MAKE)
-        if fired == 0 then
-            -- Fallback to the documented E keybind near an oven.
-            pressE()
-        end
+    startLoop("autoSpawn", function()
+        -- Spawn customers/orders: SpawnButton click detectors + remote.
+        fireClicksMatching(KW_SPAWN)
+        fireRemotesMatching(KW_SPAWN)
     end)
 
     startLoop("autoCollect", function()
@@ -340,9 +346,8 @@ end
 
 if not Rayfield then
     -- No GUI library; still run with safe defaults so the script isn't useless.
-    State.autoOpenCrates = true
     State.autoMakeFood = true
-    State.autoCollect = true
+    State.autoSpawn = true
     setAntiAfk(true)
     startLoops()
     notify("Craft a Menu", "Rayfield UI failed to load; running with defaults.", 8)
@@ -364,17 +369,17 @@ local Main = Window:CreateTab("Auto-Farm", "play")
 Main:CreateSection("Farming")
 
 Main:CreateToggle({
-    Name = "Auto Open Crates",
-    CurrentValue = State.autoOpenCrates,
-    Flag = "cam_open",
-    Callback = function(v) State.autoOpenCrates = v; startLoops() end,
-})
-
-Main:CreateToggle({
     Name = "Auto Make Food (cook / level recipes)",
     CurrentValue = State.autoMakeFood,
     Flag = "cam_make",
     Callback = function(v) State.autoMakeFood = v; startLoops() end,
+})
+
+Main:CreateToggle({
+    Name = "Auto Spawn Customers",
+    CurrentValue = State.autoSpawn,
+    Flag = "cam_spawn",
+    Callback = function(v) State.autoSpawn = v; startLoops() end,
 })
 
 Main:CreateToggle({
