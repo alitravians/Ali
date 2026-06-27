@@ -53,6 +53,7 @@ end
 
 local fireProximityPrompt = safe("fireproximityprompt")
 local fireClickDetector   = safe("fireclickdetector")
+local firetouchinterest   = safe("firetouchinterest")
 local writefile_          = safe("writefile")
 local setclipboard_       = safe("setclipboard")
 local getgenv_            = safe("getgenv") or function() return _G end
@@ -250,55 +251,110 @@ local function getMyPlot()
     return nil
 end
 
--- A stable part on the plot to teleport onto so the plot streams in. With
--- StreamingEnabled, parts of your plot are unloaded while you stand far away --
--- which is exactly why the money button shows up as <missing> in the report.
-local function plotAnchorPart(plot)
-    local sb = plot:FindFirstChild("SpawnButton")
-    local sbtn = sb and sb:FindFirstChild("Button")
-    if sbtn and sbtn:IsA("BasePart") then return sbtn end
-    local floor = plot:FindFirstChild("Floor") or plot:FindFirstChild("Spawn")
-    if floor and floor:IsA("BasePart") then return floor end
-    return plot:FindFirstChildWhichIsA("BasePart", true)
+-- World position of the plot, used to force StreamingEnabled to load it back in.
+-- A Model's pivot is kept even when its parts are streamed out, so this is stable.
+local function plotPosition(plot)
+    local ok, pivot = pcall(function() return plot:GetPivot() end)
+    if ok and pivot then return pivot.Position end
+    local part = plot:FindFirstChildWhichIsA("BasePart", true)
+    return part and part.Position or nil
 end
 
--- Collect by triggering EVERY "Collect ALL Money" ProximityPrompt anywhere under
--- YOUR plot (covers MoneyButton, MoneyButtonBig "10X", and any nesting). The
--- server validates proximity (~12 studs) AND the part may be streamed out, so we:
---   1. teleport onto the plot to force it to stream in,
---   2. teleport onto each collect prompt's part and fire it,
---   3. restore the original position (done by the caller).
--- Returns the number of prompts fired.
+-- Force the plot region to stream in WITHOUT moving the character, when possible.
+-- StreamingEnabled unloads your money button while you stand at the cooking tables
+-- (that is exactly why MoneyButton shows up as <missing> in the report).
+local function streamInPlot(plot)
+    local pos = plotPosition(plot)
+    if not pos then return end
+    pcall(function() LocalPlayer:RequestStreamAroundAsync(pos) end)
+end
+
+-- Wait (up to `timeout`s) for a named descendant Model to actually stream in.
+local function waitForChild(parent, name, timeout)
+    local t0 = os.clock()
+    repeat
+        local c = parent:FindFirstChild(name)
+        if c then return c end
+        task.wait(0.05)
+    until os.clock() - t0 > (timeout or 0.5)
+    return parent:FindFirstChild(name)
+end
+
+-- Collect money on YOUR plot. The decompiled game has NO collect remote: money is
+-- banked only by the "Collect ALL Money" ProximityPrompt on MoneyButton (and the
+-- "10X" one on MoneyButtonBig), plus touch hitboxes under CollectButtons. Both are
+-- proximity/touch based, and the server validates that you are physically near AND
+-- the part is streamed in. So we: stream the plot in, briefly teleport onto each
+-- money button, fire its prompt, and (caller) restore the original position.
+-- Returns the number of collect triggers fired.
 local function fireCollectOnPlot(plot)
-    if not (plot and fireProximityPrompt) then return 0 end
+    if not plot then return 0 end
     local root = getRoot()
 
-    -- Force stream-in: stand on the plot, then wait for parts to load.
-    if root then
-        local anchor = plotAnchorPart(plot)
-        if anchor then
-            pcall(function() root.CFrame = anchor.CFrame + Vector3.new(0, 4, 0) end)
-            task.wait(0.15)
+    -- 1) Force the plot to load even though we are standing at the tables.
+    streamInPlot(plot)
+    task.wait(0.1)
+
+    local fired = 0
+    local function triggerPromptUnder(model)
+        if not model then return end
+        -- Make sure the button part has streamed in before we look for the prompt.
+        local part = model:FindFirstChild("Button") or model:FindFirstChildWhichIsA("BasePart", true)
+        if root and part then
+            pcall(function() root.CFrame = part.CFrame + Vector3.new(0, 3, 0) end)
+            task.wait(0.1)
+            part = model:FindFirstChild("Button") or part
+        end
+        for _, p in ipairs(model:GetDescendants()) do
+            if p:IsA("ProximityPrompt") then
+                local wasEnabled = p.Enabled
+                if not wasEnabled then pcall(function() p.Enabled = true end) end
+                if fireProximityPrompt and pcall(fireProximityPrompt, p) then fired += 1 end
+                if not wasEnabled then pcall(function() p.Enabled = wasEnabled end) end
+                task.wait(State.actionDelay)
+            end
         end
     end
 
-    local fired = 0
+    -- 2) Fire the two known money buttons by name (stream them in if needed).
+    triggerPromptUnder(waitForChild(plot, "MoneyButton", 0.4))
+    triggerPromptUnder(waitForChild(plot, "MoneyButtonBig", 0.4))
+
+    -- 3) Fallback: any other "collect" ProximityPrompt anywhere under the plot.
     for _, p in ipairs(plot:GetDescendants()) do
         if p:IsA("ProximityPrompt")
-            and string.find(string.lower(p.ActionText or ""), "collect", 1, true) then
-            local part = (p.Parent and p.Parent:IsA("BasePart") and p.Parent)
-                or p:FindFirstAncestorWhichIsA("BasePart")
-            local wasEnabled = p.Enabled
-            if not wasEnabled then pcall(function() p.Enabled = true end) end
+            and string.find(string.lower(p.ActionText or ""), "collect", 1, true)
+            and not p:FindFirstAncestor("MoneyButton")
+            and not p:FindFirstAncestor("MoneyButtonBig") then
+            local part = p:FindFirstAncestorWhichIsA("BasePart")
             if root and part then
                 pcall(function() root.CFrame = part.CFrame + Vector3.new(0, 3, 0) end)
                 task.wait()
             end
-            if pcall(fireProximityPrompt, p) then fired += 1 end
+            local wasEnabled = p.Enabled
+            if not wasEnabled then pcall(function() p.Enabled = true end) end
+            if fireProximityPrompt and pcall(fireProximityPrompt, p) then fired += 1 end
             if not wasEnabled then pcall(function() p.Enabled = wasEnabled end) end
             task.wait(State.actionDelay)
         end
     end
+
+    -- 4) Touch-based CollectButtons (Hitbox with TouchInterest), if any.
+    local cb = plot:FindFirstChild("CollectButtons")
+    if cb and firetouchinterest and root then
+        for _, m in ipairs(cb:GetChildren()) do
+            local hit = m:FindFirstChild("Hitbox")
+            if hit and hit:IsA("BasePart") then
+                pcall(function() root.CFrame = hit.CFrame + Vector3.new(0, 3, 0) end)
+                task.wait()
+                pcall(firetouchinterest, hit, root, 0)
+                pcall(firetouchinterest, hit, root, 1)
+                fired += 1
+                task.wait(State.actionDelay)
+            end
+        end
+    end
+
     return fired
 end
 
@@ -937,11 +993,11 @@ local function runFullReport()
         local c0 = os.clock()
         local sb = plot and plot:FindFirstChild("SpawnButton")
         local btn = sb and sb:FindFirstChild("Button")
-        local ok, err = false, "no SpawnButton.Button"
-        if btn then ok, err = pcall(function() return fireRemoteByName("ClickSpawnButton", btn) end) end
+        local pcalled, sent = false, false
+        if btn then pcalled, sent = pcall(function() return fireRemoteByName("ClickSpawnButton", btn) end) end
         task.wait(0.5)
-        add(("  [Spawn]  ClickSpawnButton(SpawnButton.Button) -> ok=%s err=%s"):format(
-            tostring(ok), tostring(err)))
+        add(("  [Spawn]  ClickSpawnButton(SpawnButton.Button) -> no-exception=%s, remote-fired=%s%s"):format(
+            tostring(pcalled), tostring(sent), btn and "" or " (SpawnButton.Button MISSING)"))
         for _, l in ipairs(logsSince(c0)) do add(l) end
     end
 
@@ -954,7 +1010,7 @@ local function runFullReport()
         if plot then fired = fireCollectOnPlot(plot) end
         if saved then task.wait(); pcall(function() getRoot().CFrame = saved end) end
         task.wait(0.6)
-        add(("  [Collect]  fireCollectOnPlot -> collect prompts fired = %d (stream-in + teleport)"):format(fired))
+        add(("  [Collect]  fireCollectOnPlot -> collect triggers fired = %d (RequestStreamAround + teleport-onto-MoneyButton)"):format(fired))
         if before and getRoot() then
             local moved = math.floor((getRoot().Position - before).Magnitude + 0.5)
             add(("      character moved %d studs net after collect (should be ~0)"):format(moved))
