@@ -488,5 +488,8 @@ Calib:CreateButton({
 -- Boot
 ----------------------------------------------------------------------
 startLoops()
+-- Re-establish Anti-AFK if persisted State has it enabled (the toggle's Callback
+-- only fires on user interaction, so a re-exec would otherwise leave it ON-but-dead).
+if State.antiAfk then setAntiAfk(true) end
 pcall(function() Rayfield:LoadConfiguration() end)
 notify("Craft a Menu", "Loaded. Toggle the farms in the Auto-Farm tab.", 6)
