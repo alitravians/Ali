@@ -57,10 +57,11 @@ local setclipboard_       = safe("setclipboard")
 local getgenv_            = safe("getgenv") or function() return _G end
 local GENV                = getgenv_()
 
--- Clean restart if the script is executed again: stop old loops, tear down the
--- old UI/connection, then start fresh so we never leak duplicate work or windows.
+-- Clean restart if the script is executed again. We bump a generation token:
+-- every loop captures its generation and exits the moment a newer load bumps it,
+-- so there is no race where an old loop resumes after a fixed wait. We also tear
+-- down the old UI/connection so re-running never leaks windows or connections.
 if GENV.__CraftAMenuLoaded then
-    GENV.__CraftAMenuStop = true                 -- signal old loops to exit
     if GENV.__CraftAMenuAntiAfk then
         pcall(function() GENV.__CraftAMenuAntiAfk:Disconnect() end)
         GENV.__CraftAMenuAntiAfk = nil
@@ -69,10 +70,9 @@ if GENV.__CraftAMenuLoaded then
         pcall(function() GENV.__CraftAMenuRayfield:Destroy() end)
         GENV.__CraftAMenuRayfield = nil
     end
-    task.wait(0.3)                                -- give old loops a tick to exit
 end
-GENV.__CraftAMenuStop = false
-GENV.__CraftAMenuLoopsStarted = false
+GENV.__CraftAMenuGen = (GENV.__CraftAMenuGen or 0) + 1
+local MY_GEN = GENV.__CraftAMenuGen
 GENV.__CraftAMenuLoaded = true
 
 ----------------------------------------------------------------------
@@ -102,7 +102,7 @@ end
 local function withinRadius(inst)
     if State.promptRadius <= 0 then return true end
     local root = getRoot()
-    if not root then return true end
+    if not root then return false end  -- no character (dead/respawning): skip
     local part = inst:IsA("BasePart") and inst
         or (inst.Parent and inst.Parent:IsA("BasePart") and inst.Parent)
         or inst:FindFirstAncestorWhichIsA("BasePart")
@@ -197,7 +197,7 @@ end
 ----------------------------------------------------------------------
 -- Keyword sets (the game uses E = "Make Food"; crates open via prompt/click)
 ----------------------------------------------------------------------
-local KW_OPEN    = { "open", "crate", "box", "unbox", "claim", "collect" }
+local KW_OPEN    = { "open", "crate", "box", "unbox" }
 local KW_MAKE    = { "make", "cook", "craft", "oven", "bake", "food", "combine", "mix" }
 local KW_COLLECT = { "collect", "cash", "money", "coin", "claim", "pickup", "reward" }
 local KW_SELL    = { "sell", "serve", "customer", "deliver", "order" }
@@ -225,7 +225,8 @@ end
 ----------------------------------------------------------------------
 local function startLoop(flagKey, body)
     task.spawn(function()
-        while GENV.__CraftAMenuLoaded and not GENV.__CraftAMenuStop do
+        -- Exit as soon as a newer execution bumps the generation token.
+        while GENV.__CraftAMenuGen == MY_GEN do
             if State[flagKey] then
                 pcall(body)
             end
@@ -234,9 +235,10 @@ local function startLoop(flagKey, body)
     end)
 end
 
+local loopsStarted = false
 local function startLoops()
-    if GENV.__CraftAMenuLoopsStarted then return end
-    GENV.__CraftAMenuLoopsStarted = true
+    if loopsStarted then return end
+    loopsStarted = true
 
     startLoop("autoOpenCrates", function()
         firePromptsMatching(KW_OPEN)
