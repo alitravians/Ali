@@ -321,31 +321,74 @@ local function getInventoryModule()
     return cachedInvMod or nil
 end
 
+-- Collect every owned ingredient ID (with amount > 0) from InventoryModuleLocal.
+-- The module stores ingredients as an ARRAY of {Id=..,Amount=..}; older/edge
+-- shapes may key by Id (dict) or expose ingredientCountMap (Id -> count). We
+-- read all three so a structure change can't silently zero us out.
+local function ownedIngredientIds(invMod)
+    local ids, seen = {}, {}
+    local function take(id, amt)
+        if type(id) == "string" and id ~= "" and (amt == nil or amt > 0) and not seen[id] then
+            seen[id] = true
+            table.insert(ids, id)
+        end
+    end
+    if type(invMod) ~= "table" then return ids end
+    local ing = invMod.ingredients
+    if type(ing) == "table" then
+        for k, v in pairs(ing) do
+            if type(v) == "table" then
+                take(v.Id or (type(k) == "string" and k or nil), v.Amount)
+            elseif type(v) == "number" and type(k) == "string" then
+                take(k, v)            -- dict: Id -> amount
+            end
+        end
+    end
+    local cm = invMod.ingredientCountMap
+    if type(cm) == "table" then
+        for id, amt in pairs(cm) do take(id, amt) end
+    end
+    return ids
+end
+
+-- Diagnostic snapshot of the last autoCook pass (shown in FULL REPORT).
+local lastCook = { ran = false, invMod = false, ids = 0, fired = 0, sample = "", err = "" }
+
 local function autoCook()
     local craftAdd   = ReplicatedStorage:FindFirstChild("CraftRequestAdd")
     local re         = ReplicatedStorage:FindFirstChild("RemoteEvents")
     local startCraft = re and re:FindFirstChild("startCraft")
     local clearCraft = re and re:FindFirstChild("clearCraft")
-    if not (craftAdd and startCraft) then return 0 end
+    lastCook = { ran = true, invMod = false, ids = 0, fired = 0, sample = "", err = "" }
+    if not (craftAdd and startCraft) then
+        lastCook.err = "missing CraftRequestAdd/startCraft remote"
+        return 0
+    end
 
     local invMod = getInventoryModule()
-    local ingredients = invMod and invMod.ingredients
-    if type(ingredients) ~= "table" then return 0 end
+    lastCook.invMod = invMod ~= nil
+    local ids = ownedIngredientIds(invMod)
+    lastCook.ids = #ids
+    lastCook.sample = table.concat({ ids[1], ids[2], ids[3] }, ", ")
+    if #ids == 0 then
+        lastCook.err = "no owned ingredients found in InventoryModuleLocal"
+        return 0
+    end
 
     local cooked = 0
-    for _, ing in ipairs(ingredients) do
-        local id  = ing and ing.Id
-        local amt = (ing and ing.Amount) or 0
-        if type(id) == "string" and id ~= "" and amt > 0 then
-            if clearCraft then pcall(function() clearCraft:FireServer() end) end
-            pcall(function() craftAdd:FireServer(id) end)   -- move ingredient to oven
-            task.wait(State.actionDelay)
-            pcall(function() startCraft:FireServer(LocalPlayer) end)  -- cook it
-            cooked += 1
-            task.wait(State.actionDelay)
-        end
+    for _, id in ipairs(ids) do
+        -- One craft per pass per ingredient: clear slots, add the single
+        -- ingredient (single-ingredient recipes always match), then startCraft.
+        -- clearCraft is a server round-trip, so wait before re-adding.
+        if clearCraft then pcall(function() clearCraft:FireServer() end); task.wait(State.actionDelay) end
+        pcall(function() craftAdd:FireServer(id) end)              -- move ingredient to oven
+        task.wait(State.actionDelay)
+        pcall(function() startCraft:FireServer(LocalPlayer) end)   -- cook it
+        cooked += 1
+        task.wait(State.actionDelay)
     end
     if clearCraft then pcall(function() clearCraft:FireServer() end) end
+    lastCook.fired = cooked
     return cooked
 end
 
@@ -527,7 +570,9 @@ local function startLoops()
         if plot then fireCollectOnPlot(plot) end
         if saved then
             task.wait()
-            pcall(function() root.CFrame = saved end)
+            -- Re-fetch the root: if the character died mid-collect, the captured
+            -- one is destroyed and the restore would silently no-op.
+            pcall(function() local r = getRoot(); if r then r.CFrame = saved end end)
         end
         clickCollectButtons()             -- also click on-screen collect GUI buttons
     end)
@@ -815,6 +860,9 @@ local function runFullReport()
         return out
     end
 
+    -- Wrap the whole body so a mid-report error can never leak the LogService
+    -- connection (it is always disconnected in the cleanup below).
+    local okBody, bodyErr = pcall(function()
     add("================= Craft a Menu — FULL REPORT =================")
     add("generated: " .. os.date("%Y-%m-%d %H:%M:%S"))
     add(("PlaceId=%s  GameId=%s  JobId=%s"):format(
@@ -829,7 +877,7 @@ local function runFullReport()
         { "getconnections", getconnections_ }, { "firesignal", firesignal_ },
         { "hookmetamethod", hookmetamethod_ }, { "getnamecallmethod", getnamecallmethod_ },
         { "decompile", decompile_ }, { "writefile", writefile_ }, { "setclipboard", setclipboard_ },
-        { "makefolder", makefolder_ }, { "getgenv", getgenv_ },
+        { "makefolder", makefolder_ }, { "getgenv", safe("getgenv") },
     }
     for _, c in ipairs(caps) do
         add(("  %-22s %s"):format(c[1], c[2] and "OK" or "MISSING"))
@@ -871,12 +919,16 @@ local function runFullReport()
     -- 5) per-feature live test -------------------------------------------------
     add("---- Live feature tests (fired once each) ----")
 
-    -- Make Food
+    -- Make Food (real craft flow: move ingredients to oven -> startCraft)
     do
         local c0 = os.clock()
+        local cooked = autoCook()
         local fired = firePromptsMatching(KW_MAKE)
         task.wait(0.5)
-        add(("  [Make Food]  prompts fired this pass = %d"):format(fired))
+        add(("  [Make Food]  autoCook craft requests = %d | table prompts fired = %d"):format(cooked, fired))
+        add(("      InventoryModuleLocal found = %s | owned ingredient ids = %d (%s)"):format(
+            tostring(lastCook.invMod), lastCook.ids, lastCook.sample ~= "" and lastCook.sample or "none"))
+        if lastCook.err ~= "" then add(("      cook error: %s"):format(lastCook.err)) end
         for _, l in ipairs(logsSince(c0)) do add(l) end
     end
 
@@ -928,8 +980,10 @@ local function runFullReport()
         end
     end
     if not anyErr then add("  (none captured)") end
+    end)
 
     logConn:Disconnect()
+    if not okBody then add("  [report aborted by error] " .. tostring(bodyErr)) end
     return table.concat(L, "\n")
 end
 
