@@ -201,12 +201,14 @@ local function collectRemotes()
     return list
 end
 
--- Fire one specific RemoteEvent/RemoteFunction by exact leaf name. Confirmed via
--- the in-game remote spy: collecting money = `InstantIncome:FireServer()` and
--- spawning a customer = `ClickSpawnButton:FireServer()` (both no args).
+-- Fire one specific RemoteEvent/RemoteFunction by exact leaf name. Decompiled
+-- source (HotbarUIScript) shows spawning a customer is
+-- `RemoteEvents.ClickSpawnButton:FireServer(<SpawnButton.Button>)` -- it needs
+-- the SpawnButton's Button part as the argument, not a bare no-arg call.
 local function fireRemoteByName(name, ...)
     local container = ReplicatedStorage:FindFirstChild("RemoteEvents")
     local r = container and container:FindFirstChild(name)
+    if r and not (r:IsA("RemoteEvent") or r:IsA("RemoteFunction")) then r = nil end
     if not r then
         for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
             if v.Name == name and (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) then
@@ -224,17 +226,33 @@ local function fireRemoteByName(name, ...)
     return true
 end
 
--- Fire a BindableEvent by exact name (the game's own internal collect signals,
--- e.g. ReplicatedStorage.BindableEvents.CollectAllMoney / CollectMoney).
-local function fireBindableByName(name, ...)
-    local args = table.pack(...)
-    local fired = false
-    for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
-        if v.Name == name and v:IsA("BindableEvent") then
-            if pcall(function() v:Fire(table.unpack(args, 1, args.n)) end) then fired = true end
+-- Find THIS player's plot. Decompiled PlotHelperModule: a plot Model under
+-- workspace.Plots is yours when `plot:GetAttribute("OwnerUserId") == UserId`.
+local function getMyPlot()
+    local plots = Workspace:FindFirstChild("Plots")
+    if not plots then return nil end
+    for _, plot in ipairs(plots:GetChildren()) do
+        if plot:IsA("Model") and plot:GetAttribute("OwnerUserId") == LocalPlayer.UserId then
+            return plot
         end
     end
-    return fired
+    return nil
+end
+
+-- Fire the "Collect ALL Money" ProximityPrompt on a plot's money button model
+-- (MoneyButton = Collect ALL, MoneyButtonBig = Collect ALL 10X). The prompt may
+-- be disabled until you're close, so enable -> fire -> restore.
+local function firePlotMoneyPrompt(plot, modelName)
+    if not (plot and fireProximityPrompt) then return false end
+    local model = plot:FindFirstChild(modelName)
+    local button = model and model:FindFirstChild("Button")
+    local prompt = button and button:FindFirstChildWhichIsA("ProximityPrompt")
+    if not prompt then return false end
+    local wasEnabled = prompt.Enabled
+    if not wasEnabled then pcall(function() prompt.Enabled = true end) end
+    local ok = pcall(fireProximityPrompt, prompt)
+    if not wasEnabled then pcall(function() prompt.Enabled = wasEnabled end) end
+    return ok
 end
 
 -- Fire remotes whose leaf name matches `words` (no args; safe best-effort).
@@ -383,21 +401,25 @@ local function startLoops()
 
     startLoop("autoSpawn", function()
         -- Spawn customers/orders. Spy-confirmed: ClickSpawnButton:FireServer().
-        fireRemoteByName("ClickSpawnButton")
+        -- Decompiled source: ClickSpawnButton:FireServer(<SpawnButton.Button>).
+        -- Pass YOUR plot's SpawnButton.Button part as the required argument.
+        local plot = getMyPlot()
+        local sb = plot and plot:FindFirstChild("SpawnButton")
+        local btn = sb and sb:FindFirstChild("Button")
+        if btn then fireRemoteByName("ClickSpawnButton", btn) end
         fireClicksMatching(KW_SPAWN)   -- also poke the workspace SpawnButtons
     end)
 
     startLoop("autoCollect", function()
-        -- Bank income via every confirmed collect path (full-dump + spy):
-        --  1) the per-plot "Collect ALL Money" ProximityPrompts (Plot_N.MoneyButton)
-        --  2) the game's internal CollectAllMoney/CollectMoney BindableEvents
-        --  3) the InstantIncome RemoteEvent (spy-confirmed FireServer, no args)
-        --  4) the on-screen MoneyButton/IncomeButton GUI buttons
-        firePromptsMatching(KW_COLLECT)
-        fireBindableByName("CollectAllMoney")
-        fireBindableByName("CollectMoney")
-        fireRemoteByName("InstantIncome")
-        clickCollectButtons()
+        -- Bank income by triggering the real collect prompts on YOUR plot:
+        --   MoneyButton    -> "Collect ALL Money"
+        --   MoneyButtonBig -> "Collect ALL Money 10X"
+        local plot = getMyPlot()
+        if plot then
+            firePlotMoneyPrompt(plot, "MoneyButton")
+            firePlotMoneyPrompt(plot, "MoneyButtonBig")
+        end
+        firePromptsMatching(KW_COLLECT)   -- fallback: any other collect prompts
     end)
 
     startLoop("autoSell", function()
