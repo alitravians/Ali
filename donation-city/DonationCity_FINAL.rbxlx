@@ -25766,9 +25766,14 @@ local function run()
 		local swayYaw = math.sin(tt * 1.1) * 0.10
 		local swayRoll = math.sin(tt * 0.9) * 0.08
 		local pos = Vector3.new(px, y, pz)
-		local base = CFrame.lookAt(pos, pos + faceDir)
-		rootPart.CFrame = base * CFrame.Angles(math.rad(-6), swayYaw, swayRoll)
-		canopy:PivotTo(CFrame.new(pos) * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
+		-- الاتجاه: اللاعب يواجه دائماً اتجاه الكاميرا الأفقي (ظهره للكاميرا = منظر مظلّة طبيعي)،
+		--          منتصب مع ميل أمامي خفيف، والمظلّة محاذية لجسمه بالكامل.
+		local camFwd = cam.CFrame.LookVector
+		local orientFwd = Vector3.new(camFwd.X, 0, camFwd.Z)
+		orientFwd = if orientFwd.Magnitude > 0.05 then orientFwd.Unit else faceDir
+		local base = CFrame.lookAt(pos, pos + orientFwd)
+		rootPart.CFrame = base * CFrame.Angles(math.rad(-4), swayYaw, swayRoll)
+		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
 		updateDescentVisuals(altitude, CONFIG.CANOPY_SPEED)
 		if altitude <= CONFIG.LAND_ALT then break end
 	end
