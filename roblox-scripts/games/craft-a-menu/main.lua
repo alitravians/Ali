@@ -198,6 +198,29 @@ local function collectRemotes()
     return list
 end
 
+-- Fire one specific RemoteEvent/RemoteFunction by exact leaf name. Confirmed via
+-- the in-game remote spy: collecting money = `InstantIncome:FireServer()` and
+-- spawning a customer = `ClickSpawnButton:FireServer()` (both no args).
+local function fireRemoteByName(name, ...)
+    local container = ReplicatedStorage:FindFirstChild("RemoteEvents")
+    local r = container and container:FindFirstChild(name)
+    if not r then
+        for _, v in ipairs(ReplicatedStorage:GetDescendants()) do
+            if v.Name == name and (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) then
+                r = v
+                break
+            end
+        end
+    end
+    if not r then return false end
+    if r:IsA("RemoteEvent") then
+        return pcall(function() r:FireServer(...) end)
+    end
+    local args = { ... }
+    task.spawn(function() pcall(function() r:InvokeServer(table.unpack(args)) end) end)
+    return true
+end
+
 -- Fire remotes whose leaf name matches `words` (no args; safe best-effort).
 -- Skips `*Local` remotes: those are server->client UI events, so firing them
 -- from the client does nothing useful (and just spams the local UI).
@@ -343,16 +366,16 @@ local function startLoops()
     end)
 
     startLoop("autoSpawn", function()
-        -- Spawn customers/orders: SpawnButton click detectors + remote.
-        fireClicksMatching(KW_SPAWN)
-        fireRemotesMatching(KW_SPAWN)
+        -- Spawn customers/orders. Spy-confirmed: ClickSpawnButton:FireServer().
+        fireRemoteByName("ClickSpawnButton")
+        fireClicksMatching(KW_SPAWN)   -- also poke the workspace SpawnButtons
     end)
 
     startLoop("autoCollect", function()
-        clickCollectButtons()   -- the on-screen "+$" buttons (main income sink)
-        firePromptsMatching(KW_COLLECT)
-        fireClicksMatching(KW_COLLECT)
-        fireRemotesMatching(KW_COLLECT)
+        -- Bank income. Spy-confirmed: InstantIncome:FireServer() (no args).
+        -- Fire a few times per pass to match the rapid manual-collect pattern.
+        for _ = 1, 3 do fireRemoteByName("InstantIncome") end
+        clickCollectButtons()   -- fallback: the on-screen IncomeButton
     end)
 
     startLoop("autoSell", function()
