@@ -572,32 +572,73 @@ local function buildCanopy(): (Model, BasePart)
 	}) :: Part
 	model.PrimaryPart = anchor
 
-	local R = 16
-	local dome = mk("Part", {
-		Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 2, R, R * 2),
+	-- مظلّة ملكية واقعية: قبّة قماش معتمة بحوافّ مفصّصة منتفخة + خياطات قطاعات
+	-- (كحلي/ذهبي متناوب) + فتحة تهوية ذهبية بالقمّة + حبال تعليق تتجمّع للـharness.
+	local R = 17
+	local DY = 18                       -- ارتفاع مركز القبّة فوق نقطة التعليق (اللاعب)
+	local HALF_H = R * 0.6              -- نصف ارتفاع القبّة (ضحلة = شكل مظلّة)
+	local GORES = 16
+	local CREAM = Color3.fromRGB(244, 241, 230)
+	local SEAM_NAVY = Color3.fromRGB(33, 44, 78)
+	local LINE_C = Color3.fromRGB(38, 38, 44)
+	local domeCF = anchor.CFrame * CFrame.new(0, DY, 0)
+	local harness = anchor.CFrame * CFrame.new(0, 2.5, 0)   -- تتجمّع الحبال عند ظهر اللاعب
+
+	-- القبّة: كرة مفلطحة معتمة بمادة قماش
+	mk("Part", {
+		Name = "Dome", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 2, HALF_H * 2, R * 2),
 		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-		CastShadow = false, Material = Enum.Material.SmoothPlastic, Color = WHITE,
-		CFrame = anchor.CFrame * CFrame.new(0, 16, 0), Parent = model,
-	}) :: Part
-	-- قطاعات ذهبية على القبّة
-	for i = 0, 5 do
-		local a = math.rad(i * 60)
-		local strip = neonBulb("Panel", Vector3.new(0.4, 0.6, R * 1.9), GOLD, model)
-		strip.CFrame = dome.CFrame * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.5, 0, 0)
-	end
-	-- حبال التعليق
-	for i = 0, 5 do
-		local a = math.rad(i * 60)
-		local rim = dome.CFrame * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.95, -R * 0.35, 0)
-		local line = mk("Part", {
-			Name = "Line", Size = Vector3.new(0.12, 0.12, 1), Anchored = true,
-			CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(40, 40, 46),
-			Parent = model,
+		CastShadow = false, Material = Enum.Material.Fabric, Color = CREAM,
+		CFrame = domeCF, Parent = model,
+	})
+
+	-- خياطات القطاعات: من القمّة إلى الحافة (كحلي/ذهبي متناوب)
+	local apex = domeCF * CFrame.new(0, HALF_H * 0.94, 0)
+	for i = 0, GORES - 1 do
+		local a = math.rad(i * (360 / GORES))
+		local rimP = (domeCF * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.99, HALF_H * 0.04, 0)).Position
+		local seam = mk("Part", {
+			Name = "Seam", Anchored = true, CanCollide = false, CanQuery = false,
+			CanTouch = false, CastShadow = false, Material = Enum.Material.SmoothPlastic,
+			Color = if i % 2 == 0 then SEAM_NAVY else GOLD, Parent = model,
 		}) :: Part
-		local target = anchor.CFrame * CFrame.new(0, 2, 0)
-		line.CFrame = CFrame.lookAt(rim.Position, target.Position) * CFrame.new(0, 0, -(rim.Position - target.Position).Magnitude / 2)
-		line.Size = Vector3.new(0.12, 0.12, (rim.Position - target.Position).Magnitude)
+		local len = (apex.Position - rimP).Magnitude
+		seam.CFrame = CFrame.lookAt(apex.Position, rimP) * CFrame.new(0, 0, -len / 2)
+		seam.Size = Vector3.new(0.16, 0.16, len)
+	end
+
+	-- حافّة مفصّصة منتفخة (حلقة كرات قماش صغيرة) — شكل المظلّة الحقيقي
+	for i = 0, GORES * 2 - 1 do
+		local a = math.rad(i * (360 / (GORES * 2)))
+		local p = (domeCF * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.99, HALF_H * 0.02, 0)).Position
+		mk("Part", {
+			Name = "Lobe", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 0.3, R * 0.2, R * 0.3),
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			CastShadow = false, Material = Enum.Material.Fabric, Color = CREAM,
+			CFrame = CFrame.new(p), Parent = model,
+		})
+	end
+
+	-- فتحة تهوية ذهبية بالقمّة (لمسة ملكية)
+	mk("Part", {
+		Name = "ApexVent", Shape = Enum.PartType.Ball, Size = Vector3.new(R * 0.34, R * 0.18, R * 0.34),
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		CastShadow = false, Material = Enum.Material.Neon, Color = GOLD,
+		CFrame = domeCF * CFrame.new(0, HALF_H * 0.96, 0), Parent = model,
+	})
+
+	-- حبال التعليق: من الحافّة تتجمّع كلّها عند harness على ظهر اللاعب
+	for i = 0, GORES - 1 do
+		local a = math.rad(i * (360 / GORES))
+		local rimP = (domeCF * CFrame.Angles(0, a, 0) * CFrame.new(R * 0.96, HALF_H * 0.02, 0)).Position
+		local line = mk("Part", {
+			Name = "Line", Anchored = true, CanCollide = false, CanQuery = false,
+			CanTouch = false, CastShadow = false, Material = Enum.Material.SmoothPlastic,
+			Color = LINE_C, Parent = model,
+		}) :: Part
+		local len = (rimP - harness.Position).Magnitude
+		line.CFrame = CFrame.lookAt(rimP, harness.Position) * CFrame.new(0, 0, -len / 2)
+		line.Size = Vector3.new(0.08, 0.08, len)
 	end
 	return model, anchor
 end
