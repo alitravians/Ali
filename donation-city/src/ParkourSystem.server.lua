@@ -950,8 +950,8 @@ do
 		mkCyl("HoloPost", 2.4, 0.42, ENTRY_POS.Y + 1.1, px, pz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
 	end
 
-	-- لوح زجاجي داكن
-	local board = mk("HoloBoard", V(W, H, 0.22), boardCF, C3(14, 18, 26), Enum.Material.Glass, gate, false)
+	-- لوح زجاجي داكن (صلب حتى لا يُخترَق)
+	local board = mk("HoloBoard", V(W, H, 0.22), boardCF, C3(14, 18, 26), Enum.Material.Glass, gate, true)
 	board.CanTouch = false; board.Reflectance = 0.15
 
 	-- إطار ذهبي حول اللوح (إحداثيات محلية للوح)
@@ -962,7 +962,7 @@ do
 		{ V(-W / 2, 0, 0), V(fr, H, 0.3) },
 		{ V(W / 2, 0, 0), V(fr, H, 0.3) },
 	}) do
-		local f = mk("HoloFrame", d[2], boardCF * CFrame.new(d[1]), GOLD, Enum.Material.Metal, gate, false)
+		local f = mk("HoloFrame", d[2], boardCF * CFrame.new(d[1]), GOLD, Enum.Material.Metal, gate, true)
 		f.CanTouch = false
 	end
 
