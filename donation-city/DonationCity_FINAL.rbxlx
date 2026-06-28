@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٣٥",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٣٦",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٣٦", date = "٢٨ يونيو",
+			items = {
+				{ "new", "تسريع النزول من الطائرة: استمر بالضغط على Shift (كمبيوتر) أو زر «تسريع ⬇» (جوال) لزيادة سرعة الهبوط." },
+			},
+		},
 		{
 			version = "٢.٩.٣٥", date = "٢٨ يونيو",
 			items = {
@@ -26027,6 +26033,8 @@ local CONFIG = {
 	LAND_ALT        = 5.5,                    -- ارتفاع لحظة الهبوط فوق الأرض
 	DRIFT_FREEFALL  = 62,                     -- سرعة التوجيه الأفقي أثناء السقوط الحر (WASD/عصا)
 	DRIFT_CANOPY    = 42,                     -- سرعة التوجيه الأفقي تحت المظلّة
+	BOOST_FREEFALL  = 1.7,                    -- مضاعِف سرعة السقوط الحر عند الضغط (Shift / زر التسريع)
+	BOOST_CANOPY    = 2.2,                    -- مضاعِف سرعة النزول بالمظلّة عند الضغط
 
 	-- أضواء/ألوان
 	SWAP_NAV_COLORS = false,                  -- اقلبها لو الأحمر/الأخضر بالعكس على الأجنحة
@@ -26724,9 +26732,24 @@ local function buildHUD()
 		TextColor3 = WARM, Visible = false, Parent = root,
 	}) :: TextLabel
 
+	-- زر تسريع النزول (اضغط مع الاستمرار) — على يمين الشاشة، منطقة آمنة
+	local boostBtn = mk("TextButton", {
+		Name = "Boost", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(0.96, 0.84),
+		Size = UDim2.fromOffset(140, 96), BackgroundColor3 = Color3.fromRGB(214, 175, 92),
+		Text = "تسريع ⬇", Font = Enum.Font.GothamBlack, TextScaled = true,
+		TextColor3 = Color3.fromRGB(20, 22, 34), AutoButtonColor = true, Visible = false, Parent = root,
+	}) :: TextButton
+	mk("UICorner", { CornerRadius = UDim.new(0, 18), Parent = boostBtn })
+	mk("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.35, Parent = boostBtn })
+	mk("UIPadding", {
+		PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+		PaddingTop = UDim.new(0, 14), PaddingBottom = UDim.new(0, 14), Parent = boostBtn,
+	})
+
 	return {
 		gui = gui, banner = banner, countdown = countdown, stats = stats,
 		alt = altLabel, spd = spdLabel, skip = skipBtn, chute = chuteBtn, eHint = eHint,
+		boost = boostBtn,
 	}
 end
 
@@ -26873,7 +26896,8 @@ local function run()
 	hud.banner.Text = "سقوط حرّ"
 	hud.stats.Visible = true
 	hud.chute.Visible = true
-	hud.eHint.Text = "اضغط E لفتح المظلّة"
+	hud.boost.Visible = true
+	hud.eHint.Text = if UserInputService.TouchEnabled then "اضغط E لفتح المظلّة" else "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
 	if not UserInputService.TouchEnabled then hud.eHint.Visible = true end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 
@@ -26919,12 +26943,27 @@ local function run()
 		Parent = rootPart,
 	}) :: Trail
 
-	-- E / زر اللمس لفتح المظلّة
+	-- E / زر اللمس لفتح المظلّة + تسريع النزول (Shift على الكمبيوتر / زر «تسريع» على الجوال)
+	local boosting = false
 	hud.chute.Activated:Connect(function() deployed = true end)
 	local inputConn = UserInputService.InputBegan:Connect(function(input, gpe)
+		if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+			boosting = true
+			return
+		end
 		if gpe then return end
 		if input.KeyCode == Enum.KeyCode.E then deployed = true end
 	end)
+	local boostEndConn = UserInputService.InputEnded:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+			boosting = false
+		end
+	end)
+	-- زر اللمس: اضغط مع الاستمرار لتسريع النزول
+	local function pressBoost(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then boosting = true end end
+	local function releaseBoost(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then boosting = false end end
+	hud.boost.InputBegan:Connect(pressBoost)
+	hud.boost.InputEnded:Connect(releaseBoost)
 	activeInputConn = inputConn
 
 	local function updateDescentVisuals(altitude, speed)
@@ -26939,7 +26978,8 @@ local function run()
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
-		y -= vSpeed * dt
+		local effSpeed = vSpeed * (if boosting then CONFIG.BOOST_FREEFALL else 1)
+		y -= effSpeed * dt
 		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
@@ -26950,7 +26990,7 @@ local function run()
 		local altitude = y - groundY
 		local pos = Vector3.new(px, y, pz)
 		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, 0)
-		updateDescentVisuals(altitude, vSpeed)
+		updateDescentVisuals(altitude, effSpeed)
 		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then break end
 	end
 
@@ -26980,7 +27020,8 @@ local function run()
 
 	while true do
 		local dt = RunService.Heartbeat:Wait()
-		y -= CONFIG.CANOPY_SPEED * dt
+		local canopySpeed = CONFIG.CANOPY_SPEED * (if boosting then CONFIG.BOOST_CANOPY else 1)
+		y -= canopySpeed * dt
 		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
@@ -27001,9 +27042,12 @@ local function run()
 		local base = CFrame.lookAt(pos, pos + orientFwd)
 		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
 		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
-		updateDescentVisuals(altitude, CONFIG.CANOPY_SPEED)
+		updateDescentVisuals(altitude, canopySpeed)
 		if altitude <= CONFIG.LAND_ALT then break end
 	end
+	hud.boost.Visible = false
+	boosting = false
+	if boostEndConn then boostEndConn:Disconnect() end
 
 	------------------------------------------------------------------
 	-- الطور ٤: الهبوط (غبار/صدمة + استعادة الكاميرا والتحكّم)
