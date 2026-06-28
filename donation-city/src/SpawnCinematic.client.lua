@@ -772,6 +772,7 @@ end
 ----------------------------------------------------------------------
 local started = false
 local activeInputConn: RBXScriptConnection? = nil -- يُنظَّف في معالج الخطأ لو تعطّل run()
+local activeBoostConn: RBXScriptConnection? = nil -- مستمع إفلات Shift للتسريع — يُنظَّف في معالج الخطأ أيضاً
 
 local function run()
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -973,6 +974,7 @@ local function run()
 			boosting = false
 		end
 	end)
+	activeBoostConn = boostEndConn
 	-- زر اللمس: اضغط مع الاستمرار لتسريع النزول
 	local function pressBoost(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then boosting = true end end
 	local function releaseBoost(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then boosting = false end end
@@ -1062,6 +1064,7 @@ local function run()
 	hud.boost.Visible = false
 	boosting = false
 	if boostEndConn then boostEndConn:Disconnect() end
+	activeBoostConn = nil
 
 	------------------------------------------------------------------
 	-- الطور ٤: الهبوط (غبار/صدمة + استعادة الكاميرا والتحكّم)
@@ -1183,6 +1186,7 @@ local function trigger()
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))
 		-- استعادة آمنة حتى لا يعلق اللاعب (تشمل دوران الشخصية وحالة الموت والكاميرا)
 		if activeInputConn then activeInputConn:Disconnect(); activeInputConn = nil end
+		if activeBoostConn then activeBoostConn:Disconnect(); activeBoostConn = nil end
 		setControls(true)
 		local cam = Workspace.CurrentCamera
 		if cam then cam.CameraType = Enum.CameraType.Custom end

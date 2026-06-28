@@ -47,6 +47,7 @@ UPDATES = [
     ("src/DayNightCycle.server.lua",  "DAY NIGHT CYCLE (Server)"),
     ("src/DayNightClient.client.lua", "DAY NIGHT CLIENT (Client)"),
     ("src/TicTacToe.server.lua",      "TIC TAC TOE — لعبة إكس-أو"),
+    ("src/BoundarySystem.server.lua", "BOUNDARY SYSTEM (Server)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:
