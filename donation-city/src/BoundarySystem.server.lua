@@ -74,6 +74,7 @@ local function railRun(fromX: number, fromZ: number, toX: number, toZ: number)
 	local dx, dz = toX - fromX, toZ - fromZ
 	local length = math.sqrt(dx * dx + dz * dz)
 	local steps = math.max(1, math.floor(length / POST_GAP))
+	local spacing = length / steps
 	local panelH = POST_H - 1.6
 	for k = 0, steps do
 		local t = k / steps
@@ -99,7 +100,7 @@ local function railRun(fromX: number, fromZ: number, toX: number, toZ: number)
 			local cy = panelH / 2 + 0.4
 			local panel = newPart({
 				Name = "FenceGlass",
-				Size = Vector3.new(POST_GAP, panelH, 0.25),
+				Size = Vector3.new(0.25, panelH, spacing),
 				Color = GLASS_C, Material = Enum.Material.Glass,
 				Transparency = 0.55,
 				CanCollide = false, CastShadow = false,
