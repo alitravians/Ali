@@ -19519,9 +19519,10 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local BOUND    = 196          -- نصف امتداد الحدّ (الأرض 400×400 ومركزها الأصل)
+local EDGE     = 200          -- حافة العشب المرئية (الأرض 400×400 ومركزها الأصل)
 local WALL_H   = 60           -- ارتفاع الجدار الخفي (عالٍ ليمنع القفز/التسلّق)
 local WALL_T   = 4            -- سُمك الجدار
+local OFF      = EDGE + WALL_T / 2   -- مركز الجدار: وجهه الداخلي ملاصق لحافة العشب
 local FALL_Y   = -40          -- حدّ السقوط: تحت هذا الارتفاع يُنقذ اللاعب
 
 ----------------------------------------------------------------------
@@ -19550,11 +19551,12 @@ end
 ----------------------------------------------------------------------
 -- (1) الحاجز الخفي الصلب — أربعة جدران على المحيط
 ----------------------------------------------------------------------
+local span = OFF * 2 + WALL_T
 local sides = {
-	{ Size = Vector3.new(BOUND * 2 + WALL_T, WALL_H, WALL_T), Pos = Vector3.new(0, WALL_H / 2,  BOUND) },
-	{ Size = Vector3.new(BOUND * 2 + WALL_T, WALL_H, WALL_T), Pos = Vector3.new(0, WALL_H / 2, -BOUND) },
-	{ Size = Vector3.new(WALL_T, WALL_H, BOUND * 2 + WALL_T), Pos = Vector3.new( BOUND, WALL_H / 2, 0) },
-	{ Size = Vector3.new(WALL_T, WALL_H, BOUND * 2 + WALL_T), Pos = Vector3.new(-BOUND, WALL_H / 2, 0) },
+	{ Size = Vector3.new(span, WALL_H, WALL_T), Pos = Vector3.new(0, WALL_H / 2,  OFF) },
+	{ Size = Vector3.new(span, WALL_H, WALL_T), Pos = Vector3.new(0, WALL_H / 2, -OFF) },
+	{ Size = Vector3.new(WALL_T, WALL_H, span), Pos = Vector3.new( OFF, WALL_H / 2, 0) },
+	{ Size = Vector3.new(WALL_T, WALL_H, span), Pos = Vector3.new(-OFF, WALL_H / 2, 0) },
 }
 for i, s in ipairs(sides) do
 	newPart({
