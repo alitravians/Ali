@@ -19570,10 +19570,14 @@ end
 ----------------------------------------------------------------------
 -- (2) شبكة أمان للسقوط — يُعاد للسبون بنعومة بلا موت
 ----------------------------------------------------------------------
+local cachedSpawn: BasePart? = nil
 local function spawnCFrame(): CFrame
-	local spawn = Workspace:FindFirstChild("MainSpawn", true)
-	if spawn and spawn:IsA("BasePart") then
-		return spawn.CFrame + Vector3.new(0, 6, 0)
+	if not cachedSpawn or not cachedSpawn.Parent then
+		local spawn = Workspace:FindFirstChild("MainSpawn", true)
+		cachedSpawn = (spawn and spawn:IsA("BasePart")) and spawn or nil
+	end
+	if cachedSpawn then
+		return cachedSpawn.CFrame + Vector3.new(0, 6, 0)
 	end
 	return CFrame.new(0, 8, 45)
 end
