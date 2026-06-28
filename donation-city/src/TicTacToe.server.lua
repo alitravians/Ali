@@ -37,11 +37,11 @@ local WIN_LINES = {
 	{ 1, 5, 9 }, { 3, 5, 7 },                -- أقطار
 }
 
--- مواقع الطاولات الثلاث (قرب السبون عند z=45، النافورة بالوسط) — صفّ خلف السبون
+-- مواقع الطاولات الثلاث (صفّ على يمين السبون، بعيداً عن بوّابة الباركور ومنارتها عند x=-20)
 local TABLES = {
-	Vector3.new(-26, 0, 70),
-	Vector3.new(0,   0, 70),
-	Vector3.new(26,  0, 70),
+	Vector3.new(0,  0, 70),
+	Vector3.new(26, 0, 70),
+	Vector3.new(52, 0, 70),
 }
 
 ----------------------------------------------------------------------
@@ -437,6 +437,7 @@ local function buildSeat(origin: Vector3, side: number, col: Color3, parent: Ins
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = seat
 	prompt.Triggered:Connect(function(plr)
+		if seat.Occupant then return end   -- الكرسي مشغول: لا تطرد اللاعب الجالس
 		local char = plr.Character
 		local hum = char and char:FindFirstChildOfClass("Humanoid")
 		if hum then pcall(function() seat:Sit(hum) end) end
