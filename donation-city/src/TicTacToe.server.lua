@@ -316,10 +316,12 @@ local function endMatch(g: Game, result: string, line: { number }?)
 	if result == "draw" then
 		g.statusLabel.Text = "🤝 تعادل! اضغط أي مربّع لإعادة اللعب"
 		g.statusLabel.TextColor3 = GOLD
+		tintPill(g.statusLabel, GOLD)
 	else
 		local col = result == "X" and X_COL or O_COL
 		g.statusLabel.Text = (result == "X" and "🔴 فاز الأحمر (X)!" or "🔵 فاز الأزرق (O)!")
 		g.statusLabel.TextColor3 = col
+		tintPill(g.statusLabel, col)
 		if line then
 			for _, idx in ipairs(line) do
 				local cell = g.cells[idx]

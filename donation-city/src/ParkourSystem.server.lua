@@ -939,8 +939,16 @@ end
 do
 	local hx, hz = ENTRY_POS.X + 6.5, ENTRY_POS.Z + 7.5
 	local W, H = 4.4, 2.6
-	mkCyl("HoloPost", 3.2, 0.7, ENTRY_POS.Y + 1.3, hx, hz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
 	local boardCF = CFrame.new(hx, ENTRY_POS.Y + 3.6, hz) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(-10), 0, 0)
+
+	-- عمودان جانبيان يحملان اللوح (خلف الحواف حتى لا يغطّيان النص)
+	local rv = boardCF.RightVector
+	for _, side in ipairs({ -1, 1 }) do
+		local off = side * (W / 2 - 0.3)
+		local px = hx + rv.X * off
+		local pz = hz + rv.Z * off
+		mkCyl("HoloPost", 2.4, 0.42, ENTRY_POS.Y + 1.1, px, pz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
+	end
 
 	-- لوح زجاجي داكن
 	local board = mk("HoloBoard", V(W, H, 0.22), boardCF, C3(14, 18, 26), Enum.Material.Glass, gate, false)
@@ -995,21 +1003,34 @@ do
 		tstk.Transparency = 0.2
 		tstk.Parent = title
 
+		-- خط فاصل ذهبي تحت العنوان
+		local divider = Instance.new("Frame")
+		divider.AnchorPoint = Vector2.new(0.5, 0)
+		divider.Position = UDim2.new(0.5, 0, 0.45, 0)
+		divider.Size = UDim2.new(0.5, 0, 0, 3)
+		divider.BorderSizePixel = 0
+		divider.BackgroundColor3 = GOLD
+		divider.BackgroundTransparency = 0.15
+		divider.Parent = sg
+		local dc = Instance.new("UICorner")
+		dc.CornerRadius = UDim.new(1, 0)
+		dc.Parent = divider
+
 		local sub = Instance.new("TextLabel")
 		sub.BackgroundTransparency = 1
-		sub.Size = UDim2.new(1, -50, 0.14, 0)
-		sub.Position = UDim2.new(0, 25, 0.44, 0)
+		sub.Size = UDim2.new(1, -60, 0.12, 0)
+		sub.Position = UDim2.new(0, 30, 0.50, 0)
 		sub.Font = Enum.Font.GothamMedium
 		sub.TextScaled = true
-		sub.Text = "تحدَّ نفسك واكسر رقمك"
+		sub.Text = "تحد نفسك واكسر رقمك"
 		sub.TextColor3 = C3(190, 200, 215)
 		sub.TextTransparency = 0.12
 		sub.Parent = sg
 
 		local pill = Instance.new("Frame")
-		pill.AnchorPoint = Vector2.new(0.5, 0)
-		pill.Position = UDim2.new(0.5, 0, 0.62, 0)
-		pill.Size = UDim2.new(0.9, 0, 0.3, 0)
+		pill.AnchorPoint = Vector2.new(0.5, 0.5)
+		pill.Position = UDim2.new(0.5, 0, 0.78, 0)
+		pill.Size = UDim2.new(0.82, 0, 0.2, 0)
 		pill.BackgroundColor3 = C3(8, 12, 20)
 		pill.BackgroundTransparency = 0.15
 		pill.Parent = sg
@@ -1023,11 +1044,12 @@ do
 		pstk.Parent = pill
 		local pl = Instance.new("TextLabel")
 		pl.BackgroundTransparency = 1
-		pl.Size = UDim2.new(1, -30, 1, -12)
-		pl.Position = UDim2.new(0, 15, 0, 6)
+		pl.Size = UDim2.new(1, -50, 0.62, 0)
+		pl.Position = UDim2.new(0.5, 0, 0.5, 0)
+		pl.AnchorPoint = Vector2.new(0.5, 0.5)
 		pl.Font = Enum.Font.GothamBold
 		pl.TextScaled = true
-		pl.Text = "سجّل أسرع زمن"
+		pl.Text = "سجل أسرع زمن"
 		pl.TextColor3 = GOLDLIT
 		pl.Parent = pill
 	end
