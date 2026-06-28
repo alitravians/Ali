@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٣٠",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٣٨",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,53 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٣٨", date = "٢٨ يونيو",
+			items = {
+				{ "fix", "ضبط حاجز حافة المدينة: صار يلتفّ تلقائياً على حدود الماب الفعلية عند آخر نقطة أرض (خفيّ تماماً)، بدل ما يوقف اللاعب في النص." },
+			},
+		},
+		{
+			version = "٢.٩.٣٧", date = "٢٨ يونيو",
+			items = {
+				{ "new", "حماية حافة المدينة: حاجز خفي يمنع اللاعب من الخروج أو رمي نفسه برّا الماب." },
+				{ "new", "شبكة أمان للسقوط: لو نزل تحت الحدّ لأي سبب يُعاد للسبون بنعومة بلا موت." },
+			},
+		},
+		{
+			version = "٢.٩.٣٦", date = "٢٨ يونيو",
+			items = {
+				{ "new", "تسريع النزول من الطائرة: استمر بالضغط على Shift (كمبيوتر) أو زر «تسريع ⬇» (جوال) لزيادة سرعة الهبوط." },
+			},
+		},
+		{
+			version = "٢.٩.٣٥", date = "٢٨ يونيو",
+			items = {
+				{ "fix", "جعل لافتة «أفضل وقت» عند الباركور صلبة فلا يمر اللاعب من خلالها." },
+			},
+		},
+		{
+			version = "٢.٩.٣٤", date = "٢٨ يونيو",
+			items = {
+				{ "fix", "فصل طاولات إكس-أو عن منارة الباركور: نُقل صفّ الطاولات لليمين فلا يتداخل الكرسي مع المنارة الملوّنة." },
+				{ "fix", "منع طرد لاعب من كرسيّه: لا يمكن الجلوس على كرسيّ مشغول أثناء المباراة." },
+			},
+		},
+		{
+			version = "٢.٩.٣٣", date = "٢٨ يونيو",
+			items = {
+				{ "improve", "لافتة «أفضل وقت» عند برج الباركور بحُلّة ملكية: زجاج داكن + إطار وتاج ذهبي + شريحة حالة واضحة." },
+				{ "fix", "تصحيح عرض لافتة «أفضل وقت»: إبعاد العمود عن النص وتوسيع الشريحة لعرض واضح بلا تداخل." },
+			},
+		},
+		{
+			version = "٢.٩.٣١", date = "٢٨ يونيو",
+			items = {
+				{ "new", "لعبة إكس-أو (X·O) ثلاثية الأبعاد: ٣ طاولات ملكية قرب الساحة." },
+				{ "new", "اقعد على كرسيّ (أحمر X / أزرق O) واضغط المربّع في دورك ليظهر رمزك مجسّماً." },
+				{ "new", "كشف الفائز مع إبراز الخط، تعادل، وإعادة لعب فوريّة." },
+			},
+		},
 		{
 			version = "٢.٩.٣٠", date = "٢٧ يونيو",
 			items = {
@@ -10293,14 +10340,124 @@ for _, sz in ipairs({ -1, 1 }) do
 	bt.Transparency = 0.25
 end
 
--- لوحة «أفضل وقت» هولوغرام بجانب البوّابة (تحفيز التنافس)
+-- لوحة «أفضل وقت» ملكية بجانب البوّابة (زجاج داكن + إطار وتاج ذهبي + شريحة)
 do
 	local hx, hz = ENTRY_POS.X + 6.5, ENTRY_POS.Z + 7.5
-	mkCyl("HoloPost", 3.6, 0.7, ENTRY_POS.Y + 1.3, hx, hz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
-	local boardCF = CFrame.new(hx, ENTRY_POS.Y + 3.4, hz) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(-12), 0, 0)
-	local board = mk("HoloBoard", V(3.6, 2.2, 0.18), boardCF, SCANC, Enum.Material.Neon, gate, false)
-	board.CanTouch = false; board.Transparency = 0.25
-	signGui(board, "أفضل وقت\nتحدَّ نفسك", DARKBG, 480)
+	local W, H = 4.4, 2.6
+	local boardCF = CFrame.new(hx, ENTRY_POS.Y + 3.6, hz) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(-10), 0, 0)
+
+	-- عمودان جانبيان يحملان اللوح (خلف الحواف حتى لا يغطّيان النص)
+	local rv = boardCF.RightVector
+	for _, side in ipairs({ -1, 1 }) do
+		local off = side * (W / 2 - 0.3)
+		local px = hx + rv.X * off
+		local pz = hz + rv.Z * off
+		mkCyl("HoloPost", 2.4, 0.42, ENTRY_POS.Y + 1.1, px, pz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
+	end
+
+	-- لوح زجاجي داكن (صلب حتى لا يُخترَق)
+	local board = mk("HoloBoard", V(W, H, 0.22), boardCF, C3(14, 18, 26), Enum.Material.Glass, gate, true)
+	board.CanTouch = false; board.Reflectance = 0.15
+
+	-- إطار ذهبي حول اللوح (إحداثيات محلية للوح)
+	local fr = 0.2
+	for _, d in ipairs({
+		{ V(0, H / 2, 0), V(W + fr * 2, fr, 0.3) },
+		{ V(0, -H / 2, 0), V(W + fr * 2, fr, 0.3) },
+		{ V(-W / 2, 0, 0), V(fr, H, 0.3) },
+		{ V(W / 2, 0, 0), V(fr, H, 0.3) },
+	}) do
+		local f = mk("HoloFrame", d[2], boardCF * CFrame.new(d[1]), GOLD, Enum.Material.Metal, gate, true)
+		f.CanTouch = false
+	end
+
+	-- تاج ذهبي صغير أعلى اللوح
+	for i = -2, 2 do
+		local spike = 0.45 + (i == 0 and 0.4 or (math.abs(i) == 1 and 0.18 or 0))
+		local s = mk("HoloCrown", V(0.3, spike, 0.3),
+			boardCF * CFrame.new(i * 0.62, H / 2 + 0.18 + spike / 2, 0),
+			GOLDLIT, Enum.Material.Neon, gate, false)
+		s.CanTouch = false
+	end
+
+	-- واجهة احترافية (الوجهان) — عنوان متدرّج + سطر وصفي + شريحة
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.AutoLocalize = false
+		sg.CanvasSize = Vector2.new(880, 520)
+		sg.LightInfluence = 0
+		sg.Parent = board
+
+		local title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, -50, 0.40, 0)
+		title.Position = UDim2.new(0, 25, 0.06, 0)
+		title.Font = Enum.Font.GothamBlack
+		title.TextScaled = true
+		title.Text = "أفضل وقت"
+		title.TextColor3 = C3(255, 245, 215)
+		title.Parent = sg
+		local tg = Instance.new("UIGradient")
+		tg.Color = ColorSequence.new(GOLDLIT, GOLD)
+		tg.Rotation = 90
+		tg.Parent = title
+		local tstk = Instance.new("UIStroke")
+		tstk.Thickness = 3
+		tstk.Color = C3(60, 42, 12)
+		tstk.Transparency = 0.2
+		tstk.Parent = title
+
+		-- خط فاصل ذهبي تحت العنوان
+		local divider = Instance.new("Frame")
+		divider.AnchorPoint = Vector2.new(0.5, 0)
+		divider.Position = UDim2.new(0.5, 0, 0.45, 0)
+		divider.Size = UDim2.new(0.5, 0, 0, 3)
+		divider.BorderSizePixel = 0
+		divider.BackgroundColor3 = GOLD
+		divider.BackgroundTransparency = 0.15
+		divider.Parent = sg
+		local dc = Instance.new("UICorner")
+		dc.CornerRadius = UDim.new(1, 0)
+		dc.Parent = divider
+
+		local sub = Instance.new("TextLabel")
+		sub.BackgroundTransparency = 1
+		sub.Size = UDim2.new(1, -60, 0.12, 0)
+		sub.Position = UDim2.new(0, 30, 0.50, 0)
+		sub.Font = Enum.Font.GothamMedium
+		sub.TextScaled = true
+		sub.Text = "تحد نفسك واكسر رقمك"
+		sub.TextColor3 = C3(190, 200, 215)
+		sub.TextTransparency = 0.12
+		sub.Parent = sg
+
+		local pill = Instance.new("Frame")
+		pill.AnchorPoint = Vector2.new(0.5, 0.5)
+		pill.Position = UDim2.new(0.5, 0, 0.78, 0)
+		pill.Size = UDim2.new(0.82, 0, 0.2, 0)
+		pill.BackgroundColor3 = C3(8, 12, 20)
+		pill.BackgroundTransparency = 0.15
+		pill.Parent = sg
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(0.5, 0)
+		pc.Parent = pill
+		local pstk = Instance.new("UIStroke")
+		pstk.Thickness = 2.5
+		pstk.Color = GOLD
+		pstk.Transparency = 0.1
+		pstk.Parent = pill
+		local pl = Instance.new("TextLabel")
+		pl.BackgroundTransparency = 1
+		pl.Size = UDim2.new(1, -50, 0.62, 0)
+		pl.Position = UDim2.new(0.5, 0, 0.5, 0)
+		pl.AnchorPoint = Vector2.new(0.5, 0.5)
+		pl.Font = Enum.Font.GothamBold
+		pl.TextScaled = true
+		pl.Text = "سجل أسرع زمن"
+		pl.TextColor3 = GOLDLIT
+		pl.Parent = pill
+	end
 end
 
 -- منارة محتواة تنطلق من أعلى القوس للأعلى فقط (لا تخترق البوّابة) + كرة تتويج
@@ -18775,6 +18932,745 @@ task.spawn(function()
 		task.wait(1)
 	end
 end)
+]]></string></Properties></Item><Item class="Script" referent="TicTacToeSystemRef"><Properties><string name="Name">TicTacToeSystem</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
+╔══════════════════════════════════════════════════════════════════════╗
+║  TIC TAC TOE — لعبة إكس-أو ثلاثية الأبعاد (Server)                     ║
+║                                                                        ║
+║  ٣ طاولات ملكية قرب نقطة الانطلاق. لكل طاولة:                          ║
+║   • سطح خشبي + إطار/أرجل ذهبية + لوح ٣×٣ محفور.                        ║
+║   • كرسيّان متقابلان (أحمر = X، أزرق = O). تقعد على الكرسي → تنضمّ.     ║
+║   • تضغط على المربّع في دورك → ينبثق رمزك مجسّماً (X بارّين / O حلقة).  ║
+║   • كشف الفائز (مع إبراز الخط) أو التعادل، ولوحة حالة خلفية، وإعادة لعب.║
+║                                                                        ║
+║  كل شيء قطع روبلوكس أصلية ومثبّتة (Anchored) = صفر لاق.                 ║
+╚══════════════════════════════════════════════════════════════════════╝
+]]
+
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+
+----------------------------------------------------------------------
+-- الألوان والثوابت
+----------------------------------------------------------------------
+local WOOD       = Color3.fromRGB(74, 48, 28)
+local WOOD_DARK  = Color3.fromRGB(52, 33, 19)
+local GOLD       = Color3.fromRGB(214, 175, 92)
+local GOLD_HI    = Color3.fromRGB(245, 220, 150)
+local FELT       = Color3.fromRGB(28, 36, 30)
+local LINE_COL   = Color3.fromRGB(232, 224, 205)
+local X_COL      = Color3.fromRGB(232, 86, 86)    -- أحمر
+local O_COL      = Color3.fromRGB(86, 150, 240)   -- أزرق
+local SEAT_X_COL = Color3.fromRGB(120, 40, 40)
+local SEAT_O_COL = Color3.fromRGB(36, 60, 110)
+
+local CELL      = 1.7        -- مسافة بين مراكز المربّعات
+local TABLE_TOP_Y = 3.0      -- ارتفاع سطح الطاولة فوق الأرضية
+local WIN_LINES = {
+	{ 1, 2, 3 }, { 4, 5, 6 }, { 7, 8, 9 },   -- صفوف
+	{ 1, 4, 7 }, { 2, 5, 8 }, { 3, 6, 9 },   -- أعمدة
+	{ 1, 5, 9 }, { 3, 5, 7 },                -- أقطار
+}
+
+-- مواقع الطاولات الثلاث (صفّ على يمين السبون، بعيداً عن بوّابة الباركور ومنارتها عند x=-20)
+local TABLES = {
+	Vector3.new(0,  0, 70),
+	Vector3.new(26, 0, 70),
+	Vector3.new(52, 0, 70),
+}
+
+----------------------------------------------------------------------
+-- أدوات بناء عامة
+----------------------------------------------------------------------
+local function part(props): BasePart
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.CanCollide = props.CanCollide ~= false
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Material = props.Material or Enum.Material.SmoothPlastic
+	p.Color = props.Color or WOOD
+	p.Size = props.Size or Vector3.new(1, 1, 1)
+	p.CFrame = props.CFrame or CFrame.new()
+	if props.Transparency then p.Transparency = props.Transparency end
+	if props.Shape then p.Shape = props.Shape end
+	p.Name = props.Name or "Part"
+	p.Parent = props.Parent
+	return p
+end
+
+----------------------------------------------------------------------
+-- رموز اللعب المجسّمة (X / O) فوق مربّع
+----------------------------------------------------------------------
+local function buildX(center: CFrame, parent: Instance): Model
+	local m = Instance.new("Model")
+	m.Name = "Mark_X"
+	m.Parent = parent
+	for _, rot in ipairs({ 45, -45 }) do
+		part({
+			Name = "Bar", Parent = m, Color = X_COL, Material = Enum.Material.Neon,
+			Size = Vector3.new(0.34, 1.5, 0.34), CanCollide = false,
+			CFrame = center * CFrame.new(0, 0.75, 0) * CFrame.Angles(0, 0, math.rad(rot)),
+		})
+	end
+	return m
+end
+
+local function buildO(center: CFrame, parent: Instance): Model
+	local m = Instance.new("Model")
+	m.Name = "Mark_O"
+	m.Parent = parent
+	local seg = 14
+	local r = 0.62
+	for i = 0, seg - 1 do
+		local a = (i / seg) * math.pi * 2
+		part({
+			Name = "Seg", Parent = m, Color = O_COL, Material = Enum.Material.Neon,
+			Size = Vector3.new(0.30, 0.30, 0.32), CanCollide = false,
+			CFrame = center * CFrame.new(math.cos(a) * r, 0.7, math.sin(a) * r),
+		})
+	end
+	return m
+end
+
+----------------------------------------------------------------------
+-- لوحة الحالة الخلفية (SurfaceGui)
+----------------------------------------------------------------------
+local function buildStatusBoard(origin: Vector3, parent: Instance)
+	local boardCX = origin.X
+	local boardCY = origin.Y + 6.0
+	local boardZ = origin.Z + 4.6
+	local W, H = 8.2, 3.0
+
+	-- عمودان معدنيّان يحملان اللوحة
+	for _, dx in ipairs({ -W / 2 + 0.3, W / 2 - 0.3 }) do
+		part({
+			Name = "StatusPole", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+			Size = Vector3.new(0.32, boardCY - origin.Y, 0.32),
+			CFrame = CFrame.new(boardCX + dx, origin.Y + (boardCY - origin.Y) / 2, boardZ),
+		})
+	end
+
+	-- زجاج داكن (لوح العرض)
+	local board = part({
+		Name = "StatusBoard", Parent = parent, Color = Color3.fromRGB(14, 18, 26),
+		Material = Enum.Material.Glass,
+		Size = Vector3.new(W, H, 0.22),
+		CFrame = CFrame.new(boardCX, boardCY, boardZ),
+	})
+	board.Reflectance = 0.15
+
+	-- إطار ذهبي حول اللوح
+	local fr = 0.22
+	for _, d in ipairs({
+		{ Vector3.new(0, H / 2, 0), Vector3.new(W + fr * 2, fr, 0.34) },
+		{ Vector3.new(0, -H / 2, 0), Vector3.new(W + fr * 2, fr, 0.34) },
+		{ Vector3.new(-W / 2, 0, 0), Vector3.new(fr, H, 0.34) },
+		{ Vector3.new(W / 2, 0, 0), Vector3.new(fr, H, 0.34) },
+	}) do
+		part({
+			Name = "BoardFrame", Parent = parent, Color = GOLD_HI, Material = Enum.Material.Metal,
+			Size = d[2], CFrame = CFrame.new(boardCX, boardCY, boardZ) * CFrame.new(d[1]),
+		})
+	end
+
+	-- تاج ذهبي صغير أعلى اللوح
+	for i = -2, 2 do
+		local spike = 0.5 + (i == 0 and 0.45 or (math.abs(i) == 1 and 0.2 or 0))
+		part({
+			Name = "CrownSpike", Parent = parent, Color = GOLD_HI, Material = Enum.Material.Neon,
+			Size = Vector3.new(0.34, spike, 0.34),
+			CFrame = CFrame.new(boardCX + i * 0.7, boardCY + H / 2 + 0.2 + spike / 2, boardZ),
+		})
+	end
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "StatusFace"
+	gui.AutoLocalize = false
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(1024, 384)
+	gui.LightInfluence = 0
+	gui.Adornee = board
+	gui.Parent = board
+
+	local pad = Instance.new("Frame")
+	pad.BackgroundTransparency = 1
+	pad.Size = UDim2.new(1, 0, 1, 0)
+	pad.Parent = gui
+
+	-- العنوان «إكس · أو» بتدرّج ذهبي + توهّج
+	local title = Instance.new("TextLabel")
+	title.BackgroundTransparency = 1
+	title.Size = UDim2.new(1, -40, 0.38, 0)
+	title.Position = UDim2.new(0, 20, 0.05, 0)
+	title.Font = Enum.Font.GothamBlack
+	title.TextScaled = true
+	title.Text = "إكس · أو"
+	title.TextColor3 = Color3.fromRGB(255, 245, 215)
+	title.Parent = pad
+	local tg = Instance.new("UIGradient")
+	tg.Color = ColorSequence.new(GOLD_HI, GOLD)
+	tg.Rotation = 90
+	tg.Parent = title
+	local ts = Instance.new("UIStroke")
+	ts.Thickness = 3
+	ts.Color = Color3.fromRGB(60, 42, 12)
+	ts.Transparency = 0.2
+	ts.Parent = title
+
+	-- سطر وصفي صغير
+	local sub = Instance.new("TextLabel")
+	sub.BackgroundTransparency = 1
+	sub.Size = UDim2.new(1, -40, 0.13, 0)
+	sub.Position = UDim2.new(0, 20, 0.40, 0)
+	sub.Font = Enum.Font.GothamMedium
+	sub.TextScaled = true
+	sub.Text = "طاولة المدينة الملكية"
+	sub.TextColor3 = Color3.fromRGB(190, 200, 215)
+	sub.TextTransparency = 0.15
+	sub.Parent = pad
+
+	-- شريحة الحالة (خلفية داكنة + إطار + نص)
+	local pill = Instance.new("Frame")
+	pill.Name = "StatusPill"
+	pill.AnchorPoint = Vector2.new(0.5, 0)
+	pill.Position = UDim2.new(0.5, 0, 0.56, 0)
+	pill.Size = UDim2.new(0.92, 0, 0.36, 0)
+	pill.BackgroundColor3 = Color3.fromRGB(8, 12, 20)
+	pill.BackgroundTransparency = 0.15
+	pill.Parent = pad
+	local pc = Instance.new("UICorner")
+	pc.CornerRadius = UDim.new(0.5, 0)
+	pc.Parent = pill
+	local pstk = Instance.new("UIStroke")
+	pstk.Name = "PillStroke"
+	pstk.Thickness = 2.5
+	pstk.Color = GOLD
+	pstk.Transparency = 0.1
+	pstk.Parent = pill
+
+	local status = Instance.new("TextLabel")
+	status.Name = "Status"
+	status.BackgroundTransparency = 1
+	status.Size = UDim2.new(1, -36, 1, -14)
+	status.Position = UDim2.new(0, 18, 0, 7)
+	status.Font = Enum.Font.GothamBold
+	status.TextScaled = true
+	status.Text = "اجلس على كرسيّ للّعب"
+	status.TextColor3 = LINE_COL
+	status.Parent = pill
+
+	return status
+end
+
+----------------------------------------------------------------------
+-- حالة كل طاولة
+----------------------------------------------------------------------
+type Game = {
+	cells: { BasePart },
+	marks: { Model? },
+	board: { string },     -- "", "X", "O"
+	seatX: Seat,
+	seatO: Seat,
+	playerX: Player?,
+	playerO: Player?,
+	turn: string,          -- "X" | "O"
+	active: boolean,
+	statusLabel: TextLabel,
+	pieceFolder: Folder,
+	lineGlow: { BasePart },
+}
+
+local games: { Game } = {}
+
+local function tintPill(lbl: TextLabel, col: Color3)
+	local pill = lbl.Parent
+	if pill then
+		local stk = pill:FindFirstChild("PillStroke")
+		if stk and stk:IsA("UIStroke") then stk.Color = col end
+	end
+end
+
+local function setStatus(g: Game)
+	local lbl = g.statusLabel
+	if not g.active then
+		if g.playerX or g.playerO then
+			lbl.Text = "بانتظار لاعب ثانٍ…"
+			lbl.TextColor3 = GOLD
+			tintPill(lbl, GOLD)
+		else
+			lbl.Text = "اجلس على كرسيّ للّعب"
+			lbl.TextColor3 = LINE_COL
+			tintPill(lbl, GOLD)
+		end
+		return
+	end
+	local who = g.turn == "X" and "🔴 دور الأحمر (X)" or "🔵 دور الأزرق (O)"
+	lbl.Text = who
+	lbl.TextColor3 = g.turn == "X" and X_COL or O_COL
+	tintPill(lbl, g.turn == "X" and X_COL or O_COL)
+end
+
+local function clearBoard(g: Game)
+	for i = 1, 9 do
+		g.board[i] = ""
+		if g.marks[i] then
+			g.marks[i]:Destroy()
+			g.marks[i] = nil
+		end
+	end
+	for _, cell in ipairs(g.cells) do
+		local glow = cell:FindFirstChild("CellGlow")
+		if glow and glow:IsA("BasePart") then glow.Transparency = 1 end
+	end
+end
+
+local function checkWin(g: Game): (string?, { number }?)
+	for _, line in ipairs(WIN_LINES) do
+		local a, b, c = line[1], line[2], line[3]
+		local va = g.board[a]
+		if va ~= "" and va == g.board[b] and va == g.board[c] then
+			return va, line
+		end
+	end
+	for i = 1, 9 do
+		if g.board[i] == "" then return nil, nil end
+	end
+	return "draw", nil
+end
+
+local function startMatch(g: Game)
+	clearBoard(g)
+	g.active = true
+	g.turn = "X"
+	setStatus(g)
+end
+
+local function endMatch(g: Game, result: string, line: { number }?)
+	g.active = false
+	if result == "draw" then
+		g.statusLabel.Text = "🤝 تعادل! اضغط أي مربّع لإعادة اللعب"
+		g.statusLabel.TextColor3 = GOLD
+		tintPill(g.statusLabel, GOLD)
+	else
+		local col = result == "X" and X_COL or O_COL
+		g.statusLabel.Text = (result == "X" and "🔴 فاز الأحمر (X)!" or "🔵 فاز الأزرق (O)!")
+		g.statusLabel.TextColor3 = col
+		tintPill(g.statusLabel, col)
+		if line then
+			for _, idx in ipairs(line) do
+				local cell = g.cells[idx]
+				local glow = cell:FindFirstChild("CellGlow") :: BasePart?
+				if glow then
+					glow.Color = col
+					glow.Transparency = 0.15
+				end
+			end
+		end
+	end
+end
+
+local function placeMark(g: Game, idx: number, symbol: string)
+	g.board[idx] = symbol
+	local cellCF = g.cells[idx].CFrame
+	local mark = symbol == "X" and buildX(cellCF, g.pieceFolder) or buildO(cellCF, g.pieceFolder)
+	g.marks[idx] = mark
+end
+
+local function onCellClicked(g: Game, idx: number, player: Player)
+	-- إعادة اللعب: لو انتهت المباراة وكلا اللاعبين موجودين
+	if not g.active then
+		if g.playerX and g.playerO and (player == g.playerX or player == g.playerO) then
+			startMatch(g)
+		end
+		return
+	end
+	-- يجب أن يكون اللاعب مشاركاً ودوره
+	local symbol = nil
+	if player == g.playerX then symbol = "X"
+	elseif player == g.playerO then symbol = "O" end
+	if not symbol then return end
+	if symbol ~= g.turn then return end
+	if g.board[idx] ~= "" then return end
+
+	placeMark(g, idx, symbol)
+	local result, line = checkWin(g)
+	if result then
+		endMatch(g, result, line)
+	else
+		g.turn = g.turn == "X" and "O" or "X"
+		setStatus(g)
+	end
+end
+
+----------------------------------------------------------------------
+-- إدارة المقاعد (الانضمام/المغادرة)
+----------------------------------------------------------------------
+local function seatPlayer(seat: Seat): Player?
+	local occ = seat.Occupant
+	if not occ then return nil end
+	return Players:GetPlayerFromCharacter(occ.Parent)
+end
+
+local function refreshSeats(g: Game)
+	g.playerX = seatPlayer(g.seatX)
+	g.playerO = seatPlayer(g.seatO)
+	if g.playerX and g.playerO then
+		if not g.active then startMatch(g) end
+	else
+		-- لاعب غادر أثناء اللعب → إنهاء وإعادة ضبط
+		g.active = false
+		clearBoard(g)
+		setStatus(g)
+	end
+end
+
+----------------------------------------------------------------------
+-- بناء طاولة كاملة
+----------------------------------------------------------------------
+local function buildSeat(origin: Vector3, side: number, col: Color3, parent: Instance, label: string): Seat
+	-- side: -1 (جهة -X) أو +1 (جهة +X)
+	local sx = origin.X + side * 5.4
+	local base = origin + Vector3.new(side * 5.4, 0, 0)
+	-- قاعدة الكرسي
+	part({
+		Name = "ChairPost", Parent = parent, Color = WOOD_DARK, Material = Enum.Material.Wood,
+		Size = Vector3.new(0.5, 1.8, 0.5), CFrame = CFrame.new(base + Vector3.new(0, 0.9, 0)),
+	})
+	local seat = Instance.new("Seat")
+	seat.Name = "PlayerSeat"
+	seat.Anchored = true
+	seat.Size = Vector3.new(1.9, 0.4, 1.9)
+	seat.Material = Enum.Material.SmoothPlastic
+	seat.Color = col
+	-- يواجه اللاعب الجالس مركز الطاولة (اللوح) — جهة -X تنظر +X والعكس
+	seat.CFrame = CFrame.new(Vector3.new(sx, origin.Y + 1.9, origin.Z))
+		* CFrame.Angles(0, math.rad(side > 0 and 90 or -90), 0)
+	seat.Parent = parent
+	-- ظهر الكرسي
+	part({
+		Name = "ChairBack", Parent = parent, Color = col, Material = Enum.Material.SmoothPlastic,
+		Size = Vector3.new(0.4, 2.2, 1.9),
+		CFrame = CFrame.new(Vector3.new(sx + side * 0.85, origin.Y + 2.9, origin.Z)),
+	})
+	-- شارة اللون فوق الظهر
+	local badge = part({
+		Name = "ChairBadge", Parent = parent, Color = col, Material = Enum.Material.Neon,
+		Size = Vector3.new(0.2, 0.6, 0.6),
+		CFrame = CFrame.new(Vector3.new(sx + side * 0.85, origin.Y + 4.1, origin.Z)),
+	})
+	local _ = label
+	local _ = badge
+
+	-- زر صريح للجلوس (يعمل على الجوال أيضاً)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "SitPrompt"
+	prompt.ActionText = "🪑 اجلس للّعب"
+	prompt.ObjectText = label
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 8
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = seat
+	prompt.Triggered:Connect(function(plr)
+		if seat.Occupant then return end   -- الكرسي مشغول: لا تطرد اللاعب الجالس
+		local char = plr.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then pcall(function() seat:Sit(hum) end) end
+	end)
+
+	return seat
+end
+
+local function buildTable(origin: Vector3, parent: Instance): Game
+	local model = Instance.new("Model")
+	model.Name = "TicTacToeTable"
+	model.Parent = parent
+
+	-- أرجل الطاولة
+	for _, dx in ipairs({ -2.6, 2.6 }) do
+		for _, dz in ipairs({ -2.6, 2.6 }) do
+			part({
+				Name = "Leg", Parent = model, Color = GOLD, Material = Enum.Material.Metal,
+				Size = Vector3.new(0.45, TABLE_TOP_Y, 0.45),
+				CFrame = CFrame.new(origin + Vector3.new(dx, TABLE_TOP_Y / 2, dz)),
+			})
+		end
+	end
+	-- سطح الطاولة
+	part({
+		Name = "TableTop", Parent = model, Color = WOOD, Material = Enum.Material.Wood,
+		Size = Vector3.new(6.6, 0.5, 6.6),
+		CFrame = CFrame.new(origin + Vector3.new(0, TABLE_TOP_Y, 0)),
+	})
+	-- إطار ذهبي حول السطح
+	for _, d in ipairs({
+		{ Vector3.new(0, 0, 3.25), Vector3.new(7.0, 0.35, 0.5) },
+		{ Vector3.new(0, 0, -3.25), Vector3.new(7.0, 0.35, 0.5) },
+		{ Vector3.new(3.25, 0, 0), Vector3.new(0.5, 0.35, 7.0) },
+		{ Vector3.new(-3.25, 0, 0), Vector3.new(0.5, 0.35, 7.0) },
+	}) do
+		part({
+			Name = "Trim", Parent = model, Color = GOLD_HI, Material = Enum.Material.Metal,
+			Size = d[2], CFrame = CFrame.new(origin + Vector3.new(0, TABLE_TOP_Y + 0.25, 0) + d[1]),
+		})
+	end
+
+	-- لبادة اللوح (felt) فوق السطح
+	local topY = origin.Y + TABLE_TOP_Y + 0.3
+	part({
+		Name = "Felt", Parent = model, Color = FELT, Material = Enum.Material.Fabric, CanCollide = false,
+		Size = Vector3.new(5.6, 0.08, 5.6), CFrame = CFrame.new(origin.X, topY, origin.Z),
+	})
+	-- خطوط الشبكة ٣×٣
+	for _, off in ipairs({ -CELL / 2, CELL / 2 }) do
+		part({
+			Name = "GridLine", Parent = model, Color = LINE_COL, Material = Enum.Material.Neon, CanCollide = false,
+			Size = Vector3.new(5.2, 0.06, 0.14), CFrame = CFrame.new(origin.X, topY + 0.05, origin.Z + off),
+		})
+		part({
+			Name = "GridLine", Parent = model, Color = LINE_COL, Material = Enum.Material.Neon, CanCollide = false,
+			Size = Vector3.new(0.14, 0.06, 5.2), CFrame = CFrame.new(origin.X + off, topY + 0.05, origin.Z),
+		})
+	end
+
+	local cells: { BasePart } = {}
+	local pieceFolder = Instance.new("Folder")
+	pieceFolder.Name = "Pieces"
+	pieceFolder.Parent = model
+
+	-- بناء المقاعد ولوحة الحالة
+	local seatX = buildSeat(origin, -1, SEAT_X_COL, model, "🔴 لاعب X")
+	local seatO = buildSeat(origin, 1, SEAT_O_COL, model, "🔵 لاعب O")
+	local statusLabel = buildStatusBoard(origin, model)
+
+	local game: Game = {
+		cells = cells, marks = {}, board = {},
+		seatX = seatX, seatO = seatO,
+		playerX = nil, playerO = nil,
+		turn = "X", active = false,
+		statusLabel = statusLabel, pieceFolder = pieceFolder, lineGlow = {},
+	}
+	for i = 1, 9 do game.board[i] = "" end
+
+	-- المربّعات التسعة + كاشف الضغط
+	local idx = 0
+	for row = -1, 1 do
+		for col = -1, 1 do
+			idx += 1
+			local cx = origin.X + col * CELL
+			local cz = origin.Z + row * CELL
+			local cell = part({
+				Name = "Cell", Parent = model, Color = FELT, Material = Enum.Material.Fabric,
+				Size = Vector3.new(CELL - 0.18, 0.1, CELL - 0.18),
+				CFrame = CFrame.new(cx, topY + 0.06, cz),
+			})
+			cell:SetAttribute("Index", idx)
+			local glow = part({
+				Name = "CellGlow", Parent = cell, Color = GOLD, Material = Enum.Material.Neon, CanCollide = false,
+				Transparency = 1, Size = Vector3.new(CELL - 0.1, 0.04, CELL - 0.1),
+				CFrame = CFrame.new(cx, topY + 0.02, cz),
+			})
+			local _ = glow
+			cells[idx] = cell
+
+			local cd = Instance.new("ClickDetector")
+			cd.MaxActivationDistance = 14
+			cd.Parent = cell
+			local capturedIdx = idx
+			cd.MouseClick:Connect(function(plr)
+				onCellClicked(game, capturedIdx, plr)
+			end)
+		end
+	end
+
+	-- مراقبة المقاعد
+	seatX:GetPropertyChangedSignal("Occupant"):Connect(function() refreshSeats(game) end)
+	seatO:GetPropertyChangedSignal("Occupant"):Connect(function() refreshSeats(game) end)
+
+	setStatus(game)
+	return game
+end
+
+----------------------------------------------------------------------
+-- التهيئة
+----------------------------------------------------------------------
+local root = Instance.new("Folder")
+root.Name = "TicTacToeArea"
+root.Parent = Workspace
+
+for _, origin in ipairs(TABLES) do
+	games[#games + 1] = buildTable(origin, root)
+end
+
+-- تنظيف عند خروج لاعب (يحرّر مقعده ويعيد ضبط طاولته)
+Players.PlayerRemoving:Connect(function(player)
+	for _, g in ipairs(games) do
+		if g.playerX == player or g.playerO == player then
+			task.defer(function() refreshSeats(g) end)
+		end
+	end
+end)
+
+print("[TicTacToe] جاهز — " .. #games .. " طاولات إكس-أو ثلاثية الأبعاد.")
+]]></string></Properties></Item><Item class="Script" referent="BoundarySystemRef"><Properties><string name="Name">BoundarySystem</string><token name="RunContext">0</token><string name="Source"><![CDATA[--[[
+	BOUNDARY SYSTEM (Server) — حدود مدينة شهد
+	يوضع في: ServerScriptService (Script, RunContext = Server)
+
+	طبقتا حماية لحافة المدينة:
+	  (1) حاجز خفي صلب على حدود المدينة الفعلية — يمنع اللاعب من الخروج أو رمي نفسه.
+	      يُقاس المحيط تلقائياً من أرضية المدينة الحقيقية وقت التشغيل (مو رقم ثابت)،
+	      فيلتفّ الحاجز على آخر نقطة يمشي عليها اللاعب مهما كان شكل الماب.
+	  (2) شبكة أمان للسقوط — لو نزل تحت حدّ معيّن لأي سبب يُعاد للسبون
+	      بنعومة بدون شاشة موت ولا خسارة.
+]]
+
+local Workspace = game:GetService("Workspace")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local WALL_H   = 60           -- ارتفاع الجدار الخفي (عالٍ ليمنع القفز/التسلّق)
+local WALL_T   = 4            -- سُمك الجدار
+local MARGIN   = 1            -- فجوة بسيطة خارج آخر أرض (يخلّي اللاعب يوصل الحافة تماماً)
+local FALL_Y   = -40          -- حدّ السقوط: تحت هذا الارتفاع يُنقذ اللاعب
+
+local DEBUG_VISIBLE = false   -- الجدران خفيّة في اللعب الفعلي (تُفعّل true فقط للمعاينة)
+
+----------------------------------------------------------------------
+-- قياس امتداد الأرض الفعلي: نمرّ على كل قطعة أرضية مستوية قريبة من
+-- مستوى الأرض ونجمع أبعد حوافّها على المحورين X و Z. كذا يلتفّ الحاجز
+-- على المدينة الحقيقية (بما فيها الشاطئ/الساحات) مهما كان شكلها.
+----------------------------------------------------------------------
+local function measureExtents(): (number, number, number, number)
+	local xMin, xMax = math.huge, -math.huge
+	local zMin, zMax = math.huge, -math.huge
+	for _, inst in ipairs(Workspace:GetDescendants()) do
+		if inst:IsA("BasePart") and inst.Anchored and inst.CanCollide then
+			local s = inst.Size
+			local p = inst.Position
+			local footprint = s.X * s.Z
+			-- أرضية مستوية: مساحة كبيرة، رقيقة عمودياً، وقريبة من مستوى الأرض
+			if footprint >= 150 and s.Y <= 22 and p.Y >= -12 and p.Y <= 16 then
+				local hx, hz = s.X / 2, s.Z / 2
+				if p.X - hx < xMin then xMin = p.X - hx end
+				if p.X + hx > xMax then xMax = p.X + hx end
+				if p.Z - hz < zMin then zMin = p.Z - hz end
+				if p.Z + hz > zMax then zMax = p.Z + hz end
+			end
+		end
+	end
+	-- احتياط لو ما لقينا أرضية (قبل بناء العالم): مربّع افتراضي ±200
+	if xMin == math.huge then
+		return -200, 200, -200, 200
+	end
+	-- تقييد عقلاني يمنع أي قطعة شاذّة من تمديد الحاجز بعيداً
+	xMin = math.max(xMin, -600); xMax = math.min(xMax, 600)
+	zMin = math.max(zMin, -600); zMax = math.min(zMax, 600)
+	return xMin, xMax, zMin, zMax
+end
+
+-- ننتظر بناء عالم WorldBuilder (الأرض «Ground») قبل القياس
+local city = Workspace:WaitForChild("City", 20)
+if city then
+	city:WaitForChild("Ground", 10)
+end
+task.wait(2) -- مهلة بسيطة ليكمل بقية السكربتات بناء أرضياتها (شاطئ/ساحات)
+
+local xMin, xMax, zMin, zMax = measureExtents()
+local cx = (xMin + xMax) / 2
+local cz = (zMin + zMax) / 2
+local spanX = (xMax - xMin) + 2 * MARGIN
+local spanZ = (zMax - zMin) + 2 * MARGIN
+local edgeX0 = xMin - MARGIN - WALL_T / 2  -- مركز الجدار الغربي
+local edgeX1 = xMax + MARGIN + WALL_T / 2  -- مركز الجدار الشرقي
+local edgeZ0 = zMin - MARGIN - WALL_T / 2  -- مركز الجدار الجنوبي
+local edgeZ1 = zMax + MARGIN + WALL_T / 2  -- مركز الجدار الشمالي
+local fullX = spanX + 2 * WALL_T           -- طول يغطّي الزوايا
+local fullZ = spanZ + 2 * WALL_T
+
+----------------------------------------------------------------------
+-- مجلّد الحدود (يُعاد بناؤه إن وُجد سابقاً — idempotent)
+----------------------------------------------------------------------
+local existing = Workspace:FindFirstChild("CityBounds")
+if existing then existing:Destroy() end
+
+local bounds = Instance.new("Folder")
+bounds.Name = "CityBounds"
+bounds.Parent = Workspace
+
+local function newPart(props: { [string]: any }): Part
+	local p = Instance.new("Part")
+	p.Anchored = true
+	p.Material = Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	for k, v in pairs(props) do
+		(p :: any)[k] = v
+	end
+	p.Parent = bounds
+	return p
+end
+
+----------------------------------------------------------------------
+-- (1) الحاجز الخفي الصلب — أربعة جدران على المحيط المقيس
+----------------------------------------------------------------------
+local sides = {
+	{ Size = Vector3.new(fullX, WALL_H, WALL_T), Pos = Vector3.new(cx, WALL_H / 2, edgeZ1) },
+	{ Size = Vector3.new(fullX, WALL_H, WALL_T), Pos = Vector3.new(cx, WALL_H / 2, edgeZ0) },
+	{ Size = Vector3.new(WALL_T, WALL_H, fullZ), Pos = Vector3.new(edgeX1, WALL_H / 2, cz) },
+	{ Size = Vector3.new(WALL_T, WALL_H, fullZ), Pos = Vector3.new(edgeX0, WALL_H / 2, cz) },
+}
+for i, s in ipairs(sides) do
+	newPart({
+		Name = "BoundWall" .. i,
+		Size = s.Size,
+		Position = s.Pos,
+		Transparency = DEBUG_VISIBLE and 0.45 or 1,
+		Color = Color3.fromRGB(255, 40, 40),
+		Material = DEBUG_VISIBLE and Enum.Material.Neon or Enum.Material.SmoothPlastic,
+		CanCollide = true,      -- يصدّ اللاعب
+		CastShadow = false,
+	})
+end
+
+----------------------------------------------------------------------
+-- (2) شبكة أمان للسقوط — يُعاد للسبون بنعومة بلا موت
+----------------------------------------------------------------------
+local cachedSpawn: BasePart? = nil
+local function spawnCFrame(): CFrame
+	if not cachedSpawn or not cachedSpawn.Parent then
+		local spawn = Workspace:FindFirstChild("MainSpawn", true)
+		cachedSpawn = (spawn and spawn:IsA("BasePart")) and spawn or nil
+	end
+	if cachedSpawn then
+		return cachedSpawn.CFrame + Vector3.new(0, 6, 0)
+	end
+	return CFrame.new(0, 8, 45)
+end
+
+local function rescue(char: Model)
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not (hrp and hrp:IsA("BasePart")) or not hum or hum.Health <= 0 then return end
+	hrp.AssemblyLinearVelocity = Vector3.zero
+	hrp.AssemblyAngularVelocity = Vector3.zero
+	hrp.CFrame = spawnCFrame()
+end
+
+RunService.Heartbeat:Connect(function()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if char then
+			local hrp = char:FindFirstChild("HumanoidRootPart")
+			if hrp and hrp:IsA("BasePart") and hrp.Position.Y < FALL_Y then
+				rescue(char)
+			end
+		end
+	end
+end)
+
+print(string.format(
+	"[BoundarySystem] حدود مقيسة: X[%.0f..%.0f] Z[%.0f..%.0f] (حاجز خفي + شبكة أمان).",
+	xMin, xMax, zMin, zMax
+))
 ]]></string></Properties></Item></Item>
   <Item class="SoundService" referent="12">
     <Properties>
@@ -25310,6 +26206,8 @@ local CONFIG = {
 	LAND_ALT        = 5.5,                    -- ارتفاع لحظة الهبوط فوق الأرض
 	DRIFT_FREEFALL  = 62,                     -- سرعة التوجيه الأفقي أثناء السقوط الحر (WASD/عصا)
 	DRIFT_CANOPY    = 42,                     -- سرعة التوجيه الأفقي تحت المظلّة
+	BOOST_FREEFALL  = 1.7,                    -- مضاعِف سرعة السقوط الحر عند الضغط (Shift / زر التسريع)
+	BOOST_CANOPY    = 2.2,                    -- مضاعِف سرعة النزول بالمظلّة عند الضغط
 
 	-- أضواء/ألوان
 	SWAP_NAV_COLORS = false,                  -- اقلبها لو الأحمر/الأخضر بالعكس على الأجنحة
@@ -26007,9 +26905,24 @@ local function buildHUD()
 		TextColor3 = WARM, Visible = false, Parent = root,
 	}) :: TextLabel
 
+	-- زر تسريع النزول (اضغط مع الاستمرار) — على يمين الشاشة، منطقة آمنة
+	local boostBtn = mk("TextButton", {
+		Name = "Boost", AnchorPoint = Vector2.new(1, 1), Position = UDim2.fromScale(0.96, 0.84),
+		Size = UDim2.fromOffset(140, 96), BackgroundColor3 = Color3.fromRGB(214, 175, 92),
+		Text = "تسريع ⬇", Font = Enum.Font.GothamBlack, TextScaled = true,
+		TextColor3 = Color3.fromRGB(20, 22, 34), AutoButtonColor = true, Visible = false, Parent = root,
+	}) :: TextButton
+	mk("UICorner", { CornerRadius = UDim.new(0, 18), Parent = boostBtn })
+	mk("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.35, Parent = boostBtn })
+	mk("UIPadding", {
+		PaddingLeft = UDim.new(0, 8), PaddingRight = UDim.new(0, 8),
+		PaddingTop = UDim.new(0, 14), PaddingBottom = UDim.new(0, 14), Parent = boostBtn,
+	})
+
 	return {
 		gui = gui, banner = banner, countdown = countdown, stats = stats,
 		alt = altLabel, spd = spdLabel, skip = skipBtn, chute = chuteBtn, eHint = eHint,
+		boost = boostBtn,
 	}
 end
 
@@ -26018,6 +26931,7 @@ end
 ----------------------------------------------------------------------
 local started = false
 local activeInputConn: RBXScriptConnection? = nil -- يُنظَّف في معالج الخطأ لو تعطّل run()
+local activeBoostConn: RBXScriptConnection? = nil -- مستمع إفلات Shift للتسريع — يُنظَّف في معالج الخطأ أيضاً
 
 local function run()
 	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
@@ -26156,7 +27070,8 @@ local function run()
 	hud.banner.Text = "سقوط حرّ"
 	hud.stats.Visible = true
 	hud.chute.Visible = true
-	hud.eHint.Text = "اضغط E لفتح المظلّة"
+	hud.boost.Visible = true
+	hud.eHint.Text = if UserInputService.TouchEnabled then "اضغط E لفتح المظلّة" else "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
 	if not UserInputService.TouchEnabled then hud.eHint.Visible = true end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 
@@ -26202,12 +27117,28 @@ local function run()
 		Parent = rootPart,
 	}) :: Trail
 
-	-- E / زر اللمس لفتح المظلّة
+	-- E / زر اللمس لفتح المظلّة + تسريع النزول (Shift على الكمبيوتر / زر «تسريع» على الجوال)
+	local boosting = false
 	hud.chute.Activated:Connect(function() deployed = true end)
 	local inputConn = UserInputService.InputBegan:Connect(function(input, gpe)
+		if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+			boosting = true
+			return
+		end
 		if gpe then return end
 		if input.KeyCode == Enum.KeyCode.E then deployed = true end
 	end)
+	local boostEndConn = UserInputService.InputEnded:Connect(function(input)
+		if input.KeyCode == Enum.KeyCode.LeftShift or input.KeyCode == Enum.KeyCode.RightShift then
+			boosting = false
+		end
+	end)
+	activeBoostConn = boostEndConn
+	-- زر اللمس: اضغط مع الاستمرار لتسريع النزول
+	local function pressBoost(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then boosting = true end end
+	local function releaseBoost(input) if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then boosting = false end end
+	hud.boost.InputBegan:Connect(pressBoost)
+	hud.boost.InputEnded:Connect(releaseBoost)
 	activeInputConn = inputConn
 
 	local function updateDescentVisuals(altitude, speed)
@@ -26222,7 +27153,8 @@ local function run()
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
-		y -= vSpeed * dt
+		local effSpeed = vSpeed * (if boosting then CONFIG.BOOST_FREEFALL else 1)
+		y -= effSpeed * dt
 		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
@@ -26233,7 +27165,7 @@ local function run()
 		local altitude = y - groundY
 		local pos = Vector3.new(px, y, pz)
 		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, 0)
-		updateDescentVisuals(altitude, vSpeed)
+		updateDescentVisuals(altitude, effSpeed)
 		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then break end
 	end
 
@@ -26263,7 +27195,8 @@ local function run()
 
 	while true do
 		local dt = RunService.Heartbeat:Wait()
-		y -= CONFIG.CANOPY_SPEED * dt
+		local canopySpeed = CONFIG.CANOPY_SPEED * (if boosting then CONFIG.BOOST_CANOPY else 1)
+		y -= canopySpeed * dt
 		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
@@ -26284,9 +27217,13 @@ local function run()
 		local base = CFrame.lookAt(pos, pos + orientFwd)
 		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
 		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
-		updateDescentVisuals(altitude, CONFIG.CANOPY_SPEED)
+		updateDescentVisuals(altitude, canopySpeed)
 		if altitude <= CONFIG.LAND_ALT then break end
 	end
+	hud.boost.Visible = false
+	boosting = false
+	if boostEndConn then boostEndConn:Disconnect() end
+	activeBoostConn = nil
 
 	------------------------------------------------------------------
 	-- الطور ٤: الهبوط (غبار/صدمة + استعادة الكاميرا والتحكّم)
@@ -26408,6 +27345,7 @@ local function trigger()
 		warn("[SpawnCinematic] خطأ في التسلسل: " .. tostring(err))
 		-- استعادة آمنة حتى لا يعلق اللاعب (تشمل دوران الشخصية وحالة الموت والكاميرا)
 		if activeInputConn then activeInputConn:Disconnect(); activeInputConn = nil end
+		if activeBoostConn then activeBoostConn:Disconnect(); activeBoostConn = nil end
 		setControls(true)
 		local cam = Workspace.CurrentCamera
 		if cam then cam.CameraType = Enum.CameraType.Custom end
