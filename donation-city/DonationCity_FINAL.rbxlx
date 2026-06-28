@@ -19558,12 +19558,15 @@ local sides = {
 	{ Size = Vector3.new(WALL_T, WALL_H, span), Pos = Vector3.new( OFF, WALL_H / 2, 0) },
 	{ Size = Vector3.new(WALL_T, WALL_H, span), Pos = Vector3.new(-OFF, WALL_H / 2, 0) },
 }
+local DEBUG_VISIBLE = true   -- مؤقّت: إظهار الجدران لمعاينة مكانها الفعلي
 for i, s in ipairs(sides) do
 	newPart({
 		Name = "BoundWall" .. i,
 		Size = s.Size,
 		Position = s.Pos,
-		Transparency = 1,       -- غير مرئي
+		Transparency = DEBUG_VISIBLE and 0.45 or 1,
+		Color = Color3.fromRGB(255, 40, 40),
+		Material = Enum.Material.Neon,
 		CanCollide = true,      -- يصدّ اللاعب
 		CastShadow = false,
 	})
