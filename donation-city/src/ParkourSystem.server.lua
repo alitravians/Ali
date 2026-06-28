@@ -935,14 +935,102 @@ for _, sz in ipairs({ -1, 1 }) do
 	bt.Transparency = 0.25
 end
 
--- لوحة «أفضل وقت» هولوغرام بجانب البوّابة (تحفيز التنافس)
+-- لوحة «أفضل وقت» ملكية بجانب البوّابة (زجاج داكن + إطار وتاج ذهبي + شريحة)
 do
 	local hx, hz = ENTRY_POS.X + 6.5, ENTRY_POS.Z + 7.5
-	mkCyl("HoloPost", 3.6, 0.7, ENTRY_POS.Y + 1.3, hx, hz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
-	local boardCF = CFrame.new(hx, ENTRY_POS.Y + 3.4, hz) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(-12), 0, 0)
-	local board = mk("HoloBoard", V(3.6, 2.2, 0.18), boardCF, SCANC, Enum.Material.Neon, gate, false)
-	board.CanTouch = false; board.Transparency = 0.25
-	signGui(board, "أفضل وقت\nتحدَّ نفسك", DARKBG, 480)
+	local W, H = 4.4, 2.6
+	mkCyl("HoloPost", 3.2, 0.7, ENTRY_POS.Y + 1.3, hx, hz, DARKMETAL, Enum.Material.Metal, gate, true).CanTouch = false
+	local boardCF = CFrame.new(hx, ENTRY_POS.Y + 3.6, hz) * CFrame.Angles(0, math.rad(90), 0) * CFrame.Angles(math.rad(-10), 0, 0)
+
+	-- لوح زجاجي داكن
+	local board = mk("HoloBoard", V(W, H, 0.22), boardCF, C3(14, 18, 26), Enum.Material.Glass, gate, false)
+	board.CanTouch = false; board.Reflectance = 0.15
+
+	-- إطار ذهبي حول اللوح (إحداثيات محلية للوح)
+	local fr = 0.2
+	for _, d in ipairs({
+		{ V(0, H / 2, 0), V(W + fr * 2, fr, 0.3) },
+		{ V(0, -H / 2, 0), V(W + fr * 2, fr, 0.3) },
+		{ V(-W / 2, 0, 0), V(fr, H, 0.3) },
+		{ V(W / 2, 0, 0), V(fr, H, 0.3) },
+	}) do
+		local f = mk("HoloFrame", d[2], boardCF * CFrame.new(d[1]), GOLD, Enum.Material.Metal, gate, false)
+		f.CanTouch = false
+	end
+
+	-- تاج ذهبي صغير أعلى اللوح
+	for i = -2, 2 do
+		local spike = 0.45 + (i == 0 and 0.4 or (math.abs(i) == 1 and 0.18 or 0))
+		local s = mk("HoloCrown", V(0.3, spike, 0.3),
+			boardCF * CFrame.new(i * 0.62, H / 2 + 0.18 + spike / 2, 0),
+			GOLDLIT, Enum.Material.Neon, gate, false)
+		s.CanTouch = false
+	end
+
+	-- واجهة احترافية (الوجهان) — عنوان متدرّج + سطر وصفي + شريحة
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.AutoLocalize = false
+		sg.CanvasSize = Vector2.new(880, 520)
+		sg.LightInfluence = 0
+		sg.Parent = board
+
+		local title = Instance.new("TextLabel")
+		title.BackgroundTransparency = 1
+		title.Size = UDim2.new(1, -50, 0.40, 0)
+		title.Position = UDim2.new(0, 25, 0.06, 0)
+		title.Font = Enum.Font.GothamBlack
+		title.TextScaled = true
+		title.Text = "أفضل وقت"
+		title.TextColor3 = C3(255, 245, 215)
+		title.Parent = sg
+		local tg = Instance.new("UIGradient")
+		tg.Color = ColorSequence.new(GOLDLIT, GOLD)
+		tg.Rotation = 90
+		tg.Parent = title
+		local tstk = Instance.new("UIStroke")
+		tstk.Thickness = 3
+		tstk.Color = C3(60, 42, 12)
+		tstk.Transparency = 0.2
+		tstk.Parent = title
+
+		local sub = Instance.new("TextLabel")
+		sub.BackgroundTransparency = 1
+		sub.Size = UDim2.new(1, -50, 0.14, 0)
+		sub.Position = UDim2.new(0, 25, 0.44, 0)
+		sub.Font = Enum.Font.GothamMedium
+		sub.TextScaled = true
+		sub.Text = "تحدَّ نفسك واكسر رقمك"
+		sub.TextColor3 = C3(190, 200, 215)
+		sub.TextTransparency = 0.12
+		sub.Parent = sg
+
+		local pill = Instance.new("Frame")
+		pill.AnchorPoint = Vector2.new(0.5, 0)
+		pill.Position = UDim2.new(0.5, 0, 0.62, 0)
+		pill.Size = UDim2.new(0.9, 0, 0.3, 0)
+		pill.BackgroundColor3 = C3(8, 12, 20)
+		pill.BackgroundTransparency = 0.15
+		pill.Parent = sg
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(0.5, 0)
+		pc.Parent = pill
+		local pstk = Instance.new("UIStroke")
+		pstk.Thickness = 2.5
+		pstk.Color = GOLD
+		pstk.Transparency = 0.1
+		pstk.Parent = pill
+		local pl = Instance.new("TextLabel")
+		pl.BackgroundTransparency = 1
+		pl.Size = UDim2.new(1, -30, 1, -12)
+		pl.Position = UDim2.new(0, 15, 0, 6)
+		pl.Font = Enum.Font.GothamBold
+		pl.TextScaled = true
+		pl.Text = "سجّل أسرع زمن"
+		pl.TextColor3 = GOLDLIT
+		pl.Parent = pill
+	end
 end
 
 -- منارة محتواة تنطلق من أعلى القوس للأعلى فقط (لا تخترق البوّابة) + كرة تتويج

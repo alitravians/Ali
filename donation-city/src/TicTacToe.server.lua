@@ -284,7 +284,10 @@ local function clearBoard(g: Game)
 			g.marks[i] = nil
 		end
 	end
-	for _, b in ipairs(g.lineGlow) do b.Transparency = 1 end
+	for _, cell in ipairs(g.cells) do
+		local glow = cell:FindFirstChild("CellGlow")
+		if glow and glow:IsA("BasePart") then glow.Transparency = 1 end
+	end
 end
 
 local function checkWin(g: Game): (string?, { number }?)
