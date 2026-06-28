@@ -310,8 +310,9 @@ local function buildSeat(origin: Vector3, side: number, col: Color3, parent: Ins
 	seat.Size = Vector3.new(1.9, 0.4, 1.9)
 	seat.Material = Enum.Material.SmoothPlastic
 	seat.Color = col
+	-- يواجه اللاعب الجالس مركز الطاولة (اللوح) — جهة -X تنظر +X والعكس
 	seat.CFrame = CFrame.new(Vector3.new(sx, origin.Y + 1.9, origin.Z))
-		* CFrame.Angles(0, math.rad(side > 0 and -90 or 90), 0)
+		* CFrame.Angles(0, math.rad(side > 0 and 90 or -90), 0)
 	seat.Parent = parent
 	-- ظهر الكرسي
 	part({
