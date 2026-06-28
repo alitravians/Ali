@@ -102,46 +102,128 @@ end
 -- لوحة الحالة الخلفية (SurfaceGui)
 ----------------------------------------------------------------------
 local function buildStatusBoard(origin: Vector3, parent: Instance)
-	local pole = part({
-		Name = "StatusPole", Parent = parent, Color = WOOD_DARK, Material = Enum.Material.Wood,
-		Size = Vector3.new(0.4, 5.4, 0.4),
-		CFrame = CFrame.new(origin + Vector3.new(0, 2.7, 4.6)),
-	})
-	local board = part({
-		Name = "StatusBoard", Parent = parent, Color = WOOD_DARK, Material = Enum.Material.WoodPlanks,
-		Size = Vector3.new(7.4, 2.6, 0.3),
-		CFrame = CFrame.new(origin + Vector3.new(0, 5.5, 4.6)),
-	})
-	local _ = pole
-	local stroke = Instance.new("SurfaceGui")
-	stroke.Name = "StatusFace"
-	stroke.AutoLocalize = false
-	stroke.Face = Enum.NormalId.Front
-	stroke.CanvasSize = Vector2.new(740, 260)
-	stroke.LightInfluence = 0
-	stroke.Adornee = board
-	stroke.Parent = board
+	local boardCX = origin.X
+	local boardCY = origin.Y + 6.0
+	local boardZ = origin.Z + 4.6
+	local W, H = 8.2, 3.0
 
+	-- عمودان معدنيّان يحملان اللوحة
+	for _, dx in ipairs({ -W / 2 + 0.3, W / 2 - 0.3 }) do
+		part({
+			Name = "StatusPole", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+			Size = Vector3.new(0.32, boardCY - origin.Y, 0.32),
+			CFrame = CFrame.new(boardCX + dx, origin.Y + (boardCY - origin.Y) / 2, boardZ),
+		})
+	end
+
+	-- زجاج داكن (لوح العرض)
+	local board = part({
+		Name = "StatusBoard", Parent = parent, Color = Color3.fromRGB(14, 18, 26),
+		Material = Enum.Material.Glass,
+		Size = Vector3.new(W, H, 0.22),
+		CFrame = CFrame.new(boardCX, boardCY, boardZ),
+	})
+	board.Reflectance = 0.15
+
+	-- إطار ذهبي حول اللوح
+	local fr = 0.22
+	for _, d in ipairs({
+		{ Vector3.new(0, H / 2, 0), Vector3.new(W + fr * 2, fr, 0.34) },
+		{ Vector3.new(0, -H / 2, 0), Vector3.new(W + fr * 2, fr, 0.34) },
+		{ Vector3.new(-W / 2, 0, 0), Vector3.new(fr, H, 0.34) },
+		{ Vector3.new(W / 2, 0, 0), Vector3.new(fr, H, 0.34) },
+	}) do
+		part({
+			Name = "BoardFrame", Parent = parent, Color = GOLD_HI, Material = Enum.Material.Metal,
+			Size = d[2], CFrame = CFrame.new(boardCX, boardCY, boardZ) * CFrame.new(d[1]),
+		})
+	end
+
+	-- تاج ذهبي صغير أعلى اللوح
+	for i = -2, 2 do
+		local spike = 0.5 + (i == 0 and 0.45 or (math.abs(i) == 1 and 0.2 or 0))
+		part({
+			Name = "CrownSpike", Parent = parent, Color = GOLD_HI, Material = Enum.Material.Neon,
+			Size = Vector3.new(0.34, spike, 0.34),
+			CFrame = CFrame.new(boardCX + i * 0.7, boardCY + H / 2 + 0.2 + spike / 2, boardZ),
+		})
+	end
+
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "StatusFace"
+	gui.AutoLocalize = false
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(1024, 384)
+	gui.LightInfluence = 0
+	gui.Adornee = board
+	gui.Parent = board
+
+	local pad = Instance.new("Frame")
+	pad.BackgroundTransparency = 1
+	pad.Size = UDim2.new(1, 0, 1, 0)
+	pad.Parent = gui
+
+	-- العنوان «إكس · أو» بتدرّج ذهبي + توهّج
 	local title = Instance.new("TextLabel")
 	title.BackgroundTransparency = 1
-	title.Size = UDim2.new(1, -20, 0.42, 0)
-	title.Position = UDim2.new(0, 10, 0.04, 0)
+	title.Size = UDim2.new(1, -40, 0.38, 0)
+	title.Position = UDim2.new(0, 20, 0.05, 0)
 	title.Font = Enum.Font.GothamBlack
 	title.TextScaled = true
 	title.Text = "إكس · أو"
-	title.TextColor3 = GOLD_HI
-	title.Parent = stroke
+	title.TextColor3 = Color3.fromRGB(255, 245, 215)
+	title.Parent = pad
+	local tg = Instance.new("UIGradient")
+	tg.Color = ColorSequence.new(GOLD_HI, GOLD)
+	tg.Rotation = 90
+	tg.Parent = title
+	local ts = Instance.new("UIStroke")
+	ts.Thickness = 3
+	ts.Color = Color3.fromRGB(60, 42, 12)
+	ts.Transparency = 0.2
+	ts.Parent = title
+
+	-- سطر وصفي صغير
+	local sub = Instance.new("TextLabel")
+	sub.BackgroundTransparency = 1
+	sub.Size = UDim2.new(1, -40, 0.13, 0)
+	sub.Position = UDim2.new(0, 20, 0.40, 0)
+	sub.Font = Enum.Font.GothamMedium
+	sub.TextScaled = true
+	sub.Text = "طاولة المدينة الملكية"
+	sub.TextColor3 = Color3.fromRGB(190, 200, 215)
+	sub.TextTransparency = 0.15
+	sub.Parent = pad
+
+	-- شريحة الحالة (خلفية داكنة + إطار + نص)
+	local pill = Instance.new("Frame")
+	pill.Name = "StatusPill"
+	pill.AnchorPoint = Vector2.new(0.5, 0)
+	pill.Position = UDim2.new(0.5, 0, 0.56, 0)
+	pill.Size = UDim2.new(0.92, 0, 0.36, 0)
+	pill.BackgroundColor3 = Color3.fromRGB(8, 12, 20)
+	pill.BackgroundTransparency = 0.15
+	pill.Parent = pad
+	local pc = Instance.new("UICorner")
+	pc.CornerRadius = UDim.new(0.5, 0)
+	pc.Parent = pill
+	local pstk = Instance.new("UIStroke")
+	pstk.Name = "PillStroke"
+	pstk.Thickness = 2.5
+	pstk.Color = GOLD
+	pstk.Transparency = 0.1
+	pstk.Parent = pill
 
 	local status = Instance.new("TextLabel")
 	status.Name = "Status"
 	status.BackgroundTransparency = 1
-	status.Size = UDim2.new(1, -20, 0.5, 0)
-	status.Position = UDim2.new(0, 10, 0.48, 0)
+	status.Size = UDim2.new(1, -36, 1, -14)
+	status.Position = UDim2.new(0, 18, 0, 7)
 	status.Font = Enum.Font.GothamBold
 	status.TextScaled = true
 	status.Text = "اجلس على كرسيّ للّعب"
 	status.TextColor3 = LINE_COL
-	status.Parent = stroke
+	status.Parent = pill
 
 	return status
 end
@@ -166,21 +248,32 @@ type Game = {
 
 local games: { Game } = {}
 
+local function tintPill(lbl: TextLabel, col: Color3)
+	local pill = lbl.Parent
+	if pill then
+		local stk = pill:FindFirstChild("PillStroke")
+		if stk and stk:IsA("UIStroke") then stk.Color = col end
+	end
+end
+
 local function setStatus(g: Game)
 	local lbl = g.statusLabel
 	if not g.active then
 		if g.playerX or g.playerO then
 			lbl.Text = "بانتظار لاعب ثانٍ…"
 			lbl.TextColor3 = GOLD
+			tintPill(lbl, GOLD)
 		else
 			lbl.Text = "اجلس على كرسيّ للّعب"
 			lbl.TextColor3 = LINE_COL
+			tintPill(lbl, GOLD)
 		end
 		return
 	end
 	local who = g.turn == "X" and "🔴 دور الأحمر (X)" or "🔵 دور الأزرق (O)"
 	lbl.Text = who
 	lbl.TextColor3 = g.turn == "X" and X_COL or O_COL
+	tintPill(lbl, g.turn == "X" and X_COL or O_COL)
 end
 
 local function clearBoard(g: Game)
