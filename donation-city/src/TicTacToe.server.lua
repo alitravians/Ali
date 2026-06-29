@@ -764,11 +764,12 @@ local function buildDoor(parent: Instance, model: Model)
 
 	local anim = Instance.new("NumberValue")
 	anim.Parent = doorModel
-	anim.Changed:Connect(function(t)
+	local function applyT(t: number)
 		for _, s in ipairs({ -1, 1 }) do
 			leaves[s].model:PivotTo(leaves[s].hinge * CFrame.Angles(0, s * OPEN_ANGLE * t, 0))
 		end
-	end)
+	end
+	anim.Changed:Connect(applyT)
 
 	-- حاجز اصطدام غير مرئي يملأ الفتحة: صلب عند الإغلاق فقط.
 	-- يفصل الاصطدام عن الأوراق المتحركة فيصير الفتح/الإغلاق حاسماً كل مرة.
@@ -780,12 +781,23 @@ local function buildDoor(parent: Instance, model: Model)
 
 	local isOpen = false
 	local closeTok = 0
+	local activeTween: Tween? = nil
 	local function setDoor(open: boolean)
 		isOpen = open
 		barrier.CanCollide = not open
-		TweenService:Create(anim,
+		local goal = open and 1 or 0
+		-- إلغاء أي حركة جارية حتى لا تتعارض حركتان (فتح/إغلاق متتاليان)
+		if activeTween then activeTween:Cancel() end
+		local tw = TweenService:Create(anim,
 			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-			{ Value = open and 1 or 0 }):Play()
+			{ Value = goal })
+		activeTween = tw
+		-- ضمان وصول الأوراق لوضعها النهائي بدقّة (مغلق=مسطّح، مفتوح=للجانب)
+		-- حتى لو لم تُطلق آخر إشارة Changed → الباب يُقفل بالكامل كل مرة.
+		tw.Completed:Connect(function()
+			if activeTween == tw then applyT(goal) end
+		end)
+		tw:Play()
 	end
 
 	local hub = part({
