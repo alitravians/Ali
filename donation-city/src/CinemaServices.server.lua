@@ -1486,6 +1486,14 @@ local function sendAdminPanel(player)
 		teamSecList  = teamCfg.sections,
 		-- ⌘ صلاحيات أوامر الدردشة (قابلة للتحكم من اللوحة) — من CustomChat
 		cmdPerms = (_G.ChatCmdConfigGet and _G.ChatCmdConfigGet()) or {},
+		-- 🌗 وقت اليوم/الإضاءة: الوضع الحالي + الساعة الفعلية (للأدمن فأعلى)
+		dayNight = (function()
+			if _G.AdminGetDayNight then
+				local phase, hour = _G.AdminGetDayNight()
+				return { phase = phase, hour = hour }
+			end
+			return { phase = "auto", hour = 0 }
+		end)(),
 	})
 end
 
@@ -1751,7 +1759,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 		-- أوامر التحكم بالماب (عرض/إضاءة/موسيقى/بوثات/صيانة/إعلان) للأدمن فأعلى
 		local MAP_CMDS = {
 			play=true, stop=true, skip=true, restart=true,
-			lightsOn=true, lightsOff=true, lightLevel=true, ambient=true, music=true,
+			lightsOn=true, lightsOff=true, lightLevel=true, ambient=true, music=true, dayPhase=true,
 			broadcast=true, boothsEnable=true, boothsDisable=true, boothRelease=true,
 			maintenanceOn=true, maintenanceOff=true, vipGrant=true, vipRevoke=true,
 			ban=true, unban=true, mapBan=true, mapUnban=true,
@@ -1803,6 +1811,22 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				adminNotify(player, "🎨 تغيّر لون الأجواء.")
 			end
 			logAdmin(adminName, "غيّر الأجواء")
+		-- ===== وقت اليوم / الإضاءة (تجاوز الإدارة) =====
+		elseif cmd == "dayPhase" then
+			local PHASE_LABELS = {
+				auto = "تلقائي (توقيت البحرين)", morning = "الصباح",
+				noon = "الظهر", sunset = "المغرب", night = "الليل",
+			}
+			local phase = tostring(payload.phase or "")
+			local label = PHASE_LABELS[phase]
+			if label and _G.AdminSetDayPhase and _G.AdminSetDayPhase(phase) then
+				adminNotify(player, "🌗 وقت اليوم: " .. label)
+				logAdmin(adminName, "ضبط وقت اليوم: " .. label)
+				-- حدّث اللوحة فوراً ليظهر الوضع الجديد مفعّلاً
+				sendAdminPanel(player)
+			else
+				adminNotify(player, "⚠️ تعذّر ضبط وقت اليوم.")
+			end
 		-- ===== موسيقى اللوبي =====
 		elseif cmd == "music" then
 			local on = payload.on == true
