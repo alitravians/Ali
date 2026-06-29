@@ -1520,6 +1520,8 @@ showAnnounce = function(data)
 		}),
 	})
 	announceFrame = frame
+	-- 🕐 أبلِغ الساعة العلوية أن هناك إشعاراً نشطاً فتنزاح لأعلى ولا تغطّيه
+	LocalPlayer:SetAttribute("ClockYield", true)
 	TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{ Position = UDim2.new(0.5, 0, 0, 14) }):Play()
 	task.delay(5, function()
@@ -1530,6 +1532,8 @@ showAnnounce = function(data)
 				{ Position = UDim2.new(0.5, 0, 0, hideY) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
+			-- لم يعد هناك إشعار نشط → ترجع الساعة لمكانها (إن لم يظهر إشعار أحدث)
+			if announceFrame == frame then LocalPlayer:SetAttribute("ClockYield", false) end
 		end
 	end)
 end

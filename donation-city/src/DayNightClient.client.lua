@@ -234,6 +234,23 @@ end
 local TWEEN = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local lastPhase: string? = nil
 
+----------------------------------------------------------------------
+-- 🔔 تنسيق ذكي مع الإشعارات: الإشعارات العلوية تظهر بنفس مكان الساعة.
+-- حين يظهر إشعار علوي (السمة ClockYield=true) تنزاح الساعة لأعلى وتتلاشى
+-- بسلاسة فلا تغطّيه، ثم ترجع لمكانها فور اختفائه. لا تداخل بعد اليوم.
+----------------------------------------------------------------------
+local SHOWN_Y  = UDim2.new(0.5, 0, 0, 12)
+local HIDDEN_Y = UDim2.new(0.5, 0, 0, -100)
+local YIELD_TWEEN = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local function applyClockYield()
+	local hide = player:GetAttribute("ClockYield") == true
+	TweenService:Create(holder, YIELD_TWEEN, {
+		Position = if hide then HIDDEN_Y else SHOWN_Y,
+	}):Play()
+end
+player:GetAttributeChangedSignal("ClockYield"):Connect(applyClockYield)
+applyClockYield()
+
 local accum = 0
 local pulse = 0
 RunService.Heartbeat:Connect(function(dt)

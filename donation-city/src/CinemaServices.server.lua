@@ -206,38 +206,58 @@ local function ticketPriceFor(player: Player): number
 	return _G.IsVIP(player) and CONFIG.VipTicketPrice or CONFIG.TicketPrice
 end
 
--- شارة VIP فوق رأس اللاعب (BillboardGui ذهبية)
+-- شارة VIP فوق رأس اللاعب (BillboardGui ذهبية) — تُبنى لشخصية محددة.
+-- انتظار صبور للرأس (السبَون السينمائي/الطيران قد يؤخّر ظهور الرأس أكثر من 8 ثوانٍ)،
+-- وإعادة تحقّق من الحالة بعد الانتظار كي لا نُنشئ تاجاً لمن سُحبت منه VIP أثناء التأخير.
+local function buildVipCrown(player: Player, char: Model)
+	local s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	if not (char and char.Parent) then return end
+	local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 25)
+	if not head then return end
+	-- إعادة التحقق بعد الانتظار + منع التكرار
+	s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	if head:FindFirstChild("VipTag") then return end
+	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
+	bb.Parent = head
+	-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.fromScale(1, 1)
+	pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
+	pill.Parent = bb
+	Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
+	local ipad = Instance.new("UIPadding")
+	ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
+	ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
+	lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
+	lbl.Text = "⭐ VIP"
+	lbl.Parent = pill
+end
+
+-- بناء التاج على الشخصية الحالية فوراً (تغذية راجعة لحظية عند المنح)
 local function applyVipTag(player: Player)
-	local function tag(char: Model)
-		local s = sessions[player.UserId]
-		if not (s and s.vip) then return end  -- لا تعرض التاج لمن سُحبت منه VIP
-		local head = char:WaitForChild("Head", 8)
-		if not head or head:FindFirstChild("VipTag") then return end
-		local bb = Instance.new("BillboardGui")
-		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
-		bb.Parent = head
-		-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
-		local pill = Instance.new("Frame")
-		pill.Size = UDim2.fromScale(1, 1)
-		pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
-		pill.Parent = bb
-		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
-		local st = Instance.new("UIStroke")
-		st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
-		local ipad = Instance.new("UIPadding")
-		ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
-		ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
-		local lbl = Instance.new("TextLabel")
-		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
-		lbl.Text = "⭐ VIP"
-		lbl.Parent = pill
-	end
-	if player.Character then task.spawn(tag, player.Character) end
-	player.CharacterAdded:Connect(function(char) task.spawn(tag, char) end)
+	if player.Character then task.spawn(buildVipCrown, player, player.Character) end
+end
+
+-- 🔁 إعادة تأكيد كل مزايا VIP على *كل* سبَون (تاج + خاصية VIP + أزرار المزايا).
+-- جذري: حتى لو مات اللاعب أو سوّى ريست أو خرج ورجع، تبقى VIP ظاهرة وفعّالة
+-- ولا تُزال إلا حين يسحبها الأدمن من لوحة الإدارة (revokeVip).
+local reassertVip
+reassertVip = function(player: Player, char: Model)
+	local s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	player:SetAttribute("VIP", true)
+	task.spawn(buildVipCrown, player, char)
+	if sendPerks then task.spawn(sendPerks, player) end
 end
 
 -- منح عضوية VIP (تُستدعى من شراء الكوينز أو امتلاك الـ Game Pass)
@@ -318,6 +338,11 @@ Players.PlayerAdded:Connect(function(player)
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
 	if vip then applyVipTag(player) end
+
+	-- 🔁 ربط دائم: في كل سبَون (موت/ريست/أول دخول) أعد تأكيد VIP إن كان عضواً —
+	-- التاج والمزايا ما تختفي إلا حين يسحب الأدمن العضوية. حماية جذرية كاملة.
+	player.CharacterAdded:Connect(function(char) reassertVip(player, char) end)
+	if player.Character then task.spawn(reassertVip, player, player.Character) end
 
 	-- من يملك الـ Game Pass يحصل على VIP تلقائياً (دخل حقيقي بالـ Robux)
 	if CONFIG.VipGamePassId ~= 0 then

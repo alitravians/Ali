@@ -463,6 +463,205 @@ for i = 1, 6 do
 end
 
 ----------------------------------------------------------------------
+-- 🎮 ركن الألعاب — جناح مفتوح يحتضن طاولات إكس-أو الثلاث (x=0/26/52, z=70)
+--   أعمدة رخامية كريمية بأطواق ذهبية + سقف مسطّح (أسفله كحلي/أعلاه إطار ذهبي)
+--   + أرضية مرمرية بإطار نيون وردي + لافتة نيون «🎮 ركن الألعاب».
+--   مفتوح الجوانب تماماً (لا جدران) فلا يعيق الحركة على الجوال/الكمبيوتر.
+----------------------------------------------------------------------
+do
+	local hall = Instance.new("Model")
+	hall.Name = "GamesHall"
+	hall.Parent = city
+
+	local GC   = Vector3.new(26, 0, 70)        -- مركز الجناح على الأرض (وسط الطاولات الثلاث)
+	local PW   = 84                              -- عرض الجناح (محور X)
+	local PD   = 30                              -- عمق الجناح (محور Z)
+	local PH   = 17                              -- ارتفاع الأعمدة / أسفل السقف
+	local CREAM = Color3.fromRGB(245, 236, 215)
+	local GOLD  = Color3.fromRGB(214, 175, 92)
+	local GOLD_HI = Color3.fromRGB(245, 218, 150)
+	local NAVY  = Color3.fromRGB(26, 32, 58)
+	local PINK  = Color3.fromRGB(255, 170, 205)
+
+	-- أرضية مرمرية مرتفعة قليلاً تحت الطاولات
+	newPart({
+		Name = "GamesFloor",
+		Size = Vector3.new(PW, 0.6, PD),
+		Position = GC + Vector3.new(0, 0.4, 0),
+		Color = Color3.fromRGB(236, 228, 214),
+		Material = Enum.Material.Marble,
+		Parent = hall,
+	})
+	-- إطار نيون وردي حول الأرضية (أربعة أضلاع رفيعة)
+	for _, e in ipairs({
+		{ Vector3.new(0, 0, PD / 2), Vector3.new(PW, 0.5, 0.8) },
+		{ Vector3.new(0, 0, -PD / 2), Vector3.new(PW, 0.5, 0.8) },
+		{ Vector3.new(PW / 2, 0, 0), Vector3.new(0.8, 0.5, PD) },
+		{ Vector3.new(-PW / 2, 0, 0), Vector3.new(0.8, 0.5, PD) },
+	}) do
+		newPart({
+			Name = "FloorTrim", Size = e[2],
+			Position = GC + Vector3.new(0, 0.7, 0) + e[1],
+			Color = PINK, Material = Enum.Material.Neon, Parent = hall,
+		})
+	end
+
+	-- عمود واحد: جذع رخامي كريمي + قاعدة وتاج ذهبيان
+	local function buildColumn(x: number, z: number)
+		newPart({
+			Name = "Column", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(PH, 1.7, 1.7),
+			CFrame = CFrame.new(x, PH / 2 + 0.6, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = CREAM, Material = Enum.Material.Marble, Parent = hall,
+		})
+		for _, c in ipairs({
+			{ 0.9, 2.4 },              -- القاعدة
+			{ PH + 0.1, 2.4 },         -- التاج
+		}) do
+			newPart({
+				Name = "ColumnTrim", Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.8, c[2], c[2]),
+				CFrame = CFrame.new(x, c[1], z) * CFrame.Angles(0, 0, math.rad(90)),
+				Color = GOLD, Material = Enum.Material.Metal, Parent = hall,
+			})
+		end
+	end
+	-- أعمدة على الضلعين الجانبيين فقط (يسار/يمين) → الواجهة الأمامية مفتوحة تماماً
+	for _, x in ipairs({ GC.X - PW / 2 + 2, GC.X + PW / 2 - 2 }) do
+		for _, dz in ipairs({ -PD / 2 + 2, 0, PD / 2 - 2 }) do
+			buildColumn(x, GC.Z + dz)
+		end
+	end
+
+	-- السقف المسطّح (أسفله كحلي)
+	newPart({
+		Name = "Roof",
+		Size = Vector3.new(PW + 4, 1.4, PD + 4),
+		Position = GC + Vector3.new(0, PH + 1.4, 0),
+		Color = NAVY, Material = Enum.Material.Slate, Parent = hall,
+	})
+	-- إطار ذهبي رفيع أعلى حافة السقف
+	newPart({
+		Name = "RoofTrim",
+		Size = Vector3.new(PW + 6, 0.5, PD + 6),
+		Position = GC + Vector3.new(0, PH + 2.2, 0),
+		Color = GOLD, Material = Enum.Material.Metal, Parent = hall,
+	})
+
+	-- لافتة نيون أمامية «🎮 ركن الألعاب» (تواجه القادمين من السبون z<57)
+	local FRONT_Z = GC.Z - PD / 2 - 0.4
+	local sign = newPart({
+		Name = "Banner",
+		Size = Vector3.new(30, 5, 0.6),
+		Position = Vector3.new(GC.X, PH - 2.5, FRONT_Z),
+		Color = Color3.fromRGB(18, 22, 36), Material = Enum.Material.SmoothPlastic, Parent = hall,
+	})
+	-- إطار ذهبي حول اللافتة
+	for _, e in ipairs({
+		{ Vector3.new(0, 2.7, 0), Vector3.new(31, 0.5, 0.7) },
+		{ Vector3.new(0, -2.7, 0), Vector3.new(31, 0.5, 0.7) },
+		{ Vector3.new(15.2, 0, 0), Vector3.new(0.5, 5.6, 0.7) },
+		{ Vector3.new(-15.2, 0, 0), Vector3.new(0.5, 5.6, 0.7) },
+	}) do
+		newPart({
+			Name = "BannerFrame", Size = e[2],
+			Position = sign.Position + e[1],
+			Color = GOLD_HI, Material = Enum.Material.Neon, Parent = hall,
+		})
+	end
+	local sgui = Instance.new("SurfaceGui")
+	sgui.Name = "BannerFace"
+	sgui.AutoLocalize = false
+	sgui.Face = Enum.NormalId.Back   -- الوجه المتجه نحو -Z (جهة السبون)
+	sgui.CanvasSize = Vector2.new(1024, 180)
+	sgui.LightInfluence = 0
+	sgui.Adornee = sign
+	sgui.Parent = sign
+	local bl = Instance.new("TextLabel")
+	bl.BackgroundTransparency = 1
+	bl.Size = UDim2.new(1, -40, 1, -20)
+	bl.Position = UDim2.new(0, 20, 0, 10)
+	bl.Font = Enum.Font.GothamBlack
+	bl.Text = "🎮 ركن الألعاب"
+	bl.RichText = true
+	bl.TextScaled = true
+	bl.TextColor3 = GOLD_HI
+	bl.Parent = sgui
+	local bgrad = Instance.new("UIGradient")
+	bgrad.Color = ColorSequence.new(GOLD_HI, GOLD)
+	bgrad.Rotation = 8
+	bgrad.Parent = bl
+	local bstroke = Instance.new("UIStroke")
+	bstroke.Color = Color3.fromRGB(80, 55, 0)
+	bstroke.Thickness = 2
+	bstroke.Parent = bl
+
+	------------------------------------------------------------------
+	-- 🪑 تفريش وتأثيث الركن (متناسق مع ثيم الكريمي/الذهبي/الكحلي/الوردي)
+	--   سجادة دائرية تحت كل طاولة + فانوس ذهبي معلّق فوقها + أحواض
+	--   نباتات عند أقدام الأعمدة + إكليل نباتي على حافة السقف.
+	------------------------------------------------------------------
+	local TABLE_XS = { 0, 26, 52 }
+
+	-- سجادة دائرية أنيقة تحت كل طاولة (قرص رخامي + حلقة نيون وردية)
+	for _, tx in ipairs(TABLE_XS) do
+		newPart({
+			Name = "Rug", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.3, 13, 13),
+			CFrame = CFrame.new(tx, 0.85, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(60, 70, 120), Material = Enum.Material.Fabric, Parent = hall,
+		})
+		newPart({
+			Name = "RugRing", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.32, 9.5, 9.5),
+			CFrame = CFrame.new(tx, 0.86, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = PINK, Material = Enum.Material.Neon, Parent = hall,
+		})
+		-- فانوس ذهبي معلّق من السقف فوق الطاولة
+		newPart({
+			Name = "LanternRod", Size = Vector3.new(0.3, 3, 0.3),
+			Position = Vector3.new(tx, PH - 1.2, GC.Z),
+			Color = GOLD, Material = Enum.Material.Metal, Parent = hall,
+		})
+		newPart({
+			Name = "Lantern", Shape = Enum.PartType.Ball,
+			Size = Vector3.new(2.2, 2.2, 2.2),
+			Position = Vector3.new(tx, PH - 3.2, GC.Z),
+			Color = Color3.fromRGB(255, 224, 150), Material = Enum.Material.Neon, Parent = hall,
+		})
+		newPart({
+			Name = "LanternCap", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.5, 1.4, 1.4),
+			CFrame = CFrame.new(tx, PH - 2.1, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = GOLD, Material = Enum.Material.Metal, Parent = hall,
+		})
+	end
+
+	-- أحواض نباتات أنيقة عند أقدام الأعمدة الجانبية
+	for _, x in ipairs({ GC.X - PW / 2 + 2, GC.X + PW / 2 - 2 }) do
+		for _, dz in ipairs({ -PD / 2 + 2, 0, PD / 2 - 2 }) do
+			local pz = GC.Z + dz
+			newPart({
+				Name = "Planter", Size = Vector3.new(2.6, 1.8, 2.6),
+				Position = Vector3.new(x, 1.6, pz),
+				Color = CREAM, Material = Enum.Material.Marble, Parent = hall,
+			})
+			newPart({
+				Name = "PlanterRim", Size = Vector3.new(2.9, 0.4, 2.9),
+				Position = Vector3.new(x, 2.5, pz),
+				Color = GOLD, Material = Enum.Material.Metal, Parent = hall,
+			})
+			newPart({
+				Name = "Bush", Shape = Enum.PartType.Ball,
+				Size = Vector3.new(2.8, 2.4, 2.8),
+				Position = Vector3.new(x, 3.7, pz),
+				Color = Color3.fromRGB(86, 170, 96), Material = Enum.Material.Grass, Parent = hall,
+			})
+		end
+	end
+end
+
+----------------------------------------------------------------------
 -- مبنى السينما
 ----------------------------------------------------------------------
 local cinema = Instance.new("Model")
