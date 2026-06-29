@@ -568,7 +568,6 @@ local HALL_ASSET_ID = 85565802606403         -- أصل المبنى (مُعتم�
 local HALL_CENTER = Vector3.new(0, 0, 110)   -- مركز أفقي + قاع الأرضية على y=0
 local HALL_YAW = math.rad(0)                  -- المدخل يواجه -Z (نحو السبون)
 local LEAF_H = 10.6
-local OPEN_ANGLE = math.rad(95)
 
 -- ألوان القطع (RGB) — تُطبّق بالاسم لإعادة صبغ المبنى المُجرَّد
 local C = {
@@ -705,9 +704,8 @@ local function buildDoor(parent: Instance, model: Model)
 	doorModel.Name = "EntranceDoor"
 	doorModel.Parent = parent
 
-	local leaves: { [number]: { model: Model, hinge: CFrame } } = {}
+	local leaves: { [number]: { model: Model, closed: CFrame, open: CFrame } } = {}
 	for _, s in ipairs({ -1, 1 }) do
-		local hingeX = if s < 0 then pL.X else pR.X
 		local glassX = cx + s * (leafW / 2)
 		local leaf = Instance.new("Model")
 		leaf.Name = "Leaf" .. (if s < 0 then "L" else "R")
@@ -757,16 +755,21 @@ local function buildDoor(parent: Instance, model: Model)
 			CanCollide = false, Size = Vector3.new(0.22, 2.4, 0.45),
 			CFrame = CFrame.new(cx - s * 0.55, dh, dz - 0.45),
 		})
-		local hinge = CFrame.new(hingeX, dh, dz)
-		leaf.WorldPivot = hinge
-		leaves[s] = { model = leaf, hinge = hinge }
+		-- باب منزلق: لكل ورقة وضعان مطلقان (مغلق=بالوسط، مفتوح=منزلق داخل الجدار).
+		-- استبدلنا الدوران بالانزلاق لأن الدوران كان يترك الورقة عالقة على الجانب
+		-- (كأنها فاصل) إن انقطعت الحركة؛ الانزلاق دائماً يرجع للوضع المسطّح تماماً.
+		local closedCF = CFrame.new(glassX, dh, dz)
+		local openCF = CFrame.new(glassX + s * (leafW + 0.6), dh, dz)
+		leaf.WorldPivot = closedCF
+		leaf:PivotTo(closedCF)
+		leaves[s] = { model = leaf, closed = closedCF, open = openCF }
 	end
 
 	local anim = Instance.new("NumberValue")
 	anim.Parent = doorModel
 	local function applyT(t: number)
 		for _, s in ipairs({ -1, 1 }) do
-			leaves[s].model:PivotTo(leaves[s].hinge * CFrame.Angles(0, s * OPEN_ANGLE * t, 0))
+			leaves[s].model:PivotTo(leaves[s].closed:Lerp(leaves[s].open, t))
 		end
 	end
 	anim.Changed:Connect(applyT)
@@ -819,7 +822,7 @@ local function buildDoor(parent: Instance, model: Model)
 		if isOpen then
 			closeTok += 1
 			local mine = closeTok
-			task.delay(8, function()
+			task.delay(10, function()
 				if mine == closeTok and isOpen then setDoor(false) end
 			end)
 		end
