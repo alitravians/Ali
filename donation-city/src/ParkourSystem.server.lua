@@ -854,11 +854,11 @@ entryPad.TopSurface = Enum.SurfaceType.Smooth; entryPad.Parent = gate
 
 -- حافة ذهبية متوهّجة حول القرص العلوي (قرص نيون أكبر بقليل يطلّ كحلقة)
 local padRim = mkCyl("PadRim", 0.3, 11.0, padTopY - 0.12, ENTRY_POS.X, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate, false)
-padRim.CanTouch = false
+padRim.CanTouch = false; padRim.Transparency = 0.25
 
 -- قرص «ابدأ» أخضر بالمركز + نص على الوجه العلوي
 local goDisc = mkCyl("GoDisc", 0.22, 4.8, padTopY + 0.07, ENTRY_POS.X, ENTRY_POS.Z, GREENZ, Enum.Material.Neon, gate, false)
-goDisc.CanTouch = false; goDisc.Transparency = 0.1
+goDisc.CanTouch = false; goDisc.Transparency = 0.3
 do
 	local goText = mk("GoText", V(4.2, 0.12, 4.2), CFrame.new(ENTRY_POS.X, padTopY + 0.2, ENTRY_POS.Z), GREENZ, Enum.Material.Neon, gate, false)
 	goText.Transparency = 1; goText.CanTouch = false
@@ -885,8 +885,12 @@ end
 -- أذرع ضوء ذهبية دوّارة (٣) فوق القرص — تدور عند الاقتراب فقط
 local gateBars = {}
 for i = 1, 3 do
-	local bar = mk("GateSweep", V(9.0, 0.18, 0.5), CFrame.new(ENTRY_POS + V(0, 0.55, 0)), GOLDLIT, Enum.Material.Neon, gate, false)
-	bar.CanTouch = false; bar.Transparency = 0.1
+	-- توزيع الأذرع ١٢٠° منذ الإنشاء + إزاحة رأسية طفيفة لكل ذراع، حتى لا
+	-- تتطابق وتتداخل (z-fighting) أثناء الخمول فتومض كأنها خلل.
+	local bar = mk("GateSweep", V(9.0, 0.18, 0.5),
+		CFrame.new(ENTRY_POS + V(0, 0.55 + (i - 1) * 0.06, 0)) * CFrame.Angles(0, (i - 1) * (math.pi * 2 / 3), 0),
+		GOLDLIT, Enum.Material.Neon, gate, false)
+	bar.CanTouch = false; bar.Transparency = 0.35
 	gateBars[i] = bar
 end
 
@@ -1185,7 +1189,7 @@ task.spawn(function()
 			local dt = RunService.Heartbeat:Wait()
 			theta = (theta + 1.7 * dt) % (math.pi * 2)
 			for i, bar in ipairs(gateBars) do
-				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.55, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
+				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.55 + (i - 1) * 0.06, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
 			end
 		else
 			task.wait(0.5)
