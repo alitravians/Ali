@@ -558,29 +558,90 @@ end
 
 ----------------------------------------------------------------------
 -- 🎮 ركن الألعاب — مبنى 3D حقيقي (FBX عبر Open Cloud) مغلق متكامل.
---   يُحمَّل وقت التشغيل عبر InsertService:LoadAsset ثم يُركّب في زاوية
---   مخصّصة شمال المدينة (بعيداً عن السبون). باب مزدوج يفتح بالضغط على E.
+--   رفع الـ3D جرّد الخامات → كل القطع تصل رمادية، فنعيد صبغها بالاسم.
+--   المدخل (الباب + اللافتة) يواجه الجنوب نحو السبون. باب يفتح بـE.
 ----------------------------------------------------------------------
 local InsertService = game:GetService("InsertService")
 local TweenService = game:GetService("TweenService")
 
-local HALL_ASSET_ID = 85565802606403       -- أصل المبنى (مُعتمَد/Approved)
-local HALL_CENTER = Vector3.new(0, 0, 110) -- مركز أفقي + قاع الأرضية على y=0
-local HALL_YAW = math.rad(180)             -- الباب يواجه -Z (نحو المدينة/السبون)
-local BBOX_CZ = 0.25                        -- إزاحة مركز صندوق المبنى عن أصله (عمق)
-local DOOR_DEPTH = 19.0                     -- مستوى الباب عن مركز المبنى (محور العمق)
-local DOOR_H = 6.0                          -- ارتفاع مركز الباب فوق الأرضية
-local DOOR_W = 11.0
-local LEAF_W = DOOR_W / 2 - 0.15
+local HALL_ASSET_ID = 85565802606403         -- أصل المبنى (مُعتمَد/Approved)
+local HALL_CENTER = Vector3.new(0, 0, 110)   -- مركز أفقي + قاع الأرضية على y=0
+local HALL_YAW = math.rad(0)                  -- المدخل يواجه -Z (نحو السبون)
 local LEAF_H = 10.6
-local OPEN_ANGLE = math.rad(100)
+local OPEN_ANGLE = math.rad(95)
 
--- إحداثي داخل إطار المبنى: bx=العرض، h=الارتفاع فوق الأرضية، bz=العمق (الباب=+19)
-local function bcf(targetCF: CFrame, halfY: number, bx: number, h: number, bz: number): CFrame
-	return targetCF * CFrame.new(bx, h - halfY, bz - BBOX_CZ)
+-- ألوان القطع (RGB) — تُطبّق بالاسم لإعادة صبغ المبنى المُجرَّد
+local C = {
+	CREAM = { 237, 227, 204 }, NAVY = { 23, 31, 66 }, GOLD = { 217, 171, 69 },
+	GOLDE = { 245, 205, 110 }, MARBLE = { 237, 232, 222 }, PINK = { 255, 158, 199 },
+	GLASS = { 153, 199, 224 }, WOOD = { 84, 54, 31 }, REDS = { 158, 52, 52 },
+	GREEN = { 64, 140, 72 },
+}
+local function rgb(t: { number }): Color3
+	return Color3.fromRGB(t[1], t[2], t[3])
 end
 
-local function loadHall(parent: Instance): (CFrame?, number?)
+-- صبغ قطعة واحدة حسب اسمها (مطابقة بالبادئة)
+local function paintPart(p: BasePart)
+	local n = p.Name
+	local function is(pre: string): boolean
+		return string.sub(n, 1, #pre) == pre
+	end
+	if n == "SignTex" or n == "LBtex" or n == "CLKtex" then
+		p.Transparency = 1 -- خامة النص المفقودة → تُستبدَل بـSurfaceGui
+		return
+	end
+	local col, mat, tr = C.GOLD, Enum.Material.Metal, 0
+	if n == "Floor" or n == "Step" then
+		col, mat = C.MARBLE, Enum.Material.Marble
+	elseif n == "RoofSlab" or n == "RoofPyr" then
+		col, mat = C.NAVY, Enum.Material.Slate
+	elseif n == "Ceiling" or n == "Lintel" or is("Wall") or is("Rugi") or is("ArtOi") then
+		col, mat = C.CREAM, Enum.Material.SmoothPlastic
+	elseif n == "Carpet" or is("Rug") then
+		col, mat = C.REDS, Enum.Material.Fabric
+	elseif is("Bench") then
+		col, mat = C.WOOD, Enum.Material.WoodPlanks
+	elseif is("Bush") then
+		col, mat = C.GREEN, Enum.Material.Grass
+	elseif is("WE") or is("WN") then
+		col, mat, tr = C.GLASS, Enum.Material.Glass, 0.45
+	elseif is("Tr") or is("Sk") or n == "SignNeon" then
+		col, mat = C.PINK, Enum.Material.Neon
+	elseif is("Lan") or is("ChBulb") or n == "ChDisc" then
+		col, mat = C.GOLDE, Enum.Material.Neon
+	end
+	p.Color = rgb(col)
+	p.Material = mat
+	p.Transparency = tr
+end
+
+-- لوحة نصّية على واجهة قطعة (بديل خامة النص التي جُرِّدت)
+local function signGui(adornee: BasePart, text: string, ratio: number)
+	local g = Instance.new("SurfaceGui")
+	g.Name = "Face"
+	g.Face = Enum.NormalId.Front
+	g.AutoLocalize = false
+	g.LightInfluence = 0
+	g.CanvasSize = Vector2.new(1024, math.floor(1024 * ratio))
+	g.Adornee = adornee
+	g.Parent = adornee
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.GothamBlack
+	l.Text = text
+	l.RichText = true
+	l.TextScaled = true
+	l.TextColor3 = GOLD_HI
+	l.Parent = g
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(70, 48, 0)
+	st.Thickness = 3
+	st.Parent = l
+end
+
+local function loadHall(parent: Instance): Model?
 	local ok, model
 	for attempt = 1, 5 do
 		ok, model = pcall(function()
@@ -592,85 +653,91 @@ local function loadHall(parent: Instance): (CFrame?, number?)
 	end
 	if not (ok and model) then
 		warn("[GamesHall] تعذّر تحميل أصل المبنى — الطاولات فقط")
-		return nil, nil
+		return nil
 	end
 	model.Name = "GamesHall"
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BasePart") then
 			d.Anchored = true
 			d.CanCollide = true
+			paintPart(d)
 		end
 	end
-	model.Parent = parent
+	local sb = model:FindFirstChild("SignBack", true)
+	if sb and sb:IsA("BasePart") then signGui(sb, "🎮 ركن الألعاب", 0.24) end
+	local lb = model:FindFirstChild("LBframe", true)
+	if lb and lb:IsA("BasePart") then signGui(lb, "🏆 المتصدّرون", 1.25) end
+	-- وضع المبنى في مكانه قبل الإظهار (نتفادى وميض إطار واحد)
 	local cf, size = model:GetBoundingBox()
 	local halfY = size.Y / 2
 	local targetCF = CFrame.new(HALL_CENTER.X, HALL_CENTER.Y + halfY, HALL_CENTER.Z)
 		* CFrame.Angles(0, HALL_YAW, 0)
 	model.WorldPivot = cf
 	model:PivotTo(targetCF)
-	return targetCF, halfY
+	model.Parent = parent
+	return model
 end
 
--- باب مزدوج زجاجي بإطار ذهبي، مقفول افتراضياً، يفتح بـE بحركة ناعمة، ويُغلق تلقائياً.
-local function buildDoor(parent: Instance, targetCF: CFrame, halfY: number)
+-- باب مزدوج زجاجي بإطار ذهبي يملأ فتحة المبنى، يفتح بـE للداخل ويُغلق تلقائياً.
+local function buildDoor(parent: Instance, model: Model)
+	local fL = model:FindFirstChild("DFL", true)
+	local fR = model:FindFirstChild("DFR", true)
+	if not (fL and fR and fL:IsA("BasePart") and fR:IsA("BasePart")) then return end
+	local pL, pR = fL.Position, fR.Position
+	local cx = (pL.X + pR.X) / 2
+	local dz = pL.Z
+	local dh = pL.Y
+	local leafW = math.abs(pR.X - pL.X) / 2 - 0.15
+
 	local doorModel = Instance.new("Model")
 	doorModel.Name = "EntranceDoor"
 	doorModel.Parent = parent
 
 	local leaves: { [number]: { model: Model, hinge: CFrame } } = {}
 	for _, s in ipairs({ -1, 1 }) do
-		local cx = s * (LEAF_W / 2 + 0.05)
+		local hingeX = if s < 0 then pL.X else pR.X
+		local glassX = cx + s * (leafW / 2)
 		local leaf = Instance.new("Model")
 		leaf.Name = "Leaf" .. (if s < 0 then "L" else "R")
 		leaf.Parent = doorModel
-
 		local glass = part({
 			Name = "Glass", Parent = leaf, Color = Color3.fromRGB(150, 200, 225),
-			Material = Enum.Material.Glass, Transparency = 0.45, CanCollide = true,
-			Size = Vector3.new(LEAF_W - 1.1, LEAF_H - 1.1, 0.18),
-			CFrame = bcf(targetCF, halfY, cx, DOOR_H, DOOR_DEPTH),
+			Material = Enum.Material.Glass, Transparency = 0.4, CanCollide = true,
+			Size = Vector3.new(leafW, LEAF_H, 0.18), CFrame = CFrame.new(glassX, dh, dz),
 		})
 		leaf.PrimaryPart = glass
-		-- إطار ذهبي حول المصراع
-		local frame = {
-			{ Vector3.new(s * (LEAF_W / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.4) },
-			{ Vector3.new(-s * (LEAF_W / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.4) },
-			{ Vector3.new(0, LEAF_H / 2 - 0.35, 0), Vector3.new(LEAF_W, 0.7, 0.4) },
-			{ Vector3.new(0, -LEAF_H / 2 + 0.35, 0), Vector3.new(LEAF_W, 0.7, 0.4) },
-			{ Vector3.new(0, 0.3, 0), Vector3.new(LEAF_W, 0.5, 0.4) },
-		}
-		for _, f in ipairs(frame) do
+		for _, f in ipairs({
+			{ Vector3.new(s * (leafW / 2 - 0.3), 0, 0), Vector3.new(0.6, LEAF_H, 0.4) },
+			{ Vector3.new(-s * (leafW / 2 - 0.3), 0, 0), Vector3.new(0.6, LEAF_H, 0.4) },
+			{ Vector3.new(0, LEAF_H / 2 - 0.3, 0), Vector3.new(leafW, 0.6, 0.4) },
+			{ Vector3.new(0, -LEAF_H / 2 + 0.3, 0), Vector3.new(leafW, 0.6, 0.4) },
+		}) do
 			part({
-				Name = "Bar", Parent = leaf, Color = GOLD, Material = Enum.Material.Metal,
+				Name = "Bar", Parent = leaf, Color = rgb(C.GOLD), Material = Enum.Material.Metal,
 				CanCollide = false, Size = f[2],
-				CFrame = bcf(targetCF, halfY, cx + f[1].X, DOOR_H + f[1].Y, DOOR_DEPTH),
+				CFrame = CFrame.new(glassX + f[1].X, dh + f[1].Y, dz),
 			})
 		end
-		-- مقبض عمودي قرب فتحة المنتصف
 		part({
 			Name = "Handle", Parent = leaf, Color = GOLD_HI, Material = Enum.Material.Metal,
 			CanCollide = false, Size = Vector3.new(0.18, 2.2, 0.3),
-			CFrame = bcf(targetCF, halfY, -s * 0.5, DOOR_H, DOOR_DEPTH + 0.45),
+			CFrame = CFrame.new(cx - s * 0.5, dh, dz - 0.4),
 		})
-
-		local hinge = bcf(targetCF, halfY, s * 5.35, DOOR_H, DOOR_DEPTH)
+		local hinge = CFrame.new(hingeX, dh, dz)
 		leaf.WorldPivot = hinge
 		leaves[s] = { model = leaf, hinge = hinge }
 	end
 
-	-- حركة الفتح/الإغلاق عبر قيمة مُحرّكة بـTween
 	local anim = Instance.new("NumberValue")
-	anim.Value = 0
 	anim.Parent = doorModel
 	anim.Changed:Connect(function(t)
 		for _, s in ipairs({ -1, 1 }) do
-			local lf = leaves[s]
-			lf.model:PivotTo(lf.hinge * CFrame.Angles(0, -s * OPEN_ANGLE * t, 0))
+			leaves[s].model:PivotTo(leaves[s].hinge * CFrame.Angles(0, s * OPEN_ANGLE * t, 0))
 		end
 	end)
 
 	local isOpen = false
-	local closeToken = 0
+	local closeTok = 0
 	local function setDoor(open: boolean)
 		isOpen = open
 		TweenService:Create(anim,
@@ -678,11 +745,10 @@ local function buildDoor(parent: Instance, targetCF: CFrame, halfY: number)
 			{ Value = open and 1 or 0 }):Play()
 	end
 
-	-- نقطة تفاعل غير مرئية بمنتصف الباب
 	local hub = part({
 		Name = "DoorPrompt", Parent = doorModel, Transparency = 1, CanCollide = false,
-		Size = Vector3.new(DOOR_W, LEAF_H, 1),
-		CFrame = bcf(targetCF, halfY, 0, DOOR_H, DOOR_DEPTH),
+		Size = Vector3.new(math.abs(pR.X - pL.X), LEAF_H, 1),
+		CFrame = CFrame.new(cx, dh, dz),
 	})
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "DoorPrompt"
@@ -690,16 +756,16 @@ local function buildDoor(parent: Instance, targetCF: CFrame, halfY: number)
 	prompt.ObjectText = "🎮 ركن الألعاب"
 	prompt.KeyboardKeyCode = Enum.KeyCode.E
 	prompt.HoldDuration = 0
-	prompt.MaxActivationDistance = 11
+	prompt.MaxActivationDistance = 12
 	prompt.RequiresLineOfSight = false
 	prompt.Parent = hub
 	prompt.Triggered:Connect(function()
 		setDoor(not isOpen)
 		if isOpen then
-			closeToken += 1
-			local mine = closeToken
+			closeTok += 1
+			local mine = closeTok
 			task.delay(8, function()
-				if mine == closeToken and isOpen then setDoor(false) end
+				if mine == closeTok and isOpen then setDoor(false) end
 			end)
 		end
 	end)
@@ -712,9 +778,9 @@ local root = Instance.new("Folder")
 root.Name = "TicTacToeArea"
 root.Parent = Workspace
 
-local hallCF, hallHalfY = loadHall(root)
-if hallCF and hallHalfY then
-	buildDoor(root, hallCF, hallHalfY)
+local hall = loadHall(root)
+if hall then
+	buildDoor(root, hall)
 end
 
 for _, origin in ipairs(TABLES) do
