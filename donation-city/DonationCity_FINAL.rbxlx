@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٦٦",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٦٧",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٦٧", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح توهّج المربّعات في الشطرنج: كان توهّج المربّع المحدَّد يبقى عالقاً بعد كل اختيار فتتراكم بقع صفراء على اللوح؛ الحين يُمسَح بالكامل بعد كل نقلة." },
+			},
+		},
 		{
 			version = "٢.٩.٦٦", date = "٢٩ يونيو",
 			items = {
@@ -21406,8 +21412,10 @@ local function clearHints(g: Game)
 	end
 	g.hintParts = {}
 	g.hintTargets = {}
-	if g.selected then
-		local glow = g.cells[g.selected]:FindFirstChild("CellGlow")
+	-- نطفئ توهّج كل المربّعات (لا نعتمد على g.selected لأنه قد يكون صُفّر قبل النداء)
+	for i = 1, 64 do
+		local cell = g.cells[i]
+		local glow = cell and cell:FindFirstChild("CellGlow")
 		if glow and glow:IsA("BasePart") then glow.Transparency = 1 end
 	end
 end

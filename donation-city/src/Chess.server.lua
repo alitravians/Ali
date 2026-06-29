@@ -573,8 +573,10 @@ local function clearHints(g: Game)
 	end
 	g.hintParts = {}
 	g.hintTargets = {}
-	if g.selected then
-		local glow = g.cells[g.selected]:FindFirstChild("CellGlow")
+	-- نطفئ توهّج كل المربّعات (لا نعتمد على g.selected لأنه قد يكون صُفّر قبل النداء)
+	for i = 1, 64 do
+		local cell = g.cells[i]
+		local glow = cell and cell:FindFirstChild("CellGlow")
 		if glow and glow:IsA("BasePart") then glow.Transparency = 1 end
 	end
 end
