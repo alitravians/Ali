@@ -14,6 +14,8 @@
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 ----------------------------------------------------------------------
 -- الألوان والثوابت
@@ -28,6 +30,10 @@ local X_COL      = Color3.fromRGB(232, 86, 86)    -- أحمر
 local O_COL      = Color3.fromRGB(86, 150, 240)   -- أزرق
 local SEAT_X_COL = Color3.fromRGB(120, 40, 40)
 local SEAT_O_COL = Color3.fromRGB(36, 60, 110)
+
+-- مؤثّرات صوتية (أصول موجودة فعلاً في اللعبة — أصوات قائمة الزجاج)
+local SND_PLACE = "rbxassetid://9125402735"  -- نقرة عند وضع رمز
+local SND_WIN   = "rbxassetid://9114066858"  -- نغمة فوز
 
 local CELL      = 1.7        -- مسافة بين مراكز المربّعات
 local TABLE_TOP_Y = 3.0      -- ارتفاع سطح الطاولة فوق الأرضية
@@ -65,18 +71,56 @@ local function part(props): BasePart
 end
 
 ----------------------------------------------------------------------
+-- مؤثّرات: صوت ثلاثي الأبعاد + أنيميشن انبثاق ناعم للرمز
+----------------------------------------------------------------------
+local function playSound(adornee: BasePart, id: string, volume: number, speed: number)
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.Volume = volume
+	s.PlaybackSpeed = speed
+	s.RollOffMaxDistance = 60
+	s.Parent = adornee
+	s:Play()
+	Debris:AddItem(s, 5)
+end
+
+-- انبثاق ناعم: يكبر الرمز من نقطته المركزية إلى حجمه الكامل بحركة Back لطيفة
+local function popIn(model: Model, center: Vector3)
+	local info = TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			local fullSize, fullCF = p.Size, p.CFrame
+			local rot = fullCF - fullCF.Position
+			local offset = fullCF.Position - center
+			p.Size = fullSize * 0.06
+			p.CFrame = CFrame.new(center + offset * 0.06) * rot
+			TweenService:Create(p, info, { Size = fullSize, CFrame = fullCF }):Play()
+		end
+	end
+end
+
+----------------------------------------------------------------------
 -- رموز اللعب المجسّمة (X / O) فوق مربّع
 ----------------------------------------------------------------------
 local function buildX(center: CFrame, parent: Instance): Model
 	local m = Instance.new("Model")
 	m.Name = "Mark_X"
 	m.Parent = parent
+	local base = center * CFrame.new(0, 0.75, 0)
 	for _, rot in ipairs({ 45, -45 }) do
+		local arm = base * CFrame.Angles(0, 0, math.rad(rot))
 		part({
 			Name = "Bar", Parent = m, Color = X_COL, Material = Enum.Material.Neon,
-			Size = Vector3.new(0.34, 1.5, 0.34), CanCollide = false,
-			CFrame = center * CFrame.new(0, 0.75, 0) * CFrame.Angles(0, 0, math.rad(rot)),
+			Size = Vector3.new(0.32, 1.5, 0.32), CanCollide = false, CFrame = arm,
 		})
+		-- كرتان على الطرفين تعطيان أطرافاً مدوّرة ناعمة بدل الزوايا الحادّة
+		for _, t in ipairs({ 0.75, -0.75 }) do
+			part({
+				Name = "Cap", Parent = m, Color = X_COL, Material = Enum.Material.Neon,
+				Shape = Enum.PartType.Ball, Size = Vector3.new(0.32, 0.32, 0.32),
+				CanCollide = false, CFrame = arm * CFrame.new(0, t, 0),
+			})
+		end
 	end
 	return m
 end
@@ -85,14 +129,16 @@ local function buildO(center: CFrame, parent: Instance): Model
 	local m = Instance.new("Model")
 	m.Name = "Mark_O"
 	m.Parent = parent
-	local seg = 14
-	local r = 0.62
+	-- حلقة ملساء: كرات صغيرة متقاربة متداخلة تعطي حافة ناعمة (بدل المجزّأة كالترس)
+	local seg = 30
+	local r = 0.6
+	local base = center * CFrame.new(0, 0.7, 0)
 	for i = 0, seg - 1 do
 		local a = (i / seg) * math.pi * 2
 		part({
 			Name = "Seg", Parent = m, Color = O_COL, Material = Enum.Material.Neon,
-			Size = Vector3.new(0.30, 0.30, 0.32), CanCollide = false,
-			CFrame = center * CFrame.new(math.cos(a) * r, 0.7, math.sin(a) * r),
+			Shape = Enum.PartType.Ball, Size = Vector3.new(0.34, 0.34, 0.34),
+			CanCollide = false, CFrame = base * CFrame.new(math.cos(a) * r, 0, math.sin(a) * r),
 		})
 	end
 	return m
@@ -183,17 +229,44 @@ local function buildStatusBoard(origin: Vector3, parent: Instance)
 	ts.Transparency = 0.2
 	ts.Parent = title
 
-	-- سطر وصفي صغير
-	local sub = Instance.new("TextLabel")
-	sub.BackgroundTransparency = 1
-	sub.Size = UDim2.new(1, -40, 0.13, 0)
-	sub.Position = UDim2.new(0, 20, 0.40, 0)
-	sub.Font = Enum.Font.GothamMedium
-	sub.TextScaled = true
-	sub.Text = "طاولة المدينة الملكية"
-	sub.TextColor3 = Color3.fromRGB(190, 200, 215)
-	sub.TextTransparency = 0.15
-	sub.Parent = pad
+	-- صف النتيجة: عدّاد فوز X (أحمر) و O (أزرق) — يحدّث بعد كل مباراة
+	local scoreRow = Instance.new("Frame")
+	scoreRow.BackgroundTransparency = 1
+	scoreRow.Size = UDim2.new(1, -40, 0.15, 0)
+	scoreRow.Position = UDim2.new(0, 20, 0.40, 0)
+	scoreRow.Parent = pad
+
+	local function scoreChip(side: number, col: Color3): TextLabel
+		local lbl = Instance.new("TextLabel")
+		lbl.BackgroundTransparency = 1
+		lbl.Size = UDim2.new(0.46, 0, 1, 0)
+		lbl.Position = UDim2.new(side < 0 and 0.04 or 0.5, 0, 0, 0)
+		lbl.Font = Enum.Font.GothamBlack
+		lbl.TextScaled = true
+		lbl.TextXAlignment = side < 0 and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left
+		lbl.TextColor3 = col
+		lbl.Text = (side < 0 and "X  0" or "O  0")
+		lbl.Parent = scoreRow
+		local stk = Instance.new("UIStroke")
+		stk.Thickness = 2
+		stk.Color = Color3.fromRGB(10, 14, 22)
+		stk.Transparency = 0.25
+		stk.Parent = lbl
+		return lbl
+	end
+	local scoreXLabel = scoreChip(-1, X_COL)
+	local scoreOLabel = scoreChip(1, O_COL)
+	-- فاصل ذهبي بين العدّادين
+	local dot = Instance.new("TextLabel")
+	dot.BackgroundTransparency = 1
+	dot.AnchorPoint = Vector2.new(0.5, 0.5)
+	dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+	dot.Size = UDim2.new(0.08, 0, 1, 0)
+	dot.Font = Enum.Font.GothamBlack
+	dot.TextScaled = true
+	dot.Text = "·"
+	dot.TextColor3 = GOLD_HI
+	dot.Parent = scoreRow
 
 	-- شريحة الحالة (خلفية داكنة + إطار + نص)
 	local pill = Instance.new("Frame")
@@ -225,7 +298,7 @@ local function buildStatusBoard(origin: Vector3, parent: Instance)
 	status.TextColor3 = LINE_COL
 	status.Parent = pill
 
-	return status
+	return status, scoreXLabel, scoreOLabel
 end
 
 ----------------------------------------------------------------------
@@ -242,8 +315,14 @@ type Game = {
 	turn: string,          -- "X" | "O"
 	active: boolean,
 	statusLabel: TextLabel,
+	scoreXLabel: TextLabel,
+	scoreOLabel: TextLabel,
+	scoreX: number,
+	scoreO: number,
 	pieceFolder: Folder,
 	lineGlow: { BasePart },
+	winFx: { BasePart },
+	winTweens: { Tween },
 }
 
 local games: { Game } = {}
@@ -277,6 +356,12 @@ local function setStatus(g: Game)
 end
 
 local function clearBoard(g: Game)
+	for _, tw in ipairs(g.winTweens) do pcall(function() tw:Cancel() end) end
+	g.winTweens = {}
+	for _, p in ipairs(g.winFx) do
+		if p and p.Parent then p:Destroy() end
+	end
+	g.winFx = {}
 	for i = 1, 9 do
 		g.board[i] = ""
 		if g.marks[i] then
@@ -311,28 +396,58 @@ local function startMatch(g: Game)
 	setStatus(g)
 end
 
+local function updateScore(g: Game)
+	if g.scoreXLabel then g.scoreXLabel.Text = "X  " .. g.scoreX end
+	if g.scoreOLabel then g.scoreOLabel.Text = "O  " .. g.scoreO end
+end
+
+-- إبراز خط الفوز: شعاع نيون يمتدّ عبر المربّعات الثلاثة + نبض توهّجها
+local function spawnWinFx(g: Game, line: { number }, col: Color3)
+	local pulse = TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+	for _, idx in ipairs(line) do
+		local glow = g.cells[idx]:FindFirstChild("CellGlow") :: BasePart?
+		if glow then
+			glow.Color = col
+			glow.Transparency = 0.1
+			local tw = TweenService:Create(glow, pulse, { Transparency = 0.55 })
+			tw:Play()
+			table.insert(g.winTweens, tw)
+		end
+	end
+	local a = g.cells[line[1]].CFrame.Position
+	local b = g.cells[line[3]].CFrame.Position
+	local fa = Vector3.new(a.X, a.Y + 0.09, a.Z)
+	local fb = Vector3.new(b.X, b.Y + 0.09, b.Z)
+	local len = (fb - fa).Magnitude + (CELL - 0.4)
+	local beam = part({
+		Name = "WinBeam", Parent = g.pieceFolder, Color = col, Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.42, 0.07, len),
+		CFrame = CFrame.lookAt((fa + fb) / 2, fb),
+	})
+	table.insert(g.winFx, beam)
+	local btw = TweenService:Create(beam, pulse, { Transparency = 0.5 })
+	beam.Transparency = 0
+	btw:Play()
+	table.insert(g.winTweens, btw)
+end
+
 local function endMatch(g: Game, result: string, line: { number }?)
 	g.active = false
 	if result == "draw" then
 		g.statusLabel.Text = "🤝 تعادل! اضغط أي مربّع لإعادة اللعب"
 		g.statusLabel.TextColor3 = GOLD
 		tintPill(g.statusLabel, GOLD)
-	else
-		local col = result == "X" and X_COL or O_COL
-		g.statusLabel.Text = (result == "X" and "🔴 فاز الأحمر (X)!" or "🔵 فاز الأزرق (O)!")
-		g.statusLabel.TextColor3 = col
-		tintPill(g.statusLabel, col)
-		if line then
-			for _, idx in ipairs(line) do
-				local cell = g.cells[idx]
-				local glow = cell:FindFirstChild("CellGlow") :: BasePart?
-				if glow then
-					glow.Color = col
-					glow.Transparency = 0.15
-				end
-			end
-		end
+		playSound(g.cells[5], SND_PLACE, 0.4, 0.7)
+		return
 	end
+	local col = result == "X" and X_COL or O_COL
+	g.statusLabel.Text = (result == "X" and "🔴 فاز الأحمر (X)!" or "🔵 فاز الأزرق (O)!")
+	g.statusLabel.TextColor3 = col
+	tintPill(g.statusLabel, col)
+	if result == "X" then g.scoreX += 1 else g.scoreO += 1 end
+	updateScore(g)
+	if line then spawnWinFx(g, line, col) end
+	playSound(g.cells[5], SND_WIN, 0.5, 1)
 end
 
 local function placeMark(g: Game, idx: number, symbol: string)
@@ -340,6 +455,8 @@ local function placeMark(g: Game, idx: number, symbol: string)
 	local cellCF = g.cells[idx].CFrame
 	local mark = symbol == "X" and buildX(cellCF, g.pieceFolder) or buildO(cellCF, g.pieceFolder)
 	g.marks[idx] = mark
+	popIn(mark, (cellCF * CFrame.new(0, 0.73, 0)).Position)
+	playSound(g.cells[idx], SND_PLACE, 0.45, symbol == "X" and 1.0 or 0.9)
 end
 
 local function onCellClicked(g: Game, idx: number, player: Player)
@@ -506,14 +623,18 @@ local function buildTable(origin: Vector3, parent: Instance): Game
 	-- بناء المقاعد ولوحة الحالة
 	local seatX = buildSeat(origin, -1, SEAT_X_COL, model, "🔴 لاعب X")
 	local seatO = buildSeat(origin, 1, SEAT_O_COL, model, "🔵 لاعب O")
-	local statusLabel = buildStatusBoard(origin, model)
+	local statusLabel, scoreXLabel, scoreOLabel = buildStatusBoard(origin, model)
 
 	local game: Game = {
 		cells = cells, marks = {}, board = {},
 		seatX = seatX, seatO = seatO,
 		playerX = nil, playerO = nil,
 		turn = "X", active = false,
-		statusLabel = statusLabel, pieceFolder = pieceFolder, lineGlow = {},
+		statusLabel = statusLabel,
+		scoreXLabel = scoreXLabel, scoreOLabel = scoreOLabel,
+		scoreX = 0, scoreO = 0,
+		pieceFolder = pieceFolder, lineGlow = {},
+		winFx = {}, winTweens = {},
 	}
 	for i = 1, 9 do game.board[i] = "" end
 
@@ -562,7 +683,6 @@ end
 --   المدخل (الباب + اللافتة) يواجه الجنوب نحو السبون. باب يفتح بـE.
 ----------------------------------------------------------------------
 local InsertService = game:GetService("InsertService")
-local TweenService = game:GetService("TweenService")
 
 local HALL_ASSET_ID = 85565802606403         -- أصل المبنى (مُعتمَد/Approved)
 local HALL_CENTER = Vector3.new(0, 0, 110)   -- مركز أفقي + قاع الأرضية على y=0
