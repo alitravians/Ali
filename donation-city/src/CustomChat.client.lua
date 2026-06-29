@@ -1117,11 +1117,71 @@ local flyConns: { RBXScriptConnection } = {}
 local move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
 local boost = false
 local mUp, mDown, mBoost = false, false, false   -- حالة أزرار اللمس (جوال)
+-- عصا التحكّم الخاصة بالطيران (جوال): متجه أفقي مستقل عن عصا روبلوكس الافتراضية
+local joyVec = Vector2.zero            -- x = يمين/يسار، y = أمام/خلف (معيّر [-1,1])
+local joyInput: InputObject? = nil     -- لمسة الإصبع الفاعلة على العصا
+local joyKnob: Frame? = nil
 
 -- 📱 لوحة أزرار الطيران للجوال (تظهر فقط أثناء الطيران على الأجهزة اللمسية)
 local flyPad: Frame? = nil
+local flyJoy: Frame? = nil
 local function buildFlyPad()
 	if flyPad or not UserInputService.TouchEnabled then return end
+	-- عصا تحكّم تماثلية خاصة بالطيران (يسار الشاشة) — للحركة الأفقية
+	local joyBase = new("Frame", {
+		Name = "FlyJoy", AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 28, 1, -40), Size = UDim2.fromOffset(132, 132),
+		BackgroundColor3 = Color3.fromRGB(15, 18, 30), BackgroundTransparency = 0.45,
+		Visible = false, Parent = gui,
+	})
+	new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = joyBase })
+	new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.35, Parent = joyBase })
+	local knob = new("Frame", {
+		Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(56, 56),
+		BackgroundColor3 = Color3.fromRGB(70, 140, 240), BackgroundTransparency = 0.1,
+		Parent = joyBase,
+	})
+	new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = knob })
+	new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.3, Parent = knob })
+	flyJoy, joyKnob = joyBase, knob
+
+	local RADIUS = 66   -- نصف قطر العصا (px)
+	local function inBase(pos: Vector2): boolean
+		local c = joyBase.AbsolutePosition + joyBase.AbsoluteSize / 2
+		return (Vector2.new(pos.X, pos.Y) - c).Magnitude <= RADIUS * 1.35
+	end
+	local function updateKnob(pos: Vector2)
+		local c = joyBase.AbsolutePosition + joyBase.AbsoluteSize / 2
+		local d = Vector2.new(pos.X, pos.Y) - c
+		if d.Magnitude > RADIUS then d = d.Unit * RADIUS end
+		knob.Position = UDim2.new(0.5, d.X, 0.5, d.Y)
+		-- y للأعلى = أمام (عكس اتجاه الشاشة)
+		joyVec = Vector2.new(d.X / RADIUS, -d.Y / RADIUS)
+	end
+	local function resetKnob()
+		joyInput = nil
+		joyVec = Vector2.zero
+		knob.Position = UDim2.fromScale(0.5, 0.5)
+	end
+	-- اتصالات دائمة (تُبنى مرّة واحدة فقط) — محميّة بعلم flying، فلا تُفصل عند الإيقاف
+	UserInputService.InputBegan:Connect(function(inp)
+		if not flying then return end
+		if inp.UserInputType == Enum.UserInputType.Touch and joyInput == nil
+			and inBase(Vector2.new(inp.Position.X, inp.Position.Y)) then
+			joyInput = inp
+			updateKnob(Vector2.new(inp.Position.X, inp.Position.Y))
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(inp)
+		if flying and joyInput and inp == joyInput and inp.UserInputType == Enum.UserInputType.Touch then
+			updateKnob(Vector2.new(inp.Position.X, inp.Position.Y))
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(inp)
+		if joyInput and inp == joyInput then resetKnob() end
+	end)
+
 	local pad = new("Frame", {
 		Name = "FlyPad", AnchorPoint = Vector2.new(1, 1),
 		Position = UDim2.new(1, -22, 1, -150), Size = UDim2.fromOffset(64, 210),
@@ -1157,6 +1217,11 @@ local function buildFlyPad()
 	flyPad = pad
 end
 
+local function setFlyPadVisible(v: boolean)
+	if flyPad then flyPad.Visible = v end
+	if flyJoy then flyJoy.Visible = v end
+end
+
 local function stopFly()
 	flying = false
 	for _, c in ipairs(flyConns) do pcall(function() c:Disconnect() end) end
@@ -1166,7 +1231,10 @@ local function stopFly()
 	move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
 	mUp, mDown, mBoost = false, false, false
 	boost = false
-	if flyPad then flyPad.Visible = false end
+	joyInput = nil
+	joyVec = Vector2.zero
+	if joyKnob then joyKnob.Position = UDim2.fromScale(0.5, 0.5) end
+	setFlyPadVisible(false)
 	local ch = LocalPlayer.Character
 	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
 	if hum then hum.PlatformStand = false end
@@ -1182,7 +1250,7 @@ local function startFly(speed: number?)
 	flying = true
 	if hum then hum.PlatformStand = true end
 	buildFlyPad()
-	if flyPad then flyPad.Visible = true end
+	setFlyPadVisible(true)
 
 	local bg = Instance.new("BodyGyro")
 	bg.P = 9e4
@@ -1230,12 +1298,12 @@ local function startFly(speed: number?)
 		if move.b == 1 then dir -= cam.CFrame.LookVector end
 		if move.r == 1 then dir += cam.CFrame.RightVector end
 		if move.l == 1 then dir -= cam.CFrame.RightVector end
-		-- أفقي: عصا التحكّم (جوال) — تُستخدم حين لا يوجد إدخال كيبورد أفقي.
-		-- MoveDirection محسوبة نسبةً للكاميرا أصلاً، فتغطّي الجوال والكمبيوتر معاً.
-		local curHum = ch:FindFirstChildOfClass("Humanoid")
+		-- أفقي: عصا الطيران الخاصة (جوال) — مستقلة عن عصا روبلوكس التي يعطّلها PlatformStand.
+		-- تعمل فقط حين لا يوجد إدخال كيبورد أفقي.
 		if move.f == 0 and move.b == 0 and move.l == 0 and move.r == 0
-			and curHum and curHum.MoveDirection.Magnitude > 0.05 then
-			dir += curHum.MoveDirection
+			and joyVec.Magnitude > 0.12 then
+			dir += cam.CFrame.LookVector * joyVec.Y
+			dir += cam.CFrame.RightVector * joyVec.X
 		end
 		-- عمودي: كيبورد (مسافة/Ctrl) أو أزرار اللمس (⬆/⬇)
 		if move.u == 1 or mUp then dir += Vector3.new(0, 1, 0) end
@@ -1287,7 +1355,7 @@ pushRemote.OnClientEvent:Connect(function(data)
 		else
 			startFly(tonumber(data.flySpeed))
 			local tip = if UserInputService.TouchEnabled
-				then "🕊️ تم تفعيل الطيران — حرّك بعصا التحكّم، وأزرار ⬆/⬇ للأعلى/الأسفل و⚡ للتسريع. اكتب /fly مرة ثانية للإيقاف."
+				then "🕊️ تم تفعيل الطيران — استخدم عصا الطيران (يسار) للحركة الأفقية، وأزرار ⬆/⬇ للأعلى/الأسفل و⚡ للتسريع. اكتب /fly مرة ثانية للإيقاف."
 				else "🕊️ تم تفعيل الطيران — WASD للتحرك، مسافة للأعلى، Ctrl للأسفل، Shift للسرعة. اكتب /fly مرة ثانية للإيقاف."
 			addMessage("النظام", tip, PURPLE, { system = true })
 		end
