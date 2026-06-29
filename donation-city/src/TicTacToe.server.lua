@@ -576,6 +576,8 @@ local C = {
 	GOLDE = { 245, 205, 110 }, MARBLE = { 237, 232, 222 }, PINK = { 255, 158, 199 },
 	GLASS = { 153, 199, 224 }, WOOD = { 84, 54, 31 }, REDS = { 158, 52, 52 },
 	GREEN = { 64, 140, 72 },
+	-- جدران كريمي دافئ (sandstone) وأرضية رخام أدفأ — أوضح من الأبيض فتبان مصبوغة
+	WALL = { 222, 202, 162 }, FLOORC = { 209, 192, 162 },
 }
 local function rgb(t: { number }): Color3
 	return Color3.fromRGB(t[1], t[2], t[3])
@@ -601,10 +603,12 @@ local function paintPart(p: BasePart)
 	end
 	local col, mat, tr = C.GOLD, Enum.Material.Metal, 0
 	if n == "Floor" or n == "Step" then
-		col, mat = C.MARBLE, Enum.Material.Marble
+		col, mat = C.FLOORC, Enum.Material.Marble
 	elseif n == "RoofSlab" or n == "RoofPyr" then
 		col, mat = C.NAVY, Enum.Material.Slate
-	elseif n == "Ceiling" or n == "Lintel" or is("Wall") or is("Rugi") or is("ArtOi") then
+	elseif is("Wall") then
+		col, mat = C.WALL, Enum.Material.SmoothPlastic
+	elseif n == "Ceiling" or n == "Lintel" or is("Rugi") or is("ArtOi") then
 		col, mat = C.CREAM, Enum.Material.SmoothPlastic
 	elseif n == "Carpet" or is("Rug") then
 		col, mat = C.REDS, Enum.Material.Fabric
@@ -871,7 +875,61 @@ local function bench(parent: Instance, x: number, z: number, g: number)
 	end
 end
 
+-- مقاطع الجدران (مركز كل جدار + طوله ومتجه «للخارج»). تُستعمل لإضافة
+-- حزام كحلي سفلي + خط ذهبي + كورنيش علوي على وجهي كل جدار (داخل وخارج).
+-- منسوب أساس الجدار ≈ FY، وقمته ≈ 15.8.
+local WALL_SEGMENTS = {
+	-- {x, z, axis ("X"|"Z"), length, nx, nz}  (nx,nz = متجه للخارج)
+	{ 0, 129.2, "X", 56.8, 0, 1 },     -- الجدار الخلفي
+	{ 28, 110.2, "Z", 38.4, 1, 0 },    -- الجدار الجانبي
+	{ -28, 110.2, "Z", 38.4, -1, 0 },  -- الجدار الجانبي
+	{ 17, 91.2, "X", 22, 0, -1 },      -- واجهة يمين الباب
+	{ -17, 91.2, "X", 22, 0, -1 },     -- واجهة يسار الباب
+}
+
+-- شريط أفقي على وجه جدار (للخارج بإشارة +1، للداخل بإشارة -1)
+local function wallStrip(parent, seg, side, yc, h, t, color, mat)
+	local x, z, axis, len, nx, nz = seg[1], seg[2], seg[3], seg[4], seg[5], seg[6]
+	local off = (t / 2 + 0.06) * side
+	local cx = x + nx * off
+	local cz = z + nz * off
+	local size = if axis == "X" then Vector3.new(len, h, t) else Vector3.new(t, h, len)
+	part({
+		Name = "WallTrim", Parent = parent, Color = rgb(color), Material = mat,
+		CanCollide = false, Size = size, CFrame = CFrame.new(cx, yc, cz),
+	})
+end
+
+-- تأطير الجدران: حزام كحلي سفلي + خط ذهبي فوقه (داخل وخارج) + كورنيش ذهبي علوي
+local function dressWalls(parent: Instance)
+	for _, seg in ipairs(WALL_SEGMENTS) do
+		for _, side in ipairs({ 1, -1 }) do
+			wallStrip(parent, seg, side, FY + 0.75, 1.5, 0.32, C.NAVY, Enum.Material.SmoothPlastic)
+			wallStrip(parent, seg, side, FY + 1.62, 0.18, 0.40, C.GOLD, Enum.Material.Neon)
+		end
+		-- كورنيش ذهبي علوي (خارجي فقط، تحت السقف)
+		wallStrip(parent, seg, 1, 15.3, 0.55, 0.46, C.GOLD, Enum.Material.Metal)
+	end
+end
+
+-- إطار ذهبي على الأرضية الداخلية حول المحيط (يبيّن الأرضية مصمّمة)
+local function dressFloor(parent: Instance)
+	local frame = {
+		{ 0, 127.5, 53, 0.5 }, { 0, 92.8, 53, 0.5 },
+		{ 26.5, 110.2, 0.5, 35 }, { -26.5, 110.2, 0.5, 35 },
+	}
+	for _, f in ipairs(frame) do
+		part({
+			Name = "FloorTrim", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(f[3], 0.12, f[4]),
+			CFrame = CFrame.new(f[1], FY + 0.06, f[2]),
+		})
+	end
+end
+
 local function furnishHall(parent: Instance)
+	dressWalls(parent)
+	dressFloor(parent)
 	-- ميدالية ترحيب وسط الصالة (بين الباب والطاولات) z≈99
 	disc({
 		Name = "MedalEdge", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
