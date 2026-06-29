@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٥٣",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٥٤",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٥٤", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح تداخل بصري في «ركن الألعاب»: نوافذ الجدار الخلفي الزجاجية كانت تتداخل مع لوحة «المتصدّرون» والساعة فتبان كأنها لوح أزرق فوقها — أُخفيت نوافذ الجدار الخلفي فصارت اللوحة والساعة واضحتين." },
+			},
+		},
 		{
 			version = "٢.٩.٥٣", date = "٢٩ يونيو",
 			items = {
@@ -19832,6 +19838,13 @@ local function paintPart(p: BasePart)
 		p.CanCollide = false -- لوح شفاف: نمنع جداراً خفيّاً يصطدم به اللاعب
 		return
 	end
+	if is("WN") then
+		-- نوافذ الجدار الخلفي تتداخل مع لوحة المتصدّرين والساعة (نفس الجدار)،
+		-- فيبان زجاجها كأنه لوح أزرق فوق اللوحة → نخفيها (الجدار المصمت يفضل خلفها).
+		p.Transparency = 1
+		p.CanCollide = false
+		return
+	end
 	local col, mat, tr = C.GOLD, Enum.Material.Metal, 0
 	if n == "Floor" or n == "Step" then
 		col, mat = C.MARBLE, Enum.Material.Marble
@@ -19845,7 +19858,7 @@ local function paintPart(p: BasePart)
 		col, mat = C.WOOD, Enum.Material.WoodPlanks
 	elseif is("Bush") then
 		col, mat = C.GREEN, Enum.Material.Grass
-	elseif is("WE") or is("WN") then
+	elseif is("WE") then
 		col, mat, tr = C.GLASS, Enum.Material.Glass, 0.45
 	elseif is("Tr") or is("Sk") or n == "SignNeon" then
 		col, mat = C.PINK, Enum.Material.Neon

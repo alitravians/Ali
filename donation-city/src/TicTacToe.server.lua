@@ -592,6 +592,13 @@ local function paintPart(p: BasePart)
 		p.CanCollide = false -- لوح شفاف: نمنع جداراً خفيّاً يصطدم به اللاعب
 		return
 	end
+	if is("WN") then
+		-- نوافذ الجدار الخلفي تتداخل مع لوحة المتصدّرين والساعة (نفس الجدار)،
+		-- فيبان زجاجها كأنه لوح أزرق فوق اللوحة → نخفيها (الجدار المصمت يفضل خلفها).
+		p.Transparency = 1
+		p.CanCollide = false
+		return
+	end
 	local col, mat, tr = C.GOLD, Enum.Material.Metal, 0
 	if n == "Floor" or n == "Step" then
 		col, mat = C.MARBLE, Enum.Material.Marble
@@ -605,7 +612,7 @@ local function paintPart(p: BasePart)
 		col, mat = C.WOOD, Enum.Material.WoodPlanks
 	elseif is("Bush") then
 		col, mat = C.GREEN, Enum.Material.Grass
-	elseif is("WE") or is("WN") then
+	elseif is("WE") then
 		col, mat, tr = C.GLASS, Enum.Material.Glass, 0.45
 	elseif is("Tr") or is("Sk") or n == "SignNeon" then
 		col, mat = C.PINK, Enum.Material.Neon
