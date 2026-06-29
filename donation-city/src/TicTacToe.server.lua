@@ -589,6 +589,7 @@ local function paintPart(p: BasePart)
 	end
 	if n == "SignTex" or n == "LBtex" or n == "CLKtex" then
 		p.Transparency = 1 -- خامة النص المفقودة → تُستبدَل بـSurfaceGui
+		p.CanCollide = false -- لوح شفاف: نمنع جداراً خفيّاً يصطدم به اللاعب
 		return
 	end
 	local col, mat, tr = C.GOLD, Enum.Material.Metal, 0
@@ -700,28 +701,40 @@ local function buildDoor(parent: Instance, model: Model)
 		local leaf = Instance.new("Model")
 		leaf.Name = "Leaf" .. (if s < 0 then "L" else "R")
 		leaf.Parent = doorModel
-		local glass = part({
-			Name = "Glass", Parent = leaf, Color = Color3.fromRGB(150, 200, 225),
-			Material = Enum.Material.Glass, Transparency = 0.4, CanCollide = true,
-			Size = Vector3.new(leafW, LEAF_H, 0.18), CFrame = CFrame.new(glassX, dh, dz),
+		-- لوح الباب: بلاستيك أملس ملوّن (يُعرَض بثبات حتى على الجودة المنخفضة،
+		-- بعكس خامة Glass التي تختفي تماماً على بعض الأجهزة → كان يبان الباب فارغاً)
+		local pane = part({
+			Name = "Pane", Parent = leaf, Color = Color3.fromRGB(150, 198, 224),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0.3, CanCollide = true,
+			Size = Vector3.new(leafW, LEAF_H, 0.22), CFrame = CFrame.new(glassX, dh, dz),
 		})
-		leaf.PrimaryPart = glass
+		leaf.PrimaryPart = pane
+		-- لوح سفلي مصمت كريمي يعطي ثِقَل الباب ويوضّحه
+		local kh = LEAF_H * 0.34
+		part({
+			Name = "Kick", Parent = leaf, Color = rgb(C.CREAM), Material = Enum.Material.SmoothPlastic,
+			CanCollide = false, Size = Vector3.new(leafW - 0.2, kh, 0.34),
+			CFrame = CFrame.new(glassX, dh - LEAF_H / 2 + kh / 2, dz),
+		})
+		-- إطار ذهبي سميك + عارضة وسطية أفقية ورأسية (مَنتِن) لوضوح الباب
 		for _, f in ipairs({
-			{ Vector3.new(s * (leafW / 2 - 0.3), 0, 0), Vector3.new(0.6, LEAF_H, 0.4) },
-			{ Vector3.new(-s * (leafW / 2 - 0.3), 0, 0), Vector3.new(0.6, LEAF_H, 0.4) },
-			{ Vector3.new(0, LEAF_H / 2 - 0.3, 0), Vector3.new(leafW, 0.6, 0.4) },
-			{ Vector3.new(0, -LEAF_H / 2 + 0.3, 0), Vector3.new(leafW, 0.6, 0.4) },
+			{ Vector3.new(s * (leafW / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.5) },
+			{ Vector3.new(-s * (leafW / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.5) },
+			{ Vector3.new(0, LEAF_H / 2 - 0.35, 0), Vector3.new(leafW, 0.7, 0.5) },
+			{ Vector3.new(0, -LEAF_H / 2 + 0.35, 0), Vector3.new(leafW, 0.7, 0.5) },
+			{ Vector3.new(0, -LEAF_H / 2 + kh, 0), Vector3.new(leafW, 0.45, 0.5) },
+			{ Vector3.new(0, kh / 2, 0), Vector3.new(0.4, LEAF_H - kh, 0.5) },
 		}) do
 			part({
-				Name = "Bar", Parent = leaf, Color = rgb(C.GOLD), Material = Enum.Material.Metal,
+				Name = "Bar", Parent = leaf, Color = GOLD, Material = Enum.Material.Metal,
 				CanCollide = false, Size = f[2],
 				CFrame = CFrame.new(glassX + f[1].X, dh + f[1].Y, dz),
 			})
 		end
 		part({
 			Name = "Handle", Parent = leaf, Color = GOLD_HI, Material = Enum.Material.Metal,
-			CanCollide = false, Size = Vector3.new(0.18, 2.2, 0.3),
-			CFrame = CFrame.new(cx - s * 0.5, dh, dz - 0.4),
+			CanCollide = false, Size = Vector3.new(0.22, 2.4, 0.45),
+			CFrame = CFrame.new(cx - s * 0.55, dh, dz - 0.45),
 		})
 		local hinge = CFrame.new(hingeX, dh, dz)
 		leaf.WorldPivot = hinge
@@ -772,6 +785,168 @@ local function buildDoor(parent: Instance, model: Model)
 end
 
 ----------------------------------------------------------------------
+-- تأثيث إضافي (قطع أصلية) يكمّل تصميم الميش: ميدالية ترحيب وسط الصالة،
+-- إطارات ذهبية للسجاد، أحواض كرز، إضاءة أعمدة، ومدخل خارجي مؤثَّث.
+----------------------------------------------------------------------
+local FY = 0.86 -- سطح أرضية المبنى (المرمر)
+local GY = 0.3  -- أرضية الخارج (العشب)
+
+-- قرص مسطّح (أسطوانة محورها رأسي): props.Size = (السُّمك, القطر, القطر)
+local function disc(props): BasePart
+	props.Shape = Enum.PartType.Cylinder
+	local center = props.CFrame or CFrame.new()
+	props.CFrame = center * CFrame.Angles(0, 0, math.rad(90))
+	return part(props)
+end
+
+-- حوض كرز ثلاثي الأبعاد: إناء ذهبي + جذع + تاج أخضر + أزهار وردية نيون
+local function topiary(parent: Instance, x: number, z: number, g: number)
+	disc({
+		Name = "Pot", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(1.6, 2.0, 2.0), CFrame = CFrame.new(x, g + 0.8, z),
+	})
+	part({
+		Name = "Trunk", Parent = parent, Color = WOOD_DARK, Material = Enum.Material.Wood,
+		Size = Vector3.new(0.5, 2.4, 0.5), CFrame = CFrame.new(x, g + 2.6, z),
+	})
+	local cy = g + 4.4
+	local crown = part({
+		Name = "Crown", Parent = parent, Color = rgb(C.GREEN), Material = Enum.Material.Grass,
+		CanCollide = false, Size = Vector3.new(3.0, 3.0, 3.0), CFrame = CFrame.new(x, cy, z),
+	})
+	crown.Shape = Enum.PartType.Ball
+	for _, o in ipairs({
+		Vector3.new(1.0, 0.7, 0), Vector3.new(-1.0, 0.5, 0.7),
+		Vector3.new(0, 1.0, -0.9), Vector3.new(0.3, 0.4, 1.0),
+	}) do
+		local b = part({
+			Name = "Blossom", Parent = parent, Color = rgb(C.PINK), Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(1.7, 1.7, 1.7),
+			CFrame = CFrame.new(x + o.X, cy + o.Y, z + o.Z),
+		})
+		b.Shape = Enum.PartType.Ball
+	end
+end
+
+-- عمود فانوس خارجي بإضاءة دافئة
+local function lanternPost(parent: Instance, x: number, z: number, g: number)
+	part({
+		Name = "Post", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(0.5, 7.0, 0.5), CFrame = CFrame.new(x, g + 3.5, z),
+	})
+	local bulb = part({
+		Name = "Bulb", Parent = parent, Color = rgb(C.GOLDE), Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(1.5, 1.9, 1.5), CFrame = CFrame.new(x, g + 7.4, z),
+	})
+	bulb.Shape = Enum.PartType.Ball
+	local lt = Instance.new("PointLight")
+	lt.Color = Color3.fromRGB(255, 226, 160)
+	lt.Range = 18
+	lt.Brightness = 2
+	lt.Parent = bulb
+end
+
+-- مقعد خشبي خارجي بسيط
+local function bench(parent: Instance, x: number, z: number, g: number)
+	part({
+		Name = "BenchSeat", Parent = parent, Color = WOOD, Material = Enum.Material.WoodPlanks,
+		Size = Vector3.new(5.0, 0.4, 1.6), CFrame = CFrame.new(x, g + 1.6, z),
+	})
+	part({
+		Name = "BenchBack", Parent = parent, Color = WOOD, Material = Enum.Material.WoodPlanks,
+		Size = Vector3.new(5.0, 1.6, 0.3), CFrame = CFrame.new(x, g + 2.5, z - 0.65),
+	})
+	for _, dx in ipairs({ -2.2, 2.2 }) do
+		part({
+			Name = "BenchLeg", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+			Size = Vector3.new(0.3, 1.6, 1.4), CFrame = CFrame.new(x + dx, g + 0.8, z),
+		})
+	end
+end
+
+local function furnishHall(parent: Instance)
+	-- ميدالية ترحيب وسط الصالة (بين الباب والطاولات) z≈99
+	disc({
+		Name = "MedalEdge", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(0.12, 11, 11), CFrame = CFrame.new(0, FY + 0.06, 99),
+	})
+	disc({
+		Name = "MedalInner", Parent = parent, Color = rgb(C.CREAM), Material = Enum.Material.Marble,
+		CanCollide = false, Size = Vector3.new(0.16, 9.4, 9.4), CFrame = CFrame.new(0, FY + 0.08, 99),
+	})
+	disc({
+		Name = "MedalRing", Parent = parent, Color = rgb(C.PINK), Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.2, 7.6, 7.6), CFrame = CFrame.new(0, FY + 0.10, 99),
+	})
+	disc({
+		Name = "MedalRing2", Parent = parent, Color = rgb(C.CREAM), Material = Enum.Material.Marble,
+		CanCollide = false, Size = Vector3.new(0.24, 6.8, 6.8), CFrame = CFrame.new(0, FY + 0.12, 99),
+	})
+	-- شعار O على يسار الميدالية
+	disc({
+		Name = "EmblemO", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.3, 2.6, 2.6), CFrame = CFrame.new(-1.9, FY + 0.16, 99),
+	})
+	disc({
+		Name = "EmblemOc", Parent = parent, Color = rgb(C.CREAM), Material = Enum.Material.Marble,
+		CanCollide = false, Size = Vector3.new(0.34, 1.5, 1.5), CFrame = CFrame.new(-1.9, FY + 0.18, 99),
+	})
+	-- شعار X على يمين الميدالية
+	for _, a in ipairs({ 45, -45 }) do
+		part({
+			Name = "EmblemX", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(2.6, 0.12, 0.55),
+			CFrame = CFrame.new(1.9, FY + 0.16, 99) * CFrame.Angles(0, math.rad(a), 0),
+		})
+	end
+	-- إطار ذهبي على جانبي ممر السجاد الأحمر
+	for _, sx in ipairs({ -1, 1 }) do
+		part({
+			Name = "RunnerTrim", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(0.18, 0.08, 16),
+			CFrame = CFrame.new(sx * 3.7, FY + 0.05, 101),
+		})
+	end
+	-- حوضا كرز يحيطان الميدالية
+	topiary(parent, 7, 99, FY)
+	topiary(parent, -7, 99, FY)
+	-- إضاءة وردية عند قواعد الأعمدة الأربعة
+	for _, cxp in ipairs({ -26, 26 }) do
+		for _, czp in ipairs({ 94, 126 }) do
+			local pk = disc({
+				Name = "Uplight", Parent = parent, Color = rgb(C.PINK), Material = Enum.Material.Neon,
+				CanCollide = false, Size = Vector3.new(0.14, 2.2, 2.2), CFrame = CFrame.new(cxp, FY + 0.05, czp),
+			})
+			local pl = Instance.new("PointLight")
+			pl.Color = Color3.fromRGB(255, 150, 200)
+			pl.Range = 12
+			pl.Brightness = 1.4
+			pl.Parent = pk
+		end
+	end
+
+	-- ===== مدخل خارجي مؤثَّث =====
+	-- سجادة ترحيب حمراء من الدرجة نحو السبون
+	part({
+		Name = "WelcomeRunner", Parent = parent, Color = rgb(C.REDS), Material = Enum.Material.Fabric,
+		CanCollide = false, Size = Vector3.new(7, 0.14, 11), CFrame = CFrame.new(0, GY + 0.07, 83),
+	})
+	for _, sx in ipairs({ -1, 1 }) do
+		part({
+			Name = "RunnerTrimO", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(0.18, 0.1, 11), CFrame = CFrame.new(sx * 3.4, GY + 0.1, 83),
+		})
+	end
+	-- فانوسان يحيطان الباب + حوضا كرز + مقعدان
+	lanternPost(parent, 7, 87, GY)
+	lanternPost(parent, -7, 87, GY)
+	topiary(parent, 9.5, 85, GY)
+	topiary(parent, -9.5, 85, GY)
+	bench(parent, 13, 83, GY)
+	bench(parent, -13, 83, GY)
+end
+
+----------------------------------------------------------------------
 -- التهيئة
 ----------------------------------------------------------------------
 local root = Instance.new("Folder")
@@ -781,6 +956,7 @@ root.Parent = Workspace
 local hall = loadHall(root)
 if hall then
 	buildDoor(root, hall)
+	furnishHall(root)
 end
 
 for _, origin in ipairs(TABLES) do
