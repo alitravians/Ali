@@ -232,8 +232,8 @@ local Chess = (function()
 					end
 					local rank = (me == 1) and 0 or 7
 					if from == sqOf(4, rank) and not self:isAttacked(from, -me) then
-						local canK = (me == 1) and self.castle.wk or self.castle.bk
-						local canQ = (me == 1) and self.castle.wq or self.castle.bq
+						local canK, canQ
+						if me == 1 then canK, canQ = self.castle.wk, self.castle.wq else canK, canQ = self.castle.bk, self.castle.bq end
 						if canK and b[sqOf(5, rank)] == 0 and b[sqOf(6, rank)] == 0
 							and b[sqOf(7, rank)] == me * ROOK
 							and not self:isAttacked(sqOf(5, rank), -me)
