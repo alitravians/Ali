@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٥٥",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٥٦",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,13 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٥٦", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح جذري لباب «ركن الألعاب»: كان لوح الباب شفافاً فيذوب في وهج الإضاءة ويبان المدخل فارغاً. صار الباب لوحاً كحلياً مصمتاً بإطار ذهبي + نافذة زجاجية ومقبض — واضح تماماً ويفتح/يغلق بـE." },
+				{ "fix", "تقليل الوهج الأبيض الزائد حول المدخل (تخفيف النيون في الخطوط الذهبية وإطار الأرضية) فصارت التفاصيل أوضح." },
+			},
+		},
 		{
 			version = "٢.٩.٥٥", date = "٢٩ يونيو",
 			items = {
@@ -19965,14 +19972,22 @@ local function buildDoor(parent: Instance, model: Model)
 		local leaf = Instance.new("Model")
 		leaf.Name = "Leaf" .. (if s < 0 then "L" else "R")
 		leaf.Parent = doorModel
-		-- لوح الباب: بلاستيك أملس ملوّن (يُعرَض بثبات حتى على الجودة المنخفضة،
-		-- بعكس خامة Glass التي تختفي تماماً على بعض الأجهزة → كان يبان الباب فارغاً)
+		-- لوح الباب: مصمت كحلي (يُعرَض بوضوح تام مهما كانت الإضاءة/البلوم؛
+		-- اللوح الشفاف القديم كان يذوب في الوهج الأبيض فيبان الباب فارغاً)
 		local pane = part({
-			Name = "Pane", Parent = leaf, Color = Color3.fromRGB(150, 198, 224),
-			Material = Enum.Material.SmoothPlastic, Transparency = 0.3, CanCollide = true,
+			Name = "Pane", Parent = leaf, Color = rgb(C.NAVY),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0, CanCollide = true,
 			Size = Vector3.new(leafW, LEAF_H, 0.22), CFrame = CFrame.new(glassX, dh, dz),
 		})
 		leaf.PrimaryPart = pane
+		-- نافذة زجاجية صغيرة بالأعلى للمسة أنيقة (مؤطّرة فلا تذوب بالوهج)
+		local vh = LEAF_H * 0.36
+		part({
+			Name = "Window", Parent = leaf, Color = Color3.fromRGB(150, 198, 224),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0.4, CanCollide = false,
+			Size = Vector3.new(leafW - 1.6, vh, 0.12),
+			CFrame = CFrame.new(glassX, dh + LEAF_H * 0.22, dz - 0.07),
+		})
 		-- لوح سفلي مصمت كريمي يعطي ثِقَل الباب ويوضّحه
 		local kh = LEAF_H * 0.34
 		part({
@@ -20158,7 +20173,7 @@ local function dressWalls(parent: Instance)
 	for _, seg in ipairs(WALL_SEGMENTS) do
 		for _, side in ipairs({ 1, -1 }) do
 			wallStrip(parent, seg, side, FY + 0.75, 1.5, 0.32, C.NAVY, Enum.Material.SmoothPlastic)
-			wallStrip(parent, seg, side, FY + 1.62, 0.18, 0.40, C.GOLD, Enum.Material.Neon)
+			wallStrip(parent, seg, side, FY + 1.62, 0.18, 0.40, C.GOLD, Enum.Material.Metal)
 		end
 		-- كورنيش ذهبي علوي (خارجي فقط، تحت السقف)
 		wallStrip(parent, seg, 1, 15.3, 0.55, 0.46, C.GOLD, Enum.Material.Metal)
@@ -20173,7 +20188,7 @@ local function dressFloor(parent: Instance)
 	}
 	for _, f in ipairs(frame) do
 		part({
-			Name = "FloorTrim", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			Name = "FloorTrim", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
 			CanCollide = false, Size = Vector3.new(f[3], 0.12, f[4]),
 			CFrame = CFrame.new(f[1], FY + 0.06, f[2]),
 		})
