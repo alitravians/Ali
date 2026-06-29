@@ -1262,7 +1262,6 @@ local function startFly(speed: number?)
 	flySpeed = speed or flySpeed
 	flying = true
 	if hum then hum.PlatformStand = true end
-	setDefaultControls(false)   -- يخفي عصا روبلوكس الافتراضية فلا تتداخل مع عصا الطيران
 	buildFlyPad()
 	setFlyPadVisible(true)
 
@@ -1328,6 +1327,9 @@ local function startFly(speed: number?)
 			flyBV.Velocity = Vector3.zero
 		end
 	end))
+	-- يُخفى آخر شيء (بعد تجهيز BodyVelocity/Gyro والاتصالات) فلا توجد لحظة تجمّد،
+	-- وفقط على الجوال — الكمبيوتر ما يحتاجه (PlatformStand يكفي) فما نلمس تحكّمه إطلاقاً.
+	if UserInputService.TouchEnabled then setDefaultControls(false) end
 end
 
 -- لو مات/ظهر من جديد وهو طائر، أوقف الطيران (تنظيف آمن)
