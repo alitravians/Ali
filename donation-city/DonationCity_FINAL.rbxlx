@@ -19766,11 +19766,203 @@ local function buildTable(origin: Vector3, parent: Instance): Game
 end
 
 ----------------------------------------------------------------------
+-- 🎮 ركن الألعاب — جناح مفتوح أنيق يحتضن الطاولات الثلاث، مفروش ومؤثّث.
+--   مفتوح الجوانب تماماً (لا جدران/باب/قيود) فيلعب فيه كل اللاعبين.
+--   كل القطع روبلوكس أصلية ومثبّتة (Anchored) = صفر لاق.
+----------------------------------------------------------------------
+local function buildGamesHall(parent: Instance)
+	local hall = Instance.new("Model")
+	hall.Name = "GamesHall"
+	hall.Parent = parent
+
+	local GC    = Vector3.new(26, 0, 70)     -- مركز الجناح (وسط الطاولات x=0/26/52)
+	local PW    = 84                           -- العرض (محور X)
+	local PD    = 30                           -- العمق (محور Z)
+	local PH    = 17                           -- ارتفاع الأعمدة / أسفل السقف
+	local CREAM = Color3.fromRGB(245, 236, 215)
+	local NAVY  = Color3.fromRGB(26, 32, 58)
+	local PINK  = Color3.fromRGB(255, 170, 205)
+
+	local function deco(props)
+		props.Parent = hall
+		if props.CanCollide == nil then props.CanCollide = false end
+		return part(props)
+	end
+
+	-- أرضية مرمرية مرتفعة قليلاً تحت الطاولات
+	deco({
+		Name = "GamesFloor", CanCollide = true,
+		Size = Vector3.new(PW, 0.6, PD),
+		CFrame = CFrame.new(GC.X, 0.4, GC.Z),
+		Color = Color3.fromRGB(236, 228, 214), Material = Enum.Material.Marble,
+	})
+	-- إطار نيون وردي حول الأرضية
+	for _, e in ipairs({
+		{ Vector3.new(0, 0, PD / 2), Vector3.new(PW, 0.5, 0.8) },
+		{ Vector3.new(0, 0, -PD / 2), Vector3.new(PW, 0.5, 0.8) },
+		{ Vector3.new(PW / 2, 0, 0), Vector3.new(0.8, 0.5, PD) },
+		{ Vector3.new(-PW / 2, 0, 0), Vector3.new(0.8, 0.5, PD) },
+	}) do
+		deco({
+			Name = "FloorTrim", Size = e[2],
+			CFrame = CFrame.new(GC.X + e[1].X, 0.7, GC.Z + e[1].Z),
+			Color = PINK, Material = Enum.Material.Neon,
+		})
+	end
+
+	-- عمود: جذع رخامي كريمي + قاعدة وتاج ذهبيان
+	local function column(x: number, z: number)
+		deco({
+			Name = "Column", Shape = Enum.PartType.Cylinder, CanCollide = true,
+			Size = Vector3.new(PH, 1.7, 1.7),
+			CFrame = CFrame.new(x, PH / 2 + 0.6, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = CREAM, Material = Enum.Material.Marble,
+		})
+		for _, cy in ipairs({ 0.9, PH + 0.1 }) do
+			deco({
+				Name = "ColumnTrim", Shape = Enum.PartType.Cylinder,
+				Size = Vector3.new(0.8, 2.4, 2.4),
+				CFrame = CFrame.new(x, cy, z) * CFrame.Angles(0, 0, math.rad(90)),
+				Color = GOLD, Material = Enum.Material.Metal,
+			})
+		end
+	end
+	-- أعمدة على الضلعين الجانبيين فقط → الواجهة الأمامية مفتوحة تماماً
+	for _, x in ipairs({ GC.X - PW / 2 + 2, GC.X + PW / 2 - 2 }) do
+		for _, dz in ipairs({ -PD / 2 + 2, 0, PD / 2 - 2 }) do
+			column(x, GC.Z + dz)
+		end
+	end
+
+	-- السقف المسطّح (أسفله كحلي) + إطار ذهبي علوي
+	deco({
+		Name = "Roof", CanCollide = true,
+		Size = Vector3.new(PW + 4, 1.4, PD + 4),
+		CFrame = CFrame.new(GC.X, PH + 1.4, GC.Z),
+		Color = NAVY, Material = Enum.Material.Slate,
+	})
+	deco({
+		Name = "RoofTrim",
+		Size = Vector3.new(PW + 6, 0.5, PD + 6),
+		CFrame = CFrame.new(GC.X, PH + 2.2, GC.Z),
+		Color = GOLD, Material = Enum.Material.Metal,
+	})
+
+	-- لافتة نيون أمامية «🎮 ركن الألعاب» (تواجه القادمين من السبون z<57)
+	local FRONT_Z = GC.Z - PD / 2 - 0.4
+	local sign = deco({
+		Name = "Banner",
+		Size = Vector3.new(30, 5, 0.6),
+		CFrame = CFrame.new(GC.X, PH - 2.5, FRONT_Z),
+		Color = Color3.fromRGB(18, 22, 36), Material = Enum.Material.SmoothPlastic,
+	})
+	for _, e in ipairs({
+		{ Vector3.new(0, 2.7, 0), Vector3.new(31, 0.5, 0.7) },
+		{ Vector3.new(0, -2.7, 0), Vector3.new(31, 0.5, 0.7) },
+		{ Vector3.new(15.2, 0, 0), Vector3.new(0.5, 5.6, 0.7) },
+		{ Vector3.new(-15.2, 0, 0), Vector3.new(0.5, 5.6, 0.7) },
+	}) do
+		deco({
+			Name = "BannerFrame", Size = e[2],
+			CFrame = CFrame.new(GC.X + e[1].X, PH - 2.5 + e[1].Y, FRONT_Z),
+			Color = GOLD_HI, Material = Enum.Material.Neon,
+		})
+	end
+	local sgui = Instance.new("SurfaceGui")
+	sgui.Name = "BannerFace"
+	sgui.AutoLocalize = false
+	sgui.Face = Enum.NormalId.Back
+	sgui.CanvasSize = Vector2.new(1024, 180)
+	sgui.LightInfluence = 0
+	sgui.Adornee = sign
+	sgui.Parent = sign
+	local bl = Instance.new("TextLabel")
+	bl.BackgroundTransparency = 1
+	bl.Size = UDim2.new(1, -40, 1, -20)
+	bl.Position = UDim2.new(0, 20, 0, 10)
+	bl.Font = Enum.Font.GothamBlack
+	bl.Text = "🎮 ركن الألعاب"
+	bl.RichText = true
+	bl.TextScaled = true
+	bl.TextColor3 = GOLD_HI
+	bl.Parent = sgui
+	local bgrad = Instance.new("UIGradient")
+	bgrad.Color = ColorSequence.new(GOLD_HI, GOLD)
+	bgrad.Rotation = 8
+	bgrad.Parent = bl
+	local bstroke = Instance.new("UIStroke")
+	bstroke.Color = Color3.fromRGB(80, 55, 0)
+	bstroke.Thickness = 2
+	bstroke.Parent = bl
+
+	-- 🪑 التفريش والتأثيث: سجادة دائرية + فانوس ذهبي معلّق فوق كل طاولة
+	for _, origin in ipairs(TABLES) do
+		local tx = origin.X
+		deco({
+			Name = "Rug", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.3, 13, 13),
+			CFrame = CFrame.new(tx, 0.85, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = Color3.fromRGB(60, 70, 120), Material = Enum.Material.Fabric,
+		})
+		deco({
+			Name = "RugRing", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.32, 9.5, 9.5),
+			CFrame = CFrame.new(tx, 0.86, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = PINK, Material = Enum.Material.Neon,
+		})
+		deco({
+			Name = "LanternRod", Size = Vector3.new(0.3, 3, 0.3),
+			CFrame = CFrame.new(tx, PH - 1.2, GC.Z),
+			Color = GOLD, Material = Enum.Material.Metal,
+		})
+		deco({
+			Name = "Lantern", Shape = Enum.PartType.Ball,
+			Size = Vector3.new(2.2, 2.2, 2.2),
+			CFrame = CFrame.new(tx, PH - 3.2, GC.Z),
+			Color = Color3.fromRGB(255, 224, 150), Material = Enum.Material.Neon,
+		})
+		deco({
+			Name = "LanternCap", Shape = Enum.PartType.Cylinder,
+			Size = Vector3.new(0.5, 1.4, 1.4),
+			CFrame = CFrame.new(tx, PH - 2.1, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color = GOLD, Material = Enum.Material.Metal,
+		})
+	end
+
+	-- أحواض نباتات أنيقة عند أقدام الأعمدة الجانبية
+	for _, x in ipairs({ GC.X - PW / 2 + 2, GC.X + PW / 2 - 2 }) do
+		for _, dz in ipairs({ -PD / 2 + 2, 0, PD / 2 - 2 }) do
+			local pz = GC.Z + dz
+			deco({
+				Name = "Planter", CanCollide = true, Size = Vector3.new(2.6, 1.8, 2.6),
+				CFrame = CFrame.new(x, 1.6, pz),
+				Color = CREAM, Material = Enum.Material.Marble,
+			})
+			deco({
+				Name = "PlanterRim", Size = Vector3.new(2.9, 0.4, 2.9),
+				CFrame = CFrame.new(x, 2.5, pz),
+				Color = GOLD, Material = Enum.Material.Metal,
+			})
+			deco({
+				Name = "Bush", Shape = Enum.PartType.Ball,
+				Size = Vector3.new(2.8, 2.4, 2.8),
+				CFrame = CFrame.new(x, 3.7, pz),
+				Color = Color3.fromRGB(86, 170, 96), Material = Enum.Material.Grass,
+			})
+		end
+	end
+
+	return hall
+end
+
+----------------------------------------------------------------------
 -- التهيئة
 ----------------------------------------------------------------------
 local root = Instance.new("Folder")
 root.Name = "TicTacToeArea"
 root.Parent = Workspace
+
+buildGamesHall(root)
 
 for _, origin in ipairs(TABLES) do
 	games[#games + 1] = buildTable(origin, root)
