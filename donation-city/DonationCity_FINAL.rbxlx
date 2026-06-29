@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٥٠",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٥١",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٥١", date = "٢٩ يونيو",
+			items = {
+				{ "new", "🎮 مبنى «ركن الألعاب» الجديد ثلاثي الأبعاد (3D): جناح مغلق متكامل بجدران ونوافذ وسقف هرمي ملكي، بُني بتقنية بلندر ورُكّب في زاوية مخصّصة شمال المدينة. باب زجاجي مزدوج بإطار ذهبي يفتح بالضغط على E ويُغلق تلقائياً. طاولات إكس-أو الثلاث صارت بداخله، مع ثُريّا وفوانيس وإضاءة نيون ولافتة وأحواض نباتات." },
+			},
+		},
 		{
 			version = "٢.٩.٥٠", date = "٢٩ يونيو",
 			items = {
@@ -19258,11 +19264,11 @@ local WIN_LINES = {
 	{ 1, 5, 9 }, { 3, 5, 7 },                -- أقطار
 }
 
--- مواقع الطاولات الثلاث (صفّ على يمين السبون، بعيداً عن بوّابة الباركور ومنارتها عند x=-20)
+-- مواقع الطاولات الثلاث داخل مبنى «ركن الألعاب» (زاوية شمال المدينة، z=110)
 local TABLES = {
-	Vector3.new(0,  0, 70),
-	Vector3.new(26, 0, 70),
-	Vector3.new(52, 0, 70),
+	Vector3.new(-17, 0.8, 110.25),
+	Vector3.new(0,   0.8, 110.25),
+	Vector3.new(17,  0.8, 110.25),
 }
 
 ----------------------------------------------------------------------
@@ -19778,193 +19784,152 @@ local function buildTable(origin: Vector3, parent: Instance): Game
 end
 
 ----------------------------------------------------------------------
--- 🎮 ركن الألعاب — جناح مفتوح أنيق يحتضن الطاولات الثلاث، مفروش ومؤثّث.
---   مفتوح الجوانب تماماً (لا جدران/باب/قيود) فيلعب فيه كل اللاعبين.
---   كل القطع روبلوكس أصلية ومثبّتة (Anchored) = صفر لاق.
+-- 🎮 ركن الألعاب — مبنى 3D حقيقي (FBX عبر Open Cloud) مغلق متكامل.
+--   يُحمَّل وقت التشغيل عبر InsertService:LoadAsset ثم يُركّب في زاوية
+--   مخصّصة شمال المدينة (بعيداً عن السبون). باب مزدوج يفتح بالضغط على E.
 ----------------------------------------------------------------------
-local function buildGamesHall(parent: Instance)
-	local hall = Instance.new("Model")
-	hall.Name = "GamesHall"
-	hall.Parent = parent
+local InsertService = game:GetService("InsertService")
+local TweenService = game:GetService("TweenService")
 
-	local GC    = Vector3.new(26, 0, 70)     -- مركز الجناح (وسط الطاولات x=0/26/52)
-	local PW    = 84                           -- العرض (محور X)
-	local PD    = 30                           -- العمق (محور Z)
-	local PH    = 17                           -- ارتفاع الأعمدة / أسفل السقف
-	local CREAM = Color3.fromRGB(245, 236, 215)
-	local NAVY  = Color3.fromRGB(26, 32, 58)
-	local PINK  = Color3.fromRGB(255, 170, 205)
+local HALL_ASSET_ID = 85565802606403       -- أصل المبنى (مُعتمَد/Approved)
+local HALL_CENTER = Vector3.new(0, 0, 110) -- مركز أفقي + قاع الأرضية على y=0
+local HALL_YAW = math.rad(180)             -- الباب يواجه -Z (نحو المدينة/السبون)
+local BBOX_CZ = 0.25                        -- إزاحة مركز صندوق المبنى عن أصله (عمق)
+local DOOR_DEPTH = 19.0                     -- مستوى الباب عن مركز المبنى (محور العمق)
+local DOOR_H = 6.0                          -- ارتفاع مركز الباب فوق الأرضية
+local DOOR_W = 11.0
+local LEAF_W = DOOR_W / 2 - 0.15
+local LEAF_H = 10.6
+local OPEN_ANGLE = math.rad(100)
 
-	local function deco(props)
-		props.Parent = hall
-		if props.CanCollide == nil then props.CanCollide = false end
-		return part(props)
+-- إحداثي داخل إطار المبنى: bx=العرض، h=الارتفاع فوق الأرضية، bz=العمق (الباب=+19)
+local function bcf(targetCF: CFrame, halfY: number, bx: number, h: number, bz: number): CFrame
+	return targetCF * CFrame.new(bx, h - halfY, bz - BBOX_CZ)
+end
+
+local function loadHall(parent: Instance): (CFrame?, number?)
+	local ok, model
+	for attempt = 1, 5 do
+		ok, model = pcall(function()
+			return InsertService:LoadAsset(HALL_ASSET_ID)
+		end)
+		if ok and model then break end
+		warn("[GamesHall] محاولة تحميل الأصل فشلت", attempt, model)
+		task.wait(2)
 	end
-
-	-- أرضية مرمرية مرتفعة قليلاً تحت الطاولات
-	deco({
-		Name = "GamesFloor", CanCollide = true,
-		Size = Vector3.new(PW, 0.6, PD),
-		CFrame = CFrame.new(GC.X, 0.4, GC.Z),
-		Color = Color3.fromRGB(236, 228, 214), Material = Enum.Material.Marble,
-	})
-	-- إطار نيون وردي حول الأرضية
-	for _, e in ipairs({
-		{ Vector3.new(0, 0, PD / 2), Vector3.new(PW, 0.5, 0.8) },
-		{ Vector3.new(0, 0, -PD / 2), Vector3.new(PW, 0.5, 0.8) },
-		{ Vector3.new(PW / 2, 0, 0), Vector3.new(0.8, 0.5, PD) },
-		{ Vector3.new(-PW / 2, 0, 0), Vector3.new(0.8, 0.5, PD) },
-	}) do
-		deco({
-			Name = "FloorTrim", Size = e[2],
-			CFrame = CFrame.new(GC.X + e[1].X, 0.7, GC.Z + e[1].Z),
-			Color = PINK, Material = Enum.Material.Neon,
-		})
+	if not (ok and model) then
+		warn("[GamesHall] تعذّر تحميل أصل المبنى — الطاولات فقط")
+		return nil, nil
 	end
-
-	-- عمود: جذع رخامي كريمي + قاعدة وتاج ذهبيان
-	local function column(x: number, z: number)
-		deco({
-			Name = "Column", Shape = Enum.PartType.Cylinder, CanCollide = true,
-			Size = Vector3.new(PH, 1.7, 1.7),
-			CFrame = CFrame.new(x, PH / 2 + 0.6, z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = CREAM, Material = Enum.Material.Marble,
-		})
-		for _, cy in ipairs({ 0.9, PH + 0.1 }) do
-			deco({
-				Name = "ColumnTrim", Shape = Enum.PartType.Cylinder,
-				Size = Vector3.new(0.8, 2.4, 2.4),
-				CFrame = CFrame.new(x, cy, z) * CFrame.Angles(0, 0, math.rad(90)),
-				Color = GOLD, Material = Enum.Material.Metal,
-			})
+	model.Name = "GamesHall"
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = true
 		end
 	end
-	-- أعمدة على الضلعين الجانبيين فقط → الواجهة الأمامية مفتوحة تماماً
-	for _, x in ipairs({ GC.X - PW / 2 + 2, GC.X + PW / 2 - 2 }) do
-		for _, dz in ipairs({ -PD / 2 + 2, 0, PD / 2 - 2 }) do
-			column(x, GC.Z + dz)
-		end
-	end
+	model.Parent = parent
+	local cf, size = model:GetBoundingBox()
+	local halfY = size.Y / 2
+	local targetCF = CFrame.new(HALL_CENTER.X, HALL_CENTER.Y + halfY, HALL_CENTER.Z)
+		* CFrame.Angles(0, HALL_YAW, 0)
+	model.WorldPivot = cf
+	model:PivotTo(targetCF)
+	return targetCF, halfY
+end
 
-	-- السقف المسطّح (أسفله كحلي) + إطار ذهبي علوي
-	deco({
-		Name = "Roof", CanCollide = true,
-		Size = Vector3.new(PW + 4, 1.4, PD + 4),
-		CFrame = CFrame.new(GC.X, PH + 1.4, GC.Z),
-		Color = NAVY, Material = Enum.Material.Slate,
-	})
-	deco({
-		Name = "RoofTrim",
-		Size = Vector3.new(PW + 6, 0.5, PD + 6),
-		CFrame = CFrame.new(GC.X, PH + 2.2, GC.Z),
-		Color = GOLD, Material = Enum.Material.Metal,
-	})
+-- باب مزدوج زجاجي بإطار ذهبي، مقفول افتراضياً، يفتح بـE بحركة ناعمة، ويُغلق تلقائياً.
+local function buildDoor(parent: Instance, targetCF: CFrame, halfY: number)
+	local doorModel = Instance.new("Model")
+	doorModel.Name = "EntranceDoor"
+	doorModel.Parent = parent
 
-	-- لافتة نيون أمامية «🎮 ركن الألعاب» (تواجه القادمين من السبون z<57)
-	local FRONT_Z = GC.Z - PD / 2 - 0.4
-	local sign = deco({
-		Name = "Banner",
-		Size = Vector3.new(30, 5, 0.6),
-		CFrame = CFrame.new(GC.X, PH - 2.5, FRONT_Z),
-		Color = Color3.fromRGB(18, 22, 36), Material = Enum.Material.SmoothPlastic,
-	})
-	for _, e in ipairs({
-		{ Vector3.new(0, 2.7, 0), Vector3.new(31, 0.5, 0.7) },
-		{ Vector3.new(0, -2.7, 0), Vector3.new(31, 0.5, 0.7) },
-		{ Vector3.new(15.2, 0, 0), Vector3.new(0.5, 5.6, 0.7) },
-		{ Vector3.new(-15.2, 0, 0), Vector3.new(0.5, 5.6, 0.7) },
-	}) do
-		deco({
-			Name = "BannerFrame", Size = e[2],
-			CFrame = CFrame.new(GC.X + e[1].X, PH - 2.5 + e[1].Y, FRONT_Z),
-			Color = GOLD_HI, Material = Enum.Material.Neon,
-		})
-	end
-	local sgui = Instance.new("SurfaceGui")
-	sgui.Name = "BannerFace"
-	sgui.AutoLocalize = false
-	sgui.Face = Enum.NormalId.Back
-	sgui.CanvasSize = Vector2.new(1024, 180)
-	sgui.LightInfluence = 0
-	sgui.Adornee = sign
-	sgui.Parent = sign
-	local bl = Instance.new("TextLabel")
-	bl.BackgroundTransparency = 1
-	bl.Size = UDim2.new(1, -40, 1, -20)
-	bl.Position = UDim2.new(0, 20, 0, 10)
-	bl.Font = Enum.Font.GothamBlack
-	bl.Text = "🎮 ركن الألعاب"
-	bl.RichText = true
-	bl.TextScaled = true
-	bl.TextColor3 = GOLD_HI
-	bl.Parent = sgui
-	local bgrad = Instance.new("UIGradient")
-	bgrad.Color = ColorSequence.new(GOLD_HI, GOLD)
-	bgrad.Rotation = 8
-	bgrad.Parent = bl
-	local bstroke = Instance.new("UIStroke")
-	bstroke.Color = Color3.fromRGB(80, 55, 0)
-	bstroke.Thickness = 2
-	bstroke.Parent = bl
+	local leaves: { [number]: { model: Model, hinge: CFrame } } = {}
+	for _, s in ipairs({ -1, 1 }) do
+		local cx = s * (LEAF_W / 2 + 0.05)
+		local leaf = Instance.new("Model")
+		leaf.Name = "Leaf" .. (if s < 0 then "L" else "R")
+		leaf.Parent = doorModel
 
-	-- 🪑 التفريش والتأثيث: سجادة دائرية + فانوس ذهبي معلّق فوق كل طاولة
-	for _, origin in ipairs(TABLES) do
-		local tx = origin.X
-		deco({
-			Name = "Rug", Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.3, 13, 13),
-			CFrame = CFrame.new(tx, 0.85, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = Color3.fromRGB(60, 70, 120), Material = Enum.Material.Fabric,
+		local glass = part({
+			Name = "Glass", Parent = leaf, Color = Color3.fromRGB(150, 200, 225),
+			Material = Enum.Material.Glass, Transparency = 0.45, CanCollide = true,
+			Size = Vector3.new(LEAF_W - 1.1, LEAF_H - 1.1, 0.18),
+			CFrame = bcf(targetCF, halfY, cx, DOOR_H, DOOR_DEPTH),
 		})
-		deco({
-			Name = "RugRing", Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.32, 9.5, 9.5),
-			CFrame = CFrame.new(tx, 0.86, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = PINK, Material = Enum.Material.Neon,
-		})
-		deco({
-			Name = "LanternRod", Size = Vector3.new(0.3, 3, 0.3),
-			CFrame = CFrame.new(tx, PH - 1.2, GC.Z),
-			Color = GOLD, Material = Enum.Material.Metal,
-		})
-		deco({
-			Name = "Lantern", Shape = Enum.PartType.Ball,
-			Size = Vector3.new(2.2, 2.2, 2.2),
-			CFrame = CFrame.new(tx, PH - 3.2, GC.Z),
-			Color = Color3.fromRGB(255, 224, 150), Material = Enum.Material.Neon,
-		})
-		deco({
-			Name = "LanternCap", Shape = Enum.PartType.Cylinder,
-			Size = Vector3.new(0.5, 1.4, 1.4),
-			CFrame = CFrame.new(tx, PH - 2.1, GC.Z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color = GOLD, Material = Enum.Material.Metal,
-		})
-	end
-
-	-- أحواض نباتات أنيقة عند أقدام الأعمدة الجانبية
-	for _, x in ipairs({ GC.X - PW / 2 + 2, GC.X + PW / 2 - 2 }) do
-		for _, dz in ipairs({ -PD / 2 + 2, 0, PD / 2 - 2 }) do
-			local pz = GC.Z + dz
-			deco({
-				Name = "Planter", CanCollide = true, Size = Vector3.new(2.6, 1.8, 2.6),
-				CFrame = CFrame.new(x, 1.6, pz),
-				Color = CREAM, Material = Enum.Material.Marble,
-			})
-			deco({
-				Name = "PlanterRim", Size = Vector3.new(2.9, 0.4, 2.9),
-				CFrame = CFrame.new(x, 2.5, pz),
-				Color = GOLD, Material = Enum.Material.Metal,
-			})
-			deco({
-				Name = "Bush", Shape = Enum.PartType.Ball,
-				Size = Vector3.new(2.8, 2.4, 2.8),
-				CFrame = CFrame.new(x, 3.7, pz),
-				Color = Color3.fromRGB(86, 170, 96), Material = Enum.Material.Grass,
+		leaf.PrimaryPart = glass
+		-- إطار ذهبي حول المصراع
+		local frame = {
+			{ Vector3.new(s * (LEAF_W / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.4) },
+			{ Vector3.new(-s * (LEAF_W / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.4) },
+			{ Vector3.new(0, LEAF_H / 2 - 0.35, 0), Vector3.new(LEAF_W, 0.7, 0.4) },
+			{ Vector3.new(0, -LEAF_H / 2 + 0.35, 0), Vector3.new(LEAF_W, 0.7, 0.4) },
+			{ Vector3.new(0, 0.3, 0), Vector3.new(LEAF_W, 0.5, 0.4) },
+		}
+		for _, f in ipairs(frame) do
+			part({
+				Name = "Bar", Parent = leaf, Color = GOLD, Material = Enum.Material.Metal,
+				CanCollide = false, Size = f[2],
+				CFrame = bcf(targetCF, halfY, cx + f[1].X, DOOR_H + f[1].Y, DOOR_DEPTH),
 			})
 		end
+		-- مقبض عمودي قرب فتحة المنتصف
+		part({
+			Name = "Handle", Parent = leaf, Color = GOLD_HI, Material = Enum.Material.Metal,
+			CanCollide = false, Size = Vector3.new(0.18, 2.2, 0.3),
+			CFrame = bcf(targetCF, halfY, -s * 0.5, DOOR_H, DOOR_DEPTH + 0.45),
+		})
+
+		local hinge = bcf(targetCF, halfY, s * 5.35, DOOR_H, DOOR_DEPTH)
+		leaf.WorldPivot = hinge
+		leaves[s] = { model = leaf, hinge = hinge }
 	end
 
-	return hall
+	-- حركة الفتح/الإغلاق عبر قيمة مُحرّكة بـTween
+	local anim = Instance.new("NumberValue")
+	anim.Value = 0
+	anim.Parent = doorModel
+	anim.Changed:Connect(function(t)
+		for _, s in ipairs({ -1, 1 }) do
+			local lf = leaves[s]
+			lf.model:PivotTo(lf.hinge * CFrame.Angles(0, -s * OPEN_ANGLE * t, 0))
+		end
+	end)
+
+	local isOpen = false
+	local closeToken = 0
+	local function setDoor(open: boolean)
+		isOpen = open
+		TweenService:Create(anim,
+			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Value = open and 1 or 0 }):Play()
+	end
+
+	-- نقطة تفاعل غير مرئية بمنتصف الباب
+	local hub = part({
+		Name = "DoorPrompt", Parent = doorModel, Transparency = 1, CanCollide = false,
+		Size = Vector3.new(DOOR_W, LEAF_H, 1),
+		CFrame = bcf(targetCF, halfY, 0, DOOR_H, DOOR_DEPTH),
+	})
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "DoorPrompt"
+	prompt.ActionText = "افتح/أغلق الباب"
+	prompt.ObjectText = "🎮 ركن الألعاب"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 11
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = hub
+	prompt.Triggered:Connect(function()
+		setDoor(not isOpen)
+		if isOpen then
+			closeToken += 1
+			local mine = closeToken
+			task.delay(8, function()
+				if mine == closeToken and isOpen then setDoor(false) end
+			end)
+		end
+	end)
 end
 
 ----------------------------------------------------------------------
@@ -19974,7 +19939,10 @@ local root = Instance.new("Folder")
 root.Name = "TicTacToeArea"
 root.Parent = Workspace
 
-buildGamesHall(root)
+local hallCF, hallHalfY = loadHall(root)
+if hallCF and hallHalfY then
+	buildDoor(root, hallCF, hallHalfY)
+end
 
 for _, origin in ipairs(TABLES) do
 	games[#games + 1] = buildTable(origin, root)
