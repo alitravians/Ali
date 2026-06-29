@@ -714,9 +714,11 @@ local function buildDoor(parent: Instance, model: Model)
 		leaf.Parent = doorModel
 		-- لوح الباب: مصمت كحلي (يُعرَض بوضوح تام مهما كانت الإضاءة/البلوم؛
 		-- اللوح الشفاف القديم كان يذوب في الوهج الأبيض فيبان الباب فارغاً)
+		-- الأوراق تزيينية فقط (CanCollide=false)؛ الاصطدام موكول لحاجز واحد ثابت
+		-- (DoorBarrier) حتى لا تبقى الفتحة قابلة للمرور بعد دوران الأوراق.
 		local pane = part({
 			Name = "Pane", Parent = leaf, Color = rgb(C.NAVY),
-			Material = Enum.Material.SmoothPlastic, Transparency = 0, CanCollide = true,
+			Material = Enum.Material.SmoothPlastic, Transparency = 0, CanCollide = false,
 			Size = Vector3.new(leafW, LEAF_H, 0.22), CFrame = CFrame.new(glassX, dh, dz),
 		})
 		leaf.PrimaryPart = pane
@@ -768,10 +770,19 @@ local function buildDoor(parent: Instance, model: Model)
 		end
 	end)
 
+	-- حاجز اصطدام غير مرئي يملأ الفتحة: صلب عند الإغلاق فقط.
+	-- يفصل الاصطدام عن الأوراق المتحركة فيصير الفتح/الإغلاق حاسماً كل مرة.
+	local barrier = part({
+		Name = "DoorBarrier", Parent = doorModel, Transparency = 1, CanCollide = true,
+		Size = Vector3.new(math.abs(pR.X - pL.X), LEAF_H, 0.6),
+		CFrame = CFrame.new(cx, dh, dz),
+	})
+
 	local isOpen = false
 	local closeTok = 0
 	local function setDoor(open: boolean)
 		isOpen = open
+		barrier.CanCollide = not open
 		TweenService:Create(anim,
 			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 			{ Value = open and 1 or 0 }):Play()
