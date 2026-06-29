@@ -475,17 +475,23 @@ local function loadPieceTemplates(): boolean
 		warn("[Chess] تعذّر تحميل أصل القطع")
 		return false
 	end
+	-- نُبقي القوالب حيّةً داخل مجلد ثابت ثم نُتلف النموذج المُحمَّل،
+	-- بدل الاعتماد على بقاء نسخة في الذاكرة بعد Destroy (سلوك غير موثَّق).
+	local holder = Instance.new("Folder")
+	holder.Name = "ChessPieceTemplates"
+	holder.Parent = game:GetService("ServerStorage")
 	for _, d in ipairs(model:GetDescendants()) do
 		if d:IsA("BasePart") then
 			for _, name in pairs(PIECE_NAME) do
 				if d.Name == name and not pieceTemplates[name] then
 					d.Anchored = true
+					d.Parent = holder      -- ننقله لمجلد ثابت يبقى حيّاً
 					pieceTemplates[name] = d
 				end
 			end
 		end
 	end
-	model:Destroy()  -- أبقينا القوالب فقط؛ نستنسخها عند الحاجة
+	model:Destroy()  -- نُتلف بقايا النموذج فقط؛ القوالب محفوظة في holder
 	local king = pieceTemplates["King"]
 	if not king then
 		warn("[Chess] قالب الملك مفقود في الأصل")
