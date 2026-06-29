@@ -206,38 +206,58 @@ local function ticketPriceFor(player: Player): number
 	return _G.IsVIP(player) and CONFIG.VipTicketPrice or CONFIG.TicketPrice
 end
 
--- شارة VIP فوق رأس اللاعب (BillboardGui ذهبية)
+-- شارة VIP فوق رأس اللاعب (BillboardGui ذهبية) — تُبنى لشخصية محددة.
+-- انتظار صبور للرأس (السبَون السينمائي/الطيران قد يؤخّر ظهور الرأس أكثر من 8 ثوانٍ)،
+-- وإعادة تحقّق من الحالة بعد الانتظار كي لا نُنشئ تاجاً لمن سُحبت منه VIP أثناء التأخير.
+local function buildVipCrown(player: Player, char: Model)
+	local s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	if not (char and char.Parent) then return end
+	local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 25)
+	if not head then return end
+	-- إعادة التحقق بعد الانتظار + منع التكرار
+	s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	if head:FindFirstChild("VipTag") then return end
+	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
+	bb.Parent = head
+	-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.fromScale(1, 1)
+	pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
+	pill.Parent = bb
+	Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
+	local ipad = Instance.new("UIPadding")
+	ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
+	ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
+	lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
+	lbl.Text = "⭐ VIP"
+	lbl.Parent = pill
+end
+
+-- بناء التاج على الشخصية الحالية فوراً (تغذية راجعة لحظية عند المنح)
 local function applyVipTag(player: Player)
-	local function tag(char: Model)
-		local s = sessions[player.UserId]
-		if not (s and s.vip) then return end  -- لا تعرض التاج لمن سُحبت منه VIP
-		local head = char:WaitForChild("Head", 8)
-		if not head or head:FindFirstChild("VipTag") then return end
-		local bb = Instance.new("BillboardGui")
-		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
-		bb.Parent = head
-		-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
-		local pill = Instance.new("Frame")
-		pill.Size = UDim2.fromScale(1, 1)
-		pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
-		pill.Parent = bb
-		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
-		local st = Instance.new("UIStroke")
-		st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
-		local ipad = Instance.new("UIPadding")
-		ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
-		ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
-		local lbl = Instance.new("TextLabel")
-		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
-		lbl.Text = "⭐ VIP"
-		lbl.Parent = pill
-	end
-	if player.Character then task.spawn(tag, player.Character) end
-	player.CharacterAdded:Connect(function(char) task.spawn(tag, char) end)
+	if player.Character then task.spawn(buildVipCrown, player, player.Character) end
+end
+
+-- 🔁 إعادة تأكيد كل مزايا VIP على *كل* سبَون (تاج + خاصية VIP + أزرار المزايا).
+-- جذري: حتى لو مات اللاعب أو سوّى ريست أو خرج ورجع، تبقى VIP ظاهرة وفعّالة
+-- ولا تُزال إلا حين يسحبها الأدمن من لوحة الإدارة (revokeVip).
+local reassertVip
+reassertVip = function(player: Player, char: Model)
+	local s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	player:SetAttribute("VIP", true)
+	task.spawn(buildVipCrown, player, char)
+	if sendPerks then task.spawn(sendPerks, player) end
 end
 
 -- منح عضوية VIP (تُستدعى من شراء الكوينز أو امتلاك الـ Game Pass)
@@ -317,7 +337,11 @@ Players.PlayerAdded:Connect(function(player)
 	end
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
-	if vip then applyVipTag(player) end
+
+	-- 🔁 ربط دائم: في كل سبَون (موت/ريست/أول دخول) أعد تأكيد VIP إن كان عضواً —
+	-- التاج والمزايا ما تختفي إلا حين يسحب الأدمن العضوية. حماية جذرية كاملة.
+	player.CharacterAdded:Connect(function(char) reassertVip(player, char) end)
+	if player.Character then task.spawn(reassertVip, player, player.Character) end
 
 	-- من يملك الـ Game Pass يحصل على VIP تلقائياً (دخل حقيقي بالـ Robux)
 	if CONFIG.VipGamePassId ~= 0 then
@@ -1440,6 +1464,29 @@ local function adminNotify(player, text)
 	lobbyRemote:FireClient(player, { action = "announce", text = text })
 end
 
+-- 💰 إعطاء/خصم كوينز للاعب (أدمن فأعلى).
+-- أونلاين: عبر الجلسة (يُطبَّق فوراً + حفظ). أوفلاين: على DataStore مباشرة.
+-- يُرجع الرصيد الجديد، أو nil إذا تعذّر التعديل (فشل قراءة/حفظ — حماية من محو رصيد حقيقي).
+local function adminGiveCoins(uid: number, delta: number): number?
+	local target = Players:GetPlayerByUserId(uid)
+	if target then
+		local s = sessions[uid]
+		if s and s.dataLoaded ~= false then
+			setCoins(target, s.coins + delta)
+			saveCoins(uid)  -- تثبيت فوري (لا ننتظر دورة الحفظ)
+			return s.coins
+		end
+		-- الجلسة لم تُحمَّل بعد → عامله كأوفلاين على المتجر (لا نخاطر بكتابة فوق قراءة فاشلة)
+	end
+	if not coinStore then return nil end
+	local ok, cur = getAsyncRetry("c_" .. uid)
+	if not ok then return nil end  -- فشل القراءة: لا تكتب
+	local base = (type(cur) == "number") and cur or CONFIG.StartCoins
+	local newBal = math.max(0, math.floor(base + delta))
+	if setAsyncRetry("c_" .. uid, newBal) then return newBal end
+	return nil
+end
+
 local function sendAdminPanel(player)
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -1455,6 +1502,7 @@ local function sendAdminPanel(player)
 		for k in pairs(readPassGrants(p.UserId)) do pGrants[k] = true end
 		table.insert(list, {
 			name = p.Name, display = p.DisplayName, userId = p.UserId,
+			coins = (_G.GetCoins and _G.GetCoins(p)) or 0,
 			vip = (_G.IsVIP and _G.IsVIP(p)) or false,
 			banned = (_G.BoothIsBanned and _G.BoothIsBanned(p.UserId)) or false,
 			muted = (_G.ChatIsMuted and _G.ChatIsMuted(p.UserId)) or false,
@@ -1763,7 +1811,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			broadcast=true, boothsEnable=true, boothsDisable=true, boothRelease=true,
 			maintenanceOn=true, maintenanceOff=true, vipGrant=true, vipRevoke=true,
 			ban=true, unban=true, mapBan=true, mapUnban=true,
-			grantPass=true, revokePass=true,
+			grantPass=true, revokePass=true, giveCoins=true,
 		}
 		if MAP_CMDS[cmd] and not canDo(RANK_W.admin) then return end
 		-- ===== العرض =====
@@ -1935,6 +1983,36 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				adminNotify(player, "ℹ️ «" .. nm .. "» ليست ممنوحة من الإدارة لهذا اللاعب.")
 			end
 			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
+		elseif cmd == "giveCoins" then
+			-- 💰 إعطاء/خصم كوينز للاعب — أدمن فأعلى (محمي بـ MAP_CMDS)
+			local target, tid = targetOf()
+			local uid = tid
+			if not uid then
+				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
+			end
+			-- لا تتصرّف برصيد إداري برتبة مثلك أو أعلى (يعمل أونلاين وأوفلاين عبر userId)
+			if (RANK_W[rankOfId(uid)] or 0) >= myW then
+				adminNotify(player, "🚫 لا يمكنك تعديل رصيد إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
+			end
+			local amount = math.floor(tonumber(payload.amount) or 0)
+			if amount == 0 then
+				adminNotify(player, "ℹ️ أدخل مبلغاً صحيحاً."); sendAdminPanel(player); return
+			end
+			amount = math.clamp(amount, -1000000, 1000000)  -- حدّ أمان لكل عملية
+			local who = target and target.Name or ("#" .. uid)
+			local newBal = adminGiveCoins(uid, amount)
+			if newBal == nil then
+				adminNotify(player, "⚠️ تعذّر تعديل رصيد " .. who .. " (مشكلة في الحفظ، حاول لاحقاً).")
+			elseif amount > 0 then
+				adminNotify(player, "💰 أضفت " .. amount .. " كوينز لـ " .. who .. " — الرصيد الآن " .. newBal .. ".")
+				if target then adminNotify(target, "💰 أضافت لك الإدارة " .. amount .. " كوينز! رصيدك الآن " .. newBal .. ".") end
+				logAdmin(adminName, "أضاف " .. amount .. " كوينز لـ " .. who)
+			else
+				adminNotify(player, "➖ خصمت " .. (-amount) .. " كوينز من " .. who .. " — الرصيد الآن " .. newBal .. ".")
+				if target then adminNotify(target, "➖ خصمت الإدارة " .. (-amount) .. " كوينز من رصيدك. رصيدك الآن " .. newBal .. ".") end
+				logAdmin(adminName, "خصم " .. (-amount) .. " كوينز من " .. who)
+			end
+			sendAdminPanel(player)  -- حدّث اللوحة (الرصيد الجديد) فوراً
 		elseif cmd == "ban" then
 			local target, tid = targetOf()
 			if tid and tid ~= player.UserId then

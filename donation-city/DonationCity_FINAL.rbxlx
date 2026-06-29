@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٤٣",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٦٣",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,131 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٦٣", date = "٢٩ يونيو",
+			items = {
+				{ "new", "تحسين احترافي للعبة إكس-أو (X-O): رموز أنعم (O حلقة ملساء + X بأطراف مدوّرة) + أنيميشن انبثاق ناعم عند وضع الرمز + إبراز خط الفوز بشعاع نابض + أصوات (نقرة عند اللعب ونغمة فوز) + عدّاد نتيجة X و O على لوحة الطاولة." },
+			},
+		},
+		{
+			version = "٢.٩.٦٢", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح خلل وميض الدائرة المتوهّجة حول بوابة برج الباركور (أذرع الضوء الثلاثة كانت متطابقة فتومض) + تخفيف الوهج الأبيض الزائد على المنصّة — صارت أوضح وأريح للعين." },
+			},
+		},
+		{
+			version = "٢.٩.٦١", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إزالة أشجار الكرز الأربع التي ظهرت داخل مبنى «ركن الألعاب» خطأً — بقيت أشجار الكرز الخارجية فقط." },
+			},
+		},
+		{
+			version = "٢.٩.٦٠", date = "٢٩ يونيو",
+			items = {
+				{ "new", "أشجار الكرز أصبحت موديلات 3D مصمّمة في بلندر (جذع متفرّع + تاج وردي كثيف واقعي) بدل الأشجار الإجرائية القديمة — أقرب بكثير للشكل الطبيعي، مع تمايل مع الريح وتساقط بتلات وردية." },
+			},
+		},
+		{
+			version = "٢.٩.٥٩", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "باب «ركن الألعاب» صار باباً منزلقاً: بدل ما تدور الأوراق (وكانت تعلق على الجانب كأنها فاصل بعد الفتح/الإغلاق)، صارت تنزلق داخل الجدار عند الفتح وترجع مسطّحة تماماً عند الإغلاق — فيقفل بالكامل وبشكل صحيح كل مرة، بلا أي جزء مكشوف." },
+			},
+		},
+		{
+			version = "٢.٩.٥٨", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح جذري لإغلاق باب «ركن الألعاب»: كانت أوراق الباب أحياناً ما ترجع لوضع الإغلاق الكامل فتبقى مفتوحة على الجانب كأنها فاصل. الآن أي حركة جارية تُلغى عند الضغط، والأوراق تُثبَّت بدقّة على وضعها النهائي (مغلق=مسطّح، مفتوح=للجانب) عند انتهاء الحركة — فيقفل ويفتح بالكامل وبشكل صحيح كل مرة." },
+			},
+		},
+		{
+			version = "٢.٩.٥٧", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح جذري لاصطدام باب «ركن الألعاب»: كانت الفتحة تبقى قابلة للمرور بعد فتح الباب حتى بعد إغلاقه. الآن الاصطدام موكول لحاجز ثابت يصبح صلباً عند الإغلاق ويفتح عند الفتح — فصار الباب يسّكر ويفتح بشكل صحيح كل مرة." },
+			},
+		},
+		{
+			version = "٢.٩.٥٦", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح جذري لباب «ركن الألعاب»: كان لوح الباب شفافاً فيذوب في وهج الإضاءة ويبان المدخل فارغاً. صار الباب لوحاً كحلياً مصمتاً بإطار ذهبي + نافذة زجاجية ومقبض — واضح تماماً ويفتح/يغلق بـE." },
+				{ "fix", "تقليل الوهج الأبيض الزائد حول المدخل (تخفيف النيون في الخطوط الذهبية وإطار الأرضية) فصارت التفاصيل أوضح." },
+			},
+		},
+		{
+			version = "٢.٩.٥٥", date = "٢٩ يونيو",
+			items = {
+				{ "new", "أشجار كرز وردية 3D حقيقية تتمايل مع الريح: استُبدلت الأشجار الخضراء القديمة في الماب بأشجار كرز متفرّعة بتاج وردي كثيف وتساقط بتلات، مع زوجين يحضنان مدخل «ركن الألعاب»." },
+				{ "fix", "تنسيق «ركن الألعاب»: صبغ أوضح للجدران (كريمي دافئ) داخل وخارج + حزام كحلي وخط ذهبي وكورنيش علوي، وأرضية رخام أدفأ بإطار ذهبي محيطي — صار المبنى يبان مؤطّراً ومصمّماً لا باهتاً." },
+			},
+		},
+		{
+			version = "٢.٩.٥٤", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح تداخل بصري في «ركن الألعاب»: نوافذ الجدار الخلفي الزجاجية كانت تتداخل مع لوحة «المتصدّرون» والساعة فتبان كأنها لوح أزرق فوقها — أُخفيت نوافذ الجدار الخلفي فصارت اللوحة والساعة واضحتين." },
+			},
+		},
+		{
+			version = "٢.٩.٥٣", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح باب «ركن الألعاب»: كان يبان فارغاً لأن خامة الزجاج تختفي على بعض الأجهزة — صار لوحاً واضحاً بإطار ذهبي سميك وعارضات ولوح سفلي كريمي ومقبض، يفتح/يُغلق بـE." },
+				{ "new", "تأثيث داخلي وخارجي متكامل للمبنى: ميدالية ترحيب ذهبية بشعار X/O وحلقة نيون وردية وسط الصالة، إطارات ذهبية لممر السجاد، أحواض كرز مزهّرة، وإضاءة وردية عند الأعمدة. ومن الخارج: سجادة ترحيب حمراء، فانوسان مضيئان عند الباب، أحواض كرز، ومقاعد انتظار." },
+			},
+		},
+		{
+			version = "٢.٩.٥٢", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح مبنى «ركن الألعاب» 3D: إعادة صبغه بالكامل (كان يصل رماديّاً بلا ألوان لأن الرفع جرّد الخامات) — جدران كريمية، أعمدة وأطراف ذهبية، سقف كحلي، نيون وردي، أرضية رخام، نوافذ زجاجية. وتصحيح الاتجاه: المدخل والباب واللافتة صاروا يواجهون المدخل (السبون) بدل الجهة الخلفية، مع إعادة الباب المزدوج ليملأ الفتحة ويفتح بـE، وإعادة نص اللافتة «🎮 ركن الألعاب»." },
+			},
+		},
+		{
+			version = "٢.٩.٥١", date = "٢٩ يونيو",
+			items = {
+				{ "new", "🎮 مبنى «ركن الألعاب» الجديد ثلاثي الأبعاد (3D): جناح مغلق متكامل بجدران ونوافذ وسقف هرمي ملكي، بُني بتقنية بلندر ورُكّب في زاوية مخصّصة شمال المدينة. باب زجاجي مزدوج بإطار ذهبي يفتح بالضغط على E ويُغلق تلقائياً. طاولات إكس-أو الثلاث صارت بداخله، مع ثُريّا وفوانيس وإضاءة نيون ولافتة وأحواض نباتات." },
+			},
+		},
+		{
+			version = "٢.٩.٥٠", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح تلميحات مشهد القفز بالمظلّة: فصل تام بين الجوال والكمبيوتر — الجوال يرى أزرار لمس فقط (اقفز / افتح المظلّة / تسريع)، والكمبيوتر يرى تلميح «اضغط E / Shift» فقط دون تكرار أو ظهور أزرار الجوال على الكمبيوتر." },
+			},
+		},
+		{
+			version = "٢.٩.٤٩", date = "٢٩ يونيو",
+			items = {
+				{ "new", "🕐 ساعة السيرفر صارت مصغّرة وأنيقة بجانب «كوينز» أعلى-اليمين بنفس الستايل (زجاج داكن وإطار ذهبي) — تعرض الوقت بأرقام عربية مع شمس نهاراً تتحوّل هلالاً ليلاً، ولا تتداخل مع الإشعارات نهائياً." },
+			},
+		},
+		{
+			version = "٢.٩.٤٨", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح جذري لميزة VIP: ما تختفي أبداً بالموت أو الريست أو الخروج وإعادة الدخول — تُعاد كل مزاياها (التاج الذهبي، الأزرار، الدخول المجاني للقصر) تلقائياً عند كل ظهور، ولا تُسحب إلا من لوحة الإدارة." },
+				{ "new", "🎮 ركن الألعاب: جناح مفتوح أنيق يضمّ طاولات إكس-أو الثلاث مع أعمدة رخامية وسقف ملكي وأرضية بإطار نيون، مُفرَّش بسجاد دائري وفوانيس ذهبية معلّقة وأحواض نباتات — مفتوح لكل اللاعبين." },
+				{ "fix", "الساعة العلوية ما تعود تغطّي الإشعارات: تنزاح لأعلى بسلاسة فور ظهور أي إشعار علوي وترجع مكانها بعد اختفائه." },
+			},
+		},
+		{
+			version = "٢.٩.٤٧", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "تعزيز حماية «إعطاء/خصم كوينز»: التحقق من رتبة اللاعب صار عبر معرّفه (userId) فيعمل حتى لو كان غير متصل — فما يقدر أدمن يعدّل رصيد إداري برتبته أو أعلى وهو أوفلاين." },
+			},
+		},
+		{
+			version = "٢.٩.٤٦", date = "٢٩ يونيو",
+			items = {
+				{ "improve", "تصميم جديد احترافي لساعة السيرفر: شريحة زجاجية بظل ناعم وإطار ذهبي متدرّج، شمس بأشعة دوّارة نهاراً تتحوّل لهلال ليلاً، توهّج نابض، واسم المرحلة (الفجر/الصباح/الظهر/العصر/المغرب/الليل) بانتقالات ألوان سلسة." },
+			},
+		},
+		{
+			version = "٢.٩.٤٥", date = "٢٩ يونيو",
+			items = {
+				{ "new", "أعضاء VIP يدخلون قصر شهد مجاناً بدون رسوم — بصمة الدخول تتعرّف عليهم وتفتح الباب فوراً." },
+			},
+		},
+		{
+			version = "٢.٩.٤٤", date = "٢٩ يونيو",
+			items = {
+				{ "new", "زر «💰 كوينز» في لوحة الإدارة: الأدمن فأعلى يقدر يضيف أو يخصم كوينز لأي لاعب فوراً (مبالغ سريعة + مبلغ مخصّص)." },
+			},
+		},
 		{
 			version = "٢.٩.٤٣", date = "٢٨ يونيو",
 			items = {
@@ -6024,38 +6149,58 @@ local function ticketPriceFor(player: Player): number
 	return _G.IsVIP(player) and CONFIG.VipTicketPrice or CONFIG.TicketPrice
 end
 
--- شارة VIP فوق رأس اللاعب (BillboardGui ذهبية)
+-- شارة VIP فوق رأس اللاعب (BillboardGui ذهبية) — تُبنى لشخصية محددة.
+-- انتظار صبور للرأس (السبَون السينمائي/الطيران قد يؤخّر ظهور الرأس أكثر من 8 ثوانٍ)،
+-- وإعادة تحقّق من الحالة بعد الانتظار كي لا نُنشئ تاجاً لمن سُحبت منه VIP أثناء التأخير.
+local function buildVipCrown(player: Player, char: Model)
+	local s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	if not (char and char.Parent) then return end
+	local head = char:FindFirstChild("Head") or char:WaitForChild("Head", 25)
+	if not head then return end
+	-- إعادة التحقق بعد الانتظار + منع التكرار
+	s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	if head:FindFirstChild("VipTag") then return end
+	local bb = Instance.new("BillboardGui")
+	bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
+	bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
+	bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
+	bb.Parent = head
+	-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
+	local pill = Instance.new("Frame")
+	pill.Size = UDim2.fromScale(1, 1)
+	pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
+	pill.Parent = bb
+	Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
+	local ipad = Instance.new("UIPadding")
+	ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
+	ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
+	lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
+	lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
+	lbl.Text = "⭐ VIP"
+	lbl.Parent = pill
+end
+
+-- بناء التاج على الشخصية الحالية فوراً (تغذية راجعة لحظية عند المنح)
 local function applyVipTag(player: Player)
-	local function tag(char: Model)
-		local s = sessions[player.UserId]
-		if not (s and s.vip) then return end  -- لا تعرض التاج لمن سُحبت منه VIP
-		local head = char:WaitForChild("Head", 8)
-		if not head or head:FindFirstChild("VipTag") then return end
-		local bb = Instance.new("BillboardGui")
-		bb.AutoLocalize = false  -- 🌐 إيقاف الترجمة التلقائية (النص العربي يظهر للجميع)
-		bb.Name = "VipTag"; bb.Adornee = head; bb.Size = UDim2.fromOffset(104, 32)
-		bb.StudsOffsetWorldSpace = Vector3.new(0, 2.9, 0); bb.AlwaysOnTop = true
-		bb.Parent = head
-		-- بطاقة ذهبية أنيقة بدل النص الطائر (تنسيق متناسق مع اللعبة)
-		local pill = Instance.new("Frame")
-		pill.Size = UDim2.fromScale(1, 1)
-		pill.BackgroundColor3 = Color3.fromRGB(255, 205, 90)
-		pill.Parent = bb
-		Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
-		local st = Instance.new("UIStroke")
-		st.Color = Color3.fromRGB(120, 80, 0); st.Thickness = 1.5; st.Parent = pill
-		local ipad = Instance.new("UIPadding")
-		ipad.PaddingLeft = UDim.new(0, 8); ipad.PaddingRight = UDim.new(0, 8)
-		ipad.PaddingTop = UDim.new(0, 3); ipad.PaddingBottom = UDim.new(0, 3); ipad.Parent = pill
-		local lbl = Instance.new("TextLabel")
-		lbl.BackgroundTransparency = 1; lbl.Size = UDim2.fromScale(1, 1)
-		lbl.Font = Enum.Font.GothamBlack; lbl.TextScaled = true; lbl.RichText = true
-		lbl.TextColor3 = Color3.fromRGB(40, 26, 0)
-		lbl.Text = "⭐ VIP"
-		lbl.Parent = pill
-	end
-	if player.Character then task.spawn(tag, player.Character) end
-	player.CharacterAdded:Connect(function(char) task.spawn(tag, char) end)
+	if player.Character then task.spawn(buildVipCrown, player, player.Character) end
+end
+
+-- 🔁 إعادة تأكيد كل مزايا VIP على *كل* سبَون (تاج + خاصية VIP + أزرار المزايا).
+-- جذري: حتى لو مات اللاعب أو سوّى ريست أو خرج ورجع، تبقى VIP ظاهرة وفعّالة
+-- ولا تُزال إلا حين يسحبها الأدمن من لوحة الإدارة (revokeVip).
+local reassertVip
+reassertVip = function(player: Player, char: Model)
+	local s = sessions[player.UserId]
+	if not (s and s.vip) then return end
+	player:SetAttribute("VIP", true)
+	task.spawn(buildVipCrown, player, char)
+	if sendPerks then task.spawn(sendPerks, player) end
 end
 
 -- منح عضوية VIP (تُستدعى من شراء الكوينز أو امتلاك الـ Game Pass)
@@ -6135,7 +6280,11 @@ Players.PlayerAdded:Connect(function(player)
 	end
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
-	if vip then applyVipTag(player) end
+
+	-- 🔁 ربط دائم: في كل سبَون (موت/ريست/أول دخول) أعد تأكيد VIP إن كان عضواً —
+	-- التاج والمزايا ما تختفي إلا حين يسحب الأدمن العضوية. حماية جذرية كاملة.
+	player.CharacterAdded:Connect(function(char) reassertVip(player, char) end)
+	if player.Character then task.spawn(reassertVip, player, player.Character) end
 
 	-- من يملك الـ Game Pass يحصل على VIP تلقائياً (دخل حقيقي بالـ Robux)
 	if CONFIG.VipGamePassId ~= 0 then
@@ -7258,6 +7407,29 @@ local function adminNotify(player, text)
 	lobbyRemote:FireClient(player, { action = "announce", text = text })
 end
 
+-- 💰 إعطاء/خصم كوينز للاعب (أدمن فأعلى).
+-- أونلاين: عبر الجلسة (يُطبَّق فوراً + حفظ). أوفلاين: على DataStore مباشرة.
+-- يُرجع الرصيد الجديد، أو nil إذا تعذّر التعديل (فشل قراءة/حفظ — حماية من محو رصيد حقيقي).
+local function adminGiveCoins(uid: number, delta: number): number?
+	local target = Players:GetPlayerByUserId(uid)
+	if target then
+		local s = sessions[uid]
+		if s and s.dataLoaded ~= false then
+			setCoins(target, s.coins + delta)
+			saveCoins(uid)  -- تثبيت فوري (لا ننتظر دورة الحفظ)
+			return s.coins
+		end
+		-- الجلسة لم تُحمَّل بعد → عامله كأوفلاين على المتجر (لا نخاطر بكتابة فوق قراءة فاشلة)
+	end
+	if not coinStore then return nil end
+	local ok, cur = getAsyncRetry("c_" .. uid)
+	if not ok then return nil end  -- فشل القراءة: لا تكتب
+	local base = (type(cur) == "number") and cur or CONFIG.StartCoins
+	local newBal = math.max(0, math.floor(base + delta))
+	if setAsyncRetry("c_" .. uid, newBal) then return newBal end
+	return nil
+end
+
 local function sendAdminPanel(player)
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -7273,6 +7445,7 @@ local function sendAdminPanel(player)
 		for k in pairs(readPassGrants(p.UserId)) do pGrants[k] = true end
 		table.insert(list, {
 			name = p.Name, display = p.DisplayName, userId = p.UserId,
+			coins = (_G.GetCoins and _G.GetCoins(p)) or 0,
 			vip = (_G.IsVIP and _G.IsVIP(p)) or false,
 			banned = (_G.BoothIsBanned and _G.BoothIsBanned(p.UserId)) or false,
 			muted = (_G.ChatIsMuted and _G.ChatIsMuted(p.UserId)) or false,
@@ -7581,7 +7754,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			broadcast=true, boothsEnable=true, boothsDisable=true, boothRelease=true,
 			maintenanceOn=true, maintenanceOff=true, vipGrant=true, vipRevoke=true,
 			ban=true, unban=true, mapBan=true, mapUnban=true,
-			grantPass=true, revokePass=true,
+			grantPass=true, revokePass=true, giveCoins=true,
 		}
 		if MAP_CMDS[cmd] and not canDo(RANK_W.admin) then return end
 		-- ===== العرض =====
@@ -7753,6 +7926,36 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				adminNotify(player, "ℹ️ «" .. nm .. "» ليست ممنوحة من الإدارة لهذا اللاعب.")
 			end
 			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
+		elseif cmd == "giveCoins" then
+			-- 💰 إعطاء/خصم كوينز للاعب — أدمن فأعلى (محمي بـ MAP_CMDS)
+			local target, tid = targetOf()
+			local uid = tid
+			if not uid then
+				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
+			end
+			-- لا تتصرّف برصيد إداري برتبة مثلك أو أعلى (يعمل أونلاين وأوفلاين عبر userId)
+			if (RANK_W[rankOfId(uid)] or 0) >= myW then
+				adminNotify(player, "🚫 لا يمكنك تعديل رصيد إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
+			end
+			local amount = math.floor(tonumber(payload.amount) or 0)
+			if amount == 0 then
+				adminNotify(player, "ℹ️ أدخل مبلغاً صحيحاً."); sendAdminPanel(player); return
+			end
+			amount = math.clamp(amount, -1000000, 1000000)  -- حدّ أمان لكل عملية
+			local who = target and target.Name or ("#" .. uid)
+			local newBal = adminGiveCoins(uid, amount)
+			if newBal == nil then
+				adminNotify(player, "⚠️ تعذّر تعديل رصيد " .. who .. " (مشكلة في الحفظ، حاول لاحقاً).")
+			elseif amount > 0 then
+				adminNotify(player, "💰 أضفت " .. amount .. " كوينز لـ " .. who .. " — الرصيد الآن " .. newBal .. ".")
+				if target then adminNotify(target, "💰 أضافت لك الإدارة " .. amount .. " كوينز! رصيدك الآن " .. newBal .. ".") end
+				logAdmin(adminName, "أضاف " .. amount .. " كوينز لـ " .. who)
+			else
+				adminNotify(player, "➖ خصمت " .. (-amount) .. " كوينز من " .. who .. " — الرصيد الآن " .. newBal .. ".")
+				if target then adminNotify(target, "➖ خصمت الإدارة " .. (-amount) .. " كوينز من رصيدك. رصيدك الآن " .. newBal .. ".") end
+				logAdmin(adminName, "خصم " .. (-amount) .. " كوينز من " .. who)
+			end
+			sendAdminPanel(player)  -- حدّث اللوحة (الرصيد الجديد) فوراً
 		elseif cmd == "ban" then
 			local target, tid = targetOf()
 			if tid and tid ~= player.UserId then
@@ -10313,11 +10516,11 @@ entryPad.TopSurface = Enum.SurfaceType.Smooth; entryPad.Parent = gate
 
 -- حافة ذهبية متوهّجة حول القرص العلوي (قرص نيون أكبر بقليل يطلّ كحلقة)
 local padRim = mkCyl("PadRim", 0.3, 11.0, padTopY - 0.12, ENTRY_POS.X, ENTRY_POS.Z, GOLDLIT, Enum.Material.Neon, gate, false)
-padRim.CanTouch = false
+padRim.CanTouch = false; padRim.Transparency = 0.25
 
 -- قرص «ابدأ» أخضر بالمركز + نص على الوجه العلوي
 local goDisc = mkCyl("GoDisc", 0.22, 4.8, padTopY + 0.07, ENTRY_POS.X, ENTRY_POS.Z, GREENZ, Enum.Material.Neon, gate, false)
-goDisc.CanTouch = false; goDisc.Transparency = 0.1
+goDisc.CanTouch = false; goDisc.Transparency = 0.3
 do
 	local goText = mk("GoText", V(4.2, 0.12, 4.2), CFrame.new(ENTRY_POS.X, padTopY + 0.2, ENTRY_POS.Z), GREENZ, Enum.Material.Neon, gate, false)
 	goText.Transparency = 1; goText.CanTouch = false
@@ -10344,8 +10547,12 @@ end
 -- أذرع ضوء ذهبية دوّارة (٣) فوق القرص — تدور عند الاقتراب فقط
 local gateBars = {}
 for i = 1, 3 do
-	local bar = mk("GateSweep", V(9.0, 0.18, 0.5), CFrame.new(ENTRY_POS + V(0, 0.55, 0)), GOLDLIT, Enum.Material.Neon, gate, false)
-	bar.CanTouch = false; bar.Transparency = 0.1
+	-- توزيع الأذرع ١٢٠° منذ الإنشاء + إزاحة رأسية طفيفة لكل ذراع، حتى لا
+	-- تتطابق وتتداخل (z-fighting) أثناء الخمول فتومض كأنها خلل.
+	local bar = mk("GateSweep", V(9.0, 0.18, 0.5),
+		CFrame.new(ENTRY_POS + V(0, 0.55 + (i - 1) * 0.06, 0)) * CFrame.Angles(0, (i - 1) * (math.pi * 2 / 3), 0),
+		GOLDLIT, Enum.Material.Neon, gate, false)
+	bar.CanTouch = false; bar.Transparency = 0.35
 	gateBars[i] = bar
 end
 
@@ -10644,7 +10851,7 @@ task.spawn(function()
 			local dt = RunService.Heartbeat:Wait()
 			theta = (theta + 1.7 * dt) % (math.pi * 2)
 			for i, bar in ipairs(gateBars) do
-				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.55, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
+				bar.CFrame = CFrame.new(ENTRY_POS + V(0, 0.55 + (i - 1) * 0.06, 0)) * CFrame.Angles(0, theta + (i - 1) * (math.pi * 2 / 3), 0)
 			end
 		else
 			task.wait(0.5)
@@ -17729,7 +17936,7 @@ local extScan = buildScanner({
 	accent = Color3.fromRGB(60, 150, 235), screenIdle = Color3.fromRGB(16, 42, 72),
 	glassColor = Color3.fromRGB(120, 200, 250), ringColor = Color3.fromRGB(180, 225, 255),
 	textColor = Color3.fromRGB(210, 235, 255),
-	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز",
+	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز · VIP مجاناً",
 })
 local panelFrame = extScan.frame
 
@@ -17887,6 +18094,13 @@ prompt.Triggered:Connect(function(player)
 		if isAdmin(player) then
 			admit({ kind = "admin" })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
+			return
+		end
+
+		-- ⭐ أعضاء VIP يدخلون القصر مجاناً (بدون خصم رسوم)
+		if type(_G.IsVIP) == "function" and _G.IsVIP(player) then
+			admit({ kind = "vip" })
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "⭐ أهلاً بك في قصر شهد — دخول VIP مجاني 👑") end
 			return
 		end
 
@@ -19105,6 +19319,8 @@ end
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
+local TweenService = game:GetService("TweenService")
+local Debris = game:GetService("Debris")
 
 ----------------------------------------------------------------------
 -- الألوان والثوابت
@@ -19120,6 +19336,10 @@ local O_COL      = Color3.fromRGB(86, 150, 240)   -- أزرق
 local SEAT_X_COL = Color3.fromRGB(120, 40, 40)
 local SEAT_O_COL = Color3.fromRGB(36, 60, 110)
 
+-- مؤثّرات صوتية (أصول موجودة فعلاً في اللعبة — أصوات قائمة الزجاج)
+local SND_PLACE = "rbxassetid://9125402735"  -- نقرة عند وضع رمز
+local SND_WIN   = "rbxassetid://9114066858"  -- نغمة فوز
+
 local CELL      = 1.7        -- مسافة بين مراكز المربّعات
 local TABLE_TOP_Y = 3.0      -- ارتفاع سطح الطاولة فوق الأرضية
 local WIN_LINES = {
@@ -19128,11 +19348,11 @@ local WIN_LINES = {
 	{ 1, 5, 9 }, { 3, 5, 7 },                -- أقطار
 }
 
--- مواقع الطاولات الثلاث (صفّ على يمين السبون، بعيداً عن بوّابة الباركور ومنارتها عند x=-20)
+-- مواقع الطاولات الثلاث داخل مبنى «ركن الألعاب» (زاوية شمال المدينة، z=110)
 local TABLES = {
-	Vector3.new(0,  0, 70),
-	Vector3.new(26, 0, 70),
-	Vector3.new(52, 0, 70),
+	Vector3.new(-17, 0.8, 110.25),
+	Vector3.new(0,   0.8, 110.25),
+	Vector3.new(17,  0.8, 110.25),
 }
 
 ----------------------------------------------------------------------
@@ -19156,18 +19376,56 @@ local function part(props): BasePart
 end
 
 ----------------------------------------------------------------------
+-- مؤثّرات: صوت ثلاثي الأبعاد + أنيميشن انبثاق ناعم للرمز
+----------------------------------------------------------------------
+local function playSound(adornee: BasePart, id: string, volume: number, speed: number)
+	local s = Instance.new("Sound")
+	s.SoundId = id
+	s.Volume = volume
+	s.PlaybackSpeed = speed
+	s.RollOffMaxDistance = 60
+	s.Parent = adornee
+	s:Play()
+	Debris:AddItem(s, 5)
+end
+
+-- انبثاق ناعم: يكبر الرمز من نقطته المركزية إلى حجمه الكامل بحركة Back لطيفة
+local function popIn(model: Model, center: Vector3)
+	local info = TweenInfo.new(0.24, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+	for _, p in ipairs(model:GetDescendants()) do
+		if p:IsA("BasePart") then
+			local fullSize, fullCF = p.Size, p.CFrame
+			local rot = fullCF - fullCF.Position
+			local offset = fullCF.Position - center
+			p.Size = fullSize * 0.06
+			p.CFrame = CFrame.new(center + offset * 0.06) * rot
+			TweenService:Create(p, info, { Size = fullSize, CFrame = fullCF }):Play()
+		end
+	end
+end
+
+----------------------------------------------------------------------
 -- رموز اللعب المجسّمة (X / O) فوق مربّع
 ----------------------------------------------------------------------
 local function buildX(center: CFrame, parent: Instance): Model
 	local m = Instance.new("Model")
 	m.Name = "Mark_X"
 	m.Parent = parent
+	local base = center * CFrame.new(0, 0.75, 0)
 	for _, rot in ipairs({ 45, -45 }) do
+		local arm = base * CFrame.Angles(0, 0, math.rad(rot))
 		part({
 			Name = "Bar", Parent = m, Color = X_COL, Material = Enum.Material.Neon,
-			Size = Vector3.new(0.34, 1.5, 0.34), CanCollide = false,
-			CFrame = center * CFrame.new(0, 0.75, 0) * CFrame.Angles(0, 0, math.rad(rot)),
+			Size = Vector3.new(0.32, 1.5, 0.32), CanCollide = false, CFrame = arm,
 		})
+		-- كرتان على الطرفين تعطيان أطرافاً مدوّرة ناعمة بدل الزوايا الحادّة
+		for _, t in ipairs({ 0.75, -0.75 }) do
+			part({
+				Name = "Cap", Parent = m, Color = X_COL, Material = Enum.Material.Neon,
+				Shape = Enum.PartType.Ball, Size = Vector3.new(0.32, 0.32, 0.32),
+				CanCollide = false, CFrame = arm * CFrame.new(0, t, 0),
+			})
+		end
 	end
 	return m
 end
@@ -19176,14 +19434,16 @@ local function buildO(center: CFrame, parent: Instance): Model
 	local m = Instance.new("Model")
 	m.Name = "Mark_O"
 	m.Parent = parent
-	local seg = 14
-	local r = 0.62
+	-- حلقة ملساء: كرات صغيرة متقاربة متداخلة تعطي حافة ناعمة (بدل المجزّأة كالترس)
+	local seg = 30
+	local r = 0.6
+	local base = center * CFrame.new(0, 0.7, 0)
 	for i = 0, seg - 1 do
 		local a = (i / seg) * math.pi * 2
 		part({
 			Name = "Seg", Parent = m, Color = O_COL, Material = Enum.Material.Neon,
-			Size = Vector3.new(0.30, 0.30, 0.32), CanCollide = false,
-			CFrame = center * CFrame.new(math.cos(a) * r, 0.7, math.sin(a) * r),
+			Shape = Enum.PartType.Ball, Size = Vector3.new(0.34, 0.34, 0.34),
+			CanCollide = false, CFrame = base * CFrame.new(math.cos(a) * r, 0, math.sin(a) * r),
 		})
 	end
 	return m
@@ -19274,17 +19534,44 @@ local function buildStatusBoard(origin: Vector3, parent: Instance)
 	ts.Transparency = 0.2
 	ts.Parent = title
 
-	-- سطر وصفي صغير
-	local sub = Instance.new("TextLabel")
-	sub.BackgroundTransparency = 1
-	sub.Size = UDim2.new(1, -40, 0.13, 0)
-	sub.Position = UDim2.new(0, 20, 0.40, 0)
-	sub.Font = Enum.Font.GothamMedium
-	sub.TextScaled = true
-	sub.Text = "طاولة المدينة الملكية"
-	sub.TextColor3 = Color3.fromRGB(190, 200, 215)
-	sub.TextTransparency = 0.15
-	sub.Parent = pad
+	-- صف النتيجة: عدّاد فوز X (أحمر) و O (أزرق) — يحدّث بعد كل مباراة
+	local scoreRow = Instance.new("Frame")
+	scoreRow.BackgroundTransparency = 1
+	scoreRow.Size = UDim2.new(1, -40, 0.15, 0)
+	scoreRow.Position = UDim2.new(0, 20, 0.40, 0)
+	scoreRow.Parent = pad
+
+	local function scoreChip(side: number, col: Color3): TextLabel
+		local lbl = Instance.new("TextLabel")
+		lbl.BackgroundTransparency = 1
+		lbl.Size = UDim2.new(0.46, 0, 1, 0)
+		lbl.Position = UDim2.new(side < 0 and 0.04 or 0.5, 0, 0, 0)
+		lbl.Font = Enum.Font.GothamBlack
+		lbl.TextScaled = true
+		lbl.TextXAlignment = side < 0 and Enum.TextXAlignment.Right or Enum.TextXAlignment.Left
+		lbl.TextColor3 = col
+		lbl.Text = (side < 0 and "X  0" or "O  0")
+		lbl.Parent = scoreRow
+		local stk = Instance.new("UIStroke")
+		stk.Thickness = 2
+		stk.Color = Color3.fromRGB(10, 14, 22)
+		stk.Transparency = 0.25
+		stk.Parent = lbl
+		return lbl
+	end
+	local scoreXLabel = scoreChip(-1, X_COL)
+	local scoreOLabel = scoreChip(1, O_COL)
+	-- فاصل ذهبي بين العدّادين
+	local dot = Instance.new("TextLabel")
+	dot.BackgroundTransparency = 1
+	dot.AnchorPoint = Vector2.new(0.5, 0.5)
+	dot.Position = UDim2.new(0.5, 0, 0.5, 0)
+	dot.Size = UDim2.new(0.08, 0, 1, 0)
+	dot.Font = Enum.Font.GothamBlack
+	dot.TextScaled = true
+	dot.Text = "·"
+	dot.TextColor3 = GOLD_HI
+	dot.Parent = scoreRow
 
 	-- شريحة الحالة (خلفية داكنة + إطار + نص)
 	local pill = Instance.new("Frame")
@@ -19316,7 +19603,7 @@ local function buildStatusBoard(origin: Vector3, parent: Instance)
 	status.TextColor3 = LINE_COL
 	status.Parent = pill
 
-	return status
+	return status, scoreXLabel, scoreOLabel
 end
 
 ----------------------------------------------------------------------
@@ -19333,8 +19620,14 @@ type Game = {
 	turn: string,          -- "X" | "O"
 	active: boolean,
 	statusLabel: TextLabel,
+	scoreXLabel: TextLabel,
+	scoreOLabel: TextLabel,
+	scoreX: number,
+	scoreO: number,
 	pieceFolder: Folder,
 	lineGlow: { BasePart },
+	winFx: { BasePart },
+	winTweens: { Tween },
 }
 
 local games: { Game } = {}
@@ -19368,6 +19661,12 @@ local function setStatus(g: Game)
 end
 
 local function clearBoard(g: Game)
+	for _, tw in ipairs(g.winTweens) do pcall(function() tw:Cancel() end) end
+	g.winTweens = {}
+	for _, p in ipairs(g.winFx) do
+		if p and p.Parent then p:Destroy() end
+	end
+	g.winFx = {}
 	for i = 1, 9 do
 		g.board[i] = ""
 		if g.marks[i] then
@@ -19402,28 +19701,58 @@ local function startMatch(g: Game)
 	setStatus(g)
 end
 
+local function updateScore(g: Game)
+	if g.scoreXLabel then g.scoreXLabel.Text = "X  " .. g.scoreX end
+	if g.scoreOLabel then g.scoreOLabel.Text = "O  " .. g.scoreO end
+end
+
+-- إبراز خط الفوز: شعاع نيون يمتدّ عبر المربّعات الثلاثة + نبض توهّجها
+local function spawnWinFx(g: Game, line: { number }, col: Color3)
+	local pulse = TweenInfo.new(0.55, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true)
+	for _, idx in ipairs(line) do
+		local glow = g.cells[idx]:FindFirstChild("CellGlow") :: BasePart?
+		if glow then
+			glow.Color = col
+			glow.Transparency = 0.1
+			local tw = TweenService:Create(glow, pulse, { Transparency = 0.55 })
+			tw:Play()
+			table.insert(g.winTweens, tw)
+		end
+	end
+	local a = g.cells[line[1]].CFrame.Position
+	local b = g.cells[line[3]].CFrame.Position
+	local fa = Vector3.new(a.X, a.Y + 0.09, a.Z)
+	local fb = Vector3.new(b.X, b.Y + 0.09, b.Z)
+	local len = (fb - fa).Magnitude + (CELL - 0.4)
+	local beam = part({
+		Name = "WinBeam", Parent = g.pieceFolder, Color = col, Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.42, 0.07, len),
+		CFrame = CFrame.lookAt((fa + fb) / 2, fb),
+	})
+	table.insert(g.winFx, beam)
+	local btw = TweenService:Create(beam, pulse, { Transparency = 0.5 })
+	beam.Transparency = 0
+	btw:Play()
+	table.insert(g.winTweens, btw)
+end
+
 local function endMatch(g: Game, result: string, line: { number }?)
 	g.active = false
 	if result == "draw" then
 		g.statusLabel.Text = "🤝 تعادل! اضغط أي مربّع لإعادة اللعب"
 		g.statusLabel.TextColor3 = GOLD
 		tintPill(g.statusLabel, GOLD)
-	else
-		local col = result == "X" and X_COL or O_COL
-		g.statusLabel.Text = (result == "X" and "🔴 فاز الأحمر (X)!" or "🔵 فاز الأزرق (O)!")
-		g.statusLabel.TextColor3 = col
-		tintPill(g.statusLabel, col)
-		if line then
-			for _, idx in ipairs(line) do
-				local cell = g.cells[idx]
-				local glow = cell:FindFirstChild("CellGlow") :: BasePart?
-				if glow then
-					glow.Color = col
-					glow.Transparency = 0.15
-				end
-			end
-		end
+		playSound(g.cells[5], SND_PLACE, 0.4, 0.7)
+		return
 	end
+	local col = result == "X" and X_COL or O_COL
+	g.statusLabel.Text = (result == "X" and "🔴 فاز الأحمر (X)!" or "🔵 فاز الأزرق (O)!")
+	g.statusLabel.TextColor3 = col
+	tintPill(g.statusLabel, col)
+	if result == "X" then g.scoreX += 1 else g.scoreO += 1 end
+	updateScore(g)
+	if line then spawnWinFx(g, line, col) end
+	playSound(g.cells[5], SND_WIN, 0.5, 1)
 end
 
 local function placeMark(g: Game, idx: number, symbol: string)
@@ -19431,6 +19760,8 @@ local function placeMark(g: Game, idx: number, symbol: string)
 	local cellCF = g.cells[idx].CFrame
 	local mark = symbol == "X" and buildX(cellCF, g.pieceFolder) or buildO(cellCF, g.pieceFolder)
 	g.marks[idx] = mark
+	popIn(mark, (cellCF * CFrame.new(0, 0.73, 0)).Position)
+	playSound(g.cells[idx], SND_PLACE, 0.45, symbol == "X" and 1.0 or 0.9)
 end
 
 local function onCellClicked(g: Game, idx: number, player: Player)
@@ -19597,14 +19928,18 @@ local function buildTable(origin: Vector3, parent: Instance): Game
 	-- بناء المقاعد ولوحة الحالة
 	local seatX = buildSeat(origin, -1, SEAT_X_COL, model, "🔴 لاعب X")
 	local seatO = buildSeat(origin, 1, SEAT_O_COL, model, "🔵 لاعب O")
-	local statusLabel = buildStatusBoard(origin, model)
+	local statusLabel, scoreXLabel, scoreOLabel = buildStatusBoard(origin, model)
 
 	local game: Game = {
 		cells = cells, marks = {}, board = {},
 		seatX = seatX, seatO = seatO,
 		playerX = nil, playerO = nil,
 		turn = "X", active = false,
-		statusLabel = statusLabel, pieceFolder = pieceFolder, lineGlow = {},
+		statusLabel = statusLabel,
+		scoreXLabel = scoreXLabel, scoreOLabel = scoreOLabel,
+		scoreX = 0, scoreO = 0,
+		pieceFolder = pieceFolder, lineGlow = {},
+		winFx = {}, winTweens = {},
 	}
 	for i = 1, 9 do game.board[i] = "" end
 
@@ -19648,11 +19983,505 @@ local function buildTable(origin: Vector3, parent: Instance): Game
 end
 
 ----------------------------------------------------------------------
+-- 🎮 ركن الألعاب — مبنى 3D حقيقي (FBX عبر Open Cloud) مغلق متكامل.
+--   رفع الـ3D جرّد الخامات → كل القطع تصل رمادية، فنعيد صبغها بالاسم.
+--   المدخل (الباب + اللافتة) يواجه الجنوب نحو السبون. باب يفتح بـE.
+----------------------------------------------------------------------
+local InsertService = game:GetService("InsertService")
+
+local HALL_ASSET_ID = 85565802606403         -- أصل المبنى (مُعتمَد/Approved)
+local HALL_CENTER = Vector3.new(0, 0, 110)   -- مركز أفقي + قاع الأرضية على y=0
+local HALL_YAW = math.rad(0)                  -- المدخل يواجه -Z (نحو السبون)
+local LEAF_H = 10.6
+
+-- ألوان القطع (RGB) — تُطبّق بالاسم لإعادة صبغ المبنى المُجرَّد
+local C = {
+	CREAM = { 237, 227, 204 }, NAVY = { 23, 31, 66 }, GOLD = { 217, 171, 69 },
+	GOLDE = { 245, 205, 110 }, MARBLE = { 237, 232, 222 }, PINK = { 255, 158, 199 },
+	GLASS = { 153, 199, 224 }, WOOD = { 84, 54, 31 }, REDS = { 158, 52, 52 },
+	GREEN = { 64, 140, 72 },
+	-- جدران كريمي دافئ (sandstone) وأرضية رخام أدفأ — أوضح من الأبيض فتبان مصبوغة
+	WALL = { 222, 202, 162 }, FLOORC = { 209, 192, 162 },
+}
+local function rgb(t: { number }): Color3
+	return Color3.fromRGB(t[1], t[2], t[3])
+end
+
+-- صبغ قطعة واحدة حسب اسمها (مطابقة بالبادئة)
+local function paintPart(p: BasePart)
+	local n = p.Name
+	local function is(pre: string): boolean
+		return string.sub(n, 1, #pre) == pre
+	end
+	if n == "SignTex" or n == "LBtex" or n == "CLKtex" then
+		p.Transparency = 1 -- خامة النص المفقودة → تُستبدَل بـSurfaceGui
+		p.CanCollide = false -- لوح شفاف: نمنع جداراً خفيّاً يصطدم به اللاعب
+		return
+	end
+	if is("WN") then
+		-- نوافذ الجدار الخلفي تتداخل مع لوحة المتصدّرين والساعة (نفس الجدار)،
+		-- فيبان زجاجها كأنه لوح أزرق فوق اللوحة → نخفيها (الجدار المصمت يفضل خلفها).
+		p.Transparency = 1
+		p.CanCollide = false
+		return
+	end
+	local col, mat, tr = C.GOLD, Enum.Material.Metal, 0
+	if n == "Floor" or n == "Step" then
+		col, mat = C.FLOORC, Enum.Material.Marble
+	elseif n == "RoofSlab" or n == "RoofPyr" then
+		col, mat = C.NAVY, Enum.Material.Slate
+	elseif is("Wall") then
+		col, mat = C.WALL, Enum.Material.SmoothPlastic
+	elseif n == "Ceiling" or n == "Lintel" or is("Rugi") or is("ArtOi") then
+		col, mat = C.CREAM, Enum.Material.SmoothPlastic
+	elseif n == "Carpet" or is("Rug") then
+		col, mat = C.REDS, Enum.Material.Fabric
+	elseif is("Bench") then
+		col, mat = C.WOOD, Enum.Material.WoodPlanks
+	elseif is("Bush") then
+		col, mat = C.GREEN, Enum.Material.Grass
+	elseif is("WE") then
+		col, mat, tr = C.GLASS, Enum.Material.Glass, 0.45
+	elseif is("Tr") or is("Sk") or n == "SignNeon" then
+		col, mat = C.PINK, Enum.Material.Neon
+	elseif is("Lan") or is("ChBulb") or n == "ChDisc" then
+		col, mat = C.GOLDE, Enum.Material.Neon
+	end
+	p.Color = rgb(col)
+	p.Material = mat
+	p.Transparency = tr
+end
+
+-- لوحة نصّية على واجهة قطعة (بديل خامة النص التي جُرِّدت)
+local function signGui(adornee: BasePart, text: string, ratio: number)
+	local g = Instance.new("SurfaceGui")
+	g.Name = "Face"
+	g.Face = Enum.NormalId.Front
+	g.AutoLocalize = false
+	g.LightInfluence = 0
+	g.CanvasSize = Vector2.new(1024, math.floor(1024 * ratio))
+	g.Adornee = adornee
+	g.Parent = adornee
+	local l = Instance.new("TextLabel")
+	l.BackgroundTransparency = 1
+	l.Size = UDim2.fromScale(1, 1)
+	l.Font = Enum.Font.GothamBlack
+	l.Text = text
+	l.RichText = true
+	l.TextScaled = true
+	l.TextColor3 = GOLD_HI
+	l.Parent = g
+	local st = Instance.new("UIStroke")
+	st.Color = Color3.fromRGB(70, 48, 0)
+	st.Thickness = 3
+	st.Parent = l
+end
+
+local function loadHall(parent: Instance): Model?
+	local ok, model
+	for attempt = 1, 5 do
+		ok, model = pcall(function()
+			return InsertService:LoadAsset(HALL_ASSET_ID)
+		end)
+		if ok and model then break end
+		warn("[GamesHall] محاولة تحميل الأصل فشلت", attempt, model)
+		task.wait(2)
+	end
+	if not (ok and model) then
+		warn("[GamesHall] تعذّر تحميل أصل المبنى — الطاولات فقط")
+		return nil
+	end
+	model.Name = "GamesHall"
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = true
+			paintPart(d)
+		end
+	end
+	local sb = model:FindFirstChild("SignBack", true)
+	if sb and sb:IsA("BasePart") then signGui(sb, "🎮 ركن الألعاب", 0.24) end
+	local lb = model:FindFirstChild("LBframe", true)
+	if lb and lb:IsA("BasePart") then signGui(lb, "🏆 المتصدّرون", 1.25) end
+	-- وضع المبنى في مكانه قبل الإظهار (نتفادى وميض إطار واحد)
+	local cf, size = model:GetBoundingBox()
+	local halfY = size.Y / 2
+	local targetCF = CFrame.new(HALL_CENTER.X, HALL_CENTER.Y + halfY, HALL_CENTER.Z)
+		* CFrame.Angles(0, HALL_YAW, 0)
+	model.WorldPivot = cf
+	model:PivotTo(targetCF)
+	model.Parent = parent
+	return model
+end
+
+-- باب مزدوج زجاجي بإطار ذهبي يملأ فتحة المبنى، يفتح بـE للداخل ويُغلق تلقائياً.
+local function buildDoor(parent: Instance, model: Model)
+	local fL = model:FindFirstChild("DFL", true)
+	local fR = model:FindFirstChild("DFR", true)
+	if not (fL and fR and fL:IsA("BasePart") and fR:IsA("BasePart")) then return end
+	local pL, pR = fL.Position, fR.Position
+	local cx = (pL.X + pR.X) / 2
+	local dz = pL.Z
+	local dh = pL.Y
+	local leafW = math.abs(pR.X - pL.X) / 2 - 0.15
+
+	local doorModel = Instance.new("Model")
+	doorModel.Name = "EntranceDoor"
+	doorModel.Parent = parent
+
+	local leaves: { [number]: { model: Model, closed: CFrame, open: CFrame } } = {}
+	for _, s in ipairs({ -1, 1 }) do
+		local glassX = cx + s * (leafW / 2)
+		local leaf = Instance.new("Model")
+		leaf.Name = "Leaf" .. (if s < 0 then "L" else "R")
+		leaf.Parent = doorModel
+		-- لوح الباب: مصمت كحلي (يُعرَض بوضوح تام مهما كانت الإضاءة/البلوم؛
+		-- اللوح الشفاف القديم كان يذوب في الوهج الأبيض فيبان الباب فارغاً)
+		-- الأوراق تزيينية فقط (CanCollide=false)؛ الاصطدام موكول لحاجز واحد ثابت
+		-- (DoorBarrier) حتى لا تبقى الفتحة قابلة للمرور بعد دوران الأوراق.
+		local pane = part({
+			Name = "Pane", Parent = leaf, Color = rgb(C.NAVY),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0, CanCollide = false,
+			Size = Vector3.new(leafW, LEAF_H, 0.22), CFrame = CFrame.new(glassX, dh, dz),
+		})
+		leaf.PrimaryPart = pane
+		-- نافذة زجاجية صغيرة بالأعلى للمسة أنيقة (مؤطّرة فلا تذوب بالوهج)
+		local vh = LEAF_H * 0.36
+		part({
+			Name = "Window", Parent = leaf, Color = Color3.fromRGB(150, 198, 224),
+			Material = Enum.Material.SmoothPlastic, Transparency = 0.4, CanCollide = false,
+			Size = Vector3.new(leafW - 1.6, vh, 0.12),
+			CFrame = CFrame.new(glassX, dh + LEAF_H * 0.22, dz - 0.07),
+		})
+		-- لوح سفلي مصمت كريمي يعطي ثِقَل الباب ويوضّحه
+		local kh = LEAF_H * 0.34
+		part({
+			Name = "Kick", Parent = leaf, Color = rgb(C.CREAM), Material = Enum.Material.SmoothPlastic,
+			CanCollide = false, Size = Vector3.new(leafW - 0.2, kh, 0.34),
+			CFrame = CFrame.new(glassX, dh - LEAF_H / 2 + kh / 2, dz),
+		})
+		-- إطار ذهبي سميك + عارضة وسطية أفقية ورأسية (مَنتِن) لوضوح الباب
+		for _, f in ipairs({
+			{ Vector3.new(s * (leafW / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.5) },
+			{ Vector3.new(-s * (leafW / 2 - 0.35), 0, 0), Vector3.new(0.7, LEAF_H, 0.5) },
+			{ Vector3.new(0, LEAF_H / 2 - 0.35, 0), Vector3.new(leafW, 0.7, 0.5) },
+			{ Vector3.new(0, -LEAF_H / 2 + 0.35, 0), Vector3.new(leafW, 0.7, 0.5) },
+			{ Vector3.new(0, -LEAF_H / 2 + kh, 0), Vector3.new(leafW, 0.45, 0.5) },
+			{ Vector3.new(0, kh / 2, 0), Vector3.new(0.4, LEAF_H - kh, 0.5) },
+		}) do
+			part({
+				Name = "Bar", Parent = leaf, Color = GOLD, Material = Enum.Material.Metal,
+				CanCollide = false, Size = f[2],
+				CFrame = CFrame.new(glassX + f[1].X, dh + f[1].Y, dz),
+			})
+		end
+		part({
+			Name = "Handle", Parent = leaf, Color = GOLD_HI, Material = Enum.Material.Metal,
+			CanCollide = false, Size = Vector3.new(0.22, 2.4, 0.45),
+			CFrame = CFrame.new(cx - s * 0.55, dh, dz - 0.45),
+		})
+		-- باب منزلق: لكل ورقة وضعان مطلقان (مغلق=بالوسط، مفتوح=منزلق داخل الجدار).
+		-- استبدلنا الدوران بالانزلاق لأن الدوران كان يترك الورقة عالقة على الجانب
+		-- (كأنها فاصل) إن انقطعت الحركة؛ الانزلاق دائماً يرجع للوضع المسطّح تماماً.
+		local closedCF = CFrame.new(glassX, dh, dz)
+		local openCF = CFrame.new(glassX + s * (leafW + 0.6), dh, dz)
+		leaf.WorldPivot = closedCF
+		leaf:PivotTo(closedCF)
+		leaves[s] = { model = leaf, closed = closedCF, open = openCF }
+	end
+
+	local anim = Instance.new("NumberValue")
+	anim.Parent = doorModel
+	local function applyT(t: number)
+		for _, s in ipairs({ -1, 1 }) do
+			leaves[s].model:PivotTo(leaves[s].closed:Lerp(leaves[s].open, t))
+		end
+	end
+	anim.Changed:Connect(applyT)
+
+	-- حاجز اصطدام غير مرئي يملأ الفتحة: صلب عند الإغلاق فقط.
+	-- يفصل الاصطدام عن الأوراق المتحركة فيصير الفتح/الإغلاق حاسماً كل مرة.
+	local barrier = part({
+		Name = "DoorBarrier", Parent = doorModel, Transparency = 1, CanCollide = true,
+		Size = Vector3.new(math.abs(pR.X - pL.X), LEAF_H, 0.6),
+		CFrame = CFrame.new(cx, dh, dz),
+	})
+
+	local isOpen = false
+	local closeTok = 0
+	local activeTween: Tween? = nil
+	local function setDoor(open: boolean)
+		isOpen = open
+		barrier.CanCollide = not open
+		local goal = open and 1 or 0
+		-- إلغاء أي حركة جارية حتى لا تتعارض حركتان (فتح/إغلاق متتاليان)
+		if activeTween then activeTween:Cancel() end
+		local tw = TweenService:Create(anim,
+			TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+			{ Value = goal })
+		activeTween = tw
+		-- ضمان وصول الأوراق لوضعها النهائي بدقّة (مغلق=مسطّح، مفتوح=للجانب)
+		-- حتى لو لم تُطلق آخر إشارة Changed → الباب يُقفل بالكامل كل مرة.
+		tw.Completed:Connect(function()
+			if activeTween == tw then applyT(goal) end
+		end)
+		tw:Play()
+	end
+
+	local hub = part({
+		Name = "DoorPrompt", Parent = doorModel, Transparency = 1, CanCollide = false,
+		Size = Vector3.new(math.abs(pR.X - pL.X), LEAF_H, 1),
+		CFrame = CFrame.new(cx, dh, dz),
+	})
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.Name = "DoorPrompt"
+	prompt.ActionText = "افتح/أغلق الباب"
+	prompt.ObjectText = "🎮 ركن الألعاب"
+	prompt.KeyboardKeyCode = Enum.KeyCode.E
+	prompt.HoldDuration = 0
+	prompt.MaxActivationDistance = 12
+	prompt.RequiresLineOfSight = false
+	prompt.Parent = hub
+	prompt.Triggered:Connect(function()
+		setDoor(not isOpen)
+		if isOpen then
+			closeTok += 1
+			local mine = closeTok
+			task.delay(10, function()
+				if mine == closeTok and isOpen then setDoor(false) end
+			end)
+		end
+	end)
+end
+
+----------------------------------------------------------------------
+-- تأثيث إضافي (قطع أصلية) يكمّل تصميم الميش: ميدالية ترحيب وسط الصالة،
+-- إطارات ذهبية للسجاد، أحواض كرز، إضاءة أعمدة، ومدخل خارجي مؤثَّث.
+----------------------------------------------------------------------
+local FY = 0.86 -- سطح أرضية المبنى (المرمر)
+local GY = 0.3  -- أرضية الخارج (العشب)
+
+-- قرص مسطّح (أسطوانة محورها رأسي): props.Size = (السُّمك, القطر, القطر)
+local function disc(props): BasePart
+	props.Shape = Enum.PartType.Cylinder
+	local center = props.CFrame or CFrame.new()
+	props.CFrame = center * CFrame.Angles(0, 0, math.rad(90))
+	return part(props)
+end
+
+-- حوض كرز ثلاثي الأبعاد: إناء ذهبي + جذع + تاج أخضر + أزهار وردية نيون
+local function topiary(parent: Instance, x: number, z: number, g: number)
+	disc({
+		Name = "Pot", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(1.6, 2.0, 2.0), CFrame = CFrame.new(x, g + 0.8, z),
+	})
+	part({
+		Name = "Trunk", Parent = parent, Color = WOOD_DARK, Material = Enum.Material.Wood,
+		Size = Vector3.new(0.5, 2.4, 0.5), CFrame = CFrame.new(x, g + 2.6, z),
+	})
+	local cy = g + 4.4
+	local crown = part({
+		Name = "Crown", Parent = parent, Color = rgb(C.GREEN), Material = Enum.Material.Grass,
+		CanCollide = false, Size = Vector3.new(3.0, 3.0, 3.0), CFrame = CFrame.new(x, cy, z),
+	})
+	crown.Shape = Enum.PartType.Ball
+	for _, o in ipairs({
+		Vector3.new(1.0, 0.7, 0), Vector3.new(-1.0, 0.5, 0.7),
+		Vector3.new(0, 1.0, -0.9), Vector3.new(0.3, 0.4, 1.0),
+	}) do
+		local b = part({
+			Name = "Blossom", Parent = parent, Color = rgb(C.PINK), Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(1.7, 1.7, 1.7),
+			CFrame = CFrame.new(x + o.X, cy + o.Y, z + o.Z),
+		})
+		b.Shape = Enum.PartType.Ball
+	end
+end
+
+-- عمود فانوس خارجي بإضاءة دافئة
+local function lanternPost(parent: Instance, x: number, z: number, g: number)
+	part({
+		Name = "Post", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(0.5, 7.0, 0.5), CFrame = CFrame.new(x, g + 3.5, z),
+	})
+	local bulb = part({
+		Name = "Bulb", Parent = parent, Color = rgb(C.GOLDE), Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(1.5, 1.9, 1.5), CFrame = CFrame.new(x, g + 7.4, z),
+	})
+	bulb.Shape = Enum.PartType.Ball
+	local lt = Instance.new("PointLight")
+	lt.Color = Color3.fromRGB(255, 226, 160)
+	lt.Range = 18
+	lt.Brightness = 2
+	lt.Parent = bulb
+end
+
+-- مقعد خشبي خارجي بسيط
+local function bench(parent: Instance, x: number, z: number, g: number)
+	part({
+		Name = "BenchSeat", Parent = parent, Color = WOOD, Material = Enum.Material.WoodPlanks,
+		Size = Vector3.new(5.0, 0.4, 1.6), CFrame = CFrame.new(x, g + 1.6, z),
+	})
+	part({
+		Name = "BenchBack", Parent = parent, Color = WOOD, Material = Enum.Material.WoodPlanks,
+		Size = Vector3.new(5.0, 1.6, 0.3), CFrame = CFrame.new(x, g + 2.5, z - 0.65),
+	})
+	for _, dx in ipairs({ -2.2, 2.2 }) do
+		part({
+			Name = "BenchLeg", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+			Size = Vector3.new(0.3, 1.6, 1.4), CFrame = CFrame.new(x + dx, g + 0.8, z),
+		})
+	end
+end
+
+-- مقاطع الجدران (مركز كل جدار + طوله ومتجه «للخارج»). تُستعمل لإضافة
+-- حزام كحلي سفلي + خط ذهبي + كورنيش علوي على وجهي كل جدار (داخل وخارج).
+-- منسوب أساس الجدار ≈ FY، وقمته ≈ 15.8.
+local WALL_SEGMENTS = {
+	-- {x, z, axis ("X"|"Z"), length, nx, nz}  (nx,nz = متجه للخارج)
+	{ 0, 129.2, "X", 56.8, 0, 1 },     -- الجدار الخلفي
+	{ 28, 110.2, "Z", 38.4, 1, 0 },    -- الجدار الجانبي
+	{ -28, 110.2, "Z", 38.4, -1, 0 },  -- الجدار الجانبي
+	{ 17, 91.2, "X", 22, 0, -1 },      -- واجهة يمين الباب
+	{ -17, 91.2, "X", 22, 0, -1 },     -- واجهة يسار الباب
+}
+
+-- شريط أفقي على وجه جدار (للخارج بإشارة +1، للداخل بإشارة -1)
+local function wallStrip(parent, seg, side, yc, h, t, color, mat)
+	local x, z, axis, len, nx, nz = seg[1], seg[2], seg[3], seg[4], seg[5], seg[6]
+	local off = (t / 2 + 0.06) * side
+	local cx = x + nx * off
+	local cz = z + nz * off
+	local size = if axis == "X" then Vector3.new(len, h, t) else Vector3.new(t, h, len)
+	part({
+		Name = "WallTrim", Parent = parent, Color = rgb(color), Material = mat,
+		CanCollide = false, Size = size, CFrame = CFrame.new(cx, yc, cz),
+	})
+end
+
+-- تأطير الجدران: حزام كحلي سفلي + خط ذهبي فوقه (داخل وخارج) + كورنيش ذهبي علوي
+local function dressWalls(parent: Instance)
+	for _, seg in ipairs(WALL_SEGMENTS) do
+		for _, side in ipairs({ 1, -1 }) do
+			wallStrip(parent, seg, side, FY + 0.75, 1.5, 0.32, C.NAVY, Enum.Material.SmoothPlastic)
+			wallStrip(parent, seg, side, FY + 1.62, 0.18, 0.40, C.GOLD, Enum.Material.Metal)
+		end
+		-- كورنيش ذهبي علوي (خارجي فقط، تحت السقف)
+		wallStrip(parent, seg, 1, 15.3, 0.55, 0.46, C.GOLD, Enum.Material.Metal)
+	end
+end
+
+-- إطار ذهبي على الأرضية الداخلية حول المحيط (يبيّن الأرضية مصمّمة)
+local function dressFloor(parent: Instance)
+	local frame = {
+		{ 0, 127.5, 53, 0.5 }, { 0, 92.8, 53, 0.5 },
+		{ 26.5, 110.2, 0.5, 35 }, { -26.5, 110.2, 0.5, 35 },
+	}
+	for _, f in ipairs(frame) do
+		part({
+			Name = "FloorTrim", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+			CanCollide = false, Size = Vector3.new(f[3], 0.12, f[4]),
+			CFrame = CFrame.new(f[1], FY + 0.06, f[2]),
+		})
+	end
+end
+
+local function furnishHall(parent: Instance)
+	dressWalls(parent)
+	dressFloor(parent)
+	-- ميدالية ترحيب وسط الصالة (بين الباب والطاولات) z≈99
+	disc({
+		Name = "MedalEdge", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(0.12, 11, 11), CFrame = CFrame.new(0, FY + 0.06, 99),
+	})
+	disc({
+		Name = "MedalInner", Parent = parent, Color = rgb(C.CREAM), Material = Enum.Material.Marble,
+		CanCollide = false, Size = Vector3.new(0.16, 9.4, 9.4), CFrame = CFrame.new(0, FY + 0.08, 99),
+	})
+	disc({
+		Name = "MedalRing", Parent = parent, Color = rgb(C.PINK), Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.2, 7.6, 7.6), CFrame = CFrame.new(0, FY + 0.10, 99),
+	})
+	disc({
+		Name = "MedalRing2", Parent = parent, Color = rgb(C.CREAM), Material = Enum.Material.Marble,
+		CanCollide = false, Size = Vector3.new(0.24, 6.8, 6.8), CFrame = CFrame.new(0, FY + 0.12, 99),
+	})
+	-- شعار O على يسار الميدالية
+	disc({
+		Name = "EmblemO", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.3, 2.6, 2.6), CFrame = CFrame.new(-1.9, FY + 0.16, 99),
+	})
+	disc({
+		Name = "EmblemOc", Parent = parent, Color = rgb(C.CREAM), Material = Enum.Material.Marble,
+		CanCollide = false, Size = Vector3.new(0.34, 1.5, 1.5), CFrame = CFrame.new(-1.9, FY + 0.18, 99),
+	})
+	-- شعار X على يمين الميدالية
+	for _, a in ipairs({ 45, -45 }) do
+		part({
+			Name = "EmblemX", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(2.6, 0.12, 0.55),
+			CFrame = CFrame.new(1.9, FY + 0.16, 99) * CFrame.Angles(0, math.rad(a), 0),
+		})
+	end
+	-- إطار ذهبي على جانبي ممر السجاد الأحمر
+	for _, sx in ipairs({ -1, 1 }) do
+		part({
+			Name = "RunnerTrim", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(0.18, 0.08, 16),
+			CFrame = CFrame.new(sx * 3.7, FY + 0.05, 101),
+		})
+	end
+	-- حوضا كرز يحيطان الميدالية
+	topiary(parent, 7, 99, FY)
+	topiary(parent, -7, 99, FY)
+	-- إضاءة وردية عند قواعد الأعمدة الأربعة
+	for _, cxp in ipairs({ -26, 26 }) do
+		for _, czp in ipairs({ 94, 126 }) do
+			local pk = disc({
+				Name = "Uplight", Parent = parent, Color = rgb(C.PINK), Material = Enum.Material.Neon,
+				CanCollide = false, Size = Vector3.new(0.14, 2.2, 2.2), CFrame = CFrame.new(cxp, FY + 0.05, czp),
+			})
+			local pl = Instance.new("PointLight")
+			pl.Color = Color3.fromRGB(255, 150, 200)
+			pl.Range = 12
+			pl.Brightness = 1.4
+			pl.Parent = pk
+		end
+	end
+
+	-- ===== مدخل خارجي مؤثَّث =====
+	-- سجادة ترحيب حمراء من الدرجة نحو السبون
+	part({
+		Name = "WelcomeRunner", Parent = parent, Color = rgb(C.REDS), Material = Enum.Material.Fabric,
+		CanCollide = false, Size = Vector3.new(7, 0.14, 11), CFrame = CFrame.new(0, GY + 0.07, 83),
+	})
+	for _, sx in ipairs({ -1, 1 }) do
+		part({
+			Name = "RunnerTrimO", Parent = parent, Color = GOLD, Material = Enum.Material.Neon,
+			CanCollide = false, Size = Vector3.new(0.18, 0.1, 11), CFrame = CFrame.new(sx * 3.4, GY + 0.1, 83),
+		})
+	end
+	-- فانوسان يحيطان الباب + حوضا كرز + مقعدان
+	lanternPost(parent, 7, 87, GY)
+	lanternPost(parent, -7, 87, GY)
+	topiary(parent, 9.5, 85, GY)
+	topiary(parent, -9.5, 85, GY)
+	bench(parent, 13, 83, GY)
+	bench(parent, -13, 83, GY)
+end
+
+----------------------------------------------------------------------
 -- التهيئة
 ----------------------------------------------------------------------
 local root = Instance.new("Folder")
 root.Name = "TicTacToeArea"
 root.Parent = Workspace
+
+local hall = loadHall(root)
+if hall then
+	buildDoor(root, hall)
+	furnishHall(root)
+end
 
 for _, origin in ipairs(TABLES) do
 	games[#games + 1] = buildTable(origin, root)
@@ -19828,6 +20657,157 @@ print(string.format(
 	"[BoundarySystem] حدود مقيسة: X[%.0f..%.0f] Z[%.0f..%.0f] (حاجز خفي + شبكة أمان).",
 	xMin, xMax, zMin, zMax
 ))
+]]></string></Properties></Item><Item class="Script" referent="CherryTreesServerRef"><Properties><string name="Name">CherryTrees</string><token name="RunContext">0</token><string name="Source"><![CDATA[-- ════════════════════════════════════════════════════════════════════════
+-- CHERRY TREES (Server) — أشجار كرز وردية مصمّمة في بلندر (FBX) تُحمَّل عبر
+-- Open Cloud وتُركَّب بأماكن الأشجار الخضراء القديمة + تحضن مدخل «ركن الألعاب».
+-- كل شجرة: ميش جذع متفرّع (Trunk) + ميش تاج وردي كثيف (Canopy). يُلوَّن وقت
+-- التشغيل، والتاج يُلفّ في Model محوره قمة الجذع ويُوسَم "CherryCanopy" ليتمايل
+-- مع الريح (السكربت العميل). سياسة الماب: كل العناصر تُصمَّم في بلندر.
+-- ════════════════════════════════════════════════════════════════════════
+local Workspace = game:GetService("Workspace")
+local CollectionService = game:GetService("CollectionService")
+local InsertService = game:GetService("InsertService")
+
+local CHERRY_ASSET_ID = 109100596073469
+
+local BARK = Color3.fromRGB(96, 64, 42)
+local PINKS = {
+	Color3.fromRGB(255, 158, 199),
+	Color3.fromRGB(255, 184, 214),
+	Color3.fromRGB(238, 132, 182),
+	Color3.fromRGB(255, 170, 206),
+}
+
+-- تحميل قالب الشجرة مرّة واحدة (ثم نستنسخه لكل موقع)
+local function loadTemplate(): Model?
+	local ok, loaded
+	for attempt = 1, 5 do
+		ok, loaded = pcall(function()
+			return InsertService:LoadAsset(CHERRY_ASSET_ID)
+		end)
+		if ok and loaded then
+			break
+		end
+		warn("[CherryTrees] محاولة تحميل الأصل فشلت", attempt, loaded)
+		task.wait(2)
+	end
+	if not (ok and loaded) then
+		warn("[CherryTrees] تعذّر تحميل أصل شجرة الكرز")
+		return nil
+	end
+	local trunk = loaded:FindFirstChild("Trunk", true)
+	local canopy = loaded:FindFirstChild("Canopy", true)
+	if not (trunk and canopy and trunk:IsA("BasePart") and canopy:IsA("BasePart")) then
+		warn("[CherryTrees] الأصل لا يحوي Trunk/Canopy")
+		loaded:Destroy()
+		return nil
+	end
+	loaded.Name = "CherryTemplate"
+	return loaded
+end
+
+local function petals(parent: BasePart)
+	local emit = Instance.new("ParticleEmitter")
+	emit.Name = "Petals"
+	emit.Color = ColorSequence.new(Color3.fromRGB(255, 183, 212))
+	emit.Texture = "rbxassetid://6234266408"
+	emit.Lifetime = NumberRange.new(4, 6)
+	emit.Rate = 5
+	emit.Speed = NumberRange.new(0.6, 1.4)
+	emit.SpreadAngle = Vector2.new(40, 40)
+	emit.Rotation = NumberRange.new(0, 360)
+	emit.RotSpeed = NumberRange.new(-40, 40)
+	emit.Acceleration = Vector3.new(0.4, -2.2, 0.2)
+	emit.Size = NumberSequence.new(0.5)
+	emit.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.1),
+		NumberSequenceKeypoint.new(0.8, 0.2),
+		NumberSequenceKeypoint.new(1, 1),
+	})
+	emit.EmissionDirection = Enum.NormalId.Bottom
+	emit.Parent = parent
+end
+
+local function placeTree(template: Model, parent: Instance, x: number, z: number, gy: number, seed: number)
+	local rng = Random.new(seed)
+	local tree = template:Clone()
+	tree.Name = "CherryTree"
+	tree:ScaleTo(rng:NextNumber(0.7, 0.9))
+	tree.Parent = parent
+
+	local trunk = tree:FindFirstChild("Trunk", true) :: BasePart
+	local canopyPart = tree:FindFirstChild("Canopy", true) :: BasePart
+
+	-- صبغ: جذع بنّي صلب + تاج وردي (درجة عشوائية لكل شجرة)
+	trunk.Color = BARK
+	trunk.Material = Enum.Material.Wood
+	trunk.Anchored = true
+	trunk.CanCollide = true
+	local pink = PINKS[rng:NextInteger(1, #PINKS)]
+	canopyPart.Color = pink
+	canopyPart.Material = Enum.Material.SmoothPlastic
+	canopyPart.Anchored = true
+	canopyPart.CanCollide = false
+
+	-- إنزال الشجرة على الأرض عند (x, z): محاذاة قاع الصندوق المحيط للنقطة
+	local cf, size = tree:GetBoundingBox()
+	local bottomCenter = Vector3.new(cf.X, cf.Y - size.Y / 2, cf.Z)
+	tree:PivotTo(tree:GetPivot() + (Vector3.new(x, gy, z) - bottomCenter))
+	-- دوران عشوائي حول محور الجذع للتنويع
+	local base = Vector3.new(x, gy, z)
+	local yaw = rng:NextNumber(0, math.pi * 2)
+	tree:PivotTo(CFrame.new(base) * CFrame.Angles(0, yaw, 0) * CFrame.new(-base) * tree:GetPivot())
+
+	-- لفّ التاج في Model محوره قمة الجذع ليتمايل كالبندول مع الريح
+	local trunkTop = Vector3.new(trunk.Position.X, trunk.Position.Y + trunk.Size.Y / 2, trunk.Position.Z)
+	local canopy = Instance.new("Model")
+	canopy.Name = "Canopy"
+	canopy.Parent = tree
+	canopyPart.Parent = canopy
+	canopy.WorldPivot = CFrame.new(trunkTop)
+	CollectionService:AddTag(canopy, "CherryCanopy")
+
+	petals(canopyPart)
+	return tree
+end
+
+-- إزالة الأشجار الخضراء القديمة المخبوزة (Tree1..N) من الماب
+local function removeOldTrees()
+	for _, inst in ipairs(Workspace:GetDescendants()) do
+		if inst:IsA("Model") and string.match(inst.Name, "^Tree%d+$") then
+			inst:Destroy()
+		end
+	end
+end
+
+local root = Instance.new("Folder")
+root.Name = "CherryTrees"
+root.Parent = Workspace
+
+removeOldTrees()
+
+-- مواقع الأشجار الخضراء القديمة (نستبدلها بكرز) + حضن مدخل ركن الألعاب
+local SPOTS = {
+	{ -65, -65, 0 },
+	{ 65, -65, 0 },
+	{ -65, 65, 0 },
+	{ 65, 65, 0 },
+	{ -72, 0, 0 },
+	{ 72, 0, 0 },
+}
+
+local template = loadTemplate()
+if template then
+	for i, s in ipairs(SPOTS) do
+		local ok, err = pcall(function()
+			placeTree(template, root, s[1], s[2], s[3], i * 7919 + 13)
+		end)
+		if not ok then
+			warn("[CherryTrees] فشل تركيب شجرة", i, err)
+		end
+	end
+	template:Destroy()
+end
 ]]></string></Properties></Item></Item>
   <Item class="SoundService" referent="12">
     <Properties>
@@ -22764,6 +23744,8 @@ showAnnounce = function(data)
 		}),
 	})
 	announceFrame = frame
+	-- 🕐 أبلِغ الساعة العلوية أن هناك إشعاراً نشطاً فتنزاح لأعلى ولا تغطّيه
+	LocalPlayer:SetAttribute("ClockYield", true)
 	TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{ Position = UDim2.new(0.5, 0, 0, 14) }):Play()
 	task.delay(5, function()
@@ -22774,6 +23756,8 @@ showAnnounce = function(data)
 				{ Position = UDim2.new(0.5, 0, 0, hideY) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
+			-- لم يعد هناك إشعار نشط → ترجع الساعة لمكانها (إن لم يظهر إشعار أحدث)
+			if announceFrame == frame then LocalPlayer:SetAttribute("ClockYield", false) end
 		end
 	end)
 end
@@ -23349,6 +24333,63 @@ showAdminPanel = function(data)
 		end)
 	end
 
+	-- 💰 إعطاء/خصم كوينز للاعب (أدمن فأعلى) — مبالغ سريعة + خانة مبلغ مخصّص
+	local function coinsPrompt(pl)
+		local _, c = makeModal(UDim2.fromOffset(400, 360))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "💰 كوينز " .. (pl.display or pl.name), Font = Enum.Font.GothamBlack,
+			TextSize = 19, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 36), Position = UDim2.fromOffset(14, 12),
+			TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "الرصيد الحالي: " .. toAr(pl.coins or 0) .. " كوينز",
+			Font = Enum.Font.GothamMedium, TextSize = 14, TextColor3 = SUBT,
+			Size = UDim2.new(1, -28, 0, 22), Position = UDim2.fromOffset(14, 48), TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		local box = new("TextBox", {
+			PlaceholderText = "المبلغ (مثال: 500)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamBold,
+			TextSize = 17, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.new(1, -28, 0, 46),
+			Position = UDim2.fromOffset(14, 78), TextXAlignment = Enum.TextXAlignment.Center, Parent = c,
+		}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = GOLD, Transparency = 0.3 }) })
+		-- أزرار مبالغ سريعة تملأ الخانة
+		local presets = { 100, 500, 1000, 5000 }
+		local pcols = #presets
+		local seg = (400 - 28) / pcols
+		for i, amt in ipairs(presets) do
+			local col = i - 1
+			local b = styledButton(c, {
+				Text = "+" .. toAr(amt), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = TEXT, BackgroundColor3 = NEU_BTN,
+				Size = UDim2.new(1 / pcols, -6, 0, 38), Position = UDim2.fromOffset(14 + col * seg, 136), Parent = c,
+			})
+			b.MouseButton1Click:Connect(function() box.Text = tostring(amt) end)
+		end
+		local function submit(sign)
+			local n = math.floor(tonumber(box.Text) or 0)
+			if n <= 0 then return end
+			closeActive()
+			cmd({ cmd = "giveCoins", userId = pl.userId, amount = sign * n })
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end
+		local addB = styledButton(c, {
+			Text = "➕ إضافة", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT, BackgroundColor3 = GREEN_BTN,
+			Size = UDim2.new(0.5, -19, 0, 46), Position = UDim2.fromOffset(14, 190), Parent = c,
+		})
+		addB.MouseButton1Click:Connect(function() submit(1) end)
+		local subB = styledButton(c, {
+			Text = "➖ خصم", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT, BackgroundColor3 = RED_BTN,
+			Size = UDim2.new(0.5, -19, 0, 46), Position = UDim2.new(0.5, 5, 0, 190), Parent = c,
+		})
+		subB.MouseButton1Click:Connect(function() submit(-1) end)
+		local cancel = styledButton(c, {
+			Text = "إغلاق", Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD2,
+			Size = UDim2.new(1, -28, 0, 40), Position = UDim2.new(0.5, 0, 1, -12), AnchorPoint = Vector2.new(0.5, 1), Parent = c,
+		})
+		cancel.MouseButton1Click:Connect(function()
+			closeActive()
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end)
+	end
+
 	local RANK_BADGE = { owner = " 👑", admin = " 🛡️", mod = " 🔰", staff = " 🎬" }
 	local function makePlayerRow(parent, pl)
 		local isSelf = pl.userId == LocalPlayer.UserId
@@ -23370,6 +24411,7 @@ showAdminPanel = function(data)
 				table.insert(actions, { "📍 انتقال", CYAN, function() cmd({ cmd = "teleport", userId = pl.userId }) end })
 				table.insert(actions, { pl.vip and "🚫 VIP" or "⭐ VIP", GOLD, function() cmd({ cmd = pl.vip and "vipRevoke" or "vipGrant", userId = pl.userId }) end })
 				table.insert(actions, { "🎁 باقات", Color3.fromRGB(150, 60, 130), function() passesPrompt(pl) end })
+				table.insert(actions, { "💰 كوينز", Color3.fromRGB(40, 140, 90), function() coinsPrompt(pl) end })
 				table.insert(actions, { pl.banned and "✅ حجز" or "🚫 حجز", ORG_BTN, function() cmd({ cmd = pl.banned and "unban" or "ban", userId = pl.userId }) end })
 				table.insert(actions, { "🏷️ رتبة", Color3.fromRGB(90, 70, 140), function() rankPrompt(pl) end })
 			end
@@ -26272,6 +27314,9 @@ evScanResult.OnClientEvent:Connect(function(granted, info)
 			if kind == "admin" then
 				chip.Visible = true
 				chipLabel.Text = "دخول الإدارة · مجاني"
+			elseif kind == "vip" then
+				chip.Visible = true
+				chipLabel.Text = "دخول VIP · مجاني"
 			elseif cost then
 				chip.Visible = true
 				chipLabel.Text = bal and ("خُصم " .. cost .. " · رصيدك " .. bal) or ("خُصم " .. cost .. " كوينز")
@@ -26450,6 +27495,10 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local UserInputService  = game:GetService("UserInputService")
+-- جوال حقيقي فقط (لمس بلا لوحة مفاتيح) → أزرار لمس؛ غير ذلك (كمبيوتر ولو بشاشة لمس) → تلميح لوحة المفاتيح.
+local function isMobileInput(): boolean
+	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+end
 local TweenService      = game:GetService("TweenService")
 local Workspace         = game:GetService("Workspace")
 
@@ -27276,13 +28325,16 @@ local function run()
 	cam.CameraSubject = humanoid
 	setControls(true)
 
-	hud.banner.Text = "امشِ داخل الطائرة — اضغط E للقفز"
-	if UserInputService.TouchEnabled then
+	-- فصل واضح بين الجوال (أزرار لمس) والكمبيوتر (تلميح لوحة المفاتيح):
+	-- الجوال يرى زر «اقفز» فقط، والكمبيوتر يرى تلميح «اضغط E» فقط — بلا تكرار.
+	if isMobileInput() then
+		hud.banner.Text = "امشِ داخل الطائرة ثم اضغط زر «اقفز»"
 		hud.skip.Text = "اقفز"
 		hud.skip.Visible = true
 		hud.skip.Activated:Connect(function() jumpRequested = true end)
 	else
-		hud.eHint.Text = "اضغط E للقفز من الطائرة"
+		hud.banner.Text = "امشِ داخل الطائرة ثم اقفز"
+		hud.eHint.Text = "اضغط E للقفز"
 		hud.eHint.Visible = true
 	end
 
@@ -27337,10 +28389,14 @@ local function run()
 	hud.countdown.Visible = false
 	hud.banner.Text = "سقوط حرّ"
 	hud.stats.Visible = true
-	hud.chute.Visible = true
-	hud.boost.Visible = true
-	hud.eHint.Text = if UserInputService.TouchEnabled then "اضغط E لفتح المظلّة" else "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
-	if not UserInputService.TouchEnabled then hud.eHint.Visible = true end
+	-- الجوال: أزرار لمس (افتح المظلّة + تسريع) فقط · الكمبيوتر: تلميح E/Shift فقط.
+	if isMobileInput() then
+		hud.chute.Visible = true
+		hud.boost.Visible = true
+	else
+		hud.eHint.Text = "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
+		hud.eHint.Visible = true
+	end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 
 	-- تفعيل تحكّم اللاعب + كاميرا حرّة: WASD/الأسهم (كمبيوتر) أو عصا الجوال للتوجيه،
@@ -28108,21 +29164,25 @@ print("[RewardBoxClient] جاهز.")
 ]]></string></Properties></Item><Item class="LocalScript" referent="DayNightClientRef"><Properties><string name="Name">DayNightClient</string><token name="RunContext">0</token><string name="Source"><![CDATA[--!nonstrict
 ----------------------------------------------------------------------
 -- DAY NIGHT CLIENT (Client)
---   ساعة السيرفر (HUD) أعلى الشاشة — شريحة زجاج داكن بإطار ذهبي تعرض
---   وقت السيرفر بتوقيت البحرين + أيقونة شمس/قمر تتغيّر مع المرحلة
---   (الفجر/الصباح/الظهر/العصر/المساء). تتحدّث كل ثانية محلياً وتُزامَن
---   من السيرفر دورياً عبر RemoteEvent "ServerClockSync".
+--   ساعة السيرفر (HUD) أعلى الشاشة — شريحة زجاج داكن فاخرة بإطار ذهبي
+--   متدرّج وظل ناعم، تعرض وقت السيرفر بتوقيت البحرين + شمس بأشعة دوّارة
+--   نهاراً تتحوّل لهلال ليلاً، توهّج نابض، واسم المرحلة (الفجر/الصباح/
+--   الظهر/العصر/المغرب/الليل) مع انتقالات ألوان سلسة.
+--   تتحدّث محلياً وتُزامَن من السيرفر دورياً عبر RemoteEvent "ServerClockSync".
 ----------------------------------------------------------------------
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
+local TweenService      = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local pg     = player:WaitForChild("PlayerGui")
 local clockEvent = ReplicatedStorage:WaitForChild("ServerClockSync")
 
-local GOLD     = Color3.fromRGB(214, 175, 92)
-local GLOW_TEX = "rbxassetid://5028857084"
+local GOLD       = Color3.fromRGB(214, 175, 92)
+local GOLD_LIGHT = Color3.fromRGB(245, 218, 150)
+local GLOW_TEX   = "rbxassetid://5028857084"
+local SHADOW_TEX = "rbxassetid://6014261993"
 
 ----------------------------------------------------------------------
 -- بناء الـHUD
@@ -28134,72 +29194,120 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = 30
 gui.Parent = pg
 
+-- إطار حاوٍ مصغّر بجانب «كوينز» أعلى-اليمين، بنفس الارتفاع والستايل.
+-- «كوينز»: Anchor(1,0) · Pos(1,-16,0,16) · Size 168×44 → الساعة على يسارها بفجوة 8px.
+local CLOCK_W = 118
+local COINS_W = 168
+local holder = Instance.new("Frame")
+holder.Name = "ServerClock"
+holder.AnchorPoint = Vector2.new(1, 0)
+holder.Position = UDim2.new(1, -16 - COINS_W - 8, 0, 16)
+holder.Size = UDim2.new(0, CLOCK_W, 0, 44)
+holder.BackgroundTransparency = 1
+holder.Parent = gui
+
+-- ظل ناعم خلف الشريحة
+local shadow = Instance.new("ImageLabel")
+shadow.BackgroundTransparency = 1
+shadow.Image = SHADOW_TEX
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.5
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+shadow.Position = UDim2.new(0.5, 0, 0.5, 5)
+shadow.Size = UDim2.new(1, 28, 1, 28)
+shadow.Parent = holder
+
+-- الشريحة الزجاجية (مصغّرة)
 local pill = Instance.new("Frame")
-pill.AnchorPoint = Vector2.new(0.5, 0)
-pill.Position = UDim2.new(0.5, 0, 0, 12)
-pill.Size = UDim2.new(0, 224, 0, 60)
+pill.AnchorPoint = Vector2.new(0.5, 0.5)
+pill.Position = UDim2.new(0.5, 0, 0.5, 0)
+pill.Size = UDim2.new(1, 0, 1, 0)
 pill.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
-pill.BackgroundTransparency = 0.06
-pill.Parent = gui
-Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 18)
+pill.BackgroundTransparency = 0.04
+pill.Parent = holder
+Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 12)
 local pgrad = Instance.new("UIGradient")
 pgrad.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 36, 50)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 17, 26)),
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(34, 41, 58)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 25, 37)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 15, 23)),
 })
 pgrad.Rotation = 90
 pgrad.Parent = pill
+
+-- إطار ذهبي متدرّج
 local pstroke = Instance.new("UIStroke")
 pstroke.Color = GOLD
 pstroke.Thickness = 1.6
-pstroke.Transparency = 0.2
+pstroke.Transparency = 0.12
 pstroke.Parent = pill
+local sgrad = Instance.new("UIGradient")
+sgrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, GOLD_LIGHT),
+	ColorSequenceKeypoint.new(0.5, GOLD),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 118, 60)),
+})
+sgrad.Rotation = 90
+sgrad.Parent = pstroke
 
--- توهّج خلف الأيقونة
+-- مركز الأيقونة (يسار الشريحة)
+local ICON_X = 24
+
+-- توهّج خلف الأيقونة (نابض خفيف)
 local iconGlow = Instance.new("ImageLabel")
 iconGlow.BackgroundTransparency = 1
 iconGlow.Image = GLOW_TEX
 iconGlow.ImageColor3 = Color3.fromRGB(255, 210, 120)
 iconGlow.ImageTransparency = 0.25
 iconGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-iconGlow.Size = UDim2.new(0, 54, 0, 54)
-iconGlow.Position = UDim2.new(0, 38, 0.5, 0)
+iconGlow.Size = UDim2.new(0, 38, 0, 38)
+iconGlow.Position = UDim2.new(0, ICON_X, 0.5, 0)
+iconGlow.ZIndex = 2
 iconGlow.Parent = pill
 
--- قرص الشمس/القمر
+-- قرص الشمس/القمر (صغير)
 local disc = Instance.new("Frame")
 disc.AnchorPoint = Vector2.new(0.5, 0.5)
-disc.Size = UDim2.new(0, 26, 0, 26)
-disc.Position = UDim2.new(0, 38, 0.5, 0)
+disc.Size = UDim2.new(0, 20, 0, 20)
+disc.Position = UDim2.new(0, ICON_X, 0.5, 0)
 disc.BackgroundColor3 = Color3.fromRGB(255, 215, 130)
+disc.BorderSizePixel = 0
+disc.ZIndex = 4
 disc.Parent = pill
 Instance.new("UICorner", disc).CornerRadius = UDim.new(1, 0)
+local dstroke = Instance.new("UIStroke")
+dstroke.Color = Color3.fromRGB(255, 240, 200)
+dstroke.Thickness = 1
+dstroke.Transparency = 0.4
+dstroke.Parent = disc
 
--- وقت
+-- ظل الهلال (يغطّي جزءاً من القرص ليلاً لصنع شكل الهلال)
+local crescent = Instance.new("Frame")
+crescent.AnchorPoint = Vector2.new(0.5, 0.5)
+crescent.Size = UDim2.new(0, 16, 0, 16)
+crescent.Position = UDim2.new(0.72, 0, 0.4, 0)
+crescent.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
+crescent.BorderSizePixel = 0
+crescent.ZIndex = 5
+crescent.Visible = false
+crescent.Parent = disc
+Instance.new("UICorner", crescent).CornerRadius = UDim.new(1, 0)
+
+-- الوقت فقط (بسيط) — محاذاة لليمين، يملأ بقية الشريحة
 local timeLabel = Instance.new("TextLabel")
 timeLabel.BackgroundTransparency = 1
-timeLabel.AnchorPoint = Vector2.new(1, 0)
-timeLabel.Position = UDim2.new(1, -16, 0, 8)
-timeLabel.Size = UDim2.new(0, 150, 0, 30)
-timeLabel.Font = Enum.Font.GothamBold
+timeLabel.AnchorPoint = Vector2.new(1, 0.5)
+timeLabel.Position = UDim2.new(1, -12, 0.5, 0)
+timeLabel.Size = UDim2.new(0, CLOCK_W - 48, 0, 24)
+timeLabel.Font = Enum.Font.GothamBlack
 timeLabel.Text = "--:--"
 timeLabel.TextScaled = true
 timeLabel.TextXAlignment = Enum.TextXAlignment.Right
 timeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timeLabel.ZIndex = 2
 timeLabel.Parent = pill
-
--- سطر التوقيت
-local subLabel = Instance.new("TextLabel")
-subLabel.BackgroundTransparency = 1
-subLabel.AnchorPoint = Vector2.new(1, 1)
-subLabel.Position = UDim2.new(1, -16, 1, -8)
-subLabel.Size = UDim2.new(0, 150, 0, 16)
-subLabel.Font = Enum.Font.GothamMedium
-subLabel.Text = "توقيت السيرفر · البحرين"
-subLabel.TextScaled = true
-subLabel.TextXAlignment = Enum.TextXAlignment.Right
-subLabel.TextColor3 = Color3.fromRGB(165, 185, 210)
-subLabel.Parent = pill
 
 ----------------------------------------------------------------------
 -- مزامنة الوقت: نحفظ الأساس ونعدّ محلياً بين المزامنات
@@ -28214,32 +29322,53 @@ clockEvent.OnClientEvent:Connect(function(epoch: number, isFrozen: boolean?)
 	frozen = isFrozen == true
 end)
 
--- مرحلة اليوم حسب الساعة → لون القرص/التوهّج
-local function styleForHour(h: number): (Color3, Color3)
-	if h >= 5 and h < 6.5 then            -- الفجر
-		return Color3.fromRGB(255, 180, 120), Color3.fromRGB(255, 170, 110)
-	elseif h >= 6.5 and h < 11.5 then     -- الصباح
-		return Color3.fromRGB(255, 230, 160), Color3.fromRGB(255, 225, 150)
-	elseif h >= 11.5 and h < 15 then      -- الظهر
-		return Color3.fromRGB(255, 245, 205), Color3.fromRGB(255, 240, 190)
-	elseif h >= 15 and h < 17.5 then      -- العصر
-		return Color3.fromRGB(255, 210, 150), Color3.fromRGB(255, 200, 140)
-	elseif h >= 17.5 and h < 19 then      -- الغروب/المساء المبكر
-		return Color3.fromRGB(255, 150, 100), Color3.fromRGB(255, 140, 95)
-	else                                   -- الليل → قمر
-		return Color3.fromRGB(205, 220, 255), Color3.fromRGB(170, 195, 255)
+-- مرحلة اليوم: الاسم + لون القرص + لون التوهّج + هل هو ليل (هلال)
+local function phaseForHour(h: number): (string, Color3, Color3, boolean)
+	if h >= 5 and h < 6.5 then
+		return "الفجر", Color3.fromRGB(255, 180, 120), Color3.fromRGB(255, 170, 110), false
+	elseif h >= 6.5 and h < 11.5 then
+		return "الصباح", Color3.fromRGB(255, 230, 160), Color3.fromRGB(255, 225, 150), false
+	elseif h >= 11.5 and h < 15 then
+		return "الظهر", Color3.fromRGB(255, 245, 205), Color3.fromRGB(255, 240, 190), false
+	elseif h >= 15 and h < 17.5 then
+		return "العصر", Color3.fromRGB(255, 210, 150), Color3.fromRGB(255, 200, 140), false
+	elseif h >= 17.5 and h < 19 then
+		return "المغرب", Color3.fromRGB(255, 150, 100), Color3.fromRGB(255, 140, 95), false
+	else
+		return "الليل", Color3.fromRGB(205, 220, 255), Color3.fromRGB(170, 195, 255), true
 	end
+end
+
+local AR_DIGITS = { "٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩" }
+local function toAr(s: string): string
+	return (s:gsub("%d", function(d) return AR_DIGITS[tonumber(d) + 1] end))
 end
 
 local function fmt(h: number, m: number): string
 	local suffix = if h < 12 then "ص" else "م"
 	local h12 = h % 12
 	if h12 == 0 then h12 = 12 end
-	return string.format("%d:%02d %s", h12, m, suffix)
+	return toAr(string.format("%d:%02d", h12, m)) .. " " .. suffix
 end
 
+local TWEEN = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local lastPhase: string? = nil
+
+----------------------------------------------------------------------
+-- 🔔 لم تعد بحاجة للانزياح: الساعة الآن في أعلى-اليسار بعيداً عن منطقة
+-- الإشعارات وشريط الباركور (أعلى-الوسط)، فتبقى ظاهرة دائماً بلا أي تداخل.
+----------------------------------------------------------------------
+
 local accum = 0
+local pulse = 0
 RunService.Heartbeat:Connect(function(dt)
+	-- نبض توهّج خفيف حول الأيقونة (بسلاسة)
+	pulse = (pulse + dt) % (math.pi * 100)
+	local s = 1 + 0.06 * math.sin(pulse * 2)
+	iconGlow.Size = UDim2.new(0, 38 * s, 0, 38 * s)
+	iconGlow.ImageTransparency = 0.25 + 0.1 * (0.5 + 0.5 * math.sin(pulse * 2))
+
+	-- تحديث الوقت كل نصف ثانية
 	accum += dt
 	if accum < 0.5 then return end
 	accum = 0
@@ -28249,10 +29378,59 @@ RunService.Heartbeat:Connect(function(dt)
 	local h = math.floor(secs / 3600)
 	local m = math.floor((secs % 3600) / 60)
 	timeLabel.Text = fmt(h, m)
+
 	local hf = secs / 3600
-	local discC, glowC = styleForHour(hf)
-	disc.BackgroundColor3 = discC
-	iconGlow.ImageColor3 = glowC
+	local name, discC, glowC, isNight = phaseForHour(hf)
+	if name ~= lastPhase then
+		lastPhase = name
+		crescent.Visible = isNight
+		TweenService:Create(disc, TWEEN, { BackgroundColor3 = discC }):Play()
+		TweenService:Create(iconGlow, TWEEN, { ImageColor3 = glowC }):Play()
+	end
+end)
+]]></string></Properties></Item><Item class="LocalScript" referent="CherryTreesClientRef"><Properties><string name="Name">CherryTreesClient</string><token name="RunContext">0</token><string name="Source"><![CDATA[-- ════════════════════════════════════════════════════════════════════════
+-- CHERRY TREES (Client) — تمايل تيجان الكرز مع «نسمة هواء» واقعية.
+-- كل تاج موسوم "CherryCanopy" ومحوره عند قمة الجذع؛ ندوّره بزاوية صغيرة
+-- بموجة جيبية + اختلاف طور لكل شجرة فلا تتمايل كلها بنفس اللحظة.
+-- ════════════════════════════════════════════════════════════════════════
+local CollectionService = game:GetService("CollectionService")
+local RunService = game:GetService("RunService")
+
+local AMP = math.rad(3.4) -- شدة التمايل
+local SPEED = 1.05
+
+local canopies: { [Model]: { pivot: CFrame, phase: number } } = {}
+
+local function register(m: Instance)
+	if not m:IsA("Model") then
+		return
+	end
+	local pivot = m:GetPivot()
+	canopies[m] = {
+		pivot = pivot,
+		phase = pivot.Position.X * 0.13 + pivot.Position.Z * 0.09,
+	}
+end
+
+for _, m in ipairs(CollectionService:GetTagged("CherryCanopy")) do
+	register(m)
+end
+CollectionService:GetInstanceAddedSignal("CherryCanopy"):Connect(register)
+CollectionService:GetInstanceRemovedSignal("CherryCanopy"):Connect(function(m)
+	canopies[m] = nil
+end)
+
+RunService.RenderStepped:Connect(function()
+	local t = os.clock()
+	for m, d in pairs(canopies) do
+		if m.Parent then
+			local sway = math.sin(t * SPEED + d.phase) * AMP
+			local tilt = math.sin(t * SPEED * 0.66 + d.phase * 1.4) * AMP * 0.5
+			m:PivotTo(d.pivot * CFrame.Angles(tilt, 0, sway))
+		else
+			canopies[m] = nil
+		end
+	end
 end)
 ]]></string></Properties></Item></Item>
   </Item>

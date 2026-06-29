@@ -1,21 +1,25 @@
 --!nonstrict
 ----------------------------------------------------------------------
 -- DAY NIGHT CLIENT (Client)
---   ساعة السيرفر (HUD) أعلى الشاشة — شريحة زجاج داكن بإطار ذهبي تعرض
---   وقت السيرفر بتوقيت البحرين + أيقونة شمس/قمر تتغيّر مع المرحلة
---   (الفجر/الصباح/الظهر/العصر/المساء). تتحدّث كل ثانية محلياً وتُزامَن
---   من السيرفر دورياً عبر RemoteEvent "ServerClockSync".
+--   ساعة السيرفر (HUD) أعلى الشاشة — شريحة زجاج داكن فاخرة بإطار ذهبي
+--   متدرّج وظل ناعم، تعرض وقت السيرفر بتوقيت البحرين + شمس بأشعة دوّارة
+--   نهاراً تتحوّل لهلال ليلاً، توهّج نابض، واسم المرحلة (الفجر/الصباح/
+--   الظهر/العصر/المغرب/الليل) مع انتقالات ألوان سلسة.
+--   تتحدّث محلياً وتُزامَن من السيرفر دورياً عبر RemoteEvent "ServerClockSync".
 ----------------------------------------------------------------------
 local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
+local TweenService      = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 local pg     = player:WaitForChild("PlayerGui")
 local clockEvent = ReplicatedStorage:WaitForChild("ServerClockSync")
 
-local GOLD     = Color3.fromRGB(214, 175, 92)
-local GLOW_TEX = "rbxassetid://5028857084"
+local GOLD       = Color3.fromRGB(214, 175, 92)
+local GOLD_LIGHT = Color3.fromRGB(245, 218, 150)
+local GLOW_TEX   = "rbxassetid://5028857084"
+local SHADOW_TEX = "rbxassetid://6014261993"
 
 ----------------------------------------------------------------------
 -- بناء الـHUD
@@ -27,72 +31,120 @@ gui.IgnoreGuiInset = true
 gui.DisplayOrder = 30
 gui.Parent = pg
 
+-- إطار حاوٍ مصغّر بجانب «كوينز» أعلى-اليمين، بنفس الارتفاع والستايل.
+-- «كوينز»: Anchor(1,0) · Pos(1,-16,0,16) · Size 168×44 → الساعة على يسارها بفجوة 8px.
+local CLOCK_W = 118
+local COINS_W = 168
+local holder = Instance.new("Frame")
+holder.Name = "ServerClock"
+holder.AnchorPoint = Vector2.new(1, 0)
+holder.Position = UDim2.new(1, -16 - COINS_W - 8, 0, 16)
+holder.Size = UDim2.new(0, CLOCK_W, 0, 44)
+holder.BackgroundTransparency = 1
+holder.Parent = gui
+
+-- ظل ناعم خلف الشريحة
+local shadow = Instance.new("ImageLabel")
+shadow.BackgroundTransparency = 1
+shadow.Image = SHADOW_TEX
+shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+shadow.ImageTransparency = 0.5
+shadow.ScaleType = Enum.ScaleType.Slice
+shadow.SliceCenter = Rect.new(49, 49, 450, 450)
+shadow.AnchorPoint = Vector2.new(0.5, 0.5)
+shadow.Position = UDim2.new(0.5, 0, 0.5, 5)
+shadow.Size = UDim2.new(1, 28, 1, 28)
+shadow.Parent = holder
+
+-- الشريحة الزجاجية (مصغّرة)
 local pill = Instance.new("Frame")
-pill.AnchorPoint = Vector2.new(0.5, 0)
-pill.Position = UDim2.new(0.5, 0, 0, 12)
-pill.Size = UDim2.new(0, 224, 0, 60)
+pill.AnchorPoint = Vector2.new(0.5, 0.5)
+pill.Position = UDim2.new(0.5, 0, 0.5, 0)
+pill.Size = UDim2.new(1, 0, 1, 0)
 pill.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
-pill.BackgroundTransparency = 0.06
-pill.Parent = gui
-Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 18)
+pill.BackgroundTransparency = 0.04
+pill.Parent = holder
+Instance.new("UICorner", pill).CornerRadius = UDim.new(0, 12)
 local pgrad = Instance.new("UIGradient")
 pgrad.Color = ColorSequence.new({
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(30, 36, 50)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(14, 17, 26)),
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(34, 41, 58)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(20, 25, 37)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 15, 23)),
 })
 pgrad.Rotation = 90
 pgrad.Parent = pill
+
+-- إطار ذهبي متدرّج
 local pstroke = Instance.new("UIStroke")
 pstroke.Color = GOLD
 pstroke.Thickness = 1.6
-pstroke.Transparency = 0.2
+pstroke.Transparency = 0.12
 pstroke.Parent = pill
+local sgrad = Instance.new("UIGradient")
+sgrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, GOLD_LIGHT),
+	ColorSequenceKeypoint.new(0.5, GOLD),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(150, 118, 60)),
+})
+sgrad.Rotation = 90
+sgrad.Parent = pstroke
 
--- توهّج خلف الأيقونة
+-- مركز الأيقونة (يسار الشريحة)
+local ICON_X = 24
+
+-- توهّج خلف الأيقونة (نابض خفيف)
 local iconGlow = Instance.new("ImageLabel")
 iconGlow.BackgroundTransparency = 1
 iconGlow.Image = GLOW_TEX
 iconGlow.ImageColor3 = Color3.fromRGB(255, 210, 120)
 iconGlow.ImageTransparency = 0.25
 iconGlow.AnchorPoint = Vector2.new(0.5, 0.5)
-iconGlow.Size = UDim2.new(0, 54, 0, 54)
-iconGlow.Position = UDim2.new(0, 38, 0.5, 0)
+iconGlow.Size = UDim2.new(0, 38, 0, 38)
+iconGlow.Position = UDim2.new(0, ICON_X, 0.5, 0)
+iconGlow.ZIndex = 2
 iconGlow.Parent = pill
 
--- قرص الشمس/القمر
+-- قرص الشمس/القمر (صغير)
 local disc = Instance.new("Frame")
 disc.AnchorPoint = Vector2.new(0.5, 0.5)
-disc.Size = UDim2.new(0, 26, 0, 26)
-disc.Position = UDim2.new(0, 38, 0.5, 0)
+disc.Size = UDim2.new(0, 20, 0, 20)
+disc.Position = UDim2.new(0, ICON_X, 0.5, 0)
 disc.BackgroundColor3 = Color3.fromRGB(255, 215, 130)
+disc.BorderSizePixel = 0
+disc.ZIndex = 4
 disc.Parent = pill
 Instance.new("UICorner", disc).CornerRadius = UDim.new(1, 0)
+local dstroke = Instance.new("UIStroke")
+dstroke.Color = Color3.fromRGB(255, 240, 200)
+dstroke.Thickness = 1
+dstroke.Transparency = 0.4
+dstroke.Parent = disc
 
--- وقت
+-- ظل الهلال (يغطّي جزءاً من القرص ليلاً لصنع شكل الهلال)
+local crescent = Instance.new("Frame")
+crescent.AnchorPoint = Vector2.new(0.5, 0.5)
+crescent.Size = UDim2.new(0, 16, 0, 16)
+crescent.Position = UDim2.new(0.72, 0, 0.4, 0)
+crescent.BackgroundColor3 = Color3.fromRGB(16, 20, 30)
+crescent.BorderSizePixel = 0
+crescent.ZIndex = 5
+crescent.Visible = false
+crescent.Parent = disc
+Instance.new("UICorner", crescent).CornerRadius = UDim.new(1, 0)
+
+-- الوقت فقط (بسيط) — محاذاة لليمين، يملأ بقية الشريحة
 local timeLabel = Instance.new("TextLabel")
 timeLabel.BackgroundTransparency = 1
-timeLabel.AnchorPoint = Vector2.new(1, 0)
-timeLabel.Position = UDim2.new(1, -16, 0, 8)
-timeLabel.Size = UDim2.new(0, 150, 0, 30)
-timeLabel.Font = Enum.Font.GothamBold
+timeLabel.AnchorPoint = Vector2.new(1, 0.5)
+timeLabel.Position = UDim2.new(1, -12, 0.5, 0)
+timeLabel.Size = UDim2.new(0, CLOCK_W - 48, 0, 24)
+timeLabel.Font = Enum.Font.GothamBlack
 timeLabel.Text = "--:--"
 timeLabel.TextScaled = true
 timeLabel.TextXAlignment = Enum.TextXAlignment.Right
 timeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+timeLabel.ZIndex = 2
 timeLabel.Parent = pill
-
--- سطر التوقيت
-local subLabel = Instance.new("TextLabel")
-subLabel.BackgroundTransparency = 1
-subLabel.AnchorPoint = Vector2.new(1, 1)
-subLabel.Position = UDim2.new(1, -16, 1, -8)
-subLabel.Size = UDim2.new(0, 150, 0, 16)
-subLabel.Font = Enum.Font.GothamMedium
-subLabel.Text = "توقيت السيرفر · البحرين"
-subLabel.TextScaled = true
-subLabel.TextXAlignment = Enum.TextXAlignment.Right
-subLabel.TextColor3 = Color3.fromRGB(165, 185, 210)
-subLabel.Parent = pill
 
 ----------------------------------------------------------------------
 -- مزامنة الوقت: نحفظ الأساس ونعدّ محلياً بين المزامنات
@@ -107,32 +159,53 @@ clockEvent.OnClientEvent:Connect(function(epoch: number, isFrozen: boolean?)
 	frozen = isFrozen == true
 end)
 
--- مرحلة اليوم حسب الساعة → لون القرص/التوهّج
-local function styleForHour(h: number): (Color3, Color3)
-	if h >= 5 and h < 6.5 then            -- الفجر
-		return Color3.fromRGB(255, 180, 120), Color3.fromRGB(255, 170, 110)
-	elseif h >= 6.5 and h < 11.5 then     -- الصباح
-		return Color3.fromRGB(255, 230, 160), Color3.fromRGB(255, 225, 150)
-	elseif h >= 11.5 and h < 15 then      -- الظهر
-		return Color3.fromRGB(255, 245, 205), Color3.fromRGB(255, 240, 190)
-	elseif h >= 15 and h < 17.5 then      -- العصر
-		return Color3.fromRGB(255, 210, 150), Color3.fromRGB(255, 200, 140)
-	elseif h >= 17.5 and h < 19 then      -- الغروب/المساء المبكر
-		return Color3.fromRGB(255, 150, 100), Color3.fromRGB(255, 140, 95)
-	else                                   -- الليل → قمر
-		return Color3.fromRGB(205, 220, 255), Color3.fromRGB(170, 195, 255)
+-- مرحلة اليوم: الاسم + لون القرص + لون التوهّج + هل هو ليل (هلال)
+local function phaseForHour(h: number): (string, Color3, Color3, boolean)
+	if h >= 5 and h < 6.5 then
+		return "الفجر", Color3.fromRGB(255, 180, 120), Color3.fromRGB(255, 170, 110), false
+	elseif h >= 6.5 and h < 11.5 then
+		return "الصباح", Color3.fromRGB(255, 230, 160), Color3.fromRGB(255, 225, 150), false
+	elseif h >= 11.5 and h < 15 then
+		return "الظهر", Color3.fromRGB(255, 245, 205), Color3.fromRGB(255, 240, 190), false
+	elseif h >= 15 and h < 17.5 then
+		return "العصر", Color3.fromRGB(255, 210, 150), Color3.fromRGB(255, 200, 140), false
+	elseif h >= 17.5 and h < 19 then
+		return "المغرب", Color3.fromRGB(255, 150, 100), Color3.fromRGB(255, 140, 95), false
+	else
+		return "الليل", Color3.fromRGB(205, 220, 255), Color3.fromRGB(170, 195, 255), true
 	end
+end
+
+local AR_DIGITS = { "٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩" }
+local function toAr(s: string): string
+	return (s:gsub("%d", function(d) return AR_DIGITS[tonumber(d) + 1] end))
 end
 
 local function fmt(h: number, m: number): string
 	local suffix = if h < 12 then "ص" else "م"
 	local h12 = h % 12
 	if h12 == 0 then h12 = 12 end
-	return string.format("%d:%02d %s", h12, m, suffix)
+	return toAr(string.format("%d:%02d", h12, m)) .. " " .. suffix
 end
 
+local TWEEN = TweenInfo.new(0.8, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local lastPhase: string? = nil
+
+----------------------------------------------------------------------
+-- 🔔 لم تعد بحاجة للانزياح: الساعة الآن في أعلى-اليمين (يسار عدّاد الكوينز)
+-- بعيداً عن الإشعارات وشريط الباركور (أعلى-الوسط)، فتبقى ظاهرة دائماً بلا تداخل.
+----------------------------------------------------------------------
+
 local accum = 0
+local pulse = 0
 RunService.Heartbeat:Connect(function(dt)
+	-- نبض توهّج خفيف حول الأيقونة (بسلاسة)
+	pulse = (pulse + dt) % (math.pi * 100)
+	local s = 1 + 0.06 * math.sin(pulse * 2)
+	iconGlow.Size = UDim2.new(0, 38 * s, 0, 38 * s)
+	iconGlow.ImageTransparency = 0.25 + 0.1 * (0.5 + 0.5 * math.sin(pulse * 2))
+
+	-- تحديث الوقت كل نصف ثانية
 	accum += dt
 	if accum < 0.5 then return end
 	accum = 0
@@ -142,8 +215,13 @@ RunService.Heartbeat:Connect(function(dt)
 	local h = math.floor(secs / 3600)
 	local m = math.floor((secs % 3600) / 60)
 	timeLabel.Text = fmt(h, m)
+
 	local hf = secs / 3600
-	local discC, glowC = styleForHour(hf)
-	disc.BackgroundColor3 = discC
-	iconGlow.ImageColor3 = glowC
+	local name, discC, glowC, isNight = phaseForHour(hf)
+	if name ~= lastPhase then
+		lastPhase = name
+		crescent.Visible = isNight
+		TweenService:Create(disc, TWEEN, { BackgroundColor3 = discC }):Play()
+		TweenService:Create(iconGlow, TWEEN, { ImageColor3 = glowC }):Play()
+	end
 end)

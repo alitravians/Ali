@@ -1520,6 +1520,8 @@ showAnnounce = function(data)
 		}),
 	})
 	announceFrame = frame
+	-- 🕐 أبلِغ الساعة العلوية أن هناك إشعاراً نشطاً فتنزاح لأعلى ولا تغطّيه
+	LocalPlayer:SetAttribute("ClockYield", true)
 	TweenService:Create(frame, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
 		{ Position = UDim2.new(0.5, 0, 0, 14) }):Play()
 	task.delay(5, function()
@@ -1530,6 +1532,8 @@ showAnnounce = function(data)
 				{ Position = UDim2.new(0.5, 0, 0, hideY) })
 			tw:Play()
 			tw.Completed:Once(function() if frame then frame:Destroy() end end)
+			-- لم يعد هناك إشعار نشط → ترجع الساعة لمكانها (إن لم يظهر إشعار أحدث)
+			if announceFrame == frame then LocalPlayer:SetAttribute("ClockYield", false) end
 		end
 	end)
 end
@@ -2105,6 +2109,63 @@ showAdminPanel = function(data)
 		end)
 	end
 
+	-- 💰 إعطاء/خصم كوينز للاعب (أدمن فأعلى) — مبالغ سريعة + خانة مبلغ مخصّص
+	local function coinsPrompt(pl)
+		local _, c = makeModal(UDim2.fromOffset(400, 360))
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "💰 كوينز " .. (pl.display or pl.name), Font = Enum.Font.GothamBlack,
+			TextSize = 19, TextColor3 = GOLD, Size = UDim2.new(1, -28, 0, 36), Position = UDim2.fromOffset(14, 12),
+			TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		new("TextLabel", {
+			BackgroundTransparency = 1, Text = "الرصيد الحالي: " .. toAr(pl.coins or 0) .. " كوينز",
+			Font = Enum.Font.GothamMedium, TextSize = 14, TextColor3 = SUBT,
+			Size = UDim2.new(1, -28, 0, 22), Position = UDim2.fromOffset(14, 48), TextXAlignment = Enum.TextXAlignment.Right, Parent = c,
+		})
+		local box = new("TextBox", {
+			PlaceholderText = "المبلغ (مثال: 500)", Text = "", ClearTextOnFocus = false, Font = Enum.Font.GothamBold,
+			TextSize = 17, TextColor3 = TEXT, BackgroundColor3 = CARD, Size = UDim2.new(1, -28, 0, 46),
+			Position = UDim2.fromOffset(14, 78), TextXAlignment = Enum.TextXAlignment.Center, Parent = c,
+		}, { new("UICorner", { CornerRadius = UDim.new(0, 12) }), new("UIStroke", { Color = GOLD, Transparency = 0.3 }) })
+		-- أزرار مبالغ سريعة تملأ الخانة
+		local presets = { 100, 500, 1000, 5000 }
+		local pcols = #presets
+		local seg = (400 - 28) / pcols
+		for i, amt in ipairs(presets) do
+			local col = i - 1
+			local b = styledButton(c, {
+				Text = "+" .. toAr(amt), Font = Enum.Font.GothamBold, TextSize = 14, TextColor3 = TEXT, BackgroundColor3 = NEU_BTN,
+				Size = UDim2.new(1 / pcols, -6, 0, 38), Position = UDim2.fromOffset(14 + col * seg, 136), Parent = c,
+			})
+			b.MouseButton1Click:Connect(function() box.Text = tostring(amt) end)
+		end
+		local function submit(sign)
+			local n = math.floor(tonumber(box.Text) or 0)
+			if n <= 0 then return end
+			closeActive()
+			cmd({ cmd = "giveCoins", userId = pl.userId, amount = sign * n })
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end
+		local addB = styledButton(c, {
+			Text = "➕ إضافة", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT, BackgroundColor3 = GREEN_BTN,
+			Size = UDim2.new(0.5, -19, 0, 46), Position = UDim2.fromOffset(14, 190), Parent = c,
+		})
+		addB.MouseButton1Click:Connect(function() submit(1) end)
+		local subB = styledButton(c, {
+			Text = "➖ خصم", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = TEXT, BackgroundColor3 = RED_BTN,
+			Size = UDim2.new(0.5, -19, 0, 46), Position = UDim2.new(0.5, 5, 0, 190), Parent = c,
+		})
+		subB.MouseButton1Click:Connect(function() submit(-1) end)
+		local cancel = styledButton(c, {
+			Text = "إغلاق", Font = Enum.Font.GothamBold, TextSize = 15, TextColor3 = TEXT, BackgroundColor3 = CARD2,
+			Size = UDim2.new(1, -28, 0, 40), Position = UDim2.new(0.5, 0, 1, -12), AnchorPoint = Vector2.new(0.5, 1), Parent = c,
+		})
+		cancel.MouseButton1Click:Connect(function()
+			closeActive()
+			if lastAdminData then showAdminPanel(lastAdminData) end
+		end)
+	end
+
 	local RANK_BADGE = { owner = " 👑", admin = " 🛡️", mod = " 🔰", staff = " 🎬" }
 	local function makePlayerRow(parent, pl)
 		local isSelf = pl.userId == LocalPlayer.UserId
@@ -2126,6 +2187,7 @@ showAdminPanel = function(data)
 				table.insert(actions, { "📍 انتقال", CYAN, function() cmd({ cmd = "teleport", userId = pl.userId }) end })
 				table.insert(actions, { pl.vip and "🚫 VIP" or "⭐ VIP", GOLD, function() cmd({ cmd = pl.vip and "vipRevoke" or "vipGrant", userId = pl.userId }) end })
 				table.insert(actions, { "🎁 باقات", Color3.fromRGB(150, 60, 130), function() passesPrompt(pl) end })
+				table.insert(actions, { "💰 كوينز", Color3.fromRGB(40, 140, 90), function() coinsPrompt(pl) end })
 				table.insert(actions, { pl.banned and "✅ حجز" or "🚫 حجز", ORG_BTN, function() cmd({ cmd = pl.banned and "unban" or "ban", userId = pl.userId }) end })
 				table.insert(actions, { "🏷️ رتبة", Color3.fromRGB(90, 70, 140), function() rankPrompt(pl) end })
 			end

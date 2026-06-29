@@ -490,6 +490,9 @@ evScanResult.OnClientEvent:Connect(function(granted, info)
 			if kind == "admin" then
 				chip.Visible = true
 				chipLabel.Text = "دخول الإدارة · مجاني"
+			elseif kind == "vip" then
+				chip.Visible = true
+				chipLabel.Text = "دخول VIP · مجاني"
 			elseif cost then
 				chip.Visible = true
 				chipLabel.Text = bal and ("خُصم " .. cost .. " · رصيدك " .. bal) or ("خُصم " .. cost .. " كوينز")

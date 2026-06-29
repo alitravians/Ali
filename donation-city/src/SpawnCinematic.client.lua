@@ -23,6 +23,10 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local UserInputService  = game:GetService("UserInputService")
+-- جوال حقيقي فقط (لمس بلا لوحة مفاتيح) → أزرار لمس؛ غير ذلك (كمبيوتر ولو بشاشة لمس) → تلميح لوحة المفاتيح.
+local function isMobileInput(): boolean
+	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+end
 local TweenService      = game:GetService("TweenService")
 local Workspace         = game:GetService("Workspace")
 
@@ -849,13 +853,16 @@ local function run()
 	cam.CameraSubject = humanoid
 	setControls(true)
 
-	hud.banner.Text = "امشِ داخل الطائرة — اضغط E للقفز"
-	if UserInputService.TouchEnabled then
+	-- فصل واضح بين الجوال (أزرار لمس) والكمبيوتر (تلميح لوحة المفاتيح):
+	-- الجوال يرى زر «اقفز» فقط، والكمبيوتر يرى تلميح «اضغط E» فقط — بلا تكرار.
+	if isMobileInput() then
+		hud.banner.Text = "امشِ داخل الطائرة ثم اضغط زر «اقفز»"
 		hud.skip.Text = "اقفز"
 		hud.skip.Visible = true
 		hud.skip.Activated:Connect(function() jumpRequested = true end)
 	else
-		hud.eHint.Text = "اضغط E للقفز من الطائرة"
+		hud.banner.Text = "امشِ داخل الطائرة ثم اقفز"
+		hud.eHint.Text = "اضغط E للقفز"
 		hud.eHint.Visible = true
 	end
 
@@ -910,10 +917,14 @@ local function run()
 	hud.countdown.Visible = false
 	hud.banner.Text = "سقوط حرّ"
 	hud.stats.Visible = true
-	hud.chute.Visible = true
-	hud.boost.Visible = true
-	hud.eHint.Text = if UserInputService.TouchEnabled then "اضغط E لفتح المظلّة" else "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
-	if not UserInputService.TouchEnabled then hud.eHint.Visible = true end
+	-- الجوال: أزرار لمس (افتح المظلّة + تسريع) فقط · الكمبيوتر: تلميح E/Shift فقط.
+	if isMobileInput() then
+		hud.chute.Visible = true
+		hud.boost.Visible = true
+	else
+		hud.eHint.Text = "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
+		hud.eHint.Visible = true
+	end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 
 	-- تفعيل تحكّم اللاعب + كاميرا حرّة: WASD/الأسهم (كمبيوتر) أو عصا الجوال للتوجيه،
