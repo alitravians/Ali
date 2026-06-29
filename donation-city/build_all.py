@@ -50,6 +50,7 @@ UPDATES = [
     ("src/BoundarySystem.server.lua", "BOUNDARY SYSTEM (Server)"),
     ("src/CherryTrees.server.lua",    "CHERRY TREES (Server)"),
     ("src/CherryTrees.client.lua",    "CHERRY TREES (Client)"),
+    ("src/Chess.server.lua",          "CHESS — لعبة الشطرنج ثلاثية الأبعاد (Server)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:
