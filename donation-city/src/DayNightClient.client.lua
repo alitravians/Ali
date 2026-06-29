@@ -239,7 +239,7 @@ local pulse = 0
 RunService.Heartbeat:Connect(function(dt)
 	-- دوران الأشعة + نبض التوهّج (كل إطار، بسلاسة)
 	rays.Rotation = (rays.Rotation + dt * 18) % 360
-	pulse += dt
+	pulse = (pulse + dt) % (math.pi * 100)
 	local s = 1 + 0.07 * math.sin(pulse * 2)
 	iconGlow.Size = UDim2.new(0, 60 * s, 0, 60 * s)
 	iconGlow.ImageTransparency = 0.2 + 0.12 * (0.5 + 0.5 * math.sin(pulse * 2))

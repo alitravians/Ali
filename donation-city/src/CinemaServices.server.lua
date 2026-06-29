@@ -1966,8 +1966,8 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			if not uid then
 				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
 			end
-			-- لا تتصرّف برصيد إداري برتبة مثلك أو أعلى (حماية من تعديل العميل)
-			if target and weightOf(target) >= myW then
+			-- لا تتصرّف برصيد إداري برتبة مثلك أو أعلى (يعمل أونلاين وأوفلاين عبر userId)
+			if (RANK_W[rankOfId(uid)] or 0) >= myW then
 				adminNotify(player, "🚫 لا يمكنك تعديل رصيد إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
 			end
 			local amount = math.floor(tonumber(payload.amount) or 0)

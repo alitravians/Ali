@@ -173,6 +173,12 @@ local CONFIG = {
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
 		{
+			version = "٢.٩.٤٧", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "تعزيز حماية «إعطاء/خصم كوينز»: التحقق من رتبة اللاعب صار عبر معرّفه (userId) فيعمل حتى لو كان غير متصل — فما يقدر أدمن يعدّل رصيد إداري برتبته أو أعلى وهو أوفلاين." },
+			},
+		},
+		{
 			version = "٢.٩.٤٦", date = "٢٩ يونيو",
 			items = {
 				{ "improve", "تصميم جديد احترافي لساعة السيرفر: شريحة زجاجية بظل ناعم وإطار ذهبي متدرّج، شمس بأشعة دوّارة نهاراً تتحوّل لهلال ليلاً، توهّج نابض، واسم المرحلة (الفجر/الصباح/الظهر/العصر/المغرب/الليل) بانتقالات ألوان سلسة." },
@@ -7802,8 +7808,8 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			if not uid then
 				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
 			end
-			-- لا تتصرّف برصيد إداري برتبة مثلك أو أعلى (حماية من تعديل العميل)
-			if target and weightOf(target) >= myW then
+			-- لا تتصرّف برصيد إداري برتبة مثلك أو أعلى (يعمل أونلاين وأوفلاين عبر userId)
+			if (RANK_W[rankOfId(uid)] or 0) >= myW then
 				adminNotify(player, "🚫 لا يمكنك تعديل رصيد إداري برتبة مثلك أو أعلى."); sendAdminPanel(player); return
 			end
 			local amount = math.floor(tonumber(payload.amount) or 0)
@@ -28486,7 +28492,7 @@ local pulse = 0
 RunService.Heartbeat:Connect(function(dt)
 	-- دوران الأشعة + نبض التوهّج (كل إطار، بسلاسة)
 	rays.Rotation = (rays.Rotation + dt * 18) % 360
-	pulse += dt
+	pulse = (pulse + dt) % (math.pi * 100)
 	local s = 1 + 0.07 * math.sin(pulse * 2)
 	iconGlow.Size = UDim2.new(0, 60 * s, 0, 60 * s)
 	iconGlow.ImageTransparency = 0.2 + 0.12 * (0.5 + 0.5 * math.sin(pulse * 2))
