@@ -871,8 +871,9 @@ local function buildSeat(g: Game, zside: number, col: Color3, label: string): Se
 	seat.Size = Vector3.new(1.7, 0.4, 1.7)
 	seat.Material = Enum.Material.SmoothPlastic
 	seat.Color = col
+	-- اللاعب يجلس مواجهاً اللوح: الأبيض (جنوب) ينظر +Z، الأسود (شمال) ينظر -Z
 	seat.CFrame = CFrame.new(Vector3.new(origin.X, origin.Y + 1.9, sz))
-		* CFrame.Angles(0, math.rad(zside < 0 and 0 or 180), 0)
+		* CFrame.Angles(0, math.rad(zside < 0 and 180 or 0), 0)
 	seat.Parent = g.pieceFolder
 	part({
 		Name = "ChairBack", Parent = g.pieceFolder, Color = col, Material = Enum.Material.SmoothPlastic,
@@ -911,10 +912,11 @@ local function buildStatusBoard(g: Game)
 			CFrame = CFrame.new(origin.X + dx, origin.Y + (boardCY - origin.Y) / 2, boardZ),
 		})
 	end
+	-- اللوحة تواجه اللاعبين (جهة -Z) مباشرةً بلا تدوير → النص يُقرأ صحيحاً لا معكوساً
 	local board = part({
 		Name = "StatusBoard", Parent = g.pieceFolder, Color = Color3.fromRGB(14, 18, 26),
-		Material = Enum.Material.Glass, Size = Vector3.new(W, H, 0.22),
-		CFrame = CFrame.new(origin.X, boardCY, boardZ) * CFrame.Angles(0, math.rad(180), 0),
+		Material = Enum.Material.SmoothPlastic, Size = Vector3.new(W, H, 0.22),
+		CFrame = CFrame.new(origin.X, boardCY, boardZ),
 	})
 	board.Reflectance = 0.15
 	local fr = 0.22
