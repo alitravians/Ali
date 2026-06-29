@@ -1397,7 +1397,7 @@ local extScan = buildScanner({
 	accent = Color3.fromRGB(60, 150, 235), screenIdle = Color3.fromRGB(16, 42, 72),
 	glassColor = Color3.fromRGB(120, 200, 250), ringColor = Color3.fromRGB(180, 225, 255),
 	textColor = Color3.fromRGB(210, 235, 255),
-	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز",
+	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز · VIP مجاناً",
 })
 local panelFrame = extScan.frame
 
@@ -1555,6 +1555,13 @@ prompt.Triggered:Connect(function(player)
 		if isAdmin(player) then
 			admit({ kind = "admin" })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
+			return
+		end
+
+		-- ⭐ أعضاء VIP يدخلون القصر مجاناً (بدون خصم رسوم)
+		if type(_G.IsVIP) == "function" and _G.IsVIP(player) then
+			admit({ kind = "vip" })
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "⭐ أهلاً بك في قصر شهد — دخول VIP مجاني 👑") end
 			return
 		end
 

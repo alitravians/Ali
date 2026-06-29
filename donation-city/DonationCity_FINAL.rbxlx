@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٤٤",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٤٥",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٤٥", date = "٢٩ يونيو",
+			items = {
+				{ "new", "أعضاء VIP يدخلون قصر شهد مجاناً بدون رسوم — بصمة الدخول تتعرّف عليهم وتفتح الباب فوراً." },
+			},
+		},
 		{
 			version = "٢.٩.٤٤", date = "٢٩ يونيو",
 			items = {
@@ -17785,7 +17791,7 @@ local extScan = buildScanner({
 	accent = Color3.fromRGB(60, 150, 235), screenIdle = Color3.fromRGB(16, 42, 72),
 	glassColor = Color3.fromRGB(120, 200, 250), ringColor = Color3.fromRGB(180, 225, 255),
 	textColor = Color3.fromRGB(210, 235, 255),
-	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز",
+	title = "قصر شهد", sub = "ضع إصبعك", hint = "تذكرة دخول · " .. ENTRY_FEE .. " كوينز · VIP مجاناً",
 })
 local panelFrame = extScan.frame
 
@@ -17943,6 +17949,13 @@ prompt.Triggered:Connect(function(player)
 		if isAdmin(player) then
 			admit({ kind = "admin" })
 			if _G.NotifyPlayer then _G.NotifyPlayer(player, "👑 أهلاً بك في قصر شهد — دخول الإدارة مجاني.") end
+			return
+		end
+
+		-- ⭐ أعضاء VIP يدخلون القصر مجاناً (بدون خصم رسوم)
+		if type(_G.IsVIP) == "function" and _G.IsVIP(player) then
+			admit({ kind = "vip" })
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "⭐ أهلاً بك في قصر شهد — دخول VIP مجاني 👑") end
 			return
 		end
 
@@ -26386,6 +26399,9 @@ evScanResult.OnClientEvent:Connect(function(granted, info)
 			if kind == "admin" then
 				chip.Visible = true
 				chipLabel.Text = "دخول الإدارة · مجاني"
+			elseif kind == "vip" then
+				chip.Visible = true
+				chipLabel.Text = "دخول VIP · مجاني"
 			elseif cost then
 				chip.Visible = true
 				chipLabel.Text = bal and ("خُصم " .. cost .. " · رصيدك " .. bal) or ("خُصم " .. cost .. " كوينز")
