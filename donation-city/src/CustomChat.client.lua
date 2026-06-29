@@ -1165,6 +1165,7 @@ local function stopFly()
 	if flyBG then flyBG:Destroy(); flyBG = nil end
 	move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
 	mUp, mDown, mBoost = false, false, false
+	boost = false
 	if flyPad then flyPad.Visible = false end
 	local ch = LocalPlayer.Character
 	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
