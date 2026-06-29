@@ -1116,6 +1116,46 @@ local flyBG: BodyGyro? = nil
 local flyConns: { RBXScriptConnection } = {}
 local move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
 local boost = false
+local mUp, mDown, mBoost = false, false, false   -- حالة أزرار اللمس (جوال)
+
+-- 📱 لوحة أزرار الطيران للجوال (تظهر فقط أثناء الطيران على الأجهزة اللمسية)
+local flyPad: Frame? = nil
+local function buildFlyPad()
+	if flyPad or not UserInputService.TouchEnabled then return end
+	local pad = new("Frame", {
+		Name = "FlyPad", AnchorPoint = Vector2.new(1, 1),
+		Position = UDim2.new(1, -22, 1, -150), Size = UDim2.fromOffset(64, 210),
+		BackgroundTransparency = 1, Visible = false, Parent = gui,
+	})
+	new("UIListLayout", {
+		Padding = UDim.new(0, 10), FillDirection = Enum.FillDirection.Vertical,
+		VerticalAlignment = Enum.VerticalAlignment.Bottom,
+		HorizontalAlignment = Enum.HorizontalAlignment.Center,
+		SortOrder = Enum.SortOrder.LayoutOrder, Parent = pad,
+	})
+	local function padBtn(txt, color, order)
+		local b = new("TextButton", {
+			Size = UDim2.fromOffset(60, 60), BackgroundColor3 = color, BackgroundTransparency = 0.15,
+			Font = Enum.Font.GothamBold, Text = txt, TextColor3 = TEXT, TextSize = 26,
+			AutoButtonColor = true, LayoutOrder = order, Parent = pad,
+		})
+		new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = b })
+		new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.3, Parent = b })
+		return b
+	end
+	local upB    = padBtn("⬆", Color3.fromRGB(70, 140, 240), 1)
+	local boostB = padBtn("⚡", Color3.fromRGB(240, 170, 60), 2)
+	local downB  = padBtn("⬇", Color3.fromRGB(70, 140, 240), 3)
+	local function hold(btn, setter)
+		btn.MouseButton1Down:Connect(function() setter(true) end)
+		btn.MouseButton1Up:Connect(function() setter(false) end)
+		btn.MouseLeave:Connect(function() setter(false) end)
+	end
+	hold(upB,    function(v) mUp = v end)
+	hold(downB,  function(v) mDown = v end)
+	hold(boostB, function(v) mBoost = v end)
+	flyPad = pad
+end
 
 local function stopFly()
 	flying = false
@@ -1124,6 +1164,8 @@ local function stopFly()
 	if flyBV then flyBV:Destroy(); flyBV = nil end
 	if flyBG then flyBG:Destroy(); flyBG = nil end
 	move = { f = 0, b = 0, l = 0, r = 0, u = 0, d = 0 }
+	mUp, mDown, mBoost = false, false, false
+	if flyPad then flyPad.Visible = false end
 	local ch = LocalPlayer.Character
 	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
 	if hum then hum.PlatformStand = false end
@@ -1132,24 +1174,26 @@ end
 local function startFly(speed: number?)
 	local ch = LocalPlayer.Character
 	if not ch then return end
-	local root = ch:FindFirstChild("HumanoidRootPart") :: BasePart?
+	local flyRoot = ch:FindFirstChild("HumanoidRootPart") :: BasePart?
 	local hum = ch:FindFirstChildOfClass("Humanoid")
-	if not root then return end
+	if not flyRoot then return end
 	flySpeed = speed or flySpeed
 	flying = true
 	if hum then hum.PlatformStand = true end
+	buildFlyPad()
+	if flyPad then flyPad.Visible = true end
 
 	local bg = Instance.new("BodyGyro")
 	bg.P = 9e4
 	bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-	bg.CFrame = root.CFrame
-	bg.Parent = root
+	bg.CFrame = flyRoot.CFrame
+	bg.Parent = flyRoot
 	flyBG = bg
 
 	local bv = Instance.new("BodyVelocity")
 	bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
 	bv.Velocity = Vector3.zero
-	bv.Parent = root
+	bv.Parent = flyRoot
 	flyBV = bv
 
 	table.insert(flyConns, UserInputService.InputBegan:Connect(function(inp, gpe)
@@ -1180,14 +1224,23 @@ local function startFly(speed: number?)
 		if not (flyBV and flyBG and cam) then return end
 		flyBG.CFrame = cam.CFrame
 		local dir = Vector3.zero
+		-- أفقي: أزرار الكيبورد (كمبيوتر) — تطير باتجاه نظر الكاميرا
 		if move.f == 1 then dir += cam.CFrame.LookVector end
 		if move.b == 1 then dir -= cam.CFrame.LookVector end
 		if move.r == 1 then dir += cam.CFrame.RightVector end
 		if move.l == 1 then dir -= cam.CFrame.RightVector end
-		if move.u == 1 then dir += Vector3.new(0, 1, 0) end
-		if move.d == 1 then dir -= Vector3.new(0, 1, 0) end
+		-- أفقي: عصا التحكّم (جوال) — تُستخدم حين لا يوجد إدخال كيبورد أفقي.
+		-- MoveDirection محسوبة نسبةً للكاميرا أصلاً، فتغطّي الجوال والكمبيوتر معاً.
+		local curHum = ch:FindFirstChildOfClass("Humanoid")
+		if move.f == 0 and move.b == 0 and move.l == 0 and move.r == 0
+			and curHum and curHum.MoveDirection.Magnitude > 0.05 then
+			dir += curHum.MoveDirection
+		end
+		-- عمودي: كيبورد (مسافة/Ctrl) أو أزرار اللمس (⬆/⬇)
+		if move.u == 1 or mUp then dir += Vector3.new(0, 1, 0) end
+		if move.d == 1 or mDown then dir -= Vector3.new(0, 1, 0) end
 		if dir.Magnitude > 0 then
-			flyBV.Velocity = dir.Unit * flySpeed * (boost and 2.2 or 1)
+			flyBV.Velocity = dir.Unit * flySpeed * ((boost or mBoost) and 2.2 or 1)
 		else
 			flyBV.Velocity = Vector3.zero
 		end
@@ -1232,7 +1285,10 @@ pushRemote.OnClientEvent:Connect(function(data)
 			addMessage("النظام", "🕊️ تم إيقاف الطيران.", PURPLE, { system = true })
 		else
 			startFly(tonumber(data.flySpeed))
-			addMessage("النظام", "🕊️ تم تفعيل الطيران — WASD للتحرك، مسافة للأعلى، Ctrl للأسفل، Shift للسرعة. اكتب /fly مرة ثانية للإيقاف.", PURPLE, { system = true })
+			local tip = if UserInputService.TouchEnabled
+				then "🕊️ تم تفعيل الطيران — حرّك بعصا التحكّم، وأزرار ⬆/⬇ للأعلى/الأسفل و⚡ للتسريع. اكتب /fly مرة ثانية للإيقاف."
+				else "🕊️ تم تفعيل الطيران — WASD للتحرك، مسافة للأعلى، Ctrl للأسفل، Shift للسرعة. اكتب /fly مرة ثانية للإيقاف."
+			addMessage("النظام", tip, PURPLE, { system = true })
 		end
 		return
 	end
