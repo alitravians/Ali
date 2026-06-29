@@ -43,7 +43,7 @@ end
 local PHASE_HOURS = {
 	morning = 8,        -- الصباح
 	noon    = 13,       -- الظهر
-	sunset  = 18.33,    -- المغرب (≈ 6:20 م)
+	sunset  = 17.3,     -- المغرب (غروب ذهبي ≈ 5:18 م — شمس منخفضة بدفء برتقالي)
 	night   = 23,       -- الليل
 }
 local currentPhase = "auto"
@@ -111,7 +111,8 @@ local function pushClock(plr: Player?)
 	local frozen = PHASE_HOURS[currentPhase] ~= nil
 	local epoch
 	if frozen then
-		local dayStart = bahrainEpoch() - (bahrainEpoch() % 86400)
+		local bEpoch = bahrainEpoch()
+		local dayStart = bEpoch - (bEpoch % 86400)
 		epoch = dayStart + math.floor(effectiveHour() * 3600)
 	else
 		epoch = bahrainEpoch()
