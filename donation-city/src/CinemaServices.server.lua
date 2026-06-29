@@ -337,7 +337,6 @@ Players.PlayerAdded:Connect(function(player)
 	end
 	setCoins(player, coins)
 	player:SetAttribute("VIP", vip)
-	if vip then applyVipTag(player) end
 
 	-- 🔁 ربط دائم: في كل سبَون (موت/ريست/أول دخول) أعد تأكيد VIP إن كان عضواً —
 	-- التاج والمزايا ما تختفي إلا حين يسحب الأدمن العضوية. حماية جذرية كاملة.
