@@ -99,10 +99,12 @@ subLabel.Parent = pill
 ----------------------------------------------------------------------
 local baseEpoch: number? = nil
 local baseClock = os.clock()
+local frozen = false   -- لو الإدارة ثبّتت الوقت، لا نتقدّم محلياً
 
-clockEvent.OnClientEvent:Connect(function(epoch: number)
+clockEvent.OnClientEvent:Connect(function(epoch: number, isFrozen: boolean?)
 	baseEpoch = epoch
 	baseClock = os.clock()
+	frozen = isFrozen == true
 end)
 
 -- مرحلة اليوم حسب الساعة → لون القرص/التوهّج
@@ -135,7 +137,7 @@ RunService.Heartbeat:Connect(function(dt)
 	if accum < 0.5 then return end
 	accum = 0
 	if not baseEpoch then return end
-	local now = baseEpoch + (os.clock() - baseClock)
+	local now = if frozen then baseEpoch else baseEpoch + (os.clock() - baseClock)
 	local secs = now % 86400
 	local h = math.floor(secs / 3600)
 	local m = math.floor((secs % 3600) / 60)
