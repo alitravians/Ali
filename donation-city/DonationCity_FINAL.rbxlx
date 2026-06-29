@@ -21111,7 +21111,7 @@ local function stopFly()
 	joyVec = Vector2.zero
 	if joyKnob then joyKnob.Position = UDim2.fromScale(0.5, 0.5) end
 	setFlyPadVisible(false)
-	setDefaultControls(true)    -- إرجاع عصا روبلوكس الافتراضية بعد إيقاف الطيران
+	if UserInputService.TouchEnabled then setDefaultControls(true) end    -- إرجاع عصا روبلوكس الافتراضية (جوال فقط — حتى لا نلمس تحكّم الكمبيوتر الذي قد تعطّله أنظمة أخرى)
 	local ch = LocalPlayer.Character
 	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
 	if hum then hum.PlatformStand = false end
