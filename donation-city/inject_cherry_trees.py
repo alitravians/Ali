@@ -10,7 +10,7 @@
 # After injecting, build_all.py keeps the embedded sources in sync via markers.
 # ──────────────────────────────────────────────────────────────────────────
 import lxml.etree as ET
-import os, sys
+import os, sys, shutil
 
 HERE = os.path.dirname(__file__)
 RBXLX = os.path.join(HERE, "DonationCity_FINAL.rbxlx")
@@ -71,6 +71,9 @@ def main():
     tree = ET.parse(RBXLX, parser)
     root = tree.getroot()
     inject_scripts(root)
+    # نسخة احتياطية قبل الكتابة (مثل build_all.py) للرجوع إن أفسد الحقن الملف
+    if os.path.exists(RBXLX):
+        shutil.copy(RBXLX, RBXLX + ".bak")
     tmp = RBXLX + ".tmp"
     tree.write(tmp, xml_declaration=True, encoding='utf-8')
     os.replace(tmp, RBXLX)
