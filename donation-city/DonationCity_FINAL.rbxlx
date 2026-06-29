@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٦٤",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٦٥",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,13 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٦٥", date = "٢٩ يونيو",
+			items = {
+				{ "new", "♟ ثلاث طاولات شطرنج بدل وحدة! صار في «منطقة الشطرنج» ثلاث طاولات متجاورة بحجم متناسق مع المكان، كل طاولة مستقلّة بلعبتها ومقعَدين ولوحة حالة — فيقدر أكثر من زوج لاعبين يلعبون بنفس الوقت." },
+				{ "fix", "إصلاح اتجاه اللافتات: كانت الكتابة تظهر مقلوبة من إحدى الجهتين، الحين تُقرأ صحيحةً من الأمام والخلف." },
+			},
+		},
 		{
 			version = "٢.٩.٦٤", date = "٢٩ يونيو",
 			items = {
@@ -21051,8 +21058,8 @@ local Chess = (function()
 					end
 					local rank = (me == 1) and 0 or 7
 					if from == sqOf(4, rank) and not self:isAttacked(from, -me) then
-						local canK = (me == 1) and self.castle.wk or self.castle.bk
-						local canQ = (me == 1) and self.castle.wq or self.castle.bq
+						local canK, canQ
+						if me == 1 then canK, canQ = self.castle.wk, self.castle.wq else canK, canQ = self.castle.bk, self.castle.bq end
 						if canK and b[sqOf(5, rank)] == 0 and b[sqOf(6, rank)] == 0
 							and b[sqOf(7, rank)] == me * ROOK
 							and not self:isAttacked(sqOf(5, rank), -me)
@@ -21209,16 +21216,21 @@ local SEL_COL   = Color3.fromRGB(240, 214, 96)    -- المربّع المحدّ
 local SND_MOVE = "rbxassetid://9125402735"
 local SND_WIN  = "rbxassetid://9114066858"
 
-local CELL = 1.85                  -- مقاس المربّع (studs)
+local CELL = 0.95                  -- مقاس المربّع (studs) — أصغر ليتّسع لثلاث طاولات
 local N = 8
 local HALF = N * CELL / 2
-local TABLE_TOP_Y = 3.0            -- ارتفاع سطح الطاولة فوق الأرضية
-local KING_TARGET_H = 2.5          -- ارتفاع الملك المطلوب (تُقاس بقيّة القطع نسبةً له)
+local TABLE_TOP_Y = 2.4            -- ارتفاع سطح الطاولة فوق الأرضية
+local KING_TARGET_H = 1.7          -- ارتفاع الملك المطلوب (تُقاس بقيّة القطع نسبةً له)
+local BASE_Y = 0.8                 -- سطح أرضية الصالة (نفس ارتفاع طاولات إكس-أو)
 
--- مركز اللوح داخل «منطقة الشطرنج» (يمين الصالة). الأبيض جهة -Z (جنوب).
--- y=0.8 = سطح أرضية الصالة (نفس ارتفاع طاولات إكس-أو).
-local ORIGIN = Vector3.new(14, 0.8, 110)
-local TOP_Y = ORIGIN.Y + TABLE_TOP_Y + 0.32   -- سطح اللعب (فوق اللبادة)
+-- ثلاث طاولات شطرنج متجاورة داخل «منطقة الشطرنج» (يمين الصالة)، مصفوفة على محور X
+-- ليلعب أكثر من زوج لاعبين في آنٍ واحد. الأبيض جهة -Z (جنوب) في كل طاولة.
+local TABLE_ORIGINS = {
+	Vector3.new(5, BASE_Y, 110),
+	Vector3.new(14, BASE_Y, 110),
+	Vector3.new(23, BASE_Y, 110),
+}
+local TOP_Y = BASE_Y + TABLE_TOP_Y + 0.32   -- سطح اللعب (مشترك لكل الطاولات)
 
 ----------------------------------------------------------------------
 -- أدوات بناء عامة
@@ -21251,11 +21263,11 @@ local function playSound(adornee: BasePart, id: string, volume: number, speed: n
 	Debris:AddItem(s, 5)
 end
 
--- إحداثيّات مركز سطح المربّع sq (1..64)
-local function squareCenter(sq: number): Vector3
+-- إحداثيّات مركز سطح المربّع sq (1..64) ضمن طاولة أصلها origin
+local function squareCenter(origin: Vector3, sq: number): Vector3
 	local f, r = Chess.fileOf(sq), Chess.rankOf(sq)
-	local x = ORIGIN.X - HALF + (f + 0.5) * CELL
-	local z = ORIGIN.Z - HALF + (r + 0.5) * CELL
+	local x = origin.X - HALF + (f + 0.5) * CELL
+	local z = origin.Z - HALF + (r + 0.5) * CELL
 	return Vector3.new(x, TOP_Y, z)
 end
 
@@ -21313,6 +21325,7 @@ end
 -- حالة اللعبة (طاولة واحدة)
 ----------------------------------------------------------------------
 type Game = {
+	origin: Vector3,                  -- مركز هذه الطاولة في الصالة
 	state: any,
 	models: { BasePart? },            -- نموذج القطعة على كل مربّع (1..64)
 	cells: { BasePart },
@@ -21335,12 +21348,12 @@ type Game = {
 	statusOverText: string?,
 }
 
-local G: Game
+local games: { Game } = {}
 
 ----------------------------------------------------------------------
 -- إنشاء/إزالة نماذج القطع
 ----------------------------------------------------------------------
-local function makePiece(pieceVal: number, sq: number): BasePart?
+local function makePiece(g: Game, pieceVal: number, sq: number): BasePart?
 	local t = Chess.ptype(pieceVal)
 	local template = pieceTemplates[PIECE_NAME[t]]
 	if not template then return nil end
@@ -21352,27 +21365,27 @@ local function makePiece(pieceVal: number, sq: number): BasePart?
 	pc.Material = Enum.Material.SmoothPlastic
 	pc.Color = (pieceVal > 0) and WHITE_PC or BLACK_PC
 	pc.Size = template.Size * pieceScale
-	local center = squareCenter(sq)
+	local center = squareCenter(g.origin, sq)
 	local yaw = (pieceVal > 0) and 0 or math.pi  -- الأسود يستدير ليواجه الأبيض
 	pc.CFrame = CFrame.new(center.X, TOP_Y + pc.Size.Y / 2, center.Z) * CFrame.Angles(0, yaw, 0)
-	pc.Parent = G.pieceFolder
+	pc.Parent = g.pieceFolder
 	return pc
 end
 
-local function clearModels()
+local function clearModels(g: Game)
 	for i = 1, 64 do
-		local m = G.models[i]
+		local m = g.models[i]
 		if m then m:Destroy() end
-		G.models[i] = nil
+		g.models[i] = nil
 	end
 end
 
-local function buildPosition()
-	clearModels()
+local function buildPosition(g: Game)
+	clearModels(g)
 	for sq = 1, 64 do
-		local v = G.state.board[sq]
+		local v = g.state.board[sq]
 		if v ~= 0 then
-			G.models[sq] = makePiece(v, sq)
+			g.models[sq] = makePiece(g, v, sq)
 		end
 	end
 end
@@ -21380,57 +21393,57 @@ end
 ----------------------------------------------------------------------
 -- تظليل النقلات القانونية
 ----------------------------------------------------------------------
-local function clearHints()
-	for _, p in ipairs(G.hintParts) do
+local function clearHints(g: Game)
+	for _, p in ipairs(g.hintParts) do
 		if p and p.Parent then p:Destroy() end
 	end
-	G.hintParts = {}
-	G.hintTargets = {}
-	if G.selected then
-		local glow = G.cells[G.selected]:FindFirstChild("CellGlow")
+	g.hintParts = {}
+	g.hintTargets = {}
+	if g.selected then
+		local glow = g.cells[g.selected]:FindFirstChild("CellGlow")
 		if glow and glow:IsA("BasePart") then glow.Transparency = 1 end
 	end
 end
 
-local function showHints(fromSq: number)
-	clearHints()
-	G.selected = fromSq
+local function showHints(g: Game, fromSq: number)
+	clearHints(g)
+	g.selected = fromSq
 	-- إبراز المربّع المحدّد
-	local glow = G.cells[fromSq]:FindFirstChild("CellGlow")
+	local glow = g.cells[fromSq]:FindFirstChild("CellGlow")
 	if glow and glow:IsA("BasePart") then
 		glow.Color = SEL_COL
 		glow.Transparency = 0.35
 	end
 	-- النقلات القانونية من هذا المربّع (نختار الترقية وزيراً افتراضاً)
-	for _, mv in ipairs(G.state:legalMoves()) do
+	for _, mv in ipairs(g.state:legalMoves()) do
 		if mv.from == fromSq then
-			local existing = G.hintTargets[mv.to]
+			local existing = g.hintTargets[mv.to]
 			if not existing or mv.promo == Chess.QUEEN then
-				G.hintTargets[mv.to] = mv
+				g.hintTargets[mv.to] = mv
 			end
 		end
 	end
-	for destSq, mv in pairs(G.hintTargets) do
-		local center = squareCenter(destSq)
-		local isCap = (G.state.board[destSq] ~= 0) or mv.flag == "ep"
+	for destSq, mv in pairs(g.hintTargets) do
+		local center = squareCenter(g.origin, destSq)
+		local isCap = (g.state.board[destSq] ~= 0) or mv.flag == "ep"
 		if isCap then
 			-- حلقة حمراء حول قطعة الأسر
 			local ring = part({
-				Name = "Hint", Parent = G.pieceFolder, Color = HINT_CAP, Material = Enum.Material.Neon,
+				Name = "Hint", Parent = g.pieceFolder, Color = HINT_CAP, Material = Enum.Material.Neon,
 				CanCollide = false, Transparency = 0.25,
 				Size = Vector3.new(CELL * 0.92, 0.08, CELL * 0.92),
 				CFrame = CFrame.new(center.X, TOP_Y + 0.06, center.Z),
 			})
-			G.hintParts[#G.hintParts + 1] = ring
+			g.hintParts[#g.hintParts + 1] = ring
 		else
 			-- نقطة خضراء على المربّع الفارغ
 			local dot = part({
-				Name = "Hint", Parent = G.pieceFolder, Color = HINT_MOVE, Material = Enum.Material.Neon,
+				Name = "Hint", Parent = g.pieceFolder, Color = HINT_MOVE, Material = Enum.Material.Neon,
 				CanCollide = false, Transparency = 0.15, Shape = Enum.PartType.Cylinder,
 				Size = Vector3.new(0.12, CELL * 0.42, CELL * 0.42),
 				CFrame = CFrame.new(center.X, TOP_Y + 0.1, center.Z) * CFrame.Angles(0, 0, math.rad(90)),
 			})
-			G.hintParts[#G.hintParts + 1] = dot
+			g.hintParts[#g.hintParts + 1] = dot
 		end
 	end
 end
@@ -21438,12 +21451,12 @@ end
 ----------------------------------------------------------------------
 -- لوحة الحالة
 ----------------------------------------------------------------------
-local function setStatus()
-	local lbl = G.statusLabel
-	if not G.active then
-		if G.over then
-			lbl.Text = G.statusOverText or "انتهت المباراة — اجلسا للّعب مجدّداً"
-		elseif G.whitePlayer or G.blackPlayer then
+local function setStatus(g: Game)
+	local lbl = g.statusLabel
+	if not g.active then
+		if g.over then
+			lbl.Text = g.statusOverText or "انتهت المباراة — اجلسا للّعب مجدّداً"
+		elseif g.whitePlayer or g.blackPlayer then
 			lbl.Text = "بانتظار لاعب ثانٍ…"
 			lbl.TextColor3 = GOLD
 		else
@@ -21452,8 +21465,8 @@ local function setStatus()
 		end
 		return
 	end
-	local chk = G.state:inCheck(G.state.side)
-	if G.state.side == 1 then
+	local chk = g.state:inCheck(g.state.side)
+	if g.state.side == 1 then
 		lbl.Text = chk and "♔ دور الأبيض — كش!" or "♔ دور الأبيض"
 		lbl.TextColor3 = Color3.fromRGB(245, 240, 220)
 	else
@@ -21462,51 +21475,51 @@ local function setStatus()
 	end
 end
 
-local function updateCaptures()
-	G.capWLabel.Text = "♔ أسر: " .. G.capW
-	G.capBLabel.Text = "♚ أسر: " .. G.capB
+local function updateCaptures(g: Game)
+	g.capWLabel.Text = "♔ أسر: " .. g.capW
+	g.capBLabel.Text = "♚ أسر: " .. g.capB
 end
 
 ----------------------------------------------------------------------
 -- بدء/إنهاء المباراة
 ----------------------------------------------------------------------
-local function startMatch()
-	G.state = Chess.newGame()
-	G.active = true
-	G.over = false
-	G.selected = nil
-	G.statusOverText = nil
-	G.capW = 0
-	G.capB = 0
-	clearHints()
-	buildPosition()
-	updateCaptures()
-	G.lastLabel.Text = "آخر نقلة: —"
-	setStatus()
+local function startMatch(g: Game)
+	g.state = Chess.newGame()
+	g.active = true
+	g.over = false
+	g.selected = nil
+	g.statusOverText = nil
+	g.capW = 0
+	g.capB = 0
+	clearHints(g)
+	buildPosition(g)
+	updateCaptures(g)
+	g.lastLabel.Text = "آخر نقلة: —"
+	setStatus(g)
 end
 
-local function endMatch(kind: string, mover: number)
-	G.active = false
-	G.over = true
-	clearHints()
+local function endMatch(g: Game, kind: string, mover: number)
+	g.active = false
+	g.over = true
+	clearHints(g)
 	if kind == "checkmate" then
 		local winner = (mover == 1) and "الأبيض ♔" or "الأسود ♚"
-		G.statusOverText = "كش مات! فاز " .. winner
-		G.statusLabel.TextColor3 = GOLD_HI
-		playSound(G.cells[28], SND_WIN, 0.5, 1)
+		g.statusOverText = "كش مات! فاز " .. winner
+		g.statusLabel.TextColor3 = GOLD_HI
+		playSound(g.cells[28], SND_WIN, 0.5, 1)
 	else
-		G.statusOverText = "تعادل (جمود) 🤝"
-		G.statusLabel.TextColor3 = GOLD
-		playSound(G.cells[28], SND_MOVE, 0.4, 0.7)
+		g.statusOverText = "تعادل (جمود) 🤝"
+		g.statusLabel.TextColor3 = GOLD
+		playSound(g.cells[28], SND_MOVE, 0.4, 0.7)
 	end
-	G.statusLabel.Text = G.statusOverText
+	g.statusLabel.Text = g.statusOverText
 end
 
 ----------------------------------------------------------------------
 -- تنفيذ نقلة (مع التحريك البصري والأسر والتبييت والترقية)
 ----------------------------------------------------------------------
-local function tweenPieceTo(pc: BasePart, sq: number)
-	local center = squareCenter(sq)
+local function tweenPieceTo(g: Game, pc: BasePart, sq: number)
+	local center = squareCenter(g.origin, sq)
 	local goal = Vector3.new(center.X, TOP_Y + pc.Size.Y / 2, center.Z)
 	local info = TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 	TweenService:Create(pc, info, { Position = goal }):Play()
@@ -21519,125 +21532,125 @@ local function despawnCaptured(pc: BasePart)
 	Debris:AddItem(pc, 0.4)
 end
 
-local function doMove(mv)
-	local mover = G.state.side
+local function doMove(g: Game, mv)
+	local mover = g.state.side
 	local fromSq, toSq = mv.from, mv.to
-	local movingModel = G.models[fromSq]
+	local movingModel = g.models[fromSq]
 
 	-- معالجة الأسر (عادي / بالمرور)
 	local capturedModel: BasePart? = nil
 	if mv.flag == "ep" then
 		local capSq = Chess.sqOf(Chess.fileOf(toSq), Chess.rankOf(fromSq))
-		capturedModel = G.models[capSq]
-		G.models[capSq] = nil
+		capturedModel = g.models[capSq]
+		g.models[capSq] = nil
 	else
-		capturedModel = G.models[toSq]
-		G.models[toSq] = nil
+		capturedModel = g.models[toSq]
+		g.models[toSq] = nil
 	end
 
 	-- نقل النموذج from → to
-	G.models[fromSq] = nil
-	G.models[toSq] = movingModel
-	if movingModel then tweenPieceTo(movingModel, toSq) end
+	g.models[fromSq] = nil
+	g.models[toSq] = movingModel
+	if movingModel then tweenPieceTo(g, movingModel, toSq) end
 
 	-- تبييت: حرّك الرخ أيضاً
 	if mv.flag == "cK" or mv.flag == "cQ" then
 		local rank = Chess.rankOf(fromSq)
 		local rFrom = (mv.flag == "cK") and Chess.sqOf(7, rank) or Chess.sqOf(0, rank)
 		local rTo = (mv.flag == "cK") and Chess.sqOf(5, rank) or Chess.sqOf(3, rank)
-		local rookModel = G.models[rFrom]
-		G.models[rFrom] = nil
-		G.models[rTo] = rookModel
-		if rookModel then tweenPieceTo(rookModel, rTo) end
+		local rookModel = g.models[rFrom]
+		g.models[rFrom] = nil
+		g.models[rTo] = rookModel
+		if rookModel then tweenPieceTo(g, rookModel, rTo) end
 	end
 
 	-- صوت
 	if capturedModel then
 		despawnCaptured(capturedModel)
-		if mover == 1 then G.capW += 1 else G.capB += 1 end
-		updateCaptures()
-		playSound(G.cells[toSq], SND_MOVE, 0.5, 0.7)
+		if mover == 1 then g.capW += 1 else g.capB += 1 end
+		updateCaptures(g)
+		playSound(g.cells[toSq], SND_MOVE, 0.5, 0.7)
 	else
-		playSound(G.cells[toSq], SND_MOVE, 0.45, 1.0)
+		playSound(g.cells[toSq], SND_MOVE, 0.45, 1.0)
 	end
 
 	-- طبّق النقلة على المحرّك
-	G.state:make(mv)
+	g.state:make(mv)
 
 	-- ترقية: استبدل البيدق بالقطعة المرقّاة
 	if mv.flag == "promo" then
-		local promoted = G.models[toSq]
+		local promoted = g.models[toSq]
 		if promoted then promoted:Destroy() end
-		G.models[toSq] = makePiece(mover * (mv.promo or Chess.QUEEN), toSq)
+		g.models[toSq] = makePiece(g, mover * (mv.promo or Chess.QUEEN), toSq)
 	end
 
-	G.selected = nil
-	clearHints()
-	G.lastLabel.Text = "آخر نقلة: " .. algebraic(fromSq) .. " → " .. algebraic(toSq)
+	g.selected = nil
+	clearHints(g)
+	g.lastLabel.Text = "آخر نقلة: " .. algebraic(fromSq) .. " → " .. algebraic(toSq)
 
 	-- حالة ما بعد النقلة
-	local st = G.state:status()
+	local st = g.state:status()
 	if st == "checkmate" then
-		endMatch("checkmate", mover)
+		endMatch(g, "checkmate", mover)
 	elseif st == "stalemate" then
-		endMatch("stalemate", mover)
+		endMatch(g, "stalemate", mover)
 	else
-		if st == "check" then playSound(G.cells[toSq], SND_MOVE, 0.5, 1.3) end
-		setStatus()
+		if st == "check" then playSound(g.cells[toSq], SND_MOVE, 0.5, 1.3) end
+		setStatus(g)
 	end
 end
 
 ----------------------------------------------------------------------
 -- نقر المربّع
 ----------------------------------------------------------------------
-local function colorOfPlayer(player: Player): number?
-	if player == G.whitePlayer then return 1 end
-	if player == G.blackPlayer then return -1 end
+local function colorOfPlayer(g: Game, player: Player): number?
+	if player == g.whitePlayer then return 1 end
+	if player == g.blackPlayer then return -1 end
 	return nil
 end
 
-local function onSquareClicked(sq: number, player: Player)
-	local myColor = colorOfPlayer(player)
+local function onSquareClicked(g: Game, sq: number, player: Player)
+	local myColor = colorOfPlayer(g, player)
 	if not myColor then return end                 -- المتفرّجون لا يلعبون
 
-	if not G.active then
+	if not g.active then
 		-- إعادة لعب: لو انتهت والمباراة ولاعباها موجودان
-		if G.over and G.whitePlayer and G.blackPlayer then startMatch() end
+		if g.over and g.whitePlayer and g.blackPlayer then startMatch(g) end
 		return
 	end
-	if myColor ~= G.state.side then return end      -- ليس دورك
+	if myColor ~= g.state.side then return end      -- ليس دورك
 
-	local piece = G.state.board[sq]
+	local piece = g.state.board[sq]
 
-	if not G.selected then
+	if not g.selected then
 		if piece ~= 0 and Chess.pcolor(piece) == myColor then
-			showHints(sq)
+			showHints(g, sq)
 		end
 		return
 	end
 
-	if sq == G.selected then
+	if sq == g.selected then
 		-- إلغاء التحديد
-		G.selected = nil
-		clearHints()
+		g.selected = nil
+		clearHints(g)
 		return
 	end
 
 	if piece ~= 0 and Chess.pcolor(piece) == myColor then
 		-- إعادة تحديد قطعة أخرى
-		G.selected = nil
-		clearHints()
-		showHints(sq)
+		g.selected = nil
+		clearHints(g)
+		showHints(g, sq)
 		return
 	end
 
-	local mv = G.hintTargets[sq]
+	local mv = g.hintTargets[sq]
 	if mv then
-		doMove(mv)
+		doMove(g, mv)
 	else
 		-- نقرة غير صالحة → ألغِ التحديد
-		G.selected = nil
-		clearHints()
+		g.selected = nil
+		clearHints(g)
 	end
 end
 
@@ -21650,46 +21663,47 @@ local function seatPlayer(seat: Seat): Player?
 	return Players:GetPlayerFromCharacter(occ.Parent)
 end
 
-local function refreshSeats()
-	G.whitePlayer = seatPlayer(G.whiteSeat)
-	G.blackPlayer = seatPlayer(G.blackSeat)
-	if G.whitePlayer and G.blackPlayer then
-		if not G.active and not G.over then startMatch() end
+local function refreshSeats(g: Game)
+	g.whitePlayer = seatPlayer(g.whiteSeat)
+	g.blackPlayer = seatPlayer(g.blackSeat)
+	if g.whitePlayer and g.blackPlayer then
+		if not g.active and not g.over then startMatch(g) end
 	else
 		-- نقص لاعب → أعِد الضبط لوضع الانتظار
-		G.active = false
-		G.over = false
-		G.selected = nil
-		clearHints()
-		G.state = Chess.newGame()
-		buildPosition()
-		setStatus()
+		g.active = false
+		g.over = false
+		g.selected = nil
+		clearHints(g)
+		g.state = Chess.newGame()
+		buildPosition(g)
+		setStatus(g)
 	end
 end
 
 ----------------------------------------------------------------------
 -- بناء الكرسيّ
 ----------------------------------------------------------------------
-local function buildSeat(zside: number, col: Color3, label: string): Seat
+local function buildSeat(g: Game, zside: number, col: Color3, label: string): Seat
 	-- zside: -1 = جنوب (أبيض) يواجه +Z، +1 = شمال (أسود) يواجه -Z
-	local sz = ORIGIN.Z + zside * (HALF + 3.2)
+	local origin = g.origin
+	local sz = origin.Z + zside * (HALF + 2.6)
 	part({
-		Name = "ChairPost", Parent = G.pieceFolder, Color = WOOD, Material = Enum.Material.Wood,
-		Size = Vector3.new(0.5, 1.8, 0.5), CFrame = CFrame.new(ORIGIN.X, ORIGIN.Y + 0.9, sz),
+		Name = "ChairPost", Parent = g.pieceFolder, Color = WOOD, Material = Enum.Material.Wood,
+		Size = Vector3.new(0.5, 1.8, 0.5), CFrame = CFrame.new(origin.X, origin.Y + 0.9, sz),
 	})
 	local seat = Instance.new("Seat")
 	seat.Name = "PlayerSeat"
 	seat.Anchored = true
-	seat.Size = Vector3.new(1.9, 0.4, 1.9)
+	seat.Size = Vector3.new(1.7, 0.4, 1.7)
 	seat.Material = Enum.Material.SmoothPlastic
 	seat.Color = col
-	seat.CFrame = CFrame.new(Vector3.new(ORIGIN.X, ORIGIN.Y + 1.9, sz))
+	seat.CFrame = CFrame.new(Vector3.new(origin.X, origin.Y + 1.9, sz))
 		* CFrame.Angles(0, math.rad(zside < 0 and 0 or 180), 0)
-	seat.Parent = G.pieceFolder
+	seat.Parent = g.pieceFolder
 	part({
-		Name = "ChairBack", Parent = G.pieceFolder, Color = col, Material = Enum.Material.SmoothPlastic,
-		Size = Vector3.new(1.9, 2.2, 0.4),
-		CFrame = CFrame.new(Vector3.new(ORIGIN.X, ORIGIN.Y + 2.9, sz + zside * 0.85)),
+		Name = "ChairBack", Parent = g.pieceFolder, Color = col, Material = Enum.Material.SmoothPlastic,
+		Size = Vector3.new(1.7, 2.0, 0.4),
+		CFrame = CFrame.new(Vector3.new(origin.X, origin.Y + 2.8, sz + zside * 0.75)),
 	})
 	local prompt = Instance.new("ProximityPrompt")
 	prompt.Name = "SitPrompt"
@@ -21711,21 +21725,22 @@ end
 ----------------------------------------------------------------------
 -- لوحة الحالة الخلفية (SurfaceGui)
 ----------------------------------------------------------------------
-local function buildStatusBoard()
-	local boardCY = ORIGIN.Y + 6.2
-	local boardZ = ORIGIN.Z + HALF + 5.6
-	local W, H = 8.6, 3.4
+local function buildStatusBoard(g: Game)
+	local origin = g.origin
+	local boardCY = origin.Y + 5.4
+	local boardZ = origin.Z + HALF + 4.4
+	local W, H = 6.8, 2.7
 	for _, dx in ipairs({ -W / 2 + 0.3, W / 2 - 0.3 }) do
 		part({
-			Name = "StatusPole", Parent = G.pieceFolder, Color = GOLD, Material = Enum.Material.Metal,
-			Size = Vector3.new(0.32, boardCY - ORIGIN.Y, 0.32),
-			CFrame = CFrame.new(ORIGIN.X + dx, ORIGIN.Y + (boardCY - ORIGIN.Y) / 2, boardZ),
+			Name = "StatusPole", Parent = g.pieceFolder, Color = GOLD, Material = Enum.Material.Metal,
+			Size = Vector3.new(0.28, boardCY - origin.Y, 0.28),
+			CFrame = CFrame.new(origin.X + dx, origin.Y + (boardCY - origin.Y) / 2, boardZ),
 		})
 	end
 	local board = part({
-		Name = "StatusBoard", Parent = G.pieceFolder, Color = Color3.fromRGB(14, 18, 26),
+		Name = "StatusBoard", Parent = g.pieceFolder, Color = Color3.fromRGB(14, 18, 26),
 		Material = Enum.Material.Glass, Size = Vector3.new(W, H, 0.22),
-		CFrame = CFrame.new(ORIGIN.X, boardCY, boardZ) * CFrame.Angles(0, math.rad(180), 0),
+		CFrame = CFrame.new(origin.X, boardCY, boardZ) * CFrame.Angles(0, math.rad(180), 0),
 	})
 	board.Reflectance = 0.15
 	local fr = 0.22
@@ -21736,8 +21751,8 @@ local function buildStatusBoard()
 		{ Vector3.new(W / 2, 0, 0), Vector3.new(fr, H, 0.34) },
 	}) do
 		part({
-			Name = "BoardFrame", Parent = G.pieceFolder, Color = GOLD_HI, Material = Enum.Material.Metal,
-			Size = d[2], CFrame = CFrame.new(ORIGIN.X, boardCY, boardZ) * CFrame.new(d[1]),
+			Name = "BoardFrame", Parent = g.pieceFolder, Color = GOLD_HI, Material = Enum.Material.Metal,
+			Size = d[2], CFrame = CFrame.new(origin.X, boardCY, boardZ) * CFrame.new(d[1]),
 		})
 	end
 
@@ -21841,44 +21856,45 @@ end
 ----------------------------------------------------------------------
 -- بناء الطاولة واللوح والمربّعات
 ----------------------------------------------------------------------
-local function buildTable()
+local function buildTable(g: Game)
+	local origin = g.origin
 	local model = Instance.new("Model")
 	model.Name = "ChessTable"
-	model.Parent = G.pieceFolder
+	model.Parent = g.pieceFolder
 
 	-- أرجل
-	for _, dx in ipairs({ -HALF + 0.8, HALF - 0.8 }) do
-		for _, dz in ipairs({ -HALF + 0.8, HALF - 0.8 }) do
+	for _, dx in ipairs({ -HALF + 0.6, HALF - 0.6 }) do
+		for _, dz in ipairs({ -HALF + 0.6, HALF - 0.6 }) do
 			part({
 				Name = "Leg", Parent = model, Color = GOLD, Material = Enum.Material.Metal,
-				Size = Vector3.new(0.5, TABLE_TOP_Y, 0.5),
-				CFrame = CFrame.new(ORIGIN + Vector3.new(dx, TABLE_TOP_Y / 2, dz)),
+				Size = Vector3.new(0.4, TABLE_TOP_Y, 0.4),
+				CFrame = CFrame.new(origin + Vector3.new(dx, TABLE_TOP_Y / 2, dz)),
 			})
 		end
 	end
 	-- سطح خشبي
+	local fw = N * CELL + 1.2
 	part({
 		Name = "TableTop", Parent = model, Color = WOOD, Material = Enum.Material.Wood,
-		Size = Vector3.new(N * CELL + 1.6, 0.5, N * CELL + 1.6),
-		CFrame = CFrame.new(ORIGIN + Vector3.new(0, TABLE_TOP_Y, 0)),
+		Size = Vector3.new(fw, 0.5, fw),
+		CFrame = CFrame.new(origin + Vector3.new(0, TABLE_TOP_Y, 0)),
 	})
 	-- إطار ذهبي محيط
-	local fw = N * CELL + 1.6
 	for _, d in ipairs({
-		{ Vector3.new(0, 0, fw / 2 - 0.4), Vector3.new(fw, 0.4, 0.8) },
-		{ Vector3.new(0, 0, -fw / 2 + 0.4), Vector3.new(fw, 0.4, 0.8) },
-		{ Vector3.new(fw / 2 - 0.4, 0, 0), Vector3.new(0.8, 0.4, fw) },
-		{ Vector3.new(-fw / 2 + 0.4, 0, 0), Vector3.new(0.8, 0.4, fw) },
+		{ Vector3.new(0, 0, fw / 2 - 0.3), Vector3.new(fw, 0.4, 0.6) },
+		{ Vector3.new(0, 0, -fw / 2 + 0.3), Vector3.new(fw, 0.4, 0.6) },
+		{ Vector3.new(fw / 2 - 0.3, 0, 0), Vector3.new(0.6, 0.4, fw) },
+		{ Vector3.new(-fw / 2 + 0.3, 0, 0), Vector3.new(0.6, 0.4, fw) },
 	}) do
 		part({
 			Name = "Trim", Parent = model, Color = GOLD_HI, Material = Enum.Material.Metal,
-			Size = d[2], CFrame = CFrame.new(ORIGIN + Vector3.new(0, TABLE_TOP_Y + 0.28, 0) + d[1]),
+			Size = d[2], CFrame = CFrame.new(origin + Vector3.new(0, TABLE_TOP_Y + 0.28, 0) + d[1]),
 		})
 	end
 
 	-- المربّعات الـ64 + كاشف الضغط
 	for sq = 1, 64 do
-		local center = squareCenter(sq)
+		local center = squareCenter(origin, sq)
 		local f, r = Chess.fileOf(sq), Chess.rankOf(sq)
 		local light = (f + r) % 2 == 1
 		local cell = part({
@@ -21894,13 +21910,13 @@ local function buildTable()
 			Size = Vector3.new(CELL - 0.06, 0.05, CELL - 0.06),
 			CFrame = CFrame.new(center.X, TOP_Y + 0.02, center.Z),
 		})
-		G.cells[sq] = cell
+		g.cells[sq] = cell
 		local cd = Instance.new("ClickDetector")
 		cd.MaxActivationDistance = 20
 		cd.Parent = cell
 		local capSq = sq
 		cd.MouseClick:Connect(function(plr)
-			onSquareClicked(capSq, plr)
+			onSquareClicked(g, capSq, plr)
 		end)
 	end
 end
@@ -21910,19 +21926,44 @@ end
 ----------------------------------------------------------------------
 local PINK = Color3.fromRGB(236, 120, 170)
 
-local function hangingSign(x: number, z: number, text: string, col: Color3)
+-- يُلصِق نصّاً قابلاً للقراءة على وجه Front للقطعة المُعطاة (لا انعكاس)
+local function attachSignText(adornee: BasePart, text: string, col: Color3)
+	local gui = Instance.new("SurfaceGui")
+	gui.Name = "SignFace"
+	gui.AutoLocalize = false
+	gui.Face = Enum.NormalId.Front
+	gui.CanvasSize = Vector2.new(700, 190)
+	gui.LightInfluence = 0
+	gui.Adornee = adornee
+	gui.Parent = adornee
+	local lbl = Instance.new("TextLabel")
+	lbl.BackgroundTransparency = 1
+	lbl.Size = UDim2.new(1, -30, 1, -20)
+	lbl.Position = UDim2.new(0, 15, 0, 10)
+	lbl.Font = Enum.Font.GothamBlack
+	lbl.TextScaled = true
+	lbl.Text = text
+	lbl.TextColor3 = col
+	lbl.Parent = gui
+	local stk = Instance.new("UIStroke")
+	stk.Thickness = 3
+	stk.Color = Color3.fromRGB(40, 28, 10)
+	stk.Parent = lbl
+end
+
+local function hangingSign(folder: Folder, x: number, z: number, text: string, col: Color3)
 	local cy = 8.6
 	local W, H = 7.0, 1.9
 	-- قضيبا تعليق من السقف
 	for _, dx in ipairs({ -W / 2 + 0.5, W / 2 - 0.5 }) do
 		part({
-			Name = "SignRod", Parent = G.pieceFolder, Color = GOLD, Material = Enum.Material.Metal,
+			Name = "SignRod", Parent = folder, Color = GOLD, Material = Enum.Material.Metal,
 			Size = Vector3.new(0.16, 2.4, 0.16),
 			CFrame = CFrame.new(x + dx, cy + H / 2 + 1.2, z),
 		})
 	end
 	local panel = part({
-		Name = "ZoneSign", Parent = G.pieceFolder, Color = Color3.fromRGB(16, 20, 30),
+		Name = "ZoneSign", Parent = folder, Color = Color3.fromRGB(16, 20, 30),
 		Material = Enum.Material.Glass, Size = Vector3.new(W, H, 0.3),
 		CFrame = CFrame.new(x, cy, z),
 	})
@@ -21935,48 +21976,37 @@ local function hangingSign(x: number, z: number, text: string, col: Color3)
 		{ Vector3.new(W / 2, 0, 0), Vector3.new(0.24, H, 0.42) },
 	}) do
 		part({
-			Name = "SignFrame", Parent = G.pieceFolder, Color = GOLD_HI, Material = Enum.Material.Metal,
+			Name = "SignFrame", Parent = folder, Color = GOLD_HI, Material = Enum.Material.Metal,
 			Size = d[2], CFrame = CFrame.new(x, cy, z) * CFrame.new(d[1]),
 		})
 	end
-	-- نص على الوجهين (يُرى من الجهتين)
-	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
-		local gui = Instance.new("SurfaceGui")
-		gui.Name = "SignFace"
-		gui.AutoLocalize = false
-		gui.Face = face
-		gui.CanvasSize = Vector2.new(700, 190)
-		gui.LightInfluence = 0
-		gui.Adornee = panel
-		gui.Parent = panel
-		local lbl = Instance.new("TextLabel")
-		lbl.BackgroundTransparency = 1
-		lbl.Size = UDim2.new(1, -30, 1, -20)
-		lbl.Position = UDim2.new(0, 15, 0, 10)
-		lbl.Font = Enum.Font.GothamBlack
-		lbl.TextScaled = true
-		lbl.Text = text
-		lbl.TextColor3 = col
-		lbl.Parent = gui
-		local stk = Instance.new("UIStroke")
-		stk.Thickness = 3
-		stk.Color = Color3.fromRGB(40, 28, 10)
-		stk.Parent = lbl
-	end
+	-- نصّان على لوحين رقيقين متقابلين، كلٌّ بوجه Front → يُقرأ صحيحاً من الجهتين بلا انعكاس
+	local frontPanel = part({
+		Name = "SignTextFront", Parent = folder, Transparency = 1, CanCollide = false,
+		Size = Vector3.new(W - 0.3, H - 0.2, 0.06),
+		CFrame = CFrame.new(x, cy, z + 0.2),                              -- وجه Front جهة +Z
+	})
+	attachSignText(frontPanel, text, col)
+	local backPanel = part({
+		Name = "SignTextBack", Parent = folder, Transparency = 1, CanCollide = false,
+		Size = Vector3.new(W - 0.3, H - 0.2, 0.06),
+		CFrame = CFrame.new(x, cy, z - 0.2) * CFrame.Angles(0, math.rad(180), 0),  -- وجه Front جهة -Z
+	})
+	attachSignText(backPanel, text, col)
 end
 
-local function buildZoneSignage()
-	hangingSign(-14, 100, "🔴 منطقة إكس–أو 🔵", Color3.fromRGB(255, 235, 200))
-	hangingSign(14, 100, "♛ منطقة الشطرنج ♚", Color3.fromRGB(255, 240, 210))
+local function buildZoneSignage(folder: Folder)
+	hangingSign(folder, -14, 100, "🔴 منطقة إكس–أو 🔵", Color3.fromRGB(255, 235, 200))
+	hangingSign(folder, 14, 100, "♛ منطقة الشطرنج ♚", Color3.fromRGB(255, 240, 210))
 	-- فاصل أوسط منخفض: أعمدة ذهبية بكرات نيون وردية (لا يعيق الحركة)
 	for _, z in ipairs({ 96, 104, 112, 120 }) do
 		part({
-			Name = "DividerPost", Parent = G.pieceFolder, Color = GOLD, Material = Enum.Material.Metal,
+			Name = "DividerPost", Parent = folder, Color = GOLD, Material = Enum.Material.Metal,
 			Size = Vector3.new(0.42, 2.6, 0.42),
 			CFrame = CFrame.new(0, 0.8 + 1.3, z),
 		})
 		part({
-			Name = "DividerOrb", Parent = G.pieceFolder, Color = PINK, Material = Enum.Material.Neon,
+			Name = "DividerOrb", Parent = folder, Color = PINK, Material = Enum.Material.Neon,
 			CanCollide = false, Shape = Enum.PartType.Ball,
 			Size = Vector3.new(0.7, 0.7, 0.7),
 			CFrame = CFrame.new(0, 0.8 + 2.75, z),
@@ -21987,12 +22017,14 @@ end
 ----------------------------------------------------------------------
 -- التهيئة
 ----------------------------------------------------------------------
-local function init()
+-- يبني طاولة شطرنج مستقلّة واحدة عند origin ويعيد كائن اللعبة الخاص بها
+local function buildGame(area: Folder, origin: Vector3, index: number): Game
 	local folder = Instance.new("Folder")
-	folder.Name = "ChessArea"
-	folder.Parent = Workspace
+	folder.Name = "ChessTable" .. tostring(index)
+	folder.Parent = area
 
-	G = {
+	local g: Game = {
+		origin = origin,
 		state = Chess.newGame(),
 		models = {}, cells = {},
 		active = false, over = false,
@@ -22007,30 +22039,51 @@ local function init()
 		statusOverText = nil,
 	}
 
+	buildTable(g)
+	g.whiteSeat = buildSeat(g, -1, SEAT_W, "♔ اللاعب الأبيض")
+	g.blackSeat = buildSeat(g, 1, SEAT_B, "♚ اللاعب الأسود")
+	g.statusLabel, g.lastLabel, g.capWLabel, g.capBLabel = buildStatusBoard(g)
+
+	buildPosition(g)
+	setStatus(g)
+
+	g.whiteSeat:GetPropertyChangedSignal("Occupant"):Connect(function()
+		refreshSeats(g)
+	end)
+	g.blackSeat:GetPropertyChangedSignal("Occupant"):Connect(function()
+		refreshSeats(g)
+	end)
+
+	return g
+end
+
+local function init()
+	local area = Instance.new("Folder")
+	area.Name = "ChessArea"
+	area.Parent = Workspace
+
 	if not loadPieceTemplates() then
 		warn("[Chess] لم تُحمَّل القطع — أُلغيت اللعبة")
 		return
 	end
 
-	buildTable()
-	buildZoneSignage()
-	G.whiteSeat = buildSeat(-1, SEAT_W, "♔ اللاعب الأبيض")
-	G.blackSeat = buildSeat(1, SEAT_B, "♚ اللاعب الأسود")
-	G.statusLabel, G.lastLabel, G.capWLabel, G.capBLabel = buildStatusBoard()
+	buildZoneSignage(area)
 
-	buildPosition()
-	setStatus()
-
-	G.whiteSeat:GetPropertyChangedSignal("Occupant"):Connect(refreshSeats)
-	G.blackSeat:GetPropertyChangedSignal("Occupant"):Connect(refreshSeats)
+	for i, origin in ipairs(TABLE_ORIGINS) do
+		games[i] = buildGame(area, origin, i)
+	end
 
 	Players.PlayerRemoving:Connect(function(player)
-		if player == G.whitePlayer or player == G.blackPlayer then
-			task.defer(refreshSeats)
+		for _, g in ipairs(games) do
+			if player == g.whitePlayer or player == g.blackPlayer then
+				task.defer(function()
+					refreshSeats(g)
+				end)
+			end
 		end
 	end)
 
-	print("[Chess] جاهز — لوح شطرنج ثلاثي الأبعاد في منطقة الشطرنج.")
+	print("[Chess] جاهز —", #games, "طاولات شطرنج ثلاثية الأبعاد في منطقة الشطرنج.")
 end
 
 init()
