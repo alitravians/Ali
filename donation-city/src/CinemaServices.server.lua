@@ -1440,6 +1440,29 @@ local function adminNotify(player, text)
 	lobbyRemote:FireClient(player, { action = "announce", text = text })
 end
 
+-- 💰 إعطاء/خصم كوينز للاعب (أدمن فأعلى).
+-- أونلاين: عبر الجلسة (يُطبَّق فوراً + حفظ). أوفلاين: على DataStore مباشرة.
+-- يُرجع الرصيد الجديد، أو nil إذا تعذّر التعديل (فشل قراءة/حفظ — حماية من محو رصيد حقيقي).
+local function adminGiveCoins(uid: number, delta: number): number?
+	local target = Players:GetPlayerByUserId(uid)
+	if target then
+		local s = sessions[uid]
+		if s and s.dataLoaded ~= false then
+			setCoins(target, s.coins + delta)
+			saveCoins(uid)  -- تثبيت فوري (لا ننتظر دورة الحفظ)
+			return s.coins
+		end
+		-- الجلسة لم تُحمَّل بعد → عامله كأوفلاين على المتجر (لا نخاطر بكتابة فوق قراءة فاشلة)
+	end
+	if not coinStore then return nil end
+	local ok, cur = getAsyncRetry("c_" .. uid)
+	if not ok then return nil end  -- فشل القراءة: لا تكتب
+	local base = (type(cur) == "number") and cur or CONFIG.StartCoins
+	local newBal = math.max(0, math.floor(base + delta))
+	if setAsyncRetry("c_" .. uid, newBal) then return newBal end
+	return nil
+end
+
 local function sendAdminPanel(player)
 	local list = {}
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -1455,6 +1478,7 @@ local function sendAdminPanel(player)
 		for k in pairs(readPassGrants(p.UserId)) do pGrants[k] = true end
 		table.insert(list, {
 			name = p.Name, display = p.DisplayName, userId = p.UserId,
+			coins = (_G.GetCoins and _G.GetCoins(p)) or 0,
 			vip = (_G.IsVIP and _G.IsVIP(p)) or false,
 			banned = (_G.BoothIsBanned and _G.BoothIsBanned(p.UserId)) or false,
 			muted = (_G.ChatIsMuted and _G.ChatIsMuted(p.UserId)) or false,
@@ -1763,7 +1787,7 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 			broadcast=true, boothsEnable=true, boothsDisable=true, boothRelease=true,
 			maintenanceOn=true, maintenanceOff=true, vipGrant=true, vipRevoke=true,
 			ban=true, unban=true, mapBan=true, mapUnban=true,
-			grantPass=true, revokePass=true,
+			grantPass=true, revokePass=true, giveCoins=true,
 		}
 		if MAP_CMDS[cmd] and not canDo(RANK_W.admin) then return end
 		-- ===== العرض =====
@@ -1935,6 +1959,32 @@ lobbyRemote.OnServerEvent:Connect(function(player, payload)
 				adminNotify(player, "ℹ️ «" .. nm .. "» ليست ممنوحة من الإدارة لهذا اللاعب.")
 			end
 			sendAdminPanel(player)  -- حدّث اللوحة بالحالة الجديدة فوراً
+		elseif cmd == "giveCoins" then
+			-- 💰 إعطاء/خصم كوينز للاعب — أدمن فأعلى (محمي بـ MAP_CMDS)
+			local target, tid = targetOf()
+			local uid = tid
+			if not uid then
+				adminNotify(player, "ℹ️ اختر لاعباً."); sendAdminPanel(player); return
+			end
+			local amount = math.floor(tonumber(payload.amount) or 0)
+			if amount == 0 then
+				adminNotify(player, "ℹ️ أدخل مبلغاً صحيحاً."); sendAdminPanel(player); return
+			end
+			amount = math.clamp(amount, -1000000, 1000000)  -- حدّ أمان لكل عملية
+			local who = target and target.Name or ("#" .. uid)
+			local newBal = adminGiveCoins(uid, amount)
+			if newBal == nil then
+				adminNotify(player, "⚠️ تعذّر تعديل رصيد " .. who .. " (مشكلة في الحفظ، حاول لاحقاً).")
+			elseif amount > 0 then
+				adminNotify(player, "💰 أضفت " .. amount .. " كوينز لـ " .. who .. " — الرصيد الآن " .. newBal .. ".")
+				if target then adminNotify(target, "💰 أضافت لك الإدارة " .. amount .. " كوينز! رصيدك الآن " .. newBal .. ".") end
+				logAdmin(adminName, "أضاف " .. amount .. " كوينز لـ " .. who)
+			else
+				adminNotify(player, "➖ خصمت " .. (-amount) .. " كوينز من " .. who .. " — الرصيد الآن " .. newBal .. ".")
+				if target then adminNotify(target, "➖ خصمت الإدارة " .. (-amount) .. " كوينز من رصيدك. رصيدك الآن " .. newBal .. ".") end
+				logAdmin(adminName, "خصم " .. (-amount) .. " كوينز من " .. who)
+			end
+			sendAdminPanel(player)  -- حدّث اللوحة (الرصيد الجديد) فوراً
 		elseif cmd == "ban" then
 			local target, tid = targetOf()
 			if tid and tid ~= player.UserId then
