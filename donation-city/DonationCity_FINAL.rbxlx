@@ -20986,6 +20986,18 @@ local joyVec = Vector2.zero            -- x = يمين/يسار، y = أمام/�
 local joyInput: InputObject? = nil     -- لمسة الإصبع الفاعلة على العصا
 local joyKnob: Frame? = nil
 
+-- تفعيل/تعطيل عصا روبلوكس الافتراضية (تُخفى أثناء الطيران عشان ما تتداخل مع عصا الطيران)
+local function setDefaultControls(enabled: boolean)
+	pcall(function()
+		local ps = LocalPlayer:FindFirstChild("PlayerScripts")
+		if not ps then return end
+		local pm = ps:FindFirstChild("PlayerModule")
+		if not pm then return end
+		local controls = require(pm):GetControls()
+		if enabled then controls:Enable() else controls:Disable() end
+	end)
+end
+
 -- 📱 لوحة أزرار الطيران للجوال (تظهر فقط أثناء الطيران على الأجهزة اللمسية)
 local flyPad: Frame? = nil
 local flyJoy: Frame? = nil
@@ -20996,7 +21008,7 @@ local function buildFlyPad()
 		Name = "FlyJoy", AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 28, 1, -40), Size = UDim2.fromOffset(132, 132),
 		BackgroundColor3 = Color3.fromRGB(15, 18, 30), BackgroundTransparency = 0.45,
-		Visible = false, Parent = gui,
+		Active = true, Visible = false, Parent = gui,   -- Active=true يمتصّ اللمس فلا تدور الكاميرا
 	})
 	new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = joyBase })
 	new("UIStroke", { Color = GOLD, Thickness = 2, Transparency = 0.35, Parent = joyBase })
@@ -21004,7 +21016,7 @@ local function buildFlyPad()
 		Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5),
 		Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromOffset(56, 56),
 		BackgroundColor3 = Color3.fromRGB(70, 140, 240), BackgroundTransparency = 0.1,
-		Parent = joyBase,
+		Active = true, Parent = joyBase,
 	})
 	new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = knob })
 	new("UIStroke", { Color = GOLD, Thickness = 1.5, Transparency = 0.3, Parent = knob })
@@ -21099,6 +21111,7 @@ local function stopFly()
 	joyVec = Vector2.zero
 	if joyKnob then joyKnob.Position = UDim2.fromScale(0.5, 0.5) end
 	setFlyPadVisible(false)
+	setDefaultControls(true)    -- إرجاع عصا روبلوكس الافتراضية بعد إيقاف الطيران
 	local ch = LocalPlayer.Character
 	local hum = ch and ch:FindFirstChildOfClass("Humanoid")
 	if hum then hum.PlatformStand = false end
@@ -21113,6 +21126,7 @@ local function startFly(speed: number?)
 	flySpeed = speed or flySpeed
 	flying = true
 	if hum then hum.PlatformStand = true end
+	setDefaultControls(false)   -- يخفي عصا روبلوكس الافتراضية فلا تتداخل مع عصا الطيران
 	buildFlyPad()
 	setFlyPadVisible(true)
 
