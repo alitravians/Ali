@@ -2256,11 +2256,11 @@ showAdminPanel = function(data)
 			local mm = if m < 10 then "٠" .. toAr(m) else toAr(m)
 			return toAr(h12) .. ":" .. mm .. " " .. suffix
 		end
-		-- زر مرحلة موحّد الستايل — يبرز الوضع المفعّل بإطار + نص ذهبي
+		-- زر مرحلة موحّد الستايل — يبرز الوضع المفعّل بإطار + نص ذهبي (مدمج/متناسق للجوال)
 		local function phaseButton(parent, key, text, sizeX, posX)
 			local active = (activePhase == key)
 			local b = styledButton(parent, {
-				Text = text, Font = Enum.Font.GothamBold, TextSize = 15,
+				Text = text, Font = Enum.Font.GothamBold, TextSize = 14,
 				TextColor3 = active and GOLD or TEXT,
 				BackgroundColor3 = active and CARD2 or NEU_BTN,
 				Size = sizeX, Position = posX, Parent = parent,
@@ -2271,27 +2271,27 @@ showAdminPanel = function(data)
 			b.MouseButton1Click:Connect(function() cmd({ cmd = "dayPhase", phase = key }) end)
 			return b
 		end
-		-- شبكة ٢×٢ متناسقة للمراحل الثابتة
-		local r1 = rowFrame(44)
-		phaseButton(r1, "morning", "☀️ صباح", UDim2.new(0.5, -5, 1, 0), UDim2.fromOffset(0, 0))
-		phaseButton(r1, "noon",    "🌞 ظهر",  UDim2.new(0.5, -5, 1, 0), UDim2.new(0.5, 5, 0, 0))
-		local r2 = rowFrame(44)
-		phaseButton(r2, "sunset", "🌇 مغرب", UDim2.new(0.5, -5, 1, 0), UDim2.fromOffset(0, 0))
-		phaseButton(r2, "night",  "🌙 ليل",  UDim2.new(0.5, -5, 1, 0), UDim2.new(0.5, 5, 0, 0))
-		-- زر «تلقائي» عريض (يرجع لتوقيت البحرين الحقيقي)
-		local r3 = rowFrame(46)
-		phaseButton(r3, "auto", "🔄 تلقائي (توقيت البحرين)", UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0))
+		-- شبكة ٢×٢ مدمجة للمراحل الثابتة (أزرار أصغر تتناسق مع الجوال)
+		local r1 = rowFrame(38)
+		phaseButton(r1, "morning", "☀️ صباح", UDim2.new(0.5, -4, 1, 0), UDim2.fromOffset(0, 0))
+		phaseButton(r1, "noon",    "🌞 ظهر",  UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0))
+		local r2 = rowFrame(38)
+		phaseButton(r2, "sunset", "🌇 مغرب", UDim2.new(0.5, -4, 1, 0), UDim2.fromOffset(0, 0))
+		phaseButton(r2, "night",  "🌙 ليل",  UDim2.new(0.5, -4, 1, 0), UDim2.new(0.5, 4, 0, 0))
+		-- زر «تلقائي» عريض — نص قصير عشان ما يطفح على الجوال (التفاصيل بالشريحة تحت)
+		local r3 = rowFrame(38)
+		phaseButton(r3, "auto", "🔄 تلقائي", UDim2.fromScale(1, 1), UDim2.fromOffset(0, 0))
 		-- شريحة الحالة: الوضع الحالي + الساعة الفعلية
 		local sf = new("Frame", {
-			BackgroundColor3 = CARD2, Size = UDim2.new(1, 0, 0, 34), LayoutOrder = nextOrder(), Parent = content,
+			BackgroundColor3 = CARD2, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = nextOrder(), Parent = content,
 		}, { new("UICorner", { CornerRadius = UDim.new(0, 10) }), new("UIStroke", { Color = PURPLE, Transparency = 0.4 }) })
 		new("TextLabel", {
-			BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 13, TextColor3 = GOLD,
-			Text = "الوضع الحالي: " .. (PH_LABELS[activePhase] or activePhase) .. "  ·  الساعة " .. fmtHour(dn.hour),
+			BackgroundTransparency = 1, Font = Enum.Font.GothamBold, TextSize = 12, TextColor3 = GOLD,
+			Text = (PH_LABELS[activePhase] or activePhase) .. "  ·  " .. fmtHour(dn.hour),
 			Size = UDim2.new(1, -16, 1, 0), Position = UDim2.fromOffset(8, 0),
 			TextXAlignment = Enum.TextXAlignment.Right, Parent = sf,
 		})
-		note("يُطبَّق فوراً على كل اللاعبين، ويبقى بعد إعادة التشغيل، ويتزامن عبر كل السيرفرات. للأدمن فأعلى فقط.")
+		note("يُطبَّق فوراً على الجميع ويتزامن عبر السيرفرات. للأدمن فأعلى فقط.")
 
 		sectionLabel("🎵 موسيقى اللوبي")
 		local music = data.music or {}
