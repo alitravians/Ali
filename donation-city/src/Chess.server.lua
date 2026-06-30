@@ -855,9 +855,14 @@ local function refreshSeats(g: Game)
 		g.active = false
 		g.over = false
 		g.selected = nil
+		g.statusOverText = nil
+		g.capW = 0
+		g.capB = 0
 		clearHints(g)
 		g.state = Chess.newGame()
 		buildPosition(g)
+		updateCaptures(g)
+		g.lastLabel.Text = "آخر نقلة: —"
 		setStatus(g)
 	end
 end
