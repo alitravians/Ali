@@ -837,10 +837,10 @@ local function setStatus(g: Game)
 		stopCheckPulse(g)
 	end
 	if g.state.side == 1 then
-		lbl.Text = chk and "♔ دور الأبيض — كش!" or "♔ دور الأبيض"
+		lbl.Text = chk and "⚪ دور الأبيض — كش!" or "⚪ دور الأبيض"
 		lbl.TextColor3 = Color3.fromRGB(245, 240, 220)
 	else
-		lbl.Text = chk and "♚ دور الأسود — كش!" or "♚ دور الأسود"
+		lbl.Text = chk and "⚫ دور الأسود — كش!" or "⚫ دور الأسود"
 		lbl.TextColor3 = Color3.fromRGB(170, 170, 180)
 	end
 end
@@ -880,7 +880,7 @@ local function endMatch(g: Game, kind: string, mover: number)
 	stopSelectedBob(g)
 	clearHints(g)
 	if kind == "checkmate" then
-		local winner = (mover == 1) and "الأبيض ♔" or "الأسود ♚"
+		local winner = (mover == 1) and "الأبيض ⚪" or "الأسود ⚫"
 		g.statusOverText = "كش مات! فاز " .. winner
 		g.statusLabel.TextColor3 = GOLD_HI
 		playSound(g.cells[28], SND_END, 0.6, 1.0)
@@ -1472,7 +1472,7 @@ end
 
 local function buildZoneSignage(folder: Folder)
 	hangingSign(folder, -14, 100, "🔴 منطقة إكس–أو 🔵", Color3.fromRGB(255, 235, 200))
-	hangingSign(folder, 14, 100, "♛ منطقة الشطرنج ♚", Color3.fromRGB(255, 240, 210))
+	hangingSign(folder, 14, 100, "⚪ منطقة الشطرنج ⚫", Color3.fromRGB(255, 240, 210))
 	-- فاصل أوسط منخفض: أعمدة ذهبية بكرات نيون وردية (لا يعيق الحركة)
 	for _, z in ipairs({ 96, 104, 112, 120 }) do
 		part({
@@ -1518,8 +1518,8 @@ local function buildGame(area: Folder, origin: Vector3, index: number): Game
 	}
 
 	buildTable(g)
-	g.whiteSeat = buildSeat(g, -1, SEAT_W, "♔ اللاعب الأبيض")
-	g.blackSeat = buildSeat(g, 1, SEAT_B, "♚ اللاعب الأسود")
+	g.whiteSeat = buildSeat(g, -1, SEAT_W, "⚪ اللاعب الأبيض")
+	g.blackSeat = buildSeat(g, 1, SEAT_B, "⚫ اللاعب الأسود")
 	g.statusLabel, g.lastLabel, g.capWLabel, g.capBLabel = buildStatusBoard(g)
 
 	buildPosition(g)
