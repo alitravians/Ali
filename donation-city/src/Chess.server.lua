@@ -714,7 +714,6 @@ local function animateCapturedToTray(g: Game, pc: BasePart, side: number)
 	local index = #trayList + 1
 	trayList[index] = pc
 	task.spawn(function()
-		local startCF = pc.CFrame
 		local startPos = pc.Position
 		local startSize = pc.Size
 		local yaw = (pc.Color == BLACK_PC) and math.pi or 0
@@ -738,7 +737,6 @@ local function animateCapturedToTray(g: Game, pc: BasePart, side: number)
 			local pos = startPos:Lerp(goalPos, eased)
 			pos = Vector3.new(pos.X, pos.Y + math.sin(t * math.pi) * 0.35, pos.Z)
 			pc.Size = startSize:Lerp(endSize, eased)
-			pc.CFrame = startCF:Lerp(goalCF, eased)
 			pc.CFrame = CFrame.new(pos) * CFrame.Angles(0, yaw, math.rad(90 * eased))
 		end
 		if (side > 0 and g.trayW ~= trayList) or (side < 0 and g.trayB ~= trayList) then
