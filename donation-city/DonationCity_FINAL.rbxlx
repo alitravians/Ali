@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٧٠",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٧١",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,13 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٧١", date = "٣٠ يونيو",
+			items = {
+				{ "feature", "الشطرنج أصبح أكثر واقعية: حركة بقوس ترفع القطعة (والحصان يقفز أعلى) + توهّج آخر نقلة + مؤشّر الكش النابض + صينية أسرى جانبية + اهتزاز القطعة المختارة + ومضة ترقية." },
+				{ "feature", "الشطرنج: أصوات واقعية متنوّعة — نقلة، أسر، تبييت، كش، ترقية، ونهاية المباراة." },
+			},
+		},
 		{
 			version = "٢.٩.٧٠", date = "٣٠ يونيو",
 			items = {
@@ -20875,7 +20882,7 @@ end
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 local InsertService = game:GetService("InsertService")
 
@@ -21242,10 +21249,15 @@ local SEAT_B    = Color3.fromRGB(44, 42, 48)
 local HINT_MOVE = Color3.fromRGB(96, 220, 120)    -- وجهة فارغة
 local HINT_CAP  = Color3.fromRGB(232, 96, 96)     -- وجهة أسر
 local SEL_COL   = Color3.fromRGB(240, 214, 96)    -- المربّع المحدّد
+local LASTMOVE_COL = Color3.fromRGB(232, 196, 84) -- آخر نقلة
+local CHECK_COL = HINT_CAP                        -- مربع الملك في حالة كش
 
--- مؤثّرات صوتية (أصول موجودة فعلاً باللعبة)
-local SND_MOVE = "rbxassetid://9125402735"
-local SND_WIN  = "rbxassetid://9114066858"
+-- مؤثّرات صوتية واقعية للشطرنج (أصوات قصيرة ≤6ث → قابلة للاستخدام في كل التجارب)
+local SND_MOVE    = "rbxassetid://131264826664236" -- نقلة: نقرة قطعة على الرقعة
+local SND_CAPTURE = "rbxassetid://75532726186774"  -- أسر: اصطدام/إزاحة قطعة
+local SND_CHECK   = "rbxassetid://6432593850"       -- كش: تنبيه قصير
+local SND_PROMO   = "rbxassetid://17780130154"      -- ترقية: رنّة صعود
+local SND_END     = "rbxassetid://123441201300096" -- نهاية المباراة (كش مات / تعادل)
 
 local CELL = 0.95                  -- مقاس المربّع (studs) — أصغر ليتّسع لثلاث طاولات
 local N = 8
@@ -21375,6 +21387,15 @@ type Game = {
 	selected: number?,                -- المربّع المحدّد حاليّاً
 	hintTargets: { [number]: any },   -- destSq -> move (للنقلة المختارة)
 	hintParts: { BasePart },
+	lastFrom: number?,
+	lastTo: number?,
+	trayW: { BasePart },              -- القطع السوداء التي أسرها الأبيض
+	trayB: { BasePart },              -- القطع البيضاء التي أسرها الأسود
+	selectedBobPart: BasePart?,
+	selectedBobConn: RBXScriptConnection?,
+	selectedBobBaseCFrame: CFrame?,
+	checkPulseSq: number?,
+	checkPulseConn: RBXScriptConnection?,
 	statusLabel: TextLabel,
 	lastLabel: TextLabel,
 	capWLabel: TextLabel,
@@ -21427,33 +21448,199 @@ local function buildPosition(g: Game)
 	end
 end
 
-----------------------------------------------------------------------
--- تظليل النقلات القانونية
-----------------------------------------------------------------------
+local function getGlow(g: Game, sq: number): BasePart?
+	local cell = g.cells[sq]
+	if not cell then return nil end
+	local glow = cell:FindFirstChild("CellGlow")
+	if glow and glow:IsA("BasePart") then return glow end
+	return nil
+end
+
+local function setGlow(g: Game, sq: number, col: Color3, trans: number)
+	local glow = getGlow(g, sq)
+	if glow then
+		glow.Color = col
+		glow.Transparency = trans
+	end
+end
+
+local function stopSelectedBob(g: Game)
+	if g.selectedBobConn then
+		g.selectedBobConn:Disconnect()
+		g.selectedBobConn = nil
+	end
+	local pc = g.selectedBobPart
+	local base = g.selectedBobBaseCFrame
+	g.selectedBobPart = nil
+	g.selectedBobBaseCFrame = nil
+	if pc and pc.Parent and base then
+		pc.CFrame = base
+	end
+end
+
+local function clearTray(g: Game)
+	local oldW, oldB = g.trayW, g.trayB
+	g.trayW = {}
+	g.trayB = {}
+	for i, pc in ipairs(oldW) do
+		if pc and pc.Parent then pc:Destroy() end
+		oldW[i] = nil
+	end
+	for i, pc in ipairs(oldB) do
+		if pc and pc.Parent then pc:Destroy() end
+		oldB[i] = nil
+	end
+end
+
+local function refreshHighlights(g: Game)
+	for i = 1, 64 do
+		local glow = getGlow(g, i)
+		if glow then glow.Transparency = 1 end
+	end
+	if g.lastFrom then
+		setGlow(g, g.lastFrom, LASTMOVE_COL, 0.55)
+	end
+	if g.lastTo then
+		setGlow(g, g.lastTo, LASTMOVE_COL, 0.55)
+	end
+	if g.selected then
+		setGlow(g, g.selected, SEL_COL, 0.35)
+	end
+	if g.checkPulseSq and g.checkPulseConn then
+		local glow = getGlow(g, g.checkPulseSq)
+		if glow then
+			glow.Color = CHECK_COL
+			glow.Transparency = 0.45
+		end
+	end
+end
+
+local function stopCheckPulse(g: Game)
+	if g.checkPulseConn then
+		g.checkPulseConn:Disconnect()
+		g.checkPulseConn = nil
+	end
+	g.checkPulseSq = nil
+	refreshHighlights(g)
+end
+
+local function startCheckPulse(g: Game, sq: number)
+	if g.checkPulseSq == sq and g.checkPulseConn then
+		return
+	end
+	stopCheckPulse(g)
+	g.checkPulseSq = sq
+	refreshHighlights(g)
+	local glow = getGlow(g, sq)
+	if glow then
+		glow.Color = CHECK_COL
+		glow.Transparency = 0.45
+	end
+	g.checkPulseConn = RunService.Heartbeat:Connect(function()
+		local curSq = g.checkPulseSq
+		if not curSq then
+			if g.checkPulseConn then g.checkPulseConn:Disconnect() end
+			g.checkPulseConn = nil
+			return
+		end
+		local g2 = getGlow(g, curSq)
+		if not g2 then
+			if g.checkPulseConn then g.checkPulseConn:Disconnect() end
+			g.checkPulseConn = nil
+			g.checkPulseSq = nil
+			return
+		end
+		local pulse = 0.5 + 0.5 * math.sin(os.clock() * 5.5)
+		g2.Color = CHECK_COL
+		g2.Transparency = 0.2 + (0.46 * (1 - pulse))
+	end)
+end
+
+local function startSelectedBob(g: Game, pc: BasePart)
+	stopSelectedBob(g)
+	if not pc.Parent then return end
+	g.selectedBobPart = pc
+	g.selectedBobBaseCFrame = pc.CFrame
+	g.selectedBobConn = RunService.Heartbeat:Connect(function()
+		local piece = g.selectedBobPart
+		local baseCFrame = g.selectedBobBaseCFrame
+		if piece ~= pc or not piece or not piece.Parent or not baseCFrame then
+			stopSelectedBob(g)
+			return
+		end
+		local bob = math.sin(os.clock() * 5.5) * 0.12
+		piece.CFrame = baseCFrame * CFrame.new(0, bob, 0)
+	end)
+end
+
+local function animateCapturedToTray(g: Game, pc: BasePart, side: number)
+	local trayList = side > 0 and g.trayW or g.trayB
+	local index = #trayList + 1
+	trayList[index] = pc
+	task.spawn(function()
+		local startCF = pc.CFrame
+		local startPos = pc.Position
+		local startSize = pc.Size
+		local yaw = (pc.Color == BLACK_PC) and math.pi or 0
+		local trayX = g.origin.X + (side > 0 and (HALF + 0.95) or -(HALF + 0.95))
+		local trayZ = g.origin.Z - HALF + 0.36 + (index - 1) * 0.46
+		local endSize = startSize * 0.82
+		local endY = TOP_Y + endSize.Y / 2 + 0.06
+		local goalPos = Vector3.new(trayX, endY, trayZ)
+		local goalCF = CFrame.new(goalPos) * CFrame.Angles(0, yaw, math.rad(90))
+		local duration = 0.38
+		local t = 0
+		while t < 1 do
+			local currentTray = side > 0 and g.trayW or g.trayB
+			if currentTray ~= trayList or not pc.Parent then
+				if pc.Parent then pc:Destroy() end
+				return
+			end
+			local dt = RunService.Heartbeat:Wait()
+			t = math.min(1, t + dt / duration)
+			local eased = t * t * (3 - 2 * t)
+			local pos = startPos:Lerp(goalPos, eased)
+			pos = Vector3.new(pos.X, pos.Y + math.sin(t * math.pi) * 0.35, pos.Z)
+			pc.Size = startSize:Lerp(endSize, eased)
+			pc.CFrame = startCF:Lerp(goalCF, eased)
+			pc.CFrame = CFrame.new(pos) * CFrame.Angles(0, yaw, math.rad(90 * eased))
+		end
+		if (side > 0 and g.trayW ~= trayList) or (side < 0 and g.trayB ~= trayList) then
+			if pc.Parent then pc:Destroy() end
+			return
+		end
+		if pc.Parent then
+			pc.Size = endSize
+			pc.CFrame = goalCF
+		end
+	end)
+end
+
 local function clearHints(g: Game)
 	for _, p in ipairs(g.hintParts) do
 		if p and p.Parent then p:Destroy() end
 	end
 	g.hintParts = {}
 	g.hintTargets = {}
-	-- نطفئ توهّج كل المربّعات (لا نعتمد على g.selected لأنه قد يكون صُفّر قبل النداء)
-	for i = 1, 64 do
-		local cell = g.cells[i]
-		local glow = cell and cell:FindFirstChild("CellGlow")
-		if glow and glow:IsA("BasePart") then glow.Transparency = 1 end
-	end
+	stopSelectedBob(g)
+	refreshHighlights(g)
 end
 
 local function showHints(g: Game, fromSq: number)
+	g.selected = nil
 	clearHints(g)
 	g.selected = fromSq
-	-- إبراز المربّع المحدّد
+	-- إبراز المربع المحدد
 	local glow = g.cells[fromSq]:FindFirstChild("CellGlow")
 	if glow and glow:IsA("BasePart") then
 		glow.Color = SEL_COL
 		glow.Transparency = 0.35
 	end
-	-- النقلات القانونية من هذا المربّع (نختار الترقية وزيراً افتراضاً)
+	local selectedPiece = g.models[fromSq]
+	if selectedPiece then
+		startSelectedBob(g, selectedPiece)
+	end
+	-- النقلات القانونية من هذا المربع (نختار الترقية وزيرا افتراضا)
 	for _, mv in ipairs(g.state:legalMoves()) do
 		if mv.from == fromSq then
 			local existing = g.hintTargets[mv.to]
@@ -21475,7 +21662,7 @@ local function showHints(g: Game, fromSq: number)
 			})
 			g.hintParts[#g.hintParts + 1] = ring
 		else
-			-- نقطة خضراء على المربّع الفارغ
+			-- نقطة خضراء على المربع الفارغ
 			local dot = part({
 				Name = "Hint", Parent = g.pieceFolder, Color = HINT_MOVE, Material = Enum.Material.Neon,
 				CanCollide = false, Transparency = 0.15, Shape = Enum.PartType.Cylinder,
@@ -21486,25 +21673,35 @@ local function showHints(g: Game, fromSq: number)
 		end
 	end
 end
-
 ----------------------------------------------------------------------
 -- لوحة الحالة
 ----------------------------------------------------------------------
 local function setStatus(g: Game)
 	local lbl = g.statusLabel
 	if not g.active then
+		stopCheckPulse(g)
 		if g.over then
-			lbl.Text = g.statusOverText or "انتهت المباراة — اجلسا للّعب مجدّداً"
+			lbl.Text = g.statusOverText or "انتهت المباراة — اجلسا للعب مجددا"
 		elseif g.whitePlayer or g.blackPlayer then
-			lbl.Text = "بانتظار لاعب ثانٍ…"
+			lbl.Text = "بانتظار لاعب ثان…"
 			lbl.TextColor3 = GOLD
 		else
-			lbl.Text = "اجلس على كرسيّ للّعب"
+			lbl.Text = "اجلس على كرسي للعب"
 			lbl.TextColor3 = LIGHT_SQ
 		end
 		return
 	end
 	local chk = g.state:inCheck(g.state.side)
+	if chk then
+		local ks = g.state:kingSquare(g.state.side)
+		if ks ~= 0 then
+			startCheckPulse(g, ks)
+		else
+			stopCheckPulse(g)
+		end
+	else
+		stopCheckPulse(g)
+	end
 	if g.state.side == 1 then
 		lbl.Text = chk and "♔ دور الأبيض — كش!" or "♔ دور الأبيض"
 		lbl.TextColor3 = Color3.fromRGB(245, 240, 220)
@@ -21528,9 +21725,14 @@ local function startMatch(g: Game)
 	g.over = false
 	g.selected = nil
 	g.statusOverText = nil
+	g.lastFrom = nil
+	g.lastTo = nil
 	g.capW = 0
 	g.capB = 0
+	stopCheckPulse(g)
+	stopSelectedBob(g)
 	clearHints(g)
+	clearTray(g)
 	buildPosition(g)
 	updateCaptures(g)
 	g.lastLabel.Text = "آخر نقلة: —"
@@ -21540,16 +21742,18 @@ end
 local function endMatch(g: Game, kind: string, mover: number)
 	g.active = false
 	g.over = true
+	stopCheckPulse(g)
+	stopSelectedBob(g)
 	clearHints(g)
 	if kind == "checkmate" then
 		local winner = (mover == 1) and "الأبيض ♔" or "الأسود ♚"
 		g.statusOverText = "كش مات! فاز " .. winner
 		g.statusLabel.TextColor3 = GOLD_HI
-		playSound(g.cells[28], SND_WIN, 0.5, 1)
+		playSound(g.cells[28], SND_END, 0.6, 1.0)
 	else
 		g.statusOverText = "تعادل (جمود) 🤝"
 		g.statusLabel.TextColor3 = GOLD
-		playSound(g.cells[28], SND_MOVE, 0.4, 0.7)
+		playSound(g.cells[28], SND_END, 0.4, 0.85)
 	end
 	g.statusLabel.Text = g.statusOverText
 end
@@ -21557,73 +21761,144 @@ end
 ----------------------------------------------------------------------
 -- تنفيذ نقلة (مع التحريك البصري والأسر والتبييت والترقية)
 ----------------------------------------------------------------------
-local function tweenPieceTo(g: Game, pc: BasePart, sq: number)
-	local center = squareCenter(g.origin, sq)
-	local goal = Vector3.new(center.X, TOP_Y + pc.Size.Y / 2, center.Z)
-	local info = TweenInfo.new(0.28, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-	TweenService:Create(pc, info, { Position = goal }):Play()
+local function tweenPieceTo(g: Game, pc: BasePart, sq: number, pieceVal: number)
+	task.spawn(function()
+		local startPos = pc.Position
+		local center = squareCenter(g.origin, sq)
+		local yaw = (pc.Color == BLACK_PC) and math.pi or 0
+		local liftHeight = 0.5
+		if Chess.ptype(pieceVal) == Chess.KNIGHT then
+			liftHeight = 1.4 -- الحصان «يقفز» أعلى من بقيّة القطع
+		end
+		local startY = TOP_Y + pc.Size.Y / 2
+		local destY = TOP_Y + pc.Size.Y / 2
+		local duration = 0.32
+		local t = 0
+		while t < 1 do
+			if not pc.Parent then return end
+			local dt = RunService.Heartbeat:Wait()
+			t = math.min(1, t + dt / duration)
+			local eased = t * t * (3 - 2 * t)
+			local x = startPos.X + (center.X - startPos.X) * eased
+			local z = startPos.Z + (center.Z - startPos.Z) * eased
+			local y = startY + math.sin(t * math.pi) * liftHeight
+			if t > 0.92 then
+				y = y + (destY - y) * ((t - 0.92) / 0.08)
+			end
+			pc.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0)
+		end
+		if pc.Parent then
+			pc.CFrame = CFrame.new(center.X, destY, center.Z) * CFrame.Angles(0, yaw, 0)
+		end
+	end)
 end
 
-local function despawnCaptured(pc: BasePart)
-	local info = TweenInfo.new(0.22, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-	local tw = TweenService:Create(pc, info, { Size = pc.Size * 0.05, Transparency = 1 })
-	tw:Play()
-	Debris:AddItem(pc, 0.4)
+local function spawnPromotionSparkle(pc: BasePart)
+	local att = Instance.new("Attachment")
+	att.Name = "PromoSparkle"
+	att.Parent = pc
+	local em = Instance.new("ParticleEmitter")
+	em.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	em.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 244, 184)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 203, 91)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 244, 184)),
+	})
+	em.LightEmission = 1
+	em.Rate = 0
+	em.Lifetime = NumberRange.new(0.32, 0.58)
+	em.Speed = NumberRange.new(2, 6)
+	em.SpreadAngle = Vector2.new(180, 180)
+	em.Drag = 2
+	em.Rotation = NumberRange.new(0, 360)
+	em.RotSpeed = NumberRange.new(-220, 220)
+	em.Size = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0.28),
+		NumberSequenceKeypoint.new(0.5, 0.12),
+		NumberSequenceKeypoint.new(1, 0),
+	})
+	em.Parent = att
+	em:Emit(18)
+	Debris:AddItem(att, 0.7)
+end
+
+local function despawnCaptured(g: Game, pc: BasePart, side: number)
+	animateCapturedToTray(g, pc, side)
 end
 
 local function doMove(g: Game, mv)
 	local mover = g.state.side
 	local fromSq, toSq = mv.from, mv.to
 	local movingModel = g.models[fromSq]
+	local movingVal = g.state.board[fromSq]   -- نوع القطعة المتحرّكة (قبل تحديث المحرّك)
 
 	-- معالجة الأسر (عادي / بالمرور)
 	local capturedModel: BasePart? = nil
+	local capturedVal = 0
 	if mv.flag == "ep" then
 		local capSq = Chess.sqOf(Chess.fileOf(toSq), Chess.rankOf(fromSq))
 		capturedModel = g.models[capSq]
+		capturedVal = g.state.board[capSq]
 		g.models[capSq] = nil
 	else
 		capturedModel = g.models[toSq]
+		capturedVal = g.state.board[toSq]
 		g.models[toSq] = nil
 	end
+
+	stopSelectedBob(g)
 
 	-- نقل النموذج from → to
 	g.models[fromSq] = nil
 	g.models[toSq] = movingModel
-	if movingModel then tweenPieceTo(g, movingModel, toSq) end
+	if movingModel then tweenPieceTo(g, movingModel, toSq, movingVal) end
 
-	-- تبييت: حرّك الرخ أيضاً
+	-- تبييت: حرك الرخ أيضا
 	if mv.flag == "cK" or mv.flag == "cQ" then
 		local rank = Chess.rankOf(fromSq)
 		local rFrom = (mv.flag == "cK") and Chess.sqOf(7, rank) or Chess.sqOf(0, rank)
 		local rTo = (mv.flag == "cK") and Chess.sqOf(5, rank) or Chess.sqOf(3, rank)
+		local rookVal = g.state.board[rFrom]
 		local rookModel = g.models[rFrom]
 		g.models[rFrom] = nil
 		g.models[rTo] = rookModel
-		if rookModel then tweenPieceTo(g, rookModel, rTo) end
+		if rookModel then tweenPieceTo(g, rookModel, rTo, rookVal) end
 	end
 
 	-- صوت
 	if capturedModel then
-		despawnCaptured(capturedModel)
+		local capturedSide = (capturedVal > 0) and -1 or 1
+		despawnCaptured(g, capturedModel, capturedSide)
 		if mover == 1 then g.capW += 1 else g.capB += 1 end
 		updateCaptures(g)
-		playSound(g.cells[toSq], SND_MOVE, 0.5, 0.7)
+		playSound(g.cells[toSq], SND_CAPTURE, 0.6, 1.0)
+	elseif mv.flag == "cK" or mv.flag == "cQ" then
+		-- تبييت: نقرتان متتاليتان (الملك ثم الرخ)
+		playSound(g.cells[toSq], SND_MOVE, 0.5, 1.0)
+		task.delay(0.16, function()
+			playSound(g.cells[toSq], SND_MOVE, 0.4, 0.92)
+		end)
 	else
-		playSound(g.cells[toSq], SND_MOVE, 0.45, 1.0)
+		playSound(g.cells[toSq], SND_MOVE, 0.5, 1.0)
 	end
 
-	-- طبّق النقلة على المحرّك
+	-- طبق النقلة على المحرك
 	g.state:make(mv)
 
-	-- ترقية: استبدل البيدق بالقطعة المرقّاة
+	-- ترقية: استبدل البيدق بالقطعة المرقاة
 	if mv.flag == "promo" then
 		local promoted = g.models[toSq]
 		if promoted then promoted:Destroy() end
 		g.models[toSq] = makePiece(g, mover * (mv.promo or Chess.QUEEN), toSq)
+		if g.models[toSq] then
+			spawnPromotionSparkle(g.models[toSq])
+		end
+		playSound(g.cells[toSq], SND_PROMO, 0.5, 1.0)
 	end
 
 	g.selected = nil
+	g.lastFrom = fromSq
+	g.lastTo = toSq
 	clearHints(g)
 	g.lastLabel.Text = "آخر نقلة: " .. algebraic(fromSq) .. " → " .. algebraic(toSq)
 
@@ -21634,14 +21909,11 @@ local function doMove(g: Game, mv)
 	elseif st == "stalemate" then
 		endMatch(g, "stalemate", mover)
 	else
-		if st == "check" then playSound(g.cells[toSq], SND_MOVE, 0.5, 1.3) end
+		if st == "check" then playSound(g.cells[toSq], SND_CHECK, 0.45, 1.0) end
 		setStatus(g)
 	end
 end
 
-----------------------------------------------------------------------
--- نقر المربّع
-----------------------------------------------------------------------
 local function colorOfPlayer(g: Game, player: Player): number?
 	if player == g.whitePlayer then return 1 end
 	if player == g.blackPlayer then return -1 end
@@ -21713,9 +21985,14 @@ local function refreshSeats(g: Game)
 		g.over = false
 		g.selected = nil
 		g.statusOverText = nil
+		g.lastFrom = nil
+		g.lastTo = nil
 		g.capW = 0
 		g.capB = 0
+		stopCheckPulse(g)
+		stopSelectedBob(g)
 		clearHints(g)
+		clearTray(g)
 		g.state = Chess.newGame()
 		buildPosition(g)
 		updateCaptures(g)
@@ -21938,6 +22215,24 @@ local function buildTable(g: Game)
 		})
 	end
 
+	-- رف الأسرى على جانبي اللوح
+	local trayLen = fw + 0.45
+	for _, side in ipairs({ -1, 1 }) do
+		local trayX = origin.X + side * (HALF + 0.95)
+		part({
+			Name = side < 0 and "CaptureTrayBlack" or "CaptureTrayWhite", Parent = model,
+			Color = side < 0 and Color3.fromRGB(68, 48, 28) or Color3.fromRGB(74, 54, 32),
+			Material = Enum.Material.Wood,
+			Size = Vector3.new(1.0, 0.16, trayLen),
+			CFrame = CFrame.new(trayX, TOP_Y - 0.02, origin.Z),
+		})
+		part({
+			Name = side < 0 and "CaptureTrayLipBlack" or "CaptureTrayLipWhite", Parent = model,
+			Color = GOLD_HI, Material = Enum.Material.Metal,
+			Size = Vector3.new(1.1, 0.08, trayLen + 0.08),
+			CFrame = CFrame.new(trayX, TOP_Y + 0.11, origin.Z),
+		})
+	end
 	-- المربّعات الـ64 + كاشف الضغط
 	for sq = 1, 64 do
 		local center = squareCenter(origin, sq)
@@ -22059,7 +22354,6 @@ local function buildZoneSignage(folder: Folder)
 		})
 	end
 end
-
 ----------------------------------------------------------------------
 -- التهيئة
 ----------------------------------------------------------------------
@@ -22078,6 +22372,10 @@ local function buildGame(area: Folder, origin: Vector3, index: number): Game
 		whitePlayer = nil, blackPlayer = nil,
 		selected = nil,
 		hintTargets = {}, hintParts = {},
+		lastFrom = nil, lastTo = nil,
+		trayW = {}, trayB = {},
+		selectedBobPart = nil, selectedBobConn = nil, selectedBobBaseCFrame = nil,
+		checkPulseSq = nil, checkPulseConn = nil,
 		statusLabel = nil :: any, lastLabel = nil :: any,
 		capWLabel = nil :: any, capBLabel = nil :: any,
 		capW = 0, capB = 0,
