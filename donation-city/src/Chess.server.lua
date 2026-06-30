@@ -846,8 +846,8 @@ local function setStatus(g: Game)
 end
 
 local function updateCaptures(g: Game)
-	g.capWLabel.Text = "♔ أسر: " .. g.capW
-	g.capBLabel.Text = "♚ أسر: " .. g.capB
+	g.capWLabel.Text = "⚪ أسر: " .. g.capW
+	g.capBLabel.Text = "⚫ أسر: " .. g.capB
 end
 
 ----------------------------------------------------------------------
@@ -1233,7 +1233,7 @@ local function buildStatusBoard(g: Game)
 	title.Position = UDim2.new(0, 20, 0.03, 0)
 	title.Font = Enum.Font.GothamBlack
 	title.TextScaled = true
-	title.Text = "♟ الشطرنج"
+	title.Text = "الشطرنج"
 	title.TextColor3 = Color3.fromRGB(255, 245, 215)
 	title.Parent = pad
 	local tg = Instance.new("UIGradient")
@@ -1260,7 +1260,7 @@ local function buildStatusBoard(g: Game)
 		lbl.TextScaled = true
 		lbl.TextXAlignment = side < 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right
 		lbl.TextColor3 = txtCol
-		lbl.Text = (side < 0 and "♔ أسر: 0" or "♚ أسر: 0")
+		lbl.Text = (side < 0 and "⚪ أسر: 0" or "⚫ أسر: 0")
 		lbl.Parent = capRow
 		local stk = Instance.new("UIStroke")
 		stk.Thickness = 2

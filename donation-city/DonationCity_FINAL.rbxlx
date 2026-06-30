@@ -144,7 +144,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٧١",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٧٢",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -172,6 +172,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٧٢", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "الشطرنج: إصلاح مربّع فارغ (⬜) كان يظهر جنب عدّادات الأسر بسبب رموز القطع (♔/♚) غير المدعومة في الخط — استبدلناها برموز تُعرَض بوضوح (⚪ أبيض / ⚫ أسود)." },
+			},
+		},
 		{
 			version = "٢.٩.٧١", date = "٣٠ يونيو",
 			items = {
@@ -21710,8 +21716,8 @@ local function setStatus(g: Game)
 end
 
 local function updateCaptures(g: Game)
-	g.capWLabel.Text = "♔ أسر: " .. g.capW
-	g.capBLabel.Text = "♚ أسر: " .. g.capB
+	g.capWLabel.Text = "⚪ أسر: " .. g.capW
+	g.capBLabel.Text = "⚫ أسر: " .. g.capB
 end
 
 ----------------------------------------------------------------------
@@ -22097,7 +22103,7 @@ local function buildStatusBoard(g: Game)
 	title.Position = UDim2.new(0, 20, 0.03, 0)
 	title.Font = Enum.Font.GothamBlack
 	title.TextScaled = true
-	title.Text = "♟ الشطرنج"
+	title.Text = "الشطرنج"
 	title.TextColor3 = Color3.fromRGB(255, 245, 215)
 	title.Parent = pad
 	local tg = Instance.new("UIGradient")
@@ -22124,7 +22130,7 @@ local function buildStatusBoard(g: Game)
 		lbl.TextScaled = true
 		lbl.TextXAlignment = side < 0 and Enum.TextXAlignment.Left or Enum.TextXAlignment.Right
 		lbl.TextColor3 = txtCol
-		lbl.Text = (side < 0 and "♔ أسر: 0" or "♚ أسر: 0")
+		lbl.Text = (side < 0 and "⚪ أسر: 0" or "⚫ أسر: 0")
 		lbl.Parent = capRow
 		local stk = Instance.new("UIStroke")
 		stk.Thickness = 2
