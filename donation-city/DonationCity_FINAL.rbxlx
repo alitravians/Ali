@@ -1519,7 +1519,7 @@ end)
       </Properties>
     </Item>
   </Item>
-  <Item class="ServerScriptService" referent="6">
+  <Item class="ReplicatedStorage" referent="ReplicatedStorage"><Properties><string name="Name">ReplicatedStorage</string></Properties></Item><Item class="ServerScriptService" referent="6">
     <Properties>
       <string name="Name">ServerScriptService</string>
     </Properties>
@@ -177614,7 +177614,7 @@ end)
     </Properties>
     </Item>
   </Item>
-<SharedStrings>
+<Item class="ServerStorage" referent="GuardServerStorage"><Properties/></Item><SharedStrings>
 <SharedString md5="DldRwCblQ7Loqy6wYJnaoQ=="/>
 		<SharedString md5="PMB2KoA8tmtQMchiJbkWJw==">Q1NHUEhTBwAAAAIhsepAOp0Yt3HstTms1Ia7A2gMQ1xwOznJMoy4dZaNQmDSrr2gV45CEAAA
 AAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAACAPyQAAAAEAAAARIMQPxiSkL95
@@ -182346,4 +182346,4 @@ GwAAABoAAAASAAAAHAAAAAkAAAAMAAAAHAAAAAwAAAAUAAAAHAAAABQAAAAJAAAAHQAAABIA
 AAATAAAAHQAAAAcAAAABAAAAHQAAAAEAAAASAAAAHgAAABMAAAAHAAAAHgAAAAcAAAAdAAAA
 HgAAAB0AAAATAAAA</SharedString>
 		</SharedStrings>
-<Item class="ServerStorage" referent="GuardServerStorage"><Properties/></Item></roblox>
+</roblox>

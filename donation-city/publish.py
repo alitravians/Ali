@@ -22,9 +22,10 @@ Usage:
 import os
 import sys
 import subprocess
-import xml.etree.ElementTree as ET
 import urllib.request
 import json
+
+from lxml import etree as ET
 
 # --- Configuration ---
 UNIVERSE_ID = "10237943037"
@@ -125,11 +126,76 @@ def build():
     print("Build complete.")
 
 
+def normalize_rbxlx():
+    """Normalize rbxlx structure so Studio/Open Cloud both accept it."""
+    print("\n=== STEP 3: Normalizing rbxlx structure ===")
+
+    parser = ET.XMLParser(strip_cdata=False, huge_tree=True, remove_blank_text=False)
+    tree = ET.parse(RBXLX_FILE, parser)
+    root = tree.getroot()
+    if root.tag != "roblox":
+        sys.exit(f"ERROR: {RBXLX_FILE} root element is {root.tag!r}, expected 'roblox'")
+
+    children = list(root)
+    needs_rebuild = False
+
+    if not any(child.tag == "Item" and child.get("class") == "ReplicatedStorage" for child in children):
+        rs = ET.Element("Item")
+        rs.set("class", "ReplicatedStorage")
+        rs.set("referent", "ReplicatedStorage")
+        props = ET.SubElement(rs, "Properties")
+        nm = ET.SubElement(props, "string")
+        nm.set("name", "Name")
+        nm.text = "ReplicatedStorage"
+        insert_at = next(
+            (i + 1 for i, child in enumerate(children)
+             if child.tag == "Item" and child.get("class") == "ReplicatedFirst"),
+            len(children),
+        )
+        children.insert(insert_at, rs)
+        needs_rebuild = True
+        print("  inserted missing ReplicatedStorage service")
+
+    shared_blocks = [child for child in children if child.tag == "SharedStrings"]
+    if shared_blocks:
+        needs_rebuild = True
+        merged = shared_blocks[0]
+        seen_md5 = {s.get("md5") for s in merged.findall("SharedString") if s.get("md5")}
+        for extra in shared_blocks[1:]:
+            for s in list(extra):
+                if s.tag != "SharedString":
+                    continue
+                md5 = s.get("md5")
+                if md5 and md5 not in seen_md5:
+                    merged.append(s)
+                    seen_md5.add(md5)
+            root.remove(extra)
+
+    if needs_rebuild:
+        merged = shared_blocks[0] if shared_blocks else None
+        for child in list(root):
+            root.remove(child)
+        for child in children:
+            if child.tag != "SharedStrings":
+                root.append(child)
+        if merged is not None:
+            root.append(merged)
+
+    bak = RBXLX_FILE + ".bak"
+    if os.path.exists(RBXLX_FILE):
+        import shutil
+        shutil.copy2(RBXLX_FILE, bak)
+    tmp = RBXLX_FILE + ".tmp"
+    tree.write(tmp, encoding="utf-8", xml_declaration=True, pretty_print=False)
+    os.replace(tmp, RBXLX_FILE)
+    print(f"  normalized {RBXLX_FILE}")
+
+
 def validate_xml():
     """Validate the rbxlx file is well-formed XML."""
-    print("\n=== STEP 3: Validating XML ===")
+    print("\n=== STEP 4: Validating XML ===")
     try:
-        ET.parse(RBXLX_FILE)
+        ET.parse(RBXLX_FILE, ET.XMLParser(strip_cdata=False, huge_tree=True, remove_blank_text=False))
         print(f"  {RBXLX_FILE} is valid XML")
     except ET.ParseError as e:
         print(f"XML VALIDATION FAILED: {e}")
@@ -138,7 +204,7 @@ def validate_xml():
 
 def strip_xml_declaration():
     """Remove <?xml ...?> declaration if present (Roblox API rejects it)."""
-    print("\n=== STEP 4: Stripping XML declaration ===")
+    print("\n=== STEP 5: Stripping XML declaration ===")
     with open(RBXLX_FILE, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -155,7 +221,7 @@ def strip_xml_declaration():
 
 def publish():
     """Upload rbxlx to Roblox Open Cloud API."""
-    print("\n=== STEP 5: Publishing to Roblox ===")
+    print("\n=== STEP 6: Publishing to Roblox ===")
 
     api_key = os.environ.get("ROBLOX_PUBLISH_API_KEY")
     if not api_key:
@@ -212,10 +278,13 @@ def main():
     # Step 2: Build
     build()
 
-    # Step 3: Validate XML
+    # Step 3: Normalize the final rbxlx structure
+    normalize_rbxlx()
+
+    # Step 4: Validate XML
     validate_xml()
 
-    # Step 4: Strip XML declaration
+    # Step 5: Strip XML declaration
     strip_xml_declaration()
 
     # Step 5: Publish

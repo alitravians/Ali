@@ -84,3 +84,4 @@ with open(tmp, "w", encoding="utf-8") as f:
     f.write(content)
 os.replace(tmp, SRC)
 print(f"file now {len(content)} bytes")
+print("Build complete.")
