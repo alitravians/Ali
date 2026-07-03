@@ -1310,7 +1310,7 @@ local function cleanupArtifacts()
 		local gui = pg and pg:FindFirstChild("RoyalSpawnHUD")
 		if gui then gui:Destroy() end
 	end)
-	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "ImpactRing", "Dust", "SpawnFlightClouds" }) do
+	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "RoyalSpawnShadow", "ImpactRing", "Dust", "SpawnFlightClouds" }) do
 		local inst = Workspace:FindFirstChild(name)
 		if inst then inst:Destroy() end
 	end
