@@ -282,6 +282,7 @@ end
 
 local showSeatMenu   -- forward declaration
 local showStore      -- forward declaration (المتجر — نافذة وسط الشاشة)
+local refreshStoreUI -- forward declaration (تحديث المتجر فقط إذا كان مفتوحاً)
 local onStoreSpeedSet -- forward declaration (تحديث شريط سرعة المشي في المتجر بعد تأكيد السيرفر)
 local showAdminPanel -- forward declaration (لوحة الإدارة)
 local showAnnounce   -- forward declaration (إعلان عام على الشاشة)
@@ -824,14 +825,17 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 	if type(data) ~= "table" then return end
 	if data.action == "boxoffice" then
 		showBoxOffice(data)
-    elseif data.action == "store" then
-            showStore(data)
-    elseif data.action == "storeRefresh" then
-            if refreshStoreUI then refreshStoreUI(data) end
-    elseif data.action == "adminOpen" then
-            showAdminPanel(data)
-    elseif data.action == "adminDenied" then
-            showAnnounce({ text = "â ÙØ£Ø¹Ù„Ù‰)." })
+	elseif data.action == "store" then
+		showStore(data)
+	elseif data.action == "storeRefresh" then
+		if refreshStoreUI then refreshStoreUI(data) end
+	elseif data.action == "adminOpen" then
+		showAdminPanel(data)
+	elseif data.action == "adminDenied" then
+		showAnnounce({ text = "❌ لا تملك صلاحية الإدارة (مشرف فأعلى)." })
+	elseif data.action == "rankInfo" then
+		myRank = typeof(data.rank) == "string" and data.rank or ""
+		if updateAdminButton then updateAdminButton() end
 	elseif data.action == "warn" then
 		if showWarn then showWarn(data) end
 	elseif data.action == "announce" then
@@ -1509,11 +1513,11 @@ do
 			if not any then grid:Destroy() end
 		end
 
-          refreshStoreUI = function(refreshData)
-                  if storeOpen and showStore then
-                          showStore(refreshData)
-                  end
-          end
+		refreshStoreUI = function(refreshData)
+			if storeOpen and showStore then
+				showStore(refreshData)
+			end
+		end
 		local catBtns = {}
 		local function setActive(key)
 			activeCat = key
