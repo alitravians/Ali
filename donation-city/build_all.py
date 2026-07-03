@@ -48,6 +48,8 @@ UPDATES = [
     ("src/DayNightClient.client.lua", "DAY NIGHT CLIENT (Client)"),
     ("src/TicTacToe.server.lua",      "TIC TAC TOE — لعبة إكس-أو"),
     ("src/BoundarySystem.server.lua", "BOUNDARY SYSTEM (Server)"),
+    ("src/CuffSystem.server.lua",     "CUFF SYSTEM (Server)"),
+    ("src/CuffClient.client.lua",     "CUFF SYSTEM (Client)"),
     ("src/CherryTrees.server.lua",    "CHERRY TREES (Server)"),
     ("src/CherryTrees.client.lua",    "CHERRY TREES (Client)"),
     ("src/Chess.server.lua",          "CHESS — لعبة الشطرنج ثلاثية الأبعاد (Server)"),

@@ -75,7 +75,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٧٦",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٧٧",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -103,6 +103,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٧٧", date = "٢٩ يونيو",
+			items = {
+				{ "new", "أضفنا الكلبشات: ستة أساليب شراء بالكوينز مع تجهيز واستخدام ميداني لتقييد اللاعبين عن بُعد القريب، مع مظهر عربي أنيق وسلسلة جرّ مرئية." },
+			},
+		},
 		{
 			version = "٢.٩.٧٦", date = "٢٩ يونيو",
 			items = {
@@ -1300,8 +1306,16 @@ local function showMainMenu()
 	local updatesPanel = makeUpdatesPanel(CONFIG.UpdatesTitle, CONFIG.UpdatesLog)
 	rulesPanel.back.MouseButton1Click:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(rulesPanel, false) end)
 	updatesPanel.back.MouseButton1Click:Connect(function() playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(updatesPanel, false) end)
-	rulesBtn.MouseButton1Click:Connect(function() if menuClosing then return end playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(rulesPanel, true) end)
-	updatesBtn.MouseButton1Click:Connect(function() if menuClosing then return end playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click); setPanelVisible(updatesPanel, true) end)
+	rulesBtn.MouseButton1Click:Connect(function()
+		if menuClosing then return end
+		playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click)
+		setPanelVisible(rulesPanel, true)
+	end)
+	updatesBtn.MouseButton1Click:Connect(function()
+		if menuClosing then return end
+		playSound(CONFIG.MenuSounds and CONFIG.MenuSounds.Click)
+		setPanelVisible(updatesPanel, true)
+	end)
 
 	startBtn.MouseButton1Click:Connect(function()
 		if menuClosing then return end

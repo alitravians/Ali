@@ -21,6 +21,8 @@ local playerGui   = LocalPlayer:WaitForChild("PlayerGui")
 local remotes    = ReplicatedStorage:WaitForChild("CinemaRemotes")
 local seatRemote = remotes:WaitForChild("SeatMenu")
 local lobbyRemote = remotes:WaitForChild("Lobby")  -- يُعرَّف مبكراً لأن دوال النوافذ (شبّاك التذاكر/المتجر) تستعمله قبل هذا الموضع
+local cuffRemotes = ReplicatedStorage:WaitForChild("CuffRemotes")
+local cuffActionRemote = cuffRemotes:WaitForChild("Action")
 
 ------------------------------------------------------------------------
 -- CONFIG (ألوان + أصوات الزجاج — قابلة للتعديل)
@@ -1079,6 +1081,7 @@ do
 		{ key = "packs", label = "الباقات" },
 		{ key = "coins", label = "حزم كوينز" },
 		{ key = "speed", label = "السرعة" },
+		{ key = "cuffs", label = "الكلبشات" },
 	}
 
 	local function clearConns()
@@ -1093,7 +1096,10 @@ do
 		storeRoot = nil
 		storeOpen = false
 		if not r then return end
-		if not animated then if r.Parent then r:Destroy() end return end
+		if not animated then
+			if r.Parent then r:Destroy() end
+			return
+		end
 		TweenService:Create(r, TweenInfo.new(0.18), { BackgroundTransparency = 1 }):Play()
 		for _, d in ipairs(r:GetDescendants()) do
 			if d:IsA("GuiObject") then
@@ -1133,11 +1139,31 @@ do
 		return holder
 	end
 
+	local function priceLabel(item)
+		local suffix = item.kind == "cuff" and " كوينز" or " R$"
+		return toAr(item.price or 0) .. suffix
+	end
+
+	local function cuffAction(item)
+		if not item.owned then
+			return "buyCuff"
+		end
+		if item.equipped then
+			return nil
+		end
+		return "equipCuff"
+	end
+
 	-- إطلاق عملية الشراء (Game Pass أو منتج) + حالة انتظار مؤقتة على الزر
 	local function fireBuy(item, btn, label)
 		btn.Text = "⏳ جاري فتح نافذة الشراء..."
 		task.delay(2, function() if btn and btn.Parent then btn.Text = label end end)
-		if item.kind == "gamepass" then
+		if item.kind == "cuff" then
+			local action = cuffAction(item)
+			if action then
+				cuffActionRemote:FireServer({ action = action, key = item.key })
+			end
+		elseif item.kind == "gamepass" then
 			lobbyRemote:FireServer({ action = "buyGamePass", passId = item.id })
 		else
 			lobbyRemote:FireServer({ action = "buyProduct", productId = item.id })
@@ -1251,6 +1277,19 @@ do
 			TextWrapped = true, Size = UDim2.new(1, -144, 0, 50), Position = UDim2.fromOffset(16, 88), Parent = hero,
 		})
 
+		if item.kind == "cuff" then
+			new("TextLabel", {
+				BackgroundColor3 = Color3.fromRGB(70, 54, 110),
+				Text = tostring(item.rarity or "خاص"),
+				Font = Enum.Font.GothamBlack,
+				TextSize = 14,
+				TextColor3 = TEXT,
+				Size = UDim2.fromOffset(96, 28),
+				Position = UDim2.fromOffset(14, 130),
+				Parent = hero,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, 8) }) })
+		end
+
 		if item.owned then
 			new("TextLabel", {
 				BackgroundColor3 = Color3.fromRGB(150, 235, 170), Text = "✓ مملوك", Font = Enum.Font.GothamBlack,
@@ -1260,8 +1299,19 @@ do
 			if ownedSpeed and storeData and storeData.speed ~= false then
 				buildSpeedSlider(hero, 168, storeData)
 			end
+			if item.kind == "cuff" and not item.equipped then
+				local equip = styledButton(hero, {
+					Name = "Equip", Text = "⚙️ تجهيز", Font = Enum.Font.GothamBlack, TextSize = 18,
+					TextColor3 = Color3.fromRGB(24, 18, 8), BackgroundColor3 = GOLD,
+					Size = UDim2.new(1, -32, 0, 44), Position = UDim2.fromOffset(16, 142), Parent = hero,
+				})
+				equip.MouseButton1Click:Connect(function()
+					playSound(SOUNDS.Click, SOUND_VOLUME)
+					fireBuy(item, equip, "⚙️ تجهيز")
+				end)
+			end
 		else
-			local label = "🛒 اشترِ — " .. toAr(item.price or 0) .. " R$"
+			local label = "🛒 اشترِ — " .. priceLabel(item)
 			local buy = styledButton(hero, {
 				Name = "Buy", Text = label, Font = Enum.Font.GothamBlack, TextSize = 18,
 				TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
@@ -1281,9 +1331,21 @@ do
 			Name = "Item", BackgroundColor3 = CARD2, BorderSizePixel = 0, Parent = parent,
 		}, {
 			new("UICorner", { CornerRadius = UDim.new(0, 14) }),
-			new("UIStroke", { Color = item.kind == "gamepass" and GOLD or PURPLE, Thickness = 1.4, Transparency = 0.45 }),
+			new("UIStroke", { Color = item.kind == "cuff" and Color3.fromRGB(108, 92, 180) or (item.kind == "gamepass" and GOLD or PURPLE), Thickness = 1.4, Transparency = 0.45 }),
 		})
 		buildIcon(card, item, 54, Vector2.new(1, 0), UDim2.new(1, -10, 0, 10))
+		if item.kind == "cuff" then
+			new("TextLabel", {
+				BackgroundColor3 = Color3.fromRGB(70, 54, 110),
+				Text = tostring(item.rarity or "خاص"),
+				Font = Enum.Font.GothamBlack,
+				TextSize = 12,
+				TextColor3 = TEXT,
+				Size = UDim2.fromOffset(78, 24),
+				Position = UDim2.fromOffset(10, 10),
+				Parent = card,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, 8) }) })
+		end
 		new("TextLabel", {
 			BackgroundTransparency = 1, Text = item.name, Font = Enum.Font.GothamBlack, TextSize = 17,
 			TextColor3 = TEXT, TextXAlignment = Enum.TextXAlignment.Right, TextTruncate = Enum.TextTruncate.AtEnd,
@@ -1294,14 +1356,32 @@ do
 			TextColor3 = SUBT, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
 			TextWrapped = true, Size = UDim2.new(1, -20, 0, 46), Position = UDim2.fromOffset(10, 42), Parent = card,
 		})
-		if item.owned then
+		if item.kind == "cuff" and item.owned and item.equipped then
 			styledButton(card, {
-				Name = "Owned", Text = "✓ مملوك", Font = Enum.Font.GothamBlack, TextSize = 15,
+				Name = "Active", Text = "✓ مجهّزة", Font = Enum.Font.GothamBlack, TextSize = 15,
 				TextColor3 = Color3.fromRGB(20, 28, 18), BackgroundColor3 = Color3.fromRGB(150, 235, 170),
 				Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
 			}, false)
+		elseif item.owned then
+			if item.kind == "cuff" then
+				local equip = styledButton(card, {
+					Name = "Equip", Text = "⚙️ تجهيز", Font = Enum.Font.GothamBlack, TextSize = 15,
+					TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
+					Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
+				})
+				equip.MouseButton1Click:Connect(function()
+					playSound(SOUNDS.Click, SOUND_VOLUME)
+					fireBuy(item, equip, "⚙️ تجهيز")
+				end)
+			else
+				styledButton(card, {
+					Name = "Owned", Text = "✓ مملوك", Font = Enum.Font.GothamBlack, TextSize = 15,
+					TextColor3 = Color3.fromRGB(20, 28, 18), BackgroundColor3 = Color3.fromRGB(150, 235, 170),
+					Size = UDim2.new(1, -20, 0, 34), Position = UDim2.new(0, 10, 1, -44), Parent = card,
+				}, false)
+			end
 		else
-			local label = "🛒 " .. toAr(item.price or 0) .. " R$"
+			local label = "🛒 " .. priceLabel(item)
 			local buy = styledButton(card, {
 				Name = "Buy", Text = label, Font = Enum.Font.GothamBlack, TextSize = 15,
 				TextColor3 = Color3.fromRGB(20, 16, 8), BackgroundColor3 = GOLD,
