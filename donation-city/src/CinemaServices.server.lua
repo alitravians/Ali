@@ -2351,7 +2351,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 	if key then
 		grantPass(player, key, true)
 		sendPerks(player)
-		if _G.OpenStore then _G.OpenStore(player) end  -- حدّث المتجر ليظهر «مملوك»
+		if _G.RefreshStore then _G.RefreshStore(player) end  -- حدّث المتجر ليظهر «مملوك»
 	end
 end)
 
@@ -2577,7 +2577,7 @@ local function ownsGamePass(player: Player, passId: number): boolean
 	return ok and owns == true
 end
 
-local function openStore(player)
+local function openStore(player, refreshOnly)
 	local items = {}
 	for _, it in ipairs(STORE_ITEMS) do
 		if it.id ~= 0 then
@@ -2609,7 +2609,7 @@ local function openStore(player)
 	end
 	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
-		action = "store",
+		action = refreshOnly and "storeRefresh" or "store",
 		items  = items,
 		coins  = _G.GetCoins(player),
 		vip    = _G.IsVIP(player),
@@ -2620,6 +2620,9 @@ local function openStore(player)
 	})
 end
 _G.OpenStore = openStore
+_G.RefreshStore = function(p)
+        openStore(p, true)
+end
 
 ------------------------------------------------------------------------
 -- ☆ المرحلة ٧ — الإضافات: الإنجازات، تقييم الأفلام، الأركيد، الفعاليات
