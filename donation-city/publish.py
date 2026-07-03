@@ -231,14 +231,14 @@ def convert_to_binary():
 
     combined_output = "\n".join(part for part in (out, err) if part)
 
+    dropped = extract_dropped_properties(combined_output)
+    if dropped:
+        dropped_block = "\n".join(f"  - {item}" for item in dropped)
+        sys.exit(
+            "ERROR: rbxl converter dropped property(s); refusing to publish.\n"
+            f"{dropped_block}"
+        )
     if code != 0:
-        dropped = extract_dropped_properties(combined_output)
-        if dropped:
-            dropped_block = "\n".join(f"  - {item}" for item in dropped)
-            sys.exit(
-                "ERROR: rbxl converter dropped property(s); refusing to publish.\n"
-                f"{dropped_block}"
-            )
         print(f"CONVERSION FAILED:\n{out}\n{err}")
         sys.exit(1)
 

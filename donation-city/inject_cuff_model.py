@@ -44,6 +44,7 @@ def set_name(item, name):
 
 def build_model_item():
     asset_root = ET.parse(ASSET, ET.XMLParser(strip_cdata=False)).getroot()
+    shared = asset_root.find('SharedStrings')
     top = asset_root.find('Item')
     if top is None or top.get('class') != 'Model':
         sys.exit("ERROR: asset rbxmx top item is not a Model")
@@ -71,7 +72,24 @@ def build_model_item():
     for it in top.iter('Item'):
         it.set('referent', f"{REF_PREFIX}{i}")
         i += 1
-    return top
+    return top, shared
+
+
+def merge_shared_strings(root, asset_shared):
+    """نقل SharedStrings الخاصة بالموديل (بيانات هندسة الـUnions) إلى ملف اللعبة —
+    بدونها تفسد مراجع SharedString ويتعطل تحميل اللعبة."""
+    if asset_shared is None:
+        return
+    dest = root.find('SharedStrings')
+    if dest is None:
+        dest = ET.SubElement(root, 'SharedStrings')
+    existing = {s.get('md5') for s in dest}
+    added = 0
+    for s in asset_shared:
+        if s.get('md5') not in existing:
+            dest.append(s)
+            added += 1
+    print(f"merged {added} shared string(s)")
 
 
 def main():
@@ -92,7 +110,9 @@ def main():
                                  or (ch.get('referent') or '').startswith(REF_PREFIX)):
             rs.remove(ch)
 
-    rs.append(build_model_item())
+    model, asset_shared = build_model_item()
+    rs.append(model)
+    merge_shared_strings(root, asset_shared)
     tree.write(RBXLX, encoding='utf-8', xml_declaration=True)
     print(f"injected {MODEL_NAME} into ReplicatedStorage")
 
