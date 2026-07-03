@@ -145,7 +145,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٨٢",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٨٣",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -173,6 +173,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٨٣", date = "٢٩ يونيو",
+			items = {
+				{ "fix", "إصلاح ظهور الكلبشات باليد: الأداة صارت تنتظر وصول الموديل ثلاثي الأبعاد وتركّبه فور وصوله، مع شكل احتياطي فوري فلا تظهر اليد فاضية أبداً." },
+			},
+		},
 		{
 			version = "٢.٩.٨٢", date = "٢٩ يونيو",
 			items = {
@@ -32872,6 +32878,133 @@ local function currentDef()
 	return nil
 end
 
+-- تثبيت نسخة من موديل الكلبشات (Creator Store 721245449) على مقبض الأداة
+local function attachModelClone(tool: Tool, handle: BasePart, def, template: Model): boolean
+	local clone = template:Clone()
+	local primary: BasePart? = nil
+	for _, inst in ipairs(clone:GetDescendants()) do
+		if inst:IsA("BasePart") then
+			inst.Anchored = false
+			inst.CanCollide = false
+			inst.CanQuery = false
+			inst.CanTouch = false
+			inst.Massless = true
+			if def and def.metal then
+				inst.Color = def.metal
+			end
+			if primary == nil then
+				primary = inst
+			else
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = primary
+				w.Part1 = inst
+				w.Parent = inst
+			end
+		end
+	end
+	if not primary then
+		clone:Destroy()
+		return false
+	end
+	clone:ScaleTo(0.7)
+	-- تتدلى الكلبشات من قبضة اليد بشكل متناسق (الحلقتان للأمام والسلسلة للأسفل)
+	clone:PivotTo(handle.CFrame * CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(90), 0, math.rad(90)))
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = handle
+	w.Part1 = primary
+	w.Parent = primary
+	if def and def.glow then
+		local light = Instance.new("PointLight")
+		light.Color = def.glow
+		light.Brightness = 0.5
+		light.Range = 5
+		light.Parent = primary
+	end
+	clone.Name = "CuffVisual"
+	clone.Parent = tool
+	return true
+end
+
+-- شكل احتياطي فوري (حلقتان + سلسلة) يظهر ريثما يصل الموديل الأصلي
+local function buildFallbackVisual(tool: Tool, handle: BasePart, def)
+	local metal = (def and def.metal) or Color3.fromRGB(190, 190, 200)
+	local glow = (def and def.glow) or Color3.fromRGB(235, 235, 245)
+	local model = Instance.new("Model")
+	model.Name = "FallbackCuff"
+
+	local function fpart(name: string, size: Vector3, cf: CFrame, color: Color3, material: Enum.Material)
+		local p = Instance.new("Part")
+		p.Name = name
+		p.Size = size
+		p.Color = color
+		p.Material = material
+		p.CanCollide = false
+		p.CanQuery = false
+		p.CanTouch = false
+		p.Massless = true
+		p.Anchored = false
+		p.CFrame = cf
+		p.Parent = model
+		local w = Instance.new("WeldConstraint")
+		w.Part0 = handle
+		w.Part1 = p
+		w.Parent = p
+		return p
+	end
+
+	local base = handle.CFrame * CFrame.new(0, -0.35, 0)
+	for side = -1, 1, 2 do
+		local center = base * CFrame.new(side * 0.24, 0, 0)
+		local segs = 8
+		for i = 1, segs do
+			local a = (i / segs) * math.pi * 2
+			fpart(
+				"RingSeg",
+				Vector3.new(0.06, 0.12, 0.08),
+				center * CFrame.new(math.cos(a) * 0.18, math.sin(a) * 0.18, 0) * CFrame.Angles(0, 0, a + math.rad(90)),
+				metal,
+				Enum.Material.Metal
+			)
+		end
+	end
+	for i = 1, 3 do
+		fpart(
+			"ChainLink",
+			Vector3.new(0.05, 0.14, 0.05),
+			base * CFrame.new((i - 2) * 0.12, 0.02, 0.02) * CFrame.Angles(0, 0, math.rad((i % 2 == 0) and 90 or 0)),
+			metal,
+			Enum.Material.Metal
+		)
+	end
+	local light = Instance.new("PointLight")
+	light.Color = glow
+	light.Brightness = 0.5
+	light.Range = 5
+	light.Parent = model:FindFirstChildWhichIsA("BasePart")
+	model.Parent = tool
+end
+
+-- يركّب الشكل باليد فوراً: الموديل الأصلي إذا كان جاهزاً، وإلا شكل احتياطي
+-- يُستبدل تلقائياً أول ما يصل الموديل من السيرفر.
+local function attachHandVisuals(tool: Tool, handle: BasePart, def)
+	local template = ReplicatedStorage:FindFirstChild("CuffModel3D")
+	if template and template:IsA("Model") then
+		if attachModelClone(tool, handle, def, template) then
+			return
+		end
+	end
+	buildFallbackVisual(tool, handle, def)
+	task.spawn(function()
+		local t = ReplicatedStorage:WaitForChild("CuffModel3D", 120)
+		if not (t and t:IsA("Model")) then return end
+		if not tool:IsDescendantOf(game) then return end
+		if attachModelClone(tool, handle, def, t) then
+			local fb = tool:FindFirstChild("FallbackCuff")
+			if fb then fb:Destroy() end
+		end
+	end)
+end
+
 local function makeEquippedCuffTool(def)
 	local tool = Instance.new("Tool")
 	tool.Name = "كلبشات"
@@ -32890,51 +33023,7 @@ local function makeEquippedCuffTool(def)
 	handle.Massless = true
 	handle.Parent = tool
 
-	-- موديل الكلبشات ثلاثي الأبعاد من ReplicatedStorage (Creator Store 721245449)
-	local template = ReplicatedStorage:FindFirstChild("CuffModel3D")
-	if template and template:IsA("Model") then
-		local clone = template:Clone()
-		local primary: BasePart? = nil
-		for _, inst in ipairs(clone:GetDescendants()) do
-			if inst:IsA("BasePart") then
-				inst.Anchored = false
-				inst.CanCollide = false
-				inst.CanQuery = false
-				inst.CanTouch = false
-				inst.Massless = true
-				if def and def.metal then
-					inst.Color = def.metal
-				end
-				if primary == nil then
-					primary = inst
-				else
-					local w = Instance.new("WeldConstraint")
-					w.Part0 = primary
-					w.Part1 = inst
-					w.Parent = inst
-				end
-			end
-		end
-		clone:ScaleTo(0.7)
-		-- تتدلى الكلبشات من قبضة اليد بشكل متناسق (الحلقتان للأمام والسلسلة للأسفل)
-		clone:PivotTo(handle.CFrame * CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(90), 0, math.rad(90)))
-		if primary then
-			local w = Instance.new("WeldConstraint")
-			w.Part0 = handle
-			w.Part1 = primary
-			w.Parent = primary
-			if def and def.glow then
-				local light = Instance.new("PointLight")
-				light.Color = def.glow
-				light.Brightness = 0.5
-				light.Range = 5
-				light.Parent = primary
-			end
-			clone.Parent = tool
-		else
-			clone:Destroy()
-		end
-	end
+	attachHandVisuals(tool, handle, def)
 
 	tool.Grip = CFrame.new(0, -0.25, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 	return tool
