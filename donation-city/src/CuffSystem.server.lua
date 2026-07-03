@@ -768,6 +768,17 @@ local function restoreStateFromRecord(player: Player, record)
 	if record.removeConn then pcall(function() record.removeConn:Disconnect() end) end
 	if record.beam and record.beam.Parent then pcall(function() record.beam:Destroy() end) end
 	if record.model and record.model.Parent then pcall(function() record.model:Destroy() end) end
+	local targetRoot = findRoot(character)
+	if targetRoot then
+		pcall(function() targetRoot:SetNetworkOwner(player) end)
+	end
+	local cufferPlayer = Players:GetPlayerByUserId(record.cufferUserId or 0)
+	if cufferPlayer then
+		local cufferRoot = findRoot(cufferPlayer.Character)
+		if cufferRoot then
+			pcall(function() cufferRoot:SetNetworkOwner(cufferPlayer) end)
+		end
+	end
 end
 
 local function releaseTarget(targetPlayer: Player, reason: string?, _forceByAdmin: boolean?)
