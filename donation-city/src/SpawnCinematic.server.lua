@@ -28,7 +28,7 @@ if not remotes then
 	remotes.Parent = ReplicatedStorage
 end
 
-local CANOPY_ASSET_ID = 124648818423970
+local CANOPY_ASSET_ID = 140287954815361
 
 local function loadRoyalCanopyMesh()
     if ReplicatedStorage:FindFirstChild("RoyalCanopyMesh") then

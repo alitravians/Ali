@@ -85,11 +85,6 @@ end
 
 local canopyTemplate: Model? = nil
 
-local function isWhitePart(part: BasePart): boolean
-    local c = part.Color
-    return c.R > 0.95 and c.G > 0.95 and c.B > 0.95
-end
-
 loadCanopyTemplate = function(): Model?
     if canopyTemplate then
             return canopyTemplate
@@ -123,27 +118,18 @@ local function normalizeCanopyTemplate(model: Model)
 end
 
 local function recolorCanopyTemplate(model: Model)
-    local bboxCF, bboxSize = model:GetBoundingBox()
-    local center = bboxCF.Position
     for _, inst in ipairs(model:GetDescendants()) do
-            if inst:IsA("BasePart") and isWhitePart(inst) then
+            if inst:IsA("BasePart") then
                     local name = string.lower(inst.Name)
-                    if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") then
+                    if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") or name:find("ring") then
                             inst.Color = Color3.fromRGB(38, 38, 44)
-                    elseif name:find("apex") or name:find("vent") or name:find("top") then
+                            inst.Material = Enum.Material.SmoothPlastic
+                    elseif name:find("gold") or name:find("apex") or name:find("vent") or name:find("top") then
                             inst.Color = GOLD
-                    elseif name:find("seam") or name:find("gore") or name:find("lobe") then
-                            local parity = (math.floor(inst.Position.X * 10) + math.floor(inst.Position.Y * 10) + math.floor(inst.Position.Z * 10)) % 2
-                            inst.Color = if parity == 0 then GOLD else NAVY
+                            inst.Material = Enum.Material.Metal
                     else
-                            local relY = inst.Position.Y - center.Y
-                            if relY > bboxSize.Y * 0.35 then
-                                    inst.Color = GOLD
-                            elseif relY < -bboxSize.Y * 0.15 then
-                                    inst.Color = Color3.fromRGB(38, 38, 44)
-                            else
-                                    inst.Color = NAVY
-                            end
+                            inst.Color = NAVY
+                            inst.Material = Enum.Material.SmoothPlastic
                     end
             end
     end
@@ -1061,7 +1047,7 @@ local function run()
 			local shadowSize = math.clamp(60 - altitude * 0.08, 12, 60)
 			cinematicShadow.Size = Vector3.new(shadowSize, 0.18, shadowSize)
 			cinematicShadow.Position = Vector3.new(x, groundY + 0.04, z)
-			cinematicShadow.Transparency = math.clamp(0.85 - (60 - shadowSize) * 0.006, 0.34, 0.85)
+			cinematicShadow.Transparency = math.clamp(0.34 + (60 - shadowSize) * 0.01, 0.34, 0.85)
 		end
 		local shakeBase = canopyMode and 0.03 or math.clamp((speed - 95) / 950, 0, 0.08)
 		shakeBase += math.clamp(1 - math.clamp(openBlend, 0, 1), 0, 1) * 0.08
