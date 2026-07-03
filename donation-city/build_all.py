@@ -4,6 +4,7 @@
 import sys
 import shutil
 import os
+from lxml import etree as ET
 
 SRC = "DonationCity_FINAL.rbxlx"
 
@@ -50,37 +51,34 @@ UPDATES = [
     ("src/BoundarySystem.server.lua", "BOUNDARY SYSTEM (Server)"),
     ("src/CherryTrees.server.lua",    "CHERRY TREES (Server)"),
     ("src/CherryTrees.client.lua",    "CHERRY TREES (Client)"),
-    ("src/Chess.server.lua",          "CHESS — لعبة الشطرنج ثلاثية الأبعاد (Server)"),
 ]
 
-with open(SRC, "r", encoding="utf-8") as f:
-    content = f.read()
+parser = ET.XMLParser(remove_blank_text=False, strip_cdata=False)
+tree = ET.parse(SRC, parser)
+root = tree.getroot()
 
 for path, marker in UPDATES:
     with open(path, "r", encoding="utf-8") as f:
         source = f.read()
     if "]]>" in source:
         sys.exit(f"ERROR: {path} contains ]]> which breaks CDATA")
-    count = content.count(marker)
-    if count != 1:
-        sys.exit(f"ERROR: marker '{marker}' found {count} times (expected 1)")
-    idx = content.find(marker)
-    start = content.rfind("<![CDATA[", 0, idx)
-    if start == -1:
-        sys.exit(f"ERROR: no CDATA open before marker '{marker}'")
-    start_inner = start + len("<![CDATA[")
-    end_inner = content.find("]]>", start_inner)
-    old = content[start_inner:end_inner]
-    if marker not in old:
-        sys.exit(f"ERROR: located block is not '{marker}'")
-    content = content[:start_inner] + source + content[end_inner:]
+    matches = []
+    for item in root.xpath("//Item[@class='Script' or @class='LocalScript' or @class='ModuleScript']"):
+        src_node = item.find("Properties/string[@name='Source']")
+        if src_node is not None and src_node.text and marker in src_node.text:
+            matches.append((item, src_node))
+    if len(matches) != 1:
+        sys.exit(f"ERROR: marker '{marker}' found in {len(matches)} script source(s) (expected 1)")
+    _, src_node = matches[0]
+    old = src_node.text or ""
+    src_node.text = ET.CDATA(source)
     print(f"updated {marker}: {len(old)} -> {len(source)} chars")
 
 # نسخة احتياطية قبل الكتابة + كتابة ذرّية (ملف مؤقّت ثم استبدال) — تحمي من تلف الملف لو انقطعت العملية
 if os.path.exists(SRC):
     shutil.copy(SRC, SRC + ".bak")
 tmp = SRC + ".tmp"
-with open(tmp, "w", encoding="utf-8") as f:
-    f.write(content)
+tree.write(tmp, encoding="utf-8", xml_declaration=True)
 os.replace(tmp, SRC)
-print(f"file now {len(content)} bytes")
+print(f"file now {os.path.getsize(SRC)} bytes")
+print("Build complete.")
