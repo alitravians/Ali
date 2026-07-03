@@ -106,14 +106,17 @@ local function normalizeCanopyTemplate(model: Model)
     local pivot = model:GetPivot()
     local pivotToBox = pivot:ToObjectSpace(bboxCF)
     local horizontal = math.max(bboxSize.X, bboxSize.Z)
-    local scale = if horizontal > 0 then (34 / horizontal) else 1
+    local scale = if horizontal > 0 then (24 / horizontal) else 1
     if scale > 0 and math.abs(scale - 1) > 1e-4 then
             model:ScaleTo(scale)
             bboxCF, bboxSize = model:GetBoundingBox()
             pivot = model:GetPivot()
             pivotToBox = pivot:ToObjectSpace(bboxCF)
     end
-    local targetBox = CFrame.new(0, 18, 0)
+    -- ثبّت المظلّة من أسفلها (حلقة التعليق) فوق ظهر اللاعب مباشرة بدل توسيطها عالياً،
+    -- عشان الحبال تتجمّع على ظهره وتتزامن معه بدل ما تطير فوقه.
+    local BOTTOM_OFFSET = 1.6
+    local targetBox = CFrame.new(0, BOTTOM_OFFSET + bboxSize.Y * 0.5, 0)
     model:PivotTo(targetBox * pivotToBox:Inverse())
 end
 
@@ -485,9 +488,10 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 
 	-- خط زينة ذهبي على الجهتين
 	for _, side in ipairs({ -1, 1 }) do
-		local strip = neonBulb("CheatLine", Vector3.new(hf * 1.5, hu * 0.10, 0.2), GOLD, model)
+		local strip = neonBulb("CheatLine", Vector3.new(hf * 1.5, hu * 0.07, 0.2), GOLD, model)
 		strip.Material = Enum.Material.Neon
-		strip.CFrame = CFrame.fromMatrix(at(0, side * 1.0, 0.15), fwd, up, lat * side)
+		-- أنزل خط الزينة أسفل شريط الكتابة حتى لا يغطّي وهجه النص
+		strip.CFrame = CFrame.fromMatrix(at(-0.42, side * 1.0, 0.15), fwd, up, lat * side)
 	end
 
 	------------------------------------------------------------------
@@ -503,13 +507,22 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		local sg = mk("SurfaceGui", {
 			Name = "Livery", Face = Enum.NormalId.Back, Parent = panel,
 			CanvasSize = Vector2.new(800, 240), LightInfluence = 0,
-			AlwaysOnTop = false,
+			AlwaysOnTop = true, ZOffset = 1,
 		}) :: SurfaceGui
+		-- لوحة كحلية معتمة خلف النص تمنع الوهج من تغطيته + إطار ذهبي
+		local plate = mk("Frame", {
+			Name = "Plate", AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.96, 0.74),
+			BackgroundColor3 = NAVY, BackgroundTransparency = 0.08, Parent = sg,
+		}) :: Frame
+		mk("UICorner", { CornerRadius = UDim.new(0, 26), Parent = plate })
+		mk("UIStroke", { Color = GOLD, Thickness = 4, Parent = plate })
 		mk("TextLabel", {
-			Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.9, 0.72), Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1,
 			Text = "طائرة شهد للنزول الملكي", Font = Enum.Font.GothamBlack,
-			TextScaled = true, TextColor3 = GOLD, TextStrokeColor3 = NAVY,
-			TextStrokeTransparency = 0.2, Parent = sg,
+			TextScaled = true, TextColor3 = GOLD, TextStrokeColor3 = Color3.new(0, 0, 0),
+			TextStrokeTransparency = 0.1, Parent = plate,
 		})
 	end
 
@@ -519,7 +532,7 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	for _, side in ipairs({ -1, 1 }) do
 		local win = neonBulb("CabinWindows", Vector3.new(hf * 0.95, hu * 0.16, 0.18), WARM, model)
 		win.CFrame = CFrame.fromMatrix(at(0.05, side * 1.0, 0.45), fwd, up, lat * side)
-		local pl = mk("PointLight", { Color = WARM, Brightness = 0.8, Range = 10, Parent = win }) :: PointLight
+		local pl = mk("PointLight", { Color = WARM, Brightness = 0.35, Range = 8, Parent = win }) :: PointLight
 		pl.Shadows = false
 	end
 
