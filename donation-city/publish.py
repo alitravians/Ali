@@ -41,7 +41,9 @@ BINARY_RBXL = BUILD_DIR / "DonationCity_FINAL.rbxl"
 NORMALIZER = Path("tools") / "normalize_rbxlx.py"
 CONVERTER_DIR = Path("tools") / "rbxlx2rbxl"
 CONVERTER_MANIFEST = CONVERTER_DIR / "Cargo.toml"
-CONVERTER_BINARY = CONVERTER_DIR / "target" / "release" / "rbxlx2rbxl"
+CONVERTER_BINARY = CONVERTER_DIR / "target" / "release" / (
+    "rbxlx2rbxl.exe" if sys.platform == "win32" else "rbxlx2rbxl"
+)
 API_URL = f"https://apis.roblox.com/universes/v1/{UNIVERSE_ID}/places/{PLACE_ID}/versions?versionType=Published"
 
 

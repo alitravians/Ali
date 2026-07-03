@@ -30,7 +30,6 @@ local function isMobileInput(): boolean
 end
 local TweenService      = game:GetService("TweenService")
 local Workspace         = game:GetService("Workspace")
-local InsertService     = game:GetService("InsertService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -70,7 +69,6 @@ local GOLD  = Color3.fromRGB(214, 175, 92)
 local NAVY  = Color3.fromRGB(28, 42, 78)
 local WHITE = Color3.fromRGB(245, 245, 250)
 local WARM  = Color3.fromRGB(255, 226, 168)
-local CANOPY_ASSET_ID = 124648818423970
 local loadCanopyTemplate: (() -> Model?)? = nil
 local buildProceduralCanopy: (() -> (Model, BasePart))? = nil
 
@@ -97,37 +95,16 @@ loadCanopyTemplate = function(): Model?
             return canopyTemplate
     end
 
-    local asset: Instance? = nil
-    for attempt = 1, 5 do
-            local ok, result = pcall(function()
-                    return InsertService:LoadAsset(CANOPY_ASSET_ID)
-            end)
-            if ok and result then
-                    asset = result
-                    break
-            end
-            task.wait(2 * attempt)
+    local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 8)
+    if mesh and mesh:IsA("Model") then
+            canopyTemplate = mesh
+            return canopyTemplate
     end
 
-    if not asset then
-            return nil
-    end
-
-    local template = asset:FindFirstChildWhichIsA("Model")
-    if not template then
-            asset:Destroy()
-            return nil
-    end
-
-    template.Parent = nil
-    asset:Destroy()
-    canopyTemplate = template
-    return canopyTemplate
+    return nil
 end
 
-task.spawn(function()
-        loadCanopyTemplate()
-end)
+task.spawn(loadCanopyTemplate)
 
 local function normalizeCanopyTemplate(model: Model)
     local bboxCF, bboxSize = model:GetBoundingBox()

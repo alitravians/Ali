@@ -16,6 +16,7 @@
 
 local Players          = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local InsertService    = game:GetService("InsertService")
 
 ------------------------------------------------------------------------
 -- قنوات الاتصال (RemoteEvents)
@@ -26,6 +27,50 @@ if not remotes then
 	remotes.Name = "SpawnCinematicRemotes"
 	remotes.Parent = ReplicatedStorage
 end
+
+local CANOPY_ASSET_ID = 124648818423970
+
+local function loadRoyalCanopyMesh()
+    if ReplicatedStorage:FindFirstChild("RoyalCanopyMesh") then
+            return
+    end
+
+    local asset = nil
+    for attempt = 1, 5 do
+            local ok, result = pcall(function()
+                    return InsertService:LoadAsset(CANOPY_ASSET_ID)
+            end)
+            if ok and result then
+                    asset = result
+                    break
+            end
+            task.wait(2 * attempt)
+    end
+
+    if not asset then
+            warn("SpawnCinematic: failed to load RoyalCanopyMesh asset")
+            return
+    end
+
+    local model = asset:FindFirstChildWhichIsA("Model")
+    if not model then
+            asset:Destroy()
+            warn("SpawnCinematic: RoyalCanopyMesh asset did not contain a Model")
+            return
+    end
+
+    model.Name = "RoyalCanopyMesh"
+    for _, inst in ipairs(model:GetDescendants()) do
+            if inst:IsA("BasePart") then
+                    inst.Anchored = true
+            end
+    end
+
+    model.Parent = ReplicatedStorage
+    asset:Destroy()
+end
+
+task.spawn(loadRoyalCanopyMesh)
 
 local landedRemote = remotes:FindFirstChild("Landed")
 if not landedRemote then
