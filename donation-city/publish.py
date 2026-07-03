@@ -174,7 +174,11 @@ def publish():
         method="POST",
         headers={
             "x-api-key": api_key,
-            "Content-Type": "application/octet-stream",
+            # rbxlx is an XML place file → must be application/xml.
+            # application/octet-stream is only for the binary .rbxl format;
+            # sending it for an .rbxlx makes Roblox store a place that cannot
+            # start servers ("Waiting for an available server").
+            "Content-Type": "application/xml",
             "Content-Length": str(len(data)),
         },
     )
