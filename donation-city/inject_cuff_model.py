@@ -10,7 +10,7 @@
 # Idempotent: يزيل أي نسخة محقونة سابقاً ثم يعيد الحقن.
 # ──────────────────────────────────────────────────────────────────────────
 import lxml.etree as ET
-import os, sys
+import os, shutil, sys
 
 HERE = os.path.dirname(__file__)
 RBXLX = os.path.join(HERE, "DonationCity_FINAL.rbxlx")
@@ -109,6 +109,14 @@ def prune_unreferenced_shared_strings(root):
     print(f"pruned {removed} unreferenced shared string(s)")
 
 
+def write_atomic(tree):
+    if os.path.exists(RBXLX):
+        shutil.copy(RBXLX, RBXLX + ".bak")
+    tmp = RBXLX + ".tmp"
+    tree.write(tmp, encoding='utf-8', xml_declaration=True)
+    os.replace(tmp, RBXLX)
+
+
 def main():
     remove_only = '--remove' in sys.argv
     parser = ET.XMLParser(strip_cdata=False)
@@ -130,14 +138,14 @@ def main():
 
     if remove_only:
         prune_unreferenced_shared_strings(root)
-        tree.write(RBXLX, encoding='utf-8', xml_declaration=True)
+        write_atomic(tree)
         print(f"removed {MODEL_NAME} from ReplicatedStorage")
         return
 
     model, asset_shared = build_model_item()
     rs.append(model)
     merge_shared_strings(root, asset_shared)
-    tree.write(RBXLX, encoding='utf-8', xml_declaration=True)
+    write_atomic(tree)
     print(f"injected {MODEL_NAME} into ReplicatedStorage")
 
 
