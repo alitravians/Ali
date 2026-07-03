@@ -21,8 +21,16 @@ local playerGui   = LocalPlayer:WaitForChild("PlayerGui")
 local remotes    = ReplicatedStorage:WaitForChild("CinemaRemotes")
 local seatRemote = remotes:WaitForChild("SeatMenu")
 local lobbyRemote = remotes:WaitForChild("Lobby")  -- يُعرَّف مبكراً لأن دوال النوافذ (شبّاك التذاكر/المتجر) تستعمله قبل هذا الموضع
-local cuffRemotes = ReplicatedStorage:WaitForChild("CuffRemotes")
-local cuffActionRemote = cuffRemotes:WaitForChild("Action")
+local cuffActionRemote: RemoteEvent? = nil -- يُجلب عند الحاجة حتى لا تتعطّل واجهة السينما إذا غاب نظام الكلبشات
+local function getCuffActionRemote(): RemoteEvent?
+	if cuffActionRemote then return cuffActionRemote end
+	local folder = ReplicatedStorage:FindFirstChild("CuffRemotes")
+	local remote = folder and folder:FindFirstChild("Action")
+	if remote and remote:IsA("RemoteEvent") then
+		cuffActionRemote = remote
+	end
+	return cuffActionRemote
+end
 
 ------------------------------------------------------------------------
 -- CONFIG (ألوان + أصوات الزجاج — قابلة للتعديل)
@@ -1165,8 +1173,9 @@ do
 		task.delay(2, function() if btn and btn.Parent then btn.Text = label end end)
 		if item.kind == "cuff" then
 			local action = cuffAction(item)
-			if action then
-				cuffActionRemote:FireServer({ action = action, key = item.key })
+			local remote = getCuffActionRemote()
+			if action and remote then
+				remote:FireServer({ action = action, key = item.key })
 			end
 		elseif item.kind == "gamepass" then
 			lobbyRemote:FireServer({ action = "buyGamePass", passId = item.id })
