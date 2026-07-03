@@ -71,10 +71,6 @@ def gore_vertex(g, ri, a):
 def build_canopy(name, parity, mat):
     bm = bmesh.new()
     apex = bm.verts.new((0, 0, H))
-    grid = {}
-    for ri in range(1, RINGS + 1):
-        for a in range(ASEG + 1):
-            grid[(ri, a)] = None
     for g in range(GORES):
         if g % 2 != parity:
             continue
