@@ -482,7 +482,98 @@ local function setPartCFrame(part: BasePart, cf: CFrame)
 	end)
 end
 
--- TODO: عند توفر MeshId من Blender، استبدل هذه الأجزاء بموديل FBX جاهز يحتفظ بنفس نقاط التثبيت.
+-- موديل الكلبشات ثلاثي الأبعاد (Creator Store 721245449) — يُحقن في ReplicatedStorage
+local function getCuffTemplate(): Model?
+	local m = ReplicatedStorage:FindFirstChild("CuffModel3D")
+	if m and m:IsA("Model") then return m end
+	return nil
+end
+
+local function prepCuffClone(model: Model, style)
+	for _, inst in ipairs(model:GetDescendants()) do
+		if inst:IsA("BasePart") then
+			inst.Anchored = false
+			inst.CanCollide = false
+			inst.CanTouch = false
+			inst.CanQuery = false
+			inst.Massless = true
+			inst.Color = style.metal
+		end
+	end
+end
+
+local function weldModelParts(model: Model): BasePart?
+	local primary: BasePart? = nil
+	for _, inst in ipairs(model:GetDescendants()) do
+		if inst:IsA("BasePart") then
+			if primary == nil then
+				primary = inst
+			else
+				local w = Instance.new("WeldConstraint")
+				w.Part0 = primary
+				w.Part1 = inst
+				w.Parent = inst
+			end
+		end
+	end
+	return primary
+end
+
+-- يُلبس نصف الكلبشة (حلقة واحدة من الموديل) على معصم/يد الهدف
+local function attachRingFromTemplate(parent: Instance, ringName: string, style, hand: BasePart?): BasePart?
+	local template = getCuffTemplate()
+	if not template or not hand then return nil end
+	local ring = template:FindFirstChild(ringName)
+	if not ring or not ring:IsA("Model") then return nil end
+	local clone = ring:Clone()
+	clone.Parent = parent
+	prepCuffClone(clone, style)
+	local primary = weldModelParts(clone)
+	if not primary then
+		clone:Destroy()
+		return nil
+	end
+	clone:ScaleTo(0.85)
+	clone:PivotTo(hand.CFrame * CFrame.Angles(0, 0, math.rad(90)))
+	local light = Instance.new("PointLight")
+	light.Color = style.glow
+	light.Brightness = 0.6
+	light.Range = 6
+	light.Parent = primary
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = hand
+	w.Part1 = primary
+	w.Parent = primary
+	return primary
+end
+
+-- سلسلة الموديل بين اليدين خلف الظهر
+local function attachChainFromTemplate(parent: Instance, style, torso: BasePart?): BasePart?
+	local template = getCuffTemplate()
+	if not template or not torso then return nil end
+	local chainModel = Instance.new("Model")
+	chainModel.Name = "ChainLinks"
+	chainModel.Parent = parent
+	for _, child in ipairs(template:GetChildren()) do
+		if child:IsA("UnionOperation") and child.Name:match("^Chain") then
+			child:Clone().Parent = chainModel
+		end
+	end
+	prepCuffClone(chainModel, style)
+	local primary = weldModelParts(chainModel)
+	if not primary then
+		chainModel:Destroy()
+		return nil
+	end
+	chainModel:ScaleTo(0.85)
+	chainModel:PivotTo(torso.CFrame * CFrame.new(0, 0.02, 0.55) * CFrame.Angles(0, math.rad(90), 0))
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = torso
+	w.Part1 = primary
+	w.Parent = primary
+	return primary
+end
+
 local function buildRingAssembly(parent: Instance, prefix: string, style, baseOffset: CFrame)
 	local root = makePart(parent, prefix .. "Root", Vector3.new(0.12, 0.12, 0.12), style.metal, Enum.Material.Metal, 1)
 	setPartCFrame(root, baseOffset)
@@ -536,13 +627,22 @@ local function buildCuffVisuals(player: Player, target: Player, style)
 	local rightHand = bodyPart(character, { "RightHand", "Right Arm" })
 	local leftHand = bodyPart(character, { "LeftHand", "Left Arm" })
 	local torso = bodyPart(character, { "UpperTorso", "Torso", "HumanoidRootPart" })
-	local rightRing = buildRingAssembly(model, "Right", style, CFrame.new(0.52, 0.02, -0.04) * CFrame.Angles(0, 0, math.rad(90)))
-	local leftRing = buildRingAssembly(model, "Left", style, CFrame.new(-0.52, 0.02, 0.04) * CFrame.Angles(0, 0, math.rad(90)))
-	local chain = buildChainLinks(model, "Chain", style, CFrame.new(0, 0.02, 0.18))
+	local rightRing = attachRingFromTemplate(model, "RingA", style, rightHand)
+	local leftRing = attachRingFromTemplate(model, "RingB", style, leftHand)
+	local chain = attachChainFromTemplate(model, style, torso)
 
-	if rightHand and rightRing then weldTo(rightHand, rightRing) end
-	if leftHand and leftRing then weldTo(leftHand, leftRing) end
-	if torso and chain then weldTo(torso, chain) end
+	if not rightRing then
+		rightRing = buildRingAssembly(model, "Right", style, CFrame.new(0.52, 0.02, -0.04) * CFrame.Angles(0, 0, math.rad(90)))
+		if rightHand and rightRing then weldTo(rightHand, rightRing) end
+	end
+	if not leftRing then
+		leftRing = buildRingAssembly(model, "Left", style, CFrame.new(-0.52, 0.02, 0.04) * CFrame.Angles(0, 0, math.rad(90)))
+		if leftHand and leftRing then weldTo(leftHand, leftRing) end
+	end
+	if not chain then
+		chain = buildChainLinks(model, "Chain", style, CFrame.new(0, 0.02, 0.18))
+		if torso and chain then weldTo(torso, chain) end
+	end
 
 	local beamA = Instance.new("Attachment")
 	beamA.Name = "CuffBeamA"

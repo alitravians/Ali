@@ -172,65 +172,61 @@ local function makeEquippedCuffTool(def)
 
 	local handle = Instance.new("Part")
 	handle.Name = "Handle"
-	handle.Size = Vector3.new(1.0, 0.35, 1.15)
-	handle.Color = def and def.metal or THEME.Card2
-	handle.Material = Enum.Material.Metal
+	handle.Size = Vector3.new(0.4, 0.4, 0.4)
+	handle.Transparency = 1
 	handle.CanCollide = false
 	handle.CanQuery = false
 	handle.CanTouch = false
 	handle.Massless = true
 	handle.Parent = tool
 
-	local band = Instance.new("Part")
-	band.Name = "Band"
-	band.Size = Vector3.new(1.12, 0.16, 0.88)
-	band.Color = def and def.glow or THEME.Gold
-	band.Material = Enum.Material.Metal
-	band.CanCollide = false
-	band.CanQuery = false
-	band.CanTouch = false
-	band.Massless = true
-	band.Parent = tool
-	band.CFrame = handle.CFrame * CFrame.new(0, 0, 0) * CFrame.Angles(0, 0, math.rad(90))
-	local weldBand = Instance.new("WeldConstraint")
-	weldBand.Part0 = handle
-	weldBand.Part1 = band
-	weldBand.Parent = handle
+	-- موديل الكلبشات ثلاثي الأبعاد من ReplicatedStorage (Creator Store 721245449)
+	local template = ReplicatedStorage:FindFirstChild("CuffModel3D")
+	if template and template:IsA("Model") then
+		local clone = template:Clone()
+		local primary: BasePart? = nil
+		for _, inst in ipairs(clone:GetDescendants()) do
+			if inst:IsA("BasePart") then
+				inst.Anchored = false
+				inst.CanCollide = false
+				inst.CanQuery = false
+				inst.CanTouch = false
+				inst.Massless = true
+				if def and def.metal then
+					inst.Color = def.metal
+				end
+				if primary == nil then
+					primary = inst
+				else
+					local w = Instance.new("WeldConstraint")
+					w.Part0 = primary
+					w.Part1 = inst
+					w.Parent = inst
+				end
+			end
+		end
+		clone:ScaleTo(0.7)
+		-- تتدلى الكلبشات من قبضة اليد بشكل متناسق (الحلقتان للأمام والسلسلة للأسفل)
+		clone:PivotTo(handle.CFrame * CFrame.new(0, -0.15, 0) * CFrame.Angles(math.rad(90), 0, math.rad(90)))
+		if primary then
+			local w = Instance.new("WeldConstraint")
+			w.Part0 = handle
+			w.Part1 = primary
+			w.Parent = primary
+			if def and def.glow then
+				local light = Instance.new("PointLight")
+				light.Color = def.glow
+				light.Brightness = 0.5
+				light.Range = 5
+				light.Parent = primary
+			end
+			clone.Parent = tool
+		else
+			clone:Destroy()
+		end
+	end
 
-	local glow = Instance.new("Part")
-	glow.Name = "Glow"
-	glow.Size = Vector3.new(0.18, 0.45, 0.45)
-	glow.Shape = Enum.PartType.Ball
-	glow.Color = def and def.glow or THEME.Gold
-	glow.Material = Enum.Material.Neon
-	glow.CanCollide = false
-	glow.CanQuery = false
-	glow.CanTouch = false
-	glow.Massless = true
-	glow.Parent = tool
-	glow.CFrame = handle.CFrame * CFrame.new(0.42, 0, 0)
-	local weldGlow = Instance.new("WeldConstraint")
-	weldGlow.Part0 = handle
-	weldGlow.Part1 = glow
-	weldGlow.Parent = handle
-
-	local clasp = Instance.new("Part")
-	clasp.Name = "Clasp"
-	clasp.Size = Vector3.new(0.22, 0.22, 0.56)
-	clasp.Color = def and def.metal or THEME.Text
-	clasp.Material = Enum.Material.SmoothPlastic
-	clasp.CanCollide = false
-	clasp.CanQuery = false
-	clasp.CanTouch = false
-	clasp.Massless = true
-	clasp.Parent = tool
-	clasp.CFrame = handle.CFrame * CFrame.new(-0.45, 0, 0)
-	local weldClasp = Instance.new("WeldConstraint")
-	weldClasp.Part0 = handle
-	weldClasp.Part1 = clasp
-	weldClasp.Parent = handle
-
-	tool.Grip = CFrame.new(0, -0.9, 0.1) * CFrame.Angles(math.rad(-90), 0, math.rad(90))
+	tool.Grip = CFrame.new(0, -0.25, 0) * CFrame.Angles(math.rad(-90), 0, 0)
 	return tool
 end
 
