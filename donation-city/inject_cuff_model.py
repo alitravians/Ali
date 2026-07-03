@@ -92,7 +92,25 @@ def merge_shared_strings(root, asset_shared):
     print(f"merged {added} shared string(s)")
 
 
+def prune_unreferenced_shared_strings(root):
+    """إزالة SharedStrings غير المُشار إليها من أي خاصية بعد حذف الموديل."""
+    referenced = set()
+    for el in root.iter('SharedString'):
+        if el.get('name') is not None and el.text:
+            referenced.add(el.text.strip())
+    dest = root.find('SharedStrings')
+    if dest is None:
+        return
+    removed = 0
+    for s in list(dest):
+        if (s.get('md5') or '') not in referenced:
+            dest.remove(s)
+            removed += 1
+    print(f"pruned {removed} unreferenced shared string(s)")
+
+
 def main():
+    remove_only = '--remove' in sys.argv
     parser = ET.XMLParser(strip_cdata=False)
     tree = ET.parse(RBXLX, parser)
     root = tree.getroot()
@@ -109,6 +127,12 @@ def main():
         if ch.tag == 'Item' and (name_of(ch) == MODEL_NAME
                                  or (ch.get('referent') or '').startswith(REF_PREFIX)):
             rs.remove(ch)
+
+    if remove_only:
+        prune_unreferenced_shared_strings(root)
+        tree.write(RBXLX, encoding='utf-8', xml_declaration=True)
+        print(f"removed {MODEL_NAME} from ReplicatedStorage")
+        return
 
     model, asset_shared = build_model_item()
     rs.append(model)

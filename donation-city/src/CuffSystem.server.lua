@@ -14,6 +14,7 @@ local Players            = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
 local DataStoreService    = game:GetService("DataStoreService")
 local MarketplaceService  = game:GetService("MarketplaceService")
+local InsertService       = game:GetService("InsertService")
 
 ------------------------------------------------------------------------
 -- CONFIG
@@ -482,7 +483,48 @@ local function setPartCFrame(part: BasePart, cf: CFrame)
 	end)
 end
 
--- موديل الكلبشات ثلاثي الأبعاد (Creator Store 721245449) — يُحقن في ReplicatedStorage
+-- موديل الكلبشات ثلاثي الأبعاد (Creator Store 721245449) — يُحمّل وقت التشغيل
+-- عبر InsertService ثم يوضع في ReplicatedStorage ليستنسخه السيرفر والعميل.
+local CUFF_MODEL_ASSET_ID = 721245449
+
+local function loadCuffTemplate()
+	if ReplicatedStorage:FindFirstChild("CuffModel3D") then return end
+	local ok, asset = pcall(function()
+		return InsertService:LoadAsset(CUFF_MODEL_ASSET_ID)
+	end)
+	if not ok or not asset then
+		warn("CuffSystem: تعذّر تحميل موديل الكلبشات — سيُستخدم الشكل الاحتياطي")
+		return
+	end
+	local model = asset:FindFirstChildWhichIsA("Model")
+	if not model then
+		asset:Destroy()
+		return
+	end
+	model.Name = "CuffModel3D"
+	local ringI, chainI = 0, 0
+	for _, child in ipairs(model:GetChildren()) do
+		if child:IsA("Camera") then
+			child:Destroy()
+		elseif child:IsA("Model") then
+			ringI += 1
+			child.Name = (ringI == 1) and "RingA" or "RingB"
+		elseif child:IsA("UnionOperation") then
+			chainI += 1
+			child.Name = "Chain" .. chainI
+		end
+	end
+	for _, inst in ipairs(model:GetDescendants()) do
+		if inst:IsA("BasePart") then
+			inst.Anchored = true
+		end
+	end
+	model.Parent = ReplicatedStorage
+	asset:Destroy()
+end
+
+task.spawn(loadCuffTemplate)
+
 local function getCuffTemplate(): Model?
 	local m = ReplicatedStorage:FindFirstChild("CuffModel3D")
 	if m and m:IsA("Model") then return m end
