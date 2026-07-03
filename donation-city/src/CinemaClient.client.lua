@@ -1140,8 +1140,7 @@ do
 	end
 
 	local function priceLabel(item)
-		local suffix = item.kind == "cuff" and " كوينز" or " R$"
-		return toAr(item.price or 0) .. suffix
+		return toAr(item.price or 0) .. " R$"
 	end
 
 	local function cuffAction(item)

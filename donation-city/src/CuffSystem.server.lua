@@ -3,7 +3,7 @@
 	║  نظام الكلبشات — CUFF SYSTEM (Server)                                 ║
 	║  المكان: ServerScriptService   ·   النوع: Script                       ║
 	║                                                                        ║
-	║  • شراء كلبشات بالكوينز مع حفظ دائم للملكية والتجهيز.                  ║
+	║  • شراء كلبشات بروبلوكس مع حفظ دائم لتجهيز اللاعب المختار.            ║
 	║  • قيد/فكّ قيود server-authoritative مع سلسلة جرّ مرئية.              ║
 	║  • كلبشة من يد اللاعب تبقي الهدف مقيّداً حتى يفكّه صاحب القيد أو      ║
 	║    أدمن، مع تحرير تلقائي آمن عند الموت/الخروج/إعادة الظهور.           ║
@@ -13,6 +13,7 @@
 local Players            = game:GetService("Players")
 local ReplicatedStorage   = game:GetService("ReplicatedStorage")
 local DataStoreService    = game:GetService("DataStoreService")
+local MarketplaceService  = game:GetService("MarketplaceService")
 
 ------------------------------------------------------------------------
 -- CONFIG
@@ -34,7 +35,8 @@ local CUFF_DEFS = {
 	{
 		key = "royal",
 		name = "الكلبشة الملكية",
-		price = 900,
+		passId = 1900237442,
+		robux = 129,
 		rarity = "أسطوري",
 		metal = Color3.fromRGB(212, 181, 95),
 		glow  = Color3.fromRGB(255, 229, 153),
@@ -45,7 +47,8 @@ local CUFF_DEFS = {
 	{
 		key = "neon",
 		name = "كلبشة النيون",
-		price = 700,
+		passId = 1898365443,
+		robux = 79,
 		rarity = "ملحمي",
 		metal = Color3.fromRGB(72, 220, 255),
 		glow  = Color3.fromRGB(190, 255, 255),
@@ -55,7 +58,8 @@ local CUFF_DEFS = {
 	{
 		key = "ice",
 		name = "كلبشة الجليد",
-		price = 500,
+		passId = 1898443472,
+		robux = 59,
 		rarity = "نادر",
 		metal = Color3.fromRGB(146, 206, 255),
 		glow  = Color3.fromRGB(225, 247, 255),
@@ -65,7 +69,8 @@ local CUFF_DEFS = {
 	{
 		key = "flame",
 		name = "كلبشة اللهب",
-		price = 700,
+		passId = 1899085420,
+		robux = 79,
 		rarity = "ملحمي",
 		metal = Color3.fromRGB(255, 154, 72),
 		glow  = Color3.fromRGB(255, 218, 140),
@@ -75,7 +80,8 @@ local CUFF_DEFS = {
 	{
 		key = "hearts",
 		name = "كلبشة القلوب",
-		price = 450,
+		passId = 1898611393,
+		robux = 49,
 		rarity = "نادر",
 		metal = Color3.fromRGB(255, 146, 188),
 		glow  = Color3.fromRGB(255, 208, 228),
@@ -85,7 +91,8 @@ local CUFF_DEFS = {
 	{
 		key = "shadow",
 		name = "كلبشة الظل",
-		price = 850,
+		passId = 1898647461,
+		robux = 99,
 		rarity = "أسطوري",
 		metal = Color3.fromRGB(126, 94, 190),
 		glow  = Color3.fromRGB(206, 181, 255),
@@ -209,12 +216,7 @@ local function saveData(userId: number)
 	if not cuffStore then return end
 	local s = profiles[userId]
 	if not s or s.dataLoaded == false then return end
-	local owned = {}
-	for key in pairs(s.owned or {}) do
-		owned[key] = true
-	end
 	local payload = {
-		owned = owned,
 		equipped = s.equipped or "",
 	}
 	for _ = 1, 3 do
@@ -250,6 +252,13 @@ local function syncProfile(player: Player)
 	})
 end
 
+local cuffDefByPassId = {}
+for _, def in ipairs(CUFF_DEFS) do
+	if def.passId then
+		cuffDefByPassId[def.passId] = def
+	end
+end
+
 local function sendStoreRefresh(player: Player)
 	if type(_G.OpenStore) == "function" then
 		pcall(function()
@@ -277,7 +286,8 @@ local function getOwnedState(player: Player)
 			id = def.key,
 			name = def.name,
 			desc = def.desc,
-			price = def.price,
+			price = def.robux,
+			passId = def.passId,
 			rarity = def.rarity,
 			emoji = def.emoji,
 			cat = "cuffs",
@@ -331,6 +341,26 @@ end
 local function updateStoreAndState(player: Player)
 	syncProfile(player)
 	sendStoreRefresh(player)
+end
+
+local function refreshOwnership(player: Player)
+	if not player or not player.Parent then return end
+	local profile = getProfile(player)
+	profile.owned = {}
+	for _, def in ipairs(CUFF_DEFS) do
+		local ok, owns = pcall(function()
+			return MarketplaceService:UserOwnsGamePassAsync(player.UserId, def.passId)
+		end)
+		if ok and owns then
+			profile.owned[def.key] = true
+		end
+	end
+	if not player or not player.Parent then return end
+	clampEquipped(profile)
+	updateStoreAndState(player)
+	task.spawn(function()
+		saveData(player.UserId)
+	end)
 end
 
 ------------------------------------------------------------------------
@@ -698,7 +728,7 @@ local function applyCuff(requester: Player, target: Player, style)
 	getProfile(requester).nextActionAt = os.clock() + CONFIG.ActionCooldown
 
 	pcall(function() targetHum.Sit = false end)
-	pcall(function() targetHum.WalkSpeed = 6 end)
+	pcall(function() targetHum.WalkSpeed = 0 end)
 	pcall(function() targetHum.JumpPower = 0 end)
 	pcall(function() targetHum.JumpHeight = 0 end)
 	pcall(function() targetHum.AutoRotate = false end)
@@ -821,18 +851,25 @@ local function buyCuff(player: Player, key: string)
 		updateStoreAndState(player)
 		return true, "مملوك بالفعل."
 	end
-	if not _G.SpendCoins or not _G.SpendCoins(player, def.price) then
-		return false, "لا تملك كوينز كافية."
+	local liveOwned = false
+	pcall(function()
+		liveOwned = MarketplaceService:UserOwnsGamePassAsync(player.UserId, def.passId)
+	end)
+	if liveOwned then
+		profile.owned[key] = true
+		if profile.equipped == "" then
+			profile.equipped = key
+		end
+		clampEquipped(profile)
+		task.spawn(function() saveData(player.UserId) end)
+		updateStoreAndState(player)
+		return true, "مملوك بالفعل."
 	end
-	profile.owned[key] = true
-	if profile.equipped == "" then
-		profile.equipped = key
-	end
-	clampEquipped(profile)
-	task.spawn(function() saveData(player.UserId) end)
-	updateStoreAndState(player)
+	pcall(function()
+		MarketplaceService:PromptGamePassPurchase(player, def.passId)
+	end)
 	if _G.NotifyPlayer then
-		_G.NotifyPlayer(player, "✅ اشتريت «" .. def.name .. "» بالكوينز.")
+		_G.NotifyPlayer(player, "🛍️ تم فتح نافذة شراء «" .. def.name .. "».")
 	end
 	return true, nil
 end
@@ -898,14 +935,8 @@ Players.PlayerAdded:Connect(function(player)
 		}
 		notify(player, "⚠️ تعذّر تحميل الكلبشات بسبب ضغط الخادم. سيتم حفظ التغييرات لاحقاً فقط إذا عاد المتجر للاتزان.")
 	elseif type(saved) == "table" then
-		local owned = {}
-		if type(saved.owned) == "table" then
-			for key, v in pairs(saved.owned) do
-				if v == true then owned[key] = true end
-			end
-		end
 		profiles[player.UserId] = {
-			owned = owned,
+			owned = {},
 			equipped = type(saved.equipped) == "string" and saved.equipped or "",
 			loaded = true,
 			dataLoaded = true,
@@ -922,6 +953,9 @@ Players.PlayerAdded:Connect(function(player)
 		}
 	end
 	updateStoreAndState(player)
+	task.spawn(function()
+		refreshOwnership(player)
+	end)
 	task.delay(0.3, function()
 		if player and player.Parent then
 			syncProfile(player)
@@ -941,6 +975,21 @@ Players.PlayerAdded:Connect(function(player)
 			syncProfile(player)
 		end
 	end)
+end)
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passId, purchased)
+	if not purchased then return end
+	local def = cuffDefByPassId[passId]
+	if not def then return end
+	local profile = getProfile(player)
+	profile.owned[def.key] = true
+	if profile.equipped == "" then
+		profile.equipped = def.key
+	end
+	clampEquipped(profile)
+	task.spawn(function() saveData(player.UserId) end)
+	updateStoreAndState(player)
+	notify(player, "✅ تم تفعيل «" .. def.name .. "» — جاهزة للاستخدام.")
 end)
 
 Players.PlayerRemoving:Connect(function(player)
