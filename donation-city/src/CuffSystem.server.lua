@@ -734,7 +734,6 @@ local function applyCuff(requester: Player, target: Player, style)
 	pcall(function() targetHum.AutoRotate = false end)
 	pcall(function() targetHum.PlatformStand = false end)
 	pcall(function() targetRoot:SetNetworkOwner(nil) end)
-	pcall(function() cufferRoot:SetNetworkOwner(nil) end)
 	pcall(function() targetRoot.AssemblyLinearVelocity = Vector3.zero end)
 	pcall(function() targetRoot.AssemblyAngularVelocity = Vector3.zero end)
 

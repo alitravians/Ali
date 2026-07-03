@@ -1124,7 +1124,13 @@ do
 			new("UIStroke", { Color = GOLD, Thickness = 1.4, Transparency = 0.4 }),
 			new("UIGradient", { Rotation = 90, Color = ColorSequence.new(CARD2, CARD) }),
 		})
-		if item.icon and item.icon ~= 0 then
+		if item.kind == "cuff" and item.passId and item.passId ~= 0 then
+			new("ImageLabel", {
+				BackgroundTransparency = 1,
+				Image = ("rbxthumb://type=GamePass&id=%d&w=150&h=150"):format(item.passId),
+				Size = UDim2.fromScale(1, 1), Parent = holder,
+			}, { new("UICorner", { CornerRadius = UDim.new(0, rad) }) })
+		elseif item.icon and item.icon ~= 0 then
 			new("ImageLabel", {
 				BackgroundTransparency = 1, Image = "rbxassetid://" .. tostring(item.icon),
 				Size = UDim2.fromScale(1, 1), Parent = holder,
