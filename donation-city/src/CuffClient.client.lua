@@ -162,6 +162,78 @@ local function currentDef()
 	return nil
 end
 
+local function makeEquippedCuffTool(def)
+	local tool = Instance.new("Tool")
+	tool.Name = "كلبشات"
+	tool.RequiresHandle = true
+	tool.CanBeDropped = false
+	tool.ToolTip = (def and (def.name .. " — " .. tostring(def.rarity or ""))) or "كلبشات"
+	tool:SetAttribute("CuffKey", def and def.key or "")
+
+	local handle = Instance.new("Part")
+	handle.Name = "Handle"
+	handle.Size = Vector3.new(1.0, 0.35, 1.15)
+	handle.Color = def and def.metal or THEME.Card2
+	handle.Material = Enum.Material.Metal
+	handle.CanCollide = false
+	handle.CanQuery = false
+	handle.CanTouch = false
+	handle.Massless = true
+	handle.Parent = tool
+
+	local band = Instance.new("Part")
+	band.Name = "Band"
+	band.Size = Vector3.new(1.12, 0.16, 0.88)
+	band.Color = def and def.glow or THEME.Gold
+	band.Material = Enum.Material.Metal
+	band.CanCollide = false
+	band.CanQuery = false
+	band.CanTouch = false
+	band.Massless = true
+	band.Parent = tool
+	band.CFrame = handle.CFrame * CFrame.new(0, 0, 0) * CFrame.Angles(0, 0, math.rad(90))
+	local weldBand = Instance.new("WeldConstraint")
+	weldBand.Part0 = handle
+	weldBand.Part1 = band
+	weldBand.Parent = handle
+
+	local glow = Instance.new("Part")
+	glow.Name = "Glow"
+	glow.Size = Vector3.new(0.18, 0.45, 0.45)
+	glow.Shape = Enum.PartType.Ball
+	glow.Color = def and def.glow or THEME.Gold
+	glow.Material = Enum.Material.Neon
+	glow.CanCollide = false
+	glow.CanQuery = false
+	glow.CanTouch = false
+	glow.Massless = true
+	glow.Parent = tool
+	glow.CFrame = handle.CFrame * CFrame.new(0.42, 0, 0)
+	local weldGlow = Instance.new("WeldConstraint")
+	weldGlow.Part0 = handle
+	weldGlow.Part1 = glow
+	weldGlow.Parent = handle
+
+	local clasp = Instance.new("Part")
+	clasp.Name = "Clasp"
+	clasp.Size = Vector3.new(0.22, 0.22, 0.56)
+	clasp.Color = def and def.metal or THEME.Text
+	clasp.Material = Enum.Material.SmoothPlastic
+	clasp.CanCollide = false
+	clasp.CanQuery = false
+	clasp.CanTouch = false
+	clasp.Massless = true
+	clasp.Parent = tool
+	clasp.CFrame = handle.CFrame * CFrame.new(-0.45, 0, 0)
+	local weldClasp = Instance.new("WeldConstraint")
+	weldClasp.Part0 = handle
+	weldClasp.Part1 = clasp
+	weldClasp.Parent = handle
+
+	tool.Grip = CFrame.new(0, -0.9, 0.1) * CFrame.Angles(math.rad(-90), 0, math.rad(90))
+	return tool
+end
+
 local function ownedAny()
 	return state.ownedCount and state.ownedCount > 0
 end
@@ -234,56 +306,49 @@ local function refreshTool()
 	end
 	local def = currentDef()
 	local tooltip = def and (def.name .. " — " .. tostring(def.rarity or "")) or "كلبشات"
-	if not toolInstance or not toolInstance:IsDescendantOf(game) then
-		destroyTool()
-		toolInstance = Instance.new("Tool")
-		toolInstance.Name = "كلبشات"
-		toolInstance.RequiresHandle = false
-		toolInstance.CanBeDropped = false
+	local equippedKey = def and def.key or ""
+	if toolInstance and toolInstance:IsDescendantOf(game) and toolInstance:GetAttribute("CuffKey") == equippedKey then
 		toolInstance.ToolTip = tooltip
-		toolInstance.Parent = backpack
-		toolConn = toolInstance.Activated:Connect(function()
-			local mouse = LocalPlayer:GetMouse()
-			local targetPart = mouse and mouse.Target or nil
-			local targetPlayer = nil
-			if targetPart then
-				local model = targetPart:FindFirstAncestorOfClass("Model")
-				if model then
-					targetPlayer = Players:GetPlayerFromCharacter(model)
-				end
+		if toolInstance.Parent ~= backpack and toolInstance.Parent ~= LocalPlayer.Character then
+			toolInstance.Parent = backpack
+		end
+		return
+	end
+	destroyTool()
+	toolInstance = makeEquippedCuffTool(def)
+	toolInstance.Parent = backpack
+	toolConn = toolInstance.Activated:Connect(function()
+		local mouse = LocalPlayer:GetMouse()
+		local targetPart = mouse and mouse.Target or nil
+		local targetPlayer = nil
+		if targetPart then
+			local model = targetPart:FindFirstAncestorOfClass("Model")
+			if model then
+				targetPlayer = Players:GetPlayerFromCharacter(model)
 			end
-			if not targetPlayer or targetPlayer == LocalPlayer then
-				local cam = workspace.CurrentCamera
-				if cam and mouse then
-					local ray = cam:ScreenPointToRay(mouse.X, mouse.Y)
-					local params = RaycastParams.new()
-					params.FilterType = Enum.RaycastFilterType.Exclude
-					params.FilterDescendantsInstances = { LocalPlayer.Character }
-					local hit = workspace:Raycast(ray.Origin, ray.Direction * 18, params)
-					if hit and hit.Instance then
-						local model = hit.Instance:FindFirstAncestorOfClass("Model")
-						if model then
-							targetPlayer = Players:GetPlayerFromCharacter(model)
-						end
+		end
+		if not targetPlayer or targetPlayer == LocalPlayer then
+			local cam = workspace.CurrentCamera
+			if cam and mouse then
+				local ray = cam:ScreenPointToRay(mouse.X, mouse.Y)
+				local params = RaycastParams.new()
+				params.FilterType = Enum.RaycastFilterType.Exclude
+				params.FilterDescendantsInstances = { LocalPlayer.Character }
+				local hit = workspace:Raycast(ray.Origin, ray.Direction * 18, params)
+				if hit and hit.Instance then
+					local model = hit.Instance:FindFirstAncestorOfClass("Model")
+					if model then
+						targetPlayer = Players:GetPlayerFromCharacter(model)
 					end
 				end
 			end
-			if not targetPlayer then
-				showToast("وجّه الكلبشات نحو لاعب قريب.", Color3.fromRGB(255, 190, 90))
-				return
-			end
-			cuffRemote:FireServer({ action = "cuffPlayer", targetUserId = targetPlayer.UserId })
-		end)
-	else
-		if toolInstance and toolInstance:IsDescendantOf(game) then
-			toolInstance.ToolTip = tooltip
-			if toolInstance.Parent ~= backpack and toolInstance.Parent ~= LocalPlayer.Character then
-				toolInstance.Parent = backpack
-			end
-		else
-			clearStaleTool()
 		end
-	end
+		if not targetPlayer then
+			showToast("وجّه الكلبشات نحو لاعب قريب.", Color3.fromRGB(255, 190, 90))
+			return
+		end
+		cuffRemote:FireServer({ action = "cuffPlayer", targetUserId = targetPlayer.UserId })
+	end)
 end
 
 actionButton.MouseButton1Click:Connect(function()

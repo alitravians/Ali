@@ -686,7 +686,6 @@ end
 local InsertService = game:GetService("InsertService")
 
 local HALL_ASSET_ID = 85565802606403         -- أصل المبنى (مُعتمَد/Approved)
-local STAGE_LIGHT_ASSET_ID = 99786459202092   -- stage_light_asset_id.txt
 local HALL_CENTER = Vector3.new(0, 0, 110)   -- مركز أفقي + قاع الأرضية على y=0
 local HALL_YAW = math.rad(0)                  -- المدخل يواجه -Z (نحو السبون)
 local LEAF_H = 10.6
@@ -1072,48 +1071,9 @@ local function buildStageLightFallback(parent: Instance): Model
 end
 
 local function loadStageLightFixture(parent: Instance): Model
-	local ok, model
-	for attempt = 1, 5 do
-		ok, model = pcall(function()
-			return InsertService:LoadAsset(STAGE_LIGHT_ASSET_ID)
-		end)
-		if ok and model then break end
-		warn("[StageLight] محاولة تحميل الأصل فشلت", attempt, model)
-		task.wait(2)
-	end
-	if not (ok and model) then
-		warn("[StageLight] تعذّر تحميل الأصل — استخدام بناء احتياطي")
-		return buildStageLightFallback(parent)
-	end
-	model.Name = "StageLightFixture"
-	for _, d in ipairs(model:GetDescendants()) do
-		if d:IsA("BasePart") then
-			d.Anchored = true
-			d.CanCollide = d.Name == "Post" or d.Name == "Base"
-			d.Massless = true
-			local n = d.Name
-			if n == "Lens" then
-				d.Color = rgb(C.GOLDE)
-				d.Material = Enum.Material.Neon
-				d.CanCollide = false
-				d.Transparency = 0.05
-			elseif n == "BeamTip" then
-				d.Color = rgb(C.NAVY)
-				d.Material = Enum.Material.SmoothPlastic
-				d.Transparency = 1
-				d.CanCollide = false
-			elseif n == "Ring" or n == "Bezel" or n == "BaseRing" or n == "PostBandLow" or n == "PostBandHigh" or n == "YokeJointL" or n == "YokeJointR" or n == "HeadShellBand" then
-				d.Color = rgb(C.GOLD)
-				d.Material = Enum.Material.Metal
-				d.CanCollide = false
-			else
-				d.Color = rgb(C.NAVY)
-				d.Material = Enum.Material.Metal
-			end
-		end
-	end
-	model.Parent = parent
-	return model
+	-- نستخدم البناء الإجرائي هنا لأن محاور أصل الـFBX لا تُعطي وضعية
+	-- موثوقة داخل الخريطة؛ البناء المحلي أبسط وأدق لهذا المشهد.
+	return buildStageLightFallback(parent)
 end
 
 local function colorForPhase(phase: number): Color3
@@ -1140,7 +1100,7 @@ local function attachStageLightFX(model: Model, side: number)
 
 	local headParts = {}
 	for _, name in ipairs({
-		"HeadPivot", "HeadShell", "HeadShellBand", "Bezel", "Lens", "BeamTip", "RearCap",
+		"HeadPivot", "HeadShell", "HeadShellBand", "Bezel", "Lens", "RearCap",
 	}) do
 		local p = model:FindFirstChild(name, true)
 		if p and p:IsA("BasePart") then
@@ -1148,12 +1108,10 @@ local function attachStageLightFX(model: Model, side: number)
 		end
 	end
 
-	local basePivot = headPivot.CFrame
 	local baseOffsets = {}
 	for _, p in ipairs(headParts) do
-		baseOffsets[p] = basePivot:ToObjectSpace(p.CFrame)
+		baseOffsets[p] = headPivot.CFrame:ToObjectSpace(p.CFrame)
 	end
-	local baseAim = CFrame.Angles(math.rad(-90), 0, 0)
 
 	local origin = lens:FindFirstChild("BeamOrigin")
 	if not origin then
@@ -1177,14 +1135,14 @@ local function attachStageLightFX(model: Model, side: number)
 		beam.Attachment0 = origin
 		beam.Attachment1 = target
 		beam.FaceCamera = true
-		beam.LightEmission = 1
+		beam.LightEmission = 1.35
 		beam.LightInfluence = 0
-		beam.Segments = 10
-		beam.Width0 = 0.18
-		beam.Width1 = 2.0
+		beam.Segments = 12
+		beam.Width0 = 0.28
+		beam.Width1 = 3.2
 		beam.Transparency = NumberSequence.new({
-			NumberSequenceKeypoint.new(0, 0.15),
-			NumberSequenceKeypoint.new(1, 0.94),
+			NumberSequenceKeypoint.new(0, 0.08),
+			NumberSequenceKeypoint.new(1, 0.92),
 		})
 		beam.Parent = lens
 	end
@@ -1202,11 +1160,11 @@ local function attachStageLightFX(model: Model, side: number)
 
 	local sweep = Instance.new("NumberValue")
 	sweep.Name = "Sweep"
-	sweep.Value = if side < 0 then -24 else 24
+	sweep.Value = if side < 0 then -3.2 else 3.2
 	sweep.Parent = model
 	local tilt = Instance.new("NumberValue")
 	tilt.Name = "Tilt"
-	tilt.Value = if side < 0 then -4 else 4
+	tilt.Value = if side < 0 then -1.4 else 1.4
 	tilt.Parent = model
 	local phase = Instance.new("NumberValue")
 	phase.Name = "Phase"
@@ -1218,10 +1176,15 @@ local function attachStageLightFX(model: Model, side: number)
 	pulse.Parent = model
 
 	local function refreshPose()
-		local rot = CFrame.Angles(0, math.rad(sweep.Value), 0) * CFrame.Angles(math.rad(tilt.Value), 0, 0) * baseAim
+		local root = model:GetPivot()
+		local headPos = headPivot.Position
+		local targetPos = root.Position + Vector3.new(-(side * 5.75) + sweep.Value, 22.5 + tilt.Value, 0)
+		local aim = CFrame.lookAt(headPos, targetPos) * CFrame.Angles(0, math.pi, 0)
+		local beamTargetPos = root.Position + Vector3.new(-(side * 6.25) + sweep.Value, 22.5 + tilt.Value, 0)
 		for p, offset in pairs(baseOffsets) do
-			p.CFrame = basePivot * rot * offset
+			p.CFrame = aim * offset
 		end
+		beamTip.CFrame = CFrame.new(beamTargetPos)
 	end
 	local function refreshFX()
 		local c = colorForPhase(phase.Value)
@@ -1242,13 +1205,13 @@ local function attachStageLightFX(model: Model, side: number)
 
 	local sweepTween = TweenService:Create(
 		sweep,
-		TweenInfo.new(2.8, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Value = if side < 0 then 24 else -24 }
+		TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = if side < 0 then 3.2 else -3.2 }
 	)
 	local tiltTween = TweenService:Create(
 		tilt,
-		TweenInfo.new(1.9, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Value = if side < 0 then 4 else -4 }
+		TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = if side < 0 then 1.4 else -1.4 }
 	)
 	local phaseTween = TweenService:Create(
 		phase,
@@ -1257,8 +1220,8 @@ local function attachStageLightFX(model: Model, side: number)
 	)
 	local pulseTween = TweenService:Create(
 		pulse,
-		TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
-		{ Value = 1.14 }
+		TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = 1.2 }
 	)
 	sweepTween:Play()
 	tiltTween:Play()
@@ -1269,7 +1232,10 @@ end
 local function spawnStageLight(parent: Instance, template: Model, x: number, z: number, g: number, side: number)
 	local fixture = template:Clone()
 	fixture.Parent = parent
-	fixture:PivotTo(CFrame.new(x, g + 3.5, z) * CFrame.Angles(0, math.rad(180), 0))
+	pcall(function()
+		fixture:ScaleTo(1.35)
+	end)
+	fixture:PivotTo(CFrame.new(x, g - (0.14 * 1.35), z) * CFrame.Angles(math.rad(-90), math.rad(180), 0))
 	attachStageLightFX(fixture, side)
 	return fixture
 end
@@ -1419,8 +1385,8 @@ local function furnishHall(parent: Instance)
 			CanCollide = false, Size = Vector3.new(0.18, 0.1, 11), CFrame = CFrame.new(sx * 3.4, GY + 0.1, 83),
 		})
 	end
-	local stageLightTemplate = loadStageLightFixture(parent)
 	-- كشافان ضوئيان متحرّكان يحيطان الباب + حوضا كرز + مقعدان
+	local stageLightTemplate = loadStageLightFixture(parent)
 	spawnStageLight(parent, stageLightTemplate, 7, 87, GY, 1)
 	spawnStageLight(parent, stageLightTemplate, -7, 87, GY, -1)
 	stageLightTemplate:Destroy()
