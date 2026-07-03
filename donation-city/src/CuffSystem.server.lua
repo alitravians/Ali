@@ -489,10 +489,18 @@ local CUFF_MODEL_ASSET_ID = 721245449
 
 local function loadCuffTemplate()
 	if ReplicatedStorage:FindFirstChild("CuffModel3D") then return end
-	local ok, asset = pcall(function()
-		return InsertService:LoadAsset(CUFF_MODEL_ASSET_ID)
-	end)
-	if not ok or not asset then
+	local asset = nil
+	for attempt = 1, 5 do
+		local ok, result = pcall(function()
+			return InsertService:LoadAsset(CUFF_MODEL_ASSET_ID)
+		end)
+		if ok and result then
+			asset = result
+			break
+		end
+		task.wait(2 * attempt)
+	end
+	if not asset then
 		warn("CuffSystem: تعذّر تحميل موديل الكلبشات — سيُستخدم الشكل الاحتياطي")
 		return
 	end
