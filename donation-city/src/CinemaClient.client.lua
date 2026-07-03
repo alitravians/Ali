@@ -1488,7 +1488,8 @@ do
 				local show = false
 				if activeCat == "all" then show = not it.featured
 				elseif activeCat == "packs" then show = (it.cat == "packs")
-				elseif activeCat == "coins" then show = (it.cat == "coins") end
+				elseif activeCat == "coins" then show = (it.cat == "coins")
+				elseif activeCat == "cuffs" then show = (it.cat == "cuffs") end
 				if show then buildCard(grid, it); any = true end
 			end
 			if not any then grid:Destroy() end
