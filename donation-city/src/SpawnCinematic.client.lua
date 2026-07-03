@@ -95,7 +95,7 @@ loadCanopyTemplate = function(): Model?
             return canopyTemplate
     end
 
-    local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 8)
+    local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 35)
     if mesh and mesh:IsA("Model") then
             canopyTemplate = mesh
             return canopyTemplate
