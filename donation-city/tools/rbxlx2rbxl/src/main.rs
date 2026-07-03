@@ -42,10 +42,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let summary = coerce_dom(&mut dom, database);
 
+    print_summary(&summary);
+    if !summary.dropped.is_empty() {
+        return Err(Error::new(
+            ErrorKind::InvalidData,
+            format!(
+                "converter dropped {} property(s); refusing to write binary output",
+                summary.dropped.len()
+            ),
+        )
+        .into());
+    }
+
     let output_file = BufWriter::new(File::create(&output)?);
     rbx_binary::to_writer(output_file, &dom, &dom.root().children())?;
 
-    print_summary(&summary);
     println!("wrote {}", output.display());
     Ok(())
 }

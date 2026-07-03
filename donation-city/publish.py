@@ -51,6 +51,23 @@ def run(cmd, capture=True):
     return result.returncode, result.stdout, result.stderr
 
 
+def extract_dropped_properties(output: str):
+    """Extract the dropped property list from the converter output."""
+    dropped = []
+    capture = False
+    for line in output.splitlines():
+        if line.startswith("dropped properties:"):
+            capture = True
+            continue
+        if capture:
+            if line.startswith("  "):
+                dropped.append(line.strip())
+                continue
+            if line.strip():
+                break
+    return dropped
+
+
 def lint():
     """Run selene + luau-analyze on all Luau source files."""
     print("\n=== STEP 1: Linting Luau sources ===")
@@ -201,19 +218,29 @@ def convert_to_binary():
     print("\n=== STEP 4: Converting normalized rbxlx to binary rbxl ===")
     build_converter()
 
+    combined_output = ""
     code, out, err = run([
         str(CONVERTER_BINARY),
         str(NORMALIZED_RBXLX),
         str(BINARY_RBXL),
     ])
-    if code != 0:
-        print(f"CONVERSION FAILED:\n{out}\n{err}")
-        sys.exit(1)
-
     if out.strip():
         print(out.strip())
     if err.strip():
         print(err.strip())
+
+    combined_output = "\n".join(part for part in (out, err) if part)
+
+    if code != 0:
+        dropped = extract_dropped_properties(combined_output)
+        if dropped:
+            dropped_block = "\n".join(f"  - {item}" for item in dropped)
+            sys.exit(
+                "ERROR: rbxl converter dropped property(s); refusing to publish.\n"
+                f"{dropped_block}"
+            )
+        print(f"CONVERSION FAILED:\n{out}\n{err}")
+        sys.exit(1)
 
     if not BINARY_RBXL.exists() or BINARY_RBXL.stat().st_size == 0:
         sys.exit("ERROR: binary rbxl output is missing or empty")
