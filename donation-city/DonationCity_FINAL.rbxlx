@@ -30790,12 +30790,11 @@ local function isMobileInput(): boolean
 end
 local TweenService      = game:GetService("TweenService")
 local Workspace         = game:GetService("Workspace")
+local InsertService     = game:GetService("InsertService")
 
 local LocalPlayer = Players.LocalPlayer
 
-----------------------------------------------------------------------
 -- الإعدادات (سهلة التعديل)
-----------------------------------------------------------------------
 local CONFIG = {
 	-- جغرافيا المشهد
 	JUMP_XZ         = Vector2.new(0, 0),      -- يقفز فوق وسط المدينة ثم نزول حرّ موجَّه
@@ -30831,6 +30830,9 @@ local GOLD  = Color3.fromRGB(214, 175, 92)
 local NAVY  = Color3.fromRGB(28, 42, 78)
 local WHITE = Color3.fromRGB(245, 245, 250)
 local WARM  = Color3.fromRGB(255, 226, 168)
+local CANOPY_ASSET_ID = 124648818423970
+local loadCanopyTemplate: (() -> Model?)? = nil
+local buildProceduralCanopy: (() -> (Model, BasePart))? = nil
 
 ----------------------------------------------------------------------
 -- أدوات مساعدة
@@ -30841,6 +30843,132 @@ local function mk(class: string, props: { [string]: any }): Instance
 		(inst :: any)[k] = v
 	end
 	return inst
+end
+
+local canopyTemplate: Model? = nil
+
+local function isWhitePart(part: BasePart): boolean
+    local c = part.Color
+    return c.R > 0.95 and c.G > 0.95 and c.B > 0.95
+end
+
+loadCanopyTemplate = function(): Model?
+    if canopyTemplate then
+            return canopyTemplate
+    end
+
+    local asset: Instance? = nil
+    for attempt = 1, 5 do
+            local ok, result = pcall(function()
+                    return InsertService:LoadAsset(CANOPY_ASSET_ID)
+            end)
+            if ok and result then
+                    asset = result
+                    break
+            end
+            task.wait(2 * attempt)
+    end
+
+    if not asset then
+            return nil
+    end
+
+    local template = asset:FindFirstChildWhichIsA("Model")
+    if not template then
+            asset:Destroy()
+            return nil
+    end
+
+    template.Parent = nil
+    asset:Destroy()
+    canopyTemplate = template
+    return canopyTemplate
+end
+
+task.spawn(function()
+        loadCanopyTemplate()
+end)
+
+local function normalizeCanopyTemplate(model: Model)
+    local bboxCF, bboxSize = model:GetBoundingBox()
+    local pivot = model:GetPivot()
+    local pivotToBox = pivot:ToObjectSpace(bboxCF)
+    local horizontal = math.max(bboxSize.X, bboxSize.Z)
+    local scale = if horizontal > 0 then (34 / horizontal) else 1
+    if scale > 0 and math.abs(scale - 1) > 1e-4 then
+            model:ScaleTo(scale)
+            bboxCF, bboxSize = model:GetBoundingBox()
+            pivot = model:GetPivot()
+            pivotToBox = pivot:ToObjectSpace(bboxCF)
+    end
+    local targetBox = CFrame.new(0, 18, 0)
+    model:PivotTo(targetBox * pivotToBox:Inverse())
+end
+
+local function recolorCanopyTemplate(model: Model)
+    local bboxCF, bboxSize = model:GetBoundingBox()
+    local center = bboxCF.Position
+    for _, inst in ipairs(model:GetDescendants()) do
+            if inst:IsA("BasePart") and isWhitePart(inst) then
+                    local name = string.lower(inst.Name)
+                    if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") then
+                            inst.Color = Color3.fromRGB(38, 38, 44)
+                    elseif name:find("apex") or name:find("vent") or name:find("top") then
+                            inst.Color = GOLD
+                    elseif name:find("seam") or name:find("gore") or name:find("lobe") then
+                            local parity = (math.floor(inst.Position.X * 10) + math.floor(inst.Position.Y * 10) + math.floor(inst.Position.Z * 10)) % 2
+                            inst.Color = if parity == 0 then GOLD else NAVY
+                    else
+                            local relY = inst.Position.Y - center.Y
+                            if relY > bboxSize.Y * 0.35 then
+                                    inst.Color = GOLD
+                            elseif relY < -bboxSize.Y * 0.15 then
+                                    inst.Color = Color3.fromRGB(38, 38, 44)
+                            else
+                                    inst.Color = NAVY
+                            end
+                    end
+            end
+    end
+end
+
+local function buildCanopy(): (Model, BasePart)
+    local loader = loadCanopyTemplate
+    local procedural = buildProceduralCanopy
+    if not loader or not procedural then
+            error("SpawnCinematic: canopy builders not initialized")
+    end
+
+    local template = loader()
+    if not template then
+            return procedural()
+    end
+
+    local model = mk("Model", { Name = "RoyalCanopy" })
+    local anchor = mk("Part", {
+            Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
+            Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+            CastShadow = false, Parent = model,
+    }) :: Part
+    model.PrimaryPart = anchor
+
+    local mesh = template:Clone()
+    mesh.Parent = model
+
+    for _, inst in ipairs(mesh:GetDescendants()) do
+            if inst:IsA("BasePart") then
+                    inst.Anchored = true
+                    inst.CanCollide = false
+                    inst.CanQuery = false
+                    inst.CanTouch = false
+                    inst.CastShadow = false
+            end
+    end
+
+    normalizeCanopyTemplate(mesh)
+    recolorCanopyTemplate(mesh)
+
+    return model, anchor
 end
 
 local function neonBulb(name, size, color, parent): Part
@@ -31432,7 +31560,7 @@ end
 ----------------------------------------------------------------------
 -- المظلّة (قبّة + حبال + harness) تتبع اللاعب مع تمايل
 ----------------------------------------------------------------------
-local function buildCanopy(): (Model, BasePart)
+buildProceduralCanopy = function(): (Model, BasePart)
 	local model = mk("Model", { Name = "RoyalCanopy" })
 	local anchor = mk("Part", {
 		Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
