@@ -254,14 +254,14 @@ local function startCinematicLighting()
 		Parent = Lighting,
 	}) :: SunRaysEffect
 
-	Lighting.Brightness = 2.8
+	Lighting.Brightness = 2.2
 	Lighting.Ambient = Color3.fromRGB(148, 177, 208)
 	Lighting.OutdoorAmbient = Color3.fromRGB(180, 203, 231)
 	Lighting.FogColor = Color3.fromRGB(184, 216, 242)
 	Lighting.FogStart = 0
 	Lighting.FogEnd = 8000
 	Lighting.ClockTime = 13.6
-	Lighting.ExposureCompensation = 0.12
+	Lighting.ExposureCompensation = 0
 	Lighting.EnvironmentDiffuseScale = 1
 	Lighting.EnvironmentSpecularScale = 1
 	Lighting.ShadowSoftness = 0.25
@@ -904,9 +904,9 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	local ceilPanel = solid("CabinCeilPanel", Enum.PartType.Block,
 		Vector3.new(floorWid, 0.4, floorLen), CREAMC)
 	ceilPanel.CFrame = boxCF(0, 0, CEIL_U - 0.02)
-	local cove = neonBulb("CabinCove", Vector3.new(0.6, 0.12, floorLen * 0.96), WARM, model)
+	local cove = neonBulb("CabinCove", Vector3.new(0.6, 0.12, floorLen * 0.96), Color3.fromRGB(255, 236, 200), model)
 	cove.CFrame = boxCF(0, 0, CEIL_U - 0.16)
-	mk("PointLight", { Color = WARM, Brightness = 1.7, Range = 28, Parent = cove, Shadows = false })
+	mk("PointLight", { Color = WARM, Brightness = 0.8, Range = 20, Parent = cove, Shadows = false })
 
 	-- نوافذ مضيئة على الجهتين + خزائن علوية مائلة
 	local nWin = 5
@@ -921,8 +921,9 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 				Vector3.new(hf * 0.13, hu * 0.32, 0.16), CREAMC)
 			trim.CFrame = CFrame.fromMatrix(at(f, side * 0.885, 0.16), fwd, up, lat * side)
 			local win = neonBulb("CabinWindow", Vector3.new(hf * 0.095, hu * 0.24, 0.10), SKYC, model)
+			win.Material = Enum.Material.Glass
 			win.CFrame = CFrame.fromMatrix(at(f, side * 0.875, 0.16), fwd, up, lat * side)
-			mk("PointLight", { Color = SKYC, Brightness = 0.45, Range = 9, Parent = win, Shadows = false })
+			mk("PointLight", { Color = SKYC, Brightness = 0.15, Range = 7, Parent = win, Shadows = false })
 		end
 	end
 
@@ -931,16 +932,16 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		local hue = if accent then SEATAC else SEATC
 		local base = solid("SeatBase", Enum.PartType.Block,
 			Vector3.new(hl * 0.42, hu * 0.18, hf * 0.05), hue)
-		base.Material = Enum.Material.Fabric
+		base.Material = Enum.Material.SmoothPlastic
 		base.CFrame = boxCF(f, side * 0.5, FLOOR_U + 0.22)
 		local backrest = solid("SeatBack", Enum.PartType.Block,
 			Vector3.new(hl * 0.42, hu * 0.50, hf * 0.020), hue)
-		backrest.Material = Enum.Material.Fabric
+		backrest.Material = Enum.Material.SmoothPlastic
 		backrest.CFrame = boxCF(f - 0.024, side * 0.5, FLOOR_U + 0.52)
 			* CFrame.Angles(math.rad(8), 0, 0)
 		local head = solid("SeatHead", Enum.PartType.Block,
 			Vector3.new(hl * 0.30, hu * 0.16, hf * 0.020), HEADC)
-		head.Material = Enum.Material.Fabric
+		head.Material = Enum.Material.SmoothPlastic
 		head.CFrame = boxCF(f - 0.030, side * 0.5, FLOOR_U + 0.76)
 		for _, ay in ipairs({ -0.20, 0.20 }) do
 			local arm = solid("SeatArm", Enum.PartType.Block,
@@ -954,12 +955,21 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		end
 	end
 
-	-- فاصل قمرة القيادة بباب مضيء أمام المقصورة (يخفي الحاجز الأمامي)
+	-- فاصل قمرة القيادة: جدار معتم يغطّي فتحة المقدّمة بالكامل
+	-- (أوسع وأعلى من الفتحة حتى لا تظهر السماء أو حلقات المحرّكات المضيئة من خلفه)
 	local divider = solid("CockpitDivider", Enum.PartType.Block,
-		Vector3.new(floorWid + 0.6, wallH, 0.5), PANELC)
+		Vector3.new(floorWid * 2.4, wallH * 1.6, 0.5), PANELC)
 	divider.CFrame = boxCF(0.6, 0, wallCU)
-	local divDoor = neonBulb("CockpitDoorGlow", Vector3.new(hl * 0.55, wallH * 0.66, 0.10), WARM, model)
+	local divDoor = solid("CockpitDoor", Enum.PartType.Block,
+		Vector3.new(hl * 0.55, wallH * 0.66, 0.10), Color3.fromRGB(214, 206, 192))
 	divDoor.CFrame = boxCF(0.585, 0, wallCU - 0.12)
+	local divTrim = neonBulb("CockpitDoorTrim", Vector3.new(hl * 0.60, wallH * 0.70, 0.06), GOLD, model)
+	divTrim.Material = Enum.Material.Metal
+	divTrim.CFrame = boxCF(0.59, 0, wallCU - 0.12)
+	-- جدار معتم للمؤخّرة يغطّي فتحة الذيل بالكامل
+	local rearWall = solid("CabinRearWall", Enum.PartType.Block,
+		Vector3.new(floorWid * 2.4, wallH * 1.6, 0.5), PANELC)
+	rearWall.CFrame = boxCF(-0.6, 0, wallCU)
 
 	-- باب القفز القابل للفتح (لوح صلب على الجانب الأيسر؛ يُفتح بالـE)
 	local doorClosedCF = CFrame.fromMatrix(at(-0.18, -0.96, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
