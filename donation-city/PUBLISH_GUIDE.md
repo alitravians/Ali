@@ -19,13 +19,17 @@
 سكربت Python يقوم بـ **5 خطوات تلقائية** لنشر لعبتك على Roblox:
 
 ```
-فحص الكود (Lint) → بناء الملف (Build) → تحقق من XML → إزالة XML Header → رفع على Roblox API
+فحص الكود (Lint) → بناء المكان (.rbxlx) → تطبيع ContentId القديم → تحويل إلى .rbxl ثنائي نظيف → رفع على Roblox API
 ```
 
 **الفائدة:** بدل ما تفتح Roblox Studio وتضغط Publish يدوياً، تكتب أمر واحد وخلاص:
 ```bash
 python3 publish.py
 ```
+
+السبب الأساسي لهذا المسار هو أن ملف المكان لدينا عبارة عن ملف `rbxlx` مركّب من عمليات حقن كثيرة عبر الزمن، وفيه خصائص قديمة وغير متناسقة في الأنواع.  
+Roblox Studio يصلّح هذه الفروقات تلقائياً عند فتح الملف وإعادة حفظه، لكن Open Cloud كان يرفع الملف الخام كما هو، وهذا كان يسبب تعطل تشغيل السيرفرات وظهور رسالة **"Waiting for an available server"**.  
+الحل الحالي هو محاكاة سلوك Studio: نطبّع القيم القديمة أولاً، ثم نحول الملف إلى **.rbxl ثنائي** نظيف قبل الرفع.
 
 ---
 
@@ -36,7 +40,16 @@ python3 publish.py
 | Python 3.8+ | تشغيل السكربت | [python.org](https://www.python.org/downloads/) |
 | selene | فحص أخطاء Lua/Luau | [github.com/Kampfkarren/selene](https://github.com/Kampfkarren/selene/releases) |
 | luau-analyze (اختياري) | تحليل أنواع Luau | [github.com/luau-lang/luau](https://github.com/luau-lang/luau/releases) |
+| Rust + cargo | بناء أداة التحويل من rbxlx إلى rbxl | [rustup.rs](https://rustup.rs/) |
 | Roblox API Key | صلاحية النشر | [create.roblox.com](https://create.roblox.com/dashboard/credentials) |
+
+## هيكل الأدوات
+
+- `tools/normalize_rbxlx.py`  
+  سكربت Python يعالج القيم القديمة من نوع ContentId ويحوّلها إلى الصيغة الحديثة قبل التحويل.
+
+- `tools/rbxlx2rbxl/`  
+  مشروع Rust مستقل يحوّل `rbxlx` المنظَّم إلى ملف `rbxl` ثنائي نظيف، ويطبّق تطبيع الأنواع من خلال Reflection Database.
 
 ---
 
@@ -191,14 +204,20 @@ Lint passed! All files are clean.
 === STEP 2: Building (injecting sources) ===
 Build complete.
 
-=== STEP 3: Validating XML ===
-  DonationCity_FINAL.rbxlx is valid XML
+=== STEP 3: Normalizing legacy ContentId props ===
+string->Content: 271, url->uri: 45
+  wrote build/normalized.rbxlx (6,606,594 bytes)
 
-=== STEP 4: Stripping XML declaration ===
-  No XML declaration found (already clean)
+=== STEP 4: Converting normalized rbxlx to binary rbxl ===
+coerced properties: 3472
+  ImageLabel::BackgroundColor3: Color3uint8->Color3: 1
+  UnionOperation::AssetId: String->ContentId: 92
+  ...
+  dropped properties: 0
+  wrote build/DonationCity_FINAL.rbxl (699,465 bytes)
 
 === STEP 5: Publishing to Roblox ===
-  Uploading DonationCity_FINAL.rbxlx (6,370,865 bytes)...
+  Uploading build/DonationCity_FINAL.rbxl (699,465 bytes)...
   Universe: 10237943037 | Place: 134706113896132
 
   Published successfully! Version: 335
@@ -230,28 +249,29 @@ def build():
     # (لو ما عندك build_all.py، احذف هالخطوة أو عدّلها حسب مشروعك)
 ```
 
-### الخطوة 3: تحقق من XML
+### الخطوة 3: تطبيع الـ ContentId القديم
 ```python
-def validate_xml():
-    # يقرأ ملف .rbxlx ويتأكد إنه XML سليم
-    # لو فيه خطأ بالـ XML (مثلاً tag مو مسكّر) يوقف النشر
+def normalize_content_id_props():
+    # يشغّل tools/normalize_rbxlx.py
+    # يحوّل <string> و <Content><url> القديمة إلى صيغة <Content><uri>/<null>
+    # حتى parser الحديث يقرأ الملف كامل بدون أخطاء
 ```
 
-### الخطوة 4: إزالة XML Declaration
+### الخطوة 4: التحويل إلى .rbxl ثنائي
 ```python
-def strip_xml_declaration():
-    # لو الملف يبدأ بـ <?xml version='1.0' ...?> يشيلها
-    # مهم جداً! Roblox API يرفض الملفات اللي فيها هالسطر
+def convert_to_binary():
+    # يشغّل tools/rbxlx2rbxl/target/release/rbxlx2rbxl
+    # الأداة تمر على كل Instance و Property
+    # ثم توحّد الأنواع بحسب Reflection Database
+    # وبعدها تكتب ملف .rbxl ثنائي نظيف
 ```
-
-> 🔴 **اكتشاف مهم:** Roblox Open Cloud API يرفض ملفات `.rbxlx` اللي تبدأ بـ `<?xml ...?>`.
-> الملف لازم يبدأ مباشرة بـ `<roblox version="4">`.
 
 ### الخطوة 5: الرفع على Roblox
 ```python
 def publish():
     # يقرأ الـ API Key من Environment Variable
-    # يرسل الملف كـ POST request للـ Roblox Open Cloud API
+    # يرسل ملف .rbxl كـ POST request للـ Roblox Open Cloud API
+    # Content-Type لازم يكون application/octet-stream
     # يطبع رقم النسخة الجديدة لو نجح
 ```
 

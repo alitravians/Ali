@@ -43,11 +43,12 @@ local WIN_LINES = {
 	{ 1, 5, 9 }, { 3, 5, 7 },                -- أقطار
 }
 
--- مواقع الطاولات الثلاث داخل مبنى «ركن الألعاب» (زاوية شمال المدينة، z=110)
+-- مواقع طاولات إكس-أو داخل «منطقة إكس-أو» (يسار الصالة) مصفوفة على عمق z،
+-- لإفساح يمين الصالة لـ«منطقة الشطرنج». (تقسيم ركن الألعاب لمنطقتين مستقلّتين.)
 local TABLES = {
-	Vector3.new(-17, 0.8, 110.25),
-	Vector3.new(0,   0.8, 110.25),
-	Vector3.new(17,  0.8, 110.25),
+	Vector3.new(-15, 0.8, 99.0),
+	Vector3.new(-15, 0.8, 110.0),
+	Vector3.new(-15, 0.8, 121.0),
 }
 
 ----------------------------------------------------------------------
@@ -993,22 +994,250 @@ local function topiary(parent: Instance, x: number, z: number, g: number)
 	end
 end
 
--- عمود فانوس خارجي بإضاءة دافئة
-local function lanternPost(parent: Instance, x: number, z: number, g: number)
+local function buildStageLightFallback(parent: Instance): Model
+	local model = Instance.new("Model")
+	model.Name = "StageLightFixture"
+	model.Parent = parent
+
 	part({
-		Name = "Post", Parent = parent, Color = GOLD, Material = Enum.Material.Metal,
-		Size = Vector3.new(0.5, 7.0, 0.5), CFrame = CFrame.new(x, g + 3.5, z),
+		Name = "Base", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(1.4, 1.4, 0.28), CFrame = CFrame.new(0, 0, 0.14),
 	})
-	local bulb = part({
-		Name = "Bulb", Parent = parent, Color = rgb(C.GOLDE), Material = Enum.Material.Neon,
-		CanCollide = false, Size = Vector3.new(1.5, 1.9, 1.5), CFrame = CFrame.new(x, g + 7.4, z),
+	disc({
+		Name = "BaseRing", Parent = model, Color = GOLD, Material = Enum.Material.Metal,
+		Size = Vector3.new(0.18, 1.10, 1.10), CFrame = CFrame.new(0, 0, 0.40),
 	})
-	bulb.Shape = Enum.PartType.Ball
-	local lt = Instance.new("PointLight")
-	lt.Color = Color3.fromRGB(255, 226, 160)
-	lt.Range = 18
-	lt.Brightness = 2
-	lt.Parent = bulb
+	part({
+		Name = "Post", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(0.54, 0.54, 6.0), CFrame = CFrame.new(0, 0, 3.20),
+	})
+	part({
+		Name = "PostBandLow", Parent = model, Color = GOLD_HI, Material = Enum.Material.Metal,
+		CanCollide = false, Size = Vector3.new(0.62, 0.62, 0.12), CFrame = CFrame.new(0, 0, 1.16),
+	})
+	part({
+		Name = "PostBandHigh", Parent = model, Color = GOLD, Material = Enum.Material.Metal,
+		CanCollide = false, Size = Vector3.new(0.64, 0.64, 0.12), CFrame = CFrame.new(0, 0, 5.36),
+	})
+	part({
+		Name = "YokeBlock", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(0.90, 0.90, 0.72), CFrame = CFrame.new(0, 0, 6.90),
+	})
+	part({
+		Name = "YokeArmL", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(0.98, 0.24, 0.24), CFrame = CFrame.new(-0.84, 0, 6.90),
+	})
+	part({
+		Name = "YokeArmR", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(0.98, 0.24, 0.24), CFrame = CFrame.new(0.84, 0, 6.90),
+	})
+	part({
+		Name = "YokeJointL", Parent = model, Color = GOLD, Material = Enum.Material.Metal,
+		CanCollide = false, Size = Vector3.new(0.18, 0.40, 0.40), CFrame = CFrame.new(-1.17, 0, 6.80),
+	})
+	part({
+		Name = "YokeJointR", Parent = model, Color = GOLD, Material = Enum.Material.Metal,
+		CanCollide = false, Size = Vector3.new(0.18, 0.40, 0.40), CFrame = CFrame.new(1.17, 0, 6.80),
+	})
+	part({
+		Name = "HeadPivot", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(0.78, 0.78, 0.66), CFrame = CFrame.new(0, 0, 6.72),
+	})
+	part({
+		Name = "HeadShell", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(1.60, 1.36, 1.00), CFrame = CFrame.new(0, 0, 7.18),
+	})
+	part({
+		Name = "HeadShellBand", Parent = model, Color = GOLD_HI, Material = Enum.Material.Metal,
+		CanCollide = false, Size = Vector3.new(0.86, 0.14, 0.86), CFrame = CFrame.new(0, 0, 7.28),
+	})
+	part({
+		Name = "Bezel", Parent = model, Color = GOLD_HI, Material = Enum.Material.Metal,
+		Size = Vector3.new(0.62, 0.62, 0.16), CFrame = CFrame.new(0, 0, 7.96),
+	})
+	part({
+		Name = "Lens", Parent = model, Color = rgb(C.GOLDE), Material = Enum.Material.Neon,
+		CanCollide = false, Size = Vector3.new(0.68, 0.68, 0.18), CFrame = CFrame.new(0, 0, 8.10),
+	})
+	part({
+		Name = "BeamTip", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Transparency = 1, CanCollide = false, Size = Vector3.new(0.18, 0.18, 0.18), CFrame = CFrame.new(0, 0, 8.58),
+	})
+	part({
+		Name = "RearCap", Parent = model, Color = rgb(C.NAVY), Material = Enum.Material.Metal,
+		Size = Vector3.new(0.60, 0.46, 0.46), CFrame = CFrame.new(0, -0.16, 6.98),
+	})
+	return model
+end
+
+local function loadStageLightFixture(parent: Instance): Model
+	-- نستخدم البناء الإجرائي هنا لأن محاور أصل الـFBX لا تُعطي وضعية
+	-- موثوقة داخل الخريطة؛ البناء المحلي أبسط وأدق لهذا المشهد.
+	return buildStageLightFallback(parent)
+end
+
+local function colorForPhase(phase: number): Color3
+	local p = phase % 3
+	local magenta = Color3.fromRGB(255, 62, 184)
+	local gold = Color3.fromRGB(255, 210, 90)
+	local cyan = Color3.fromRGB(77, 236, 255)
+	if p < 1 then
+		return magenta:Lerp(gold, p)
+	elseif p < 2 then
+		return gold:Lerp(cyan, p - 1)
+	else
+		return cyan:Lerp(magenta, p - 2)
+	end
+end
+
+local function attachStageLightFX(model: Model, side: number)
+	local headPivot = model:FindFirstChild("HeadPivot", true)
+	local lens = model:FindFirstChild("Lens", true)
+	local beamTip = model:FindFirstChild("BeamTip", true)
+	if not (headPivot and headPivot:IsA("BasePart") and lens and lens:IsA("BasePart") and beamTip and beamTip:IsA("BasePart")) then
+		return
+	end
+
+	local headParts = {}
+	for _, name in ipairs({
+		"HeadPivot", "HeadShell", "HeadShellBand", "Bezel", "Lens", "RearCap",
+	}) do
+		local p = model:FindFirstChild(name, true)
+		if p and p:IsA("BasePart") then
+			headParts[#headParts + 1] = p
+		end
+	end
+
+	local baseOffsets = {}
+	for _, p in ipairs(headParts) do
+		baseOffsets[p] = headPivot.CFrame:ToObjectSpace(p.CFrame)
+	end
+
+	local origin = lens:FindFirstChild("BeamOrigin")
+	if not origin then
+		origin = Instance.new("Attachment")
+		origin.Name = "BeamOrigin"
+		origin.Position = Vector3.new(0, 0, -0.05)
+		origin.Parent = lens
+	end
+	local target = beamTip:FindFirstChild("BeamTarget")
+	if not target then
+		target = Instance.new("Attachment")
+		target.Name = "BeamTarget"
+		target.Position = Vector3.new(0, 0, 0.05)
+		target.Parent = beamTip
+	end
+
+	local beam = lens:FindFirstChild("StageBeam")
+	if not beam then
+		beam = Instance.new("Beam")
+		beam.Name = "StageBeam"
+		beam.Attachment0 = origin
+		beam.Attachment1 = target
+		beam.FaceCamera = true
+		beam.LightEmission = 1.35
+		beam.LightInfluence = 0
+		beam.Segments = 12
+		beam.Width0 = 0.28
+		beam.Width1 = 3.2
+		beam.Transparency = NumberSequence.new({
+			NumberSequenceKeypoint.new(0, 0.08),
+			NumberSequenceKeypoint.new(1, 0.92),
+		})
+		beam.Parent = lens
+	end
+
+	local spot = lens:FindFirstChild("StageSpot")
+	if not spot then
+		spot = Instance.new("SpotLight")
+		spot.Name = "StageSpot"
+		spot.Angle = 40
+		spot.Range = 30
+		spot.Brightness = 2.2
+		spot.Shadows = false
+		spot.Parent = lens
+	end
+
+	local sweep = Instance.new("NumberValue")
+	sweep.Name = "Sweep"
+	sweep.Value = if side < 0 then -3.2 else 3.2
+	sweep.Parent = model
+	local tilt = Instance.new("NumberValue")
+	tilt.Name = "Tilt"
+	tilt.Value = if side < 0 then -1.4 else 1.4
+	tilt.Parent = model
+	local phase = Instance.new("NumberValue")
+	phase.Name = "Phase"
+	phase.Value = if side < 0 then 0 else 2
+	phase.Parent = model
+	local pulse = Instance.new("NumberValue")
+	pulse.Name = "Pulse"
+	pulse.Value = 1
+	pulse.Parent = model
+
+	local function refreshPose()
+		local root = model:GetPivot()
+		local headPos = headPivot.Position
+		local targetPos = root.Position + Vector3.new(-(side * 5.75) + sweep.Value, 22.5 + tilt.Value, 0)
+		local aim = CFrame.lookAt(headPos, targetPos) * CFrame.Angles(0, math.pi, 0)
+		local beamTargetPos = root.Position + Vector3.new(-(side * 6.25) + sweep.Value, 22.5 + tilt.Value, 0)
+		for p, offset in pairs(baseOffsets) do
+			p.CFrame = aim * offset
+		end
+		beamTip.CFrame = CFrame.new(beamTargetPos)
+	end
+	local function refreshFX()
+		local c = colorForPhase(phase.Value)
+		beam.Color = ColorSequence.new(c)
+		beam.Width0 = 0.18 * pulse.Value
+		beam.Width1 = 2.2 * pulse.Value
+		spot.Color = c
+		spot.Brightness = 2.0 * pulse.Value
+		spot.Range = 28 + (pulse.Value * 4)
+	end
+
+	sweep.Changed:Connect(refreshPose)
+	tilt.Changed:Connect(refreshPose)
+	phase.Changed:Connect(refreshFX)
+	pulse.Changed:Connect(refreshFX)
+	refreshPose()
+	refreshFX()
+
+	local sweepTween = TweenService:Create(
+		sweep,
+		TweenInfo.new(3.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = if side < 0 then 3.2 else -3.2 }
+	)
+	local tiltTween = TweenService:Create(
+		tilt,
+		TweenInfo.new(2.2, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = if side < 0 then 1.4 else -1.4 }
+	)
+	local phaseTween = TweenService:Create(
+		phase,
+		TweenInfo.new(6.0, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1, false),
+		{ Value = if side < 0 then 3 else 5 }
+	)
+	local pulseTween = TweenService:Create(
+		pulse,
+		TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+		{ Value = 1.2 }
+	)
+	sweepTween:Play()
+	tiltTween:Play()
+	phaseTween:Play()
+	pulseTween:Play()
+end
+
+local function spawnStageLight(parent: Instance, template: Model, x: number, z: number, g: number, side: number)
+	local fixture = template:Clone()
+	fixture.Parent = parent
+	pcall(function()
+		fixture:ScaleTo(1.35)
+	end)
+	fixture:PivotTo(CFrame.new(x, g - (0.14 * 1.35), z) * CFrame.Angles(math.rad(-90), math.rad(180), 0))
+	attachStageLightFX(fixture, side)
+	return fixture
 end
 
 -- مقعد خشبي خارجي بسيط
@@ -1156,9 +1385,11 @@ local function furnishHall(parent: Instance)
 			CanCollide = false, Size = Vector3.new(0.18, 0.1, 11), CFrame = CFrame.new(sx * 3.4, GY + 0.1, 83),
 		})
 	end
-	-- فانوسان يحيطان الباب + حوضا كرز + مقعدان
-	lanternPost(parent, 7, 87, GY)
-	lanternPost(parent, -7, 87, GY)
+	-- كشافان ضوئيان متحرّكان يحيطان الباب + حوضا كرز + مقعدان
+	local stageLightTemplate = loadStageLightFixture(parent)
+	spawnStageLight(parent, stageLightTemplate, 7, 87, GY, 1)
+	spawnStageLight(parent, stageLightTemplate, -7, 87, GY, -1)
+	stageLightTemplate:Destroy()
 	topiary(parent, 9.5, 85, GY)
 	topiary(parent, -9.5, 85, GY)
 	bench(parent, 13, 83, GY)

@@ -31,3 +31,5 @@ roblox.yml
 # Python cache
 __pycache__/
 *.pyc
+build/
+tools/rbxlx2rbxl/target/

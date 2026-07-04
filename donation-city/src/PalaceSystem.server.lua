@@ -762,8 +762,23 @@ local function laptop(cx, cz, topY)
 	local lidH = 2.4
 	local lidCF = CFrame.new(cx - 1.0, topY, cz) * CFrame.Angles(0, 0, math.rad(14)) * CFrame.new(0, lidH / 2, 0)
 	part("LapLid", lidCF, Vector3.new(0.1, lidH, 2.3), body, Enum.Material.Metal)
-	local scr = part("LapScreen", lidCF * CFrame.new(0.08, 0, 0), Vector3.new(0.04, lidH - 0.4, 2.0), scrnC, Enum.Material.Neon)
+	local scr = part("LapScreen", lidCF * CFrame.new(0.08, 0, 0), Vector3.new(0.04, lidH - 0.4, 2.0), scrnC, Enum.Material.SmoothPlastic)
 	scr.CanCollide = false
+	local g = Instance.new("SurfaceGui")
+	g.Name = "LapWallpaperGui"; g.AutoLocalize = false
+	g.Face = Enum.NormalId.Right
+	g.LightInfluence = 0
+	g.Brightness = 1.2
+	g.CanvasSize = Vector2.new(768, 432)
+	g.Adornee = scr; g.Parent = scr
+	local img = Instance.new("ImageLabel")
+	img.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
+	img.BorderSizePixel = 0
+	img.Size = UDim2.fromScale(1, 1)
+	-- Decal ID لا يُحمّل مباشرة وقت التشغيل — نستخدم rbxthumb (نفس أسلوب شعار القصر)
+	img.Image = "rbxthumb://type=Asset&id=93628047304202&w=768&h=432"
+	img.ScaleType = Enum.ScaleType.Crop
+	img.Parent = g
 	pointLight(scr, Color3.fromRGB(120, 170, 235), 0.6, 6)
 	local emb = part("LapLogo", lidCF * CFrame.new(-0.07, 0, 0), Vector3.new(0.04, 0.5, 0.5), TRIM_GOLD, Enum.Material.Metal)
 	emb.CanCollide = false

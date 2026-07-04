@@ -2597,6 +2597,16 @@ local function openStore(player)
 			})
 		end
 	end
+	if type(_G.GetCuffStoreItems) == "function" then
+		local ok, cuffItems = pcall(function()
+			return _G.GetCuffStoreItems(player)
+		end)
+		if ok and type(cuffItems) == "table" then
+			for _, it in ipairs(cuffItems) do
+				table.insert(items, it)
+			end
+		end
+	end
 	local s = sessions[player.UserId]
 	lobbyRemote:FireClient(player, {
 		action = "store",

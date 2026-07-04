@@ -5,39 +5,69 @@ Automated publish pipeline for مدينة شهد (Donation City).
 Steps:
   1. Lint all Luau source files (selene + luau-analyze)
   2. Build: inject latest source into DonationCity_FINAL.rbxlx
-  3. Validate XML structure
-  4. Strip XML declaration if present (Roblox API rejects it)
-  5. Upload to Roblox Open Cloud API
+  3. Normalize legacy ContentId props into Studio-compatible XML
+  4. Convert normalized rbxlx to canonical binary rbxl
+  5. Upload the binary rbxl to Roblox Open Cloud API
 
 Requires:
   - Environment variable ROBLOX_PUBLISH_API_KEY
   - selene (Luau linter) on PATH
   - luau-analyze on PATH (optional, skipped if missing)
+  - Rust toolchain / cargo for the rbxlx -> rbxl converter
 
 Usage:
-  python3 publish.py              # lint + build + publish
-  python3 publish.py --lint-only  # lint only, no publish
-  python3 publish.py --skip-lint  # build + publish without linting
+  python3 publish.py              # lint + build + convert + publish
+  python3 publish.py --lint-only  # lint only, no build/publish
+  python3 publish.py --skip-lint  # build + convert + publish without linting
 """
-import os
-import sys
-import subprocess
-import xml.etree.ElementTree as ET
-import urllib.request
+
 import json
+import os
+import shutil
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+from pathlib import Path
 
 # --- Configuration ---
 UNIVERSE_ID = "10237943037"
 PLACE_ID = "134706113896132"
-RBXLX_FILE = "DonationCity_FINAL.rbxlx"
-SRC_DIR = "src"
+RBXLX_FILE = Path("DonationCity_FINAL.rbxlx")
+SRC_DIR = Path("src")
+BUILD_DIR = Path("build")
+NORMALIZED_RBXLX = BUILD_DIR / "normalized.rbxlx"
+BINARY_RBXL = BUILD_DIR / "DonationCity_FINAL.rbxl"
+NORMALIZER = Path("tools") / "normalize_rbxlx.py"
+CONVERTER_DIR = Path("tools") / "rbxlx2rbxl"
+CONVERTER_MANIFEST = CONVERTER_DIR / "Cargo.toml"
+CONVERTER_BINARY = CONVERTER_DIR / "target" / "release" / (
+    "rbxlx2rbxl.exe" if sys.platform == "win32" else "rbxlx2rbxl"
+)
 API_URL = f"https://apis.roblox.com/universes/v1/{UNIVERSE_ID}/places/{PLACE_ID}/versions?versionType=Published"
 
 
 def run(cmd, capture=True):
-    """Run a shell command and return (returncode, stdout)."""
+    """Run a command and return (returncode, stdout, stderr)."""
     result = subprocess.run(cmd, capture_output=capture, text=True)
     return result.returncode, result.stdout, result.stderr
+
+
+def extract_dropped_properties(output: str):
+    """Extract the dropped property list from the converter output."""
+    dropped = []
+    capture = False
+    for line in output.splitlines():
+        if line.startswith("dropped properties:"):
+            capture = True
+            continue
+        if capture:
+            if line.startswith("  "):
+                dropped.append(line.strip())
+                continue
+            if line.strip():
+                break
+    return dropped
 
 
 def lint():
@@ -45,7 +75,7 @@ def lint():
     print("\n=== STEP 1: Linting Luau sources ===")
 
     lua_files = sorted(
-        os.path.join(SRC_DIR, f)
+        str(SRC_DIR / f)
         for f in os.listdir(SRC_DIR)
         if f.endswith(".lua")
     )
@@ -90,7 +120,7 @@ def lint():
         actual_errors = [
             l for l in lines
             if l.strip()
-            and ": Error" in l  # luau-analyze uses "Error" for real errors
+            and ": Error" in l
             and "Unknown global" not in l
             and "Unknown type" not in l
             and "is not a valid member" not in l
@@ -125,48 +155,118 @@ def build():
     print("Build complete.")
 
 
-def validate_xml():
-    """Validate the rbxlx file is well-formed XML."""
-    print("\n=== STEP 3: Validating XML ===")
-    try:
-        ET.parse(RBXLX_FILE)
-        print(f"  {RBXLX_FILE} is valid XML")
-    except ET.ParseError as e:
-        print(f"XML VALIDATION FAILED: {e}")
+def normalize_content_id_props():
+    """Normalize legacy ContentId properties into Studio-compatible XML."""
+    print("\n=== STEP 3: Normalizing legacy ContentId props ===")
+    BUILD_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not NORMALIZER.exists():
+        sys.exit(f"ERROR: normalizer not found: {NORMALIZER}")
+
+    code, out, err = run([
+        sys.executable,
+        str(NORMALIZER),
+        str(RBXLX_FILE),
+        str(NORMALIZED_RBXLX),
+    ])
+    if code != 0:
+        print(f"NORMALIZATION FAILED:\n{out}\n{err}")
         sys.exit(1)
 
+    if out.strip():
+        print(out.strip())
+    if err.strip():
+        print(err.strip())
 
-def strip_xml_declaration():
-    """Remove <?xml ...?> declaration if present (Roblox API rejects it)."""
-    print("\n=== STEP 4: Stripping XML declaration ===")
-    with open(RBXLX_FILE, "r", encoding="utf-8") as f:
-        content = f.read()
+    if not NORMALIZED_RBXLX.exists() or NORMALIZED_RBXLX.stat().st_size == 0:
+        sys.exit("ERROR: normalized rbxlx output is missing or empty")
 
-    if content.startswith("<?xml"):
-        # Remove first line (XML declaration)
-        newline_idx = content.index("\n")
-        content = content[newline_idx + 1:]
-        with open(RBXLX_FILE, "w", encoding="utf-8") as f:
-            f.write(content)
-        print("  Removed XML declaration")
-    else:
-        print("  No XML declaration found (already clean)")
+    print(f"  wrote {NORMALIZED_RBXLX} ({NORMALIZED_RBXLX.stat().st_size:,} bytes)")
+
+
+def build_converter():
+    """Build the Rust converter if needed."""
+    if CONVERTER_BINARY.exists():
+        return
+
+    print("\n=== STEP 4: Building rbxlx -> rbxl converter (cargo) ===")
+    cargo = shutil.which("cargo")
+    if not cargo:
+        sys.exit("ERROR: cargo not found on PATH. Install the Rust toolchain first.")
+
+    code, out, err = run([
+        cargo,
+        "+stable",
+        "build",
+        "--release",
+        "--manifest-path",
+        str(CONVERTER_MANIFEST),
+    ])
+    if code != 0:
+        print(f"CONVERTER BUILD FAILED:\n{out}\n{err}")
+        sys.exit(1)
+
+    if out.strip():
+        print(out.strip())
+    if err.strip():
+        print(err.strip())
+
+    if not CONVERTER_BINARY.exists():
+        sys.exit(f"ERROR: converter binary missing after build: {CONVERTER_BINARY}")
+
+
+def convert_to_binary():
+    """Convert the normalized rbxlx to a canonical binary rbxl."""
+    print("\n=== STEP 4: Converting normalized rbxlx to binary rbxl ===")
+    build_converter()
+
+    combined_output = ""
+    code, out, err = run([
+        str(CONVERTER_BINARY),
+        str(NORMALIZED_RBXLX),
+        str(BINARY_RBXL),
+    ])
+    if out.strip():
+        print(out.strip())
+    if err.strip():
+        print(err.strip())
+
+    combined_output = "\n".join(part for part in (out, err) if part)
+
+    dropped = extract_dropped_properties(combined_output)
+    if dropped:
+        dropped_block = "\n".join(f"  - {item}" for item in dropped)
+        sys.exit(
+            "ERROR: rbxl converter dropped property(s); refusing to publish.\n"
+            f"{dropped_block}"
+        )
+    if code != 0:
+        print("CONVERSION FAILED (see converter output above)")
+        sys.exit(1)
+
+    if not BINARY_RBXL.exists() or BINARY_RBXL.stat().st_size == 0:
+        sys.exit("ERROR: binary rbxl output is missing or empty")
+
+    print(f"  wrote {BINARY_RBXL} ({BINARY_RBXL.stat().st_size:,} bytes)")
 
 
 def publish():
-    """Upload rbxlx to Roblox Open Cloud API."""
+    """Upload binary rbxl to Roblox Open Cloud API."""
+    if os.environ.get("DONATION_CITY_SKIP_UPLOAD") == "1":
+        print("\n=== STEP 5: Upload skipped (DONATION_CITY_SKIP_UPLOAD=1) ===")
+        return None
+
     print("\n=== STEP 5: Publishing to Roblox ===")
 
     api_key = os.environ.get("ROBLOX_PUBLISH_API_KEY")
     if not api_key:
         sys.exit("ERROR: ROBLOX_PUBLISH_API_KEY environment variable not set")
 
-    file_size = os.path.getsize(RBXLX_FILE)
-    print(f"  Uploading {RBXLX_FILE} ({file_size:,} bytes)...")
+    file_size = BINARY_RBXL.stat().st_size
+    print(f"  Uploading {BINARY_RBXL} ({file_size:,} bytes)...")
     print(f"  Universe: {UNIVERSE_ID} | Place: {PLACE_ID}")
 
-    with open(RBXLX_FILE, "rb") as f:
-        data = f.read()
+    data = BINARY_RBXL.read_bytes()
 
     req = urllib.request.Request(
         API_URL,
@@ -192,12 +292,11 @@ def publish():
 
 
 def main():
-    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+    os.chdir(Path(__file__).resolve().parent)
 
     skip_lint = "--skip-lint" in sys.argv
     lint_only = "--lint-only" in sys.argv
 
-    # Step 1: Lint
     if not skip_lint:
         lint()
 
@@ -205,16 +304,9 @@ def main():
         print("\n--lint-only: stopping after lint.")
         return
 
-    # Step 2: Build
     build()
-
-    # Step 3: Validate XML
-    validate_xml()
-
-    # Step 4: Strip XML declaration
-    strip_xml_declaration()
-
-    # Step 5: Publish
+    normalize_content_id_props()
+    convert_to_binary()
     publish()
 
     print("\n=== Pipeline complete! ===")

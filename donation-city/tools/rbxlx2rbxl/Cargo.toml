@@ -1,0 +1,11 @@
+[package]
+name = "rbxlx2rbxl"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rbx_xml = "3"
+rbx_binary = "3"
+rbx_reflection = "7"
+rbx_reflection_database = "3"
+rbx_dom_weak = "4"
