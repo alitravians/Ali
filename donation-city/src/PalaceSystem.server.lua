@@ -821,27 +821,49 @@ local function laptopBlender(cx, cz, topY): boolean
 	local pv = model:GetPivot()
 	model:PivotTo(pv + delta)
 	model.Parent = Workspace
-	-- خلفية الشاشة (نفس الصورة الحالية) تُرسم مباشرة على وجه ميش الشاشة نفسه
-	-- (لا لوح منفصل — نتفادى أي انفصال/ميلان مختلف عن الشاشة)
+	-- خلفية الشاشة على لوح رقيق مستقل ومطابق تماماً لوجه الشاشة
+	-- هذا يتفادى تشوّه/انكسار الإسقاط على ميش الشاشة الأصلي.
 	if scr and scr:IsA("BasePart") then
 		local cf = scr.CFrame
-		-- محاور الشاشة الثلاثة: (الحجم، اتجاه الوجه الموجب في العالم، NormalId الموجب/السالب)
-		-- LookVector = محور -Z، فاتجاه وجه +Z هو -LookVector ووجهه NormalId.Back
 		local axes = {
-			{ size = scr.Size.X, dir = cf.RightVector, pos = Enum.NormalId.Right, neg = Enum.NormalId.Left },
-			{ size = scr.Size.Y, dir = cf.UpVector, pos = Enum.NormalId.Top, neg = Enum.NormalId.Bottom },
-			{ size = scr.Size.Z, dir = -cf.LookVector, pos = Enum.NormalId.Back, neg = Enum.NormalId.Front },
+			{ size = scr.Size.X, dir = cf.RightVector },
+			{ size = scr.Size.Y, dir = cf.UpVector },
+			{ size = scr.Size.Z, dir = -cf.LookVector },
 		}
 		table.sort(axes, function(a, b) return a.size < b.size end)
-		local thin = axes[1] -- المحور الأرفع = عمودي الشاشة الأمامي
-		local face = if thin.dir.X >= 0 then thin.pos else thin.neg -- الوجه المتّجه نحو الكرسي (+X)
+		local depthAxis = axes[1]
+		local faceW = axes[3].size * 0.98
+		local faceH = axes[2].size * 0.98
+		local front = depthAxis.dir
+		if front:Dot(basePart.Position - scr.Position) > 0 then
+			front = -front
+		end
+		local up = cf.UpVector
+		if up:Dot(Vector3.new(0, 1, 0)) < 0 then
+			up = -up
+		end
+		local right = up:Cross(front)
+		if right.Magnitude < 0.01 then
+			right = cf.RightVector
+		else
+			right = right.Unit
+		end
+		local display = Instance.new("Part")
+		display.Name = "LapScreenDisplay"
+		display.Anchored = true
+		display.CanCollide = false
+		display.CastShadow = false
+		display.Transparency = 1
+		display.Size = Vector3.new(faceW, faceH, 0.02)
+		display.CFrame = CFrame.fromMatrix(scr.Position + front * 0.01, right, up, -front)
+		display.Parent = model
 		local g = Instance.new("SurfaceGui")
 		g.Name = "LapWallpaperGui"; g.AutoLocalize = false
-		g.Face = face
+		g.Face = Enum.NormalId.Front
 		g.LightInfluence = 0
 		g.Brightness = 1.2
 		g.CanvasSize = Vector2.new(768, 432)
-		g.Adornee = scr; g.Parent = scr
+		g.Adornee = display; g.Parent = display
 		local img = Instance.new("ImageLabel")
 		img.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
 		img.BorderSizePixel = 0
@@ -849,7 +871,7 @@ local function laptopBlender(cx, cz, topY): boolean
 		img.Image = "rbxthumb://type=Asset&id=93628047304202&w=768&h=432"
 		img.ScaleType = Enum.ScaleType.Crop
 		img.Parent = g
-		pointLight(scr, Color3.fromRGB(120, 170, 235), 0.6, 6)
+		pointLight(display, Color3.fromRGB(120, 170, 235), 0.6, 6)
 	end
 	return true
 end
