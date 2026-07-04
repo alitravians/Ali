@@ -145,7 +145,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٨٤",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٨٦",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -174,9 +174,21 @@ local CONFIG = {
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
 		{
-			version = "٢.٩.٨٤", date = "٢٩ يونيو",
+			version = "٢.٩.٨٦", date = "٣ يوليو",
 			items = {
 				{ "fix", "تحسين الشطرنج: حركة القطع صارت فورية وسلسة على الجوال والكمبيوتر — الحركة تُنفّذ محليّاً على جهازك بدل بثّها من السيرفر، مع أسر وقفز حصان أسرع وأنعم." },
+			},
+		},
+		{
+			version = "٢.٩.٨٥", date = "٣ يوليو",
+			items = {
+				{ "new", "مظلة النزول أعيد تصميمها ثلاثي الأبعاد باحترافية: قطاعات كحلي وذهبي بارزة، حافة مفصّصة، حبال واضحة تتجمّع على حلقة تعليق، وفتحة ذهبية بالقمّة." },
+			},
+		},
+		{
+			version = "٢.٩.٨٤", date = "٣ يوليو",
+			items = {
+				{ "new", "تحسين مظلة النزول: رياح متصاعدة، صوت فتح المظلة، صوت هبوط، تباطؤ واضح عند الفتح، اهتزاز خفيف، ظل ديناميكي، وغبار هبوط ناعم." },
 			},
 		},
 		{
@@ -18816,6 +18828,7 @@ end)
 
 local Players          = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local InsertService    = game:GetService("InsertService")
 
 ------------------------------------------------------------------------
 -- قنوات الاتصال (RemoteEvents)
@@ -18826,6 +18839,50 @@ if not remotes then
 	remotes.Name = "SpawnCinematicRemotes"
 	remotes.Parent = ReplicatedStorage
 end
+
+local CANOPY_ASSET_ID = 140287954815361
+
+local function loadRoyalCanopyMesh()
+    if ReplicatedStorage:FindFirstChild("RoyalCanopyMesh") then
+            return
+    end
+
+    local asset = nil
+    for attempt = 1, 5 do
+            local ok, result = pcall(function()
+                    return InsertService:LoadAsset(CANOPY_ASSET_ID)
+            end)
+            if ok and result then
+                    asset = result
+                    break
+            end
+            task.wait(2 * attempt)
+    end
+
+    if not asset then
+            warn("SpawnCinematic: failed to load RoyalCanopyMesh asset")
+            return
+    end
+
+    local model = asset:FindFirstChildWhichIsA("Model")
+    if not model then
+            asset:Destroy()
+            warn("SpawnCinematic: RoyalCanopyMesh asset did not contain a Model")
+            return
+    end
+
+    model.Name = "RoyalCanopyMesh"
+    for _, inst in ipairs(model:GetDescendants()) do
+            if inst:IsA("BasePart") then
+                    inst.Anchored = true
+            end
+    end
+
+    model.Parent = ReplicatedStorage
+    asset:Destroy()
+end
+
+task.spawn(loadRoyalCanopyMesh)
 
 local landedRemote = remotes:FindFirstChild("Landed")
 if not landedRemote then
@@ -30737,6 +30794,7 @@ local Players           = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService        = game:GetService("RunService")
 local UserInputService  = game:GetService("UserInputService")
+local Lighting          = game:GetService("Lighting")
 -- جوال حقيقي فقط (لمس بلا لوحة مفاتيح) → أزرار لمس؛ غير ذلك (كمبيوتر ولو بشاشة لمس) → تلميح لوحة المفاتيح.
 local function isMobileInput(): boolean
 	return UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
@@ -30746,9 +30804,7 @@ local Workspace         = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 
-----------------------------------------------------------------------
 -- الإعدادات (سهلة التعديل)
-----------------------------------------------------------------------
 local CONFIG = {
 	-- جغرافيا المشهد
 	JUMP_XZ         = Vector2.new(0, 0),      -- يقفز فوق وسط المدينة ثم نزول حرّ موجَّه
@@ -30775,14 +30831,17 @@ local CONFIG = {
 	-- معرّفات أصوات (٠ = معطّل بهدوء؛ تُعبّأ لاحقاً من حساب المالك)
 	SND_ENGINE      = 0,
 	SND_JUMP        = 0,
-	SND_CHUTE       = 0,
-	SND_LAND        = 0,
+	SND_CHUTE       = 5893607560,
+	SND_LAND        = 103869454042122,
+	SND_WIND        = 7143970965,
 }
 
 local GOLD  = Color3.fromRGB(214, 175, 92)
 local NAVY  = Color3.fromRGB(28, 42, 78)
 local WHITE = Color3.fromRGB(245, 245, 250)
 local WARM  = Color3.fromRGB(255, 226, 168)
+local loadCanopyTemplate: (() -> Model?)? = nil
+local buildProceduralCanopy: (() -> (Model, BasePart))? = nil
 
 ----------------------------------------------------------------------
 -- أدوات مساعدة
@@ -30793,6 +30852,97 @@ local function mk(class: string, props: { [string]: any }): Instance
 		(inst :: any)[k] = v
 	end
 	return inst
+end
+
+local canopyTemplate: Model? = nil
+
+loadCanopyTemplate = function(): Model?
+    if canopyTemplate then
+            return canopyTemplate
+    end
+
+    local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 35)
+    if mesh and mesh:IsA("Model") then
+            canopyTemplate = mesh
+            return canopyTemplate
+    end
+
+    return nil
+end
+
+task.spawn(loadCanopyTemplate)
+
+local function normalizeCanopyTemplate(model: Model)
+    local bboxCF, bboxSize = model:GetBoundingBox()
+    local pivot = model:GetPivot()
+    local pivotToBox = pivot:ToObjectSpace(bboxCF)
+    local horizontal = math.max(bboxSize.X, bboxSize.Z)
+    local scale = if horizontal > 0 then (34 / horizontal) else 1
+    if scale > 0 and math.abs(scale - 1) > 1e-4 then
+            model:ScaleTo(scale)
+            bboxCF, bboxSize = model:GetBoundingBox()
+            pivot = model:GetPivot()
+            pivotToBox = pivot:ToObjectSpace(bboxCF)
+    end
+    local targetBox = CFrame.new(0, 18, 0)
+    model:PivotTo(targetBox * pivotToBox:Inverse())
+end
+
+local function recolorCanopyTemplate(model: Model)
+    for _, inst in ipairs(model:GetDescendants()) do
+            if inst:IsA("BasePart") then
+                    local name = string.lower(inst.Name)
+                    if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") or name:find("ring") then
+                            inst.Color = Color3.fromRGB(38, 38, 44)
+                            inst.Material = Enum.Material.SmoothPlastic
+                    elseif name:find("gold") or name:find("apex") or name:find("vent") or name:find("top") then
+                            inst.Color = GOLD
+                            inst.Material = Enum.Material.Metal
+                    else
+                            inst.Color = NAVY
+                            inst.Material = Enum.Material.SmoothPlastic
+                    end
+            end
+    end
+end
+
+local function buildCanopy(): (Model, BasePart)
+    local loader = loadCanopyTemplate
+    local procedural = buildProceduralCanopy
+    if not loader or not procedural then
+            error("SpawnCinematic: canopy builders not initialized")
+    end
+
+    local template = loader()
+    if not template then
+            return procedural()
+    end
+
+    local model = mk("Model", { Name = "RoyalCanopy" })
+    local anchor = mk("Part", {
+            Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
+            Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+            CastShadow = false, Parent = model,
+    }) :: Part
+    model.PrimaryPart = anchor
+
+    local mesh = template:Clone()
+    mesh.Parent = model
+
+    for _, inst in ipairs(mesh:GetDescendants()) do
+            if inst:IsA("BasePart") then
+                    inst.Anchored = true
+                    inst.CanCollide = false
+                    inst.CanQuery = false
+                    inst.CanTouch = false
+                    inst.CastShadow = false
+            end
+    end
+
+    normalizeCanopyTemplate(mesh)
+    recolorCanopyTemplate(mesh)
+
+    return model, anchor
 end
 
 local function neonBulb(name, size, color, parent): Part
@@ -30813,6 +30963,107 @@ local function playSound3D(parent: Instance, id: number, vol: number, looped: bo
 	}) :: Sound
 	s:Play()
 	return s
+end
+
+local cinematicLightingCleanup: (() -> ())? = nil
+local cinematicShadow: Part? = nil
+local cinematicWind: Sound? = nil
+
+local function startCinematicLighting()
+	local snapshot = {
+		Brightness = Lighting.Brightness,
+		Ambient = Lighting.Ambient,
+		OutdoorAmbient = Lighting.OutdoorAmbient,
+		FogColor = Lighting.FogColor,
+		FogStart = Lighting.FogStart,
+		FogEnd = Lighting.FogEnd,
+		ClockTime = Lighting.ClockTime,
+		ExposureCompensation = Lighting.ExposureCompensation,
+		EnvironmentDiffuseScale = Lighting.EnvironmentDiffuseScale,
+		EnvironmentSpecularScale = Lighting.EnvironmentSpecularScale,
+		ShadowSoftness = Lighting.ShadowSoftness,
+	}
+
+	local atmosphere = mk("Atmosphere", {
+		Name = "RoyalSpawnAtmosphere",
+		Density = 0.18,
+		Haze = 1.25,
+		Glare = 0.22,
+		Color = Color3.fromRGB(178, 214, 243),
+		Decay = Color3.fromRGB(94, 126, 171),
+		Parent = Lighting,
+	}) :: Atmosphere
+
+	local cc = mk("ColorCorrectionEffect", {
+		Name = "RoyalSpawnColor",
+		Brightness = 0.06,
+		Contrast = 0.08,
+		Saturation = 0.1,
+		TintColor = Color3.fromRGB(246, 248, 255),
+		Parent = Lighting,
+	}) :: ColorCorrectionEffect
+
+	local bloom = mk("BloomEffect", {
+		Name = "RoyalSpawnBloom",
+		Intensity = 0.28,
+		Threshold = 1.05,
+		Size = 24,
+		Parent = Lighting,
+	}) :: BloomEffect
+
+	local sun = mk("SunRaysEffect", {
+		Name = "RoyalSpawnSunRays",
+		Intensity = 0.05,
+		Spread = 0.75,
+		Parent = Lighting,
+	}) :: SunRaysEffect
+
+	Lighting.Brightness = 2.8
+	Lighting.Ambient = Color3.fromRGB(148, 177, 208)
+	Lighting.OutdoorAmbient = Color3.fromRGB(180, 203, 231)
+	Lighting.FogColor = Color3.fromRGB(184, 216, 242)
+	Lighting.FogStart = 0
+	Lighting.FogEnd = 8000
+	Lighting.ClockTime = 13.6
+	Lighting.ExposureCompensation = 0.12
+	Lighting.EnvironmentDiffuseScale = 1
+	Lighting.EnvironmentSpecularScale = 1
+	Lighting.ShadowSoftness = 0.25
+
+	return function()
+		pcall(function()
+			if atmosphere then atmosphere:Destroy() end
+			if cc then cc:Destroy() end
+			if bloom then bloom:Destroy() end
+			if sun then sun:Destroy() end
+		end)
+		for k, v in pairs(snapshot) do
+			pcall(function()
+				(Lighting :: any)[k] = v
+			end)
+		end
+	end
+end
+
+local function clearCinematicTransient()
+	if cinematicWind then
+		pcall(function() cinematicWind:Stop() end)
+		pcall(function() cinematicWind:Destroy() end)
+		cinematicWind = nil
+	end
+	if cinematicShadow then
+		pcall(function() cinematicShadow:Destroy() end)
+		cinematicShadow = nil
+	end
+	if cinematicLightingCleanup then
+		pcall(cinematicLightingCleanup)
+		cinematicLightingCleanup = nil
+	end
+	local char = LocalPlayer.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.CameraOffset = Vector3.zero
+	end
 end
 
 -- استعادة قيم الحركة بعد المشهد (استقلال عن شاشة التحميل). لا نلتقط WalkSpeed
@@ -31283,7 +31534,7 @@ end
 ----------------------------------------------------------------------
 -- المظلّة (قبّة + حبال + harness) تتبع اللاعب مع تمايل
 ----------------------------------------------------------------------
-local function buildCanopy(): (Model, BasePart)
+buildProceduralCanopy = function(): (Model, BasePart)
 	local model = mk("Model", { Name = "RoyalCanopy" })
 	local anchor = mk("Part", {
 		Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
@@ -31503,6 +31754,7 @@ local function run()
 
 	local cam = Workspace.CurrentCamera
 	if not cam then setControls(true) return end
+	cinematicLightingCleanup = startCinematicLighting()
 
 	-- مسار الطائرة: تعبر المدينة وتُسقط اللاعب فوق وسط الماب، ثم نزول حرّ موجَّه.
 	local jumpXZ = CONFIG.JUMP_XZ
@@ -31515,6 +31767,14 @@ local function run()
 	local plane = buildPlane(jumpPoint, travelDir)
 	plane.model.Parent = Workspace
 	local engineSnd = playSound3D(plane.body, CONFIG.SND_ENGINE, 0.6, true)
+	cinematicShadow = mk("Part", {
+		Name = "RoyalSpawnShadow",
+		Shape = Enum.PartType.Ball,
+		Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+		CastShadow = false, Material = Enum.Material.SmoothPlastic,
+		Color = Color3.fromRGB(0, 0, 0), Transparency = 1,
+		Size = Vector3.new(28, 0.18, 28), Parent = Workspace,
+	}) :: Part
 
 	------------------------------------------------------------------
 	-- غيوم تمرّ بسرعة من النوافذ → إحساس طيران حقيقي (الطائرة «تتحرّك»)
@@ -31551,6 +31811,27 @@ local function run()
 
 	local deployed = false
 	local jumpRequested = false
+	local deployStartTime = 0
+	local deployOpenSpeed = 0
+	local function updateDescentFX(altitude: number, speed: number, groundY: number, canopyMode: boolean, openBlend: number, x: number, z: number)
+		if cinematicShadow then
+			local shadowSize = math.clamp(60 - altitude * 0.08, 12, 60)
+			cinematicShadow.Size = Vector3.new(shadowSize, 0.18, shadowSize)
+			cinematicShadow.Position = Vector3.new(x, groundY + 0.04, z)
+			cinematicShadow.Transparency = math.clamp(0.34 + (60 - shadowSize) * 0.01, 0.34, 0.85)
+		end
+		local shakeBase = canopyMode and 0.03 or math.clamp((speed - 95) / 950, 0, 0.08)
+		shakeBase += math.clamp(1 - math.clamp(openBlend, 0, 1), 0, 1) * 0.08
+		local t = os.clock()
+		humanoid.CameraOffset = Vector3.new(math.sin(t * 18.5) * shakeBase, math.cos(t * 23.5) * shakeBase * 0.6, 0)
+		if cinematicWind then
+			local windVolume = math.clamp((speed - 55) / 125, 0.08, 0.95)
+			if canopyMode then
+				windVolume *= 0.7
+			end
+			cinematicWind.Volume = windVolume
+		end
+	end
 
 	------------------------------------------------------------------
 	-- الطور ١: المقصورة القابلة للمشي — تتحرّك داخل الطائرة بحرّية،
@@ -31640,6 +31921,7 @@ local function run()
 		hud.eHint.Visible = true
 	end
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
+	cinematicWind = playSound3D(rootPart, CONFIG.SND_WIND, 0.12, true)
 
 	-- تفعيل تحكّم اللاعب + كاميرا حرّة: WASD/الأسهم (كمبيوتر) أو عصا الجوال للتوجيه،
 	-- والماوس/سحب الإصبع لتدوير الكاميرا — نزول حرّ على طريقة ببجي.
@@ -31732,7 +32014,12 @@ local function run()
 		local pos = Vector3.new(px, y, pz)
 		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, 0)
 		updateDescentVisuals(altitude, effSpeed)
-		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then break end
+		updateDescentFX(altitude, effSpeed, groundY, false, 0, px, pz)
+		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then
+			deployOpenSpeed = effSpeed
+			deployStartTime = os.clock()
+			break
+		end
 	end
 
 	------------------------------------------------------------------
@@ -31761,7 +32048,8 @@ local function run()
 
 	while true do
 		local dt = RunService.Heartbeat:Wait()
-		local canopySpeed = CONFIG.CANOPY_SPEED * (if boosting then CONFIG.BOOST_CANOPY else 1)
+		local openBlend = math.clamp((os.clock() - deployStartTime) / 0.72, 0, 1)
+		local canopySpeed = ((deployOpenSpeed > 0 and (deployOpenSpeed + (CONFIG.CANOPY_SPEED - deployOpenSpeed) * openBlend)) or CONFIG.CANOPY_SPEED) * (if boosting then CONFIG.BOOST_CANOPY else 1)
 		y -= canopySpeed * dt
 		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
@@ -31784,6 +32072,7 @@ local function run()
 		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
 		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
 		updateDescentVisuals(altitude, canopySpeed)
+		updateDescentFX(altitude, canopySpeed, groundY, true, openBlend, px, pz)
 		if altitude <= CONFIG.LAND_ALT then break end
 	end
 	hud.boost.Visible = false
@@ -31859,6 +32148,7 @@ local function run()
 	cam.CameraType = Enum.CameraType.Custom
 	cam.CameraSubject = humanoid
 	setControls(true)
+	clearCinematicTransient()
 
 	-- تلاشي الـHUD ثم إزالته
 	hud.banner.Text = "وصلت! 🌟"
@@ -31876,12 +32166,13 @@ end
 -- أو طائرة/علامات معلّقة تعترض النقر). آمن لو لم يُنشأ أيٌّ منها بعد.
 ----------------------------------------------------------------------
 local function cleanupArtifacts()
+	clearCinematicTransient()
 	pcall(function()
 		local pg = LocalPlayer:FindFirstChild("PlayerGui")
 		local gui = pg and pg:FindFirstChild("RoyalSpawnHUD")
 		if gui then gui:Destroy() end
 	end)
-	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "ImpactRing", "Dust", "SpawnFlightClouds" }) do
+	for _, name in ipairs({ "RoyalPlane", "RoyalCanopy", "RoyalSpawnShadow", "ImpactRing", "Dust", "SpawnFlightClouds" }) do
 		local inst = Workspace:FindFirstChild(name)
 		if inst then inst:Destroy() end
 	end
@@ -31913,6 +32204,7 @@ local function trigger()
 		if activeInputConn then activeInputConn:Disconnect(); activeInputConn = nil end
 		if activeBoostConn then activeBoostConn:Disconnect(); activeBoostConn = nil end
 		setControls(true)
+		clearCinematicTransient()
 		local cam = Workspace.CurrentCamera
 		if cam then cam.CameraType = Enum.CameraType.Custom end
 		local char = LocalPlayer.Character
