@@ -746,7 +746,115 @@ local function coveLight(x0, x1, z0, z1, color)
 	l.Color = color; l.Brightness = 0.4; l.Range = 34; l.Parent = core
 end
 
--- لابتوب واقعي على المكتب (الشاشة تواجه الكرسي الرئاسي عند +X)
+-- لابتوب مصمّم في بلندر (FBX عبر Open Cloud) + ماوس سلكي — الشاشة تواجه الكرسي الرئاسي عند +X
+local LAPTOP_ASSET_ID = 84758078214078
+local LAPTOP_COLORS = {
+	LapBase = Color3.fromRGB(38, 41, 52),  LapLid = Color3.fromRGB(38, 41, 52),
+	LapDeck = Color3.fromRGB(58, 62, 74),  LapKeys = Color3.fromRGB(16, 17, 22),
+	LapPad = Color3.fromRGB(74, 78, 90),   LapBezel = Color3.fromRGB(10, 10, 13),
+	LapScreen = Color3.fromRGB(28, 56, 140),
+	LapLogo = Color3.fromRGB(212, 168, 74), LapHinge = Color3.fromRGB(212, 168, 74),
+	LapTrim = Color3.fromRGB(212, 168, 74),
+	MouseBody = Color3.fromRGB(38, 41, 52), MouseWheel = Color3.fromRGB(212, 168, 74),
+	MouseLine = Color3.fromRGB(16, 17, 22), MouseLogo = Color3.fromRGB(212, 168, 74),
+	MouseCable = Color3.fromRGB(16, 17, 22),
+}
+
+local function laptopBlender(cx, cz, topY): boolean
+	local InsertService = game:GetService("InsertService")
+	local ok, loaded
+	for attempt = 1, 5 do
+		ok, loaded = pcall(function()
+			return InsertService:LoadAsset(LAPTOP_ASSET_ID)
+		end)
+		if ok and loaded then break end
+		warn("[Palace] محاولة تحميل اللابتوب فشلت", attempt, loaded)
+		task.wait(2)
+	end
+	if not (ok and loaded) then
+		return false
+	end
+	local model = loaded:FindFirstChildWhichIsA("Model") or loaded
+	if not model:FindFirstChild("LapBase", true) then
+		warn("[Palace] أصل اللابتوب لا يحوي LapBase")
+		loaded:Destroy()
+		return false
+	end
+	model.Name = "DeskLaptop"
+	for _, d in ipairs(model:GetDescendants()) do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			local c = LAPTOP_COLORS[d.Name]
+			if c then
+				d.Color = c
+				d.Material = (d.Name == "LapLogo" or d.Name == "LapHinge" or d.Name == "LapTrim"
+					or d.Name == "MouseWheel" or d.Name == "MouseLogo")
+					and Enum.Material.Metal or Enum.Material.SmoothPlastic
+			end
+		end
+	end
+	-- تحجيم بحيث يكون عرض القاعدة ≈ 3 ستد (مقاس المكتب) ثم توجيه الشاشة نحو +X
+	local cf, size = model:GetBoundingBox()
+	local widest = math.max(size.X, size.Y, size.Z)
+	if widest > 0.01 then
+		model:ScaleTo(4.6 / widest)
+	end
+	cf, size = model:GetBoundingBox()
+	model:PivotTo(CFrame.new(cx + 0.2, topY + size.Y / 2, cz))
+	-- توجيه: الشاشة تواجه اتجاه القاعدة الأمامي — نلفّ الموديل حتى تواجه الكرسي عند +X
+	local basePart = model:FindFirstChild("LapBase", true)
+	local scr = model:FindFirstChild("LapScreen", true)
+	if basePart and scr and basePart:IsA("BasePart") and scr:IsA("BasePart") then
+		local fwd = basePart.Position - scr.Position
+		fwd = Vector3.new(fwd.X, 0, fwd.Z)
+		if fwd.Magnitude > 0.01 then
+			fwd = fwd.Unit
+			local yaw = math.atan2(-fwd.Z, fwd.X)
+			local pivot = model:GetPivot()
+			model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, -yaw, 0) * pivot.Rotation)
+		end
+	end
+	model.Parent = Workspace
+	-- خلفية الشاشة (نفس الصورة الحالية) على لوح رقيق فوق وجه ميش الشاشة الأمامي
+	if scr and scr:IsA("BasePart") then
+		local sz = scr.Size
+		local dims = { {sz.X, scr.CFrame.RightVector}, {sz.Y, scr.CFrame.UpVector}, {sz.Z, scr.CFrame.LookVector} }
+		table.sort(dims, function(a, b) return a[1] < b[1] end)
+		local half, n = dims[1][1] / 2, dims[1][2]
+		if n:Dot(Vector3.new(1, 0, 0)) < 0 then
+			n = -n -- الوجه الأمامي نحو الكرسي (+X)
+		end
+		local w, h = dims[3][1] * 0.98, dims[2][1] * 0.98
+		local pos = scr.Position + n * (half + 0.03)
+		local ov = Instance.new("Part")
+		ov.Name = "LapWallpaper"
+		ov.Anchored = true; ov.CanCollide = false; ov.CastShadow = false
+		ov.Size = Vector3.new(w, h, 0.04)
+		ov.CFrame = CFrame.lookAt(pos, pos + n)
+		ov.Color = Color3.fromRGB(8, 10, 14)
+		ov.Material = Enum.Material.SmoothPlastic
+		ov.Parent = model
+		local g = Instance.new("SurfaceGui")
+		g.Name = "LapWallpaperGui"; g.AutoLocalize = false
+		g.Face = Enum.NormalId.Front
+		g.LightInfluence = 0
+		g.Brightness = 1.2
+		g.CanvasSize = Vector2.new(768, 432)
+		g.Adornee = ov; g.Parent = ov
+		local img = Instance.new("ImageLabel")
+		img.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
+		img.BorderSizePixel = 0
+		img.Size = UDim2.fromScale(1, 1)
+		img.Image = "rbxthumb://type=Asset&id=93628047304202&w=768&h=432"
+		img.ScaleType = Enum.ScaleType.Crop
+		img.Parent = g
+		pointLight(ov, Color3.fromRGB(120, 170, 235), 0.6, 6)
+	end
+	return true
+end
+
+-- لابتوب إجرائي (احتياط فقط إذا تعذّر تحميل أصل بلندر)
 local function laptop(cx, cz, topY)
 	local body = Color3.fromRGB(176, 180, 188)
 	local deckC = Color3.fromRGB(26, 28, 33)
@@ -948,7 +1056,11 @@ do
 	-- المكتب التنفيذي في الصدارة (يواجه الباب -X) + لابتوب يواجه الكرسي الرئاسي
 	bigDesk(226, 22, 90)
 	deskChair(231, 22, 270, LEATHER)
-	laptop(225, 22, 3.75)
+	task.spawn(function()
+		if not laptopBlender(225, 22, 3.75) then
+			laptop(225, 22, 3.75)
+		end
+	end)
 	local globe = part("DeskGlobe", CFrame.new(227.4, 4.1, 24.6), Vector3.new(1.2, 1.2, 1.2), TRIM_GOLD, Enum.Material.Metal)
 	globe.Shape = Enum.PartType.Ball
 	globe.CanCollide = false
