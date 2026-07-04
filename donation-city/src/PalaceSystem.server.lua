@@ -867,13 +867,29 @@ local function laptopBlender(cx, cz, topY): boolean
 		-- لوحة الرسم بنفس نسبة أبعاد وجه الشاشة حتى تركب الخلفية بدقة بلا قصّ أو تشويه
 		g.CanvasSize = Vector2.new(math.floor(faceW * 400), math.floor(faceH * 400))
 		g.Adornee = display; g.Parent = display
+		-- الصورة المصدر مربّعة والشاشة عريضة: نعرضها كاملة بلا تشويه (Fit) فوق
+		-- خلفية معتمة مملوءة من نفس الصورة → مظهر خلفية سطح مكتب احترافي.
+		local WALL = "rbxthumb://type=Asset&id=93628047304202&w=420&h=420"
+		local base = Instance.new("Frame")
+		base.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
+		base.BorderSizePixel = 0
+		base.Size = UDim2.fromScale(1, 1)
+		base.Parent = g
+		local backdrop = Instance.new("ImageLabel")
+		backdrop.BackgroundTransparency = 1
+		backdrop.BorderSizePixel = 0
+		backdrop.Size = UDim2.fromScale(1, 1)
+		backdrop.Image = WALL
+		backdrop.ScaleType = Enum.ScaleType.Crop
+		backdrop.ImageColor3 = Color3.fromRGB(70, 74, 92)
+		backdrop.Parent = base
 		local img = Instance.new("ImageLabel")
-		img.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
+		img.BackgroundTransparency = 1
 		img.BorderSizePixel = 0
 		img.Size = UDim2.fromScale(1, 1)
-		img.Image = "rbxthumb://type=Asset&id=93628047304202&w=768&h=432"
-		img.ScaleType = Enum.ScaleType.Stretch
-		img.Parent = g
+		img.Image = WALL
+		img.ScaleType = Enum.ScaleType.Fit
+		img.Parent = base
 		pointLight(display, Color3.fromRGB(120, 170, 235), 0.6, 6)
 	end
 	return true
