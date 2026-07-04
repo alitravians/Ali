@@ -803,16 +803,17 @@ local function laptopBlender(cx, cz, topY): boolean
 			model:ScaleTo(2.6 / bw)
 		end
 	end
-	-- توجيه: الشاشة خلف القاعدة — نلفّ الموديل حتى تواجه الشاشة الكرسي عند +X
+	-- توجيه: نلفّ الموديل حول المحور العمودي فقط حتى تواجه الشاشة الكرسي عند +X
+	-- (لا نلمس الميلان الأمامي/الجانبي للموديل المستورد حتى لا تميل الشاشة)
 	if basePart and scr and basePart:IsA("BasePart") and scr:IsA("BasePart") then
 		local fwd = basePart.Position - scr.Position
 		fwd = Vector3.new(fwd.X, 0, fwd.Z)
 		if fwd.Magnitude > 0.01 then
-			fwd = fwd.Unit
-			local yaw = math.atan2(fwd.Z, fwd.X)
-			local pivot = model:GetPivot()
-			local pitch, _, roll = pivot:ToOrientation()
-			model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(pitch, yaw, roll))
+			-- زاوية الدوران المطلوبة لجعل اتجاه الشاشة الحالي يوازي +X
+			local deltaYaw = -math.atan2(fwd.Z, fwd.X)
+			local pv = model:GetPivot()
+			local spin = CFrame.new(pv.Position) * CFrame.Angles(0, deltaYaw, 0) * CFrame.new(-pv.Position)
+			model:PivotTo(spin * pv)
 		end
 	end
 	-- تموضع عبر صندوق الإحاطة (نقطة ارتكاز الموديل المستورد لا تطابق مركزه):
