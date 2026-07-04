@@ -241,7 +241,7 @@ def convert_to_binary():
             f"{dropped_block}"
         )
     if code != 0:
-        print(f"CONVERSION FAILED:\n{out}\n{err}")
+        print("CONVERSION FAILED (see converter output above)")
         sys.exit(1)
 
     if not BINARY_RBXL.exists() or BINARY_RBXL.stat().st_size == 0:

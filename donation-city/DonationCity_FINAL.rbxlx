@@ -145,7 +145,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٨٧",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٨٨",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -173,6 +173,13 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٨٨", date = "٤ يوليو",
+			items = {
+				{ "fix", "الكلبشات: إشعار «أنت مكلبش» صار أصغر وانتقل لأعلى الشاشة فما عاد يغطي الدردشة على الجوال." },
+				{ "new", "تقييد واقعي: المكلبش تنقيّد يداه خلف ظهره فعلياً وتبقى مقيّدة حتى أثناء المشي والسحب، مع انحناءة خفيفة للجذع تحاكي الشخص المقيّد." },
+			},
+		},
 		{
 			version = "٢.٩.٨٧", date = "٣ يوليو",
 			items = {
@@ -22003,6 +22010,7 @@ end
 local function restoreStateFromRecord(player: Player, record)
 	local character = player.Character
 	if not character then return end
+	character:SetAttribute("CuffPosed", nil)
 	local humanoid = findHumanoid(character)
 	if humanoid and record.savedHumanoid then
 		pcall(function() humanoid.WalkSpeed = record.savedHumanoid.WalkSpeed end)
@@ -22171,6 +22179,9 @@ local function applyCuff(requester: Player, target: Player, style)
 
 	if not ensureAnimation(targetHum, record) then
 		poseBehindBack(target, record)
+	end
+	if target.Character then
+		target.Character:SetAttribute("CuffPosed", true)
 	end
 
 	local visuals = buildCuffVisuals(requester, target, style)
@@ -33106,9 +33117,10 @@ local statusLayer = new("Frame", {
 local statusPanel = styled(statusLayer, {
 	Name = "StatusPanel",
 	BackgroundColor3 = THEME.Card,
-	AnchorPoint = Vector2.new(0.5, 1),
-	Position = UDim2.new(0.5, 0, 1, -22),
-	Size = UDim2.fromOffset(320, 122),
+	-- أعلى الوسط ومُصغّر — حتى لا يغطي الدردشة أو أزرار الجوال
+	AnchorPoint = Vector2.new(0.5, 0),
+	Position = UDim2.new(0.5, 0, 0, 118),
+	Size = UDim2.fromOffset(250, 80),
 	Visible = false,
 	Parent = statusLayer,
 }, {})
@@ -33117,11 +33129,11 @@ local statusTitle = new("TextLabel", {
 	BackgroundTransparency = 1,
 	Text = "",
 	Font = Enum.Font.GothamBlack,
-	TextSize = 19,
+	TextSize = 14,
 	TextColor3 = THEME.Gold,
 	TextXAlignment = Enum.TextXAlignment.Right,
-	Size = UDim2.new(1, -20, 0, 24),
-	Position = UDim2.fromOffset(10, 10),
+	Size = UDim2.new(1, -20, 0, 18),
+	Position = UDim2.fromOffset(10, 6),
 	Parent = statusPanel,
 })
 
@@ -33129,13 +33141,13 @@ local statusBody = new("TextLabel", {
 	BackgroundTransparency = 1,
 	Text = "",
 	Font = Enum.Font.GothamMedium,
-	TextSize = 14,
+	TextSize = 10,
 	TextWrapped = true,
 	TextColor3 = THEME.Sub,
 	TextXAlignment = Enum.TextXAlignment.Right,
 	TextYAlignment = Enum.TextYAlignment.Top,
-	Size = UDim2.new(1, -20, 0, 44),
-	Position = UDim2.fromOffset(10, 38),
+	Size = UDim2.new(1, -20, 0, 26),
+	Position = UDim2.fromOffset(10, 24),
 	Parent = statusPanel,
 })
 
@@ -33145,10 +33157,10 @@ local actionButton = new("TextButton", {
 	BackgroundColor3 = THEME.Gold,
 	TextColor3 = Color3.fromRGB(24, 18, 8),
 	Font = Enum.Font.GothamBlack,
-	TextSize = 15,
+	TextSize = 12,
 	Text = "",
-	Size = UDim2.new(1, -20, 0, 30),
-	Position = UDim2.new(0, 10, 1, -40),
+	Size = UDim2.new(1, -20, 0, 22),
+	Position = UDim2.new(0, 10, 1, -26),
 	Parent = statusPanel,
 }, {
 	new("UICorner", { CornerRadius = UDim.new(0, 10) }),
@@ -33390,14 +33402,14 @@ local function updateStatus()
 	if cuffed then
 		statusPanel.Visible = true
 		statusTitle.Text = "أنت مكلبش"
-		statusBody.Text = "اضغط R أو زر المقاومة لتخفيف التوتر بصرياً — والفك يتم فقط بواسطة صاحب الكلبشة أو الإدارة."
+		statusBody.Text = "الفك يتم فقط بواسطة صاحب الكلبشة أو الإدارة."
 		actionButton.Text = "قاوم"
 		actionButton.Visible = true
 		statusPanel.BackgroundColor3 = Color3.fromRGB(28, 16, 26)
 	elseif holding then
 		statusPanel.Visible = true
 		statusTitle.Text = "التحكم بالكبشة"
-		statusBody.Text = "أنت تمسك لاعباً حالياً. يمكنك تحريره من هنا متى شئت، والإدارة تستطيع فك أي لاعب مباشرة."
+		statusBody.Text = "أنت تمسك لاعباً حالياً — حرّره من هنا متى شئت."
 		actionButton.Text = "فك الكلبشة"
 		actionButton.Visible = true
 		statusPanel.BackgroundColor3 = THEME.Card
@@ -33519,9 +33531,67 @@ end)
 RunService.Heartbeat:Connect(function()
 	if state.cuffedByUserId and state.cuffedByUserId ~= 0 then
 		local pulse = math.sin(os.clock() * 4) * 0.04
-		statusPanel.Position = UDim2.new(0.5, 0, 1, -22 + math.floor(pulse * 18))
+		statusPanel.Position = UDim2.new(0.5, 0, 0, 118 + math.floor(pulse * 18))
 	else
-		statusPanel.Position = UDim2.new(0.5, 0, 1, -22)
+		statusPanel.Position = UDim2.new(0.5, 0, 0, 118)
+	end
+end)
+
+----------------------------------------------------------------------
+-- وضعية التقييد الواقعية: تثبيت ذراعي أي لاعب مكلبش خلف ظهره
+-- (الأنيميشن الافتراضي يحرّك الأذرع عبر Motor6D.Transform فوق وضعية
+--  السيرفر — هنا نصفّر الـTransform كل إطار فتبقى اليدان مقيّدتين
+--  حتى أثناء المشي/السحب، مع انحناءة خفيفة للجذع والرأس)
+----------------------------------------------------------------------
+local ARM_MOTOR_NAMES = {
+	"RightShoulder", "Right Shoulder", "LeftShoulder", "Left Shoulder",
+	"RightElbow", "LeftElbow", "RightWrist", "LeftWrist",
+}
+local WAIST_LEAN = CFrame.Angles(math.rad(7), 0, 0)
+local NECK_LEAN = CFrame.Angles(math.rad(9), 0, 0)
+
+type PoseEntry = { motor: Motor6D, cf: CFrame }
+local poseCache: { [Model]: { PoseEntry } } = {}
+
+local function collectPoseMotors(character: Model): { PoseEntry }
+	local list: { PoseEntry } = {}
+	for _, name in ipairs(ARM_MOTOR_NAMES) do
+		local m = character:FindFirstChild(name, true)
+		if m and m:IsA("Motor6D") then
+			list[#list + 1] = { motor = m, cf = CFrame.identity }
+		end
+	end
+	local waist = character:FindFirstChild("Waist", true)
+	if waist and waist:IsA("Motor6D") then
+		list[#list + 1] = { motor = waist, cf = WAIST_LEAN }
+	end
+	local neck = character:FindFirstChild("Neck", true)
+	if neck and neck:IsA("Motor6D") then
+		list[#list + 1] = { motor = neck, cf = NECK_LEAN }
+	end
+	return list
+end
+
+RunService.Stepped:Connect(function()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if char and char:GetAttribute("CuffPosed") then
+			local entries = poseCache[char]
+			if not entries then
+				entries = collectPoseMotors(char)
+				poseCache[char] = entries
+			end
+			for _, e in ipairs(entries) do
+				if e.motor.Parent then
+					e.motor.Transform = e.cf
+				end
+			end
+		end
+	end
+	for char in pairs(poseCache) do
+		if not char.Parent or not char:GetAttribute("CuffPosed") then
+			poseCache[char] = nil
+		end
 	end
 end)
 

@@ -732,6 +732,7 @@ end
 local function restoreStateFromRecord(player: Player, record)
 	local character = player.Character
 	if not character then return end
+	character:SetAttribute("CuffPosed", nil)
 	local humanoid = findHumanoid(character)
 	if humanoid and record.savedHumanoid then
 		pcall(function() humanoid.WalkSpeed = record.savedHumanoid.WalkSpeed end)
@@ -900,6 +901,9 @@ local function applyCuff(requester: Player, target: Player, style)
 
 	if not ensureAnimation(targetHum, record) then
 		poseBehindBack(target, record)
+	end
+	if target.Character then
+		target.Character:SetAttribute("CuffPosed", true)
 	end
 
 	local visuals = buildCuffVisuals(requester, target, style)
