@@ -2621,7 +2621,7 @@ local function openStore(player, refreshOnly)
 end
 _G.OpenStore = openStore
 _G.RefreshStore = function(p)
-        openStore(p, true)
+	openStore(p, true)
 end
 
 ------------------------------------------------------------------------

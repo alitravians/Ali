@@ -86,95 +86,95 @@ end
 local canopyTemplate: Model? = nil
 
 loadCanopyTemplate = function(): Model?
-    if canopyTemplate then
-            return canopyTemplate
-    end
+	if canopyTemplate then
+			return canopyTemplate
+	end
 
-    local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 35)
-    if mesh and mesh:IsA("Model") then
-            canopyTemplate = mesh
-            return canopyTemplate
-    end
+	local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 35)
+	if mesh and mesh:IsA("Model") then
+			canopyTemplate = mesh
+			return canopyTemplate
+	end
 
-    return nil
+	return nil
 end
 
 task.spawn(loadCanopyTemplate)
 
 local function normalizeCanopyTemplate(model: Model)
-    local bboxCF, bboxSize = model:GetBoundingBox()
-    local pivot = model:GetPivot()
-    local pivotToBox = pivot:ToObjectSpace(bboxCF)
-    local horizontal = math.max(bboxSize.X, bboxSize.Z)
-    local scale = if horizontal > 0 then (24 / horizontal) else 1
-    if scale > 0 and math.abs(scale - 1) > 1e-4 then
-            model:ScaleTo(scale)
-            bboxCF, bboxSize = model:GetBoundingBox()
-            pivot = model:GetPivot()
-            pivotToBox = pivot:ToObjectSpace(bboxCF)
-    end
-    -- ثبّت المظلّة من أسفلها (حلقة التعليق) فوق ظهر اللاعب مباشرة بدل توسيطها عالياً،
-    -- عشان الحبال تتجمّع على ظهره وتتزامن معه بدل ما تطير فوقه.
-    local BOTTOM_OFFSET = 1.6
-    local targetBox = CFrame.new(0, BOTTOM_OFFSET + bboxSize.Y * 0.5, 0)
-    model:PivotTo(targetBox * pivotToBox:Inverse())
+	local bboxCF, bboxSize = model:GetBoundingBox()
+	local pivot = model:GetPivot()
+	local pivotToBox = pivot:ToObjectSpace(bboxCF)
+	local horizontal = math.max(bboxSize.X, bboxSize.Z)
+	local scale = if horizontal > 0 then (24 / horizontal) else 1
+	if scale > 0 and math.abs(scale - 1) > 1e-4 then
+			model:ScaleTo(scale)
+			bboxCF, bboxSize = model:GetBoundingBox()
+			pivot = model:GetPivot()
+			pivotToBox = pivot:ToObjectSpace(bboxCF)
+	end
+	-- ثبّت المظلّة من أسفلها (حلقة التعليق) فوق ظهر اللاعب مباشرة بدل توسيطها عالياً،
+	-- عشان الحبال تتجمّع على ظهره وتتزامن معه بدل ما تطير فوقه.
+	local BOTTOM_OFFSET = 1.6
+	local targetBox = CFrame.new(0, BOTTOM_OFFSET + bboxSize.Y * 0.5, 0)
+	model:PivotTo(targetBox * pivotToBox:Inverse())
 end
 
 local function recolorCanopyTemplate(model: Model)
-    for _, inst in ipairs(model:GetDescendants()) do
-            if inst:IsA("BasePart") then
-                    local name = string.lower(inst.Name)
-                    if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") or name:find("ring") then
-                            inst.Color = Color3.fromRGB(38, 38, 44)
-                            inst.Material = Enum.Material.SmoothPlastic
-                    elseif name:find("gold") or name:find("apex") or name:find("vent") or name:find("top") then
-                            inst.Color = GOLD
-                            inst.Material = Enum.Material.Metal
-                    else
-                            inst.Color = NAVY
-                            inst.Material = Enum.Material.SmoothPlastic
-                    end
-            end
-    end
+	for _, inst in ipairs(model:GetDescendants()) do
+			if inst:IsA("BasePart") then
+					local name = string.lower(inst.Name)
+					if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") or name:find("ring") then
+							inst.Color = Color3.fromRGB(38, 38, 44)
+							inst.Material = Enum.Material.SmoothPlastic
+					elseif name:find("gold") or name:find("apex") or name:find("vent") or name:find("top") then
+							inst.Color = GOLD
+							inst.Material = Enum.Material.Metal
+					else
+							inst.Color = NAVY
+							inst.Material = Enum.Material.SmoothPlastic
+					end
+			end
+	end
 end
 
 local function buildCanopy(): (Model, BasePart)
-    local loader = loadCanopyTemplate
-    local procedural = buildProceduralCanopy
-    if not loader or not procedural then
-            error("SpawnCinematic: canopy builders not initialized")
-    end
+	local loader = loadCanopyTemplate
+	local procedural = buildProceduralCanopy
+	if not loader or not procedural then
+			error("SpawnCinematic: canopy builders not initialized")
+	end
 
-    local template = loader()
-    if not template then
-            return procedural()
-    end
+	local template = loader()
+	if not template then
+			return procedural()
+	end
 
-    local model = mk("Model", { Name = "RoyalCanopy" })
-    local anchor = mk("Part", {
-            Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
-            Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-            CastShadow = false, Parent = model,
-    }) :: Part
-    model.PrimaryPart = anchor
+	local model = mk("Model", { Name = "RoyalCanopy" })
+	local anchor = mk("Part", {
+			Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			CastShadow = false, Parent = model,
+	}) :: Part
+	model.PrimaryPart = anchor
 
-    local mesh = template:Clone()
-    mesh.Parent = model
+	local mesh = template:Clone()
+	mesh.Parent = model
 
-    for _, inst in ipairs(mesh:GetDescendants()) do
-            if inst:IsA("BasePart") then
-                    inst.Anchored = true
-                    inst.CanCollide = false
-                    inst.CanQuery = false
-                    inst.CanTouch = false
-                    inst.CastShadow = false
-            end
-    end
+	for _, inst in ipairs(mesh:GetDescendants()) do
+			if inst:IsA("BasePart") then
+					inst.Anchored = true
+					inst.CanCollide = false
+					inst.CanQuery = false
+					inst.CanTouch = false
+					inst.CastShadow = false
+			end
+	end
 
-    normalizeCanopyTemplate(mesh)
-    recolorCanopyTemplate(mesh)
+	normalizeCanopyTemplate(mesh)
+	recolorCanopyTemplate(mesh)
 
-    return model, anchor
+	return model, anchor
 end
 
 local function neonBulb(name, size, color, parent): Part
@@ -788,7 +788,7 @@ buildProceduralCanopy = function(): (Model, BasePart)
 	-- مظلّة ملكية واقعية: قبّة قماش معتمة بحوافّ مفصّصة منتفخة + خياطات قطاعات
 	-- (كحلي/ذهبي متناوب) + فتحة تهوية ذهبية بالقمّة + حبال تعليق تتجمّع للـharness.
 	local R = 17
-    local DY = 13.5                     -- ارتفاع مركز القبة فوق نقطة التعليق (اللاعب)
+	local DY = 13.5                     -- ارتفاع مركز القبة فوق نقطة التعليق (اللاعب)
 	local HALF_H = R * 0.6              -- نصف ارتفاع القبّة (ضحلة = شكل مظلّة)
 	local GORES = 16
 	local CREAM = Color3.fromRGB(244, 241, 230)
