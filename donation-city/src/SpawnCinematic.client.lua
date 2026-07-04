@@ -452,14 +452,21 @@ local cine = {
 	shotT = 0,
 	blur = nil :: BlurEffect?,
 	baseFOV = 70,
+	planePos = nil :: Vector3?,
+	lockPos = nil :: Vector3?,
 }
 
--- لقطات السقوط الحر: مدار دوّار · قريبة أمامية (على الوجه) · جانبية ملاحِقة · علوية تطلّ على المدينة
+-- لقطات السقوط الحر المتبادلة بين الطائرة والمجسم والخريطة:
+--   plane: الكاميرا جنب اللاعب تنظر للطائرة وهي تبتعد · orbit: مدار حول المجسم
+--   front: قريبة على الوجه · city: كاميرا ثابتة بالجو يمرّ اللاعب أمامها والخريطة تحته
+--   side: جانبية ملاحِقة · top: علوية تطلّ على المدينة
 local FREEFALL_SHOTS = {
-	{ name = "orbit", dur = 6.0 },
-	{ name = "front", dur = 3.6 },
-	{ name = "side",  dur = 4.2 },
-	{ name = "top",   dur = 3.8 },
+	{ name = "plane", dur = 3.0 },
+	{ name = "orbit", dur = 5.0 },
+	{ name = "front", dur = 3.2 },
+	{ name = "city",  dur = 4.5 },
+	{ name = "side",  dur = 3.8 },
+	{ name = "top",   dur = 3.5 },
 }
 
 local function cineSetMode(mode: string)
@@ -500,6 +507,8 @@ local function cineStart(cam: Camera, startFwd: Vector3)
 	cine.shotIdx = 1
 	cine.shotT = os.clock()
 	cine.orbitSpd = 0.45
+	cine.planePos = nil
+	cine.lockPos = nil
 	cine.baseFOV = cam.FieldOfView
 	cam.CameraType = Enum.CameraType.Scriptable
 	touchSteerStart()
@@ -513,12 +522,38 @@ local function cineStart(cam: Camera, startFwd: Vector3)
 		local fovTarget = cine.baseFOV
 		local blurTarget = 0
 		if cine.mode == "freefall" then
-			-- تبديل تلقائي بين لقطات سينمائية متنوّعة
+			-- تبديل تلقائي بين لقطات سينمائية متبادلة (طائرة/مجسم/خريطة)
 			local shot = FREEFALL_SHOTS[cine.shotIdx]
 			if t - cine.shotT > shot.dur then
 				cine.shotIdx = (cine.shotIdx % #FREEFALL_SHOTS) + 1
 				cine.shotT = t
+				cine.lockPos = nil
 				shot = FREEFALL_SHOTS[cine.shotIdx]
+			end
+			-- FOV يتّسع مع السرعة (إحساس اندفاع) + غباش حركة خفيف
+			local spdF = math.clamp((cine.speed - 100) / 90, 0, 1)
+			local shakeOff = Vector3.new(math.sin(t * 18.5), math.cos(t * 23.5) * 0.6, math.sin(t * 15.7) * 0.4) * cine.shake
+			if shot.name == "plane" and cine.planePos then
+				-- لقطة الطائرة: الكاميرا جنب اللاعب تنظر للطائرة وهي تبتعد في السماء
+				local side = Vector3.new(-cine.faceDir.Z, 0, cine.faceDir.X)
+				local camPos = cine.pos + side * 6 + Vector3.new(0, 2, 0)
+				local target = cine.planePos:Lerp(cine.pos, 0.15)
+				cam.CFrame = CFrame.lookAt(camPos + shakeOff, target)
+				cine.offset = camPos - cine.pos
+				cam.FieldOfView += (cine.baseFOV + spdF * 14 - cam.FieldOfView) * math.min(1, dt * 2.5)
+				if cine.blur then cine.blur.Size += (spdF * 8 - cine.blur.Size) * math.min(1, dt * 4) end
+				return
+			elseif shot.name == "city" and cine.altitude > 90 then
+				-- لقطة الخريطة: كاميرا ثابتة بالجو يمرّ اللاعب أمامها والمدينة بالخلفية تحته
+				if not cine.lockPos then
+					local drop = math.min(cine.altitude * 0.2, 22)
+					cine.lockPos = cine.pos + cine.faceDir * 24 - Vector3.new(0, drop, 0)
+				end
+				cam.CFrame = CFrame.lookAt(cine.lockPos + shakeOff, cine.pos + Vector3.new(0, 1, 0))
+				cine.offset = cine.lockPos - cine.pos
+				cam.FieldOfView += (cine.baseFOV + 4 - cam.FieldOfView) * math.min(1, dt * 2.5)
+				if cine.blur then cine.blur.Size += (0 - cine.blur.Size) * math.min(1, dt * 4) end
+				return
 			end
 			if shot.name == "front" then
 				-- قريبة أمامية: الكاميرا أمام اللاعب تنظر لوجهه وهو ساقط
@@ -538,13 +573,11 @@ local function cineStart(cam: Camera, startFwd: Vector3)
 				dist = 5
 				height = 13
 			else
-				-- مدار دوّار كلاسيكي مع تنفّس
+				-- مدار دوّار كلاسيكي مع تنفّس (ويُستخدم بديلاً للقطات غير المتاحة)
 				orbitTarget = 0.5
 				dist = 13 + math.sin(t * 0.31) * 3.5
 				height = 2.5 + math.sin(t * 0.23) * 5.0
 			end
-			-- FOV يتّسع مع السرعة (إحساس اندفاع) + غباش حركة خفيف
-			local spdF = math.clamp((cine.speed - 100) / 90, 0, 1)
 			fovTarget = cine.baseFOV + spdF * 14
 			blurTarget = spdF * 8
 		elseif cine.mode == "deploy" then
@@ -1400,9 +1433,11 @@ local function run()
 			-- قد تُنظَّف الطائرة أثناء الانتظار (عند فشل التسلسل)؛ نتأكّد قبل أي عملية
 			if not plane.model.Parent then break end
 			plane.model:PivotTo(plane.model:GetPivot() + travelDir * (90 * dt))
+			cine.planePos = plane.model:GetPivot().Position
 			stepClouds(dt)
 			stepLEDs(plane, os.clock())
 		end
+		cine.planePos = nil
 		if engineSnd then engineSnd:Stop() end
 		if plane.model then plane.model:Destroy() end
 		if cloudFolder then cloudFolder:Destroy() end
