@@ -261,9 +261,9 @@ for _, def in ipairs(CUFF_DEFS) do
 end
 
 local function sendStoreRefresh(player: Player)
-    if type(_G.RefreshStore) == "function" then
+	if type(_G.RefreshStore) == "function" then
 		pcall(function()
-                    _G.RefreshStore(player)
+			_G.RefreshStore(player)
 		end)
 	end
 end
