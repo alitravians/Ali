@@ -391,6 +391,90 @@ local function turnToward(cur: Vector3, target: Vector3, maxStep: number): (Vect
 end
 
 ----------------------------------------------------------------------
+-- كاميرا سينمائية ٣٦٠° تلقائية أثناء النزول
+-- بمجرد القفز تتحوّل الكاميرا لمدار سينمائي يدور حول اللاعب من زوايا متغيّرة:
+--   سقوط حر: دوران مستمر مع تنفّس بالمسافة والارتفاع (لقطات علوية وجانبية).
+--   فتح المظلّة: لقطة من الأسفل تنظر لفوق نحو القبّة ثم تصعد تدريجياً.
+--   تحت المظلّة: دوران أوسع وأهدأ يُظهر المدينة من كل الزوايا.
+--   قرب الهبوط: الكاميرا تنخفض لزاوية أرضية درامية.
+-- التوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه الكاميرا.
+----------------------------------------------------------------------
+local cine = {
+	conn = nil :: RBXScriptConnection?,
+	yaw = 0,
+	mode = "freefall",
+	modeT = 0,
+	pos = Vector3.zero,
+	altitude = 1000,
+	shake = 0,
+	offset = nil :: Vector3?,
+}
+
+local function cineSetMode(mode: string)
+	if cine.mode ~= mode then
+		cine.mode = mode
+		cine.modeT = os.clock()
+	end
+end
+
+local function cineStop(cam: Camera?)
+	if cine.conn then
+		cine.conn:Disconnect()
+		cine.conn = nil
+	end
+	cine.offset = nil
+end
+
+local function cineStart(cam: Camera, startFwd: Vector3)
+	cineStop(cam)
+	-- البداية خلف اللاعب مواجهاً اتجاه سقوطه
+	cine.yaw = math.atan2(-startFwd.X, -startFwd.Z)
+	cine.mode = "freefall"
+	cine.modeT = os.clock()
+	cam.CameraType = Enum.CameraType.Scriptable
+	cine.conn = RunService.RenderStepped:Connect(function(dt)
+		local t = os.clock()
+		local sinceMode = t - cine.modeT
+		local orbitSpeed, dist, height
+		if cine.mode == "freefall" then
+			-- دوران كامل ٣٦٠° كل ~١٤ ثانية مع تنفّس بالمسافة والارتفاع
+			orbitSpeed = 0.45
+			dist = 13 + math.sin(t * 0.31) * 3.5
+			height = 2.5 + math.sin(t * 0.23) * 5.0
+		elseif cine.mode == "deploy" then
+			-- لحظة فتح المظلّة: لقطة من الأسفل تنظر لفوق ثم تصعد تدريجياً
+			orbitSpeed = 0.22
+			dist = 10
+			height = -6 + math.min(sinceMode / 2.2, 1) * 10
+			if sinceMode > 2.4 then cineSetMode("canopy") end
+		elseif cine.mode == "canopy" then
+			-- مدار أوسع وأهدأ يستعرض المدينة من كل الزوايا
+			orbitSpeed = 0.32
+			dist = 16 + math.sin(t * 0.21) * 4
+			height = 4 + math.sin(t * 0.17) * 5
+		else -- landing
+			-- زاوية أرضية درامية قرب الهبوط
+			orbitSpeed = 0.5
+			dist = 12
+			height = math.clamp(cine.altitude * 0.3, 2.5, 10)
+		end
+		-- لا تنزل الكاميرا تحت الأرض
+		height = math.max(height, -(cine.altitude - 4))
+		cine.yaw += orbitSpeed * dt
+		local desired = Vector3.new(math.sin(cine.yaw) * dist, height, math.cos(cine.yaw) * dist)
+		local off = cine.offset or desired
+		off = off:Lerp(desired, math.min(1, dt * 3))
+		cine.offset = off
+		local shakeOff = Vector3.new(
+			math.sin(t * 18.5),
+			math.cos(t * 23.5) * 0.6,
+			math.sin(t * 15.7) * 0.4
+		) * cine.shake
+		cam.CFrame = CFrame.lookAt(cine.pos + off + shakeOff, cine.pos + Vector3.new(0, 1, 0))
+	end)
+end
+
+----------------------------------------------------------------------
 -- بناء الطائرة الملكية (جسم Mesh مرفوع + إكسسوارات ذهبية + إضاءة LED)
 ----------------------------------------------------------------------
 -- يبني الطائرة بالكامل من قطع روبلوكس أصلية بمحاور ثابتة ومضبوطة دائماً
@@ -1180,10 +1264,12 @@ local function run()
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 	cinematicWind = playSound3D(rootPart, CONFIG.SND_WIND, 0.12, true)
 
-	-- تفعيل تحكّم اللاعب + كاميرا حرّة: WASD/الأسهم (كمبيوتر) أو عصا الجوال للتوجيه،
-	-- والماوس/سحب الإصبع لتدوير الكاميرا — نزول حرّ على طريقة ببجي.
-	cam.CameraType = Enum.CameraType.Custom
-	cam.CameraSubject = humanoid
+	-- كاميرا سينمائية ٣٦٠° تلقائية تدور حول اللاعب من زوايا متغيّرة طوال النزول،
+	-- والتوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه الكاميرا.
+	cine.pos = rootPart.Position
+	cine.altitude = CONFIG.ALTITUDE
+	cine.shake = 0
+	cineStart(cam, fallDir)
 	setControls(true)
 
 	local canopy: Model? = nil
@@ -1276,6 +1362,9 @@ local function run()
 		local altitude = y - groundY
 		local pos = Vector3.new(px, y, pz)
 		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, bank)
+		cine.pos = pos
+		cine.altitude = altitude
+		cine.shake = math.clamp((effSpeed - 95) / 950, 0, 0.14)
 		updateDescentVisuals(altitude, effSpeed)
 		updateDescentFX(altitude, effSpeed, groundY, false, 0, px, pz)
 		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then
@@ -1294,6 +1383,7 @@ local function run()
 	hud.banner.Text = "النزول بالمظلّة"
 	if trail then trail.Enabled = false end
 	playSound3D(rootPart, CONFIG.SND_CHUTE, 0.7, false)
+	cineSetMode("deploy")
 
 	canopy = buildCanopy()
 	canopy.Parent = Workspace
@@ -1337,6 +1427,10 @@ local function run()
 		local base = CFrame.lookAt(pos, pos + faceDir)
 		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll + bank)
 		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6 + bank * 0.6))
+		cine.pos = pos
+		cine.altitude = altitude
+		cine.shake = 0.03 + math.clamp(1 - openBlend, 0, 1) * 0.1
+		if altitude < 55 and cine.mode ~= "landing" then cineSetMode("landing") end
 		updateDescentVisuals(altitude, canopySpeed)
 		updateDescentFX(altitude, canopySpeed, groundY, true, openBlend, px, pz)
 		if altitude <= CONFIG.LAND_ALT then break end
@@ -1411,6 +1505,7 @@ local function run()
 	restoreMovement(humanoid)
 	humanoid.AutoRotate = true
 	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
+	cineStop(cam)
 	cam.CameraType = Enum.CameraType.Custom
 	cam.CameraSubject = humanoid
 	setControls(true)
@@ -1472,6 +1567,7 @@ local function trigger()
 		setControls(true)
 		clearCinematicTransient()
 		local cam = Workspace.CurrentCamera
+		cineStop(cam)
 		if cam then cam.CameraType = Enum.CameraType.Custom end
 		local char = LocalPlayer.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
