@@ -145,7 +145,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٩٣",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٩٤",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -173,6 +173,13 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٩٤", date = "٤ يوليو",
+			items = {
+				{ "new", "غرفة قيادة كاملة بالطائرة: الكابتن والمساعد بزيّهما الرسمي (قبّعات وشارات ذهبية) جالسان أمام لوحة عدادات مضيئة وأعمدة قيادة — تشوفهم من باب زجاجي بإطار ذهبي." },
+				{ "fixed", "إصلاح حوافّ جدران المقصورة البارزة خارج جسم الطائرة — صارت أقراصاً داخلية بحجم الجسم تماماً." },
+			},
+		},
 		{
 			version = "٢.٩.٩٣", date = "٤ يوليو",
 			items = {
@@ -31820,21 +31827,155 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		end
 	end
 
-	-- فاصل قمرة القيادة: جدار معتم يغطّي فتحة المقدّمة بالكامل
-	-- (أوسع وأعلى من الفتحة حتى لا تظهر السماء أو حلقات المحرّكات المضيئة من خلفه)
-	local divider = solid("CockpitDivider", Enum.PartType.Block,
-		Vector3.new(floorWid * 2.4, wallH * 1.6, 0.5), PANELC)
-	divider.CFrame = boxCF(0.6, 0, wallCU)
-	local divDoor = solid("CockpitDoor", Enum.PartType.Block,
-		Vector3.new(hl * 0.55, wallH * 0.66, 0.10), Color3.fromRGB(214, 206, 192))
-	divDoor.CFrame = boxCF(0.585, 0, wallCU - 0.12)
-	local divTrim = neonBulb("CockpitDoorTrim", Vector3.new(hl * 0.60, wallH * 0.70, 0.06), GOLD, model)
-	divTrim.Material = Enum.Material.Metal
-	divTrim.CFrame = boxCF(0.59, 0, wallCU - 0.12)
-	-- جدار معتم للمؤخّرة يغطّي فتحة الذيل بالكامل
-	local rearWall = solid("CabinRearWall", Enum.PartType.Block,
-		Vector3.new(floorWid * 2.4, wallH * 1.6, 0.5), PANELC)
-	rearWall.CFrame = boxCF(-0.6, 0, wallCU)
+	-- قرص معتم يسدّ مقطع الجسم بالكامل من الداخل (بحجم قطر الجسم فلا يبرز للخارج)
+	local function bulkheadDisc(name: string, f: number, color: Color3): Part
+		local d = solid(name, Enum.PartType.Cylinder,
+			Vector3.new(0.5, R * 1.97, R * 1.97), color)
+		d.CFrame = cylCF(f, 0, 0)
+		return d
+	end
+	-- جدار المؤخّرة: قرص كامل داخل الجسم (يسدّ فتحة الذيل بلا حوافّ بارزة)
+	bulkheadDisc("CabinRearWall", -0.605, PANELC)
+
+	------------------------------------------------------------------
+	-- غرفة القيادة (الكابتن والمساعد): فاصل بباب زجاجي + قمرة مؤثّثة كاملة
+	------------------------------------------------------------------
+	local doorW, doorH = 4.6, 8.4
+	local dividerW = floorWid + 0.6
+	local doorTopU = FLOOR_U + doorH / hu
+	-- جناحا الفاصل حول فتحة الباب + عتبة علوية
+	for _, s in ipairs({ -1, 1 }) do
+		local wing2 = solid("CockpitDivider", Enum.PartType.Block,
+			Vector3.new((dividerW - doorW) / 2, wallH, 0.5), PANELC)
+		wing2.CFrame = boxCF(0.6, s * ((doorW / 2 + (dividerW - doorW) / 4) / hl), wallCU)
+	end
+	local divHeader = solid("CockpitDividerTop", Enum.PartType.Block,
+		Vector3.new(doorW, (CEIL_U - doorTopU) * hu, 0.5), PANELC)
+	divHeader.CFrame = boxCF(0.6, 0, (CEIL_U + doorTopU) / 2)
+	-- إطار ذهبي أنيق حول الباب
+	for _, s in ipairs({ -1, 1 }) do
+		local jamb = solid("CockpitDoorJamb", Enum.PartType.Block,
+			Vector3.new(0.3, doorH, 0.6), GOLD, Enum.Material.Metal)
+		jamb.CFrame = boxCF(0.6, s * ((doorW / 2 + 0.15) / hl), (FLOOR_U + doorTopU) / 2)
+	end
+	local lintel = solid("CockpitDoorLintel", Enum.PartType.Block,
+		Vector3.new(doorW + 0.6, 0.3, 0.6), GOLD, Enum.Material.Metal)
+	lintel.CFrame = boxCF(0.6, 0, doorTopU + 0.15 / hu)
+	-- باب زجاجي شفّاف (يُرى منه الكابتن والمساعد؛ الحاجز غير المرئي يمنع الدخول)
+	local divGlass = solid("CockpitDoorGlass", Enum.PartType.Block,
+		Vector3.new(doorW, doorH, 0.25), Color3.fromRGB(180, 205, 225), Enum.Material.Glass)
+	divGlass.Transparency = 0.55
+	divGlass.CFrame = boxCF(0.6, 0, (FLOOR_U + doorTopU) / 2)
+
+	-- بطانة القمرة (أرضية + سقف + جانبان + قرص أمامي) حتى لا يظهر أي شيء من الخارج
+	local ckLen = hf * 0.28
+	local ckF = 0.75                     -- مركز القمرة (بين الفاصل 0.6 والمقدّمة 0.9)
+	local ckFloor = solid("CockpitFloor", Enum.PartType.Block,
+		Vector3.new(floorWid, 1, ckLen), Color3.fromRGB(30, 32, 46))
+	ckFloor.Material = Enum.Material.Carpet
+	ckFloor.CFrame = boxCF(ckF, 0, FLOOR_U)
+	local ckCeil = solid("CockpitCeil", Enum.PartType.Block,
+		Vector3.new(floorWid, 0.4, ckLen), CREAMC)
+	ckCeil.CFrame = boxCF(ckF, 0, CEIL_U - 0.02)
+	for _, side in ipairs({ -1, 1 }) do
+		local liner = solid("CockpitLiner", Enum.PartType.Block,
+			Vector3.new(ckLen, wallH, 0.4), PANELC)
+		liner.CFrame = CFrame.fromMatrix(at(ckF, side * 0.9, wallCU), fwd, up, lat * side)
+	end
+	bulkheadDisc("CockpitFrontWall", 0.905, PANELC)
+	-- إضاءة قمرة خافتة
+	local ckLight = neonBulb("CockpitLightStrip", Vector3.new(0.5, 0.1, ckLen * 0.8), Color3.fromRGB(255, 236, 200), model)
+	ckLight.CFrame = boxCF(ckF, 0, CEIL_U - 0.14)
+	mk("PointLight", { Color = WARM, Brightness = 0.5, Range = 12, Parent = ckLight, Shadows = false })
+
+	-- زجاج أمامي داخلي داكن مائل (أمام لوحة العدادات)
+	local windshield = solid("CockpitWindshield", Enum.PartType.Block,
+		Vector3.new(9.5, 3.4, 0.3), Color3.fromRGB(26, 34, 52), Enum.Material.Glass)
+	windshield.Transparency = 0.15; windshield.Reflectance = 0.15
+	windshield.CFrame = boxCF(0.885, 0, 0.42) * CFrame.Angles(math.rad(-16), 0, 0)
+
+	-- لوحة العدادات: كونسول داكن + شاشات مضيئة + أعمدة قيادة (Yokes)
+	local console = solid("CockpitConsole", Enum.PartType.Block,
+		Vector3.new(10, 2.6, 2.4), Color3.fromRGB(34, 38, 52))
+	console.CFrame = boxCF(0.862, 0, FLOOR_U + 0.20)
+	local consoleTop = solid("CockpitConsoleTop", Enum.PartType.Block,
+		Vector3.new(10, 1.7, 0.4), Color3.fromRGB(24, 27, 38))
+	consoleTop.CFrame = boxCF(0.845, 0, FLOOR_U + 0.42) * CFrame.Angles(math.rad(22), 0, 0)
+	for i, sc in ipairs({ { -3.2, Color3.fromRGB(70, 210, 170) }, { 0, Color3.fromRGB(235, 190, 90) }, { 3.2, Color3.fromRGB(90, 170, 240) } }) do
+		local screen = neonBulb("CockpitScreen", Vector3.new(2.2, 1.1, 0.12), sc[2] :: Color3, model)
+		screen.CFrame = boxCF(0.842, (sc[1] :: number) / hl, FLOOR_U + 0.42) * CFrame.Angles(math.rad(22), 0, 0)
+	end
+	local pedestal = solid("CockpitPedestal", Enum.PartType.Block,
+		Vector3.new(1.6, 1.6, 2.6), Color3.fromRGB(28, 31, 44))
+	pedestal.CFrame = boxCF(0.83, 0, FLOOR_U + 0.14)
+	local throttle = solid("CockpitThrottle", Enum.PartType.Block,
+		Vector3.new(0.5, 0.9, 0.3), GOLD, Enum.Material.Metal)
+	throttle.CFrame = boxCF(0.828, 0, FLOOR_U + 0.30) * CFrame.Angles(math.rad(-24), 0, 0)
+
+	-- كرسيّ الطيّار + مجسّم طيّار جالس بزيّه الرسمي (كحلي + شارات ذهبية + قبّعة كابتن)
+	local SKINC = Color3.fromRGB(232, 190, 158)
+	local UNIFORMC = Color3.fromRGB(30, 38, 72)
+	local function buildPilot(lStuds: number, isCaptain: boolean)
+		local fSeat = 0.78
+		local l = lStuds / hl
+		-- كرسي قيادة فخم
+		local sBase = solid("PilotSeatBase", Enum.PartType.Block, Vector3.new(3.0, 1.5, 2.6), SEATC)
+		sBase.CFrame = boxCF(fSeat, l, FLOOR_U + 0.21)
+		local sBack = solid("PilotSeatBack", Enum.PartType.Block, Vector3.new(3.0, 4.4, 0.8), SEATC)
+		sBack.CFrame = boxCF(fSeat - 0.022, l, FLOOR_U + 0.52) * CFrame.Angles(math.rad(6), 0, 0)
+		local sHead = solid("PilotSeatHead", Enum.PartType.Block, Vector3.new(2.4, 1.2, 0.7), HEADC)
+		sHead.CFrame = boxCF(fSeat - 0.028, l, FLOOR_U + 0.80)
+		-- الساقان: فخذان أفقيان + ساقان عموديان
+		for _, s in ipairs({ -1, 1 }) do
+			local thigh = solid("PilotThigh", Enum.PartType.Block, Vector3.new(0.9, 0.8, 1.9), UNIFORMC)
+			thigh.CFrame = boxCF(fSeat + 0.016, l + s * 0.62 / hl, FLOOR_U + 0.36)
+			local shin = solid("PilotShin", Enum.PartType.Block, Vector3.new(0.8, 1.8, 0.7), UNIFORMC)
+			shin.CFrame = boxCF(fSeat + 0.033, l + s * 0.62 / hl, FLOOR_U + 0.22)
+			local shoe = solid("PilotShoe", Enum.PartType.Block, Vector3.new(0.85, 0.4, 1.2), Color3.fromRGB(18, 18, 22))
+			shoe.CFrame = boxCF(fSeat + 0.038, l + s * 0.62 / hl, FLOOR_U + 0.11)
+		end
+		-- الجذع بالزيّ الكحلي + أزرار ذهبية
+		local torso = solid("PilotTorso", Enum.PartType.Block, Vector3.new(2.3, 2.5, 1.2), UNIFORMC)
+		torso.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 0.64)
+		local buttons = solid("PilotButtons", Enum.PartType.Block, Vector3.new(0.25, 2.1, 0.15), GOLD, Enum.Material.Metal)
+		buttons.CFrame = boxCF(fSeat - 0.008 + 0.011, l, FLOOR_U + 0.64)
+		-- كتفيات ذهبية (رتبة)
+		for _, s in ipairs({ -1, 1 }) do
+			local ep = solid("PilotEpaulette", Enum.PartType.Block, Vector3.new(0.9, 0.18, 1.0), GOLD, Enum.Material.Metal)
+			ep.CFrame = boxCF(fSeat - 0.008, l + s * 1.2 / hl, FLOOR_U + 0.79)
+		end
+		-- ذراعان ممدودتان نحو عمود القيادة
+		for _, s in ipairs({ -1, 1 }) do
+			local arm = solid("PilotArm", Enum.PartType.Block, Vector3.new(0.6, 0.6, 2.4), UNIFORMC)
+			arm.CFrame = boxCF(fSeat + 0.014, l + s * 1.05 / hl, FLOOR_U + 0.70) * CFrame.Angles(math.rad(24), 0, 0)
+			local hand = solid("PilotHand", Enum.PartType.Block, Vector3.new(0.5, 0.5, 0.5), SKINC)
+			hand.CFrame = boxCF(fSeat + 0.033, l + s * 1.0 / hl, FLOOR_U + 0.60)
+		end
+		-- الرأس + قبّعة كابتن بشريط ذهبي
+		local head = solid("PilotHead", Enum.PartType.Block, Vector3.new(1.15, 1.15, 1.15), SKINC)
+		head.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 0.94)
+		local capBase = solid("PilotCap", Enum.PartType.Cylinder, Vector3.new(0.45, 1.5, 1.5), UNIFORMC)
+		capBase.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 1.03) * CFrame.Angles(0, 0, math.rad(90))
+		local capBand = solid("PilotCapBand", Enum.PartType.Cylinder, Vector3.new(0.18, 1.55, 1.55), GOLD, Enum.Material.Metal)
+		capBand.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 1.005) * CFrame.Angles(0, 0, math.rad(90))
+		local visor = solid("PilotCapVisor", Enum.PartType.Block, Vector3.new(1.1, 0.12, 0.55), Color3.fromRGB(18, 18, 22))
+		visor.CFrame = boxCF(fSeat + 0.004, l, FLOOR_U + 1.0)
+		if isCaptain then
+			local badge = solid("PilotCapBadge", Enum.PartType.Block, Vector3.new(0.4, 0.3, 0.1), GOLD, Enum.Material.Metal)
+			badge.CFrame = boxCF(fSeat + 0.001, l, FLOOR_U + 1.04)
+		end
+		-- عمود القيادة (Yoke) أمام الطيّار
+		local column = solid("YokeColumn", Enum.PartType.Cylinder, Vector3.new(1.6, 0.3, 0.3), Color3.fromRGB(24, 27, 38))
+		column.CFrame = boxCF(fSeat + 0.037, l, FLOOR_U + 0.46) * CFrame.Angles(0, math.rad(90), math.rad(70))
+		local yokeBar = solid("YokeBar", Enum.PartType.Block, Vector3.new(1.8, 0.3, 0.3), Color3.fromRGB(18, 20, 30))
+		yokeBar.CFrame = boxCF(fSeat + 0.030, l, FLOOR_U + 0.56)
+		for _, s in ipairs({ -1, 1 }) do
+			local grip = solid("YokeGrip", Enum.PartType.Block, Vector3.new(0.3, 0.7, 0.3), Color3.fromRGB(18, 20, 30))
+			grip.CFrame = boxCF(fSeat + 0.030, l + s * 0.9 / hl, FLOOR_U + 0.60)
+		end
+	end
+	buildPilot(-2.6, true)   -- الكابتن (يسار)
+	buildPilot(2.6, false)   -- المساعد (يمين)
 
 	-- باب القفز القابل للفتح (لوح صلب على الجانب الأيسر؛ يُفتح بالـE)
 	local doorClosedCF = CFrame.fromMatrix(at(-0.18, -0.96, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
