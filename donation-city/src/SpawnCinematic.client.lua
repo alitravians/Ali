@@ -352,9 +352,9 @@ local function getControlModule(): any
 	return controlModule
 end
 
--- متجه التوجيه الأفقي نسبةً للكاميرا من إدخال اللاعب (يعمل على الكمبيوتر والجوال).
--- يرجع متجهاً أفقياً موحّداً أو صفراً لو ما في إدخال.
-local function steerWorldDir(cam: Camera): Vector3
+-- متجه التوجيه نسبةً لاتجاه جسم اللاعب (لا الكاميرا) — يُستخدم مع الكاميرا
+-- السينمائية الدوّارة حتى يبقى W = للأمام وA/D = انعطاف ثابتاً مهما دارت الكاميرا.
+local function steerBodyDir(faceDir: Vector3): Vector3
 	local mv = Vector3.zero
 	local cm = getControlModule()
 	if cm then
@@ -370,11 +370,9 @@ local function steerWorldDir(cam: Camera): Vector3
 		mv = Vector3.new(r, 0, -f)
 	end
 	if mv.Magnitude < 0.05 then return Vector3.zero end
-	local cf = cam.CFrame
-	local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
+	local look = Vector3.new(faceDir.X, 0, faceDir.Z)
 	look = look.Magnitude > 0.01 and look.Unit or Vector3.new(0, 0, -1)
-	local right = Vector3.new(cf.RightVector.X, 0, cf.RightVector.Z)
-	right = right.Magnitude > 0.01 and right.Unit or Vector3.new(1, 0, 0)
+	local right = Vector3.new(-look.Z, 0, look.X)
 	local world = right * mv.X + look * (-mv.Z)
 	return world.Magnitude > 0.01 and world.Unit or Vector3.zero
 end
@@ -397,7 +395,7 @@ end
 --   فتح المظلّة: لقطة من الأسفل تنظر لفوق نحو القبّة ثم تصعد تدريجياً.
 --   تحت المظلّة: دوران أوسع وأهدأ يُظهر المدينة من كل الزوايا.
 --   قرب الهبوط: الكاميرا تنخفض لزاوية أرضية درامية.
--- التوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه الكاميرا.
+-- التوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه جسم اللاعب.
 ----------------------------------------------------------------------
 local cine = {
 	conn = nil :: RBXScriptConnection?,
@@ -1265,7 +1263,7 @@ local function run()
 	cinematicWind = playSound3D(rootPart, CONFIG.SND_WIND, 0.12, true)
 
 	-- كاميرا سينمائية ٣٦٠° تلقائية تدور حول اللاعب من زوايا متغيّرة طوال النزول،
-	-- والتوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه الكاميرا.
+	-- والتوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه جسم اللاعب (W = للأمام، A/D = انعطاف).
 	cine.pos = rootPart.Position
 	cine.altitude = CONFIG.ALTITUDE
 	cine.shake = 0
@@ -1347,7 +1345,7 @@ local function run()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
 		local effSpeed = vSpeed * (if boosting then CONFIG.BOOST_FREEFALL else 1)
 		y -= effSpeed * dt
-		local dir = steerWorldDir(cam)
+		local dir = steerBodyDir(faceDir)
 		local bankTarget = 0
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
@@ -1404,7 +1402,7 @@ local function run()
 		local openBlend = math.clamp((os.clock() - deployStartTime) / 0.72, 0, 1)
 		local canopySpeed = ((deployOpenSpeed > 0 and (deployOpenSpeed + (CONFIG.CANOPY_SPEED - deployOpenSpeed) * openBlend)) or CONFIG.CANOPY_SPEED) * (if boosting then CONFIG.BOOST_CANOPY else 1)
 		y -= canopySpeed * dt
-		local dir = steerWorldDir(cam)
+		local dir = steerBodyDir(faceDir)
 		local bankTarget = 0
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
