@@ -859,6 +859,13 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		CastShadow = false, Material = Enum.Material.Carpet, Color = Color3.fromRGB(120, 92, 38),
 		CFrame = boxCF(0, 0, FLOOR_U) * CFrame.new(0, 0.56, 0), Parent = model,
 	})
+	-- شريطا إغلاق جانبيان: يسدّان الفجوة بين حافة الأرضية والجدار (كانت تبان منها السماء)
+	for _, side in ipairs({ -1, 1 }) do
+		local skirt = solid("CabinFloorSkirt", Enum.PartType.Block,
+			Vector3.new(2.2, 0.3, floorLen), Color3.fromRGB(26, 28, 44))
+		skirt.Material = Enum.Material.Carpet
+		skirt.CFrame = boxCF(0, side * 0.82, FLOOR_U) * CFrame.new(0, 0.35, 0)
+	end
 
 	-- جدران جانبية حاجزة (شفّافة — تمنع السقوط أثناء المشي)
 	local wallH = (CEIL_U - FLOOR_U) * hu
@@ -964,12 +971,16 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	end
 	-- جدار المؤخّرة: قرص كامل داخل الجسم (يسدّ فتحة الذيل بلا حوافّ بارزة)
 	bulkheadDisc("CabinRearWall", -0.605, PANELC)
+	-- جدار مستطيل مكمّل يغطّي زوايا المقصورة خارج دائرة القرص (بلون الجسم حتى لا تبرز حوافّه)
+	local rearCap = solid("CabinRearCap", Enum.PartType.Block,
+		Vector3.new(hl * 1.84, wallH, 0.4), PANELC)
+	rearCap.CFrame = boxCF(-0.598, 0, wallCU)
 
 	------------------------------------------------------------------
 	-- غرفة القيادة (الكابتن والمساعد): فاصل بباب زجاجي + قمرة مؤثّثة كاملة
 	------------------------------------------------------------------
 	local doorW, doorH = 4.6, 8.4
-	local dividerW = floorWid + 0.6
+	local dividerW = hl * 1.84
 	local doorTopU = FLOOR_U + doorH / hu
 	-- جناحا الفاصل حول فتحة الباب + عتبة علوية
 	for _, s in ipairs({ -1, 1 }) do
@@ -1002,6 +1013,12 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		Vector3.new(floorWid, 1, ckLen), Color3.fromRGB(30, 32, 46))
 	ckFloor.Material = Enum.Material.Carpet
 	ckFloor.CFrame = boxCF(ckF, 0, FLOOR_U)
+	for _, side in ipairs({ -1, 1 }) do
+		local skirt = solid("CockpitFloorSkirt", Enum.PartType.Block,
+			Vector3.new(2.2, 0.3, ckLen), Color3.fromRGB(30, 32, 46))
+		skirt.Material = Enum.Material.Carpet
+		skirt.CFrame = boxCF(ckF, side * 0.82, FLOOR_U) * CFrame.new(0, 0.35, 0)
+	end
 	local ckCeil = solid("CockpitCeil", Enum.PartType.Block,
 		Vector3.new(floorWid, 0.4, ckLen), CREAMC)
 	ckCeil.CFrame = boxCF(ckF, 0, CEIL_U - 0.02)
