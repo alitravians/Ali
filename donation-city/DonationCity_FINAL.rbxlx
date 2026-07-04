@@ -17560,27 +17560,32 @@ local function laptopBlender(cx, cz, topY): boolean
 			end
 		end
 	end
-	-- تحجيم بحيث يكون عرض القاعدة ≈ 3 ستد (مقاس المكتب) ثم توجيه الشاشة نحو +X
-	local cf, size = model:GetBoundingBox()
-	local widest = math.max(size.X, size.Y, size.Z)
-	if widest > 0.01 then
-		model:ScaleTo(4.6 / widest)
-	end
-	cf, size = model:GetBoundingBox()
-	model:PivotTo(CFrame.new(cx + 0.2, topY + size.Y / 2, cz))
-	-- توجيه: الشاشة تواجه اتجاه القاعدة الأمامي — نلفّ الموديل حتى تواجه الكرسي عند +X
+	-- تحجيم: قاعدة اللابتوب ≈ ٢.٦ ستد (مقاس المكتب)
 	local basePart = model:FindFirstChild("LapBase", true)
 	local scr = model:FindFirstChild("LapScreen", true)
+	if basePart and basePart:IsA("BasePart") then
+		local bw = math.max(basePart.Size.X, basePart.Size.Y, basePart.Size.Z)
+		if bw > 0.01 then
+			model:ScaleTo(2.6 / bw)
+		end
+	end
+	-- توجيه: الشاشة خلف القاعدة — نلفّ الموديل حتى تواجه الشاشة الكرسي عند +X
 	if basePart and scr and basePart:IsA("BasePart") and scr:IsA("BasePart") then
 		local fwd = basePart.Position - scr.Position
 		fwd = Vector3.new(fwd.X, 0, fwd.Z)
 		if fwd.Magnitude > 0.01 then
 			fwd = fwd.Unit
-			local yaw = math.atan2(-fwd.Z, fwd.X)
+			local yaw = math.atan2(fwd.Z, fwd.X)
 			local pivot = model:GetPivot()
-			model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, -yaw, 0) * pivot.Rotation)
+			model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, yaw, 0) * pivot.Rotation)
 		end
 	end
+	-- تموضع عبر صندوق الإحاطة (نقطة ارتكاز الموديل المستورد لا تطابق مركزه):
+	-- قاعدة الصندوق على سطح المكتب تماماً ومركزه عند (cx, cz)
+	local bcf, bsz = model:GetBoundingBox()
+	local delta = Vector3.new(cx + 0.2 - bcf.Position.X, (topY + bsz.Y / 2) - bcf.Position.Y, cz - bcf.Position.Z)
+	local pv = model:GetPivot()
+	model:PivotTo(pv + delta)
 	model.Parent = Workspace
 	-- خلفية الشاشة (نفس الصورة الحالية) على لوح رقيق فوق وجه ميش الشاشة الأمامي
 	if scr and scr:IsA("BasePart") then
