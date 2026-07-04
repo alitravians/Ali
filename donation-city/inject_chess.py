@@ -16,7 +16,9 @@ RBXLX = os.path.join(HERE, "DonationCity_FINAL.rbxlx")
 
 SCRIPTS = [
     ("Script", "Chess", "ChessServerRef",
-     os.path.join(HERE, "src", "Chess.server.lua"), "ServerScriptService"),
+     os.path.join(HERE, "src", "Chess.server.lua"), "ServerScriptService", "0"),
+    ("LocalScript", "ChessClient", "ChessClientRef",
+     os.path.join(HERE, "src", "ChessClient.client.lua"), "StarterPlayerScripts", None),
 ]
 
 
@@ -37,29 +39,31 @@ def find_service(root, cls):
     return None
 
 
-def make_script_item(cls, name, referent, source):
+def make_script_item(cls, name, referent, source, run_context):
     if "]]>" in source:
         sys.exit(f"ERROR: {name} source contains ]]> which breaks CDATA")
     item = ET.Element('Item'); item.set('class', cls); item.set('referent', referent)
     props = ET.SubElement(item, 'Properties')
     nm = ET.SubElement(props, 'string'); nm.set('name', 'Name'); nm.text = name
-    rc = ET.SubElement(props, 'token'); rc.set('name', 'RunContext'); rc.text = '0'
+    if run_context is not None:
+        rc = ET.SubElement(props, 'token'); rc.set('name', 'RunContext'); rc.text = run_context
     src = ET.SubElement(props, 'string'); src.set('name', 'Source')
     src.text = ET.CDATA(source)
     return item
 
 
 def inject_scripts(root):
-    for cls, name, referent, path, svc_name in SCRIPTS:
+    for cls, name, referent, path, svc_name, run_context in SCRIPTS:
         svc = find_service(root, svc_name)
         if svc is None:
             sys.exit(f"ERROR: service {svc_name} not found")
         for ch in list(svc):
-            if ch.tag == 'Item' and ch.get('class') == cls and name_of(ch) == name:
+            if ch.tag == 'Item' and ch.get('class') == cls and \
+               (name_of(ch) == name or ch.get('referent') == referent):
                 svc.remove(ch)
         with open(path, 'r', encoding='utf-8') as f:
             source = f.read()
-        svc.append(make_script_item(cls, name, referent, source))
+        svc.append(make_script_item(cls, name, referent, source, run_context))
         print(f"injected {cls} {name} -> {svc_name} ({len(source)} chars)")
 
 

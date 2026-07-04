@@ -53,6 +53,7 @@ UPDATES = [
     ("src/CherryTrees.server.lua",    "CHERRY TREES (Server)"),
     ("src/CherryTrees.client.lua",    "CHERRY TREES (Client)"),
     ("src/Chess.server.lua",          "CHESS — لعبة الشطرنج ثلاثية الأبعاد (Server)"),
+    ("src/ChessClient.client.lua",    "CHESS CLIENT — مؤثرات الشطرنج (Client)"),
 ]
 
 with open(SRC, "r", encoding="utf-8") as f:

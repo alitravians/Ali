@@ -18,9 +18,15 @@
 
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
 local Debris = game:GetService("Debris")
 local InsertService = game:GetService("InsertService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- قناة المؤثرات: الحركة تُنفّذ محليّاً على أجهزة اللاعبين (ChessClient) — سلاسة ٢٤ إطاراً+
+-- بدل بثّ كل إطار من السيرفر عبر الشبكة (سبب البطء/التقطيع على الجوال)
+local fxRemote = Instance.new("RemoteEvent")
+fxRemote.Name = "ChessFX"
+fxRemote.Parent = ReplicatedStorage
 
 ----------------------------------------------------------------------
 -- ⚙️ محرّك الشطرنج (منقول حرفيّاً من chess_core.lua المُتحقَّق منه perft)
@@ -528,10 +534,7 @@ type Game = {
 	trayW: { BasePart },              -- القطع السوداء التي أسرها الأبيض
 	trayB: { BasePart },              -- القطع البيضاء التي أسرها الأسود
 	selectedBobPart: BasePart?,
-	selectedBobConn: RBXScriptConnection?,
-	selectedBobBaseCFrame: CFrame?,
 	checkPulseSq: number?,
-	checkPulseConn: RBXScriptConnection?,
 	statusLabel: TextLabel,
 	lastLabel: TextLabel,
 	capWLabel: TextLabel,
@@ -601,16 +604,10 @@ local function setGlow(g: Game, sq: number, col: Color3, trans: number)
 end
 
 local function stopSelectedBob(g: Game)
-	if g.selectedBobConn then
-		g.selectedBobConn:Disconnect()
-		g.selectedBobConn = nil
-	end
 	local pc = g.selectedBobPart
-	local base = g.selectedBobBaseCFrame
 	g.selectedBobPart = nil
-	g.selectedBobBaseCFrame = nil
-	if pc and pc.Parent and base then
-		pc.CFrame = base
+	if pc then
+		fxRemote:FireAllClients("bobstop", pc)
 	end
 end
 
@@ -642,7 +639,7 @@ local function refreshHighlights(g: Game)
 	if g.selected then
 		setGlow(g, g.selected, SEL_COL, 0.35)
 	end
-	if g.checkPulseSq and g.checkPulseConn then
+	if g.checkPulseSq then
 		local glow = getGlow(g, g.checkPulseSq)
 		if glow then
 			glow.Color = CHECK_COL
@@ -652,16 +649,18 @@ local function refreshHighlights(g: Game)
 end
 
 local function stopCheckPulse(g: Game)
-	if g.checkPulseConn then
-		g.checkPulseConn:Disconnect()
-		g.checkPulseConn = nil
+	if g.checkPulseSq then
+		local glow = getGlow(g, g.checkPulseSq)
+		if glow then
+			fxRemote:FireAllClients("pulsestop", glow)
+		end
 	end
 	g.checkPulseSq = nil
 	refreshHighlights(g)
 end
 
 local function startCheckPulse(g: Game, sq: number)
-	if g.checkPulseSq == sq and g.checkPulseConn then
+	if g.checkPulseSq == sq then
 		return
 	end
 	stopCheckPulse(g)
@@ -671,75 +670,33 @@ local function startCheckPulse(g: Game, sq: number)
 	if glow then
 		glow.Color = CHECK_COL
 		glow.Transparency = 0.45
+		fxRemote:FireAllClients("pulse", glow)
 	end
-	g.checkPulseConn = RunService.Heartbeat:Connect(function()
-		local curSq = g.checkPulseSq
-		if not curSq then
-			if g.checkPulseConn then g.checkPulseConn:Disconnect() end
-			g.checkPulseConn = nil
-			return
-		end
-		local g2 = getGlow(g, curSq)
-		if not g2 then
-			if g.checkPulseConn then g.checkPulseConn:Disconnect() end
-			g.checkPulseConn = nil
-			g.checkPulseSq = nil
-			return
-		end
-		local pulse = 0.5 + 0.5 * math.sin(os.clock() * 5.5)
-		g2.Color = CHECK_COL
-		g2.Transparency = 0.2 + (0.46 * (1 - pulse))
-	end)
 end
 
 local function startSelectedBob(g: Game, pc: BasePart)
 	stopSelectedBob(g)
 	if not pc.Parent then return end
 	g.selectedBobPart = pc
-	g.selectedBobBaseCFrame = pc.CFrame
-	g.selectedBobConn = RunService.Heartbeat:Connect(function()
-		local piece = g.selectedBobPart
-		local baseCFrame = g.selectedBobBaseCFrame
-		if piece ~= pc or not piece or not piece.Parent or not baseCFrame then
-			stopSelectedBob(g)
-			return
-		end
-		local bob = math.sin(os.clock() * 5.5) * 0.12
-		piece.CFrame = baseCFrame * CFrame.new(0, bob, 0)
-	end)
+	fxRemote:FireAllClients("bob", pc)
 end
 
 local function animateCapturedToTray(g: Game, pc: BasePart, side: number)
 	local trayList = side > 0 and g.trayW or g.trayB
 	local index = #trayList + 1
 	trayList[index] = pc
-	task.spawn(function()
-		local startPos = pc.Position
-		local startSize = pc.Size
-		local yaw = (pc.Color == BLACK_PC) and math.pi or 0
-		local trayX = g.origin.X + (side > 0 and (HALF + 0.95) or -(HALF + 0.95))
-		local trayZ = g.origin.Z - HALF + 0.36 + (index - 1) * 0.46
-		local endSize = startSize * 0.82
-		local endY = TOP_Y + endSize.Y / 2 + 0.06
-		local goalPos = Vector3.new(trayX, endY, trayZ)
-		local goalCF = CFrame.new(goalPos) * CFrame.Angles(0, yaw, math.rad(90))
-		local duration = 0.38
-		local t = 0
-		while t < 1 do
-			local currentTray = side > 0 and g.trayW or g.trayB
-			if currentTray ~= trayList or not pc.Parent then
-				if pc.Parent then pc:Destroy() end
-				return
-			end
-			local dt = RunService.Heartbeat:Wait()
-			t = math.min(1, t + dt / duration)
-			local eased = t * t * (3 - 2 * t)
-			local pos = startPos:Lerp(goalPos, eased)
-			pos = Vector3.new(pos.X, pos.Y + math.sin(t * math.pi) * 0.35, pos.Z)
-			pc.Size = startSize:Lerp(endSize, eased)
-			pc.CFrame = CFrame.new(pos) * CFrame.Angles(0, yaw, math.rad(90 * eased))
-		end
-		if (side > 0 and g.trayW ~= trayList) or (side < 0 and g.trayB ~= trayList) then
+	local yaw = (pc.Color == BLACK_PC) and math.pi or 0
+	local trayX = g.origin.X + (side > 0 and (HALF + 0.95) or -(HALF + 0.95))
+	local trayZ = g.origin.Z - HALF + 0.36 + (index - 1) * 0.46
+	local endSize = pc.Size * 0.82
+	local endY = TOP_Y + endSize.Y / 2 + 0.06
+	local goalCF = CFrame.new(Vector3.new(trayX, endY, trayZ)) * CFrame.Angles(0, yaw, math.rad(90))
+	local duration = 0.3
+	-- الحركة محليّة على العملاء؛ السيرفر يثبّت الحالة النهائية بعد انتهائها
+	fxRemote:FireAllClients("capture", pc, goalCF, endSize, duration)
+	task.delay(duration + 0.05, function()
+		local currentTray = side > 0 and g.trayW or g.trayB
+		if currentTray ~= trayList then
 			if pc.Parent then pc:Destroy() end
 			return
 		end
@@ -896,33 +853,19 @@ end
 -- تنفيذ نقلة (مع التحريك البصري والأسر والتبييت والترقية)
 ----------------------------------------------------------------------
 local function tweenPieceTo(g: Game, pc: BasePart, sq: number, pieceVal: number)
-	task.spawn(function()
-		local startPos = pc.Position
-		local center = squareCenter(g.origin, sq)
-		local yaw = (pc.Color == BLACK_PC) and math.pi or 0
-		local liftHeight = 0.5
-		if Chess.ptype(pieceVal) == Chess.KNIGHT then
-			liftHeight = 1.4 -- الحصان «يقفز» أعلى من بقيّة القطع
-		end
-		local startY = TOP_Y + pc.Size.Y / 2
-		local destY = TOP_Y + pc.Size.Y / 2
-		local duration = 0.32
-		local t = 0
-		while t < 1 do
-			if not pc.Parent then return end
-			local dt = RunService.Heartbeat:Wait()
-			t = math.min(1, t + dt / duration)
-			local eased = t * t * (3 - 2 * t)
-			local x = startPos.X + (center.X - startPos.X) * eased
-			local z = startPos.Z + (center.Z - startPos.Z) * eased
-			local y = startY + math.sin(t * math.pi) * liftHeight
-			if t > 0.92 then
-				y = y + (destY - y) * ((t - 0.92) / 0.08)
-			end
-			pc.CFrame = CFrame.new(x, y, z) * CFrame.Angles(0, yaw, 0)
-		end
+	local center = squareCenter(g.origin, sq)
+	local yaw = (pc.Color == BLACK_PC) and math.pi or 0
+	local liftHeight = 0.45
+	if Chess.ptype(pieceVal) == Chess.KNIGHT then
+		liftHeight = 1.2 -- الحصان «يقفز» أعلى من بقيّة القطع
+	end
+	local destCF = CFrame.new(center.X, TOP_Y + pc.Size.Y / 2, center.Z) * CFrame.Angles(0, yaw, 0)
+	local duration = 0.22
+	-- الحركة محليّة على العملاء؛ السيرفر يثبّت الموقع النهائي بعد انتهائها
+	fxRemote:FireAllClients("move", pc, destCF, liftHeight, duration)
+	task.delay(duration + 0.05, function()
 		if pc.Parent then
-			pc.CFrame = CFrame.new(center.X, destY, center.Z) * CFrame.Angles(0, yaw, 0)
+			pc.CFrame = destCF
 		end
 	end)
 end
@@ -1508,8 +1451,8 @@ local function buildGame(area: Folder, origin: Vector3, index: number): Game
 		hintTargets = {}, hintParts = {},
 		lastFrom = nil, lastTo = nil,
 		trayW = {}, trayB = {},
-		selectedBobPart = nil, selectedBobConn = nil, selectedBobBaseCFrame = nil,
-		checkPulseSq = nil, checkPulseConn = nil,
+		selectedBobPart = nil,
+		checkPulseSq = nil,
 		statusLabel = nil :: any, lastLabel = nil :: any,
 		capWLabel = nil :: any, capBLabel = nil :: any,
 		capW = 0, capB = 0,
