@@ -547,6 +547,17 @@ type Game = {
 
 local games: { Game } = {}
 
+-- يُربط لاحقاً بـ onSquareClicked — يسمح للقطع والتلميحات باستقبال الضغطات
+-- (القطعة تحجب مربعها عن الضغط، فلا بد أن تُحسب ضغطتها كضغطة على المربع)
+local squareClicked: ((g: Game, sq: number, player: Player) -> ())?
+
+local function addClickDetector(target: BasePart, onClick: (Player) -> ())
+	local cd = Instance.new("ClickDetector")
+	cd.MaxActivationDistance = 20
+	cd.MouseClick:Connect(onClick)
+	cd.Parent = target
+end
+
 ----------------------------------------------------------------------
 -- إنشاء/إزالة نماذج القطع
 ----------------------------------------------------------------------
@@ -565,6 +576,15 @@ local function makePiece(g: Game, pieceVal: number, sq: number): BasePart?
 	local center = squareCenter(g.origin, sq)
 	local yaw = (pieceVal > 0) and 0 or math.pi  -- الأسود يستدير ليواجه الأبيض
 	pc.CFrame = CFrame.new(center.X, TOP_Y + pc.Size.Y / 2, center.Z) * CFrame.Angles(0, yaw, 0)
+	addClickDetector(pc, function(plr)
+		if not squareClicked then return end
+		for s = 1, 64 do
+			if g.models[s] == pc then
+				squareClicked(g, s, plr)
+				return
+			end
+		end
+	end)
 	pc.Parent = g.pieceFolder
 	return pc
 end
@@ -751,6 +771,10 @@ local function showHints(g: Game, fromSq: number)
 				Size = Vector3.new(CELL * 0.92, 0.08, CELL * 0.92),
 				CFrame = CFrame.new(center.X, TOP_Y + 0.06, center.Z),
 			})
+			local capSq = destSq
+			addClickDetector(ring, function(plr)
+				if squareClicked then squareClicked(g, capSq, plr) end
+			end)
 			g.hintParts[#g.hintParts + 1] = ring
 		else
 			-- نقطة خضراء على المربع الفارغ
@@ -760,6 +784,10 @@ local function showHints(g: Game, fromSq: number)
 				Size = Vector3.new(0.12, CELL * 0.42, CELL * 0.42),
 				CFrame = CFrame.new(center.X, TOP_Y + 0.1, center.Z) * CFrame.Angles(0, 0, math.rad(90)),
 			})
+			local capSq = destSq
+			addClickDetector(dot, function(plr)
+				if squareClicked then squareClicked(g, capSq, plr) end
+			end)
 			g.hintParts[#g.hintParts + 1] = dot
 		end
 	end
@@ -1041,6 +1069,7 @@ local function onSquareClicked(g: Game, sq: number, player: Player)
 		clearHints(g)
 	end
 end
+squareClicked = onSquareClicked
 
 ----------------------------------------------------------------------
 -- المقاعد
