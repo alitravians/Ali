@@ -811,7 +811,8 @@ local function laptopBlender(cx, cz, topY): boolean
 			fwd = fwd.Unit
 			local yaw = math.atan2(fwd.Z, fwd.X)
 			local pivot = model:GetPivot()
-			model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(0, yaw, 0) * pivot.Rotation)
+			local pitch, _, roll = pivot:ToOrientation()
+			model:PivotTo(CFrame.new(pivot.Position) * CFrame.Angles(pitch, yaw, roll))
 		end
 	end
 	-- تموضع عبر صندوق الإحاطة (نقطة ارتكاز الموديل المستورد لا تطابق مركزه):

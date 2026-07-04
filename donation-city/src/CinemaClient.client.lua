@@ -1102,6 +1102,7 @@ do
 
 	local function destroyStore(animated)
 		speedUpdateUI = nil
+		refreshStoreUI = nil
 		clearConns()
 		local r = storeRoot
 		storeRoot = nil
