@@ -176,7 +176,7 @@ local CONFIG = {
 		{
 			version = "٢.٩.٩٧", date = "٤ يوليو",
 			items = {
-				{ "fixed", "إصلاح جذري لشاشة لابتوب مكتب الإدارة: صارت الشاشة تقف باتجاه الكرسي بدون أي ميلان جانبي، وخلفية الشاشة تنطبق على وجهها تماماً بلا انكسار." },
+				{ "fixed", "إصلاح جذري لشاشة لابتوب مكتب الإدارة: صارت الشاشة تقف باتجاه الكرسي بدون أي ميلان جانبي، وخلفية الشاشة تركب على وجهها تماماً وبنسبة أبعاد صحيحة بلا قصّ." },
 			},
 		},
 		{
@@ -17636,14 +17636,15 @@ local function laptopBlender(cx, cz, topY): boolean
 		g.Face = Enum.NormalId.Front
 		g.LightInfluence = 0
 		g.Brightness = 1.2
-		g.CanvasSize = Vector2.new(768, 432)
+		-- لوحة الرسم بنفس نسبة أبعاد وجه الشاشة حتى تركب الخلفية بدقة بلا قصّ أو تشويه
+		g.CanvasSize = Vector2.new(math.floor(faceW * 400), math.floor(faceH * 400))
 		g.Adornee = display; g.Parent = display
 		local img = Instance.new("ImageLabel")
 		img.BackgroundColor3 = Color3.fromRGB(8, 10, 14)
 		img.BorderSizePixel = 0
 		img.Size = UDim2.fromScale(1, 1)
 		img.Image = "rbxthumb://type=Asset&id=93628047304202&w=768&h=432"
-		img.ScaleType = Enum.ScaleType.Crop
+		img.ScaleType = Enum.ScaleType.Stretch
 		img.Parent = g
 		pointLight(display, Color3.fromRGB(120, 170, 235), 0.6, 6)
 	end
