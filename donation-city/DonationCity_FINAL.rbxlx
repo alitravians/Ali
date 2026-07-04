@@ -17596,13 +17596,18 @@ local function laptopBlender(cx, cz, topY): boolean
 		if n:Dot(Vector3.new(1, 0, 0)) < 0 then
 			n = -n -- الوجه الأمامي نحو الكرسي (+X)
 		end
+		local up = dims[2][2]
+		if up:Dot(Vector3.new(0, 1, 0)) < 0 then
+			up = -up
+		end
 		local w, h = dims[3][1] * 0.98, dims[2][1] * 0.98
 		local pos = scr.Position + n * (half + 0.03)
 		local ov = Instance.new("Part")
 		ov.Name = "LapWallpaper"
 		ov.Anchored = true; ov.CanCollide = false; ov.CastShadow = false
 		ov.Size = Vector3.new(w, h, 0.04)
-		ov.CFrame = CFrame.lookAt(pos, pos + n)
+		-- محاذاة تامة مع وجه الشاشة بنفس ميلانها: LookVector = العمودي الأمامي، UpVector = محور ارتفاع الشاشة
+		ov.CFrame = CFrame.fromMatrix(pos, up:Cross(-n).Unit, up, -n)
 		ov.Color = Color3.fromRGB(8, 10, 14)
 		ov.Material = Enum.Material.SmoothPlastic
 		ov.Parent = model
