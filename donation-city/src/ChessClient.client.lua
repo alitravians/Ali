@@ -13,6 +13,11 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local LocalPlayer = Players.LocalPlayer
 
 local remote = ReplicatedStorage:WaitForChild("ChessFX", 30)
 if not remote then return end
@@ -142,4 +147,135 @@ remote.OnClientEvent:Connect(function(kind: string, part: BasePart?, a, b, c)
 	elseif kind == "pulsestop" then
 		stopPulse(part)
 	end
+end)
+
+----------------------------------------------------------------------
+-- كاميرا ٣٦٠° حول طاولة الشطرنج أثناء اللعب
+-- عند الجلوس على كرسي الشطرنج تتحوّل الكاميرا لمدار حرّ حول مركز الرقعة:
+--   كمبيوتر: سحب بالزر الأيمن يدور، وعجلة الماوس تقرّب/تبعّد.
+--   جوال: سحب إصبع واحد يدور، وقرصة إصبعين تقرّب/تبعّد (النقر على القطع يبقى شغّالاً).
+-- عند القيام من الكرسي ترجع الكاميرا الافتراضية تلقائياً.
+----------------------------------------------------------------------
+local orbitConn: RBXScriptConnection? = nil
+local orbitInputConns: { RBXScriptConnection } = {}
+
+local function stopOrbit()
+	if orbitConn then
+		orbitConn:Disconnect()
+		orbitConn = nil
+	end
+	for _, c in ipairs(orbitInputConns) do
+		c:Disconnect()
+	end
+	table.clear(orbitInputConns)
+	local cam = Workspace.CurrentCamera
+	if cam then
+		cam.CameraType = Enum.CameraType.Custom
+		local char = LocalPlayer.Character
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			cam.CameraSubject = hum
+		end
+	end
+end
+
+local function startOrbit(seat: BasePart, center: Vector3)
+	stopOrbit()
+	local cam = Workspace.CurrentCamera
+	if not cam then
+		return
+	end
+
+	-- البداية: خلف كرسيّ اللاعب مواجهاً الرقعة بميلان مريح
+	local toSeat = seat.Position - center
+	local yaw = math.atan2(toSeat.X, toSeat.Z)
+	local pitch = math.rad(42)
+	local dist = 9
+	local dragging = false
+	local panLast = Vector2.zero
+	local pinchLast = 1
+
+	table.insert(orbitInputConns, UserInputService.InputBegan:Connect(function(input, gpe)
+		if gpe then
+			return
+		end
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			dragging = true
+		end
+	end))
+	table.insert(orbitInputConns, UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton2 then
+			dragging = false
+		end
+	end))
+	table.insert(orbitInputConns, UserInputService.InputChanged:Connect(function(input, gpe)
+		if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
+			yaw -= input.Delta.X * 0.008
+			pitch = math.clamp(pitch + input.Delta.Y * 0.006, math.rad(12), math.rad(80))
+		elseif input.UserInputType == Enum.UserInputType.MouseWheel and not gpe then
+			dist = math.clamp(dist - input.Position.Z * 1.2, 4.5, 18)
+		end
+	end))
+	table.insert(orbitInputConns, UserInputService.TouchPan:Connect(function(_, translation, _, state, gpe)
+		if gpe then
+			return
+		end
+		if state == Enum.UserInputState.Begin then
+			panLast = translation
+		end
+		local d = translation - panLast
+		panLast = translation
+		yaw -= d.X * 0.01
+		pitch = math.clamp(pitch + d.Y * 0.008, math.rad(12), math.rad(80))
+	end))
+	table.insert(orbitInputConns, UserInputService.TouchPinch:Connect(function(_, scale, _, state, gpe)
+		if gpe then
+			return
+		end
+		if state == Enum.UserInputState.Begin then
+			pinchLast = scale
+		end
+		if scale > 0.05 then
+			dist = math.clamp(dist * (pinchLast / scale), 4.5, 18)
+			pinchLast = scale
+		end
+	end))
+
+	cam.CameraType = Enum.CameraType.Scriptable
+	orbitConn = RunService.RenderStepped:Connect(function()
+		if not seat.Parent then
+			stopOrbit()
+			return
+		end
+		local offset = Vector3.new(
+			math.sin(yaw) * math.cos(pitch),
+			math.sin(pitch),
+			math.cos(yaw) * math.cos(pitch)
+		) * dist
+		cam.CFrame = CFrame.lookAt(center + offset, center + Vector3.new(0, 0.4, 0))
+	end)
+end
+
+local function hookHumanoid(char: Model)
+	local hum = char:WaitForChild("Humanoid", 15)
+	if not hum or not hum:IsA("Humanoid") then
+		return
+	end
+	hum.Seated:Connect(function(active, seatPart)
+		if active and seatPart then
+			local center = seatPart:GetAttribute("ChessBoardCenter")
+			if typeof(center) == "Vector3" then
+				startOrbit(seatPart, center)
+				return
+			end
+		end
+		stopOrbit()
+	end)
+end
+
+if LocalPlayer.Character then
+	task.spawn(hookHumanoid, LocalPlayer.Character)
+end
+LocalPlayer.CharacterAdded:Connect(function(char)
+	task.spawn(hookHumanoid, char)
 end)

@@ -50,6 +50,10 @@ local CONFIG = {
 	LAND_ALT        = 5.5,                    -- ارتفاع لحظة الهبوط فوق الأرض
 	DRIFT_FREEFALL  = 62,                     -- سرعة التوجيه الأفقي أثناء السقوط الحر (WASD/عصا)
 	DRIFT_CANOPY    = 42,                     -- سرعة التوجيه الأفقي تحت المظلّة
+	TURN_FREEFALL   = 3.4,                    -- أقصى سرعة دوران الجسم أثناء السقوط الحر (راديان/ث) — لفّات ٣٦٠ سلسة
+	TURN_CANOPY     = 2.2,                    -- أقصى سرعة دوران الجسم تحت المظلّة (راديان/ث)
+	BANK_FREEFALL   = math.rad(30),           -- أقصى ميلان جانبي (Bank) مع الانعطاف بالسقوط الحر
+	BANK_CANOPY     = math.rad(20),           -- أقصى ميلان جانبي مع الانعطاف تحت المظلّة
 	BOOST_FREEFALL  = 1.7,                    -- مضاعِف سرعة السقوط الحر عند الضغط (Shift / زر التسريع)
 	BOOST_CANOPY    = 2.2,                    -- مضاعِف سرعة النزول بالمظلّة عند الضغط
 
@@ -373,6 +377,17 @@ local function steerWorldDir(cam: Camera): Vector3
 	right = right.Magnitude > 0.01 and right.Unit or Vector3.new(1, 0, 0)
 	local world = right * mv.X + look * (-mv.Z)
 	return world.Magnitude > 0.01 and world.Unit or Vector3.zero
+end
+
+-- دوران واقعي ٣٦٠°: يلفّ الاتجاه الحالي نحو الاتجاه المطلوب بسرعة دوران محدودة
+-- (بدل القفز الفوري) — يرجع الاتجاه الجديد + مقدار الدوران المُطبَّق (لحساب الميلان الجانبي).
+local function turnToward(cur: Vector3, target: Vector3, maxStep: number): (Vector3, number)
+	local a0 = math.atan2(cur.X, cur.Z)
+	local a1 = math.atan2(target.X, target.Z)
+	local d = math.atan2(math.sin(a1 - a0), math.cos(a1 - a0))
+	local step = math.clamp(d, -maxStep, maxStep)
+	local a = a0 + step
+	return Vector3.new(math.sin(a), 0, math.cos(a)), step
 end
 
 ----------------------------------------------------------------------
@@ -1240,21 +1255,27 @@ local function run()
 	local y = CONFIG.ALTITUDE
 	local px, pz = jumpXZ.X, jumpXZ.Y
 	local faceDir = fallDir
+	local bank = 0
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
 		local effSpeed = vSpeed * (if boosting then CONFIG.BOOST_FREEFALL else 1)
 		y -= effSpeed * dt
 		local dir = steerWorldDir(cam)
+		local bankTarget = 0
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
-			faceDir = dir
+			-- دوران سلس ٣٦٠° نحو اتجاه الإدخال بدل القفز الفوري + ميلان جانبي مع الانعطاف
+			local step
+			faceDir, step = turnToward(faceDir, dir, CONFIG.TURN_FREEFALL * dt)
+			bankTarget = -math.clamp(step / math.max(CONFIG.TURN_FREEFALL * dt, 1e-4), -1, 1) * CONFIG.BANK_FREEFALL
 		end
+		bank += (bankTarget - bank) * math.min(1, dt * 5)
 		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
 		local pos = Vector3.new(px, y, pz)
-		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, 0)
+		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, bank)
 		updateDescentVisuals(altitude, effSpeed)
 		updateDescentFX(altitude, effSpeed, groundY, false, 0, px, pz)
 		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then
@@ -1294,25 +1315,28 @@ local function run()
 		local canopySpeed = ((deployOpenSpeed > 0 and (deployOpenSpeed + (CONFIG.CANOPY_SPEED - deployOpenSpeed) * openBlend)) or CONFIG.CANOPY_SPEED) * (if boosting then CONFIG.BOOST_CANOPY else 1)
 		y -= canopySpeed * dt
 		local dir = steerWorldDir(cam)
+		local bankTarget = 0
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
-			faceDir = dir
+			-- انعطاف واقعي: الجسم يلفّ تدريجياً نحو اتجاه الإدخال (لفّات ٣٦٠ حول نقطة الهبوط)
+			local step
+			faceDir, step = turnToward(faceDir, dir, CONFIG.TURN_CANOPY * dt)
+			bankTarget = -math.clamp(step / math.max(CONFIG.TURN_CANOPY * dt, 1e-4), -1, 1) * CONFIG.BANK_CANOPY
 		end
+		bank += (bankTarget - bank) * math.min(1, dt * 5)
 		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
 		local tt = os.clock()
 		local swayYaw = math.sin(tt * 1.1) * 0.10
 		local swayRoll = math.sin(tt * 0.9) * 0.08
 		local pos = Vector3.new(px, y, pz)
-		-- الاتجاه: اللاعب يواجه اتجاه الكاميرا الأفقي، بجلسة مظلّي واقعية (مثل ببجي):
-		--          الجسم شبه أفقي — الرأس مائل للأمام/تحت والرِّجل لفوق — والمظلّة تبقى مستوية فوقه.
-		local camFwd = cam.CFrame.LookVector
-		local orientFwd = Vector3.new(camFwd.X, 0, camFwd.Z)
-		orientFwd = if orientFwd.Magnitude > 0.05 then orientFwd.Unit else faceDir
-		local base = CFrame.lookAt(pos, pos + orientFwd)
-		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
-		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
+		-- الاتجاه: الجسم يواجه اتجاه حركته (لا الكاميرا) — فتبقى الكاميرا حرّة تدور ٣٦٠°
+		--          حول المظلّي من كل الزوايا، بجلسة مظلّي واقعية (مثل ببجي) مع ميلان جانبي
+		--          للجسم والمظلّة أثناء الانعطاف.
+		local base = CFrame.lookAt(pos, pos + faceDir)
+		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll + bank)
+		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6 + bank * 0.6))
 		updateDescentVisuals(altitude, canopySpeed)
 		updateDescentFX(altitude, canopySpeed, groundY, true, openBlend, px, pz)
 		if altitude <= CONFIG.LAND_ALT then break end

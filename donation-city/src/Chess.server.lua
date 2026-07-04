@@ -1127,6 +1127,8 @@ local function buildSeat(g: Game, zside: number, col: Color3, label: string): Se
 	-- اللاعب يجلس مواجهاً اللوح: الأبيض (جنوب) ينظر +Z، الأسود (شمال) ينظر -Z
 	seat.CFrame = CFrame.new(Vector3.new(origin.X, origin.Y + 1.9, sz))
 		* CFrame.Angles(0, math.rad(zside < 0 and 180 or 0), 0)
+	-- مركز الرقعة (يقرأه العميل لتفعيل كاميرا ٣٦٠° حول الطاولة أثناء اللعب)
+	seat:SetAttribute("ChessBoardCenter", Vector3.new(origin.X, TOP_Y, origin.Z))
 	seat.Parent = g.pieceFolder
 	part({
 		Name = "ChairBack", Parent = g.pieceFolder, Color = col, Material = Enum.Material.SmoothPlastic,
