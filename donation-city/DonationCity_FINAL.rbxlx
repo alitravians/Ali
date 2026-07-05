@@ -31100,10 +31100,6 @@ local CONFIG = {
 	LAND_ALT        = 5.5,                    -- ارتفاع لحظة الهبوط فوق الأرض
 	DRIFT_FREEFALL  = 62,                     -- سرعة التوجيه الأفقي أثناء السقوط الحر (WASD/عصا)
 	DRIFT_CANOPY    = 42,                     -- سرعة التوجيه الأفقي تحت المظلّة
-	TURN_FREEFALL   = 3.4,                    -- أقصى سرعة دوران الجسم أثناء السقوط الحر (راديان/ث) — لفّات ٣٦٠ سلسة
-	TURN_CANOPY     = 2.2,                    -- أقصى سرعة دوران الجسم تحت المظلّة (راديان/ث)
-	BANK_FREEFALL   = math.rad(30),           -- أقصى ميلان جانبي (Bank) مع الانعطاف بالسقوط الحر
-	BANK_CANOPY     = math.rad(20),           -- أقصى ميلان جانبي مع الانعطاف تحت المظلّة
 	BOOST_FREEFALL  = 1.7,                    -- مضاعِف سرعة السقوط الحر عند الضغط (Shift / زر التسريع)
 	BOOST_CANOPY    = 2.2,                    -- مضاعِف سرعة النزول بالمظلّة عند الضغط
 
@@ -32464,7 +32460,7 @@ local function run()
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
-			-- دوران سلس ٣٦٠° نحو اتجاه الإدخال بدل القفز الفوري + ميلان جانبي مع الانعطاف
+			faceDir = dir
 		end
 		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
@@ -32513,7 +32509,7 @@ local function run()
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
-			-- انعطاف واقعي: الجسم يلفّ تدريجياً نحو اتجاه الإدخال (لفّات ٣٦٠ حول نقطة الهبوط)
+			faceDir = dir
 		end
 		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
