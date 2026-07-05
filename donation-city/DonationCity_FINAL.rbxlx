@@ -145,7 +145,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٩٨",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٢.٩.٩٩",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -173,6 +173,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٢.٩.٩٩", date = "٣ يوليو",
+			items = {
+				{ "changed", "خلفية شاشة اللابتوب صارت تملأ كامل الشاشة (بلا هوامش) وبلا تشويه." },
+			},
+		},
 		{
 			version = "٢.٩.٩٨", date = "٣ يوليو",
 			items = {
@@ -17645,29 +17651,14 @@ local function laptopBlender(cx, cz, topY): boolean
 		-- لوحة الرسم بنفس نسبة أبعاد وجه الشاشة حتى تركب الخلفية بدقة بلا قصّ أو تشويه
 		g.CanvasSize = Vector2.new(math.floor(faceW * 400), math.floor(faceH * 400))
 		g.Adornee = display; g.Parent = display
-		-- الصورة المصدر مربّعة والشاشة عريضة: نعرضها كاملة بلا تشويه (Fit) فوق
-		-- خلفية معتمة مملوءة من نفس الصورة → مظهر خلفية سطح مكتب احترافي.
-		local WALL = "rbxthumb://type=Asset&id=93628047304202&w=420&h=420"
-		local base = Instance.new("Frame")
-		base.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
-		base.BorderSizePixel = 0
-		base.Size = UDim2.fromScale(1, 1)
-		base.Parent = g
-		local backdrop = Instance.new("ImageLabel")
-		backdrop.BackgroundTransparency = 1
-		backdrop.BorderSizePixel = 0
-		backdrop.Size = UDim2.fromScale(1, 1)
-		backdrop.Image = WALL
-		backdrop.ScaleType = Enum.ScaleType.Crop
-		backdrop.ImageColor3 = Color3.fromRGB(70, 74, 92)
-		backdrop.Parent = base
+		-- الخلفية تملأ كامل الشاشة (Crop) بلا هوامش وبلا تشويه — تُقصّ الحواف الزائدة فقط.
 		local img = Instance.new("ImageLabel")
-		img.BackgroundTransparency = 1
+		img.BackgroundColor3 = Color3.fromRGB(10, 12, 18)
 		img.BorderSizePixel = 0
 		img.Size = UDim2.fromScale(1, 1)
-		img.Image = WALL
-		img.ScaleType = Enum.ScaleType.Fit
-		img.Parent = base
+		img.Image = "rbxthumb://type=Asset&id=93628047304202&w=420&h=420"
+		img.ScaleType = Enum.ScaleType.Crop
+		img.Parent = g
 		pointLight(display, Color3.fromRGB(120, 170, 235), 0.6, 6)
 	end
 	return true
