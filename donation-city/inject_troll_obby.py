@@ -37,7 +37,9 @@ BASE_NATIVE = (882.7894, 642.70306, 1546.3049)
 BASE_TARGET = (-150.0, 110.0, -150.0)
 
 # Malicious / disguise items to remove (audited above).
-BAD_NAMES = {"x64", "AxisOrientation", "DO NOT REMOVE", "ThumbnailCamera"}
+# "admin" = the two HD Admin advertisement display stands (user asked to drop).
+BAD_NAMES = {"x64", "AxisOrientation", "DO NOT REMOVE", "ThumbnailCamera",
+             "admin"}
 BAD_CLASSES = {"Script", "LocalScript", "ModuleScript", "NumberPose",
                "AudioRecorder"}
 
@@ -82,6 +84,36 @@ print(f"removed {n_removed} malicious/disguise item(s); remaining bad = {len(lef
 if left:
     sys.exit("ERROR: unsafe items remain after strip")
 
+# ---------- localize creator signage to Arabic / our group ----------
+# The model ships with the original creator's ad GUIs ("press like / join
+# the group") and Korean hint signs; re-text them for our map & group
+# (Shahad-Jori, group id 134977710 — see RewardBoxSystem.server.lua).
+TEXT_MAP = {
+    "please press like \U0001F44D for the game!":
+        "\u0644\u0627 \u062a\u0646\u0633 \u0644\u0627\u064a\u0643 \U0001F44D \u0644\u0644\u0645\u0627\u0628!",
+    "Press the like button and join the group!":
+        "\u0627\u0636\u063a\u0637 \u0644\u0627\u064a\u0643 \U0001F44D \u0648\u0627\u0646\u0636\u0645 \u0644\u0642\u0631\u0648\u0628 Shahad-Jori!",
+    "Congratulations! Troll X Tower Clear!":
+        "\u0645\u0628\u0631\u0648\u0643! \u0623\u0646\u0647\u064a\u062a \u0628\u0631\u062c \u0627\u0644\u0628\u0627\u0631\u0643\u0648\u0631! \U0001F3C6",
+    "\ud2b8\ub864 \ubc84\ud2bc\uc744 \ub204\ub974\uc9c0 \ub9d0\uace0 \ud30c\ub780 \ubc84\ud2bc\uc744 \ub20c\ub7ec\ubcf4\uc138\uc694!":
+        "\u0644\u0627 \u062a\u0636\u063a\u0637 \u0632\u0631 \u0627\u0644\u062e\u062f\u0639\u0629\u2026 \u0627\u0636\u063a\u0637 \u0627\u0644\u0632\u0631 \u0627\u0644\u0623\u062e\u0636\u0631!",
+    "<<< \uc124\ub9c8 \uc6d4\ud649\uc73c\ub85c \uac00\ub2a5\ud55c\uac74\uac00\uc694..? ":
+        "<<< \u062a\u0642\u062f\u0631 \u062a\u0639\u062f\u064a\u0647\u0627 \u0628\u0642\u0641\u0632\u0629 \u062c\u062f\u0627\u0631\u061f",
+    "\ub458 \uc911\uc5d0 \uc5b4\ub5a4 \ubc84\ud2bc\uc744 \ub204\ub974\uc2e4 \uac74\uac00\uc694?":
+        "\u0623\u064a \u0632\u0631 \u0628\u062a\u062e\u062a\u0627\u0631\u061f \u0627\u062e\u062a\u0631 \u0628\u062d\u0630\u0631!",
+    "\uba48\ucd94\uc9c0 \ub9d0\uace0 \ub2ec\ub824!! >>>":
+        "\u0644\u0627 \u062a\u062a\u0648\u0642\u0641\u2026 \u0627\u0631\u0643\u0636!! >>>",
+    "\ud2b8\ub864\uc774 \ub9ce\uc740 \uacc4\ub2e8\uc774\uc5d0\uc694! \uc870\uc2ec\ud558\uc138\uc694! >>>":
+        "\u062f\u0631\u062c \u0645\u0644\u064a\u0621 \u0628\u0627\u0644\u062e\u062f\u0639! \u0627\u0646\u062a\u0628\u0647! >>>",
+}
+
+def localize_texts(item):
+    n = 0
+    for el in item.iter("string"):
+        if el.get("name") == "Text" and el.text in TEXT_MAP:
+            el.text = TEXT_MAP[el.text]; n += 1
+    return n
+
 # ---------- translation delta ----------
 dx = BASE_TARGET[0] - BASE_NATIVE[0]
 dy = BASE_TARGET[1] - BASE_NATIVE[1]
@@ -97,6 +129,11 @@ for it in list(ws.findall("Item")):
     if name_of(it) == MODEL_NAME:
         ws.remove(it); removed += 1
 print(f"removed {removed} prior '{MODEL_NAME}' model(s)")
+
+n_txt = localize_texts(top)
+print(f"localized {n_txt} sign text(s) to Arabic (expected 8)")
+if n_txt != 8:
+    sys.exit("ERROR: unexpected sign-text count")
 
 cp = copy.deepcopy(top)
 cp.set("class", "Model")

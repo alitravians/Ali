@@ -145,13 +145,21 @@ end
 ----------------------------------------------------------------------
 local course = Workspace:WaitForChild("ParkourCourse")
 
-local spawnLoc, endPart
+local spawnLoc, endPart, tpDest
 local killParts, speedPads, flatCandidates = {}, {}, {}
+local vanishParts, bounceParts, iceParts, tpPrompts = {}, {}, {}, {}
+local giverPads = {}          -- { pad = Part, model = Model (Slap/Bomb/Rainbow Carpet) }
+local greenButtons, trollButtons = {}, {}
+local VANISH_NAME, BOUNCE_NAME, ICE_NAME = "사라지는 파트", "방방 파트", "얼음 파트"
+local GEAR_MODELS = { ["Slap"] = true, ["Bomb"] = true, ["Rainbow Carpet"] = true }
 local courseMinY = math.huge
 for _, d in ipairs(course:GetDescendants()) do
 	if d:IsA("ProximityPrompt") then
-		-- المطالبات الأصلية بلا سكربتاتها لا تفعل شيئاً — تُعطَّل حتى لا تربك اللاعب
-		d.Enabled = false
+		if d.Parent and d.Parent.Name == "tp1" then
+			table.insert(tpPrompts, d)     -- بوّابات «Teleport!» الأصلية — تُوصَل بمنطقنا
+		else
+			d.Enabled = false
+		end
 	elseif d:IsA("BasePart") then
 		courseMinY = math.min(courseMinY, d.Position.Y)
 		local nm = d.Name
@@ -165,6 +173,29 @@ for _, d in ipairs(course:GetDescendants()) do
 		elseif nm == "AutoSpeed" then
 			d.CanTouch = true
 			table.insert(speedPads, d)
+		elseif nm == VANISH_NAME then
+			d.CanTouch = true
+			table.insert(vanishParts, d)
+		elseif nm == BOUNCE_NAME then
+			d.CanTouch = true
+			table.insert(bounceParts, d)
+		elseif nm == ICE_NAME then
+			table.insert(iceParts, d)
+		elseif nm == "tp" then
+			tpDest = d
+		elseif nm == "Giver" then
+			local mdl = d.Parent
+			while mdl and mdl ~= course and not GEAR_MODELS[mdl.Name] do mdl = mdl.Parent end
+			if mdl and mdl ~= course then
+				d.CanTouch = true
+				table.insert(giverPads, { pad = d, model = mdl })
+			end
+		elseif nm == "Gudock2" or nm == "button2" then
+			d.CanTouch = true
+			table.insert(greenButtons, d)
+		elseif nm == "Re2" or nm == "Re3" then
+			d.CanTouch = true
+			table.insert(trollButtons, d)
 		elseif d.CanCollide and d.Size.Y <= 3 and d.Size.X >= 8 and d.Size.Z >= 8 then
 			table.insert(flatCandidates, d)   -- منصّة مرشّحة لنقطة حفظ تلقائية
 		end
@@ -207,6 +238,9 @@ do
 			end
 		end
 		if best then table.insert(chosen, best) end
+	end
+	if #chosen < BANDS then
+		warn(("[Parkour] %d/%d نقاط حفظ تلقائية فقط — بعض نطاقات الارتفاع بلا منصّة مسطّحة مناسبة"):format(#chosen, BANDS))
 	end
 	table.sort(chosen, function(a, b) return a.Position.Y < b.Position.Y end)
 	for k, plat in ipairs(chosen) do
@@ -641,6 +675,7 @@ end
 local runState = {}   -- [userId] = { inRun, startT, cpCF, cpY, best, loop }
 local updateActiveLoop    -- forward declaration
 local finishRun           -- forward declaration
+local removeParkourGear   -- forward declaration
 
 local function progressPercent(player)
 	local char = player.Character
@@ -702,6 +737,7 @@ end
 local function stopRun(player)
 	local st = runState[player.UserId]
 	if st then st.inRun = false; stopProgressLoop(st) end
+	if removeParkourGear then removeParkourGear(player) end
 	teleportTo(player, CFrame.new(EXIT_POS))
 	if _G.NotifyPlayer then _G.NotifyPlayer(player, "أوقفت الباركور وخرجت من المسار.") end
 	progressRemote:FireClient(player, { state = "idle" })
@@ -853,6 +889,348 @@ for _, pad in ipairs(speedPads) do
 end
 
 ----------------------------------------------------------------------
+-- ميكانيكيات الموديل الأصلية (كانت بلا سكربتات — نشغّلها بمنطقنا):
+--   ١) الأجزاء المختفية: لمسها → وميض ثم اختفاء ٣ ثوانٍ ثم عودة.
+--   ٢) منصّات القفز: دفعة عمودية قوية.
+--   ٣) الأجزاء الجليدية: احتكاك شبه معدوم (تزحلق حقيقي).
+--   ٤) بوّابات «Teleport!»: نقل فوري لغرفة الأدوات السرّية (جزء tp).
+--   ٥) الأزرار: الأخضر يثبّت الجسر الشفاف مؤقتاً، والملوّن خدعة ترجعك
+--      لآخر نقطة حفظ (روح برج «الترول»).
+--   ٦) منصّات الأدوات (Giver): تمنح أداة حقيقية — كف الصفع / القنبلة
+--      المرحة / البساط الملوّن. تُسحب الأدوات عند مغادرة المسار.
+----------------------------------------------------------------------
+
+-- (١) الأجزاء المختفية
+for _, p in ipairs(vanishParts) do
+	local busy = false
+	local tr0 = p.Transparency
+	p.Touched:Connect(function(hit)
+		if busy or not playerFromHit(hit) then return end
+		busy = true
+		task.spawn(function()
+			for i = 1, 4 do
+				p.Transparency = (i % 2 == 1) and 0.6 or tr0
+				task.wait(0.12)
+			end
+			p.Transparency = 1
+			p.CanCollide = false
+			task.wait(3)
+			p.Transparency = tr0
+			p.CanCollide = true
+			busy = false
+		end)
+	end)
+end
+
+-- (٢) منصّات القفز
+local BOUNCE_VEL = 95
+local bounceCD = {}
+for _, p in ipairs(bounceParts) do
+	p.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		local now = os.clock()
+		if bounceCD[player.UserId] and now - bounceCD[player.UserId] < 0.35 then return end
+		bounceCD[player.UserId] = now
+		local char = player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		if hrp then
+			local v = hrp.AssemblyLinearVelocity
+			hrp.AssemblyLinearVelocity = V(v.X, BOUNCE_VEL, v.Z)
+		end
+	end)
+end
+
+-- (٣) الأجزاء الجليدية
+for _, p in ipairs(iceParts) do
+	p.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.02, 0, 1, 1)
+	p.Material = Enum.Material.Ice
+end
+
+-- (٤) بوّابات النقل الأصلية
+if tpDest then
+	local tpCF = CFrame.new(tpDest.Position + V(0, 4, 0))
+	for _, prompt in ipairs(tpPrompts) do
+		prompt.Enabled = true
+		prompt.ActionText = "انتقال!"
+		prompt.ObjectText = "بوّابة سرّية"
+		prompt.Triggered:Connect(function(player)
+			if not rlAllow(player.UserId) then return end
+			teleportTo(player, tpCF)
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "وصلت للغرفة السرّية… خذ أدواتك!") end
+		end)
+	end
+else
+	for _, prompt in ipairs(tpPrompts) do prompt.Enabled = false end
+	warn("[Parkour] جزء الوجهة tp مفقود — عُطّلت بوّابات النقل")
+end
+
+-- (٥) الأزرار: الأخضر يثبّت أقرب الأجزاء الشفافة (الجسر) ٢٠ ثانية
+local BRIDGE_RADIUS, BRIDGE_TIME = 25, 20
+local function solidifyNear(btn)
+	local touched = {}
+	for _, d in ipairs(course:GetChildren()) do
+		if d:IsA("BasePart") and d.Transparency > 0.5 and d.Transparency < 1
+			and d.Name ~= "tp" and (d.Position - btn.Position).Magnitude <= BRIDGE_RADIUS then
+			table.insert(touched, { p = d, tr = d.Transparency, cc = d.CanCollide })
+			d.Transparency = 0.15
+			d.CanCollide = true
+		end
+	end
+	if #touched > 0 then
+		task.delay(BRIDGE_TIME, function()
+			for _, e in ipairs(touched) do
+				e.p.Transparency = e.tr
+				e.p.CanCollide = e.cc
+			end
+		end)
+	end
+	return #touched
+end
+local btnCD = {}
+for _, btn in ipairs(greenButtons) do
+	btn.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		if btnCD[btn] then return end
+		btnCD[btn] = true
+		local n = solidifyNear(btn)
+		if n > 0 and _G.NotifyPlayer then
+			_G.NotifyPlayer(player, "زر صحيح! ثبّتنا لك الطريق ٢٠ ثانية — بسرعة!")
+		end
+		task.delay(BRIDGE_TIME + 2, function() btnCD[btn] = nil end)
+	end)
+end
+for _, btn in ipairs(trollButtons) do
+	btn.Touched:Connect(function(hit)
+		local player = playerFromHit(hit)
+		if not player then return end
+		if _G.NotifyPlayer then _G.NotifyPlayer(player, "خدعوك! هذا زر الترول 😜") end
+		respawnAtCheckpoint(player)
+	end)
+end
+
+-- (٦) منصّات الأدوات: بناء قوالب Tools من مجسّمات العرض نفسها
+local GEAR_TAG = "ParkourGear"
+local GEAR_LABEL = {
+	["Slap"] = "كف الصفع",
+	["Bomb"] = "القنبلة المرحة",
+	["Rainbow Carpet"] = "البساط الملوّن",
+}
+
+local function buildGearTemplate(mdl)
+	local kind = mdl.Name
+	local tool = Instance.new("Tool")
+	tool.Name = GEAR_LABEL[kind] or kind
+	tool:SetAttribute(GEAR_TAG, true)
+	tool.RequiresHandle = true
+	tool.CanBeDropped = false
+
+	local src = mdl:FindFirstChild("Handle", true)
+	if kind == "Rainbow Carpet" then
+		-- مجسّم البساط: الجزء الحامل لـ SpecialMesh (بلا Handle مسمّى)
+		for _, d in ipairs(mdl:GetDescendants()) do
+			if d:IsA("SpecialMesh") and d.Parent:IsA("BasePart") and d.Parent.Name == "Part" then
+				src = d.Parent
+				break
+			end
+		end
+	end
+	if not src then return nil end
+
+	local handle = src:Clone()
+	handle.Name = "Handle"
+	handle.Anchored = false
+	handle.CanCollide = false
+	handle.CanTouch = false
+	handle.Massless = true
+	-- تُحمل معها أصوات/جزيئات المجسّم الأصلية (Smack/funny_fart1/hit)
+	for _, w in ipairs(handle:GetChildren()) do
+		if w:IsA("Weld") or w:IsA("WeldConstraint") or w:IsA("Glue") then w:Destroy() end
+	end
+	handle.Parent = tool
+
+	-- كف الصفع: القطع الملحومة بالمقبض (العصا/الكف) تُضم وتُلحم من جديد
+	if kind == "Slap" then
+		for _, nm in ipairs({ "stick", "MeshPart", "Part" }) do
+			local extra = mdl:FindFirstChild(nm)
+			if extra and extra:IsA("BasePart") then
+				local c = extra:Clone()
+				c.Anchored = false
+				c.CanCollide = false
+				c.CanTouch = false
+				c.Massless = true
+				for _, w in ipairs(c:GetChildren()) do
+					if w:IsA("Weld") or w:IsA("WeldConstraint") or w:IsA("Glue") then w:Destroy() end
+				end
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = handle
+				weld.Part1 = c
+				c.CFrame = handle.CFrame * src.CFrame:ToObjectSpace(extra.CFrame)
+				weld.Parent = c
+				c.Parent = tool
+			end
+		end
+	end
+	return tool, kind
+end
+
+local gearTemplates = {}
+for _, g in ipairs(giverPads) do
+	if not gearTemplates[g.model.Name] then
+		local tpl = buildGearTemplate(g.model)
+		if tpl then gearTemplates[g.model.Name] = tpl end
+	end
+end
+
+-- سلوك الأدوات (سيرفر): كل أداة تُوصَل عند منحها
+local function wireGear(tool, kind, player)
+	if kind == "Slap" then
+		local cd = 0
+		tool.Activated:Connect(function()
+			if os.clock() < cd then return end
+			cd = os.clock() + 0.8
+			local handle = tool:FindFirstChild("Handle")
+			if not handle then return end
+			local snd = handle:FindFirstChild("Smack") or handle:FindFirstChildWhichIsA("Sound")
+			if snd then snd:Play() end
+			local fart = handle:FindFirstChild("funny_fart1")
+			local char = player.Character
+			local myHRP = char and char:FindFirstChild("HumanoidRootPart")
+			if not myHRP then return end
+			for _, other in ipairs(Players:GetPlayers()) do
+				if other ~= player then
+					local oc = other.Character
+					local ohrp = oc and oc:FindFirstChild("HumanoidRootPart")
+					local ohum = oc and oc:FindFirstChildOfClass("Humanoid")
+					if ohrp and ohum and (ohrp.Position - myHRP.Position).Magnitude <= 8 then
+						if fart then fart:Play() end
+						local dir = (ohrp.Position - myHRP.Position).Unit
+						ohum.Sit = true
+						ohrp.AssemblyLinearVelocity = dir * 55 + V(0, 35, 0)
+					end
+				end
+			end
+		end)
+	elseif kind == "Bomb" then
+		local cd = 0
+		tool.Activated:Connect(function()
+			if os.clock() < cd then return end
+			cd = os.clock() + 4
+			local handle = tool:FindFirstChild("Handle")
+			local char = player.Character
+			local myHRP = char and char:FindFirstChild("HumanoidRootPart")
+			if not handle or not myHRP then return end
+			local bomb = handle:Clone()
+			bomb.CanCollide = true
+			bomb.CanTouch = false
+			bomb.Massless = false
+			bomb.CFrame = myHRP.CFrame * CFrame.new(0, 2, -3)
+			bomb.AssemblyLinearVelocity = myHRP.CFrame.LookVector * 45 + V(0, 25, 0)
+			bomb.Parent = Workspace
+			Debris:AddItem(bomb, 6)
+			task.delay(2.5, function()
+				if not bomb.Parent then return end
+				local fx = Instance.new("Explosion")
+				fx.Position = bomb.Position
+				fx.BlastPressure = 0          -- مؤثر بصري/صوتي فقط
+				fx.DestroyJointRadiusPercent = 0
+				fx.BlastRadius = 8
+				fx.Parent = Workspace
+				for _, other in ipairs(Players:GetPlayers()) do
+					local oc = other.Character
+					local ohrp = oc and oc:FindFirstChild("HumanoidRootPart")
+					local ohum = oc and oc:FindFirstChildOfClass("Humanoid")
+					if ohrp and ohum and (ohrp.Position - bomb.Position).Magnitude <= 12 then
+						ohum.Sit = true
+						local dir = (ohrp.Position - bomb.Position)
+						dir = dir.Magnitude > 0.1 and dir.Unit or V(0, 1, 0)
+						ohrp.AssemblyLinearVelocity = dir * 45 + V(0, 40, 0)
+					end
+				end
+				bomb:Destroy()
+			end)
+		end)
+	elseif kind == "Rainbow Carpet" then
+		local trail
+		tool.Equipped:Connect(function()
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local hrp = char and char:FindFirstChild("HumanoidRootPart")
+			if hum then hum.WalkSpeed = hum.WalkSpeed + 8 end
+			if hrp then
+				local a0 = Instance.new("Attachment"); a0.Position = V(-1.5, -2.5, 0); a0.Parent = hrp
+				local a1 = Instance.new("Attachment"); a1.Position = V(1.5, -2.5, 0); a1.Parent = hrp
+				trail = Instance.new("Trail")
+				trail.Attachment0 = a0
+				trail.Attachment1 = a1
+				trail.Lifetime = 0.6
+				trail.Color = ColorSequence.new({
+					ColorSequenceKeypoint.new(0.00, C3(255, 80, 80)),
+					ColorSequenceKeypoint.new(0.25, C3(255, 200, 60)),
+					ColorSequenceKeypoint.new(0.50, C3(90, 220, 110)),
+					ColorSequenceKeypoint.new(0.75, C3(80, 150, 255)),
+					ColorSequenceKeypoint.new(1.00, C3(190, 110, 255)),
+				})
+				trail.Transparency = NumberSequence.new(0.2, 1)
+				trail.Parent = hrp
+			end
+		end)
+		tool.Unequipped:Connect(function()
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			if hum then hum.WalkSpeed = math.max(16, hum.WalkSpeed - 8) end
+			if trail then
+				if trail.Attachment0 then trail.Attachment0:Destroy() end
+				if trail.Attachment1 then trail.Attachment1:Destroy() end
+				trail:Destroy()
+				trail = nil
+			end
+		end)
+	end
+end
+
+local function hasGear(player, name)
+	local bp = player:FindFirstChildOfClass("Backpack")
+	if bp and bp:FindFirstChild(name) then return true end
+	local char = player.Character
+	return char and char:FindFirstChild(name) ~= nil
+end
+
+removeParkourGear = function(player)
+	local bp = player:FindFirstChildOfClass("Backpack")
+	for _, holder in ipairs({ bp, player.Character }) do
+		if holder then
+			for _, t in ipairs(holder:GetChildren()) do
+				if t:IsA("Tool") and t:GetAttribute(GEAR_TAG) then t:Destroy() end
+			end
+		end
+	end
+end
+
+local giverCD = {}
+for _, g in ipairs(giverPads) do
+	local tpl = gearTemplates[g.model.Name]
+	if tpl then
+		g.pad.Touched:Connect(function(hit)
+			local player = playerFromHit(hit)
+			if not player then return end
+			local key = tostring(player.UserId) .. g.model.Name
+			if giverCD[key] and os.clock() - giverCD[key] < 3 then return end
+			giverCD[key] = os.clock()
+			local label = GEAR_LABEL[g.model.Name] or g.model.Name
+			if hasGear(player, label) then return end
+			local bp = player:FindFirstChildOfClass("Backpack")
+			if not bp then return end
+			local tool = tpl:Clone()
+			wireGear(tool, g.model.Name, player)
+			tool.Parent = bp
+			if _G.NotifyPlayer then _G.NotifyPlayer(player, "حصلت على «" .. label .. "»!") end
+		end)
+	end
+end
+
+----------------------------------------------------------------------
 -- الفوز: كوينز + إنجاز + مهمة + تهنئة + أفضل وقت + خروج
 ----------------------------------------------------------------------
 local REWARD = 250
@@ -893,6 +1271,7 @@ finishRun = function(player)
 
 	progressRemote:FireClient(player, { state = "finish", time = elapsed, reward = REWARD, percent = 100, total = #STAGE_COLOR, best = st.best, record = isRecord, coins = st.coinTotal or 0 })
 	task.delay(2, function()
+		if removeParkourGear then removeParkourGear(player) end
 		teleportTo(player, CFrame.new(EXIT_POS))
 		finishCooldown[player.UserId] = nil
 	end)
@@ -972,6 +1351,7 @@ Players.PlayerAdded:Connect(function(player)
 	end
 	-- الموت داخل المسار = استئناف من آخر نقطة حفظ (لا طرد للمدينة)
 	player.CharacterAdded:Connect(function(char)
+		boostUntil[player.UserId] = nil
 		local st = runState[player.UserId]
 		if not st or not st.inRun then return end
 		local hrp = char:WaitForChild("HumanoidRootPart", 5)
