@@ -841,18 +841,27 @@ local function laptopBlender(cx, cz, topY): boolean
 		else
 			hAxis, wAxis = axes[3], axes[2]
 		end
-		local faceW = wAxis.size * 0.98
-		local faceH = hAxis.size * 0.98
-		-- وجه الشاشة يشير نحو القاعدة/الكرسي (مثل شاشة حقيقية) وليس نحو خلف الغطاء
-		local front = depthAxis.dir
 		local toBase = Vector3.new(basePart.Position.X - scr.Position.X, 0, basePart.Position.Z - scr.Position.Z)
-		if front:Dot(toBase) < 0 then
-			front = -front
+		local b = toBase.Magnitude > 0.01 and toBase.Unit or Vector3.xAxis
+		local D, Yv = depthAxis.size, hAxis.size
+		local up, front, faceH
+		if D < 0.15 * Yv then
+			-- جزء رقيق مائل فعلياً: محاور الجزء نفسها صحيحة
+			up = hAxis.dir
+			if up.Y < 0 then up = -up end
+			front = depthAxis.dir
+			if front:Dot(b) < 0 then front = -front end
+			faceH = Yv * 0.98
+		else
+			-- ميش الغطاء المائل مخبوز داخل صندوق محاذٍ للعالم:
+			-- مستوى الغطاء هو قطر الصندوق — قمته تميل بعيداً عن القاعدة،
+			-- وطوله الحقيقي هو وتر (الارتفاع، العمق)
+			local L = math.sqrt(D * D + Yv * Yv)
+			up = (Vector3.yAxis * Yv - b * D) / L
+			front = (b * Yv + Vector3.yAxis * D) / L
+			faceH = L * 0.98
 		end
-		local up = hAxis.dir
-		if up.Y < 0 then
-			up = -up
-		end
+		local faceW = wAxis.size * 0.98
 		local display = Instance.new("Part")
 		display.Name = "LapScreenDisplay"
 		display.Anchored = true
@@ -860,9 +869,8 @@ local function laptopBlender(cx, cz, topY): boolean
 		display.CastShadow = false
 		display.Transparency = 1
 		display.Size = Vector3.new(faceW, faceH, 0.02)
-		-- إزاحة اللوح أمام سطح الشاشة نفسه (نصف عمق الميش + هامش) حتى لا يغرق داخله،
-		-- وبناء الإطار عبر lookAt (متعامد يميني دائماً) بحيث يكون وجه Front باتجاه المشاهد
-		local dispPos = scr.Position + front * (depthAxis.size / 2 + 0.03)
+		-- مركز الصندوق يقع على مستوى الغطاء نفسه، فيكفي إزاحة صغيرة أمامه
+		local dispPos = scr.Position + front * 0.03
 		display.CFrame = CFrame.lookAt(dispPos, dispPos + front, up)
 		display.Parent = model
 		local g = Instance.new("SurfaceGui")

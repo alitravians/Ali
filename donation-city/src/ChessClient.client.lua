@@ -280,5 +280,6 @@ if LocalPlayer.Character then
 	task.spawn(hookHumanoid, LocalPlayer.Character)
 end
 LocalPlayer.CharacterAdded:Connect(function(char)
+	stopOrbit()
 	task.spawn(hookHumanoid, char)
 end)
