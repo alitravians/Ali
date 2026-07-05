@@ -219,8 +219,8 @@ local function startCinematicLighting()
 	local atmosphere = mk("Atmosphere", {
 		Name = "RoyalSpawnAtmosphere",
 		Density = 0.18,
-		Haze = 1.25,
-		Glare = 0.22,
+		Haze = 0.9,
+		Glare = 0.08,
 		Color = Color3.fromRGB(178, 214, 243),
 		Decay = Color3.fromRGB(94, 126, 171),
 		Parent = Lighting,
@@ -237,9 +237,9 @@ local function startCinematicLighting()
 
 	local bloom = mk("BloomEffect", {
 		Name = "RoyalSpawnBloom",
-		Intensity = 0.28,
-		Threshold = 1.05,
-		Size = 24,
+		Intensity = 0.1,
+		Threshold = 1.6,
+		Size = 16,
 		Parent = Lighting,
 	}) :: BloomEffect
 
@@ -250,7 +250,7 @@ local function startCinematicLighting()
 		Parent = Lighting,
 	}) :: SunRaysEffect
 
-	Lighting.Brightness = 2.2
+	Lighting.Brightness = 1.6
 	Lighting.Ambient = Color3.fromRGB(148, 177, 208)
 	Lighting.OutdoorAmbient = Color3.fromRGB(180, 203, 231)
 	Lighting.FogColor = Color3.fromRGB(184, 216, 242)
@@ -1195,8 +1195,8 @@ local function run()
 		local c = mk("Part", {
 			Name = "FlightCloud", Shape = Enum.PartType.Ball, Anchored = true,
 			CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(248, 248, 255),
-			Transparency = 0.28, Size = Vector3.new(sc, sc * 0.5, sc), Parent = cloudFolder,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(228, 233, 240),
+			Transparency = 0.55, Size = Vector3.new(sc, sc * 0.45, sc), Parent = cloudFolder,
 		}) :: BasePart
 		clouds[i] = c
 		placeCloud(c, (math.random() - 0.5) * CLOUD_SPAN)
