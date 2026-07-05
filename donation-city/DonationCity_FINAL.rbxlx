@@ -10820,14 +10820,14 @@ for _, pad in ipairs(speedPads) do
 		local firstBoost = not boostUntil[player.UserId] or os.clock() > boostUntil[player.UserId]
 		boostUntil[player.UserId] = os.clock() + SPEED_TIME
 		if firstBoost then
-			local baseSpeed = hum.WalkSpeed
-			hum.WalkSpeed = math.max(baseSpeed, SPEED_BOOST)
+			local delta = math.max(SPEED_BOOST - hum.WalkSpeed, 0)
+			hum.WalkSpeed = hum.WalkSpeed + delta
 			task.spawn(function()
 				while os.clock() < (boostUntil[player.UserId] or 0) do
 					task.wait(0.2)
 				end
 				boostUntil[player.UserId] = nil
-				if hum.Parent then hum.WalkSpeed = baseSpeed end
+				if hum.Parent then hum.WalkSpeed = math.max(hum.WalkSpeed - delta, 16) end
 			end)
 		end
 	end)
@@ -10914,7 +10914,7 @@ end
 local BRIDGE_RADIUS, BRIDGE_TIME = 25, 20
 local function solidifyNear(btn)
 	local touched = {}
-	for _, d in ipairs(course:GetChildren()) do
+	for _, d in ipairs(course:GetDescendants()) do
 		if d:IsA("BasePart") and d.Transparency > 0.5 and d.Transparency < 1
 			and d.Name ~= "tp" and (d.Position - btn.Position).Magnitude <= BRIDGE_RADIUS then
 			table.insert(touched, { p = d, tr = d.Transparency, cc = d.CanCollide })
@@ -11267,6 +11267,11 @@ Players.PlayerRemoving:Connect(function(player)
 	runState[player.UserId] = nil
 	killCooldown[player.UserId] = nil
 	boostUntil[player.UserId] = nil
+	bounceCD[player.UserId] = nil
+	local prefix = tostring(player.UserId)
+	for k in pairs(giverCD) do
+		if k:sub(1, #prefix) == prefix then giverCD[k] = nil end
+	end
 	finishCooldown[player.UserId] = nil
 	_rl[player.UserId] = nil
 	updateActiveLoop()
