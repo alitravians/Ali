@@ -853,12 +853,6 @@ local function laptopBlender(cx, cz, topY): boolean
 		if up.Y < 0 then
 			up = -up
 		end
-		local right = up:Cross(front)
-		if right.Magnitude < 0.01 then
-			right = wAxis.dir
-		else
-			right = right.Unit
-		end
 		local display = Instance.new("Part")
 		display.Name = "LapScreenDisplay"
 		display.Anchored = true
@@ -866,8 +860,10 @@ local function laptopBlender(cx, cz, topY): boolean
 		display.CastShadow = false
 		display.Transparency = 1
 		display.Size = Vector3.new(faceW, faceH, 0.02)
-		-- إزاحة اللوح أمام سطح الشاشة نفسه (نصف عمق الميش + هامش) حتى لا يغرق داخله
-		display.CFrame = CFrame.fromMatrix(scr.Position + front * (depthAxis.size / 2 + 0.03), right, up, -front)
+		-- إزاحة اللوح أمام سطح الشاشة نفسه (نصف عمق الميش + هامش) حتى لا يغرق داخله،
+		-- وبناء الإطار عبر lookAt (متعامد يميني دائماً) بحيث يكون وجه Front باتجاه المشاهد
+		local dispPos = scr.Position + front * (depthAxis.size / 2 + 0.03)
+		display.CFrame = CFrame.lookAt(dispPos, dispPos + front, up)
 		display.Parent = model
 		local g = Instance.new("SurfaceGui")
 		g.Name = "LapWallpaperGui"; g.AutoLocalize = false
