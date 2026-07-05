@@ -834,19 +834,26 @@ local function laptopBlender(cx, cz, topY): boolean
 		}
 		table.sort(axes, function(a, b) return a.size < b.size end)
 		local depthAxis = axes[1]
-		local faceW = axes[3].size * 0.98
-		local faceH = axes[2].size * 0.98
+		-- محورا وجه الشاشة: الأكثر عمودية = الارتفاع، والآخر = العرض (بغضّ النظر عن محاور الميش المحلية)
+		local hAxis, wAxis
+		if math.abs(axes[2].dir.Y) > math.abs(axes[3].dir.Y) then
+			hAxis, wAxis = axes[2], axes[3]
+		else
+			hAxis, wAxis = axes[3], axes[2]
+		end
+		local faceW = wAxis.size * 0.98
+		local faceH = hAxis.size * 0.98
 		local front = depthAxis.dir
 		if front:Dot(basePart.Position - scr.Position) > 0 then
 			front = -front
 		end
-		local up = cf.UpVector
-		if up:Dot(Vector3.new(0, 1, 0)) < 0 then
+		local up = hAxis.dir
+		if up.Y < 0 then
 			up = -up
 		end
 		local right = up:Cross(front)
 		if right.Magnitude < 0.01 then
-			right = cf.RightVector
+			right = wAxis.dir
 		else
 			right = right.Unit
 		end
@@ -857,7 +864,8 @@ local function laptopBlender(cx, cz, topY): boolean
 		display.CastShadow = false
 		display.Transparency = 1
 		display.Size = Vector3.new(faceW, faceH, 0.02)
-		display.CFrame = CFrame.fromMatrix(scr.Position + front * 0.01, right, up, -front)
+		-- إزاحة اللوح أمام سطح الشاشة نفسه (نصف عمق الميش + هامش) حتى لا يغرق داخله
+		display.CFrame = CFrame.fromMatrix(scr.Position + front * (depthAxis.size / 2 + 0.03), right, up, -front)
 		display.Parent = model
 		local g = Instance.new("SurfaceGui")
 		g.Name = "LapWallpaperGui"; g.AutoLocalize = false
