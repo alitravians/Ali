@@ -354,42 +354,7 @@ end
 
 -- توجيه الجوال أثناء الكاميرا السينمائية: العصا الافتراضية تختفي مع الكاميرا Scriptable،
 -- فنقرأ سحب الإصبع مباشرة (سحب وثبّت = توجيه مستمر) كبديل للعصا.
-local touchSteer = Vector2.zero
-local touchSteerConns: { RBXScriptConnection } = {}
-local function touchSteerStop()
-	for _, c in ipairs(touchSteerConns) do c:Disconnect() end
-	table.clear(touchSteerConns)
-	touchSteer = Vector2.zero
-end
-local function touchSteerStart()
-	touchSteerStop()
-	if not (UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled) then return end
-	local activeTouch: InputObject? = nil
-	local startPos = Vector2.zero
-	table.insert(touchSteerConns, UserInputService.InputBegan:Connect(function(input, gpe)
-		if gpe then return end
-		if input.UserInputType == Enum.UserInputType.Touch and activeTouch == nil then
-			activeTouch = input
-			startPos = Vector2.new(input.Position.X, input.Position.Y)
-		end
-	end))
-	table.insert(touchSteerConns, UserInputService.InputChanged:Connect(function(input)
-		if input == activeTouch then
-			local d = Vector2.new(input.Position.X, input.Position.Y) - startPos
-			touchSteer = Vector2.new(math.clamp(d.X / 90, -1, 1), math.clamp(d.Y / 90, -1, 1))
-		end
-	end))
-	table.insert(touchSteerConns, UserInputService.InputEnded:Connect(function(input)
-		if input == activeTouch then
-			activeTouch = nil
-			touchSteer = Vector2.zero
-		end
-	end))
-end
-
--- متجه التوجيه نسبةً لاتجاه جسم اللاعب (لا الكاميرا) — يُستخدم مع الكاميرا
--- السينمائية الدوّارة حتى يبقى W = للأمام وA/D = انعطاف ثابتاً مهما دارت الكاميرا.
-local function steerBodyDir(faceDir: Vector3): Vector3
+local function steerWorldDir(cam: Camera): Vector3
 	local mv = Vector3.zero
 	local cm = getControlModule()
 	if cm then
@@ -404,230 +369,19 @@ local function steerBodyDir(faceDir: Vector3): Vector3
 		if UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left) then r -= 1 end
 		mv = Vector3.new(r, 0, -f)
 	end
-	if mv.Magnitude < 0.05 and touchSteer.Magnitude > 0.05 then
-		-- الجوال: سحب يمين/يسار = انعطاف، سحب لفوق = للأمام
-		mv = Vector3.new(touchSteer.X, 0, touchSteer.Y)
-	end
 	if mv.Magnitude < 0.05 then return Vector3.zero end
-	local look = Vector3.new(faceDir.X, 0, faceDir.Z)
+	local cf = cam.CFrame
+	local look = Vector3.new(cf.LookVector.X, 0, cf.LookVector.Z)
 	look = look.Magnitude > 0.01 and look.Unit or Vector3.new(0, 0, -1)
-	local right = Vector3.new(-look.Z, 0, look.X)
+	local right = Vector3.new(cf.RightVector.X, 0, cf.RightVector.Z)
+	right = right.Magnitude > 0.01 and right.Unit or Vector3.new(1, 0, 0)
 	local world = right * mv.X + look * (-mv.Z)
 	return world.Magnitude > 0.01 and world.Unit or Vector3.zero
-end
-
--- دوران واقعي ٣٦٠°: يلفّ الاتجاه الحالي نحو الاتجاه المطلوب بسرعة دوران محدودة
--- (بدل القفز الفوري) — يرجع الاتجاه الجديد + مقدار الدوران المُطبَّق (لحساب الميلان الجانبي).
-local function turnToward(cur: Vector3, target: Vector3, maxStep: number): (Vector3, number)
-	local a0 = math.atan2(cur.X, cur.Z)
-	local a1 = math.atan2(target.X, target.Z)
-	local d = math.atan2(math.sin(a1 - a0), math.cos(a1 - a0))
-	local step = math.clamp(d, -maxStep, maxStep)
-	local a = a0 + step
-	return Vector3.new(math.sin(a), 0, math.cos(a)), step
-end
-
-----------------------------------------------------------------------
--- كاميرا سينمائية ٣٦٠° تلقائية أثناء النزول
--- بمجرد القفز تتحوّل الكاميرا لمدار سينمائي يدور حول اللاعب من زوايا متغيّرة:
---   سقوط حر: دوران مستمر مع تنفّس بالمسافة والارتفاع (لقطات علوية وجانبية).
---   فتح المظلّة: لقطة من الأسفل تنظر لفوق نحو القبّة ثم تصعد تدريجياً.
---   تحت المظلّة: دوران أوسع وأهدأ يُظهر المدينة من كل الزوايا.
---   قرب الهبوط: الكاميرا تنخفض لزاوية أرضية درامية.
--- التوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه جسم اللاعب.
-----------------------------------------------------------------------
-local cine = {
-	conn = nil :: RBXScriptConnection?,
-	yaw = 0,
-	mode = "freefall",
-	modeT = 0,
-	pos = Vector3.zero,
-	faceDir = Vector3.new(0, 0, -1),
-	altitude = 1000,
-	speed = 0,
-	shake = 0,
-	offset = nil :: Vector3?,
-	orbitSpd = 0.45,
-	shotIdx = 1,
-	shotT = 0,
-	blur = nil :: BlurEffect?,
-	baseFOV = 70,
-	planePos = nil :: Vector3?,
-	lockPos = nil :: Vector3?,
-}
-
--- لقطات السقوط الحر المتبادلة بين الطائرة والمجسم والخريطة:
---   plane: الكاميرا جنب اللاعب تنظر للطائرة وهي تبتعد · orbit: مدار حول المجسم
---   front: قريبة على الوجه · city: كاميرا ثابتة بالجو يمرّ اللاعب أمامها والخريطة تحته
---   side: جانبية ملاحِقة · top: علوية تطلّ على المدينة
-local FREEFALL_SHOTS = {
-	{ name = "plane", dur = 3.0 },
-	{ name = "orbit", dur = 5.0 },
-	{ name = "front", dur = 3.2 },
-	{ name = "city",  dur = 4.5 },
-	{ name = "side",  dur = 3.8 },
-	{ name = "top",   dur = 3.5 },
-}
-
-local function cineSetMode(mode: string)
-	if cine.mode ~= mode then
-		cine.mode = mode
-		cine.modeT = os.clock()
-	end
-end
-
-local function cineStop(cam: Camera?)
-	if cine.conn then
-		cine.conn:Disconnect()
-		cine.conn = nil
-	end
-	cine.offset = nil
-	touchSteerStop()
-	if cine.blur then
-		cine.blur:Destroy()
-		cine.blur = nil
-	end
-	if cam then
-		cam.FieldOfView = cine.baseFOV
-	end
-end
-
--- يقرّب زاوية yaw الحالية نحو زاوية مستهدفة بأقصر مسار (للقطات الملاحِقة)
-local function approachAngle(cur: number, target: number, rate: number, dt: number): number
-	local d = math.atan2(math.sin(target - cur), math.cos(target - cur))
-	return cur + d * math.min(1, rate * dt)
-end
-
-local function cineStart(cam: Camera, startFwd: Vector3)
-	cineStop(cam)
-	-- البداية خلف اللاعب مواجهاً اتجاه سقوطه
-	cine.yaw = math.atan2(-startFwd.X, -startFwd.Z)
-	cine.mode = "freefall"
-	cine.modeT = os.clock()
-	cine.shotIdx = 1
-	cine.shotT = os.clock()
-	cine.orbitSpd = 0.45
-	cine.planePos = nil
-	cine.lockPos = nil
-	cine.baseFOV = cam.FieldOfView
-	cam.CameraType = Enum.CameraType.Scriptable
-	touchSteerStart()
-	local Lighting = game:GetService("Lighting")
-	cine.blur = mk("BlurEffect", { Name = "CineDescentBlur", Size = 0, Parent = Lighting }) :: BlurEffect
-	cine.conn = RunService.RenderStepped:Connect(function(dt)
-		local t = os.clock()
-		local sinceMode = t - cine.modeT
-		local orbitTarget, dist, height
-		local faceA = math.atan2(cine.faceDir.X, cine.faceDir.Z)
-		local fovTarget = cine.baseFOV
-		local blurTarget = 0
-		if cine.mode == "freefall" then
-			-- تبديل تلقائي بين لقطات سينمائية متبادلة (طائرة/مجسم/خريطة)
-			local shot = FREEFALL_SHOTS[cine.shotIdx]
-			if t - cine.shotT > shot.dur then
-				cine.shotIdx = (cine.shotIdx % #FREEFALL_SHOTS) + 1
-				cine.shotT = t
-				cine.lockPos = nil
-				shot = FREEFALL_SHOTS[cine.shotIdx]
-			end
-			-- FOV يتّسع مع السرعة (إحساس اندفاع) + غباش حركة خفيف
-			local spdF = math.clamp((cine.speed - 100) / 90, 0, 1)
-			local shakeOff = Vector3.new(math.sin(t * 18.5), math.cos(t * 23.5) * 0.6, math.sin(t * 15.7) * 0.4) * cine.shake
-			if shot.name == "plane" and cine.planePos then
-				-- لقطة الطائرة: الكاميرا جنب اللاعب تنظر للطائرة وهي تبتعد في السماء
-				local side = Vector3.new(-cine.faceDir.Z, 0, cine.faceDir.X)
-				local camPos = cine.pos + side * 6 + Vector3.new(0, 2, 0)
-				local target = cine.planePos:Lerp(cine.pos, 0.15)
-				cam.CFrame = CFrame.lookAt(camPos + shakeOff, target)
-				cine.offset = camPos - cine.pos
-				cam.FieldOfView += (cine.baseFOV + spdF * 14 - cam.FieldOfView) * math.min(1, dt * 2.5)
-				if cine.blur then cine.blur.Size += (spdF * 8 - cine.blur.Size) * math.min(1, dt * 4) end
-				return
-			elseif shot.name == "city" and cine.altitude > 90 then
-				-- لقطة الخريطة: كاميرا ثابتة بالجو يمرّ اللاعب أمامها والمدينة بالخلفية تحته
-				if not cine.lockPos then
-					local drop = math.min(cine.altitude * 0.2, 22)
-					cine.lockPos = cine.pos + cine.faceDir * 24 - Vector3.new(0, drop, 0)
-				end
-				cam.CFrame = CFrame.lookAt(cine.lockPos + shakeOff, cine.pos + Vector3.new(0, 1, 0))
-				cine.offset = cine.lockPos - cine.pos
-				cam.FieldOfView += (cine.baseFOV + 4 - cam.FieldOfView) * math.min(1, dt * 2.5)
-				if cine.blur then cine.blur.Size += (0 - cine.blur.Size) * math.min(1, dt * 4) end
-				return
-			end
-			if shot.name == "front" then
-				-- قريبة أمامية: الكاميرا أمام اللاعب تنظر لوجهه وهو ساقط
-				orbitTarget = 0
-				cine.yaw = approachAngle(cine.yaw, faceA, 3.5, dt)
-				dist = 5.5
-				height = 0.6 + math.sin(t * 0.7) * 0.5
-			elseif shot.name == "side" then
-				-- جانبية ملاحِقة
-				orbitTarget = 0
-				cine.yaw = approachAngle(cine.yaw, faceA + math.pi * 0.5, 3, dt)
-				dist = 8.5
-				height = 1.2
-			elseif shot.name == "top" then
-				-- علوية تطلّ على اللاعب والمدينة تحته
-				orbitTarget = 0.25
-				dist = 5
-				height = 13
-			else
-				-- مدار دوّار كلاسيكي مع تنفّس (ويُستخدم بديلاً للقطات غير المتاحة)
-				orbitTarget = 0.5
-				dist = 13 + math.sin(t * 0.31) * 3.5
-				height = 2.5 + math.sin(t * 0.23) * 5.0
-			end
-			fovTarget = cine.baseFOV + spdF * 14
-			blurTarget = spdF * 8
-		elseif cine.mode == "deploy" then
-			-- لحظة فتح المظلّة: لقطة من الأسفل تنظر لفوق + زوم درامي (مع البطء الزمني)
-			orbitTarget = 0.2
-			dist = 10
-			height = -6 + math.min(sinceMode / 2.2, 1) * 10
-			fovTarget = cine.baseFOV - 12 + math.min(sinceMode / 2.0, 1) * 12
-			blurTarget = math.max(0, 1 - sinceMode / 1.2) * 10
-			if sinceMode > 2.4 then cineSetMode("canopy") end
-		elseif cine.mode == "canopy" then
-			-- مدار أوسع وأهدأ يستعرض المدينة من كل الزوايا
-			orbitTarget = 0.32
-			dist = 16 + math.sin(t * 0.21) * 4
-			height = 4 + math.sin(t * 0.17) * 5
-			fovTarget = cine.baseFOV + 2
-		else -- landing
-			-- زاوية أرضية درامية قرب الهبوط
-			orbitTarget = 0.5
-			dist = 12
-			height = math.clamp(cine.altitude * 0.3, 2.5, 10)
-			fovTarget = cine.baseFOV - 4
-		end
-		-- لا تنزل الكاميرا تحت الأرض
-		height = math.max(height, -(cine.altitude - 4))
-		-- تسارع/تباطؤ ناعم بسرعة الدوران بدل التغيّر الفجائي
-		cine.orbitSpd += (orbitTarget - cine.orbitSpd) * math.min(1, dt * 2)
-		cine.yaw += cine.orbitSpd * dt
-		local desired = Vector3.new(math.sin(cine.yaw) * dist, height, math.cos(cine.yaw) * dist)
-		local off = cine.offset or desired
-		off = off:Lerp(desired, math.min(1, dt * 3))
-		cine.offset = off
-		local shakeOff = Vector3.new(
-			math.sin(t * 18.5),
-			math.cos(t * 23.5) * 0.6,
-			math.sin(t * 15.7) * 0.4
-		) * cine.shake
-		cam.CFrame = CFrame.lookAt(cine.pos + off + shakeOff, cine.pos + Vector3.new(0, 1, 0))
-		cam.FieldOfView += (fovTarget - cam.FieldOfView) * math.min(1, dt * 2.5)
-		if cine.blur then
-			cine.blur.Size += (blurTarget - cine.blur.Size) * math.min(1, dt * 4)
-		end
-	end)
 end
 
 ----------------------------------------------------------------------
 -- بناء الطائرة الملكية (جسم Mesh مرفوع + إكسسوارات ذهبية + إضاءة LED)
 ----------------------------------------------------------------------
--- يبني الطائرة بالكامل من قطع روبلوكس أصلية بمحاور ثابتة ومضبوطة دائماً
--- (لا اعتماد على اتجاه الموديل المرفوع — يضمن طائرة معتدلة غير مقلوبة أبداً).
 local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	-- إطار اتجاه ثابت: أمام أفقي، أعلى دائماً (0,1,0)، جانب عمودي عليهما
 	local fwd = Vector3.new(travelDir.X, 0, travelDir.Z)
@@ -1577,10 +1331,8 @@ local function run()
 
 	-- كاميرا سينمائية ٣٦٠° تلقائية تدور حول اللاعب من زوايا متغيّرة طوال النزول،
 	-- والتوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه جسم اللاعب (W = للأمام، A/D = انعطاف).
-	cine.pos = rootPart.Position
-	cine.altitude = CONFIG.ALTITUDE
-	cine.shake = 0
-	cineStart(cam, fallDir)
+	cam.CameraType = Enum.CameraType.Custom
+	cam.CameraSubject = humanoid
 	setControls(true)
 
 	local canopy: Model? = nil
@@ -1594,11 +1346,9 @@ local function run()
 			-- قد تُنظَّف الطائرة أثناء الانتظار (عند فشل التسلسل)؛ نتأكّد قبل أي عملية
 			if not plane.model.Parent then break end
 			plane.model:PivotTo(plane.model:GetPivot() + travelDir * (90 * dt))
-			cine.planePos = plane.model:GetPivot().Position
 			stepClouds(dt)
 			stepLEDs(plane, os.clock())
 		end
-		cine.planePos = nil
 		if engineSnd then engineSnd:Stop() end
 		if plane.model then plane.model:Destroy() end
 		if cloudFolder then cloudFolder:Destroy() end
@@ -1654,32 +1404,22 @@ local function run()
 	local y = CONFIG.ALTITUDE
 	local px, pz = jumpXZ.X, jumpXZ.Y
 	local faceDir = fallDir
-	local bank = 0
+
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
 		local effSpeed = vSpeed * (if boosting then CONFIG.BOOST_FREEFALL else 1)
 		y -= effSpeed * dt
-		local dir = steerBodyDir(faceDir)
-		local bankTarget = 0
+		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_FREEFALL * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			-- دوران سلس ٣٦٠° نحو اتجاه الإدخال بدل القفز الفوري + ميلان جانبي مع الانعطاف
-			local step
-			faceDir, step = turnToward(faceDir, dir, CONFIG.TURN_FREEFALL * dt)
-			bankTarget = -math.clamp(step / math.max(CONFIG.TURN_FREEFALL * dt, 1e-4), -1, 1) * CONFIG.BANK_FREEFALL
 		end
-		bank += (bankTarget - bank) * math.min(1, dt * 5)
 		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
 		local pos = Vector3.new(px, y, pz)
-		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, bank)
-		cine.pos = pos
-		cine.faceDir = faceDir
-		cine.altitude = altitude
-		cine.speed = effSpeed
-		cine.shake = math.clamp((effSpeed - 95) / 950, 0, 0.14)
+		rootPart.CFrame = CFrame.lookAt(pos, pos + faceDir) * CFrame.Angles(math.rad(-55), 0, 0)
 		updateDescentVisuals(altitude, effSpeed)
 		updateDescentFX(altitude, effSpeed, groundY, false, 0, px, pz)
 		if deployed or altitude <= CONFIG.AUTO_DEPLOY_ALT or altitude <= CONFIG.LAND_ALT then
@@ -1698,7 +1438,6 @@ local function run()
 	hud.banner.Text = "النزول بالمظلّة"
 	if trail then trail.Enabled = false end
 	playSound3D(rootPart, CONFIG.SND_CHUTE, 0.7, false)
-	cineSetMode("deploy")
 
 	canopy = buildCanopy()
 	canopy.Parent = Workspace
@@ -1717,22 +1456,15 @@ local function run()
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		-- بطء زمني درامي لحظة فتح المظلّة يتلاشى تدريجياً خلال ثانية ونص
-		local slowMo = 0.35 + 0.65 * math.clamp((os.clock() - deployStartTime) / 1.5, 0, 1)
-		dt *= slowMo
 		local openBlend = math.clamp((os.clock() - deployStartTime) / 0.72, 0, 1)
 		local canopySpeed = ((deployOpenSpeed > 0 and (deployOpenSpeed + (CONFIG.CANOPY_SPEED - deployOpenSpeed) * openBlend)) or CONFIG.CANOPY_SPEED) * (if boosting then CONFIG.BOOST_CANOPY else 1)
 		y -= canopySpeed * dt
-		local dir = steerBodyDir(faceDir)
-		local bankTarget = 0
+		local dir = steerWorldDir(cam)
 		if dir.Magnitude > 0.01 then
 			px = math.clamp(px + dir.X * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			pz = math.clamp(pz + dir.Z * CONFIG.DRIFT_CANOPY * dt, -CONFIG.MAP_HALF, CONFIG.MAP_HALF)
 			-- انعطاف واقعي: الجسم يلفّ تدريجياً نحو اتجاه الإدخال (لفّات ٣٦٠ حول نقطة الهبوط)
-			local step
-			faceDir, step = turnToward(faceDir, dir, CONFIG.TURN_CANOPY * dt)
-			bankTarget = -math.clamp(step / math.max(CONFIG.TURN_CANOPY * dt, 1e-4), -1, 1) * CONFIG.BANK_CANOPY
 		end
-		bank += (bankTarget - bank) * math.min(1, dt * 5)
 		local groundY = groundYAt(px, pz, y - 2, descentExclude)
 		local altitude = y - groundY
 		local tt = os.clock()
@@ -1743,14 +1475,8 @@ local function run()
 		--          حول المظلّي من كل الزوايا، بجلسة مظلّي واقعية (مثل ببجي) مع ميلان جانبي
 		--          للجسم والمظلّة أثناء الانعطاف.
 		local base = CFrame.lookAt(pos, pos + faceDir)
-		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll + bank)
-		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6 + bank * 0.6))
-		cine.pos = pos
-		cine.faceDir = faceDir
-		cine.altitude = altitude
-		cine.speed = canopySpeed
-		cine.shake = 0.03 + math.clamp(1 - openBlend, 0, 1) * 0.1
-		if altitude < 55 and cine.mode ~= "landing" then cineSetMode("landing") end
+		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
+		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
 		updateDescentVisuals(altitude, canopySpeed)
 		updateDescentFX(altitude, canopySpeed, groundY, true, openBlend, px, pz)
 		if altitude <= CONFIG.LAND_ALT then break end
@@ -1825,7 +1551,6 @@ local function run()
 	restoreMovement(humanoid)
 	humanoid.AutoRotate = true
 	pcall(function() humanoid:SetStateEnabled(Enum.HumanoidStateType.Dead, true) end)
-	cineStop(cam)
 	cam.CameraType = Enum.CameraType.Custom
 	cam.CameraSubject = humanoid
 	setControls(true)
@@ -1887,7 +1612,6 @@ local function trigger()
 		setControls(true)
 		clearCinematicTransient()
 		local cam = Workspace.CurrentCamera
-		cineStop(cam)
 		if cam then cam.CameraType = Enum.CameraType.Custom end
 		local char = LocalPlayer.Character
 		local hrp = char and char:FindFirstChild("HumanoidRootPart")
