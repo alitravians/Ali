@@ -160,6 +160,9 @@ local orbitConn: RBXScriptConnection? = nil
 local orbitInputConns: { RBXScriptConnection } = {}
 
 local function stopOrbit()
+	if not orbitConn and #orbitInputConns == 0 then
+		return
+	end
 	if orbitConn then
 		orbitConn:Disconnect()
 		orbitConn = nil

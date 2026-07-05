@@ -843,8 +843,10 @@ local function laptopBlender(cx, cz, topY): boolean
 		end
 		local faceW = wAxis.size * 0.98
 		local faceH = hAxis.size * 0.98
+		-- وجه الشاشة يشير نحو القاعدة/الكرسي (مثل شاشة حقيقية) وليس نحو خلف الغطاء
 		local front = depthAxis.dir
-		if front:Dot(basePart.Position - scr.Position) > 0 then
+		local toBase = Vector3.new(basePart.Position.X - scr.Position.X, 0, basePart.Position.Z - scr.Position.Z)
+		if front:Dot(toBase) < 0 then
 			front = -front
 		end
 		local up = hAxis.dir

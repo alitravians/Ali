@@ -145,7 +145,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٣.٠.٠",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٣.٠.١",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -173,6 +173,12 @@ local CONFIG = {
 
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
+		{
+			version = "٣.٠.١", date = "٣ يوليو",
+			items = {
+				{ "fixed", "إصلاح اتجاه لوح شاشة اللابتوب: الخلفية تظهر الآن على وجه الشاشة المواجه للكرسي بدل ما كانت تطلع فاضية." },
+			},
+		},
 		{
 			version = "٣.٠.٠", date = "٣ يوليو",
 			items = {
@@ -17633,8 +17639,10 @@ local function laptopBlender(cx, cz, topY): boolean
 		end
 		local faceW = wAxis.size * 0.98
 		local faceH = hAxis.size * 0.98
+		-- وجه الشاشة يشير نحو القاعدة/الكرسي (مثل شاشة حقيقية) وليس نحو خلف الغطاء
 		local front = depthAxis.dir
-		if front:Dot(basePart.Position - scr.Position) > 0 then
+		local toBase = Vector3.new(basePart.Position.X - scr.Position.X, 0, basePart.Position.Z - scr.Position.Z)
+		if front:Dot(toBase) < 0 then
 			front = -front
 		end
 		local up = hAxis.dir
@@ -34141,6 +34149,9 @@ local orbitConn: RBXScriptConnection? = nil
 local orbitInputConns: { RBXScriptConnection } = {}
 
 local function stopOrbit()
+	if not orbitConn and #orbitInputConns == 0 then
+		return
+	end
 	if orbitConn then
 		orbitConn:Disconnect()
 		orbitConn = nil
