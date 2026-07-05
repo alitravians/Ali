@@ -1138,7 +1138,7 @@ local function wireGear(tool, kind, player)
 				fx.BlastRadius = 8
 				fx.Parent = Workspace
 				for _, other in ipairs(Players:GetPlayers()) do
-					local oc = other.Character
+					local oc = other ~= player and other.Character or nil
 					local ohrp = oc and oc:FindFirstChild("HumanoidRootPart")
 					local ohum = oc and oc:FindFirstChildOfClass("Humanoid")
 					if ohrp and ohum and (ohrp.Position - bomb.Position).Magnitude <= 12 then
@@ -1198,6 +1198,9 @@ local function hasGear(player, name)
 end
 
 removeParkourGear = function(player)
+	local char = player.Character
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	if hum then hum:UnequipTools() end -- يطلق Unequipped فيرجع أثر الأداة (سرعة البساط) قبل الحذف
 	local bp = player:FindFirstChildOfClass("Backpack")
 	for _, holder in ipairs({ bp, player.Character }) do
 		if holder then
@@ -1215,7 +1218,7 @@ for _, g in ipairs(giverPads) do
 		g.pad.Touched:Connect(function(hit)
 			local player = playerFromHit(hit)
 			if not player then return end
-			local key = tostring(player.UserId) .. g.model.Name
+			local key = tostring(player.UserId) .. "_" .. g.model.Name
 			if giverCD[key] and os.clock() - giverCD[key] < 3 then return end
 			giverCD[key] = os.clock()
 			local label = GEAR_LABEL[g.model.Name] or g.model.Name
@@ -1323,7 +1326,7 @@ Players.PlayerRemoving:Connect(function(player)
 	killCooldown[player.UserId] = nil
 	boostUntil[player.UserId] = nil
 	bounceCD[player.UserId] = nil
-	local prefix = tostring(player.UserId)
+	local prefix = tostring(player.UserId) .. "_"
 	for k in pairs(giverCD) do
 		if k:sub(1, #prefix) == prefix then giverCD[k] = nil end
 	end
