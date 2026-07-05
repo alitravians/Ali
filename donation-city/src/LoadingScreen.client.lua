@@ -1405,7 +1405,8 @@ local function showMainMenu()
 	}
 	local CAT_ALIAS = {
 		new = "new", add = "add", added = "add", improve = "improve",
-		improved = "improve", fix = "fix", fixed = "fix",
+		improved = "improve", change = "improve", changed = "improve",
+		fix = "fix", fixed = "fix",
 	}
 	local function groupItems(items)
 		local by = {}
