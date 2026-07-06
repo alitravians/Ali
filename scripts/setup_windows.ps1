@@ -47,11 +47,12 @@ Invoke-Native { rustup default stable-x86_64-pc-windows-msvc } "rustup default"
 Invoke-Native { choco install visualstudio2022buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.VCTools --includeRecommended --quiet --norestart" -y --no-progress } "choco install vs buildtools"
 
 # selene (Luau linter) + luau-analyze into C:\tools\bin.
-# Both are pinned for reproducible lint results (selene must match donation-city/selene.toml).
+# Both are pinned for reproducible lint results: selene must match donation-city/selene.toml,
+# and luau must match the Linux setup (.agents/skills/analyzing-donation-city-luau/setup.sh).
 New-Item -ItemType Directory -Force -Path C:\tools\bin | Out-Null
 Invoke-WebRequest "https://github.com/Kampfkarren/selene/releases/download/0.31.0/selene-0.31.0-windows.zip" -OutFile C:\tools\bin\selene.zip
 Expand-Archive C:\tools\bin\selene.zip -Force -DestinationPath C:\tools\bin
-Invoke-WebRequest "https://github.com/luau-lang/luau/releases/download/0.728/luau-windows.zip" -OutFile C:\tools\bin\luau.zip
+Invoke-WebRequest "https://github.com/luau-lang/luau/releases/download/0.725/luau-windows.zip" -OutFile C:\tools\bin\luau.zip
 Expand-Archive C:\tools\bin\luau.zip -Force -DestinationPath C:\tools\bin
 Remove-Item C:\tools\bin\*.zip -ErrorAction SilentlyContinue
 
