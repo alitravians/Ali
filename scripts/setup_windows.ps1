@@ -13,6 +13,7 @@
 # Requires Chocolatey (choco) to be available on the Windows session.
 # The script is idempotent and fail-fast: it aborts on the first failing step.
 # ============================================================================
+#Requires -RunAsAdministrator
 $ErrorActionPreference = "Stop"
 
 # $ErrorActionPreference only catches cmdlet errors, not non-zero exits from
@@ -23,25 +24,26 @@ function Invoke-Native {
 	if ($LASTEXITCODE -ne 0) { throw "$What failed with exit code $LASTEXITCODE" }
 }
 
-# Download+extract a pinned tool into C:\tools\bin only if it isn't already the
-# pinned version — keeps re-runs idempotent (no needless re-download, and works
-# offline once installed).
+# Download+extract a pinned tool into C:\tools\bin only if that exact version
+# isn't already installed — keeps re-runs idempotent (no needless re-download,
+# and works offline once installed). A marker file records the installed version
+# because some tools (e.g. luau-analyze) have no --version flag, mirroring the
+# Linux setup (.agents/skills/analyzing-donation-city-luau/setup.sh).
 function Install-PinnedTool {
 	param(
-		[Parameter(Mandatory)][string]$Exe,        # e.g. selene.exe
-		[Parameter(Mandatory)][string]$VersionNeedle, # substring expected in --version output
+		[Parameter(Mandatory)][string]$Exe,     # e.g. selene.exe
+		[Parameter(Mandatory)][string]$Version,  # exact pinned version, recorded in the marker
 		[Parameter(Mandatory)][string]$Url
 	)
 	$exePath = Join-Path "C:\tools\bin" $Exe
-	if (Test-Path $exePath) {
-		$current = (& $exePath --version 2>$null) -join " "
-		if ($current -like "*$VersionNeedle*") { return }
-	}
+	$marker  = Join-Path "C:\tools\bin" (".{0}.version" -f $Exe)
+	if ((Test-Path $exePath) -and (Test-Path $marker) -and ((Get-Content $marker -Raw).Trim() -eq $Version)) { return }
 	$zip = Join-Path "C:\tools\bin" "_dl.zip"
 	# -UseBasicParsing avoids the IE-engine dependency on fresh Windows Server / PowerShell 5.1.
 	Invoke-WebRequest $Url -OutFile $zip -UseBasicParsing
 	Expand-Archive $zip -Force -DestinationPath C:\tools\bin
 	Remove-Item $zip -ErrorAction SilentlyContinue
+	Set-Content -Path $marker -Value $Version -NoNewline
 }
 
 # Refresh the current session's PATH/env from the machine registry so tools
