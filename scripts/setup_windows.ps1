@@ -38,7 +38,8 @@ function Install-PinnedTool {
 		if ($current -like "*$VersionNeedle*") { return }
 	}
 	$zip = Join-Path "C:\tools\bin" "_dl.zip"
-	Invoke-WebRequest $Url -OutFile $zip
+	# -UseBasicParsing avoids the IE-engine dependency on fresh Windows Server / PowerShell 5.1.
+	Invoke-WebRequest $Url -OutFile $zip -UseBasicParsing
 	Expand-Archive $zip -Force -DestinationPath C:\tools\bin
 	Remove-Item $zip -ErrorAction SilentlyContinue
 }
