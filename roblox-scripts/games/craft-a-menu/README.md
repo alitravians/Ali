@@ -13,10 +13,10 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/alitravians/Ali/arabi
 ## Features
 
 **Auto-Farm tab**
-- Auto Open Crates — opens ingredient crates on the conveyor belt (ProximityPrompt + ClickDetector).
-- Auto Make Food — cooks/levels recipes at the oven (prompts, clicks, or the `E` keybind fallback).
-- Auto Collect Money / Rewards.
-- Auto Sell / Serve Customers.
+- Auto Make Food — triggers the "Make Food" ProximityPrompts on your craft tables (with an `E` keybind fallback). This is the core farm.
+- Auto Spawn Customers — fires the SpawnButton ClickDetectors + `ClickSpawnButton` remote to bring in orders.
+- Auto Collect Money / Rewards — best-effort (fires server-side money/reward remotes; skips local UI events).
+- Auto Sell / Serve Customers — best-effort.
 - Run ALL once — single manual pass of every nearby prompt/click.
 
 **Settings tab**
