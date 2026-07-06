@@ -23,6 +23,26 @@ function Invoke-Native {
 	if ($LASTEXITCODE -ne 0) { throw "$What failed with exit code $LASTEXITCODE" }
 }
 
+# Download+extract a pinned tool into C:\tools\bin only if it isn't already the
+# pinned version — keeps re-runs idempotent (no needless re-download, and works
+# offline once installed).
+function Install-PinnedTool {
+	param(
+		[Parameter(Mandatory)][string]$Exe,        # e.g. selene.exe
+		[Parameter(Mandatory)][string]$VersionNeedle, # substring expected in --version output
+		[Parameter(Mandatory)][string]$Url
+	)
+	$exePath = Join-Path "C:\tools\bin" $Exe
+	if (Test-Path $exePath) {
+		$current = (& $exePath --version 2>$null) -join " "
+		if ($current -like "*$VersionNeedle*") { return }
+	}
+	$zip = Join-Path "C:\tools\bin" "_dl.zip"
+	Invoke-WebRequest $Url -OutFile $zip
+	Expand-Archive $zip -Force -DestinationPath C:\tools\bin
+	Remove-Item $zip -ErrorAction SilentlyContinue
+}
+
 # Refresh the current session's PATH/env from the machine registry so tools
 # installed by a preceding `choco install` are visible to later commands here.
 function Update-Env {
@@ -50,11 +70,8 @@ Invoke-Native { choco install visualstudio2022buildtools --package-parameters "-
 # Both are pinned for reproducible lint results: selene must match donation-city/selene.toml,
 # and luau must match the Linux setup (.agents/skills/analyzing-donation-city-luau/setup.sh).
 New-Item -ItemType Directory -Force -Path C:\tools\bin | Out-Null
-Invoke-WebRequest "https://github.com/Kampfkarren/selene/releases/download/0.31.0/selene-0.31.0-windows.zip" -OutFile C:\tools\bin\selene.zip
-Expand-Archive C:\tools\bin\selene.zip -Force -DestinationPath C:\tools\bin
-Invoke-WebRequest "https://github.com/luau-lang/luau/releases/download/0.725/luau-windows.zip" -OutFile C:\tools\bin\luau.zip
-Expand-Archive C:\tools\bin\luau.zip -Force -DestinationPath C:\tools\bin
-Remove-Item C:\tools\bin\*.zip -ErrorAction SilentlyContinue
+Install-PinnedTool "selene.exe" "0.31.0" "https://github.com/Kampfkarren/selene/releases/download/0.31.0/selene-0.31.0-windows.zip"
+Install-PinnedTool "luau-analyze.exe" "0.725" "https://github.com/luau-lang/luau/releases/download/0.725/luau-windows.zip"
 
 # Resolve the installed Blender dir dynamically (version number varies by choco build).
 $blender = (Get-ChildItem "C:\Program Files\Blender Foundation\Blender*" -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending | Select-Object -First 1).FullName
