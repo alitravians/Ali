@@ -282,6 +282,7 @@ end
 
 local showSeatMenu   -- forward declaration
 local showStore      -- forward declaration (المتجر — نافذة وسط الشاشة)
+local refreshStoreUI -- forward declaration (تحديث المتجر فقط إذا كان مفتوحاً)
 local onStoreSpeedSet -- forward declaration (تحديث شريط سرعة المشي في المتجر بعد تأكيد السيرفر)
 local showAdminPanel -- forward declaration (لوحة الإدارة)
 local showAnnounce   -- forward declaration (إعلان عام على الشاشة)
@@ -826,6 +827,8 @@ lobbyRemote.OnClientEvent:Connect(function(data)
 		showBoxOffice(data)
 	elseif data.action == "store" then
 		showStore(data)
+	elseif data.action == "storeRefresh" then
+		if refreshStoreUI then refreshStoreUI(data) end
 	elseif data.action == "adminOpen" then
 		showAdminPanel(data)
 	elseif data.action == "adminDenied" then
@@ -1099,6 +1102,7 @@ do
 
 	local function destroyStore(animated)
 		speedUpdateUI = nil
+		refreshStoreUI = nil
 		clearConns()
 		local r = storeRoot
 		storeRoot = nil
@@ -1510,6 +1514,11 @@ do
 			if not any then grid:Destroy() end
 		end
 
+		refreshStoreUI = function(refreshData)
+			if storeOpen and showStore then
+				showStore(refreshData)
+			end
+		end
 		local catBtns = {}
 		local function setActive(key)
 			activeCat = key

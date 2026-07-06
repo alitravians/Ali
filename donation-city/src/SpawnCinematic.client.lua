@@ -86,92 +86,95 @@ end
 local canopyTemplate: Model? = nil
 
 loadCanopyTemplate = function(): Model?
-    if canopyTemplate then
-            return canopyTemplate
-    end
+	if canopyTemplate then
+			return canopyTemplate
+	end
 
-    local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 35)
-    if mesh and mesh:IsA("Model") then
-            canopyTemplate = mesh
-            return canopyTemplate
-    end
+	local mesh = ReplicatedStorage:WaitForChild("RoyalCanopyMesh", 35)
+	if mesh and mesh:IsA("Model") then
+			canopyTemplate = mesh
+			return canopyTemplate
+	end
 
-    return nil
+	return nil
 end
 
 task.spawn(loadCanopyTemplate)
 
 local function normalizeCanopyTemplate(model: Model)
-    local bboxCF, bboxSize = model:GetBoundingBox()
-    local pivot = model:GetPivot()
-    local pivotToBox = pivot:ToObjectSpace(bboxCF)
-    local horizontal = math.max(bboxSize.X, bboxSize.Z)
-    local scale = if horizontal > 0 then (34 / horizontal) else 1
-    if scale > 0 and math.abs(scale - 1) > 1e-4 then
-            model:ScaleTo(scale)
-            bboxCF, bboxSize = model:GetBoundingBox()
-            pivot = model:GetPivot()
-            pivotToBox = pivot:ToObjectSpace(bboxCF)
-    end
-    local targetBox = CFrame.new(0, 18, 0)
-    model:PivotTo(targetBox * pivotToBox:Inverse())
+	local bboxCF, bboxSize = model:GetBoundingBox()
+	local pivot = model:GetPivot()
+	local pivotToBox = pivot:ToObjectSpace(bboxCF)
+	local horizontal = math.max(bboxSize.X, bboxSize.Z)
+	local scale = if horizontal > 0 then (24 / horizontal) else 1
+	if scale > 0 and math.abs(scale - 1) > 1e-4 then
+			model:ScaleTo(scale)
+			bboxCF, bboxSize = model:GetBoundingBox()
+			pivot = model:GetPivot()
+			pivotToBox = pivot:ToObjectSpace(bboxCF)
+	end
+	-- ثبّت المظلّة من أسفلها (حلقة التعليق) فوق ظهر اللاعب مباشرة بدل توسيطها عالياً،
+	-- عشان الحبال تتجمّع على ظهره وتتزامن معه بدل ما تطير فوقه.
+	local BOTTOM_OFFSET = 1.6
+	local targetBox = CFrame.new(0, BOTTOM_OFFSET + bboxSize.Y * 0.5, 0)
+	model:PivotTo(targetBox * pivotToBox:Inverse())
 end
 
 local function recolorCanopyTemplate(model: Model)
-    for _, inst in ipairs(model:GetDescendants()) do
-            if inst:IsA("BasePart") then
-                    local name = string.lower(inst.Name)
-                    if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") or name:find("ring") then
-                            inst.Color = Color3.fromRGB(38, 38, 44)
-                            inst.Material = Enum.Material.SmoothPlastic
-                    elseif name:find("gold") or name:find("apex") or name:find("vent") or name:find("top") then
-                            inst.Color = GOLD
-                            inst.Material = Enum.Material.Metal
-                    else
-                            inst.Color = NAVY
-                            inst.Material = Enum.Material.SmoothPlastic
-                    end
-            end
-    end
+	for _, inst in ipairs(model:GetDescendants()) do
+			if inst:IsA("BasePart") then
+					local name = string.lower(inst.Name)
+					if name:find("line") or name:find("rope") or name:find("cord") or name:find("strap") or name:find("harness") or name:find("ring") then
+							inst.Color = Color3.fromRGB(38, 38, 44)
+							inst.Material = Enum.Material.SmoothPlastic
+					elseif name:find("gold") or name:find("apex") or name:find("vent") or name:find("top") then
+							inst.Color = GOLD
+							inst.Material = Enum.Material.Metal
+					else
+							inst.Color = NAVY
+							inst.Material = Enum.Material.SmoothPlastic
+					end
+			end
+	end
 end
 
 local function buildCanopy(): (Model, BasePart)
-    local loader = loadCanopyTemplate
-    local procedural = buildProceduralCanopy
-    if not loader or not procedural then
-            error("SpawnCinematic: canopy builders not initialized")
-    end
+	local loader = loadCanopyTemplate
+	local procedural = buildProceduralCanopy
+	if not loader or not procedural then
+			error("SpawnCinematic: canopy builders not initialized")
+	end
 
-    local template = loader()
-    if not template then
-            return procedural()
-    end
+	local template = loader()
+	if not template then
+			return procedural()
+	end
 
-    local model = mk("Model", { Name = "RoyalCanopy" })
-    local anchor = mk("Part", {
-            Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
-            Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
-            CastShadow = false, Parent = model,
-    }) :: Part
-    model.PrimaryPart = anchor
+	local model = mk("Model", { Name = "RoyalCanopy" })
+	local anchor = mk("Part", {
+			Name = "Anchor", Size = Vector3.new(0.5, 0.5, 0.5), Transparency = 1,
+			Anchored = true, CanCollide = false, CanQuery = false, CanTouch = false,
+			CastShadow = false, Parent = model,
+	}) :: Part
+	model.PrimaryPart = anchor
 
-    local mesh = template:Clone()
-    mesh.Parent = model
+	local mesh = template:Clone()
+	mesh.Parent = model
 
-    for _, inst in ipairs(mesh:GetDescendants()) do
-            if inst:IsA("BasePart") then
-                    inst.Anchored = true
-                    inst.CanCollide = false
-                    inst.CanQuery = false
-                    inst.CanTouch = false
-                    inst.CastShadow = false
-            end
-    end
+	for _, inst in ipairs(mesh:GetDescendants()) do
+			if inst:IsA("BasePart") then
+					inst.Anchored = true
+					inst.CanCollide = false
+					inst.CanQuery = false
+					inst.CanTouch = false
+					inst.CastShadow = false
+			end
+	end
 
-    normalizeCanopyTemplate(mesh)
-    recolorCanopyTemplate(mesh)
+	normalizeCanopyTemplate(mesh)
+	recolorCanopyTemplate(mesh)
 
-    return model, anchor
+	return model, anchor
 end
 
 local function neonBulb(name, size, color, parent): Part
@@ -216,8 +219,8 @@ local function startCinematicLighting()
 	local atmosphere = mk("Atmosphere", {
 		Name = "RoyalSpawnAtmosphere",
 		Density = 0.18,
-		Haze = 1.25,
-		Glare = 0.22,
+		Haze = 0.9,
+		Glare = 0.08,
 		Color = Color3.fromRGB(178, 214, 243),
 		Decay = Color3.fromRGB(94, 126, 171),
 		Parent = Lighting,
@@ -234,9 +237,9 @@ local function startCinematicLighting()
 
 	local bloom = mk("BloomEffect", {
 		Name = "RoyalSpawnBloom",
-		Intensity = 0.28,
-		Threshold = 1.05,
-		Size = 24,
+		Intensity = 0.1,
+		Threshold = 1.6,
+		Size = 16,
 		Parent = Lighting,
 	}) :: BloomEffect
 
@@ -247,14 +250,14 @@ local function startCinematicLighting()
 		Parent = Lighting,
 	}) :: SunRaysEffect
 
-	Lighting.Brightness = 2.8
+	Lighting.Brightness = 1.6
 	Lighting.Ambient = Color3.fromRGB(148, 177, 208)
 	Lighting.OutdoorAmbient = Color3.fromRGB(180, 203, 231)
 	Lighting.FogColor = Color3.fromRGB(184, 216, 242)
 	Lighting.FogStart = 0
 	Lighting.FogEnd = 8000
 	Lighting.ClockTime = 13.6
-	Lighting.ExposureCompensation = 0.12
+	Lighting.ExposureCompensation = 0
 	Lighting.EnvironmentDiffuseScale = 1
 	Lighting.EnvironmentSpecularScale = 1
 	Lighting.ShadowSoftness = 0.25
@@ -345,8 +348,8 @@ local function getControlModule(): any
 	return controlModule
 end
 
--- متجه التوجيه الأفقي نسبةً للكاميرا من إدخال اللاعب (يعمل على الكمبيوتر والجوال).
--- يرجع متجهاً أفقياً موحّداً أو صفراً لو ما في إدخال.
+-- توجيه الجوال أثناء الكاميرا السينمائية: العصا الافتراضية تختفي مع الكاميرا Scriptable،
+-- فنقرأ سحب الإصبع مباشرة (سحب وثبّت = توجيه مستمر) كبديل للعصا.
 local function steerWorldDir(cam: Camera): Vector3
 	local mv = Vector3.zero
 	local cm = getControlModule()
@@ -375,8 +378,6 @@ end
 ----------------------------------------------------------------------
 -- بناء الطائرة الملكية (جسم Mesh مرفوع + إكسسوارات ذهبية + إضاءة LED)
 ----------------------------------------------------------------------
--- يبني الطائرة بالكامل من قطع روبلوكس أصلية بمحاور ثابتة ومضبوطة دائماً
--- (لا اعتماد على اتجاه الموديل المرفوع — يضمن طائرة معتدلة غير مقلوبة أبداً).
 local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	-- إطار اتجاه ثابت: أمام أفقي، أعلى دائماً (0,1,0)، جانب عمودي عليهما
 	local fwd = Vector3.new(travelDir.X, 0, travelDir.Z)
@@ -485,9 +486,10 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 
 	-- خط زينة ذهبي على الجهتين
 	for _, side in ipairs({ -1, 1 }) do
-		local strip = neonBulb("CheatLine", Vector3.new(hf * 1.5, hu * 0.10, 0.2), GOLD, model)
+		local strip = neonBulb("CheatLine", Vector3.new(hf * 1.5, hu * 0.07, 0.2), GOLD, model)
 		strip.Material = Enum.Material.Neon
-		strip.CFrame = CFrame.fromMatrix(at(0, side * 1.0, 0.15), fwd, up, lat * side)
+		-- أنزل خط الزينة أسفل شريط الكتابة حتى لا يغطّي وهجه النص
+		strip.CFrame = CFrame.fromMatrix(at(-0.42, side * 1.0, 0.15), fwd, up, lat * side)
 	end
 
 	------------------------------------------------------------------
@@ -503,13 +505,22 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		local sg = mk("SurfaceGui", {
 			Name = "Livery", Face = Enum.NormalId.Back, Parent = panel,
 			CanvasSize = Vector2.new(800, 240), LightInfluence = 0,
-			AlwaysOnTop = false,
+			AlwaysOnTop = true, ZOffset = 1,
 		}) :: SurfaceGui
+		-- لوحة كحلية معتمة خلف النص تمنع الوهج من تغطيته + إطار ذهبي
+		local plate = mk("Frame", {
+			Name = "Plate", AnchorPoint = Vector2.new(0.5, 0.5),
+			Position = UDim2.fromScale(0.5, 0.5), Size = UDim2.fromScale(0.96, 0.74),
+			BackgroundColor3 = NAVY, BackgroundTransparency = 0.08, Parent = sg,
+		}) :: Frame
+		mk("UICorner", { CornerRadius = UDim.new(0, 26), Parent = plate })
+		mk("UIStroke", { Color = GOLD, Thickness = 4, Parent = plate })
 		mk("TextLabel", {
-			Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1,
+			Size = UDim2.fromScale(0.9, 0.72), Position = UDim2.fromScale(0.5, 0.5),
+			AnchorPoint = Vector2.new(0.5, 0.5), BackgroundTransparency = 1,
 			Text = "طائرة شهد للنزول الملكي", Font = Enum.Font.GothamBlack,
-			TextScaled = true, TextColor3 = GOLD, TextStrokeColor3 = NAVY,
-			TextStrokeTransparency = 0.2, Parent = sg,
+			TextScaled = true, TextColor3 = GOLD, TextStrokeColor3 = Color3.new(0, 0, 0),
+			TextStrokeTransparency = 0.1, Parent = plate,
 		})
 	end
 
@@ -519,7 +530,7 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	for _, side in ipairs({ -1, 1 }) do
 		local win = neonBulb("CabinWindows", Vector3.new(hf * 0.95, hu * 0.16, 0.18), WARM, model)
 		win.CFrame = CFrame.fromMatrix(at(0.05, side * 1.0, 0.45), fwd, up, lat * side)
-		local pl = mk("PointLight", { Color = WARM, Brightness = 0.8, Range = 10, Parent = win }) :: PointLight
+		local pl = mk("PointLight", { Color = WARM, Brightness = 0.35, Range = 8, Parent = win }) :: PointLight
 		pl.Shadows = false
 	end
 
@@ -598,6 +609,13 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		CastShadow = false, Material = Enum.Material.Carpet, Color = Color3.fromRGB(120, 92, 38),
 		CFrame = boxCF(0, 0, FLOOR_U) * CFrame.new(0, 0.56, 0), Parent = model,
 	})
+	-- شريطا إغلاق جانبيان: يسدّان الفجوة بين حافة الأرضية والجدار (كانت تبان منها السماء)
+	for _, side in ipairs({ -1, 1 }) do
+		local skirt = solid("CabinFloorSkirt", Enum.PartType.Block,
+			Vector3.new(2.2, 0.3, floorLen), Color3.fromRGB(26, 28, 44))
+		skirt.Material = Enum.Material.Carpet
+		skirt.CFrame = boxCF(0, side * 0.82, FLOOR_U) * CFrame.new(0, 0.35, 0)
+	end
 
 	-- جدران جانبية حاجزة (شفّافة — تمنع السقوط أثناء المشي)
 	local wallH = (CEIL_U - FLOOR_U) * hu
@@ -643,9 +661,9 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 	local ceilPanel = solid("CabinCeilPanel", Enum.PartType.Block,
 		Vector3.new(floorWid, 0.4, floorLen), CREAMC)
 	ceilPanel.CFrame = boxCF(0, 0, CEIL_U - 0.02)
-	local cove = neonBulb("CabinCove", Vector3.new(0.6, 0.12, floorLen * 0.96), WARM, model)
+	local cove = neonBulb("CabinCove", Vector3.new(0.6, 0.12, floorLen * 0.96), Color3.fromRGB(255, 236, 200), model)
 	cove.CFrame = boxCF(0, 0, CEIL_U - 0.16)
-	mk("PointLight", { Color = WARM, Brightness = 1.7, Range = 28, Parent = cove, Shadows = false })
+	mk("PointLight", { Color = WARM, Brightness = 0.8, Range = 20, Parent = cove, Shadows = false })
 
 	-- نوافذ مضيئة على الجهتين + خزائن علوية مائلة
 	local nWin = 5
@@ -660,8 +678,9 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 				Vector3.new(hf * 0.13, hu * 0.32, 0.16), CREAMC)
 			trim.CFrame = CFrame.fromMatrix(at(f, side * 0.885, 0.16), fwd, up, lat * side)
 			local win = neonBulb("CabinWindow", Vector3.new(hf * 0.095, hu * 0.24, 0.10), SKYC, model)
+			win.Material = Enum.Material.Glass
 			win.CFrame = CFrame.fromMatrix(at(f, side * 0.875, 0.16), fwd, up, lat * side)
-			mk("PointLight", { Color = SKYC, Brightness = 0.45, Range = 9, Parent = win, Shadows = false })
+			mk("PointLight", { Color = SKYC, Brightness = 0.15, Range = 7, Parent = win, Shadows = false })
 		end
 	end
 
@@ -670,16 +689,16 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		local hue = if accent then SEATAC else SEATC
 		local base = solid("SeatBase", Enum.PartType.Block,
 			Vector3.new(hl * 0.42, hu * 0.18, hf * 0.05), hue)
-		base.Material = Enum.Material.Fabric
+		base.Material = Enum.Material.SmoothPlastic
 		base.CFrame = boxCF(f, side * 0.5, FLOOR_U + 0.22)
 		local backrest = solid("SeatBack", Enum.PartType.Block,
 			Vector3.new(hl * 0.42, hu * 0.50, hf * 0.020), hue)
-		backrest.Material = Enum.Material.Fabric
+		backrest.Material = Enum.Material.SmoothPlastic
 		backrest.CFrame = boxCF(f - 0.024, side * 0.5, FLOOR_U + 0.52)
 			* CFrame.Angles(math.rad(8), 0, 0)
 		local head = solid("SeatHead", Enum.PartType.Block,
 			Vector3.new(hl * 0.30, hu * 0.16, hf * 0.020), HEADC)
-		head.Material = Enum.Material.Fabric
+		head.Material = Enum.Material.SmoothPlastic
 		head.CFrame = boxCF(f - 0.030, side * 0.5, FLOOR_U + 0.76)
 		for _, ay in ipairs({ -0.20, 0.20 }) do
 			local arm = solid("SeatArm", Enum.PartType.Block,
@@ -693,12 +712,165 @@ local function buildPlane(startPos: Vector3, travelDir: Vector3)
 		end
 	end
 
-	-- فاصل قمرة القيادة بباب مضيء أمام المقصورة (يخفي الحاجز الأمامي)
-	local divider = solid("CockpitDivider", Enum.PartType.Block,
-		Vector3.new(floorWid + 0.6, wallH, 0.5), PANELC)
-	divider.CFrame = boxCF(0.6, 0, wallCU)
-	local divDoor = neonBulb("CockpitDoorGlow", Vector3.new(hl * 0.55, wallH * 0.66, 0.10), WARM, model)
-	divDoor.CFrame = boxCF(0.585, 0, wallCU - 0.12)
+	-- قرص معتم يسدّ مقطع الجسم بالكامل من الداخل (بحجم قطر الجسم فلا يبرز للخارج)
+	local function bulkheadDisc(name: string, f: number, color: Color3): Part
+		local d = solid(name, Enum.PartType.Cylinder,
+			Vector3.new(0.5, R * 1.97, R * 1.97), color)
+		d.CFrame = cylCF(f, 0, 0)
+		return d
+	end
+	-- جدار المؤخّرة: قرص كامل داخل الجسم (يسدّ فتحة الذيل بلا حوافّ بارزة)
+	bulkheadDisc("CabinRearWall", -0.605, PANELC)
+	-- جدار مستطيل مكمّل يغطّي زوايا المقصورة خارج دائرة القرص (بلون الجسم حتى لا تبرز حوافّه)
+	local rearCap = solid("CabinRearCap", Enum.PartType.Block,
+		Vector3.new(hl * 1.84, wallH, 0.4), PANELC)
+	rearCap.CFrame = boxCF(-0.598, 0, wallCU)
+
+	------------------------------------------------------------------
+	-- غرفة القيادة (الكابتن والمساعد): فاصل بباب زجاجي + قمرة مؤثّثة كاملة
+	------------------------------------------------------------------
+	local doorW, doorH = 4.6, 8.4
+	local dividerW = hl * 1.84
+	local doorTopU = FLOOR_U + doorH / hu
+	-- جناحا الفاصل حول فتحة الباب + عتبة علوية
+	for _, s in ipairs({ -1, 1 }) do
+		local wing2 = solid("CockpitDivider", Enum.PartType.Block,
+			Vector3.new((dividerW - doorW) / 2, wallH, 0.5), PANELC)
+		wing2.CFrame = boxCF(0.6, s * ((doorW / 2 + (dividerW - doorW) / 4) / hl), wallCU)
+	end
+	local divHeader = solid("CockpitDividerTop", Enum.PartType.Block,
+		Vector3.new(doorW, (CEIL_U - doorTopU) * hu, 0.5), PANELC)
+	divHeader.CFrame = boxCF(0.6, 0, (CEIL_U + doorTopU) / 2)
+	-- إطار ذهبي أنيق حول الباب
+	for _, s in ipairs({ -1, 1 }) do
+		local jamb = solid("CockpitDoorJamb", Enum.PartType.Block,
+			Vector3.new(0.3, doorH, 0.6), GOLD, Enum.Material.Metal)
+		jamb.CFrame = boxCF(0.6, s * ((doorW / 2 + 0.15) / hl), (FLOOR_U + doorTopU) / 2)
+	end
+	local lintel = solid("CockpitDoorLintel", Enum.PartType.Block,
+		Vector3.new(doorW + 0.6, 0.3, 0.6), GOLD, Enum.Material.Metal)
+	lintel.CFrame = boxCF(0.6, 0, doorTopU + 0.15 / hu)
+	-- باب زجاجي شفّاف (يُرى منه الكابتن والمساعد؛ الحاجز غير المرئي يمنع الدخول)
+	local divGlass = solid("CockpitDoorGlass", Enum.PartType.Block,
+		Vector3.new(doorW, doorH, 0.25), Color3.fromRGB(180, 205, 225), Enum.Material.Glass)
+	divGlass.Transparency = 0.55
+	divGlass.CFrame = boxCF(0.6, 0, (FLOOR_U + doorTopU) / 2)
+
+	-- بطانة القمرة (أرضية + سقف + جانبان + قرص أمامي) حتى لا يظهر أي شيء من الخارج
+	local ckLen = hf * 0.28
+	local ckF = 0.75                     -- مركز القمرة (بين الفاصل 0.6 والمقدّمة 0.9)
+	local ckFloor = solid("CockpitFloor", Enum.PartType.Block,
+		Vector3.new(floorWid, 1, ckLen), Color3.fromRGB(30, 32, 46))
+	ckFloor.Material = Enum.Material.Carpet
+	ckFloor.CFrame = boxCF(ckF, 0, FLOOR_U)
+	for _, side in ipairs({ -1, 1 }) do
+		local skirt = solid("CockpitFloorSkirt", Enum.PartType.Block,
+			Vector3.new(2.2, 0.3, ckLen), Color3.fromRGB(30, 32, 46))
+		skirt.Material = Enum.Material.Carpet
+		skirt.CFrame = boxCF(ckF, side * 0.82, FLOOR_U) * CFrame.new(0, 0.35, 0)
+	end
+	local ckCeil = solid("CockpitCeil", Enum.PartType.Block,
+		Vector3.new(floorWid, 0.4, ckLen), CREAMC)
+	ckCeil.CFrame = boxCF(ckF, 0, CEIL_U - 0.02)
+	for _, side in ipairs({ -1, 1 }) do
+		local liner = solid("CockpitLiner", Enum.PartType.Block,
+			Vector3.new(ckLen, wallH, 0.4), PANELC)
+		liner.CFrame = CFrame.fromMatrix(at(ckF, side * 0.9, wallCU), fwd, up, lat * side)
+	end
+	bulkheadDisc("CockpitFrontWall", 0.905, PANELC)
+	-- إضاءة قمرة خافتة
+	local ckLight = neonBulb("CockpitLightStrip", Vector3.new(0.5, 0.1, ckLen * 0.8), Color3.fromRGB(255, 236, 200), model)
+	ckLight.CFrame = boxCF(ckF, 0, CEIL_U - 0.14)
+	mk("PointLight", { Color = WARM, Brightness = 0.5, Range = 12, Parent = ckLight, Shadows = false })
+
+	-- زجاج أمامي داخلي داكن مائل (أمام لوحة العدادات)
+	local windshield = solid("CockpitWindshield", Enum.PartType.Block,
+		Vector3.new(9.5, 3.4, 0.3), Color3.fromRGB(26, 34, 52), Enum.Material.Glass)
+	windshield.Transparency = 0.15; windshield.Reflectance = 0.15
+	windshield.CFrame = boxCF(0.885, 0, 0.42) * CFrame.Angles(math.rad(-16), 0, 0)
+
+	-- لوحة العدادات: كونسول داكن + شاشات مضيئة + أعمدة قيادة (Yokes)
+	local console = solid("CockpitConsole", Enum.PartType.Block,
+		Vector3.new(10, 2.6, 2.4), Color3.fromRGB(34, 38, 52))
+	console.CFrame = boxCF(0.862, 0, FLOOR_U + 0.20)
+	local consoleTop = solid("CockpitConsoleTop", Enum.PartType.Block,
+		Vector3.new(10, 1.7, 0.4), Color3.fromRGB(24, 27, 38))
+	consoleTop.CFrame = boxCF(0.845, 0, FLOOR_U + 0.42) * CFrame.Angles(math.rad(22), 0, 0)
+	for i, sc in ipairs({ { -3.2, Color3.fromRGB(70, 210, 170) }, { 0, Color3.fromRGB(235, 190, 90) }, { 3.2, Color3.fromRGB(90, 170, 240) } }) do
+		local screen = neonBulb("CockpitScreen", Vector3.new(2.2, 1.1, 0.12), sc[2] :: Color3, model)
+		screen.CFrame = boxCF(0.842, (sc[1] :: number) / hl, FLOOR_U + 0.42) * CFrame.Angles(math.rad(22), 0, 0)
+	end
+	local pedestal = solid("CockpitPedestal", Enum.PartType.Block,
+		Vector3.new(1.6, 1.6, 2.6), Color3.fromRGB(28, 31, 44))
+	pedestal.CFrame = boxCF(0.83, 0, FLOOR_U + 0.14)
+	local throttle = solid("CockpitThrottle", Enum.PartType.Block,
+		Vector3.new(0.5, 0.9, 0.3), GOLD, Enum.Material.Metal)
+	throttle.CFrame = boxCF(0.828, 0, FLOOR_U + 0.30) * CFrame.Angles(math.rad(-24), 0, 0)
+
+	-- كرسيّ الطيّار + مجسّم طيّار جالس بزيّه الرسمي (كحلي + شارات ذهبية + قبّعة كابتن)
+	local SKINC = Color3.fromRGB(232, 190, 158)
+	local UNIFORMC = Color3.fromRGB(30, 38, 72)
+	local function buildPilot(lStuds: number, isCaptain: boolean)
+		local fSeat = 0.78
+		local l = lStuds / hl
+		-- كرسي قيادة فخم
+		local sBase = solid("PilotSeatBase", Enum.PartType.Block, Vector3.new(3.0, 1.5, 2.6), SEATC)
+		sBase.CFrame = boxCF(fSeat, l, FLOOR_U + 0.21)
+		local sBack = solid("PilotSeatBack", Enum.PartType.Block, Vector3.new(3.0, 4.4, 0.8), SEATC)
+		sBack.CFrame = boxCF(fSeat - 0.022, l, FLOOR_U + 0.52) * CFrame.Angles(math.rad(6), 0, 0)
+		local sHead = solid("PilotSeatHead", Enum.PartType.Block, Vector3.new(2.4, 1.2, 0.7), HEADC)
+		sHead.CFrame = boxCF(fSeat - 0.028, l, FLOOR_U + 0.80)
+		-- الساقان: فخذان أفقيان + ساقان عموديان
+		for _, s in ipairs({ -1, 1 }) do
+			local thigh = solid("PilotThigh", Enum.PartType.Block, Vector3.new(0.9, 0.8, 1.9), UNIFORMC)
+			thigh.CFrame = boxCF(fSeat + 0.016, l + s * 0.62 / hl, FLOOR_U + 0.36)
+			local shin = solid("PilotShin", Enum.PartType.Block, Vector3.new(0.8, 1.8, 0.7), UNIFORMC)
+			shin.CFrame = boxCF(fSeat + 0.033, l + s * 0.62 / hl, FLOOR_U + 0.22)
+			local shoe = solid("PilotShoe", Enum.PartType.Block, Vector3.new(0.85, 0.4, 1.2), Color3.fromRGB(18, 18, 22))
+			shoe.CFrame = boxCF(fSeat + 0.038, l + s * 0.62 / hl, FLOOR_U + 0.11)
+		end
+		-- الجذع بالزيّ الكحلي + أزرار ذهبية
+		local torso = solid("PilotTorso", Enum.PartType.Block, Vector3.new(2.3, 2.5, 1.2), UNIFORMC)
+		torso.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 0.64)
+		local buttons = solid("PilotButtons", Enum.PartType.Block, Vector3.new(0.25, 2.1, 0.15), GOLD, Enum.Material.Metal)
+		buttons.CFrame = boxCF(fSeat - 0.008 + 0.011, l, FLOOR_U + 0.64)
+		-- كتفيات ذهبية (رتبة)
+		for _, s in ipairs({ -1, 1 }) do
+			local ep = solid("PilotEpaulette", Enum.PartType.Block, Vector3.new(0.9, 0.18, 1.0), GOLD, Enum.Material.Metal)
+			ep.CFrame = boxCF(fSeat - 0.008, l + s * 1.2 / hl, FLOOR_U + 0.79)
+		end
+		-- ذراعان ممدودتان نحو عمود القيادة
+		for _, s in ipairs({ -1, 1 }) do
+			local arm = solid("PilotArm", Enum.PartType.Block, Vector3.new(0.6, 0.6, 2.4), UNIFORMC)
+			arm.CFrame = boxCF(fSeat + 0.014, l + s * 1.05 / hl, FLOOR_U + 0.70) * CFrame.Angles(math.rad(24), 0, 0)
+			local hand = solid("PilotHand", Enum.PartType.Block, Vector3.new(0.5, 0.5, 0.5), SKINC)
+			hand.CFrame = boxCF(fSeat + 0.033, l + s * 1.0 / hl, FLOOR_U + 0.60)
+		end
+		-- الرأس + قبّعة كابتن بشريط ذهبي
+		local head = solid("PilotHead", Enum.PartType.Block, Vector3.new(1.15, 1.15, 1.15), SKINC)
+		head.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 0.94)
+		local capBase = solid("PilotCap", Enum.PartType.Cylinder, Vector3.new(0.45, 1.5, 1.5), UNIFORMC)
+		capBase.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 1.03) * CFrame.Angles(0, 0, math.rad(90))
+		local capBand = solid("PilotCapBand", Enum.PartType.Cylinder, Vector3.new(0.18, 1.55, 1.55), GOLD, Enum.Material.Metal)
+		capBand.CFrame = boxCF(fSeat - 0.008, l, FLOOR_U + 1.005) * CFrame.Angles(0, 0, math.rad(90))
+		local visor = solid("PilotCapVisor", Enum.PartType.Block, Vector3.new(1.1, 0.12, 0.55), Color3.fromRGB(18, 18, 22))
+		visor.CFrame = boxCF(fSeat + 0.004, l, FLOOR_U + 1.0)
+		if isCaptain then
+			local badge = solid("PilotCapBadge", Enum.PartType.Block, Vector3.new(0.4, 0.3, 0.1), GOLD, Enum.Material.Metal)
+			badge.CFrame = boxCF(fSeat + 0.001, l, FLOOR_U + 1.04)
+		end
+		-- عمود القيادة (Yoke) أمام الطيّار
+		local column = solid("YokeColumn", Enum.PartType.Cylinder, Vector3.new(1.6, 0.3, 0.3), Color3.fromRGB(24, 27, 38))
+		column.CFrame = boxCF(fSeat + 0.037, l, FLOOR_U + 0.46) * CFrame.Angles(0, math.rad(90), math.rad(70))
+		local yokeBar = solid("YokeBar", Enum.PartType.Block, Vector3.new(1.8, 0.3, 0.3), Color3.fromRGB(18, 20, 30))
+		yokeBar.CFrame = boxCF(fSeat + 0.030, l, FLOOR_U + 0.56)
+		for _, s in ipairs({ -1, 1 }) do
+			local grip = solid("YokeGrip", Enum.PartType.Block, Vector3.new(0.3, 0.7, 0.3), Color3.fromRGB(18, 20, 30))
+			grip.CFrame = boxCF(fSeat + 0.030, l + s * 0.9 / hl, FLOOR_U + 0.60)
+		end
+	end
+	buildPilot(-2.6, true)   -- الكابتن (يسار)
+	buildPilot(2.6, false)   -- المساعد (يمين)
 
 	-- باب القفز القابل للفتح (لوح صلب على الجانب الأيسر؛ يُفتح بالـE)
 	local doorClosedCF = CFrame.fromMatrix(at(-0.18, -0.96, (FLOOR_U + CEIL_U) / 2 - 0.05), fwd, up, -lat)
@@ -775,7 +947,7 @@ buildProceduralCanopy = function(): (Model, BasePart)
 	-- مظلّة ملكية واقعية: قبّة قماش معتمة بحوافّ مفصّصة منتفخة + خياطات قطاعات
 	-- (كحلي/ذهبي متناوب) + فتحة تهوية ذهبية بالقمّة + حبال تعليق تتجمّع للـharness.
 	local R = 17
-	local DY = 18                       -- ارتفاع مركز القبّة فوق نقطة التعليق (اللاعب)
+	local DY = 13.5                     -- ارتفاع مركز القبة فوق نقطة التعليق (اللاعب)
 	local HALF_H = R * 0.6              -- نصف ارتفاع القبّة (ضحلة = شكل مظلّة)
 	local GORES = 16
 	local CREAM = Color3.fromRGB(244, 241, 230)
@@ -1023,8 +1195,8 @@ local function run()
 		local c = mk("Part", {
 			Name = "FlightCloud", Shape = Enum.PartType.Ball, Anchored = true,
 			CanCollide = false, CanQuery = false, CanTouch = false, CastShadow = false,
-			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(248, 248, 255),
-			Transparency = 0.28, Size = Vector3.new(sc, sc * 0.5, sc), Parent = cloudFolder,
+			Material = Enum.Material.SmoothPlastic, Color = Color3.fromRGB(228, 233, 240),
+			Transparency = 0.55, Size = Vector3.new(sc, sc * 0.45, sc), Parent = cloudFolder,
 		}) :: BasePart
 		clouds[i] = c
 		placeCloud(c, (math.random() - 0.5) * CLOUD_SPAN)
@@ -1145,6 +1317,7 @@ local function run()
 	if isMobileInput() then
 		hud.chute.Visible = true
 		hud.boost.Visible = true
+		hud.banner.Text = "سقوط حرّ — اسحب إصبعك على الشاشة للتوجيه"
 	else
 		hud.eHint.Text = "اضغط E لفتح المظلّة · استمر بالضغط على Shift لتسريع النزول"
 		hud.eHint.Visible = true
@@ -1152,8 +1325,8 @@ local function run()
 	playSound3D(rootPart, CONFIG.SND_JUMP, 0.7, false)
 	cinematicWind = playSound3D(rootPart, CONFIG.SND_WIND, 0.12, true)
 
-	-- تفعيل تحكّم اللاعب + كاميرا حرّة: WASD/الأسهم (كمبيوتر) أو عصا الجوال للتوجيه،
-	-- والماوس/سحب الإصبع لتدوير الكاميرا — نزول حرّ على طريقة ببجي.
+	-- كاميرا سينمائية ٣٦٠° تلقائية تدور حول اللاعب من زوايا متغيّرة طوال النزول،
+	-- والتوجيه (WASD/عصا الجوال) يبقى شغّالاً نسبةً لاتجاه جسم اللاعب (W = للأمام، A/D = انعطاف).
 	cam.CameraType = Enum.CameraType.Custom
 	cam.CameraSubject = humanoid
 	setControls(true)
@@ -1227,6 +1400,7 @@ local function run()
 	local y = CONFIG.ALTITUDE
 	local px, pz = jumpXZ.X, jumpXZ.Y
 	local faceDir = fallDir
+
 	while true do
 		local dt = RunService.Heartbeat:Wait()
 		vSpeed = math.min(CONFIG.FREEFALL_MAX, vSpeed + CONFIG.FREEFALL_ACC * dt)
@@ -1277,6 +1451,7 @@ local function run()
 
 	while true do
 		local dt = RunService.Heartbeat:Wait()
+		-- بطء زمني درامي لحظة فتح المظلّة يتلاشى تدريجياً خلال ثانية ونص
 		local openBlend = math.clamp((os.clock() - deployStartTime) / 0.72, 0, 1)
 		local canopySpeed = ((deployOpenSpeed > 0 and (deployOpenSpeed + (CONFIG.CANOPY_SPEED - deployOpenSpeed) * openBlend)) or CONFIG.CANOPY_SPEED) * (if boosting then CONFIG.BOOST_CANOPY else 1)
 		y -= canopySpeed * dt
@@ -1292,12 +1467,10 @@ local function run()
 		local swayYaw = math.sin(tt * 1.1) * 0.10
 		local swayRoll = math.sin(tt * 0.9) * 0.08
 		local pos = Vector3.new(px, y, pz)
-		-- الاتجاه: اللاعب يواجه اتجاه الكاميرا الأفقي، بجلسة مظلّي واقعية (مثل ببجي):
-		--          الجسم شبه أفقي — الرأس مائل للأمام/تحت والرِّجل لفوق — والمظلّة تبقى مستوية فوقه.
-		local camFwd = cam.CFrame.LookVector
-		local orientFwd = Vector3.new(camFwd.X, 0, camFwd.Z)
-		orientFwd = if orientFwd.Magnitude > 0.05 then orientFwd.Unit else faceDir
-		local base = CFrame.lookAt(pos, pos + orientFwd)
+		-- الاتجاه: الجسم يواجه اتجاه حركته (لا الكاميرا) — فتبقى الكاميرا حرّة تدور ٣٦٠°
+		--          حول المظلّي من كل الزوايا، بجلسة مظلّي واقعية (مثل ببجي) مع ميلان جانبي
+		--          للجسم والمظلّة أثناء الانعطاف.
+		local base = CFrame.lookAt(pos, pos + faceDir)
 		rootPart.CFrame = base * CFrame.Angles(math.rad(-52), swayYaw, swayRoll)
 		canopy:PivotTo(base * CFrame.Angles(0, swayYaw, swayRoll * 1.6))
 		updateDescentVisuals(altitude, canopySpeed)

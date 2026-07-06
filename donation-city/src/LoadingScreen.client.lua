@@ -75,7 +75,7 @@ local CONFIG = {
 	-- القائمة الرئيسية (Main Menu) — تظهر بعد اللودينغ وقبل دخول اللعبة
 	------------------------------------------------------------------
 	MenuEnabled   = true,                 -- false = ادخل اللعبة مباشرة بدون قائمة
-	MenuVersion   = "الإصدار ٢.٩.٨٨",          -- يظهر أسفل القائمة
+	MenuVersion   = "الإصدار ٣.٠.٧",          -- يظهر أسفل القائمة
 	FreezeOnMenu  = true,                 -- تجميد حركة اللاعب أثناء القائمة
 
 	-- أصوات الزجاج (أرقام Roblox Sound — استبدلها بأرقامك المفضّلة، 0 = صامت)
@@ -104,6 +104,126 @@ local CONFIG = {
 	UpdatesTitle = "تحديثات اللعبة",
 	UpdatesLog = {
 		{
+			version = "٣.٠.٧", date = "٣ يوليو",
+			items = {
+				{ "fixed", "إصلاح توهّج الإضاءة أثناء النزول من الطائرة: غيوم الطيران صارت شفافة وناعمة بدل الكرات البيضاء المتوهّجة، وخفّفنا سطوع الإضاءة السينمائية." },
+			},
+		},
+		{
+			version = "٣.٠.٦", date = "٣ يوليو",
+			items = {
+				{ "new", "تصميم جديد كلياً لصفحة التحديثات: بطاقة «أحدث إصدار» ذهبية مميّزة، شارات ملخّص ملوّنة، وتجميع البنود تحت فئات (جديد / إضافات / تحسينات / إصلاحات) مع خط زمني أنيق." },
+				{ "fixed", "إصلاحات برج الباركور: زر الجسر الأخضر يثبّت الطريق فعلياً، سرعة البساط الملوّن ما تعلق بعد الخروج، وقنبلتك ما تطيّرك أنت." },
+			},
+		},
+		{
+			version = "٣.٠.٥", date = "٣ يوليو",
+			items = {
+				{ "fixed", "تنظيف برج الباركور: حذف إعلانات صانع الموديل الأصلي ومنصّتي HD Admin، وكل اللوحات صارت بالعربي بهوية قروب Shahad-Jori." },
+				{ "added", "تشغيل منصّات الأدوات داخل البرج: كف الصفع، القنبلة المرحة، والبساط الملوّن — أدوات حقيقية تلمسها فتمتلكها." },
+				{ "added", "تفعيل ميكانيكيات البرج كاملة: أجزاء مختفية، منصّات قفز، أرضيات جليدية، بوّابات نقل سرّية، وأزرار الخدعة." },
+				{ "improved", "إصلاح وسادات التسريع بعد إعادة الظهور داخل المسار." },
+			},
+		},
+		{
+			version = "٣.٠.٤", date = "٣ يوليو",
+			items = {
+				{ "new", "باركور جديد كلياً: برج «Troll Obby» من متجر المنشئين — ليزر قاتل، وسادات تسريع، ونقاط حفظ تلقائية مرقّمة حتى القمة." },
+			},
+		},
+		{
+			version = "٣.٠.٣", date = "٣ يوليو",
+			items = {
+				{ "fixed", "تركيب خلفية شاشة اللابتوب بدقة: اللوح ينطبق الآن على ميل غطاء الشاشة نفسه فلا قصّ جانبي ولا بروز خلفي." },
+			},
+		},
+		{
+			version = "٣.٠.٢", date = "٣ يوليو",
+			items = {
+				{ "fixed", "إصلاح عرض خلفية شاشة اللابتوب: الصورة تظهر الآن على وجه الشاشة المواجه للمشاهد بدل الجهة الخلفية." },
+			},
+		},
+		{
+			version = "٣.٠.١", date = "٣ يوليو",
+			items = {
+				{ "fixed", "إصلاح اتجاه لوح شاشة اللابتوب: الخلفية تظهر الآن على وجه الشاشة المواجه للكرسي بدل ما كانت تطلع فاضية." },
+			},
+		},
+		{
+			version = "٣.٠.٠", date = "٣ يوليو",
+			items = {
+				{ "fixed", "إصلاح انطباق خلفية شاشة اللابتوب: اللوح صار أمام سطح الشاشة تماماً وبمحاورها الصحيحة — ما عاد تطلع مقصوصة بالجوانب ولا تبان من خلف الغطاء." },
+			},
+		},
+		{
+			version = "٢.٩.٩٩", date = "٣ يوليو",
+			items = {
+				{ "changed", "خلفية شاشة اللابتوب صارت تملأ كامل الشاشة (بلا هوامش) وبلا تشويه." },
+			},
+		},
+		{
+			version = "٢.٩.٩٨", date = "٣ يوليو",
+			items = {
+				{ "changed", "رجعنا كاميرا النزول من الطائرة لشكلها الأصلي الكلاسيكي (كاميرا تتبع اللاعب) بدل الكاميرا السينمائية ٣٦٠." },
+			},
+		},
+		{
+			version = "٢.٩.٩٧", date = "٤ يوليو",
+			items = {
+				{ "fixed", "إصلاح جذري لشاشة لابتوب مكتب الإدارة: الشاشة تقف باتجاه الكرسي بلا ميلان، والصورة (مربّعة) صارت تظهر كاملة بلا تشويه ولا قصّ فوق خلفية أنيقة مثل خلفية سطح المكتب." },
+			},
+		},
+		{
+			version = "٢.٩.٩٦", date = "٤ يوليو",
+			items = {
+				{ "new", "لابتوب احترافي جديد مصمّم ببلندر على مكتب الإدارة بالقصر: جسم غرافيت بحواف ذهبية، كيبورد كامل، وماوس سلكي موصول — وبنفس خلفية الشاشة الحالية." },
+			},
+		},
+		{
+			version = "٢.٩.٩٥", date = "٤ يوليو",
+			items = {
+				{ "fixed", "سدّ الفجوات الجانبية داخل مقصورة الطائرة: اختفت الشرائط الفاتحة (السماء) على جانبي الأرضية وعند جوانب فاصل غرفة القيادة والمؤخّرة." },
+			},
+		},
+		{
+			version = "٢.٩.٩٤", date = "٤ يوليو",
+			items = {
+				{ "new", "غرفة قيادة كاملة بالطائرة: الكابتن والمساعد بزيّهما الرسمي (قبّعات وشارات ذهبية) جالسان أمام لوحة عدادات مضيئة وأعمدة قيادة — تشوفهم من باب زجاجي بإطار ذهبي." },
+				{ "fixed", "إصلاح حوافّ جدران المقصورة البارزة خارج جسم الطائرة — صارت أقراصاً داخلية بحجم الجسم تماماً." },
+			},
+		},
+		{
+			version = "٢.٩.٩٣", date = "٤ يوليو",
+			items = {
+				{ "improved", "ترتيب مقصورة الطائرة من الداخل: جدار معتم يغطّي المقدّمة والمؤخّرة بالكامل (اختفت الدوائر الذهبية الغريبة وفتحة السماء) + تخفيف الإضاءة والتوهّج القوي داخل المقصورة + مقاعد أنظف وأرتب." },
+			},
+		},
+		{
+			version = "٢.٩.٩٢", date = "٤ يوليو",
+			items = {
+				{ "improved", "لقطات نزول متبادلة احترافية: الكاميرا تتنقّل تلقائياً بين لقطة للطائرة وهي تبتعد، ولقطات على المجسم (مدار وقريبة وجانبية)، ولقطات للخريطة والمدينة (كاميرا ثابتة بالجو يمرّ اللاعب أمامها + علوية)." },
+			},
+		},
+		{
+			version = "٢.٩.٩١", date = "٤ يوليو",
+			items = {
+				{ "improved", "تطوير الكاميرا السينمائية للنزول: لقطات متنوّعة تتبدّل تلقائياً (قريبة على الوجه، جانبية ملاحِقة، علوية تطلّ على المدينة) + مجال رؤية يتّسع مع السرعة + غباش حركة بالسقوط الحر + بطء زمني درامي لحظة فتح المظلّة." },
+			},
+		},
+		{
+			version = "٢.٩.٩٠", date = "٤ يوليو",
+			items = {
+				{ "new", "كاميرا سينمائية ٣٦٠° للنزول: بمجرد القفز من الطائرة الكاميرا تتحوّل لوحدها لطور سينمائي يدور حولك ٣٦٠° بزوايا متغيّرة — لقطة من الأسفل لحظة فتح المظلّة، ومدار يستعرض المدينة، وزاوية أرضية درامية قرب الهبوط." },
+			},
+		},
+		{
+			version = "٢.٩.٨٩", date = "٤ يوليو",
+			items = {
+				{ "new", "نزول واقعي ٣٦٠°: الجسم يلفّ ويميل مع الانعطاف أثناء السقوط الحر وتحت المظلّة، والكاميرا حرّة تدور حولك من كل الزوايا — تقدر تلفّ ٣٦٠ حول نقطة الهبوط مثل الباراشوت الحقيقي." },
+				{ "new", "كاميرا ٣٦٠° للشطرنج: أثناء الجلوس للّعب تقدر تدور حول الطاولة من أي زاوية وتقرّب/تبعّد (سحب بالزر الأيمن + عجلة الماوس على الكمبيوتر، وسحب الإصبع + قرصة الأصابع على الجوال)." },
+			},
+		},
+		{
 			version = "٢.٩.٨٨", date = "٤ يوليو",
 			items = {
 				{ "fix", "الكلبشات: إشعار «أنت مكلبش» صار أصغر وانتقل لأعلى الشاشة فما عاد يغطي الدردشة على الجوال." },
@@ -113,12 +233,16 @@ local CONFIG = {
 		{
 			version = "٢.٩.٨٧", date = "٣ يوليو",
 			items = {
+				{ "fix", "المتجر ما عاد يفتح تلقائياً عند الدخول — يفتح فقط عند الضغط على زر المتجر." },
+				{ "fix", "تناسق شكل المظلّة الاحتياطية مع التصميم الجديد عند تعذّر تحميل المجسم." },
 				{ "fix", "إصلاح الهجوم في الشطرنج: الضغط على قطعة الخصم مباشرة (أو على الحلقة الحمراء/النقطة الخضراء) صار ينفّذ النقلة فوراً — كانت القطعة تحجب الضغطة عن المربع." },
 			},
 		},
 		{
 			version = "٢.٩.٨٦", date = "٣ يوليو",
 			items = {
+				{ "fix", "المظلّة صارت تتزامن مع اللاعب وتستقر على ظهره (الحبال تتجمّع عند ظهره) بدل ما تطير فوقه." },
+				{ "fix", "إصلاح وضوح كتابة جناح الطائرة: لوحة كحلية بإطار ذهبي خلف النص حتى لا يغطّيه الوهج." },
 				{ "fix", "تحسين الشطرنج: حركة القطع صارت فورية وسلسة على الجوال والكمبيوتر — الحركة تُنفّذ محليّاً على جهازك بدل بثّها من السيرفر، مع أسر وقفز حصان أسرع وأنعم." },
 			},
 		},
@@ -1271,83 +1395,174 @@ local function showMainMenu()
 		return { frame = panel, back = back, reveal = collectReveal(panel) }
 	end
 
-	-- ألوان وأسماء وسوم التصنيف في سجلّ التحديثات
-	local TAGS = {
-		new     = { col = Color3.fromRGB(56, 196, 130), label = "جديد" },
-		improve = { col = Color3.fromRGB(86, 162, 240), label = "تحسين" },
-		fix     = { col = Color3.fromRGB(232, 176, 86), label = "إصلاح" },
+	-- فئات سجلّ التحديثات (بالترتيب): جديد / إضافات / تحسينات / إصلاحات
+	local CAT_ORDER = { "new", "add", "improve", "fix" }
+	local CATS = {
+		new     = { col = Color3.fromRGB(56, 196, 130),  label = "جديد" },
+		add     = { col = Color3.fromRGB(168, 120, 240), label = "إضافات" },
+		improve = { col = Color3.fromRGB(86, 162, 240),  label = "تحسينات" },
+		fix     = { col = Color3.fromRGB(232, 176, 86),  label = "إصلاحات" },
 	}
+	local CAT_ALIAS = {
+		new = "new", add = "add", added = "add", improve = "improve",
+		improved = "improve", change = "improve", changed = "improve",
+		fix = "fix", fixed = "fix",
+	}
+	local function groupItems(items)
+		local by = {}
+		for _, item in ipairs(items) do
+			local key = CAT_ALIAS[item[1]] or "new"
+			by[key] = by[key] or {}
+			table.insert(by[key], item[2])
+		end
+		return by
+	end
 
-	-- بانل التحديثات: سجلّ احترافي (خطّ زمني + شرائح إصدار + وسوم تصنيف)
+	-- بانل التحديثات: بطاقة «أحدث إصدار» مميّزة + خطّ زمني للإصدارات الأقدم،
+	-- والبنود مجمّعة تحت فئات ملوّنة مع شارات ملخّص.
 	local function makeUpdatesPanel(titleText: string, log)
 		local panel, scroll, back = panelShell(titleText, "آخر ما طوّرناه في مدينة شهد")
 		new("UIListLayout", { Padding = UDim.new(0, 20), SortOrder = Enum.SortOrder.LayoutOrder, Parent = scroll })
 		new("UIPadding", { PaddingRight = UDim.new(0, 14), PaddingLeft = UDim.new(0, 8), PaddingTop = UDim.new(0, 4), Parent = scroll })
 
+		-- أقسام الفئات داخل بطاقة إصدار: رأس ملوّن بشريط جانبي + بنود نقطية
+		local function fillCategories(vcard, items, startOrder)
+			local order = startOrder
+			local grouped = groupItems(items)
+			for _, key in ipairs(CAT_ORDER) do
+				local list = grouped[key]
+				if list then
+					local cat = CATS[key]
+					local head = new("Frame", {
+						BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 26), LayoutOrder = order, ZIndex = 6, Parent = vcard,
+					})
+					order += 1
+					new("Frame", {
+						BackgroundColor3 = cat.col, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
+						Size = UDim2.fromOffset(5, 20), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 7, Parent = head,
+					})
+					new("TextLabel", {
+						BackgroundTransparency = 1, Text = cat.label, Font = Enum.Font.GothamBold, TextSize = 18,
+						TextColor3 = cat.col, TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5),
+						Size = UDim2.new(1, -14, 0, 24), Position = UDim2.new(1, -12, 0.5, 0), ZIndex = 7, Parent = head,
+					})
+					for _, txt in ipairs(list) do
+						local row = new("Frame", {
+							BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
+							LayoutOrder = order, ZIndex = 6, Parent = vcard,
+						})
+						order += 1
+						local bullet = new("Frame", {
+							BackgroundColor3 = cat.col, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0),
+							Size = UDim2.fromOffset(7, 7), Position = UDim2.new(1, -8, 0, 8), ZIndex = 7, Parent = row,
+						})
+						new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = bullet })
+						new("TextLabel", {
+							BackgroundTransparency = 1, Text = txt, Font = Enum.Font.GothamMedium, TextSize = 17, TextColor3 = ROYAL.Text,
+							TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
+							AutomaticSize = Enum.AutomaticSize.Y, AnchorPoint = Vector2.new(1, 0),
+							Size = UDim2.new(1, -28, 0, 0), Position = UDim2.new(1, -26, 0, 0), ZIndex = 6, Parent = row,
+						})
+					end
+				end
+			end
+			return order
+		end
+
 		for vi, entry in ipairs(log) do
+			local latest = (vi == 1)
 			local block = new("Frame", {
 				Name = "Ver_" .. vi, BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0),
 				AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = vi, ZIndex = 6, Parent = scroll,
 			})
-			new("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder, Parent = block })
 
-			-- صفّ رأس الإصدار: نقطة + شريحة إصدار + تاريخ (RTL → يمين)
-			local header = new("Frame", {
-				Name = "Head", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 40), LayoutOrder = 1, ZIndex = 6, Parent = block,
-			})
-			local dot = new("Frame", {
-				BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0.5),
-				Size = UDim2.fromOffset(16, 16), Position = UDim2.new(1, 0, 0.5, 0), ZIndex = 7, Parent = header,
-			})
-			new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = dot })
-			new("UIStroke", { Color = ROYAL.GoldHi, Thickness = 2, Parent = dot })
-			local pill = new("TextLabel", {
-				Name = "Pill", BackgroundColor3 = Color3.fromRGB(58, 46, 20), BackgroundTransparency = 0,
-				Text = "الإصدار " .. entry.version, Font = Enum.Font.GothamBold, TextSize = 20, TextColor3 = ROYAL.GoldHi,
-				TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(1, 0.5),
-				Size = UDim2.fromOffset(166, 36), Position = UDim2.new(1, -32, 0.5, 0), ZIndex = 7, Parent = header,
-			})
-			new("UICorner", { CornerRadius = UDim.new(0, 18), Parent = pill })
-			new("UIStroke", { Color = ROYAL.Gold, Thickness = 1, Parent = pill })
-			new("TextLabel", {
-				BackgroundTransparency = 1, Text = entry.date, Font = Enum.Font.GothamMedium, TextSize = 16, TextColor3 = ROYAL.Sub,
-				TextXAlignment = Enum.TextXAlignment.Right, AnchorPoint = Vector2.new(1, 0.5),
-				Size = UDim2.fromOffset(120, 24), Position = UDim2.new(1, -210, 0.5, 0), ZIndex = 7, Parent = header,
-			})
+			-- نقطة الخط الزمني (للإصدارات الأقدم فقط)
+			if not latest then
+				local dot = new("Frame", {
+					BackgroundColor3 = ROYAL.Gold, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0),
+					Size = UDim2.fromOffset(14, 14), Position = UDim2.new(1, 0, 0, 18), ZIndex = 7, Parent = block,
+				})
+				new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = dot })
+				new("UIStroke", { Color = ROYAL.GoldHi, Thickness = 2, Parent = dot })
+			end
 
-			-- بطاقة بنود الإصدار
+			-- بطاقة الإصدار
 			local vcard = new("Frame", {
-				Name = "Card", BackgroundColor3 = Color3.fromRGB(30, 37, 55), BackgroundTransparency = 0, BorderSizePixel = 0,
-				Size = UDim2.new(1, -32, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, LayoutOrder = 2, ZIndex = 6, Parent = block,
+				Name = "Card", BackgroundColor3 = latest and Color3.fromRGB(26, 32, 50) or Color3.fromRGB(30, 37, 55),
+				BackgroundTransparency = 0, BorderSizePixel = 0, AnchorPoint = Vector2.new(1, 0),
+				Size = UDim2.new(1, latest and 0 or -28, 0, 0), Position = UDim2.new(1, latest and 0 or -28, 0, 0),
+				AutomaticSize = Enum.AutomaticSize.Y, ZIndex = 6, Parent = block,
 			})
-			new("UICorner", { CornerRadius = UDim.new(0, 16), Parent = vcard })
-			new("UIStroke", { Color = Color3.fromRGB(64, 76, 102), Thickness = 1, Parent = vcard })
+			new("UICorner", { CornerRadius = UDim.new(0, 18), Parent = vcard })
+			new("UIStroke", {
+				Color = latest and ROYAL.Gold or Color3.fromRGB(64, 76, 102),
+				Thickness = latest and 2 or 1, Parent = vcard,
+			})
 			new("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder, Parent = vcard })
 			new("UIPadding", {
-				PaddingRight = UDim.new(0, 14), PaddingLeft = UDim.new(0, 14),
-				PaddingTop = UDim.new(0, 12), PaddingBottom = UDim.new(0, 12), Parent = vcard,
+				PaddingRight = UDim.new(0, 16), PaddingLeft = UDim.new(0, 16),
+				PaddingTop = UDim.new(0, 14), PaddingBottom = UDim.new(0, 14), Parent = vcard,
 			})
 
-			for ii, item in ipairs(entry.items) do
-				local tag = TAGS[item[1]] or TAGS.new
-				local row = new("Frame", {
-					BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y,
-					LayoutOrder = ii, ZIndex = 6, Parent = vcard,
+			local order = 1
+			-- شارة «أحدث إصدار»
+			if latest then
+				local badgeRow = new("Frame", {
+					BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 30), LayoutOrder = order, ZIndex = 6, Parent = vcard,
 				})
-				local chip = new("TextLabel", {
-					BackgroundColor3 = tag.col, BackgroundTransparency = 0.82, Text = tag.label, Font = Enum.Font.GothamBold,
-					TextSize = 14, TextColor3 = tag.col, TextXAlignment = Enum.TextXAlignment.Center,
-					AnchorPoint = Vector2.new(1, 0), Size = UDim2.fromOffset(62, 26), Position = UDim2.new(1, 0, 0, 1), ZIndex = 7, Parent = row,
+				order += 1
+				local badge = new("TextLabel", {
+					BackgroundColor3 = Color3.fromRGB(58, 46, 20), Text = "أحدث إصدار", Font = Enum.Font.GothamBold,
+					TextSize = 15, TextColor3 = ROYAL.GoldHi, TextXAlignment = Enum.TextXAlignment.Center,
+					AnchorPoint = Vector2.new(1, 0.5), Size = UDim2.fromOffset(118, 28), Position = UDim2.new(1, 0, 0.5, 0),
+					ZIndex = 7, Parent = badgeRow,
 				})
-				new("UICorner", { CornerRadius = UDim.new(0, 13), Parent = chip })
-				new("UIStroke", { Color = tag.col, Thickness = 1, Parent = chip })
-				new("TextLabel", {
-					BackgroundTransparency = 1, Text = item[2], Font = Enum.Font.GothamMedium, TextSize = 17, TextColor3 = ROYAL.Text,
-					TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Right, TextYAlignment = Enum.TextYAlignment.Top,
-					AutomaticSize = Enum.AutomaticSize.Y, AnchorPoint = Vector2.new(1, 0),
-					Size = UDim2.new(1, -78, 0, 0), Position = UDim2.new(1, -76, 0, 2), ZIndex = 6, Parent = row,
-				})
+				new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = badge })
+				new("UIStroke", { Color = ROYAL.Gold, Thickness = 1, Parent = badge })
 			end
+
+			-- الإصدار + التاريخ
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = "الإصدار " .. entry.version, Font = Enum.Font.GothamBlack,
+				TextSize = latest and 26 or 22, TextColor3 = latest and ROYAL.GoldHi or ROYAL.Text,
+				TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(1, 0, 0, latest and 32 or 28),
+				LayoutOrder = order, ZIndex = 7, Parent = vcard,
+			})
+			order += 1
+			new("TextLabel", {
+				BackgroundTransparency = 1, Text = entry.date, Font = Enum.Font.GothamMedium, TextSize = 15,
+				TextColor3 = ROYAL.Sub, TextXAlignment = Enum.TextXAlignment.Right, Size = UDim2.new(1, 0, 0, 20),
+				LayoutOrder = order, ZIndex = 7, Parent = vcard,
+			})
+			order += 1
+
+			-- شارات الملخّص (لأحدث إصدار): عدد بنود كل فئة
+			if latest then
+				local grouped = groupItems(entry.items)
+				local chipsRow = new("Frame", {
+					BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 32), LayoutOrder = order, ZIndex = 6, Parent = vcard,
+				})
+				order += 1
+				local x = 0
+				for _, key in ipairs(CAT_ORDER) do
+					local list = grouped[key]
+					if list then
+						local cat = CATS[key]
+						local chip = new("TextLabel", {
+							BackgroundColor3 = cat.col, BackgroundTransparency = 0.84,
+							Text = cat.label .. " " .. tostring(#list), Font = Enum.Font.GothamBold, TextSize = 14,
+							TextColor3 = cat.col, TextXAlignment = Enum.TextXAlignment.Center,
+							AnchorPoint = Vector2.new(1, 0.5), Size = UDim2.fromOffset(92, 28),
+							Position = UDim2.new(1, -x, 0.5, 0), ZIndex = 7, Parent = chipsRow,
+						})
+						new("UICorner", { CornerRadius = UDim.new(1, 0), Parent = chip })
+						new("UIStroke", { Color = cat.col, Thickness = 1, Parent = chip })
+						x += 100
+					end
+				end
+			end
+
+			fillCategories(vcard, entry.items, order)
 		end
 
 		return { frame = panel, back = back, reveal = collectReveal(panel) }
