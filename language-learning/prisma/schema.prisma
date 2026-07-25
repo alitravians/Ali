@@ -1,0 +1,925 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          String    @default("user") // user | admin | moderator
+  chatRank      String    @default("member") // member | vip | teacher | tester | moderator | admin
+  chatBadgeColor String   @default("#6b7280")
+  avatar        String    @default("") // base64 encoded avatar image
+  points        Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  progress      UserProgress[]
+  testResults   TestResult[]
+  certificates  Certificate[]
+  badges        UserBadge[]
+  notifications Notification[]
+  tickets       Ticket[]
+  notificationSettings NotificationSettings?
+  lastNameChange DateTime?
+  chatMessages  ChatMessage[]
+  chatWarnings  ChatWarning[]
+  chatBans      ChatBan[]
+  banAppeals    BanAppeal[]
+  adminActions  ChatAdminLog[] @relation("AdminActor")
+  escalationsReceived ChatEscalation[] @relation("EscalatedUser")
+  escalationsReported ChatEscalation[] @relation("EscalationReporter")
+  nameChangeRequests NameChangeRequest[]
+  teamMemberships TeamMember[]
+  moderatorRole   ModeratorRole? @relation("ModeratorUser")
+  modReports      ModReport[] @relation("ReportedUser")
+  modViolations   ModViolationRecord[] @relation("ViolationUser")
+  inventoryItems  UserInventory[]
+  xp              Int       @default(0)
+  level           Int       @default(1)
+  totalXpEarned   Int       @default(0)
+  lastXpMessageAt DateTime?
+  lastLoginReward DateTime?
+  lastDailyReset  DateTime?
+  xpLogs          XpLog[]
+  pointLogs       PointLog[]
+  purchases       Purchase[]
+  dailyQuestProgress DailyQuestProgress[]
+  chatPresences  ChatPresence[]
+}
+
+model Language {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  code        String   @unique
+  flag        String   @default("")
+  description String   @default("")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  levels      Level[]
+}
+
+model Level {
+  id           String   @id @default(cuid())
+  name         String
+  nameAr       String
+  order        Int
+  description  String   @default("")
+  passingScore Int      @default(70)
+  languageId   String
+  createdAt    DateTime @default(now())
+
+  language     Language  @relation(fields: [languageId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+  tests        Test[]
+  progress     UserProgress[]
+  certificates Certificate[]
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String
+  order       Int
+  content     String   @default("")
+  levelId     String
+  createdAt   DateTime @default(now())
+
+  level       Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  words       Word[]
+  grammarRules GrammarRule[]
+  questions   Question[]
+}
+
+model Word {
+  id            String   @id @default(cuid())
+  word          String
+  translation   String
+  translationAr String   @default("")
+  pronunciation String   @default("")
+  example       String   @default("")
+  exampleTranslation String @default("")
+  audioUrl      String   @default("")
+  lessonId      String
+  createdAt     DateTime @default(now())
+
+  lesson        Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model GrammarRule {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String   @default("")
+  explanation String
+  explanationAr String @default("")
+  examples    String   @default("[]")
+  lessonId    String
+  createdAt   DateTime @default(now())
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  type        String   // multiple_choice | matching | writing | listening | pronunciation
+  question    String
+  questionAr  String   @default("")
+  options     String   @default("[]")
+  answer      String
+  explanation String   @default("")
+  audioUrl    String   @default("")
+  points      Int      @default(10)
+  lessonId    String
+  createdAt   DateTime @default(now())
+
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Test {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String   @default("")
+  type        String   @default("level") // lesson | level | final
+  passingScore Int     @default(70)
+  levelId     String
+  createdAt   DateTime @default(now())
+
+  level       Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  results     TestResult[]
+}
+
+model TestResult {
+  id          String   @id @default(cuid())
+  score       Int
+  totalPoints Int
+  passed      Boolean
+  answers     String   @default("[]")
+  userId      String
+  testId      String
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  test        Test     @relation(fields: [testId], references: [id], onDelete: Cascade)
+}
+
+model UserProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  levelId         String
+  completedLessons String  @default("[]")
+  readingScore    Int      @default(0)
+  writingScore    Int      @default(0)
+  listeningScore  Int      @default(0)
+  speakingScore   Int      @default(0)
+  overallProgress Int      @default(0)
+  isCompleted     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level           Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, levelId])
+}
+
+model Certificate {
+  id              String   @id @default(cuid())
+  certificateCode String   @unique
+  userName        String
+  languageName    String
+  levelName       String
+  score           Int      @default(0)
+  grade           String   @default("good")
+  gradeAr         String   @default("جيد")
+  readingScore    Int      @default(0)
+  writingScore    Int      @default(0)
+  listeningScore  Int      @default(0)
+  speakingScore   Int      @default(0)
+  issueDate       DateTime @default(now())
+  expiresAt       DateTime?
+  userId          String
+  levelId         String
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level           Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String   @default("")
+  description String   @default("")
+  icon        String   @default("")
+  userId      String
+  earnedAt    DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  title     String
+  titleAr   String   @default("")
+  message   String
+  messageAr String   @default("")
+  type      String   @default("info") // info | success | warning | achievement
+  category  String   @default("general") // educational | certificates | support | account | admin | general
+  icon      String   @default("bell") // bell | book | award | ticket | user | megaphone | star | check | alert
+  link      String   @default("") // internal link e.g. /profile/tickets/123
+  priority  String   @default("normal") // normal | important | urgent
+  isRead    Boolean  @default(false)
+  isDeleted Boolean  @default(false)
+  userId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model NotificationSettings {
+  id                    String  @id @default(cuid())
+  userId                String  @unique
+  inAppEnabled          Boolean @default(true)
+  emailEnabled          Boolean @default(false)
+  educationalEnabled    Boolean @default(true)
+  certificatesEnabled   Boolean @default(true)
+  supportEnabled        Boolean @default(true)
+  accountEnabled        Boolean @default(true)
+  adminEnabled          Boolean @default(true)
+
+  user                  User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AdminNotification {
+  id          String   @id @default(cuid())
+  title       String
+  titleAr     String   @default("")
+  message     String
+  messageAr   String   @default("")
+  category    String   @default("admin")
+  link        String   @default("")
+  priority    String   @default("normal")
+  targetType  String   @default("all") // all | specific
+  targetUsers String   @default("") // comma-separated user IDs if specific
+  sentCount   Int      @default(0)
+  readCount   Int      @default(0)
+  sentAt      DateTime @default(now())
+  sentBy      String   @default("admin")
+}
+
+model SiteSettings {
+  id                 String  @id @default("settings")
+  siteName           String  @default("LinguaMaster")
+  siteDescription    String  @default("منصة تعلم اللغات الأجنبية")
+  logoText           String  @default("L")
+  logoColor1         String  @default("#3b82f6")
+  logoColor2         String  @default("#8b5cf6")
+  maintenanceMode    Boolean @default(false)
+  maintenanceMessage String  @default("الموقع تحت الصيانة حالياً")
+  stampTopText       String  @default("LINGUAMASTER")
+  stampBottomText    String  @default("CERTIFIED")
+  stampCenterText    String  @default("معتمدة")
+  stampVerifyBottomText String @default("VERIFIED")
+  stampVerifyCenterText String @default("موثقة")
+  stampColor         String  @default("#1e40af")
+  stampStars         Int     @default(3)
+  stampShowDots      Boolean @default(true)
+  // Chat settings
+  chatEnabled        Boolean @default(true)
+  chatPrivateEnabled Boolean @default(false)
+  chatFileUpload     Boolean @default(false)
+  chatBannedWords    String  @default("")
+  chatAutoFilter     Boolean @default(true)
+  // Chat lock settings
+  chatLocked         Boolean @default(false)
+  chatLockType       String  @default("full") // full | members_only
+  chatLockReason     String  @default("")
+  chatLockedBy       String  @default("")
+  chatLockedAt       DateTime?
+  // XP settings
+  xpPerMessage       Int     @default(5)
+  xpPerLogin         Int     @default(20)
+  xpPerQuest         Int     @default(50)
+  xpDailyMessageCap  Int     @default(100) // max XP from messages per day
+  xpMinMsgLength     Int     @default(3)   // min message length to earn XP
+  xpMsgCooldown      Int     @default(30)  // seconds between XP-earning messages
+  // Points settings
+  pointsPerMessage   Int     @default(2)
+  pointsPerLogin     Int     @default(10)
+  pointsPerQuest     Int     @default(25)
+  pointsPerLevelUp   Int     @default(100)
+  pointsDailyMsgCap  Int     @default(50) // max points from messages per day
+}
+
+// ==================== Chat System ====================
+
+model ChatRoom {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  description String   @default("")
+  type        String   @default("public") // public | support | educational | admin
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  messages    ChatMessage[]
+  presences   ChatPresence[]
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  content   String
+  roomId    String
+  userId    String
+  isDeleted Boolean  @default(false)
+  isSystem  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatWarning {
+  id        String   @id @default(cuid())
+  userId    String
+  reason    String
+  issuedBy  String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatBan {
+  id        String   @id @default(cuid())
+  userId    String
+  reason    String
+  duration  Int      // minutes: 0 = permanent
+  issuedBy  String
+  isActive  Boolean  @default(true)
+  startedAt DateTime @default(now())
+  endsAt    DateTime
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appeals   BanAppeal[]
+}
+
+model BanAppeal {
+  id        String   @id @default(cuid())
+  banId     String
+  userId    String
+  reason    String
+  status    String   @default("pending") // pending | accepted | rejected | reduced
+  adminNote String   @default("")
+  reviewedBy String  @default("")
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+
+  ban       ChatBan  @relation(fields: [banId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ChatEscalation {
+  id          String   @id @default(cuid())
+  userId      String
+  reportedBy  String
+  reason      String
+  status      String   @default("pending") // pending | reviewed | resolved | dismissed
+  adminNote   String   @default("")
+  reviewedBy  String   @default("")
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+
+  user        User     @relation("EscalatedUser", fields: [userId], references: [id], onDelete: Cascade)
+  reporter    User     @relation("EscalationReporter", fields: [reportedBy], references: [id], onDelete: Cascade)
+}
+
+model ChatAdminLog {
+  id        String   @id @default(cuid())
+  action    String   // warn | ban | unban | mute | rank_change | delete_message | appeal_review | escalation
+  targetUserId String
+  adminId   String
+  details   String   @default("")
+  createdAt DateTime @default(now())
+
+  admin     User     @relation("AdminActor", fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model Ticket {
+  id          String   @id @default(cuid())
+  ticketCode  String   @unique
+  subject     String
+  description String
+  category    String   @default("general") // technical | general | account | tests | certificates
+  priority    String   @default("medium")  // low | medium | high
+  status      String   @default("open")    // open | in_review | replied | closed
+  userId      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    TicketMessage[]
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  content   String
+  isAdmin   Boolean  @default(false)
+  senderName String  @default("")
+  ticketId  String
+  createdAt DateTime @default(now())
+
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model SystemScan {
+  id              String   @id @default(cuid())
+  status          String   @default("running") // running | completed | failed
+  scanType        String   @default("full") // full | pages | files | api | database | performance | security | tickets | notifications | certificates | tests
+  totalChecks     Int      @default(0)
+  passedChecks    Int      @default(0)
+  failedChecks    Int      @default(0)
+  criticalCount   Int      @default(0)
+  highCount       Int      @default(0)
+  mediumCount     Int      @default(0)
+  lowCount        Int      @default(0)
+  duration        Int      @default(0) // milliseconds
+  summary         String   @default("")
+  startedAt       DateTime @default(now())
+  completedAt     DateTime?
+  startedBy       String   @default("admin")
+
+  issues          SystemIssue[]
+}
+
+model SystemIssue {
+  id              String   @id @default(cuid())
+  name            String
+  type            String   // page | file | api | database | performance | security | config | ui
+  severity        String   // critical | high | medium | low
+  section         String   @default("") // affected page or section
+  fileName        String   @default("")
+  filePath        String   @default("")
+  lineNumber      Int?
+  description     String
+  cause           String   @default("")
+  solution        String   @default("")
+  recommendation  String   @default("")
+  status          String   @default("new") // new | in_progress | fixed | ignored
+  scanId          String
+  detectedAt      DateTime @default(now())
+
+  scan            SystemScan @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Name Change System ====================
+
+model NameChangeRequest {
+  id            String   @id @default(cuid())
+  userId        String
+  currentName   String
+  requestedName String
+  status        String   @default("pending") // pending | approved | rejected | auto_approved
+  reason        String   @default("") // reason for flagging
+  adminNote     String   @default("") // admin rejection reason
+  reviewedBy    String   @default("")
+  createdAt     DateTime @default(now())
+  reviewedAt    DateTime?
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BannedWord {
+  id        String   @id @default(cuid())
+  word      String   @unique
+  category  String   @default("inappropriate") // inappropriate | offensive | misleading | other
+  addedBy   String   @default("admin")
+  createdAt DateTime @default(now())
+}
+
+// ==================== Moderator System ====================
+
+model ModeratorRole {
+  id            String   @id @default(cuid())
+  userId        String
+  rank          String   @default("assistant") // assistant | moderator | head
+  permissions   String   @default("[]") // JSON array of permission strings
+  isActive      Boolean  @default(true)
+  assignedBy    String   @default("")
+  securityPin   String   @default("") // hashed PIN for moderator panel access
+  trustedDevices String  @default("[]") // JSON array of device fingerprints
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user          User     @relation("ModeratorUser", fields: [userId], references: [id], onDelete: Cascade)
+  sessions      ModeratorSession[]
+  activityLogs  ModActivityLog[]
+  reports       ModReport[] @relation("ReporterMod")
+  notifications ModNotification[]
+
+  @@unique([userId])
+}
+
+model ModeratorSession {
+  id            String   @id @default(cuid())
+  moderatorId   String
+  deviceFingerprint String @default("")
+  browser       String   @default("")
+  ipAddress     String   @default("")
+  isActive      Boolean  @default(true)
+  lastActivity  DateTime @default(now())
+  loginAt       DateTime @default(now())
+  logoutAt      DateTime?
+
+  moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+}
+
+model ModInstruction {
+  id            String   @id @default(cuid())
+  title         String
+  content       String
+  priority      String   @default("normal") // normal | important | urgent
+  targetType    String   @default("all") // all | rank | specific
+  targetRank    String   @default("") // assistant | moderator | head
+  targetModId   String   @default("") // specific moderator ID
+  sentBy        String   @default("admin")
+  createdAt     DateTime @default(now())
+
+  acknowledgments ModInstructionAck[]
+}
+
+model ModInstructionAck {
+  id              String   @id @default(cuid())
+  instructionId   String
+  moderatorUserId String
+  status          String   @default("unread") // unread | read | acknowledged | confirmed
+  readAt          DateTime?
+  acknowledgedAt  DateTime?
+
+  instruction     ModInstruction @relation(fields: [instructionId], references: [id], onDelete: Cascade)
+
+  @@unique([instructionId, moderatorUserId])
+}
+
+model ModReport {
+  id              String   @id @default(cuid())
+  reportedUserId  String
+  reportedByModId String
+  violationType   String   // abuse | insult | spam | inappropriate | impersonation | threat | other
+  severity        String   @default("medium") // minor | medium | serious | critical
+  description     String
+  evidence        String   @default("") // message ID or content reference
+  suggestedAction String   @default("")
+  status          String   @default("pending") // pending | reviewed | escalated | resolved | dismissed
+  adminNote       String   @default("")
+  reviewedBy      String   @default("")
+  escalatedTo     String   @default("") // head | admin
+  createdAt       DateTime @default(now())
+  reviewedAt      DateTime?
+
+  reportedUser    User          @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: Cascade)
+  reporter        ModeratorRole @relation("ReporterMod", fields: [reportedByModId], references: [id], onDelete: Cascade)
+}
+
+model ModViolationRecord {
+  id              String   @id @default(cuid())
+  userId          String
+  violationType   String
+  severity        String   @default("medium")
+  description     String
+  action          String   @default("") // warning | temp_ban | escalated
+  actionBy        String   @default("")
+  reportId        String   @default("")
+  createdAt       DateTime @default(now())
+
+  user            User     @relation("ViolationUser", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ModActivityLog {
+  id            String   @id @default(cuid())
+  moderatorId   String
+  action        String   // login | logout | report | warning | ban | escalation | ack_instruction | review_report
+  targetUserId  String   @default("")
+  details       String   @default("")
+  createdAt     DateTime @default(now())
+
+  moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+}
+
+model ModNotification {
+  id            String   @id @default(cuid())
+  moderatorId   String
+  title         String
+  message       String
+  type          String   @default("info") // info | warning | report | instruction | escalation
+  isRead        Boolean  @default(false)
+  link          String   @default("")
+  createdAt     DateTime @default(now())
+
+  moderator     ModeratorRole @relation(fields: [moderatorId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Badge System ====================
+
+model Badge {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  description String   @default("")
+  descriptionAr String @default("")
+  icon        String   @default("⭐") // emoji icon (fallback)
+  imageUrl    String   @default("") // base64 encoded badge image (auto-resized)
+  color       String   @default("#f59e0b") // badge color
+  category    String   @default("general") // general | achievement | rank | special | event
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  assignments BadgeAssignment[]
+}
+
+model BadgeAssignment {
+  id          String   @id @default(cuid())
+  badgeId     String
+  userId      String
+  assignedBy  String   @default("admin")
+  note        String   @default("")
+  isPermanent Boolean  @default(true)
+  durationDays Int     @default(0) // 0 = permanent
+  expiresAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+
+  @@unique([badgeId, userId])
+}
+
+// ==================== Inventory System (الحقيبة) ====================
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String
+  description   String   @default("")
+  descriptionAr String   @default("")
+  type          String   // badge | bubble | entry_effect | necklace | name_frame | avatar_frame | name_color | profile_bg
+  icon          String   @default("✨")
+  imageUrl      String   @default("") // base64 encoded image
+  color         String   @default("#6366f1")
+  previewData   String   @default("{}") // JSON config for visual preview
+  videoUrl      String   @default("") // path to MP4 video file for entry effects
+  soundUrl      String   @default("") // path to audio file for entry effects
+  effectDuration Int     @default(5) // duration in seconds for video/sound effects
+  category      String   @default("general") // general | achievement | rank | special | event | seasonal
+  rarity        String   @default("common") // common | uncommon | rare | epic | legendary
+  isActive      Boolean  @default(true)
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  userItems     UserInventory[]
+}
+
+model UserInventory {
+  id            String    @id @default(cuid())
+  userId        String
+  itemId        String
+  status        String    @default("inactive") // active | inactive | expired | revoked
+  isPermanent   Boolean   @default(true)
+  durationDays  Int       @default(0)
+  grantedAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  activatedAt   DateTime?
+  revokedAt     DateTime?
+  revokedBy     String    @default("")
+  revokeReason  String    @default("")
+  grantedBy     String    @default("admin")
+  adminNote     String    @default("")
+
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  item          InventoryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, itemId])
+}
+
+model InventoryLog {
+  id          String   @id @default(cuid())
+  userId      String
+  itemId      String
+  action      String   // granted | activated | deactivated | expired | revoked | swapped
+  details     String   @default("")
+  performedBy String   @default("")
+  createdAt   DateTime @default(now())
+}
+
+// ==================== Team System ====================
+
+model TeamDepartment {
+  id        String   @id @default(cuid())
+  name      String   @default("")
+  nameAr    String
+  color     String   @default("#2563eb") // department header color
+  order     Int      @default(0)
+  isVisible Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  members   TeamMember[]
+}
+
+model TeamMember {
+  id           String   @id @default(cuid())
+  userId       String
+  departmentId String
+  role         String   @default("") // e.g. المدير العام, مشرف دردشة
+  roleAr       String   @default("")
+  order        Int      @default(0)
+  isVisible    Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   TeamDepartment @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+}
+
+// ==================== Announcements System ====================
+
+model Announcement {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  importance  String   @default("normal") // normal | important | urgent
+  placement   String   @default("banner") // banner | popup | chat_pin | notification_center
+  targetType  String   @default("all") // all | members | moderators | specific
+  targetUsers String   @default("") // comma-separated user IDs
+  status      String   @default("published") // published | expired | hidden
+  isPinned    Boolean  @default(false)
+  showOnce    Boolean  @default(false) // show only once per user
+  publishedAt DateTime @default(now())
+  expiresAt   DateTime?
+  createdBy   String   @default("")
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  reads       AnnouncementRead[]
+}
+
+model AnnouncementRead {
+  id             String   @id @default(cuid())
+  announcementId String
+  userId         String
+  readAt         DateTime @default(now())
+
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+// ==================== Chat Presence ====================
+
+model ChatPresence {
+  id        String   @id @default(cuid())
+  userId    String
+  roomId    String
+  lastSeen  DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room      ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+}
+
+// ==================== Chat Lock Log ====================
+
+model ChatLockLog {
+  id        String   @id @default(cuid())
+  action    String   // lock | unlock
+  lockType  String   @default("full") // full | members_only
+  reason    String   @default("")
+  adminId   String
+  adminName String   @default("")
+  createdAt DateTime @default(now())
+}
+
+// ==================== XP & Level System ====================
+
+model XpLog {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int
+  source    String   // message | login | quest | level_up | admin | achievement
+  details   String   @default("")
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Points System ====================
+
+model PointLog {
+  id        String   @id @default(cuid())
+  userId    String
+  amount    Int      // positive = earned, negative = spent
+  source    String   // message | login | quest | level_up | purchase | admin | achievement
+  details   String   @default("")
+  balanceAfter Int   @default(0)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Shop System ====================
+
+model ShopItem {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String
+  description   String   @default("")
+  descriptionAr String   @default("")
+  type          String   // entry_effect | necklace | badge
+  price         Int      @default(100)
+  imageUrl      String   @default("")
+  icon          String   @default("🛒")
+  color         String   @default("#6366f1")
+  previewData   String   @default("{}") // JSON config
+  isPermanent   Boolean  @default(true)
+  durationDays  Int      @default(0) // 0 = permanent
+  isActive      Boolean  @default(true)
+  isLimited     Boolean  @default(false) // limited time offer
+  limitedUntil  DateTime?
+  stock         Int      @default(-1) // -1 = unlimited
+  soldCount     Int      @default(0)
+  category      String   @default("general") // general | seasonal | limited | event
+  rarity        String   @default("common") // common | uncommon | rare | epic | legendary
+  inventoryItemId String @default("") // link to inventory item template
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  purchases     Purchase[]
+}
+
+model Purchase {
+  id          String   @id @default(cuid())
+  userId      String
+  shopItemId  String
+  price       Int
+  status      String   @default("completed") // completed | refunded
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shopItem    ShopItem @relation(fields: [shopItemId], references: [id], onDelete: Cascade)
+}
+
+// ==================== Daily Quests System ====================
+
+model DailyQuest {
+  id          String   @id @default(cuid())
+  name        String
+  nameAr      String
+  description String   @default("")
+  descriptionAr String @default("")
+  type        String   // login | messages | activity | custom
+  target      Int      @default(1) // target count to complete
+  xpReward    Int      @default(50)
+  pointsReward Int     @default(25)
+  icon        String   @default("⭐")
+  isActive    Boolean  @default(true)
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  progress    DailyQuestProgress[]
+}
+
+model DailyQuestProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  questId     String
+  progress    Int      @default(0)
+  isCompleted Boolean  @default(false)
+  isRewarded  Boolean  @default(false)
+  date        String   // YYYY-MM-DD format for daily reset
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest       DailyQuest @relation(fields: [questId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questId, date])
+}

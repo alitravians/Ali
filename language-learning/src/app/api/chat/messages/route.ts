@@ -1,0 +1,369 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { sanitizeInput } from "@/lib/validation";
+import { checkRateLimit, getClientIp, RATE_LIMITS } from "@/lib/rate-limit";
+
+export async function GET(request: Request) {
+  try {
+    // Require authentication to read chat messages
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const roomId = searchParams.get("roomId");
+    const cursor = searchParams.get("cursor");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
+
+    if (!roomId) {
+      return NextResponse.json({ error: "roomId مطلوب" }, { status: 400 });
+    }
+
+    const messages = await prisma.chatMessage.findMany({
+      where: {
+        roomId,
+        isDeleted: false,
+      },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            chatRank: true,
+            chatBadgeColor: true,
+          },
+        },
+      },
+    });
+
+    // Enrich messages with user badges
+    const userIds = Array.from(new Set(messages.map((m) => m.userId)));
+    const badgeAssignments = await prisma.badgeAssignment.findMany({
+      where: { userId: { in: userIds } },
+      include: { badge: { select: { icon: true, imageUrl: true, nameAr: true, color: true, isActive: true } } },
+    });
+    const userBadgesMap: Record<string, { icon: string; imageUrl: string; nameAr: string; color: string }[]> = {};
+    for (const ba of badgeAssignments) {
+      if (!ba.badge.isActive) continue;
+      // Filter out expired temporary badges
+      if (!ba.isPermanent && ba.expiresAt && new Date(ba.expiresAt) < new Date()) continue;
+      if (!userBadgesMap[ba.userId]) userBadgesMap[ba.userId] = [];
+      userBadgesMap[ba.userId].push({ icon: ba.badge.icon, imageUrl: ba.badge.imageUrl, nameAr: ba.badge.nameAr, color: ba.badge.color });
+    }
+
+    // Get active inventory items (bubbles, necklaces, entry effects) for users
+    const activeInventory = await prisma.userInventory.findMany({
+      where: {
+        userId: { in: userIds },
+        status: "active",
+        item: { type: { in: ["bubble", "necklace", "entry_effect"] } },
+      },
+      include: { item: true },
+    });
+
+    const userInventoryMap: Record<string, Record<string, { previewData: string; icon: string; color: string; nameAr: string; rarity?: string; videoUrl?: string; soundUrl?: string; effectDuration?: number }>> = {};
+    for (const inv of activeInventory) {
+      // Auto-expire check
+      if (!inv.isPermanent && inv.expiresAt && new Date(inv.expiresAt) < new Date()) {
+        await prisma.userInventory.update({ where: { id: inv.id }, data: { status: "expired" } });
+        continue;
+      }
+      if (!userInventoryMap[inv.userId]) userInventoryMap[inv.userId] = {};
+      userInventoryMap[inv.userId][inv.item.type] = {
+        previewData: inv.item.previewData,
+        icon: inv.item.icon,
+        color: inv.item.color,
+        nameAr: inv.item.nameAr,
+        rarity: inv.item.rarity,
+        videoUrl: inv.item.videoUrl || undefined,
+        soundUrl: inv.item.soundUrl || undefined,
+        effectDuration: inv.item.effectDuration || 5,
+      };
+    }
+
+    const enriched = messages.map((m) => ({
+      ...m,
+      userBadges: userBadgesMap[m.userId] || [],
+      userInventory: userInventoryMap[m.userId] || {},
+    }));
+
+    return NextResponse.json(enriched.reverse());
+  } catch {
+    return NextResponse.json({ error: "فشل في جلب الرسائل" }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const userId = (session.user as { id: string }).id;
+    const userRole = (session.user as { role?: string }).role;
+
+    // Check chat lock status
+    const siteSettings = await prisma.siteSettings.findFirst({ where: { id: "settings" } });
+    if (siteSettings?.chatLocked && userRole !== "admin") {
+      if (siteSettings.chatLockType === "full") {
+        return NextResponse.json({ error: "الدردشة مغلقة حالياً", lockReason: siteSettings.chatLockReason || "" }, { status: 403 });
+      }
+      if (siteSettings.chatLockType === "members_only") {
+        const userChatRank = (session.user as { chatRank?: string }).chatRank;
+        if (!userChatRank || userChatRank === "member") {
+          return NextResponse.json({ error: "الدردشة مقفلة للأعضاء العاديين", lockReason: siteSettings.chatLockReason || "" }, { status: 403 });
+        }
+      }
+    }
+
+    // Check if user is banned
+    const activeBan = await prisma.chatBan.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        endsAt: { gt: new Date() },
+      },
+    });
+
+    if (activeBan) {
+      return NextResponse.json({
+        error: "أنت محظور من الدردشة",
+        ban: {
+          reason: activeBan.reason,
+          endsAt: activeBan.endsAt,
+        },
+      }, { status: 403 });
+    }
+
+    // Rate limiting: 30 messages per minute
+    const msgIp = getClientIp(request);
+    const msgRateCheck = checkRateLimit(`chat:${userId}:${msgIp}`, RATE_LIMITS.CHAT_MESSAGE);
+    if (!msgRateCheck.allowed) {
+      return NextResponse.json({ error: "أنت ترسل رسائل بسرعة كبيرة. انتظر قليلاً" }, { status: 429 });
+    }
+
+    const body = await request.json();
+    const { content, roomId } = body;
+
+    if (!content || !roomId) {
+      return NextResponse.json({ error: "المحتوى والغرفة مطلوبان" }, { status: 400 });
+    }
+
+    // Validate roomId exists
+    const room = await prisma.chatRoom.findUnique({ where: { id: roomId } });
+    if (!room) {
+      return NextResponse.json({ error: "الغرفة غير موجودة" }, { status: 404 });
+    }
+
+    // Check for bold message (admin/moderator with bold_message permission)
+    const user = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, chatRank: true } });
+    const isStaff = user?.role === "admin" || user?.chatRank === "moderator" || user?.chatRank === "admin";
+    
+    // Check if user has bold_message permission via moderator role
+    let hasBoldPermission = user?.role === "admin"; // admin always has bold
+    if (!hasBoldPermission) {
+      const modRole = await prisma.moderatorRole.findUnique({ where: { userId }, select: { permissions: true, isActive: true } });
+      if (modRole?.isActive) {
+        const perms: string[] = JSON.parse(modRole.permissions || "[]");
+        hasBoldPermission = perms.includes("bold_message") || perms.includes("all");
+      }
+    }
+    
+    let isBold = false;
+    let processedContent = sanitizeInput(content.slice(0, 1000));
+    const requestedBold = body.bold === true;
+
+    if (processedContent.startsWith("$") || requestedBold) {
+      if (processedContent.startsWith("$")) {
+        processedContent = processedContent.slice(1).trim();
+      }
+      if (hasBoldPermission || isStaff) {
+        isBold = true;
+        if (!processedContent) {
+          return NextResponse.json({ error: "الرسالة فارغة" }, { status: 400 });
+        }
+      } else {
+        if (!processedContent) {
+          return NextResponse.json({ error: "الرسالة فارغة" }, { status: 400 });
+        }
+      }
+    }
+
+    // Word filter
+    const settings = await prisma.siteSettings.findFirst();
+    let filteredContent = processedContent;
+
+    if (settings?.chatAutoFilter && settings?.chatBannedWords) {
+      const bannedWords = settings.chatBannedWords.split(",").map((w: string) => w.trim()).filter(Boolean);
+      for (const word of bannedWords) {
+        if (word) {
+          const regex = new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+          filteredContent = filteredContent.replace(regex, "***");
+        }
+      }
+    }
+
+    // If bold, prefix with marker
+    const finalContent = isBold ? `[BOLD]${filteredContent}` : filteredContent;
+
+    const message = await prisma.chatMessage.create({
+      data: {
+        content: finalContent,
+        roomId,
+        userId,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            role: true,
+            chatRank: true,
+            chatBadgeColor: true,
+          },
+        },
+      },
+    });
+
+    // Award XP and Points for message (non-admin, with anti-spam)
+    if (userRole !== "admin" && processedContent.length >= (siteSettings?.xpMinMsgLength || 3)) {
+      const now = new Date();
+      const fullUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (fullUser) {
+        const cooldownMs = (siteSettings?.xpMsgCooldown || 30) * 1000;
+        const lastMsg = fullUser.lastXpMessageAt;
+        const canEarn = !lastMsg || (now.getTime() - new Date(lastMsg).getTime()) >= cooldownMs;
+
+        if (canEarn) {
+          // Check daily caps
+          const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+          const todayXp = await prisma.xpLog.aggregate({
+            where: { userId, source: "message", createdAt: { gte: todayStart } },
+            _sum: { amount: true },
+          });
+          const todayPoints = await prisma.pointLog.aggregate({
+            where: { userId, source: "message", createdAt: { gte: todayStart } },
+            _sum: { amount: true },
+          });
+
+          const xpEarned = todayXp._sum.amount || 0;
+          const pointsEarned = todayPoints._sum.amount || 0;
+          const xpCap = siteSettings?.xpDailyMessageCap || 100;
+          const pointsCap = siteSettings?.pointsDailyMsgCap || 50;
+          const xpAmount = siteSettings?.xpPerMessage || 5;
+          const pointsAmount = siteSettings?.pointsPerMessage || 2;
+
+          // Award XP if under cap
+          if (xpEarned < xpCap) {
+            const awardXp = Math.min(xpAmount, xpCap - xpEarned);
+            let newXp = fullUser.xp + awardXp;
+            let newLevel = fullUser.level;
+            let leveledUp = false;
+            while (newXp >= newLevel * 100) {
+              newXp -= newLevel * 100;
+              newLevel++;
+              leveledUp = true;
+            }
+            await prisma.user.update({
+              where: { id: userId },
+              data: { xp: newXp, level: newLevel, totalXpEarned: { increment: awardXp }, lastXpMessageAt: now },
+            });
+            await prisma.xpLog.create({ data: { userId, amount: awardXp, source: "message", details: "رسالة في الدردشة" } });
+
+            if (leveledUp) {
+              const levelUpPoints = siteSettings?.pointsPerLevelUp || 100;
+              await prisma.user.update({ where: { id: userId }, data: { points: { increment: levelUpPoints } } });
+              await prisma.pointLog.create({
+                data: { userId, amount: levelUpPoints, source: "level_up", details: `وصلت للمستوى ${newLevel}`, balanceAfter: fullUser.points + levelUpPoints },
+              });
+              await prisma.notification.create({
+                data: { userId, title: "ارتقاء مستوى!", titleAr: "ارتقاء مستوى!", message: `وصلت للمستوى ${newLevel}! حصلت على ${levelUpPoints} نقطة`, messageAr: `وصلت للمستوى ${newLevel}! حصلت على ${levelUpPoints} نقطة`, type: "success", category: "general", icon: "star" },
+              });
+            }
+          }
+
+          // Award Points if under cap
+          if (pointsEarned < pointsCap) {
+            const awardPts = Math.min(pointsAmount, pointsCap - pointsEarned);
+            await prisma.user.update({ where: { id: userId }, data: { points: { increment: awardPts } } });
+            await prisma.pointLog.create({
+              data: { userId, amount: awardPts, source: "message", details: "رسالة في الدردشة", balanceAfter: fullUser.points + awardPts },
+            });
+          }
+
+          // Update daily quest progress for messages
+          const messageQuests = await prisma.dailyQuest.findMany({ where: { isActive: true, type: { in: ["messages", "activity"] } } });
+          const today = new Date().toISOString().split("T")[0];
+          for (const quest of messageQuests) {
+            const qProgress = await prisma.dailyQuestProgress.findUnique({
+              where: { userId_questId_date: { userId, questId: quest.id, date: today } },
+            });
+            if (qProgress && !qProgress.isCompleted) {
+              const newProgress = qProgress.progress + 1;
+              await prisma.dailyQuestProgress.update({
+                where: { userId_questId_date: { userId, questId: quest.id, date: today } },
+                data: { progress: newProgress, isCompleted: newProgress >= quest.target },
+              });
+            } else if (!qProgress) {
+              await prisma.dailyQuestProgress.create({
+                data: { userId, questId: quest.id, date: today, progress: 1, isCompleted: 1 >= quest.target },
+              });
+            }
+          }
+        }
+      }
+    }
+
+    return NextResponse.json(message);
+  } catch {
+    return NextResponse.json({ error: "فشل في إرسال الرسالة" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 401 });
+    }
+
+    const userRole = (session.user as { role?: string }).role;
+    if (userRole !== "admin") {
+      return NextResponse.json({ error: "غير مصرح" }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const messageId = searchParams.get("id");
+
+    if (!messageId) {
+      return NextResponse.json({ error: "معرف الرسالة مطلوب" }, { status: 400 });
+    }
+
+    const deletedMsg = await prisma.chatMessage.update({
+      where: { id: messageId },
+      data: { isDeleted: true },
+    });
+
+    // Log admin action
+    await prisma.chatAdminLog.create({
+      data: {
+        action: "delete_message",
+        targetUserId: deletedMsg.userId,
+        adminId: (session.user as { id: string }).id,
+        details: `حذف رسالة #${messageId}`,
+      },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json({ error: "فشل في حذف الرسالة" }, { status: 500 });
+  }
+}
