@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/setup_bg">
+
+    <!-- Toolbar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:background="@color/primary"
+        android:elevation="4dp"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp">
+
+        <ImageView
+            android:id="@+id/btn_back"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_enter"
+            android:padding="8dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Back"
+            android:scaleX="-1" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/settings_title"
+            android:textSize="20sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:layout_marginStart="16dp" />
+    </LinearLayout>
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Autocorrect -->
+            <include layout="@layout/settings_switch_item"
+                android:id="@+id/setting_autocorrect" />
+
+            <!-- Suggestions -->
+            <include layout="@layout/settings_switch_item"
+                android:id="@+id/setting_suggestions" />
+
+            <!-- Auto Convert -->
+            <include layout="@layout/settings_switch_item"
+                android:id="@+id/setting_auto_convert" />
+
+            <!-- Translation -->
+            <include layout="@layout/settings_switch_item"
+                android:id="@+id/setting_translation" />
+
+            <!-- Vibration -->
+            <include layout="@layout/settings_switch_item"
+                android:id="@+id/setting_vibration" />
+
+            <!-- Sound -->
+            <include layout="@layout/settings_switch_item"
+                android:id="@+id/setting_sound" />
+
+            <!-- Theme Section -->
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_theme"
+                android:textSize="14sp"
+                android:textColor="@color/primary"
+                android:textStyle="bold"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="8dp" />
+
+            <RadioGroup
+                android:id="@+id/theme_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_card_rounded"
+                android:padding="16dp">
+
+                <RadioButton
+                    android:id="@+id/theme_lebanon"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_theme_lebanon"
+                    android:textSize="16sp"
+                    android:padding="8dp"
+                    android:checked="true"
+                    android:buttonTint="@color/primary" />
+
+                <RadioButton
+                    android:id="@+id/theme_dark"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_theme_dark"
+                    android:textSize="16sp"
+                    android:padding="8dp"
+                    android:buttonTint="@color/primary" />
+
+                <RadioButton
+                    android:id="@+id/theme_light"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_theme_light"
+                    android:textSize="16sp"
+                    android:padding="8dp"
+                    android:buttonTint="@color/primary" />
+            </RadioGroup>
+
+            <!-- Dictionary -->
+            <LinearLayout
+                android:id="@+id/btn_dictionary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:background="@drawable/bg_card_rounded"
+                android:padding="16dp"
+                android:layout_marginTop="16dp"
+                android:gravity="center_vertical"
+                android:foreground="?android:attr/selectableItemBackground">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_dictionary"
+                        android:textSize="16sp"
+                        android:textColor="@color/setup_text_primary" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/settings_dictionary_desc"
+                        android:textSize="13sp"
+                        android:textColor="@color/setup_text_secondary"
+                        android:layout_marginTop="4dp" />
+                </LinearLayout>
+
+                <ImageView
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:src="@drawable/ic_enter"
+                    android:scaleX="-1"
+                    android:contentDescription="Open dictionary" />
+            </LinearLayout>
+
+            <!-- About -->
+            <TextView
+                android:id="@+id/tv_version"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="13sp"
+                android:textColor="@color/setup_text_secondary"
+                android:layout_marginTop="32dp"
+                android:layout_marginBottom="16dp" />
+
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

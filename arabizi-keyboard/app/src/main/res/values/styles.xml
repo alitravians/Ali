@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.ArabiziKeyboard" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:statusBarColor">@color/primary_dark</item>
+        <item name="android:navigationBarColor">@color/primary_dark</item>
+        <item name="android:windowBackground">@color/setup_bg</item>
+    </style>
+
+    <style name="Theme.ArabiziKeyboard.Dark" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorPrimaryDark">@color/primary_dark</item>
+        <item name="colorAccent">@color/accent</item>
+        <item name="android:statusBarColor">@color/dark_keyboard_bg</item>
+        <item name="android:navigationBarColor">@color/dark_keyboard_bg</item>
+        <item name="android:windowBackground">@color/dark_keyboard_bg</item>
+    </style>
+
+    <!-- Setup Wizard Styles -->
+    <style name="SetupCard">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_margin">16dp</item>
+        <item name="android:padding">24dp</item>
+        <item name="android:background">@drawable/bg_card_rounded</item>
+        <item name="android:elevation">4dp</item>
+    </style>
+
+    <style name="SetupTitle">
+        <item name="android:textSize">24sp</item>
+        <item name="android:textColor">@color/setup_text_primary</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:gravity">center</item>
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+    </style>
+
+    <style name="SetupDescription">
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/setup_text_secondary</item>
+        <item name="android:gravity">center</item>
+        <item name="android:lineSpacingExtra">4dp</item>
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">12dp</item>
+    </style>
+
+    <style name="SetupButton" parent="Widget.MaterialComponents.Button">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:paddingStart">32dp</item>
+        <item name="android:paddingEnd">32dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="backgroundTint">@color/primary</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+
+    <style name="SetupButtonOutlined" parent="Widget.MaterialComponents.Button.OutlinedButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:paddingStart">32dp</item>
+        <item name="android:paddingEnd">32dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">@color/primary</item>
+        <item name="strokeColor">@color/primary</item>
+        <item name="cornerRadius">24dp</item>
+    </style>
+
+    <!-- Settings Styles -->
+    <style name="SettingsSwitch" parent="Widget.MaterialComponents.CompoundButton.Switch">
+        <item name="thumbTint">@color/primary</item>
+        <item name="trackTint">@color/primary_light</item>
+    </style>
+
+</resources>

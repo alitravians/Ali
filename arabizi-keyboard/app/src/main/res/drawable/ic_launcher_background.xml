@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Top red stripe - Lebanese flag -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#ED1C24" />
+        </shape>
+    </item>
+    <!-- White middle band -->
+    <item android:top="36dp" android:bottom="36dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#FFFFFF" />
+        </shape>
+    </item>
+    <!-- Bottom green stripe - Lebanese flag -->
+    <item android:top="72dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#00A651" />
+        </shape>
+    </item>
+</layer-list>

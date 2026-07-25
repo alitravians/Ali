@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="24dp">
+
+    <TextView
+        style="@style/SetupTitle"
+        android:text="@string/setup_step_select_title" />
+
+    <TextView
+        style="@style/SetupDescription"
+        android:text="@string/setup_step_select_desc" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_select_keyboard"
+        style="@style/SetupButton"
+        android:layout_marginTop="32dp"
+        android:text="@string/setup_step_select_button" />
+
+</LinearLayout>

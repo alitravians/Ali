@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lebanese Flag Colors -->
+    <color name="lebanon_red">#ED1C24</color>
+    <color name="lebanon_red_dark">#C41920</color>
+    <color name="lebanon_white">#FFFFFF</color>
+    <color name="lebanon_green">#00A651</color>
+    <color name="lebanon_green_dark">#008C45</color>
+
+    <!-- App Theme Colors -->
+    <color name="primary">#ED1C24</color>
+    <color name="primary_dark">#C41920</color>
+    <color name="primary_light">#FF6659</color>
+    <color name="accent">#00A651</color>
+    <color name="accent_dark">#008C45</color>
+
+    <!-- Keyboard Colors - Lebanon Theme -->
+    <color name="keyboard_bg_top">#FFED1C24</color>
+    <color name="keyboard_bg_middle">#FFFFFFFF</color>
+    <color name="keyboard_bg_bottom">#FFED1C24</color>
+    <color name="key_bg_normal">#E6FFFFFF</color>
+    <color name="key_bg_pressed">#CCFFFFFF</color>
+    <color name="key_bg_special">#E6ED1C24</color>
+    <color name="key_bg_special_pressed">#CCC41920</color>
+    <color name="key_text_normal">#FF333333</color>
+    <color name="key_text_special">#FFFFFFFF</color>
+    <color name="key_border">#33000000</color>
+    <color name="key_shadow">#1A000000</color>
+    <color name="suggestion_bar_bg">#F5F5F5</color>
+    <color name="suggestion_text">#333333</color>
+    <color name="suggestion_highlight">#ED1C24</color>
+    <color name="divider_color">#E0E0E0</color>
+
+    <!-- Dark Theme Colors -->
+    <color name="dark_keyboard_bg">#FF1A1A2E</color>
+    <color name="dark_key_bg">#FF2D2D44</color>
+    <color name="dark_key_bg_pressed">#FF3D3D5C</color>
+    <color name="dark_key_text">#FFFFFFFF</color>
+    <color name="dark_key_special_bg">#FFED1C24</color>
+    <color name="dark_suggestion_bar_bg">#FF16213E</color>
+    <color name="dark_suggestion_text">#FFFFFFFF</color>
+
+    <!-- Setup Wizard Colors -->
+    <color name="setup_bg">#FAFAFA</color>
+    <color name="setup_card_bg">#FFFFFF</color>
+    <color name="setup_text_primary">#212121</color>
+    <color name="setup_text_secondary">#757575</color>
+    <color name="setup_indicator_active">#ED1C24</color>
+    <color name="setup_indicator_inactive">#E0E0E0</color>
+</resources>
